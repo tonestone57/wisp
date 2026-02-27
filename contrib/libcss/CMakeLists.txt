@@ -46,6 +46,7 @@ set(LIBCSS_PROPREG_PYTHON_FILES
     ${LIBCSS_PROPREG_OUT_DIR}/cascade_declarations.inc
     ${LIBCSS_PROPREG_OUT_DIR}/parse_declarations.inc
     ${LIBCSS_PROPREG_OUT_DIR}/unit_masks.inc
+    ${LIBCSS_PROPREG_OUT_DIR}/opcodes.inc
 )
 add_custom_command(
     OUTPUT ${LIBCSS_PROPREG_PYTHON_FILES}
@@ -62,6 +63,7 @@ add_custom_command(
         ${LIBCSS_PROPREG_OUT_DIR}/cascade_declarations.inc
         ${LIBCSS_PROPREG_OUT_DIR}/parse_declarations.inc
         ${LIBCSS_PROPREG_OUT_DIR}/unit_masks.inc
+        ${LIBCSS_PROPREG_OUT_DIR}/opcodes.inc
     DEPENDS
         ${CMAKE_SOURCE_DIR}/contrib/libcss/build-aux/property_generator.py
         ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/dispatch.c

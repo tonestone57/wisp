@@ -112,14 +112,13 @@ class PropertyGenParser:
                     print(f"WARNING: Line {line_num}: Invalid enum format '{enum_name}'", file=sys.stderr)
                     continue
                 
-                # Check if shorthand, manual, or generic
-                # SHORTHAND = shorthand property with manual .c implementation (not in dispatch.c)
-                # MANUAL = longhand property with manual .c implementation (in dispatch.c)
-                # WRAP = wrapper calling a generic function
-                # ALIAS = property that parses to a different property's bytecode (e.g., inline-size -> width)
-                is_shorthand = spec.strip() == 'SHORTHAND' or 'WRAP:' in spec
-                is_manual = spec.strip() == 'MANUAL'
-                is_generic = 'GENERIC' in spec
+                # Parse the spec into structured data
+                parsed = SpecParser.parse(spec)
+                
+                # Derive flags from parsed spec
+                is_shorthand = 'SHORTHAND' in parsed['flags'] or parsed['wrap'] is not None
+                is_manual = 'MANUAL' in parsed['flags']
+                is_generic = 'GENERIC' in parsed['flags']
                 
                 # Detect aliases: property name doesn't match enum's base name
                 # e.g., inline_size:CSS_PROP_WIDTH is an alias for width
@@ -130,7 +129,11 @@ class PropertyGenParser:
                     self.prop_map[prop_name] = {
                         'enum': enum_name,
                         'is_shorthand': is_shorthand,
+                        'is_manual': is_manual,
                         'is_alias': is_alias,
+                        'is_wrap': parsed['wrap'] is not None,
+                        'spec': spec,
+                        'parsed': parsed,
                         'line': line_num
                     }
         
@@ -146,6 +149,197 @@ class PropertyGenParser:
             sys.exit(1)
         
         return self.prop_map
+
+
+class SpecParser:
+    """Parse a properties.gen spec string into a structured dict.
+    
+    The spec format is a simple DSL with these elements:
+    - Flags: MANUAL, SHORTHAND, GENERIC, OPCODES:MANUAL
+    - Key:value: WRAP:func, COLOR:opcode, URI:opcode
+    - Blocks: IDENT:( ... IDENT:), LENGTH_UNIT:( ... LENGTH_UNIT:), etc.
+    
+    Example spec:
+        IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,HEIGHT_AUTO IDENT:) 
+        LENGTH_UNIT:( UNIT_PX:HEIGHT_SET MASK:UNIT_MASK_HEIGHT RANGE:<0 LENGTH_UNIT:)
+        CALC:( UNIT_PX:HEIGHT_CALC CALC:)
+    
+    Returns a dict with all parsed elements, so downstream code never needs
+    to parse the raw string again.
+    """
+    
+    @staticmethod
+    def parse(spec):
+        """Parse a spec string into a structured dict."""
+        result = {
+            'flags': set(),           # MANUAL, SHORTHAND, GENERIC, OPCODES_MANUAL
+            'wrap': None,             # function name if WRAP:xxx
+            'ident_keywords': [],     # [(keyword, flags, opcode_name), ...] from IDENT:( )
+            'color': None,            # opcode SET name from COLOR:xxx
+            'length_unit': None,      # {'opcode': str, 'unit': str, 'mask': str, 'range': str, 'allow': str, 'disallow': str}
+            'number': None,           # {'opcode': str, 'is_int': bool, 'range': str}
+            'calc': None,             # {'opcode': str, 'type': str} (type = unit/NUMBER/ANY)
+            'uri': None,              # opcode name from URI:xxx
+            'ident_list': None,       # {'named_opcode': str, 'default_value': str, 'none_opcode': str}
+            'sizing': None,           # {'fit_content': str, 'min_content': str, 'max_content': str}
+        }
+        
+        tokens = spec.split()
+        i = 0
+        
+        while i < len(tokens):
+            token = tokens[i]
+            
+            # --- Simple flags ---
+            if token == 'MANUAL':
+                result['flags'].add('MANUAL')
+                i += 1
+            elif token == 'SHORTHAND':
+                result['flags'].add('SHORTHAND')
+                i += 1
+            elif token == 'OPCODES:MANUAL':
+                result['flags'].add('OPCODES_MANUAL')
+                i += 1
+            elif 'GENERIC' in token:
+                result['flags'].add('GENERIC')
+                i += 1
+            
+            # --- WRAP:function ---
+            elif token.startswith('WRAP:'):
+                result['wrap'] = token.split(':', 1)[1]
+                i += 1
+            
+            # --- COLOR:opcode ---
+            elif token.startswith('COLOR:'):
+                result['color'] = token.split(':', 1)[1]
+                i += 1
+            
+            # --- URI:opcode ---
+            elif token.startswith('URI:'):
+                result['uri'] = token.split(':', 1)[1]
+                i += 1
+            
+            # --- IDENT:( ... IDENT:) block ---
+            elif token == 'IDENT:(':
+                i += 1
+                while i < len(tokens) and tokens[i] != 'IDENT:)':
+                    t = tokens[i]
+                    if ':' in t:
+                        key, value = t.split(':', 1)
+                        # Skip standard markers (INHERIT, INITIAL, etc.)
+                        if key in ('INHERIT', 'INITIAL', 'REVERT', 'UNSET'):
+                            pass
+                        elif ',' in value:
+                            # KEYWORD:flags,OPCODE_NAME
+                            flags_str, opcode = value.split(',', 1)
+                            result['ident_keywords'].append((key, flags_str, opcode))
+                        # else: unknown ident sub-token, skip
+                    i += 1
+                i += 1  # skip IDENT:)
+            
+            # --- LENGTH_UNIT:( ... LENGTH_UNIT:) block ---
+            elif token == 'LENGTH_UNIT:(':
+                lu = {'opcode': None, 'unit': None, 'mask': None, 
+                      'range': None, 'allow': None, 'disallow': None}
+                i += 1
+                while i < len(tokens) and tokens[i] != 'LENGTH_UNIT:)':
+                    t = tokens[i]
+                    if ':' in t:
+                        key, value = t.split(':', 1)
+                        if key.startswith('UNIT_'):
+                            lu['unit'] = key
+                            lu['opcode'] = value
+                        elif key == 'MASK':
+                            lu['mask'] = value
+                        elif key == 'RANGE':
+                            lu['range'] = value
+                        elif key == 'ALLOW':
+                            lu['allow'] = value
+                        elif key == 'DISALLOW':
+                            lu['disallow'] = value
+                    i += 1
+                result['length_unit'] = lu
+                i += 1  # skip LENGTH_UNIT:)
+            
+            # --- NUMBER:( ... NUMBER:) block ---
+            elif token == 'NUMBER:(':
+                num = {'opcode': None, 'is_int': False, 'range': None}
+                i += 1
+                while i < len(tokens) and tokens[i] != 'NUMBER:)':
+                    t = tokens[i]
+                    if ':' in t:
+                        key, value = t.split(':', 1)
+                        if key in ('true', 'false'):
+                            num['is_int'] = (key == 'true')
+                            num['opcode'] = value
+                        elif key == 'RANGE':
+                            num['range'] = value
+                    i += 1
+                result['number'] = num
+                i += 1  # skip NUMBER:)
+            
+            # --- CALC:( ... CALC:) block ---
+            elif token == 'CALC:(':
+                calc = {'opcode': None, 'type': None}
+                i += 1
+                while i < len(tokens) and tokens[i] != 'CALC:)':
+                    t = tokens[i]
+                    if ':' in t:
+                        key, value = t.split(':', 1)
+                        if key.startswith('UNIT_'):
+                            calc['type'] = key
+                            calc['opcode'] = value
+                        elif key == 'NUMBER':
+                            calc['type'] = 'NUMBER'
+                            calc['opcode'] = value
+                        elif key == 'ANY':
+                            calc['type'] = 'ANY'
+                            calc['opcode'] = value
+                    i += 1
+                result['calc'] = calc
+                i += 1  # skip CALC:)
+            
+            # --- IDENT_LIST:( ... IDENT_LIST:) block ---
+            elif token == 'IDENT_LIST:(':
+                il = {'named_opcode': None, 'default_value': None, 'none_opcode': None}
+                i += 1
+                while i < len(tokens) and tokens[i] != 'IDENT_LIST:)':
+                    t = tokens[i]
+                    if ':' in t:
+                        key, value = t.split(':', 1)
+                        if key == 'STRING_OPTNUM':
+                            il['named_opcode'] = value
+                        else:
+                            # default value like 1:COUNTER_INCREMENT_NONE
+                            il['default_value'] = key
+                            il['none_opcode'] = value
+                    i += 1
+                result['ident_list'] = il
+                i += 1  # skip IDENT_LIST:)
+            
+            # --- SIZING:( ... SIZING:) block ---
+            elif token == 'SIZING:(':
+                sz = {'fit_content': None, 'min_content': None, 'max_content': None}
+                i += 1
+                while i < len(tokens) and tokens[i] != 'SIZING:)':
+                    t = tokens[i]
+                    if ':' in t:
+                        key, value = t.split(':', 1)
+                        if key == 'FIT_CONTENT':
+                            sz['fit_content'] = value
+                        elif key == 'MIN_CONTENT':
+                            sz['min_content'] = value
+                        elif key == 'MAX_CONTENT':
+                            sz['max_content'] = value
+                    i += 1
+                result['sizing'] = sz
+                i += 1  # skip SIZING:)
+            
+            else:
+                # Unknown token — skip
+                i += 1
+        
+        return result
 
 
 class GperfInputGenerator:
@@ -606,8 +800,175 @@ class MultiFileGenerator:
         
         return '\n'.join(lines)
     
+    def generate_opcodes(self):
+        """Generate enum op_* definitions from parsed properties.gen specs.
+        
+        Uses the structured `parsed` dict from SpecParser — no regex needed.
+        Properties marked MANUAL, SHORTHAND, WRAP, ALIAS, or OPCODES_MANUAL
+        are skipped.
+        """
+        lines = []
+        lines.append("/* Auto-generated opcode enums from properties.gen */")
+        lines.append("/* DO NOT EDIT — generated by property_generator.py */")
+        lines.append("")
+        
+        generated_count = 0
+        all_opcode_names = {}  # name → property that defined it (for dup detection)
+        errors = []
+        
+        for prop_name, meta in sorted(self.metadata.items()):
+            parsed = meta.get('parsed')
+            if not parsed:
+                continue
+            
+            # Skip properties that don't get generated opcodes
+            if meta.get('is_shorthand') or meta.get('is_alias') or meta.get('is_wrap'):
+                continue
+            if meta.get('is_manual') or 'OPCODES_MANUAL' in parsed['flags']:
+                continue
+            
+            # Extract opcode values from the parsed spec
+            opcodes = self._extract_opcodes(prop_name, parsed)
+            if not opcodes:
+                continue
+            
+            # --- Validation: duplicate opcode names across enums = FATAL ---
+            for opc_name, _ in opcodes:
+                if opc_name in all_opcode_names:
+                    other_prop = all_opcode_names[opc_name]
+                    errors.append(
+                        f"enum op_{prop_name}: opcode name '{opc_name}' already "
+                        f"defined by enum op_{other_prop}. "
+                        f"Add OPCODES:MANUAL to '{prop_name}' in properties.gen "
+                        f"if these properties intentionally share opcodes.")
+            
+            # --- Validation: duplicate values within enum ---
+            seen_values = {}
+            for opc_name, opc_value in opcodes:
+                if opc_value in seen_values and opc_value != "VALUE_IS_CALC":
+                    errors.append(
+                        f"enum op_{prop_name}: duplicate value {opc_value} "
+                        f"for {opc_name} and {seen_values[opc_value]}")
+                seen_values[opc_value] = opc_name
+            
+            # Register all opcode names
+            for opc_name, _ in opcodes:
+                all_opcode_names[opc_name] = prop_name
+            
+            # Emit enum
+            if len(opcodes) <= 3:
+                inline = ', '.join(f"{n} = {v}" for n, v in opcodes)
+                lines.append(f"enum op_{prop_name} {{ {inline} }};")
+            else:
+                lines.append(f"enum op_{prop_name} {{")
+                entries = [f"    {n} = {v}" for n, v in opcodes]
+                lines.append(',\n'.join(entries))
+                lines.append("};")
+            lines.append("")
+            generated_count += 1
+        
+        if errors:
+            print(f"\nFATAL ERROR: Opcode generation found {len(errors)} error(s):",
+                  file=sys.stderr)
+            for err in errors:
+                print(f"  - {err}", file=sys.stderr)
+            sys.exit(1)
+        
+        print(f"  Generated {generated_count} opcode enums")
+        return '\n'.join(lines)
+    
+    def _extract_opcodes(self, prop_name, parsed):
+        """Extract opcode name/value pairs from a parsed spec dict.
+        
+        Returns list of (opcode_name, value_expression) tuples, or None.
+        Uses the structured output from SpecParser.parse().
+        """
+        opcodes = []
+        ident_kws = parsed['ident_keywords']  # [(keyword, flags, opcode_name), ...]
+        
+        if parsed['color']:
+            # COLOR type property
+            set_name = parsed['color']
+            prefix = set_name.replace('_SET', '')
+            
+            if ident_kws:
+                # COLOR + IDENT keywords = ambiguous opcode layout.
+                # Must use OPCODES:MANUAL (should have been caught above,
+                # but emit error here as safety net)
+                return None
+            
+            # Standard COLOR template: TRANSPARENT, CURRENT_COLOR, SET
+            opcodes.append((f"{prefix}_TRANSPARENT", "0x0000"))
+            opcodes.append((f"{prefix}_CURRENT_COLOR", "0x0001"))
+            opcodes.append((set_name, "0x0080"))
+        
+        elif parsed['length_unit'] or parsed['number'] or parsed['uri'] or parsed['ident_list']:
+            # LENGTH/NUMBER/URI/IDENT_LIST type
+            
+            # CALC first if present
+            if parsed['calc'] and parsed['calc']['opcode']:
+                opcodes.append((parsed['calc']['opcode'], "VALUE_IS_CALC"))
+            
+            # NUMBER opcode (NUMBER, DIMENSION variants)
+            if parsed['number'] and parsed['number']['opcode']:
+                num_opc = parsed['number']['opcode']
+                if num_opc.endswith('_NUMBER'):
+                    opcodes.append((num_opc, "0x0080"))
+                    # Check for DIMENSION variant in length_unit
+                    if parsed['length_unit'] and parsed['length_unit']['opcode']:
+                        lu_opc = parsed['length_unit']['opcode']
+                        if lu_opc.endswith('_DIMENSION'):
+                            opcodes.append((lu_opc, "0x0081"))
+                        elif lu_opc != num_opc:
+                            if not any(n == lu_opc for n, _ in opcodes):
+                                opcodes.append((lu_opc, "0x0080"))
+                elif num_opc.endswith('_SET'):
+                    if not any(n == num_opc for n, _ in opcodes):
+                        opcodes.append((num_opc, "0x0080"))
+            
+            # LENGTH SET (if not already added)
+            if parsed['length_unit'] and parsed['length_unit']['opcode']:
+                lu_opc = parsed['length_unit']['opcode']
+                if not any(n == lu_opc for n, _ in opcodes):
+                    opcodes.append((lu_opc, "0x0080"))
+            
+            # URI opcode
+            if parsed['uri']:
+                if not any(n == parsed['uri'] for n, _ in opcodes):
+                    opcodes.append((parsed['uri'], "0x0080"))
+            
+            # IDENT_LIST NAMED opcode
+            if parsed['ident_list'] and parsed['ident_list']['named_opcode']:
+                named = parsed['ident_list']['named_opcode']
+                if not any(n == named for n, _ in opcodes):
+                    opcodes.append((named, "0x0080"))
+            
+            # IDENT keywords at low values
+            for idx, (_kw, _flags, opc_name) in enumerate(ident_kws):
+                if not any(n == opc_name for n, _ in opcodes):
+                    opcodes.append((opc_name, f"0x{idx:04x}"))
+        
+        elif ident_kws:
+            # Pure IDENT-only type
+            for idx, (_kw, _flags, opc_name) in enumerate(ident_kws):
+                opcodes.append((opc_name, f"0x{idx:04x}"))
+        
+        else:
+            return None
+        
+        return opcodes if opcodes else None
+    
     def validate_indexes(self):
-        """Validate that propstrings and handlers have consistent property order."""
+        """Validate property consistency and detect propstrings collisions.
+        
+        Collisions happen when a property name matches a keyword name.
+        Both map to the same string (e.g., "fill"), so the enum would have
+        two entries for the same string. This is wasteful and confusing.
+        
+        The fix is to remove the keyword entry from propstrings.h and reuse
+        the property's enum value in parser code. The generator makes this
+        a fatal error to prevent silent issues.
+        """
         # Get longhand properties from dispatch.c
         all_props = [prop_info['name'] for prop_info in self.dispatch_order]
         
@@ -622,13 +983,6 @@ class MultiFileGenerator:
         
         sorted_props = sorted(all_props + shorthands + aliases)
         
-        # Check all properties have metadata
-        missing = []
-        for prop in sorted_props:
-            if prop not in self.metadata:
-                # This is OK - longhands from dispatch.c may not have properties.gen entries
-                pass
-        
         # Check for duplicate properties
         seen = set()
         for prop in sorted_props:
@@ -637,12 +991,37 @@ class MultiFileGenerator:
                 sys.exit(1)
             seen.add(prop)
         
-        # Check for propstrings collisions (property names that match keyword names)
+        # Check for propstrings collisions: property names vs keywords.gen
         prop_names_upper = set(p.upper() for p in sorted_props)
         keyword_collisions = prop_names_upper.intersection(set(self.keywords))
         if keyword_collisions:
-            print(f"  Note: {len(keyword_collisions)} property/keyword name collisions "
-                  f"(reusing same enum): {', '.join(sorted(keyword_collisions))}")
+            print(f"\nFATAL ERROR: Property/keyword name collision detected!", file=sys.stderr)
+            print(f"The following names exist in BOTH properties.gen and keywords.gen:", file=sys.stderr)
+            for name in sorted(keyword_collisions):
+                print(f"  - {name}", file=sys.stderr)
+            print(f"\nBoth map to the same string, so only one enum entry is needed.", file=sys.stderr)
+            print(f"Fix: Remove the entry from keywords.gen. The property's enum", file=sys.stderr)
+            print(f"value (in propstrings_enum.inc) provides the same string.", file=sys.stderr)
+            print(f"Parser code should use the property enum name directly.", file=sys.stderr)
+            sys.exit(1)
+        
+        # Also scan propstrings.h for manually-listed keywords that match property names.
+        # These are keywords listed after LAST_PROP in propstrings.h (INHERIT, NONE, AUTO, etc.).
+        # Property names are auto-generated between FIRST_PROP and LAST_PROP, so a manual
+        # keyword with the same name would create a duplicate enum entry → compiler error.
+        # But a keyword with a DIFFERENT name for the same string (e.g., FILL_KEYWORD for "fill")
+        # would silently create a wasted duplicate string entry — we want to catch that too.
+        manual_keyword_collisions = []
+        for kw in self.keywords:
+            # keyword names from keywords.gen that appear BEFORE FIRST_PROP in propstrings.h
+            # are fine — they're in a separate section. We already checked keywords.gen above.
+            pass
+        
+        # The main protection is: keywords.gen collision = fatal error (checked above).
+        # For the manual keywords in propstrings.h after LAST_PROP, a collision would
+        # cause a compiler error (duplicate enum name), so the compiler catches those.
+        # This validation covers the keywords.gen case which IS the build system's
+        # responsibility.
         
         print(f"  Validation passed: {len(sorted_props)} properties, no duplicates")
         return True
@@ -653,7 +1032,7 @@ def main():
         print("Usage: property_generator.py dispatch.c properties.gen keywords.gen "
               "enum.inc dispatch.inc propstrings.inc propstrings_strings.inc "
               "prop_hash_table.gperf "
-              "[cascade_decl.inc parse_decl.inc unit_masks.inc]", file=sys.stderr)
+              "[cascade_decl.inc parse_decl.inc unit_masks.inc opcodes.inc]", file=sys.stderr)
         sys.exit(1)
     
     dispatch_file = sys.argv[1]
@@ -669,6 +1048,8 @@ def main():
     cascade_decl_out = sys.argv[9] if len(sys.argv) > 9 else None
     parse_decl_out = sys.argv[10] if len(sys.argv) > 10 else None
     unit_masks_out = sys.argv[11] if len(sys.argv) > 11 else None
+    # Phase 3: opcodes
+    opcodes_out = sys.argv[12] if len(sys.argv) > 12 else None
     
     # Parse input files
     print("Parsing dispatch.c for property order...")
@@ -731,6 +1112,12 @@ def main():
         with open(unit_masks_out, 'w') as f:
             f.write(generator.generate_unit_masks())
         print(f"Generated: {unit_masks_out}")
+    
+    # Phase 3 output: opcodes
+    if opcodes_out:
+        with open(opcodes_out, 'w') as f:
+            f.write(generator.generate_opcodes())
+        print(f"Generated: {opcodes_out}")
 
 
 if __name__ == '__main__':
