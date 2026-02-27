@@ -304,6 +304,8 @@ enum op_elevation {
 
 enum op_empty_cells { EMPTY_CELLS_SHOW = 0x0000, EMPTY_CELLS_HIDE = 0x0001 };
 
+enum op_fill { FILL_NONE = 0x0000, FILL_CURRENT_COLOR = 0x0001, FILL_SET = 0x0080 };
+
 enum op_fill_opacity { FILL_OPACITY_SET = 0x0080 };
 
 

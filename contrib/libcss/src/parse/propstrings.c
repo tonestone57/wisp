@@ -105,7 +105,8 @@ const stringmap_entry stringmap[LAST_KNOWN] = {SMAP("*"),
     /* CSS Grid track sizing functions and keywords */
     SMAP("minmax"), SMAP("min-content"), SMAP("max-content"), SMAP("fit-content"), SMAP("span"),
     /* Object-fit keywords */
-    SMAP("fill"), SMAP("contain"), SMAP("cover"), SMAP("scale-down"),
+    /* Note: "fill" is auto-generated as property name (same string) */
+    SMAP("contain"), SMAP("cover"), SMAP("scale-down"),
     /* CSS transform function keywords */
     SMAP("translate"), SMAP("translateX"), SMAP("translateY"), SMAP("scale"), SMAP("scaleX"), SMAP("scaleY"),
     SMAP("rotate"),

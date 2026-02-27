@@ -368,7 +368,7 @@ enum {
     FIT_CONTENT,
     SPAN,
     /* Object-fit keywords */
-    FILL,
+    /* Note: FILL is auto-generated as a property name (same string "fill") */
     CONTAIN,
     COVER,
     SCALE_DOWN,

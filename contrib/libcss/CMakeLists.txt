@@ -43,6 +43,9 @@ set(LIBCSS_PROPREG_PYTHON_FILES
     ${LIBCSS_PROPREG_OUT_DIR}/propstrings_enum.inc
     ${LIBCSS_PROPREG_OUT_DIR}/propstrings_strings.inc
     ${LIBCSS_PROPREG_OUT_DIR}/prop_hash_table.gperf
+    ${LIBCSS_PROPREG_OUT_DIR}/cascade_declarations.inc
+    ${LIBCSS_PROPREG_OUT_DIR}/parse_declarations.inc
+    ${LIBCSS_PROPREG_OUT_DIR}/unit_masks.inc
 )
 add_custom_command(
     OUTPUT ${LIBCSS_PROPREG_PYTHON_FILES}
@@ -56,6 +59,9 @@ add_custom_command(
         ${LIBCSS_PROPREG_OUT_DIR}/propstrings_enum.inc
         ${LIBCSS_PROPREG_OUT_DIR}/propstrings_strings.inc
         ${LIBCSS_PROPREG_OUT_DIR}/prop_hash_table.gperf
+        ${LIBCSS_PROPREG_OUT_DIR}/cascade_declarations.inc
+        ${LIBCSS_PROPREG_OUT_DIR}/parse_declarations.inc
+        ${LIBCSS_PROPREG_OUT_DIR}/unit_masks.inc
     DEPENDS
         ${CMAKE_SOURCE_DIR}/contrib/libcss/build-aux/property_generator.py
         ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/dispatch.c
@@ -197,6 +203,7 @@ add_library(css ${WISP_LIB_TYPE}
 	src/select/properties/elevation.c
 	src/select/properties/empty_cells.c
 	src/select/properties/fill_opacity.c
+	src/select/properties/fill.c
 	src/select/properties/flex_basis.c
 	src/select/properties/flex_direction.c
 	src/select/properties/flex_grow.c

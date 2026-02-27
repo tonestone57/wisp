@@ -98,6 +98,7 @@ style = {
     ('min_height', 2, 'length', 'CSS_MIN_HEIGHT_SET'),
     ('min_width', 2, 'length', 'CSS_MIN_WIDTH_SET'),
     ('opacity', 1, 'fixed', 'CSS_OPACITY_SET'),
+    ('fill', 2, 'color'),
     ('fill_opacity', 1, 'fixed', 'CSS_FILL_OPACITY_SET'),
     ('stroke_opacity', 1, 'fixed', 'CSS_STROKE_OPACITY_SET'),
     ('order', 1, 'integer', 'CSS_ORDER_SET'),

@@ -841,6 +841,11 @@ uint8_t css_computed_opacity(const css_computed_style *style, css_fixed *opacity
     return get_opacity(style, opacity);
 }
 
+uint8_t css_computed_fill(const css_computed_style *style, css_color *color)
+{
+    return get_fill(style, color);
+}
+
 uint8_t css_computed_fill_opacity(const css_computed_style *style, css_fixed *fill_opacity)
 {
     return get_fill_opacity(style, fill_opacity);

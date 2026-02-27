@@ -485,6 +485,127 @@ class MultiFileGenerator:
         gen = GperfInputGenerator(keys)
         return gen.generate_gperf_input()
     
+    def generate_cascade_declarations(self):
+        """Generate PROPERTY_FUNCS declarations for select/properties/properties.h."""
+        lines = self._header("CASCADE_DECL",
+            "Cascade function declarations for all properties (select/properties/properties.h)")
+        
+        for prop_info in self.dispatch_order:
+            lines.append(f"PROPERTY_FUNCS({prop_info['name']});")
+        
+        return '\n'.join(lines)
+    
+    def generate_parse_declarations(self):
+        """Generate css__parse_* forward declarations for parse/properties/properties.h."""
+        lines = self._header("PARSE_DECL",
+            "Parse function forward declarations for all properties")
+        
+        # Longhand properties from dispatch.c
+        all_props = [prop_info['name'] for prop_info in self.dispatch_order]
+        
+        # Shorthand properties from properties.gen
+        shorthands = [name for name, meta in self.metadata.items()
+                      if meta.get('is_shorthand', False) and name not in all_props]
+        
+        # Alias properties
+        aliases = [name for name, meta in self.metadata.items()
+                   if meta.get('is_alias', False) and name not in all_props]
+        
+        # Sort alphabetically for readability 
+        sorted_props = sorted(all_props + shorthands + aliases)
+        
+        for prop_name in sorted_props:
+            lines.append(f"css_error css__parse_{prop_name}(css_language *c, "
+                         f"const parserutils_vector *vector, int32_t *ctx, css_style *result);")
+        
+        return '\n'.join(lines)
+    
+    def generate_unit_masks(self):
+        """Generate UNIT_MASK_* defines and property_unit_mask[] array.
+        
+        Unit masks are derived from the parse type in properties.gen:
+        - COLOR/IDENT types -> 0 (no unit validation)
+        - LENGTH types -> UNIT_LENGTH | UNIT_PCT
+        - ANGLE types -> UNIT_ANGLE
+        - TIME types -> UNIT_TIME | UNIT_PCT
+        - FREQ types -> UNIT_FREQ
+        
+        For MANUAL properties, we preserve their existing unit masks.
+        """
+        lines = self._header("UNIT_MASKS",
+            "Unit mask definitions and property_unit_mask[] array")
+        
+        # Map of known unit mask overrides for properties that don't follow
+        # the simple type-based pattern. These are properties where the
+        # auto-derived mask from properties.gen type would be wrong.
+        unit_mask_overrides = {
+            # Shorthands with mixed types
+            'background_position': '(UNIT_LENGTH | UNIT_PCT)',
+            'border_spacing': '(UNIT_LENGTH)',
+            'clip': '(UNIT_LENGTH)',
+            'object_position': '(UNIT_LENGTH | UNIT_PCT)',
+            # Special LENGTH properties  
+            'letter_spacing': '(UNIT_LENGTH)',
+            'word_spacing': '(UNIT_LENGTH)',
+            'outline_width': '(UNIT_LENGTH)',
+            'column_gap': '(UNIT_LENGTH)',
+            'column_rule_width': '(UNIT_LENGTH)',
+            'column_width': '(UNIT_LENGTH)',
+            'row_gap': '(UNIT_LENGTH)',
+            # ANGLE type
+            'azimuth': '(UNIT_ANGLE)',
+            'elevation': '(UNIT_ANGLE)',
+            # TIME type
+            'pause_after': '(UNIT_TIME | UNIT_PCT)',
+            'pause_before': '(UNIT_TIME | UNIT_PCT)',
+            # FREQ type
+            'pitch': '(UNIT_FREQ)',
+            # PCT type
+            'volume': '(UNIT_PCT)',
+        }
+        
+        # Properties with LENGTH | PCT (the default for LENGTH/DIMENSION types)
+        length_pct_props = {
+            'bottom', 'top', 'left', 'right',
+            'height', 'width', 'min_height', 'min_width', 'max_height', 'max_width',
+            'margin_top', 'margin_right', 'margin_bottom', 'margin_left',
+            'padding_top', 'padding_right', 'padding_bottom', 'padding_left',
+            'font_size', 'line_height', 'text_indent', 'vertical_align',
+            'flex_basis',
+            'grid_template_columns', 'grid_template_rows',
+            'border_top_width', 'border_right_width', 'border_bottom_width', 'border_left_width',
+        }
+        
+        # Emit #define for each dispatch property
+        lines.append("/* Unit mask definitions */")
+        for prop_info in self.dispatch_order:
+            name = prop_info['name']
+            NAME = name.upper()
+            
+            if name in unit_mask_overrides:
+                mask = unit_mask_overrides[name]
+            elif name in length_pct_props:
+                mask = '(UNIT_LENGTH | UNIT_PCT)'
+            else:
+                mask = '(0)'
+            
+            lines.append(f"#define UNIT_MASK_{NAME} {mask}")
+        
+        lines.append("")
+        
+        # Emit the property_unit_mask[] array
+        lines.append("/** Mapping from property bytecode index to bytecode unit class mask. */")
+        lines.append("static const uint32_t generated_property_unit_mask[CSS_N_PROPERTIES] = {")
+        for prop_info in self.dispatch_order:
+            name = prop_info['name']
+            NAME = name.upper()
+            if name in self.metadata:
+                enum_name = self.metadata[name]['enum']
+                lines.append(f"    [{enum_name}] = UNIT_MASK_{NAME},")
+        lines.append("};")
+        
+        return '\n'.join(lines)
+    
     def validate_indexes(self):
         """Validate that propstrings and handlers have consistent property order."""
         # Get longhand properties from dispatch.c
@@ -516,13 +637,23 @@ class MultiFileGenerator:
                 sys.exit(1)
             seen.add(prop)
         
+        # Check for propstrings collisions (property names that match keyword names)
+        prop_names_upper = set(p.upper() for p in sorted_props)
+        keyword_collisions = prop_names_upper.intersection(set(self.keywords))
+        if keyword_collisions:
+            print(f"  Note: {len(keyword_collisions)} property/keyword name collisions "
+                  f"(reusing same enum): {', '.join(sorted(keyword_collisions))}")
+        
         print(f"  Validation passed: {len(sorted_props)} properties, no duplicates")
         return True
 
 
 def main():
-    if len(sys.argv) != 9:
-        print("Usage: property_generator.py dispatch.c properties.gen keywords.gen enum.inc dispatch.inc propstrings.inc propstrings_strings.inc prop_hash_table.gperf", file=sys.stderr)
+    if len(sys.argv) < 9:
+        print("Usage: property_generator.py dispatch.c properties.gen keywords.gen "
+              "enum.inc dispatch.inc propstrings.inc propstrings_strings.inc "
+              "prop_hash_table.gperf "
+              "[cascade_decl.inc parse_decl.inc unit_masks.inc]", file=sys.stderr)
         sys.exit(1)
     
     dispatch_file = sys.argv[1]
@@ -533,6 +664,11 @@ def main():
     propstrings_out = sys.argv[6]
     propstrings_strings_out = sys.argv[7]
     gperf_out = sys.argv[8]
+    
+    # Optional new output files (Phase 1 of generator refactor)
+    cascade_decl_out = sys.argv[9] if len(sys.argv) > 9 else None
+    parse_decl_out = sys.argv[10] if len(sys.argv) > 10 else None
+    unit_masks_out = sys.argv[11] if len(sys.argv) > 11 else None
     
     # Parse input files
     print("Parsing dispatch.c for property order...")
@@ -579,6 +715,22 @@ def main():
     with open(gperf_out, 'w') as f:
         f.write(generator.generate_gperf_input())
     print(f"Generated: {gperf_out}")
+    
+    # Phase 1 outputs: cascade declarations, parse declarations, unit masks
+    if cascade_decl_out:
+        with open(cascade_decl_out, 'w') as f:
+            f.write(generator.generate_cascade_declarations())
+        print(f"Generated: {cascade_decl_out}")
+    
+    if parse_decl_out:
+        with open(parse_decl_out, 'w') as f:
+            f.write(generator.generate_parse_declarations())
+        print(f"Generated: {parse_decl_out}")
+    
+    if unit_masks_out:
+        with open(unit_masks_out, 'w') as f:
+            f.write(generator.generate_unit_masks())
+        print(f"Generated: {unit_masks_out}")
 
 
 if __name__ == '__main__':
