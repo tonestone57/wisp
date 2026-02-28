@@ -420,7 +420,7 @@ int main(int argc, char **argv)
         optind++;
         if (*arg == '-') {
             longopt = arg + 1;
-            optarg = strchr(longopt, '=');
+            optarg = (char *)strchr(longopt, '=');
             if (optarg)
                 *optarg++ = '\0';
             arg += strlen(arg);

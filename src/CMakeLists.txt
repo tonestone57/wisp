@@ -56,8 +56,8 @@ if(LIBXML2_FOUND)
 	include_directories(${LIBXML2_INCLUDE_DIRS})
 endif()
 
-pkg_check_modules(LIBREGEX regex)
-if(LIBREGEX_FOUND)
+if(WIN32)
+    pkg_check_modules(LIBREGEX REQUIRED regex)
     include_directories(${LIBREGEX_INCLUDE_DIRS})
 endif()
 

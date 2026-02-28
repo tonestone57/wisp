@@ -9,9 +9,77 @@ import string
 import os
 import sys
 import argparse
-from select_config import values, groups
+from select_config import values
 from assets import assets
 from overrides import overrides
+
+
+def build_style_from_toml(toml_path):
+    """Read properties.toml and build the style property set.
+
+    Returns a set of tuples matching the select_config.style format:
+        (name, type_size, values, condition, defaults, comments, override)
+
+    Only properties with a 'bits' field are included (those that appear
+    in the computed style struct).
+    """
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
+
+    with open(toml_path, 'rb') as f:
+        data = tomllib.load(f)
+
+    style = set()
+    for name, props in data.items():
+        if not isinstance(props, dict):
+            continue
+        if 'bits' not in props:
+            continue
+        # Skip shorthand properties (no computed representation)
+        if props.get('shorthand'):
+            continue
+
+        bits = props['bits']
+
+        # Build values field
+        raw_vals = props.get('values')
+        if raw_vals is None:
+            tup_vals = None
+        elif isinstance(raw_vals, str):
+            tup_vals = raw_vals
+        elif isinstance(raw_vals, list):
+            # Nested array like [["length"], ["length"]] or [["integer", "2"]]
+            tup_vals = tuple(tuple(v) for v in raw_vals)
+        else:
+            tup_vals = None
+
+        condition = props.get('condition')
+        defaults = props.get('defaults')
+        # outer_struct flag → passed as 'comments' arg to CSSProperty
+        # (non-None comments = store in outer css_computed_style)
+        comments = props.get('select_comments') if props.get('outer_struct') else None
+        override = props.get('override')
+        # TOML lists → tuples for hashability (e.g. ["get", "set"] → ("get", "set"))
+        if isinstance(override, list):
+            override = tuple(override)
+
+        # Build the tuple with only as many fields as needed
+        # (trailing Nones can be omitted)
+        entry = [name, bits]
+        fields = [tup_vals, condition, defaults, comments, override]
+        # Find last non-None field
+        last_idx = -1
+        for i, f in enumerate(fields):
+            if f is not None:
+                last_idx = i
+        if last_idx >= 0:
+            entry.extend(fields[:last_idx + 1])
+
+        style.add(tuple(entry))
+
+    return style
 
 def get_tuple(from_var):
     """Convert tuples, strings and None into tuple."""
@@ -580,6 +648,41 @@ class CSSGroup:
                          ')' if val_list else ''))
 
             t.append()
+
+            # Normalize value fields when type doesn't match condition.
+            # The setter stores values unconditionally, but the getter only
+            # reads them when type == condition. Without normalization,
+            # stale/default values get stored, causing arena memcmp
+            # mismatches between styles that should be considered equal.
+            if p.condition and p.values:
+                # Only normalize non-pointer, non-string, non-array values
+                normalizable = [v for v in p.values
+                    if not v.is_ptr and v.name not in
+                    ('string', 'string_arr', 'counter_arr',
+                     'grid_track_arr', 'transform_func_arr')]
+                if normalizable:
+                    type_mask_raw, _, _ = p.get_bits()
+                    t.append('/* Normalize value fields for consistent '
+                             'memcmp in arena */')
+                    t.append('if (((uint32_t)type & {}) != {}) {{'.format(
+                        type_mask_raw, p.condition))
+                    t.indent(1)
+                    for v in normalizable:
+                        vt, vn = shift_star(v.type, v.name + v.suffix)
+                        # For calc-enabled values, need cast for union type
+                        if v.calc:
+                            default_val = '(css_fixed_or_calc)0'
+                        else:
+                            default_val = v.defaults if v.defaults and v.defaults != 'NULL' else '0'
+                        t.append('{} = {};'.format(vn, default_val))
+                        if v.bits is not None:
+                            t.append('{} = {};'.format(
+                                v.bits['name'] + v.suffix,
+                                v.bits['defaults']))
+                    t.indent(-1)
+                    t.append('}')
+                    t.append()
+
             for v in p.values:
                 old_n = 'old_' + v.name + v.suffix
                 old_t, old_n_shift = shift_star(v.type, old_n)
@@ -819,9 +922,19 @@ VERBOSE = False
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("out", nargs="?", default=os.path.dirname(os.path.realpath(__file__)))
 parser.add_argument("--verbose", action="store_true")
+parser.add_argument("--toml", dest="toml_file", default=None,
+                    help="Path to properties.toml (single source of truth)")
 args, _ = parser.parse_known_args()
 VERBOSE = args.verbose
 dir_path = args.out
+
+if args.toml_file:
+    print(f"select_generator: reading properties from {args.toml_file}")
+    style = build_style_from_toml(args.toml_file)
+    groups = [{'name': 'style', 'props': style}]
+else:
+    from select_config import groups
+
 css_groups = [ CSSGroup(g) for g in groups ]
 
 cmd = 'python ' + ' '.join(sys.argv)
@@ -833,3 +946,4 @@ for k, v in assets.items():
     text = '\n'.join([ warning + v['header'], body, v['footer'] ])
     with open(os.path.join(dir_path, 'autogenerated_') + k, 'w') as file_k:
         file_k.write(text)
+

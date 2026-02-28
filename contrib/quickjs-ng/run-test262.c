@@ -231,7 +231,7 @@ char *get_basename(const char *filename)
 {
     char *p;
 
-    p = strrchr(filename, '/');
+    p = (char *)strrchr(filename, '/');
     if (!p)
         return NULL;
     return strdup_len(filename, p - filename);
@@ -1800,7 +1800,7 @@ int run_test(ThreadLocalStorage *tls, const char *filename, int *msec)
     harness = harness_dir;
 
     if (!harness) {
-        p = strstr(filename, "test/");
+        p = (char *)strstr(filename, "test/");
         if (p) {
             snprintf(harnessbuf, sizeof(harnessbuf), "%.*s%s", (int)(p - filename), filename, "harness");
         }

@@ -2,6 +2,40 @@ add_subdirectory(src/parse/properties/gen_parser)
 include(${CMAKE_SOURCE_DIR}/src/cmake/libcss_helpers.cmake)
 option(WISP_VERBOSE_GEN "Enable verbose libcss code generation output" OFF)
 
+# Check for TOML parsing support (required for properties.toml)
+# Python 3.11+ has tomllib built-in; older versions need 'tomli' package.
+execute_process(
+    COMMAND ${PYTHON3} -c "
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli
+print('ok')
+"
+    OUTPUT_VARIABLE TOML_CHECK
+    ERROR_QUIET
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+if(NOT TOML_CHECK STREQUAL "ok")
+    message(FATAL_ERROR
+        "Python TOML parsing module not found.\n"
+        "Python 3.11+ has built-in 'tomllib'. For older versions, install 'tomli':\n"
+        "  - Arch Linux: pacman -S python-tomli\n"
+        "  - pip: pip install tomli\n"
+        "This is required for reading libcss properties.toml."
+    )
+endif()
+
+
+# Output directory for generated property registration files
+set(LIBCSS_PROPREG_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/generated)
+set(LIBCSS_CASCADE_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/select/cascade_gen)
+set(LIBCSS_PROP_GEN_BUILT ${LIBCSS_PROPREG_OUT_DIR}/properties.gen)
+
+# Source properties.gen is read at configure time for property name extraction.
+# At build time, property_generator.py generates a fresh properties.gen from
+# properties.toml into the build directory, which gen_parser then consumes.
 set(LIBCSS_PROP_GEN ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/properties.gen)
 libcss_extract_property_names(${LIBCSS_PROP_GEN} LIBCSS_PROP_NAMES)
 set(LIBCSS_GEN_PROPERTIES)
@@ -11,8 +45,8 @@ endforeach()
 add_custom_command(
     OUTPUT ${LIBCSS_GEN_PROPERTIES}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/contrib/libcss/properties
-    COMMAND ${PYTHON3} ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/parser_wrapper.py ${CMAKE_BINARY_DIR}/contrib/libcss/properties $<TARGET_FILE:gen_parser> ${LIBCSS_PROP_GEN}
-    DEPENDS gen_parser ${LIBCSS_PROP_GEN} ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/parser_wrapper.py
+    COMMAND ${PYTHON3} ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/parser_wrapper.py ${CMAKE_BINARY_DIR}/contrib/libcss/properties $<TARGET_FILE:gen_parser> ${LIBCSS_PROP_GEN_BUILT}
+    DEPENDS gen_parser ${LIBCSS_PROPREG_PYTHON_FILES} ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/parser_wrapper.py
 )
 add_custom_target(libcss_properties DEPENDS ${LIBCSS_GEN_PROPERTIES})
 
@@ -26,17 +60,14 @@ set(LIBCSS_SELECT_GEN_FILES
 add_custom_command(
     OUTPUT ${LIBCSS_SELECT_GEN_FILES}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCSS_SELECT_OUT_DIR}
-    COMMAND ${PYTHON3} ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/select_generator.py ${LIBCSS_SELECT_OUT_DIR} $<$<OR:$<BOOL:${WISP_VERBOSE_GEN}>,$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>>:--verbose>
-    DEPENDS ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/select_generator.py ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/select_config.py ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/assets.py ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/overrides.py
+    COMMAND ${PYTHON3} ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/select_generator.py --toml ${CMAKE_SOURCE_DIR}/contrib/libcss/properties.toml ${LIBCSS_SELECT_OUT_DIR} $<$<OR:$<BOOL:${WISP_VERBOSE_GEN}>,$<BOOL:${CMAKE_VERBOSE_MAKEFILE}>>:--verbose>
+    DEPENDS ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/select_generator.py ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/select_config.py ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/assets.py ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/overrides.py ${CMAKE_SOURCE_DIR}/contrib/libcss/properties.toml
 )
 add_custom_target(libcss_select_gen DEPENDS ${LIBCSS_SELECT_GEN_FILES})
 
-# Property registration generator output files
-# Step 1: Python generates .inc files + .gperf input for the hash table
+# Property registration generator
+# Step 1: Python generates .inc files + .gperf input + properties.gen from properties.toml
 # Step 2: gperf processes .gperf -> prop_hash_table.inc (perfect hash C code)
-set(LIBCSS_PROPREG_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/generated)
-
-# Files produced by the Python generator (Step 1)
 set(LIBCSS_PROPREG_PYTHON_FILES
     ${LIBCSS_PROPREG_OUT_DIR}/properties_enum.inc
     ${LIBCSS_PROPREG_OUT_DIR}/dispatch_table.inc
@@ -47,29 +78,24 @@ set(LIBCSS_PROPREG_PYTHON_FILES
     ${LIBCSS_PROPREG_OUT_DIR}/parse_declarations.inc
     ${LIBCSS_PROPREG_OUT_DIR}/unit_masks.inc
     ${LIBCSS_PROPREG_OUT_DIR}/opcodes.inc
+    ${LIBCSS_PROPREG_OUT_DIR}/properties.gen
 )
 add_custom_command(
-    OUTPUT ${LIBCSS_PROPREG_PYTHON_FILES}
+    OUTPUT ${LIBCSS_PROPREG_PYTHON_FILES} ${LIBCSS_CASCADE_GENERATED}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${LIBCSS_PROPREG_OUT_DIR}
     COMMAND ${PYTHON3} ${CMAKE_SOURCE_DIR}/contrib/libcss/build-aux/property_generator.py
+        --toml ${CMAKE_SOURCE_DIR}/contrib/libcss/properties.toml
+        --output-dir ${LIBCSS_PROPREG_OUT_DIR}
+        --cascade-dir ${LIBCSS_CASCADE_GEN_DIR}
         ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/dispatch.c
-        ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/properties.gen
         ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/keywords.gen
-        ${LIBCSS_PROPREG_OUT_DIR}/properties_enum.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/dispatch_table.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/propstrings_enum.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/propstrings_strings.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/prop_hash_table.gperf
-        ${LIBCSS_PROPREG_OUT_DIR}/cascade_declarations.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/parse_declarations.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/unit_masks.inc
-        ${LIBCSS_PROPREG_OUT_DIR}/opcodes.inc
     DEPENDS
         ${CMAKE_SOURCE_DIR}/contrib/libcss/build-aux/property_generator.py
+        ${CMAKE_SOURCE_DIR}/contrib/libcss/build-aux/generate_cascade.py
+        ${CMAKE_SOURCE_DIR}/contrib/libcss/properties.toml
         ${CMAKE_SOURCE_DIR}/contrib/libcss/src/select/dispatch.c
-        ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/properties/properties.gen
         ${CMAKE_SOURCE_DIR}/contrib/libcss/src/parse/keywords.gen
-    COMMENT "Generating property registration files and gperf input"
+    COMMENT "Generating property registration files and cascade .c files from properties.toml"
 )
 
 # Step 2: gperf processes .gperf -> prop_hash_table.inc
@@ -93,6 +119,87 @@ include_directories("${CMAKE_SOURCE_DIR}/contrib/libcss/src")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/src/select")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/src")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/src/generated")  # For property registration includes
+
+# Configure-time: read properties.toml to split cascade sources into generated vs manual.
+# Generated files go to LIBCSS_CASCADE_GEN_DIR (build tree), manual stay in source tree.
+execute_process(
+    COMMAND ${PYTHON3} -c "
+import sys
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
+with open(sys.argv[1], 'rb') as f:
+    data = tomllib.load(f)
+
+generated = []
+manual = []
+errors = []
+VALID_CASCADE = {'none', 'manual', 'ident', 'length', 'length_auto',
+    'length_auto_calc', 'length_normal', 'length_none',
+    'bg_border_color', 'border_style', 'border_width',
+    'counter', 'integer', 'page_break', 'uri_none', 'break'}
+
+for name, props in data.items():
+    if not isinstance(props, dict):
+        continue
+    if not props.get('enum', '').startswith('CSS_PROP_'):
+        continue
+    cascade = props.get('cascade')
+    if cascade is None:
+        errors.append(name)
+        continue
+    if cascade == 'none':
+        continue
+    elif cascade == 'manual':
+        manual.append(name)
+    else:
+        generated.append(name)
+
+if errors:
+    print('ERROR:' + ';'.join(errors))
+else:
+    print('GENERATED:' + ';'.join(sorted(generated)))
+    print('MANUAL:' + ';'.join(sorted(manual)))
+" ${CMAKE_SOURCE_DIR}/contrib/libcss/properties.toml
+    OUTPUT_VARIABLE CASCADE_SPLIT_OUTPUT
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE CASCADE_SPLIT_RESULT
+)
+if(NOT CASCADE_SPLIT_RESULT EQUAL 0)
+    message(FATAL_ERROR "Failed to read cascade split from properties.toml")
+endif()
+
+# Check for missing cascade fields
+string(REGEX MATCH "ERROR:([^\n]*)" _err "${CASCADE_SPLIT_OUTPUT}")
+if(_err)
+    message(FATAL_ERROR
+        "properties.toml: the following CSS_PROP_ properties are missing a required 'cascade' field: ${CMAKE_MATCH_1}\n"
+        "Valid values: 'none' (no cascade file), 'manual' (hand-written .c), or a type string for auto-generation.")
+endif()
+
+# Parse the output into two lists
+string(REGEX MATCH "GENERATED:([^\n]*)" _m "${CASCADE_SPLIT_OUTPUT}")
+set(_gen_names "${CMAKE_MATCH_1}")
+string(REGEX MATCH "MANUAL:([^\n]*)" _m "${CASCADE_SPLIT_OUTPUT}")
+set(_man_names "${CMAKE_MATCH_1}")
+
+set(LIBCSS_CASCADE_GENERATED)
+foreach(name ${_gen_names})
+    list(APPEND LIBCSS_CASCADE_GENERATED "${LIBCSS_CASCADE_GEN_DIR}/${name}.c")
+endforeach()
+
+set(LIBCSS_CASCADE_MANUAL)
+foreach(name ${_man_names})
+    list(APPEND LIBCSS_CASCADE_MANUAL "src/select/properties/${name}.c")
+endforeach()
+
+list(LENGTH LIBCSS_CASCADE_GENERATED _gen_count)
+list(LENGTH LIBCSS_CASCADE_MANUAL _man_count)
+message(STATUS "Cascade sources: ${_gen_count} generated, ${_man_count} manual")
+# Mark generated cascade files so CMake knows they don't exist yet at configure time
+set_source_files_properties(${LIBCSS_CASCADE_GENERATED} PROPERTIES GENERATED TRUE)
 
 
 add_library(css ${WISP_LIB_TYPE}
@@ -154,144 +261,8 @@ add_library(css ${WISP_LIB_TYPE}
 	src/parse/properties/transform.c
 	${PROPSRC}
 	src/select/properties/helpers.c
-	src/select/properties/align_content.c
-	src/select/properties/align_items.c
-	src/select/properties/align_self.c
-	src/select/properties/azimuth.c
-	src/select/properties/background_attachment.c
-	src/select/properties/background_color.c
-	src/select/properties/background_image.c
-	src/select/properties/background_position.c
-	src/select/properties/background_repeat.c
-	src/select/properties/border_bottom_color.c
-	src/select/properties/border_bottom_style.c
-	src/select/properties/border_bottom_width.c
-	src/select/properties/border_collapse.c
-	src/select/properties/border_left_color.c
-	src/select/properties/border_left_style.c
-	src/select/properties/border_left_width.c
-	src/select/properties/border_right_color.c
-	src/select/properties/border_right_style.c
-	src/select/properties/border_right_width.c
-	src/select/properties/border_spacing.c
-	src/select/properties/border_top_color.c
-	src/select/properties/border_top_style.c
-	src/select/properties/border_top_width.c
-	src/select/properties/bottom.c
-	src/select/properties/box_sizing.c
-	src/select/properties/break_after.c
-	src/select/properties/break_before.c
-	src/select/properties/break_inside.c
-	src/select/properties/caption_side.c
-	src/select/properties/clear.c
-	src/select/properties/clip.c
-	src/select/properties/color.c
-	src/select/properties/column_count.c
-	src/select/properties/column_fill.c
-	src/select/properties/column_gap.c
-	src/select/properties/column_rule_color.c
-	src/select/properties/column_rule_style.c
-	src/select/properties/column_rule_width.c
-	src/select/properties/column_span.c
-	src/select/properties/column_width.c
-	src/select/properties/content.c
-	src/select/properties/counter_increment.c
-	src/select/properties/counter_reset.c
-	src/select/properties/cue_after.c
-	src/select/properties/cue_before.c
-	src/select/properties/cursor.c
-	src/select/properties/direction.c
-	src/select/properties/display.c
-	src/select/properties/elevation.c
-	src/select/properties/empty_cells.c
-	src/select/properties/fill_opacity.c
-	src/select/properties/fill.c
-	src/select/properties/flex_basis.c
-	src/select/properties/flex_direction.c
-	src/select/properties/flex_grow.c
-	src/select/properties/flex_shrink.c
-	src/select/properties/flex_wrap.c
-	src/select/properties/float.c
-	src/select/properties/font_family.c
-	src/select/properties/font_size.c
-	src/select/properties/font_style.c
-	src/select/properties/font_variant.c
-	src/select/properties/font_weight.c
-	src/select/properties/height.c
-	src/select/properties/justify_content.c
-	src/select/properties/left.c
-	src/select/properties/letter_spacing.c
-	src/select/properties/line_height.c
-	src/select/properties/list_style_image.c
-	src/select/properties/list_style_position.c
-	src/select/properties/list_style_type.c
-	src/select/properties/margin_bottom.c
-	src/select/properties/margin_left.c
-	src/select/properties/margin_right.c
-	src/select/properties/margin_top.c
-	src/select/properties/max_height.c
-	src/select/properties/max_width.c
-	src/select/properties/min_height.c
-	src/select/properties/min_width.c
-	src/select/properties/opacity.c
-	src/select/properties/order.c
-	src/select/properties/orphans.c
-	src/select/properties/outline_color.c
-	src/select/properties/outline_style.c
-	src/select/properties/outline_width.c
-	src/select/properties/overflow_x.c
-	src/select/properties/overflow_y.c
-	src/select/properties/padding_bottom.c
-	src/select/properties/padding_left.c
-	src/select/properties/padding_right.c
-	src/select/properties/padding_top.c
-	src/select/properties/page_break_after.c
-	src/select/properties/page_break_before.c
-	src/select/properties/page_break_inside.c
-	src/select/properties/pause_after.c
-	src/select/properties/pause_before.c
-	src/select/properties/pitch.c
-	src/select/properties/pitch_range.c
-	src/select/properties/play_during.c
-	src/select/properties/position.c
-	src/select/properties/quotes.c
-	src/select/properties/richness.c
-	src/select/properties/right.c
-	src/select/properties/speech_rate.c
-	src/select/properties/speak.c
-	src/select/properties/speak_header.c
-	src/select/properties/speak_numeral.c
-	src/select/properties/speak_punctuation.c
-	src/select/properties/stress.c
-	src/select/properties/stroke_opacity.c
-	src/select/properties/table_layout.c
-	src/select/properties/text_align.c
-	src/select/properties/text_decoration.c
-	src/select/properties/text_indent.c
-	src/select/properties/text_transform.c
-	src/select/properties/top.c
-	src/select/properties/unicode_bidi.c
-	src/select/properties/vertical_align.c
-	src/select/properties/visibility.c
-	src/select/properties/voice_family.c
-	src/select/properties/volume.c
-	src/select/properties/white_space.c
-	src/select/properties/widows.c
-	src/select/properties/width.c
-	src/select/properties/word_spacing.c
-	src/select/properties/writing_mode.c
-	src/select/properties/z_index.c
-	src/select/properties/grid_template_columns.c
-	src/select/properties/grid_template_rows.c
-	src/select/properties/grid_auto_flow.c
-	src/select/properties/row_gap.c
-	src/select/properties/grid_column_start.c
-	src/select/properties/grid_column_end.c
-	src/select/properties/grid_row_start.c
-	src/select/properties/grid_row_end.c
-	src/select/properties/object_fit.c
-	src/select/properties/object_position.c
-	src/select/properties/transform.c
+	${LIBCSS_CASCADE_MANUAL}
+	${LIBCSS_CASCADE_GENERATED}
 	src/select/arena.c
 	src/select/calc.c
 	src/select/computed.c

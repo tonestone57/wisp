@@ -151,6 +151,144 @@ class PropertyGenParser:
         return self.prop_map
 
 
+class TomlPropertyReader:
+    """Read properties.toml and produce the same prop_map format as PropertyGenParser.
+    
+    This class reads the single-source-of-truth TOML file and produces:
+    1. prop_map: same format as PropertyGenParser.parse() for downstream generators
+    2. toml_data: raw TOML data with extra fields (initial, bits, etc.)
+    3. properties.gen content: for gen_parser (which still reads the old format)
+    """
+    
+    def __init__(self, toml_file):
+        self.toml_file = Path(toml_file)
+        self.prop_map = {}  # same format as PropertyGenParser
+        self.toml_data = {}  # raw TOML data keyed by property name
+        self.generics = {}  # generic templates
+    
+    def parse(self):
+        """Read properties.toml and build prop_map compatible with PropertyGenParser."""
+        try:
+            import tomllib
+        except ModuleNotFoundError:
+            import tomli as tomllib
+        
+        if not self.toml_file.exists():
+            print(f"FATAL ERROR: properties.toml not found at {self.toml_file}", file=sys.stderr)
+            sys.exit(1)
+        
+        with open(self.toml_file, 'rb') as f:
+            data = tomllib.load(f)
+        
+        # Extract generics
+        self.generics = data.get('generic', {})
+        
+        # Process each property
+        for prop_name, prop_data in data.items():
+            if prop_name == 'generic':
+                continue
+            
+            enum_name = prop_data.get('enum', '')
+            if not enum_name:
+                print(f"WARNING: Property '{prop_name}' missing 'enum' field", file=sys.stderr)
+                continue
+            
+            # Build the spec string from TOML data
+            spec = prop_data.get('parse', '')
+            
+            # Add flags to spec for SpecParser compatibility
+            if prop_data.get('manual'):
+                spec = 'MANUAL ' + spec if spec else 'MANUAL'
+            if prop_data.get('shorthand'):
+                spec = 'SHORTHAND ' + spec if spec else 'SHORTHAND'
+            if prop_data.get('opcodes_manual'):
+                spec = 'OPCODES:MANUAL ' + spec if spec else 'OPCODES:MANUAL'
+            # Parse the spec into structured data
+            parsed = SpecParser.parse(spec)
+            
+            # Derive flags
+            is_shorthand = prop_data.get('shorthand', False) or prop_data.get('wrap') is not None
+            is_manual = prop_data.get('manual', False)
+            
+            # Detect aliases
+            enum_base = enum_name.replace('CSS_PROP_', '').lower()
+            is_alias = (prop_name != enum_base) and not is_shorthand
+            
+            self.prop_map[prop_name] = {
+                'enum': enum_name,
+                'is_shorthand': is_shorthand,
+                'is_manual': is_manual,
+                'is_alias': is_alias,
+                'is_wrap': prop_data.get('wrap') is not None,
+                'spec': spec,
+                'parsed': parsed,
+                'line': 0,  # no line number from TOML
+            }
+            
+            # Store full TOML data for cascade generation etc.
+            self.toml_data[prop_name] = prop_data
+        
+        # Validate
+        if len(self.prop_map) < 50:
+            print(f"FATAL ERROR: Only {len(self.prop_map)} properties in properties.toml", file=sys.stderr)
+            sys.exit(1)
+        
+        return self.prop_map
+    
+    def generate_properties_gen(self):
+        """Generate properties.gen content for gen_parser.
+        
+        This produces the same format gen_parser expects, derived from TOML data.
+        Only properties with a 'parse' field are included (gen_parser needs parse specs).
+        """
+        lines = []
+        lines.append("# AUTO-GENERATED from properties.toml — DO NOT EDIT")
+        lines.append("# This file is generated for gen_parser. Edit properties.toml instead.")
+        lines.append("#")
+        
+        # Write comment templates (same as original properties.gen header)
+        lines.append("#property:CSS_PROP_ENUM IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:)")
+        lines.append("")
+        
+        # Write generics first
+        for name, gdata in sorted(self.generics.items()):
+            enum = gdata.get('enum', 'op')
+            parse = gdata.get('parse', '')
+            lines.append(f"{name}:{enum} GENERIC: {parse}")
+        
+        if self.generics:
+            lines.append("")
+        
+        # Write properties
+        for prop_name, prop_data in sorted(self.toml_data.items()):
+            parse = prop_data.get('parse', '')
+            if not parse:
+                continue  # gen_parser doesn't need properties without parse specs
+            
+            enum = prop_data.get('enum', '')
+            
+            # Build the gen_parser line (strip flags gen_parser doesn't understand)
+            # gen_parser only sees: property_name:ENUM PARSE_SPEC
+            # We strip: MANUAL, SHORTHAND, OPCODES:MANUAL, CASCADE:MANUAL, GENERIC
+            # These are already NOT in the parse field from TOML (they're separate fields)
+            
+            # Add MANUAL/SHORTHAND flags that gen_parser DOES understand
+            flags = []
+            if prop_data.get('manual'):
+                flags.append('MANUAL')
+            if prop_data.get('shorthand'):
+                flags.append('SHORTHAND')
+            
+            flag_str = ' '.join(flags)
+            if flag_str:
+                lines.append(f"{prop_name}:{enum} {flag_str} {parse}")
+            else:
+                lines.append(f"{prop_name}:{enum} {parse}")
+        
+        return '\n'.join(lines) + '\n'
+
+
+
 class SpecParser:
     """Parse a properties.gen spec string into a structured dict.
     
@@ -1028,28 +1166,48 @@ class MultiFileGenerator:
 
 
 def main():
-    if len(sys.argv) < 9:
-        print("Usage: property_generator.py dispatch.c properties.gen keywords.gen "
-              "enum.inc dispatch.inc propstrings.inc propstrings_strings.inc "
-              "prop_hash_table.gperf "
-              "[cascade_decl.inc parse_decl.inc unit_masks.inc opcodes.inc]", file=sys.stderr)
+    import os
+    
+    # Parse named flags
+    toml_file = None
+    output_dir = None
+    cascade_dir = None
+    args = sys.argv[1:]
+    positional = []
+    i = 0
+    while i < len(args):
+        if args[i] == '--toml':
+            toml_file = args[i + 1]
+            i += 2
+        elif args[i] == '--output-dir':
+            output_dir = args[i + 1]
+            i += 2
+        elif args[i] == '--cascade-dir':
+            cascade_dir = args[i + 1]
+            i += 2
+        else:
+            positional.append(args[i])
+            i += 1
+    
+    if len(positional) < 2 or not output_dir:
+        print("Usage: property_generator.py --output-dir DIR [--toml properties.toml] "
+              "[--cascade-dir DIR] dispatch.c keywords.gen", file=sys.stderr)
         sys.exit(1)
     
-    dispatch_file = sys.argv[1]
-    gen_file = sys.argv[2]
-    keywords_file = sys.argv[3]
-    enum_out = sys.argv[4]
-    dispatch_out = sys.argv[5]
-    propstrings_out = sys.argv[6]
-    propstrings_strings_out = sys.argv[7]
-    gperf_out = sys.argv[8]
+    dispatch_file = positional[0]
+    keywords_file = positional[1]
     
-    # Optional new output files (Phase 1 of generator refactor)
-    cascade_decl_out = sys.argv[9] if len(sys.argv) > 9 else None
-    parse_decl_out = sys.argv[10] if len(sys.argv) > 10 else None
-    unit_masks_out = sys.argv[11] if len(sys.argv) > 11 else None
-    # Phase 3: opcodes
-    opcodes_out = sys.argv[12] if len(sys.argv) > 12 else None
+    # Fixed output filenames within output_dir
+    gen_file = os.path.join(output_dir, 'properties.gen')
+    enum_out = os.path.join(output_dir, 'properties_enum.inc')
+    dispatch_out = os.path.join(output_dir, 'dispatch_table.inc')
+    propstrings_out = os.path.join(output_dir, 'propstrings_enum.inc')
+    propstrings_strings_out = os.path.join(output_dir, 'propstrings_strings.inc')
+    gperf_out = os.path.join(output_dir, 'prop_hash_table.gperf')
+    cascade_decl_out = os.path.join(output_dir, 'cascade_declarations.inc')
+    parse_decl_out = os.path.join(output_dir, 'parse_declarations.inc')
+    unit_masks_out = os.path.join(output_dir, 'unit_masks.inc')
+    opcodes_out = os.path.join(output_dir, 'opcodes.inc')
     
     # Parse input files
     print("Parsing dispatch.c for property order...")
@@ -1057,10 +1215,23 @@ def main():
     dispatch_order = dispatch_parser.parse()
     print(f"  Found {len(dispatch_order)} properties in dispatch.c")
     
-    print("Parsing properties.gen for metadata...")
-    gen_parser = PropertyGenParser(gen_file)
-    prop_metadata = gen_parser.parse()
-    print(f"  Found {len(prop_metadata)} properties in properties.gen")
+    toml_reader = None
+    if toml_file:
+        print(f"Reading properties.toml: {toml_file}")
+        toml_reader = TomlPropertyReader(toml_file)
+        prop_metadata = toml_reader.parse()
+        print(f"  Found {len(prop_metadata)} properties in properties.toml")
+        
+        # Generate properties.gen for gen_parser
+        print(f"Generating properties.gen: {gen_file}")
+        with open(gen_file, 'w') as f:
+            f.write(toml_reader.generate_properties_gen())
+        print(f"  Generated {gen_file} from TOML")
+    else:
+        print("Parsing properties.gen for metadata...")
+        gen_parser = PropertyGenParser(gen_file)
+        prop_metadata = gen_parser.parse()
+        print(f"  Found {len(prop_metadata)} properties in properties.gen")
     
     print("Parsing keywords.gen for CSS keywords...")
     keywords_parser = KeywordsParser(keywords_file)
@@ -1069,55 +1240,68 @@ def main():
     
     # Generate output files
     generator = MultiFileGenerator(dispatch_order, prop_metadata, keywords)
+    generator.toml_reader = toml_reader  # Store for cascade generation access
     
     # Run validation first
     print("Validating property indexes...")
     generator.validate_indexes()
     
-    with open(enum_out, 'w') as f:
-        f.write(generator.generate_enum())
-    print(f"Generated: {enum_out}")
+    for out_file, gen_func in [
+        (enum_out, generator.generate_enum),
+        (dispatch_out, generator.generate_dispatch),
+        (propstrings_out, generator.generate_propstrings),
+        (propstrings_strings_out, generator.generate_propstrings_strings),
+        (gperf_out, generator.generate_gperf_input),
+        (cascade_decl_out, generator.generate_cascade_declarations),
+        (parse_decl_out, generator.generate_parse_declarations),
+        (unit_masks_out, generator.generate_unit_masks),
+        (opcodes_out, generator.generate_opcodes),
+    ]:
+        with open(out_file, 'w') as f:
+            f.write(gen_func())
+        print(f"Generated: {out_file}")
     
-    with open(dispatch_out, 'w') as f:
-        f.write(generator.generate_dispatch())
-    print(f"Generated: {dispatch_out}")
-    
-    with open(propstrings_out, 'w') as f:
-        f.write(generator.generate_propstrings())
-    print(f"Generated: {propstrings_out}")
-    
-    with open(propstrings_strings_out, 'w') as f:
-        f.write(generator.generate_propstrings_strings())
-    print(f"Generated: {propstrings_strings_out}")
-    
-    # Generate gperf input file (replaces perfect-hash generation)
-    # CMake will then invoke gperf to produce the final prop_hash_table.inc
-    print("Generating gperf input file...")
-    with open(gperf_out, 'w') as f:
-        f.write(generator.generate_gperf_input())
-    print(f"Generated: {gperf_out}")
-    
-    # Phase 1 outputs: cascade declarations, parse declarations, unit masks
-    if cascade_decl_out:
-        with open(cascade_decl_out, 'w') as f:
-            f.write(generator.generate_cascade_declarations())
-        print(f"Generated: {cascade_decl_out}")
-    
-    if parse_decl_out:
-        with open(parse_decl_out, 'w') as f:
-            f.write(generator.generate_parse_declarations())
-        print(f"Generated: {parse_decl_out}")
-    
-    if unit_masks_out:
-        with open(unit_masks_out, 'w') as f:
-            f.write(generator.generate_unit_masks())
-        print(f"Generated: {unit_masks_out}")
-    
-    # Phase 3 output: opcodes
-    if opcodes_out:
-        with open(opcodes_out, 'w') as f:
-            f.write(generator.generate_opcodes())
-        print(f"Generated: {opcodes_out}")
+    # Generate cascade .c files if --cascade-dir and --toml are provided
+    if cascade_dir and toml_reader:
+        sys.path.insert(0, str(Path(__file__).parent))
+        import generate_cascade
+        os.makedirs(cascade_dir, exist_ok=True)
+        toml_data = toml_reader.toml_data
+        generated_files = []
+        for name, props in toml_data.items():
+            if not isinstance(props, dict):
+                continue
+            if 'cascade' not in props:
+                continue
+            content = generate_cascade.generate_cascade_file(name, props)
+            if content is None:
+                continue
+            out_path = os.path.join(cascade_dir, f'{name}.c')
+            with open(out_path, 'w') as f:
+                f.write(content)
+            generated_files.append(name)
+        print(f"Generated {len(generated_files)} cascade .c files to {cascade_dir}")
+        
+        # Also generate cascade_sources.cmake that CMake can include
+        # It defines LIBCSS_CASCADE_GENERATED and LIBCSS_CASCADE_MANUAL lists
+        all_cascade_props = set()
+        for name, props in toml_data.items():
+            if isinstance(props, dict) and props.get('enum', '').startswith('CSS_PROP_'):
+                all_cascade_props.add(name)
+        manual_files = sorted(all_cascade_props - set(generated_files))
+        
+        cmake_path = os.path.join(cascade_dir, 'cascade_sources.cmake')
+        with open(cmake_path, 'w') as f:
+            f.write('# Auto-generated by property_generator.py — do not edit.\n')
+            f.write('set(LIBCSS_CASCADE_GENERATED\n')
+            for name in sorted(generated_files):
+                f.write(f'    ${{LIBCSS_CASCADE_GEN_DIR}}/{name}.c\n')
+            f.write(')\n\n')
+            f.write('set(LIBCSS_CASCADE_MANUAL\n')
+            for name in manual_files:
+                f.write(f'    src/select/properties/{name}.c\n')
+            f.write(')\n')
+        print(f"Generated: {cmake_path}")
 
 
 if __name__ == '__main__':

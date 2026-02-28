@@ -1,0 +1,1556 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║                        CSS Property Definitions                            ║
+# ║                                                                            ║
+# ║  Single source of truth for all CSS property metadata in libcss.           ║
+# ║  Read by: property_generator.py, select_generator.py                       ║
+# ║  gen_parser receives a generated properties.gen derived from this file.    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+#
+# ─── HOW TO ADD A NEW CSS PROPERTY ───
+#
+# 1. Add a [property_name] section below (use underscores, e.g. flex_grow)
+# 2. Add PROPERTY_FUNCS(property_name) to dispatch.c (alphabetical order)
+# 3. Set the required fields (enum, parse, initial, cascade)
+# 4. Run the build — the generator validates and tells you what's missing
+# 5. If the generator cannot auto-generate opcodes, set opcodes_manual = true
+#
+# ─── FIELD REFERENCE ───
+#
+# Required:
+#   enum           CSS_PROP_* enum name (e.g. "CSS_PROP_HEIGHT")
+#   parse          Parse spec string for gen_parser
+#                  (e.g. "IDENT:( INHERIT: INITIAL: ... IDENT:) LENGTH_UNIT:( ... )")
+#
+# Cascade file generation (src/select/properties/*.c):
+#   cascade        Template for auto-generating the cascade .c file.
+#                  If absent, the property must have a hand-written .c file.
+#                  Possible values:
+#                    "ident"             IDENT-only switch (from parse spec opcodes)
+#                    "bg_border_color"   → css__cascade_bg_border_color
+#                    "border_style"      → css__cascade_border_style
+#                    "border_width"      → css__cascade_border_width
+#                    "length"            → css__cascade_length
+#                    "length_auto"       → css__cascade_length_auto
+#                    "length_auto_calc"  → css__cascade_length_auto_calc
+#                    "length_normal"     → css__cascade_length_normal
+#                    "length_none"       → css__cascade_length_none
+#                    "number"            → css__cascade_number
+#                    "uri_none"          → css__cascade_uri_none
+#                    "page_break"        → css__cascade_page_break_after_before_inside
+#                    "break"             → css__cascade_break_after_before_inside
+#                    "counter"           → css__cascade_counter_increment_reset
+#   initial        CSS spec initial value keyword (e.g. "AUTO", "NONE", "SEPARATE")
+#                  Required when cascade is set.
+#
+# Optional — for computed style layout (select_generator.py):
+#   bits           Bit width in computed style struct (e.g. 2)
+#   values         Value type(s): "length", "color", "integer", "fixed", "string",
+#                  "string_arr", "counter_arr", "content_item", "grid_track_arr",
+#                  "transform_func_arr", "gradient"
+#                  or nested arrays like [["length"], ["length"]]
+#   condition      Condition enum for propget/propset (e.g. "CSS_HEIGHT_SET")
+#   defaults       Default enum for propget/propset (e.g. "CSS_COLUMN_GAP_NORMAL")
+#   outer_struct   true if property values are stored in the outer
+#                  css_computed_style struct instead of _i (pointer-heavy types)
+#   select_comments  Documentation comment for the property in computed.h
+#   override       Override get/set generation: "get", "set", or ["get", "set"]
+#
+# Optional — extra data:
+#   initial_data   Array of additional initial value arguments, as C expressions
+#                  (e.g. ["0", "CSS_UNIT_PX"] or ["2"] or ["INTTOFIX(1)"])
+#   inherited      true if the property inherits (from CSS spec)
+#
+# Flags (all default to false if omitted):
+#   manual         Full manual parse implementation (no gen_parser output)
+#   shorthand      Shorthand property (e.g. "border", "margin")
+#   opcodes_manual Manual opcode enum definitions
+#   wrap           WRAP function name, for properties that delegate parsing
+#                  (e.g. "css__parse_border_side_color")
+#
+# ─── EXAMPLE: Adding a new IDENT property "text-wrap" ───
+#
+# [text_wrap]
+# enum = "CSS_PROP_TEXT_WRAP"
+# cascade = "ident"
+# inherited = true
+# bits = 2                              # 2 bits = up to 4 values
+# initial = "WRAP"                      # CSS spec: initial value is "wrap"
+# parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: \
+#   WRAP_STRING:0,TEXT_WRAP_WRAP NOWRAP:0,TEXT_WRAP_NOWRAP \
+#   BALANCE:0,TEXT_WRAP_BALANCE IDENT:)'''
+#
+
+# ─── Generic templates (shared parse specs) ───
+
+[generic.border_side_color]
+enum = "op"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) COLOR:BORDER_COLOR_SET"
+
+[generic.border_side_style]
+enum = "op"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,BORDER_STYLE_NONE HIDDEN:0,BORDER_STYLE_HIDDEN DOTTED:0,BORDER_STYLE_DOTTED DASHED:0,BORDER_STYLE_DASHED SOLID:0,BORDER_STYLE_SOLID LIBCSS_DOUBLE:0,BORDER_STYLE_DOUBLE GROOVE:0,BORDER_STYLE_GROOVE RIDGE:0,BORDER_STYLE_RIDGE INSET:0,BORDER_STYLE_INSET OUTSET:0,BORDER_STYLE_OUTSET IDENT:)"
+
+[generic.border_side_width]
+enum = "op"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: THIN:0,BORDER_WIDTH_THIN MEDIUM:0,BORDER_WIDTH_MEDIUM THICK:0,BORDER_WIDTH_THICK IDENT:) LENGTH_UNIT:( UNIT_PX:BORDER_WIDTH_SET MASK:UNIT_MASK_BORDER_SIDE_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:BORDER_WIDTH_CALC CALC:)"
+
+[generic.margin_side]
+enum = "op"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,MARGIN_AUTO IDENT:) LENGTH_UNIT:( UNIT_PX:MARGIN_SET MASK:UNIT_MASK_MARGIN_SIDE LENGTH_UNIT:) CALC:( UNIT_PX:MARGIN_CALC CALC:)"
+
+[generic.padding_side]
+enum = "op"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) LENGTH_UNIT:( UNIT_PX:PADDING_SET MASK:UNIT_MASK_PADDING_SIDE RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:PADDING_CALC CALC:)"
+
+[generic.side]
+enum = "op"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,BOTTOM_AUTO IDENT:) LENGTH_UNIT:( UNIT_PX:BOTTOM_SET ALLOW:unit&(UNIT_LENGTH|UNIT_PCT) LENGTH_UNIT:) CALC:( UNIT_PX:BOTTOM_CALC CALC:)"
+
+# ─── Properties ───
+
+[azimuth]
+enum = "CSS_PROP_AZIMUTH"
+cascade = "manual"
+inherited = true
+manual = true
+# initial: stub (unimplemented)
+
+[background_attachment]
+enum = "CSS_PROP_BACKGROUND_ATTACHMENT"
+cascade = "ident"
+bits = 2
+initial = "SCROLL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: FIXED:0,BACKGROUND_ATTACHMENT_FIXED SCROLL:0,BACKGROUND_ATTACHMENT_SCROLL IDENT:)'''
+
+[background_color]
+enum = "CSS_PROP_BACKGROUND_COLOR"
+cascade = "bg_border_color"
+bits = 2
+initial = "COLOR"
+initial_data = ['0']
+values = "color"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) COLOR:BACKGROUND_COLOR_SET"
+
+[background_image]
+enum = "CSS_PROP_BACKGROUND_IMAGE"
+cascade = "manual"
+manual = true
+bits = 4
+values = "string"
+
+[background_position]
+enum = "CSS_PROP_BACKGROUND_POSITION"
+cascade = "manual"
+manual = true
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PCT', '0', 'CSS_UNIT_PCT']
+values = [["length"], ["length"]]
+condition = "CSS_BACKGROUND_POSITION_SET"
+
+[background_repeat]
+enum = "CSS_PROP_BACKGROUND_REPEAT"
+cascade = "ident"
+bits = 3
+initial = "REPEAT"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NO_REPEAT:0,BACKGROUND_REPEAT_NO_REPEAT REPEAT_X:0,BACKGROUND_REPEAT_REPEAT_X REPEAT_Y:0,BACKGROUND_REPEAT_REPEAT_Y REPEAT:0,BACKGROUND_REPEAT_REPEAT IDENT:)'''
+
+[border_collapse]
+enum = "CSS_PROP_BORDER_COLLAPSE"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "SEPARATE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: COLLAPSE:0,BORDER_COLLAPSE_COLLAPSE SEPARATE:0,BORDER_COLLAPSE_SEPARATE IDENT:)'''
+
+[border_spacing]
+enum = "CSS_PROP_BORDER_SPACING"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX', '0', 'CSS_UNIT_PX']
+values = [["length"], ["length"]]
+condition = "CSS_BORDER_SPACING_SET"
+defaults = "CSS_BORDER_SPACING_SET"
+
+[border_top_color]
+enum = "CSS_PROP_BORDER_TOP_COLOR"
+enum_prefix = "CSS_BORDER_COLOR"
+cascade = "bg_border_color"
+wrap = "css__parse_border_side_color"
+bits = 2
+initial = "CURRENT_COLOR"
+initial_data = ['0']
+values = "color"
+parse = "WRAP:css__parse_border_side_color"
+
+[border_right_color]
+enum = "CSS_PROP_BORDER_RIGHT_COLOR"
+enum_prefix = "CSS_BORDER_COLOR"
+cascade = "bg_border_color"
+wrap = "css__parse_border_side_color"
+bits = 2
+initial = "CURRENT_COLOR"
+initial_data = ['0']
+values = "color"
+parse = "WRAP:css__parse_border_side_color"
+
+[border_bottom_color]
+enum = "CSS_PROP_BORDER_BOTTOM_COLOR"
+enum_prefix = "CSS_BORDER_COLOR"
+cascade = "bg_border_color"
+wrap = "css__parse_border_side_color"
+bits = 2
+initial = "CURRENT_COLOR"
+initial_data = ['0']
+values = "color"
+parse = "WRAP:css__parse_border_side_color"
+
+[border_left_color]
+enum = "CSS_PROP_BORDER_LEFT_COLOR"
+enum_prefix = "CSS_BORDER_COLOR"
+cascade = "bg_border_color"
+wrap = "css__parse_border_side_color"
+bits = 2
+initial = "CURRENT_COLOR"
+initial_data = ['0']
+values = "color"
+parse = "WRAP:css__parse_border_side_color"
+
+[border_top_style]
+enum = "CSS_PROP_BORDER_TOP_STYLE"
+enum_prefix = "CSS_BORDER_STYLE"
+cascade = "border_style"
+wrap = "css__parse_border_side_style"
+bits = 4
+initial = "NONE"
+parse = "WRAP:css__parse_border_side_style"
+
+[border_right_style]
+enum = "CSS_PROP_BORDER_RIGHT_STYLE"
+enum_prefix = "CSS_BORDER_STYLE"
+cascade = "border_style"
+wrap = "css__parse_border_side_style"
+bits = 4
+initial = "NONE"
+parse = "WRAP:css__parse_border_side_style"
+
+[border_bottom_style]
+enum = "CSS_PROP_BORDER_BOTTOM_STYLE"
+enum_prefix = "CSS_BORDER_STYLE"
+cascade = "border_style"
+wrap = "css__parse_border_side_style"
+bits = 4
+initial = "NONE"
+parse = "WRAP:css__parse_border_side_style"
+
+[border_left_style]
+enum = "CSS_PROP_BORDER_LEFT_STYLE"
+enum_prefix = "CSS_BORDER_STYLE"
+cascade = "border_style"
+wrap = "css__parse_border_side_style"
+bits = 4
+initial = "NONE"
+parse = "WRAP:css__parse_border_side_style"
+
+[border_top_width]
+enum = "CSS_PROP_BORDER_TOP_WIDTH"
+enum_prefix = "CSS_BORDER_WIDTH"
+cascade = "border_width"
+wrap = "css__parse_border_side_width"
+bits = 3
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_BORDER_WIDTH_WIDTH"
+parse = "WRAP:css__parse_border_side_width"
+
+[border_right_width]
+enum = "CSS_PROP_BORDER_RIGHT_WIDTH"
+enum_prefix = "CSS_BORDER_WIDTH"
+cascade = "border_width"
+wrap = "css__parse_border_side_width"
+bits = 3
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_BORDER_WIDTH_WIDTH"
+parse = "WRAP:css__parse_border_side_width"
+
+[border_bottom_width]
+enum = "CSS_PROP_BORDER_BOTTOM_WIDTH"
+enum_prefix = "CSS_BORDER_WIDTH"
+cascade = "border_width"
+wrap = "css__parse_border_side_width"
+bits = 3
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_BORDER_WIDTH_WIDTH"
+parse = "WRAP:css__parse_border_side_width"
+
+[border_left_width]
+enum = "CSS_PROP_BORDER_LEFT_WIDTH"
+enum_prefix = "CSS_BORDER_WIDTH"
+cascade = "border_width"
+wrap = "css__parse_border_side_width"
+bits = 3
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_BORDER_WIDTH_WIDTH"
+parse = "WRAP:css__parse_border_side_width"
+
+[bottom]
+enum = "CSS_PROP_BOTTOM"
+cascade = "length_auto"
+wrap = "css__parse_side"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_BOTTOM_SET"
+override = "get"
+parse = "WRAP:css__parse_side"
+
+[caption_side]
+enum = "CSS_PROP_CAPTION_SIDE"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "TOP"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: TOP:0,CAPTION_SIDE_TOP BOTTOM:0,CAPTION_SIDE_BOTTOM IDENT:)"
+
+[clear]
+enum = "CSS_PROP_CLEAR"
+cascade = "ident"
+bits = 3
+initial = "NONE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: RIGHT:0,CLEAR_RIGHT LEFT:0,CLEAR_LEFT BOTH:0,CLEAR_BOTH NONE:0,CLEAR_NONE IDENT:)'''
+
+[clip]
+enum = "CSS_PROP_CLIP"
+cascade = "manual"
+manual = true
+bits = 6
+values = [["length"], ["length"], ["length"], ["length"]]
+condition = "CSS_CLIP_RECT"
+defaults = "CSS_CLIP_AUTO"
+override = ['get', 'set']
+
+[color]
+enum = "CSS_PROP_COLOR"
+cascade = "manual"
+inherited = true
+bits = 1
+values = "color"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) COLOR:COLOR_SET"
+
+[content]
+enum = "CSS_PROP_CONTENT"
+cascade = "manual"
+manual = true
+bits = 2
+initial = "NORMAL"
+initial_data = ['NULL']
+values = "content_item"
+condition = "CSS_CONTENT_SET"
+defaults = "CSS_CONTENT_NORMAL"
+override = "set"
+outer_struct = true
+select_comments = "Encode content as an array of content items, terminated with a blank entry."
+
+[counter_increment]
+enum = "CSS_PROP_COUNTER_INCREMENT"
+cascade = "counter"
+bits = 1
+initial = "NONE"
+initial_data = ['NULL']
+values = "counter_arr"
+defaults = "CSS_COUNTER_INCREMENT_NONE"
+outer_struct = true
+select_comments = "Encode counter_increment as an array of name, value pairs, terminated with a blank entry."
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,COUNTER_INCREMENT_NONE IDENT:) IDENT_LIST:( STRING_OPTNUM:COUNTER_INCREMENT_NAMED 1:COUNTER_INCREMENT_NONE IDENT_LIST:)'''
+
+[counter_reset]
+enum = "CSS_PROP_COUNTER_RESET"
+cascade = "counter"
+bits = 1
+initial = "NONE"
+initial_data = ['NULL']
+values = "counter_arr"
+defaults = "CSS_COUNTER_RESET_NONE"
+outer_struct = true
+select_comments = "Encode counter_reset as an array of name, value pairs, terminated with a blank entry."
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,COUNTER_RESET_NONE IDENT:) IDENT_LIST:( STRING_OPTNUM:COUNTER_RESET_NAMED 0:COUNTER_RESET_NONE IDENT_LIST:)'''
+
+[cue_after]
+enum = "CSS_PROP_CUE_AFTER"
+cascade = "manual"
+# initial: stub (unimplemented)
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,CUE_AFTER_NONE IDENT:) URI:CUE_AFTER_URI"
+
+[cue_before]
+enum = "CSS_PROP_CUE_BEFORE"
+cascade = "manual"
+# initial: stub (unimplemented)
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,CUE_BEFORE_NONE IDENT:) URI:CUE_BEFORE_URI"
+
+[cursor]
+enum = "CSS_PROP_CURSOR"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 5
+initial = "AUTO"
+initial_data = ['NULL']
+values = "string_arr"
+defaults = "CSS_CURSOR_AUTO"
+outer_struct = true
+select_comments = "Encode cursor uri(s) as an array of string objects, terminated with a blank entry."
+
+[direction]
+enum = "CSS_PROP_DIRECTION"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "LTR"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: LTR:0,DIRECTION_LTR RTL:0,DIRECTION_RTL IDENT:)"
+
+[display]
+enum = "CSS_PROP_DISPLAY"
+cascade = "ident"
+bits = 5
+initial = "INLINE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: INLINE:0,DISPLAY_INLINE BLOCK:0,DISPLAY_BLOCK LIST_ITEM:0,DISPLAY_LIST_ITEM RUN_IN:0,DISPLAY_RUN_IN INLINE_BLOCK:0,DISPLAY_INLINE_BLOCK TABLE:0,DISPLAY_TABLE INLINE_TABLE:0,DISPLAY_INLINE_TABLE TABLE_ROW_GROUP:0,DISPLAY_TABLE_ROW_GROUP TABLE_HEADER_GROUP:0,DISPLAY_TABLE_HEADER_GROUP TABLE_FOOTER_GROUP:0,DISPLAY_TABLE_FOOTER_GROUP TABLE_ROW:0,DISPLAY_TABLE_ROW TABLE_COLUMN_GROUP:0,DISPLAY_TABLE_COLUMN_GROUP TABLE_COLUMN:0,DISPLAY_TABLE_COLUMN TABLE_CELL:0,DISPLAY_TABLE_CELL TABLE_CAPTION:0,DISPLAY_TABLE_CAPTION NONE:0,DISPLAY_NONE FLEX:0,DISPLAY_FLEX INLINE_FLEX:0,DISPLAY_INLINE_FLEX GRID:0,DISPLAY_GRID INLINE_GRID:0,DISPLAY_INLINE_GRID IDENT:)'''
+
+[elevation]
+enum = "CSS_PROP_ELEVATION"
+cascade = "manual"
+inherited = true
+manual = true
+# initial: stub (unimplemented)
+
+[empty_cells]
+enum = "CSS_PROP_EMPTY_CELLS"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "SHOW"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: SHOW:0,EMPTY_CELLS_SHOW HIDE:0,EMPTY_CELLS_HIDE IDENT:)"
+
+[float]
+enum = "CSS_PROP_FLOAT"
+cascade = "ident"
+bits = 2
+initial = "NONE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: LEFT:0,FLOAT_LEFT RIGHT:0,FLOAT_RIGHT NONE:0,FLOAT_NONE IDENT:)'''
+
+[font_family]
+enum = "CSS_PROP_FONT_FAMILY"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 3
+values = "string_arr"
+outer_struct = true
+select_comments = "Encode font family as an array of string objects, terminated with a blank entry."
+
+[font_size]
+enum = "CSS_PROP_FONT_SIZE"
+cascade = "manual"
+inherited = true
+bits = 4
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_FONT_SIZE_DIMENSION"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: XX_SMALL:0,FONT_SIZE_XX_SMALL X_SMALL:0,FONT_SIZE_X_SMALL SMALL:0,FONT_SIZE_SMALL MEDIUM:0,FONT_SIZE_MEDIUM LARGE:0,FONT_SIZE_LARGE X_LARGE:0,FONT_SIZE_X_LARGE XX_LARGE:0,FONT_SIZE_XX_LARGE LARGER:0,FONT_SIZE_LARGER SMALLER:0,FONT_SIZE_SMALLER IDENT:) LENGTH_UNIT:( UNIT_PX:FONT_SIZE_DIMENSION MASK:UNIT_MASK_FONT_SIZE RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:FONT_SIZE_CALC CALC:)'''
+
+[font_style]
+enum = "CSS_PROP_FONT_STYLE"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,FONT_STYLE_NORMAL ITALIC:0,FONT_STYLE_ITALIC OBLIQUE:0,FONT_STYLE_OBLIQUE IDENT:)'''
+
+[font_variant]
+enum = "CSS_PROP_FONT_VARIANT"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,FONT_VARIANT_NORMAL SMALL_CAPS:0,FONT_VARIANT_SMALL_CAPS IDENT:)'''
+
+[font_weight]
+enum = "CSS_PROP_FONT_WEIGHT"
+cascade = "ident"
+inherited = true
+manual = true
+bits = 4
+initial = "NORMAL"
+
+[height]
+enum = "CSS_PROP_HEIGHT"
+cascade = "length_auto"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_HEIGHT_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,HEIGHT_AUTO IDENT:) SIZING:( FIT_CONTENT:HEIGHT_SET MIN_CONTENT:HEIGHT_SET MAX_CONTENT:HEIGHT_SET SIZING:) LENGTH_UNIT:( UNIT_PX:HEIGHT_SET MASK:UNIT_MASK_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:HEIGHT_CALC CALC:)'''
+
+[left]
+enum = "CSS_PROP_LEFT"
+cascade = "length_auto"
+wrap = "css__parse_side"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_LEFT_SET"
+override = "get"
+parse = "WRAP:css__parse_side"
+
+[letter_spacing]
+enum = "CSS_PROP_LETTER_SPACING"
+cascade = "length_normal"
+inherited = true
+bits = 2
+initial = "NORMAL"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_LETTER_SPACING_SET"
+defaults = "CSS_LETTER_SPACING_NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,LETTER_SPACING_NORMAL IDENT:) LENGTH_UNIT:( UNIT_PX:LETTER_SPACING_SET MASK:UNIT_MASK_LETTER_SPACING LENGTH_UNIT:) CALC:( UNIT_PX:LETTER_SPACING_CALC CALC:)'''
+
+[line_height]
+enum = "CSS_PROP_LINE_HEIGHT"
+cascade = "manual"
+inherited = true
+bits = 2
+initial = "NORMAL"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+override = "get"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,LINE_HEIGHT_NORMAL IDENT:) NUMBER:( false:LINE_HEIGHT_NUMBER RANGE:num<0 NUMBER:) LENGTH_UNIT:( UNIT_PX:LINE_HEIGHT_DIMENSION MASK:UNIT_MASK_LINE_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( ANY:LINE_HEIGHT_CALC CALC:)'''
+
+[list_style_image]
+enum = "CSS_PROP_LIST_STYLE_IMAGE"
+cascade = "uri_none"
+inherited = true
+bits = 1
+initial = "NONE"
+initial_data = ['NULL']
+values = "string"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,LIST_STYLE_IMAGE_NONE IDENT:) URI:LIST_STYLE_IMAGE_URI'''
+
+[list_style_position]
+enum = "CSS_PROP_LIST_STYLE_POSITION"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "OUTSIDE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: INSIDE:0,LIST_STYLE_POSITION_INSIDE OUTSIDE:0,LIST_STYLE_POSITION_OUTSIDE IDENT:)'''
+
+[list_style_type]
+enum = "CSS_PROP_LIST_STYLE_TYPE"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 6
+initial = "DISC"
+
+[margin_top]
+enum = "CSS_PROP_MARGIN_TOP"
+enum_prefix = "CSS_MARGIN"
+cascade = "length_auto"
+wrap = "css__parse_margin_side"
+bits = 2
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MARGIN_SET"
+parse = "WRAP:css__parse_margin_side"
+
+[margin_right]
+enum = "CSS_PROP_MARGIN_RIGHT"
+enum_prefix = "CSS_MARGIN"
+cascade = "length_auto"
+wrap = "css__parse_margin_side"
+bits = 2
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MARGIN_SET"
+parse = "WRAP:css__parse_margin_side"
+
+[margin_bottom]
+enum = "CSS_PROP_MARGIN_BOTTOM"
+enum_prefix = "CSS_MARGIN"
+cascade = "length_auto"
+wrap = "css__parse_margin_side"
+bits = 2
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MARGIN_SET"
+parse = "WRAP:css__parse_margin_side"
+
+[margin_left]
+enum = "CSS_PROP_MARGIN_LEFT"
+enum_prefix = "CSS_MARGIN"
+cascade = "length_auto"
+wrap = "css__parse_margin_side"
+bits = 2
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MARGIN_SET"
+parse = "WRAP:css__parse_margin_side"
+
+[max_height]
+enum = "CSS_PROP_MAX_HEIGHT"
+cascade = "length_none"
+bits = 2
+initial = "NONE"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MAX_HEIGHT_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,MAX_HEIGHT_NONE IDENT:) SIZING:( FIT_CONTENT:MAX_HEIGHT_SET MIN_CONTENT:MAX_HEIGHT_SET MAX_CONTENT:MAX_HEIGHT_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MAX_HEIGHT_SET MASK:UNIT_MASK_MAX_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MAX_HEIGHT_CALC CALC:)'''
+
+[max_width]
+enum = "CSS_PROP_MAX_WIDTH"
+cascade = "length_none"
+bits = 2
+initial = "NONE"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MAX_WIDTH_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,MAX_WIDTH_NONE IDENT:) SIZING:( FIT_CONTENT:MAX_WIDTH_SET MIN_CONTENT:MAX_WIDTH_SET MAX_CONTENT:MAX_WIDTH_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MAX_WIDTH_SET MASK:UNIT_MASK_MAX_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MAX_WIDTH_CALC CALC:)'''
+
+[min_height]
+enum = "CSS_PROP_MIN_HEIGHT"
+cascade = "length_auto"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MIN_HEIGHT_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,MIN_HEIGHT_AUTO IDENT:) SIZING:( FIT_CONTENT:MIN_HEIGHT_SET MIN_CONTENT:MIN_HEIGHT_SET MAX_CONTENT:MIN_HEIGHT_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MIN_HEIGHT_SET MASK:UNIT_MASK_MIN_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MIN_HEIGHT_CALC CALC:)'''
+
+[min_width]
+enum = "CSS_PROP_MIN_WIDTH"
+cascade = "length_auto"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_MIN_WIDTH_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,MIN_WIDTH_AUTO IDENT:) SIZING:( FIT_CONTENT:MIN_WIDTH_SET MIN_CONTENT:MIN_WIDTH_SET MAX_CONTENT:MIN_WIDTH_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MIN_WIDTH_SET MASK:UNIT_MASK_MIN_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MIN_WIDTH_CALC CALC:)'''
+
+[orphans]
+enum = "CSS_PROP_ORPHANS"
+cascade = "integer"
+inherited = true
+bits = 1
+initial = "SET"
+initial_data = ['2']
+values = [["integer", "2"]]
+defaults = "CSS_ORPHANS_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( true:ORPHANS_SET RANGE:num<0 NUMBER:) CALC:( NUMBER:ORPHANS_CALC CALC:)'''
+
+[outline_color]
+enum = "CSS_PROP_OUTLINE_COLOR"
+cascade = "manual"
+opcodes_manual = true
+bits = 2
+initial = "INVERT"
+initial_data = ['0']
+values = "color"
+condition = "CSS_OUTLINE_COLOR_COLOR"
+defaults = "CSS_OUTLINE_COLOR_INVERT"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: INVERT:0,OUTLINE_COLOR_INVERT IDENT:) COLOR:OUTLINE_COLOR_SET'''
+
+[outline_style]
+enum = "CSS_PROP_OUTLINE_STYLE"
+cascade = "border_style"
+opcodes_manual = true
+bits = 4
+initial = "NONE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,BORDER_STYLE_NONE DOTTED:0,BORDER_STYLE_DOTTED DASHED:0,BORDER_STYLE_DASHED SOLID:0,BORDER_STYLE_SOLID LIBCSS_DOUBLE:0,BORDER_STYLE_DOUBLE GROOVE:0,BORDER_STYLE_GROOVE RIDGE:0,BORDER_STYLE_RIDGE INSET:0,BORDER_STYLE_INSET OUTSET:0,BORDER_STYLE_OUTSET IDENT:)'''
+
+[outline_width]
+enum = "CSS_PROP_OUTLINE_WIDTH"
+cascade = "border_width"
+wrap = "css__parse_border_side_width"
+bits = 3
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_OUTLINE_WIDTH_WIDTH"
+defaults = "CSS_OUTLINE_WIDTH_MEDIUM"
+parse = "WRAP:css__parse_border_side_width"
+
+[overflow_x]
+enum = "CSS_PROP_OVERFLOW_X"
+enum_prefix = "CSS_OVERFLOW"
+cascade = "ident"
+bits = 3
+initial = "VISIBLE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: VISIBLE:0,OVERFLOW_VISIBLE HIDDEN:0,OVERFLOW_HIDDEN SCROLL:0,OVERFLOW_SCROLL AUTO:0,OVERFLOW_AUTO IDENT:)'''
+
+[padding_top]
+enum = "CSS_PROP_PADDING_TOP"
+enum_prefix = "CSS_PADDING"
+cascade = "length"
+wrap = "css__parse_padding_side"
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_PADDING_SET"
+parse = "WRAP:css__parse_padding_side"
+
+[padding_right]
+enum = "CSS_PROP_PADDING_RIGHT"
+enum_prefix = "CSS_PADDING"
+cascade = "length"
+wrap = "css__parse_padding_side"
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_PADDING_SET"
+parse = "WRAP:css__parse_padding_side"
+
+[padding_bottom]
+enum = "CSS_PROP_PADDING_BOTTOM"
+enum_prefix = "CSS_PADDING"
+cascade = "length"
+wrap = "css__parse_padding_side"
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_PADDING_SET"
+parse = "WRAP:css__parse_padding_side"
+
+[padding_left]
+enum = "CSS_PROP_PADDING_LEFT"
+enum_prefix = "CSS_PADDING"
+cascade = "length"
+wrap = "css__parse_padding_side"
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_PADDING_SET"
+parse = "WRAP:css__parse_padding_side"
+
+[page_break_after]
+enum = "CSS_PROP_PAGE_BREAK_AFTER"
+cascade = "page_break"
+bits = 3
+initial = "AUTO"
+defaults = "CSS_PAGE_BREAK_AFTER_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,PAGE_BREAK_AFTER_AUTO ALWAYS:0,PAGE_BREAK_AFTER_ALWAYS AVOID:0,PAGE_BREAK_AFTER_AVOID LEFT:0,PAGE_BREAK_AFTER_LEFT RIGHT:0,PAGE_BREAK_AFTER_RIGHT IDENT:)'''
+
+[page_break_before]
+enum = "CSS_PROP_PAGE_BREAK_BEFORE"
+cascade = "page_break"
+bits = 3
+initial = "AUTO"
+defaults = "CSS_PAGE_BREAK_BEFORE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,PAGE_BREAK_BEFORE_AUTO ALWAYS:0,PAGE_BREAK_BEFORE_ALWAYS AVOID:0,PAGE_BREAK_BEFORE_AVOID LEFT:0,PAGE_BREAK_BEFORE_LEFT RIGHT:0,PAGE_BREAK_BEFORE_RIGHT IDENT:)'''
+
+[page_break_inside]
+enum = "CSS_PROP_PAGE_BREAK_INSIDE"
+cascade = "page_break"
+inherited = true
+bits = 2
+initial = "AUTO"
+defaults = "CSS_PAGE_BREAK_INSIDE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,PAGE_BREAK_INSIDE_AUTO AVOID:0,PAGE_BREAK_INSIDE_AVOID IDENT:)'''
+
+[pause_after]
+enum = "CSS_PROP_PAUSE_AFTER"
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) LENGTH_UNIT:( UNIT_S:PAUSE_AFTER_SET MASK:UNIT_MASK_PAUSE_AFTER RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_S:PAUSE_AFTER_CALC CALC:)'''
+
+[pause_before]
+enum = "CSS_PROP_PAUSE_BEFORE"
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) LENGTH_UNIT:( UNIT_S:PAUSE_BEFORE_SET MASK:UNIT_MASK_PAUSE_BEFORE RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_S:PAUSE_BEFORE_CALC CALC:)'''
+
+[pitch_range]
+enum = "CSS_PROP_PITCH_RANGE"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( false:PITCH_RANGE_SET RANGE:num<0||num>F_100 NUMBER:) CALC:( NUMBER:PITCH_RANGE_CALC CALC:)'''
+
+[pitch]
+enum = "CSS_PROP_PITCH"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: X_LOW:0,PITCH_X_LOW LOW:0,PITCH_LOW MEDIUM:0,PITCH_MEDIUM HIGH:0,PITCH_HIGH X_HIGH:0,PITCH_X_HIGH IDENT:) LENGTH_UNIT:( UNIT_HZ:PITCH_FREQUENCY MASK:UNIT_MASK_PITCH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_HZ:PITCH_CALC CALC:)'''
+
+[play_during]
+enum = "CSS_PROP_PLAY_DURING"
+manual = true
+cascade = "manual"
+
+[position]
+enum = "CSS_PROP_POSITION"
+cascade = "ident"
+bits = 3
+initial = "STATIC"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: LIBCSS_STATIC:0,POSITION_STATIC RELATIVE:0,POSITION_RELATIVE ABSOLUTE:0,POSITION_ABSOLUTE FIXED:0,POSITION_FIXED STICKY:0,POSITION_STICKY IDENT:)'''
+
+[quotes]
+enum = "CSS_PROP_QUOTES"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 1
+values = "string_arr"
+outer_struct = true
+select_comments = "Encode quotes as an array of string objects, terminated with a blank entry."
+
+[richness]
+enum = "CSS_PROP_RICHNESS"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( false:RICHNESS_SET RANGE:num<0||num>F_100 NUMBER:) CALC:( NUMBER:RICHNESS_CALC CALC:)'''
+
+[right]
+enum = "CSS_PROP_RIGHT"
+cascade = "length_auto"
+wrap = "css__parse_side"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_RIGHT_SET"
+override = "get"
+parse = "WRAP:css__parse_side"
+
+[speak_header]
+enum = "CSS_PROP_SPEAK_HEADER"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: ONCE:0,SPEAK_HEADER_ONCE ALWAYS:0,SPEAK_HEADER_ALWAYS IDENT:)'''
+
+[speak_numeral]
+enum = "CSS_PROP_SPEAK_NUMERAL"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: DIGITS:0,SPEAK_NUMERAL_DIGITS CONTINUOUS:0,SPEAK_NUMERAL_CONTINUOUS IDENT:)'''
+
+[speak_punctuation]
+enum = "CSS_PROP_SPEAK_PUNCTUATION"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: CODE:0,SPEAK_PUNCTUATION_CODE NONE:0,SPEAK_PUNCTUATION_NONE IDENT:)'''
+
+[speak]
+enum = "CSS_PROP_SPEAK"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,SPEAK_NORMAL NONE:0,SPEAK_NONE SPELL_OUT:0,SPEAK_SPELL_OUT IDENT:)'''
+
+[speech_rate]
+enum = "CSS_PROP_SPEECH_RATE"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: X_SLOW:0,SPEECH_RATE_X_SLOW SLOW:0,SPEECH_RATE_SLOW MEDIUM:0,SPEECH_RATE_MEDIUM FAST:0,SPEECH_RATE_FAST X_FAST:0,SPEECH_RATE_X_FAST FASTER:0,SPEECH_RATE_FASTER SLOWER:0,SPEECH_RATE_SLOWER IDENT:) NUMBER:( false:SPEECH_RATE_SET RANGE:num<0 NUMBER:) CALC:( NUMBER:SPEECH_RATE_CALC CALC:)'''
+
+[stress]
+enum = "CSS_PROP_STRESS"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( false:STRESS_SET RANGE:num<0||num>INTTOFIX(100) NUMBER:) CALC:( NUMBER:STRESS_CALC CALC:)'''
+
+[table_layout]
+enum = "CSS_PROP_TABLE_LAYOUT"
+cascade = "ident"
+bits = 2
+initial = "AUTO"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,TABLE_LAYOUT_AUTO FIXED:0,TABLE_LAYOUT_FIXED IDENT:)"
+
+[text_align]
+enum = "CSS_PROP_TEXT_ALIGN"
+cascade = "manual"
+inherited = true
+bits = 4
+initial = "DEFAULT"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: LEFT:0,TEXT_ALIGN_LEFT RIGHT:0,TEXT_ALIGN_RIGHT CENTER:0,TEXT_ALIGN_CENTER JUSTIFY:0,TEXT_ALIGN_JUSTIFY LIBCSS_LEFT:0,TEXT_ALIGN_LIBCSS_LEFT LIBCSS_CENTER:0,TEXT_ALIGN_LIBCSS_CENTER LIBCSS_RIGHT:0,TEXT_ALIGN_LIBCSS_RIGHT IDENT:)'''
+
+[text_decoration]
+enum = "CSS_PROP_TEXT_DECORATION"
+cascade = "manual"
+manual = true
+bits = 5
+initial = "NONE"
+
+[text_indent]
+enum = "CSS_PROP_TEXT_INDENT"
+cascade = "length"
+inherited = true
+bits = 1
+initial = "SET"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_TEXT_INDENT_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) LENGTH_UNIT:( UNIT_PX:TEXT_INDENT_SET MASK:UNIT_MASK_TEXT_INDENT LENGTH_UNIT:) CALC:( UNIT_PX:TEXT_INDENT_CALC CALC:)'''
+
+[text_transform]
+enum = "CSS_PROP_TEXT_TRANSFORM"
+cascade = "ident"
+inherited = true
+bits = 3
+initial = "NONE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: CAPITALIZE:0,TEXT_TRANSFORM_CAPITALIZE UPPERCASE:0,TEXT_TRANSFORM_UPPERCASE LOWERCASE:0,TEXT_TRANSFORM_LOWERCASE NONE:0,TEXT_TRANSFORM_NONE IDENT:)'''
+
+[top]
+enum = "CSS_PROP_TOP"
+cascade = "length_auto"
+wrap = "css__parse_side"
+bits = 2
+initial = "AUTO"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_TOP_SET"
+override = "get"
+parse = "WRAP:css__parse_side"
+
+[unicode_bidi]
+enum = "CSS_PROP_UNICODE_BIDI"
+cascade = "ident"
+bits = 2
+initial = "NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,UNICODE_BIDI_NORMAL EMBED:0,UNICODE_BIDI_EMBED BIDI_OVERRIDE:0,UNICODE_BIDI_BIDI_OVERRIDE IDENT:)'''
+
+[vertical_align]
+enum = "CSS_PROP_VERTICAL_ALIGN"
+cascade = "manual"
+bits = 4
+initial = "BASELINE"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_VERTICAL_ALIGN_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: BASELINE:0,VERTICAL_ALIGN_BASELINE SUB:0,VERTICAL_ALIGN_SUB SUPER:0,VERTICAL_ALIGN_SUPER TOP:0,VERTICAL_ALIGN_TOP TEXT_TOP:0,VERTICAL_ALIGN_TEXT_TOP MIDDLE:0,VERTICAL_ALIGN_MIDDLE BOTTOM:0,VERTICAL_ALIGN_BOTTOM TEXT_BOTTOM:0,VERTICAL_ALIGN_TEXT_BOTTOM IDENT:) LENGTH_UNIT:( UNIT_PX:VERTICAL_ALIGN_SET MASK:UNIT_MASK_VERTICAL_ALIGN LENGTH_UNIT:) CALC:( UNIT_PX:VERTICAL_ALIGN_CALC CALC:)'''
+
+[visibility]
+enum = "CSS_PROP_VISIBILITY"
+cascade = "ident"
+inherited = true
+bits = 2
+initial = "VISIBLE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: VISIBLE:0,VISIBILITY_VISIBLE HIDDEN:0,VISIBILITY_HIDDEN COLLAPSE:0,VISIBILITY_COLLAPSE IDENT:)'''
+
+[voice_family]
+enum = "CSS_PROP_VOICE_FAMILY"
+inherited = true
+manual = true
+cascade = "manual"
+
+[volume]
+enum = "CSS_PROP_VOLUME"
+inherited = true
+cascade = "manual"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: SILENT:0,VOLUME_SILENT X_SOFT:0,VOLUME_X_SOFT SOFT:0,VOLUME_SOFT MEDIUM:0,VOLUME_MEDIUM LOUD:0,VOLUME_LOUD X_LOUD:0,VOLUME_X_LOUD IDENT:) NUMBER:( false:VOLUME_NUMBER RANGE:num<0||num>F_100 NUMBER:) LENGTH_UNIT:( UNIT_PX:VOLUME_DIMENSION MASK:UNIT_MASK_VOLUME RANGE:<0 LENGTH_UNIT:) CALC:( ANY:VOLUME_CALC CALC:)'''
+
+[white_space]
+enum = "CSS_PROP_WHITE_SPACE"
+cascade = "ident"
+inherited = true
+bits = 3
+initial = "NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,WHITE_SPACE_NORMAL PRE:0,WHITE_SPACE_PRE NOWRAP:0,WHITE_SPACE_NOWRAP PRE_WRAP:0,WHITE_SPACE_PRE_WRAP PRE_LINE:0,WHITE_SPACE_PRE_LINE IDENT:)'''
+
+[widows]
+enum = "CSS_PROP_WIDOWS"
+cascade = "integer"
+inherited = true
+bits = 1
+initial = "SET"
+initial_data = ['2']
+values = [["integer", "2"]]
+defaults = "CSS_WIDOWS_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( true:WIDOWS_SET RANGE:num<0 NUMBER:) CALC:( NUMBER:WIDOWS_CALC CALC:)'''
+
+[width]
+enum = "CSS_PROP_WIDTH"
+cascade = "length_auto_calc"
+bits = 2
+initial = "AUTO"
+initial_data = ['(css_fixed_or_calc)0', 'CSS_UNIT_PX']
+values = [["length", "", "calc"]]
+condition = "CSS_WIDTH_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,WIDTH_AUTO IDENT:) SIZING:( FIT_CONTENT:WIDTH_SET MIN_CONTENT:WIDTH_SET MAX_CONTENT:WIDTH_SET SIZING:) LENGTH_UNIT:( UNIT_PX:WIDTH_SET MASK:UNIT_MASK_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:WIDTH_CALC CALC:)'''
+
+[word_spacing]
+enum = "CSS_PROP_WORD_SPACING"
+cascade = "length_normal"
+inherited = true
+bits = 2
+initial = "NORMAL"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_WORD_SPACING_SET"
+defaults = "CSS_WORD_SPACING_NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,WORD_SPACING_NORMAL IDENT:) LENGTH_UNIT:( UNIT_PX:WORD_SPACING_SET MASK:UNIT_MASK_WORD_SPACING LENGTH_UNIT:) CALC:( UNIT_PX:WORD_SPACING_CALC CALC:)'''
+
+[z_index]
+enum = "CSS_PROP_Z_INDEX"
+cascade = "manual"
+bits = 2
+initial = "AUTO"
+initial_data = ['0']
+values = "integer"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,Z_INDEX_AUTO IDENT:) NUMBER:( true:Z_INDEX_SET NUMBER:) CALC:( NUMBER:Z_INDEX_CALC CALC:)'''
+
+[opacity]
+enum = "CSS_PROP_OPACITY"
+cascade = "manual"
+manual = true
+bits = 1
+initial = "SET"
+initial_data = ['INTTOFIX(1)']
+values = "fixed"
+condition = "CSS_OPACITY_SET"
+
+[break_after]
+enum = "CSS_PROP_BREAK_AFTER"
+cascade = "break"
+bits = 4
+initial = "AUTO"
+defaults = "CSS_BREAK_AFTER_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,BREAK_AFTER_AUTO ALWAYS:0,BREAK_AFTER_ALWAYS AVOID:0,BREAK_AFTER_AVOID LEFT:0,BREAK_AFTER_LEFT RIGHT:0,BREAK_AFTER_RIGHT PAGE:0,BREAK_AFTER_PAGE COLUMN:0,BREAK_AFTER_COLUMN AVOID_PAGE:0,BREAK_AFTER_AVOID_PAGE AVOID_COLUMN:0,BREAK_AFTER_AVOID_COLUMN IDENT:)'''
+
+[break_before]
+enum = "CSS_PROP_BREAK_BEFORE"
+cascade = "break"
+bits = 4
+initial = "AUTO"
+defaults = "CSS_BREAK_BEFORE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,BREAK_BEFORE_AUTO ALWAYS:0,BREAK_BEFORE_ALWAYS AVOID:0,BREAK_BEFORE_AVOID LEFT:0,BREAK_BEFORE_LEFT RIGHT:0,BREAK_BEFORE_RIGHT PAGE:0,BREAK_BEFORE_PAGE COLUMN:0,BREAK_BEFORE_COLUMN AVOID_PAGE:0,BREAK_BEFORE_AVOID_PAGE AVOID_COLUMN:0,BREAK_BEFORE_AVOID_COLUMN IDENT:)'''
+
+[break_inside]
+enum = "CSS_PROP_BREAK_INSIDE"
+cascade = "ident"
+bits = 4
+initial = "AUTO"
+defaults = "CSS_BREAK_INSIDE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,BREAK_INSIDE_AUTO AVOID:0,BREAK_INSIDE_AVOID AVOID_PAGE:0,BREAK_INSIDE_AVOID_PAGE AVOID_COLUMN:0,BREAK_INSIDE_AVOID_COLUMN IDENT:)'''
+
+[column_count]
+enum = "CSS_PROP_COLUMN_COUNT"
+cascade = "manual"
+bits = 2
+initial = "AUTO"
+initial_data = ['0']
+values = "integer"
+defaults = "CSS_COLUMN_COUNT_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,COLUMN_COUNT_AUTO IDENT:) NUMBER:( true:COLUMN_COUNT_SET RANGE:num<0 NUMBER:) CALC:( NUMBER:COLUMN_COUNT_CALC CALC:)'''
+
+[column_fill]
+enum = "CSS_PROP_COLUMN_FILL"
+cascade = "ident"
+bits = 2
+initial = "BALANCE"
+defaults = "CSS_COLUMN_FILL_BALANCE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: BALANCE:0,COLUMN_FILL_BALANCE AUTO:0,COLUMN_FILL_AUTO IDENT:)'''
+
+[column_gap]
+enum = "CSS_PROP_COLUMN_GAP"
+# cascade: manual — initial_data differs from TYPE_INFO defaults (arena memcmp risk)
+cascade = "manual"
+bits = 2
+initial = "NORMAL"
+initial_data = ['INTTOFIX(1)', 'CSS_UNIT_EM']
+values = "length"
+condition = "CSS_COLUMN_GAP_SET"
+defaults = "CSS_COLUMN_GAP_NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,COLUMN_GAP_NORMAL IDENT:) LENGTH_UNIT:( UNIT_PX:COLUMN_GAP_SET RANGE:<0 MASK:UNIT_MASK_COLUMN_GAP LENGTH_UNIT:) CALC:( UNIT_PX:COLUMN_GAP_CALC CALC:)'''
+
+[column_rule_color]
+enum = "CSS_PROP_COLUMN_RULE_COLOR"
+cascade = "manual"
+bits = 2
+initial = "CURRENT_COLOR"
+initial_data = ['0']
+values = "color"
+defaults = "CSS_COLUMN_RULE_COLOR_CURRENT_COLOR"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) COLOR:COLUMN_RULE_COLOR_SET"
+
+[column_rule_style]
+enum = "CSS_PROP_COLUMN_RULE_STYLE"
+enum_prefix = "CSS_COLUMN_RULE_STYLE"
+cascade = "border_style"
+opcodes_manual = true
+bits = 4
+initial = "NONE"
+defaults = "CSS_COLUMN_RULE_STYLE_NONE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,BORDER_STYLE_NONE HIDDEN:0,BORDER_STYLE_HIDDEN DOTTED:0,BORDER_STYLE_DOTTED DASHED:0,BORDER_STYLE_DASHED SOLID:0,BORDER_STYLE_SOLID LIBCSS_DOUBLE:0,BORDER_STYLE_DOUBLE GROOVE:0,BORDER_STYLE_GROOVE RIDGE:0,BORDER_STYLE_RIDGE INSET:0,BORDER_STYLE_INSET OUTSET:0,BORDER_STYLE_OUTSET IDENT:)'''
+
+[column_rule_width]
+enum = "CSS_PROP_COLUMN_RULE_WIDTH"
+enum_prefix = "CSS_COLUMN_RULE_WIDTH"
+cascade = "border_width"
+wrap = "css__parse_border_side_width"
+bits = 3
+initial = "MEDIUM"
+initial_data = ['0', 'CSS_UNIT_PX']
+values = "length"
+condition = "CSS_COLUMN_RULE_WIDTH_WIDTH"
+defaults = "CSS_COLUMN_RULE_WIDTH_MEDIUM"
+parse = "WRAP:css__parse_border_side_width"
+
+[column_span]
+enum = "CSS_PROP_COLUMN_SPAN"
+cascade = "ident"
+bits = 2
+initial = "NONE"
+defaults = "CSS_COLUMN_SPAN_NONE"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,COLUMN_SPAN_NONE ALL:0,COLUMN_SPAN_ALL IDENT:)"
+
+[column_width]
+enum = "CSS_PROP_COLUMN_WIDTH"
+# cascade: manual — initial_data differs from TYPE_INFO defaults (arena memcmp risk)
+cascade = "manual"
+bits = 2
+initial = "AUTO"
+initial_data = ['INTTOFIX(1)', 'CSS_UNIT_EM']
+values = "length"
+condition = "CSS_COLUMN_WIDTH_SET"
+defaults = "CSS_COLUMN_WIDTH_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,COLUMN_WIDTH_AUTO IDENT:) LENGTH_UNIT:( UNIT_PX:COLUMN_WIDTH_SET MASK:UNIT_MASK_COLUMN_WIDTH LENGTH_UNIT:) CALC:( UNIT_PX:COLUMN_WIDTH_CALC CALC:)'''
+
+[writing_mode]
+enum = "CSS_PROP_WRITING_MODE"
+cascade = "ident"
+bits = 2
+initial = "HORIZONTAL_TB"
+defaults = "CSS_WRITING_MODE_HORIZONTAL_TB"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: HORIZONTAL_TB:0,WRITING_MODE_HORIZONTAL_TB VERTICAL_RL:0,WRITING_MODE_VERTICAL_RL VERTICAL_LR:0,WRITING_MODE_VERTICAL_LR IDENT:)'''
+
+[overflow_y]
+enum = "CSS_PROP_OVERFLOW_Y"
+enum_prefix = "CSS_OVERFLOW"
+cascade = "ident"
+opcodes_manual = true
+bits = 3
+initial = "VISIBLE"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: VISIBLE:0,OVERFLOW_VISIBLE HIDDEN:0,OVERFLOW_HIDDEN SCROLL:0,OVERFLOW_SCROLL AUTO:0,OVERFLOW_AUTO IDENT:)'''
+
+[box_sizing]
+enum = "CSS_PROP_BOX_SIZING"
+cascade = "ident"
+bits = 2
+initial = "CONTENT_BOX"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: CONTENT_BOX:0,BOX_SIZING_CONTENT_BOX BORDER_BOX:0,BOX_SIZING_BORDER_BOX IDENT:)'''
+
+[align_content]
+enum = "CSS_PROP_ALIGN_CONTENT"
+cascade = "ident"
+bits = 3
+initial = "STRETCH"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_CONTENT_STRETCH FLEX_START:0,ALIGN_CONTENT_FLEX_START FLEX_END:0,ALIGN_CONTENT_FLEX_END CENTER:0,ALIGN_CONTENT_CENTER SPACE_BETWEEN:0,ALIGN_CONTENT_SPACE_BETWEEN SPACE_AROUND:0,ALIGN_CONTENT_SPACE_AROUND SPACE_EVENLY:0,ALIGN_CONTENT_SPACE_EVENLY IDENT:)'''
+
+[align_items]
+enum = "CSS_PROP_ALIGN_ITEMS"
+cascade = "ident"
+bits = 3
+initial = "STRETCH"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_ITEMS_STRETCH FLEX_START:0,ALIGN_ITEMS_FLEX_START FLEX_END:0,ALIGN_ITEMS_FLEX_END CENTER:0,ALIGN_ITEMS_CENTER BASELINE:0,ALIGN_ITEMS_BASELINE IDENT:)'''
+
+[align_self]
+enum = "CSS_PROP_ALIGN_SELF"
+cascade = "ident"
+bits = 3
+initial = "AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: STRETCH:0,ALIGN_SELF_STRETCH FLEX_START:0,ALIGN_SELF_FLEX_START FLEX_END:0,ALIGN_SELF_FLEX_END CENTER:0,ALIGN_SELF_CENTER BASELINE:0,ALIGN_SELF_BASELINE AUTO:0,ALIGN_SELF_AUTO IDENT:)'''
+
+[flex_basis]
+enum = "CSS_PROP_FLEX_BASIS"
+cascade = "manual"
+bits = 2
+initial = "AUTO"
+initial_data = ['(css_fixed_or_calc)0', 'CSS_UNIT_PX']
+values = [["length", "", "calc"]]
+condition = "CSS_FLEX_BASIS_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,FLEX_BASIS_AUTO CONTENT:0,FLEX_BASIS_CONTENT IDENT:) LENGTH_UNIT:( UNIT_PX:FLEX_BASIS_SET MASK:UNIT_MASK_FLEX_BASIS RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:FLEX_BASIS_CALC CALC:)'''
+
+[flex_direction]
+enum = "CSS_PROP_FLEX_DIRECTION"
+cascade = "ident"
+bits = 3
+initial = "ROW"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: ROW:0,FLEX_DIRECTION_ROW ROW_REVERSE:0,FLEX_DIRECTION_ROW_REVERSE COLUMN:0,FLEX_DIRECTION_COLUMN COLUMN_REVERSE:0,FLEX_DIRECTION_COLUMN_REVERSE IDENT:)'''
+
+[flex_grow]
+enum = "CSS_PROP_FLEX_GROW"
+cascade = "manual"
+bits = 1
+initial = "SET"
+initial_data = ['INTTOFIX(0)']
+values = "fixed"
+condition = "CSS_FLEX_GROW_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( false:FLEX_GROW_SET RANGE:num<0 NUMBER:) CALC:( NUMBER:FLEX_GROW_CALC CALC:)'''
+
+[flex_shrink]
+enum = "CSS_PROP_FLEX_SHRINK"
+cascade = "manual"
+bits = 1
+initial = "SET"
+initial_data = ['INTTOFIX(1)']
+values = "fixed"
+condition = "CSS_FLEX_SHRINK_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( false:FLEX_SHRINK_SET RANGE:num<0 NUMBER:) CALC:( NUMBER:FLEX_SHRINK_CALC CALC:)'''
+
+[flex_wrap]
+enum = "CSS_PROP_FLEX_WRAP"
+cascade = "ident"
+bits = 2
+initial = "NOWRAP"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NOWRAP:0,FLEX_WRAP_NOWRAP WRAP_STRING:0,FLEX_WRAP_WRAP WRAP_REVERSE:0,FLEX_WRAP_WRAP_REVERSE IDENT:)'''
+
+[justify_content]
+enum = "CSS_PROP_JUSTIFY_CONTENT"
+cascade = "ident"
+bits = 3
+initial = "FLEX_START"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: FLEX_START:0,JUSTIFY_CONTENT_FLEX_START FLEX_END:0,JUSTIFY_CONTENT_FLEX_END CENTER:0,JUSTIFY_CONTENT_CENTER SPACE_BETWEEN:0,JUSTIFY_CONTENT_SPACE_BETWEEN SPACE_AROUND:0,JUSTIFY_CONTENT_SPACE_AROUND SPACE_EVENLY:0,JUSTIFY_CONTENT_SPACE_EVENLY IDENT:)'''
+
+[order]
+enum = "CSS_PROP_ORDER"
+cascade = "manual"
+bits = 1
+initial = "SET"
+initial_data = ['0']
+values = "integer"
+condition = "CSS_ORDER_SET"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( true:ORDER_SET NUMBER:) CALC:( NUMBER:ORDER_CALC CALC:)'''
+
+[fill]
+enum = "CSS_PROP_FILL"
+cascade = "bg_border_color"
+inherited = true
+opcodes_manual = true
+bits = 2
+initial = "COLOR"
+initial_data = ['0x000000ff']
+values = "color"
+parse = "IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,FILL_NONE IDENT:) COLOR:FILL_SET"
+
+[fill_opacity]
+enum = "CSS_PROP_FILL_OPACITY"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 1
+initial = "SET"
+initial_data = ['INTTOFIX(1)']
+values = "fixed"
+condition = "CSS_FILL_OPACITY_SET"
+
+[stroke_opacity]
+enum = "CSS_PROP_STROKE_OPACITY"
+cascade = "manual"
+inherited = true
+manual = true
+bits = 1
+initial = "SET"
+initial_data = ['INTTOFIX(1)']
+values = "fixed"
+condition = "CSS_STROKE_OPACITY_SET"
+
+[grid_template_columns]
+enum = "CSS_PROP_GRID_TEMPLATE_COLUMNS"
+cascade = "manual"
+wrap = "css__parse_grid_template_columns_internal"
+bits = 2
+initial = "GRID_TEMPLATE_NONE"
+initial_data = ['NULL']
+values = "grid_track_arr"
+defaults = "CSS_GRID_TEMPLATE_NONE"
+outer_struct = true
+select_comments = "Encode grid tracks as an array of track items, terminated with a zero-value entry."
+parse = "WRAP:css__parse_grid_template_columns_internal"
+
+[grid_template_rows]
+enum = "CSS_PROP_GRID_TEMPLATE_ROWS"
+cascade = "manual"
+wrap = "css__parse_grid_template_rows_internal"
+bits = 2
+initial = "GRID_TEMPLATE_NONE"
+initial_data = ['NULL']
+values = "grid_track_arr"
+defaults = "CSS_GRID_TEMPLATE_NONE"
+outer_struct = true
+select_comments = "Encode grid tracks as an array of track items, terminated with a zero-value entry."
+parse = "WRAP:css__parse_grid_template_rows_internal"
+
+[grid_auto_flow]
+enum = "CSS_PROP_GRID_AUTO_FLOW"
+cascade = "ident"
+manual = true
+bits = 3
+initial = "ROW"
+
+[row_gap]
+enum = "CSS_PROP_ROW_GAP"
+# cascade: manual — initial_data differs from TYPE_INFO defaults (arena memcmp risk)
+cascade = "manual"
+bits = 2
+initial = "NORMAL"
+initial_data = ['INTTOFIX(1)', 'CSS_UNIT_EM']
+values = "length"
+condition = "CSS_ROW_GAP_SET"
+defaults = "CSS_ROW_GAP_NORMAL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NORMAL:0,ROW_GAP_NORMAL IDENT:) LENGTH_UNIT:( UNIT_PX:ROW_GAP_SET RANGE:<0 MASK:UNIT_MASK_ROW_GAP LENGTH_UNIT:) CALC:( UNIT_PX:ROW_GAP_CALC CALC:)'''
+
+[grid_column_start]
+enum = "CSS_PROP_GRID_COLUMN_START"
+cascade = "manual"
+opcodes_manual = true
+bits = 2
+initial = "GRID_LINE_AUTO"
+initial_data = ['0']
+values = "integer"
+condition = "CSS_GRID_LINE_SET"
+defaults = "CSS_GRID_LINE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,CSS_GRID_LINE_AUTO IDENT:) NUMBER:( true:CSS_GRID_LINE_SET NUMBER:)'''
+
+[grid_column_end]
+enum = "CSS_PROP_GRID_COLUMN_END"
+cascade = "manual"
+opcodes_manual = true
+bits = 2
+initial = "GRID_LINE_AUTO"
+initial_data = ['0']
+values = "integer"
+condition = "CSS_GRID_LINE_SET"
+defaults = "CSS_GRID_LINE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,CSS_GRID_LINE_AUTO IDENT:) NUMBER:( true:CSS_GRID_LINE_SET NUMBER:)'''
+
+[grid_row_start]
+enum = "CSS_PROP_GRID_ROW_START"
+cascade = "manual"
+opcodes_manual = true
+bits = 2
+initial = "GRID_LINE_AUTO"
+initial_data = ['0']
+values = "integer"
+condition = "CSS_GRID_LINE_SET"
+defaults = "CSS_GRID_LINE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,CSS_GRID_LINE_AUTO IDENT:) NUMBER:( true:CSS_GRID_LINE_SET NUMBER:)'''
+
+[grid_row_end]
+enum = "CSS_PROP_GRID_ROW_END"
+cascade = "manual"
+opcodes_manual = true
+bits = 2
+initial = "GRID_LINE_AUTO"
+initial_data = ['0']
+values = "integer"
+condition = "CSS_GRID_LINE_SET"
+defaults = "CSS_GRID_LINE_AUTO"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,CSS_GRID_LINE_AUTO IDENT:) NUMBER:( true:CSS_GRID_LINE_SET NUMBER:)'''
+
+[object_fit]
+enum = "CSS_PROP_OBJECT_FIT"
+cascade = "ident"
+bits = 3
+initial = "FILL"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: FILL:0,OBJECT_FIT_FILL CONTAIN:0,OBJECT_FIT_CONTAIN COVER:0,OBJECT_FIT_COVER NONE:0,OBJECT_FIT_NONE SCALE_DOWN:0,OBJECT_FIT_SCALE_DOWN IDENT:)'''
+
+[object_position]
+enum = "CSS_PROP_OBJECT_POSITION"
+cascade = "manual"
+manual = true
+bits = 1
+initial = "SET"
+initial_data = ["INTTOFIX(50)", "CSS_UNIT_PCT", "INTTOFIX(50)", "CSS_UNIT_PCT"]
+values = [["length"], ["length"]]
+condition = "CSS_OBJECT_POSITION_SET"
+
+[transform]
+enum = "CSS_PROP_TRANSFORM"
+cascade = "manual"
+manual = true
+bits = 2
+initial = "NONE"
+initial_data = ['0', 'NULL']
+outer_struct = true
+select_comments = "Transform functions stored in css_computed_style.transform_*"
+
+[background]
+enum = "CSS_PROP_BACKGROUND"
+shorthand = true
+cascade = "none"
+
+[block_size]
+enum = "CSS_PROP_HEIGHT"
+cascade = "none"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,HEIGHT_AUTO IDENT:) SIZING:( FIT_CONTENT:HEIGHT_SET MIN_CONTENT:HEIGHT_SET MAX_CONTENT:HEIGHT_SET SIZING:) LENGTH_UNIT:( UNIT_PX:HEIGHT_SET MASK:UNIT_MASK_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:HEIGHT_CALC CALC:)'''
+
+[border]
+enum = "CSS_PROP_BORDER"
+shorthand = true
+cascade = "none"
+
+[border_bottom]
+enum = "BORDER_SIDE_BOTTOM"
+cascade = "none"
+wrap = "css__parse_border_side"
+parse = "WRAP:css__parse_border_side"
+
+[border_color]
+enum = "CSS_PROP_BORDER_COLOR"
+shorthand = true
+cascade = "none"
+
+[border_left]
+enum = "BORDER_SIDE_LEFT"
+cascade = "none"
+wrap = "css__parse_border_side"
+parse = "WRAP:css__parse_border_side"
+
+[border_right]
+enum = "BORDER_SIDE_RIGHT"
+cascade = "none"
+wrap = "css__parse_border_side"
+parse = "WRAP:css__parse_border_side"
+
+[border_style]
+enum = "CSS_PROP_BORDER_STYLE"
+shorthand = true
+cascade = "none"
+
+[border_top]
+enum = "BORDER_SIDE_TOP"
+cascade = "none"
+wrap = "css__parse_border_side"
+parse = "WRAP:css__parse_border_side"
+
+[border_width]
+enum = "CSS_PROP_BORDER_WIDTH"
+shorthand = true
+cascade = "none"
+
+[column_rule]
+enum = "CSS_PROP_COLUMN_RULE"
+shorthand = true
+cascade = "none"
+
+[columns]
+enum = "CSS_PROP_COLUMNS"
+shorthand = true
+cascade = "none"
+
+[cue]
+enum = "CSS_PROP_CUE"
+shorthand = true
+cascade = "none"
+
+[flex]
+enum = "CSS_PROP_FLEX"
+shorthand = true
+cascade = "none"
+
+[flex_flow]
+enum = "CSS_PROP_FLEX_FLOW"
+shorthand = true
+cascade = "none"
+
+[font]
+enum = "CSS_PROP_FONT"
+shorthand = true
+cascade = "none"
+
+[gap]
+enum = "CSS_PROP_GAP"
+shorthand = true
+cascade = "none"
+
+[grid_area]
+enum = "CSS_PROP_GRID_AREA"
+shorthand = true
+cascade = "none"
+
+[grid_column]
+enum = "CSS_PROP_GRID_COLUMN"
+shorthand = true
+cascade = "none"
+
+[grid_row]
+enum = "CSS_PROP_GRID_ROW"
+shorthand = true
+cascade = "none"
+
+[inline_size]
+enum = "CSS_PROP_WIDTH"
+cascade = "none"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,WIDTH_AUTO IDENT:) SIZING:( FIT_CONTENT:WIDTH_SET MIN_CONTENT:WIDTH_SET MAX_CONTENT:WIDTH_SET SIZING:) LENGTH_UNIT:( UNIT_PX:WIDTH_SET MASK:UNIT_MASK_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:WIDTH_CALC CALC:)'''
+
+[list_style]
+enum = "CSS_PROP_LIST_STYLE"
+shorthand = true
+cascade = "none"
+
+[margin]
+enum = "CSS_PROP_MARGIN"
+shorthand = true
+cascade = "none"
+
+[max_block_size]
+enum = "CSS_PROP_MAX_HEIGHT"
+cascade = "none"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,MAX_HEIGHT_NONE IDENT:) SIZING:( FIT_CONTENT:MAX_HEIGHT_SET MIN_CONTENT:MAX_HEIGHT_SET MAX_CONTENT:MAX_HEIGHT_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MAX_HEIGHT_SET MASK:UNIT_MASK_MAX_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MAX_HEIGHT_CALC CALC:)'''
+
+[max_inline_size]
+enum = "CSS_PROP_MAX_WIDTH"
+cascade = "none"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,MAX_WIDTH_NONE IDENT:) SIZING:( FIT_CONTENT:MAX_WIDTH_SET MIN_CONTENT:MAX_WIDTH_SET MAX_CONTENT:MAX_WIDTH_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MAX_WIDTH_SET MASK:UNIT_MASK_MAX_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MAX_WIDTH_CALC CALC:)'''
+
+[min_block_size]
+enum = "CSS_PROP_MIN_HEIGHT"
+cascade = "none"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,MIN_HEIGHT_AUTO IDENT:) SIZING:( FIT_CONTENT:MIN_HEIGHT_SET MIN_CONTENT:MIN_HEIGHT_SET MAX_CONTENT:MIN_HEIGHT_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MIN_HEIGHT_SET MASK:UNIT_MASK_MIN_HEIGHT RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MIN_HEIGHT_CALC CALC:)'''
+
+[min_inline_size]
+enum = "CSS_PROP_MIN_WIDTH"
+cascade = "none"
+parse = '''IDENT:( INHERIT: INITIAL: REVERT: UNSET: AUTO:0,MIN_WIDTH_AUTO IDENT:) SIZING:( FIT_CONTENT:MIN_WIDTH_SET MIN_CONTENT:MIN_WIDTH_SET MAX_CONTENT:MIN_WIDTH_SET SIZING:) LENGTH_UNIT:( UNIT_PX:MIN_WIDTH_SET MASK:UNIT_MASK_MIN_WIDTH RANGE:<0 LENGTH_UNIT:) CALC:( UNIT_PX:MIN_WIDTH_CALC CALC:)'''
+
+[outline]
+enum = "CSS_PROP_OUTLINE"
+shorthand = true
+cascade = "none"
+
+[overflow]
+enum = "CSS_PROP_OVERFLOW"
+shorthand = true
+cascade = "none"
+
+[padding]
+enum = "CSS_PROP_PADDING"
+shorthand = true
+cascade = "none"
+
+[pause]
+enum = "CSS_PROP_PAUSE"
+shorthand = true
+cascade = "none"
+
+[place_content]
+enum = "CSS_PROP_PLACE_CONTENT"
+shorthand = true
+cascade = "none"
+
