@@ -4,15 +4,13 @@
  *                http://www.opensource.org/licenses/mit-license.php
  * Copyright 2008 John-Mark Bell <jmb@netsurf-browser.org>
  *
- * TEMPLATE FILE - Property definitions are auto-generated
- * ========================================================
- * This file contains manual enum definitions for non-property items
- * (tokens, pseudo-classes, colors, etc.) and includes auto-generated
- * property definitions from propstrings_enum.inc.
+ * CSS parser string identifiers (enum + string table)
+ * ====================================================
+ * Auto-generated property names are included first via propstrings_enum.inc.
+ * Manual entries (tokens, keywords, colours) follow.
  *
- * DO NOT add properties here manually unless needed for special cases.
- * To add CSS properties, update dispatch.c and properties.gen instead.
- * The property_generator.py will generate the correct enum values.
+ * To add CSS properties, update properties.toml — the generator handles the rest.
+ * To add keywords/tokens, add them to the manual section below.
  */
 
 #ifndef css_css__parse_propstrings_h_
@@ -21,6 +19,32 @@
 #include "utils/css_utils.h"
 
 enum {
+    /* ═══════════════════════════════════════════════════════════════════
+     * AUTO-GENERATED property names (from property_generator.py)
+     * These MUST come first — CSS_PROP_* enum values are numeric indexes.
+     * ═══════════════════════════════════════════════════════════════════ */
+    FIRST_PROP,
+
+/* AUTO-GENERATED - Property enum values from property_generator.py */
+#include "propstrings_enum.inc"
+
+
+    /* ═══════════════════════════════════════════════════════════════════
+     * MANUAL entries below — tokens, keywords, colours, etc.
+     * The generator auto-creates SMAP entries for all identifiers here.
+     *
+     * RANGE MARKERS: The following names are skipped by the generator
+     * (they share slots with real entries or mark array bounds):
+     *   FIRST_PROP, LAST_PROP, FIRST_COLOUR, LAST_COLOUR,
+     *   FIRST_SYSTEMCOLOUR, LAST_SYSTEMCOLOUR,
+     *   FIRST_DEPRECATEDCOLOUR, LAST_DEPRECATEDCOLOUR, LAST_KNOWN
+     * If you add new range markers, update PROPSTRINGS_RANGE_MARKERS
+     * in property_generator.py too!
+     *
+     * WARNING: Names like FIRST_CHILD, LAST_CHILD, FIRST_LINE etc.
+     * are REAL CSS identifiers, NOT range markers — do not skip them.
+     * ═══════════════════════════════════════════════════════════════════ */
+
     /* Universal selector */
     UNIVERSAL,
 
@@ -61,7 +85,8 @@ enum {
     ACTIVE,
     FOCUS,
     LANG,
-    /* LEFT, RIGHT, -- already in properties */ FIRST,
+    /* LEFT, RIGHT, -- already in properties */
+    FIRST,
     ROOT,
     NTH_CHILD,
     NTH_LAST_CHILD,
@@ -84,13 +109,6 @@ enum {
     FIRST_LETTER,
     BEFORE,
     AFTER,
-
-    /* Properties */
-    FIRST_PROP,
-
-/* AUTO-GENERATED - Property enum values from property_generator.py */
-#include "propstrings_enum.inc"
-
 
     /* Other keywords */
     INHERIT,

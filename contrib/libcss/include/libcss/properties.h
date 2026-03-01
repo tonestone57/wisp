@@ -16,9 +16,8 @@ extern "C" {
  * Property identifiers (opcodes)
  *
  * === AUTO-GENERATED - DO NOT EDIT ===
- * Property enum values are auto-generated from dispatch.c order.
- * See dispatch.c and properties.gen for how to add new properties.
- * Manual enum has been moved to properties.h.bak for reference.
+ * Property enum values are auto-generated from properties.toml.
+ * See properties.toml for how to add new properties.
  */
 enum css_properties_e {
 #include "properties_enum.inc"

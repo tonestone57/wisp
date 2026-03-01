@@ -68,7 +68,6 @@
 # Optional — extra data:
 #   initial_data   Array of additional initial value arguments, as C expressions
 #                  (e.g. ["0", "CSS_UNIT_PX"] or ["2"] or ["INTTOFIX(1)"])
-#   (inherited is now a required field — see above)
 #
 # Flags (all default to false if omitted):
 #   manual         Full manual parse implementation (no gen_parser output)
