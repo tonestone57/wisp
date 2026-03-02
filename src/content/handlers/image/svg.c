@@ -725,6 +725,7 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
     float *combo = NULL;
     unsigned int combo_len = 0;
     unsigned int combo_cap = 0;
+    unsigned int combo_shapes = 0;
     plot_style_t combo_style;
     int combo_active = 0;
 
@@ -973,14 +974,18 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
                         /* Flush previous combo group in
                          * chunks when style changes */
                         if (combo_active && combo_len > 0) {
-                            NSLOG(wisp, INFO, "SVG combo style change flush: len=%u", combo_len);
-                            res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
+                            NSLOG(
+                                wisp, INFO, "SVG combo style change flush: len=%u shapes=%u", combo_len, combo_shapes);
+                            res = (combo_shapes <= 1)
+                                ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
+                                : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
                             if (res != NSERROR_OK) {
                                 ok = false;
                                 NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path combo_flush len=%u", url_str,
                                     combo_len);
                             }
                             combo_len = 0;
+                            combo_shapes = 0;
                         }
                         combo_style = pstyle;
                         combo_active = 1;
@@ -988,18 +993,25 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
                     /* Flush combo if adding current path
                      * would exceed chunk limit */
                     if (combo_active && combo_len > 0 && combo_len + k > SVG_COMBO_FLUSH_LIMIT) {
-                        NSLOG(wisp, INFO, "SVG combo limit flush: combo_len=%u next_len=%u", combo_len, k);
-                        res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
+                        NSLOG(wisp, INFO, "SVG combo limit flush: combo_len=%u next_len=%u shapes=%u", combo_len, k,
+                            combo_shapes);
+                        res = (combo_shapes <= 1)
+                            ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
+                            : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
                         if (res != NSERROR_OK) {
                             ok = false;
                             NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path combo_flush len=%u", url_str,
                                 combo_len);
                         }
                         combo_len = 0;
+                        combo_shapes = 0;
                     }
                     if (k > SVG_COMBO_FLUSH_LIMIT) {
-                        NSLOG(wisp, INFO, "SVG direct chunk plot: scaled_len=%u limit=%u", k, SVG_COMBO_FLUSH_LIMIT);
-                        res = svg_plot_path_chunked(ctx, &pstyle, scaled, k, transform);
+                        /* Single shape too large for combo — plot directly
+                         * without chunking to preserve fill-rule semantics
+                         * across subpaths within the same shape */
+                        NSLOG(wisp, INFO, "SVG direct plot: scaled_len=%u limit=%u", k, SVG_COMBO_FLUSH_LIMIT);
+                        res = ctx->plot->path(ctx, &pstyle, scaled, k, transform);
                         if (res != NSERROR_OK) {
                             ok = false;
                             int stroke_rgb = (svgtiny_RED(diagram->shape[i].stroke) << 16) |
@@ -1031,17 +1043,21 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
                     }
                     memcpy(combo + combo_len, scaled, sizeof(float) * k);
                     combo_len += k;
+                    combo_shapes++;
                     /* Periodic chunked flush to keep combo
                      * buffer bounded */
                     if (combo_len >= SVG_COMBO_FLUSH_LIMIT) {
-                        NSLOG(wisp, INFO, "SVG periodic combo flush: len=%u", combo_len);
-                        res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
+                        NSLOG(wisp, INFO, "SVG periodic combo flush: len=%u shapes=%u", combo_len, combo_shapes);
+                        res = (combo_shapes <= 1)
+                            ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
+                            : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
                         if (res != NSERROR_OK) {
                             ok = false;
                             NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path combo_flush len=%u", url_str,
                                 combo_len);
                         }
                         combo_len = 0;
+                        combo_shapes = 0;
                     }
                 }
             }
@@ -1135,8 +1151,9 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
 #undef BGR
     /* Final chunked flush of any remaining combined paths */
     if (combo_active && combo_len > 0) {
-        NSLOG(wisp, INFO, "SVG final combo flush: len=%u", combo_len);
-        res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
+        NSLOG(wisp, INFO, "SVG final combo flush: len=%u shapes=%u", combo_len, combo_shapes);
+        res = (combo_shapes <= 1) ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
+                                  : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
         if (res != NSERROR_OK) {
             ok = false;
             NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path final_flush len=%u", url_str, combo_len);
