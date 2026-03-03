@@ -424,6 +424,61 @@ void html_finish_conversion(html_content *htmlc)
         return;
     }
 
+    /* Declare SVG support by replacing "no-svg" with "svg" in the
+     * <html> element's class attribute.  Many themes (e.g. WordPress
+     * Twenty Seventeen) add "no-svg" server-side and expect client JS
+     * to replace it when SVG is supported.  Since Wisp always has
+     * native SVG rendering, we do this natively before CSS selection.
+     */
+    {
+        dom_string *class_attr = NULL;
+        exc = dom_element_get_attribute(html, corestring_dom_class, &class_attr);
+        if (exc == DOM_NO_ERR && class_attr != NULL) {
+            const char *cls = dom_string_data(class_attr);
+            size_t cls_len = dom_string_length(class_attr);
+            const char *found = NULL;
+
+            /* Search for "no-svg" as a whole word in the class string */
+            const char *p = cls;
+            while ((found = strstr(p, "no-svg")) != NULL) {
+                size_t before = found - cls;
+                size_t after = before + 6; /* strlen("no-svg") */
+                bool word_start = (before == 0 || found[-1] == ' ');
+                bool word_end = (after >= cls_len || found[6] == ' ');
+                if (word_start && word_end) {
+                    break; /* found whole-word match */
+                }
+                p = found + 1;
+            }
+
+            if (found != NULL) {
+                /* Build new class string with "no-svg" replaced by "svg" */
+                size_t before = found - cls;
+                size_t after_offset = before + 6;
+                size_t new_len = cls_len - 6 + 3; /* replace 6 chars with 3 */
+                char *new_cls = malloc(new_len + 1);
+                if (new_cls != NULL) {
+                    memcpy(new_cls, cls, before);
+                    memcpy(new_cls + before, "svg", 3);
+                    memcpy(new_cls + before + 3, cls + after_offset, cls_len - after_offset);
+                    new_cls[new_len] = '\0';
+
+                    dom_string *new_class = NULL;
+                    exc = dom_string_create((const uint8_t *)new_cls, new_len, &new_class);
+                    if (exc == DOM_NO_ERR && new_class != NULL) {
+                        dom_element_set_attribute(html, corestring_dom_class, new_class);
+                        NSLOG(wisp, INFO,
+                            "SVG support: replaced 'no-svg' "
+                            "with 'svg' in <html> class");
+                        dom_string_unref(new_class);
+                    }
+                    free(new_cls);
+                }
+            }
+            dom_string_unref(class_attr);
+        }
+    }
+
     html_get_dimensions(htmlc);
 
     /* SVG inline processing */

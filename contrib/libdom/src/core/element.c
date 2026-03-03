@@ -1578,6 +1578,13 @@ _dom_element_set_attr(struct dom_element *element, dom_string *namespace, dom_st
         if (err != DOM_NO_ERR)
             return err;
 
+        /* Rebuild class cache if the class attribute was modified */
+        if (namespace == NULL &&
+            dom_string_isequal(name, doc->class_string)) {
+            _dom_element_create_classes(element,
+                    dom_string_data(value));
+        }
+
         success = true;
         err = _dom_dispatch_subtree_modified_event(doc, (dom_event_target *)e, &success);
         if (err != DOM_NO_ERR)

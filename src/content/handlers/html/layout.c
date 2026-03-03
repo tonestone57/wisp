@@ -606,6 +606,18 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
             continue;
         }
 
+        if (b->type == BOX_INLINE_BLOCK &&
+            (css_computed_position(b->style) == CSS_POSITION_ABSOLUTE ||
+                css_computed_position(b->style) == CSS_POSITION_FIXED)) {
+            /* Abs-pos inline-blocks are out of flow (CSS 2.1 §9.3.2):
+             * compute own minmax for later use by layout_absolute,
+             * but don't contribute to parent's intrinsic width.
+             * Mirrors layout_minmax_block (L1053-1058) and
+             * layout_line pass 1 (L2788-2791). */
+            layout_minmax_block(b, font_func, content);
+            continue;
+        }
+
         if (b->type == BOX_INLINE_BLOCK || b->type == BOX_INLINE_FLEX || b->type == BOX_INLINE_GRID) {
             if (b->type == BOX_INLINE_GRID) {
                 layout_minmax_grid(b, font_func, content);
