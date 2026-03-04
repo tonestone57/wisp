@@ -1998,8 +1998,17 @@ nserror fetch_curl_register(void)
         SETOPT(CURLOPT_VERBOSE, 1L);
     }
 
-    /* YOLO: Enable HTTP/2 with TLS (falls back to HTTP/1.1 if needed) */
-    SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
+    /* Enable HTTP/3 if available, falling back to HTTP/2 with TLS */
+#ifndef CURL_HTTP_VERSION_3
+#define CURL_HTTP_VERSION_3 30L
+#endif
+    code = curl_easy_setopt(fetch_blank_curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
+    if (code != CURLE_OK) {
+        NSLOG(netsurf, INFO, "HTTP/3 not supported by libcurl, falling back to HTTP/2");
+        SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
+    } else {
+        NSLOG(netsurf, INFO, "HTTP/3 enabled in libcurl");
+    }
 
     SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
     SETOPT(CURLOPT_HEADERFUNCTION, fetch_curl_header);
@@ -2011,6 +2020,13 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_LOW_SPEED_TIME, 180L);
     SETOPT(CURLOPT_NOSIGNAL, 1L);
     SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
+
+    /* Enable TCP Keep-Alive to keep connection open for asset multiplexing */
+#if LIBCURL_VERSION_NUM >= 0x071900 /* 7.25.0 */
+    SETOPT(CURLOPT_TCP_KEEPALIVE, 1L);
+    SETOPT(CURLOPT_TCP_KEEPIDLE, 120L);
+    SETOPT(CURLOPT_TCP_KEEPINTVL, 60L);
+#endif
     SETOPT(CURLOPT_OPENSOCKETFUNCTION, fetch_curl_socket_open);
     SETOPT(CURLOPT_CLOSESOCKETFUNCTION, fetch_curl_socket_close);
 
