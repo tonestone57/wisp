@@ -14,7 +14,9 @@ jobs:
     - uses: actions/checkout@v3
 
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y gperf python3 pkg-config libpng-dev libjpeg-dev libwebp-dev libavif-dev libssl-dev cmake check libqt6core5compat6-dev qt6-base-dev qt6-tools-dev-tools libutf8proc-dev libsqlite3-dev libpsl-dev libxml2-dev
+      run: sudo apt-get update && sudo apt-get install -y gperf python3 python3-pip pkg-config libpng-dev libjpeg-dev libwebp-dev libavif-dev libssl-dev cmake check libqt6core5compat6-dev qt6-base-dev qt6-tools-dev-tools libutf8proc-dev libsqlite3-dev libpsl-dev libxml2-dev libcurl4-openssl-dev
+    - name: Install Python dependencies
+      run: pip3 install widlparser --break-system-packages
 
     - name: Configure CMake
       # Debug build implicitly enables ASAN and UBSAN due to the logic in CMakeLists.txt
