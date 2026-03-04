@@ -389,8 +389,22 @@ static JSValue js_location_replace(JSContext *ctx, JSValueConst this_val, int ar
 
 static JSValue js_location_reload(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
+    struct browser_window *bw;
+    nserror err;
+
     NSLOG(wisp, DEBUG, "location.reload called");
-    /* TODO: Implement actual reload */
+
+    bw = qjs_get_window_priv(ctx);
+    if (bw == NULL) {
+        NSLOG(wisp, WARNING, "location.reload: no browser window available");
+        return JS_UNDEFINED;
+    }
+
+    err = browser_window_reload(bw, false);
+    if (err != NSERROR_OK) {
+        NSLOG(wisp, WARNING, "location.reload: reload failed");
+    }
+
     return JS_UNDEFINED;
 }
 
