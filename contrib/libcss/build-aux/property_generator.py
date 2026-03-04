@@ -552,7 +552,7 @@ class GperfInputGenerator:
         # %readonly-tables: const-qualify all tables (cache-friendly)
         # %ignore-case: case-insensitive matching (CSS is case-insensitive)
         # %enum: use enum for hash values (compiler optimization)
-        # %7bit: assume 7-bit ASCII input (valid for CSS property names)
+        # : assume 7-bit ASCII input (valid for CSS property names)
         # %null-strings: NULL for empty slots (fast pointer check)
         # No %switch: default array lookup is faster for 200+ keywords
         lines.append("%language=ANSI-C")
@@ -562,7 +562,7 @@ class GperfInputGenerator:
         lines.append("%ignore-case")
         lines.append("%struct-type")
         lines.append("%enum")
-        lines.append("%7bit")
+        lines.append("")
         lines.append("%null-strings")
         lines.append("%define hash-function-name css_prop_hash")
         lines.append("%define lookup-function-name css_prop_lookup_generated")
