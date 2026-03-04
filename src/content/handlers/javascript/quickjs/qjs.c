@@ -30,6 +30,8 @@
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 
+#include "utils/libdom.h"
+
 #include "quickjs.h"
 
 #include "content/handlers/javascript/js.h"
@@ -48,6 +50,22 @@
  *
  * Maps to QuickJS's JSRuntime - one per browser window.
  */
+
+struct qjs_event_listener_ctx {
+    struct qjs_event_listener_ctx *next;
+    struct jsthread *thread;
+    JSValue func;
+    struct dom_event_target *target;
+    struct dom_string *type;
+    struct dom_event_listener *listener;
+};
+
+struct qjs_event_map {
+    struct qjs_event_map *next;
+    struct dom_event *evt;
+    JSValue js_evt;
+};
+
 struct jsheap {
     JSRuntime *rt;
     int timeout;
@@ -64,6 +82,8 @@ struct jsthread {
     bool closed;
     void *win_priv;
     void *doc_priv;
+    struct qjs_event_listener_ctx *listeners;
+    struct qjs_event_map *events;
 };
 
 
@@ -84,6 +104,22 @@ void *qjs_get_window_priv(JSContext *ctx)
         return NULL;
     }
     return t->win_priv;
+}
+
+/**
+ * Get the document private data from a JS context.
+ *
+ * \param ctx The QuickJS context
+ * \return The doc_priv pointer (struct dom_document *), or NULL if
+ * unavailable
+ */
+void *qjs_get_document_priv(JSContext *ctx)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t == NULL) {
+        return NULL;
+    }
+    return t->doc_priv;
 }
 
 
@@ -315,7 +351,31 @@ void js_destroythread(jsthread *thread)
 
     NSLOG(wisp, DEBUG, "Destroying QuickJS thread %p", thread);
 
+
+
+    struct qjs_event_listener_ctx *l = thread->listeners;
+    while (l != NULL) {
+        struct qjs_event_listener_ctx *next = l->next;
+        dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+        dom_node_unref((struct dom_node *)l->target);
+        dom_string_unref(l->type);
+        JS_FreeValue(thread->ctx, l->func);
+        free(l);
+        l = next;
+    }
+    thread->listeners = NULL;
+
+    struct qjs_event_map *e = thread->events;
+    while (e != NULL) {
+        struct qjs_event_map *next = e->next;
+        JS_FreeValue(thread->ctx, e->js_evt);
+        free(e);
+        e = next;
+    }
+    thread->events = NULL;
+
     if (thread->ctx != NULL) {
+
         /* Execute any pending jobs before freeing context.
          * This is required by QuickJS to properly clean up Promise
          * callbacks and other async operations that hold references
@@ -392,21 +452,138 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     return success;
 }
 
+static void qjs_event_handler(struct dom_event *evt, void *pw)
+{
+    struct qjs_event_listener_ctx *ctx = pw;
+    if (!ctx || !ctx->thread || ctx->thread->closed) return;
+
+    JSContext *jsctx = ctx->thread->ctx;
+    JSValue global = JS_GetGlobalObject(jsctx);
+
+    JSValue js_evt = JS_UNDEFINED;
+    struct qjs_event_map *map = ctx->thread->events;
+    while (map != NULL) {
+        if (map->evt == evt) {
+            js_evt = JS_DupValue(jsctx, map->js_evt);
+            break;
+        }
+        map = map->next;
+    }
+
+    if (JS_IsUndefined(js_evt)) {
+        js_evt = JS_NewObject(jsctx);
+        dom_string *type_str = NULL;
+        dom_event_get_type(evt, &type_str);
+        if (type_str) {
+            JS_SetPropertyStr(jsctx, js_evt, "type",
+                JS_NewStringLen(jsctx, dom_string_data(type_str), dom_string_byte_length(type_str)));
+            dom_string_unref(type_str);
+        }
+
+        struct qjs_event_map *new_map = malloc(sizeof(*new_map));
+        if (new_map) {
+            new_map->evt = evt;
+            new_map->js_evt = JS_DupValue(jsctx, js_evt);
+            new_map->next = ctx->thread->events;
+            ctx->thread->events = new_map;
+        }
+    }
+
+    JSValue ret = JS_Call(jsctx, ctx->func, global, 1, &js_evt);
+    if (JS_IsException(ret)) {
+        JSValue exc = JS_GetException(jsctx);
+        const char *exc_str = JS_ToCString(jsctx, exc);
+        NSLOG(wisp, WARNING, "JS Error in event handler: %s", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(jsctx, exc_str);
+        JS_FreeValue(jsctx, exc);
+    }
+    JS_FreeValue(jsctx, ret);
+    JS_FreeValue(jsctx, js_evt);
+    JS_FreeValue(jsctx, global);
+}
+
 
 /* exported interface documented in js.h */
 bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
 {
-    /* TODO: Implement event firing */
-    NSLOG(wisp, DEBUG, "js_fire_event called (not yet implemented)");
-    return true;
-}
+    dom_exception exc;
+    dom_string *type_str = NULL;
+    dom_event *evt = NULL;
+    bool success = true;
 
+    if (thread == NULL || doc == NULL) return false;
+
+    /* In QuickJS integration, we also want to trigger QuickJS global listeners,
+     * since we don't have full DOM mapping yet. */
+    JSContext *ctx = thread->ctx;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue event_obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, event_obj, "type", JS_NewString(ctx, type));
+
+    JSValue dispatch_func = JS_GetPropertyStr(ctx, global, "dispatchEvent");
+    if (JS_IsFunction(ctx, dispatch_func)) {
+        JSValue ret = JS_Call(ctx, dispatch_func, global, 1, &event_obj);
+        JS_FreeValue(ctx, ret);
+    }
+    JS_FreeValue(ctx, dispatch_func);
+    JS_FreeValue(ctx, event_obj);
+    JS_FreeValue(ctx, global);
+
+    /* Now trigger LibDOM event */
+    if (target == NULL) {
+        target = (dom_node *)doc;
+    }
+
+    exc = dom_string_create((const uint8_t *)type, strlen(type), &type_str);
+    if (exc != DOM_NO_ERR) return false;
+
+    exc = dom_event_create(&evt);
+    if (exc == DOM_NO_ERR) {
+        exc = dom_event_init(evt, type_str, false, false);
+        if (exc == DOM_NO_ERR) {
+            exc = dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
+        }
+        dom_event_unref(evt);
+    }
+
+    dom_string_unref(type_str);
+    return success;
+}
 
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
     struct dom_string *event_type_dom, void *js_funcval)
 {
-    /* TODO: Implement event listener registration */
-    NSLOG(wisp, DEBUG, "js_dom_event_add_listener called (not yet implemented)");
+    if (!thread || !node || !js_funcval) return false;
+
+    struct qjs_event_listener_ctx *ctx = malloc(sizeof(*ctx));
+    if (!ctx) return false;
+
+    ctx->thread = thread;
+    JSContext *jsctx = thread->ctx;
+    ctx->func = JS_DupValue(jsctx, *(JSValue*)js_funcval);
+    ctx->target = (struct dom_event_target *)node;
+    ctx->type = event_type_dom;
+    dom_node_ref(node);
+    dom_string_ref(event_type_dom);
+
+    dom_event_listener *listener;
+    dom_exception exc = dom_event_listener_create(qjs_event_handler, ctx, &listener);
+    if (exc != DOM_NO_ERR) {
+        dom_node_unref(node);
+        dom_string_unref(event_type_dom);
+        JS_FreeValue(jsctx, ctx->func);
+        free(ctx);
+        return false;
+    }
+
+    ctx->listener = listener;
+    dom_event_target_add_event_listener(ctx->target, ctx->type, listener, false);
+
+    ctx->next = thread->listeners;
+    thread->listeners = ctx;
+
+    dom_event_listener_unref(listener);
+
     return true;
 }
 
@@ -422,6 +599,20 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node)
 /* exported interface documented in js.h */
 void js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
-    /* TODO: Implement event cleanup */
-    NSLOG(wisp, DEBUG, "js_event_cleanup called (not yet implemented)");
+    if (thread == NULL || evt == NULL) return;
+
+    struct qjs_event_map **prev = &thread->events;
+    struct qjs_event_map *curr = thread->events;
+
+    while (curr != NULL) {
+        if (curr->evt == evt) {
+            *prev = curr->next;
+            JS_FreeValue(thread->ctx, curr->js_evt);
+            free(curr);
+            NSLOG(wisp, DEBUG, "js_event_cleanup successfully cleaned up event.");
+            return;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
 }
