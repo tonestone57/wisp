@@ -41,6 +41,18 @@ void style_set_padding_top(css_computed_style *s, int px);
  */
 void style_set_height_px(css_computed_style *s, int px);
 
+/** Set overflow-x and overflow-y to hidden. */
+void style_set_overflow_hidden(css_computed_style *s);
+
+/** Set position: absolute. */
+void style_set_position_absolute(css_computed_style *s);
+
+/** Set CSS bottom border width (in px). 0 = no border. */
+void style_set_border_bottom(css_computed_style *s, int width);
+
+/** Set CSS bottom padding (in px). */
+void style_set_padding_bottom(css_computed_style *s, int px);
+
 /** Free a mock style created by create_block_style(). */
 void destroy_mock_style(css_computed_style *s);
 

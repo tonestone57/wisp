@@ -452,6 +452,463 @@ END_TEST
 
 
 /* ========================================================================
+ * Additional Sibling Cases
+ * ======================================================================== */
+
+START_TEST(test_three_siblings_cascade)
+{
+    html_content *content = create_test_content();
+
+    struct box *block = create_box_with_style(200);
+
+    struct box *a = create_box_with_style(200);
+    style_set_height_px(a->style, 10);
+    a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(a->style, 0, 0, 10, 0);
+
+    struct box *b = create_box_with_style(200);
+    style_set_height_px(b->style, 10);
+    b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(b->style, 20, 0, 15, 0);
+
+    struct box *c = create_box_with_style(200);
+    style_set_height_px(c->style, 10);
+    c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(c->style, 5, 0, 0, 0);
+
+    add_child(block, a);
+    add_child(block, b);
+    add_child(block, c);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    /* a.mb=10 collapses with b.mt=20 → max(10,20)=20. b.y = 10+20 = 30
+     * b.mb=15 collapses with c.mt=5 → max(15,5)=15. c.y = 30+10+15 = 55 */
+    ck_assert_msg(b->y == 30, "three_siblings_cascade: expected b->y=30, got %d", b->y);
+    ck_assert_msg(c->y == 55, "three_siblings_cascade: expected c->y=55, got %d", c->y);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * Exclusion Rules (CSS 2.1 §8.3.1)
+ * ======================================================================== */
+
+START_TEST(test_no_collapse_abspos_skipped)
+{
+    html_content *content = create_test_content();
+
+    struct box *block = create_box_with_style(200);
+
+    struct box *a = create_box_with_style(200);
+    style_set_height_px(a->style, 10);
+    a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(a->style, 0, 0, 20, 0);
+
+    /* Abspos box — should be completely skipped in normal flow */
+    struct box *absbox = create_box_with_style(200);
+    style_set_height_px(absbox->style, 10);
+    absbox->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_position_absolute(absbox->style);
+    style_set_margins(absbox->style, 100, 0, 100, 0);
+
+    struct box *b = create_box_with_style(200);
+    style_set_height_px(b->style, 10);
+    b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(b->style, 10, 0, 0, 0);
+
+    add_child(block, a);
+    add_child(block, absbox);
+    add_child(block, b);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    /* absbox is out of flow, so a.mb=20 collapses with b.mt=10.
+     * collapsed = max(20,10) = 20.  b.y = 10 + 20 = 30 */
+    ck_assert_msg(b->y == 30, "abspos_skipped: expected b->y=30, got %d", b->y);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
+START_TEST(test_no_collapse_overflow_hidden)
+{
+    html_content *content = create_test_content();
+
+    struct box *root = create_box_with_style(200);
+
+    /* Parent with overflow:hidden — creates new BFC */
+    struct box *p = create_box_with_style(200);
+    style_set_overflow_hidden(p->style);
+
+    struct box *c = create_box_with_style(200);
+    style_set_height_px(c->style, 10);
+    c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(c->style, 20, 0, 0, 0);
+
+    add_child(root, p);
+    add_child(p, c);
+
+    bool ok = layout_block_context(root, 768, content);
+    ck_assert(ok);
+
+    /* overflow:hidden starts new BFC. Child margin stays inside.
+     * p.y = 0, c.y = 20 (margin applied inside new BFC) */
+    ck_assert_msg(p->y == 0, "overflow_hidden: expected p->y=0, got %d", p->y);
+    ck_assert_msg(c->y == 20, "overflow_hidden: expected c->y=20, got %d", c->y);
+
+    free_box_tree(root);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * Parent-Last-Child Collapse (CSS 2.1 §8.3.1 Rule 3)
+ * ======================================================================== */
+
+START_TEST(test_last_child_auto_height)
+{
+    html_content *content = create_test_content();
+
+    struct box *root = create_box_with_style(200);
+
+    struct box *p = create_box_with_style(200);
+    /* auto height, no bottom border/padding → last-child collapse allowed */
+
+    struct box *c = create_box_with_style(200);
+    style_set_height_px(c->style, 10);
+    c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(c->style, 0, 0, 20, 0);
+
+    struct box *next = create_box_with_style(200);
+    style_set_height_px(next->style, 10);
+    next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(root, p);
+    add_child(p, c);
+    add_child(root, next);
+
+    bool ok = layout_block_context(root, 768, content);
+    ck_assert(ok);
+
+    /* Per spec: c.mb=20 collapses with p.mb=0 (auto height, no border).
+     * P.height = 10 (from child), next.y = 0 + 10 + 20 = 30 */
+    ck_assert_msg(next->y == 30,
+        "last_child_auto_height: expected next->y=30, got %d "
+        "(last child margin should propagate out of auto-height parent)",
+        next->y);
+
+    free_box_tree(root);
+    destroy_test_content(content);
+}
+END_TEST
+
+START_TEST(test_last_child_fixed_height)
+{
+    html_content *content = create_test_content();
+
+    struct box *root = create_box_with_style(200);
+
+    struct box *p = create_box_with_style(200);
+    style_set_height_px(p->style, 100);
+    p->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    /* fixed height → last-child margin does NOT propagate */
+
+    struct box *c = create_box_with_style(200);
+    style_set_height_px(c->style, 10);
+    c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(c->style, 0, 0, 20, 0);
+
+    struct box *next = create_box_with_style(200);
+    style_set_height_px(next->style, 10);
+    next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(root, p);
+    add_child(p, c);
+    add_child(root, next);
+
+    bool ok = layout_block_context(root, 768, content);
+    ck_assert(ok);
+
+    /* Fixed height: c.mb stays inside p. next.y = p.height = 100 */
+    ck_assert_msg(next->y == 100, "last_child_fixed_height: expected next->y=100, got %d", next->y);
+
+    free_box_tree(root);
+    destroy_test_content(content);
+}
+END_TEST
+
+START_TEST(test_last_child_with_border_bottom)
+{
+    html_content *content = create_test_content();
+
+    struct box *root = create_box_with_style(200);
+
+    struct box *p = create_box_with_style(200);
+    /* auto height BUT has border-bottom → blocks last-child collapse */
+    style_set_border_bottom(p->style, 1);
+
+    struct box *c = create_box_with_style(200);
+    style_set_height_px(c->style, 10);
+    c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(c->style, 0, 0, 20, 0);
+
+    struct box *next = create_box_with_style(200);
+    style_set_height_px(next->style, 10);
+    next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(root, p);
+    add_child(p, c);
+    add_child(root, next);
+
+    bool ok = layout_block_context(root, 768, content);
+    ck_assert(ok);
+
+    /* Border-bottom blocks last-child collapse. c.mb stays inside p.
+     * p.height = auto(10) + border_bottom(1) area.
+     * next.y = p.height_auto(10) + p.border_bottom(1) = 11
+     * (c.mb=20 does NOT propagate) */
+    ck_assert_msg(next->y == 11, "last_child_with_border_bottom: expected next->y=11, got %d", next->y);
+
+    free_box_tree(root);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * Additional Collapse-Through Cases
+ * ======================================================================== */
+
+START_TEST(test_nested_collapse_through)
+{
+    html_content *content = create_test_content();
+
+    struct box *block = create_box_with_style(200);
+
+    struct box *a = create_box_with_style(200);
+    style_set_height_px(a->style, 10);
+    a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(a->style, 0, 0, 10, 0);
+
+    /* Two consecutive empty boxes — both should collapse through */
+    struct box *e1 = create_box_with_style(200);
+    style_set_height_px(e1->style, 0);
+    style_set_margins(e1->style, 5, 0, 8, 0);
+
+    struct box *e2 = create_box_with_style(200);
+    style_set_height_px(e2->style, 0);
+    style_set_margins(e2->style, 12, 0, 3, 0);
+
+    struct box *b = create_box_with_style(200);
+    style_set_height_px(b->style, 10);
+    b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(block, a);
+    add_child(block, e1);
+    add_child(block, e2);
+    add_child(block, b);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    /* All margins are adjoining via collapse-through:
+     * a.mb=10, e1.mt=5, e1.mb=8, e2.mt=12, e2.mb=3
+     * collapsed = max(10, 5, 8, 12, 3) = 12.  b.y = 10 + 12 = 22 */
+    ck_assert_msg(b->y == 22, "nested_collapse_through: expected b->y=22, got %d", b->y);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * Test runner
+ * ======================================================================== */
+/* ========================================================================
+ * Additional Parent-First-Child Tests
+ * ======================================================================== */
+
+START_TEST(test_parent_child_abspos)
+{
+    html_content *content = create_test_content();
+
+    struct box *root = create_box_with_style(200);
+
+    struct box *p = create_box_with_style(200);
+    /* no border/padding — collapse allowed */
+
+    /* Abspos child — should be skipped, doesn't participate in collapse */
+    struct box *abs_c = create_box_with_style(200);
+    style_set_height_px(abs_c->style, 10);
+    abs_c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_position_absolute(abs_c->style);
+    style_set_margins(abs_c->style, 50, 0, 0, 0);
+
+    /* Normal child — its margin should collapse with parent */
+    struct box *norm_c = create_box_with_style(200);
+    style_set_height_px(norm_c->style, 10);
+    norm_c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(norm_c->style, 20, 0, 0, 0);
+
+    add_child(root, p);
+    add_child(p, abs_c);
+    add_child(p, norm_c);
+
+    bool ok = layout_block_context(root, 768, content);
+    ck_assert(ok);
+
+    /* Abspos child is out of flow. norm_c.mt=20 should collapse with P.
+     * Per spec: P.y = 20 (margin pushed to parent), norm_c.y = 0.
+     * Current engine doesn't implement parent-child collapse, so
+     * expects: P.y = 0, norm_c.y = 20 (margin inside parent). */
+    ck_assert_msg(p->y == 20,
+        "parent_child_abspos: expected p->y=20, got %d "
+        "(abspos child should be skipped, normal child margin should collapse with parent)",
+        p->y);
+    ck_assert_msg(norm_c->y == 0, "parent_child_abspos: expected norm_c->y=0, got %d", norm_c->y);
+
+    free_box_tree(root);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * Additional Collapse-Through Prevention Tests
+ * ======================================================================== */
+
+START_TEST(test_no_collapse_through_border)
+{
+    html_content *content = create_test_content();
+
+    struct box *block = create_box_with_style(200);
+
+    struct box *a = create_box_with_style(200);
+    style_set_height_px(a->style, 10);
+    a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(a->style, 0, 0, 10, 0);
+
+    /* Empty box WITH border-top — should NOT collapse through.
+     * Border separates its top and bottom margins. */
+    struct box *bordered = create_box_with_style(200);
+    style_set_height_px(bordered->style, 0);
+    bordered->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_border_top(bordered->style, 1);
+    style_set_margins(bordered->style, 5, 0, 15, 0);
+
+    struct box *b = create_box_with_style(200);
+    style_set_height_px(b->style, 10);
+    b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(block, a);
+    add_child(block, bordered);
+    add_child(block, b);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    /* Border prevents collapse-through. Two separate collapse groups:
+     * Group 1: a.mb=10 ↔ bordered.mt=5 → max(10,5) = 10
+     *   bordered.y = 10 + 10 + border(1) = 21 (border adds to y per engine convention)
+     * Group 2: bordered.mb=15 ↔ b.mt=0 → max(15,0) = 15
+     *   b.y = 21 + 0 + 15 = 36 */
+    ck_assert_msg(bordered->y == 21, "no_collapse_through_border: expected bordered->y=21, got %d", bordered->y);
+    ck_assert_msg(b->y == 36, "no_collapse_through_border: expected b->y=36, got %d", b->y);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * First-Child Margin-Top Edge Case
+ * ======================================================================== */
+
+START_TEST(test_first_child_margin_top)
+{
+    html_content *content = create_test_content();
+
+    struct box *block = create_box_with_style(200);
+
+    /* First child has margin-top — should create space above it */
+    struct box *a = create_box_with_style(200);
+    style_set_height_px(a->style, 10);
+    a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(a->style, 15, 0, 0, 0);
+
+    struct box *b = create_box_with_style(200);
+    style_set_height_px(b->style, 10);
+    b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(block, a);
+    add_child(block, b);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    /* First child margin-top = 15. a.y = 15, b.y = 15 + 10 = 25 */
+    ck_assert_msg(a->y == 15, "first_child_margin_top: expected a->y=15, got %d", a->y);
+    ck_assert_msg(b->y == 25, "first_child_margin_top: expected b->y=25, got %d", b->y);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
+ * Additional Parent-Last-Child Tests
+ * ======================================================================== */
+
+START_TEST(test_last_child_with_padding_bottom)
+{
+    html_content *content = create_test_content();
+
+    struct box *root = create_box_with_style(200);
+
+    struct box *p = create_box_with_style(200);
+    /* auto height, has padding-bottom → blocks last-child collapse */
+    style_set_padding_bottom(p->style, 5);
+
+    struct box *c = create_box_with_style(200);
+    style_set_height_px(c->style, 10);
+    c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(c->style, 0, 0, 20, 0);
+
+    struct box *next = create_box_with_style(200);
+    style_set_height_px(next->style, 10);
+    next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(root, p);
+    add_child(p, c);
+    add_child(root, next);
+
+    bool ok = layout_block_context(root, 768, content);
+    ck_assert(ok);
+
+    /* Padding-bottom blocks last-child collapse. c.mb stays inside p.
+     * p.height = auto(10) + padding_bottom(5) = content+padding area.
+     * next.y = p.height_auto(10) + p.padding_bottom(5) = 15
+     * (c.mb=20 does NOT propagate) */
+    ck_assert_msg(next->y == 15, "last_child_with_padding_bottom: expected next->y=15, got %d", next->y);
+
+    free_box_tree(root);
+    destroy_test_content(content);
+}
+END_TEST
+
+
+/* ========================================================================
  * Test runner
  * ======================================================================== */
 static Suite *margin_collapse_suite(void)
@@ -463,18 +920,35 @@ static Suite *margin_collapse_suite(void)
     tcase_add_test(tc_sibling, test_sibling_both_negative);
     tcase_add_test(tc_sibling, test_sibling_pos_neg);
     tcase_add_test(tc_sibling, test_sibling_no_margin);
+    tcase_add_test(tc_sibling, test_three_siblings_cascade);
+    tcase_add_test(tc_sibling, test_first_child_margin_top);
     suite_add_tcase(s, tc_sibling);
 
     TCase *tc_through = tcase_create("Collapse Through");
     tcase_add_test(tc_through, test_collapse_through_empty);
     tcase_add_test(tc_through, test_no_collapse_through_height);
+    tcase_add_test(tc_through, test_nested_collapse_through);
+    tcase_add_test(tc_through, test_no_collapse_through_border);
     suite_add_tcase(s, tc_through);
 
     TCase *tc_parent = tcase_create("Parent-First-Child Collapse");
     tcase_add_test(tc_parent, test_parent_child_no_separator);
     tcase_add_test(tc_parent, test_parent_child_with_border);
     tcase_add_test(tc_parent, test_parent_child_with_padding);
+    tcase_add_test(tc_parent, test_parent_child_abspos);
     suite_add_tcase(s, tc_parent);
+
+    TCase *tc_last = tcase_create("Parent-Last-Child Collapse");
+    tcase_add_test(tc_last, test_last_child_auto_height);
+    tcase_add_test(tc_last, test_last_child_fixed_height);
+    tcase_add_test(tc_last, test_last_child_with_border_bottom);
+    tcase_add_test(tc_last, test_last_child_with_padding_bottom);
+    suite_add_tcase(s, tc_last);
+
+    TCase *tc_excl = tcase_create("Exclusion Rules");
+    tcase_add_test(tc_excl, test_no_collapse_abspos_skipped);
+    tcase_add_test(tc_excl, test_no_collapse_overflow_hidden);
+    suite_add_tcase(s, tc_excl);
 
     return s;
 }

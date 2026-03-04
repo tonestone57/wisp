@@ -82,6 +82,31 @@ void style_set_height_px(css_computed_style *s, int px)
         set_height(s, CSS_HEIGHT_SET, INTTOFIX(px), CSS_UNIT_PX);
 }
 
+void style_set_overflow_hidden(css_computed_style *s)
+{
+    set_overflow_x(s, CSS_OVERFLOW_HIDDEN);
+    set_overflow_y(s, CSS_OVERFLOW_HIDDEN);
+}
+
+void style_set_position_absolute(css_computed_style *s)
+{
+    set_position(s, CSS_POSITION_ABSOLUTE);
+}
+
+void style_set_border_bottom(css_computed_style *s, int width)
+{
+    set_border_bottom_width(s, CSS_BORDER_WIDTH_WIDTH, INTTOFIX(width), CSS_UNIT_PX);
+    if (width > 0)
+        set_border_bottom_style(s, CSS_BORDER_STYLE_SOLID);
+    else
+        set_border_bottom_style(s, CSS_BORDER_STYLE_NONE);
+}
+
+void style_set_padding_bottom(css_computed_style *s, int px)
+{
+    set_padding_bottom(s, CSS_PADDING_SET, INTTOFIX(px), CSS_UNIT_PX);
+}
+
 void destroy_mock_style(css_computed_style *s)
 {
     free(s);
