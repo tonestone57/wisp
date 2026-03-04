@@ -213,6 +213,12 @@ struct box {
     struct dom_node *node;
 
     /**
+     * Array of active CSS counters instantiated or incremented by this box.
+     */
+    struct css_computed_counter *counters;
+    uint32_t n_counters;
+
+    /**
      * Computed styles for elements and their pseudo elements.
      *  NULL on non-element boxes.
      */
@@ -225,6 +231,12 @@ struct box {
      *  owned computed style.
      */
     css_computed_style *style;
+
+    /**
+     * Original style for this box, used to restore after
+     * temporary pseudo-element style overrides (like ::first-line).
+     */
+    css_computed_style *original_style;
 
     /**
      *  value of id attribute (or name for anchors)

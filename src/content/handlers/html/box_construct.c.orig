@@ -415,49 +415,27 @@ static struct box *create_content_box(
     case CSS_COMPUTED_CONTENT_COUNTERS: {
         lwc_string *name = item->data.counters.name;
         lwc_string *sep = item->data.counters.sep;
+        int32_t value = 0;
 
-        /* Collect all counter values up the tree */
-        int32_t values[32];
-        size_t n_values = 0;
-
+        /* TODO: Nested counters requires returning all values up the tree */
         struct box *cbox = box_for_node(node);
-        while (cbox != NULL && n_values < 32) {
+        while (cbox != NULL) {
+            bool found = false;
             for (size_t i = 0; i < cbox->n_counters; i++) {
                 bool match = false;
                 if (lwc_string_isequal(cbox->counters[i].name, name, &match) == lwc_error_ok && match) {
-                    values[n_values++] = cbox->counters[i].value;
+                    value = cbox->counters[i].value;
+                    found = true;
                     break;
                 }
             }
+            if (found) break;
             cbox = cbox->parent;
         }
 
-        if (n_values == 0) {
-            box = NULL;
-            break;
-        }
-
-        char buf[256];
+        char buf[32];
         size_t len = 0;
-        css_error err = CSS_OK;
-
-        /* Format them in reverse order (top-down) */
-        for (size_t i = 0; i < n_values; i++) {
-            size_t v_idx = n_values - 1 - i;
-            size_t seg_len = 0;
-            err = css_computed_format_list_style(style, values[v_idx], buf + len, sizeof(buf) - len, &seg_len);
-            if (err != CSS_OK) break;
-            len += seg_len;
-
-            if (i < n_values - 1 && sep != NULL) {
-                const char *sep_str = lwc_string_data(sep);
-                size_t sep_len = lwc_string_length(sep);
-                if (len + sep_len < sizeof(buf)) {
-                    memcpy(buf + len, sep_str, sep_len);
-                    len += sep_len;
-                }
-            }
-        }
+        css_error err = css_computed_format_list_style(style, value, buf, sizeof(buf), &len);
 
         if (err == CSS_OK && len > 0 && len < sizeof(buf)) {
             box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
