@@ -3784,7 +3784,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 
         /* Unless the box has an overflow style of visible, the box
          * establishes a new block context. */
-        if (box->type == BOX_FLEX || box->type == BOX_GRID ||
+        if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX || box->type == BOX_GRID ||
             (box->type == BOX_BLOCK && box->style &&
                 (overflow_x != CSS_OVERFLOW_VISIBLE || overflow_y != CSS_OVERFLOW_VISIBLE))) {
 
@@ -3807,15 +3807,10 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
                     tag, cls, box, overflow_x, overflow_y, css_computed_flex_wrap(box->style),
                     box->parent ? box->parent->width : 0, box->width);
                 NSLOG(layout, DEBUG, "calling layout_flex for flex container %p width %i", box, box->width);
-                if (box->type == BOX_FLEX) {
+                if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX) {
                     if (!layout_flex(box, box->width, content)) {
                         return false;
                     }
-                } else {
-                    /* Inline flex handled as block flex here if needed, or pass TODO */
-                    /* Ideally call layout_flex but check if it supports INLINE_FLEX */
-                    /* Assuming layout_flex handles it or we rely on block behavior for now */
-                    /* fprintf(stderr, "Handling INLINE_FLEX %p in block context\n", box); */
                 }
                 NSLOG(layout, DEBUG, "flex post: box %p, w %i, h %i", box, box->width, box->height);
                 if (class_attr != NULL)
