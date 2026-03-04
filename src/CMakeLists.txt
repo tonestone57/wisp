@@ -206,6 +206,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/talloc.c
 	utils/time.c
 	utils/url.c
+	utils/thread_pool.c
 	utils/useragent.c
 	utils/utf8.c
 	utils/utils.c

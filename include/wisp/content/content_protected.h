@@ -316,6 +316,17 @@ struct content {
         char *string;
         struct textsearch_context *context;
     } textsearch;
+
+    /**
+     * Refcount for background parser tasks.
+     * Prevents content_destroy from freeing the structure until 0.
+     */
+    int active_bg_tasks;
+
+    /**
+     * Set to true if content_destroy was called but deferred due to active background tasks.
+     */
+    bool pending_deletion;
 };
 
 extern const char *const content_type_name[];

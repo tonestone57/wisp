@@ -103,12 +103,17 @@ union html_focus_owner {
 };
 
 
+#include <pthread.h>
+
 /**
  * Data specific to CONTENT_HTML.
  */
 typedef struct html_content {
     struct content base;
 
+    pthread_mutex_t doc_mutex; /**< Protects dom_document mutation */
+    int active_bg_tasks; /**< Refcount for background parser tasks */
+    bool pending_deletion; /**< True if destruction is waiting on bg tasks */
     dom_hubbub_parser *parser; /**< Parser object handle */
     bool parse_completed; /**< Whether the parse has been completed */
     bool conversion_begun; /**< Whether or not the conversion has begun */

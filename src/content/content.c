@@ -345,6 +345,12 @@ void content_destroy(struct content *c)
     NSLOG(wisp, INFO, "content %p %s", c, nsurl_access_log(llcache_handle_get_url(c->llcache)));
     assert(c->locked == false);
 
+    if (c->active_bg_tasks > 0) {
+        c->pending_deletion = true;
+        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c, c->active_bg_tasks);
+        return;
+    }
+
     if (c->handler->destroy != NULL)
         c->handler->destroy(c);
 
