@@ -979,13 +979,6 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
     if (box->style && ns_computed_display(box->style, box_is_root(n)) == CSS_DISPLAY_NONE)
         return true;
 
-    if (box->style && css_computed_visibility(box->style) == CSS_VISIBILITY_HIDDEN) {
-        /* Don't create iframe discriptors for invisible iframes
-         * TODO: handle hidden iframes at browser_window generation
-         * time instead? */
-        return true;
-    }
-
     /* get frame URL */
     err = dom_element_get_attribute(n, corestring_dom_src, &s);
     if (err != DOM_NO_ERR || s == NULL)
