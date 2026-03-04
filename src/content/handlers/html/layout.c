@@ -355,9 +355,6 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
             for (cell = row->children; cell; cell = cell->next) {
                 assert(cell->type == BOX_TABLE_CELL);
                 assert(cell->style);
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
                 assert(cell->columns != 0);
 
                 if (cell->columns != 1)
@@ -2138,6 +2135,13 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table_height = border_spacing_v + table->padding[TOP];
     for (row_group = table->children; row_group; row_group = row_group->next) {
         int row_group_height = 0;
+
+        for (i = 0; i != columns; i++) {
+            row_span[i] = 0;
+            excess_y[i] = 0;
+            row_span_cell[i] = 0;
+        }
+
         for (row = row_group->children; row; row = row->next) {
             int row_height = 0;
 
