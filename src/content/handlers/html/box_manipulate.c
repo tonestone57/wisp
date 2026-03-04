@@ -56,8 +56,13 @@ static int box_talloc_destructor(void *ptr)
     struct box *b = (struct box *)ptr;
     struct html_scrollbar_data *data;
 
-    if ((b->flags & STYLE_OWNED) && b->style != NULL) {
-        css_computed_style_destroy(b->style);
+    if ((b->flags & STYLE_OWNED)) {
+        if (b->original_style != NULL) {
+            css_computed_style_destroy(b->original_style);
+            b->original_style = NULL;
+        } else if (b->style != NULL) {
+            css_computed_style_destroy(b->style);
+        }
         b->style = NULL;
     }
 

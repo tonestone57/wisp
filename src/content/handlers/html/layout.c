@@ -3062,6 +3062,32 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
     NSLOG(layout, DEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
 
+    /* handle ::first-line style replacement */
+    if (indent && cont != NULL && cont->styles != NULL && cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE] != NULL) {
+        for (b = first; b; b = b->next) {
+            /* Save original style */
+            if (b->original_style == NULL) {
+                b->original_style = b->style;
+            }
+            /* We only want to apply FIRST_LINE style to boxes that are part of this line.
+             * The loop condition `x <= x1 - x0` stops when the line wraps. */
+            b->style = cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE];
+            if (b == split_box) {
+                break;
+            }
+        }
+    } else {
+        /* restore original style for subsequent lines if it was previously overridden */
+        for (b = first; b; b = b->next) {
+            if (b->original_style != NULL) {
+                b->style = b->original_style;
+            }
+            if (b == split_box) {
+                break;
+            }
+        }
+    }
+
     for (x = x_previous = 0, b = first; x <= x1 - x0 && b; b = b->next) {
 
         NSLOG(layout, DEBUG, "pass 2: b %p, x %i", b, x);
