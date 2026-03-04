@@ -43,6 +43,7 @@
 #include "content/handlers/javascript/quickjs/window.h"
 #include "content/handlers/javascript/quickjs/xhr.h"
 #include "content/handlers/javascript/quickjs/unimplemented.h"
+#include <nsutils/time.h>
 
 /**
  * JavaScript heap structure.
@@ -52,6 +53,7 @@
 struct jsheap {
     JSRuntime *rt;
     int timeout;
+    uint64_t deadline_ms;
 };
 
 /**
@@ -95,6 +97,27 @@ void js_initialise(void)
 }
 
 
+
+
+/**
+ * QuickJS interrupt handler.
+ * Called periodically during script execution to check for timeouts.
+ */
+static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
+{
+    struct jsheap *heap = opaque;
+    uint64_t now;
+
+    if (heap->deadline_ms > 0) {
+        nsu_getmonotonic_ms(&now);
+        if (now > heap->deadline_ms) {
+            NSLOG(wisp, WARNING, "JavaScript execution timeout exceeded");
+            return 1; /* Interrupt execution */
+        }
+    }
+
+    return 0; /* Continue execution */
+}
 /* exported interface documented in js.h */
 void js_finalise(void)
 {
@@ -125,6 +148,8 @@ nserror js_newheap(int timeout, jsheap **heap)
 
     /* Set max stack size (1MB) */
     JS_SetMaxStackSize(h->rt, 1024 * 1024);
+
+    JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
 
     NSLOG(wisp, DEBUG, "Created QuickJS heap %p", h);
 
@@ -360,6 +385,12 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     NSLOG(wisp, INFO, "Executing JS: %s (length %zu)", name ? name : "<anonymous>", txtlen);
 
+    if (thread->heap->timeout > 0) {
+        uint64_t now;
+        nsu_getmonotonic_ms(&now);
+        thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
+    }
+
     /* QuickJS-ng requires the input to be null-terminated at txt[txtlen] */
     if (txtlen < sizeof(stack_buf)) {
         memcpy(stack_buf, txt, txtlen);
@@ -376,6 +407,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     }
 
     result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
+    thread->heap->deadline_ms = 0;
 
     if (JS_IsException(result)) {
         JSValue exc = JS_GetException(thread->ctx);

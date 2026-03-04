@@ -2011,6 +2011,7 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_LOW_SPEED_TIME, 180L);
     SETOPT(CURLOPT_NOSIGNAL, 1L);
     SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
+    SETOPT(CURLOPT_TIMEOUT, 300L);
     SETOPT(CURLOPT_OPENSOCKETFUNCTION, fetch_curl_socket_open);
     SETOPT(CURLOPT_CLOSESOCKETFUNCTION, fetch_curl_socket_close);
 
