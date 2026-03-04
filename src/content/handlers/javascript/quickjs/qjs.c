@@ -42,6 +42,7 @@
 #include "content/handlers/javascript/quickjs/timers.h"
 #include "content/handlers/javascript/quickjs/window.h"
 #include "content/handlers/javascript/quickjs/xhr.h"
+#include "content/handlers/javascript/quickjs/unimplemented.h"
 
 /**
  * JavaScript heap structure.
@@ -222,6 +223,12 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     if (qjs_init_xhr(t->ctx) < 0) {
         NSLOG(wisp, ERROR, "Failed to initialize QuickJS XMLHttpRequest");
     }
+
+    /* Initialize unimplemented APIs as stubs */
+    if (qjs_init_unimplemented(t->ctx) < 0) {
+        NSLOG(wisp, WARNING, "Failed to initialize unimplemented API stubs");
+    }
+
 
     /* Add DOM constructor stubs that third-party JS commonly checks */
     {
