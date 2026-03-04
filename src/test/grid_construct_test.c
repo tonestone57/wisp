@@ -133,6 +133,10 @@ uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
 }
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
     return CSS_LIST_STYLE_TYPE_NONE;
@@ -442,6 +446,7 @@ START_TEST(test_grid_construction)
     INIT_STR(corestring_dom_colspan, "colspan");
     INIT_STR(corestring_dom_rowspan, "rowspan");
     INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
+    INIT_STR(corestring_dom_class, "class");
 
     /* Context Setup - Heap Alloc */
     struct html_content htmlc = {0};

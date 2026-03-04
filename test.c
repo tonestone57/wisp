@@ -1,27 +1,18 @@
 #include <stdio.h>
-#include <string.h>
 
-int main() {
-  const char* str = "background-image";
-  int len = strlen(str);
-  static const unsigned short asso_values[] =
-    {
-      498, 498, 498, 498, 498, 498, 498, 498, 498, 498,
-      498, 498, 498, 498, 498, 498, 498, 498, 498, 498,
-      498, 498, 498, 498, 498, 498, 498, 498, 498, 498,
-      498, 498, 498, 498, 498, 498, 498, 498, 498, 498,
-      498, 498, 498, 498, 498, 110,   5, 498, 498, 498,
-      498, 498, 498, 498, 498, 498, 498, 498, 498, 498,
-      498, 498, 498, 498, 498,   0,  15,  40,  25,  10,
-       85, 135,  85,  80, 155,  15,  20, 130,  85,   0,
-       10,  40,   5,  75,   0, 120, 160,  95,  10,  95,
-      130,   0, 498, 498, 498, 498, 498,   0,  15,  40,
-       25,  10,  85, 135,  85,  80, 155,  15,  20, 130,
-       85,   0,  10,  40,   5,  75,   0, 120, 160,  95,
-       10,  95, 130,   0, 498, 498, 498, 498, 498
-    };
+int main(void)
+{
+    int margin = -10;
+    unsigned int test1 = -(unsigned int)margin;
+    unsigned int test2 = (unsigned int)(-margin);
+    unsigned int max_neg = 0;
 
-  printf("sizeof(asso_values) / sizeof(asso_values[0]) = %zu\n", sizeof(asso_values) / sizeof(asso_values[0]));
+    if (-(unsigned int)margin > max_neg) {
+        printf("Condition 1 TRUE: %u > %u\n", test1, max_neg);
+    }
 
-  return 0;
+    if ((unsigned int)(-margin) > max_neg) {
+        printf("Condition 2 TRUE: %u > %u\n", test2, max_neg);
+    }
+    return 0;
 }
