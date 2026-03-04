@@ -9,7 +9,7 @@
 #include "quickjs.h"
 #include <stdlib.h>
 
-static JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     if (argc >= 2) {
         const char *type = JS_ToCString(ctx, argv[0]);
@@ -21,7 +21,7 @@ static JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int ar
     return JS_UNDEFINED;
 }
 
-static JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     if (argc >= 2) {
         const char *type = JS_ToCString(ctx, argv[0]);
@@ -31,7 +31,7 @@ static JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int
     return JS_UNDEFINED;
 }
 
-static JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, INFO, "dispatchEvent called");
     /* Always return true - event was handled */

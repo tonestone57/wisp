@@ -821,6 +821,44 @@ START_TEST(test_quickjs_xhr)
 }
 END_TEST
 
+
+START_TEST(test_quickjs_events_dispatch)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = js_newthread(heap, NULL, NULL, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+
+
+
+    const char *code = "var count = 0;"
+                       "window.addEventListener('click', function() { count++; });"
+                       "var event = { type: 'click' };"
+                       "window.dispatchEvent(event);"
+                       "if (count !== 1) console.log('count=' + count);"
+                       "count === 1;";
+
+
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_events_dispatch");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
 
@@ -870,6 +908,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_storage);
     tcase_add_test(tc_window, test_quickjs_event_target);
     tcase_add_test(tc_window, test_quickjs_xhr);
+    tcase_add_test(tc_window, test_quickjs_events_dispatch);
     suite_add_tcase(s, tc_window);
 
     return s;
