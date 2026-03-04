@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y gperf python3 pkg-config libpng-dev libjpeg-dev libwebp-dev libavif-dev libssl-dev cmake check libqt6core5compat6-dev qt6-base-dev qt6-tools-dev-tools libutf8proc-dev libsqlite3-dev libpsl-dev libxml2-dev
+
+    - name: Configure CMake
+      # Debug build implicitly enables ASAN and UBSAN due to the logic in CMakeLists.txt
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DWISP_ENABLE_TESTS=ON -DWISP_BUILD_MONKEY_FRONTEND=ON -DWISP_BUILD_QT_FRONTEND=ON
+
+    - name: Build tests
+      # We must build all targets, including the tests, before running them
+      run: cmake --build build -j2
+
+    - name: Run Tests
+      # Strictly check for ASAN/UBSAN errors
+      run: |
+        cd build
+        export ASAN_OPTIONS=strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1:detect_leaks=1
+        export UBSAN_OPTIONS=print_stacktrace=1
+        ctest --output-on-failure
