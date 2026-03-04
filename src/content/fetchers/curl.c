@@ -2022,9 +2022,11 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
 
     /* Enable TCP Keep-Alive to keep connection open for asset multiplexing */
+#if LIBCURL_VERSION_NUM >= 0x071900 /* 7.25.0 */
     SETOPT(CURLOPT_TCP_KEEPALIVE, 1L);
     SETOPT(CURLOPT_TCP_KEEPIDLE, 120L);
     SETOPT(CURLOPT_TCP_KEEPINTVL, 60L);
+#endif
     SETOPT(CURLOPT_OPENSOCKETFUNCTION, fetch_curl_socket_open);
     SETOPT(CURLOPT_CLOSESOCKETFUNCTION, fetch_curl_socket_close);
 
