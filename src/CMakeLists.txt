@@ -210,6 +210,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/useragent.c
 	utils/utf8.c
 	utils/utils.c
+	utils/ipc/ipc.c
 	utils/http/generics.c
 	utils/http/primitives.c
 	utils/http/parameter.c

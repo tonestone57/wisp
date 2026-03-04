@@ -46,6 +46,7 @@
 #include <wisp/utils/messages.h>
 #include <wisp/utils/nsoption.h>
 #include <wisp/window.h>
+#include <wisp/ipc/ipc.h>
 #include "content/content_debug.h"
 #include "content/urldb.h"
 
@@ -2854,6 +2855,14 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
     /* initialise last action with creation time */
     nsu_getmonotonic_ms(&ret->last_action);
 
+    /* establish IPC connection for the new tab */
+    if (nsoption_bool(multi_process)) {
+        ipc_init();
+        char ipc_name[64];
+        snprintf(ipc_name, sizeof(ipc_name), "wisp_tab_ipc_%p", (void*)ret);
+        ipc_listen(ipc_name, &ret->ipc_conn);
+    }
+
     /* The existing gui_window is on the top-level existing
      * browser_window. */
     existing = browser_window_get_root(existing);
@@ -2951,6 +2960,10 @@ void browser_window_destroy(struct browser_window *bw)
 {
     /* can't destoy child windows on their own */
     assert(!bw->parent);
+
+    if (bw->ipc_conn) {
+        ipc_close(bw->ipc_conn);
+    }
 
     /* destroy */
     browser_window_destroy_internal(bw);

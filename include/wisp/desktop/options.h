@@ -231,6 +231,7 @@ NSOPTION_BOOL(target_blank, true)
 
 /** auxillary (second) mouse button opens in new tab */
 NSOPTION_BOOL(button_2_tab, true)
+NSOPTION_BOOL(multi_process, false)
 
 /** control if new view (window or tab) opens in foreground */
 NSOPTION_BOOL(foreground_new, false)
