@@ -643,7 +643,7 @@ static void box_construct_generate(dom_node *n, html_content *content, struct bo
     /* create box for this element */
     computed_display = ns_computed_display(style, box_is_root(n));
 
-    /** \todo Not wise to drop const from the computed style */
+    /* Dropping const via void pointer cast */
     gen = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
     if (gen == NULL) {
         return;
@@ -1517,7 +1517,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
             box_add_child(props.containing_block, props.inline_container);
         }
 
-        /** \todo Dropping const here is not clever */
+        /* Dropping const via void pointer cast */
         box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target, props.title,
             NULL, ctx->bctx);
         if (box == NULL) {
@@ -1622,7 +1622,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
                 box_add_child(props.containing_block, props.inline_container);
             }
 
-            /** \todo Dropping const isn't clever */
+            /* Dropping const via void pointer cast */
             box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
                 props.title, NULL, ctx->bctx);
             if (box == NULL) {

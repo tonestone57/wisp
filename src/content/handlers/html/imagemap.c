@@ -618,7 +618,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM; /** @todo check this */
+                ret = NSERROR_NOMEM; /* Return out of memory */
                 goto out_nlist;
             }
 
@@ -632,7 +632,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM; /** @todo check this */
+                ret = NSERROR_NOMEM; /* Return out of memory */
                 goto out_nlist;
             }
         }

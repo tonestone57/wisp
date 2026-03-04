@@ -2295,9 +2295,6 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
         uint8_t pos_enum = (box->style != NULL) ? css_computed_position(box->style) : CSS_POSITION_STATIC;
         uint8_t bg_attach = (box->style != NULL) ? css_computed_background_attachment(box->style)
                                                  : CSS_BACKGROUND_ATTACHMENT_SCROLL;
-        // TODO remove in production
-        bool log_target = (cls != NULL &&
-            (strstr(cls, "submenu-wrapper") || strstr(cls, "hn-container") || strstr(cls, "sub-menu")));
         bool expand_viewport_bg = false;
         if (data != NULL) {
             int vp_x = data->viewport_x;
