@@ -18,8 +18,7 @@ static JSValue js_element_getAttribute(JSContext *ctx, JSValueConst this_val, in
 static JSValue js_element_setAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 static JSValue js_element_hasAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 static JSValue js_element_removeAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+#include "event_target.h"
 
 /**
  * Create a dummy style object that accepts any property without error.
@@ -113,9 +112,10 @@ static JSValue create_element_object(JSContext *ctx, const char *tag)
     JS_SetPropertyStr(
         ctx, element, "removeAttribute", JS_NewCFunction(ctx, js_element_removeAttribute, "removeAttribute", 1));
     JS_SetPropertyStr(
-        ctx, element, "addEventListener", JS_NewCFunction(ctx, js_element_addEventListener, "addEventListener", 2));
+        ctx, element, "addEventListener", JS_NewCFunction(ctx, js_addEventListener, "addEventListener", 2));
     JS_SetPropertyStr(ctx, element, "removeEventListener",
-        JS_NewCFunction(ctx, js_element_removeEventListener, "removeEventListener", 2));
+        JS_NewCFunction(ctx, js_removeEventListener, "removeEventListener", 2));
+    JS_SetPropertyStr(ctx, element, "dispatchEvent", JS_NewCFunction(ctx, js_dispatchEvent, "dispatchEvent", 1));
 
     NSLOG(wisp, DEBUG, "Created element stub with DOM properties, tagName='%s'", tag ? tag : "(null)");
 
@@ -205,27 +205,7 @@ static JSValue js_element_removeAttribute(JSContext *ctx, JSValueConst this_val,
     return JS_UNDEFINED;
 }
 
-static JSValue js_element_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc >= 2) {
-        const char *type = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "element.addEventListener('%s', fn) (stub)", type ? type : "(null)");
-        if (type)
-            JS_FreeCString(ctx, type);
-    }
-    return JS_UNDEFINED;
-}
 
-static JSValue js_element_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc >= 2) {
-        const char *type = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "element.removeEventListener('%s', fn) (stub)", type ? type : "(null)");
-        if (type)
-            JS_FreeCString(ctx, type);
-    }
-    return JS_UNDEFINED;
-}
 
 
 static JSValue js_document_getElementById(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)

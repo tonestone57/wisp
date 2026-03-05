@@ -241,6 +241,10 @@ css_error css__computed_style_initialise(css_computed_style *style, css_select_h
             error = prop_dispatch[i].initial(&state);
             if (error != CSS_OK)
                 return error;
+        } else {
+            error = prop_dispatch[i].initial(&state);
+            if (error != CSS_OK)
+                return error;
         }
     }
 

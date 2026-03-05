@@ -252,6 +252,53 @@ static nserror clip(const struct redraw_context *ctx, const struct rect *clip)
     plot_clip.right = clip->x1 + 1; /* co-ordinates are exclusive */
     plot_clip.bottom = clip->y1 + 1; /* co-ordinates are exclusive */
 
+    /* If a transform is active, we need to map the clip rect via the inverse transform
+     * to keep it in world coordinates */
+    if (transform_stack_depth > 0 && plot_hdc != NULL) {
+        XFORM current_xform;
+        if (GetWorldTransform(plot_hdc, &current_xform)) {
+            /* Calculate inverse transform */
+            float det = current_xform.eM11 * current_xform.eM22 - current_xform.eM12 * current_xform.eM21;
+            if (det != 0.0f) {
+                /* Create points for the 4 corners of the clip rect */
+                POINT pts[4] = {
+                    { clip->x0, clip->y0 },
+                    { clip->x1 + 1, clip->y0 },
+                    { clip->x1 + 1, clip->y1 + 1 },
+                    { clip->x0, clip->y1 + 1 }
+                };
+
+                /* Map them backwards through the transform to find the bounding box
+                 * in transformed space that corresponds to this world-space rect */
+                int min_x = 2147483647, min_y = 2147483647;
+                int max_x = -2147483648, max_y = -2147483648;
+
+                for (int i = 0; i < 4; i++) {
+                    float px = pts[i].x;
+                    float py = pts[i].y;
+
+                    /* Translate backwards */
+                    px -= current_xform.eDx;
+                    py -= current_xform.eDy;
+
+                    /* Multiply by inverse matrix */
+                    float inv_x = (px * current_xform.eM22 - py * current_xform.eM21) / det;
+                    float inv_y = (py * current_xform.eM11 - px * current_xform.eM12) / det;
+
+                    if (inv_x < min_x) min_x = (int)inv_x;
+                    if (inv_y < min_y) min_y = (int)inv_y;
+                    if (inv_x > max_x) max_x = (int)inv_x;
+                    if (inv_y > max_y) max_y = (int)inv_y;
+                }
+
+                plot_clip.left = min_x;
+                plot_clip.top = min_y;
+                plot_clip.right = max_x;
+                plot_clip.bottom = max_y;
+            }
+        }
+    }
+
     return NSERROR_OK;
 }
 
@@ -916,25 +963,53 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
     NSLOG(plot, DEEPDEBUG, "clipped %ld,%ld to %ld,%ld", plot_clip.left, plot_clip.top, plot_clip.right,
         plot_clip.bottom);
 
-    /* get left most tile position */
-    if (repeat_x) {
-        for (; x > plot_clip.left; x -= width)
-            ;
+    /* Calculate tile offset for proper alignment matching Qt's offset logic.
+     * The offset is how far into the tile pattern we start drawing based on the
+     * clip rect and the original (x,y). */
+    int fill_left = repeat_x ? plot_clip.left : x;
+    int fill_top = repeat_y ? plot_clip.top : y;
+    int fill_right = repeat_x ? plot_clip.right : (x + width);
+    int fill_bottom = repeat_y ? plot_clip.bottom : (y + height);
+
+    int start_x = fill_left;
+    int start_y = fill_top;
+
+    if (repeat_x && width > 0) {
+        int tiles_left = (fill_left - x) / width;
+        int tile_start_x = x + tiles_left * width;
+
+        /* If tile_start_x is past fill_left, subtract one more tile to start before */
+        if (tile_start_x > fill_left) {
+            tile_start_x -= width;
+        } else if (tile_start_x + width <= fill_left) {
+            /* If we subtracted too many tiles, advance */
+            tile_start_x += width;
+        }
+        start_x = tile_start_x;
     }
 
-    /* get top most tile position */
-    if (repeat_y) {
-        for (; y > plot_clip.top; y -= height)
-            ;
+    if (repeat_y && height > 0) {
+        int tiles_up = (fill_top - y) / height;
+        int tile_start_y = y + tiles_up * height;
+
+        if (tile_start_y > fill_top) {
+            tile_start_y -= height;
+        } else if (tile_start_y + height <= fill_top) {
+            tile_start_y += height;
+        }
+        start_y = tile_start_y;
     }
 
-    NSLOG(plot, DEEPDEBUG, "repeat from %d,%d to %ld,%ld", x, y, plot_clip.right, plot_clip.bottom);
+    NSLOG(plot, DEEPDEBUG, "repeat from %d,%d to %d,%d", start_x, start_y, fill_right, fill_bottom);
 
     /* tile down and across to extents */
-    for (xf = x; xf < plot_clip.right; xf += width) {
-        for (yf = y; yf < plot_clip.bottom; yf += height) {
-
-            plot_bitmap(bitmap, xf, yf, width, height, bg);
+    for (xf = start_x; xf < fill_right; xf += width) {
+        for (yf = start_y; yf < fill_bottom; yf += height) {
+            /* Only plot if tile intersects the clip rect */
+            if (xf + width > plot_clip.left && xf < plot_clip.right &&
+                yf + height > plot_clip.top && yf < plot_clip.bottom) {
+                plot_bitmap(bitmap, xf, yf, width, height, bg);
+            }
             if (!repeat_y)
                 break;
         }

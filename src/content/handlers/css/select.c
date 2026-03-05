@@ -263,11 +263,6 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *n, const cs
 
     for (pseudo_element = CSS_PSEUDO_ELEMENT_NONE + 1; pseudo_element < CSS_PSEUDO_ELEMENT_COUNT; pseudo_element++) {
 
-        if (pseudo_element == CSS_PSEUDO_ELEMENT_FIRST_LETTER || pseudo_element == CSS_PSEUDO_ELEMENT_FIRST_LINE)
-            /* TODO: Handle first-line and first-letter pseudo
-             *       element computed style completion */
-            continue;
-
         if (styles->styles[pseudo_element] == NULL)
             /* There were no rules concerning this pseudo element */
             continue;

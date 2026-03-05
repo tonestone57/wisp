@@ -210,6 +210,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
 
             /* Adjust parent content for new object size */
             html_object_done(box, object, o->background);
+            box_mark_dirty(box);
 
             /* Incremental reflow on READY - disabled by default for performance.
              * Enable via CMake: -DNEOSURF_ENABLE_INCREMENTAL_REFLOW=ON
@@ -249,6 +250,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
         NSLOG(wisp, INFO, "%d fetches active (scripts_active=%d)", c->base.active, c->scripts_active);
 
         html_object_done(box, object, o->background);
+            box_mark_dirty(box);
 
         /*
          * Broadcast a redraw for the box area.

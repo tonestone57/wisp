@@ -159,6 +159,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/storage.c
 	content/handlers/javascript/quickjs/event_target.c
 	content/handlers/javascript/quickjs/xhr.c
+	content/handlers/javascript/quickjs/unimplemented.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
 	desktop/knockout.c
@@ -257,7 +258,7 @@ endif()
 # Add QuickJS-ng library
 list(APPEND WISP_COMMON_LIBS qjs)
 
-target_link_libraries(wisp ${WISP_COMMON_LIBS})
+target_link_libraries(wisp ${WISP_COMMON_LIBS} Threads::Threads)
 
 target_include_directories(wisp PRIVATE ${CMAKE_SOURCE_DIR}/contrib ${CMAKE_BINARY_DIR})
 

@@ -460,9 +460,16 @@ mouse_action_drag_textarea(html_content *html, struct browser_window *bw, browse
         box->gadget->type == GADGET_TEXTBOX);
 
     box_coords(box, &box_x, &box_y);
-    textarea_mouse_action(box->gadget->data.text.ta, mouse, x - box_x, y - box_y);
+    textarea_mouse_status ta_status = textarea_mouse_action(box->gadget->data.text.ta, mouse, x - box_x, y - box_y);
 
-    /* TODO: Set appropriate statusbar message */
+    if (!(ta_status & TEXTAREA_MOUSE_EDITOR)) {
+        const char *status = scrollbar_mouse_status_to_message(ta_status >> 3);
+        if (status != NULL) {
+            union content_msg_data msg_data;
+            msg_data.explicit_status_text = status;
+            content_broadcast((struct content *)html, CONTENT_MSG_STATUS, &msg_data);
+        }
+    }
     return NSERROR_OK;
 }
 
