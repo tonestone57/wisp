@@ -630,39 +630,12 @@ static bool urldb__host_is_ip_address(const char *host)
     char ipv6_addr[64];
     unsigned int ipv6_addr_len;
 #endif
-    /**
-     * @todo FIXME Some parts of urldb.c make confusions between hosts
-     * and "prefixes", we can sometimes be erroneously passed more than
-     * just a host.  Sometimes we may be passed trailing slashes, or even
-     * whole path segments.  A specific criminal in this class is
-     * urldb_iterate_partial, which takes a prefix to search for, but
-     * passes that prefix to functions that expect only hosts.
-     *
-     * For the time being, we will accept such calls; we check if there
-     * is a / in the host parameter, and if there is, we take a copy and
-     * replace the / with a \0.  This is not a permanent solution; we
-     * should search through NetSurf and find all the callers that are
-     * in error and fix them.  When doing this task, it might be wise
-     * to replace the hideousness below with code that doesn't have to do
-     * this, and add assert(strchr(host, '/') == NULL); somewhere.
-     * -- rjek - 2010-11-04
-     */
+    assert(strchr(host, '/') == NULL);
 
-    slash = strchr(host, '/');
-    if (slash == NULL) {
-        sane_host = host;
-    } else {
-        char *c = strdup(host);
-        c[slash - host] = '\0';
-        sane_host = c;
-        host_len = slash - host;
-        NSLOG(wisp, INFO, "WARNING: called with non-host '%s'", host);
-    }
+    if (strspn(host, "0123456789abcdefABCDEF[].:") < host_len)
+        return false;
 
-    if (strspn(sane_host, "0123456789abcdefABCDEF[].:") < host_len)
-        goto out_false;
-
-    if (inet_aton(sane_host, &ipv4) != 0) {
+    if (inet_aton(host, &ipv4) != 0) {
         /* This can only be a sane IPv4 address if it contains 3 dots.
          * Helpfully, inet_aton is happy to treat "a", "a.b", "a.b.c",
          * and "a.b.c.d" as valid IPv4 address strings where we only
@@ -672,41 +645,33 @@ static bool urldb__host_is_ip_address(const char *host)
         size_t index;
 
         for (index = 0; index < host_len; index++) {
-            if (sane_host[index] == '.')
+            if (host[index] == '.')
                 num_dots++;
         }
 
         if (num_dots == 3)
-            goto out_true;
+            return true;
         else
-            goto out_false;
+            return false;
     }
 
 #ifndef NO_IPV6
-    if ((host_len < 6) || (sane_host[0] != '[') || (sane_host[host_len - 1] != ']')) {
-        goto out_false;
+    if ((host_len < 6) || (host[0] != '[') || (host[host_len - 1] != ']')) {
+        return false;
     }
 
     ipv6_addr_len = host_len - 2;
     if (ipv6_addr_len >= sizeof(ipv6_addr)) {
         ipv6_addr_len = sizeof(ipv6_addr) - 1;
     }
-    strncpy(ipv6_addr, sane_host + 1, ipv6_addr_len);
+    strncpy(ipv6_addr, host + 1, ipv6_addr_len);
     ipv6_addr[ipv6_addr_len] = '\0';
 
     if (inet_pton(AF_INET6, ipv6_addr, &ipv6) == 1)
-        goto out_true;
+        return true;
 #endif
 
-out_false:
-    if (slash != NULL)
-        free((void *)sane_host);
     return false;
-
-out_true:
-    if (slash != NULL)
-        free((void *)sane_host);
-    return true;
 }
 
 
@@ -2884,20 +2849,27 @@ nserror urldb_load(const char *filename)
             if (!strcasecmp(host, "localhost") && !strcasecmp(scheme, "file"))
                 is_file = true;
 
-            snprintf(url, sizeof url, "%s://%s%s%s%s", scheme,
-                /* file URLs have no host */
-                (is_file ? "" : host), (port ? ":" : ""), (port ? ports : ""), s);
-
-            /* TODO: store URLs in pre-parsed state, and make
-             *       a nsurl_load to generate the nsurl more
-             *       swiftly.
-             *       Need a nsurl_save too.
-             */
-            if (nsurl_create(url, &nsurl) != NSERROR_OK) {
-                NSLOG(wisp, INFO, "Failed inserting '%s'", url);
+            if (lwc_intern_string(scheme, strlen(scheme), &scheme_lwc) != lwc_error_ok) {
                 fclose(fp);
                 return NSERROR_NOMEM;
             }
+
+            lwc_string *host_lwc;
+            const char *h_ptr = is_file ? "" : host;
+            if (lwc_intern_string(h_ptr, strlen(h_ptr), &host_lwc) != lwc_error_ok) {
+                lwc_string_unref(scheme_lwc);
+                fclose(fp);
+                return NSERROR_NOMEM;
+            }
+
+            if (nsurl_create_from_components(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
+                lwc_string_unref(scheme_lwc);
+                lwc_string_unref(host_lwc);
+                fclose(fp);
+                return NSERROR_NOMEM;
+            }
+
+            lwc_string_unref(host_lwc);
 
             if (url_bloom != NULL) {
                 uint32_t hash = nsurl_hash(nsurl);
@@ -2906,16 +2878,20 @@ nserror urldb_load(const char *filename)
 
             /* Copy and merge path/query strings */
             if (nsurl_get(nsurl, NSURL_PATH | NSURL_QUERY, &path_query, &len) != NSERROR_OK) {
-                NSLOG(wisp, INFO, "Failed inserting '%s'", url);
+                nsurl_unref(nsurl);
+                lwc_string_unref(scheme_lwc);
                 fclose(fp);
                 return NSERROR_NOMEM;
             }
 
-            scheme_lwc = nsurl_get_component(nsurl, NSURL_SCHEME);
             fragment_lwc = nsurl_get_component(nsurl, NSURL_FRAGMENT);
             p = urldb_add_path(scheme_lwc, port, h, path_query, fragment_lwc, nsurl);
             if (!p) {
-                NSLOG(wisp, INFO, "Failed inserting '%s'", url);
+                NSLOG(wisp, INFO, "Failed inserting '%s'", nsurl_access(nsurl));
+                nsurl_unref(nsurl);
+                lwc_string_unref(scheme_lwc);
+                if (fragment_lwc != NULL)
+                    lwc_string_unref(fragment_lwc);
                 fclose(fp);
                 return NSERROR_NOMEM;
             }
@@ -3540,13 +3516,13 @@ void urldb_iterate_partial(const char *prefix, bool (*callback)(nsurl *url, cons
         prefix = scheme_sep + 3;
 
     slash = strchr(prefix, '/');
-    tree = urldb_get_search_tree(prefix);
 
     if (slash) {
         /* if there's a slash in the input, then we can
          * assume that we're looking for a path */
         snprintf(host, sizeof host, "%.*s", (int)(slash - prefix), prefix);
 
+        tree = urldb_get_search_tree(host);
         h = urldb_search_find(tree, host);
         if (!h) {
             int len = slash - prefix;
@@ -3567,6 +3543,7 @@ void urldb_iterate_partial(const char *prefix, bool (*callback)(nsurl *url, cons
 
     } else {
         int len = strlen(prefix);
+        tree = urldb_get_search_tree(prefix);
 
         /* looking for hosts */
         if (!urldb_iterate_partial_host(tree, prefix, callback))
