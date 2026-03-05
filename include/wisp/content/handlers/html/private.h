@@ -153,7 +153,7 @@ typedef struct html_content {
     dom_node *title;
 
     /** A talloc context purely for the render box tree */
-    int *bctx;
+    struct arena *bctx;
     /** A context pointer for the box conversion, NULL if no conversion
      * is in progress.
      */
