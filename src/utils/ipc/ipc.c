@@ -3,8 +3,11 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
+
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+    #include <unistd.h>
+    #include <sys/stat.h>
+#endif
 
 #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 #include <sys/socket.h>
@@ -43,11 +46,13 @@ nserror ipc_listen(const char *name, struct ipc_connection **conn) {
     mode_t old_mask = umask(0077);
 
     if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        umask(old_mask);
         close(fd);
         return NSERROR_INIT_FAILED;
     }
 
     if (listen(fd, 5) < 0) {
+        umask(old_mask);
         close(fd);
         return NSERROR_INIT_FAILED;
     }
