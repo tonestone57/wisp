@@ -41,6 +41,9 @@
 
 #include "utils/hashmap.h"
 #include "windows/font.h"
+#include "windows/schedule.h"
+#include "windows/window.h"
+#include "wisp/browser_window.h"
 
 #ifdef WISP_WOFF_DECODE
 #include <zlib.h>
@@ -48,6 +51,10 @@
 
 #define SPLIT_CACHE_MAX_ENTRIES 16384
 #define WSTR_CACHE_MAX_BYTES (16 * 1024 * 1024)
+
+#define MAX_LOADED_FONTS 128
+static HANDLE loaded_font_handles[MAX_LOADED_FONTS];
+static int loaded_font_count = 0;
 #define FONT_CACHE_MAX_ENTRIES 256
 #define FONT_MAP_MAX_ENTRIES 256
 
@@ -1235,6 +1242,8 @@ HFONT get_font(const plot_font_style_t *style)
         font = (HFONT)GetStockObject(SYSTEM_FONT);
     }
 
+
+
     return font;
 }
 
@@ -1493,6 +1502,19 @@ void win32_font_caches_flush(void)
     split_gen = 0;
 }
 
+#include "wisp/browser_window.h"
+#include "windows/window.h"
+
+/**
+ * Callback triggered after font loads (FOUT strategy).
+ */
+void win32_font_repaint_callback(void)
+{
+    NSLOG(wisp, INFO, "Font loaded, core will handle layout reflow correctly.");
+    /* The targeted reformat is handled by core layout via html_finish_conversion.
+     * No global windows EnumThreadWindows required! */
+}
+
 nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t *data, size_t size)
 {
     DWORD num_fonts = 0;
@@ -1564,7 +1586,32 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
     }
 
     win32_font_caches_flush();
+
+    if (loaded_font_count < MAX_LOADED_FONTS) {
+        loaded_font_handles[loaded_font_count++] = font_handle;
+    } else {
+        NSLOG(wisp, WARNING, "Max loaded fonts reached. Handle will leak on shutdown.");
+    }
+
+    /* We no longer manually schedule a global repaint here. The core engine
+     * correctly queues a redraw sequence if the html_font_face_set_done_callback
+     * is registered and active via win32_font_repaint_callback.
+     */
+
     return NSERROR_OK;
+}
+
+void win32_font_fini(void)
+{
+    win32_font_caches_flush();
+
+    for (int i = 0; i < loaded_font_count; i++) {
+        if (loaded_font_handles[i] != NULL) {
+            RemoveFontMemResourceEx(loaded_font_handles[i]);
+            loaded_font_handles[i] = NULL;
+        }
+    }
+    loaded_font_count = 0;
 }
 
 
