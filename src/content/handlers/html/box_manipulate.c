@@ -114,7 +114,7 @@ struct box *box_create(css_select_results *styles, css_computed_style *style, bo
     talloc_set_destructor(box, (int (*)(struct box *))box_talloc_destructor);
 
     box->type = BOX_INLINE;
-    box->flags = 0;
+    box->flags = DIRTY;
     box->flags = style_owned ? (box->flags | STYLE_OWNED) : box->flags;
     box->styles = styles;
     box->style = style;
@@ -365,4 +365,28 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
     }
 
     return NSERROR_OK;
+}
+
+void box_mark_dirty(struct box *box)
+{
+    if (box == NULL) {
+        return;
+    }
+
+    if (box->flags & DIRTY) {
+        /* Already dirty, no need to propagate */
+        return;
+    }
+
+    box->flags |= DIRTY;
+
+    struct box *parent = box->parent;
+    while (parent != NULL) {
+        if (parent->flags & CHILD_DIRTY) {
+            /* Ancestor already knows it has a dirty child, stop propagating */
+            break;
+        }
+        parent->flags |= CHILD_DIRTY;
+        parent = parent->parent;
+    }
 }

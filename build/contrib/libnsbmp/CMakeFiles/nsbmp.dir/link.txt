@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -flto -Wl,--gc-sections -shared -Wl,-soname,libnsbmp.so.1 -o libnsbmp.so.1 CMakeFiles/nsbmp.dir/src/libnsbmp.c.o

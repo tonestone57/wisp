@@ -1276,6 +1276,10 @@ static void html_reformat(struct content *c, int width, int height)
     htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
     htmlc->unit_len_ctx.root_style = htmlc->layout->style;
 
+    if (c->width != width || c->height != height) {
+        htmlc->layout->flags |= DIRTY;
+    }
+
     layout_document(htmlc, width, height);
     layout = htmlc->layout;
     PERF("html_reformat #%d DONE layout", reformat_count);
