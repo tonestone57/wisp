@@ -1209,7 +1209,10 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
 
     /* fire dom click event */
     if (mouse & BROWSER_MOUSE_CLICK_1) {
+        html_content *htmlc = (html_content *)c;
+        pthread_mutex_lock(&htmlc->doc_mutex);
         fire_generic_dom_event(corestring_dom_click, mas.node, true, true);
+        pthread_mutex_unlock(&htmlc->doc_mutex);
     }
 
     /* deferred actions that can cause this browser_window to be destroyed

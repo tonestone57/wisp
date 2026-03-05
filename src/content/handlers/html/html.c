@@ -409,7 +409,9 @@ void html_finish_conversion(html_content *htmlc)
          * the currentTarget set to the Window object)
          */
         if (htmlc->jsthread != NULL) {
+            pthread_mutex_lock(&htmlc->doc_mutex);
             js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
+            pthread_mutex_unlock(&htmlc->doc_mutex);
         }
     }
 
