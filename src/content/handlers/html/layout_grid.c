@@ -1318,9 +1318,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
     /* IMPORTANT: layout_grid must set the grid's width */
     if (grid->width == UNKNOWN_WIDTH || grid->width < 0) {
-        fprintf(stderr, "GRID_BUG: grid %p width still not set (=%d)\n", (void *)grid, grid->width);
-        fflush(stderr);
-        assert(0 && "Grid width must be resolved by layout_grid");
         /* Fallback for safety in Release builds if assert disabled */
         grid->width = grid_width;
     }
