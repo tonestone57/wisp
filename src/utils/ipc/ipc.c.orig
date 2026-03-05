@@ -148,6 +148,6 @@ nserror ipc_listen(const char *name, struct ipc_connection **conn) { return NSER
 nserror ipc_accept(struct ipc_connection *listener, struct ipc_connection **conn) { return NSERROR_OK; }
 nserror ipc_connect(const char *name, struct ipc_connection **conn) { return NSERROR_OK; }
 nserror ipc_send(struct ipc_connection *conn, enum ipc_message_type type, const void *data, size_t len) { return NSERROR_OK; }
-nserror ipc_receive(struct ipc_connection *conn, enum ipc_message_type *type, void **data, size_t *len) { return NSERROR_EOF; } // Return EOF on Windows stubs to prevent infinite loops
+nserror ipc_receive(struct ipc_connection *conn, enum ipc_message_type *type, void **data, size_t *len) { return NSERROR_OK; }
 void ipc_close(struct ipc_connection *conn) {}
 #endif

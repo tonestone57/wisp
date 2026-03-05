@@ -1,0 +1,10 @@
+--- src/CMakeLists.txt
++++ src/CMakeLists.txt
+@@ -107,6 +107,7 @@
+	desktop/print.c
+	desktop/save_complete.c
+	desktop/save_text.c
++	desktop/renderer.c
+	desktop/scrollbar.c
+	desktop/search.c
+	desktop/searchweb.c

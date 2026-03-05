@@ -28,7 +28,4 @@ nserror ipc_send(struct ipc_connection *conn, enum ipc_message_type type, const 
 nserror ipc_receive(struct ipc_connection *conn, enum ipc_message_type *type, void **data, size_t *len);
 void ipc_close(struct ipc_connection *conn);
 
-/* Renderer process entrypoint */
-void wisp_renderer_main(const char *ipc_name);
-
 #endif
