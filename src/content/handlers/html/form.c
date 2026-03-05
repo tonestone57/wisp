@@ -47,6 +47,10 @@
 #include <wisp/utils/log.h>
 #include <wisp/utils/messages.h>
 #include <wisp/utils/utf8.h>
+<<<<<<< HEAD
+=======
+#include "utils/arena.h"
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "utils/talloc.h"
 #include "utils/url.h"
 #include "desktop/knockout.h"
@@ -1163,11 +1167,19 @@ static nserror form__select_process_selection(html_content *html, struct form_co
     inline_box->text = 0;
 
     if (control->data.select.num_selected == 0) {
+<<<<<<< HEAD
         inline_box->text = talloc_strdup(html->bctx, messages_get("Form_None"));
     } else if (control->data.select.num_selected == 1) {
         inline_box->text = talloc_strdup(html->bctx, control->data.select.current->text);
     } else {
         inline_box->text = talloc_strdup(html->bctx, messages_get("Form_Many"));
+=======
+        inline_box->text = arena_strdup(html->bctx, messages_get("Form_None"));
+    } else if (control->data.select.num_selected == 1) {
+        inline_box->text = arena_strdup(html->bctx, control->data.select.current->text);
+    } else {
+        inline_box->text = arena_strdup(html->bctx, messages_get("Form_Many"));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     }
 
     if (!inline_box->text) {

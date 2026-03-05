@@ -35,6 +35,63 @@ START_TEST(test_quickjs_init_finalise)
 END_TEST
 
 /**
+<<<<<<< HEAD
+=======
+ * Test EventTarget full functionality.
+ */
+START_TEST(test_quickjs_event_target_full)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = js_newthread(heap, NULL, NULL, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test adding and dispatching on window */
+    const char *code1 = "window.testGlobal = 0;\n"
+                        "function onTestEvent() { window.testGlobal = 1; }\n"
+                        "window.addEventListener('testEvent', onTestEvent);\n"
+                        "window.dispatchEvent('testEvent');\n"
+                        "window.testGlobal === 1;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_dispatchEvent_window");
+    ck_assert(result == true);
+
+    /* Test removing on window */
+    const char *code2 = "window.testGlobal = 0;\n"
+                        "window.removeEventListener('testEvent', onTestEvent);\n"
+                        "window.dispatchEvent('testEvent');\n"
+                        "window.testGlobal === 0;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_removeEventListener_window");
+    ck_assert(result == true);
+
+    /* Test adding and dispatching on document element */
+    const char *code3 = "var el = document.createElement('div');\n"
+                        "el.testValue = 0;\n"
+                        "function onElEvent() { el.testValue = 42; }\n"
+                        "el.addEventListener('click', onElEvent);\n"
+                        "el.dispatchEvent('click');\n"
+                        "el.testValue === 42;";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_dispatchEvent_element");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+/**
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
  * Test creating and destroying a heap.
  */
 START_TEST(test_quickjs_heap_create_destroy)
@@ -821,6 +878,8 @@ START_TEST(test_quickjs_xhr)
 }
 END_TEST
 
+<<<<<<< HEAD
+<<<<<<< HEAD
 
 START_TEST(test_quickjs_events_dispatch)
 {
@@ -860,6 +919,10 @@ START_TEST(test_quickjs_events_dispatch)
 }
 END_TEST
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 Suite *quickjs_suite(void)
 {
 
@@ -908,8 +971,17 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_document);
     tcase_add_test(tc_window, test_quickjs_storage);
     tcase_add_test(tc_window, test_quickjs_event_target);
+<<<<<<< HEAD
+<<<<<<< HEAD
     tcase_add_test(tc_window, test_quickjs_xhr);
+<<<<<<< HEAD
     tcase_add_test(tc_window, test_quickjs_events_dispatch);
+=======
+=======
+    tcase_add_test(tc_window, test_quickjs_event_target_full);
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    tcase_add_test(tc_window, test_quickjs_xhr);
     suite_add_tcase(s, tc_window);
 
     return s;

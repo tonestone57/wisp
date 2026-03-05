@@ -28,6 +28,7 @@ css_error nscss_resolve_url(void *pw, const char *base, lwc_string *rel, lwc_str
 {
     lwc_error lerror;
     nserror error;
+<<<<<<< HEAD
     nsurl *nsbase = pw;
     nsurl *nsabs;
     bool created_nsbase = false;
@@ -38,11 +39,24 @@ css_error nscss_resolve_url(void *pw, const char *base, lwc_string *rel, lwc_str
             return error == NSERROR_NOMEM ? CSS_NOMEM : CSS_INVALID;
         }
         created_nsbase = true;
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    nsurl *nsbase;
+    nsurl *nsabs;
+
+    /* Create nsurl from base */
+    /* TODO: avoid this */
+    error = nsurl_create(base, &nsbase);
+    if (error != NSERROR_OK) {
+        return error == NSERROR_NOMEM ? CSS_NOMEM : CSS_INVALID;
     }
 
     /* Resolve URI */
     error = nsurl_join(nsbase, lwc_string_data(rel), &nsabs);
     if (error != NSERROR_OK) {
+<<<<<<< HEAD
+<<<<<<< HEAD
         if (created_nsbase) {
             nsurl_unref(nsbase);
         }
@@ -52,6 +66,14 @@ css_error nscss_resolve_url(void *pw, const char *base, lwc_string *rel, lwc_str
     if (created_nsbase) {
         nsurl_unref(nsbase);
     }
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        nsurl_unref(nsbase);
+        return error == NSERROR_NOMEM ? CSS_NOMEM : CSS_INVALID;
+    }
+
+    nsurl_unref(nsbase);
 
     /* Intern it */
     lerror = lwc_intern_string(nsurl_access(nsabs), nsurl_length(nsabs), abs);

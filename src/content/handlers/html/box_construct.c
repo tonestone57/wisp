@@ -39,6 +39,10 @@
 #include <wisp/utils/string.h>
 #include <wisp/utils/utf8.h>
 #include <nsutils/time.h>
+<<<<<<< HEAD
+=======
+#include "utils/arena.h"
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "utils/talloc.h"
 #include "utils/utils.h"
 #include "content/handlers/css/select.h"
@@ -66,9 +70,15 @@ struct box_construct_ctx {
 
     box_construct_complete_cb cb; /**< Callback to invoke on completion */
 
+<<<<<<< HEAD
     int *bctx; /**< talloc context */
 
     unsigned int quote_nesting_level; /**< Quote nesting level */
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+    struct arena *bctx; /**< talloc context */
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 };
 
 /**
@@ -309,7 +319,15 @@ static css_select_results *box_get_style(
  * \return          Box, or NULL on failure or unsupported type
  */
 static struct box *create_content_box(
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
     const css_computed_content_item *item, const css_computed_style *style, struct box_construct_ctx *ctx, dom_node *node)
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    const css_computed_content_item *item, const css_computed_style *style, html_content *content, dom_node *node)
 {
     struct box *box = NULL;
 
@@ -322,12 +340,24 @@ static struct box *create_content_box(
         if (text_len == 0)
             return NULL;
 
+<<<<<<< HEAD
         box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
         if (box == NULL)
             return NULL;
 
         box->type = BOX_TEXT;
+<<<<<<< HEAD
+<<<<<<< HEAD
         box->text = talloc_strndup(ctx->bctx, text_data, text_len);
+=======
+        box->text = talloc_strndup(content->bctx, text_data, text_len);
+=======
+        box->text = arena_strndup(content->bctx, text_data, text_len);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (box->text == NULL) {
             /* Can't free box here - relies on talloc cleanup */
             return NULL;
@@ -351,7 +381,12 @@ static struct box *create_content_box(
         }
 
         /* Create box to hold the image object */
+<<<<<<< HEAD
         box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
         if (box == NULL) {
             nsurl_unref(url);
             break;
@@ -362,7 +397,13 @@ static struct box *create_content_box(
         box->flags |= IS_REPLACED;
 
         /* Start async fetch - box->object will be set when done */
+<<<<<<< HEAD
+<<<<<<< HEAD
         if (html_fetch_object(ctx->content, url, box, CONTENT_IMAGE, false) == false) {
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        if (html_fetch_object(content, url, box, CONTENT_IMAGE, false) == false) {
             NSLOG(wisp, WARNING, "create_content_box: URI html_fetch_object failed");
             nsurl_unref(url);
             /* Box allocation will be cleaned up by talloc */
@@ -376,6 +417,7 @@ static struct box *create_content_box(
     }
 
     case CSS_COMPUTED_CONTENT_COUNTER: {
+<<<<<<< HEAD
         lwc_string *name = item->data.counter.name;
         int32_t value = 0;
 
@@ -409,10 +451,19 @@ static struct box *create_content_box(
         } else {
             box = NULL;
         }
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        /* Counter - would need counter state tracking.
+         * TODO: Implement counter support */
+        NSLOG(wisp, DEEPDEBUG, "create_content_box: COUNTER (not implemented)");
+        box = NULL;
         break;
     }
 
     case CSS_COMPUTED_CONTENT_COUNTERS: {
+<<<<<<< HEAD
+<<<<<<< HEAD
         lwc_string *name = item->data.counters.name;
         lwc_string *sep = item->data.counters.sep;
 
@@ -469,6 +520,13 @@ static struct box *create_content_box(
         } else {
             box = NULL;
         }
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        /* Nested counters with separator
+         * TODO: Implement counters support */
+        NSLOG(wisp, DEEPDEBUG, "create_content_box: COUNTERS (not implemented)");
+        box = NULL;
         break;
     }
 
@@ -492,10 +550,22 @@ static struct box *create_content_box(
 
                     if (text_len > 0) {
                         box = box_create(
+<<<<<<< HEAD
                             NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
                         if (box != NULL) {
                             box->type = BOX_TEXT;
                             box->text = talloc_strndup(ctx->bctx, text_data, text_len);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+                            NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+                        if (box != NULL) {
+                            box->type = BOX_TEXT;
+                            box->text = talloc_strndup(content->bctx, text_data, text_len);
+=======
+                            NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+                        if (box != NULL) {
+                            box->type = BOX_TEXT;
+                            box->text = arena_strndup(content->bctx, text_data, text_len);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
                             box->length = text_len;
                             NSLOG(wisp, DEEPDEBUG, "create_content_box: ATTR '%.*s'",
                                 (int)(text_len > 50 ? 50 : text_len), text_data);
@@ -509,6 +579,8 @@ static struct box *create_content_box(
     }
 
     case CSS_COMPUTED_CONTENT_OPEN_QUOTE:
+<<<<<<< HEAD
+<<<<<<< HEAD
     case CSS_COMPUTED_CONTENT_CLOSE_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_CLOSE_QUOTE: {
@@ -560,10 +632,52 @@ static struct box *create_content_box(
             }
         } else {
             box = NULL;
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    case CSS_COMPUTED_CONTENT_CLOSE_QUOTE: {
+        /* Quote characters - would need to check 'quotes' property.
+         * Default quotes are typically " and '
+         * TODO: Implement proper quote handling with nesting level */
+        const char *quote;
+        if (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE) {
+            quote = "\""; /* Default open quote */
+        } else {
+            quote = "\""; /* Default close quote */
+        }
+
+        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+        if (box != NULL) {
+            box->type = BOX_TEXT;
+<<<<<<< HEAD
+            box->text = talloc_strdup(content->bctx, quote);
+=======
+            box->text = arena_strdup(content->bctx, quote);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            box->length = strlen(quote);
+            NSLOG(wisp, DEEPDEBUG, "create_content_box: %s_QUOTE",
+                item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE ? "OPEN" : "CLOSE");
         }
         break;
     }
 
+<<<<<<< HEAD
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    case CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE:
+    case CSS_COMPUTED_CONTENT_NO_CLOSE_QUOTE:
+        /* These affect quote nesting but produce no content */
+        box = NULL;
+        break;
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     default:
         NSLOG(wisp, WARNING, "create_content_box: unknown type %d", item->type);
         box = NULL;
@@ -586,7 +700,11 @@ static struct box *create_content_box(
  * \param bctx              Box context for memory allocation
  * \return true on success, false on memory allocation failure
  */
+<<<<<<< HEAD
 static bool box_ensure_inline_container(struct box *containing_block, struct box **inline_container_ptr, int *bctx)
+=======
+static bool box_ensure_inline_container(struct box *containing_block, struct box **inline_container_ptr, struct arena *bctx)
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 {
     if (*inline_container_ptr != NULL) {
         return true; /* Already have one */
@@ -623,7 +741,11 @@ static bool box_ensure_inline_container(struct box *containing_block, struct box
  * \param is_flex_child    True if parent is flex/grid (floats don't apply)
  * \return true on success, false on memory allocation failure
  */
+<<<<<<< HEAD
 static bool box_add_with_float_wrap(struct box *box, struct box *parent, int *bctx, bool is_flex_child)
+=======
+static bool box_add_with_float_wrap(struct box *box, struct box *parent, struct arena *bctx, bool is_flex_child)
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 {
     if (box->style == NULL) {
         box_add_child(parent, box);
@@ -710,7 +832,13 @@ static inline bool box_needs_inline_container(box_type type, bool is_floated)
  * 1. Creating a box for the pseudo-element itself
  * 2. Processing the 'content' property to create child text boxes
  */
+<<<<<<< HEAD
+<<<<<<< HEAD
 static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, struct box *box, const css_computed_style *style)
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+static void box_construct_generate(dom_node *n, html_content *content, struct box *box, const css_computed_style *style)
 {
     struct box *gen = NULL;
     struct box *inline_container = NULL;
@@ -754,7 +882,13 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
     computed_display = ns_computed_display(style, box_is_root(n));
 
     /** \todo Not wise to drop const from the computed style */
+<<<<<<< HEAD
+<<<<<<< HEAD
     gen = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    gen = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
     if (gen == NULL) {
         return;
     }
@@ -768,7 +902,12 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
     }
 
     /* Fetch background image for pseudo-element */
+<<<<<<< HEAD
     if (!box_fetch_background(gen, ctx->content)) {
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    if (!box_fetch_background(gen, content)) {
         return;
     }
 
@@ -778,11 +917,21 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
 
     if (box_needs_inline_container(gen->type, is_floated)) {
         /* Ensure inline container exists */
+<<<<<<< HEAD
+<<<<<<< HEAD
         if (!box_ensure_inline_container(box, &inline_container, ctx->bctx)) {
             return;
         }
         /* Add with float wrapping if needed */
         if (!box_add_with_float_wrap(gen, inline_container, ctx->bctx, false)) {
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        if (!box_ensure_inline_container(box, &inline_container, content->bctx)) {
+            return;
+        }
+        /* Add with float wrapping if needed */
+        if (!box_add_with_float_wrap(gen, inline_container, content->bctx, false)) {
             return;
         }
     } else {
@@ -793,6 +942,7 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
     /* Now process the content property items */
     if (c_item != NULL) {
         while (c_item->type != CSS_COMPUTED_CONTENT_NONE) {
+<<<<<<< HEAD
             struct box *content_box = create_content_box(c_item, style, ctx, n);
 
             if (content_box != NULL) {
@@ -819,6 +969,75 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
                     }
                 }
             }
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            if (c_item->type == CSS_COMPUTED_CONTENT_STRING) {
+                /* Create a text box for the string content */
+                const char *text_data = lwc_string_data(c_item->data.string);
+                size_t text_len = lwc_string_length(c_item->data.string);
+
+                if (text_len > 0) {
+                    if (gen->type == BOX_INLINE) {
+                        /* For inline boxes, text goes
+                         * directly on the box */
+<<<<<<< HEAD
+                        char *text_copy = talloc_strndup(content->bctx, text_data, text_len);
+=======
+                        char *text_copy = arena_strndup(content->bctx, text_data, text_len);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                        if (text_copy == NULL) {
+                            break;
+                        }
+                        gen->text = text_copy;
+                        gen->length = text_len;
+                    } else {
+                        /* For block boxes, create
+                         * inline container + text box
+                         */
+                        struct box *text_container;
+                        struct box *text_box;
+                        char *text_copy;
+
+                        /* Create inline container if
+                         * needed */
+                        if (gen->last != NULL && gen->last->type == BOX_INLINE_CONTAINER) {
+                            text_container = gen->last;
+                        } else {
+                            text_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, content->bctx);
+                            if (text_container == NULL) {
+                                break;
+                            }
+                            text_container->type = BOX_INLINE_CONTAINER;
+                            box_add_child(gen, text_container);
+                        }
+
+                        /* Create text box */
+                        text_box = box_create(
+                            NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+                        if (text_box == NULL) {
+                            break;
+                        }
+
+                        text_box->type = BOX_TEXT;
+
+<<<<<<< HEAD
+                        text_copy = talloc_strndup(content->bctx, text_data, text_len);
+=======
+                        text_copy = arena_strndup(content->bctx, text_data, text_len);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                        if (text_copy == NULL) {
+                            break;
+                        }
+
+                        text_box->text = text_copy;
+                        text_box->length = text_len;
+
+                        box_add_child(text_container, text_box);
+                    }
+                }
+            }
+            /* TODO: Handle CSS_COMPUTED_CONTENT_URI for images */
             c_item++;
         }
     }
@@ -969,7 +1188,11 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
         if (t == NULL)
             return false;
 
+<<<<<<< HEAD
         props.title = talloc_strdup(ctx->bctx, t);
+=======
+        props.title = arena_strdup(ctx->bctx, t);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
         free(t);
 
@@ -1093,6 +1316,8 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 
     /* Handle the :before pseudo element */
     if (!(box->flags & IS_REPLACED)) {
+<<<<<<< HEAD
+<<<<<<< HEAD
         box_construct_generate(ctx->n, ctx, box, box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE]);
     }
 
@@ -1167,6 +1392,10 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
                 box->n_counters = idx;
             }
         }
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        box_construct_generate(ctx->n, ctx->content, box, box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE]);
     }
 
     if (box->type == BOX_NONE ||
@@ -1280,6 +1509,7 @@ error:
 
 
 /**
+<<<<<<< HEAD
  * Find the first text box descendant of a box.
  */
 static struct box *find_first_text_box(struct box *b)
@@ -1382,6 +1612,10 @@ static void box__handle_first_letter(struct box *block, struct box_construct_ctx
 }
 
 /**
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
  * Complete construction of the box tree for an element.
  *
  * \param n        DOM node to construct for
@@ -1389,13 +1623,22 @@ static void box__handle_first_letter(struct box *block, struct box_construct_ctx
  *
  * This will be called after all children of an element have been processed
  */
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 static void box_construct_element_after(dom_node *n, struct box_construct_ctx *ctx)
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+static void box_construct_element_after(dom_node *n, html_content *content)
 {
     struct box_construct_props props;
     struct box *box = box_for_node(n);
 
     assert(box != NULL);
 
+<<<<<<< HEAD
     /* Handle ::first-letter for block-level elements */
     if (box->type == BOX_BLOCK || box->type == BOX_INLINE_BLOCK || box->type == BOX_TABLE_CELL) {
         box__handle_first_letter(box, ctx);
@@ -1403,6 +1646,21 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
 
     box_extract_properties(n, &props);
 
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    box_extract_properties(n, &props);
+
+    /* TODO: Handle ::before pseudo-element for inline boxes.
+     * This is disabled for now because:
+     * 1. It only handles STRING content, not URI/COUNTER/ATTR/etc.
+     * 2. The layout code needs more work to properly handle styled BOX_TEXT.
+     *
+     * Proper implementation requires:
+     * - Handle all content types (STRING, URI, COUNTER, ATTR, quotes)
+     * - Use BOX_INLINE wrapper for margins to work correctly
+     * - Normalization flattens children to siblings in correct order
+     */
     if (box->type == BOX_INLINE && !(box->flags & IS_REPLACED) && box->styles != NULL &&
         box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE] != NULL) {
         const css_computed_style *before_style = box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE];
@@ -1412,7 +1670,13 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
         if (content_type != CSS_CONTENT_NORMAL && content_type != CSS_CONTENT_NONE && c_item != NULL) {
             /* Create BOX_INLINE wrapper - this gets margins/padding from the style */
             struct box *pseudo_box = box_create(
+<<<<<<< HEAD
+<<<<<<< HEAD
                 NULL, (css_computed_style *)before_style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                NULL, (css_computed_style *)before_style, false, NULL, NULL, NULL, NULL, content->bctx);
 
             if (pseudo_box != NULL) {
                 pseudo_box->type = BOX_INLINE;
@@ -1420,7 +1684,12 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
 
                 /* Create content boxes as children of the pseudo-element */
                 while (c_item->type != CSS_COMPUTED_CONTENT_NONE) {
+<<<<<<< HEAD
                     struct box *content_box = create_content_box(c_item, before_style, ctx, n);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                    struct box *content_box = create_content_box(c_item, before_style, content, n);
                     if (content_box != NULL) {
                         box_add_child(pseudo_box, content_box);
                         has_content = true;
@@ -1457,6 +1726,8 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
         }
     }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
     if (box->type == BOX_INLINE && !(box->flags & IS_REPLACED) && box->styles != NULL &&
         box->styles->styles[CSS_PSEUDO_ELEMENT_AFTER] != NULL) {
         const css_computed_style *after_style = box->styles->styles[CSS_PSEUDO_ELEMENT_AFTER];
@@ -1501,6 +1772,10 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
         }
     }
 
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (box->type == BOX_INLINE || box->type == BOX_BR) {
         /* Insert INLINE_END into containing block */
         struct box *inline_end;
@@ -1518,7 +1793,13 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
 
         if (props.inline_container == NULL) {
             /* Create inline container if we don't have one */
+<<<<<<< HEAD
+<<<<<<< HEAD
             props.inline_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            props.inline_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, content->bctx);
             if (props.inline_container == NULL)
                 return;
 
@@ -1528,7 +1809,12 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
         }
 
         inline_end = box_create(NULL, box->style, false, box->href, box->target, box->title,
+<<<<<<< HEAD
             box->id == NULL ? NULL : lwc_string_ref(box->id), ctx->bctx);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            box->id == NULL ? NULL : lwc_string_ref(box->id), content->bctx);
         if (inline_end != NULL) {
             inline_end->type = BOX_INLINE_END;
 
@@ -1541,7 +1827,13 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
         }
     } else if (!(box->flags & IS_REPLACED)) {
         /* Handle the :after pseudo element */
+<<<<<<< HEAD
+<<<<<<< HEAD
         box_construct_generate(n, ctx, box, box->styles->styles[CSS_PSEUDO_ELEMENT_AFTER]);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        box_construct_generate(n, content, box, box->styles->styles[CSS_PSEUDO_ELEMENT_AFTER]);
     }
 }
 
@@ -1557,7 +1849,12 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
  *
  * \note \a n will be unreferenced
  */
+<<<<<<< HEAD
 static dom_node *next_node(dom_node *n, struct box_construct_ctx *ctx, bool convert_children)
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+static dom_node *next_node(dom_node *n, html_content *content, bool convert_children)
 {
     dom_node *next = NULL;
     bool has_children;
@@ -1585,11 +1882,21 @@ static dom_node *next_node(dom_node *n, struct box_construct_ctx *ctx, bool conv
 
         if (next != NULL) {
             if (box_for_node(n) != NULL)
+<<<<<<< HEAD
+<<<<<<< HEAD
                 box_construct_element_after(n, ctx);
             dom_node_unref(n);
         } else {
             if (box_for_node(n) != NULL)
                 box_construct_element_after(n, ctx);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                box_construct_element_after(n, content);
+            dom_node_unref(n);
+        } else {
+            if (box_for_node(n) != NULL)
+                box_construct_element_after(n, content);
 
             while (box_is_root(n) == false) {
                 dom_node *parent = NULL;
@@ -1621,7 +1928,12 @@ static dom_node *next_node(dom_node *n, struct box_construct_ctx *ctx, bool conv
                 parent = NULL;
 
                 if (box_for_node(n) != NULL) {
+<<<<<<< HEAD
                     box_construct_element_after(n, ctx);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                    box_construct_element_after(n, content);
                 }
             }
 
@@ -1644,7 +1956,13 @@ static dom_node *next_node(dom_node *n, struct box_construct_ctx *ctx, bool conv
                 }
 
                 if (box_for_node(parent) != NULL) {
+<<<<<<< HEAD
+<<<<<<< HEAD
                     box_construct_element_after(parent, ctx);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                    box_construct_element_after(parent, content);
                 }
 
                 dom_node_unref(parent);
@@ -1819,7 +2137,11 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 
         box->type = BOX_TEXT;
 
+<<<<<<< HEAD
         box->text = talloc_strdup(ctx->bctx, text);
+=======
+        box->text = arena_strdup(ctx->bctx, text);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         free(text);
         if (box->text == NULL)
             return false;
@@ -1866,6 +2188,22 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
         memcpy(text, dom_string_data(content), text_len);
         text[text_len] = '\0';
 
+<<<<<<< HEAD
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        /* TODO: Handle tabs properly */
+        for (i = 0; i < text_len; i++)
+            if (text[i] == '\t')
+                text[i] = ' ';
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (css_computed_text_transform(props.parent_style) != CSS_TEXT_TRANSFORM_NONE)
             box_text_transform(text, strlen(text), css_computed_text_transform(props.parent_style));
 
@@ -1887,7 +2225,13 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
         }
 
         do {
+<<<<<<< HEAD
+<<<<<<< HEAD
             size_t len = strcspn(current, "\r\n\t");
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            size_t len = strcspn(current, "\r\n");
 
             char old = current[len];
 
@@ -1909,6 +2253,8 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
                 box_add_child(props.containing_block, props.inline_container);
             }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
             if (len > 0) {
                 /** \todo Dropping const isn't clever */
                 box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
@@ -1954,6 +2300,38 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
                 box_add_child(props.inline_container, box);
                 current++;
             } else if (current[0] != '\0') {
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            /** \todo Dropping const isn't clever */
+            box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
+                props.title, NULL, ctx->bctx);
+            if (box == NULL) {
+                free(text);
+                return false;
+            }
+
+            box->type = BOX_TEXT;
+
+<<<<<<< HEAD
+            box->text = talloc_strdup(ctx->bctx, current);
+=======
+            box->text = arena_strdup(ctx->bctx, current);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            if (box->text == NULL) {
+                free(text);
+                return false;
+            }
+
+            box->length = strlen(box->text);
+
+            box_add_child(props.inline_container, box);
+
+            current[len] = old;
+
+            current += len;
+
+            if (current[0] != '\0') {
                 /* Linebreak: create new inline container */
                 props.inline_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
                 if (props.inline_container == NULL) {
@@ -2012,7 +2390,12 @@ static void convert_xml_to_box(void *p)
 
         /* Find next element to process, converting text nodes as we go
          */
+<<<<<<< HEAD
         next = next_node(ctx->n, ctx, convert_children);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        next = next_node(ctx->n, ctx->content, convert_children);
         while (next != NULL) {
             dom_node_type type;
             dom_exception err;
@@ -2046,7 +2429,13 @@ static void convert_xml_to_box(void *p)
                 }
             }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
             next = next_node(next, ctx, true);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            next = next_node(next, ctx->content, true);
         }
 
         // dom_node_unref(ctx->n);
@@ -2106,8 +2495,12 @@ nserror dom_to_box(dom_node *n, html_content *c, box_construct_complete_cb cb, v
     assert(box_conversion_context != NULL);
 
     if (c->bctx == NULL) {
+<<<<<<< HEAD
         /* create a context allocation for this box tree */
         c->bctx = talloc_zero(0, int);
+=======
+        c->bctx = arena_create(64 * 1024);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (c->bctx == NULL) {
             return NSERROR_NOMEM;
         }
@@ -2123,7 +2516,13 @@ nserror dom_to_box(dom_node *n, html_content *c, box_construct_complete_cb cb, v
     ctx->root_box = NULL;
     ctx->cb = cb;
     ctx->bctx = c->bctx;
+<<<<<<< HEAD
+<<<<<<< HEAD
     ctx->quote_nesting_level = 0;
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     *box_conversion_context = ctx;
 

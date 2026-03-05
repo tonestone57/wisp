@@ -62,14 +62,22 @@ dom_exception _dom_text_create(dom_document *doc, dom_string *name, dom_string *
     dom_exception err;
 
     /* Allocate the text node */
+<<<<<<< HEAD
     t = malloc(sizeof(dom_text));
+=======
+    t = DOM_ALLOC(doc, sizeof(dom_text));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (t == NULL)
         return DOM_NO_MEM_ERR;
 
     /* And initialise the node */
     err = _dom_text_initialise(t, doc, DOM_TEXT_NODE, name, value);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(t);
+=======
+        DOM_FREE(t);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -96,7 +104,11 @@ void _dom_text_destroy(dom_text *text)
     _dom_text_finalise(text);
 
     /* Free node */
+<<<<<<< HEAD
     free(text);
+=======
+    DOM_FREE(text);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /**
@@ -281,13 +293,21 @@ dom_exception _dom_text_copy(dom_node_internal *old, dom_node_internal **copy)
     dom_text *new_text;
     dom_exception err;
 
+<<<<<<< HEAD
     new_text = malloc(sizeof(dom_text));
+=======
+    new_text = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_text));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_text == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_text_copy_internal(old, new_text);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(new_text);
+=======
+        DOM_FREE(new_text);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

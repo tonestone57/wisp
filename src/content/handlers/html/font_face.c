@@ -53,17 +53,29 @@ struct font_download {
 static struct font_download font_downloads[MAX_FONT_DOWNLOADS];
 
 /** Set of loaded font variants (simple linked list) */
+<<<<<<< HEAD
 #define MAX_LOADED_WEB_FONTS 64
 
 struct loaded_font {
     struct font_variant_id variant;
     int last_used; /* simple counter for LRU */
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+struct loaded_font {
+    struct font_variant_id variant;
     struct loaded_font *next;
 };
 
 static struct loaded_font *loaded_fonts = NULL;
+<<<<<<< HEAD
+<<<<<<< HEAD
 static int font_use_counter = 0;
 static int loaded_font_count = 0;
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
 /** Count of pending font downloads */
 static int pending_font_count = 0;
@@ -111,7 +123,12 @@ static bool is_variant_loaded(const struct font_variant_id *id)
 
     for (entry = loaded_fonts; entry != NULL; entry = entry->next) {
         if (font_variant_match(&entry->variant, id)) {
+<<<<<<< HEAD
+<<<<<<< HEAD
             entry->last_used = ++font_use_counter;
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
             return true;
         }
     }
@@ -119,6 +136,7 @@ static bool is_variant_loaded(const struct font_variant_id *id)
 }
 
 /**
+<<<<<<< HEAD
  * Evict the least recently used font if we exceed the limit.
  */
 static void evict_lru_font_if_needed(void)
@@ -164,6 +182,10 @@ static void evict_lru_font_if_needed(void)
 }
 
 /**
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
  * Check if a specific font variant is already being downloaded.
  */
 static bool is_variant_pending(const struct font_variant_id *id)
@@ -185,11 +207,20 @@ static void mark_font_loaded(const struct font_variant_id *id)
     struct loaded_font *entry;
 
     /* Check if already in list */
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
     for (entry = loaded_fonts; entry != NULL; entry = entry->next) {
         if (font_variant_match(&entry->variant, id)) {
             entry->last_used = ++font_use_counter;
             return;
         }
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    if (is_variant_loaded(id)) {
+        return;
     }
 
     /* Add to list */
@@ -198,6 +229,7 @@ static void mark_font_loaded(const struct font_variant_id *id)
         entry->variant.family_name = strdup(id->family_name);
         entry->variant.weight = id->weight;
         entry->variant.style = id->style;
+<<<<<<< HEAD
         entry->last_used = ++font_use_counter;
         entry->next = loaded_fonts;
         loaded_fonts = entry;
@@ -206,6 +238,12 @@ static void mark_font_loaded(const struct font_variant_id *id)
         NSLOG(wisp, INFO, "Marked font '%s' (weight=%d style=%d) as loaded", id->family_name, id->weight, id->style);
 
         evict_lru_font_if_needed();
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        entry->next = loaded_fonts;
+        loaded_fonts = entry;
+        NSLOG(wisp, INFO, "Marked font '%s' (weight=%d style=%d) as loaded", id->family_name, id->weight, id->style);
     }
 }
 
@@ -450,7 +488,15 @@ nserror html_font_face_fini(struct html_content *c)
     if (font_waiting_content == c) {
         font_waiting_content = NULL;
     }
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 
+=======
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     return NSERROR_OK;
 }
 

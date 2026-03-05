@@ -241,10 +241,13 @@ css_error css__computed_style_initialise(css_computed_style *style, css_select_h
             error = prop_dispatch[i].initial(&state);
             if (error != CSS_OK)
                 return error;
+<<<<<<< HEAD
         } else {
             error = prop_dispatch[i].initial(&state);
             if (error != CSS_OK)
                 return error;
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
         }
     }
 

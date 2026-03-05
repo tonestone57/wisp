@@ -106,11 +106,16 @@ nserror html_script_exec(html_content *c, bool allow_defer)
                 const uint8_t *data;
                 size_t size;
                 data = content_get_source_data(s->data.handle, &size);
+<<<<<<< HEAD
 
                 pthread_mutex_lock(&c->doc_mutex);
                 script_handler(c->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
                 pthread_mutex_unlock(&c->doc_mutex);
 
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                script_handler(c->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
                 have_run_something = true;
                 /* We have to re-acquire this here since the
                  * c->scripts array may have been reallocated
@@ -359,10 +364,16 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
             const uint8_t *data;
             size_t size;
             data = content_get_source_data(s->data.handle, &size);
+<<<<<<< HEAD
+<<<<<<< HEAD
 
             pthread_mutex_lock(&parent->doc_mutex);
             script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
             pthread_mutex_unlock(&parent->doc_mutex);
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+            script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
         }
 
         /* continue parse */

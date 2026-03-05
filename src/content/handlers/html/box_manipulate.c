@@ -34,6 +34,10 @@
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/nsurl.h>
+<<<<<<< HEAD
+=======
+#include "utils/arena.h"
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "utils/talloc.h"
 #include <string.h>
 
@@ -51,11 +55,16 @@
  * \param b The box being destroyed.
  * \return 0 to allow talloc to continue destroying the tree.
  */
+<<<<<<< HEAD
 static int box_talloc_destructor(void *ptr)
+=======
+static void box_talloc_destructor(void *ptr)
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 {
     struct box *b = (struct box *)ptr;
     struct html_scrollbar_data *data;
 
+<<<<<<< HEAD
     if ((b->flags & STYLE_OWNED)) {
         if (b->original_style != NULL) {
             css_computed_style_destroy(b->original_style);
@@ -63,6 +72,11 @@ static int box_talloc_destructor(void *ptr)
         } else if (b->style != NULL) {
             css_computed_style_destroy(b->style);
         }
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    if ((b->flags & STYLE_OWNED) && b->style != NULL) {
+        css_computed_style_destroy(b->style);
         b->style = NULL;
     }
 
@@ -100,7 +114,11 @@ static int box_talloc_destructor(void *ptr)
     }
 
 
+<<<<<<< HEAD
     return 0;
+=======
+    return;
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 
@@ -111,15 +129,28 @@ struct box *box_create(css_select_results *styles, css_computed_style *style, bo
     unsigned int i;
     struct box *box;
 
+<<<<<<< HEAD
     box = talloc(context, struct box);
+=======
+    box = arena_alloc(context, sizeof(struct box));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (!box) {
         return 0;
     }
 
+<<<<<<< HEAD
     talloc_set_destructor(box, (int (*)(struct box *))box_talloc_destructor);
 
     box->type = BOX_INLINE;
+<<<<<<< HEAD
     box->flags = DIRTY;
+=======
+=======
+    arena_register_destructor(context, box, box_talloc_destructor);
+
+    box->type = BOX_INLINE;
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    box->flags = 0;
     box->flags = style_owned ? (box->flags | STYLE_OWNED) : box->flags;
     box->styles = styles;
     box->style = style;
@@ -278,6 +309,7 @@ void box_free(struct box *box)
 /* Exported function documented in html/box.h */
 void box_free_box(struct box *box)
 {
+<<<<<<< HEAD
     if (!(box->flags & CLONE)) {
         if (box->gadget)
             form_free_control(box->gadget);
@@ -290,6 +322,9 @@ void box_free_box(struct box *box)
     }
 
     talloc_free(box);
+=======
+    /* Handled by arena destruction or box_talloc_destructor. */
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 
@@ -371,6 +406,8 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
 
     return NSERROR_OK;
 }
+<<<<<<< HEAD
+<<<<<<< HEAD
 
 void box_mark_dirty(struct box *box)
 {
@@ -395,3 +432,7 @@ void box_mark_dirty(struct box *box)
         parent = parent->parent;
     }
 }
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918

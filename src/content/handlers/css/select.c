@@ -263,6 +263,23 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *n, const cs
 
     for (pseudo_element = CSS_PSEUDO_ELEMENT_NONE + 1; pseudo_element < CSS_PSEUDO_ELEMENT_COUNT; pseudo_element++) {
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        if (pseudo_element == CSS_PSEUDO_ELEMENT_FIRST_LETTER || pseudo_element == CSS_PSEUDO_ELEMENT_FIRST_LINE)
+            /* TODO: Handle first-line and first-letter pseudo
+             *       element computed style completion */
+            continue;
+
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (styles->styles[pseudo_element] == NULL)
             /* There were no rules concerning this pseudo element */
             continue;

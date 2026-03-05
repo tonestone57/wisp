@@ -95,6 +95,7 @@ css__compose_font_weight(const css_computed_style *parent, const css_computed_st
 {
     uint8_t type = get_font_weight(child);
 
+<<<<<<< HEAD
     if (type == CSS_FONT_WEIGHT_INHERIT) {
         if (parent == NULL) {
             return set_font_weight(result, CSS_FONT_WEIGHT_NORMAL);
@@ -103,4 +104,7 @@ css__compose_font_weight(const css_computed_style *parent, const css_computed_st
     }
 
     return css__copy_font_weight(child, result);
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+    return css__copy_font_weight(type == CSS_FONT_WEIGHT_INHERIT ? parent : child, result);
 }

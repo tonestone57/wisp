@@ -42,6 +42,10 @@
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/string.h>
 #include <wisp/utils/utils.h>
+<<<<<<< HEAD
+=======
+#include "utils/arena.h"
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "utils/talloc.h"
 #include "content/content_factory.h"
 #include "content/handlers/css/hints.h"
@@ -270,7 +274,11 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
     f->cols = cols;
     f->rows = rows;
     f->scrolling = BW_SCROLLING_NO;
+<<<<<<< HEAD
     f->children = talloc_array(content->bctx, struct content_html_frames, (rows * cols));
+=======
+    f->children = arena_alloc(content->bctx, sizeof(struct content_html_frames) * (rows * cols));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     talloc_set_destructor(f->children, box_frames_talloc_destructor);
 
@@ -393,7 +401,11 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
             /* fill in specified values */
             err = dom_element_get_attribute(c, corestring_dom_name, &s);
             if (err == DOM_NO_ERR && s != NULL) {
+<<<<<<< HEAD
                 frame->name = talloc_strdup(content->bctx, dom_string_data(s));
+=======
+                frame->name = arena_strdup(content->bctx, dom_string_data(s));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
                 dom_string_unref(s);
             }
 
@@ -513,7 +525,11 @@ static bool box_get_attribute(dom_node *n, const char *attribute, void *context,
     dom_string_unref(attr_name);
 
     if (attr != NULL) {
+<<<<<<< HEAD
         result = talloc_strdup(context, dom_string_data(attr));
+=======
+        result = arena_strdup(context, dom_string_data(attr));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
         dom_string_unref(attr);
 
@@ -564,7 +580,11 @@ static bool box_input_text(html_content *html, struct box *box, struct dom_node 
     if (!inline_box)
         return false;
     inline_box->type = BOX_TEXT;
+<<<<<<< HEAD
     inline_box->text = talloc_strdup(html->bctx, "");
+=======
+    inline_box->text = arena_strdup(html->bctx, "");
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     box_add_child(inline_container, inline_box);
     box_add_child(box, inline_container);
@@ -717,7 +737,11 @@ static bool box_a(dom_node *n, html_content *content, struct box *box, bool *con
         else {
             /* 6.16 says that frame names must begin with [a-zA-Z]
              * This doesn't match reality, so just take anything */
+<<<<<<< HEAD
             box->target = talloc_strdup(content->bctx, dom_string_data(s));
+=======
+            box->target = arena_strdup(content->bctx, dom_string_data(s));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
             if (!box->target) {
                 dom_string_unref(s);
                 return false;
@@ -820,7 +844,11 @@ static bool box_embed(dom_node *n, html_content *content, struct box *box, bool 
     if (box->style && ns_computed_display(box->style, box_is_root(n)) == CSS_DISPLAY_NONE)
         return true;
 
+<<<<<<< HEAD
     params = talloc(content->bctx, struct object_params);
+=======
+    params = arena_alloc(content->bctx, sizeof(struct object_params));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (params == NULL)
         return false;
 
@@ -893,7 +921,11 @@ static bool box_embed(dom_node *n, html_content *content, struct box *box, bool 
             return false;
         }
 
+<<<<<<< HEAD
         param = talloc(content->bctx, struct object_param);
+=======
+        param = arena_alloc(content->bctx, sizeof(struct object_param));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (param == NULL) {
             dom_node_unref(attr);
             dom_string_unref(value);
@@ -902,10 +934,17 @@ static bool box_embed(dom_node *n, html_content *content, struct box *box, bool 
             return false;
         }
 
+<<<<<<< HEAD
         param->name = talloc_strdup(content->bctx, dom_string_data(name));
         param->value = talloc_strdup(content->bctx, dom_string_data(value));
         param->type = NULL;
         param->valuetype = talloc_strdup(content->bctx, "data");
+=======
+        param->name = arena_strdup(content->bctx, dom_string_data(name));
+        param->value = arena_strdup(content->bctx, dom_string_data(value));
+        param->type = NULL;
+        param->valuetype = arena_strdup(content->bctx, "data");
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         param->next = NULL;
 
         dom_string_unref(value);
@@ -948,7 +987,11 @@ static bool box_frameset(dom_node *n, html_content *content, struct box *box, bo
         return true;
     }
 
+<<<<<<< HEAD
     content->frameset = talloc_zero(content->bctx, struct content_html_frames);
+=======
+    content->frameset = arena_alloc(content->bctx, sizeof(struct content_html_frames));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (!content->frameset) {
         return false;
     }
@@ -979,6 +1022,19 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
     if (box->style && ns_computed_display(box->style, box_is_root(n)) == CSS_DISPLAY_NONE)
         return true;
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+    if (box->style && css_computed_visibility(box->style) == CSS_VISIBILITY_HIDDEN) {
+        /* Don't create iframe discriptors for invisible iframes
+         * TODO: handle hidden iframes at browser_window generation
+         * time instead? */
+        return true;
+    }
+
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     /* get frame URL */
     err = dom_element_get_attribute(n, corestring_dom_src, &s);
     if (err != DOM_NO_ERR || s == NULL)
@@ -998,7 +1054,11 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
     }
 
     /* create a new iframe */
+<<<<<<< HEAD
     iframe = talloc(content->bctx, struct content_html_iframe);
+=======
+    iframe = arena_alloc(content->bctx, sizeof(struct content_html_iframe));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (iframe == NULL) {
         nsurl_unref(url);
         return false;
@@ -1021,7 +1081,11 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
     /* fill in specified values */
     err = dom_element_get_attribute(n, corestring_dom_name, &s);
     if (err == DOM_NO_ERR && s != NULL) {
+<<<<<<< HEAD
         iframe->name = talloc_strdup(content->bctx, dom_string_data(s));
+=======
+        iframe->name = arena_strdup(content->bctx, dom_string_data(s));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         dom_string_unref(s);
     }
 
@@ -1279,7 +1343,11 @@ static bool box_image(dom_node *n, html_content *content, struct box *box, bool 
         dom_string_unref(s);
         if (alt == NULL)
             return false;
+<<<<<<< HEAD
         box->text = talloc_strdup(content->bctx, alt);
+=======
+        box->text = arena_strdup(content->bctx, alt);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         free(alt);
         if (box->text == NULL)
             return false;
@@ -1408,6 +1476,7 @@ static bool box_input(dom_node *n, html_content *content, struct box *box, bool 
         inline_box->type = BOX_TEXT;
 
         if (box->gadget->value != NULL)
+<<<<<<< HEAD
             inline_box->text = talloc_strdup(content->bctx, box->gadget->value);
         else if (box->gadget->type == GADGET_SUBMIT)
             inline_box->text = talloc_strdup(content->bctx, messages_get("Form_Submit"));
@@ -1415,6 +1484,15 @@ static bool box_input(dom_node *n, html_content *content, struct box *box, bool 
             inline_box->text = talloc_strdup(content->bctx, messages_get("Form_Reset"));
         else
             inline_box->text = talloc_strdup(content->bctx, "Button");
+=======
+            inline_box->text = arena_strdup(content->bctx, box->gadget->value);
+        else if (box->gadget->type == GADGET_SUBMIT)
+            inline_box->text = arena_strdup(content->bctx, messages_get("Form_Submit"));
+        else if (box->gadget->type == GADGET_RESET)
+            inline_box->text = arena_strdup(content->bctx, messages_get("Form_Reset"));
+        else
+            inline_box->text = arena_strdup(content->bctx, "Button");
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
         if (inline_box->text == NULL)
             goto no_memory;
@@ -1503,7 +1581,11 @@ static bool box_object(dom_node *n, html_content *content, struct box *box, bool
     if (box->usemap && box->usemap[0] == '#')
         box->usemap++;
 
+<<<<<<< HEAD
     params = talloc(content->bctx, struct object_params);
+=======
+    params = arena_alloc(content->bctx, sizeof(struct object_params));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (params == NULL)
         return false;
 
@@ -1636,7 +1718,11 @@ static bool box_object(dom_node *n, html_content *content, struct box *box, bool
             }
             dom_string_unref(name);
 
+<<<<<<< HEAD
             param = talloc(params, struct object_param);
+=======
+            param = arena_alloc(content->bctx, sizeof(struct object_param));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
             if (param == NULL) {
                 dom_node_unref(c);
                 return false;
@@ -1668,7 +1754,11 @@ static bool box_object(dom_node *n, html_content *content, struct box *box, bool
             }
 
             if (param->valuetype == NULL) {
+<<<<<<< HEAD
                 param->valuetype = talloc_strdup(param, "data");
+=======
+                param->valuetype = arena_strdup(content->bctx, "data");
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
                 if (param->valuetype == NULL) {
                     dom_node_unref(c);
                     return false;
@@ -1842,11 +1932,19 @@ static bool box_select(dom_node *n, html_content *content, struct box *box, bool
     }
 
     if (gadget->data.select.num_selected == 0)
+<<<<<<< HEAD
         inline_box->text = talloc_strdup(content->bctx, messages_get("Form_None"));
     else if (gadget->data.select.num_selected == 1)
         inline_box->text = talloc_strdup(content->bctx, gadget->data.select.current->text);
     else
         inline_box->text = talloc_strdup(content->bctx, messages_get("Form_Many"));
+=======
+        inline_box->text = arena_strdup(content->bctx, messages_get("Form_None"));
+    else if (gadget->data.select.num_selected == 1)
+        inline_box->text = arena_strdup(content->bctx, gadget->data.select.current->text);
+    else
+        inline_box->text = arena_strdup(content->bctx, messages_get("Form_Many"));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (inline_box->text == NULL)
         goto no_memory;
 

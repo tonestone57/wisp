@@ -799,6 +799,10 @@ static inline bool layout_flex__base_and_main_sizes(
             } else {
                 item->base_size = b->width;
             }
+<<<<<<< HEAD
+            item->base_size = b->width;
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
             NSLOG(flex, DEBUG, "box %p: flex-basis:auto horizontal, base_size=%d from width", b, item->base_size);
         } else {
             item->base_size = AUTO; /* Will be set after layout below */
@@ -882,6 +886,10 @@ static inline bool layout_flex__base_and_main_sizes(
             } else {
                 item->base_size = b->height;
             }
+<<<<<<< HEAD
+            item->base_size = b->height;
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         } else {
             item->base_size = content_max_width - delta_outer_main;
         }
@@ -994,6 +1002,10 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
             }
         }
 
+<<<<<<< HEAD
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         /* Determine min type from CSS computed values.
          * Per CSS Flexbox spec §4.5, flex items have min-width/min-height initial value of 'auto',
          * which triggers automatic minimum size based on content. However, libcss computes the
@@ -1061,11 +1073,19 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
         /* Pass correct reference size for percentage flex-basis resolution:
          * - Row flex: main=width, cross=height
          * - Column flex: main=height, cross=width */
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
         /* Note: When flex container's main size is indefinite (AUTO),
          * percentages on flex items resolve to content-based auto per CSS spec.
          * This matches expected behavior. For indefinite column containers,
          * two-pass layout handles re-resolving later. */
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         int ref_main = horizontal ? available_width : ctx->available_main;
         int ref_cross = horizontal ? ctx->available_main : available_width;
         layout_flex__base_and_main_sizes(ctx, item, ref_main, ref_cross);
@@ -1949,10 +1969,15 @@ static int flex_item_cmp(const void *a, const void *b)
 
 bool layout_flex(struct box *flex, int available_width, html_content *content)
 {
+<<<<<<< HEAD
     if (!(flex->flags & DIRTY) && !(flex->flags & CHILD_DIRTY)) {
         return true;
     }
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     int max_height;
     struct css_size min_height;
     int max_width = -1;
@@ -2038,8 +2063,16 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
             flex->height = 0;
         }
         layout_flex_ctx__destroy(ctx);
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
             flex->flags &= ~(DIRTY | CHILD_DIRTY);
     return true;
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        return true;
     }
 
     /* Place items onto lines. */

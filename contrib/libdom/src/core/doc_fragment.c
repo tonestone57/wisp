@@ -46,7 +46,11 @@ _dom_document_fragment_create(dom_document *doc, dom_string *name, dom_string *v
     dom_document_fragment *f;
     dom_exception err;
 
+<<<<<<< HEAD
     f = malloc(sizeof(dom_document_fragment));
+=======
+    f = DOM_ALLOC(doc, sizeof(dom_document_fragment));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (f == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -56,7 +60,11 @@ _dom_document_fragment_create(dom_document *doc, dom_string *name, dom_string *v
     /* And initialise the node */
     err = _dom_document_fragment_initialise(&f->base, doc, DOM_DOCUMENT_FRAGMENT_NODE, name, value, NULL, NULL);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(f);
+=======
+        DOM_FREE(f);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -78,7 +86,11 @@ void _dom_document_fragment_destroy(dom_document_fragment *frag)
     _dom_document_fragment_finalise(&frag->base);
 
     /* Destroy fragment */
+<<<<<<< HEAD
     free(frag);
+=======
+    DOM_FREE(frag);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /*-----------------------------------------------------------------------*/
@@ -97,13 +109,21 @@ dom_exception _dom_df_copy(dom_node_internal *old, dom_node_internal **copy)
     dom_document_fragment *new_f;
     dom_exception err;
 
+<<<<<<< HEAD
     new_f = malloc(sizeof(dom_document_fragment));
+=======
+    new_f = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_document_fragment));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_f == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_node_copy_internal(old, new_f);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(new_f);
+=======
+        DOM_FREE(new_f);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

@@ -44,7 +44,11 @@ dom_exception _dom_processing_instruction_create(
     dom_exception err;
 
     /* Allocate the comment node */
+<<<<<<< HEAD
     p = malloc(sizeof(dom_processing_instruction));
+=======
+    p = DOM_ALLOC(doc, sizeof(dom_processing_instruction));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (p == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -55,7 +59,11 @@ dom_exception _dom_processing_instruction_create(
     err = _dom_processing_instruction_initialise(
         &p->base, doc, DOM_PROCESSING_INSTRUCTION_NODE, name, value, NULL, NULL);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(p);
+=======
+        DOM_FREE(p);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -77,7 +85,11 @@ void _dom_processing_instruction_destroy(dom_processing_instruction *pi)
     _dom_processing_instruction_finalise(&pi->base);
 
     /* Free processing instruction */
+<<<<<<< HEAD
     free(pi);
+=======
+    DOM_FREE(pi);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /*-----------------------------------------------------------------------*/
@@ -96,13 +108,21 @@ dom_exception _dom_pi_copy(dom_node_internal *old, dom_node_internal **copy)
     dom_processing_instruction *new_pi;
     dom_exception err;
 
+<<<<<<< HEAD
     new_pi = malloc(sizeof(dom_processing_instruction));
+=======
+    new_pi = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_processing_instruction));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_pi == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_node_copy_internal(old, new_pi);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(new_pi);
+=======
+        DOM_FREE(new_pi);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

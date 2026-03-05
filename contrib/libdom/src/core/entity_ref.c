@@ -45,7 +45,11 @@ _dom_entity_reference_create(dom_document *doc, dom_string *name, dom_string *va
     dom_exception err;
 
     /* Allocate the comment node */
+<<<<<<< HEAD
     e = malloc(sizeof(dom_entity_reference));
+=======
+    e = DOM_ALLOC(doc, sizeof(dom_entity_reference));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (e == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -55,7 +59,11 @@ _dom_entity_reference_create(dom_document *doc, dom_string *name, dom_string *va
     /* And initialise the node */
     err = _dom_entity_reference_initialise(&e->base, doc, DOM_ENTITY_REFERENCE_NODE, name, value, NULL, NULL);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(e);
+=======
+        DOM_FREE(e);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -77,7 +85,11 @@ void _dom_entity_reference_destroy(dom_entity_reference *entity)
     _dom_entity_reference_finalise(&entity->base);
 
     /* Destroy fragment */
+<<<<<<< HEAD
     free(entity);
+=======
+    DOM_FREE(entity);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /**
@@ -115,13 +127,21 @@ dom_exception _dom_er_copy(dom_node_internal *old, dom_node_internal **copy)
     dom_entity_reference *new_er;
     dom_exception err;
 
+<<<<<<< HEAD
     new_er = malloc(sizeof(dom_entity_reference));
+=======
+    new_er = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_entity_reference));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_er == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_node_copy_internal(old, new_er);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(new_er);
+=======
+        DOM_FREE(new_er);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
