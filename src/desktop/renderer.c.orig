@@ -46,7 +46,7 @@ void wisp_renderer_main(const char *ipc_name) {
     ipc_plotter_set_queue(queue); // Hook up the serialization queue
 
     // Main Renderer Event Loop
-    while (!queue->stop) {
+    while (true) {
         // Because UI bypasses accept for Phase 0.5, we don't block on socket read.
         // Instead we only read from the shared task_queue.
 

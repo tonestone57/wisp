@@ -57,6 +57,7 @@ nserror ipc_listen(const char *name, struct ipc_connection **conn) {
         return NSERROR_INIT_FAILED;
     }
 
+    umask(old_mask);
     chmod(addr.sun_path, 0600);
 
     *conn = calloc(1, sizeof(struct ipc_connection));

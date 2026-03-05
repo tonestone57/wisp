@@ -42,12 +42,17 @@ nserror ipc_listen(const char *name, struct ipc_connection **conn) {
 
     unlink(addr.sun_path);
 
+    // Temporarily restrict umask to ensure socket is created 0600
+    mode_t old_mask = umask(0077);
+
     if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        umask(old_mask);
         close(fd);
         return NSERROR_INIT_FAILED;
     }
 
     if (listen(fd, 5) < 0) {
+        umask(old_mask);
         close(fd);
         return NSERROR_INIT_FAILED;
     }

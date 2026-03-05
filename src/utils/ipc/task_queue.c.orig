@@ -109,9 +109,6 @@ void task_queue_destroy(struct task_queue *queue) {
     struct task *t = queue->head;
     while (t) {
         struct task *next = t->next;
-        if (t->ctx) {
-            free(t->ctx); // Prevent leaking un-processed payloads on teardown
-        }
         free(t);
         t = next;
     }

@@ -81,10 +81,7 @@ static nserror ipc_plot_flush(const struct redraw_context *ctx) {
 }
 
 void ipc_plotter_stop_queue(void) {
-    if (renderer_plotter_queue) {
-        task_queue_stop(renderer_plotter_queue);
-        renderer_plotter_queue = NULL; // Clear dangling pointer
-    }
+    if (renderer_plotter_queue) task_queue_stop(renderer_plotter_queue);
 }
 
 const struct plotter_table ipc_plotter = {
