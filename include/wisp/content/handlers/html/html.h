@@ -58,6 +58,7 @@ struct plot_font_style;
 struct html_stylesheet {
     struct dom_node *node; /**< dom node associated with sheet */
     struct hlcache_handle *sheet;
+    char *media; /**< media query string */
     bool modified;
     bool unused;
 };

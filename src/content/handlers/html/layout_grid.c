@@ -663,6 +663,10 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 
 bool layout_grid(struct box *grid, int available_width, html_content *content)
 {
+    if (!(grid->flags & DIRTY) && !(grid->flags & CHILD_DIRTY)) {
+        return true;
+    }
+
     struct box *child;
     int grid_width = available_width;
     int grid_height = 0;
@@ -1327,5 +1331,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
     free(occupied);
     free(row_heights);
     free(col_widths);
+        grid->flags &= ~(DIRTY | CHILD_DIRTY);
     return true;
 }

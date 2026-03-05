@@ -84,8 +84,11 @@
 
 /* Performance tracing - enable via CMake: -DNEOSURF_ENABLE_PERF_TRACE=ON */
 #include <wisp/utils/perf.h>
+#include <wisp/utils/thread_pool.h>
 
 static const char *html_types[] = {"application/xhtml+xml", "text/html"};
+
+static thread_pool_t *html_parser_pool = NULL;
 
 /**
  * Fire an event at the DOM
@@ -406,7 +409,9 @@ void html_finish_conversion(html_content *htmlc)
          * the currentTarget set to the Window object)
          */
         if (htmlc->jsthread != NULL) {
+            pthread_mutex_lock(&htmlc->doc_mutex);
             js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
+            pthread_mutex_unlock(&htmlc->doc_mutex);
         }
     }
 
@@ -499,8 +504,8 @@ void html_finish_conversion(html_content *htmlc)
         /* Store timestamp on first delay */
         if (htmlc->font_wait_start_ms == 0) {
             nsu_getmonotonic_ms(&htmlc->font_wait_start_ms);
-            NSLOG(wisp, INFO, "Delaying box conversion - waiting for %d pending fonts (started at %" PRIu64 " ms)",
-                html_font_face_pending_count(), htmlc->font_wait_start_ms);
+            NSLOG(wisp, INFO, "Delaying box conversion - waiting for %d pending fonts (started at %ju ms)",
+                html_font_face_pending_count(), (uintmax_t)htmlc->font_wait_start_ms);
         }
         dom_node_unref(html);
         /* Will be called again when fonts complete */
@@ -512,12 +517,14 @@ void html_finish_conversion(html_content *htmlc)
         uint64_t now_ms;
         nsu_getmonotonic_ms(&now_ms);
         uint64_t delay_ms = now_ms - htmlc->font_wait_start_ms;
-        NSLOG(wisp, INFO, "Fonts ready! Box conversion delayed by %" PRIu64 " ms", delay_ms);
+        NSLOG(wisp, INFO, "Fonts ready! Box conversion delayed by %ju ms", (uintmax_t)delay_ms);
         htmlc->font_wait_start_ms = 0; /* Reset for next time */
     }
 
     PERF("DOM to box START");
+    pthread_mutex_lock(&htmlc->doc_mutex);
     error = dom_to_box(html, htmlc, html_box_convert_done, &htmlc->box_conversion_context);
+    pthread_mutex_unlock(&htmlc->doc_mutex);
     if (error != NSERROR_OK) {
         NSLOG(wisp, INFO, "box conversion failed");
         dom_node_unref(html);
@@ -613,6 +620,8 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
     c->scripts_count = 0;
     c->scripts = NULL;
     c->jsthread = NULL;
+
+    pthread_mutex_init(&c->doc_mutex, NULL);
 
     c->enable_scripting = nsoption_bool(enable_javascript);
     c->base.active = 1; /* The html content itself is active */
@@ -833,6 +842,78 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 }
 
 
+struct html_parse_task {
+    struct content *c;
+    char *data;
+    unsigned int size;
+    nserror parse_error;
+    bool has_encoding_change;
+};
+
+static void html_parse_task_free(struct html_parse_task *task)
+{
+    if (task) {
+        if (task->data)
+            free(task->data);
+        free(task);
+    }
+}
+
+bool html_begin_conversion(html_content *htmlc);
+
+static void html_parse_complete_cb(void *arg)
+{
+    struct html_parse_task *task = (struct html_parse_task *)arg;
+    html_content *html = (html_content *)task->c;
+
+    if (task->has_encoding_change) {
+        task->parse_error = html_process_encoding_change(task->c, task->data, task->size);
+    }
+
+    if (task->parse_error != NSERROR_OK && task->parse_error != NSERROR_PAUSED) {
+        content_broadcast_error(task->c, task->parse_error, NULL);
+    }
+
+    html->base.active--;
+    html->base.active_bg_tasks--;
+
+    html_parse_task_free(task);
+
+    if (html->base.pending_deletion && html->base.active_bg_tasks == 0) {
+        content_destroy(&html->base);
+        return;
+    }
+
+    /* Content fetch might be finished while parsing was backgrounded */
+    if (html->base.active == html->scripts_active && html->data_complete) {
+        html_begin_conversion(html);
+    }
+}
+
+static void html_parse_worker(void *arg)
+{
+    struct html_parse_task *task = (struct html_parse_task *)arg;
+    html_content *html = (html_content *)task->c;
+    dom_hubbub_error dom_ret;
+    nserror err = NSERROR_OK;
+
+    pthread_mutex_lock(&html->doc_mutex);
+    if (html->parser) {
+        dom_ret = dom_hubbub_parser_parse_chunk(html->parser, (const uint8_t *)task->data, task->size);
+        err = libdom_hubbub_error_to_nserror(dom_ret);
+
+        if (err == NSERROR_ENCODING_CHANGE) {
+            task->has_encoding_change = true;
+            err = NSERROR_OK; /* handled on main thread */
+        }
+    }
+    pthread_mutex_unlock(&html->doc_mutex);
+
+    task->parse_error = err;
+
+    guit->misc->schedule(0, html_parse_complete_cb, task);
+}
+
 /**
  * Process data for CONTENT_HTML.
  */
@@ -840,19 +921,8 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 static bool html_process_data(struct content *c, const char *data, unsigned int size)
 {
     html_content *html = (html_content *)c;
-    dom_hubbub_error dom_ret;
-    nserror err = NSERROR_OK; /* assume its all going to be ok */
 
     if (html->parser == NULL) {
-        /* Parser may be NULL because:
-         * 1. Parsing completed successfully (parse_completed is true)
-         * 2. Parser creation failed (error case)
-         *
-         * For cached content on reload, conversion can complete very
-         * quickly before all data callbacks finish. In this case,
-         * receiving more data after parsing is complete is not an
-         * error.
-         */
         if (html->parse_completed) {
             NSLOG(wisp, INFO, "Ignoring data for content %p - parsing already complete", c);
             return true;
@@ -862,18 +932,30 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
         return false;
     }
 
-    dom_ret = dom_hubbub_parser_parse_chunk(html->parser, (const uint8_t *)data, size);
-
-    err = libdom_hubbub_error_to_nserror(dom_ret);
-
-    /* deal with encoding change */
-    if (err == NSERROR_ENCODING_CHANGE) {
-        err = html_process_encoding_change(c, data, size);
+    struct html_parse_task *task = malloc(sizeof(struct html_parse_task));
+    if (!task) {
+        return false;
     }
 
-    /* broadcast the error if necessary */
-    if (err != NSERROR_OK && err != NSERROR_PAUSED) {
-        content_broadcast_error(c, err, NULL);
+    task->c = c;
+    task->size = size;
+    task->data = malloc(size);
+    if (!task->data) {
+        free(task);
+        return false;
+    }
+    memcpy(task->data, data, size);
+
+    task->has_encoding_change = false;
+    task->parse_error = NSERROR_OK;
+
+    html->base.active++; /* Retain content fetch status until task completes */
+    html->base.active_bg_tasks++;
+
+    if (!thread_pool_add_task(html_parser_pool, html_parse_worker, task, (void (*)(void *))html_parse_task_free)) {
+        html->base.active--;
+        html->base.active_bg_tasks--;
+        html_parse_task_free(task);
         return false;
     }
 
@@ -966,8 +1048,6 @@ bool html_can_begin_conversion(html_content *htmlc)
 
 void script_resume_conversion_cb(void *p);
 static void html_free_layout(html_content *htmlc);
-
-bool html_begin_conversion(html_content *htmlc);
 
 void html_resume_conversion_cb(void *p)
 {
@@ -1276,7 +1356,10 @@ static void html_reformat(struct content *c, int width, int height)
     htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
     htmlc->unit_len_ctx.root_style = htmlc->layout->style;
 
+    pthread_mutex_lock(&htmlc->doc_mutex);
     layout_document(htmlc, width, height);
+    pthread_mutex_unlock(&htmlc->doc_mutex);
+
     layout = htmlc->layout;
     PERF("html_reformat #%d DONE layout", reformat_count);
 
@@ -1548,6 +1631,8 @@ static void html_destroy(struct content *c)
 
     /* Free objects */
     html_object_free_objects(html);
+
+    pthread_mutex_destroy(&html->doc_mutex);
 }
 
 
@@ -2413,6 +2498,11 @@ static content_type html_content_type(void)
 static void html_fini(void)
 {
     html_css_fini();
+
+    if (html_parser_pool) {
+        thread_pool_destroy(html_parser_pool);
+        html_parser_pool = NULL;
+    }
 }
 
 /**
@@ -2553,6 +2643,12 @@ nserror html_init(void)
 {
     uint32_t i;
     nserror error;
+
+    if (!html_parser_pool) {
+        /* Initialize a thread pool for background tokenization */
+        /* Must be 1 thread to guarantee FIFO ordering of streamed HTML chunks */
+        html_parser_pool = thread_pool_create(1);
+    }
 
     error = html_css_init();
     if (error != NSERROR_OK)

@@ -95,5 +95,12 @@ css__compose_font_weight(const css_computed_style *parent, const css_computed_st
 {
     uint8_t type = get_font_weight(child);
 
-    return css__copy_font_weight(type == CSS_FONT_WEIGHT_INHERIT ? parent : child, result);
+    if (type == CSS_FONT_WEIGHT_INHERIT) {
+        if (parent == NULL) {
+            return set_font_weight(result, CSS_FONT_WEIGHT_NORMAL);
+        }
+        return css__copy_font_weight(parent, result);
+    }
+
+    return css__copy_font_weight(child, result);
 }

@@ -1866,11 +1866,6 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
         memcpy(text, dom_string_data(content), text_len);
         text[text_len] = '\0';
 
-        /* TODO: Handle tabs properly */
-        for (i = 0; i < text_len; i++)
-            if (text[i] == '\t')
-                text[i] = ' ';
-
         if (css_computed_text_transform(props.parent_style) != CSS_TEXT_TRANSFORM_NONE)
             box_text_transform(text, strlen(text), css_computed_text_transform(props.parent_style));
 
@@ -1892,7 +1887,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
         }
 
         do {
-            size_t len = strcspn(current, "\r\n");
+            size_t len = strcspn(current, "\r\n\t");
 
             char old = current[len];
 
@@ -1914,31 +1909,51 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
                 box_add_child(props.containing_block, props.inline_container);
             }
 
-            /** \todo Dropping const isn't clever */
-            box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
-                props.title, NULL, ctx->bctx);
-            if (box == NULL) {
-                free(text);
-                return false;
+            if (len > 0) {
+                /** \todo Dropping const isn't clever */
+                box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
+                    props.title, NULL, ctx->bctx);
+                if (box == NULL) {
+                    free(text);
+                    return false;
+                }
+
+                box->type = BOX_TEXT;
+
+                box->text = talloc_strdup(ctx->bctx, current);
+                if (box->text == NULL) {
+                    free(text);
+                    return false;
+                }
+
+                box->length = strlen(box->text);
+
+                box_add_child(props.inline_container, box);
             }
-
-            box->type = BOX_TEXT;
-
-            box->text = talloc_strdup(ctx->bctx, current);
-            if (box->text == NULL) {
-                free(text);
-                return false;
-            }
-
-            box->length = strlen(box->text);
-
-            box_add_child(props.inline_container, box);
 
             current[len] = old;
-
             current += len;
 
-            if (current[0] != '\0') {
+            if (current[0] == '\t') {
+                /* Create a box containing just a tab character */
+                box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
+                    props.title, NULL, ctx->bctx);
+                if (box == NULL) {
+                    free(text);
+                    return false;
+                }
+
+                box->type = BOX_TEXT;
+                box->text = talloc_strdup(ctx->bctx, "\t");
+                if (box->text == NULL) {
+                    free(text);
+                    return false;
+                }
+
+                box->length = 1;
+                box_add_child(props.inline_container, box);
+                current++;
+            } else if (current[0] != '\0') {
                 /* Linebreak: create new inline container */
                 props.inline_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
                 if (props.inline_container == NULL) {

@@ -531,6 +531,93 @@ int inet_aton(const char *cp, struct in_addr *inp)
 
 #ifndef HAVE_INETPTON
 
+#if !defined(NO_IPV6)
+static int ipv6_pton(const char *src, struct in6_addr *dst)
+{
+    uint8_t tmp[16], *tp, *endp, *colonp;
+    const char *xdigits, *chp;
+    int ch, seen_xdigits;
+    unsigned int val;
+
+    memset(tmp, '\0', sizeof(tmp));
+    tp = tmp;
+    endp = tp + sizeof(tmp);
+    colonp = NULL;
+
+    /* Leading :: requires some special handling. */
+    if (*src == ':')
+        if (*++src != ':')
+            return 0;
+
+    const char *curtok = src;
+    seen_xdigits = 0;
+    val = 0;
+    while ((ch = *src++) != '\0') {
+        const char *pch;
+
+        if ((pch = strchr((xdigits = "0123456789abcdef"), ch)) == NULL)
+            pch = strchr((xdigits = "0123456789ABCDEF"), ch);
+
+        if (pch != NULL) {
+            val <<= 4;
+            val |= (pch - xdigits);
+            if (val > 0xffff)
+                return 0;
+            seen_xdigits = 1;
+            continue;
+        }
+        if (ch == ':') {
+            curtok = src;
+            if (!seen_xdigits) {
+                if (colonp)
+                    return 0;
+                colonp = tp;
+                continue;
+            }
+            if (tp + sizeof(uint16_t) > endp)
+                return 0;
+            *tp++ = (uint8_t) (val >> 8) & 0xff;
+            *tp++ = (uint8_t) val & 0xff;
+            seen_xdigits = 0;
+            val = 0;
+            continue;
+        }
+        if (ch == '.' && ((tp + sizeof(struct in_addr)) <= endp)) {
+            struct in_addr ipv4;
+            if (!inet_aton(curtok, &ipv4))
+                return 0;
+            memcpy(tp, &ipv4, sizeof(struct in_addr));
+            tp += sizeof(struct in_addr);
+            seen_xdigits = 0;
+            break;
+        }
+        return 0;
+    }
+    if (seen_xdigits) {
+        if (tp + sizeof(uint16_t) > endp)
+            return 0;
+        *tp++ = (uint8_t) (val >> 8) & 0xff;
+        *tp++ = (uint8_t) val & 0xff;
+    }
+    if (colonp != NULL) {
+        const int n = tp - colonp;
+        int i;
+
+        if (tp == endp)
+            return 0;
+        for (i = 1; i <= n; i++) {
+            endp[-i] = colonp[n - i];
+            colonp[n - i] = 0;
+        }
+        tp = endp;
+    }
+    if (tp != endp)
+        return 0;
+    memcpy(dst->s6_addr, tmp, sizeof(dst->s6_addr));
+    return 1;
+}
+#endif
+
 int inet_pton(int af, const char *src, void *dst)
 {
     int ret;
@@ -540,9 +627,7 @@ int inet_pton(int af, const char *src, void *dst)
     }
 #if !defined(NO_IPV6)
     else if (af == AF_INET6) {
-        /* TODO: implement v6 address support */
-        ret = -1;
-        errno = EAFNOSUPPORT;
+        ret = ipv6_pton(src, (struct in6_addr *)dst);
     }
 #endif
     else {
