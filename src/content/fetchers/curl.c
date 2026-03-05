@@ -2016,10 +2016,11 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_NOPROGRESS, 0L);
     SETOPT(CURLOPT_USERAGENT, user_agent_string());
     SETOPT(CURLOPT_ENCODING, "");
-    SETOPT(CURLOPT_LOW_SPEED_LIMIT, 1L);
-    SETOPT(CURLOPT_LOW_SPEED_TIME, 180L);
+    SETOPT(CURLOPT_LOW_SPEED_LIMIT, 1024L);
+    SETOPT(CURLOPT_LOW_SPEED_TIME, 10L);
     SETOPT(CURLOPT_NOSIGNAL, 1L);
     SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
+    SETOPT(CURLOPT_TIMEOUT, 300L);
 
     /* Enable TCP Keep-Alive to keep connection open for asset multiplexing */
 #if LIBCURL_VERSION_NUM >= 0x071900 /* 7.25.0 */

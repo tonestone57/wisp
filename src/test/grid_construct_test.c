@@ -31,6 +31,7 @@
 #include "wisp/utils/config.h"
 #include "wisp/utils/errors.h"
 #include "wisp/utils/log.h"
+#include "utils/talloc.h"
 /* We must provide definitions that utils.h would have provided if used */
 css_fixed nscss_screen_dpi = 0;
 
@@ -109,6 +110,11 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
+
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
 {
     if (style == MOCK_STYLE_GRID)
@@ -132,10 +138,6 @@ uint8_t css_computed_position(const css_computed_style *style)
 uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
-}
-uint8_t css_computed_white_space(const css_computed_style *style)
-{
-    return CSS_WHITE_SPACE_NORMAL;
 }
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
@@ -191,7 +193,7 @@ void box_free(struct box *box)
     }
     /* Free text if any */
     if (box->text) {
-        free(box->text);
+        talloc_free(box->text);
     }
     free(box);
 }
@@ -255,10 +257,6 @@ char *squash_whitespace(const char *s)
     return strdup(s);
 }
 
-void *_talloc_zero(const void *ctx, size_t size, const char *name)
-{
-    return calloc(1, size);
-}
 
 /* Minimal strndup implementation for Windows */
 char *strndup(const char *s, size_t n)
@@ -278,14 +276,6 @@ char *strndup(const char *s, size_t n)
     return s2;
 }
 
-char *talloc_strdup(const void *ctx, const char *p)
-{
-    return strdup(p);
-}
-char *talloc_strndup(const void *ctx, const char *p, size_t n)
-{
-    return strndup(p, n);
-}
 
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
@@ -441,6 +431,7 @@ START_TEST(test_grid_construction)
     /* Setup Helper Strings */
 #define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
     INIT_STR(corestring_dom_id, "id");
+    INIT_STR(corestring_dom_class, "class");
     INIT_STR(corestring_dom_title, "title");
     INIT_STR(corestring_dom_style, "style");
     INIT_STR(corestring_dom_colspan, "colspan");
