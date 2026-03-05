@@ -840,12 +840,13 @@ START_TEST(test_quickjs_events_dispatch)
 
 
 
+
     const char *code = "var count = 0;"
                        "window.addEventListener('click', function() { count++; });"
                        "var event = { type: 'click' };"
                        "window.dispatchEvent(event);"
-                       "if (count !== 1) console.log('count=' + count);"
-                       "count === 1;";
+                       "if (count !== 1) throw new Error('fail');";
+
 
 
 

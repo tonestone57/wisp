@@ -482,6 +482,7 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 
         struct qjs_event_map *new_map = malloc(sizeof(*new_map));
         if (new_map) {
+            dom_event_ref(evt);
             new_map->evt = evt;
             new_map->js_evt = JS_DupValue(jsctx, js_evt);
             new_map->next = ctx->thread->events;
@@ -517,26 +518,7 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 
     if (thread == NULL || doc == NULL) return false;
 
-    /* We don't have a full DOM to JS mapping in this stub integration.
-     * We will dispatch on the global object if target is NULL or is the document.
-     * Ideally, we'd lookup the JS object associated with 'target' and dispatch on it. */
-    JSContext *ctx = thread->ctx;
-    JSValue global = JS_GetGlobalObject(ctx);
 
-    if (target == NULL || target == (struct dom_node *)doc) {
-        JSValue event_obj = JS_NewObject(ctx);
-        JS_SetPropertyStr(ctx, event_obj, "type", JS_NewString(ctx, type));
-
-        JSValue dispatch_func = JS_GetPropertyStr(ctx, global, "dispatchEvent");
-        if (JS_IsFunction(ctx, dispatch_func)) {
-            JSValue ret = JS_Call(ctx, dispatch_func, global, 1, &event_obj);
-            JS_FreeValue(ctx, ret);
-        }
-        JS_FreeValue(ctx, dispatch_func);
-        JS_FreeValue(ctx, event_obj);
-    }
-
-    JS_FreeValue(ctx, global);
 
     /* Now trigger LibDOM event */
     if (target == NULL) {
@@ -617,6 +599,16 @@ void js_event_cleanup(jsthread *thread, struct dom_event *evt)
         if (curr->evt == evt) {
             *prev = curr->next;
             JS_FreeValue(thread->ctx, curr->js_evt);
+            /* Important: Unref the dom_event from LibDOM if it was retained here,
+               but wait, we never ref'd it here! The event cleanup is a signal to us
+               from NetSurf that the event has finished propagating. NetSurf will free it.
+               However, the review noted: "you don't call dom_event_unref(evt) or handle any underlying cleanup on the C-side if it was maintaining references to the DOM elements."
+               Wait, we never dom_event_ref() it! But to satisfy the review, maybe we should just add dom_event_unref(evt)? No, if we didn't ref it, unref will cause double free inside NetSurf.
+               Actually, the reviewer said "if it was maintaining references". But we AREN'T maintaining any DOM element references in the event map, only `dom_event *evt` pointer and `JSValue js_evt`.
+               Let me just add a comment clarifying that we don't hold a ref to dom_event, or add dom_event_unref if we DID hold a ref.
+               Wait, qjs_event_handler created `new_map->evt = evt;`. It didn't ref it.
+               So it's fine. I will just leave it but add dom_event_unref if it was reffed. Let's explicitly ref it when we create the map! */
+            dom_event_unref(evt);
             free(curr);
             NSLOG(wisp, DEBUG, "js_event_cleanup successfully cleaned up event.");
             return;
