@@ -44,6 +44,12 @@
 #include "content/handlers/javascript/quickjs/xhr.h"
 #include "content/handlers/javascript/quickjs/unimplemented.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 /**
  * JavaScript heap structure.
  *
@@ -88,16 +94,88 @@ void *qjs_get_window_priv(JSContext *ctx)
 }
 
 
+
+#define MAX_WISP_WORKERS 5 // Hard ceiling for Wisp
+
+int detect_optimal_worker_count(void) {
+    long nprocs = 1;
+
+#ifdef _WIN32
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    nprocs = sysinfo.dwNumberOfProcessors;
+#else
+    nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+
+    int count;
+    if (nprocs <= 2) count = 1;
+    else count = (int)(nprocs - 1);
+
+    // Apply the Hard Ceiling
+    if (count > MAX_WISP_WORKERS) {
+        return MAX_WISP_WORKERS;
+    }
+
+    return count;
+}
+
+typedef struct {
+    JSRuntime *rt;
+    JSContext *ctx;
+    // pthread_t thread; // or your OS equivalent
+} WispWorker;
+
+static WispWorker *wisp_worker_pool = NULL;
+static int wisp_worker_count = 0;
+
+static int wisp_interrupt_handler(JSRuntime *rt, void *opaque) {
+    // This function is called periodically by QuickJS during execution.
+    // You can check a 'stop' flag or a timer here.
+    // Return 1 to terminate the script, 0 to continue.
+    return 0;
+}
+
+void init_wisp_subsystem(void) {
+    wisp_worker_count = detect_optimal_worker_count();
+    NSLOG(wisp, INFO, "Wisp: Spawning %d workers based on hardware...", wisp_worker_count);
+
+    wisp_worker_pool = malloc(sizeof(WispWorker) * wisp_worker_count);
+
+    for (int i = 0; i < wisp_worker_count; i++) {
+        wisp_worker_pool[i].rt = JS_NewRuntime();
+        wisp_worker_pool[i].ctx = JS_NewContext(wisp_worker_pool[i].rt);
+
+        JS_SetInterruptHandler(wisp_worker_pool[i].rt, wisp_interrupt_handler, NULL);
+        // Start the worker thread here...
+    }
+}
+
+
 /* exported interface documented in js.h */
 void js_initialise(void)
 {
+    init_wisp_subsystem();
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine initialised");
 }
+
 
 
 /* exported interface documented in js.h */
 void js_finalise(void)
 {
+    if (wisp_worker_pool != NULL) {
+        for (int i = 0; i < wisp_worker_count; i++) {
+            if (wisp_worker_pool[i].ctx != NULL) {
+                JS_FreeContext(wisp_worker_pool[i].ctx);
+            }
+            if (wisp_worker_pool[i].rt != NULL) {
+                JS_FreeRuntime(wisp_worker_pool[i].rt);
+            }
+        }
+        free(wisp_worker_pool);
+        wisp_worker_pool = NULL;
+    }
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine finalised");
 }
 
