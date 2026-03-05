@@ -69,6 +69,9 @@
 #include "gtk/scaffolding.h"
 #include "gtk/schedule.h"
 #include "gtk/search.h"
+#include <wisp/utils/task_queue.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include "gtk/selection.h"
 #include "gtk/throbber.h"
 #include "gtk/toolbar_items.h"
@@ -1073,6 +1076,27 @@ static void nsgtk_main(void)
 /**
  * finalise the browser
  */
+int nsgtk_wake_pipe[2] = {-1, -1};
+
+static gboolean nsgtk_task_queue_wake_cb(GIOChannel *source, GIOCondition condition, gpointer data)
+{
+    char buf[1];
+    if (read(nsgtk_wake_pipe[0], buf, 1) > 0) {
+        task_queue_execute_pending();
+    }
+    return TRUE;
+}
+
+void nsgtk_task_queue_wake(void)
+{
+    if (nsgtk_wake_pipe[1] != -1) {
+        char buf[1] = {'w'};
+        if (write(nsgtk_wake_pipe[1], buf, 1) == -1) {
+            /* Handle warning? */
+        }
+    }
+}
+
 static void nsgtk_finalise(void)
 {
     nserror res;
@@ -1179,9 +1203,27 @@ int main(int argc, char **argv)
         return 4;
     }
 
+    if (pipe(nsgtk_wake_pipe) == 0) {
+        int flags = fcntl(nsgtk_wake_pipe[0], F_GETFL, 0);
+        fcntl(nsgtk_wake_pipe[0], F_SETFL, flags | O_NONBLOCK);
+        flags = fcntl(nsgtk_wake_pipe[1], F_GETFL, 0);
+        fcntl(nsgtk_wake_pipe[1], F_SETFL, flags | O_NONBLOCK);
+
+        GIOChannel *chan = g_io_channel_unix_new(nsgtk_wake_pipe[0]);
+        g_io_add_watch(chan, G_IO_IN, nsgtk_task_queue_wake_cb, NULL);
+        g_io_channel_unref(chan);
+    }
+
     nsgtk_main();
 
     nsgtk_finalise();
+
+    if (nsgtk_wake_pipe[0] != -1) {
+        close(nsgtk_wake_pipe[0]);
+        close(nsgtk_wake_pipe[1]);
+        nsgtk_wake_pipe[0] = -1;
+        nsgtk_wake_pipe[1] = -1;
+    }
 
     return 0;
 }

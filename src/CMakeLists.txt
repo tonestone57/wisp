@@ -209,6 +209,8 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/useragent.c
 	utils/utf8.c
 	utils/utils.c
+	utils/thread_pool.c
+	utils/task_queue.c
 	utils/http/generics.c
 	utils/http/primitives.c
 	utils/http/parameter.c
@@ -244,7 +246,7 @@ if(WISP_BUILD_XXD)
 	)
 endif()
 
-set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES})
+set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES} pthread)
 
 
 

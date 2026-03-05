@@ -36,8 +36,19 @@ extern "C" {
 
 #include "qt/application.cls.h"
 
+extern "C" {
+#include <wisp/utils/task_queue.h>
+}
+
 /* linked list of scheduled callbacks */
 static struct nscallback *schedule_list = NULL;
+
+static void nsqt_task_queue_wake(void)
+{
+    QMetaObject::invokeMethod(NS_Application::instance(), []() {
+        task_queue_execute_pending();
+    }, Qt::QueuedConnection);
+}
 
 /**
  * scheduled callback.
@@ -261,6 +272,7 @@ static struct gui_misc_table misc_table = {
     .login = NULL,
     .pdf_password = NULL,
     .present_cookies = nsqt_present_cookies,
+    .task_queue_wake = nsqt_task_queue_wake,
 };
 
 struct gui_misc_table *nsqt_misc_table = &misc_table;

@@ -37,6 +37,7 @@
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/string.h>
 #include <wisp/utils/utf8.h>
+#include <wisp/utils/task_queue.h>
 #include <utils/errors.h>
 #include "utils/nscolour.h"
 #include "utils/useragent.h"
@@ -111,6 +112,11 @@ static void wisp_lwc_iterator(lwc_string *str, void *pw)
 nserror wisp_init(const char *store_path)
 {
     nserror ret;
+
+    if (!task_queue_init()) {
+        NSLOG(wisp, ERROR, "Failed to initialize task queue");
+        return NSERROR_INIT_FAILED;
+    }
     struct hlcache_parameters hlcache_parameters = {.bg_clean_time = HL_CACHE_CLEAN_TIME,
         .llcache = {
             .minimum_lifetime = LLCACHE_STORE_MIN_LIFETIME,
@@ -310,6 +316,8 @@ void wisp_exit(void)
     /* Clean up after content handlers */
     content_factory_fini();
 
+    task_queue_execute_pending();
+
     NSLOG(wisp, INFO, "Closing utf8");
     utf8_finalise();
 
@@ -330,6 +338,8 @@ void wisp_exit(void)
     unsigned lwc_count = 0;
     lwc_iterate_strings(wisp_lwc_iterator, &lwc_count);
     NSLOG(wisp, INFO, "Remaining lwc strings count: %u", lwc_count);
+
+    task_queue_destroy();
 
     NSLOG(wisp, INFO, "Exited successfully");
 }

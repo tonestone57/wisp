@@ -21,4 +21,6 @@
 
 extern struct gui_misc_table *nsgtk_misc_table;
 
+void nsgtk_task_queue_wake(void);
+
 #endif
