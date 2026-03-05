@@ -52,9 +52,14 @@
 #define SPLIT_CACHE_MAX_ENTRIES 16384
 #define WSTR_CACHE_MAX_BYTES (16 * 1024 * 1024)
 
-#define MAX_LOADED_FONTS 128
-static HANDLE loaded_font_handles[MAX_LOADED_FONTS];
-static int loaded_font_count = 0;
+struct win32_loaded_font {
+    struct font_variant_id variant;
+    HANDLE handle;
+    char *internal_name;
+    struct win32_loaded_font *next;
+};
+
+static struct win32_loaded_font *win32_loaded_fonts = NULL;
 #define FONT_CACHE_MAX_ENTRIES 256
 #define FONT_MAP_MAX_ENTRIES 256
 
@@ -1587,10 +1592,15 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
 
     win32_font_caches_flush();
 
-    if (loaded_font_count < MAX_LOADED_FONTS) {
-        loaded_font_handles[loaded_font_count++] = font_handle;
-    } else {
-        NSLOG(wisp, WARNING, "Max loaded fonts reached. Handle will leak on shutdown.");
+    struct win32_loaded_font *lf = malloc(sizeof(struct win32_loaded_font));
+    if (lf != NULL) {
+        lf->variant.family_name = strdup(id->family_name);
+        lf->variant.weight = id->weight;
+        lf->variant.style = id->style;
+        lf->handle = font_handle;
+        lf->internal_name = internal_name ? strdup(internal_name) : NULL;
+        lf->next = win32_loaded_fonts;
+        win32_loaded_fonts = lf;
     }
 
     /* We no longer manually schedule a global repaint here. The core engine
@@ -1601,17 +1611,64 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
     return NSERROR_OK;
 }
 
+static void win32_free_font_data(const struct font_variant_id *id)
+{
+    struct win32_loaded_font *entry = win32_loaded_fonts;
+    struct win32_loaded_font *prev = NULL;
+
+    while (entry != NULL) {
+        if (entry->variant.weight == id->weight && entry->variant.style == id->style &&
+            strcasecmp(entry->variant.family_name, id->family_name) == 0) {
+
+            NSLOG(wisp, INFO, "Freeing GDI resources for web font '%s'", id->family_name);
+
+            if (entry->handle != NULL) {
+                RemoveFontMemResourceEx(entry->handle);
+            }
+
+            /* Remove mapping */
+            if (entry->internal_name != NULL) {
+                /* Actually we can't easily remove a single font map entry right now,
+                 * but it will just be ignored if the font is gone. */
+                free(entry->internal_name);
+            }
+
+            free(entry->variant.family_name);
+
+            if (prev != NULL) {
+                prev->next = entry->next;
+            } else {
+                win32_loaded_fonts = entry->next;
+            }
+
+            free(entry);
+            break;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+
+    win32_font_caches_flush();
+}
+
 void win32_font_fini(void)
 {
     win32_font_caches_flush();
 
-    for (int i = 0; i < loaded_font_count; i++) {
-        if (loaded_font_handles[i] != NULL) {
-            RemoveFontMemResourceEx(loaded_font_handles[i]);
-            loaded_font_handles[i] = NULL;
+    struct win32_loaded_font *entry = win32_loaded_fonts;
+    while (entry != NULL) {
+        struct win32_loaded_font *next = entry->next;
+        if (entry->handle != NULL) {
+            RemoveFontMemResourceEx(entry->handle);
         }
+        if (entry->internal_name != NULL) {
+            free(entry->internal_name);
+        }
+        free(entry->variant.family_name);
+        free(entry);
+        entry = next;
     }
-    loaded_font_count = 0;
+    win32_loaded_fonts = NULL;
 }
 
 
@@ -1621,6 +1678,7 @@ static struct gui_layout_table layout_table = {
     .position = win32_font_position,
     .split = win32_font_split,
     .load_font_data = html_font_face_load_data,
+    .free_font_data = win32_free_font_data,
 };
 
 struct gui_layout_table *win32_layout_table = &layout_table;

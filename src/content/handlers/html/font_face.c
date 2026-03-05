@@ -53,12 +53,17 @@ struct font_download {
 static struct font_download font_downloads[MAX_FONT_DOWNLOADS];
 
 /** Set of loaded font variants (simple linked list) */
+#define MAX_LOADED_WEB_FONTS 64
+
 struct loaded_font {
     struct font_variant_id variant;
+    int last_used; /* simple counter for LRU */
     struct loaded_font *next;
 };
 
 static struct loaded_font *loaded_fonts = NULL;
+static int font_use_counter = 0;
+static int loaded_font_count = 0;
 
 /** Count of pending font downloads */
 static int pending_font_count = 0;
@@ -106,10 +111,56 @@ static bool is_variant_loaded(const struct font_variant_id *id)
 
     for (entry = loaded_fonts; entry != NULL; entry = entry->next) {
         if (font_variant_match(&entry->variant, id)) {
+            entry->last_used = ++font_use_counter;
             return true;
         }
     }
     return false;
+}
+
+/**
+ * Evict the least recently used font if we exceed the limit.
+ */
+static void evict_lru_font_if_needed(void)
+{
+    if (loaded_font_count <= MAX_LOADED_WEB_FONTS) {
+        return;
+    }
+
+    struct loaded_font *entry = loaded_fonts;
+    struct loaded_font *prev = NULL;
+
+    struct loaded_font *lru = NULL;
+    struct loaded_font *lru_prev = NULL;
+    int min_used = font_use_counter + 1;
+
+    while (entry != NULL) {
+        if (entry->last_used < min_used) {
+            min_used = entry->last_used;
+            lru = entry;
+            lru_prev = prev;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+
+    if (lru != NULL) {
+        if (lru_prev != NULL) {
+            lru_prev->next = lru->next;
+        } else {
+            loaded_fonts = lru->next;
+        }
+
+        NSLOG(wisp, INFO, "Evicting LRU font '%s' (weight=%d style=%d)", lru->variant.family_name, lru->variant.weight, lru->variant.style);
+
+        if (guit != NULL && guit->layout != NULL && guit->layout->free_font_data != NULL) {
+            guit->layout->free_font_data(&lru->variant);
+        }
+
+        free(lru->variant.family_name);
+        free(lru);
+        loaded_font_count--;
+    }
 }
 
 /**
@@ -134,8 +185,11 @@ static void mark_font_loaded(const struct font_variant_id *id)
     struct loaded_font *entry;
 
     /* Check if already in list */
-    if (is_variant_loaded(id)) {
-        return;
+    for (entry = loaded_fonts; entry != NULL; entry = entry->next) {
+        if (font_variant_match(&entry->variant, id)) {
+            entry->last_used = ++font_use_counter;
+            return;
+        }
     }
 
     /* Add to list */
@@ -144,9 +198,14 @@ static void mark_font_loaded(const struct font_variant_id *id)
         entry->variant.family_name = strdup(id->family_name);
         entry->variant.weight = id->weight;
         entry->variant.style = id->style;
+        entry->last_used = ++font_use_counter;
         entry->next = loaded_fonts;
         loaded_fonts = entry;
+        loaded_font_count++;
+
         NSLOG(wisp, INFO, "Marked font '%s' (weight=%d style=%d) as loaded", id->family_name, id->weight, id->style);
+
+        evict_lru_font_if_needed();
     }
 }
 
@@ -391,6 +450,7 @@ nserror html_font_face_fini(struct html_content *c)
     if (font_waiting_content == c) {
         font_waiting_content = NULL;
     }
+
     return NSERROR_OK;
 }
 
