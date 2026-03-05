@@ -6,6 +6,7 @@
 struct thread_pool_task {
     thread_pool_task_fn function;
     void *argument;
+    void (*destroy_fn)(void *);
     struct thread_pool_task *next;
 };
 
@@ -106,7 +107,7 @@ thread_pool_t *thread_pool_create(int num_threads)
     return pool;
 }
 
-bool thread_pool_add_task(thread_pool_t *pool, thread_pool_task_fn function, void *argument)
+bool thread_pool_add_task(thread_pool_t *pool, thread_pool_task_fn function, void *argument, void (*destroy_fn)(void *))
 {
     struct thread_pool_task *new_task;
 
@@ -121,6 +122,7 @@ bool thread_pool_add_task(thread_pool_t *pool, thread_pool_task_fn function, voi
 
     new_task->function = function;
     new_task->argument = argument;
+    new_task->destroy_fn = destroy_fn;
     new_task->next = NULL;
 
     if (pthread_mutex_lock(&pool->lock) != 0) {
@@ -183,6 +185,9 @@ void thread_pool_destroy(thread_pool_t *pool)
     task = pool->queue_head;
     while (task != NULL) {
         next_task = task->next;
+        if (task->destroy_fn && task->argument) {
+            task->destroy_fn(task->argument);
+        }
         free(task);
         task = next_task;
     }

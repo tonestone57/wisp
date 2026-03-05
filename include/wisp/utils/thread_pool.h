@@ -39,9 +39,10 @@ void thread_pool_destroy(thread_pool_t *pool);
  * @param pool The thread pool.
  * @param function The task function to execute.
  * @param argument The argument to pass to the task function.
+ * @param destroy_fn Optional callback to free the argument when the pool is destroyed with pending tasks.
  * @return true if the task was successfully added, false otherwise.
  */
-bool thread_pool_add_task(thread_pool_t *pool, thread_pool_task_fn function, void *argument);
+bool thread_pool_add_task(thread_pool_t *pool, thread_pool_task_fn function, void *argument, void (*destroy_fn)(void *));
 
 #ifdef __cplusplus
 }

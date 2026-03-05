@@ -950,7 +950,7 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
     html->base.active++; /* Retain content fetch status until task completes */
     html->base.active_bg_tasks++;
 
-    if (!thread_pool_add_task(html_parser_pool, html_parse_worker, task)) {
+    if (!thread_pool_add_task(html_parser_pool, html_parse_worker, task, (void (*)(void *))html_parse_task_free)) {
         html->base.active--;
         html->base.active_bg_tasks--;
         html_parse_task_free(task);
@@ -2644,7 +2644,8 @@ nserror html_init(void)
 
     if (!html_parser_pool) {
         /* Initialize a thread pool for background tokenization */
-        html_parser_pool = thread_pool_create(4); /* 4 threads initially */
+        /* Must be 1 thread to guarantee FIFO ordering of streamed HTML chunks */
+        html_parser_pool = thread_pool_create(1);
     }
 
     error = html_css_init();
