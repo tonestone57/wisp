@@ -48,6 +48,7 @@
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <pthread.h>
 #endif
 
 /**
@@ -112,7 +113,6 @@ int detect_optimal_worker_count(void) {
     if (nprocs <= 2) count = 1;
     else count = (int)(nprocs - 1);
 
-    // Apply the Hard Ceiling
     if (count > MAX_WISP_WORKERS) {
         return MAX_WISP_WORKERS;
     }
@@ -120,37 +120,161 @@ int detect_optimal_worker_count(void) {
     return count;
 }
 
+typedef struct js_task {
+    char *script;
+    struct js_task *next;
+} js_task_t;
+
+typedef struct {
+#ifdef _WIN32
+    CRITICAL_SECTION lock;
+    CONDITION_VARIABLE cond;
+#else
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+#endif
+    js_task_t *head;
+    js_task_t *tail;
+    bool stop;
+} js_worker_queue_t;
+
 typedef struct {
     JSRuntime *rt;
     JSContext *ctx;
-    // pthread_t thread; // or your OS equivalent
+#ifdef _WIN32
+    HANDLE thread;
+#else
+    pthread_t thread;
+#endif
+    int worker_id;
 } WispWorker;
 
 static WispWorker *wisp_worker_pool = NULL;
 static int wisp_worker_count = 0;
+static js_worker_queue_t wisp_queue;
 
 static int wisp_interrupt_handler(JSRuntime *rt, void *opaque) {
-    // This function is called periodically by QuickJS during execution.
-    // You can check a 'stop' flag or a timer here.
-    // Return 1 to terminate the script, 0 to continue.
+    if (wisp_queue.stop) {
+        return 1;
+    }
     return 0;
 }
+
+#ifdef _WIN32
+static DWORD WINAPI wisp_worker_thread_func(LPVOID arg) {
+    WispWorker *worker = (WispWorker *)arg;
+
+    while (true) {
+        EnterCriticalSection(&wisp_queue.lock);
+        while (wisp_queue.head == NULL && !wisp_queue.stop) {
+            SleepConditionVariableCS(&wisp_queue.cond, &wisp_queue.lock, INFINITE);
+        }
+
+        if (wisp_queue.stop && wisp_queue.head == NULL) {
+            LeaveCriticalSection(&wisp_queue.lock);
+            break;
+        }
+
+        js_task_t *task = wisp_queue.head;
+        if (task) {
+            wisp_queue.head = task->next;
+            if (wisp_queue.head == NULL) {
+                wisp_queue.tail = NULL;
+            }
+        }
+        LeaveCriticalSection(&wisp_queue.lock);
+
+        if (task) {
+            if (task->script) {
+                JSValue res = JS_Eval(worker->ctx, task->script, strlen(task->script), "worker", JS_EVAL_TYPE_GLOBAL);
+                JS_FreeValue(worker->ctx, res);
+                free(task->script);
+            }
+            free(task);
+        }
+    }
+    return 0;
+}
+#else
+static void *wisp_worker_thread_func(void *arg) {
+    WispWorker *worker = (WispWorker *)arg;
+
+    while (true) {
+        pthread_mutex_lock(&wisp_queue.lock);
+        while (wisp_queue.head == NULL && !wisp_queue.stop) {
+            pthread_cond_wait(&wisp_queue.cond, &wisp_queue.lock);
+        }
+
+        if (wisp_queue.stop && wisp_queue.head == NULL) {
+            pthread_mutex_unlock(&wisp_queue.lock);
+            break;
+        }
+
+        js_task_t *task = wisp_queue.head;
+        if (task) {
+            wisp_queue.head = task->next;
+            if (wisp_queue.head == NULL) {
+                wisp_queue.tail = NULL;
+            }
+        }
+        pthread_mutex_unlock(&wisp_queue.lock);
+
+        if (task) {
+            if (task->script) {
+                JSValue res = JS_Eval(worker->ctx, task->script, strlen(task->script), "worker", JS_EVAL_TYPE_GLOBAL);
+                JS_FreeValue(worker->ctx, res);
+                free(task->script);
+            }
+            free(task);
+        }
+    }
+    return NULL;
+}
+#endif
 
 void init_wisp_subsystem(void) {
     wisp_worker_count = detect_optimal_worker_count();
     NSLOG(wisp, INFO, "Wisp: Spawning %d workers based on hardware...", wisp_worker_count);
 
     wisp_worker_pool = malloc(sizeof(WispWorker) * wisp_worker_count);
+    if (!wisp_worker_pool) {
+        NSLOG(wisp, ERROR, "Wisp: Failed to allocate worker pool!");
+        return;
+    }
+
+    wisp_queue.head = NULL;
+    wisp_queue.tail = NULL;
+    wisp_queue.stop = false;
+
+#ifdef _WIN32
+    InitializeCriticalSection(&wisp_queue.lock);
+    InitializeConditionVariable(&wisp_queue.cond);
+#else
+    pthread_mutex_init(&wisp_queue.lock, NULL);
+    pthread_cond_init(&wisp_queue.cond, NULL);
+#endif
 
     for (int i = 0; i < wisp_worker_count; i++) {
         wisp_worker_pool[i].rt = JS_NewRuntime();
         wisp_worker_pool[i].ctx = JS_NewContext(wisp_worker_pool[i].rt);
+        wisp_worker_pool[i].worker_id = i;
 
         JS_SetInterruptHandler(wisp_worker_pool[i].rt, wisp_interrupt_handler, NULL);
-        // Start the worker thread here...
+
+#ifdef _WIN32
+        wisp_worker_pool[i].thread = CreateThread(NULL, 0, wisp_worker_thread_func, &wisp_worker_pool[i], 0, NULL);
+        if (!wisp_worker_pool[i].thread) {
+            NSLOG(wisp, ERROR, "Wisp: Failed to create thread %d", i);
+            wisp_worker_pool[i].thread = 0;
+        }
+#else
+        if (pthread_create(&wisp_worker_pool[i].thread, NULL, wisp_worker_thread_func, &wisp_worker_pool[i]) != 0) {
+            NSLOG(wisp, ERROR, "Wisp: Failed to create thread %d", i);
+            memset(&wisp_worker_pool[i].thread, 0, sizeof(pthread_t));
+        }
+#endif
     }
 }
-
 
 /* exported interface documented in js.h */
 void js_initialise(void)
@@ -165,7 +289,34 @@ void js_initialise(void)
 void js_finalise(void)
 {
     if (wisp_worker_pool != NULL) {
+#ifdef _WIN32
+        EnterCriticalSection(&wisp_queue.lock);
+        wisp_queue.stop = true;
+        WakeAllConditionVariable(&wisp_queue.cond);
+        LeaveCriticalSection(&wisp_queue.lock);
+#else
+        pthread_mutex_lock(&wisp_queue.lock);
+        wisp_queue.stop = true;
+        pthread_cond_broadcast(&wisp_queue.cond);
+        pthread_mutex_unlock(&wisp_queue.lock);
+#endif
+
         for (int i = 0; i < wisp_worker_count; i++) {
+#ifdef _WIN32
+            if (wisp_worker_pool[i].thread) {
+                WaitForSingleObject(wisp_worker_pool[i].thread, INFINITE);
+                CloseHandle(wisp_worker_pool[i].thread);
+            }
+#else
+
+            {
+                pthread_t null_thread;
+                memset(&null_thread, 0, sizeof(pthread_t));
+                if (memcmp(&wisp_worker_pool[i].thread, &null_thread, sizeof(pthread_t)) != 0) {
+                    pthread_join(wisp_worker_pool[i].thread, NULL);
+                }
+            }
+#endif
             if (wisp_worker_pool[i].ctx != NULL) {
                 JS_FreeContext(wisp_worker_pool[i].ctx);
             }
@@ -175,6 +326,24 @@ void js_finalise(void)
         }
         free(wisp_worker_pool);
         wisp_worker_pool = NULL;
+
+        /* Clean up any unhandled tasks */
+        js_task_t *task = wisp_queue.head;
+        while (task) {
+            js_task_t *next = task->next;
+            if (task->script) free(task->script);
+            free(task);
+            task = next;
+        }
+        wisp_queue.head = NULL;
+        wisp_queue.tail = NULL;
+
+#ifdef _WIN32
+        DeleteCriticalSection(&wisp_queue.lock);
+#else
+        pthread_mutex_destroy(&wisp_queue.lock);
+        pthread_cond_destroy(&wisp_queue.cond);
+#endif
     }
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine finalised");
 }
