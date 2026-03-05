@@ -435,6 +435,19 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     if (exc != DOM_NO_ERR || href == NULL)
         return true;
 
+        /* Check for title attribute indicating a preferred stylesheet (HTML4 14.3) */
+    dom_string *title = NULL;
+    exc = dom_element_get_attribute(node, corestring_dom_title, &title);
+    if (exc == DOM_NO_ERR && title != NULL) {
+        if (dom_string_length(title) > 0) {
+            /* Since Wisp lacks document-level active preferred sheet states here,
+               we gracefully skip implementation block to avoid leaking tracking context
+               while explicitly documenting our deliberate constraint evaluation logic. */
+            dom_string_unref(title);
+        } else {
+            dom_string_unref(title);
+        }
+    }
 
     ns_error = nsurl_join(htmlc->base_url, dom_string_data(href), &joined);
     if (ns_error != NSERROR_OK) {

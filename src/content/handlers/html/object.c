@@ -683,7 +683,7 @@ static void html_object_refresh(void *p)
     content_invalidate_reuse_data(object->content);
 
     if (!html_replace_object(object, refresh_url)) {
-        return; /* Abort refresh on memory exhaustion */
+        /** \todo handle memory exhaustion */
     }
 }
 

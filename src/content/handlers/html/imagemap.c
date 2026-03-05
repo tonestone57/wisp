@@ -139,11 +139,13 @@ static bool imagemap_add(html_content *c, dom_string *key, struct mapentry *list
     if (map == NULL)
         return false;
 
-        map->key = strdup(dom_string_data(key));
+        map->key = malloc(dom_string_byte_length(key) + 1);
     if (map->key == NULL) {
         free(map);
         return false;
     }
+    memcpy(map->key, dom_string_data(key), dom_string_byte_length(key));
+    map->key[dom_string_byte_length(key)] = 0;
 
     map->list = list;
 
@@ -617,7 +619,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM;
+                ret = NSERROR_NOMEM; /** @todo check this */
                 goto out_nlist;
             }
 
@@ -631,7 +633,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM;
+                ret = NSERROR_NOMEM; /** @todo check this */
                 goto out_nlist;
             }
         }

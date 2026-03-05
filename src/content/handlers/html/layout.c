@@ -678,7 +678,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
                 css_computed_white_space(b->style) == CSS_WHITE_SPACE_PRE);
 
             if (b->width == UNKNOWN_WIDTH) {
-                b->width = 0; /* Fallback on error */
+                /** \todo handle errors */
 
                 /* If it's a select element, we must use the
                  * width of the widest option text */
@@ -1001,7 +1001,16 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 
         block->flags |= HAS_HEIGHT;
     } else if (block->flags & IFRAME) {
-                block->flags |= HAS_HEIGHT;
+        /* Iframe intrinsic size is independent of content flow.
+         * Set explicit width boundaries based on fixed dimensions. */
+        if (block->width != UNKNOWN_WIDTH) {
+            min = block->width;
+            max = block->width;
+        } else {
+            min = 400; /* Fallback iframe default */
+            max = 400;
+        }
+        block->flags |= HAS_HEIGHT;
     } else {
         /* For horizontal flex containers, get the column-gap for intrinsic sizing.
          * Per CSS spec, gaps contribute to the intrinsic main size. */
@@ -2923,9 +2932,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
         } else if (b->type == BOX_INLINE_END) {
             b->width = 0;
             if (b->space == UNKNOWN_WIDTH) {
-                if (!font_func->width(&fstyle, " ", 1, &b->space)) {
-                    b->space = 0; /* Fallback space */
-                }
+                font_func->width(&fstyle, " ", 1, &b->space);
+                /** \todo handle errors */
             }
             space_after = b->space;
 
@@ -2946,7 +2954,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             }
 
             if (b->width == UNKNOWN_WIDTH) {
-                b->width = 0; /* Fallback on error */
+                /** \todo handle errors */
 
                 /* If it's a select element, we must use the
                  * width of the widest option text */
@@ -2982,9 +2990,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
             x += b->width;
             if (b->space == UNKNOWN_WIDTH) {
-                if (!font_func->width(&fstyle, " ", 1, &b->space)) {
-                    b->space = 0; /* Fallback space */
-                }
+                font_func->width(&fstyle, " ", 1, &b->space);
+                /** \todo handle errors */
             }
             space_after = b->space;
             continue;
@@ -3104,9 +3111,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             else if (b->text || b->type == BOX_INLINE_END) {
                 if (b->space == UNKNOWN_WIDTH) {
                     font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
-                    if (!font_func->width(&fstyle, " ", 1, &b->space)) {
-                        b->space = 0; /* Fallback space */
-                    }
+                    /** \todo handle errors */
+                    font_func->width(&fstyle, " ", 1, &b->space);
                 }
                 space_after = b->space;
             } else {
@@ -3225,10 +3231,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             split_box->text) {
 
             font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
-            if (!font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w)) {
-                split = split_box->length;
-                w = x1 - x0 - x - space_before; /* Fallback on split error */
-            }
+            /** \todo handle errors */
+            font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
         }
 
         /* split == 0 implies that text can't be split */
