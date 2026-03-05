@@ -47,6 +47,8 @@ css_fixed nscss_screen_dpi = 0;
 #include "wisp/utf8.h"
 #include "wisp/utils/nsoption.h"
 
+#include "utils/talloc.h"
+
 /* Mock corestrings (Must be visible before mocks uses them) */
 #include "wisp/utils/corestrings.h"
 struct dom_string *corestring_dom_id;
@@ -133,6 +135,10 @@ uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
 }
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
     return CSS_LIST_STYLE_TYPE_NONE;
@@ -146,6 +152,16 @@ uint8_t css_computed_background_image(const css_computed_style *style, lwc_strin
 {
     *url = NULL;
     return CSS_BACKGROUND_IMAGE_NONE;
+}
+
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
+
+uint8_t css_computed_text_transform(const css_computed_style *style)
+{
+    return CSS_TEXT_TRANSFORM_NONE;
 }
 
 css_computed_style *
@@ -187,7 +203,7 @@ void box_free(struct box *box)
     }
     /* Free text if any */
     if (box->text) {
-        free(box->text);
+        talloc_free(box->text);
     }
     free(box);
 }
@@ -252,6 +268,17 @@ char *squash_whitespace(const char *s)
 }
 
 
+
+void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
+{
+    return calloc(count, el_size);
+}
+
+int talloc_free(void *ptr)
+{
+    free(ptr);
+    return 0;
+}
 
 /* Minimal strndup implementation for Windows */
 char *strndup(const char *s, size_t n)
@@ -427,11 +454,13 @@ START_TEST(test_grid_construction)
     /* Setup Helper Strings */
 #define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
     INIT_STR(corestring_dom_id, "id");
+    INIT_STR(corestring_dom_class, "class");
     INIT_STR(corestring_dom_title, "title");
     INIT_STR(corestring_dom_style, "style");
     INIT_STR(corestring_dom_colspan, "colspan");
     INIT_STR(corestring_dom_rowspan, "rowspan");
     INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
+    INIT_STR(corestring_dom_class, "class");
 
     /* Context Setup - Heap Alloc */
     struct html_content htmlc = {0};

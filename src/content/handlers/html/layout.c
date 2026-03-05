@@ -322,7 +322,7 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
     struct box *row_group, *row, *cell;
 
     /* check if the widths have already been calculated */
-    if (table->max_width != UNKNOWN_MAX_WIDTH)
+    if (table->max_width != UNKNOWN_MAX_WIDTH && !((table->flags & DIRTY) || (table->flags & CHILD_DIRTY)))
         return;
 
     if (table_calculate_column_types(&content->unit_len_ctx, table) == false) {
@@ -355,9 +355,6 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
             for (cell = row->children; cell; cell = cell->next) {
                 assert(cell->type == BOX_TABLE_CELL);
                 assert(cell->style);
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
                 assert(cell->columns != 0);
 
                 if (cell->columns != 1)
@@ -698,6 +695,15 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
                     if (nsoption_bool(core_select_menu))
                         b->width += SCROLLBAR_WIDTH;
 
+                } else if (b->text && b->length == 1 && b->text[0] == '\t') {
+                    int tab_size = 8; /* Default tab-size */
+                    int space_w = b->space;
+                    if (space_w == UNKNOWN_WIDTH) {
+                        font_func->width(&fstyle, " ", 1, &space_w);
+                    }
+                    /* For min/max width, use maximum possible tab width */
+                    b->width = tab_size * space_w;
+                    b->flags |= MEASURED;
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                     b->flags |= MEASURED;
@@ -860,7 +866,7 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
     assert(inline_container->type == BOX_INLINE_CONTAINER);
 
     /* check if the widths have already been calculated */
-    if (inline_container->max_width != UNKNOWN_MAX_WIDTH)
+    if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
         return;
 
     *has_height = false;
@@ -915,7 +921,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         block->type == BOX_TABLE_CELL);
 
     /* check if the widths have already been calculated */
-    if (block->max_width != UNKNOWN_MAX_WIDTH)
+    if (block->max_width != UNKNOWN_MAX_WIDTH && !((block->flags & DIRTY) || (block->flags & CHILD_DIRTY)))
         return;
 
     if (block->style != NULL) {
@@ -1227,7 +1233,7 @@ void layout_minmax_box(struct box *box, const struct gui_layout_table *font_func
 {
 
     /* Check if already calculated */
-    if (box->max_width != UNKNOWN_MAX_WIDTH)
+    if (box->max_width != UNKNOWN_MAX_WIDTH && !((box->flags & DIRTY) || (box->flags & CHILD_DIRTY)))
         return;
 
     switch (box->type) {
@@ -1828,6 +1834,10 @@ static void layout_move_children(struct box *box, int x, int y)
 /* Documented in layout_internal.h */
 bool layout_table(struct box *table, int available_width, html_content *content)
 {
+    if (!(table->flags & DIRTY) && !(table->flags & CHILD_DIRTY)) {
+        return true;
+    }
+
     unsigned int columns = table->columns; /* total columns */
     unsigned int i;
     unsigned int *row_span;
@@ -2138,6 +2148,13 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table_height = border_spacing_v + table->padding[TOP];
     for (row_group = table->children; row_group; row_group = row_group->next) {
         int row_group_height = 0;
+
+        for (i = 0; i != columns; i++) {
+            row_span[i] = 0;
+            excess_y[i] = 0;
+            row_span_cell[i] = 0;
+        }
+
         for (row = row_group->children; row; row = row->next) {
             int row_height = 0;
 
@@ -2293,6 +2310,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
     table->width = table_width;
     table->height = table_height;
+
+    table->flags &= ~(DIRTY | CHILD_DIRTY);
 
     return true;
 }
@@ -2965,6 +2984,19 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
                     b->width = opt_maxwidth;
                     if (nsoption_bool(core_select_menu))
                         b->width += SCROLLBAR_WIDTH;
+                } else if (b->text && b->length == 1 && b->text[0] == '\t') {
+                    int tab_size = 8;
+                    int space_w = b->space;
+                    if (space_w == UNKNOWN_WIDTH) {
+                        font_func->width(&fstyle, " ", 1, &space_w);
+                    }
+                    int tab_width = tab_size * space_w;
+                    if (tab_width > 0) {
+                        b->width = tab_width - (x % tab_width);
+                    } else {
+                        b->width = 0;
+                    }
+                    b->flags |= MEASURED;
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                     b->flags |= MEASURED;
@@ -2977,7 +3009,21 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
              * correctly and to detect overflow (the estimate can be
              * wrong for variable-width fonts and Unicode text). */
             if (b->text && (x + b->width < x1 - x0) && !(b->flags & MEASURED)) {
-                font_func->width(&fstyle, b->text, b->length, &b->width);
+                if (b->length == 1 && b->text[0] == '\t') {
+                    int tab_size = 8;
+                    int space_w = b->space;
+                    if (space_w == UNKNOWN_WIDTH) {
+                        font_func->width(&fstyle, " ", 1, &space_w);
+                    }
+                    int tab_width = tab_size * space_w;
+                    if (tab_width > 0) {
+                        b->width = tab_width - (x % tab_width);
+                    } else {
+                        b->width = 0;
+                    }
+                } else {
+                    font_func->width(&fstyle, b->text, b->length, &b->width);
+                }
                 b->flags |= MEASURED;
             }
 
@@ -3062,6 +3108,32 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
     NSLOG(layout, DEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
 
+    /* handle ::first-line style replacement */
+    if (indent && cont != NULL && cont->styles != NULL && cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE] != NULL) {
+        for (b = first; b; b = b->next) {
+            /* Save original style */
+            if (b->original_style == NULL) {
+                b->original_style = b->style;
+            }
+            /* We only want to apply FIRST_LINE style to boxes that are part of this line.
+             * The loop condition `x <= x1 - x0` stops when the line wraps. */
+            b->style = cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE];
+            if (b == split_box) {
+                break;
+            }
+        }
+    } else {
+        /* restore original style for subsequent lines if it was previously overridden */
+        for (b = first; b; b = b->next) {
+            if (b->original_style != NULL) {
+                b->style = b->original_style;
+            }
+            if (b == split_box) {
+                break;
+            }
+        }
+    }
+
     for (x = x_previous = 0, b = first; x <= x1 - x0 && b; b = b->next) {
 
         NSLOG(layout, DEBUG, "pass 2: b %p, x %i", b, x);
@@ -3077,6 +3149,22 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             x_previous = x;
             x += space_after;
             b->x = x;
+
+            if (b->text && b->length == 1 && b->text[0] == '\t') {
+                /* Calculate tab width based on current x offset */
+                int tab_size = 8; /* Default tab-size */
+                int space_w = b->space;
+                if (space_w == UNKNOWN_WIDTH) {
+                    font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
+                    font_func->width(&fstyle, " ", 1, &space_w);
+                }
+                int tab_width = tab_size * space_w;
+                if (tab_width > 0) {
+                    b->width = tab_width - (x % tab_width);
+                } else {
+                    b->width = 0;
+                }
+            }
 
             if ((b->type == BOX_INLINE && !b->inline_end) || b->type == BOX_INLINE_BLOCK ||
                 b->type == BOX_INLINE_FLEX || b->type == BOX_INLINE_GRID) {
@@ -3225,7 +3313,12 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
             font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
             /** \todo handle errors */
-            font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+            if (split_box->length == 1 && split_box->text[0] == '\t') {
+                /* A tab shouldn't be split */
+                split = 0;
+            } else {
+                font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+            }
         }
 
         /* split == 0 implies that text can't be split */
@@ -3425,6 +3518,10 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 static bool layout_inline_container(
     struct box *inline_container, int width, struct box *cont, int cx, int cy, html_content *content)
 {
+    if (!(inline_container->flags & DIRTY) && !(inline_container->flags & CHILD_DIRTY)) {
+        return true;
+    }
+
     bool first_line = true;
     bool has_text_children;
     struct box *c, *next;
@@ -3481,6 +3578,7 @@ static bool layout_inline_container(
         inline_container, inline_container->parent, inline_container->y, inline_container->height,
         inline_container->parent ? inline_container->parent->list_marker : NULL);
 
+    inline_container->flags &= ~(DIRTY | CHILD_DIRTY);
     return true;
 }
 
@@ -3499,6 +3597,10 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
     bool in_margin = false;
     css_fixed gadget_size;
     css_unit gadget_unit; /* Checkbox / radio buttons */
+
+    if (!(block->flags & DIRTY) && !(block->flags & CHILD_DIRTY)) {
+        return true;
+    }
 
     assert(block->type == BOX_BLOCK || block->type == BOX_INLINE_BLOCK || block->type == BOX_TABLE_CELL ||
         block->type == BOX_FLEX || block->type == BOX_GRID || block->type == BOX_INLINE_FLEX ||
@@ -4072,6 +4174,8 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
         textarea_set_layout(block->gadget->data.text.ta, &fstyle, ta_width, ta_height, block->padding[TOP],
             block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
     }
+
+    block->flags &= ~(DIRTY | CHILD_DIRTY);
 
     return true;
 }

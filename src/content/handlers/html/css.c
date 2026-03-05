@@ -226,14 +226,17 @@ static struct html_stylesheet *html_create_style_element(html_content *c, dom_no
         dom_string_unref(val);
     }
 
-    /* media contains 'screen' or 'all' or not present */
+    /* store full media query or "all" per HTML spec */
+    char *media_str = NULL;
     exc = dom_element_get_attribute(style, corestring_dom_media, &val);
     if (exc == DOM_NO_ERR && val != NULL) {
-        if (strcasestr(dom_string_data(val), "screen") == NULL && strcasestr(dom_string_data(val), "all") == NULL) {
-            dom_string_unref(val);
-            return NULL;
+        if (dom_string_length(val) > 0) {
+            media_str = strdup(dom_string_data(val));
         }
         dom_string_unref(val);
+    }
+    if (media_str == NULL) {
+        media_str = strdup("all");
     }
 
     /* Extend array */
@@ -247,6 +250,7 @@ static struct html_stylesheet *html_create_style_element(html_content *c, dom_no
 
     c->stylesheets[c->stylesheet_count].node = dom_node_ref(style);
     c->stylesheets[c->stylesheet_count].sheet = NULL;
+    c->stylesheets[c->stylesheet_count].media = media_str;
     c->stylesheets[c->stylesheet_count].modified = false;
     c->stylesheets[c->stylesheet_count].unused = false;
     c->stylesheet_count++;
@@ -416,18 +420,17 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
         dom_string_unref(type_attr);
     }
 
-    /* media contains 'screen' or 'all' or not present or empty string
-     * Note: empty media attribute is valid and equivalent to "all" per HTML spec */
+    /* store full media query or "all" per HTML spec */
+    char *media_str = NULL;
     exc = dom_element_get_attribute(node, corestring_dom_media, &media);
     if (exc == DOM_NO_ERR && media != NULL) {
-        if (dom_string_length(media) > 0 && strcasestr(dom_string_data(media), "screen") == NULL &&
-            strcasestr(dom_string_data(media), "all") == NULL) {
-            NSLOG(wisp, INFO, "DEBUG html_css_process_link: Rejected - media='%s' doesn't contain screen/all",
-                dom_string_data(media));
-            dom_string_unref(media);
-            return true;
+        if (dom_string_length(media) > 0) {
+            media_str = strdup(dom_string_data(media));
         }
         dom_string_unref(media);
+    }
+    if (media_str == NULL) {
+        media_str = strdup("all");
     }
 
     /* href='...' */
@@ -460,6 +463,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
 
     htmlc->stylesheets = stylesheets;
     htmlc->stylesheets[htmlc->stylesheet_count].node = NULL;
+    htmlc->stylesheets[htmlc->stylesheet_count].media = media_str;
     htmlc->stylesheets[htmlc->stylesheet_count].modified = false;
     htmlc->stylesheets[htmlc->stylesheet_count].unused = false;
 
@@ -539,6 +543,9 @@ nserror html_css_free_stylesheets(html_content *html)
         }
         if (html->stylesheets[i].node != NULL) {
             dom_node_unref(html->stylesheets[i].node);
+        }
+        if (html->stylesheets[i].media != NULL) {
+            free(html->stylesheets[i].media);
         }
     }
     free(html->stylesheets);
@@ -685,10 +692,8 @@ nserror html_css_new_selection_context(html_content *c, css_select_ctx **ret_sel
         }
 
         if (sheet != NULL) {
-            /* TODO: Pass the sheet's full media query, instead of
-             *       "screen".
-             */
-            css_ret = css_select_ctx_append_sheet(select_ctx, sheet, origin, "screen");
+            const char *media = hsheet->media ? hsheet->media : "all";
+            css_ret = css_select_ctx_append_sheet(select_ctx, sheet, origin, media);
             if (css_ret != CSS_OK) {
                 css_select_ctx_destroy(select_ctx);
                 return css_error_to_nserror(css_ret);

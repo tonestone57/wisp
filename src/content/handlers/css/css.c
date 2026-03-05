@@ -37,7 +37,6 @@
 #include "content/handlers/css/hints.h"
 #include "content/handlers/css/internal.h"
 #include "content/handlers/html/font_face.h"
-
 /* Define to trace import fetches */
 #undef NSCSS_IMPORT_TRACE
 
@@ -60,6 +59,7 @@ typedef void (*nscss_done_callback)(struct content_css_data *css, void *pw);
 struct content_css_data {
     css_stylesheet *sheet; /**< Stylesheet object */
     char *charset; /**< Character set of stylesheet */
+    nsurl *base_url; /**< Cached nsurl object for resolving */
     struct nscss_import *imports; /**< Array of imported sheets */
     uint32_t import_count; /**< Number of sheets imported */
     uint32_t next_to_register; /**< Index of next import to register */
@@ -193,12 +193,18 @@ static nserror nscss_create_css_data(
 {
     css_error error;
     css_stylesheet_params params;
+    nserror ns_error;
 
     c->pw = pw;
     c->done = done;
     c->next_to_register = (uint32_t)-1;
     c->import_count = 0;
     c->imports = NULL;
+
+    ns_error = nsurl_create(url, &c->base_url);
+    if (ns_error != NSERROR_OK) {
+        c->base_url = NULL;
+    }
     if (charset != NULL)
         c->charset = strdup(charset);
     else
@@ -212,7 +218,7 @@ static nserror nscss_create_css_data(
     params.allow_quirks = quirks;
     params.inline_style = false;
     params.resolve = nscss_resolve_url;
-    params.resolve_pw = NULL;
+    params.resolve_pw = c->base_url;
     params.import = nscss_handle_import;
     params.import_pw = c;
     params.color = ns_system_colour;
@@ -368,6 +374,9 @@ static void nscss_destroy_css_data(struct content_css_data *c)
     }
 
     free(c->charset);
+    if (c->base_url) {
+        nsurl_unref(c->base_url);
+    }
 }
 
 nserror nscss_clone(const struct content *old, struct content **newc)

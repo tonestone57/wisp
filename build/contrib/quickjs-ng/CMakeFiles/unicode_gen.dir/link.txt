@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -flto -Wl,--gc-sections CMakeFiles/unicode_gen.dir/cutils.c.o CMakeFiles/unicode_gen.dir/libunicode.c.o CMakeFiles/unicode_gen.dir/unicode_gen.c.o -o unicode_gen

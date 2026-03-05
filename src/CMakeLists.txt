@@ -207,6 +207,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/talloc.c
 	utils/time.c
 	utils/url.c
+	utils/thread_pool.c
 	utils/useragent.c
 	utils/utf8.c
 	utils/utils.c
@@ -257,7 +258,7 @@ endif()
 # Add QuickJS-ng library
 list(APPEND WISP_COMMON_LIBS qjs)
 
-target_link_libraries(wisp ${WISP_COMMON_LIBS})
+target_link_libraries(wisp ${WISP_COMMON_LIBS} Threads::Threads)
 
 target_include_directories(wisp PRIVATE ${CMAKE_SOURCE_DIR}/contrib ${CMAKE_BINARY_DIR})
 
