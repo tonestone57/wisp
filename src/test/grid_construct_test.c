@@ -109,6 +109,11 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
+
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
 {
     if (style == MOCK_STYLE_GRID)
@@ -437,6 +442,7 @@ START_TEST(test_grid_construction)
     /* Setup Helper Strings */
 #define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
     INIT_STR(corestring_dom_id, "id");
+    INIT_STR(corestring_dom_class, "class");
     INIT_STR(corestring_dom_title, "title");
     INIT_STR(corestring_dom_style, "style");
     INIT_STR(corestring_dom_colspan, "colspan");

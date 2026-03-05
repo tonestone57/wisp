@@ -1318,11 +1318,34 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
     /* IMPORTANT: layout_grid must set the grid's width */
     if (grid->width == UNKNOWN_WIDTH || grid->width < 0) {
-        fprintf(stderr, "GRID_BUG: grid %p width still not set (=%d)\n", (void *)grid, grid->width);
-        fflush(stderr);
-        assert(0 && "Grid width must be resolved by layout_grid");
-        /* Fallback for safety in Release builds if assert disabled */
-        grid->width = grid_width;
+        if (grid->type == BOX_INLINE_GRID) {
+            /* Intrinsic width resolution for inline grid */
+            int total_width = 0;
+
+            /* Sum up columns */
+            for (int i = 0; i < num_cols; i++) {
+                total_width += col_widths[i];
+            }
+
+            /* Add gaps */
+            if (num_cols > 1) {
+                total_width += (num_cols - 1) * gap_px;
+            }
+
+            /* Add borders and padding */
+            total_width += grid->padding[LEFT] + grid->padding[RIGHT] +
+                           grid->border[LEFT].width + grid->border[RIGHT].width;
+
+            /* Check min-width / max-width constraints if needed */
+            /* We'll just assign it here as the basic "shrink-to-fit" width */
+            grid->width = total_width;
+        } else {
+            fprintf(stderr, "GRID_BUG: grid %p width still not set (=%d)\n", (void *)grid, grid->width);
+            fflush(stderr);
+            assert(0 && "Grid width must be resolved by layout_grid");
+            /* Fallback for safety in Release builds if assert disabled */
+            grid->width = grid_width;
+        }
     }
 
     free(item_cache);
