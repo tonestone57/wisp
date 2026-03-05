@@ -37,7 +37,6 @@
 #include "content/handlers/css/hints.h"
 #include "content/handlers/css/internal.h"
 #include "content/handlers/html/font_face.h"
-
 /* Define to trace import fetches */
 #undef NSCSS_IMPORT_TRACE
 

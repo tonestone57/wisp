@@ -73,6 +73,24 @@ nserror nsurl_create(const char *const url_s, nsurl **url);
 
 
 /**
+ * Create a NetSurf URL object from pre-parsed components
+ *
+ * \param scheme      Scheme lwc_string
+ * \param host        Host lwc_string
+ * \param port        Port string
+ * \param path_query  Path and query string
+ * \param url         Returns new NetSurf URL
+ * \return NSERROR_OK on success, appropriate error otherwise
+ *
+ * If return value != NSERROR_OK, nothing will be returned in url.
+ *
+ * It is up to the client to call nsurl_unref when they are finished with
+ * the created object.
+ */
+nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url);
+
+
+/**
  * Increment the reference count to a NetSurf URL object
  *
  * \param url	  NetSurf URL to create another reference to
