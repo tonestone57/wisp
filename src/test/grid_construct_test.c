@@ -267,6 +267,49 @@ char *squash_whitespace(const char *s)
     return strdup(s);
 }
 
+void *_talloc_zero(const void *ctx, size_t size, const char *name)
+{
+    return calloc(1, size);
+}
+
+void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
+{
+    return calloc(count, el_size);
+}
+
+int talloc_free(void *ptr)
+{
+    free(ptr);
+    return 0;
+}
+
+/* Minimal strndup implementation for Windows */
+char *strndup(const char *s, size_t n)
+{
+    size_t len;
+    char *s2;
+
+    for (len = 0; len != n && s[len]; len++)
+        continue;
+
+    s2 = malloc(len + 1);
+    if (!s2)
+        return NULL;
+
+    memcpy(s2, s, len);
+    s2[len] = 0;
+    return s2;
+}
+
+char *talloc_strdup(const void *ctx, const char *p)
+{
+    return strdup(p);
+}
+char *talloc_strndup(const void *ctx, const char *p, size_t n)
+{
+    return strndup(p, n);
+}
+
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
 {
