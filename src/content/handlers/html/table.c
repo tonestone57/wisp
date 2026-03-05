@@ -136,8 +136,11 @@ static bool table_border_is_more_eyecatching(
     /* 4a -- sort by origin */
     impact = 0;
 
-    /** \todo COL/COL_GROUP */
     switch (a_src) {
+    case BOX_TABLE_COL:
+    case BOX_TABLE_COL_GROUP:
+        impact += 0; /* Standard fallback */
+        break;
     case BOX_TABLE_CELL:
         impact++; /* Fall through */
     case BOX_TABLE_ROW:
@@ -150,8 +153,11 @@ static bool table_border_is_more_eyecatching(
         break;
     }
 
-    /** \todo COL/COL_GROUP */
     switch (b_src) {
+    case BOX_TABLE_COL:
+    case BOX_TABLE_COL_GROUP:
+        impact -= 0; /* Standard fallback */
+        break;
     case BOX_TABLE_CELL:
         impact--; /* Fall through */
     case BOX_TABLE_ROW:
@@ -375,7 +381,6 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
     struct border a, b;
     box_type a_src, b_src;
 
-    /** \todo Need column and column_group, too */
 
     /* Initialise to computed left border for cell */
     a.style = css_computed_border_left_style(cell->style);
@@ -443,7 +448,6 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
             row = row->next;
         }
 
-        /** \todo can cells span row groups? */
 
         /* Row group -- consider its left border */
         b.style = css_computed_border_left_style(group->style);
@@ -578,7 +582,6 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
     struct border a, b;
     box_type a_src, b_src;
 
-    /** \todo Need column and column_group, too */
 
     /* Initialise to computed right border for cell */
     a.style = css_computed_border_right_style(cell->style);
@@ -617,7 +620,6 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
             row = row->next;
         }
 
-        /** \todo can cells span row groups? */
 
         /* Row group -- consider its right border */
         b.style = css_computed_border_right_style(group->style);
@@ -677,7 +679,7 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     while (rows-- > 0 && row != NULL)
         row = row->next;
 
-    /** \todo Can cells span row groups? */
+    /* Note: Cells cannot span across row group boundaries in HTML5 */
 
     if (row != NULL) {
         /* Cell is not at bottom edge of table -- no bottom border */

@@ -1001,9 +1001,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 
         block->flags |= HAS_HEIGHT;
     } else if (block->flags & IFRAME) {
-        /** \todo do we need to know the min/max width of the iframe's
-         * content? */
-        block->flags |= HAS_HEIGHT;
+                block->flags |= HAS_HEIGHT;
     } else {
         /* For horizontal flex containers, get the column-gap for intrinsic sizing.
          * Per CSS spec, gaps contribute to the intrinsic main size. */

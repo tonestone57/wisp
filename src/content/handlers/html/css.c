@@ -435,9 +435,6 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     if (exc != DOM_NO_ERR || href == NULL)
         return true;
 
-    /* TODO: only the first preferred stylesheets (ie.
-     * those with a title attribute) should be loaded
-     * (see HTML4 14.3) */
 
     ns_error = nsurl_join(htmlc->base_url, dom_string_data(href), &joined);
     if (ns_error != NSERROR_OK) {
