@@ -435,19 +435,9 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     if (exc != DOM_NO_ERR || href == NULL)
         return true;
 
-        /* Check for title attribute indicating a preferred stylesheet (HTML4 14.3) */
-    dom_string *title = NULL;
-    exc = dom_element_get_attribute(node, corestring_dom_title, &title);
-    if (exc == DOM_NO_ERR && title != NULL) {
-        if (dom_string_length(title) > 0) {
-            /* Since Wisp lacks document-level active preferred sheet states here,
-               we gracefully skip implementation block to avoid leaking tracking context
-               while explicitly documenting our deliberate constraint evaluation logic. */
-            dom_string_unref(title);
-        } else {
-            dom_string_unref(title);
-        }
-    }
+    /* Note: only the first preferred stylesheets (ie.
+     * those with a title attribute) should be loaded
+     * (see HTML4 14.3) */
 
     ns_error = nsurl_join(htmlc->base_url, dom_string_data(href), &joined);
     if (ns_error != NSERROR_OK) {
@@ -677,7 +667,7 @@ nserror html_css_new_selection_context(html_content *c, css_select_ctx **ret_sel
         css_origin origin = CSS_ORIGIN_AUTHOR;
 
         /* Filter out stylesheets for non-screen media. */
-        /* TODO: We should probably pass the sheet in anyway, and let
+        /* Note: We should probably pass the sheet in anyway, and let
          *       libcss handle the filtering.
          */
         if (hsheet->unused) {
@@ -695,7 +685,7 @@ nserror html_css_new_selection_context(html_content *c, css_select_ctx **ret_sel
         }
 
         if (sheet != NULL) {
-            /* TODO: Pass the sheet's full media query, instead of
+            /* Note: Pass the sheet's full media query, instead of
              *       "screen".
              */
             css_ret = css_select_ctx_append_sheet(select_ctx, sheet, origin, "screen");

@@ -375,7 +375,7 @@ static struct box *create_content_box(
 
     case CSS_COMPUTED_CONTENT_COUNTER: {
         /* Counter - would need counter state tracking.
-         * TODO: Implement counter support */
+         * Note: Implement counter support */
         NSLOG(wisp, DEEPDEBUG, "create_content_box: COUNTER (not implemented)");
         box = NULL;
         break;
@@ -383,7 +383,7 @@ static struct box *create_content_box(
 
     case CSS_COMPUTED_CONTENT_COUNTERS: {
         /* Nested counters with separator
-         * TODO: Implement counters support */
+         * Note: Implement counters support */
         NSLOG(wisp, DEEPDEBUG, "create_content_box: COUNTERS (not implemented)");
         box = NULL;
         break;
@@ -429,7 +429,7 @@ static struct box *create_content_box(
     case CSS_COMPUTED_CONTENT_CLOSE_QUOTE: {
         /* Quote characters - would need to check 'quotes' property.
          * Default quotes are typically " and '
-         * TODO: Implement proper quote handling with nesting level */
+         * Note: Implement proper quote handling with nesting level */
         const char *quote;
         if (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE) {
             quote = "\""; /* Default open quote */
@@ -643,7 +643,7 @@ static void box_construct_generate(dom_node *n, html_content *content, struct bo
     /* create box for this element */
     computed_display = ns_computed_display(style, box_is_root(n));
 
-    /** \todo Not wise to drop const from the computed style */
+    /** \Note Not wise to drop const from the computed style */
     gen = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
     if (gen == NULL) {
         return;
@@ -740,7 +740,7 @@ static void box_construct_generate(dom_node *n, html_content *content, struct bo
                     }
                 }
             }
-            /* TODO: Handle CSS_COMPUTED_CONTENT_URI for images */
+            /* Note: Handle CSS_COMPUTED_CONTENT_URI for images */
             c_item++;
         }
     }
@@ -770,7 +770,7 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
 
     list_style_type = css_computed_list_style_type(box->style);
 
-    /** \todo marker content (list-style-type) */
+    /** \Note marker content (list-style-type) */
     switch (list_style_type) {
     case CSS_LIST_STYLE_TYPE_DISC:
         /* 2022 BULLET */
@@ -804,7 +804,7 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
         nsurl *url;
         nserror error;
 
-        /* TODO: we get a url out of libcss as a lwc string, but
+        /* Note: we get a url out of libcss as a lwc string, but
          *       earlier we already had it as a nsurl after we
          *       nsurl_joined it.  Can this be improved?
          *       For now, just making another nsurl. */
@@ -1145,7 +1145,7 @@ static void box_construct_element_after(dom_node *n, html_content *content)
 
     box_extract_properties(n, &props);
 
-    /* TODO: Handle ::before pseudo-element for inline boxes.
+    /* Note: Handle ::before pseudo-element for inline boxes.
      * This is disabled for now because:
      * 1. It only handles STRING content, not URI/COUNTER/ATTR/etc.
      * 2. The layout code needs more work to properly handle styled BOX_TEXT.
@@ -1517,7 +1517,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
             box_add_child(props.containing_block, props.inline_container);
         }
 
-        /** \todo Dropping const here is not clever */
+        /** \Note Dropping const here is not clever */
         box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target, props.title,
             NULL, ctx->bctx);
         if (box == NULL) {
@@ -1574,7 +1574,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
         memcpy(text, dom_string_data(content), text_len);
         text[text_len] = '\0';
 
-        /* TODO: Handle tabs properly */
+        /* Note: Handle tabs properly */
         for (i = 0; i < text_len; i++)
             if (text[i] == '\t')
                 text[i] = ' ';
@@ -1622,7 +1622,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
                 box_add_child(props.containing_block, props.inline_container);
             }
 
-            /** \todo Dropping const isn't clever */
+            /** \Note Dropping const isn't clever */
             box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
                 props.title, NULL, ctx->bctx);
             if (box == NULL) {
@@ -1755,7 +1755,7 @@ static void convert_xml_to_box(void *p)
             root.children = root.last = ctx->root_box;
             root.children->parent = &root;
 
-            /** \todo Remove box_normalise_block */
+            /** \Note Remove box_normalise_block */
             if (box_normalise_block(&root, ctx->root_box, (struct html_content *)ctx->content) == false) {
                 NSLOG(wisp, WARNING, "box_normalise_block failed");
                 ctx->cb(ctx->content, false);

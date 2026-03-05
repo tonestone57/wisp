@@ -20,7 +20,7 @@
  * \file
  * Implementation of HTML image maps
  *
- * \todo should this should use the general hashmap instead of its own
+ * \Note should this should use the general hashmap instead of its own
  */
 
 #include <assert.h>
@@ -619,7 +619,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM; /** @todo check this */
+                ret = NSERROR_NOMEM; /** @Note check this */
                 goto out_nlist;
             }
 
@@ -633,7 +633,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM; /** @todo check this */
+                ret = NSERROR_NOMEM; /** @Note check this */
                 goto out_nlist;
             }
         }

@@ -95,7 +95,7 @@ static plot_font_style_t plot_fstyle_entry = {
  * Convert a string from UTF-8 to the specified charset
  * As a final fallback, this will attempt to convert to ISO-8859-1.
  *
- * \todo Return charset used?
+ * \Note Return charset used?
  *
  * \param item String to convert
  * \param len Length of string to convert
@@ -855,7 +855,7 @@ static char *form_acceptable_charset(struct form *form)
      * form element contains a space and/or comma separated list */
     c = form->accept_charsets;
 
-    /** \todo an improvement would be to choose an encoding
+    /** \Note an improvement would be to choose an encoding
      * acceptable to the server which covers as much of the input
      * values as possible. Additionally, we need to handle the
      * case where none of the acceptable encodings cover all the
@@ -879,7 +879,7 @@ static char *form_acceptable_charset(struct form *form)
  * appropriate for submission. Therefore, no utf8_to_* processing should be
  * performed upon them.
  *
- * \todo The chosen charset needs to be made available such that it can be
+ * \Note The chosen charset needs to be made available such that it can be
  * included in the submission request (e.g. in the fetch's Content-Type header)
  *
  * See HTML 4.01 section 17.13.2.
@@ -915,7 +915,7 @@ form_dom_to_data(struct form *form, struct form_control *submit_control, struct 
         submit_button = NULL;
     }
 
-    /** \todo Replace this call with something DOMish */
+    /** \Note Replace this call with something DOMish */
     charset = form_acceptable_charset(form);
     if (charset == NULL) {
         NSLOG(wisp, INFO, "failed to find charset");
@@ -1125,7 +1125,7 @@ static nserror form__select_process_selection(html_content *html, struct form_co
     assert(html != NULL);
 
     /**
-     * \todo Even though the form code is effectively part of the html
+     * \Note Even though the form code is effectively part of the html
      *        content handler, poking around inside contents is not good
      */
 

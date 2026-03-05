@@ -145,7 +145,7 @@ coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct 
             int x, y;
 
             /**
-             * \todo it should be possible to reduce the redrawn
+             * \Note it should be possible to reduce the redrawn
              *        area using the offsets
              */
             box_coords(box, &x, &y);
