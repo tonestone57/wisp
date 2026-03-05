@@ -1492,6 +1492,84 @@ nserror nsurl_create(const char *const url_s, nsurl **url)
 
 
 /* exported interface, documented in nsurl.h */
+nserror nsurl_create_from_components(
+    lwc_string *scheme_lwc,
+    lwc_string *host_lwc,
+    lwc_string *port_lwc,
+    lwc_string *path_lwc,
+    lwc_string *query_lwc,
+    lwc_string *fragment_lwc,
+    nsurl **url)
+{
+    struct nsurl_components c;
+    size_t length;
+    nserror e = NSERROR_OK;
+    bool match;
+
+    if (url == NULL)
+        return NSERROR_BAD_PARAMETER;
+
+    c.scheme = nsurl__component_copy(scheme_lwc);
+    c.username = NULL;
+    c.password = NULL;
+    c.host = nsurl__component_copy(host_lwc);
+    c.port = nsurl__component_copy(port_lwc);
+    c.path = nsurl__component_copy(path_lwc);
+    c.query = nsurl__component_copy(query_lwc);
+    c.fragment = nsurl__component_copy(fragment_lwc);
+
+    /* Compute scheme type */
+    if (c.scheme == NULL) {
+        c.scheme_type = NSURL_SCHEME_OTHER;
+    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_http, &match) == lwc_error_ok && match == true) {
+        c.scheme_type = NSURL_SCHEME_HTTP;
+    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_https, &match) == lwc_error_ok && match == true) {
+        c.scheme_type = NSURL_SCHEME_HTTPS;
+    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_file, &match) == lwc_error_ok && match == true) {
+        c.scheme_type = NSURL_SCHEME_FILE;
+    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_ftp, &match) == lwc_error_ok && match == true) {
+        c.scheme_type = NSURL_SCHEME_FTP;
+    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_mailto, &match) == lwc_error_ok && match == true) {
+        c.scheme_type = NSURL_SCHEME_MAILTO;
+    } else {
+        c.scheme_type = NSURL_SCHEME_OTHER;
+    }
+
+    /* Validate URL */
+    if (c.scheme_type == NSURL_SCHEME_HTTP || c.scheme_type == NSURL_SCHEME_HTTPS) {
+        /* http, https must have host */
+        if (c.host == NULL) {
+            nsurl__components_destroy(&c);
+            return NSERROR_BAD_URL;
+        }
+        /* host names must be a-z, 0-9, hyphen, underscore, and dot only
+         */
+        if (nsurl__check_host_valid(c.host) != NSERROR_OK) {
+            nsurl__components_destroy(&c);
+            return NSERROR_BAD_URL;
+        }
+    }
+
+    e = nsurl__components_to_string(&c, NSURL_WITH_FRAGMENT, offsetof(nsurl, string), (char **)url, &length);
+    if (e != NSERROR_OK) {
+        nsurl__components_destroy(&c);
+        return e;
+    }
+
+    (*url)->components = c;
+    (*url)->length = length;
+
+    /* Get the nsurl's hash */
+    nsurl__calc_hash(*url);
+
+    /* Give the URL a reference */
+    (*url)->count = 1;
+
+    return NSERROR_OK;
+}
+
+
+/* exported interface, documented in nsurl.h */
 nserror nsurl_join(const nsurl *base, const char *rel, nsurl **joined)
 {
     struct url_markers m;
