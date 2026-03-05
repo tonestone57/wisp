@@ -15,6 +15,7 @@
 #include "core/document_type.h"
 #include "core/namednodemap.h"
 #include "core/node.h"
+#include "core/document.h"
 #include "core/string.h"
 
 /**
@@ -59,7 +60,7 @@ _dom_document_type_create(dom_string *qname, dom_string *public_id, dom_string *
     dom_exception err;
 
     /* Create node */
-    result = malloc(sizeof(dom_document_type));
+    result = DOM_ALLOC(NULL, sizeof(dom_document_type));
     if (result == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -69,7 +70,7 @@ _dom_document_type_create(dom_string *qname, dom_string *public_id, dom_string *
 
     err = _dom_document_type_initialise(result, qname, public_id, system_id);
     if (err != DOM_NO_ERR) {
-        free(result);
+        DOM_FREE(result);
         return err;
     }
 
@@ -93,7 +94,7 @@ void _dom_document_type_destroy(dom_node_internal *doctypenode)
     _dom_document_type_finalise(doctype);
 
     /* Free doctype */
-    free(doctype);
+    DOM_FREE(doctype);
 }
 
 /* Initialise this document_type */

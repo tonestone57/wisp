@@ -18,7 +18,8 @@ add_library(dom ${WISP_LIB_TYPE}
 	src/core/entity_ref.c
 	src/core/pi.c
 	src/core/doc_fragment.c
-	src/core/document.c 
+	src/core/document.c
+	../../src/utils/arena.c
 	src/core/tokenlist.c
 	src/events/mouse_multi_wheel_event.c
 	src/events/mouse_event.c

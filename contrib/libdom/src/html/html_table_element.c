@@ -117,7 +117,7 @@ dom_exception _dom_html_table_element_copy(dom_node_internal *old, dom_node_inte
 
     err = dom_html_table_element_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-        free(new_node);
+        DOM_FREE(new_node);
         return err;
     }
 

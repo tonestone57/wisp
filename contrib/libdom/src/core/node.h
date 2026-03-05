@@ -13,6 +13,10 @@
 #include <libwapcaplet/libwapcaplet.h>
 
 #include <dom/core/node.h>
+#include "../../../../src/utils/arena.h"
+
+#define DOM_ALLOC(doc, size) ((doc) && ((struct dom_document *)(doc))->arena ? arena_alloc(((struct dom_document *)(doc))->arena, (size)) : malloc(size))
+#define DOM_FREE(ptr) /* handled by arena */
 #include <dom/functypes.h>
 
 #include "events/event_target.h"

@@ -1669,7 +1669,7 @@ static bool box_object(dom_node *n, html_content *content, struct box *box, bool
             }
 
             if (param->valuetype == NULL) {
-                param->valuetype = arena_strdup(param, "data");
+                param->valuetype = arena_strdup(content->bctx, "data");
                 if (param->valuetype == NULL) {
                     dom_node_unref(c);
                     return false;

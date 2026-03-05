@@ -28,7 +28,7 @@ const struct dom_characterdata_vtable characterdata_vtable = {
 /* Create a DOM characterdata node and compose the vtable */
 dom_characterdata *_dom_characterdata_create(void)
 {
-    dom_characterdata *cdata = malloc(sizeof(struct dom_characterdata));
+    dom_characterdata *cdata = DOM_ALLOC(NULL, sizeof(struct dom_characterdata));
     if (cdata == NULL)
         return NULL;
 
@@ -464,13 +464,13 @@ dom_exception _dom_characterdata_copy(dom_node_internal *old, dom_node_internal 
     dom_characterdata *new_node;
     dom_exception err;
 
-    new_node = malloc(sizeof(dom_characterdata));
+    new_node = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_characterdata));
     if (new_node == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_characterdata_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-        free(new_node);
+        DOM_FREE(new_node);
         return err;
     }
 
