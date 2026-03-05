@@ -51,25 +51,22 @@ void wisp_renderer_main(const char *ipc_name) {
         void *data = NULL;
         size_t len = 0;
 
-        err = ipc_receive(conn, &type, &data, &len);
-        if (err == NSERROR_EOF) {
-            NSLOG(wisp, INFO, "Browser UI process closed connection. Renderer exiting.");
-            break;
-        } else if (err != NSERROR_OK) {
-            // If IPC read fails (because we bypassed accept in UI for Phase 0.5),
-            // fallback to spinning on the task queue.
-            task_func func = NULL;
-            void *ctx = NULL;
-            if (task_queue_pop(queue, &func, &ctx) == NSERROR_OK) {
-                if (func) func(ctx);
-            } else {
-#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
-                usleep(10000); // 10ms idle
-#else
-                Sleep(10);
-#endif
-            }
+        // Because UI bypasses accept for Phase 0.5, we don't block on socket read.
+        // Instead we only read from the shared task_queue.
+
+        task_func func = NULL;
+        void *ctx = NULL;
+        if (task_queue_pop(queue, &func, &ctx) == NSERROR_OK) {
+            if (func) func(ctx);
+            // Simulate handling navigation internally
             continue;
+        } else {
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+            usleep(10000); // 10ms idle
+#else
+            Sleep(10);
+#endif
+            continue; // Loop again
         }
 
         NSLOG(wisp, INFO, "Renderer received message type: %d, len: %zu", type, len);
@@ -97,8 +94,4 @@ void wisp_renderer_main(const char *ipc_name) {
 
     ipc_close(conn);
     task_queue_destroy(queue);
-    if (ipc_name && strncmp(ipc_name, "wisp_tab", 8) != 0) {
-        // Clean up thread duped name from parent
-        free((void*)ipc_name);
-    }
 }
