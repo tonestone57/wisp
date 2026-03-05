@@ -34,7 +34,7 @@ void wisp_renderer_main(const char *ipc_name) {
 
     if (err != NSERROR_OK) {
         NSLOG(wisp, ERROR, "Renderer failed to connect to IPC channel '%s'", ipc_name);
-        return;
+        exit(1);
     }
 
     NSLOG(wisp, INFO, "Renderer successfully connected to Browser UI process");
@@ -78,4 +78,5 @@ void wisp_renderer_main(const char *ipc_name) {
     }
 
     ipc_close(conn);
+    exit(0);
 }

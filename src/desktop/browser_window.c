@@ -2872,6 +2872,12 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
         pthread_create(&tid, NULL, (void *(*)(void *))wisp_renderer_main, thread_ipc_name);
         pthread_detach(tid);
 
+        // Parent (Browser UI) process asynchronously accepts connection
+        // Note: For now we just run it synchronously as a stub, but this will
+        // need an async event loop for full integration.
+        struct ipc_connection *client_conn;
+        ipc_accept(ret->ipc_conn, &client_conn);
+
     }
 
     /* The existing gui_window is on the top-level existing
