@@ -34,7 +34,7 @@ void wisp_renderer_main(const char *ipc_name) {
 
     if (err != NSERROR_OK) {
         NSLOG(wisp, ERROR, "Renderer failed to connect to IPC channel '%s'", ipc_name);
-        exit(1);
+        return;
     }
 
     NSLOG(wisp, INFO, "Renderer successfully connected to Browser UI process");
@@ -78,5 +78,8 @@ void wisp_renderer_main(const char *ipc_name) {
     }
 
     ipc_close(conn);
-    exit(0);
+    if (ipc_name && strncmp(ipc_name, "wisp_tab", 8) != 0) {
+        // Clean up thread duped name from parent
+        free((void*)ipc_name);
+    }
 }

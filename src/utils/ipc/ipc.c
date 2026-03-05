@@ -1,5 +1,6 @@
 #include "wisp/ipc/ipc.h"
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

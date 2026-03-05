@@ -2813,15 +2813,6 @@ nserror browser_window_debug(struct browser_window *bw, enum content_debug op)
 }
 
 
-// Phase 0.5 Thread Wrapper to prevent signature cast undefined behavior
-static void* renderer_thread_wrapper(void* arg) {
-    char* ipc_name = (char*)arg;
-    wisp_renderer_main(ipc_name);
-    // Free strdup'd argument from parent thread
-    free(ipc_name);
-    return NULL;
-}
-
 /* exported interface, documented in neosurf/browser_window.h */
 nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url, nsurl *referrer,
     struct browser_window *existing, struct browser_window **bw)
@@ -2879,7 +2870,7 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
         // Spawn a thread instead of a fork to execute the renderer logic
         pthread_t tid;
         char *thread_ipc_name = strdup(ipc_name);
-        pthread_create(&tid, NULL, renderer_thread_wrapper, thread_ipc_name);
+        pthread_create(&tid, NULL, (void *(*)(void *))wisp_renderer_main, thread_ipc_name);
         pthread_detach(tid);
 
         // In Phase 0.5 we use the internal `task_queue` structure so `ipc_accept` is bypassed
