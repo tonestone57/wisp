@@ -2941,6 +2941,12 @@ nserror urldb_load(const char *filename)
 
                 if (nsurl_create_from_components(scheme_lwc, host_lwc, port_lwc, path_lwc, query_lwc, fragment_lwc, &nsurl) != NSERROR_OK) {
                     NSLOG(wisp, INFO, "Failed inserting URL from components");
+                    if (scheme_lwc) lwc_string_unref(scheme_lwc);
+                    if (host_lwc) lwc_string_unref(host_lwc);
+                    if (port_lwc) lwc_string_unref(port_lwc);
+                    if (path_lwc) lwc_string_unref(path_lwc);
+                    if (query_lwc) lwc_string_unref(query_lwc);
+                    if (fragment_lwc) lwc_string_unref(fragment_lwc);
                     fclose(fp);
                     return NSERROR_NOMEM;
                 }
@@ -2953,6 +2959,11 @@ nserror urldb_load(const char *filename)
                 /* Create path_query for urldb_add_path */
                 size_t pq_len = strlen(s) + (query[0] != '\0' ? strlen(query) + 1 : 0) + 1;
                 path_query = malloc(pq_len);
+                if (!path_query) {
+                    nsurl_unref(nsurl);
+                    fclose(fp);
+                    return NSERROR_NOMEM;
+                }
                 if (query[0] != '\0') {
                     snprintf(path_query, pq_len, "%s?%s", s, query);
                 } else {

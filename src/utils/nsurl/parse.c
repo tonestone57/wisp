@@ -1521,15 +1521,15 @@ nserror nsurl_create_from_components(
     /* Compute scheme type */
     if (c.scheme == NULL) {
         c.scheme_type = NSURL_SCHEME_OTHER;
-    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_http, &match) == lwc_error_ok && match == true) {
+    } else if (strcasecmp(lwc_string_data(c.scheme), "http") == 0) {
         c.scheme_type = NSURL_SCHEME_HTTP;
-    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_https, &match) == lwc_error_ok && match == true) {
+    } else if (strcasecmp(lwc_string_data(c.scheme), "https") == 0) {
         c.scheme_type = NSURL_SCHEME_HTTPS;
-    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_file, &match) == lwc_error_ok && match == true) {
+    } else if (strcasecmp(lwc_string_data(c.scheme), "file") == 0) {
         c.scheme_type = NSURL_SCHEME_FILE;
-    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_ftp, &match) == lwc_error_ok && match == true) {
+    } else if (strcasecmp(lwc_string_data(c.scheme), "ftp") == 0) {
         c.scheme_type = NSURL_SCHEME_FTP;
-    } else if (lwc_string_caseless_isequal(c.scheme, corestring_lwc_mailto, &match) == lwc_error_ok && match == true) {
+    } else if (strcasecmp(lwc_string_data(c.scheme), "mailto") == 0) {
         c.scheme_type = NSURL_SCHEME_MAILTO;
     } else {
         c.scheme_type = NSURL_SCHEME_OTHER;
