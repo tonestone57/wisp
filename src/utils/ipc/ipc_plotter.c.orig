@@ -40,12 +40,10 @@ static nserror ipc_plot_bitmap(const struct redraw_context *ctx, struct bitmap *
 }
 
 static nserror ipc_plot_text(const struct redraw_context *ctx, const struct plot_font_style *fstyle, int x, int y, const char *text, size_t length) {
-    (void)ctx; (void)fstyle; (void)x; (void)y; (void)text; (void)length;
     return NSERROR_OK;
 }
 
 static nserror ipc_plot_flush(const struct redraw_context *ctx) {
-    (void)ctx;
     return NSERROR_OK;
 }
 

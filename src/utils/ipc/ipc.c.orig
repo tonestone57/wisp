@@ -145,10 +145,10 @@ void ipc_close(struct ipc_connection *conn) {
 // Stub for Windows
 struct ipc_connection { int fd; };
 nserror ipc_init(void) { return NSERROR_OK; }
-nserror ipc_listen(const char *name, struct ipc_connection **conn) { return NSERROR_OK; }
-nserror ipc_accept(struct ipc_connection *listener, struct ipc_connection **conn) { return NSERROR_OK; }
-nserror ipc_connect(const char *name, struct ipc_connection **conn) { return NSERROR_OK; }
-nserror ipc_send(struct ipc_connection *conn, enum ipc_message_type type, const void *data, size_t len) { return NSERROR_OK; }
-nserror ipc_receive(struct ipc_connection *conn, enum ipc_message_type *type, void **data, size_t *len) { return NSERROR_EOF; } // Return EOF on Windows stubs to prevent infinite loops
-void ipc_close(struct ipc_connection *conn) {}
+nserror ipc_listen(const char *name, struct ipc_connection **conn) { (void)name; (void)conn; return NSERROR_OK; }
+nserror ipc_accept(struct ipc_connection *listener, struct ipc_connection **conn) { (void)listener; (void)conn; return NSERROR_OK; }
+nserror ipc_connect(const char *name, struct ipc_connection **conn) { (void)name; (void)conn; return NSERROR_OK; }
+nserror ipc_send(struct ipc_connection *conn, enum ipc_message_type type, const void *data, size_t len) { (void)conn; (void)type; (void)data; (void)len; return NSERROR_OK; }
+nserror ipc_receive(struct ipc_connection *conn, enum ipc_message_type *type, void **data, size_t *len) { (void)conn; (void)type; (void)data; (void)len; return NSERROR_EOF; }
+void ipc_close(struct ipc_connection *conn) { (void)conn; }
 #endif

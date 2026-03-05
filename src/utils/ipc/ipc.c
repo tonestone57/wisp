@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 #include <sys/socket.h>
@@ -21,7 +22,10 @@ nserror ipc_init(void) {
 }
 
 static void get_socket_path(const char *name, char *path, size_t size) {
-    snprintf(path, size, "/tmp/wisp_ipc_%s.sock", name);
+    const char *runtime_dir = getenv("XDG_RUNTIME_DIR");
+    if (!runtime_dir) runtime_dir = "/tmp";
+
+    snprintf(path, size, "%s/wisp_ipc_%s.sock", runtime_dir, name);
 }
 
 nserror ipc_listen(const char *name, struct ipc_connection **conn) {
@@ -35,6 +39,9 @@ nserror ipc_listen(const char *name, struct ipc_connection **conn) {
 
     unlink(addr.sun_path);
 
+    // Temporarily restrict umask to ensure socket is created 0600
+    mode_t old_mask = umask(0077);
+
     if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(fd);
         return NSERROR_INIT_FAILED;
@@ -44,6 +51,9 @@ nserror ipc_listen(const char *name, struct ipc_connection **conn) {
         close(fd);
         return NSERROR_INIT_FAILED;
     }
+
+    umask(old_mask);
+    chmod(addr.sun_path, 0600);
 
     *conn = calloc(1, sizeof(struct ipc_connection));
     (*conn)->fd = fd;
