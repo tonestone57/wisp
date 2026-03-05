@@ -109,9 +109,6 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
-
-
-
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
 {
     if (style == MOCK_STYLE_GRID)
@@ -286,19 +283,6 @@ char *talloc_strndup(const void *ctx, const char *p, size_t n)
     return strndup(p, n);
 }
 
-
-void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
-{
-    return calloc(count, el_size);
-}
-
-int talloc_free(void *ptr)
-{
-    free(ptr);
-    return 0;
-}
-
-
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
 {
@@ -413,7 +397,7 @@ START_TEST(test_grid_construction)
     ck_assert_ptr_nonnull(fp);
     /* <div id="grid"> is the Grid container. <div id="child"> is the child.
      */
-    fprintf(fp, "<html><body><div id=\"grid\"><div id=\"child\"></div></div></body></html>");
+    fprintf(fp, "<html><body><div id=\"grid\"><div id=\"child\">Child</div></div></body></html>");
     fclose(fp);
 
     dom_document *doc = NULL;

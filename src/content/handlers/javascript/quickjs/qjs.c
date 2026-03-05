@@ -489,7 +489,11 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         }
     }
 
-    JSValue ret = JS_Call(jsctx, ctx->func, global, 1, &js_evt);
+    JSValue this_obj = global;
+    if (ctx->target != (struct dom_event_target *)ctx->thread->doc_priv) {
+        this_obj = JS_UNDEFINED; /* We don't have element mappings yet */
+    }
+    JSValue ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
     if (JS_IsException(ret)) {
         JSValue exc = JS_GetException(jsctx);
         const char *exc_str = JS_ToCString(jsctx, exc);
@@ -513,20 +517,25 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 
     if (thread == NULL || doc == NULL) return false;
 
-    /* In QuickJS integration, we also want to trigger QuickJS global listeners,
-     * since we don't have full DOM mapping yet. */
+    /* We don't have a full DOM to JS mapping in this stub integration.
+     * We will dispatch on the global object if target is NULL or is the document.
+     * Ideally, we'd lookup the JS object associated with 'target' and dispatch on it. */
     JSContext *ctx = thread->ctx;
     JSValue global = JS_GetGlobalObject(ctx);
-    JSValue event_obj = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, event_obj, "type", JS_NewString(ctx, type));
 
-    JSValue dispatch_func = JS_GetPropertyStr(ctx, global, "dispatchEvent");
-    if (JS_IsFunction(ctx, dispatch_func)) {
-        JSValue ret = JS_Call(ctx, dispatch_func, global, 1, &event_obj);
-        JS_FreeValue(ctx, ret);
+    if (target == NULL || target == (struct dom_node *)doc) {
+        JSValue event_obj = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, event_obj, "type", JS_NewString(ctx, type));
+
+        JSValue dispatch_func = JS_GetPropertyStr(ctx, global, "dispatchEvent");
+        if (JS_IsFunction(ctx, dispatch_func)) {
+            JSValue ret = JS_Call(ctx, dispatch_func, global, 1, &event_obj);
+            JS_FreeValue(ctx, ret);
+        }
+        JS_FreeValue(ctx, dispatch_func);
+        JS_FreeValue(ctx, event_obj);
     }
-    JS_FreeValue(ctx, dispatch_func);
-    JS_FreeValue(ctx, event_obj);
+
     JS_FreeValue(ctx, global);
 
     /* Now trigger LibDOM event */
