@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -flto -Wl,--gc-sections CMakeFiles/qjsc.dir/qjsc.c.o "CMakeFiles/qjsc.dir/quickjs-libc.c.o" -o qjsc  -Wl,-rpath,/app/build/contrib/quickjs-ng: libqjs.so.0.11.0 -ldl -lm

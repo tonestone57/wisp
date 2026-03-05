@@ -1,2 +1,0 @@
-# Empty compiler generated dependencies file for grid_construct_test.
-# This may be replaced when dependencies are built.

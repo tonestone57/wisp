@@ -1,1 +1,0 @@
-/usr/bin/cc -flto -Wl,--gc-sections CMakeFiles/gen_parser.dir/__/css_property_parser_gen.c.o -o gen_parser

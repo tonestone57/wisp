@@ -1,1 +1,0 @@
-/usr/bin/cc -fPIC -O3 -DNDEBUG -flto -Wl,--gc-sections -shared -Wl,-soname,libqjs.so.0 -o libqjs.so.0.11.0 CMakeFiles/qjs.dir/cutils.c.o CMakeFiles/qjs.dir/dtoa.c.o CMakeFiles/qjs.dir/libregexp.c.o CMakeFiles/qjs.dir/libunicode.c.o CMakeFiles/qjs.dir/quickjs.c.o  -ldl -lm
