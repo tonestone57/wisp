@@ -382,7 +382,8 @@ void content_destroy(struct content *c)
 {
     assert(c);
 
-    if (c->user_list && c->user_list->next != NULL) {
+    /* Using content_count_users ensures we properly handle the sentinel node */
+    if (content_count_users(c) > 0) {
         /* Defer destruction until all users are removed */
         c->pending_delete = true;
         NSLOG(wisp, INFO, "content %p deferred destruction (has active users)", c);
@@ -671,7 +672,7 @@ void content_remove_user(struct content *c,
     user->next = next->next;
     free(next);
 
-    if (c->pending_delete && c->user_list && c->user_list->next == NULL) {
+    if (c->pending_delete && content_count_users(c) == 0) {
         NSLOG(wisp, INFO, "content %p deferred destruction completing", c);
         content_actually_destroy(c);
     }
