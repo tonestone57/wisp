@@ -1,0 +1,28 @@
+{
+	"BUILD_DIR" : "/app/build/frontends/qt/wisp-qt_autogen",
+	"CMAKE_BINARY_DIR" : "/app/build",
+	"CMAKE_CURRENT_BINARY_DIR" : "/app/build/frontends/qt",
+	"CMAKE_CURRENT_SOURCE_DIR" : "/app/frontends/qt",
+	"CMAKE_SOURCE_DIR" : "/app",
+	"GENERATOR" : "Unix Makefiles",
+	"INCLUDE_DIR" : "/app/build/frontends/qt/wisp-qt_autogen/include",
+	"INPUTS" :
+	[
+		"/app/build/frontends/qt/res/zh_CN/Messages",
+		"/app/build/frontends/qt/res/nl/Messages",
+		"/app/build/frontends/qt/res/it/Messages",
+		"/app/build/frontends/qt/res/de/Messages",
+		"/app/build/frontends/qt/res/fr/Messages",
+		"/app/build/frontends/qt/res/en/Messages"
+	],
+	"LOCK_FILE" : "/app/build/frontends/qt/CMakeFiles/wisp-qt_autogen.dir/AutoRcc_messages_PR4VE6O6XJ_Lock.lock",
+	"MULTI_CONFIG" : false,
+	"OPTIONS" : [ "-name", "messages" ],
+	"OUTPUT_CHECKSUM" : "PR4VE6O6XJ",
+	"OUTPUT_NAME" : "qrc_messages.cpp",
+	"RCC_EXECUTABLE" : "/usr/lib/qt6/libexec/rcc",
+	"RCC_LIST_OPTIONS" : [ "--list" ],
+	"SETTINGS_FILE" : "/app/build/frontends/qt/CMakeFiles/wisp-qt_autogen.dir/AutoRcc_messages_PR4VE6O6XJ_Used.txt",
+	"SOURCE" : "/app/build/frontends/qt/res/messages.qrc",
+	"VERBOSITY" : 0
+}

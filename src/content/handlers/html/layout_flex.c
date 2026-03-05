@@ -1949,6 +1949,10 @@ static int flex_item_cmp(const void *a, const void *b)
 
 bool layout_flex(struct box *flex, int available_width, html_content *content)
 {
+    if (!(flex->flags & DIRTY) && !(flex->flags & CHILD_DIRTY)) {
+        return true;
+    }
+
     int max_height;
     struct css_size min_height;
     int max_width = -1;
@@ -2034,7 +2038,8 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
             flex->height = 0;
         }
         layout_flex_ctx__destroy(ctx);
-        return true;
+            flex->flags &= ~(DIRTY | CHILD_DIRTY);
+    return true;
     }
 
     /* Place items onto lines. */
