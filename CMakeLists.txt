@@ -42,6 +42,7 @@ if(${GPERF} STREQUAL GPERF-NOTFOUND)
 	message(FATAL_ERROR "Missing `gperf` utility. Please refer to your distribution package manager for obtaining this.")
 endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
+find_package(Threads REQUIRED)
 set(PYTHON3 ${Python3_EXECUTABLE})
 
 find_program(PKGCONFIG pkg-config)

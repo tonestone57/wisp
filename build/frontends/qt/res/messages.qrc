@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="Messages">en/Messages</file>
+    </qresource>
+    <qresource prefix="/" lang="fr">
+        <file alias="Messages">fr/Messages</file>
+    </qresource>
+    <qresource prefix="/" lang="de">
+        <file alias="Messages">de/Messages</file>
+    </qresource>
+    <qresource prefix="/" lang="it">
+        <file alias="Messages">it/Messages</file>
+    </qresource>
+    <qresource prefix="/" lang="nl">
+        <file alias="Messages">nl/Messages</file>
+    </qresource>
+    <qresource prefix="/" lang="zh_CN">
+        <file alias="Messages">zh_CN/Messages</file>
+    </qresource>
+</RCC>

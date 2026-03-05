@@ -2004,10 +2004,10 @@ nserror fetch_curl_register(void)
 #endif
     code = curl_easy_setopt(fetch_blank_curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
     if (code != CURLE_OK) {
-        NSLOG(netsurf, INFO, "HTTP/3 not supported by libcurl, falling back to HTTP/2");
+        NSLOG(wisp, INFO, "HTTP/3 not supported by libcurl, falling back to HTTP/2");
         SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
     } else {
-        NSLOG(netsurf, INFO, "HTTP/3 enabled in libcurl");
+        NSLOG(wisp, INFO, "HTTP/3 enabled in libcurl");
     }
 
     SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);

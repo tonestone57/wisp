@@ -133,6 +133,10 @@ uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
 }
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
     return CSS_LIST_STYLE_TYPE_NONE;
@@ -251,10 +255,7 @@ char *squash_whitespace(const char *s)
     return strdup(s);
 }
 
-void *_talloc_zero(const void *ctx, size_t size, const char *name)
-{
-    return calloc(1, size);
-}
+
 
 /* Minimal strndup implementation for Windows */
 char *strndup(const char *s, size_t n)
@@ -274,14 +275,7 @@ char *strndup(const char *s, size_t n)
     return s2;
 }
 
-char *talloc_strdup(const void *ctx, const char *p)
-{
-    return strdup(p);
-}
-char *talloc_strndup(const void *ctx, const char *p, size_t n)
-{
-    return strndup(p, n);
-}
+
 
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
@@ -442,6 +436,7 @@ START_TEST(test_grid_construction)
     INIT_STR(corestring_dom_colspan, "colspan");
     INIT_STR(corestring_dom_rowspan, "rowspan");
     INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
+    INIT_STR(corestring_dom_class, "class");
 
     /* Context Setup - Heap Alloc */
     struct html_content htmlc = {0};

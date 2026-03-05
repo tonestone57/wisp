@@ -1415,6 +1415,104 @@ static nserror nsurl__check_host_valid(lwc_string *host)
  ******************************************************************************/
 
 /* exported interface, documented in nsurl.h */
+nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url)
+{
+    struct nsurl_components c;
+    nserror e = NSERROR_OK;
+    size_t length;
+    char *buff;
+    struct url_markers m;
+
+    if (url == NULL || scheme == NULL || host == NULL || path_query == NULL)
+        return NSERROR_BAD_PARAMETER;
+
+    /* we use dummy markers and parse strings for port/path_query */
+    memset(&c, 0, sizeof(c));
+
+    c.scheme = lwc_string_ref(scheme);
+    c.host = lwc_string_ref(host);
+
+    if (port && *port) {
+        if (lwc_intern_string(port, strlen(port), &c.port) != lwc_error_ok) {
+            nsurl__components_destroy(&c);
+            return NSERROR_NOMEM;
+        }
+    }
+
+    if (path_query) {
+        const char *query_start = strchr(path_query, '?');
+        const char *fragment_start = strchr(path_query, '#');
+
+        /* If both exist and fragment is before query (invalid but check anyway) */
+        if (fragment_start && query_start && fragment_start < query_start) {
+            query_start = NULL; /* Fragment obscures query */
+        }
+
+        const char *path_end = path_query + strlen(path_query);
+        if (fragment_start) {
+            path_end = fragment_start;
+            if (lwc_intern_string(fragment_start + 1, strlen(fragment_start + 1), &c.fragment) != lwc_error_ok) {
+                nsurl__components_destroy(&c);
+                return NSERROR_NOMEM;
+            }
+        }
+
+        if (query_start) {
+            path_end = query_start;
+            size_t query_len = (fragment_start ? (size_t)(fragment_start - query_start) : strlen(query_start));
+            if (lwc_intern_string(query_start, query_len, &c.query) != lwc_error_ok) {
+                nsurl__components_destroy(&c);
+                return NSERROR_NOMEM;
+            }
+        }
+
+        size_t path_len = path_end - path_query;
+        if (path_len > 0) {
+            if (lwc_intern_string(path_query, path_len, &c.path) != lwc_error_ok) {
+                nsurl__components_destroy(&c);
+                return NSERROR_NOMEM;
+            }
+        }
+    }
+
+    c.scheme_type = NSURL_SCHEME_OTHER;
+    size_t slen = lwc_string_length(scheme);
+    const char *sdata = lwc_string_data(scheme);
+
+    if (slen == 4 && strncasecmp(sdata, "http", 4) == 0) {
+        c.scheme_type = NSURL_SCHEME_HTTP;
+    } else if (slen == 5 && strncasecmp(sdata, "https", 5) == 0) {
+        c.scheme_type = NSURL_SCHEME_HTTPS;
+    } else if (slen == 4 && strncasecmp(sdata, "file", 4) == 0) {
+        c.scheme_type = NSURL_SCHEME_FILE;
+    } else if (slen == 3 && strncasecmp(sdata, "ftp", 3) == 0) {
+        c.scheme_type = NSURL_SCHEME_FTP;
+    } else if (slen == 6 && strncasecmp(sdata, "mailto", 6) == 0) {
+        c.scheme_type = NSURL_SCHEME_MAILTO;
+    } else if (slen == 4 && strncasecmp(sdata, "data", 4) == 0) {
+        c.scheme_type = NSURL_SCHEME_DATA;
+    }
+
+    e = nsurl__components_to_string(&c, NSURL_WITH_FRAGMENT, offsetof(nsurl, string), (char **)url, &length);
+    if (e != NSERROR_OK) {
+        nsurl__components_destroy(&c);
+        return e;
+    }
+
+    (*url)->components = c;
+    (*url)->length = length;
+
+    /* Get the nsurl's hash */
+    nsurl__calc_hash(*url);
+
+    /* Give the URL a reference */
+    (*url)->count = 1;
+
+    return NSERROR_OK;
+}
+
+
+/* exported interface, documented in nsurl.h */
 nserror nsurl_create(const char *const url_s, nsurl **url)
 {
     struct url_markers m;
@@ -1424,7 +1522,9 @@ nserror nsurl_create(const char *const url_s, nsurl **url)
     nserror e = NSERROR_OK;
     bool match;
 
-    if (url == NULL || url_s == NULL)
+    if (url == NULL)
+        return NSERROR_BAD_PARAMETER;
+    if (url_s == NULL)
         return NSERROR_BAD_PARAMETER;
 
     /* Peg out the URL sections */
@@ -1510,7 +1610,11 @@ nserror nsurl_join(const nsurl *base, const char *rel, nsurl **joined)
         NSURL_F_BASE_QUERY = (1 << 4)
     } joined_parts;
 
-    if (joined == NULL || base == NULL || rel == NULL)
+    if (joined == NULL)
+        return NSERROR_BAD_PARAMETER;
+    if (base == NULL)
+        return NSERROR_BAD_PARAMETER;
+    if (rel == NULL)
         return NSERROR_BAD_PARAMETER;
 
     NSLOG(wisp, DEEPDEBUG, "base: \"%s\", rel: \"%s\"", nsurl_access(base), rel);

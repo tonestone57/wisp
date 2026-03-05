@@ -499,7 +499,7 @@ void html_finish_conversion(html_content *htmlc)
         /* Store timestamp on first delay */
         if (htmlc->font_wait_start_ms == 0) {
             nsu_getmonotonic_ms(&htmlc->font_wait_start_ms);
-            NSLOG(wisp, INFO, "Delaying box conversion - waiting for %d pending fonts (started at %llu ms)",
+            NSLOG(wisp, INFO, "Delaying box conversion - waiting for %d pending fonts (started at %" PRIu64 " ms)",
                 html_font_face_pending_count(), htmlc->font_wait_start_ms);
         }
         dom_node_unref(html);
@@ -512,7 +512,7 @@ void html_finish_conversion(html_content *htmlc)
         uint64_t now_ms;
         nsu_getmonotonic_ms(&now_ms);
         uint64_t delay_ms = now_ms - htmlc->font_wait_start_ms;
-        NSLOG(wisp, INFO, "Fonts ready! Box conversion delayed by %llu ms", delay_ms);
+        NSLOG(wisp, INFO, "Fonts ready! Box conversion delayed by %" PRIu64 " ms", delay_ms);
         htmlc->font_wait_start_ms = 0; /* Reset for next time */
     }
 
@@ -1275,6 +1275,10 @@ static void html_reformat(struct content *c, int width, int height)
     htmlc->unit_len_ctx.viewport_width = css_unit_device2css_px(INTTOFIX(width), htmlc->unit_len_ctx.device_dpi);
     htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
     htmlc->unit_len_ctx.root_style = htmlc->layout->style;
+
+    if (c->width != width || c->height != height) {
+        htmlc->layout->flags |= DIRTY;
+    }
 
     layout_document(htmlc, width, height);
     layout = htmlc->layout;

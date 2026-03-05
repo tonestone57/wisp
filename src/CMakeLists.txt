@@ -257,7 +257,7 @@ endif()
 # Add QuickJS-ng library
 list(APPEND WISP_COMMON_LIBS qjs)
 
-target_link_libraries(wisp ${WISP_COMMON_LIBS})
+target_link_libraries(wisp ${WISP_COMMON_LIBS} Threads::Threads)
 
 target_include_directories(wisp PRIVATE ${CMAKE_SOURCE_DIR}/contrib ${CMAKE_BINARY_DIR})
 

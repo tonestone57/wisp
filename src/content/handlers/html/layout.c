@@ -322,7 +322,7 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
     struct box *row_group, *row, *cell;
 
     /* check if the widths have already been calculated */
-    if (table->max_width != UNKNOWN_MAX_WIDTH)
+    if (table->max_width != UNKNOWN_MAX_WIDTH && !((table->flags & DIRTY) || (table->flags & CHILD_DIRTY)))
         return;
 
     if (table_calculate_column_types(&content->unit_len_ctx, table) == false) {
@@ -355,9 +355,6 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
             for (cell = row->children; cell; cell = cell->next) {
                 assert(cell->type == BOX_TABLE_CELL);
                 assert(cell->style);
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
                 assert(cell->columns != 0);
 
                 if (cell->columns != 1)
@@ -860,7 +857,7 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
     assert(inline_container->type == BOX_INLINE_CONTAINER);
 
     /* check if the widths have already been calculated */
-    if (inline_container->max_width != UNKNOWN_MAX_WIDTH)
+    if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
         return;
 
     *has_height = false;
@@ -915,7 +912,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         block->type == BOX_TABLE_CELL);
 
     /* check if the widths have already been calculated */
-    if (block->max_width != UNKNOWN_MAX_WIDTH)
+    if (block->max_width != UNKNOWN_MAX_WIDTH && !((block->flags & DIRTY) || (block->flags & CHILD_DIRTY)))
         return;
 
     if (block->style != NULL) {
@@ -1227,7 +1224,7 @@ void layout_minmax_box(struct box *box, const struct gui_layout_table *font_func
 {
 
     /* Check if already calculated */
-    if (box->max_width != UNKNOWN_MAX_WIDTH)
+    if (box->max_width != UNKNOWN_MAX_WIDTH && !((box->flags & DIRTY) || (box->flags & CHILD_DIRTY)))
         return;
 
     switch (box->type) {
@@ -1828,6 +1825,10 @@ static void layout_move_children(struct box *box, int x, int y)
 /* Documented in layout_internal.h */
 bool layout_table(struct box *table, int available_width, html_content *content)
 {
+    if (!(table->flags & DIRTY) && !(table->flags & CHILD_DIRTY)) {
+        return true;
+    }
+
     unsigned int columns = table->columns; /* total columns */
     unsigned int i;
     unsigned int *row_span;
@@ -2138,6 +2139,13 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table_height = border_spacing_v + table->padding[TOP];
     for (row_group = table->children; row_group; row_group = row_group->next) {
         int row_group_height = 0;
+
+        for (i = 0; i != columns; i++) {
+            row_span[i] = 0;
+            excess_y[i] = 0;
+            row_span_cell[i] = 0;
+        }
+
         for (row = row_group->children; row; row = row->next) {
             int row_height = 0;
 
@@ -2293,6 +2301,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
     table->width = table_width;
     table->height = table_height;
+
+    table->flags &= ~(DIRTY | CHILD_DIRTY);
 
     return true;
 }
@@ -3062,6 +3072,32 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
     NSLOG(layout, DEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
 
+    /* handle ::first-line style replacement */
+    if (indent && cont != NULL && cont->styles != NULL && cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE] != NULL) {
+        for (b = first; b; b = b->next) {
+            /* Save original style */
+            if (b->original_style == NULL) {
+                b->original_style = b->style;
+            }
+            /* We only want to apply FIRST_LINE style to boxes that are part of this line.
+             * The loop condition `x <= x1 - x0` stops when the line wraps. */
+            b->style = cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE];
+            if (b == split_box) {
+                break;
+            }
+        }
+    } else {
+        /* restore original style for subsequent lines if it was previously overridden */
+        for (b = first; b; b = b->next) {
+            if (b->original_style != NULL) {
+                b->style = b->original_style;
+            }
+            if (b == split_box) {
+                break;
+            }
+        }
+    }
+
     for (x = x_previous = 0, b = first; x <= x1 - x0 && b; b = b->next) {
 
         NSLOG(layout, DEBUG, "pass 2: b %p, x %i", b, x);
@@ -3425,6 +3461,10 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 static bool layout_inline_container(
     struct box *inline_container, int width, struct box *cont, int cx, int cy, html_content *content)
 {
+    if (!(inline_container->flags & DIRTY) && !(inline_container->flags & CHILD_DIRTY)) {
+        return true;
+    }
+
     bool first_line = true;
     bool has_text_children;
     struct box *c, *next;
@@ -3481,6 +3521,7 @@ static bool layout_inline_container(
         inline_container, inline_container->parent, inline_container->y, inline_container->height,
         inline_container->parent ? inline_container->parent->list_marker : NULL);
 
+    inline_container->flags &= ~(DIRTY | CHILD_DIRTY);
     return true;
 }
 
@@ -3499,6 +3540,10 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
     bool in_margin = false;
     css_fixed gadget_size;
     css_unit gadget_unit; /* Checkbox / radio buttons */
+
+    if (!(block->flags & DIRTY) && !(block->flags & CHILD_DIRTY)) {
+        return true;
+    }
 
     assert(block->type == BOX_BLOCK || block->type == BOX_INLINE_BLOCK || block->type == BOX_TABLE_CELL ||
         block->type == BOX_FLEX || block->type == BOX_GRID || block->type == BOX_INLINE_FLEX ||
@@ -4072,6 +4117,8 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
         textarea_set_layout(block->gadget->data.text.ta, &fstyle, ta_width, ta_height, block->padding[TOP],
             block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
     }
+
+    block->flags &= ~(DIRTY | CHILD_DIRTY);
 
     return true;
 }

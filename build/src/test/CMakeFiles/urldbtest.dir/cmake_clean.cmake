@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/urldbtest.dir/__/content/urldb.c.o"
+  "CMakeFiles/urldbtest.dir/__/content/urldb.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/bloom.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/bloom.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/corestrings.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/corestrings.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/hashtable.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/hashtable.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/http/generics.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/http/generics.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/http/primitives.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/http/primitives.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/http/strict-transport-security.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/http/strict-transport-security.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/idna.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/idna.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/messages.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/messages.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/nsoption.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/nsoption.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/nsurl/nsurl.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/nsurl/nsurl.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/nsurl/parse.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/nsurl/parse.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/punycode.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/punycode.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/time.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/time.c.o.d"
+  "CMakeFiles/urldbtest.dir/__/utils/utils.c.o"
+  "CMakeFiles/urldbtest.dir/__/utils/utils.c.o.d"
+  "CMakeFiles/urldbtest.dir/log.c.o"
+  "CMakeFiles/urldbtest.dir/log.c.o.d"
+  "CMakeFiles/urldbtest.dir/urldbtest.c.o"
+  "CMakeFiles/urldbtest.dir/urldbtest.c.o.d"
+  "urldbtest"
+  "urldbtest.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang C)
+  include(CMakeFiles/urldbtest.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()
