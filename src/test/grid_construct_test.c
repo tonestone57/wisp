@@ -109,6 +109,12 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_PRE;
+}
+
+
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
 {
     if (style == MOCK_STYLE_GRID)
@@ -282,6 +288,19 @@ char *talloc_strndup(const void *ctx, const char *p, size_t n)
 {
     return strndup(p, n);
 }
+
+
+void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
+{
+    return calloc(count, el_size);
+}
+
+int talloc_free(void *ptr)
+{
+    free(ptr);
+    return 0;
+}
+
 
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
