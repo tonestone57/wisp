@@ -224,7 +224,7 @@ Suite *layout_inline_grid_suite(void)
 {
     Suite *s = suite_create("layout_inline_grid");
     TCase *tc = tcase_create("core");
-    // tcase_add_test(tc, test_inline_grid_auto_width_fails_assert);
+    tcase_add_test(tc, test_inline_grid_auto_width_fails_assert);
     suite_add_tcase(s, tc);
     return s;
 }

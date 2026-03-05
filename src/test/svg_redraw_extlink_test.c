@@ -114,7 +114,7 @@ Suite *svg_extlink_suite(void)
 {
     Suite *s = suite_create("renderer_svg_extlink");
     TCase *tc = tcase_create("svg_extlink_chunking");
-    // tcase_add_test(tc, test_svg_extlink_chunking_fallback);
+    tcase_add_test(tc, test_svg_extlink_chunking_fallback);
     suite_add_tcase(s, tc);
     return s;
 }

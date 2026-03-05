@@ -70,7 +70,33 @@ JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, 
 {
     if (argc >= 2) {
         const char *type = JS_ToCString(ctx, argv[0]);
+        bool is_func = JS_IsFunction(ctx, argv[1]);
         NSLOG(wisp, INFO, "removeEventListener('%s')", type);
+
+        if (is_func) {
+            JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__listeners");
+            if (!JS_IsUndefined(listeners)) {
+                JSValue type_listeners = JS_GetPropertyStr(ctx, listeners, type);
+                if (!JS_IsUndefined(type_listeners)) {
+                    /* Since JS arrays don't have a simple 'remove value' function in standard JS without indexOf + splice,
+                       we'll just use filter. */
+                    const char *filter_script = "function(arr, fn) { return arr.filter(function(x) { return x !== fn; }); }";
+                    JSValue filter_func = JS_Eval(ctx, filter_script, strlen(filter_script), "<filter>", JS_EVAL_TYPE_GLOBAL);
+
+                    JSValue args[2] = { type_listeners, argv[1] };
+                    JSValue new_arr = JS_Call(ctx, filter_func, JS_UNDEFINED, 2, args);
+                    if (!JS_IsException(new_arr)) {
+                        JS_SetPropertyStr(ctx, listeners, type, new_arr);
+                    } else {
+                        JSValue exc = JS_GetException(ctx);
+                        JS_FreeValue(ctx, exc);
+                    }
+                    JS_FreeValue(ctx, filter_func);
+                }
+                JS_FreeValue(ctx, type_listeners);
+            }
+            JS_FreeValue(ctx, listeners);
+        }
         JS_FreeCString(ctx, type);
     }
     return JS_UNDEFINED;
