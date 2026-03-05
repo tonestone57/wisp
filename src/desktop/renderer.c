@@ -41,7 +41,12 @@ void wisp_renderer_main(const char *ipc_name) {
 
 
     struct task_queue *queue = NULL;
-    task_queue_init(&queue);
+    if (task_queue_init(&queue) != NSERROR_OK || !queue) {
+        NSLOG(wisp, ERROR, "Failed to initialize renderer task queue.");
+        ipc_close(conn);
+        return;
+    }
+
     extern void ipc_plotter_set_queue(struct task_queue *queue);
     ipc_plotter_set_queue(queue); // Hook up the serialization queue
 
