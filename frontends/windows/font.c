@@ -41,6 +41,9 @@
 
 #include "utils/hashmap.h"
 #include "windows/font.h"
+#include "windows/schedule.h"
+#include "windows/window.h"
+#include "wisp/browser_window.h"
 
 #ifdef WISP_WOFF_DECODE
 #include <zlib.h>
@@ -48,6 +51,15 @@
 
 #define SPLIT_CACHE_MAX_ENTRIES 16384
 #define WSTR_CACHE_MAX_BYTES (16 * 1024 * 1024)
+
+struct win32_loaded_font {
+    struct font_variant_id variant;
+    HANDLE handle;
+    char *internal_name;
+    struct win32_loaded_font *next;
+};
+
+static struct win32_loaded_font *win32_loaded_fonts = NULL;
 #define FONT_CACHE_MAX_ENTRIES 256
 #define FONT_MAP_MAX_ENTRIES 256
 
@@ -1235,6 +1247,8 @@ HFONT get_font(const plot_font_style_t *style)
         font = (HFONT)GetStockObject(SYSTEM_FONT);
     }
 
+
+
     return font;
 }
 
@@ -1493,6 +1507,19 @@ void win32_font_caches_flush(void)
     split_gen = 0;
 }
 
+#include "wisp/browser_window.h"
+#include "windows/window.h"
+
+/**
+ * Callback triggered after font loads (FOUT strategy).
+ */
+void win32_font_repaint_callback(void)
+{
+    NSLOG(wisp, INFO, "Font loaded, core will handle layout reflow correctly.");
+    /* The targeted reformat is handled by core layout via html_finish_conversion.
+     * No global windows EnumThreadWindows required! */
+}
+
 nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t *data, size_t size)
 {
     DWORD num_fonts = 0;
@@ -1564,7 +1591,84 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
     }
 
     win32_font_caches_flush();
+
+    struct win32_loaded_font *lf = malloc(sizeof(struct win32_loaded_font));
+    if (lf != NULL) {
+        lf->variant.family_name = strdup(id->family_name);
+        lf->variant.weight = id->weight;
+        lf->variant.style = id->style;
+        lf->handle = font_handle;
+        lf->internal_name = internal_name ? strdup(internal_name) : NULL;
+        lf->next = win32_loaded_fonts;
+        win32_loaded_fonts = lf;
+    }
+
+    /* We no longer manually schedule a global repaint here. The core engine
+     * correctly queues a redraw sequence if the html_font_face_set_done_callback
+     * is registered and active via win32_font_repaint_callback.
+     */
+
     return NSERROR_OK;
+}
+
+static void win32_free_font_data(const struct font_variant_id *id)
+{
+    struct win32_loaded_font *entry = win32_loaded_fonts;
+    struct win32_loaded_font *prev = NULL;
+
+    while (entry != NULL) {
+        if (entry->variant.weight == id->weight && entry->variant.style == id->style &&
+            strcasecmp(entry->variant.family_name, id->family_name) == 0) {
+
+            NSLOG(wisp, INFO, "Freeing GDI resources for web font '%s'", id->family_name);
+
+            if (entry->handle != NULL) {
+                RemoveFontMemResourceEx(entry->handle);
+            }
+
+            /* Remove mapping */
+            if (entry->internal_name != NULL) {
+                /* Actually we can't easily remove a single font map entry right now,
+                 * but it will just be ignored if the font is gone. */
+                free(entry->internal_name);
+            }
+
+            free(entry->variant.family_name);
+
+            if (prev != NULL) {
+                prev->next = entry->next;
+            } else {
+                win32_loaded_fonts = entry->next;
+            }
+
+            free(entry);
+            break;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+
+    win32_font_caches_flush();
+}
+
+void win32_font_fini(void)
+{
+    win32_font_caches_flush();
+
+    struct win32_loaded_font *entry = win32_loaded_fonts;
+    while (entry != NULL) {
+        struct win32_loaded_font *next = entry->next;
+        if (entry->handle != NULL) {
+            RemoveFontMemResourceEx(entry->handle);
+        }
+        if (entry->internal_name != NULL) {
+            free(entry->internal_name);
+        }
+        free(entry->variant.family_name);
+        free(entry);
+        entry = next;
+    }
+    win32_loaded_fonts = NULL;
 }
 
 
@@ -1574,6 +1678,7 @@ static struct gui_layout_table layout_table = {
     .position = win32_font_position,
     .split = win32_font_split,
     .load_font_data = html_font_face_load_data,
+    .free_font_data = win32_free_font_data,
 };
 
 struct gui_layout_table *win32_layout_table = &layout_table;

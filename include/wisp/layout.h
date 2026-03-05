@@ -117,6 +117,15 @@ struct gui_layout_table {
      * \return NSERROR_OK on success, or appropriate error code
      */
     nserror (*load_font_data)(const struct font_variant_id *id, const uint8_t *data, size_t size);
+
+    /**
+     * Notify the frontend to release resources associated with a font variant.
+     *
+     * This is called when the core destroys a font face.
+     *
+     * \param[in] id   Font variant identity
+     */
+    void (*free_font_data)(const struct font_variant_id *id);
 };
 
 #endif
