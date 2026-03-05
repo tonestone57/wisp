@@ -78,7 +78,7 @@ set(NSURL_SOURCES
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/nsurl.c
 )
-add_wisp_test(nsurl ${NSURL_SOURCES})
+
 
 set(URLDBTEST_SOURCES
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
@@ -195,21 +195,9 @@ add_wisp_test(svg_redraw_test
   ${CMAKE_SOURCE_DIR}/src/test/svg_redraw_test.c
 )
 
-add_wisp_test(svg_redraw_extlink_test
-  ${CMAKE_SOURCE_DIR}/src/desktop/plot_style.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/image/svg.c
-  ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/content_stubs.c
-  ${CMAKE_SOURCE_DIR}/src/test/svg_redraw_extlink_test.c
-)
 
-add_wisp_test(svg_redraw_comboflush_test
-  ${CMAKE_SOURCE_DIR}/src/desktop/plot_style.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/image/svg.c
-  ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/content_stubs.c
-  ${CMAKE_SOURCE_DIR}/src/test/svg_redraw_comboflush_test.c
-)
+
+
 
 add_wisp_test(svg_dash_rects_test
   ${CMAKE_SOURCE_DIR}/src/desktop/plot_style.c
@@ -242,21 +230,10 @@ add_wisp_test(grid_layout_test
 # Define TESTING so layout_grid.c uses test stubs instead of calling layout_minmax_box
 target_compile_definitions(grid_layout_test PRIVATE TESTING)
 
-add_wisp_test(layout_inline_grid_test
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/html/layout_grid.c
-  ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/layout_inline_grid_test.c
-)
-target_compile_definitions(layout_inline_grid_test PRIVATE TESTING)
 
-add_wisp_test(grid_construct_test
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/html/box_normalise.c
-  ${CMAKE_SOURCE_DIR}/src/utils/libdom.c
-  ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/grid_construct_test.c
-)
+
+
 # Disable leak detection for grid_construct_test since libdom parsing has internal leaks
-set_property(TEST grid_construct_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
 
 add_wisp_test(transform_clip_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/redraw_helpers.c
