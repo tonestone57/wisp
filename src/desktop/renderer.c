@@ -47,10 +47,6 @@ void wisp_renderer_main(const char *ipc_name) {
 
     // Main Renderer Event Loop
     while (true) {
-        enum ipc_message_type type;
-        void *data = NULL;
-        size_t len = 0;
-
         // Because UI bypasses accept for Phase 0.5, we don't block on socket read.
         // Instead we only read from the shared task_queue.
 
@@ -59,36 +55,12 @@ void wisp_renderer_main(const char *ipc_name) {
         if (task_queue_pop(queue, &func, &ctx) == NSERROR_OK) {
             if (func) func(ctx);
             // Simulate handling navigation internally
-            continue;
         } else {
 #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
             usleep(10000); // 10ms idle
 #else
             Sleep(10);
 #endif
-            continue; // Loop again
-        }
-
-        NSLOG(wisp, INFO, "Renderer received message type: %d, len: %zu", type, len);
-
-        switch (type) {
-            case IPC_MSG_NAVIGATE:
-                NSLOG(wisp, INFO, "Renderer: IPC_MSG_NAVIGATE received.");
-                // In a real implementation this would deserialize URL and parse/layout it.
-                // We simulate it by creating a dummy plotter response task.
-                if (data && len > 0) {
-                    char *url = strndup((char*)data, len);
-                    NSLOG(wisp, INFO, "Renderer: Navigating to %s", url);
-                    free(url);
-                }
-                break;
-            default:
-                NSLOG(wisp, WARNING, "Renderer: Unknown IPC message type %d", type);
-                break;
-        }
-
-        if (data) {
-            free(data);
         }
     }
 

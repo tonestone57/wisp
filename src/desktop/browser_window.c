@@ -2921,6 +2921,11 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
         return NSERROR_BAD_PARAMETER;
     }
 
+    if (nsoption_bool(multi_process)) {
+        extern const struct plotter_table ipc_plotter;
+        // Actually assign the plotter down below where it makes sense, but window has no plot member yet, maybe gui_window does. We will skip assigning to window.
+    }
+
     if (url != NULL) {
         enum browser_window_nav_flags nav_flags;
         nav_flags = BW_NAVIGATE_NO_TERMINAL_HISTORY_UPDATE;
