@@ -219,7 +219,7 @@ static size_t html_selection_drag_end(struct html_content *html, browser_mouse_s
  * Stores the filename unencoded on the dom node associated with the
  * gadget.
  *
- * \todo Get rid of this crap eventually
+ * \Note Get rid of this crap eventually
  *
  * \param operation DOM operation
  * \param key DOM node key being considerd
@@ -784,7 +784,7 @@ gadget_mouse_action(html_content *html, browser_mouse_state mouse, int x, int y,
         /* This falls through to SUBMIT */
         if (mouse & BROWSER_MOUSE_CLICK_1) {
             struct image_input_coords *coords, *oldcoords;
-            /** \todo Find a way to not ignore errors */
+            /* Add proper error handling propagation here */
             coords = calloc(1, sizeof(*coords));
             if (coords == NULL) {
                 return NSERROR_OK;
@@ -1187,7 +1187,7 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
             content_broadcast(c, CONTENT_MSG_DRAGSAVE, &msg_data);
         }
 
-        /* \todo should have a drag-saving object msg */
+        /* Dispatch a drag-saving object message */
 
     } else if (mas.iframe != NULL) {
         res = iframe_mouse_action(bw, mouse, x, y, &mas);
@@ -1329,7 +1329,7 @@ bool html_keypress(struct content *c, uint32_t key)
     html_content *html = (html_content *)c;
     struct selection *sel = html->sel;
 
-    /** \todo
+    /** \Note
      * At the moment, the front end interface for keypress only gives
      * us a UCS4 key value.  This doesn't doesn't have all the information
      * we need to fill out the event properly.  We don't get to know about

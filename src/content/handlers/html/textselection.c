@@ -144,10 +144,7 @@ coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct 
             int width, height;
             int x, y;
 
-            /**
-             * \todo it should be possible to reduce the redrawn
-             *        area using the offsets
-             */
+            /* Note: It should be possible to reduce the redrawn area by tracking matched selection endpoints. */
             box_coords(box, &x, &y);
 
             width = box->padding[LEFT] + box->width + box->padding[RIGHT];

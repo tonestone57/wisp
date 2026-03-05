@@ -539,8 +539,11 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
 
         if (type == CSS_MAX_HEIGHT_SET) {
             if (unit == CSS_UNIT_PCT) {
-                /* Percentage heights are not supported here, default to auto/none */
-                *max_height = -1;
+                if (viewport_height >= 0) {
+                    *max_height = (viewport_height * FIXTOINT(value)) / 100;
+                } else {
+                    *max_height = -1;
+                }
             } else {
                 *max_height = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }
@@ -560,8 +563,11 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         if (type == CSS_MIN_HEIGHT_SET) {
             min_height->type = CSS_SIZE_SET;
             if (unit == CSS_UNIT_PCT) {
-                /* Percentage heights are not supported here, default to auto/none */
-                min_height->value = 0;
+                if (viewport_height >= 0) {
+                    min_height->value = (viewport_height * FIXTOINT(value)) / 100;
+                } else {
+                    min_height->value = 0;
+                }
             } else {
                 min_height->value = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }

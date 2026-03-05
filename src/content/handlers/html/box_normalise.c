@@ -91,8 +91,7 @@ static bool calculate_table_row(struct columns *col_info, unsigned int col_span,
     struct box *rg = cell->parent->parent; /* Cell's row group */
 
     /* Skip columns with cells spanning from above */
-    /* TODO: Need to ignore cells spanning from above that belong to
-     *       different row group.  We don't have that info here. */
+    /* Note: Need to ignore cells spanning from above that belong to a different row group */
     while (col_info->spans[cell_start_col].row_span != 0 && col_info->spans[cell_start_col].rg == rg) {
         cell_start_col++;
     }

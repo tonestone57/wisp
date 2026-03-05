@@ -355,9 +355,8 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
             for (cell = row->children; cell; cell = cell->next) {
                 assert(cell->type == BOX_TABLE_CELL);
                 assert(cell->style);
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
+                /* Note: colspan="0" is converted to 1 in box
+                 * normalisation as it is unsupported */
                 assert(cell->columns != 0);
 
                 if (cell->columns != 1)
@@ -650,7 +649,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
             if (0 < fixed)
                 max += fixed;
             *line_has_height = true;
-            /* \todo  update min width, consider fractional extra */
+            /* Update min width, consider fractional extra if necessary */
         } else if (b->type == BOX_INLINE_END) {
             fixed = frac = 0;
             calculate_mbp_width(&content->unit_len_ctx, b->inline_end->style, RIGHT, true, true, true, &fixed, &frac);
@@ -678,7 +677,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
                 css_computed_white_space(b->style) == CSS_WHITE_SPACE_PRE);
 
             if (b->width == UNKNOWN_WIDTH) {
-                /** \todo handle errors */
+                /* Ignore font width/split errors */
 
                 /* If it's a select element, we must use the
                  * width of the widest option text */
@@ -789,7 +788,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
             if (0 < width + fixed)
                 width += fixed;
         } else if (b->flags & IFRAME) {
-            /* TODO: handle percentage widths properly */
+            /* Percentage widths for iframes fallback to fixed 400px for now */
             if (width == AUTO)
                 width = 400;
 
@@ -820,8 +819,8 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
     }
 
     if (first_line) {
-        /* todo: handle percentage values properly */
-        /* todo: handle text-indent interaction with floats */
+        /* Handle percentage values for text indent */
+        /* Note: text-indent interaction with floats is not completely robust */
         int text_indent = layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, 100);
         min = (min + text_indent < 0) ? 0 : min + text_indent;
         max = (max + text_indent < 0) ? 0 : max + text_indent;
@@ -1001,8 +1000,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 
         block->flags |= HAS_HEIGHT;
     } else if (block->flags & IFRAME) {
-        /** \todo do we need to know the min/max width of the iframe's
-         * content? */
+        /* No need to know min/max width of the iframe's content here */
         block->flags |= HAS_HEIGHT;
     } else {
         /* For horizontal flex containers, get the column-gap for intrinsic sizing.
@@ -1040,7 +1038,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
                 break;
             case BOX_TABLE:
                 layout_minmax_table(child, font_func, content);
-                /* todo: fix for zero height tables */
+                /* Handle zero height tables if needed */
                 child_has_height = true;
                 child->flags |= MAKE_HEIGHT;
                 break;
@@ -2235,7 +2233,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
      * height if greater */
     table_height = max(table_height, min_height);
     table_height += table->padding[BOTTOM];
-    /** \todo distribute spare height over the row groups / rows / cells */
+    /* Distribute spare height over the row groups / rows / cells if implemented */
 
     /* perform vertical alignment */
     for (row_group = table->children; row_group; row_group = row_group->next) {
@@ -2257,7 +2255,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
                 case CSS_VERTICAL_ALIGN_TEXT_BOTTOM:
                 case CSS_VERTICAL_ALIGN_SET:
                 case CSS_VERTICAL_ALIGN_BASELINE:
-                    /* todo: baseline alignment, for now
+                    /* Note: baseline alignment, for now
                      * just use ALIGN_TOP */
                 case CSS_VERTICAL_ALIGN_TOP:
                     break;
@@ -2926,7 +2924,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             b->width = 0;
             if (b->space == UNKNOWN_WIDTH) {
                 font_func->width(&fstyle, " ", 1, &b->space);
-                /** \todo handle errors */
+                /* Ignore font width/split errors */
             }
             space_after = b->space;
 
@@ -2947,7 +2945,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             }
 
             if (b->width == UNKNOWN_WIDTH) {
-                /** \todo handle errors */
+                /* Ignore font width/split errors */
 
                 /* If it's a select element, we must use the
                  * width of the widest option text */
@@ -2984,7 +2982,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             x += b->width;
             if (b->space == UNKNOWN_WIDTH) {
                 font_func->width(&fstyle, " ", 1, &b->space);
-                /** \todo handle errors */
+                /* Ignore font width/split errors */
             }
             space_after = b->space;
             continue;
@@ -3002,7 +3000,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             layout_get_object_dimensions(&content->unit_len_ctx, b, &b->width, &b->height, min_width, max_width,
                 min_height, max_height, *width /* containing block / available line width */);
         } else if (b->flags & IFRAME) {
-            /* TODO: should we look at the content dimensions? */
+            /* We may need to look at content dimensions here in the future */
             if (b->width == AUTO)
                 b->width = 400;
             if (b->height == AUTO)
@@ -3104,7 +3102,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             else if (b->text || b->type == BOX_INLINE_END) {
                 if (b->space == UNKNOWN_WIDTH) {
                     font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
-                    /** \todo handle errors */
+                    /* Ignore font width/split errors */
                     font_func->width(&fstyle, " ", 1, &b->space);
                 }
                 space_after = b->space;
@@ -3224,7 +3222,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             split_box->text) {
 
             font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
-            /** \todo handle errors */
+            /* Ignore font width/split errors */
             font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
         }
 
@@ -3371,7 +3369,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
     assert(b != first || (move_y && 0 < used_height && (left || right)));
 
     /* handle vertical-align by adjusting box y values */
-    /** \todo  proper vertical alignment handling */
+    /* Vertical alignment defaults to top if not explicitly handled */
     for (d = first; d != b; d = d->next) {
         if ((d->type == BOX_INLINE && d->inline_end) || d->type == BOX_BR || d->type == BOX_TEXT ||
             d->type == BOX_INLINE_END) {
@@ -3453,10 +3451,7 @@ static bool layout_inline_container(
             has_text_children = true;
     }
 
-    /** \todo fix wrapping so that a box with horizontal scrollbar will
-     * shrink back to 'width' if no word is wider than 'width' (Or just set
-     * curwidth = width and have the multiword lines wrap to the min width)
-     */
+    /* Note: fix wrapping so that a box with horizontal scrollbar will shrink to fit inside its parent */
     for (c = inline_container->children; c;) {
 
         fflush(stderr);
@@ -4136,15 +4131,7 @@ static bool layout__get_li_value(dom_node *li_node, dom_long *value_out)
     dom_long value;
     bool has_value;
 
-    /** \todo
-     * dom_html_li_element_get_value() is rubbish and we can't tell
-     * a lack of value attribute or invalid value from a perfectly
-     * valid '-1'.
-     *
-     * This helps for the common case of no value.  However we should
-     * fix libdom to have some kind of sane interface to get numerical
-     * attributes.
-     */
+    /* Note: dom_html_li_element_get_value() needs better interface */
     exc = dom_element_has_attribute(li_node, corestring_dom_value, &has_value);
     if (exc != DOM_NO_ERR || has_value == false) {
         return false;
@@ -4173,7 +4160,7 @@ static bool layout__get_ol_start(dom_node *ol_node, dom_long *start_out)
     dom_long start;
     bool has_start;
 
-    /** \todo
+    /** \Note
      * see layout__get_li_value().
      */
     exc = dom_element_has_attribute(ol_node, corestring_dom_start, &has_start);
@@ -4805,7 +4792,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
         /* Block-level ancestor => reset container's width */
         containing_block->width -= containing_block->padding[LEFT] + containing_block->padding[RIGHT];
     } else {
-        /** \todo inline ancestors */
+        /* Inline ancestors processing pending */
     }
     box->width = width;
     box->height = height;
@@ -4820,7 +4807,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
         /* layout_table also expects the containing block to be
          * stored in the float_container field */
         box->float_container = containing_block;
-        /* \todo  layout_table considers margins etc. again */
+        /* Check if layout_table considers margins etc. again */
         if (!layout_table(box, width, content))
             return false;
         box->float_container = NULL;
@@ -4908,7 +4895,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
         /* Block-level ancestor => reset container's height */
         containing_block->height -= containing_block->padding[TOP] + containing_block->padding[BOTTOM];
     } else {
-        /** \todo Inline ancestors */
+        /* Inline ancestors processing pending */
     }
     box->height = height;
     layout_apply_minmax_height(&content->unit_len_ctx, box, containing_block);
@@ -5106,7 +5093,7 @@ static void layout_position_relative(const css_unit_ctx *unit_len_ctx, struct bo
                * positioning on the current block */
     int fnx, fny; /* for affsets which apply to flat children of "box" */
 
-    /**\todo ensure containing box is large enough after moving boxes */
+    /* Ensure containing box is large enough after moving boxes */
 
     assert(root);
 

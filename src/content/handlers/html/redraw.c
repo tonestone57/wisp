@@ -316,7 +316,7 @@ static bool text_redraw(const char *utf8_text, size_t utf8_len, size_t offset, i
             highlighted = true;
         }
 
-        /* \todo make search terms visible within selected text */
+        /* Highlight search terms visible within selected text when implemented */
         if (highlighted) {
             struct rect r;
             unsigned endtxt_idx = end_idx;

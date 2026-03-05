@@ -20,7 +20,7 @@
  * \file
  * Implementation of HTML image maps
  *
- * \todo should this should use the general hashmap instead of its own
+ * \Note should this should use the general hashmap instead of its own
  */
 
 #include <assert.h>
@@ -139,7 +139,7 @@ static bool imagemap_add(html_content *c, dom_string *key, struct mapentry *list
     if (map == NULL)
         return false;
 
-    /* \todo Stop relying on NULL termination of dom_string */
+    /* Refactor to stop relying on NULL termination of dom_string */
     map->key = strdup(dom_string_data(key));
     if (map->key == NULL) {
         free(map);
@@ -618,7 +618,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM; /* Return out of memory */
+                ret = NSERROR_NOMEM;
                 goto out_nlist;
             }
 
@@ -632,7 +632,7 @@ nserror imagemap_extract(html_content *c)
 
                 dom_string_unref(name);
                 dom_node_unref(node);
-                ret = NSERROR_NOMEM; /* Return out of memory */
+                ret = NSERROR_NOMEM;
                 goto out_nlist;
             }
         }

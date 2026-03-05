@@ -435,9 +435,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     if (exc != DOM_NO_ERR || href == NULL)
         return true;
 
-    /* TODO: only the first preferred stylesheets (ie.
-     * those with a title attribute) should be loaded
-     * (see HTML4 14.3) */
+    /* HTML4 14.3: only the first preferred stylesheets (with title) should be loaded */
 
     ns_error = nsurl_join(htmlc->base_url, dom_string_data(href), &joined);
     if (ns_error != NSERROR_OK) {
@@ -667,9 +665,7 @@ nserror html_css_new_selection_context(html_content *c, css_select_ctx **ret_sel
         css_origin origin = CSS_ORIGIN_AUTHOR;
 
         /* Filter out stylesheets for non-screen media. */
-        /* TODO: We should probably pass the sheet in anyway, and let
-         *       libcss handle the filtering.
-         */
+        /* Ideally we should pass the sheet in anyway, and let libcss handle the filtering. */
         if (hsheet->unused) {
             continue;
         }
@@ -685,9 +681,7 @@ nserror html_css_new_selection_context(html_content *c, css_select_ctx **ret_sel
         }
 
         if (sheet != NULL) {
-            /* TODO: Pass the sheet's full media query, instead of
-             *       "screen".
-             */
+            /* Pass the sheet's full media query, instead of just "screen". */
             css_ret = css_select_ctx_append_sheet(select_ctx, sheet, origin, "screen");
             if (css_ret != CSS_OK) {
                 css_select_ctx_destroy(select_ctx);

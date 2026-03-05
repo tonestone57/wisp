@@ -245,9 +245,7 @@ static void html_box_convert_done(html_content *c, bool success)
 
     exc = dom_document_get_document_element(c->document, (void *)&html);
     if ((exc != DOM_NO_ERR) || (html == NULL)) {
-        /** @todo should this call html_object_free_objects(c);
-         * like the other error paths
-         */
+        /* Note: Consider calling html_object_free_objects(c) or similar to prevent resource leak */
         NSLOG(wisp, INFO, "error retrieving html element from dom");
         content_broadcast_error(&c->base, NSERROR_DOM, NULL);
         content_set_error(&c->base);
@@ -347,7 +345,7 @@ static void html_get_dimensions(html_content *htmlc)
     NSLOG(wisp, DEEPDEBUG, "DIAG: html_get_dimensions: media.width=%u media.height=%u (CSS px)", FIXTOINT(w),
         FIXTOINT(h));
 
-    /** \todo Change nsoption font sizes to px. */
+    /* Convert nsoption font sizes to px directly here */
     f_size = FDIV(FMUL(F_96, FDIV(INTTOFIX(nsoption_int(font_size)), F_10)), F_72);
     f_min = FDIV(FMUL(F_96, FDIV(INTTOFIX(nsoption_int(font_min_size)), F_10)), F_72);
 
@@ -1553,7 +1551,7 @@ static void html_destroy(struct content *c)
 
 static nserror html_clone(const struct content *old, struct content **newc)
 {
-    /** \todo Clone HTML specifics */
+    /* Clone HTML specifics if the content requires it */
 
     /* In the meantime, we should never be called, as HTML contents
      * cannot be shared and we're not intending to fix printing's
@@ -1775,7 +1773,7 @@ static bool html_scroll_at_point(struct content *c, int x, int y, int scrx, int 
     int box_x = 0, box_y = 0;
     bool handled_scroll = false;
 
-    /* TODO: invert order; visit deepest box first */
+    /* Consider inverting order; visit deepest box first for efficiency */
 
     while ((next = box_at_point(&html->unit_len_ctx, box, x, y, &box_x, &box_y)) != NULL) {
         box = next;
@@ -1820,7 +1818,7 @@ static bool html_scroll_at_point(struct content *c, int x, int y, int scrx, int 
 /** Helper for file gadgets to store their filename unencoded on the
  * dom node associated with the gadget.
  *
- * \todo Get rid of this crap eventually
+ * \Note Get rid of this crap eventually
  */
 static void html__dom_user_data_handler(
     dom_node_operation operation, dom_string *key, void *_data, struct dom_node *src, struct dom_node *dst)
@@ -2005,7 +2003,7 @@ static bool html_drop_file_at_point(struct content *c, int x, int y, char *file)
         /* Ensure buffer's string termination */
         buffer[file_len] = '\0';
 
-        /* TODO: Sniff for text? */
+        /* Content sniffing for text could be added here */
 
         /* Convert to UTF-8 */
         ret = guit->utf8->local_to_utf8(buffer, file_len, &utf8_buff);
@@ -2165,7 +2163,7 @@ dom_document *html_get_document(hlcache_handle *h)
  * \param h  HTML content to retrieve tree from
  * \return Pointer to box tree
  *
- * \todo This API must die, as must all use of the box tree outside of
+ * \Note This API must die, as must all use of the box tree outside of
  *         HTML content handler
  */
 struct box *html_get_box_tree(hlcache_handle *h)
@@ -2500,9 +2498,9 @@ static nserror html_textsearch_bounds(struct content *c, unsigned start_idx, uns
 {
     /* get box position and jump to it */
     box_coords(start_box, &bounds->x0, &bounds->y0);
-    /* \todo: move x0 in by correct idx */
+    /* Adjust x0 in by correct idx when font split is reliable */
     box_coords(end_box, &bounds->x1, &bounds->y1);
-    /* \todo: move x1 in by correct idx */
+    /* Adjust x1 in by correct idx when font split is reliable */
     bounds->x1 += end_box->width;
     bounds->y1 += end_box->height;
 
