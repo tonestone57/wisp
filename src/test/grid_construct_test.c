@@ -260,6 +260,17 @@ void *_talloc_zero(const void *ctx, size_t size, const char *name)
     return calloc(1, size);
 }
 
+void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
+{
+    return calloc(count, el_size);
+}
+
+int talloc_free(void *ptr)
+{
+    free(ptr);
+    return 0;
+}
+
 /* Minimal strndup implementation for Windows */
 char *strndup(const char *s, size_t n)
 {
