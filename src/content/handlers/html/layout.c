@@ -695,6 +695,15 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
                     if (nsoption_bool(core_select_menu))
                         b->width += SCROLLBAR_WIDTH;
 
+                } else if (b->text && b->length == 1 && b->text[0] == '\t') {
+                    int tab_size = 8; /* Default tab-size */
+                    int space_w = b->space;
+                    if (space_w == UNKNOWN_WIDTH) {
+                        font_func->width(&fstyle, " ", 1, &space_w);
+                    }
+                    /* For min/max width, use maximum possible tab width */
+                    b->width = tab_size * space_w;
+                    b->flags |= MEASURED;
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                     b->flags |= MEASURED;
@@ -2975,6 +2984,19 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
                     b->width = opt_maxwidth;
                     if (nsoption_bool(core_select_menu))
                         b->width += SCROLLBAR_WIDTH;
+                } else if (b->text && b->length == 1 && b->text[0] == '\t') {
+                    int tab_size = 8;
+                    int space_w = b->space;
+                    if (space_w == UNKNOWN_WIDTH) {
+                        font_func->width(&fstyle, " ", 1, &space_w);
+                    }
+                    int tab_width = tab_size * space_w;
+                    if (tab_width > 0) {
+                        b->width = tab_width - (x % tab_width);
+                    } else {
+                        b->width = 0;
+                    }
+                    b->flags |= MEASURED;
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                     b->flags |= MEASURED;
@@ -2987,7 +3009,21 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
              * correctly and to detect overflow (the estimate can be
              * wrong for variable-width fonts and Unicode text). */
             if (b->text && (x + b->width < x1 - x0) && !(b->flags & MEASURED)) {
-                font_func->width(&fstyle, b->text, b->length, &b->width);
+                if (b->length == 1 && b->text[0] == '\t') {
+                    int tab_size = 8;
+                    int space_w = b->space;
+                    if (space_w == UNKNOWN_WIDTH) {
+                        font_func->width(&fstyle, " ", 1, &space_w);
+                    }
+                    int tab_width = tab_size * space_w;
+                    if (tab_width > 0) {
+                        b->width = tab_width - (x % tab_width);
+                    } else {
+                        b->width = 0;
+                    }
+                } else {
+                    font_func->width(&fstyle, b->text, b->length, &b->width);
+                }
                 b->flags |= MEASURED;
             }
 
@@ -3113,6 +3149,22 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             x_previous = x;
             x += space_after;
             b->x = x;
+
+            if (b->text && b->length == 1 && b->text[0] == '\t') {
+                /* Calculate tab width based on current x offset */
+                int tab_size = 8; /* Default tab-size */
+                int space_w = b->space;
+                if (space_w == UNKNOWN_WIDTH) {
+                    font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
+                    font_func->width(&fstyle, " ", 1, &space_w);
+                }
+                int tab_width = tab_size * space_w;
+                if (tab_width > 0) {
+                    b->width = tab_width - (x % tab_width);
+                } else {
+                    b->width = 0;
+                }
+            }
 
             if ((b->type == BOX_INLINE && !b->inline_end) || b->type == BOX_INLINE_BLOCK ||
                 b->type == BOX_INLINE_FLEX || b->type == BOX_INLINE_GRID) {
@@ -3261,7 +3313,12 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
             font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
             /** \todo handle errors */
-            font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+            if (split_box->length == 1 && split_box->text[0] == '\t') {
+                /* A tab shouldn't be split */
+                split = 0;
+            } else {
+                font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+            }
         }
 
         /* split == 0 implies that text can't be split */

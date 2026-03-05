@@ -47,6 +47,8 @@ css_fixed nscss_screen_dpi = 0;
 #include "wisp/utf8.h"
 #include "wisp/utils/nsoption.h"
 
+#include "utils/talloc.h"
+
 /* Mock corestrings (Must be visible before mocks uses them) */
 #include "wisp/utils/corestrings.h"
 struct dom_string *corestring_dom_id;
@@ -152,6 +154,16 @@ uint8_t css_computed_background_image(const css_computed_style *style, lwc_strin
     return CSS_BACKGROUND_IMAGE_NONE;
 }
 
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
+
+uint8_t css_computed_text_transform(const css_computed_style *style)
+{
+    return CSS_TEXT_TRANSFORM_NONE;
+}
+
 css_computed_style *
 nscss_get_blank_style(nscss_select_ctx *ctx, const css_unit_ctx *unit_len_ctx, const css_computed_style *parent_style)
 {
@@ -191,7 +203,7 @@ void box_free(struct box *box)
     }
     /* Free text if any */
     if (box->text) {
-        free(box->text);
+        talloc_free(box->text);
     }
     free(box);
 }
@@ -254,28 +266,6 @@ char *squash_whitespace(const char *s)
 {
     return strdup(s);
 }
-
-
-
-/* Minimal strndup implementation for Windows */
-char *strndup(const char *s, size_t n)
-{
-    size_t len;
-    char *s2;
-
-    for (len = 0; len != n && s[len]; len++)
-        continue;
-
-    s2 = malloc(len + 1);
-    if (!s2)
-        return NULL;
-
-    memcpy(s2, s, len);
-    s2[len] = 0;
-    return s2;
-}
-
-
 
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
@@ -431,6 +421,7 @@ START_TEST(test_grid_construction)
     /* Setup Helper Strings */
 #define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
     INIT_STR(corestring_dom_id, "id");
+    INIT_STR(corestring_dom_class, "class");
     INIT_STR(corestring_dom_title, "title");
     INIT_STR(corestring_dom_style, "style");
     INIT_STR(corestring_dom_colspan, "colspan");
