@@ -108,7 +108,7 @@ static void html_object_done(struct box *box, hlcache_handle *object, bool backg
         box->type = BOX_BLOCK;
         break;
     default:
-        /* Evaluate if any other box types need mapping here */
+        /* TODO: Any other box types need mapping? */
         break;
     }
 
@@ -204,7 +204,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
             content_can_reformat(object), box->max_width != UNKNOWN_MAX_WIDTH ? box->width : 0,
             box->max_width != UNKNOWN_MAX_WIDTH ? box->height : 0);
         if (content_can_reformat(object)) {
-            /* Refactor to avoid knowledge of box internals here */
+            /* TODO: avoid knowledge of box internals here */
             content_reformat(object, false, box->max_width != UNKNOWN_MAX_WIDTH ? box->width : 0,
                 box->max_width != UNKNOWN_MAX_WIDTH ? box->height : 0);
 
@@ -683,7 +683,7 @@ static void html_object_refresh(void *p)
     content_invalidate_reuse_data(object->content);
 
     if (!html_replace_object(object, refresh_url)) {
-        /* Return error on memory exhaustion */
+        /** \todo handle memory exhaustion */
     }
 }
 

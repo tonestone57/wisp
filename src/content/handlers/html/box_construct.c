@@ -375,7 +375,7 @@ static struct box *create_content_box(
 
     case CSS_COMPUTED_CONTENT_COUNTER: {
         /* Counter - would need counter state tracking.
-         * Note: Implement counter support */
+         * TODO: Implement counter support */
         NSLOG(wisp, DEEPDEBUG, "create_content_box: COUNTER (not implemented)");
         box = NULL;
         break;
@@ -383,7 +383,7 @@ static struct box *create_content_box(
 
     case CSS_COMPUTED_CONTENT_COUNTERS: {
         /* Nested counters with separator
-         * Note: Implement counters support */
+         * TODO: Implement counters support */
         NSLOG(wisp, DEEPDEBUG, "create_content_box: COUNTERS (not implemented)");
         box = NULL;
         break;
@@ -429,7 +429,7 @@ static struct box *create_content_box(
     case CSS_COMPUTED_CONTENT_CLOSE_QUOTE: {
         /* Quote characters - would need to check 'quotes' property.
          * Default quotes are typically " and '
-         * Note: Implement proper quote handling with nesting level */
+         * TODO: Implement proper quote handling with nesting level */
         const char *quote;
         if (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE) {
             quote = "\""; /* Default open quote */
@@ -643,8 +643,7 @@ static void box_construct_generate(dom_node *n, html_content *content, struct bo
     /* create box for this element */
     computed_display = ns_computed_display(style, box_is_root(n));
 
-    /* Dropping const via cast to avoid warning */
-    gen = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+    gen = box_create(NULL, (css_computed_style *)(void *)style, false, NULL, NULL, NULL, NULL, content->bctx);
     if (gen == NULL) {
         return;
     }
@@ -740,7 +739,7 @@ static void box_construct_generate(dom_node *n, html_content *content, struct bo
                     }
                 }
             }
-            /* Handle CSS_COMPUTED_CONTENT_URI for images when fetcher is ready */
+            /* TODO: Handle CSS_COMPUTED_CONTENT_URI for images */
             c_item++;
         }
     }
@@ -770,7 +769,7 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
 
     list_style_type = css_computed_list_style_type(box->style);
 
-    /* Render marker content (list-style-type) correctly */
+    /** \todo marker content (list-style-type) */
     switch (list_style_type) {
     case CSS_LIST_STYLE_TYPE_DISC:
         /* 2022 BULLET */
@@ -804,7 +803,10 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
         nsurl *url;
         nserror error;
 
-        /* Note: we get a url out of libcss as a lwc string, but nsurl wants a char*. */
+        /* TODO: we get a url out of libcss as a lwc string, but
+         *       earlier we already had it as a nsurl after we
+         *       nsurl_joined it.  Can this be improved?
+         *       For now, just making another nsurl. */
         error = nsurl_create(lwc_string_data(image_uri), &url);
         if (error != NSERROR_OK)
             return false;
@@ -1142,7 +1144,16 @@ static void box_construct_element_after(dom_node *n, html_content *content)
 
     box_extract_properties(n, &props);
 
-    /* Note: Handle ::before pseudo-element for inline boxes. For now, we just ignore it. */
+    /* TODO: Handle ::before pseudo-element for inline boxes.
+     * This is disabled for now because:
+     * 1. It only handles STRING content, not URI/COUNTER/ATTR/etc.
+     * 2. The layout code needs more work to properly handle styled BOX_TEXT.
+     *
+     * Proper implementation requires:
+     * - Handle all content types (STRING, URI, COUNTER, ATTR, quotes)
+     * - Use BOX_INLINE wrapper for margins to work correctly
+     * - Normalization flattens children to siblings in correct order
+     */
     if (box->type == BOX_INLINE && !(box->flags & IS_REPLACED) && box->styles != NULL &&
         box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE] != NULL) {
         const css_computed_style *before_style = box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE];
@@ -1505,8 +1516,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
             box_add_child(props.containing_block, props.inline_container);
         }
 
-        /* Dropping const via cast to avoid warning */
-        box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target, props.title,
+        box = box_create(NULL, (css_computed_style *)(void *)props.parent_style, false, props.href, props.target, props.title,
             NULL, ctx->bctx);
         if (box == NULL) {
             free(text);
@@ -1562,7 +1572,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
         memcpy(text, dom_string_data(content), text_len);
         text[text_len] = '\0';
 
-        /* Handle tabs properly for preformatted text */
+        /* TODO: Handle tabs properly */
         for (i = 0; i < text_len; i++)
             if (text[i] == '\t')
                 text[i] = ' ';
@@ -1610,8 +1620,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
                 box_add_child(props.containing_block, props.inline_container);
             }
 
-            /* Dropping const via cast to avoid warning */
-            box = box_create(NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
+            box = box_create(NULL, (css_computed_style *)(void *)props.parent_style, false, props.href, props.target,
                 props.title, NULL, ctx->bctx);
             if (box == NULL) {
                 free(text);
@@ -1743,7 +1752,7 @@ static void convert_xml_to_box(void *p)
             root.children = root.last = ctx->root_box;
             root.children->parent = &root;
 
-            /* box_normalise_block should be removed when layout structure is flattened */
+            /** \todo Remove box_normalise_block */
             if (box_normalise_block(&root, ctx->root_box, (struct html_content *)ctx->content) == false) {
                 NSLOG(wisp, WARNING, "box_normalise_block failed");
                 ctx->cb(ctx->content, false);

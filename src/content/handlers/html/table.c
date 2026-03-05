@@ -136,7 +136,7 @@ static bool table_border_is_more_eyecatching(
     /* 4a -- sort by origin */
     impact = 0;
 
-    /* Implement COL/COL_GROUP styling */
+    /** \todo COL/COL_GROUP */
     switch (a_src) {
     case BOX_TABLE_CELL:
         impact++; /* Fall through */
@@ -150,7 +150,7 @@ static bool table_border_is_more_eyecatching(
         break;
     }
 
-    /* Implement COL/COL_GROUP styling */
+    /** \todo COL/COL_GROUP */
     switch (b_src) {
     case BOX_TABLE_CELL:
         impact--; /* Fall through */
@@ -170,7 +170,7 @@ static bool table_border_is_more_eyecatching(
         return false;
 
     /* 4b -- furthest left (if direction: ltr) and towards top wins */
-    /* Assuming b satisfies this condition for now */
+    /** \todo Currently assumes b satisifies this */
     return true;
 }
 
@@ -375,7 +375,7 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
     struct border a, b;
     box_type a_src, b_src;
 
-    /* Implement column and column_group spacing */
+    /** \todo Need column and column_group, too */
 
     /* Initialise to computed left border for cell */
     a.style = css_computed_border_left_style(cell->style);
@@ -443,7 +443,7 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
             row = row->next;
         }
 
-        /* Check if cells span row groups */
+        /** \todo can cells span row groups? */
 
         /* Row group -- consider its left border */
         b.style = css_computed_border_left_style(group->style);
@@ -578,7 +578,7 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
     struct border a, b;
     box_type a_src, b_src;
 
-    /* Implement column and column_group spacing */
+    /** \todo Need column and column_group, too */
 
     /* Initialise to computed right border for cell */
     a.style = css_computed_border_right_style(cell->style);
@@ -617,7 +617,7 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
             row = row->next;
         }
 
-        /* Check if cells span row groups */
+        /** \todo can cells span row groups? */
 
         /* Row group -- consider its right border */
         b.style = css_computed_border_right_style(group->style);
@@ -677,7 +677,7 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     while (rows-- > 0 && row != NULL)
         row = row->next;
 
-    /* Check if cells span row groups */
+    /** \todo Can cells span row groups? */
 
     if (row != NULL) {
         /* Cell is not at bottom edge of table -- no bottom border */
