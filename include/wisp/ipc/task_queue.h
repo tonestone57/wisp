@@ -2,7 +2,9 @@
 #define WISP_IPC_TASK_QUEUE_H_
 
 #include <stdbool.h>
-#include <pthread.h>
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+    #include <pthread.h>
+#endif
 #include "wisp/utils/errors.h"
 
 typedef void (*task_func)(void *ctx);
@@ -16,8 +18,10 @@ struct task {
 struct task_queue {
     struct task *head;
     struct task *tail;
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
     pthread_mutex_t lock;
     pthread_cond_t cond;
+#endif
     bool stop;
 };
 

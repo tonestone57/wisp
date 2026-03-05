@@ -19,7 +19,6 @@ nserror task_queue_init(struct task_queue **queue_out) {
     *queue_out = queue;
     return NSERROR_OK;
 #else
-    (void)queue_out;
     return NSERROR_OK;
 #endif
 }
@@ -50,9 +49,6 @@ nserror task_queue_push(struct task_queue *queue, task_func func, void *ctx) {
 
     return NSERROR_OK;
 #else
-    (void)queue;
-    (void)func;
-    (void)ctx;
     return NSERROR_OK;
 #endif
 }
@@ -84,9 +80,6 @@ nserror task_queue_pop(struct task_queue *queue, task_func *func, void **ctx) {
 
     return NSERROR_OK;
 #else
-    (void)queue;
-    (void)func;
-    (void)ctx;
     return NSERROR_EOF;
 #endif
 }
@@ -98,8 +91,6 @@ void task_queue_stop(struct task_queue *queue) {
     queue->stop = true;
     pthread_cond_broadcast(&queue->cond);
     pthread_mutex_unlock(&queue->lock);
-#else
-    (void)queue;
 #endif
 }
 
@@ -114,8 +105,6 @@ void task_queue_destroy(struct task_queue *queue) {
     }
     pthread_mutex_destroy(&queue->lock);
     pthread_cond_destroy(&queue->cond);
-#else
-    (void)queue;
 #endif
     free(queue);
 }

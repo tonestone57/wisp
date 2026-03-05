@@ -11,27 +11,27 @@ static nserror ipc_plot_clip(const struct redraw_context *ctx, const struct rect
     return NSERROR_OK;
 }
 
-static nserror ipc_plot_arc(const struct redraw_context *ctx, const struct plot_style_css *style, int x, int y, int radius, int angle1, int angle2) {
+static nserror ipc_plot_arc(const struct redraw_context *ctx, const plot_style_t *style, int x, int y, int radius, int angle1, int angle2) {
     return NSERROR_OK;
 }
 
-static nserror ipc_plot_disc(const struct redraw_context *ctx, const struct plot_style_css *style, int x, int y, int radius) {
+static nserror ipc_plot_disc(const struct redraw_context *ctx, const plot_style_t *style, int x, int y, int radius) {
     return NSERROR_OK;
 }
 
-static nserror ipc_plot_line(const struct redraw_context *ctx, const struct plot_style_css *style, const struct rect *line) {
+static nserror ipc_plot_line(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *line) {
     return NSERROR_OK;
 }
 
-static nserror ipc_plot_rectangle(const struct redraw_context *ctx, const struct plot_style_css *style, const struct rect *rect) {
+static nserror ipc_plot_rectangle(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *rect) {
     return NSERROR_OK;
 }
 
-static nserror ipc_plot_polygon(const struct redraw_context *ctx, const struct plot_style_css *style, const int *p, unsigned int n) {
+static nserror ipc_plot_polygon(const struct redraw_context *ctx, const plot_style_t *style, const int *p, unsigned int n) {
     return NSERROR_OK;
 }
 
-static nserror ipc_plot_path(const struct redraw_context *ctx, const struct plot_style_css *style, const float *p, unsigned int n, const float transform[6]) {
+static nserror ipc_plot_path(const struct redraw_context *ctx, const plot_style_t *style, const float *p, unsigned int n, const float transform[6]) {
     return NSERROR_OK;
 }
 
@@ -40,10 +40,6 @@ static nserror ipc_plot_bitmap(const struct redraw_context *ctx, struct bitmap *
 }
 
 static nserror ipc_plot_text(const struct redraw_context *ctx, const struct plot_font_style *fstyle, int x, int y, const char *text, size_t length) {
-    return NSERROR_OK;
-}
-
-static nserror ipc_plot_group(const struct redraw_context *ctx, const char *name) {
     return NSERROR_OK;
 }
 
@@ -61,7 +57,6 @@ const struct plotter_table ipc_plotter = {
     .path = ipc_plot_path,
     .bitmap = ipc_plot_bitmap,
     .text = ipc_plot_text,
-    .group = ipc_plot_group,
     .flush = ipc_plot_flush
 };
 

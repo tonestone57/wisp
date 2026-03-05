@@ -2813,6 +2813,7 @@ nserror browser_window_debug(struct browser_window *bw, enum content_debug op)
 }
 
 
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
 // Phase 0.5 Thread Wrapper to prevent signature cast undefined behavior
 static void* renderer_thread_wrapper(void* arg) {
     char* ipc_name = (char*)arg;
@@ -2821,6 +2822,7 @@ static void* renderer_thread_wrapper(void* arg) {
     free(ipc_name);
     return NULL;
 }
+#endif
 
 /* exported interface, documented in neosurf/browser_window.h */
 nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url, nsurl *referrer,
