@@ -109,10 +109,7 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
-uint8_t css_computed_white_space(const css_computed_style *style)
-{
-    return CSS_WHITE_SPACE_PRE;
-}
+
 
 
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
@@ -416,7 +413,7 @@ START_TEST(test_grid_construction)
     ck_assert_ptr_nonnull(fp);
     /* <div id="grid"> is the Grid container. <div id="child"> is the child.
      */
-    fprintf(fp, "<html><body><div id=\"grid\"><div id=\"child\">Child</div></div></body></html>");
+    fprintf(fp, "<html><body><div id=\"grid\"><div id=\"child\"></div></div></body></html>");
     fclose(fp);
 
     dom_document *doc = NULL;
