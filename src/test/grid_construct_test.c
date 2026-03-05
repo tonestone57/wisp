@@ -251,11 +251,6 @@ char *squash_whitespace(const char *s)
     return strdup(s);
 }
 
-void *_talloc_zero(const void *ctx, size_t size, const char *name)
-{
-    return calloc(1, size);
-}
-
 /* Minimal strndup implementation for Windows */
 char *strndup(const char *s, size_t n)
 {
@@ -274,14 +269,6 @@ char *strndup(const char *s, size_t n)
     return s2;
 }
 
-char *talloc_strdup(const void *ctx, const char *p)
-{
-    return strdup(p);
-}
-char *talloc_strndup(const void *ctx, const char *p, size_t n)
-{
-    return strndup(p, n);
-}
 
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
