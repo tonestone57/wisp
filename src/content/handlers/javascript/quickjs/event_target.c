@@ -42,7 +42,7 @@ JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSV
             for (uint32_t i = 0; i < len; i++) {
                 JSValue func = JS_GetPropertyUint32(ctx, type_listeners, i);
                 if (!JS_IsException(func)) {
-                    if (JS_VALUE_GET_PTR(func) == JS_VALUE_GET_PTR(argv[1])) {
+                    if (JS_IsObject(func) && JS_VALUE_GET_PTR(func) == JS_VALUE_GET_PTR(argv[1])) {
                         duplicate = true;
                         JS_FreeValue(ctx, func);
                         break;
@@ -151,7 +151,8 @@ JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValu
                         funcs = malloc(len * sizeof(JSValue));
                         if (funcs) {
                             for (uint32_t i = 0; i < len; i++) {
-                                funcs[i] = JS_DupValue(ctx, JS_GetPropertyUint32(ctx, type_listeners, i));
+                                /* JS_GetPropertyUint32 returns a new reference, no need to DupValue */
+                                funcs[i] = JS_GetPropertyUint32(ctx, type_listeners, i);
                             }
                         }
                     }
