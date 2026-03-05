@@ -531,6 +531,7 @@ int inet_aton(const char *cp, struct in_addr *inp)
 
 #ifndef HAVE_INETPTON
 
+<<<<<<< HEAD
 #if !defined(NO_IPV6)
 static int ipv6_pton(const char *src, struct in6_addr *dst)
 {
@@ -618,6 +619,10 @@ static int ipv6_pton(const char *src, struct in6_addr *dst)
 }
 #endif
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 int inet_pton(int af, const char *src, void *dst)
 {
     int ret;
@@ -627,7 +632,17 @@ int inet_pton(int af, const char *src, void *dst)
     }
 #if !defined(NO_IPV6)
     else if (af == AF_INET6) {
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
         ret = ipv6_pton(src, (struct in6_addr *)dst);
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        /* TODO: implement v6 address support */
+        ret = -1;
+        errno = EAFNOSUPPORT;
     }
 #endif
     else {

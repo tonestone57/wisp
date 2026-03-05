@@ -47,6 +47,15 @@
 struct span_info {
     /** Number of rows this cell spans */
     unsigned int row_span;
+<<<<<<< HEAD
+=======
+    /** Row group of cell */
+    struct box *rg;
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    /** Row group of cell */
+    struct box *rg;
     /** The cell in this column spans all rows until the end of the table */
     bool auto_row;
 };
@@ -86,17 +95,35 @@ static bool calculate_table_row(struct columns *col_info, unsigned int col_span,
     unsigned int cell_end_col;
     unsigned int i;
     struct span_info *spans;
+<<<<<<< HEAD
+<<<<<<< HEAD
 
     /* Skip columns with cells spanning from above */
     while (col_info->spans[cell_start_col].row_span != 0) {
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    struct box *rg = cell->parent->parent; /* Cell's row group */
+
+    /* Skip columns with cells spanning from above */
+    /* TODO: Need to ignore cells spanning from above that belong to
+     *       different row group.  We don't have that info here. */
+    while (col_info->spans[cell_start_col].row_span != 0 && col_info->spans[cell_start_col].rg == rg) {
         cell_start_col++;
     }
 
     /* Update current column with calculated start */
     col_info->current_column = cell_start_col;
 
+<<<<<<< HEAD
+<<<<<<< HEAD
     /* If this cell has a colspan of 0, assume 1 for the first pass,
      * it will be expanded to the rest of the table in box_normalise_table_spans */
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    /* If this cell has a colspan of 0, then assume 1.
+     * No other browser supports colspan=0, anyway. */
     if (col_span == 0)
         col_span = 1;
 
@@ -132,6 +159,13 @@ static bool calculate_table_row(struct columns *col_info, unsigned int col_span,
     for (i = cell_start_col; i < cell_end_col; i++) {
         col_info->spans[i].row_span = (row_span == 0) ? 1 : row_span;
         col_info->spans[i].auto_row = (row_span == 0);
+<<<<<<< HEAD
+=======
+        col_info->spans[i].rg = rg;
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        col_info->spans[i].rg = rg;
     }
 
     /* Update current column with calculated end. */
@@ -282,7 +316,13 @@ box_normalise_table_row_group(struct box *row_group, const struct box *root, str
     css_computed_style *style;
     nscss_select_ctx ctx;
     unsigned int group_row_count = 0;
+<<<<<<< HEAD
+<<<<<<< HEAD
     unsigned int i;
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     assert(row_group != 0);
     assert(row_group->type == BOX_TABLE_ROW_GROUP);
@@ -293,12 +333,19 @@ box_normalise_table_row_group(struct box *row_group, const struct box *root, str
     NSLOG(wisp, INFO, "row_group %p", row_group);
 #endif
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
     /* Reset row_span so that cells spanning from previous row groups don't bleed over */
     for (i = 0; i < col_info->num_columns; i++) {
         col_info->spans[i].row_span = 0;
         col_info->spans[i].auto_row = false;
     }
 
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     for (child = row_group->children; child != NULL; child = next_child) {
         next_child = child->next;
 
@@ -464,12 +511,21 @@ box_normalise_table_spans(struct box *table, const struct box *root, struct span
 
             for (table_cell = table_row->children; table_cell != NULL; table_cell = table_cell->next) {
 
+<<<<<<< HEAD
+<<<<<<< HEAD
                 /* colspan = 0 -> span all remaining columns */
                 if (table_cell->columns == 0) {
                     table_cell->columns = table->columns - table_cell->start_column;
                     if (table_cell->columns == 0) {
                         table_cell->columns = 1;
                     }
+=======
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+                /* colspan = 0 -> colspan = 1 */
+                if (table_cell->columns == 0) {
+                    table_cell->columns = 1;
                 }
 
                 /* if rowspan is 0 it is expanded to

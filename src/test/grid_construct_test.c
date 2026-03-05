@@ -47,8 +47,13 @@ css_fixed nscss_screen_dpi = 0;
 #include "wisp/utf8.h"
 #include "wisp/utils/nsoption.h"
 
+<<<<<<< HEAD
 #include "utils/talloc.h"
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 /* Mock corestrings (Must be visible before mocks uses them) */
 #include "wisp/utils/corestrings.h"
 struct dom_string *corestring_dom_id;
@@ -111,6 +116,16 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+uint8_t css_computed_white_space(const css_computed_style *style)
+{
+    return CSS_WHITE_SPACE_NORMAL;
+}
+
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
 {
     if (style == MOCK_STYLE_GRID)
@@ -135,10 +150,15 @@ uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
 }
+<<<<<<< HEAD
+<<<<<<< HEAD
 uint8_t css_computed_white_space(const css_computed_style *style)
 {
     return CSS_WHITE_SPACE_NORMAL;
 }
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
     return CSS_LIST_STYLE_TYPE_NONE;
@@ -154,6 +174,7 @@ uint8_t css_computed_background_image(const css_computed_style *style, lwc_strin
     return CSS_BACKGROUND_IMAGE_NONE;
 }
 
+<<<<<<< HEAD
 uint8_t css_computed_white_space(const css_computed_style *style)
 {
     return CSS_WHITE_SPACE_NORMAL;
@@ -164,6 +185,10 @@ uint8_t css_computed_text_transform(const css_computed_style *style)
     return CSS_TEXT_TRANSFORM_NONE;
 }
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 css_computed_style *
 nscss_get_blank_style(nscss_select_ctx *ctx, const css_unit_ctx *unit_len_ctx, const css_computed_style *parent_style)
 {
@@ -203,7 +228,15 @@ void box_free(struct box *box)
     }
     /* Free text if any */
     if (box->text) {
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
         talloc_free(box->text);
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+        free(box->text);
     }
     free(box);
 }
@@ -267,6 +300,7 @@ char *squash_whitespace(const char *s)
     return strdup(s);
 }
 
+<<<<<<< HEAD
 
 
 void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
@@ -278,6 +312,12 @@ int talloc_free(void *ptr)
 {
     free(ptr);
     return 0;
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+void *_talloc_zero(const void *ctx, size_t size, const char *name)
+{
+    return calloc(1, size);
 }
 
 /* Minimal strndup implementation for Windows */
@@ -298,7 +338,20 @@ char *strndup(const char *s, size_t n)
     return s2;
 }
 
+<<<<<<< HEAD
+<<<<<<< HEAD
 
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+char *talloc_strdup(const void *ctx, const char *p)
+{
+    return strdup(p);
+}
+char *talloc_strndup(const void *ctx, const char *p, size_t n)
+{
+    return strndup(p, n);
+}
 
 /* convert_special_elements stub */
 bool convert_special_elements(dom_node *node, struct html_content *c, struct box *box, bool *convert_children)
@@ -454,13 +507,25 @@ START_TEST(test_grid_construction)
     /* Setup Helper Strings */
 #define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
     INIT_STR(corestring_dom_id, "id");
+<<<<<<< HEAD
     INIT_STR(corestring_dom_class, "class");
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     INIT_STR(corestring_dom_title, "title");
     INIT_STR(corestring_dom_style, "style");
     INIT_STR(corestring_dom_colspan, "colspan");
     INIT_STR(corestring_dom_rowspan, "rowspan");
     INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
     INIT_STR(corestring_dom_class, "class");
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     /* Context Setup - Heap Alloc */
     struct html_content htmlc = {0};

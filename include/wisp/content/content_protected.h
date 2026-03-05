@@ -316,6 +316,8 @@ struct content {
         char *string;
         struct textsearch_context *context;
     } textsearch;
+<<<<<<< HEAD
+<<<<<<< HEAD
 
     /**
      * Refcount for background parser tasks.
@@ -327,6 +329,10 @@ struct content {
      * Set to true if content_destroy was called but deferred due to active background tasks.
      */
     bool pending_deletion;
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 };
 
 extern const char *const content_type_name[];

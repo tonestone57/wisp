@@ -37,9 +37,14 @@
 #include "wisp/utils/file.h"
 #include "wisp/utils/log.h"
 #include "wisp/utils/messages.h"
+<<<<<<< HEAD
 #include "content/handlers/html/font_face.h"
 
 extern void win32_font_repaint_callback(void);
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "wisp/utils/nsoption.h"
 #include "wisp/utils/nsurl.h"
 #include "wisp/utils/utils.h"
@@ -364,6 +369,9 @@ static nserror win32_to_unix_commandline(int *argc_out, char ***argv_out)
 }
 
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
 extern void win32_font_fini(void);
 
 static void win32_quit(void)
@@ -376,6 +384,13 @@ static struct gui_misc_table win32_misc_table = {
     .schedule = win32_schedule,
     .present_cookies = nsw32_cookies_present,
     .quit = win32_quit,
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+static struct gui_misc_table win32_misc_table = {
+    .schedule = win32_schedule,
+    .present_cookies = nsw32_cookies_present,
 };
 
 /**
@@ -468,9 +483,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     urldb_load_cookies(nsoption_charp(cookie_file));
     hotlist_init(nsoption_charp(hotlist_path), nsoption_charp(hotlist_path));
 
+<<<<<<< HEAD
+<<<<<<< HEAD
     /* Initialize the font face callback for font downloading (FOUT) */
     html_font_face_set_done_callback(win32_font_repaint_callback);
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     ret = nsws_create_main_class(hInstance);
     ret = nsws_create_drawable_class(hInstance);
     ret = nsw32_create_corewindow_class(hInstance);

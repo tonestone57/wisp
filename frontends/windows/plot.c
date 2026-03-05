@@ -252,6 +252,7 @@ static nserror clip(const struct redraw_context *ctx, const struct rect *clip)
     plot_clip.right = clip->x1 + 1; /* co-ordinates are exclusive */
     plot_clip.bottom = clip->y1 + 1; /* co-ordinates are exclusive */
 
+<<<<<<< HEAD
     /* If a transform is active, we need to map the clip rect via the inverse transform
      * to keep it in world coordinates */
     if (transform_stack_depth > 0 && plot_hdc != NULL) {
@@ -299,6 +300,10 @@ static nserror clip(const struct redraw_context *ctx, const struct rect *clip)
         }
     }
 
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     return NSERROR_OK;
 }
 
@@ -963,6 +968,9 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
     NSLOG(plot, DEEPDEBUG, "clipped %ld,%ld to %ld,%ld", plot_clip.left, plot_clip.top, plot_clip.right,
         plot_clip.bottom);
 
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
     /* Calculate tile offset for proper alignment matching Qt's offset logic.
      * The offset is how far into the tile pattern we start drawing based on the
      * clip rect and the original (x,y). */
@@ -1010,6 +1018,29 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
                 yf + height > plot_clip.top && yf < plot_clip.bottom) {
                 plot_bitmap(bitmap, xf, yf, width, height, bg);
             }
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
+    /* get left most tile position */
+    if (repeat_x) {
+        for (; x > plot_clip.left; x -= width)
+            ;
+    }
+
+    /* get top most tile position */
+    if (repeat_y) {
+        for (; y > plot_clip.top; y -= height)
+            ;
+    }
+
+    NSLOG(plot, DEEPDEBUG, "repeat from %d,%d to %ld,%ld", x, y, plot_clip.right, plot_clip.bottom);
+
+    /* tile down and across to extents */
+    for (xf = x; xf < plot_clip.right; xf += width) {
+        for (yf = y; yf < plot_clip.bottom; yf += height) {
+
+            plot_bitmap(bitmap, xf, yf, width, height, bg);
             if (!repeat_y)
                 break;
         }

@@ -42,7 +42,11 @@ _dom_cdata_section_create(dom_document *doc, dom_string *name, dom_string *value
     dom_exception err;
 
     /* Allocate the comment node */
+<<<<<<< HEAD
     c = malloc(sizeof(dom_cdata_section));
+=======
+    c = DOM_ALLOC(doc, sizeof(dom_cdata_section));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (c == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -53,7 +57,11 @@ _dom_cdata_section_create(dom_document *doc, dom_string *name, dom_string *value
     /* And initialise the node */
     err = _dom_cdata_section_initialise(&c->base, doc, DOM_CDATA_SECTION_NODE, name, value);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(c);
+=======
+        DOM_FREE(c);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -75,7 +83,11 @@ void _dom_cdata_section_destroy(dom_cdata_section *cdata)
     _dom_cdata_section_finalise(&cdata->base);
 
     /* Destroy the node */
+<<<<<<< HEAD
     free(cdata);
+=======
+    DOM_FREE(cdata);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /*--------------------------------------------------------------------------*/
@@ -94,13 +106,21 @@ dom_exception _dom_cdata_section_copy(dom_node_internal *old, dom_node_internal 
     dom_cdata_section *new_cdata;
     dom_exception err;
 
+<<<<<<< HEAD
     new_cdata = malloc(sizeof(dom_cdata_section));
+=======
+    new_cdata = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_cdata_section));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_cdata == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_text_copy_internal(old, new_cdata);
     if (err != DOM_NO_ERR) {
+<<<<<<< HEAD
         free(new_cdata);
+=======
+        DOM_FREE(new_cdata);
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

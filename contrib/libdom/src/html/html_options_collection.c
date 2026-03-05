@@ -11,6 +11,10 @@
 #include <libwapcaplet/libwapcaplet.h>
 
 #include "html/html_options_collection.h"
+<<<<<<< HEAD
+=======
+#include "core/document.h"
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
 #include "utils/utils.h"
 #include "core/element.h"
@@ -33,7 +37,11 @@
 dom_exception _dom_html_options_collection_create(struct dom_html_document *doc, struct dom_node_internal *root,
     dom_callback_is_in_collection ic, void *ctx, struct dom_html_options_collection **col)
 {
+<<<<<<< HEAD
     *col = malloc(sizeof(dom_html_options_collection));
+=======
+    *col = DOM_ALLOC(doc, sizeof(dom_html_options_collection));
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (*col == NULL)
         return DOM_NO_MEM_ERR;
 

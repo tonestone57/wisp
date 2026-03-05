@@ -210,7 +210,12 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
 
             /* Adjust parent content for new object size */
             html_object_done(box, object, o->background);
+<<<<<<< HEAD
             box_mark_dirty(box);
+>>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
+>>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
             /* Incremental reflow on READY - disabled by default for performance.
              * Enable via CMake: -DNEOSURF_ENABLE_INCREMENTAL_REFLOW=ON
@@ -250,7 +255,14 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
         NSLOG(wisp, INFO, "%d fetches active (scripts_active=%d)", c->base.active, c->scripts_active);
 
         html_object_done(box, object, o->background);
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
             box_mark_dirty(box);
+=======
+=======
+=======
+>>>>>>> origin/jules/memory-arenas-14531613996922608918
 
         /*
          * Broadcast a redraw for the box area.
