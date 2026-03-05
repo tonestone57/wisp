@@ -37,6 +37,9 @@
 #include "wisp/utils/file.h"
 #include "wisp/utils/log.h"
 #include "wisp/utils/messages.h"
+#include "content/handlers/html/font_face.h"
+
+extern void win32_font_repaint_callback(void);
 #include "wisp/utils/nsoption.h"
 #include "wisp/utils/nsurl.h"
 #include "wisp/utils/utils.h"
@@ -361,9 +364,18 @@ static nserror win32_to_unix_commandline(int *argc_out, char ***argv_out)
 }
 
 
+extern void win32_font_fini(void);
+
+static void win32_quit(void)
+{
+    win32_set_quit(true);
+    win32_font_fini();
+}
+
 static struct gui_misc_table win32_misc_table = {
     .schedule = win32_schedule,
     .present_cookies = nsw32_cookies_present,
+    .quit = win32_quit,
 };
 
 /**
@@ -455,6 +467,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     urldb_load(nsoption_charp(url_file));
     urldb_load_cookies(nsoption_charp(cookie_file));
     hotlist_init(nsoption_charp(hotlist_path), nsoption_charp(hotlist_path));
+
+    /* Initialize the font face callback for font downloading (FOUT) */
+    html_font_face_set_done_callback(win32_font_repaint_callback);
 
     ret = nsws_create_main_class(hInstance);
     ret = nsws_create_drawable_class(hInstance);
