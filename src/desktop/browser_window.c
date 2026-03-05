@@ -2881,7 +2881,9 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
         // Spawn a thread instead of a fork to execute the renderer logic
         pthread_t tid;
         char *thread_ipc_name = strdup(ipc_name);
-        pthread_create(&tid, NULL, renderer_thread_wrapper, thread_ipc_name);
+        if (pthread_create(&tid, NULL, renderer_thread_wrapper, thread_ipc_name) != 0) {
+            free(thread_ipc_name);
+        }
         pthread_detach(tid);
 
         // In Phase 0.5 we use the internal `task_queue` structure so `ipc_accept` is bypassed
