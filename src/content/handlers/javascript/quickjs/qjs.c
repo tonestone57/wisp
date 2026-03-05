@@ -355,9 +355,18 @@ void js_destroythread(jsthread *thread)
          */
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
+
+        if (thread->heap->timeout > 0) {
+            uint64_t now;
+            nsu_getmonotonic_ms(&now);
+            thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
+        }
+
         while (JS_ExecutePendingJob(rt, &ctx1) > 0) {
             /* Drain the job queue */
         }
+
+        thread->heap->deadline_ms = 0;
 
         JS_FreeContext(thread->ctx);
     }
