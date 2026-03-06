@@ -73,8 +73,6 @@ nserror nsurl_create(const char *const url_s, nsurl **url);
 
 
 /**
-<<<<<<< HEAD
-<<<<<<< HEAD
  * Create a NetSurf URL object from pre-parsed components
  *
  * \param scheme      Scheme lwc_string
@@ -93,10 +91,6 @@ nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const
 
 
 /**
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
  * Increment the reference count to a NetSurf URL object
  *
  * \param url	  NetSurf URL to create another reference to

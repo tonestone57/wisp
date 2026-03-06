@@ -13,13 +13,6 @@
 #include <libwapcaplet/libwapcaplet.h>
 
 #include <dom/core/node.h>
-<<<<<<< HEAD
-=======
-#include "../../../../src/utils/arena.h"
-
-#define DOM_ALLOC(doc, size) ((doc) && ((struct dom_document *)(doc))->arena ? arena_alloc(((struct dom_document *)(doc))->arena, (size)) : malloc(size))
-#define DOM_FREE(ptr) /* handled by arena */
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include <dom/functypes.h>
 
 #include "events/event_target.h"

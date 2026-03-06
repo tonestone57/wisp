@@ -79,11 +79,7 @@ dom_exception _dom_document_create(dom_events_default_action_fetcher daf, void *
     dom_exception err;
 
     /* Create document */
-<<<<<<< HEAD
     d = malloc(sizeof(dom_document));
-=======
-    struct arena *arena = arena_create(64 * 1024); d = arena ? arena_alloc(arena, sizeof(dom_document)) : malloc(sizeof(dom_document)); if (d) d->arena = arena;
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (d == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -99,11 +95,7 @@ dom_exception _dom_document_create(dom_events_default_action_fetcher daf, void *
     err = _dom_document_initialise(d, daf, daf_ctx);
     if (err != DOM_NO_ERR) {
         /* Clean up document */
-<<<<<<< HEAD
         free(d);
-=======
-        if (d && d->arena) arena_destroy(d->arena); else free(d);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -1250,22 +1242,14 @@ dom_exception _dom_document_get_nodelist(dom_document *doc, nodelist_type type, 
         /* No existing list */
 
         /* Create active list entry */
-<<<<<<< HEAD
         l = malloc(sizeof(struct dom_doc_nl));
-=======
-        l = DOM_ALLOC(doc, sizeof(struct dom_doc_nl));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (l == NULL)
             return DOM_NO_MEM_ERR;
 
         /* Create nodelist */
         err = _dom_nodelist_create(doc, type, root, tagname, namespace, localname, &l->list);
         if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
             free(l);
-=======
-            DOM_FREE(l);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
             return err;
         }
 
@@ -1318,11 +1302,7 @@ void _dom_document_remove_nodelist(dom_document *doc, dom_nodelist *list)
         l->next->prev = l->prev;
 
     /* And free item */
-<<<<<<< HEAD
     free(l);
-=======
-    DOM_FREE(l);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /**

@@ -104,15 +104,9 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
 
 
 #endif
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 /**
  * Mark a box as dirty and propagate CHILD_DIRTY to ancestors.
  * \param box The box to mark dirty
  */
 void box_mark_dirty(struct box *box);
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918

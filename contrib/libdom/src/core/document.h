@@ -25,11 +25,6 @@
 #include <dom/core/text.h>
 
 #include "core/node.h"
-<<<<<<< HEAD
-=======
-struct arena;
-#include "../../../../src/utils/arena.h"
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "core/nodelist.h"
 #include "core/string.h"
 
@@ -47,10 +42,6 @@ struct dom_doc_nl;
  */
 struct dom_document {
     dom_node_internal base; /**< Base node */
-<<<<<<< HEAD
-=======
-	struct arena *arena; /**< Arena for this document */
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     struct dom_doc_nl *nodelists; /**< List of active nodelists */
 

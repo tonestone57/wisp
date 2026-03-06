@@ -1415,7 +1415,6 @@ static nserror nsurl__check_host_valid(lwc_string *host)
  ******************************************************************************/
 
 /* exported interface, documented in nsurl.h */
-<<<<<<< HEAD
 nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url)
 {
     struct nsurl_components c;
@@ -1514,10 +1513,6 @@ nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const
 
 
 /* exported interface, documented in nsurl.h */
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 nserror nsurl_create(const char *const url_s, nsurl **url)
 {
     struct url_markers m;
@@ -1527,17 +1522,9 @@ nserror nsurl_create(const char *const url_s, nsurl **url)
     nserror e = NSERROR_OK;
     bool match;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (url == NULL)
         return NSERROR_BAD_PARAMETER;
     if (url_s == NULL)
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (url == NULL || url_s == NULL)
         return NSERROR_BAD_PARAMETER;
 
     /* Peg out the URL sections */
@@ -1623,18 +1610,11 @@ nserror nsurl_join(const nsurl *base, const char *rel, nsurl **joined)
         NSURL_F_BASE_QUERY = (1 << 4)
     } joined_parts;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (joined == NULL)
         return NSERROR_BAD_PARAMETER;
     if (base == NULL)
         return NSERROR_BAD_PARAMETER;
     if (rel == NULL)
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (joined == NULL || base == NULL || rel == NULL)
         return NSERROR_BAD_PARAMETER;
 
     NSLOG(wisp, DEEPDEBUG, "base: \"%s\", rel: \"%s\"", nsurl_access(base), rel);

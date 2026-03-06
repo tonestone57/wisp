@@ -55,7 +55,6 @@ static JSValue js_location_protocol_getter(JSContext *ctx, JSValueConst this_val
     }
     /* Protocol includes trailing colon */
     size_t len = lwc_string_length(scheme);
-<<<<<<< HEAD
     char *result = malloc(len + 2);
     if (result == NULL) {
         lwc_string_unref(scheme);
@@ -68,22 +67,6 @@ static JSValue js_location_protocol_getter(JSContext *ctx, JSValueConst this_val
     NSLOG(wisp, DEBUG, "location.protocol getter: returning '%s'", result);
     JSValue ret = JS_NewString(ctx, result);
     free(result);
-=======
-    char buf[256];
-    char *result = buf;
-    if (len + 1 > sizeof(buf)) {
-        result = malloc(len + 1);
-        if (result == NULL) {
-            lwc_string_unref(scheme);
-            return JS_NewString(ctx, "about:");
-        }
-    }
-    memcpy(result, lwc_string_data(scheme), len);
-    result[len] = ':';
-    lwc_string_unref(scheme);
-    JSValue ret = JS_NewStringLen(ctx, result, len + 1);
-    if (result != buf) free(result);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return ret;
 }
 
@@ -109,42 +92,22 @@ static JSValue js_location_host_getter(JSContext *ctx, JSValueConst this_val, in
         /* host:port format */
         size_t host_len = lwc_string_length(host);
         size_t port_len = lwc_string_length(port);
-<<<<<<< HEAD
         char *buf = malloc(host_len + 1 + port_len + 1);
-=======
-        char stack_buf[256];
-        char *buf = stack_buf;
-        size_t total_len = host_len + 1 + port_len;
-        if (total_len > sizeof(stack_buf)) {
-            buf = malloc(total_len);
-        }
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (buf) {
             memcpy(buf, lwc_string_data(host), host_len);
             buf[host_len] = ':';
             memcpy(buf + host_len + 1, lwc_string_data(port), port_len);
-<<<<<<< HEAD
             buf[host_len + 1 + port_len] = '\0';
             NSLOG(wisp, DEBUG, "location.host getter: returning '%s'", buf);
             result = JS_NewString(ctx, buf);
             free(buf);
         } else {
             result = JS_NewString(ctx, lwc_string_data(host));
-=======
-            result = JS_NewStringLen(ctx, buf, total_len);
-            if (buf != stack_buf) free(buf);
-        } else {
-            result = JS_NewStringLen(ctx, lwc_string_data(host), host_len);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         }
         lwc_string_unref(port);
     } else {
         NSLOG(wisp, DEBUG, "location.host getter: returning '%s'", lwc_string_data(host));
-<<<<<<< HEAD
         result = JS_NewString(ctx, lwc_string_data(host));
-=======
-        result = JS_NewStringLen(ctx, lwc_string_data(host), lwc_string_length(host));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     }
     lwc_string_unref(host);
     return result;
@@ -163,11 +126,7 @@ static JSValue js_location_hostname_getter(JSContext *ctx, JSValueConst this_val
         return JS_NewString(ctx, "");
     }
     NSLOG(wisp, DEBUG, "location.hostname getter: returning '%s'", lwc_string_data(host));
-<<<<<<< HEAD
     JSValue result = JS_NewString(ctx, lwc_string_data(host));
-=======
-    JSValue result = JS_NewStringLen(ctx, lwc_string_data(host), lwc_string_length(host));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     lwc_string_unref(host);
     return result;
 }
@@ -185,11 +144,7 @@ static JSValue js_location_port_getter(JSContext *ctx, JSValueConst this_val, in
         return JS_NewString(ctx, "");
     }
     NSLOG(wisp, DEBUG, "location.port getter: returning '%s'", lwc_string_data(port));
-<<<<<<< HEAD
     JSValue result = JS_NewString(ctx, lwc_string_data(port));
-=======
-    JSValue result = JS_NewStringLen(ctx, lwc_string_data(port), lwc_string_length(port));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     lwc_string_unref(port);
     return result;
 }
@@ -207,11 +162,7 @@ static JSValue js_location_pathname_getter(JSContext *ctx, JSValueConst this_val
         return JS_NewString(ctx, "/");
     }
     NSLOG(wisp, DEBUG, "location.pathname getter: returning '%s'", lwc_string_data(path));
-<<<<<<< HEAD
     JSValue result = JS_NewString(ctx, lwc_string_data(path));
-=======
-    JSValue result = JS_NewStringLen(ctx, lwc_string_data(path), lwc_string_length(path));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     lwc_string_unref(path);
     return result;
 }
@@ -230,7 +181,6 @@ static JSValue js_location_search_getter(JSContext *ctx, JSValueConst this_val, 
     }
     /* search includes leading ? */
     size_t len = lwc_string_length(query);
-<<<<<<< HEAD
     char *result = malloc(len + 2);
     if (result == NULL) {
         lwc_string_unref(query);
@@ -243,22 +193,6 @@ static JSValue js_location_search_getter(JSContext *ctx, JSValueConst this_val, 
     NSLOG(wisp, DEBUG, "location.search getter: returning '%s'", result);
     JSValue ret = JS_NewString(ctx, result);
     free(result);
-=======
-    char buf[512];
-    char *result = buf;
-    if (len + 1 > sizeof(buf)) {
-        result = malloc(len + 1);
-        if (result == NULL) {
-            lwc_string_unref(query);
-            return JS_NewString(ctx, "");
-        }
-    }
-    result[0] = '?';
-    memcpy(result + 1, lwc_string_data(query), len);
-    lwc_string_unref(query);
-    JSValue ret = JS_NewStringLen(ctx, result, len + 1);
-    if (result != buf) free(result);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return ret;
 }
 
@@ -276,7 +210,6 @@ static JSValue js_location_hash_getter(JSContext *ctx, JSValueConst this_val, in
     }
     /* hash includes leading # */
     size_t len = lwc_string_length(fragment);
-<<<<<<< HEAD
     char *result = malloc(len + 2);
     if (result == NULL) {
         lwc_string_unref(fragment);
@@ -289,22 +222,6 @@ static JSValue js_location_hash_getter(JSContext *ctx, JSValueConst this_val, in
     NSLOG(wisp, DEBUG, "location.hash getter: returning '%s'", result);
     JSValue ret = JS_NewString(ctx, result);
     free(result);
-=======
-    char buf[512];
-    char *result = buf;
-    if (len + 1 > sizeof(buf)) {
-        result = malloc(len + 1);
-        if (result == NULL) {
-            lwc_string_unref(fragment);
-            return JS_NewString(ctx, "");
-        }
-    }
-    result[0] = '#';
-    memcpy(result + 1, lwc_string_data(fragment), len);
-    lwc_string_unref(fragment);
-    JSValue ret = JS_NewStringLen(ctx, result, len + 1);
-    if (result != buf) free(result);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return ret;
 }
 
@@ -336,7 +253,6 @@ static JSValue js_location_origin_getter(JSContext *ctx, JSValueConst this_val, 
     size_t port_len = port ? lwc_string_length(port) : 0;
     size_t total = scheme_len + 3 + host_len + (port ? 1 + port_len : 0) + 1;
 
-<<<<<<< HEAD
     char *result = malloc(total);
     if (result == NULL) {
         lwc_string_unref(scheme);
@@ -344,19 +260,6 @@ static JSValue js_location_origin_getter(JSContext *ctx, JSValueConst this_val, 
         if (port)
             lwc_string_unref(port);
         return JS_NewString(ctx, "null");
-=======
-    char stack_buf[512];
-    char *result = stack_buf;
-    if (total > sizeof(stack_buf)) {
-        result = malloc(total);
-        if (result == NULL) {
-            lwc_string_unref(scheme);
-            lwc_string_unref(host);
-            if (port)
-                lwc_string_unref(port);
-            return JS_NewString(ctx, "null");
-        }
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     }
 
     char *p = result;
@@ -371,24 +274,16 @@ static JSValue js_location_origin_getter(JSContext *ctx, JSValueConst this_val, 
         memcpy(p, lwc_string_data(port), port_len);
         p += port_len;
     }
-<<<<<<< HEAD
     *p = '\0';
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     lwc_string_unref(scheme);
     lwc_string_unref(host);
     if (port)
         lwc_string_unref(port);
 
-<<<<<<< HEAD
     NSLOG(wisp, DEBUG, "location.origin getter: returning '%s'", result);
     JSValue ret = JS_NewString(ctx, result);
     free(result);
-=======
-    JSValue ret = JS_NewStringLen(ctx, result, p - result);
-    if (result != stack_buf) free(result);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return ret;
 }
 
@@ -510,11 +405,6 @@ static JSValue js_location_reload(JSContext *ctx, JSValueConst this_val, int arg
         NSLOG(wisp, WARNING, "location.reload: reload failed");
     }
 
-<<<<<<< HEAD
-    NSLOG(wisp, DEBUG, "location.reload called");
-    /* TODO: Implement actual reload */
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return JS_UNDEFINED;
 }
 

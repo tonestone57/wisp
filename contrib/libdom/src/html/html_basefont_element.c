@@ -133,11 +133,7 @@ dom_exception _dom_html_base_font_element_copy(dom_node_internal *old, dom_node_
 
     err = dom_html_base_font_element_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(new_node);
-=======
-        DOM_FREE(new_node);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

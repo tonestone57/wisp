@@ -37,13 +37,6 @@
 #include "content/handlers/css/hints.h"
 #include "content/handlers/css/internal.h"
 #include "content/handlers/html/font_face.h"
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-
 /* Define to trace import fetches */
 #undef NSCSS_IMPORT_TRACE
 
@@ -66,13 +59,7 @@ typedef void (*nscss_done_callback)(struct content_css_data *css, void *pw);
 struct content_css_data {
     css_stylesheet *sheet; /**< Stylesheet object */
     char *charset; /**< Character set of stylesheet */
-<<<<<<< HEAD
-<<<<<<< HEAD
     nsurl *base_url; /**< Cached nsurl object for resolving */
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     struct nscss_import *imports; /**< Array of imported sheets */
     uint32_t import_count; /**< Number of sheets imported */
     uint32_t next_to_register; /**< Index of next import to register */
@@ -206,30 +193,18 @@ static nserror nscss_create_css_data(
 {
     css_error error;
     css_stylesheet_params params;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     nserror ns_error;
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     c->pw = pw;
     c->done = done;
     c->next_to_register = (uint32_t)-1;
     c->import_count = 0;
     c->imports = NULL;
-<<<<<<< HEAD
 
     ns_error = nsurl_create(url, &c->base_url);
     if (ns_error != NSERROR_OK) {
         c->base_url = NULL;
     }
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (charset != NULL)
         c->charset = strdup(charset);
     else
@@ -243,15 +218,7 @@ static nserror nscss_create_css_data(
     params.allow_quirks = quirks;
     params.inline_style = false;
     params.resolve = nscss_resolve_url;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     params.resolve_pw = c->base_url;
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    params.resolve_pw = NULL;
     params.import = nscss_handle_import;
     params.import_pw = c;
     params.color = ns_system_colour;
@@ -407,15 +374,9 @@ static void nscss_destroy_css_data(struct content_css_data *c)
     }
 
     free(c->charset);
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (c->base_url) {
         nsurl_unref(c->base_url);
     }
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 nserror nscss_clone(const struct content *old, struct content **newc)

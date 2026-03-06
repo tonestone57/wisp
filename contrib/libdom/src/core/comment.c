@@ -43,11 +43,7 @@ dom_exception _dom_comment_create(dom_document *doc, dom_string *name, dom_strin
     dom_exception err;
 
     /* Allocate the comment node */
-<<<<<<< HEAD
     c = malloc(sizeof(dom_comment));
-=======
-    c = DOM_ALLOC(doc, sizeof(dom_comment));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (c == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -58,11 +54,7 @@ dom_exception _dom_comment_create(dom_document *doc, dom_string *name, dom_strin
     /* And initialise the node */
     err = _dom_characterdata_initialise(&c->base, doc, DOM_COMMENT_NODE, name, value);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(c);
-=======
-        DOM_FREE(c);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -84,11 +76,7 @@ void _dom_comment_destroy(dom_comment *comment)
     _dom_characterdata_finalise(&comment->base);
 
     /* Free node */
-<<<<<<< HEAD
     free(comment);
-=======
-    DOM_FREE(comment);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 
@@ -107,21 +95,13 @@ dom_exception _dom_comment_copy(dom_node_internal *old, dom_node_internal **copy
     dom_comment *new_comment;
     dom_exception err;
 
-<<<<<<< HEAD
     new_comment = malloc(sizeof(dom_comment));
-=======
-    new_comment = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_comment));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_comment == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_characterdata_copy_internal(old, new_comment);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(new_comment);
-=======
-        DOM_FREE(new_comment);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

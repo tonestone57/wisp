@@ -552,11 +552,6 @@ class GperfInputGenerator:
         # %readonly-tables: const-qualify all tables (cache-friendly)
         # %ignore-case: case-insensitive matching (CSS is case-insensitive)
         # %enum: use enum for hash values (compiler optimization)
-=======
-        # %7bit: assume 7-bit ASCII input (valid for CSS property names)
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-        # %7bit: assume 7-bit ASCII input (valid for CSS property names)
         # %null-strings: NULL for empty slots (fast pointer check)
         # No %switch: default array lookup is faster for 200+ keywords
         lines.append("%language=ANSI-C")
@@ -566,13 +561,6 @@ class GperfInputGenerator:
         lines.append("%ignore-case")
         lines.append("%struct-type")
         lines.append("%enum")
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-        lines.append("%7bit")
         lines.append("%null-strings")
         lines.append("%define hash-function-name css_prop_hash")
         lines.append("%define lookup-function-name css_prop_lookup_generated")

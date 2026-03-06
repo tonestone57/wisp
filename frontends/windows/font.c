@@ -41,14 +41,9 @@
 
 #include "utils/hashmap.h"
 #include "windows/font.h"
-<<<<<<< HEAD
 #include "windows/schedule.h"
 #include "windows/window.h"
 #include "wisp/browser_window.h"
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
 #ifdef WISP_WOFF_DECODE
 #include <zlib.h>
@@ -56,9 +51,6 @@
 
 #define SPLIT_CACHE_MAX_ENTRIES 16384
 #define WSTR_CACHE_MAX_BYTES (16 * 1024 * 1024)
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 struct win32_loaded_font {
     struct font_variant_id variant;
@@ -68,10 +60,6 @@ struct win32_loaded_font {
 };
 
 static struct win32_loaded_font *win32_loaded_fonts = NULL;
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #define FONT_CACHE_MAX_ENTRIES 256
 #define FONT_MAP_MAX_ENTRIES 256
 
@@ -1259,13 +1247,8 @@ HFONT get_font(const plot_font_style_t *style)
         font = (HFONT)GetStockObject(SYSTEM_FONT);
     }
 
-<<<<<<< HEAD
 
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return font;
 }
 
@@ -1524,9 +1507,6 @@ void win32_font_caches_flush(void)
     split_gen = 0;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 #include "wisp/browser_window.h"
 #include "windows/window.h"
 
@@ -1540,10 +1520,6 @@ void win32_font_repaint_callback(void)
      * No global windows EnumThreadWindows required! */
 }
 
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t *data, size_t size)
 {
     DWORD num_fonts = 0;
@@ -1615,7 +1591,6 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
     }
 
     win32_font_caches_flush();
-<<<<<<< HEAD
 
     struct win32_loaded_font *lf = malloc(sizeof(struct win32_loaded_font));
     if (lf != NULL) {
@@ -1696,12 +1671,6 @@ void win32_font_fini(void)
     win32_loaded_fonts = NULL;
 }
 
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    return NSERROR_OK;
-}
-
 
 /** win32 font operations table */
 static struct gui_layout_table layout_table = {
@@ -1709,15 +1678,7 @@ static struct gui_layout_table layout_table = {
     .position = win32_font_position,
     .split = win32_font_split,
     .load_font_data = html_font_face_load_data,
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     .free_font_data = win32_free_font_data,
-=======
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 };
 
 struct gui_layout_table *win32_layout_table = &layout_table;

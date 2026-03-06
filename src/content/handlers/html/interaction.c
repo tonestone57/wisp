@@ -470,12 +470,6 @@ mouse_action_drag_textarea(html_content *html, struct browser_window *bw, browse
             content_broadcast((struct content *)html, CONTENT_MSG_STATUS, &msg_data);
         }
     }
-<<<<<<< HEAD
-    textarea_mouse_action(box->gadget->data.text.ta, mouse, x - box_x, y - box_y);
-
-    /* TODO: Set appropriate statusbar message */
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return NSERROR_OK;
 }
 
@@ -1222,17 +1216,10 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
 
     /* fire dom click event */
     if (mouse & BROWSER_MOUSE_CLICK_1) {
-<<<<<<< HEAD
-<<<<<<< HEAD
         html_content *htmlc = (html_content *)c;
         pthread_mutex_lock(&htmlc->doc_mutex);
         fire_generic_dom_event(corestring_dom_click, mas.node, true, true);
         pthread_mutex_unlock(&htmlc->doc_mutex);
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-        fire_generic_dom_event(corestring_dom_click, mas.node, true, true);
     }
 
     /* deferred actions that can cause this browser_window to be destroyed

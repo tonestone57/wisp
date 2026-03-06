@@ -790,12 +790,7 @@ START_TEST(nsurl_api_assert_create_test)
     nsurl *res1;
     err = nsurl_create(NULL, &res1);
 
-<<<<<<< HEAD
     ck_assert(err == NSERROR_BAD_PARAMETER);
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    ck_assert(err != NSERROR_OK);
 }
 END_TEST
 
@@ -996,13 +991,7 @@ START_TEST(nsurl_api_assert_join1_test)
     nserror err;
 
     err = nsurl_join(NULL, rel, &res);
-<<<<<<< HEAD
-<<<<<<< HEAD
     ck_assert(err == NSERROR_BAD_PARAMETER);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    ck_assert(err != NSERROR_OK);
 }
 END_TEST
 
@@ -1019,12 +1008,7 @@ START_TEST(nsurl_api_assert_join2_test)
     ck_assert(err == NSERROR_OK);
 
     err = nsurl_join(url, NULL, &res);
-<<<<<<< HEAD
     ck_assert(err == NSERROR_BAD_PARAMETER);
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    ck_assert(err != NSERROR_OK);
 
     nsurl_unref(url);
 }
@@ -1312,13 +1296,7 @@ static Suite *nsurl_suite(void)
 
     tcase_add_unchecked_fixture(tc_api_assert, corestring_create, corestring_teardown);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     tcase_add_test(tc_api_assert, nsurl_api_assert_create_test);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_create_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_ref_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_unref_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_compare1_test, 6);
@@ -1332,16 +1310,8 @@ static Suite *nsurl_suite(void)
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_access_leaf_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_length_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_hash_test, 6);
-<<<<<<< HEAD
-<<<<<<< HEAD
     tcase_add_test(tc_api_assert, nsurl_api_assert_join1_test);
     tcase_add_test(tc_api_assert, nsurl_api_assert_join2_test);
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_join1_test, 6);
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_join2_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_defragment_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_refragment1_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_refragment2_test, 6);

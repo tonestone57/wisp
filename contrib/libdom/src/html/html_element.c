@@ -48,11 +48,7 @@ dom_exception _dom_html_element_create(struct dom_html_element_create_params *pa
 
     error = _dom_html_element_initialise(params, el);
     if (error != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(el);
-=======
-        DOM_FREE(el);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return error;
     }
 
@@ -104,11 +100,7 @@ dom_exception _dom_html_element_copy(dom_node_internal *old, dom_node_internal *
 
     err = dom_html_element_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(new_node);
-=======
-        DOM_FREE(new_node);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

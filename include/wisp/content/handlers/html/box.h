@@ -110,14 +110,9 @@ typedef enum {
     IFRAME = 1 << 10, /* box contains an iframe */
     CONVERT_CHILDREN = 1 << 11, /* wanted children converting */
     IS_REPLACED = 1 << 12, /* box is a replaced element */
-<<<<<<< HEAD
         HEIGHT_STRETCHED = 1 << 13 /* height was set by parent's cross-axis stretch */,
     DIRTY = 1 << 14, /* box needs layout/reflow */
     CHILD_DIRTY = 1 << 15 /* box has a dirty descendant */
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    HEIGHT_STRETCHED = 1 << 13 /* height was set by parent's cross-axis stretch */
 } box_flags;
 
 
@@ -220,18 +215,12 @@ struct box {
     struct dom_node *node;
 
     /**
-<<<<<<< HEAD
-<<<<<<< HEAD
      * Array of active CSS counters instantiated or incremented by this box.
      */
     struct css_computed_counter *counters;
     uint32_t n_counters;
 
     /**
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
      * Computed styles for elements and their pseudo elements.
      *  NULL on non-element boxes.
      */
@@ -246,17 +235,12 @@ struct box {
     css_computed_style *style;
 
     /**
-<<<<<<< HEAD
-<<<<<<< HEAD
      * Original style for this box, used to restore after
      * temporary pseudo-element style overrides (like ::first-line).
      */
     css_computed_style *original_style;
 
     /**
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
      *  value of id attribute (or name for anchors)
      */
     lwc_string *id;

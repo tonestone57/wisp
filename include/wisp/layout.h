@@ -117,8 +117,6 @@ struct gui_layout_table {
      * \return NSERROR_OK on success, or appropriate error code
      */
     nserror (*load_font_data)(const struct font_variant_id *id, const uint8_t *data, size_t size);
-<<<<<<< HEAD
-<<<<<<< HEAD
 
     /**
      * Notify the frontend to release resources associated with a font variant.
@@ -128,10 +126,6 @@ struct gui_layout_table {
      * \param[in] id   Font variant identity
      */
     void (*free_font_data)(const struct font_variant_id *id);
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 };
 
 #endif

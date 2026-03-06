@@ -58,13 +58,7 @@ struct plot_font_style;
 struct html_stylesheet {
     struct dom_node *node; /**< dom node associated with sheet */
     struct hlcache_handle *sheet;
-<<<<<<< HEAD
-<<<<<<< HEAD
     char *media; /**< media query string */
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     bool modified;
     bool unused;
 };

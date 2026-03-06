@@ -160,10 +160,6 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/event_target.c
 	content/handlers/javascript/quickjs/xhr.c
 	content/handlers/javascript/quickjs/unimplemented.c
-<<<<<<< HEAD
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
 	desktop/knockout.c
@@ -208,20 +204,10 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/nsoption.c
 	utils/punycode.c
 	utils/ssl_certs.c
-<<<<<<< HEAD
 	utils/talloc.c
 	utils/time.c
 	utils/url.c
-<<<<<<< HEAD
 	utils/thread_pool.c
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
-	utils/arena.c
-	utils/talloc.c
-	utils/time.c
-	utils/url.c
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 	utils/useragent.c
 	utils/utf8.c
 	utils/utils.c
@@ -272,13 +258,7 @@ endif()
 # Add QuickJS-ng library
 list(APPEND WISP_COMMON_LIBS qjs)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 target_link_libraries(wisp ${WISP_COMMON_LIBS} Threads::Threads)
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-target_link_libraries(wisp ${WISP_COMMON_LIBS})
 
 target_include_directories(wisp PRIVATE ${CMAKE_SOURCE_DIR}/contrib ${CMAKE_BINARY_DIR})
 
