@@ -1,1 +1,0 @@
-/usr/bin/cc -flto -Wl,--gc-sections CMakeFiles/libcss_select.dir/contrib/libcss/test/select.c.o -o libcss_select  -Wl,-rpath,/app/build/contrib/libcss:/app/build/contrib/libnsutils:/app/build/contrib/libparserutils contrib/libcss/libcss.so.1 contrib/libnsutils/libnsutils.so.1 contrib/libparserutils/libparserutils.so.1
