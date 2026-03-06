@@ -29,12 +29,11 @@ install_mingw
 install_release
 *.diff
 Testing/Temporary
-duktape-build
+duktape-build/
 build-cmake
 build-gcc
 __pycache__
 dumped_script.js
 out
-build
 
 build/

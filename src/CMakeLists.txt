@@ -188,6 +188,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	desktop/wisp.c
 	desktop/cw_helper.c
 	desktop/save_complete.c
+	desktop/renderer.c
 	desktop/save_text.c
 	desktop/selection.c
 	desktop/textinput.c
@@ -225,6 +226,9 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/useragent.c
 	utils/utf8.c
 	utils/utils.c
+	utils/ipc/ipc.c
+	utils/ipc/task_queue.c
+	utils/ipc/ipc_plotter.c
 	utils/http/generics.c
 	utils/http/primitives.c
 	utils/http/parameter.c

@@ -205,6 +205,9 @@ struct browser_window {
     int width;
     int height;
 
+    /* IPC connection for multi-process rendering */
+    struct ipc_connection *ipc_conn;
+
     struct scrollbar *scroll_x; /**< Horizontal scroll. */
     struct scrollbar *scroll_y; /**< Vertical scroll. */
 

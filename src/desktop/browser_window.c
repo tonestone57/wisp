@@ -30,6 +30,10 @@
 #include <limits.h>
 #include <math.h>
 #include <stdlib.h>
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+    #include <unistd.h>
+    #include <pthread.h>
+#endif
 #include <string.h>
 
 #include <wisp/browser_window.h>
@@ -46,6 +50,8 @@
 #include <wisp/utils/messages.h>
 #include <wisp/utils/nsoption.h>
 #include <wisp/window.h>
+#include <wisp/ipc/task_queue.h>
+#include <wisp/ipc/ipc.h>
 #include "content/content_debug.h"
 #include "content/urldb.h"
 
@@ -2809,6 +2815,17 @@ nserror browser_window_debug(struct browser_window *bw, enum content_debug op)
 }
 
 
+#if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+// Phase 0.5 Thread Wrapper to prevent signature cast undefined behavior
+static void* renderer_thread_wrapper(void* arg) {
+    char* ipc_name = (char*)arg;
+    wisp_renderer_main(ipc_name);
+    // Free strdup'd argument from parent thread
+    free(ipc_name);
+    return NULL;
+}
+#endif
+
 /* exported interface, documented in neosurf/browser_window.h */
 nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url, nsurl *referrer,
     struct browser_window *existing, struct browser_window **bw)
@@ -2854,6 +2871,35 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
     /* initialise last action with creation time */
     nsu_getmonotonic_ms(&ret->last_action);
 
+    /* establish IPC connection for the new tab */
+    if (nsoption_bool(multi_process)) {
+        ipc_init();
+        char ipc_name[64];
+        snprintf(ipc_name, sizeof(ipc_name), "%p", (void*)ret);
+
+        if (ipc_listen(ipc_name, &ret->ipc_conn) == NSERROR_OK) {
+            #if defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+            // Phase 0.5: Interim Threaded Mode
+            // Spawn a thread instead of a fork to execute the renderer logic
+            pthread_t tid;
+            char *thread_ipc_name = strdup(ipc_name);
+            if (pthread_create(&tid, NULL, renderer_thread_wrapper, thread_ipc_name) != 0) {
+                free(thread_ipc_name);
+            } else {
+                pthread_detach(tid);
+            }
+
+            // In Phase 0.5 we use the internal `task_queue` structure so `ipc_accept` is bypassed
+            // entirely for thread communication. The sockets are prepared but left dormant
+            // in the UI thread so it does not block
+            // struct ipc_connection *client_conn;
+            // ipc_accept(ret->ipc_conn, &client_conn);
+            #endif
+        } else {
+            NSLOG(wisp, ERROR, "Failed to initialize IPC socket for new window.");
+        }
+    }
+
     /* The existing gui_window is on the top-level existing
      * browser_window. */
     existing = browser_window_get_root(existing);
@@ -2873,6 +2919,13 @@ nserror browser_window_create(enum browser_window_create_flags flags, nsurl *url
     if (ret->window == NULL) {
         browser_window_destroy(ret);
         return NSERROR_BAD_PARAMETER;
+    }
+
+    if (nsoption_bool(multi_process)) {
+        extern const struct plotter_table ipc_plotter;
+        // Hook the frontend to the renderer thread through the plotter API.
+        // In Phase 0.5 this wires the task queue to the GUI event loops.
+        guit->window->set_plotter(ret->window, &ipc_plotter);
     }
 
     if (url != NULL) {
@@ -2951,6 +3004,14 @@ void browser_window_destroy(struct browser_window *bw)
 {
     /* can't destoy child windows on their own */
     assert(!bw->parent);
+
+    if (bw->ipc_conn) {
+        extern void ipc_plotter_stop_queue(void);
+        // Tell the thread to shut down so we don't leak it
+        ipc_plotter_stop_queue();
+
+        ipc_close(bw->ipc_conn);
+    }
 
     /* destroy */
     browser_window_destroy_internal(bw);
