@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -flto -Wl,--gc-sections -shared -Wl,-soname,libnsgif.so.1 -o libnsgif.so.1 CMakeFiles/nsgif.dir/src/gif.c.o CMakeFiles/nsgif.dir/src/lzw.c.o
