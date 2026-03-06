@@ -501,11 +501,7 @@ dom_exception _dom_element_create(
     struct dom_document *doc, dom_string *name, dom_string *namespace, dom_string *prefix, struct dom_element **result)
 {
     /* Allocate the element */
-<<<<<<< HEAD
     *result = malloc(sizeof(struct dom_element));
-=======
-    *result = DOM_ALLOC(doc, sizeof(struct dom_element));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (*result == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -547,11 +543,7 @@ dom_exception _dom_element_initialise(
     /* Initialise the base class */
     err = _dom_node_initialise(&el->base, doc, DOM_ELEMENT_NODE, name, NULL, namespace, prefix);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(el);
-=======
-        DOM_FREE(el);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -602,11 +594,7 @@ void _dom_element_destroy(struct dom_element *element)
     _dom_element_finalise(element);
 
     /* Free the element */
-<<<<<<< HEAD
     free(element);
-=======
-    DOM_FREE(element);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /*----------------------------------------------------------------------*/
@@ -1452,21 +1440,13 @@ dom_exception _dom_element_copy(dom_node_internal *old, dom_node_internal **copy
     dom_element *new_node;
     dom_exception err;
 
-<<<<<<< HEAD
     new_node = malloc(sizeof(dom_element));
-=======
-    new_node = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_element));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_node == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_element_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(new_node);
-=======
-        DOM_FREE(new_node);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 

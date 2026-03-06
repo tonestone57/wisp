@@ -57,10 +57,6 @@
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/utils.h>
-<<<<<<< HEAD
-=======
-#include "utils/arena.h"
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "utils/talloc.h"
 #include "desktop/scrollbar.h"
 
@@ -326,12 +322,7 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
     struct box *row_group, *row, *cell;
 
     /* check if the widths have already been calculated */
-<<<<<<< HEAD
     if (table->max_width != UNKNOWN_MAX_WIDTH && !((table->flags & DIRTY) || (table->flags & CHILD_DIRTY)))
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (table->max_width != UNKNOWN_MAX_WIDTH)
         return;
 
     if (table_calculate_column_types(&content->unit_len_ctx, table) == false) {
@@ -364,22 +355,6 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
             for (cell = row->children; cell; cell = cell->next) {
                 assert(cell->type == BOX_TABLE_CELL);
                 assert(cell->style);
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
-=======
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
-                /** TODO: Handle colspan="0" correctly.
-                 *        It's currently converted to 1 in box
-                 * normaisation */
->>>>>>> origin/jules/memory-arenas-14531613996922608918
                 assert(cell->columns != 0);
 
                 if (cell->columns != 1)
@@ -720,8 +695,6 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
                     if (nsoption_bool(core_select_menu))
                         b->width += SCROLLBAR_WIDTH;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
                 } else if (b->text && b->length == 1 && b->text[0] == '\t') {
                     int tab_size = 8; /* Default tab-size */
                     int space_w = b->space;
@@ -731,10 +704,6 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
                     /* For min/max width, use maximum possible tab width */
                     b->width = tab_size * space_w;
                     b->flags |= MEASURED;
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                     b->flags |= MEASURED;
@@ -897,15 +866,7 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
     assert(inline_container->type == BOX_INLINE_CONTAINER);
 
     /* check if the widths have already been calculated */
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (inline_container->max_width != UNKNOWN_MAX_WIDTH)
         return;
 
     *has_height = false;
@@ -960,12 +921,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         block->type == BOX_TABLE_CELL);
 
     /* check if the widths have already been calculated */
-<<<<<<< HEAD
     if (block->max_width != UNKNOWN_MAX_WIDTH && !((block->flags & DIRTY) || (block->flags & CHILD_DIRTY)))
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (block->max_width != UNKNOWN_MAX_WIDTH)
         return;
 
     if (block->style != NULL) {
@@ -1277,13 +1233,7 @@ void layout_minmax_box(struct box *box, const struct gui_layout_table *font_func
 {
 
     /* Check if already calculated */
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (box->max_width != UNKNOWN_MAX_WIDTH && !((box->flags & DIRTY) || (box->flags & CHILD_DIRTY)))
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (box->max_width != UNKNOWN_MAX_WIDTH)
         return;
 
     switch (box->type) {
@@ -1884,15 +1834,10 @@ static void layout_move_children(struct box *box, int x, int y)
 /* Documented in layout_internal.h */
 bool layout_table(struct box *table, int available_width, html_content *content)
 {
-<<<<<<< HEAD
     if (!(table->flags & DIRTY) && !(table->flags & CHILD_DIRTY)) {
         return true;
     }
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     unsigned int columns = table->columns; /* total columns */
     unsigned int i;
     unsigned int *row_span;
@@ -2203,9 +2148,6 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table_height = border_spacing_v + table->padding[TOP];
     for (row_group = table->children; row_group; row_group = row_group->next) {
         int row_group_height = 0;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 
         for (i = 0; i != columns; i++) {
             row_span[i] = 0;
@@ -2213,10 +2155,6 @@ bool layout_table(struct box *table, int available_width, html_content *content)
             row_span_cell[i] = 0;
         }
 
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         for (row = row_group->children; row; row = row->next) {
             int row_height = 0;
 
@@ -2373,13 +2311,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table->width = table_width;
     table->height = table_height;
 
-<<<<<<< HEAD
     table->flags &= ~(DIRTY | CHILD_DIRTY);
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return true;
 }
 
@@ -2589,11 +2522,7 @@ static bool layout_text_box_split(
         space_width = 0;
 
     /* Create clone of split_box, c2 */
-<<<<<<< HEAD
     c2 = talloc_memdup(content->bctx, split_box, sizeof *c2);
-=======
-    c2 = arena_memdup(content->bctx, split_box, sizeof *c2);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (!c2)
         return false;
     c2->flags |= CLONE;
@@ -3055,9 +2984,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
                     b->width = opt_maxwidth;
                     if (nsoption_bool(core_select_menu))
                         b->width += SCROLLBAR_WIDTH;
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
                 } else if (b->text && b->length == 1 && b->text[0] == '\t') {
                     int tab_size = 8;
                     int space_w = b->space;
@@ -3071,10 +2997,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
                         b->width = 0;
                     }
                     b->flags |= MEASURED;
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                     b->flags |= MEASURED;
@@ -3087,7 +3009,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
              * correctly and to detect overflow (the estimate can be
              * wrong for variable-width fonts and Unicode text). */
             if (b->text && (x + b->width < x1 - x0) && !(b->flags & MEASURED)) {
-<<<<<<< HEAD
                 if (b->length == 1 && b->text[0] == '\t') {
                     int tab_size = 8;
                     int space_w = b->space;
@@ -3103,10 +3024,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
                 } else {
                     font_func->width(&fstyle, b->text, b->length, &b->width);
                 }
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-                font_func->width(&fstyle, b->text, b->length, &b->width);
                 b->flags |= MEASURED;
             }
 
@@ -3191,8 +3108,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
     NSLOG(layout, DEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     /* handle ::first-line style replacement */
     if (indent && cont != NULL && cont->styles != NULL && cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE] != NULL) {
         for (b = first; b; b = b->next) {
@@ -3219,10 +3134,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
         }
     }
 
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     for (x = x_previous = 0, b = first; x <= x1 - x0 && b; b = b->next) {
 
         NSLOG(layout, DEBUG, "pass 2: b %p, x %i", b, x);
@@ -3239,8 +3150,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
             x += space_after;
             b->x = x;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
             if (b->text && b->length == 1 && b->text[0] == '\t') {
                 /* Calculate tab width based on current x offset */
                 int tab_size = 8; /* Default tab-size */
@@ -3257,9 +3166,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
                 }
             }
 
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
             if ((b->type == BOX_INLINE && !b->inline_end) || b->type == BOX_INLINE_BLOCK ||
                 b->type == BOX_INLINE_FLEX || b->type == BOX_INLINE_GRID) {
                 b->x += b->margin[LEFT] + b->border[LEFT].width;
@@ -3407,17 +3313,12 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
             font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
             /** \todo handle errors */
-<<<<<<< HEAD
             if (split_box->length == 1 && split_box->text[0] == '\t') {
                 /* A tab shouldn't be split */
                 split = 0;
             } else {
                 font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
             }
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-            font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
         }
 
         /* split == 0 implies that text can't be split */
@@ -3617,16 +3518,10 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 static bool layout_inline_container(
     struct box *inline_container, int width, struct box *cont, int cx, int cy, html_content *content)
 {
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (!(inline_container->flags & DIRTY) && !(inline_container->flags & CHILD_DIRTY)) {
         return true;
     }
 
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     bool first_line = true;
     bool has_text_children;
     struct box *c, *next;
@@ -3683,12 +3578,7 @@ static bool layout_inline_container(
         inline_container, inline_container->parent, inline_container->y, inline_container->height,
         inline_container->parent ? inline_container->parent->list_marker : NULL);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     inline_container->flags &= ~(DIRTY | CHILD_DIRTY);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return true;
 }
 
@@ -3708,15 +3598,10 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
     css_fixed gadget_size;
     css_unit gadget_unit; /* Checkbox / radio buttons */
 
-<<<<<<< HEAD
     if (!(block->flags & DIRTY) && !(block->flags & CHILD_DIRTY)) {
         return true;
     }
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     assert(block->type == BOX_BLOCK || block->type == BOX_INLINE_BLOCK || block->type == BOX_TABLE_CELL ||
         block->type == BOX_FLEX || block->type == BOX_GRID || block->type == BOX_INLINE_FLEX ||
         block->type == BOX_INLINE_GRID);
@@ -4001,14 +3886,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 
         /* Unless the box has an overflow style of visible, the box
          * establishes a new block context. */
-<<<<<<< HEAD
-<<<<<<< HEAD
         if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX || box->type == BOX_GRID ||
-=======
-        if (box->type == BOX_FLEX || box->type == BOX_GRID ||
-=======
-        if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX || box->type == BOX_GRID ||
->>>>>>> origin/jules/memory-arenas-14531613996922608918
             (box->type == BOX_BLOCK && box->style &&
                 (overflow_x != CSS_OVERFLOW_VISIBLE || overflow_y != CSS_OVERFLOW_VISIBLE))) {
 
@@ -4035,18 +3913,6 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
                     if (!layout_flex(box, box->width, content)) {
                         return false;
                     }
-<<<<<<< HEAD
-                if (box->type == BOX_FLEX) {
-                    if (!layout_flex(box, box->width, content)) {
-                        return false;
-                    }
-                } else {
-                    /* Inline flex handled as block flex here if needed, or pass TODO */
-                    /* Ideally call layout_flex but check if it supports INLINE_FLEX */
-                    /* Assuming layout_flex handles it or we rely on block behavior for now */
-                    /* fprintf(stderr, "Handling INLINE_FLEX %p in block context\n", box); */
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
                 }
                 NSLOG(layout, DEBUG, "flex post: box %p, w %i, h %i", box, box->width, box->height);
                 if (class_attr != NULL)
@@ -4309,13 +4175,8 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
             block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     block->flags &= ~(DIRTY | CHILD_DIRTY);
 
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     return true;
 }
 
@@ -4614,11 +4475,7 @@ static void layout__set_numerical_marker_text(const html_content *content, struc
         LIST_MARKER_SIZE = 20,
     };
 
-<<<<<<< HEAD
     marker->text = talloc_array(content->bctx, char, LIST_MARKER_SIZE);
-=======
-    marker->text = arena_alloc(content->bctx, LIST_MARKER_SIZE);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (marker->text == NULL) {
         return;
     }
@@ -4629,11 +4486,7 @@ static void layout__set_numerical_marker_text(const html_content *content, struc
         if (counter_len >= LIST_MARKER_SIZE) {
             /* Use computed size as marker did not fit in
              * default allocation. */
-<<<<<<< HEAD
             marker->text = talloc_realloc(content->bctx, marker->text, char, counter_len + 1);
-=======
-            marker->text = arena_alloc(content->bctx, counter_len + 1);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
             if (marker->text == NULL) {
                 return;
             }

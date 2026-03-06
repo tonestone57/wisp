@@ -50,10 +50,6 @@
 #include <wisp/utils/utils.h>
 #include "utils/http.h"
 #include "utils/libdom.h"
-<<<<<<< HEAD
-=======
-#include "utils/arena.h"
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "utils/talloc.h"
 #include "content/content_factory.h"
 #include "content/handlers/javascript/js.h"
@@ -88,18 +84,11 @@
 
 /* Performance tracing - enable via CMake: -DNEOSURF_ENABLE_PERF_TRACE=ON */
 #include <wisp/utils/perf.h>
-<<<<<<< HEAD
 #include <wisp/utils/thread_pool.h>
 
 static const char *html_types[] = {"application/xhtml+xml", "text/html"};
 
 static thread_pool_t *html_parser_pool = NULL;
-
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-
-static const char *html_types[] = {"application/xhtml+xml", "text/html"};
 
 /**
  * Fire an event at the DOM
@@ -420,15 +409,9 @@ void html_finish_conversion(html_content *htmlc)
          * the currentTarget set to the Window object)
          */
         if (htmlc->jsthread != NULL) {
-<<<<<<< HEAD
-<<<<<<< HEAD
             pthread_mutex_lock(&htmlc->doc_mutex);
             js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
             pthread_mutex_unlock(&htmlc->doc_mutex);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-            js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
         }
     }
 
@@ -521,14 +504,8 @@ void html_finish_conversion(html_content *htmlc)
         /* Store timestamp on first delay */
         if (htmlc->font_wait_start_ms == 0) {
             nsu_getmonotonic_ms(&htmlc->font_wait_start_ms);
-<<<<<<< HEAD
             NSLOG(wisp, INFO, "Delaying box conversion - waiting for %d pending fonts (started at %ju ms)",
                 html_font_face_pending_count(), (uintmax_t)htmlc->font_wait_start_ms);
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-            NSLOG(wisp, INFO, "Delaying box conversion - waiting for %d pending fonts (started at %llu ms)",
-                html_font_face_pending_count(), htmlc->font_wait_start_ms);
         }
         dom_node_unref(html);
         /* Will be called again when fonts complete */
@@ -540,25 +517,14 @@ void html_finish_conversion(html_content *htmlc)
         uint64_t now_ms;
         nsu_getmonotonic_ms(&now_ms);
         uint64_t delay_ms = now_ms - htmlc->font_wait_start_ms;
-<<<<<<< HEAD
-<<<<<<< HEAD
         NSLOG(wisp, INFO, "Fonts ready! Box conversion delayed by %ju ms", (uintmax_t)delay_ms);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-        NSLOG(wisp, INFO, "Fonts ready! Box conversion delayed by %llu ms", delay_ms);
         htmlc->font_wait_start_ms = 0; /* Reset for next time */
     }
 
     PERF("DOM to box START");
-<<<<<<< HEAD
     pthread_mutex_lock(&htmlc->doc_mutex);
     error = dom_to_box(html, htmlc, html_box_convert_done, &htmlc->box_conversion_context);
     pthread_mutex_unlock(&htmlc->doc_mutex);
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    error = dom_to_box(html, htmlc, html_box_convert_done, &htmlc->box_conversion_context);
     if (error != NSERROR_OK) {
         NSLOG(wisp, INFO, "box conversion failed");
         dom_node_unref(html);
@@ -655,14 +621,8 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
     c->scripts = NULL;
     c->jsthread = NULL;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     pthread_mutex_init(&c->doc_mutex, NULL);
 
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     c->enable_scripting = nsoption_bool(enable_javascript);
     c->base.active = 1; /* The html content itself is active */
 
@@ -882,8 +842,6 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 }
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 struct html_parse_task {
     struct content *c;
     char *data;
@@ -956,9 +914,6 @@ static void html_parse_worker(void *arg)
     guit->misc->schedule(0, html_parse_complete_cb, task);
 }
 
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 /**
  * Process data for CONTENT_HTML.
  */
@@ -966,25 +921,8 @@ static void html_parse_worker(void *arg)
 static bool html_process_data(struct content *c, const char *data, unsigned int size)
 {
     html_content *html = (html_content *)c;
-<<<<<<< HEAD
 
     if (html->parser == NULL) {
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    dom_hubbub_error dom_ret;
-    nserror err = NSERROR_OK; /* assume its all going to be ok */
-
-    if (html->parser == NULL) {
-        /* Parser may be NULL because:
-         * 1. Parsing completed successfully (parse_completed is true)
-         * 2. Parser creation failed (error case)
-         *
-         * For cached content on reload, conversion can complete very
-         * quickly before all data callbacks finish. In this case,
-         * receiving more data after parsing is complete is not an
-         * error.
-         */
         if (html->parse_completed) {
             NSLOG(wisp, INFO, "Ignoring data for content %p - parsing already complete", c);
             return true;
@@ -994,8 +932,6 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
         return false;
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     struct html_parse_task *task = malloc(sizeof(struct html_parse_task));
     if (!task) {
         return false;
@@ -1020,21 +956,6 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
         html->base.active--;
         html->base.active_bg_tasks--;
         html_parse_task_free(task);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    dom_ret = dom_hubbub_parser_parse_chunk(html->parser, (const uint8_t *)data, size);
-
-    err = libdom_hubbub_error_to_nserror(dom_ret);
-
-    /* deal with encoding change */
-    if (err == NSERROR_ENCODING_CHANGE) {
-        err = html_process_encoding_change(c, data, size);
-    }
-
-    /* broadcast the error if necessary */
-    if (err != NSERROR_OK && err != NSERROR_PAUSED) {
-        content_broadcast_error(c, err, NULL);
         return false;
     }
 
@@ -1127,15 +1048,6 @@ bool html_can_begin_conversion(html_content *htmlc)
 
 void script_resume_conversion_cb(void *p);
 static void html_free_layout(html_content *htmlc);
-
-<<<<<<< HEAD
-=======
-bool html_begin_conversion(html_content *htmlc);
-
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-bool html_begin_conversion(html_content *htmlc);
 
 void html_resume_conversion_cb(void *p)
 {
@@ -1444,16 +1356,10 @@ static void html_reformat(struct content *c, int width, int height)
     htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
     htmlc->unit_len_ctx.root_style = htmlc->layout->style;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     pthread_mutex_lock(&htmlc->doc_mutex);
     layout_document(htmlc, width, height);
     pthread_mutex_unlock(&htmlc->doc_mutex);
 
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    layout_document(htmlc, width, height);
     layout = htmlc->layout;
     PERF("html_reformat #%d DONE layout", reformat_count);
 
@@ -1572,14 +1478,10 @@ static void html_destroy_iframe(struct content_html_iframe *iframe)
 static void html_free_layout(html_content *htmlc)
 {
     if (htmlc->bctx != NULL) {
-<<<<<<< HEAD
         /* freeing talloc context should let the entire box
          * set be destroyed
          */
         talloc_free(htmlc->bctx);
-=======
-        arena_destroy(htmlc->bctx);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         htmlc->bctx = NULL;
     }
     htmlc->layout = NULL;
@@ -1729,14 +1631,8 @@ static void html_destroy(struct content *c)
 
     /* Free objects */
     html_object_free_objects(html);
-<<<<<<< HEAD
-<<<<<<< HEAD
 
     pthread_mutex_destroy(&html->doc_mutex);
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 
@@ -2602,16 +2498,11 @@ static content_type html_content_type(void)
 static void html_fini(void)
 {
     html_css_fini();
-<<<<<<< HEAD
-<<<<<<< HEAD
 
     if (html_parser_pool) {
         thread_pool_destroy(html_parser_pool);
         html_parser_pool = NULL;
     }
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /**
@@ -2753,18 +2644,12 @@ nserror html_init(void)
     uint32_t i;
     nserror error;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (!html_parser_pool) {
         /* Initialize a thread pool for background tokenization */
         /* Must be 1 thread to guarantee FIFO ordering of streamed HTML chunks */
         html_parser_pool = thread_pool_create(1);
     }
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     error = html_css_init();
     if (error != NSERROR_OK)
         goto error;

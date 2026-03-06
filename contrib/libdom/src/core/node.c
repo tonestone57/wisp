@@ -59,11 +59,7 @@ static const struct dom_node_protect_vtable node_protect_vtable = {DOM_NODE_PROT
 /* Create a DOM node and compose the vtable */
 dom_node_internal *_dom_node_create(void)
 {
-<<<<<<< HEAD
     dom_node_internal *node = malloc(sizeof(struct dom_node_internal));
-=======
-    dom_node_internal *node = DOM_ALLOC(NULL, sizeof(struct dom_node_internal));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (node == NULL)
         return NULL;
 
@@ -112,11 +108,7 @@ void _dom_node_destroy(struct dom_node_internal *node)
     }
 
     /* Release our memory */
-<<<<<<< HEAD
     free(node);
-=======
-    if (!node->owner || !((struct dom_document *)node->owner)->arena) free(node);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 void _dom_node_unref_debug(dom_node *node, const char *file, int line)
@@ -293,11 +285,7 @@ void _dom_node_finalise(dom_node_internal *node)
             u->handler(DOM_NODE_DELETED, u->key, u->data, NULL, NULL);
 
         dom_string_unref(u->key);
-<<<<<<< HEAD
         free(u);
-=======
-        DOM_FREE(u);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     }
     node->user_data = NULL;
 
@@ -1793,22 +1781,14 @@ dom_exception _dom_node_set_user_data(
 
         *result = ud->data;
 
-<<<<<<< HEAD
         free(ud);
-=======
-        DOM_FREE(ud);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
         return DOM_NO_ERR;
     }
 
     /* Otherwise, create a new user data object if one wasn't found */
     if (ud == NULL) {
-<<<<<<< HEAD
         ud = malloc(sizeof(struct dom_user_data));
-=======
-        ud = DOM_ALLOC(((dom_node_internal*)node)->owner, sizeof(struct dom_user_data));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         if (ud == NULL)
             return DOM_NO_MEM_ERR;
 
@@ -1873,21 +1853,13 @@ dom_exception _dom_node_copy(dom_node_internal *old, dom_node_internal **copy)
     dom_node_internal *new_node;
     dom_exception err;
 
-<<<<<<< HEAD
     new_node = malloc(sizeof(dom_node_internal));
-=======
-    new_node = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_node_internal));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (new_node == NULL)
         return DOM_NO_MEM_ERR;
 
     err = _dom_node_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(new_node);
-=======
-        DOM_FREE(new_node);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -2607,11 +2579,7 @@ cleanup:
         dom_node_unref(targets[ntargets]);
     }
     if (targets != NULL) {
-<<<<<<< HEAD
         free(targets);
-=======
-        DOM_FREE(targets);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     }
 
     if (dei != NULL && dei->actions != NULL) {

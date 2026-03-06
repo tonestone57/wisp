@@ -1998,7 +1998,6 @@ nserror fetch_curl_register(void)
         SETOPT(CURLOPT_VERBOSE, 1L);
     }
 
-<<<<<<< HEAD
     /* Enable HTTP/3 if available, falling back to HTTP/2 with TLS */
 #ifndef CURL_HTTP_VERSION_3
 #define CURL_HTTP_VERSION_3 30L
@@ -2010,11 +2009,6 @@ nserror fetch_curl_register(void)
     } else {
         NSLOG(wisp, INFO, "HTTP/3 enabled in libcurl");
     }
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    /* YOLO: Enable HTTP/2 with TLS (falls back to HTTP/1.1 if needed) */
-    SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
 
     SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
     SETOPT(CURLOPT_HEADERFUNCTION, fetch_curl_header);
@@ -2026,8 +2020,6 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_LOW_SPEED_TIME, 180L);
     SETOPT(CURLOPT_NOSIGNAL, 1L);
     SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
-<<<<<<< HEAD
-<<<<<<< HEAD
 
     /* Enable TCP Keep-Alive to keep connection open for asset multiplexing */
 #if LIBCURL_VERSION_NUM >= 0x071900 /* 7.25.0 */
@@ -2035,14 +2027,6 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_TCP_KEEPIDLE, 120L);
     SETOPT(CURLOPT_TCP_KEEPINTVL, 60L);
 #endif
-    SETOPT(CURLOPT_LOW_SPEED_LIMIT, 1024L);
-    SETOPT(CURLOPT_LOW_SPEED_TIME, 10L);
-    SETOPT(CURLOPT_NOSIGNAL, 1L);
-    SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
-    SETOPT(CURLOPT_TIMEOUT, 300L);
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     SETOPT(CURLOPT_OPENSOCKETFUNCTION, fetch_curl_socket_open);
     SETOPT(CURLOPT_CLOSESOCKETFUNCTION, fetch_curl_socket_close);
 

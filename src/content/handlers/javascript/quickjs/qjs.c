@@ -30,13 +30,8 @@
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 
-<<<<<<< HEAD
 #include "utils/libdom.h"
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "quickjs.h"
 
 #include "content/handlers/javascript/js.h"
@@ -49,10 +44,7 @@
 #include "content/handlers/javascript/quickjs/timers.h"
 #include "content/handlers/javascript/quickjs/window.h"
 #include "content/handlers/javascript/quickjs/xhr.h"
-<<<<<<< HEAD
-<<<<<<< HEAD
 #include "content/handlers/javascript/quickjs/unimplemented.h"
-<<<<<<< HEAD
 
 #ifdef _WIN32
 #include <windows.h>
@@ -60,19 +52,12 @@
 #include <unistd.h>
 #include <pthread.h>
 #endif
-=======
-#include <nsutils/time.h>
-=======
-=======
-#include "content/handlers/javascript/quickjs/unimplemented.h"
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
 /**
  * JavaScript heap structure.
  *
  * Maps to QuickJS's JSRuntime - one per browser window.
  */
-<<<<<<< HEAD
 
 struct qjs_event_listener_ctx {
     struct qjs_event_listener_ctx *next;
@@ -92,15 +77,6 @@ struct qjs_event_map {
 struct jsheap {
     JSRuntime *rt;
     int timeout;
-struct jsheap {
-    JSRuntime *rt;
-    int timeout;
-    uint64_t deadline_ms;
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-struct jsheap {
-    JSRuntime *rt;
-    int timeout;
 };
 
 /**
@@ -114,13 +90,8 @@ struct jsthread {
     bool closed;
     void *win_priv;
     void *doc_priv;
-<<<<<<< HEAD
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 };
 
 
@@ -143,9 +114,6 @@ void *qjs_get_window_priv(JSContext *ctx)
     return t->win_priv;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 /**
  * Get the document private data from a JS context.
  *
@@ -524,28 +492,16 @@ void init_wisp_subsystem(void) {
 #endif
     }
 }
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
 /* exported interface documented in js.h */
 void js_initialise(void)
 {
-<<<<<<< HEAD
     init_wisp_subsystem();
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine initialised");
 }
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-<<<<<<< HEAD
 /* exported interface documented in js.h */
 void js_finalise(void)
 {
@@ -606,33 +562,6 @@ void js_finalise(void)
         pthread_cond_destroy(&wisp_queue.cond);
 #endif
     }
-=======
-
-/**
- * QuickJS interrupt handler.
- * Called periodically during script execution to check for timeouts.
- */
-static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
-{
-    struct jsheap *heap = opaque;
-    uint64_t now;
-
-    if (heap->deadline_ms > 0) {
-        nsu_getmonotonic_ms(&now);
-        if (now > heap->deadline_ms) {
-            NSLOG(wisp, WARNING, "JavaScript execution timeout exceeded");
-            return 1; /* Interrupt execution */
-        }
-    }
-
-    return 0; /* Continue execution */
-}
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-/* exported interface documented in js.h */
-void js_finalise(void)
-{
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine finalised");
 }
 
@@ -661,14 +590,6 @@ nserror js_newheap(int timeout, jsheap **heap)
     /* Set max stack size (1MB) */
     JS_SetMaxStackSize(h->rt, 1024 * 1024);
 
-<<<<<<< HEAD
-=======
-    JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
-
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     NSLOG(wisp, DEBUG, "Created QuickJS heap %p", h);
 
     *heap = h;
@@ -767,20 +688,12 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         NSLOG(wisp, ERROR, "Failed to initialize QuickJS XMLHttpRequest");
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     /* Initialize unimplemented APIs as stubs */
     if (qjs_init_unimplemented(t->ctx) < 0) {
         NSLOG(wisp, WARNING, "Failed to initialize unimplemented API stubs");
     }
 
 
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     /* Add DOM constructor stubs that third-party JS commonly checks */
     {
         JSValue global_obj = JS_GetGlobalObject(t->ctx);
@@ -873,8 +786,6 @@ void js_destroythread(jsthread *thread)
 
     NSLOG(wisp, DEBUG, "Destroying QuickJS thread %p", thread);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 
     struct qjs_event_listener_ctx *l = thread->listeners;
@@ -900,10 +811,6 @@ void js_destroythread(jsthread *thread)
 
     if (thread->ctx != NULL) {
 
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    if (thread->ctx != NULL) {
         /* Execute any pending jobs before freeing context.
          * This is required by QuickJS to properly clean up Promise
          * callbacks and other async operations that hold references
@@ -911,31 +818,10 @@ void js_destroythread(jsthread *thread)
          */
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-
-        if (thread->heap->timeout > 0) {
-            uint64_t now;
-            nsu_getmonotonic_ms(&now);
-            thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
-        }
-
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         while (JS_ExecutePendingJob(rt, &ctx1) > 0) {
             /* Drain the job queue */
         }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-        thread->heap->deadline_ms = 0;
-
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         JS_FreeContext(thread->ctx);
     }
 
@@ -962,19 +848,6 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     NSLOG(wisp, INFO, "Executing JS: %s (length %zu)", name ? name : "<anonymous>", txtlen);
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    if (thread->heap->timeout > 0) {
-        uint64_t now;
-        nsu_getmonotonic_ms(&now);
-        thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
-    }
-
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     /* QuickJS-ng requires the input to be null-terminated at txt[txtlen] */
     if (txtlen < sizeof(stack_buf)) {
         memcpy(stack_buf, txt, txtlen);
@@ -991,12 +864,6 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     }
 
     result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
-<<<<<<< HEAD
-<<<<<<< HEAD
-    thread->heap->deadline_ms = 0;
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
     if (JS_IsException(result)) {
         JSValue exc = JS_GetException(thread->ctx);
@@ -1020,8 +887,6 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     return success;
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 static void qjs_event_handler(struct dom_event *evt, void *pw)
 {
     struct qjs_event_listener_ctx *ctx = pw;
@@ -1077,16 +942,10 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     JS_FreeValue(jsctx, global);
 }
 
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 
 /* exported interface documented in js.h */
 bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
 {
-<<<<<<< HEAD
-<<<<<<< HEAD
     dom_exception exc;
     dom_string *type_str = NULL;
     dom_event *evt = NULL;
@@ -1151,20 +1010,6 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 
     dom_event_listener_unref(listener);
 
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    /* TODO: Implement event firing */
-    NSLOG(wisp, DEBUG, "js_fire_event called (not yet implemented)");
-    return true;
-}
-
-
-bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
-    struct dom_string *event_type_dom, void *js_funcval)
-{
-    /* TODO: Implement event listener registration */
-    NSLOG(wisp, DEBUG, "js_dom_event_add_listener called (not yet implemented)");
     return true;
 }
 
@@ -1180,8 +1025,6 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node)
 /* exported interface documented in js.h */
 void js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
-<<<<<<< HEAD
-<<<<<<< HEAD
     if (thread == NULL || evt == NULL) return;
 
     struct qjs_event_map **prev = &thread->events;
@@ -1208,11 +1051,4 @@ void js_event_cleanup(jsthread *thread, struct dom_event *evt)
         prev = &curr->next;
         curr = curr->next;
     }
-}
-=======
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
-    /* TODO: Implement event cleanup */
-    NSLOG(wisp, DEBUG, "js_event_cleanup called (not yet implemented)");
 }

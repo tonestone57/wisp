@@ -15,10 +15,6 @@
 #include "core/document_type.h"
 #include "core/namednodemap.h"
 #include "core/node.h"
-<<<<<<< HEAD
-=======
-#include "core/document.h"
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 #include "core/string.h"
 
 /**
@@ -63,11 +59,7 @@ _dom_document_type_create(dom_string *qname, dom_string *public_id, dom_string *
     dom_exception err;
 
     /* Create node */
-<<<<<<< HEAD
     result = malloc(sizeof(dom_document_type));
-=======
-    result = DOM_ALLOC(NULL, sizeof(dom_document_type));
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     if (result == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -77,11 +69,7 @@ _dom_document_type_create(dom_string *qname, dom_string *public_id, dom_string *
 
     err = _dom_document_type_initialise(result, qname, public_id, system_id);
     if (err != DOM_NO_ERR) {
-<<<<<<< HEAD
         free(result);
-=======
-        DOM_FREE(result);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
         return err;
     }
 
@@ -105,11 +93,7 @@ void _dom_document_type_destroy(dom_node_internal *doctypenode)
     _dom_document_type_finalise(doctype);
 
     /* Free doctype */
-<<<<<<< HEAD
     free(doctype);
-=======
-    DOM_FREE(doctype);
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 }
 
 /* Initialise this document_type */

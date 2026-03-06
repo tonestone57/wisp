@@ -252,13 +252,7 @@ target_compile_definitions(layout_inline_grid_test PRIVATE TESTING)
 add_wisp_test(grid_construct_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/box_normalise.c
   ${CMAKE_SOURCE_DIR}/src/utils/libdom.c
-<<<<<<< HEAD
-<<<<<<< HEAD
   ${CMAKE_SOURCE_DIR}/src/utils/talloc.c
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/grid_construct_test.c
 )

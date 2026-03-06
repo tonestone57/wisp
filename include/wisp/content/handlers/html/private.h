@@ -103,27 +103,15 @@ union html_focus_owner {
 };
 
 
-<<<<<<< HEAD
 #include <pthread.h>
 
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
->>>>>>> origin/fix-quickjs-event-target-dom-10201501675984517242
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
 /**
  * Data specific to CONTENT_HTML.
  */
 typedef struct html_content {
     struct content base;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     pthread_mutex_t doc_mutex; /**< Protects dom_document mutation */
-=======
-=======
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     dom_hubbub_parser *parser; /**< Parser object handle */
     bool parse_completed; /**< Whether the parse has been completed */
     bool conversion_begun; /**< Whether or not the conversion has begun */
@@ -168,11 +156,7 @@ typedef struct html_content {
     dom_node *title;
 
     /** A talloc context purely for the render box tree */
-<<<<<<< HEAD
     int *bctx;
-=======
-    struct arena *bctx;
->>>>>>> origin/jules/memory-arenas-14531613996922608918
     /** A context pointer for the box conversion, NULL if no conversion
      * is in progress.
      */

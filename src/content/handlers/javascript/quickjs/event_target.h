@@ -19,18 +19,7 @@
 int qjs_init_event_target(JSContext *ctx);
 
 #endif /* NEOSURF_QUICKJS_EVENT_TARGET_H */
-<<<<<<< HEAD
-<<<<<<< HEAD
 
 JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
->>>>>>> origin/jules-fetch-js-timeout-watchdogs-3398543383356405323
-=======
-JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-
-#endif /* NEOSURF_QUICKJS_EVENT_TARGET_H */
-=======
->>>>>>> origin/jules/memory-arenas-14531613996922608918
