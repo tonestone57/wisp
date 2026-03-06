@@ -1,0 +1,1 @@
+/usr/bin/cc -fPIC -flto -Wl,--gc-sections -shared -Wl,-soname,libnsutils.so.1 -o libnsutils.so.1 CMakeFiles/nsutils.dir/src/base64.c.o CMakeFiles/nsutils.dir/src/time.c.o CMakeFiles/nsutils.dir/src/unistd.c.o CMakeFiles/nsutils.dir/src/libwapcaplet.c.o
