@@ -1826,6 +1826,7 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
 {
     const struct plotter_table *plot = ctx->plot;
     int x, y;
+    int unscaled_x, unscaled_y;
     int width, height;
     int padding_left, padding_top, padding_width, padding_height;
     int border_left, border_top, border_right, border_bottom;
@@ -2006,6 +2007,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             box_coords(box, &doc_x, &doc_y);
             x = doc_x;
             y = doc_y;
+            unscaled_x = doc_x;
+            unscaled_y = doc_y;
             /* Add viewport scroll offset */
             if (data != NULL) {
                 x += data->x;
@@ -2017,10 +2020,15 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
                 viewport_clip.x1 = data->viewport_x + data->root_width;
                 viewport_clip.y1 = data->viewport_y + data->root_height;
                 clip = &viewport_clip;
+
+                unscaled_x += data->x;
+                unscaled_y += data->y;
             }
         } else {
             x = x_parent + box->x;
             y = y_parent + box->y;
+            unscaled_x = x;
+            unscaled_y = y;
         }
         width = box->width;
         height = box->height;
@@ -2056,9 +2064,13 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             }
             x = abs_x * scale;
             y = abs_y * scale;
+            unscaled_x = abs_x;
+            unscaled_y = abs_y;
         } else {
             x = (x_parent + box->x) * scale;
             y = (y_parent + box->y) * scale;
+            unscaled_x = x_parent + box->x;
+            unscaled_y = y_parent + box->y;
         }
         width = box->width * scale;
         height = box->height * scale;
@@ -2936,8 +2948,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             /* For absolute elements: we computed screen position x, y via box_coords().
              * Children's offset = child_x_parent + box->x = x (we want)
              * So child_x_parent = x - box->x */
-            child_x_parent = x - box->x;
-            child_y_parent = y - box->y;
+            child_x_parent = unscaled_x - box->x;
+            child_y_parent = unscaled_y - box->y;
         } else {
             /* Normal elements: use standard parent chain */
             child_x_parent = x_parent;
