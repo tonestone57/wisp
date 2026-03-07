@@ -1900,6 +1900,11 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
         }
         c->domain = strdup(lwc_string_data(host));
         lwc_string_unref(host);
+
+        if (c->domain == NULL) {
+            urldb_free_cookie(c);
+            return NULL;
+        }
     }
 
     if (c->path == NULL) {
