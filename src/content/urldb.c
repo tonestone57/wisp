@@ -515,12 +515,24 @@ static void urldb_save_search_tree(struct search_node *parent, FILE *fp)
     path[0] = '\0';
 
     for (h = parent->data, p = host, end = host + sizeof host; h && h != &db_root && p < end; h = h->parent) {
-        int written = snprintf(p, end - p, "%s%s", h->part, (h->parent && h->parent->parent) ? "." : "");
-        if (written < 0) {
+        size_t part_len = strlen(h->part);
+        bool add_dot = (h->parent && h->parent->parent);
+
+        if (p + part_len + (add_dot ? 1 : 0) >= end) {
             free(path);
             return;
         }
-        p += written;
+
+        memcpy(p, h->part, part_len);
+        p += part_len;
+        if (add_dot) {
+            *p++ = '.';
+        }
+    }
+    if (p < end) {
+        *p = '\0';
+    } else {
+        *(end - 1) = '\0';
     }
 
     h = parent->data;
