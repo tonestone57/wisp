@@ -3332,10 +3332,8 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
         }
         /* XXX: should test NaN, but the tests do not check it */
         if (!is_num(c)) {
-            /* XXX: String should be normalized, therefore 8-bit only */
-            const uint16_t nfinity16[7] = {'n', 'f', 'i', 'n', 'i', 't', 'y'};
-            if (!(c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, nfinity16, sizeof(nfinity16))))
-                return JS_UNDEFINED;
+            /* String should be normalized, therefore 8-bit only */
+            return JS_UNDEFINED;
         }
     } else {
         const uint8_t *r = str8(p), *r_end = str8(p) + len;
