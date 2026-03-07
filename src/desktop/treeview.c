@@ -2833,6 +2833,7 @@ struct treeview_selection_walk_data {
         struct {
             char *text;
             uint32_t len;
+            uint32_t alloc;
         } copy;
     } data;
     int current_y;
@@ -2967,21 +2968,37 @@ static nserror treeview_node_selection_walk_cb(treeview_node *n, void *ctx, bool
                 text = val->data;
                 len = val->len;
 
-                temp = realloc(sw->data.copy.text, sw->data.copy.len + len + 1);
-                if (temp == NULL) {
-                    free(sw->data.copy.text);
-                    sw->data.copy.text = NULL;
-                    sw->data.copy.len = 0;
-                    return NSERROR_NOMEM;
+                if (sw->data.copy.len + len + 1 > sw->data.copy.alloc) {
+                    uint32_t required = sw->data.copy.len + len + 1;
+                    uint32_t new_alloc = sw->data.copy.alloc ? sw->data.copy.alloc : 64;
+
+                    while (new_alloc < required && new_alloc <= 0x7fffffff) {
+                        new_alloc *= 2;
+                    }
+
+                    if (new_alloc < required) {
+                        new_alloc = required;
+                    }
+
+                    temp = realloc(sw->data.copy.text, new_alloc);
+                    if (temp == NULL) {
+                        free(sw->data.copy.text);
+                        sw->data.copy.text = NULL;
+                        sw->data.copy.len = 0;
+                        sw->data.copy.alloc = 0;
+                        return NSERROR_NOMEM;
+                    }
+                    sw->data.copy.text = temp;
+                    sw->data.copy.alloc = new_alloc;
                 }
 
+                temp = sw->data.copy.text;
                 if (sw->data.copy.len != 0) {
                     temp[sw->data.copy.len - 1] = '\n';
                 }
                 memcpy(temp + sw->data.copy.len, text, len);
                 temp[sw->data.copy.len + len] = '\0';
                 sw->data.copy.len += len + 1;
-                sw->data.copy.text = temp;
             }
         }
         break;
@@ -3164,6 +3181,7 @@ static void treeview_copy_selection(treeview *tree)
     sw.purpose = TREEVIEW_WALK_COPY_SELECTION;
     sw.data.copy.text = NULL;
     sw.data.copy.len = 0;
+    sw.data.copy.alloc = 0;
     sw.tree = tree;
 
     err = treeview_walk_internal(
