@@ -644,15 +644,15 @@ END_TEST
 
 
 /**
- * FAILING TEST: Exposes the actual bug in layout_flex_redistribute_auto_margins_vertical
+ * Test to verify flex-grow redistribution in layout_flex_redistribute_auto_margins_vertical
  *
  * This test calls the REAL function with actual box structures to demonstrate
- * that it currently doesn't handle flex-grow redistribution properly.
+ * that it properly handles flex-grow redistribution.
  *
- * Bug: When a flex container's height is increased externally (e.g., by grid stretch),
- * children with flex-grow > 0 don't get resized, causing a gap.
+ * When a flex container's height is increased externally (e.g., by grid stretch),
+ * children with flex-grow > 0 should get resized correctly.
  */
-START_TEST(test_real_flex_redistribute_with_flex_grow_child_FAILS)
+START_TEST(test_real_flex_redistribute_with_flex_grow_child)
 {
     /* Create a column flex container (.article in hotnews_grid)
      * Container was stretched from 242 -> 261 by grid Pass 3
@@ -715,12 +715,12 @@ START_TEST(test_real_flex_redistribute_with_flex_grow_child_FAILS)
     printf("  Flex child height: %d (expected 135, total space 157 minus padding 20 and border 2)\n",
         flex_grow_child->height);
 
-    /* BUG: The function currently only handles margin: auto, not flex-grow
-     * Expected: flex_grow_child->height should be 157 (261 - 104)
-     * Actual: flex_grow_child->height is still 138
-     *
-     * This test will FAIL, exposing the bug */
-    ck_assert_int_eq(flex_grow_child->height, 135); /* 261 - 104 - padding(20) - border(2) */
+    /* Expected: flex_grow_child->height should be 135.
+     * Container height (261) - fixed_child height (104) = 157 total space.
+     * flex_grow_child height is set by the 157 total space available.
+     * Minus the padding (20) and border (2) = 135.
+     */
+    ck_assert_int_eq(flex_grow_child->height, 135);
 
     /* Cleanup */
     free(fixed_child);
@@ -931,7 +931,7 @@ Suite *layout_flex_suite(void)
     tcase_add_test(tc_core, test_flex_grow_child_resizes_when_parent_stretched);
     tcase_add_test(tc_core, test_nested_flex_margin_auto_after_parent_resize);
     /* Now testing with REAL implementation from layout_flex.c */
-    tcase_add_test(tc_core, test_real_flex_redistribute_with_flex_grow_child_FAILS);
+    tcase_add_test(tc_core, test_real_flex_redistribute_with_flex_grow_child);
     tcase_add_test(tc_core, test_nested_flex_margin_top_auto_redistribution);
     /* min-height: auto tests for CSS Flexbox §4.5 */
     tcase_add_test(tc_core, test_column_flex_min_height_auto_respects_content);
