@@ -1770,6 +1770,7 @@ double js_atod(const char *str, const char **pnext, int radix, int flags, JSATOD
         ((radix == 10 && (*p == 'e' || *p == 'E')) ||
             (radix != 10 && (*p == '@' || (radix_bits >= 1 && radix_bits <= 4 && (*p == 'p' || *p == 'P'))))) &&
         p > p_start) {
+        const char *p_exp = p;
         bool exp_is_neg;
         int c;
         is_bin_exp = (*p == 'p' || *p == 'P');
@@ -1782,34 +1783,36 @@ double js_atod(const char *str, const char **pnext, int radix, int flags, JSATOD
             p++;
         }
         c = to_digit(*p);
-        if (c >= 10)
-            goto fail; /* XXX: could stop before the exponent part */
-        expn = c;
-        p++;
-        for (;;) {
-            if (*p == sep && to_digit(p[1]) < 10)
-                p++;
-            c = to_digit(*p);
-            if (c >= 10)
-                break;
-            if (!expn_overflow) {
-                if (unlikely(expn > ((INT32_MAX - 2 - 9) / 10))) {
-                    expn_overflow = true;
-                } else {
-                    expn = expn * 10 + c;
-                }
-            }
+        if (c >= 10) {
+            p = p_exp;
+        } else {
+            expn = c;
             p++;
-        }
-        if (exp_is_neg)
-            expn = -expn;
-        /* if zero result, the exponent can be arbitrarily large */
-        if (!is_zero && expn_overflow) {
+            for (;;) {
+                if (*p == sep && to_digit(p[1]) < 10)
+                    p++;
+                c = to_digit(*p);
+                if (c >= 10)
+                    break;
+                if (!expn_overflow) {
+                    if (unlikely(expn > ((INT32_MAX - 2 - 9) / 10))) {
+                        expn_overflow = true;
+                    } else {
+                        expn = expn * 10 + c;
+                    }
+                }
+                p++;
+            }
             if (exp_is_neg)
-                a = 0;
-            else
-                a = (uint64_t)0x7ff << 52; /* infinity */
-            goto done;
+                expn = -expn;
+            /* if zero result, the exponent can be arbitrarily large */
+            if (!is_zero && expn_overflow) {
+                if (exp_is_neg)
+                    a = 0;
+                else
+                    a = (uint64_t)0x7ff << 52; /* infinity */
+                goto done;
+            }
         }
     }
 
