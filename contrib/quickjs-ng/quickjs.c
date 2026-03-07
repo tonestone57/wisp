@@ -11667,17 +11667,17 @@ static JSBigInt *js_bigint_from_string(JSContext *ctx, const char *str, int radi
             }
         }
     }
-    r = js_bigint_normalize(ctx, r);
-    /* XXX: could do it in place */
-    if (is_neg && r->len > 0) {
-        if (r->len == 1 && r->tab[0] == 0) {
-            /* do nothing for 0 */
-        } else {
-            js_mp_neg(r->tab, r->tab, r->len);
-            r = js_bigint_normalize(ctx, r);
+    if (is_neg) {
+        /* in-place two's complement negation */
+        int j;
+        js_limb_t v_neg, carry = 1;
+        for (j = 0; j < (int)r->len; j++) {
+            v_neg = ~r->tab[j] + carry;
+            carry = v_neg < carry;
+            r->tab[j] = v_neg;
         }
     }
-    return r;
+    return js_bigint_normalize(ctx, r);
 }
 
 /* 2 <= base <= 36 */
