@@ -9373,10 +9373,6 @@ static int JS_CreateProperty(
             pr->u.value = JS_UNDEFINED;
         }
     }
-    if (is_array_length_update) {
-        JSProperty *plen = &p->prop[0];
-        set_value(ctx, &plen->u.value, js_uint32(new_len));
-    }
     return true;
 }
 
