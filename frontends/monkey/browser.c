@@ -555,6 +555,7 @@ static void monkey_window_handle_exec(int argc, char **argv)
     struct gui_window *gw;
     if (argc < 5) {
         moutf(MOUT_ERROR, "WINDOW EXEC ARGS BAD\n");
+        return;
     }
 
     gw = monkey_find_window_by_num(atoi(argv[2]));
@@ -572,11 +573,16 @@ static void monkey_window_handle_exec(int argc, char **argv)
             moutf(MOUT_ERROR, "JS WIN %d RET ENOMEM", atoi(argv[2]));
             return;
         }
-        strcpy(cmd, argv[4]);
-        for (int i = 5; i < argc; ++i) {
-            strcat(cmd, " ");
-            strcat(cmd, argv[i]);
+        size_t offset = 0;
+        for (int i = 4; i < argc; ++i) {
+            size_t len = strlen(argv[i]);
+            memcpy(cmd + offset, argv[i], len);
+            offset += len;
+            if (i < argc - 1) {
+                cmd[offset++] = ' ';
+            }
         }
+        cmd[offset] = '\0';
         /* Now execute the JS */
 
         moutf(MOUT_WINDOW, "JS WIN %d RET %s", atoi(argv[2]),
