@@ -2169,10 +2169,17 @@ static nserror store_write_file(struct store_state *state, struct store_entry *b
 
     close(fd);
     if (wr != (ssize_t)bse->elem[elem_idx].size) {
+        char *fname;
+
         NSLOG(wisp, ERROR, "Write failed %" PRIssizet " of %d bytes from %p errno %d", wr, bse->elem[elem_idx].size,
             bse->elem[elem_idx].data, err);
 
-        /** @todo Delete the file? */
+        fname = store_fname(state, nsurl_hash(bse->url), elem_idx);
+        if (fname != NULL) {
+            unlink(fname);
+            free(fname);
+        }
+
         return NSERROR_SAVE_FAILED;
     }
 
