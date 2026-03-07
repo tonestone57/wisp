@@ -699,17 +699,16 @@ static void scrollbar_drag_start_internal(struct scrollbar *s, int x, int y, boo
 
     msg.scrollbar = s;
 
-    /** \todo some proper numbers please! */
     if (s->horizontal) {
-        msg.x0 = -2048;
-        msg.x1 = 2048;
+        msg.x0 = 0;
+        msg.x1 = s->length;
         msg.y0 = 0;
-        msg.y1 = 0;
+        msg.y1 = SCROLLBAR_WIDTH;
     } else {
         msg.x0 = 0;
-        msg.x1 = 0;
-        msg.y0 = -2048;
-        msg.y1 = 2048;
+        msg.x1 = SCROLLBAR_WIDTH;
+        msg.y0 = 0;
+        msg.y1 = s->length;
     }
 
     if (pair && s->pair != NULL) {
@@ -723,11 +722,11 @@ static void scrollbar_drag_start_internal(struct scrollbar *s, int x, int y, boo
         s->pair->drag_content = content_drag;
 
         if (s->pair->horizontal) {
-            msg.x0 = -2048;
-            msg.x1 = 2048;
+            msg.x0 = 0;
+            msg.x1 = s->pair->length;
         } else {
-            msg.y0 = -2048;
-            msg.y1 = 2048;
+            msg.y0 = 0;
+            msg.y1 = s->pair->length;
         }
     }
     msg.msg = SCROLLBAR_MSG_SCROLL_START;
