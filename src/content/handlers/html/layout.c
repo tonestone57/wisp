@@ -686,7 +686,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 
                     for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
                         int opt_width;
-                        font_func->width(&fstyle, o->text, strlen(o->text), &opt_width);
+                        font_func->width(&fstyle, o->text, o->text_len, &opt_width);
 
                         if (opt_maxwidth < opt_width)
                             opt_maxwidth = opt_width;
@@ -2977,7 +2977,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
                     for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
                         int opt_width;
-                        font_func->width(&fstyle, o->text, strlen(o->text), &opt_width);
+                        font_func->width(&fstyle, o->text, o->text_len, &opt_width);
 
                         if (opt_maxwidth < opt_width)
                             opt_maxwidth = opt_width;
