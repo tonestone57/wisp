@@ -1727,8 +1727,11 @@ double js_atod(const char *str, const char **pnext, int radix, int flags, JSATOD
         p++;
         pos++;
         if (digit_count < max_digits) {
-            /* XXX: could be faster when radix_bits != 0 */
-            cur_limb = cur_limb * radix + c;
+            if (radix_bits != 0) {
+                cur_limb = (cur_limb << radix_bits) | c;
+            } else {
+                cur_limb = cur_limb * radix + c;
+            }
             limb_digit_count++;
             if (limb_digit_count == digits_per_limb) {
                 mpb_mul1_base(tmp0, radix_base, cur_limb);
