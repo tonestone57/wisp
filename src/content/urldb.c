@@ -1929,41 +1929,46 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
         }
     }
 
-    if (c->path == NULL) {
+    if (c->path == NULL || c->path[0] != '/') {
         const char *path_data;
-        char *path, *slash;
+        char *path = NULL;
         lwc_string *path_lwc;
 
+        if (c->path != NULL) {
+            free(c->path);
+            c->path = NULL;
+            c->path_from_set = false;
+        }
+
         path_lwc = nsurl_get_component(url, NSURL_PATH);
-        if (path_lwc == NULL) {
+        if (path_lwc != NULL) {
+            path_data = lwc_string_data(path_lwc);
+
+            if (path_data[0] != '/') {
+                path = strdup("/");
+            } else {
+                /* Strip leafname and trailing slash (4.3.1) */
+                char *slash = strrchr(path_data, '/');
+                if (slash != NULL) {
+                    /* Special case: retain first slash in path */
+                    if (slash == path_data)
+                        slash++;
+
+                    path = strndup(path_data, slash - path_data);
+                } else {
+                    path = strdup("/");
+                }
+            }
+            lwc_string_unref(path_lwc);
+        }
+
+        if (path == NULL) {
+            path = strdup("/");
+        }
+
+        if (path == NULL) {
             urldb_free_cookie(c);
             return NULL;
-        }
-        path_data = lwc_string_data(path_lwc);
-
-        /* Strip leafname and trailing slash (4.3.1) */
-        slash = strrchr(path_data, '/');
-        if (slash != NULL) {
-            /* Special case: retain first slash in path */
-            if (slash == path_data)
-                slash++;
-
-            slash = strndup(path_data, slash - path_data);
-            if (slash == NULL) {
-                lwc_string_unref(path_lwc);
-                urldb_free_cookie(c);
-                return NULL;
-            }
-
-            path = slash;
-            lwc_string_unref(path_lwc);
-        } else {
-            path = strdup(lwc_string_data(path_lwc));
-            lwc_string_unref(path_lwc);
-            if (path == NULL) {
-                urldb_free_cookie(c);
-                return NULL;
-            }
         }
 
         c->path = path;
@@ -2974,7 +2979,7 @@ nserror urldb_load(const char *filename)
                 return NSERROR_NOMEM;
             }
 
-            if (nsurl_create_from_components(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
+            if (nsurl_create_from_components_char(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
                 lwc_string_unref(scheme_lwc);
                 lwc_string_unref(host_lwc);
                 fclose(fp);
