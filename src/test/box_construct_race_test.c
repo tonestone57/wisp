@@ -115,16 +115,23 @@ static void mock_convert_xml_to_box(void *p)
 }
 
 /**
- * Mock implementation of html_free_layout that handles conversion cancellation.
+ * Simulates the BUGGY html_begin_conversion behavior:
+ * - Calls html_free_layout WITHOUT cancelling box_conversion_context first
+ * - This is the pattern that causes use-after-free
  */
-static void mock_html_free_layout(struct mock_html_content *htmlc)
+static void buggy_html_free_layout(struct mock_html_content *htmlc)
 {
-    /* THE FIX: Cancel any pending box conversion first to prevent use-after-free
-     * when the scheduled callback runs after bctx has been freed.
-     * This mimics the real cancel_dom_to_box behavior. */
+    /* BUG: No cancellation of box_conversion_context here! */
+    /* The fix should add:
+     * if (htmlc->box_conversion_context != NULL) {
+     *     mock_schedule(-1, mock_convert_xml_to_box,
+     *                   htmlc->box_conversion_context);
+     *     htmlc->box_conversion_context = NULL;
+     * }
+     */
     if (htmlc->box_conversion_context != NULL) {
-        mock_schedule(-1, mock_convert_xml_to_box, htmlc->box_conversion_context);
-        /* Free and nullify the context */
+        mock_schedule(-1, mock_convert_xml_to_box,
+                      htmlc->box_conversion_context);
         free(htmlc->box_conversion_context);
         htmlc->box_conversion_context = NULL;
     }
@@ -200,8 +207,8 @@ START_TEST(test_html_free_layout_must_cancel_pending_conversion)
     ck_assert(!was_conversion_cancelled(ctx));
     ck_assert_ptr_nonnull(htmlc.box_conversion_context);
 
-    /* Call the mock html_free_layout */
-    mock_html_free_layout(&htmlc);
+    /* Call the buggy html_free_layout */
+    buggy_html_free_layout(&htmlc);
 
     /*
      * ASSERTION: The conversion callback MUST have been cancelled.
@@ -237,8 +244,8 @@ START_TEST(test_fixed_html_free_layout_cancels_conversion)
     /* Verify conversion is scheduled but not cancelled yet */
     ck_assert(!was_conversion_cancelled(ctx));
 
-    /* Call the mock html_free_layout */
-    mock_html_free_layout(&htmlc);
+    /* Call the buggy html_free_layout */
+    buggy_html_free_layout(&htmlc);
 
     /* This MUST pass with the fix */
     ck_assert_msg(was_conversion_cancelled(ctx), "Expected mock_html_free_layout to cancel pending conversion");
