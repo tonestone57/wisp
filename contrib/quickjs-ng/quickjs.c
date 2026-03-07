@@ -9277,6 +9277,8 @@ static int JS_CreateProperty(
 {
     JSProperty *pr;
     int ret, prop_flags;
+    bool is_array_length_update = false;
+    uint32_t new_len = 0;
 
     /* add a new property or modify an existing exotic one */
     if (p->is_exotic) {
@@ -9316,10 +9318,8 @@ static int JS_CreateProperty(
                     pslen = get_shape_prop(p->shape);
                     if (unlikely(!(pslen->flags & JS_PROP_WRITABLE)))
                         return JS_ThrowTypeErrorReadOnly(ctx, flags, JS_ATOM_length);
-                    /* XXX: should update the length after defining
-                       the property */
-                    len = idx + 1;
-                    set_value(ctx, &plen->u.value, js_uint32(len));
+                    is_array_length_update = true;
+                    new_len = idx + 1;
                 }
             }
         } else if (is_typed_array(p->class_id)) {
@@ -9372,6 +9372,10 @@ static int JS_CreateProperty(
         } else {
             pr->u.value = JS_UNDEFINED;
         }
+    }
+    if (is_array_length_update) {
+        JSProperty *plen = &p->prop[0];
+        set_value(ctx, &plen->u.value, js_uint32(new_len));
     }
     return true;
 }
