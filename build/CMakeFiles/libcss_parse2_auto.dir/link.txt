@@ -1,1 +1,0 @@
-/usr/bin/cc -flto -Wl,--gc-sections "CMakeFiles/libcss_parse2_auto.dir/contrib/libcss/test/parse2-auto.c.o" -o libcss_parse2_auto  -Wl,-rpath,/app/build/contrib/libcss:/app/build/contrib/libnsutils:/app/build/contrib/libparserutils contrib/libcss/libcss.so.1 contrib/libnsutils/libnsutils.so.1 contrib/libparserutils/libparserutils.so.1
