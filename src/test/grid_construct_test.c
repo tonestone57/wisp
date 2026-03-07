@@ -154,10 +154,6 @@ uint8_t css_computed_background_image(const css_computed_style *style, lwc_strin
     return CSS_BACKGROUND_IMAGE_NONE;
 }
 
-uint8_t css_computed_white_space(const css_computed_style *style)
-{
-    return CSS_WHITE_SPACE_NORMAL;
-}
 
 uint8_t css_computed_text_transform(const css_computed_style *style)
 {
@@ -269,16 +265,6 @@ char *squash_whitespace(const char *s)
 
 
 
-void *_talloc_zero_array(const void *ctx, size_t el_size, unsigned count, const char *name)
-{
-    return calloc(count, el_size);
-}
-
-int talloc_free(void *ptr)
-{
-    free(ptr);
-    return 0;
-}
 
 /* Minimal strndup implementation for Windows */
 char *strndup(const char *s, size_t n)

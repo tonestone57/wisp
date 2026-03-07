@@ -1,1 +1,0 @@
-/usr/bin/cc -O3 -DNDEBUG -flto -Wl,--gc-sections "CMakeFiles/api-test.dir/api-test.c.o" -o api-test  -Wl,-rpath,/app/build/contrib/quickjs-ng libqjs.so.0.11.0 -ldl -lm

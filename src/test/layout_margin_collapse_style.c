@@ -22,6 +22,9 @@
 css_computed_style *create_block_style(void)
 {
     css_computed_style *s = calloc(1, sizeof(css_computed_style));
+    if (s)
+        s->calc = NULL;
+
     assert(s != NULL);
 
     /* Match css__computed_style_create: set bin to UINT32_MAX */
@@ -117,5 +120,6 @@ void style_set_min_height(css_computed_style *s, int px)
 
 void destroy_mock_style(css_computed_style *s)
 {
+    if(s->calc) css_calculator_unref(s->calc);
     free(s);
 }

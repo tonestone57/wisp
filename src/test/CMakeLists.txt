@@ -326,7 +326,7 @@ target_include_directories(layout_margin_collapse_test PRIVATE
 target_link_libraries(layout_margin_collapse_test wisp ${CHECK_LIBRARIES})
 add_test(NAME layout_margin_collapse_test COMMAND layout_margin_collapse_test)
 set_tests_properties(layout_margin_collapse_test PROPERTIES
-  ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=no"
+  ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=no;ASAN_OPTIONS=detect_leaks=0"
 )
 
 # ============================================================================

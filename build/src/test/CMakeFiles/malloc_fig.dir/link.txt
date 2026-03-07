@@ -1,1 +1,0 @@
-/usr/bin/cc -fPIC -flto -Wl,--gc-sections -shared -Wl,-soname,libmalloc_fig.so -o libmalloc_fig.so CMakeFiles/malloc_fig.dir/malloc_fig.c.o  -ldl

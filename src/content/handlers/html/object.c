@@ -47,6 +47,7 @@
 #include <wisp/content/handlers/html/interaction.h>
 #include <wisp/content/handlers/html/private.h>
 #include "content/handlers/html/object.h"
+#include "content/handlers/html/box_manipulate.h"
 
 /* Performance tracing - enable via CMake: -DNEOSURF_ENABLE_PERF_TRACE=ON */
 #include <wisp/utils/perf.h>
