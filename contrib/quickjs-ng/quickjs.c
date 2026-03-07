@@ -4011,12 +4011,14 @@ static JSValue string_buffer_end(StringBuffer *s)
     }
     if (s->len < s->size) {
         /* smaller size so js_realloc should not fail, but OK if it does */
-        /* XXX: should add some slack to avoid unnecessary calls */
+        /* If the slack is small, it isn't worth calling realloc to shrink it */
         /* XXX: might need to use malloc+free to ensure smaller size */
-        str = js_realloc_rt(s->ctx->rt, str, sizeof(JSString) + (s->len << s->is_wide_char) + 1 - s->is_wide_char);
-        if (str == NULL)
-            str = s->str;
-        s->str = str;
+        if ((s->size - s->len) > 16) {
+            str = js_realloc_rt(s->ctx->rt, str, sizeof(JSString) + (s->len << s->is_wide_char) + 1 - s->is_wide_char);
+            if (str == NULL)
+                str = s->str;
+            s->str = str;
+        }
     }
     if (!s->is_wide_char)
         str8(str)[s->len] = 0;
