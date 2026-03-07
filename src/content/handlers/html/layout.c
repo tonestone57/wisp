@@ -57,6 +57,7 @@
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/utils.h>
+#include "utils/arena.h"
 #include "utils/talloc.h"
 #include "desktop/scrollbar.h"
 
@@ -2522,7 +2523,7 @@ static bool layout_text_box_split(
         space_width = 0;
 
     /* Create clone of split_box, c2 */
-    c2 = talloc_memdup(content->bctx, split_box, sizeof *c2);
+    c2 = arena_memdup(content->bctx, split_box, sizeof *c2);
     if (!c2)
         return false;
     c2->flags |= CLONE;
@@ -4475,7 +4476,7 @@ static void layout__set_numerical_marker_text(const html_content *content, struc
         LIST_MARKER_SIZE = 20,
     };
 
-    marker->text = talloc_array(content->bctx, char, LIST_MARKER_SIZE);
+    marker->text = arena_alloc(content->bctx, LIST_MARKER_SIZE);
     if (marker->text == NULL) {
         return;
     }
@@ -4486,7 +4487,7 @@ static void layout__set_numerical_marker_text(const html_content *content, struc
         if (counter_len >= LIST_MARKER_SIZE) {
             /* Use computed size as marker did not fit in
              * default allocation. */
-            marker->text = talloc_realloc(content->bctx, marker->text, char, counter_len + 1);
+            marker->text = arena_alloc(content->bctx, counter_len + 1);
             if (marker->text == NULL) {
                 return;
             }

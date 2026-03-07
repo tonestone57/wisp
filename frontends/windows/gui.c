@@ -39,6 +39,7 @@
 #include "windows/gui.h"
 #include "windows/schedule.h"
 #include "windows/window.h"
+#include <wisp/utils/task_queue.h>
 
 /* exported global defined in windows/gui.h */
 HINSTANCE hinst;
@@ -145,6 +146,11 @@ void win32_run(void)
                 if (Msg.message == WM_QUIT) {
                     win32_quit = true;
                     break;
+                }
+
+                if (Msg.message == WM_USER + 10) {
+                    task_queue_execute_pending();
+                    continue;
                 }
 
                 if (handle_dialog_message(&Msg) != NSERROR_OK) {

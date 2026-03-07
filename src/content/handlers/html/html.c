@@ -50,6 +50,7 @@
 #include <wisp/utils/utils.h>
 #include "utils/http.h"
 #include "utils/libdom.h"
+#include "utils/arena.h"
 #include "utils/talloc.h"
 #include "content/content_factory.h"
 #include "content/handlers/javascript/js.h"
@@ -1487,10 +1488,7 @@ static void html_free_layout(html_content *htmlc)
     }
 
     if (htmlc->bctx != NULL) {
-        /* freeing talloc context should let the entire box
-         * set be destroyed
-         */
-        talloc_free(htmlc->bctx);
+        arena_destroy(htmlc->bctx);
         htmlc->bctx = NULL;
     }
     htmlc->layout = NULL;

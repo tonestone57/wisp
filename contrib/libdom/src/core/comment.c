@@ -43,7 +43,7 @@ dom_exception _dom_comment_create(dom_document *doc, dom_string *name, dom_strin
     dom_exception err;
 
     /* Allocate the comment node */
-    c = malloc(sizeof(dom_comment));
+    c = DOM_ALLOC(doc, sizeof(dom_comment));
     if (c == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -54,7 +54,7 @@ dom_exception _dom_comment_create(dom_document *doc, dom_string *name, dom_strin
     /* And initialise the node */
     err = _dom_characterdata_initialise(&c->base, doc, DOM_COMMENT_NODE, name, value);
     if (err != DOM_NO_ERR) {
-        free(c);
+        DOM_FREE(c);
         return err;
     }
 
@@ -76,7 +76,7 @@ void _dom_comment_destroy(dom_comment *comment)
     _dom_characterdata_finalise(&comment->base);
 
     /* Free node */
-    free(comment);
+    DOM_FREE(comment);
 }
 
 
@@ -95,13 +95,13 @@ dom_exception _dom_comment_copy(dom_node_internal *old, dom_node_internal **copy
     dom_comment *new_comment;
     dom_exception err;
 
-    new_comment = malloc(sizeof(dom_comment));
+    new_comment = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_comment));
     if (new_comment == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_characterdata_copy_internal(old, new_comment);
     if (err != DOM_NO_ERR) {
-        free(new_comment);
+        DOM_FREE(new_comment);
         return err;
     }
 

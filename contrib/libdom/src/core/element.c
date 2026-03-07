@@ -501,7 +501,7 @@ dom_exception _dom_element_create(
     struct dom_document *doc, dom_string *name, dom_string *namespace, dom_string *prefix, struct dom_element **result)
 {
     /* Allocate the element */
-    *result = malloc(sizeof(struct dom_element));
+    *result = DOM_ALLOC(doc, sizeof(struct dom_element));
     if (*result == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -543,7 +543,7 @@ dom_exception _dom_element_initialise(
     /* Initialise the base class */
     err = _dom_node_initialise(&el->base, doc, DOM_ELEMENT_NODE, name, NULL, namespace, prefix);
     if (err != DOM_NO_ERR) {
-        free(el);
+        DOM_FREE(el);
         return err;
     }
 
@@ -594,7 +594,7 @@ void _dom_element_destroy(struct dom_element *element)
     _dom_element_finalise(element);
 
     /* Free the element */
-    free(element);
+    DOM_FREE(element);
 }
 
 /*----------------------------------------------------------------------*/
@@ -1440,13 +1440,13 @@ dom_exception _dom_element_copy(dom_node_internal *old, dom_node_internal **copy
     dom_element *new_node;
     dom_exception err;
 
-    new_node = malloc(sizeof(dom_element));
+    new_node = DOM_ALLOC(((dom_node_internal*)old)->owner, sizeof(dom_element));
     if (new_node == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_element_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-        free(new_node);
+        DOM_FREE(new_node);
         return err;
     }
 

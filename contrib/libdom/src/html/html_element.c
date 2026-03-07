@@ -48,7 +48,7 @@ dom_exception _dom_html_element_create(struct dom_html_element_create_params *pa
 
     error = _dom_html_element_initialise(params, el);
     if (error != DOM_NO_ERR) {
-        free(el);
+        DOM_FREE(el);
         return error;
     }
 
@@ -100,7 +100,7 @@ dom_exception _dom_html_element_copy(dom_node_internal *old, dom_node_internal *
 
     err = dom_html_element_copy_internal(old, new_node);
     if (err != DOM_NO_ERR) {
-        free(new_node);
+        DOM_FREE(new_node);
         return err;
     }
 

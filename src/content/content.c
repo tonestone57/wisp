@@ -336,8 +336,8 @@ void content__reformat(struct content *c, bool background, int width, int height
 }
 
 
-/* exported interface documented in content/content.h */
-void content_destroy(struct content *c)
+/* internal implementation of content destruction */
+static void content_actually_destroy(struct content *c)
 {
     struct content_rfc5988_link *link;
 
@@ -381,6 +381,22 @@ void content_destroy(struct content *c)
     }
 
     free(c);
+}
+
+/* exported interface documented in content/content.h */
+void content_destroy(struct content *c)
+{
+    assert(c);
+
+    /* Using content_count_users ensures we properly handle the sentinel node */
+    if (content_count_users(c) > 0) {
+        /* Defer destruction until all users are removed */
+        c->pending_delete = true;
+        NSLOG(wisp, INFO, "content %p deferred destruction (has active users)", c);
+        return;
+    }
+
+    content_actually_destroy(c);
 }
 
 
@@ -661,6 +677,11 @@ void content_remove_user(struct content *c,
     next = user->next;
     user->next = next->next;
     free(next);
+
+    if (c->pending_delete && content_count_users(c) == 0) {
+        NSLOG(wisp, INFO, "content %p deferred destruction completing", c);
+        content_actually_destroy(c);
+    }
 }
 
 

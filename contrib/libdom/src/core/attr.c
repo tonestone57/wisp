@@ -87,7 +87,7 @@ dom_exception _dom_attr_create(struct dom_document *doc, dom_string *name, dom_s
     dom_exception err;
 
     /* Allocate the attribute node */
-    a = malloc(sizeof(struct dom_attr));
+    a = DOM_ALLOC(doc, sizeof(struct dom_attr));
     if (a == NULL)
         return DOM_NO_MEM_ERR;
 
@@ -98,7 +98,7 @@ dom_exception _dom_attr_create(struct dom_document *doc, dom_string *name, dom_s
     /* Initialise the class */
     err = _dom_attr_initialise(a, doc, name, namespace, prefix, specified, result);
     if (err != DOM_NO_ERR) {
-        free(a);
+        DOM_FREE(a);
         return err;
     }
 
@@ -166,7 +166,7 @@ void _dom_attr_destroy(struct dom_attr *attr)
 {
     _dom_attr_finalise(attr);
 
-    free(attr);
+    DOM_FREE(attr);
 }
 
 /*-----------------------------------------------------------------------*/
@@ -758,13 +758,13 @@ dom_exception _dom_attr_copy(dom_node_internal *n, dom_node_internal **copy)
     dom_attr *a;
     dom_exception err;
 
-    a = malloc(sizeof(struct dom_attr));
+    a = DOM_ALLOC(((dom_node_internal*)n)->owner, sizeof(struct dom_attr));
     if (a == NULL)
         return DOM_NO_MEM_ERR;
 
     err = dom_node_copy_internal(n, a);
     if (err != DOM_NO_ERR) {
-        free(a);
+        DOM_FREE(a);
         return err;
     }
 

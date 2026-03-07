@@ -25,6 +25,8 @@
 #include <dom/core/text.h>
 
 #include "core/node.h"
+struct arena;
+#include "../../../../src/utils/arena.h"
 #include "core/nodelist.h"
 #include "core/string.h"
 
@@ -42,6 +44,7 @@ struct dom_doc_nl;
  */
 struct dom_document {
     dom_node_internal base; /**< Base node */
+	struct arena *arena; /**< Arena for this document */
 
     struct dom_doc_nl *nodelists; /**< List of active nodelists */
 

@@ -964,6 +964,7 @@ static struct gui_misc_table beos_misc_table = {
     NULL, // 401login
     NULL, // pdf_password (if we have Haru support)
     NULL, // present_cookies
+    NULL, // task_queue_wake (unimplemented in BeOS stub)
 };
 
 

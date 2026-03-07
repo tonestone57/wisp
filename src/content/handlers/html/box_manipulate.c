@@ -34,6 +34,7 @@
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/nsurl.h>
+#include "utils/arena.h"
 #include "utils/talloc.h"
 #include <string.h>
 
@@ -51,7 +52,7 @@
  * \param b The box being destroyed.
  * \return 0 to allow talloc to continue destroying the tree.
  */
-static int box_talloc_destructor(void *ptr)
+static void box_talloc_destructor(void *ptr)
 {
     struct box *b = (struct box *)ptr;
     struct html_scrollbar_data *data;
@@ -100,7 +101,7 @@ static int box_talloc_destructor(void *ptr)
     }
 
 
-    return 0;
+    return;
 }
 
 
@@ -111,12 +112,12 @@ struct box *box_create(css_select_results *styles, css_computed_style *style, bo
     unsigned int i;
     struct box *box;
 
-    box = talloc(context, struct box);
+    box = arena_alloc(context, sizeof(struct box));
     if (!box) {
         return 0;
     }
 
-    talloc_set_destructor(box, (int (*)(struct box *))box_talloc_destructor);
+    arena_register_destructor(context, box, box_talloc_destructor);
 
     box->type = BOX_INLINE;
     box->flags = DIRTY;
@@ -278,18 +279,7 @@ void box_free(struct box *box)
 /* Exported function documented in html/box.h */
 void box_free_box(struct box *box)
 {
-    if (!(box->flags & CLONE)) {
-        if (box->gadget)
-            form_free_control(box->gadget);
-        if (box->scroll_x != NULL)
-            scrollbar_destroy(box->scroll_x);
-        if (box->scroll_y != NULL)
-            scrollbar_destroy(box->scroll_y);
-        if (box->styles != NULL)
-            css_select_results_destroy(box->styles);
-    }
-
-    talloc_free(box);
+    /* Handled by arena destruction or box_talloc_destructor. */
 }
 
 

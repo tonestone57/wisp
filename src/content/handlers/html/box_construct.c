@@ -39,6 +39,7 @@
 #include <wisp/utils/string.h>
 #include <wisp/utils/utf8.h>
 #include <nsutils/time.h>
+#include "utils/arena.h"
 #include "utils/talloc.h"
 #include "utils/utils.h"
 #include "content/handlers/css/select.h"
@@ -66,9 +67,7 @@ struct box_construct_ctx {
 
     box_construct_complete_cb cb; /**< Callback to invoke on completion */
 
-    int *bctx; /**< talloc context */
-
-    unsigned int quote_nesting_level; /**< Quote nesting level */
+    struct arena *bctx; /**< talloc context */
 };
 
 /**
@@ -327,7 +326,7 @@ static struct box *create_content_box(
             return NULL;
 
         box->type = BOX_TEXT;
-        box->text = talloc_strndup(ctx->bctx, text_data, text_len);
+        box->text = arena_strndup(content->bctx, text_data, text_len);
         if (box->text == NULL) {
             /* Can't free box here - relies on talloc cleanup */
             return NULL;
@@ -495,7 +494,7 @@ static struct box *create_content_box(
                             NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
                         if (box != NULL) {
                             box->type = BOX_TEXT;
-                            box->text = talloc_strndup(ctx->bctx, text_data, text_len);
+                            box->text = arena_strndup(content->bctx, text_data, text_len);
                             box->length = text_len;
                             NSLOG(wisp, DEEPDEBUG, "create_content_box: ATTR '%.*s'",
                                 (int)(text_len > 50 ? 50 : text_len), text_data);
@@ -520,46 +519,13 @@ static struct box *create_content_box(
             ctx->quote_nesting_level--;
         }
 
-        lwc_string **quotes;
-        uint32_t num_quotes = 0;
-        if (css_computed_quotes(style, &quotes) == CSS_QUOTES_STRING) {
-            while (quotes && quotes[num_quotes]) {
-                num_quotes++;
-            }
-        }
-
-        const char *quote = NULL;
-        if (is_insert) {
-            if (num_quotes > 0) {
-                unsigned int pair_idx = ctx->quote_nesting_level * 2;
-                if (pair_idx >= num_quotes) {
-                    pair_idx = num_quotes >= 2 ? num_quotes - 2 : 0;
-                }
-                if (is_open) {
-                    quote = lwc_string_data(quotes[pair_idx]);
-                } else if (pair_idx + 1 < num_quotes) {
-                    quote = lwc_string_data(quotes[pair_idx + 1]);
-                }
-            } else {
-                quote = "\"";
-            }
-        }
-
-        /* Increase level for open quotes after getting quote */
-        if (is_open) {
-            ctx->quote_nesting_level++;
-        }
-
-        if (is_insert && quote != NULL) {
-            box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
-            if (box != NULL) {
-                box->type = BOX_TEXT;
-                box->text = talloc_strdup(ctx->bctx, quote);
-                box->length = strlen(box->text);
-                NSLOG(wisp, DEEPDEBUG, "create_content_box: %s_QUOTE", is_open ? "OPEN" : "CLOSE");
-            }
-        } else {
-            box = NULL;
+        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+        if (box != NULL) {
+            box->type = BOX_TEXT;
+            box->text = arena_strdup(content->bctx, quote);
+            box->length = strlen(quote);
+            NSLOG(wisp, DEEPDEBUG, "create_content_box: %s_QUOTE",
+                item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE ? "OPEN" : "CLOSE");
         }
         break;
     }
@@ -586,7 +552,7 @@ static struct box *create_content_box(
  * \param bctx              Box context for memory allocation
  * \return true on success, false on memory allocation failure
  */
-static bool box_ensure_inline_container(struct box *containing_block, struct box **inline_container_ptr, int *bctx)
+static bool box_ensure_inline_container(struct box *containing_block, struct box **inline_container_ptr, struct arena *bctx)
 {
     if (*inline_container_ptr != NULL) {
         return true; /* Already have one */
@@ -623,7 +589,7 @@ static bool box_ensure_inline_container(struct box *containing_block, struct box
  * \param is_flex_child    True if parent is flex/grid (floats don't apply)
  * \return true on success, false on memory allocation failure
  */
-static bool box_add_with_float_wrap(struct box *box, struct box *parent, int *bctx, bool is_flex_child)
+static bool box_add_with_float_wrap(struct box *box, struct box *parent, struct arena *bctx, bool is_flex_child)
 {
     if (box->style == NULL) {
         box_add_child(parent, box);
@@ -795,17 +761,16 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
         while (c_item->type != CSS_COMPUTED_CONTENT_NONE) {
             struct box *content_box = create_content_box(c_item, style, ctx, n);
 
-            if (content_box != NULL) {
-                if (gen->type == BOX_INLINE) {
-                    /* For inline boxes, add text and images as children to support multiple items */
-                    box_add_child(gen, content_box);
-                } else {
-                    /* For block boxes, add content to inline container */
-                    struct box *text_container = NULL;
-
-                    /* Create inline container if needed */
-                    if (gen->last != NULL && gen->last->type == BOX_INLINE_CONTAINER) {
-                        text_container = gen->last;
+                if (text_len > 0) {
+                    if (gen->type == BOX_INLINE) {
+                        /* For inline boxes, text goes
+                         * directly on the box */
+                        char *text_copy = arena_strndup(content->bctx, text_data, text_len);
+                        if (text_copy == NULL) {
+                            break;
+                        }
+                        gen->text = text_copy;
+                        gen->length = text_len;
                     } else {
                         text_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
                         if (text_container != NULL) {
@@ -814,8 +779,24 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
                         }
                     }
 
-                    if (text_container != NULL) {
-                        box_add_child(text_container, content_box);
+                        /* Create text box */
+                        text_box = box_create(
+                            NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+                        if (text_box == NULL) {
+                            break;
+                        }
+
+                        text_box->type = BOX_TEXT;
+
+                        text_copy = arena_strndup(content->bctx, text_data, text_len);
+                        if (text_copy == NULL) {
+                            break;
+                        }
+
+                        text_box->text = text_copy;
+                        text_box->length = text_len;
+
+                        box_add_child(text_container, text_box);
                     }
                 }
             }
@@ -969,7 +950,7 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
         if (t == NULL)
             return false;
 
-        props.title = talloc_strdup(ctx->bctx, t);
+        props.title = arena_strdup(ctx->bctx, t);
 
         free(t);
 
@@ -1819,7 +1800,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 
         box->type = BOX_TEXT;
 
-        box->text = talloc_strdup(ctx->bctx, text);
+        box->text = arena_strdup(ctx->bctx, text);
         free(text);
         if (box->text == NULL)
             return false;
@@ -1930,6 +1911,18 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 
                 box_add_child(props.inline_container, box);
             }
+
+            box->type = BOX_TEXT;
+
+            box->text = arena_strdup(ctx->bctx, current);
+            if (box->text == NULL) {
+                free(text);
+                return false;
+            }
+
+            box->length = strlen(box->text);
+
+            box_add_child(props.inline_container, box);
 
             current[len] = old;
             current += len;
@@ -2106,8 +2099,7 @@ nserror dom_to_box(dom_node *n, html_content *c, box_construct_complete_cb cb, v
     assert(box_conversion_context != NULL);
 
     if (c->bctx == NULL) {
-        /* create a context allocation for this box tree */
-        c->bctx = talloc_zero(0, int);
+        c->bctx = arena_create(64 * 1024);
         if (c->bctx == NULL) {
             return NSERROR_NOMEM;
         }

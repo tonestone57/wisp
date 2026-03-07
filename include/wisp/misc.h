@@ -121,6 +121,12 @@ struct gui_misc_table {
      * \return NSERROR_OK on success
      */
     nserror (*present_cookies)(const char *search_term);
+
+    /**
+     * Wake up the main thread's event loop to process pending background tasks.
+     * This must be thread-safe and can be called from any background thread.
+     */
+    void (*task_queue_wake)(void);
 };
 
 #endif

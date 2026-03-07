@@ -14,6 +14,7 @@
 #include "utils/libdom.h"
 extern void *qjs_get_document_priv(JSContext *ctx);
 extern bool js_dom_event_add_listener(void *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, void *js_funcval);
+extern bool js_dom_event_remove_listener(void *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, void *js_funcval);
 
 JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
@@ -66,6 +67,7 @@ JSValue js_addEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSV
 }
 
 
+
 JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     if (argc >= 2) {
@@ -80,7 +82,7 @@ JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, 
                 if (!JS_IsUndefined(type_listeners)) {
                     /* Since JS arrays don't have a simple 'remove value' function in standard JS without indexOf + splice,
                        we'll just use filter. */
-                    const char *filter_script = "function(arr, fn) { return arr.filter(function(x) { return x !== fn; }); }";
+                    const char *filter_script = "(function(arr, fn) { return arr.filter(function(x) { return x !== fn; }); })";
                     JSValue filter_func = JS_Eval(ctx, filter_script, strlen(filter_script), "<filter>", JS_EVAL_TYPE_GLOBAL);
 
                     JSValue args[2] = { type_listeners, argv[1] };
@@ -96,11 +98,29 @@ JSValue js_removeEventListener(JSContext *ctx, JSValueConst this_val, int argc, 
                 JS_FreeValue(ctx, type_listeners);
             }
             JS_FreeValue(ctx, listeners);
+
+            /* Unregister with LibDOM if this is the global object or a known DOM node */
+            void *thread = JS_GetContextOpaque(ctx);
+            struct dom_document *doc = qjs_get_document_priv(ctx);
+            JSValue global_obj = JS_GetGlobalObject(ctx);
+
+            /* If this is the global object, unregister from the document */
+            if (JS_VALUE_GET_PTR(this_val) == JS_VALUE_GET_PTR(global_obj) && doc) {
+                struct dom_node *node = (struct dom_node *)doc;
+                dom_string *type_dom = NULL;
+                dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+
+                js_dom_event_remove_listener(thread, doc, node, type_dom, (void *)&argv[1]);
+
+                dom_string_unref(type_dom);
+            }
+            JS_FreeValue(ctx, global_obj);
         }
         JS_FreeCString(ctx, type);
     }
     return JS_UNDEFINED;
 }
+
 
 JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
@@ -124,6 +144,13 @@ JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValu
                     for (int32_t i = 0; i < len; i++) {
                         JSValue func = JS_GetPropertyUint32(ctx, type_listeners, i);
                         JSValue ret = JS_Call(ctx, func, this_val, 1, &event);
+                        if (JS_IsException(ret)) {
+                            JSValue exc = JS_GetException(ctx);
+                            const char *exc_str = JS_ToCString(ctx, exc);
+                            NSLOG(wisp, WARNING, "JS Error in dispatchEvent: %s", exc_str ? exc_str : "unknown");
+                            if (exc_str) JS_FreeCString(ctx, exc_str);
+                            JS_FreeValue(ctx, exc);
+                        }
                         JS_FreeValue(ctx, ret);
                         JS_FreeValue(ctx, func);
                     }

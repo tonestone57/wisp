@@ -56,6 +56,7 @@ extern void win32_font_repaint_callback(void);
 #include "windows/file.h"
 #include "windows/font.h"
 #include "windows/gui.h"
+#include <wisp/utils/task_queue.h>
 #include "windows/local_history.h"
 #include "windows/pointers.h"
 #include "windows/schedule.h"
@@ -364,18 +365,17 @@ static nserror win32_to_unix_commandline(int *argc_out, char ***argv_out)
 }
 
 
-extern void win32_font_fini(void);
+static DWORD main_thread_id;
 
-static void win32_quit(void)
+static void win32_task_queue_wake(void)
 {
-    win32_set_quit(true);
-    win32_font_fini();
+    PostThreadMessage(main_thread_id, WM_USER + 10, 0, 0);
 }
 
 static struct gui_misc_table win32_misc_table = {
     .schedule = win32_schedule,
     .present_cookies = nsw32_cookies_present,
-    .quit = win32_quit,
+    .task_queue_wake = win32_task_queue_wake,
 };
 
 /**
@@ -383,6 +383,7 @@ static struct gui_misc_table win32_misc_table = {
  **/
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, int ncmd)
 {
+    main_thread_id = GetCurrentThreadId();
     int argc;
     char **argv;
     char *nsw32_config_home = NULL;
