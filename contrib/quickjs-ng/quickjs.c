@@ -8803,7 +8803,10 @@ static int add_fast_array_element(JSContext *ctx, JSObject *p, JSValue val, int 
             JS_FreeValue(ctx, val);
             return -1;
         }
-        return JS_SetPropertyValue(ctx, JS_MKPTR(JS_TAG_OBJECT, p), js_int64(idx), val, flags);
+        int ret = JS_SetPropertyValue(ctx, JS_MKPTR(JS_TAG_OBJECT, p), JS_NewInt64(ctx, idx), val, flags);
+        if (ret < 0)
+            return -1;
+        return 1;
     }
     new_len = p->u.array.count + 1;
     /* update the length if necessary. We assume that if the length is
@@ -8826,7 +8829,7 @@ static int add_fast_array_element(JSContext *ctx, JSObject *p, JSValue val, int 
     }
     p->u.array.u.values[new_len - 1] = val;
     p->u.array.count = new_len;
-    return true;
+    return 1;
 }
 
 static void js_free_desc(JSContext *ctx, JSPropertyDescriptor *desc)
