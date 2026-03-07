@@ -529,11 +529,8 @@ static void urldb_save_search_tree(struct search_node *parent, FILE *fp)
             *p++ = '.';
         }
     }
-    if (p < end) {
-        *p = '\0';
-    } else {
-        *(end - 1) = '\0';
-    }
+
+    *p = '\0';
 
     h = parent->data;
     if (h && h->hsts.expires > expiry) {
