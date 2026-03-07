@@ -1727,6 +1727,7 @@ double js_atod(const char *str, const char **pnext, int radix, int flags, JSATOD
         p++;
         pos++;
         if (digit_count < max_digits) {
+            /* Optimized for power-of-two radixes */
             if (radix_bits != 0) {
                 cur_limb = (cur_limb << radix_bits) | c;
             } else {
