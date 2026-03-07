@@ -268,7 +268,8 @@ static const char *nslog_gettime(void)
 
 #ifdef WITH_NSLOG
 
-NSLOG_DEFINE_CATEGORY(noosurf, "Wisp default logging");
+NSLOG_DEFINE_CATEGORY(wisp, "Wisp default logging");
+NSLOG_DEFINE_CATEGORY(noosurf, "Wisp legacy logging");
 NSLOG_DEFINE_CATEGORY(llcache, "Low level cache");
 NSLOG_DEFINE_CATEGORY(fetch, "Object fetching");
 NSLOG_DEFINE_CATEGORY(plot, "Rendering system");

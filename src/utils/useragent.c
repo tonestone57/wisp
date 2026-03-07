@@ -27,7 +27,12 @@
 #include "utils/useragent.h"
 #include "utils/utsname.h"
 
+#ifdef WITH_NSLOG
+NSLOG_DECLARE_CATEGORY(wisp);
+#endif
+
 static const char *core_user_agent_string = NULL;
+static const char *core_user_agent_fallback = "Mozilla/5.0 (Unknown) Wisp/0";
 
 #ifndef WISP_UA_FORMAT_STRING
 #define WISP_UA_FORMAT_STRING "Mozilla/5.0 (%s) Wisp/%d"
@@ -55,7 +60,8 @@ static void user_agent_build_string(void)
     len = snprintf(NULL, 0, WISP_UA_FORMAT_STRING, sysname, wisp_version);
     ua_string = malloc(len + 1);
     if (!ua_string) {
-        /** \todo this needs handling better */
+        NSLOG(wisp, CRITICAL, "Failed to allocate memory for user agent string");
+        core_user_agent_string = core_user_agent_fallback;
         return;
     }
     snprintf(ua_string, len + 1, WISP_UA_FORMAT_STRING, sysname, wisp_version);
@@ -76,9 +82,9 @@ const char *user_agent_string(void)
 /* Public API documented in useragent.h */
 void free_user_agent_string(void)
 {
-    if (core_user_agent_string != NULL) {
+    if (core_user_agent_string != NULL && core_user_agent_string != core_user_agent_fallback) {
         /* Nasty cast because we need to de-const it to free it */
         free((void *)core_user_agent_string);
-        core_user_agent_string = NULL;
     }
+    core_user_agent_string = NULL;
 }
