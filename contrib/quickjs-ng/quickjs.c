@@ -4844,9 +4844,9 @@ static __maybe_unused void JS_DumpShape(JSRuntime *rt, int i, JSShape *sh)
     char atom_buf[ATOM_GET_STR_BUF_SIZE];
     int j;
 
-    /* XXX: should output readable class prototype */
-    printf("%5d %3d%c %14p %5d %5d", i, sh->header.ref_count, " *"[sh->is_hashed], (void *)sh->proto, sh->prop_size,
-        sh->prop_count);
+    printf("%5d %3d%c %14p %10s %5d %5d", i, sh->header.ref_count, " *"[sh->is_hashed], (void *)sh->proto,
+        sh->proto ? JS_AtomGetStrRT(rt, atom_buf, sizeof(atom_buf), rt->class_array[sh->proto->class_id].class_name) : "null",
+        sh->prop_size, sh->prop_count);
     for (j = 0; j < sh->prop_count; j++) {
         printf(" %s", JS_AtomGetStrRT(rt, atom_buf, sizeof(atom_buf), sh->prop[j].atom));
     }
