@@ -621,6 +621,7 @@ typedef struct JSClassDef {
     /* XXX: suppress this indirection ? It is here only to save memory
        because only a few classes need these methods */
     JSClassExoticMethods *exotic;
+    size_t opaque_size;
 } JSClassDef;
 
 #define JS_EVAL_OPTIONS_VERSION 1
