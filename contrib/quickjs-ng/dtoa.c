@@ -1785,6 +1785,7 @@ double js_atod(const char *str, const char **pnext, int radix, int flags, JSATOD
         }
         c = to_digit(*p);
         if (c >= 10) {
+            /* no digits after exponent indicator: stop before the exponent part */
             p = p_exp;
         } else {
             expn = c;
