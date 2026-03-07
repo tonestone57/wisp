@@ -1671,9 +1671,6 @@ skip_ssl_certificates:
     /* update object on successful parse of metadata  */
     object->source_len = source_length;
 
-    /** \todo really not sure this is right, nothing is allocated here? */
-    object->source_alloc = metadatalen;
-
     object->cache.req_time = request_time;
     object->cache.res_time = response_time;
     object->cache.fin_time = completion_time;
