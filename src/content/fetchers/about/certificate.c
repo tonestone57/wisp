@@ -242,15 +242,26 @@ static int ns_EVP_PKEY_get_utf8_string_param(
         group = "";
     } else {
         group = OBJ_nid2ln(EC_GROUP_get_curve_name(ecgroup));
+        if (group == NULL) {
+            group = "";
+        }
     }
 
-    if (str != NULL && max_len > strlen(group)) {
-        strcpy(str, group);
-        str[strlen(group)] = '\0';
-        ret = 1;
+    size_t group_len = strlen(group);
+
+    if (str != NULL && max_len > 0) {
+        /* We want to copy as much as possible, up to max_len - 1 */
+        size_t to_copy = (group_len < max_len) ? group_len : (max_len - 1);
+
+        memcpy(str, group, to_copy);
+        str[to_copy] = '\0';
+
+        /* 1 indicates success/complete copy, 0 indicates truncation */
+        ret = (to_copy == group_len) ? 1 : 0;
     }
+
     if (out_len != NULL)
-        *out_len = strlen(group);
+        *out_len = group_len;
 
     EC_KEY_free(ec);
 
