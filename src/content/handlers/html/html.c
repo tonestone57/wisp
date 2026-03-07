@@ -1477,6 +1477,14 @@ static void html_destroy_iframe(struct content_html_iframe *iframe)
 
 static void html_free_layout(html_content *htmlc)
 {
+    if (htmlc->box_conversion_context != NULL) {
+        if (cancel_dom_to_box(htmlc->box_conversion_context) != NSERROR_OK) {
+            NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
+        }
+        free(htmlc->box_conversion_context);
+        htmlc->box_conversion_context = NULL;
+    }
+
     if (htmlc->bctx != NULL) {
         /* freeing talloc context should let the entire box
          * set be destroyed
