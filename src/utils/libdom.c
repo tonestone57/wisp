@@ -70,8 +70,28 @@ dom_node *libdom_find_first_element(dom_node *parent, lwc_string *element_name)
     return element;
 }
 
+/**
+ * Convert a libdom exception to an nserror.
+ *
+ * \param err  The libdom exception to convert
+ * \return  the corresponding nserror
+ */
+static nserror dom_exception_to_nserror(dom_exception err)
+{
+    switch (err) {
+    case DOM_NO_ERR:
+        return NSERROR_OK;
+    case DOM_NO_MEM_ERR:
+        return NSERROR_NOMEM;
+    case DOM_NOT_FOUND_ERR:
+        return NSERROR_NOT_FOUND;
+    default:
+        return NSERROR_DOM;
+    }
+}
+
+
 /* exported interface documented in libdom.h */
-/* TODO: return appropriate errors */
 nserror libdom_iterate_child_elements(dom_node *parent, libdom_iterate_cb cb, void *ctx)
 {
     dom_nodelist *children;
@@ -79,13 +99,18 @@ nserror libdom_iterate_child_elements(dom_node *parent, libdom_iterate_cb cb, vo
     dom_exception error;
 
     error = dom_node_get_child_nodes(parent, &children);
-    if (error != DOM_NO_ERR || children == NULL)
-        return NSERROR_NOMEM;
+    if (error != DOM_NO_ERR) {
+        return dom_exception_to_nserror(error);
+    }
+
+    if (children == NULL) {
+        return NSERROR_OK;
+    }
 
     error = dom_nodelist_get_length(children, &num_children);
     if (error != DOM_NO_ERR) {
         dom_nodelist_unref(children);
-        return NSERROR_NOMEM;
+        return dom_exception_to_nserror(error);
     }
 
     for (index = 0; index < num_children; index++) {
@@ -95,11 +120,17 @@ nserror libdom_iterate_child_elements(dom_node *parent, libdom_iterate_cb cb, vo
         error = dom_nodelist_item(children, index, &child);
         if (error != DOM_NO_ERR) {
             dom_nodelist_unref(children);
-            return NSERROR_NOMEM;
+            return dom_exception_to_nserror(error);
         }
 
         error = dom_node_get_node_type(child, &type);
-        if (error == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
+        if (error != DOM_NO_ERR) {
+            dom_node_unref(child);
+            dom_nodelist_unref(children);
+            return dom_exception_to_nserror(error);
+        }
+
+        if (type == DOM_ELEMENT_NODE) {
             nserror err = cb(child, ctx);
             if (err != NSERROR_OK) {
                 dom_node_unref(child);
