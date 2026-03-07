@@ -99,8 +99,10 @@ nserror nsurl_create_from_components(
 nserror nsurl_create(const char *const url_s, nsurl **url);
 
 
+
+
 /**
- * Create a NetSurf URL object from pre-parsed components
+ * Create a NetSurf URL object from pre-parsed components (legacy/helper)
  *
  * \param scheme      Scheme lwc_string
  * \param host        Host lwc_string
@@ -114,8 +116,7 @@ nserror nsurl_create(const char *const url_s, nsurl **url);
  * It is up to the client to call nsurl_unref when they are finished with
  * the created object.
  */
-nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url);
-
+nserror nsurl_create_from_components_char(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url);
 
 /**
  * Increment the reference count to a NetSurf URL object

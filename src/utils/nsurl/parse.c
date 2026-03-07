@@ -1415,26 +1415,19 @@ static nserror nsurl__check_host_valid(lwc_string *host)
  ******************************************************************************/
 
 /* exported interface, documented in nsurl.h */
-nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url)
+nserror nsurl_create_from_components_char(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url)
 {
-    struct nsurl_components c;
-    nserror e = NSERROR_OK;
-    size_t length;
-    char *buff;
-    struct url_markers m;
+    lwc_string *l_port = NULL;
+    lwc_string *l_path = NULL;
+    lwc_string *l_query = NULL;
+    lwc_string *l_fragment = NULL;
+    nserror err;
 
     if (url == NULL || scheme == NULL || host == NULL || path_query == NULL)
         return NSERROR_BAD_PARAMETER;
 
-    /* we use dummy markers and parse strings for port/path_query */
-    memset(&c, 0, sizeof(c));
-
-    c.scheme = lwc_string_ref(scheme);
-    c.host = lwc_string_ref(host);
-
     if (port && *port) {
-        if (lwc_intern_string(port, strlen(port), &c.port) != lwc_error_ok) {
-            nsurl__components_destroy(&c);
+        if (lwc_intern_string(port, strlen(port), &l_port) != lwc_error_ok) {
             return NSERROR_NOMEM;
         }
     }
@@ -1451,8 +1444,8 @@ nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const
         const char *path_end = path_query + strlen(path_query);
         if (fragment_start) {
             path_end = fragment_start;
-            if (lwc_intern_string(fragment_start + 1, strlen(fragment_start + 1), &c.fragment) != lwc_error_ok) {
-                nsurl__components_destroy(&c);
+            if (lwc_intern_string(fragment_start + 1, strlen(fragment_start + 1), &l_fragment) != lwc_error_ok) {
+                if (l_port) lwc_string_unref(l_port);
                 return NSERROR_NOMEM;
             }
         }
@@ -1460,55 +1453,32 @@ nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const
         if (query_start) {
             path_end = query_start;
             size_t query_len = (fragment_start ? (size_t)(fragment_start - query_start) : strlen(query_start));
-            if (lwc_intern_string(query_start, query_len, &c.query) != lwc_error_ok) {
-                nsurl__components_destroy(&c);
+            if (lwc_intern_string(query_start + 1, query_len - 1, &l_query) != lwc_error_ok) {
+                if (l_port) lwc_string_unref(l_port);
+                if (l_fragment) lwc_string_unref(l_fragment);
                 return NSERROR_NOMEM;
             }
         }
 
         size_t path_len = path_end - path_query;
         if (path_len > 0) {
-            if (lwc_intern_string(path_query, path_len, &c.path) != lwc_error_ok) {
-                nsurl__components_destroy(&c);
+            if (lwc_intern_string(path_query, path_len, &l_path) != lwc_error_ok) {
+                if (l_port) lwc_string_unref(l_port);
+                if (l_fragment) lwc_string_unref(l_fragment);
+                if (l_query) lwc_string_unref(l_query);
                 return NSERROR_NOMEM;
             }
         }
     }
 
-    c.scheme_type = NSURL_SCHEME_OTHER;
-    size_t slen = lwc_string_length(scheme);
-    const char *sdata = lwc_string_data(scheme);
+    err = nsurl_create_from_components(scheme, host, l_port, l_path, l_query, l_fragment, url);
 
-    if (slen == 4 && strncasecmp(sdata, "http", 4) == 0) {
-        c.scheme_type = NSURL_SCHEME_HTTP;
-    } else if (slen == 5 && strncasecmp(sdata, "https", 5) == 0) {
-        c.scheme_type = NSURL_SCHEME_HTTPS;
-    } else if (slen == 4 && strncasecmp(sdata, "file", 4) == 0) {
-        c.scheme_type = NSURL_SCHEME_FILE;
-    } else if (slen == 3 && strncasecmp(sdata, "ftp", 3) == 0) {
-        c.scheme_type = NSURL_SCHEME_FTP;
-    } else if (slen == 6 && strncasecmp(sdata, "mailto", 6) == 0) {
-        c.scheme_type = NSURL_SCHEME_MAILTO;
-    } else if (slen == 4 && strncasecmp(sdata, "data", 4) == 0) {
-        c.scheme_type = NSURL_SCHEME_DATA;
-    }
+    if (l_port) lwc_string_unref(l_port);
+    if (l_path) lwc_string_unref(l_path);
+    if (l_query) lwc_string_unref(l_query);
+    if (l_fragment) lwc_string_unref(l_fragment);
 
-    e = nsurl__components_to_string(&c, NSURL_WITH_FRAGMENT, offsetof(nsurl, string), (char **)url, &length);
-    if (e != NSERROR_OK) {
-        nsurl__components_destroy(&c);
-        return e;
-    }
-
-    (*url)->components = c;
-    (*url)->length = length;
-
-    /* Get the nsurl's hash */
-    nsurl__calc_hash(*url);
-
-    /* Give the URL a reference */
-    (*url)->count = 1;
-
-    return NSERROR_OK;
+    return err;
 }
 
 
