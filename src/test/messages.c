@@ -136,6 +136,45 @@ START_TEST(message_get_buff_test)
 }
 END_TEST
 
+START_TEST(messages_add_key_value_test)
+{
+    nserror res;
+    const char *val;
+
+    /* Ensure we start clean */
+    messages_destroy();
+
+    /* 1. Test NULL parameters */
+    res = messages_add_key_value(NULL, "value");
+    ck_assert_int_eq(res, NSERROR_BAD_PARAMETER);
+    res = messages_add_key_value("key", NULL);
+    ck_assert_int_eq(res, NSERROR_BAD_PARAMETER);
+
+    /* 2. Add to uninitialized hash */
+    res = messages_add_key_value("TestKey1", "TestValue1");
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    /* 3. Verify retrieval */
+    val = messages_get("TestKey1");
+    ck_assert_str_eq(val, "TestValue1");
+
+    /* 4. Add another pair */
+    res = messages_add_key_value("TestKey2", "TestValue2");
+    ck_assert_int_eq(res, NSERROR_OK);
+    val = messages_get("TestKey2");
+    ck_assert_str_eq(val, "TestValue2");
+
+    /* 5. Overwrite existing key */
+    res = messages_add_key_value("TestKey1", "NewValue1");
+    ck_assert_int_eq(res, NSERROR_OK);
+    val = messages_get("TestKey1");
+    ck_assert_str_eq(val, "NewValue1");
+
+    /* cleanup */
+    messages_destroy();
+}
+END_TEST
+
 
 static TCase *message_session_case_create(void)
 {
@@ -146,6 +185,7 @@ static TCase *message_session_case_create(void)
     tcase_add_test(tc, message_inline_load_test);
     tcase_add_loop_test(tc, messages_errorcode_test, 0, NELEMS(message_errorcode_test_vec));
     tcase_add_test(tc, message_get_buff_test);
+    tcase_add_test(tc, messages_add_key_value_test);
 
     return tc;
 }
