@@ -50,14 +50,6 @@
 #include "desktop/treeview.h"
 
 /**
- * The maximum horizontal size a treeview can possibly be.
- *
- * \todo get rid of REDRAW_MAX -- need to be able to know window size
- */
-#define REDRAW_MAX 8000
-
-
-/**
  * Treeview handling global context
  */
 struct treeview_globals {
@@ -344,6 +336,21 @@ static inline void treeview__cw_invalidate_area(const struct treeview *tree, con
 
 
 /**
+ * Corewindow callback wrapper: Get window viewport dimensions
+ *
+ * \param[in] tree The treeview to get dimensions for.
+ * \param[out] width to be set to viewport width in px
+ * \param[out] height to be set to viewport height in px
+ */
+static inline void treeview__cw_get_window_dimensions(const struct treeview *tree, int *width, int *height)
+{
+    if (tree->cw_h != NULL) {
+        guit->corewindow->get_dimensions(tree->cw_h, width, height);
+    }
+}
+
+
+/**
  * Corewindow callback wrapper: Request a full redraw of the window
  *
  * \param[in] tree The treeview to request redraw on.
@@ -351,12 +358,18 @@ static inline void treeview__cw_invalidate_area(const struct treeview *tree, con
 static inline void treeview__cw_full_redraw(const struct treeview *tree)
 {
     if (tree->cw_h != NULL) {
-        static const struct rect r = {
+        int width, height;
+        struct rect r = {
             .x0 = 0,
             .y0 = 0,
-            .x1 = REDRAW_MAX,
-            .y1 = REDRAW_MAX,
+            .x1 = 0,
+            .y1 = 0,
         };
+        treeview__cw_get_window_dimensions(tree, &width, &height);
+
+        r.x1 = width;
+        r.y1 = height;
+
         guit->corewindow->invalidate(tree->cw_h, &r);
     }
 }
@@ -404,20 +417,6 @@ static inline void treeview__cw_scroll_top(const struct treeview *tree)
     };
 
     cw_helper_scroll_visible(tree->cw_h, &r);
-}
-
-/**
- * Corewindow callback wrapper: Get window viewport dimensions
- *
- * \param[in] tree The treeview to get dimensions for.
- * \param[out] width to be set to viewport width in px
- * \param[out] height to be set to viewport height in px
- */
-static inline void treeview__cw_get_window_dimensions(const struct treeview *tree, int *width, int *height)
-{
-    if (tree->cw_h != NULL) {
-        guit->corewindow->get_dimensions(tree->cw_h, width, height);
-    }
 }
 
 
@@ -579,12 +578,16 @@ static inline void treeview__cw_scroll_to_node(const struct treeview *tree, cons
  */
 static void treeview__redraw_from_node(const treeview *tree, const treeview_node *node)
 {
+    int width, height;
     struct rect r = {
         .x0 = 0,
         .y0 = treeview_node_y(tree, node),
-        .x1 = REDRAW_MAX,
+        .x1 = 0,
         .y1 = treeview__get_display_height(tree) + treeview__get_search_height(tree),
     };
+
+    treeview__cw_get_window_dimensions(tree, &width, &height);
+    r.x1 = width;
 
     assert(tree != NULL);
 
@@ -815,11 +818,16 @@ static nserror treeview__search(treeview *tree, const char *text, unsigned int l
         .tree = tree,
         .window_height = 0,
     };
+
+    int win_width, win_height;
     struct rect r = {
         .x0 = 0,
         .y0 = search_height,
-        .x1 = REDRAW_MAX,
+        .x1 = 0,
     };
+
+    treeview__cw_get_window_dimensions(tree, &win_width, &win_height);
+    r.x1 = win_width;
 
     assert(text[len] == '\0');
 
@@ -1157,10 +1165,12 @@ nserror treeview_create_node_folder(treeview *tree, treeview_node **folder, tree
 
         /* Redraw */
         if (!(flags & TREE_OPTION_SUPPRESS_REDRAW)) {
+            int width, height;
             struct rect r;
+            treeview__cw_get_window_dimensions(tree, &width, &height);
             r.x0 = 0;
             r.y0 = treeview_node_y(tree, n);
-            r.x1 = REDRAW_MAX;
+            r.x1 = width;
             r.y1 = tree->root->height;
             treeview__cw_invalidate_area(tree, &r);
         }
@@ -1201,10 +1211,12 @@ treeview_update_node_folder(treeview *tree, treeview_node *folder, const struct 
 
     /* Redraw */
     if (folder->parent->flags & TV_NFLAGS_EXPANDED) {
+        int width, height;
         struct rect r;
+        treeview__cw_get_window_dimensions(tree, &width, &height);
         r.x0 = 0;
         r.y0 = treeview_node_y(tree, folder);
-        r.x1 = REDRAW_MAX;
+        r.x1 = width;
         r.y1 = r.y0 + tree_g.line_height;
         treeview__cw_invalidate_area(tree, &r);
     }
@@ -1263,10 +1275,12 @@ treeview_update_node_entry(treeview *tree, treeview_node *entry, const struct tr
 
     /* Redraw */
     if (entry->parent->flags & TV_NFLAGS_EXPANDED) {
+        int width, height;
         struct rect r;
+        treeview__cw_get_window_dimensions(tree, &width, &height);
         r.x0 = 0;
         r.y0 = treeview_node_y(tree, entry);
-        r.x1 = REDRAW_MAX;
+        r.x1 = width;
         r.y1 = r.y0 + entry->height;
         treeview__cw_invalidate_area(tree, &r);
     }
@@ -1339,10 +1353,12 @@ nserror treeview_create_node_entry(treeview *tree, treeview_node **entry, treevi
 
         /* Redraw */
         if (!(flags & TREE_OPTION_SUPPRESS_REDRAW)) {
+            int width, height;
             struct rect r;
+            treeview__cw_get_window_dimensions(tree, &width, &height);
             r.x0 = 0;
             r.y0 = treeview_node_y(tree, n);
-            r.x1 = REDRAW_MAX;
+            r.x1 = width;
             r.y1 = tree->root->height;
             treeview__cw_invalidate_area(tree, &r);
         }
@@ -1793,8 +1809,10 @@ nserror treeview_delete_node(treeview *tree, treeview_node *n, treeview_node_opt
 
     /* Redraw */
     if (visible && !(flags & TREE_OPTION_SUPPRESS_REDRAW)) {
+        int width, height;
+        treeview__cw_get_window_dimensions(tree, &width, &height);
         r.x0 = 0;
-        r.x1 = REDRAW_MAX;
+        r.x1 = width;
         treeview__cw_invalidate_area(tree, &r);
     }
 
@@ -2231,13 +2249,16 @@ nserror treeview_contract(treeview *tree, bool all)
     bool selected;
     treeview_node *n;
     struct rect r;
+    int width, height;
 
     assert(tree != NULL);
     assert(tree->root != NULL);
 
+    treeview__cw_get_window_dimensions(tree, &width, &height);
+
     r.x0 = 0;
     r.y0 = 0;
-    r.x1 = REDRAW_MAX;
+    r.x1 = width;
     r.y1 = tree->root->height + search_height;
 
     data.tree = tree;
@@ -2324,10 +2345,13 @@ nserror treeview_expand(treeview *tree, bool only_folders)
         tree, tree->root, TREEVIEW_WALK_MODE_LOGICAL_COMPLETE, NULL, treeview_expand_cb, &data);
     if (res == NSERROR_OK) {
         /* expansion succeeded, schedule redraw */
+        int width, height;
+
+        treeview__cw_get_window_dimensions(tree, &width, &height);
 
         r.x0 = 0;
         r.y0 = 0;
-        r.x1 = REDRAW_MAX;
+        r.x1 = width;
         r.y1 = tree->root->height;
 
         treeview__cw_invalidate_area(tree, &r);
@@ -3081,10 +3105,13 @@ enum treeview_node_type treeview_get_selection(treeview *tree, void **node_data)
 static bool treeview_clear_selection(treeview *tree, struct rect *rect)
 {
     struct treeview_selection_walk_data sw;
+    int width, height;
+
+    treeview__cw_get_window_dimensions(tree, &width, &height);
 
     rect->x0 = 0;
     rect->y0 = 0;
-    rect->x1 = REDRAW_MAX;
+    rect->x1 = width;
     rect->y1 = 0;
 
     sw.purpose = TREEVIEW_WALK_CLEAR_SELECTION;
@@ -3108,10 +3135,13 @@ static bool treeview_clear_selection(treeview *tree, struct rect *rect)
 static bool treeview_select_all(treeview *tree, struct rect *rect)
 {
     struct treeview_selection_walk_data sw;
+    int width, height;
+
+    treeview__cw_get_window_dimensions(tree, &width, &height);
 
     rect->x0 = 0;
     rect->y0 = 0;
-    rect->x1 = REDRAW_MAX;
+    rect->x1 = width;
     rect->y1 = 0;
 
     sw.purpose = TREEVIEW_WALK_SELECT_ALL;
@@ -3207,13 +3237,16 @@ static void treeview_copy_selection(treeview *tree)
 static bool treeview_delete_selection(treeview *tree, struct rect *rect)
 {
     struct treeview_selection_walk_data sw;
+    int width, height;
 
     assert(tree != NULL);
     assert(tree->root != NULL);
 
+    treeview__cw_get_window_dimensions(tree, &width, &height);
+
     rect->x0 = 0;
     rect->y0 = 0;
-    rect->x1 = REDRAW_MAX;
+    rect->x1 = width;
     rect->y1 = treeview__get_display_height(tree);
 
     sw.purpose = TREEVIEW_WALK_DELETE_SELECTION;
@@ -3238,13 +3271,16 @@ static bool treeview_delete_selection(treeview *tree, struct rect *rect)
 static bool treeview_propagate_selection(treeview *tree, struct rect *rect)
 {
     struct treeview_selection_walk_data sw;
+    int width, height;
 
     assert(tree != NULL);
     assert(tree->root != NULL);
 
+    treeview__cw_get_window_dimensions(tree, &width, &height);
+
     rect->x0 = 0;
     rect->y0 = 0;
-    rect->x1 = REDRAW_MAX;
+    rect->x1 = width;
     rect->y1 = 0;
 
     sw.purpose = TREEVIEW_WALK_PROPAGATE_SELECTION;
@@ -3355,11 +3391,16 @@ static nserror treeview_move_selection(treeview *tree, struct rect *rect)
     if (height != tree->root->height)
         treeview__cw_update_size(tree, -1, tree->root->height);
 
-    /* TODO: Deal with redraw area properly */
-    rect->x0 = 0;
-    rect->y0 = 0;
-    rect->x1 = REDRAW_MAX;
-    rect->y1 = REDRAW_MAX;
+    {
+        int win_width, win_height;
+        treeview__cw_get_window_dimensions(tree, &win_width, &win_height);
+
+        /* TODO: Deal with redraw area properly */
+        rect->x0 = 0;
+        rect->y0 = 0;
+        rect->x1 = win_width;
+        rect->y1 = win_height;
+    }
 
     return NSERROR_OK;
 }
@@ -3637,14 +3678,19 @@ static bool treeview_keyboard_navigation(treeview *tree, uint32_t key, struct re
 
     treeview__cw_scroll_to_node(tree, scroll_to_node);
 
-    /* TODO: Deal with redraw area properly */
-    rect->x0 = 0;
-    rect->y0 = 0;
-    rect->x1 = REDRAW_MAX;
-    if (treeview__get_display_height(tree) + search_height > h)
-        rect->y1 = treeview__get_display_height(tree) + search_height;
-    else
-        rect->y1 = h;
+    {
+        int win_width, win_height;
+        treeview__cw_get_window_dimensions(tree, &win_width, &win_height);
+
+        /* TODO: Deal with redraw area properly */
+        rect->x0 = 0;
+        rect->y0 = 0;
+        rect->x1 = win_width;
+        if (treeview__get_display_height(tree) + search_height > h)
+            rect->y1 = treeview__get_display_height(tree) + search_height;
+        else
+            rect->y1 = h;
+    }
     redraw = true;
 
     return redraw;
@@ -4040,11 +4086,16 @@ void treeview_edit_selection(treeview *tree)
     if (redraw == false)
         return;
 
-    /* Redraw */
-    rect.x0 = 0;
-    rect.y0 = y;
-    rect.x1 = REDRAW_MAX;
-    rect.y1 = y + tree_g.line_height;
+    {
+        int width, height;
+        treeview__cw_get_window_dimensions(tree, &width, &height);
+
+        /* Redraw */
+        rect.x0 = 0;
+        rect.y0 = y;
+        rect.x1 = width;
+        rect.y1 = y + tree_g.line_height;
+    }
     treeview__cw_invalidate_area(tree, &rect);
 }
 
@@ -4082,8 +4133,11 @@ static nserror treeview_node_mouse_action_cb(treeview_node *node, void *ctx, boo
     enum treeview_node_part part = TV_NODE_PART_NONE;
     nserror err;
 
+    int win_width, win_height;
+    treeview__cw_get_window_dimensions(ma->tree, &win_width, &win_height);
+
     r.x0 = 0;
-    r.x1 = REDRAW_MAX;
+    r.x1 = win_width;
 
     height = (node->type == TREE_NODE_ENTRY) ? node->height : tree_g.line_height;
 
@@ -4341,10 +4395,16 @@ void treeview_mouse_action(treeview *tree, browser_mouse_state mouse, int x, int
 
         tree->search.active = false;
         textarea_set_caret(tree->search.textarea, -1);
-        r.x0 = 0;
-        r.y0 = 0;
-        r.x1 = REDRAW_MAX;
-        r.y1 = tree_g.line_height;
+
+        {
+            int width, height;
+            treeview__cw_get_window_dimensions(tree, &width, &height);
+
+            r.x0 = 0;
+            r.y0 = 0;
+            r.x1 = width;
+            r.y1 = tree_g.line_height;
+        }
         treeview__cw_invalidate_area(tree, &r);
     }
 
@@ -4394,8 +4454,13 @@ void treeview_mouse_action(treeview *tree, browser_mouse_state mouse, int x, int
     if (y > treeview__get_display_height(tree) + search_height) {
         /* Below tree */
 
-        r.x0 = 0;
-        r.x1 = REDRAW_MAX;
+        {
+            int width, height;
+            treeview__cw_get_window_dimensions(tree, &width, &height);
+
+            r.x0 = 0;
+            r.x1 = width;
+        }
 
         /* Record what position / part a drag started on */
         if (mouse & (BROWSER_MOUSE_PRESS_1 | BROWSER_MOUSE_PRESS_2) && tree->drag.type == TV_DRAG_NONE) {
