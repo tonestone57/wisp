@@ -1347,6 +1347,7 @@ bool form_add_option(struct form_control *control, char *value, char *text, bool
 
     option->value = value;
     option->text = text;
+    option->text_len = (text != NULL) ? strlen(text) : 0;
 
     /* add to linked list */
     if (control->data.select.items == 0)
@@ -1564,7 +1565,7 @@ bool form_redraw_select_menu(
         }
 
         y2 = text_pos_offset + item_y;
-        res = ctx->plot->text(ctx, &plot_fstyle_entry, text_x, y2, option->text, strlen(option->text));
+        res = ctx->plot->text(ctx, &plot_fstyle_entry, text_x, y2, option->text, option->text_len);
         if (res != NSERROR_OK) {
             return false;
         }

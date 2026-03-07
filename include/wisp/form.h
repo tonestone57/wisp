@@ -26,6 +26,8 @@
 #ifndef _WISP_FORM_H_
 #define _WISP_FORM_H_
 
+#include <stddef.h>
+
 struct form_control;
 struct rect;
 
@@ -36,6 +38,7 @@ struct form_option {
     bool initial_selected;
     char *value;
     char *text; /**< NUL terminated. */
+    size_t text_len;
     struct form_option *next;
 };
 
