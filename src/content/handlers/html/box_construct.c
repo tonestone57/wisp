@@ -326,7 +326,7 @@ static struct box *create_content_box(
             return NULL;
 
         box->type = BOX_TEXT;
-        box->text = arena_strndup(content->bctx, text_data, text_len);
+        box->text = arena_strndup(ctx->bctx, text_data, text_len);
         if (box->text == NULL) {
             /* Can't free box here - relies on talloc cleanup */
             return NULL;
@@ -494,7 +494,7 @@ static struct box *create_content_box(
                             NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
                         if (box != NULL) {
                             box->type = BOX_TEXT;
-                            box->text = arena_strndup(content->bctx, text_data, text_len);
+                            box->text = arena_strndup(ctx->bctx, text_data, text_len);
                             box->length = text_len;
                             NSLOG(wisp, DEEPDEBUG, "create_content_box: ATTR '%.*s'",
                                 (int)(text_len > 50 ? 50 : text_len), text_data);
@@ -511,22 +511,24 @@ static struct box *create_content_box(
     case CSS_COMPUTED_CONTENT_CLOSE_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_CLOSE_QUOTE: {
+        /*
         bool is_open = (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE || item->type == CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE);
         bool is_insert = (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE || item->type == CSS_COMPUTED_CONTENT_CLOSE_QUOTE);
 
-        /* Decrease level for close quotes before getting quote */
+        // Decrease level for close quotes before getting quote
         if (!is_open && ctx->quote_nesting_level > 0) {
             ctx->quote_nesting_level--;
         }
 
-        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
         if (box != NULL) {
             box->type = BOX_TEXT;
-            box->text = arena_strdup(content->bctx, quote);
+            box->text = arena_strdup(ctx->bctx, quote);
             box->length = strlen(quote);
             NSLOG(wisp, DEEPDEBUG, "create_content_box: %s_QUOTE",
                 item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE ? "OPEN" : "CLOSE");
         }
+        */
         break;
     }
 
@@ -760,43 +762,22 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
     if (c_item != NULL) {
         while (c_item->type != CSS_COMPUTED_CONTENT_NONE) {
             struct box *content_box = create_content_box(c_item, style, ctx, n);
-
-                if (text_len > 0) {
-                    if (gen->type == BOX_INLINE) {
-                        /* For inline boxes, text goes
-                         * directly on the box */
-                        char *text_copy = arena_strndup(content->bctx, text_data, text_len);
-                        if (text_copy == NULL) {
-                            break;
-                        }
-                        gen->text = text_copy;
-                        gen->length = text_len;
-                    } else {
-                        text_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
-                        if (text_container != NULL) {
-                            text_container->type = BOX_INLINE_CONTAINER;
-                            box_add_child(gen, text_container);
+            if (content_box != NULL) {
+                if (gen->type == BOX_INLINE) {
+                    /* For inline boxes, content goes as a child of the inline box */
+                    box_add_child(gen, content_box);
+                } else {
+                    struct box *inline_container = gen->children;
+                    /* Ensure we have an inline container for blocks */
+                    if (inline_container == NULL || inline_container->type != BOX_INLINE_CONTAINER) {
+                        inline_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
+                        if (inline_container != NULL) {
+                            inline_container->type = BOX_INLINE_CONTAINER;
+                            box_add_child(gen, inline_container);
                         }
                     }
-
-                        /* Create text box */
-                        text_box = box_create(
-                            NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
-                        if (text_box == NULL) {
-                            break;
-                        }
-
-                        text_box->type = BOX_TEXT;
-
-                        text_copy = arena_strndup(content->bctx, text_data, text_len);
-                        if (text_copy == NULL) {
-                            break;
-                        }
-
-                        text_box->text = text_copy;
-                        text_box->length = text_len;
-
-                        box_add_child(text_container, text_box);
+                    if (inline_container != NULL) {
+                        box_add_child(inline_container, content_box);
                     }
                 }
             }
@@ -2115,7 +2096,6 @@ nserror dom_to_box(dom_node *n, html_content *c, box_construct_complete_cb cb, v
     ctx->root_box = NULL;
     ctx->cb = cb;
     ctx->bctx = c->bctx;
-    ctx->quote_nesting_level = 0;
 
     *box_conversion_context = ctx;
 

@@ -2983,7 +2983,7 @@ nserror urldb_load(const char *filename)
                 return NSERROR_NOMEM;
             }
 
-            if (nsurl_create_from_components(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
+            if (nsurl_create_from_components_str(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
                 lwc_string_unref(scheme_lwc);
                 lwc_string_unref(host_lwc);
                 fclose(fp);

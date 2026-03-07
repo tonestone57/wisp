@@ -1415,7 +1415,7 @@ static nserror nsurl__check_host_valid(lwc_string *host)
  ******************************************************************************/
 
 /* exported interface, documented in nsurl.h */
-nserror nsurl_create_from_components(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url)
+nserror nsurl_create_from_components_str(lwc_string *scheme, lwc_string *host, const char *port, const char *path_query, nsurl **url)
 {
     struct nsurl_components c;
     nserror e = NSERROR_OK;

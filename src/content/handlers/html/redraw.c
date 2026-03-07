@@ -2946,8 +2946,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
         int child_x_parent, child_y_parent;
         if (box->abs_containing_block != NULL) {
             /* For absolute elements: we computed screen position x, y via box_coords().
-             * Children's offset = child_x_parent + box->x = x (we want)
-             * So child_x_parent = x - box->x */
+             * Children's offset = child_x_parent + box->x = unscaled_x (we want)
+             * So child_x_parent = unscaled_x - box->x */
             child_x_parent = unscaled_x - box->x;
             child_y_parent = unscaled_y - box->y;
         } else {
