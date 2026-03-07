@@ -337,6 +337,7 @@ struct JSClass {
     JSClassCall *call;
     /* pointers for exotic behavior, can be NULL if none are present */
     const JSClassExoticMethods *exotic;
+    size_t opaque_size;
 };
 
 typedef struct JSStackFrame {
@@ -3571,6 +3572,7 @@ static int JS_NewClass1(JSRuntime *rt, JSClassID class_id, const JSClassDef *cla
     cl->gc_mark = class_def->gc_mark;
     cl->call = class_def->call;
     cl->exotic = class_def->exotic;
+    cl->opaque_size = class_def->opaque_size;
     return 0;
 }
 
@@ -6449,9 +6451,10 @@ void JS_ComputeMemoryUsage(JSRuntime *rt, JSMemoryUsage *s)
         case JS_CLASS_ASYNC_GENERATOR: /* u.async_generator_data */
             /* TODO */
         default:
-            /* XXX: class definition should have an opaque block size */
             if (p->u.opaque) {
+                JSClass *cl = &rt->class_array[p->class_id];
                 s->memory_used_count += 1;
+                s->memory_used_size += cl->opaque_size;
             }
             break;
         }
