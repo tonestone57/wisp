@@ -2727,7 +2727,6 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
 
     redraw &= !textarea_set_caret_internal(ta, caret);
 
-    /* TODO: redraw only the bit that changed */
     msg.ta = ta;
     msg.type = TEXTAREA_MSG_REDRAW_REQUEST;
 
