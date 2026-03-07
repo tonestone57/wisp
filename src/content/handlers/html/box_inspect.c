@@ -168,7 +168,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
          * not the visual parent. Use box_coords to get correct global position.
          * Per CSS 2.1 §9.6, absolute elements are offset from containing block. */
         if (b->abs_containing_block != NULL) {
-            box_coords(b, x, y);
+            int cb_x, cb_y, p_x, p_y;
+            box_coords(b->abs_containing_block, &cb_x, &cb_y);
+            box_coords(b->parent, &p_x, &p_y);
+            *x += cb_x - p_x + b->x;
+            *y += cb_y - p_y + b->y;
         } else {
             *x += b->x;
             *y += b->y;
@@ -184,7 +188,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
             /* When leaving a box, need to handle absolute elements specially */
             if (b->abs_containing_block != NULL) {
                 /* Absolute box - calculate position of parent to "exit" correctly */
-                box_coords(b->parent, x, y);
+                int cb_x, cb_y, p_x, p_y;
+                box_coords(b->abs_containing_block, &cb_x, &cb_y);
+                box_coords(b->parent, &p_x, &p_y);
+                *x -= cb_x - p_x + b->x;
+                *y -= cb_y - p_y + b->y;
             } else {
                 *x -= b->x;
                 *y -= b->y;
@@ -196,7 +204,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
             assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in sibling walk");
             /* When entering a box, handle absolute elements */
             if (b->abs_containing_block != NULL) {
-                box_coords(b, x, y);
+                int cb_x, cb_y, p_x, p_y;
+                box_coords(b->abs_containing_block, &cb_x, &cb_y);
+                box_coords(b->parent, &p_x, &p_y);
+                *x += cb_x - p_x + b->x;
+                *y += cb_y - p_y + b->y;
             } else {
                 *x += b->x;
                 *y += b->y;
@@ -209,7 +221,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
         /* When leaving a box to go to parent, handle absolute elements */
         if (b->abs_containing_block != NULL) {
             /* For absolute box, get parent's position directly */
-            box_coords(b->parent, x, y);
+            int cb_x, cb_y, p_x, p_y;
+            box_coords(b->abs_containing_block, &cb_x, &cb_y);
+            box_coords(b->parent, &p_x, &p_y);
+            *x -= cb_x - p_x + b->x;
+            *y -= cb_y - p_y + b->y;
         } else {
             *x -= b->x;
             *y -= b->y;
