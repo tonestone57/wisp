@@ -412,39 +412,41 @@ static bool imagemap_addtolist(
             }
             break;
         case IMAGEMAP_POLY:
-            new_map->bounds.poly.xcoords = NULL;
-            new_map->bounds.poly.ycoords = NULL;
+            {
+                size_t commas = 0;
+                if (coords != NULL) {
+                    for (size_t i = 0; i < dom_string_byte_length(coords); i++) {
+                        if (dom_string_data(coords)[i] == ',') {
+                            commas++;
+                        }
+                    }
+                }
+                size_t max_points = (commas / 2) + 1;
 
-            while (val != NULL) {
-                x = atoi(val);
-
-                val = strtok(NULL, ",");
-                if (val == NULL)
-                    break;
-
-                y = atoi(val);
-
-                xcoords = realloc(new_map->bounds.poly.xcoords, num * sizeof(float));
-                if (xcoords == NULL) {
+                new_map->bounds.poly.xcoords = malloc(max_points * sizeof(float));
+                new_map->bounds.poly.ycoords = malloc(max_points * sizeof(float));
+                if (new_map->bounds.poly.xcoords == NULL || new_map->bounds.poly.ycoords == NULL) {
                     goto bad_out;
                 }
-                new_map->bounds.poly.xcoords = xcoords;
 
-                ycoords = realloc(new_map->bounds.poly.ycoords, num * sizeof(float));
-                if (ycoords == NULL) {
-                    goto bad_out;
+                while (val != NULL) {
+                    x = atoi(val);
+
+                    val = strtok(NULL, ",");
+                    if (val == NULL)
+                        break;
+
+                    y = atoi(val);
+
+                    new_map->bounds.poly.xcoords[num - 1] = x;
+                    new_map->bounds.poly.ycoords[num - 1] = y;
+
+                    num++;
+                    val = strtok(NULL, ",");
                 }
-                new_map->bounds.poly.ycoords = ycoords;
 
-                new_map->bounds.poly.xcoords[num - 1] = x;
-                new_map->bounds.poly.ycoords[num - 1] = y;
-
-                num++;
-                val = strtok(NULL, ",");
+                new_map->bounds.poly.num = num - 1;
             }
-
-            new_map->bounds.poly.num = num - 1;
-
             break;
         default:
             break;
