@@ -8797,7 +8797,14 @@ static int add_fast_array_element(JSContext *ctx, JSObject *p, JSValue val, int 
 {
     uint32_t new_len, array_len;
     /* extend the array by one */
-    /* XXX: convert to slow array if new_len > 2^31-1 elements */
+    if (unlikely(p->u.array.count >= 0x7fffffff)) {
+        uint32_t idx = p->u.array.count;
+        if (convert_fast_array_to_array(ctx, p)) {
+            JS_FreeValue(ctx, val);
+            return -1;
+        }
+        return JS_SetPropertyValue(ctx, JS_MKPTR(JS_TAG_OBJECT, p), js_int64(idx), val, flags);
+    }
     new_len = p->u.array.count + 1;
     /* update the length if necessary. We assume that if the length is
        not an integer, then if it >= 2^31.  */
