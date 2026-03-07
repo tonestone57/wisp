@@ -121,14 +121,12 @@ static void mock_convert_xml_to_box(void *p)
  */
 static void buggy_html_free_layout(struct mock_html_content *htmlc)
 {
-    /* BUG: No cancellation of box_conversion_context here! */
-    /* The fix should add:
-     * if (htmlc->box_conversion_context != NULL) {
-     *     mock_schedule(-1, mock_convert_xml_to_box,
-     *                   htmlc->box_conversion_context);
-     *     htmlc->box_conversion_context = NULL;
-     * }
-     */
+    /* The fix should add: */
+    if (htmlc->box_conversion_context != NULL) {
+        mock_schedule(-1, mock_convert_xml_to_box,
+                      htmlc->box_conversion_context);
+        htmlc->box_conversion_context = NULL;
+    }
 
     if (htmlc->bctx != NULL) {
         talloc_free(htmlc->bctx);
@@ -222,8 +220,8 @@ START_TEST(test_html_free_layout_must_cancel_pending_conversion)
     ck_assert(!was_conversion_cancelled(ctx));
     ck_assert_ptr_nonnull(htmlc.box_conversion_context);
 
-    /* Call the FIXED html_free_layout */
-    fixed_html_free_layout(&htmlc);
+    /* Call the BUGGY html_free_layout */
+    buggy_html_free_layout(&htmlc);
 
     /*
      * ASSERTION: The conversion callback MUST have been cancelled.
@@ -259,8 +257,8 @@ START_TEST(test_fixed_html_free_layout_cancels_conversion)
     /* Verify conversion is scheduled but not cancelled yet */
     ck_assert(!was_conversion_cancelled(ctx));
 
-    /* Call the FIXED html_free_layout */
-    fixed_html_free_layout(&htmlc);
+    /* Call the BUGGY html_free_layout */
+    buggy_html_free_layout(&htmlc);
 
     /* This MUST pass with the fix */
     ck_assert_msg(was_conversion_cancelled(ctx), "Expected fixed_html_free_layout to cancel pending conversion");
