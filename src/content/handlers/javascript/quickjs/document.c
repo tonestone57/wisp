@@ -5,6 +5,7 @@
  */
 
 #include "document.h"
+#include "event_target.h"
 #include <wisp/utils/log.h>
 #include "quickjs.h"
 #include <stdlib.h>

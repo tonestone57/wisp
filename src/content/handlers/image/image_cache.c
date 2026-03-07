@@ -35,9 +35,14 @@
 #include <wisp/misc.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/utils.h>
+#include <wisp/utils/thread_pool.h>
+#include <wisp/utils/task_queue.h>
+#include <pthread.h>
 
 #include "content/handlers/image/image.h"
 #include "content/handlers/image/image_cache.h"
+
+static thread_pool_t *image_decode_pool = NULL;
 
 /**
  * Age of an entry within the cache
@@ -60,6 +65,11 @@ struct image_cache_entry_s {
     struct bitmap *bitmap;
     /** routine to convert content into bitmap */
     image_cache_convert_fn *convert;
+
+    bool decoding;
+    bool abandoned;
+    int refcount;
+    pthread_mutex_t lock;
 
     /* Statistics for replacement algorithm */
 
@@ -283,9 +293,22 @@ static void image_cache__free_entry(struct image_cache_entry_s *centry)
         image_cache->total_unrendered++;
     }
 
+    image_cache__unlink(centry);
+
+    pthread_mutex_lock(&centry->lock);
+    centry->refcount--;
+
+    if (centry->refcount > 0) {
+        centry->abandoned = true;
+        pthread_mutex_unlock(&centry->lock);
+        return; /* Will be freed by background task or main thread callback */
+    }
+    pthread_mutex_unlock(&centry->lock);
+
+    /* Safe to destroy bitmap now that no other threads hold a reference */
     image_cache__free_bitmap(centry);
 
-    image_cache__unlink(centry);
+    pthread_mutex_destroy(&centry->lock);
 
     free(centry);
 }
@@ -304,7 +327,11 @@ static void image_cache__clean(struct image_cache_s *icache)
             /* only consider older entries, avoids active entries */
             if ((icache->total_bitmap_size > (icache->params.limit - icache->params.hysteresis)) &&
                 (rand() > (RAND_MAX / 2))) {
-                image_cache__free_bitmap(centry);
+                pthread_mutex_lock(&centry->lock);
+                if (!centry->decoding) {
+                    image_cache__free_bitmap(centry);
+                }
+                pthread_mutex_unlock(&centry->lock);
             }
         }
         centry = centry->next;
@@ -332,6 +359,92 @@ static void image_cache__background_update(void *p)
     guit->misc->schedule(icache->params.bg_clean_time, image_cache__background_update, icache);
 }
 
+static void image_cache__dummy_user_cb(struct content *c, content_msg msg, const union content_msg_data *data, void *pw)
+{
+    /* Dummy callback to hold the content struct alive */
+}
+
+static void image_cache__finish_decode(void *p)
+{
+    struct image_cache_entry_s *centry = p;
+
+    /* Remove the dummy user holding the content alive */
+    content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
+
+    pthread_mutex_lock(&centry->lock);
+    centry->decoding = false;
+
+    centry->refcount--;
+    if (centry->abandoned && centry->refcount == 0) {
+        if (centry->bitmap != NULL) {
+            guit->bitmap->destroy(centry->bitmap);
+        }
+        pthread_mutex_unlock(&centry->lock);
+        pthread_mutex_destroy(&centry->lock);
+        free(centry);
+        return;
+    }
+
+    if (centry->bitmap != NULL) {
+        image_cache_stats_bitmap_add(centry);
+        image_cache->miss_count++;
+        image_cache->miss_size += centry->bitmap_size;
+    } else {
+        image_cache->fail_count++;
+        image_cache->fail_size += centry->bitmap_size;
+    }
+
+    pthread_mutex_unlock(&centry->lock);
+
+    content_broadcast(centry->content, CONTENT_MSG_REDRAW, NULL);
+}
+
+static void image_cache__background_decode(void *p)
+{
+    struct image_cache_entry_s *centry = p;
+
+    if (centry->convert != NULL) {
+        struct bitmap *bmp = centry->convert(centry->content);
+
+        pthread_mutex_lock(&centry->lock);
+        centry->bitmap = bmp;
+        pthread_mutex_unlock(&centry->lock);
+
+        if (!task_queue_post(image_cache__finish_decode, centry)) {
+            /* Fallback if task queue fails */
+            content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
+            pthread_mutex_lock(&centry->lock);
+            centry->decoding = false;
+            centry->refcount--;
+            if (centry->abandoned && centry->refcount == 0) {
+                if (centry->bitmap != NULL) {
+                    guit->bitmap->destroy(centry->bitmap);
+                }
+                pthread_mutex_unlock(&centry->lock);
+                pthread_mutex_destroy(&centry->lock);
+                free(centry);
+                return;
+            }
+            pthread_mutex_unlock(&centry->lock);
+        }
+    } else {
+        /* Fallback if convert is NULL */
+        content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
+        pthread_mutex_lock(&centry->lock);
+        centry->decoding = false;
+
+        centry->refcount--;
+        if (centry->abandoned && centry->refcount == 0) {
+            pthread_mutex_unlock(&centry->lock);
+            pthread_mutex_destroy(&centry->lock);
+            free(centry);
+            return;
+        }
+
+        pthread_mutex_unlock(&centry->lock);
+    }
+}
+
 /* exported interface documented in image_cache.h */
 struct bitmap *image_cache_get_bitmap(const struct content *c)
 {
@@ -342,25 +455,28 @@ struct bitmap *image_cache_get_bitmap(const struct content *c)
         return NULL;
     }
 
-    if (centry->bitmap == NULL) {
-        if (centry->convert != NULL) {
-            centry->bitmap = centry->convert(centry->content);
-        }
+    pthread_mutex_lock(&centry->lock);
 
-        if (centry->bitmap != NULL) {
-            image_cache_stats_bitmap_add(centry);
-            image_cache->miss_count++;
-            image_cache->miss_size += centry->bitmap_size;
-        } else {
-            image_cache->fail_count++;
-            image_cache->fail_size += centry->bitmap_size;
+    if (centry->bitmap == NULL) {
+        if (!centry->decoding && centry->convert != NULL) {
+            content_add_user(centry->content, image_cache__dummy_user_cb, centry);
+            centry->decoding = true;
+            centry->refcount++;
+            if (!thread_pool_add_task(image_decode_pool, image_cache__background_decode, centry)) {
+                centry->decoding = false;
+                centry->refcount--;
+                content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
+            }
         }
     } else {
         image_cache->hit_count++;
         image_cache->hit_size += centry->bitmap_size;
     }
 
-    return centry->bitmap;
+    struct bitmap *res = centry->bitmap;
+    pthread_mutex_unlock(&centry->lock);
+
+    return res;
 }
 
 /* exported interface documented in image_cache.h */
@@ -406,6 +522,8 @@ nserror image_cache_init(const struct image_cache_parameters *image_cache_parame
         return NSERROR_NOMEM;
     }
 
+    image_decode_pool = thread_pool_create(4);
+
     image_cache->params = *image_cache_parameters;
 
     guit->misc->schedule(image_cache->params.bg_clean_time, image_cache__background_update, image_cache);
@@ -420,6 +538,11 @@ nserror image_cache_init(const struct image_cache_parameters *image_cache_parame
 nserror image_cache_fini(void)
 {
     unsigned int op_count;
+
+    if (image_decode_pool != NULL) {
+        thread_pool_destroy(image_decode_pool);
+        image_decode_pool = NULL;
+    }
     uint64_t op_size;
 
     guit->misc->schedule(-1, image_cache__background_update, image_cache);
@@ -477,7 +600,11 @@ void image_cache_purge_bitmaps(void)
     }
     centry = image_cache->entries;
     while (centry != NULL) {
-        image_cache__free_bitmap(centry);
+        pthread_mutex_lock(&centry->lock);
+        if (!centry->decoding) {
+            image_cache__free_bitmap(centry);
+        }
+        pthread_mutex_unlock(&centry->lock);
         centry = centry->next;
     }
 }
@@ -499,6 +626,9 @@ nserror image_cache_add(struct content *content, struct bitmap *bitmap, image_ca
         if (centry == NULL) {
             return NSERROR_NOMEM;
         }
+        pthread_mutex_init(&centry->lock, NULL);
+        centry->abandoned = false;
+        centry->refcount = 1;
         image_cache__link(centry);
         centry->content = content;
 
@@ -506,6 +636,8 @@ nserror image_cache_add(struct content *content, struct bitmap *bitmap, image_ca
     }
 
     NSLOG(wisp, INFO, "centry %p, content %p, bitmap %p", centry, content, bitmap);
+
+    pthread_mutex_lock(&centry->lock);
 
     centry->convert = convert;
 
@@ -519,17 +651,11 @@ nserror image_cache_add(struct content *content, struct bitmap *bitmap, image_ca
         centry->bitmap = bitmap;
     } else {
         /* no bitmap, check to see if we should speculatively convert */
-        if ((centry->convert != NULL) && (image_cache_speculate(content) == true)) {
-            centry->bitmap = centry->convert(centry->content);
-
-            if (centry->bitmap != NULL) {
-                image_cache_stats_bitmap_add(centry);
-            } else {
-                image_cache->fail_count++;
-            }
-        }
+        /* Currently we don't speculatively convert asynchronously here yet,
+         * we let the redraw request trigger the async load. */
     }
 
+    pthread_mutex_unlock(&centry->lock);
 
     return NSERROR_OK;
 }
@@ -748,20 +874,21 @@ bool image_cache_redraw(
         return false;
     }
 
-    if (centry->bitmap == NULL) {
-        if (centry->convert != NULL) {
-            centry->bitmap = centry->convert(centry->content);
-        }
+    pthread_mutex_lock(&centry->lock);
 
-        if (centry->bitmap != NULL) {
-            image_cache_stats_bitmap_add(centry);
-            image_cache->miss_count++;
-            image_cache->miss_size += centry->bitmap_size;
-        } else {
-            image_cache->fail_count++;
-            image_cache->fail_size += centry->bitmap_size;
-            return false;
+    if (centry->bitmap == NULL) {
+        if (!centry->decoding && centry->convert != NULL) {
+            content_add_user(centry->content, image_cache__dummy_user_cb, centry);
+            centry->decoding = true;
+            centry->refcount++;
+            if (!thread_pool_add_task(image_decode_pool, image_cache__background_decode, centry)) {
+                centry->decoding = false;
+                centry->refcount--;
+                content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
+            }
         }
+        pthread_mutex_unlock(&centry->lock);
+        return false;
     } else {
         image_cache->hit_count++;
         image_cache->hit_size += centry->bitmap_size;
@@ -772,7 +899,10 @@ bool image_cache_redraw(
     centry->redraw_count++;
     centry->redraw_age = image_cache->current_age;
 
-    return image_bitmap_plot(centry->bitmap, data, clip, ctx);
+    struct bitmap *res = centry->bitmap;
+    pthread_mutex_unlock(&centry->lock);
+
+    return image_bitmap_plot(res, data, clip, ctx);
 }
 
 /* exported interface documented in image_cache.h */

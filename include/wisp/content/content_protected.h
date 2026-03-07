@@ -207,6 +207,8 @@ struct content {
      */
     struct llcache_handle *llcache;
 
+    bool pending_delete;
+
     /**
      * Original MIME type of data
      */

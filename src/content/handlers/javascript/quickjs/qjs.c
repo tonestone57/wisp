@@ -45,6 +45,7 @@
 #include "content/handlers/javascript/quickjs/window.h"
 #include "content/handlers/javascript/quickjs/xhr.h"
 #include "content/handlers/javascript/quickjs/unimplemented.h"
+#include <nsutils/time.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -77,6 +78,7 @@ struct qjs_event_map {
 struct jsheap {
     JSRuntime *rt;
     int timeout;
+    uint64_t deadline_ms;
 };
 
 /**
@@ -131,190 +133,6 @@ void *qjs_get_document_priv(JSContext *ctx)
 }
 
 
-
-#define MAX_WISP_WORKERS 5 // Hard ceiling for Wisp
-
-int detect_optimal_worker_count(void) {
-    long nprocs = 1;
-
-#ifdef _WIN32
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo(&sysinfo);
-    nprocs = sysinfo.dwNumberOfProcessors;
-#else
-    nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
-
-    int count;
-    if (nprocs <= 2) count = 1;
-    else count = (int)(nprocs - 1);
-
-    if (count > MAX_WISP_WORKERS) {
-        return MAX_WISP_WORKERS;
-    }
-
-    return count;
-}
-
-typedef struct js_task {
-    char *script;
-    struct js_task *next;
-} js_task_t;
-
-typedef struct {
-#ifdef _WIN32
-    CRITICAL_SECTION lock;
-    CONDITION_VARIABLE cond;
-#else
-    pthread_mutex_t lock;
-    pthread_cond_t cond;
-#endif
-    js_task_t *head;
-    js_task_t *tail;
-    bool stop;
-} js_worker_queue_t;
-
-typedef struct {
-    JSRuntime *rt;
-    JSContext *ctx;
-#ifdef _WIN32
-    HANDLE thread;
-#else
-    pthread_t thread;
-#endif
-    int worker_id;
-} WispWorker;
-
-static WispWorker *wisp_worker_pool = NULL;
-static int wisp_worker_count = 0;
-static js_worker_queue_t wisp_queue;
-
-static int wisp_interrupt_handler(JSRuntime *rt, void *opaque) {
-    if (wisp_queue.stop) {
-        return 1;
-    }
-    return 0;
-}
-
-#ifdef _WIN32
-static DWORD WINAPI wisp_worker_thread_func(LPVOID arg) {
-    WispWorker *worker = (WispWorker *)arg;
-
-    while (true) {
-        EnterCriticalSection(&wisp_queue.lock);
-        while (wisp_queue.head == NULL && !wisp_queue.stop) {
-            SleepConditionVariableCS(&wisp_queue.cond, &wisp_queue.lock, INFINITE);
-        }
-
-        if (wisp_queue.stop && wisp_queue.head == NULL) {
-            LeaveCriticalSection(&wisp_queue.lock);
-            break;
-        }
-
-        js_task_t *task = wisp_queue.head;
-        if (task) {
-            wisp_queue.head = task->next;
-            if (wisp_queue.head == NULL) {
-                wisp_queue.tail = NULL;
-            }
-        }
-        LeaveCriticalSection(&wisp_queue.lock);
-
-        if (task) {
-            if (task->script) {
-                JSValue res = JS_Eval(worker->ctx, task->script, strlen(task->script), "worker", JS_EVAL_TYPE_GLOBAL);
-                JS_FreeValue(worker->ctx, res);
-                free(task->script);
-            }
-            free(task);
-        }
-    }
-    return 0;
-}
-#else
-static void *wisp_worker_thread_func(void *arg) {
-    WispWorker *worker = (WispWorker *)arg;
-
-    while (true) {
-        pthread_mutex_lock(&wisp_queue.lock);
-        while (wisp_queue.head == NULL && !wisp_queue.stop) {
-            pthread_cond_wait(&wisp_queue.cond, &wisp_queue.lock);
-        }
-
-        if (wisp_queue.stop && wisp_queue.head == NULL) {
-            pthread_mutex_unlock(&wisp_queue.lock);
-            break;
-        }
-
-        js_task_t *task = wisp_queue.head;
-        if (task) {
-            wisp_queue.head = task->next;
-            if (wisp_queue.head == NULL) {
-                wisp_queue.tail = NULL;
-            }
-        }
-        pthread_mutex_unlock(&wisp_queue.lock);
-
-        if (task) {
-            if (task->script) {
-                JSValue res = JS_Eval(worker->ctx, task->script, strlen(task->script), "worker", JS_EVAL_TYPE_GLOBAL);
-                JS_FreeValue(worker->ctx, res);
-                free(task->script);
-            }
-            free(task);
-        }
-    }
-    return NULL;
-}
-#endif
-
-void init_wisp_subsystem(void) {
-    wisp_worker_count = detect_optimal_worker_count();
-    NSLOG(wisp, INFO, "Wisp: Spawning %d workers based on hardware...", wisp_worker_count);
-
-    wisp_worker_pool = malloc(sizeof(WispWorker) * wisp_worker_count);
-    if (!wisp_worker_pool) {
-        NSLOG(wisp, ERROR, "Wisp: Failed to allocate worker pool!");
-        return;
-    }
-
-    wisp_queue.head = NULL;
-    wisp_queue.tail = NULL;
-    wisp_queue.stop = false;
-
-#ifdef _WIN32
-    InitializeCriticalSection(&wisp_queue.lock);
-    InitializeConditionVariable(&wisp_queue.cond);
-#else
-    pthread_mutex_init(&wisp_queue.lock, NULL);
-    pthread_cond_init(&wisp_queue.cond, NULL);
-#endif
-
-    for (int i = 0; i < wisp_worker_count; i++) {
-        wisp_worker_pool[i].rt = JS_NewRuntime();
-        wisp_worker_pool[i].ctx = JS_NewContext(wisp_worker_pool[i].rt);
-        wisp_worker_pool[i].worker_id = i;
-
-        JS_SetInterruptHandler(wisp_worker_pool[i].rt, wisp_interrupt_handler, NULL);
-
-#ifdef _WIN32
-        wisp_worker_pool[i].thread = CreateThread(NULL, 0, wisp_worker_thread_func, &wisp_worker_pool[i], 0, NULL);
-        if (!wisp_worker_pool[i].thread) {
-            NSLOG(wisp, ERROR, "Wisp: Failed to create thread %d", i);
-            wisp_worker_pool[i].thread = 0;
-        }
-#else
-        if (pthread_create(&wisp_worker_pool[i].thread, NULL, wisp_worker_thread_func, &wisp_worker_pool[i]) != 0) {
-            NSLOG(wisp, ERROR, "Wisp: Failed to create thread %d", i);
-            memset(&wisp_worker_pool[i].thread, 0, sizeof(pthread_t));
-        }
-#endif
-    }
-}
-
-
-#define MAX_WISP_WORKERS 5 // Hard ceiling for Wisp
-
 void js_initialise(void)
 {
     init_wisp_subsystem();
@@ -323,6 +141,26 @@ void js_initialise(void)
 
 
 
+
+/**
+ * QuickJS interrupt handler.
+ * Called periodically during script execution to check for timeouts.
+ */
+static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
+{
+    struct jsheap *heap = opaque;
+    uint64_t now;
+
+    if (heap->deadline_ms > 0) {
+        nsu_getmonotonic_ms(&now);
+        if (now > heap->deadline_ms) {
+            NSLOG(wisp, WARNING, "JavaScript execution timeout exceeded");
+            return 1; /* Interrupt execution */
+        }
+    }
+
+    return 0; /* Continue execution */
+}
 /* exported interface documented in js.h */
 void js_finalise(void)
 {
@@ -410,6 +248,8 @@ nserror js_newheap(int timeout, jsheap **heap)
 
     /* Set max stack size (1MB) */
     JS_SetMaxStackSize(h->rt, 1024 * 1024);
+
+    JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
 
     NSLOG(wisp, DEBUG, "Created QuickJS heap %p", h);
 
@@ -639,9 +479,18 @@ void js_destroythread(jsthread *thread)
          */
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
+
+        if (thread->heap->timeout > 0) {
+            uint64_t now;
+            nsu_getmonotonic_ms(&now);
+            thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
+        }
+
         while (JS_ExecutePendingJob(rt, &ctx1) > 0) {
             /* Drain the job queue */
         }
+
+        thread->heap->deadline_ms = 0;
 
         JS_FreeContext(thread->ctx);
     }
@@ -669,6 +518,12 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     NSLOG(wisp, INFO, "Executing JS: %s (length %zu)", name ? name : "<anonymous>", txtlen);
 
+    if (thread->heap->timeout > 0) {
+        uint64_t now;
+        nsu_getmonotonic_ms(&now);
+        thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
+    }
+
     /* QuickJS-ng requires the input to be null-terminated at txt[txtlen] */
     if (txtlen < sizeof(stack_buf)) {
         memcpy(stack_buf, txt, txtlen);
@@ -685,6 +540,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     }
 
     result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
+    thread->heap->deadline_ms = 0;
 
     if (JS_IsException(result)) {
         JSValue exc = JS_GetException(thread->ctx);
@@ -835,8 +691,43 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 }
 
 
+
+bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
+    struct dom_string *event_type_dom, void *js_funcval)
+{
+    if (!thread || !node || !js_funcval) return false;
+
+    JSContext *jsctx = thread->ctx;
+    JSValue *func = (JSValue *)js_funcval;
+
+    struct qjs_event_listener_ctx **prev = &thread->listeners;
+    struct qjs_event_listener_ctx *curr = thread->listeners;
+
+    while (curr != NULL) {
+        if (curr->target == (struct dom_event_target *)node &&
+            dom_string_isequal(curr->type, event_type_dom) &&
+            JS_VALUE_GET_PTR(curr->func) == JS_VALUE_GET_PTR(*func)) {
+
+            dom_event_target_remove_event_listener(curr->target, curr->type, curr->listener, false);
+            dom_node_unref((struct dom_node *)curr->target);
+            dom_string_unref(curr->type);
+            JS_FreeValue(jsctx, curr->func);
+            dom_event_listener_unref(curr->listener);
+
+            *prev = curr->next;
+            free(curr);
+            return true;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
+
+    return false;
+}
+
 /* exported interface documented in js.h */
 void js_handle_new_element(jsthread *thread, struct dom_element *node)
+
 {
     /* TODO: Implement new element handling */
     NSLOG(wisp, DEBUG, "js_handle_new_element called (not yet implemented)");

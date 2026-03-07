@@ -54,20 +54,20 @@ static void test_lwc_iterator(lwc_string *str, void *pw)
 /**
  * url database used as input to test sets
  */
-const char *test_urldb_path = "test/data/urldb";
+const char *test_urldb_path = "src/test/data/urldb";
 /**
  * url database used as output reference
  */
-const char *test_urldb_out_path = "test/data/urldb-out";
+const char *test_urldb_out_path = "src/test/data/urldb-out";
 
 /**
  * cookie database used as input
  */
-const char *test_cookies_path = "test/data/cookies";
+const char *test_cookies_path = "src/test/data/cookies";
 /**
  * cookie database used as output reference
  */
-const char *test_cookies_out_path = "test/data/cookies-out";
+const char *test_cookies_out_path = "src/test/data/cookies-out";
 
 const char *wikipedia_url = "http://www.wikipedia.org/";
 

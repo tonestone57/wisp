@@ -172,6 +172,8 @@ static struct gui_misc_table misc_table = {
     .launch_url = gui_launch_url,
     .pdf_password = nsgtk_pdf_password,
     .present_cookies = nsgtk_cookies_present,
+
+    .task_queue_wake = nsgtk_task_queue_wake,
 };
 
 struct gui_misc_table *nsgtk_misc_table = &misc_table;

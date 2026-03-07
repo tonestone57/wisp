@@ -277,6 +277,7 @@ static struct gui_misc_table monkey_misc_table = {
     .launch_url = gui_launch_url,
     .login = gui_401login_open,
     .present_cookies = gui_present_cookies,
+    .task_queue_wake = NULL,
 };
 
 static void monkey_run(void)

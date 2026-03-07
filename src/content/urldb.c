@@ -293,7 +293,7 @@ static int loaded_cookie_file_version;
 /** Minimum URL database file version */
 #define MIN_URL_FILE_VERSION 106
 /** Current URL database file version */
-#define URL_FILE_VERSION 107
+#define URL_FILE_VERSION 108
 
 /**
  * filter for url presence in database
@@ -393,9 +393,31 @@ static void urldb_write_paths(const struct path_data *parent, const char *host, 
                     fprintf(fp, "\n");
                 }
 
-                fprintf(fp, "%s\n", *path);
+                lwc_string *query_lwc = nsurl_get_component(p->url, NSURL_QUERY);
+                lwc_string *fragment_lwc = nsurl_get_component(p->url, NSURL_FRAGMENT);
 
-                /** \todo handle fragments? */
+                /* Determine what part of *path is actually the path component vs query */
+                const char *qmark = strchr(*path, '?');
+                if (qmark) {
+                    /* Write path without query */
+                    fprintf(fp, "%.*s\n", (int)(qmark - *path), *path);
+                } else {
+                    fprintf(fp, "%s\n", *path);
+                }
+
+                if (query_lwc) {
+                    fprintf(fp, "%s\n", lwc_string_data(query_lwc));
+                    lwc_string_unref(query_lwc);
+                } else {
+                    fprintf(fp, "\n");
+                }
+
+                if (fragment_lwc) {
+                    fprintf(fp, "%s\n", lwc_string_data(fragment_lwc));
+                    lwc_string_unref(fragment_lwc);
+                } else {
+                    fprintf(fp, "\n");
+                }
 
                 /* number of visits */
                 fprintf(fp, "%i\n", p->urld.visits);
@@ -2826,8 +2848,8 @@ nserror urldb_load(const char *filename)
             unsigned int port;
             bool is_file = false;
             nsurl *nsurl;
-            lwc_string *scheme_lwc, *fragment_lwc;
-            char *path_query;
+            lwc_string *scheme_lwc = NULL, *fragment_lwc = NULL;
+            char *path_query = NULL;
             size_t len;
 
             if (!fgets(scheme, sizeof scheme, fp))
@@ -2841,17 +2863,102 @@ nserror urldb_load(const char *filename)
             ports[length] = '\0';
             port = atoi(ports);
 
-            if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
-                break;
-            length = strlen(s) - 1;
-            s[length] = '\0';
-
             if (!strcasecmp(host, "localhost") && !strcasecmp(scheme, "file"))
                 is_file = true;
 
-            if (lwc_intern_string(scheme, strlen(scheme), &scheme_lwc) != lwc_error_ok) {
-                fclose(fp);
-                return NSERROR_NOMEM;
+            if (version >= 108) {
+                char query[4096], fragment[4096];
+
+                if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
+                    break;
+                length = strlen(s) - 1;
+                s[length] = '\0';
+
+                if (!fgets(query, sizeof query, fp))
+                    break;
+                length = strlen(query) - 1;
+                query[length] = '\0';
+
+                if (!fgets(fragment, sizeof fragment, fp))
+                    break;
+                length = strlen(fragment) - 1;
+                fragment[length] = '\0';
+
+                lwc_string *host_lwc = NULL;
+                lwc_string *port_lwc = NULL;
+                lwc_string *path_lwc = NULL;
+                lwc_string *query_lwc = NULL;
+
+                lwc_intern_string(scheme, strlen(scheme), &scheme_lwc);
+                if (!is_file) {
+                    lwc_intern_string(host, strlen(host), &host_lwc);
+                }
+                if (port) {
+                    lwc_intern_string(ports, strlen(ports), &port_lwc);
+                }
+                lwc_intern_string(s, strlen(s), &path_lwc);
+                if (query[0] != '\0') {
+                    lwc_intern_string(query, strlen(query), &query_lwc);
+                }
+                if (fragment[0] != '\0') {
+                    lwc_intern_string(fragment, strlen(fragment), &fragment_lwc);
+                }
+
+                if (nsurl_create_from_components(scheme_lwc, host_lwc, port_lwc, path_lwc, query_lwc, fragment_lwc, &nsurl) != NSERROR_OK) {
+                    NSLOG(wisp, INFO, "Failed inserting URL from components");
+                    if (scheme_lwc) lwc_string_unref(scheme_lwc);
+                    if (host_lwc) lwc_string_unref(host_lwc);
+                    if (port_lwc) lwc_string_unref(port_lwc);
+                    if (path_lwc) lwc_string_unref(path_lwc);
+                    if (query_lwc) lwc_string_unref(query_lwc);
+                    if (fragment_lwc) lwc_string_unref(fragment_lwc);
+                    fclose(fp);
+                    return NSERROR_NOMEM;
+                }
+
+                if (host_lwc) lwc_string_unref(host_lwc);
+                if (port_lwc) lwc_string_unref(port_lwc);
+                if (path_lwc) lwc_string_unref(path_lwc);
+                if (query_lwc) lwc_string_unref(query_lwc);
+
+                /* Create path_query for urldb_add_path */
+                size_t pq_len = strlen(s) + (query[0] != '\0' ? strlen(query) + 1 : 0) + 1;
+                path_query = malloc(pq_len);
+                if (!path_query) {
+                    nsurl_unref(nsurl);
+                    fclose(fp);
+                    return NSERROR_NOMEM;
+                }
+                if (query[0] != '\0') {
+                    snprintf(path_query, pq_len, "%s?%s", s, query);
+                } else {
+                    snprintf(path_query, pq_len, "%s", s);
+                }
+            } else {
+                if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
+                    break;
+                length = strlen(s) - 1;
+                s[length] = '\0';
+
+                snprintf(url, sizeof url, "%s://%s%s%s%s", scheme,
+                    /* file URLs have no host */
+                    (is_file ? "" : host), (port ? ":" : ""), (port ? ports : ""), s);
+
+                if (nsurl_create(url, &nsurl) != NSERROR_OK) {
+                    NSLOG(wisp, INFO, "Failed inserting '%s'", url);
+                    fclose(fp);
+                    return NSERROR_NOMEM;
+                }
+
+                /* Copy and merge path/query strings */
+                if (nsurl_get(nsurl, NSURL_PATH | NSURL_QUERY, &path_query, &len) != NSERROR_OK) {
+                    NSLOG(wisp, INFO, "Failed inserting '%s'", url);
+                    fclose(fp);
+                    return NSERROR_NOMEM;
+                }
+
+                scheme_lwc = nsurl_get_component(nsurl, NSURL_SCHEME);
+                fragment_lwc = nsurl_get_component(nsurl, NSURL_FRAGMENT);
             }
 
             lwc_string *host_lwc;
@@ -2876,27 +2983,15 @@ nserror urldb_load(const char *filename)
                 bloom_insert_hash(url_bloom, hash);
             }
 
-            /* Copy and merge path/query strings */
-            if (nsurl_get(nsurl, NSURL_PATH | NSURL_QUERY, &path_query, &len) != NSERROR_OK) {
-                nsurl_unref(nsurl);
-                lwc_string_unref(scheme_lwc);
-                fclose(fp);
-                return NSERROR_NOMEM;
-            }
-
-            fragment_lwc = nsurl_get_component(nsurl, NSURL_FRAGMENT);
             p = urldb_add_path(scheme_lwc, port, h, path_query, fragment_lwc, nsurl);
             if (!p) {
-                NSLOG(wisp, INFO, "Failed inserting '%s'", nsurl_access(nsurl));
-                nsurl_unref(nsurl);
-                lwc_string_unref(scheme_lwc);
-                if (fragment_lwc != NULL)
-                    lwc_string_unref(fragment_lwc);
+                NSLOG(wisp, INFO, "Failed inserting path");
                 fclose(fp);
                 return NSERROR_NOMEM;
             }
             nsurl_unref(nsurl);
-            lwc_string_unref(scheme_lwc);
+            if (scheme_lwc != NULL)
+                lwc_string_unref(scheme_lwc);
             if (fragment_lwc != NULL)
                 lwc_string_unref(fragment_lwc);
 
