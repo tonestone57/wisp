@@ -154,6 +154,14 @@ add_wisp_test(time
   ${CMAKE_SOURCE_DIR}/src/test/time.c
 )
 
+add_wisp_test(useragent
+  ${CMAKE_SOURCE_DIR}/src/utils/useragent.c
+  ${CMAKE_SOURCE_DIR}/src/desktop/version.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/malloc_fig.c
+  ${CMAKE_SOURCE_DIR}/src/test/useragent.c
+)
+
 add_wisp_test(mimesniff
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/parse.c
