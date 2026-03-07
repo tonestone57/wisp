@@ -1481,7 +1481,9 @@ static void html_free_layout(html_content *htmlc)
         if (cancel_dom_to_box(htmlc->box_conversion_context) != NSERROR_OK) {
             NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
         }
-        free(htmlc->box_conversion_context);
+
+        /* The box_conversion_context is freed internally by cancel_dom_to_box
+         * in box_construct.c, so we do not free it here to avoid a double-free. */
         htmlc->box_conversion_context = NULL;
     }
 
