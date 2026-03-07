@@ -11669,11 +11669,13 @@ static JSBigInt *js_bigint_from_string(JSContext *ctx, const char *str, int radi
     }
     r = js_bigint_normalize(ctx, r);
     /* XXX: could do it in place */
-    if (is_neg) {
-        JSBigInt *r1;
-        r1 = js_bigint_neg(ctx, r);
-        js_free(ctx, r);
-        r = r1;
+    if (is_neg && r->len > 0) {
+        if (r->len == 1 && r->tab[0] == 0) {
+            /* do nothing for 0 */
+        } else {
+            js_mp_neg(r->tab, r->tab, r->len);
+            r = js_bigint_normalize(ctx, r);
+        }
     }
     return r;
 }
