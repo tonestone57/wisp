@@ -3330,7 +3330,6 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
             if (c == '0' && len == 2)
                 goto minus_zero;
         }
-        /* XXX: should test NaN, but the tests do not check it */
         if (!is_num(c)) {
             /* String should be normalized, therefore 8-bit only */
             return JS_UNDEFINED;
@@ -3352,8 +3351,15 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
             }
         }
         if (!is_num(c)) {
-            if (!(c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, "nfinity", 7)))
+            if (c == 'I' && len == 8 && !memcmp(r + 1, "nfinity", 7)) {
+                /* valid */
+            } else if (c == 'I' && len == 9 && !memcmp(r + 1, "nfinity", 7)) { /* len=9 handled because of prefix `-` */
+                /* valid */
+            } else if (c == 'N' && len == 3 && !memcmp(r + 1, "aN", 2)) {
+                /* valid */
+            } else {
                 return JS_UNDEFINED;
+            }
         }
     }
     /* this is ECMA CanonicalNumericIndexString primitive */
