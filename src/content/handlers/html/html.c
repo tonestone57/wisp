@@ -1477,6 +1477,15 @@ static void html_destroy_iframe(struct content_html_iframe *iframe)
 
 static void html_free_layout(html_content *htmlc)
 {
+    /* Cancel any pending box conversion first to prevent use-after-free
+     * when the scheduled callback runs after bctx has been freed. */
+    if (htmlc->box_conversion_context != NULL) {
+        if (cancel_dom_to_box(htmlc->box_conversion_context) != NSERROR_OK) {
+            NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
+        }
+        htmlc->box_conversion_context = NULL;
+    }
+
     if (htmlc->bctx != NULL) {
         /* freeing talloc context should let the entire box
          * set be destroyed
@@ -1516,13 +1525,6 @@ static void html_destroy(struct content *c)
     guit->misc->schedule(-1, html_resume_conversion_cb, html);
     guit->misc->schedule(-1, script_resume_conversion_cb, html);
     guit->misc->schedule(-1, html_deferred_reformat, html);
-
-    /* If we're still converting a layout, cancel it */
-    if (html->box_conversion_context != NULL) {
-        if (cancel_dom_to_box(html->box_conversion_context) != NSERROR_OK) {
-            NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
-        }
-    }
 
     selection_destroy(html->sel);
 
