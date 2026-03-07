@@ -1444,7 +1444,7 @@ nserror nsurl_create_from_components_char(lwc_string *scheme, lwc_string *host, 
         const char *path_end = path_query + strlen(path_query);
         if (fragment_start) {
             path_end = fragment_start;
-            if (lwc_intern_string(fragment_start, strlen(fragment_start), &l_fragment) != lwc_error_ok) {
+            if (lwc_intern_string(fragment_start + 1, strlen(fragment_start + 1), &l_fragment) != lwc_error_ok) {
                 if (l_port) lwc_string_unref(l_port);
                 return NSERROR_NOMEM;
             }
@@ -1453,7 +1453,7 @@ nserror nsurl_create_from_components_char(lwc_string *scheme, lwc_string *host, 
         if (query_start) {
             path_end = query_start;
             size_t query_len = (fragment_start ? (size_t)(fragment_start - query_start) : strlen(query_start));
-            if (lwc_intern_string(query_start, query_len, &l_query) != lwc_error_ok) {
+            if (lwc_intern_string(query_start + 1, query_len - 1, &l_query) != lwc_error_ok) {
                 if (l_port) lwc_string_unref(l_port);
                 if (l_fragment) lwc_string_unref(l_fragment);
                 return NSERROR_NOMEM;
