@@ -3171,17 +3171,61 @@ static const char *JS_AtomGetStrRT(JSRuntime *rt, char *buf, int buf_size, JSAto
         snprintf(buf, buf_size, "<invalid %x>", atom);
     } else {
         JSAtomStruct *p = rt->atom_array[atom];
-        *buf = '\0';
         if (atom_is_free(p)) {
             snprintf(buf, buf_size, "<free %x>", atom);
         } else if (p != NULL) {
             JSString *str = p;
-            if (str->is_wide_char) {
-                /* encode surrogates correctly */
-                utf8_encode_buf16(buf, buf_size, str16(str), str->len);
+            int i, c;
+            bool is_ident;
+
+            if (str->len == 0) {
+                is_ident = false;
             } else {
-                utf8_encode_buf8(buf, buf_size, str8(str), str->len);
+                is_ident = true;
+                for (i = 0; i < str->len; i++) {
+                    c = str->is_wide_char ? str16(str)[i] : str8(str)[i];
+                    if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_' || c == '$') ||
+                          (c >= '0' && c <= '9' && i > 0))) {
+                        is_ident = false;
+                        break;
+                    }
+                }
             }
+
+            if (is_ident) {
+                if (str->is_wide_char)
+                    utf8_encode_buf16(buf, buf_size, str16(str), str->len);
+                else
+                    utf8_encode_buf8(buf, buf_size, str8(str), str->len);
+            } else {
+                int out_len = 0;
+                if (out_len < buf_size - 1)
+                    buf[out_len++] = '\"';
+                for (i = 0; i < str->len; i++) {
+                    c = str->is_wide_char ? str16(str)[i] : str8(str)[i];
+                    if (c == '\"' || c == '\\') {
+                        if (out_len < buf_size - 1) buf[out_len++] = '\\';
+                        if (out_len < buf_size - 1) buf[out_len++] = c;
+                    } else if (c >= ' ' && c <= 126) {
+                        if (out_len < buf_size - 1) buf[out_len++] = c;
+                    } else if (c == '\n') {
+                        if (out_len < buf_size - 1) buf[out_len++] = '\\';
+                        if (out_len < buf_size - 1) buf[out_len++] = 'n';
+                    } else {
+                        if (out_len < buf_size - 1) buf[out_len++] = '\\';
+                        if (out_len < buf_size - 1) buf[out_len++] = 'u';
+                        if (out_len < buf_size - 1) buf[out_len++] = "0123456789abcdef"[(c >> 12) & 0xf];
+                        if (out_len < buf_size - 1) buf[out_len++] = "0123456789abcdef"[(c >> 8) & 0xf];
+                        if (out_len < buf_size - 1) buf[out_len++] = "0123456789abcdef"[(c >> 4) & 0xf];
+                        if (out_len < buf_size - 1) buf[out_len++] = "0123456789abcdef"[c & 0xf];
+                    }
+                }
+                if (out_len < buf_size - 1)
+                    buf[out_len++] = '\"';
+                buf[out_len] = '\0';
+            }
+        } else {
+            buf[0] = '\0';
         }
     }
     return buf;
@@ -3376,39 +3420,7 @@ static bool JS_AtomSymbolHasDescription(JSContext *ctx, JSAtom v)
 static __maybe_unused void print_atom(JSContext *ctx, JSAtom atom)
 {
     char buf[ATOM_GET_STR_BUF_SIZE];
-    const char *p;
-    int i;
-
-    /* XXX: should handle embedded null characters */
-    /* XXX: should move encoding code to JS_AtomGetStr */
-    p = JS_AtomGetStr(ctx, buf, sizeof(buf), atom);
-    for (i = 0; p[i]; i++) {
-        int c = (unsigned char)p[i];
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_' || c == '$') ||
-                (c >= '0' && c <= '9' && i > 0)))
-            break;
-    }
-    if (i > 0 && p[i] == '\0') {
-        printf("%s", p);
-    } else {
-        putchar('"');
-        printf("%.*s", i, p);
-        for (; p[i]; i++) {
-            int c = (unsigned char)p[i];
-            if (c == '\"' || c == '\\') {
-                putchar('\\');
-                putchar(c);
-            } else if (c >= ' ' && c <= 126) {
-                putchar(c);
-            } else if (c == '\n') {
-                putchar('\\');
-                putchar('n');
-            } else {
-                printf("\\u%04x", c);
-            }
-        }
-        putchar('\"');
-    }
+    printf("%s", JS_AtomGetStr(ctx, buf, sizeof(buf), atom));
 }
 
 /* free with JS_FreeCString() */
