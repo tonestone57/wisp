@@ -195,6 +195,10 @@ nserror messages_add_from_inline(const uint8_t *data, size_t size)
 /* exported interface documented in messages.h */
 nserror messages_add_key_value(const char *key, const char *value)
 {
+    if (key == NULL || value == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
+
     /* ensure the hash table is initialised */
     if (messages_hash == NULL) {
         messages_hash = messages_create_ctx(HASH_SIZE);
