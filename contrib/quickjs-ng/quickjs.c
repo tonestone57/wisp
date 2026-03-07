@@ -11668,14 +11668,7 @@ static JSBigInt *js_bigint_from_string(JSContext *ctx, const char *str, int radi
         }
     }
     if (is_neg) {
-        /* in-place two's complement negation */
-        int j;
-        js_limb_t v_neg, carry = 1;
-        for (j = 0; j < (int)r->len; j++) {
-            v_neg = ~r->tab[j] + carry;
-            carry = v_neg < carry;
-            r->tab[j] = v_neg;
-        }
+        js_mp_neg(r->tab, r->tab, r->len);
     }
     return js_bigint_normalize(ctx, r);
 }
