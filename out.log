@@ -1,0 +1,22 @@
+Running suite(s): URLDB
+47%: Checks: 34, Failures: 18, Errors: 0
+/app/src/test/urldbtest.c:1006:F:API_checks:urldb_api_add_url_assert_test:0: Early exit with return value 0
+/app/src/test/urldbtest.c:290:S:Full_session:urldb_session_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:Full_session:urldb_session_add_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_entries_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_partial_www_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_partial_nomatch_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_partial_add_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_partial_path_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_partial_numeric_v4_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_iterate_partial_numeric_v6_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_auth_details_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_cert_permissions_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_update_visit_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_reset_visit_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:General:urldb_persistence_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:Cookies:urldb_cookie_create_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:Cookies:urldb_iterate_cookies_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+/app/src/test/urldbtest.c:290:S:Cookies:urldb_cookie_delete_test:0: Assertion 'scount == 0' failed: scount == 15, 0 == 0
+[lwc] Remaining lwc strings:
+[lwc] Remaining lwc strings count: 0

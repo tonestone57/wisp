@@ -392,7 +392,7 @@ const char *nsurl_access_leaf(const nsurl *url)
     const char *path;
     const char *leaf;
 
-    if (url == NULL) return NSERROR_BAD_PARAMETER;
+    if (url == NULL) return NULL;
 
     if (url->components.path == NULL)
         return "";
