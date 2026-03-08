@@ -3110,7 +3110,8 @@ bool urldb_add_url(nsurl *url)
     bool match;
     unsigned int port_int;
 
-    assert(url);
+    if (url == NULL)
+        return true;
 
     if (url_bloom == NULL)
         url_bloom = bloom_create(BLOOM_SIZE);
