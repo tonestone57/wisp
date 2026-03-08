@@ -1471,7 +1471,7 @@ nserror nsurl_create_from_components_char(lwc_string *scheme, lwc_string *host, 
         }
     }
 
-    err = nsurl_create_from_components(scheme, host, l_port, l_path, l_query, l_fragment, url);
+    err = nsurl_create_from_components_str(scheme, host, l_port, l_path, l_query, l_fragment, url);
 
     if (l_port) lwc_string_unref(l_port);
     if (l_path) lwc_string_unref(l_path);
@@ -1562,7 +1562,7 @@ nserror nsurl_create(const char *const url_s, nsurl **url)
 
 
 /* exported interface, documented in nsurl.h */
-nserror nsurl_create_from_components(
+nserror nsurl_create_from_components_str(
     lwc_string *scheme_lwc,
     lwc_string *host_lwc,
     lwc_string *port_lwc,
