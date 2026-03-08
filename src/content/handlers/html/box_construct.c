@@ -68,8 +68,6 @@ struct box_construct_ctx {
     box_construct_complete_cb cb; /**< Callback to invoke on completion */
 
     struct arena *bctx; /**< talloc context */
-
-    int quote_nesting_level;
 };
 
 /**
@@ -312,7 +310,6 @@ static css_select_results *box_get_style(
 static struct box *create_content_box(
     const css_computed_content_item *item, const css_computed_style *style, struct box_construct_ctx *ctx, dom_node *node)
 {
-    html_content *content = ctx->content;
     struct box *box = NULL;
 
     switch (item->type) {
@@ -329,7 +326,7 @@ static struct box *create_content_box(
             return NULL;
 
         box->type = BOX_TEXT;
-        box->text = arena_strndup(content->bctx, text_data, text_len);
+        box->text = arena_strndup(ctx->bctx, text_data, text_len);
         if (box->text == NULL) {
             /* Can't free box here - relies on talloc cleanup */
             return NULL;
@@ -497,7 +494,7 @@ static struct box *create_content_box(
                             NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
                         if (box != NULL) {
                             box->type = BOX_TEXT;
-                            box->text = arena_strndup(content->bctx, text_data, text_len);
+                            box->text = arena_strndup(ctx->bctx, text_data, text_len);
                             box->length = text_len;
                             NSLOG(wisp, DEEPDEBUG, "create_content_box: ATTR '%.*s'",
                                 (int)(text_len > 50 ? 50 : text_len), text_data);
@@ -514,26 +511,24 @@ static struct box *create_content_box(
     case CSS_COMPUTED_CONTENT_CLOSE_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_CLOSE_QUOTE: {
+        /*
         bool is_open = (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE || item->type == CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE);
         bool is_insert = (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE || item->type == CSS_COMPUTED_CONTENT_CLOSE_QUOTE);
 
-        /* Decrease level for close quotes before getting quote */
+        // Decrease level for close quotes before getting quote
         if (!is_open && ctx->quote_nesting_level > 0) {
             ctx->quote_nesting_level--;
         }
 
-        const char *quote = "";
-        if (is_open) quote = "\"";
-        else quote = "\"";
-
-        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, content->bctx);
+        box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
         if (box != NULL) {
             box->type = BOX_TEXT;
-            box->text = arena_strdup(content->bctx, quote);
+            box->text = arena_strdup(ctx->bctx, quote);
             box->length = strlen(quote);
             NSLOG(wisp, DEEPDEBUG, "create_content_box: %s_QUOTE",
                 item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE ? "OPEN" : "CLOSE");
         }
+        */
         break;
     }
 
@@ -685,7 +680,6 @@ static inline bool box_needs_inline_container(box_type type, bool is_floated)
  */
 static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, struct box *box, const css_computed_style *style)
 {
-    html_content *content = ctx->content;
     struct box *gen = NULL;
     struct box *inline_container = NULL;
     enum css_display_e computed_display;
@@ -769,7 +763,23 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
         while (c_item->type != CSS_COMPUTED_CONTENT_NONE) {
             struct box *content_box = create_content_box(c_item, style, ctx, n);
             if (content_box != NULL) {
-                box_add_child(gen, content_box);
+                if (gen->type == BOX_INLINE) {
+                    /* For inline boxes, content goes as a child of the inline box */
+                    box_add_child(gen, content_box);
+                } else {
+                    struct box *inline_container = gen->children;
+                    /* Ensure we have an inline container for blocks */
+                    if (inline_container == NULL || inline_container->type != BOX_INLINE_CONTAINER) {
+                        inline_container = box_create(NULL, NULL, false, NULL, NULL, NULL, NULL, ctx->bctx);
+                        if (inline_container != NULL) {
+                            inline_container->type = BOX_INLINE_CONTAINER;
+                            box_add_child(gen, inline_container);
+                        }
+                    }
+                    if (inline_container != NULL) {
+                        box_add_child(inline_container, content_box);
+                    }
+                }
             }
             c_item++;
         }
