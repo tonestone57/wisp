@@ -610,10 +610,8 @@ static inline uint16_t *str16(JSString *p)
 typedef struct JSClosureVar {
     uint8_t is_local : 1;
     uint8_t is_arg : 1;
-    uint8_t is_const : 1;
-    uint8_t is_lexical : 1;
-    uint8_t var_kind : 4; /* see JSVarKindEnum */
-    /* 8 bits available */
+    uint8_t var_kind : 5; /* see JSVarKindEnum */
+    /* 10 bits available */
     uint16_t var_idx; /* is_local = true: index to a normal variable of the
                     parent function. otherwise: index to a closure
                     variable of the parent function */
@@ -629,19 +627,31 @@ typedef struct JSVarScope {
 } JSVarScope;
 
 typedef enum {
-    /* XXX: add more variable kinds here instead of using bit fields */
-    JS_VAR_NORMAL,
+    JS_VAR_VAR,
+    JS_VAR_LET,
+    JS_VAR_CONST,
     JS_VAR_FUNCTION_DECL, /* lexical var with function declaration */
     JS_VAR_NEW_FUNCTION_DECL, /* lexical var with async/generator
                                  function declaration */
     JS_VAR_CATCH,
-    JS_VAR_FUNCTION_NAME, /* function expression name */
+    JS_VAR_FUNCTION_NAME_VAR,
+    JS_VAR_FUNCTION_NAME_CONST, /* function expression name */ /* function expression name */
     JS_VAR_PRIVATE_FIELD,
     JS_VAR_PRIVATE_METHOD,
     JS_VAR_PRIVATE_GETTER,
     JS_VAR_PRIVATE_SETTER, /* must come after JS_VAR_PRIVATE_GETTER */
     JS_VAR_PRIVATE_GETTER_SETTER, /* must come after JS_VAR_PRIVATE_SETTER */
+
 } JSVarKindEnum;
+
+static inline bool var_is_lexical(JSVarKindEnum kind) {
+    return kind != JS_VAR_VAR && kind != JS_VAR_CATCH && kind != JS_VAR_FUNCTION_NAME_VAR && kind != JS_VAR_FUNCTION_NAME_CONST;
+}
+
+static inline bool var_is_const(JSVarKindEnum kind) {
+    return kind == JS_VAR_CONST || kind == JS_VAR_FUNCTION_NAME_CONST || kind >= JS_VAR_PRIVATE_FIELD;
+}
+
 
 /* XXX: could use a different structure in bytecode functions to save
    memory */
@@ -658,11 +668,9 @@ typedef struct JSVarDef {
        variable in the same or enclosing lexical scope
     */
     int scope_next;
-    uint8_t is_const : 1;
-    uint8_t is_lexical : 1;
     uint8_t is_captured : 1;
     uint8_t is_static_private : 1; /* only used during private class field parsing */
-    uint8_t var_kind : 4; /* see JSVarKindEnum */
+    uint8_t var_kind : 5; /* see JSVarKindEnum */
     /* only used during compilation: function pool index for lexical
        variables with var_kind =
        JS_VAR_FUNCTION_DECL/JS_VAR_NEW_FUNCTION_DECL or scope level of
@@ -19428,8 +19436,7 @@ typedef struct JSGlobalVar {
     int cpool_idx; /* if >= 0, index in the constant pool for hoisted
                       function defintion*/
     uint8_t force_init : 1; /* force initialization to undefined */
-    uint8_t is_lexical : 1; /* global let/const definition */
-    uint8_t is_const : 1; /* const definition */
+    uint8_t var_kind : 5; /* JSVarKindEnum */
     int scope_level; /* scope of definition */
     JSAtom var_name; /* variable name */
 } JSGlobalVar;
@@ -21556,7 +21563,7 @@ static JSGlobalVar *find_global_var(JSFunctionDef *fd, JSAtom name)
 static JSGlobalVar *find_lexical_global_var(JSFunctionDef *fd, JSAtom name)
 {
     JSGlobalVar *hf = find_global_var(fd, name);
-    if (hf && hf->is_lexical)
+    if (hf && var_is_lexical(hf->var_kind))
         return hf;
     else
         return NULL;
@@ -21566,7 +21573,7 @@ static int find_lexical_decl(JSContext *ctx, JSFunctionDef *fd, JSAtom name, int
 {
     while (scope_idx >= 0) {
         JSVarDef *vd = &fd->vars[scope_idx];
-        if (vd->var_name == name && (vd->is_lexical || (vd->var_kind == JS_VAR_CATCH && check_catch_var)))
+        if (vd->var_name == name && (var_is_lexical(vd->var_kind) || (vd->var_kind == JS_VAR_CATCH && check_catch_var)))
             return scope_idx;
         scope_idx = vd->scope_next;
     }
@@ -21688,9 +21695,9 @@ static int add_func_var(JSContext *ctx, JSFunctionDef *fd, JSAtom name)
     int idx = fd->func_var_idx;
     if (idx < 0 && (idx = add_var(ctx, fd, name)) >= 0) {
         fd->func_var_idx = idx;
-        fd->vars[idx].var_kind = JS_VAR_FUNCTION_NAME;
+        fd->vars[idx].var_kind = JS_VAR_FUNCTION_NAME_VAR;
         if (fd->is_strict_mode)
-            fd->vars[idx].is_const = true;
+            fd->vars[idx].var_kind = JS_VAR_FUNCTION_NAME_CONST;
     }
     return idx;
 }
@@ -21721,7 +21728,7 @@ static int add_arguments_arg(JSContext *ctx, JSFunctionDef *fd)
             fd->vars[idx].scope_next = fd->scopes[ARG_SCOPE_INDEX].first;
             fd->scopes[ARG_SCOPE_INDEX].first = idx;
             fd->vars[idx].scope_level = ARG_SCOPE_INDEX;
-            fd->vars[idx].is_lexical = true;
+            fd->vars[idx].var_kind = JS_VAR_LET;
 
             fd->arguments_arg_idx = idx;
         }
@@ -21759,8 +21766,7 @@ static JSGlobalVar *add_global_var(JSContext *ctx, JSFunctionDef *s, JSAtom name
     hf = &s->global_vars[s->global_var_count++];
     hf->cpool_idx = -1;
     hf->force_init = false;
-    hf->is_lexical = false;
-    hf->is_const = false;
+    hf->var_kind = JS_VAR_VAR;
     hf->scope_level = s->scope_level;
     hf->var_name = JS_DupAtom(ctx, name);
     return hf;
@@ -21784,7 +21790,7 @@ static int define_var(JSParseState *s, JSFunctionDef *fd, JSAtom name, JSVarDefE
 
     switch (var_def_type) {
     case JS_VAR_DEF_WITH:
-        idx = add_scope_var(ctx, fd, name, JS_VAR_NORMAL);
+        idx = add_scope_var(ctx, fd, name, JS_VAR_VAR);
         break;
 
     case JS_VAR_DEF_LET:
@@ -21837,8 +21843,7 @@ static int define_var(JSParseState *s, JSFunctionDef *fd, JSAtom name, JSVarDefE
             hf = add_global_var(s->ctx, fd, name);
             if (!hf)
                 return -1;
-            hf->is_lexical = true;
-            hf->is_const = (var_def_type == JS_VAR_DEF_CONST);
+            hf->var_kind = (var_def_type == JS_VAR_DEF_CONST) ? JS_VAR_CONST : JS_VAR_LET;
             idx = GLOBAL_VAR_OFFSET;
         } else {
             JSVarKindEnum var_kind;
@@ -21846,14 +21851,16 @@ static int define_var(JSParseState *s, JSFunctionDef *fd, JSAtom name, JSVarDefE
                 var_kind = JS_VAR_FUNCTION_DECL;
             else if (var_def_type == JS_VAR_DEF_NEW_FUNCTION_DECL)
                 var_kind = JS_VAR_NEW_FUNCTION_DECL;
+            else if (var_def_type == JS_VAR_DEF_CONST)
+                var_kind = JS_VAR_CONST;
+            else if (var_def_type == JS_VAR_DEF_LET)
+                var_kind = JS_VAR_LET;
             else
-                var_kind = JS_VAR_NORMAL;
+                var_kind = JS_VAR_VAR;
             idx = add_scope_var(ctx, fd, name, var_kind);
             if (idx >= 0) {
                 vd = &fd->vars[idx];
-                vd->is_lexical = 1;
-                vd->is_const = (var_def_type == JS_VAR_DEF_CONST);
-            }
+                            }
         }
         break;
 
@@ -21870,7 +21877,7 @@ static int define_var(JSParseState *s, JSFunctionDef *fd, JSAtom name, JSVarDefE
         if (fd->is_global_var) {
             JSGlobalVar *hf;
             hf = find_global_var(fd, name);
-            if (hf && hf->is_lexical && hf->scope_level == fd->scope_level && fd->eval_type == JS_EVAL_TYPE_MODULE) {
+            if (hf && var_is_lexical(hf->var_kind) && hf->scope_level == fd->scope_level && fd->eval_type == JS_EVAL_TYPE_MODULE) {
                 goto invalid_lexical_redefinition;
             }
             hf = add_global_var(s->ctx, fd, name);
@@ -21908,9 +21915,7 @@ add_private_class_field(JSParseState *s, JSFunctionDef *fd, JSAtom name, JSVarKi
     if (idx < 0)
         return idx;
     vd = &fd->vars[idx];
-    vd->is_lexical = 1;
-    vd->is_const = 1;
-    vd->is_static_private = is_static;
+        vd->is_static_private = is_static;
     return idx;
 }
 
@@ -27638,7 +27643,7 @@ static int js_create_module_bytecode_function(JSContext *ctx, JSModuleDef *m)
             JSClosureVar *cv = &b->closure_var[i];
             JSVarRef *var_ref;
             if (cv->is_local) {
-                var_ref = js_create_module_var(ctx, cv->is_lexical);
+                var_ref = js_create_module_var(ctx, var_is_lexical(cv->var_kind));
                 if (!var_ref)
                     goto fail;
 
@@ -28752,7 +28757,7 @@ static __exception int js_parse_export(JSParseState *s)
 }
 
 static int add_closure_var(JSContext *ctx, JSFunctionDef *s, bool is_local, bool is_arg, int var_idx, JSAtom var_name,
-    bool is_const, bool is_lexical, JSVarKindEnum var_kind);
+                               JSVarKindEnum var_kind);
 
 static int add_import(JSParseState *s, JSModuleDef *m, JSAtom local_name, JSAtom import_name)
 {
@@ -28773,7 +28778,7 @@ static int add_import(JSParseState *s, JSModuleDef *m, JSAtom local_name, JSAtom
 
     is_local = (import_name == JS_ATOM__star_);
     var_idx = add_closure_var(
-        ctx, s->cur_func, is_local, false, m->import_entries_count, local_name, true, true, JS_VAR_NORMAL);
+        ctx, s->cur_func, is_local, false, m->import_entries_count, local_name, JS_VAR_CONST);
     if (var_idx < 0)
         return -1;
     if (js_resize_array(ctx, (void **)&m->import_entries, sizeof(JSImportEntry), &m->import_entries_size,
@@ -29492,8 +29497,8 @@ static __maybe_unused void js_dump_function_bytecode(JSContext *ctx, JSFunctionB
             printf("%5d: %s %s", i,
                 vd->var_kind == JS_VAR_CATCH                                                             ? "catch"
                     : (vd->var_kind == JS_VAR_FUNCTION_DECL || vd->var_kind == JS_VAR_NEW_FUNCTION_DECL) ? "function"
-                    : vd->is_const                                                                       ? "const"
-                    : vd->is_lexical                                                                     ? "let"
+                    : var_is_const(vd->var_kind)                                                                       ? "const"
+                    : var_is_lexical(vd->var_kind)                                                                     ? "let"
                                                                                                          : "var",
                 JS_AtomGetStr(ctx, atom_buf, sizeof(atom_buf), vd->var_name));
             if (vd->scope_level)
@@ -29507,8 +29512,8 @@ static __maybe_unused void js_dump_function_bytecode(JSContext *ctx, JSFunctionB
             JSClosureVar *cv = &b->closure_var[i];
             printf("%5d: %s %s:%s%d %s\n", i, JS_AtomGetStr(ctx, atom_buf, sizeof(atom_buf), cv->var_name),
                 cv->is_local ? "local" : "parent", cv->is_arg ? "arg" : "loc", cv->var_idx,
-                cv->is_const         ? "const"
-                    : cv->is_lexical ? "let"
+                var_is_const(cv->var_kind)         ? "const"
+                    : var_is_lexical(cv->var_kind) ? "let"
                                      : "var");
         }
     }
@@ -29532,7 +29537,7 @@ static __maybe_unused void js_dump_function_bytecode(JSContext *ctx, JSFunctionB
 #ifndef QJS_DISABLE_PARSER
 
 static int add_closure_var(JSContext *ctx, JSFunctionDef *s, bool is_local, bool is_arg, int var_idx, JSAtom var_name,
-    bool is_const, bool is_lexical, JSVarKindEnum var_kind)
+                               JSVarKindEnum var_kind)
 {
     JSClosureVar *cv;
 
@@ -29549,8 +29554,8 @@ static int add_closure_var(JSContext *ctx, JSFunctionDef *s, bool is_local, bool
     cv = &s->closure_var[s->closure_var_count++];
     cv->is_local = is_local;
     cv->is_arg = is_arg;
-    cv->is_const = is_const;
-    cv->is_lexical = is_lexical;
+
+
     cv->var_kind = var_kind;
     cv->var_idx = var_idx;
     cv->var_name = JS_DupAtom(ctx, var_name);
@@ -29572,13 +29577,12 @@ static int find_closure_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name)
    local variable (is_local = true) or a closure (is_local = false) in
    'fd' */
 static int get_closure_var2(JSContext *ctx, JSFunctionDef *s, JSFunctionDef *fd, bool is_local, bool is_arg,
-    int var_idx, JSAtom var_name, bool is_const, bool is_lexical, JSVarKindEnum var_kind)
+                                int var_idx, JSAtom var_name, JSVarKindEnum var_kind)
 {
     int i;
 
     if (fd != s->parent) {
-        var_idx = get_closure_var2(
-            ctx, s->parent, fd, is_local, is_arg, var_idx, var_name, is_const, is_lexical, var_kind);
+        var_idx = get_closure_var2(ctx, s->parent, fd, is_local, is_arg, var_idx, var_name, var_kind);
         if (var_idx < 0)
             return -1;
         is_local = false;
@@ -29588,13 +29592,13 @@ static int get_closure_var2(JSContext *ctx, JSFunctionDef *s, JSFunctionDef *fd,
         if (cv->var_idx == var_idx && cv->is_arg == is_arg && cv->is_local == is_local)
             return i;
     }
-    return add_closure_var(ctx, s, is_local, is_arg, var_idx, var_name, is_const, is_lexical, var_kind);
+    return add_closure_var(ctx, s, is_local, is_arg, var_idx, var_name, var_kind);
 }
 
 static int get_closure_var(JSContext *ctx, JSFunctionDef *s, JSFunctionDef *fd, bool is_arg, int var_idx,
-    JSAtom var_name, bool is_const, bool is_lexical, JSVarKindEnum var_kind)
+                               JSAtom var_name, JSVarKindEnum var_kind)
 {
-    return get_closure_var2(ctx, s, fd, true, is_arg, var_idx, var_name, is_const, is_lexical, var_kind);
+    return get_closure_var2(ctx, s, fd, true, is_arg, var_idx, var_name, var_kind);
 }
 
 static int get_with_scope_opcode(int op)
@@ -29734,7 +29738,7 @@ static int add_var_this(JSContext *ctx, JSFunctionDef *fd)
     if (idx >= 0 && fd->is_derived_class_constructor) {
         JSVarDef *vd = &fd->vars[idx];
         /* XXX: should have is_this flag or var type */
-        vd->is_lexical = 1; /* used to trigger 'uninitialized' checks
+        vd->var_kind = JS_VAR_LET; /* used to trigger 'uninitialized' checks
                                in a derived class constructor */
     }
     return idx;
@@ -29821,7 +29825,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
         vd = &s->vars[idx];
         if (vd->var_name == var_name) {
             if (op == OP_scope_put_var || op == OP_scope_make_ref) {
-                if (vd->is_const) {
+                if (var_is_const(vd->var_kind)) {
                     dbuf_putc(bc, OP_throw_error);
                     dbuf_put_u32(bc, JS_DupAtom(ctx, var_name));
                     dbuf_putc(bc, JS_THROW_VAR_RO);
@@ -29859,7 +29863,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
     }
     if (var_idx >= 0) {
         if ((op == OP_scope_put_var || op == OP_scope_make_ref) && !(var_idx & ARGUMENT_VAR_OFFSET) &&
-            s->vars[var_idx].is_const) {
+            var_is_const(s->vars[var_idx].var_kind)) {
             /* only happens when assigning a function expression name
                in strict mode */
             dbuf_putc(bc, OP_throw_error);
@@ -29872,7 +29876,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
            can be used with a closure (module global variable case). */
         switch (op) {
         case OP_scope_make_ref:
-            if (!(var_idx & ARGUMENT_VAR_OFFSET) && s->vars[var_idx].var_kind == JS_VAR_FUNCTION_NAME) {
+            if (!(var_idx & ARGUMENT_VAR_OFFSET) && (s->vars[var_idx].var_kind == JS_VAR_FUNCTION_NAME_VAR || s->vars[var_idx].var_kind == JS_VAR_FUNCTION_NAME_CONST)) {
                 /* Create a dummy object reference for the func_var */
                 dbuf_putc(bc, OP_object);
                 dbuf_putc(bc, OP_get_loc);
@@ -29887,7 +29891,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                     get_op = OP_get_arg;
                     var_idx -= ARGUMENT_VAR_OFFSET;
                 } else {
-                    if (s->vars[var_idx].is_lexical)
+                    if (var_is_lexical(s->vars[var_idx].var_kind))
                         get_op = OP_get_loc_check;
                     else
                         get_op = OP_get_loc;
@@ -29920,7 +29924,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                 dbuf_put_u16(bc, var_idx - ARGUMENT_VAR_OFFSET);
             } else {
                 if (is_put) {
-                    if (s->vars[var_idx].is_lexical) {
+                    if (var_is_lexical(s->vars[var_idx].var_kind)) {
                         if (op == OP_scope_put_var_init) {
                             /* 'this' can only be initialized once */
                             if (var_name == JS_ATOM_this)
@@ -29934,7 +29938,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                         dbuf_putc(bc, OP_put_loc);
                     }
                 } else {
-                    if (s->vars[var_idx].is_lexical) {
+                    if (var_is_lexical(s->vars[var_idx].var_kind)) {
                         dbuf_putc(bc, OP_get_loc_check);
                     } else {
                         dbuf_putc(bc, OP_get_loc);
@@ -29970,7 +29974,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
             vd = &fd->vars[idx];
             if (vd->var_name == var_name) {
                 if (op == OP_scope_put_var || op == OP_scope_make_ref) {
-                    if (vd->is_const) {
+                    if (var_is_const(vd->var_kind)) {
                         dbuf_putc(bc, OP_throw_error);
                         dbuf_put_u32(bc, JS_DupAtom(ctx, var_name));
                         dbuf_putc(bc, JS_THROW_VAR_RO);
@@ -29981,7 +29985,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                 break;
             } else if (vd->var_name == JS_ATOM__with_ && !is_pseudo_var) {
                 vd->is_captured = 1;
-                idx = get_closure_var(ctx, s, fd, false, idx, vd->var_name, false, false, JS_VAR_NORMAL);
+                idx = get_closure_var(ctx, s, fd, false, idx, vd->var_name, JS_VAR_VAR);
                 if (idx >= 0) {
                     dbuf_putc(bc, OP_get_var_ref);
                     dbuf_put_u16(bc, idx);
@@ -30018,7 +30022,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
         if (!is_arg_scope && fd->var_object_idx >= 0 && !is_pseudo_var) {
             vd = &fd->vars[fd->var_object_idx];
             vd->is_captured = 1;
-            idx = get_closure_var(ctx, s, fd, false, fd->var_object_idx, vd->var_name, false, false, JS_VAR_NORMAL);
+            idx = get_closure_var(ctx, s, fd, false, fd->var_object_idx, vd->var_name, JS_VAR_VAR);
             dbuf_putc(bc, OP_get_var_ref);
             dbuf_put_u16(bc, idx);
             var_object_test(ctx, s, var_name, op, bc, &label_done, 0);
@@ -30028,7 +30032,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
         if (fd->arg_var_object_idx >= 0 && !is_pseudo_var) {
             vd = &fd->vars[fd->arg_var_object_idx];
             vd->is_captured = 1;
-            idx = get_closure_var(ctx, s, fd, false, fd->arg_var_object_idx, vd->var_name, false, false, JS_VAR_NORMAL);
+            idx = get_closure_var(ctx, s, fd, false, fd->arg_var_object_idx, vd->var_name, JS_VAR_VAR);
             dbuf_putc(bc, OP_get_var_ref);
             dbuf_put_u16(bc, idx);
             var_object_test(ctx, s, var_name, op, bc, &label_done, 0);
@@ -30048,8 +30052,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
             JSClosureVar *cv = &fd->closure_var[idx1];
             if (var_name == cv->var_name) {
                 if (fd != s) {
-                    idx = get_closure_var2(
-                        ctx, s, fd, false, cv->is_arg, idx1, cv->var_name, cv->is_const, cv->is_lexical, cv->var_kind);
+                    idx = get_closure_var2(ctx, s, fd, false, cv->is_arg, idx1, cv->var_name, cv->var_kind);
                 } else {
                     idx = idx1;
                 }
@@ -30060,7 +30063,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                 int is_with = (cv->var_name == JS_ATOM__with_);
                 if (fd != s) {
                     idx = get_closure_var2(
-                        ctx, s, fd, false, cv->is_arg, idx1, cv->var_name, false, false, JS_VAR_NORMAL);
+                        ctx, s, fd, false, cv->is_arg, idx1, cv->var_name, JS_VAR_VAR);
                 } else {
                     idx = idx1;
                 }
@@ -30076,15 +30079,14 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
         if (var_idx & ARGUMENT_VAR_OFFSET) {
             fd->args[var_idx - ARGUMENT_VAR_OFFSET].is_captured = 1;
             idx = get_closure_var(
-                ctx, s, fd, true, var_idx - ARGUMENT_VAR_OFFSET, var_name, false, false, JS_VAR_NORMAL);
+                ctx, s, fd, true, var_idx - ARGUMENT_VAR_OFFSET, var_name, JS_VAR_VAR);
         } else {
             fd->vars[var_idx].is_captured = 1;
-            idx = get_closure_var(ctx, s, fd, false, var_idx, var_name, fd->vars[var_idx].is_const,
-                fd->vars[var_idx].is_lexical, fd->vars[var_idx].var_kind);
+            idx = get_closure_var(ctx, s, fd, false, var_idx, var_name, fd->vars[var_idx].var_kind);
         }
         if (idx >= 0) {
         has_idx:
-            if ((op == OP_scope_put_var || op == OP_scope_make_ref) && s->closure_var[idx].is_const) {
+            if ((op == OP_scope_put_var || op == OP_scope_make_ref) && var_is_const(s->closure_var[idx].var_kind)) {
                 dbuf_putc(bc, OP_throw_error);
                 dbuf_put_u32(bc, JS_DupAtom(ctx, var_name));
                 dbuf_putc(bc, JS_THROW_VAR_RO);
@@ -30092,7 +30094,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
             }
             switch (op) {
             case OP_scope_make_ref:
-                if (s->closure_var[idx].var_kind == JS_VAR_FUNCTION_NAME) {
+                if (s->closure_var[idx].var_kind == JS_VAR_FUNCTION_NAME_VAR) {
                     /* Create a dummy object reference for the func_var */
                     dbuf_putc(bc, OP_object);
                     dbuf_putc(bc, OP_get_var_ref);
@@ -30103,7 +30105,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                     dbuf_put_u32(bc, JS_DupAtom(ctx, var_name));
                 } else if (label_done == -1 && can_opt_put_ref_value(bc_buf, ls->pos)) {
                     int get_op;
-                    if (s->closure_var[idx].is_lexical)
+                    if (var_is_lexical(s->closure_var[idx].var_kind))
                         get_op = OP_get_var_ref_check;
                     else
                         get_op = OP_get_var_ref;
@@ -30127,7 +30129,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
             case OP_scope_put_var_init:
                 is_put = (op == OP_scope_put_var || op == OP_scope_put_var_init);
                 if (is_put) {
-                    if (s->closure_var[idx].is_lexical) {
+                    if (var_is_lexical(s->closure_var[idx].var_kind)) {
                         if (op == OP_scope_put_var_init) {
                             /* 'this' can only be initialized once */
                             if (var_name == JS_ATOM_this)
@@ -30141,7 +30143,7 @@ static int resolve_scope_var(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, 
                         dbuf_putc(bc, OP_put_var_ref);
                     }
                 } else {
-                    if (s->closure_var[idx].is_lexical) {
+                    if (var_is_lexical(s->closure_var[idx].var_kind)) {
                         dbuf_putc(bc, OP_get_var_ref_check);
                     } else {
                         dbuf_putc(bc, OP_get_var_ref);
@@ -30238,7 +30240,7 @@ static int resolve_scope_private_field1(
         if (idx >= 0) {
             var_kind = fd->vars[idx].var_kind;
             if (is_ref) {
-                idx = get_closure_var(ctx, s, fd, false, idx, var_name, true, true, JS_VAR_NORMAL);
+                idx = get_closure_var(ctx, s, fd, false, idx, var_name, JS_VAR_CONST);
                 if (idx < 0)
                     return -1;
             }
@@ -30254,8 +30256,7 @@ static int resolve_scope_private_field1(
                         var_kind = cv->var_kind;
                         is_ref = true;
                         if (fd != s) {
-                            idx = get_closure_var2(ctx, s, fd, false, cv->is_arg, idx, cv->var_name, cv->is_const,
-                                cv->is_lexical, cv->var_kind);
+                            idx = get_closure_var2(ctx, s, fd, false, cv->is_arg, idx, cv->var_name, cv->var_kind);
                             if (idx < 0)
                                 return -1;
                         }
@@ -30288,7 +30289,7 @@ resolve_scope_private_field(JSContext *ctx, JSFunctionDef *s, JSAtom var_name, i
     idx = resolve_scope_private_field1(ctx, &is_ref, &var_kind, s, var_name, scope_level);
     if (idx < 0)
         return -1;
-    assert(var_kind != JS_VAR_NORMAL);
+    assert(var_kind != JS_VAR_VAR);
     switch (op) {
     case OP_scope_get_private_field:
     case OP_scope_get_private_field2:
@@ -30386,11 +30387,11 @@ static void mark_eval_captured_variables(JSContext *ctx, JSFunctionDef *s, int s
 }
 
 /* XXX: should handle the argument scope generically */
-static bool is_var_in_arg_scope(const JSVarDef *vd)
+static bool is_var_in_arg_scope(JSFunctionDef *fd, const JSVarDef *vd)
 {
     return (vd->var_name == JS_ATOM_home_object || vd->var_name == JS_ATOM_this_active_func ||
         vd->var_name == JS_ATOM_new_target || vd->var_name == JS_ATOM_this || vd->var_name == JS_ATOM__arg_var_ ||
-        vd->var_kind == JS_VAR_FUNCTION_NAME);
+        vd->var_kind == JS_VAR_FUNCTION_NAME_VAR || vd->var_kind == JS_VAR_FUNCTION_NAME_CONST);
 }
 
 static void add_eval_variables(JSContext *ctx, JSFunctionDef *s)
@@ -30474,7 +30475,7 @@ static void add_eval_variables(JSContext *ctx, JSFunctionDef *s)
         while (scope_idx >= 0) {
             vd = &fd->vars[scope_idx];
             vd->is_captured = 1;
-            get_closure_var(ctx, s, fd, false, scope_idx, vd->var_name, vd->is_const, vd->is_lexical, vd->var_kind);
+            get_closure_var(ctx, s, fd, false, scope_idx, vd->var_name, vd->var_kind);
             scope_idx = vd->scope_next;
         }
         is_arg_scope = (scope_idx == ARG_SCOPE_END);
@@ -30484,22 +30485,22 @@ static void add_eval_variables(JSContext *ctx, JSFunctionDef *s)
             for (i = 0; i < fd->arg_count; i++) {
                 vd = &fd->args[i];
                 if (vd->var_name != JS_ATOM_NULL) {
-                    get_closure_var(ctx, s, fd, true, i, vd->var_name, false, vd->is_lexical, JS_VAR_NORMAL);
+                    get_closure_var(ctx, s, fd, true, i, vd->var_name, var_is_lexical(vd->var_kind) ? JS_VAR_LET : JS_VAR_VAR);
                 }
             }
             for (i = 0; i < fd->var_count; i++) {
                 vd = &fd->vars[i];
                 /* do not close top level last result */
                 if (vd->scope_level == 0 && vd->var_name != JS_ATOM__ret_ && vd->var_name != JS_ATOM_NULL) {
-                    get_closure_var(ctx, s, fd, false, i, vd->var_name, false, vd->is_lexical, JS_VAR_NORMAL);
+                    get_closure_var(ctx, s, fd, false, i, vd->var_name, var_is_lexical(vd->var_kind) ? JS_VAR_LET : JS_VAR_VAR);
                 }
             }
         } else {
             for (i = 0; i < fd->var_count; i++) {
                 vd = &fd->vars[i];
                 /* do not close top level last result */
-                if (vd->scope_level == 0 && is_var_in_arg_scope(vd)) {
-                    get_closure_var(ctx, s, fd, false, i, vd->var_name, false, vd->is_lexical, JS_VAR_NORMAL);
+                if (vd->scope_level == 0 && is_var_in_arg_scope(s, vd)) {
+                    get_closure_var(ctx, s, fd, false, i, vd->var_name, var_is_lexical(vd->var_kind) ? JS_VAR_LET : JS_VAR_VAR);
                 }
             }
         }
@@ -30509,8 +30510,7 @@ static void add_eval_variables(JSContext *ctx, JSFunctionDef *s)
                top level) */
             for (idx = 0; idx < fd->closure_var_count; idx++) {
                 JSClosureVar *cv = &fd->closure_var[idx];
-                get_closure_var2(
-                    ctx, s, fd, false, cv->is_arg, idx, cv->var_name, cv->is_const, cv->is_lexical, cv->var_kind);
+                get_closure_var2(ctx, s, fd, false, cv->is_arg, idx, cv->var_name, cv->var_kind);
             }
         }
     }
@@ -30520,8 +30520,8 @@ static void set_closure_from_var(JSContext *ctx, JSClosureVar *cv, JSVarDef *vd,
 {
     cv->is_local = true;
     cv->is_arg = false;
-    cv->is_const = vd->is_const;
-    cv->is_lexical = vd->is_lexical;
+
+
     cv->var_kind = vd->var_kind;
     cv->var_idx = var_idx;
     cv->var_name = JS_DupAtom(ctx, vd->var_name);
@@ -30561,9 +30561,7 @@ static __exception int add_closure_variables(JSContext *ctx, JSFunctionDef *s, J
             vd = &b->vardefs[i];
             cv->is_local = true;
             cv->is_arg = true;
-            cv->is_const = false;
-            cv->is_lexical = false;
-            cv->var_kind = JS_VAR_NORMAL;
+            cv->var_kind = JS_VAR_VAR;
             cv->var_idx = i;
             cv->var_name = JS_DupAtom(ctx, vd->var_name);
         }
@@ -30579,7 +30577,7 @@ static __exception int add_closure_variables(JSContext *ctx, JSFunctionDef *s, J
         /* only add pseudo variables */
         for (i = 0; i < b->var_count; i++) {
             vd = &b->vardefs[b->arg_count + i];
-            if (vd->scope_level == 0 && is_var_in_arg_scope(vd)) {
+            if (vd->scope_level == 0 && is_var_in_arg_scope(s, vd)) {
                 JSClosureVar *cv = &s->closure_var[s->closure_var_count++];
                 set_closure_from_var(ctx, cv, vd, i);
             }
@@ -30590,8 +30588,6 @@ static __exception int add_closure_variables(JSContext *ctx, JSFunctionDef *s, J
         JSClosureVar *cv = &s->closure_var[s->closure_var_count++];
         cv->is_local = false;
         cv->is_arg = cv0->is_arg;
-        cv->is_const = cv0->is_const;
-        cv->is_lexical = cv0->is_lexical;
         cv->var_kind = cv0->var_kind;
         cv->var_idx = i;
         cv->var_name = JS_DupAtom(ctx, cv0->var_name);
@@ -30807,7 +30803,7 @@ static void instantiate_hoisted_definitions(JSContext *ctx, JSFunctionDef *s, Dy
             flags = 0;
             if (s->eval_type != JS_EVAL_TYPE_GLOBAL)
                 flags |= JS_PROP_CONFIGURABLE;
-            if (hf->cpool_idx >= 0 && !hf->is_lexical) {
+            if (hf->cpool_idx >= 0 && !var_is_lexical(hf->var_kind)) {
                 /* global function definitions need a specific handling */
                 dbuf_putc(bc, OP_fclosure);
                 dbuf_put_u32(bc, hf->cpool_idx);
@@ -30818,9 +30814,9 @@ static void instantiate_hoisted_definitions(JSContext *ctx, JSFunctionDef *s, Dy
 
                 goto done_global_var;
             } else {
-                if (hf->is_lexical) {
+                if (var_is_lexical(hf->var_kind)) {
                     flags |= DEFINE_GLOBAL_LEX_VAR;
-                    if (!hf->is_const)
+                    if (!var_is_const(hf->var_kind))
                         flags |= JS_PROP_WRITABLE;
                 }
                 dbuf_putc(bc, OP_define_var);
@@ -30964,7 +30960,7 @@ static __exception int resolve_variables(JSContext *ctx, JSFunctionDef *s)
         for (idx = 0; idx < s->closure_var_count; idx++) {
             JSClosureVar *cv = &s->closure_var[idx];
             if (cv->var_name == hf->var_name) {
-                if (s->eval_type == JS_EVAL_TYPE_DIRECT && cv->is_lexical) {
+                if (s->eval_type == JS_EVAL_TYPE_DIRECT && var_is_lexical(cv->var_kind)) {
                     /* Check if a lexical variable is
                        redefined as 'var'. XXX: Could abort
                        compilation here, but for consistency
@@ -30983,7 +30979,7 @@ static __exception int resolve_variables(JSContext *ctx, JSFunctionDef *s)
         dbuf_putc(&bc_out, OP_check_define_var);
         dbuf_put_u32(&bc_out, JS_DupAtom(ctx, hf->var_name));
         flags = 0;
-        if (hf->is_lexical)
+        if (var_is_lexical(hf->var_kind))
             flags |= DEFINE_GLOBAL_LEX_VAR;
         if (hf->cpool_idx >= 0)
             flags |= DEFINE_GLOBAL_FUNC_VAR;
@@ -32709,7 +32705,7 @@ static int add_module_variables(JSContext *ctx, JSFunctionDef *fd)
 
     for (i = 0; i < fd->global_var_count; i++) {
         hf = &fd->global_vars[i];
-        if (add_closure_var(ctx, fd, true, false, i, hf->var_name, hf->is_const, hf->is_lexical, JS_VAR_NORMAL) < 0)
+        if (add_closure_var(ctx, fd, true, false, i, hf->var_name, hf->var_kind) < 0)
             return -1;
     }
 
@@ -34481,9 +34477,8 @@ static int JS_WriteFunctionTag(BCWriterState *s, JSValueConst obj)
             bc_put_leb128(s, vd->scope_level);
             bc_put_leb128(s, vd->scope_next + 1);
             flags = idx = 0;
-            bc_set_flags(&flags, &idx, vd->var_kind, 4);
-            bc_set_flags(&flags, &idx, vd->is_const, 1);
-            bc_set_flags(&flags, &idx, vd->is_lexical, 1);
+            bc_set_flags(&flags, &idx, vd->var_kind, 5);
+
             bc_set_flags(&flags, &idx, vd->is_captured, 1);
             assert(idx <= 8);
             bc_put_u8(s, flags);
@@ -34499,9 +34494,7 @@ static int JS_WriteFunctionTag(BCWriterState *s, JSValueConst obj)
         flags = idx = 0;
         bc_set_flags(&flags, &idx, cv->is_local, 1);
         bc_set_flags(&flags, &idx, cv->is_arg, 1);
-        bc_set_flags(&flags, &idx, cv->is_const, 1);
-        bc_set_flags(&flags, &idx, cv->is_lexical, 1);
-        bc_set_flags(&flags, &idx, cv->var_kind, 4);
+        bc_set_flags(&flags, &idx, cv->var_kind, 5);
         assert(idx <= 8);
         bc_put_u8(s, flags);
     }
@@ -35462,14 +35455,12 @@ static JSValue JS_ReadFunctionTag(BCReaderState *s)
             if (bc_get_u8(s, &v8))
                 goto fail;
             idx = 0;
-            vd->var_kind = bc_get_flags(v8, &idx, 4);
-            vd->is_const = bc_get_flags(v8, &idx, 1);
-            vd->is_lexical = bc_get_flags(v8, &idx, 1);
+            vd->var_kind = bc_get_flags(v8, &idx, 5);
             vd->is_captured = bc_get_flags(v8, &idx, 1);
 #ifdef ENABLE_DUMPS // JS_DUMP_READ_OBJECT
             if (check_dump_flag(s->ctx->rt, JS_DUMP_READ_OBJECT)) {
-                bc_read_trace(s, "%3d  %d%c%c%c %4d  ", i, vd->var_kind, vd->is_const ? 'C' : '.',
-                    vd->is_lexical ? 'L' : '.', vd->is_captured ? 'X' : '.', vd->scope_level);
+                bc_read_trace(s, "%3d  %d%c%c%c %4d  ", i, vd->var_kind, var_is_const(vd->var_kind) ? 'C' : '.',
+                    var_is_lexical(vd->var_kind) ? 'L' : '.', vd->is_captured ? 'X' : '.', vd->scope_level);
                 print_atom(s->ctx, vd->var_name);
                 printf("\n");
             }
@@ -35493,13 +35484,11 @@ static JSValue JS_ReadFunctionTag(BCReaderState *s)
             idx = 0;
             cv->is_local = bc_get_flags(v8, &idx, 1);
             cv->is_arg = bc_get_flags(v8, &idx, 1);
-            cv->is_const = bc_get_flags(v8, &idx, 1);
-            cv->is_lexical = bc_get_flags(v8, &idx, 1);
-            cv->var_kind = bc_get_flags(v8, &idx, 4);
+            cv->var_kind = bc_get_flags(v8, &idx, 5);
 #ifdef ENABLE_DUMPS // JS_DUMP_READ_OBJECT
             if (check_dump_flag(s->ctx->rt, JS_DUMP_READ_OBJECT)) {
                 bc_read_trace(s, "%3d  %d%c%c%c%c %3d  ", i, cv->var_kind, cv->is_local ? 'L' : '.',
-                    cv->is_arg ? 'A' : '.', cv->is_const ? 'C' : '.', cv->is_lexical ? 'X' : '.', cv->var_idx);
+                    cv->is_arg ? 'A' : '.', var_is_const(cv->var_kind) ? 'C' : '.', var_is_lexical(cv->var_kind) ? 'X' : '.', cv->var_idx);
                 print_atom(s->ctx, cv->var_name);
                 printf("\n");
             }
