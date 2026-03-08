@@ -1003,7 +1003,7 @@ START_TEST(urldb_api_add_url_assert_test)
 {
     bool res;
     res = urldb_add_url(NULL);
-    ck_assert(res == true);
+    ck_assert(res == false);
 }
 END_TEST
 

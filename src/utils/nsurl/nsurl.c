@@ -71,7 +71,7 @@
 /* exported interface, documented in nsurl.h */
 nsurl *nsurl_ref(nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return NULL;
 
     url->count++;
 
@@ -82,7 +82,7 @@ nsurl *nsurl_ref(nsurl *url)
 /* exported interface, documented in nsurl.h */
 void nsurl_unref(nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return;
     assert(url->count > 0);
 
     if (--url->count > 0)
@@ -101,8 +101,7 @@ bool nsurl_compare(const nsurl *url1, const nsurl *url2, nsurl_component parts)
 {
     bool match = true;
 
-    assert(url1 != NULL);
-    assert(url2 != NULL);
+    if (url1 == NULL || url2 == NULL) return url1 == url2;
 
     /* Compare URL components */
 
@@ -171,7 +170,7 @@ bool nsurl_compare(const nsurl *url1, const nsurl *url2, nsurl_component parts)
 /* exported interface, documented in nsurl.h */
 nserror nsurl_get(const nsurl *url, nsurl_component parts, char **url_s, size_t *url_l)
 {
-    assert(url != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
 
     return nsurl__components_to_string(&(url->components), parts, 0, url_s, url_l);
 }
@@ -180,7 +179,7 @@ nserror nsurl_get(const nsurl *url, nsurl_component parts, char **url_s, size_t 
 /* exported interface, documented in nsurl.h */
 lwc_string *nsurl_get_component(const nsurl *url, nsurl_component part)
 {
-    assert(url != NULL);
+    if (url == NULL) return NULL;
 
     switch (part) {
     case NSURL_SCHEME:
@@ -219,7 +218,7 @@ lwc_string *nsurl_get_component(const nsurl *url, nsurl_component part)
 /* exported interface, documented in nsurl.h */
 enum nsurl_scheme_type nsurl_get_scheme_type(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return NSURL_SCHEME_OTHER;
 
     return url->components.scheme_type;
 }
@@ -228,7 +227,7 @@ enum nsurl_scheme_type nsurl_get_scheme_type(const nsurl *url)
 /* exported interface, documented in nsurl.h */
 bool nsurl_has_component(const nsurl *url, nsurl_component part)
 {
-    assert(url != NULL);
+    if (url == NULL) return false;
 
     switch (part) {
     case NSURL_SCHEME:
@@ -294,7 +293,7 @@ bool nsurl_has_component(const nsurl *url, nsurl_component part)
 /* exported interface, documented in nsurl.h */
 const char *nsurl_access(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return NULL;
 
     return url->string;
 }
@@ -303,7 +302,7 @@ const char *nsurl_access(const nsurl *url)
 /* exported interface, documented in nsurl.h */
 const char *nsurl_access_log(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return NULL;
 
     if (url->components.scheme_type == NSURL_SCHEME_DATA) {
         return "[data url]";
@@ -327,7 +326,7 @@ nserror nsurl_get_utf8(const nsurl *url, char **url_s, size_t *url_l)
     char *url_out; /* url string */
     char *url_cur; /* url cursor */
 
-    assert(url != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
 
     if (url->components.host == NULL) {
         return nsurl_get(url, NSURL_WITH_FRAGMENT, url_s, url_l);
@@ -393,7 +392,7 @@ const char *nsurl_access_leaf(const nsurl *url)
     const char *path;
     const char *leaf;
 
-    assert(url != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
 
     if (url->components.path == NULL)
         return "";
@@ -423,7 +422,7 @@ const char *nsurl_access_leaf(const nsurl *url)
 /* exported interface, documented in nsurl.h */
 size_t nsurl_length(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return 0;
 
     return url->length;
 }
@@ -432,7 +431,7 @@ size_t nsurl_length(const nsurl *url)
 /* exported interface, documented in nsurl.h */
 uint32_t nsurl_hash(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL) return 0;
 
     return url->hash;
 }
@@ -444,7 +443,7 @@ nserror nsurl_defragment(const nsurl *url, nsurl **no_frag)
     size_t length;
     char *pos;
 
-    assert(url != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
 
     /* check for source url having no fragment already */
     if (url->components.fragment == NULL) {
@@ -505,8 +504,8 @@ nserror nsurl_refragment(const nsurl *url, lwc_string *frag, nsurl **new_url)
     char *pos;
     size_t len;
 
-    assert(url != NULL);
-    assert(frag != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
+    if (frag == NULL) return NSERROR_BAD_PARAMETER;
 
     /* Find the change in length from url to new_url */
     base_len = url->length;
@@ -567,8 +566,8 @@ nserror nsurl_replace_query(const nsurl *url, const char *query, nsurl **new_url
     size_t length; /* new url string length */
     lwc_string *lwc_query = NULL;
 
-    assert(url != NULL);
-    assert(query != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
+    if (query == NULL) return NSERROR_BAD_PARAMETER;
 
     length = query_len = strlen(query);
     if (query_len > 0) {
@@ -653,8 +652,7 @@ nserror nsurl_replace_scheme(const nsurl *url, lwc_string *scheme, nsurl **new_u
     size_t len;
     bool match;
 
-    assert(url != NULL);
-    assert(scheme != NULL);
+    if (url == NULL || scheme == NULL) return NSERROR_BAD_PARAMETER;
 
     /* Get the length of the new scheme */
     scheme_len = lwc_string_length(scheme);
@@ -726,7 +724,7 @@ nserror nsurl_nice(const nsurl *url, char **result, bool remove_extensions)
     bool match;
     char *name;
 
-    assert(url != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
 
     *result = 0;
 
@@ -823,7 +821,7 @@ nserror nsurl_parent(const nsurl *url, nsurl **new_url)
     const char *path = NULL;
     char *pos;
 
-    assert(url != NULL);
+    if (url == NULL) return NSERROR_BAD_PARAMETER;
 
     old_path_len = (url->components.path == NULL) ? 0 : lwc_string_length(url->components.path);
 
