@@ -68,6 +68,8 @@ struct box_construct_ctx {
     box_construct_complete_cb cb; /**< Callback to invoke on completion */
 
     struct arena *bctx; /**< talloc context */
+
+    int quote_nesting_level;
 };
 
 /**
@@ -511,8 +513,37 @@ static struct box *create_content_box(
     case CSS_COMPUTED_CONTENT_CLOSE_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE:
     case CSS_COMPUTED_CONTENT_NO_CLOSE_QUOTE: {
-        /* Quotes not currently supported */
-        box = NULL;
+        bool is_open = (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE || item->type == CSS_COMPUTED_CONTENT_NO_OPEN_QUOTE);
+        bool is_insert = (item->type == CSS_COMPUTED_CONTENT_OPEN_QUOTE || item->type == CSS_COMPUTED_CONTENT_CLOSE_QUOTE);
+
+        /* Decrease level for close quotes before getting quote */
+        if (!is_open && ctx->quote_nesting_level > 0) {
+            ctx->quote_nesting_level--;
+        }
+
+        const char *quote = "";
+        if (is_open) quote = "\"";
+        else quote = "\"";
+
+        if (is_insert) {
+            size_t quote_len = strlen(quote);
+            box = box_create(NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+            if (box != NULL) {
+                box->type = BOX_TEXT;
+                box->text = talloc_strndup(ctx->bctx, quote, quote_len);
+                box->length = quote_len;
+
+                /* Handle text transformation or encoding here if needed.
+                 * Typically done in a generic way, but basic quote should be okay. */
+            }
+        } else {
+            box = NULL;
+        }
+
+        /* Increase level for open quotes after getting quote */
+        if (is_open) {
+            ctx->quote_nesting_level++;
+        }
         break;
     }
 
@@ -2084,6 +2115,7 @@ nserror dom_to_box(dom_node *n, html_content *c, box_construct_complete_cb cb, v
     ctx->root_box = NULL;
     ctx->cb = cb;
     ctx->bctx = c->bctx;
+    ctx->quote_nesting_level = 0;
 
     *box_conversion_context = ctx;
 

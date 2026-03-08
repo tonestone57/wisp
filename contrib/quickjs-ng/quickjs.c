@@ -3360,9 +3360,15 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
             }
         }
         if (!is_num(c)) {
-            if (!(c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, "nfinity", 7)) &&
-                !(c == 'N' && (r_end - r) == 3 && r[1] == 'a' && r[2] == 'N'))
+            if (c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, "nfinity", 7)) {
+                /* valid */
+            } else if (c == 'I' && (r_end - r) == 9 && !memcmp(r + 1, "nfinity", 7)) { /* len=9 handled because of prefix `-` */
+                /* valid */
+            } else if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2)) {
+                /* valid */
+            } else {
                 return JS_UNDEFINED;
+            }
         }
     }
     /* this is ECMA CanonicalNumericIndexString primitive */
@@ -4017,16 +4023,16 @@ static JSValue string_buffer_end(StringBuffer *s)
         s->str = NULL;
         return js_empty_string(s->ctx->rt);
     }
-    if (s->size - s->len > 16) {
+    if (s->len < s->size) {
         /* smaller size so js_realloc should not fail, but OK if it does */
-        size_t new_size_bytes = sizeof(JSString) + (s->len << s->is_wide_char) + 1 - s->is_wide_char;
-        JSString *new_str = js_malloc_rt(s->ctx->rt, new_size_bytes);
-        if (new_str != NULL) {
-            memcpy(new_str, str, new_size_bytes);
-            js_free_rt(s->ctx->rt, str);
-            str = new_str;
+        /* If the slack is small, it isn't worth calling realloc to shrink it */
+        /* XXX: might need to use malloc+free to ensure smaller size */
+        if ((s->size - s->len) > 16) {
+            str = js_realloc_rt(s->ctx->rt, str, sizeof(JSString) + (s->len << s->is_wide_char) + 1 - s->is_wide_char);
+            if (str == NULL)
+                str = s->str;
+            s->str = str;
         }
-        s->str = str;
     }
     if (!s->is_wide_char)
         str8(str)[s->len] = 0;
