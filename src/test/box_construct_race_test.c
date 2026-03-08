@@ -124,8 +124,6 @@ static void mock_html_free_layout(struct mock_html_content *htmlc)
      * This mimics the real cancel_dom_to_box behavior. */
     if (htmlc->box_conversion_context != NULL) {
         mock_schedule(-1, mock_convert_xml_to_box, htmlc->box_conversion_context);
-        /* Free and nullify the context */
-        free(htmlc->box_conversion_context);
         htmlc->box_conversion_context = NULL;
     }
 
