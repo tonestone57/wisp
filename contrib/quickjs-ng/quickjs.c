@@ -17424,8 +17424,10 @@ restart:
                     goto exception;
                 if (unlikely(JS_IsUninitialized(val))) {
                     JSAtom atom = JS_ValueToAtom(ctx, sp[-1]);
-                    JS_ThrowReferenceErrorUninitialized(ctx, atom);
-                    JS_FreeAtom(ctx, atom);
+                    if (atom != JS_ATOM_NULL) {
+                        JS_ThrowReferenceErrorUninitialized(ctx, atom);
+                        JS_FreeAtom(ctx, atom);
+                    }
                     goto exception;
                 }
                 sp[0] = val;
@@ -17486,21 +17488,32 @@ restart:
                         flags |= JS_PROP_NO_ADD;
                 }
 
-                {
+                if (unlikely(JS_VALUE_GET_OBJ(sp[-3]) == JS_VALUE_GET_OBJ(ctx->global_var_obj))) {
                     JSAtom atom = JS_ValueToAtom(ctx, sp[-2]);
                     if (unlikely(atom == JS_ATOM_NULL))
                         goto exception;
-                    JSValue current_val = JS_GetPropertyInternal(ctx, sp[-3], atom, sp[-3], false);
-                    if (unlikely(JS_IsException(current_val))) {
+                    JSPropertyDescriptor desc;
+                    int res = JS_GetOwnPropertyInternal(ctx, &desc, JS_VALUE_GET_OBJ(sp[-3]), atom);
+                    if (res < 0) {
                         JS_FreeAtom(ctx, atom);
                         goto exception;
                     }
-                    if (unlikely(JS_IsUninitialized(current_val))) {
-                        JS_ThrowReferenceErrorUninitialized(ctx, atom);
-                        JS_FreeAtom(ctx, atom);
-                        goto exception;
+                    if (res) {
+                        bool is_uninitialized = JS_IsUninitialized(desc.value);
+                        bool is_readonly = !(desc.flags & JS_PROP_WRITABLE);
+                        js_free_desc(ctx, &desc);
+
+                        if (unlikely(is_uninitialized)) {
+                            JS_ThrowReferenceErrorUninitialized(ctx, atom);
+                            JS_FreeAtom(ctx, atom);
+                            goto exception;
+                        }
+                        if (unlikely(is_readonly)) {
+                            JS_ThrowTypeErrorReadOnly(ctx, JS_PROP_THROW, atom);
+                            JS_FreeAtom(ctx, atom);
+                            goto exception;
+                        }
                     }
-                    JS_FreeValue(ctx, current_val);
                     JS_FreeAtom(ctx, atom);
                 }
 
