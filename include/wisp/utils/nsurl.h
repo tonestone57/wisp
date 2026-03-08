@@ -74,7 +74,7 @@ typedef enum nsurl_component {
  * It is up to the client to call nsurl_unref when they are finished with
  * the created object.
  */
-nserror nsurl_create_from_components(
+nserror nsurl_create_from_components_str(
     lwc_string *scheme_lwc,
     lwc_string *host_lwc,
     lwc_string *port_lwc,

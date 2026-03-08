@@ -2923,7 +2923,7 @@ nserror urldb_load(const char *filename)
                     lwc_intern_string(fragment, strlen(fragment), &fragment_lwc);
                 }
 
-                if (nsurl_create_from_components(scheme_lwc, host_lwc, port_lwc, path_lwc, query_lwc, fragment_lwc, &nsurl) != NSERROR_OK) {
+                if (nsurl_create_from_components_str(scheme_lwc, host_lwc, port_lwc, path_lwc, query_lwc, fragment_lwc, &nsurl) != NSERROR_OK) {
                     NSLOG(wisp, INFO, "Failed inserting URL from components");
                     if (scheme_lwc) lwc_string_unref(scheme_lwc);
                     if (host_lwc) lwc_string_unref(host_lwc);

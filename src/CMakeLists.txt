@@ -152,6 +152,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/content.c
 	# QuickJS-ng sources
 	content/handlers/javascript/quickjs/qjs.c
+	content/handlers/javascript/quickjs/wisp_subsystem.c
 	content/handlers/javascript/quickjs/timers.c
 	content/handlers/javascript/quickjs/navigator.c
 	content/handlers/javascript/quickjs/location.c
