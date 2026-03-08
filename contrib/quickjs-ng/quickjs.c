@@ -9985,15 +9985,6 @@ static int JS_GetGlobalVarRef(JSContext *ctx, JSAtom prop, JSValue *sp)
     prs = find_own_property(&pr, p, prop);
     if (prs) {
         /* XXX: should handle JS_PROP_AUTOINIT properties? */
-        /* XXX: conformance: do these tests in
-           OP_put_var_ref/OP_get_var_ref ? */
-        if (unlikely(JS_IsUninitialized(pr->u.value))) {
-            JS_ThrowReferenceErrorUninitialized(ctx, prs->atom);
-            return -1;
-        }
-        if (unlikely(!(prs->flags & JS_PROP_WRITABLE))) {
-            return JS_ThrowTypeErrorReadOnly(ctx, JS_PROP_THROW, prop);
-        }
         sp[0] = js_dup(ctx->global_var_obj);
     } else {
         int ret;
@@ -17431,6 +17422,14 @@ restart:
                 val = JS_GetPropertyValue(ctx, sp[-2], js_dup(sp[-1]));
                 if (unlikely(JS_IsException(val)))
                     goto exception;
+                if (unlikely(JS_IsUninitialized(val))) {
+                    JSAtom atom = JS_ValueToAtom(ctx, sp[-1]);
+                    if (atom != JS_ATOM_NULL) {
+                        JS_ThrowReferenceErrorUninitialized(ctx, atom);
+                        JS_FreeAtom(ctx, atom);
+                    }
+                    goto exception;
+                }
                 sp[0] = val;
                 sp++;
             }
@@ -17488,6 +17487,36 @@ restart:
                     if (is_strict_mode(ctx))
                         flags |= JS_PROP_NO_ADD;
                 }
+
+                if (unlikely(JS_VALUE_GET_OBJ(sp[-3]) == JS_VALUE_GET_OBJ(ctx->global_var_obj))) {
+                    JSAtom atom = JS_ValueToAtom(ctx, sp[-2]);
+                    if (unlikely(atom == JS_ATOM_NULL))
+                        goto exception;
+                    JSPropertyDescriptor desc;
+                    int res = JS_GetOwnPropertyInternal(ctx, &desc, JS_VALUE_GET_OBJ(sp[-3]), atom);
+                    if (res < 0) {
+                        JS_FreeAtom(ctx, atom);
+                        goto exception;
+                    }
+                    if (res) {
+                        bool is_uninitialized = JS_IsUninitialized(desc.value);
+                        bool is_readonly = !(desc.flags & JS_PROP_WRITABLE);
+                        js_free_desc(ctx, &desc);
+
+                        if (unlikely(is_uninitialized)) {
+                            JS_ThrowReferenceErrorUninitialized(ctx, atom);
+                            JS_FreeAtom(ctx, atom);
+                            goto exception;
+                        }
+                        if (unlikely(is_readonly)) {
+                            JS_ThrowTypeErrorReadOnly(ctx, JS_PROP_THROW, atom);
+                            JS_FreeAtom(ctx, atom);
+                            goto exception;
+                        }
+                    }
+                    JS_FreeAtom(ctx, atom);
+                }
+
                 ret = JS_SetPropertyValue(ctx, sp[-3], sp[-2], sp[-1], flags);
                 JS_FreeValue(ctx, sp[-3]);
                 sp -= 3;
