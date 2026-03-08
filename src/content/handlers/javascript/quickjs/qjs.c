@@ -45,6 +45,7 @@
 #include "content/handlers/javascript/quickjs/window.h"
 #include "content/handlers/javascript/quickjs/xhr.h"
 #include "content/handlers/javascript/quickjs/unimplemented.h"
+#include "wisp_subsystem.h"
 #include <nsutils/time.h>
 
 #ifdef _WIN32
@@ -135,7 +136,7 @@ void *qjs_get_document_priv(JSContext *ctx)
 
 void js_initialise(void)
 {
-    init_wisp_subsystem();
+    init_wisp_subsystem(64);
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine initialised");
 }
 
@@ -164,63 +165,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 /* exported interface documented in js.h */
 void js_finalise(void)
 {
-    if (wisp_worker_pool != NULL) {
-#ifdef _WIN32
-        EnterCriticalSection(&wisp_queue.lock);
-        wisp_queue.stop = true;
-        WakeAllConditionVariable(&wisp_queue.cond);
-        LeaveCriticalSection(&wisp_queue.lock);
-#else
-        pthread_mutex_lock(&wisp_queue.lock);
-        wisp_queue.stop = true;
-        pthread_cond_broadcast(&wisp_queue.cond);
-        pthread_mutex_unlock(&wisp_queue.lock);
-#endif
-
-        for (int i = 0; i < wisp_worker_count; i++) {
-#ifdef _WIN32
-            if (wisp_worker_pool[i].thread) {
-                WaitForSingleObject(wisp_worker_pool[i].thread, INFINITE);
-                CloseHandle(wisp_worker_pool[i].thread);
-            }
-#else
-
-            {
-                pthread_t null_thread;
-                memset(&null_thread, 0, sizeof(pthread_t));
-                if (memcmp(&wisp_worker_pool[i].thread, &null_thread, sizeof(pthread_t)) != 0) {
-                    pthread_join(wisp_worker_pool[i].thread, NULL);
-                }
-            }
-#endif
-            if (wisp_worker_pool[i].ctx != NULL) {
-                JS_FreeContext(wisp_worker_pool[i].ctx);
-            }
-            if (wisp_worker_pool[i].rt != NULL) {
-                JS_FreeRuntime(wisp_worker_pool[i].rt);
-            }
-        }
-        free(wisp_worker_pool);
-        wisp_worker_pool = NULL;
-
-        /* Clean up any unhandled tasks */
-        js_task_t *task = wisp_queue.head;
-        while (task) {
-            js_task_t *next = task->next;
-            if (task->script) free(task->script);
-            free(task);
-            task = next;
-        }
-        wisp_queue.head = NULL;
-        wisp_queue.tail = NULL;
-
-#ifdef _WIN32
-        DeleteCriticalSection(&wisp_queue.lock);
-#else
-        pthread_mutex_destroy(&wisp_queue.lock);
-        pthread_cond_destroy(&wisp_queue.cond);
-#endif
-    }
+    shutdown_wisp_subsystem();
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine finalised");
 }
 
