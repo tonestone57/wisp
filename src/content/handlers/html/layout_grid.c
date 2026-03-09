@@ -723,6 +723,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
     /* Initialize row heights from CSS grid-template-rows */
     if (!init_row_heights_from_css(grid->style, &row_heights, &row_heights_capacity)) {
+        free(row_first_item_done);
         free(col_widths);
         free(row_heights);
         return false;
@@ -762,6 +763,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
     /* Always allocate occupied grid for 3-phase placement */
     occupied = calloc(occupied_max_rows * num_cols, sizeof(bool));
     if (!occupied) {
+        free(row_first_item_done);
         free(col_widths);
         free(row_heights);
         return false;
@@ -1010,6 +1012,9 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                 child->type == BOX_INLINE_FLEX || child->type == BOX_GRID || child->type == BOX_INLINE_GRID) {
                 child->float_container = grid;
                 if (!layout_block_context(child, -1, content)) {
+                    free(item_cache);
+                    free(occupied);
+                    free(row_first_item_done);
                     free(col_widths);
                     free(row_heights);
                     return false;
@@ -1018,6 +1023,9 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
             } else if (child->type == BOX_TABLE) {
                 child->float_container = grid;
                 if (!layout_table(child, child_width, content)) {
+                    free(item_cache);
+                    free(occupied);
+                    free(row_first_item_done);
                     free(col_widths);
                     free(row_heights);
                     return false;
@@ -1036,10 +1044,28 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                 child->border[BOTTOM].width, total_height, row_span, height_per_row);
 
             for (int r = item_row; r < item_row + row_span; r++) {
+                int old_capacity = row_heights_capacity;
                 if (!ensure_row_capacity(&row_heights, &row_heights_capacity, r)) {
-                    free(col_widths);
+                    free(item_cache);
+                    free(occupied);
+                    free(row_first_item_done);
                     free(row_heights);
+                    free(col_widths);
                     return false;
+                }
+                if (row_heights_capacity > old_capacity) {
+                    bool *new_rfd = realloc(row_first_item_done, row_heights_capacity * sizeof(bool));
+                    if (!new_rfd) {
+                        free(item_cache);
+                        free(occupied);
+                        free(row_first_item_done);
+                        free(row_heights);
+                        free(col_widths);
+                        return false;
+                    }
+                    memset(new_rfd + old_capacity, 0,
+                           (row_heights_capacity - old_capacity) * sizeof(bool));
+                    row_first_item_done = new_rfd;
                 }
                 if (height_per_row > row_heights[r]) {
                     NSLOG(layout, WARNING, "GRID ROW_HEIGHT UPDATE: row[%d] %d -> %d (from child %p)", r,

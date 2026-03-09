@@ -140,10 +140,6 @@ uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
 }
-uint8_t css_computed_white_space(const css_computed_style *style)
-{
-    return CSS_WHITE_SPACE_NORMAL;
-}
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
     return CSS_LIST_STYLE_TYPE_NONE;
