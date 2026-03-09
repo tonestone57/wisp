@@ -403,7 +403,7 @@ static inline int _talloc_free(void *ptr)
 
     if (tc->parent) {
         _TLIST_REMOVE(tc->parent->child, tc);
-        if (tc->parent->child) {
+        if (tc->parent && tc->parent->child) {
             tc->parent->child->parent = tc->parent;
         }
     } else {
@@ -465,7 +465,7 @@ void *_talloc_steal(const void *new_ctx, const void *ptr)
     if (unlikely(new_ctx == NULL)) {
         if (tc->parent) {
             _TLIST_REMOVE(tc->parent->child, tc);
-            if (tc->parent->child) {
+            if (tc->parent && tc->parent->child) {
                 tc->parent->child->parent = tc->parent;
             }
         } else {
@@ -487,7 +487,7 @@ void *_talloc_steal(const void *new_ctx, const void *ptr)
 
     if (tc->parent) {
         _TLIST_REMOVE(tc->parent->child, tc);
-        if (tc->parent->child) {
+        if (tc->parent && tc->parent->child) {
             tc->parent->child->parent = tc->parent;
         }
     } else {
@@ -592,6 +592,7 @@ int talloc_unlink(const void *context, void *ptr)
 /*
   add a name to an existing pointer - va_list version
 */
+// cppcheck-suppress unknownMacro
 static inline const char *talloc_set_name_v(const void *ptr, const char *fmt, va_list ap) PRINTF_ATTRIBUTE(2, 0);
 
 static inline const char *talloc_set_name_v(const void *ptr, const char *fmt, va_list ap)

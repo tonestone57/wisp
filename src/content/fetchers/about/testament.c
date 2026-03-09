@@ -61,27 +61,36 @@ bool fetch_about_testament_handler(struct fetch_about_context *ctx)
         goto fetch_about_testament_handler_aborted;
     }
 
-    res = fetch_about_ssenddataf(ctx,
+// cppcheck-suppress syntaxError
 #if defined(WT_BRANCHISTRUNK) || defined(WT_BRANCHISMASTER)
+    res = fetch_about_ssenddataf(ctx, "%s",
         "# This is a *DEVELOPMENT* build from the main line.\n\n"
+    );
 #elif defined(WT_BRANCHISTAG) && (WT_MODIFIED == 0)
-        "# This is a tagged build of Wisp\n"
+// cppcheck-suppress syntaxError
 #ifdef WT_TAGIS
-        "#      The tag used was '" WT_TAGIS "'\n\n"
+    res = fetch_about_ssenddataf(ctx, "# This is a tagged build of Wisp\n#      The tag used was '%s'\n\n", WT_TAGIS);
 #else
-        "\n"
+    res = fetch_about_ssenddataf(ctx, "%s",
+        "# This is a tagged build of Wisp\n\n"
+    );
 #endif
 #elif defined(WT_NO_SVN) || defined(WT_NO_GIT)
+    res = fetch_about_ssenddataf(ctx, "%s",
         "# This Wisp was built outside of our revision "
         "control environment.\n"
         "# This testament is therefore not very useful.\n\n"
+    );
 #else
+    res = fetch_about_ssenddataf(ctx, "%s",
         "# This Wisp was built from a branch (" WT_BRANCHPATH ").\n\n"
+    );
 #endif
 #if defined(CI_BUILD)
-        "# This build carries the CI build number '" CI_BUILD "'\n\n"
+    if (res == NSERROR_OK) {
+        res = fetch_about_ssenddataf(ctx, "# This build carries the CI build number '%s'\n\n", CI_BUILD);
+    }
 #endif
-    );
     if (res != NSERROR_OK) {
         goto fetch_about_testament_handler_aborted;
     }

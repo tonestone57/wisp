@@ -739,7 +739,7 @@ int image_cache_snsummaryf(char *string, size_t size, const char *fmt)
 
 
             case 'j':
-                slen += snprintf(string + slen, size - slen, "%u", pct ? 100 : op_count);
+                slen += snprintf(string + slen, size - slen, "%u", (unsigned int)(pct ? 100 : op_count));
                 break;
 
                 FMTPCHR('k', "d", hit_count, op_count);

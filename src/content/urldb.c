@@ -388,7 +388,7 @@ static void urldb_write_paths(const struct path_data *parent, const char *host, 
                 fprintf(fp, "%s\n", lwc_string_data(p->scheme));
 
                 if (p->port) {
-                    fprintf(fp, "%d\n", p->port);
+                    fprintf(fp, "%u\n", p->port);
                 } else {
                     fprintf(fp, "\n");
                 }
@@ -420,7 +420,7 @@ static void urldb_write_paths(const struct path_data *parent, const char *host, 
                 }
 
                 /* number of visits */
-                fprintf(fp, "%i\n", p->urld.visits);
+                fprintf(fp, "%u\n", p->urld.visits);
 
                 /* time entry was last used */
                 urldb_write_timet(fp, p->urld.last_visit);
@@ -565,7 +565,7 @@ static void urldb_save_search_tree(struct search_node *parent, FILE *fp)
     if (path_count > 0) {
         fprintf(fp, "%s %i ", host, hsts_include_subdomains);
         urldb_write_timet(fp, hsts_expiry);
-        fprintf(fp, "%i\n", path_count);
+        fprintf(fp, "%u\n", path_count);
 
         urldb_write_paths(&parent->data->paths, host, fp, &path, &path_alloc, &path_used, expiry);
     } else if (hsts_expiry) {
@@ -2499,7 +2499,7 @@ static void urldb_save_cookie_paths(FILE *fp, struct path_data *parent)
     assert(fp && parent);
 
     do {
-        if (p->cookies != NULL) {
+        if (p && p->cookies != NULL) {
             struct cookie_internal_data *c;
 
             for (c = p->cookies; c != NULL; c = c->next) {
@@ -2518,10 +2518,10 @@ static void urldb_save_cookie_paths(FILE *fp, struct path_data *parent)
             }
         }
 
-        if (p->children != NULL) {
+        if (p && p->children != NULL) {
             p = p->children;
         } else {
-            while (p != parent) {
+            while (p != NULL && p != parent) {
                 if (p->next != NULL) {
                     p = p->next;
                     break;
@@ -2530,7 +2530,7 @@ static void urldb_save_cookie_paths(FILE *fp, struct path_data *parent)
                 p = p->parent;
             }
         }
-    } while (p != parent);
+    } while (p != NULL && p != parent);
 }
 
 

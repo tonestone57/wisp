@@ -437,7 +437,7 @@ static char *store_fname(struct store_state *state, entry_ident_t ident, int ele
         break;
 
     default:
-        assert("bad element index" == NULL);
+        assert(0 && "bad element index");
         break;
     }
 
@@ -1854,7 +1854,7 @@ static nserror write_control(struct store_state *state)
         return NSERROR_NOT_FOUND;
     }
 
-    fprintf(fcontrol, "%u%c", CONTROL_VERSION, 0);
+    fprintf(fcontrol, "%u%c", (unsigned int)CONTROL_VERSION, 0);
 
     fclose(fcontrol);
 
