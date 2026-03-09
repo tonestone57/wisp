@@ -222,7 +222,7 @@ void _dom_html_document_destroy(dom_node_internal *node)
     dom_html_document *doc = (dom_html_document *)node;
 
     if (_dom_html_document_finalise(doc) == true)
-        free(doc);
+        if (doc && doc->base.arena) arena_destroy(doc->base.arena); else free(doc);
 }
 
 dom_exception _dom_html_document_copy(dom_node_internal *old, dom_node_internal **copy)
