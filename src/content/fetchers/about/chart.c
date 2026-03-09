@@ -136,7 +136,7 @@ static nserror ensure_label_count(struct chart_param *chart, unsigned int count)
 
     for (lidx = chart->data.label_len; lidx < count; lidx++) {
         chart->data.label[lidx].title = calloc(1, 20);
-        snprintf(chart->data.label[lidx].title, 19, "item %d", lidx + 1);
+        snprintf(chart->data.label[lidx].title, 19, "item %u", lidx + 1);
         chart->data.label[lidx].colour = colour_series[lidx % DEF_COLOUR_NUM];
     }
 

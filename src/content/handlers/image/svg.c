@@ -201,7 +201,8 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
     }
 
     /* Convert gradient stops from SVG format to plotter format */
-    struct gradient_stop *stops = alloca(shape->fill_grad_stop_count * sizeof(struct gradient_stop));
+    struct gradient_stop *stops = malloc(shape->fill_grad_stop_count * sizeof(struct gradient_stop));
+    if (stops == NULL) return NSERROR_NOMEM;
     for (unsigned int i = 0; i < shape->fill_grad_stop_count; i++) {
         /* Convert svgtiny RGB color to neosurf color format (BGR) */
         svgtiny_colour c = shape->fill_grad_stops[i].color;
@@ -253,6 +254,7 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
         NSLOG(wisp, WARNING, "SVG gradient: Native plotter FAILED with error %d", err);
     }
 
+    free(stops);
     return err;
 #else
     NSLOG(wisp, DEEPDEBUG, "SVG gradient: Native gradients DISABLED at compile time, using fallback");

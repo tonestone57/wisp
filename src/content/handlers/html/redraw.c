@@ -710,7 +710,8 @@ static bool html_redraw_linear_gradient(
     NSLOG(plot, DEBUG, "Linear gradient: Using NATIVE rendering path");
 
     /* Build gradient stops array */
-    struct gradient_stop *stops = alloca(gradient->stop_count * sizeof(struct gradient_stop));
+    struct gradient_stop *stops = malloc(gradient->stop_count * sizeof(struct gradient_stop));
+    if (stops == NULL) return false;
     for (unsigned int i = 0; i < gradient->stop_count; i++) {
         stops[i].color = nscss_color_to_ns(gradient->stops[i].color);
         stops[i].offset = FIXTOFLT(gradient->stops[i].offset) / 100.0f;
@@ -751,6 +752,7 @@ static bool html_redraw_linear_gradient(
                 .fill_colour = nscss_color_to_ns(gradient->stops[0].color),
             };
             ctx->plot->rectangle(ctx, &pstyle, r);
+            free(stops);
             return true;
         }
     }
@@ -764,6 +766,7 @@ static bool html_redraw_linear_gradient(
         nserror err = ctx->plot->linear_gradient(ctx, NULL, 0, NULL, x0, y0, x1, y1, stops, gradient->stop_count);
         if (err == NSERROR_OK) {
             NSLOG(plot, DEBUG, "Linear gradient: Native plotter succeeded");
+            free(stops);
             return true;
         }
         NSLOG(plot, WARNING, "Linear gradient: Native plotter FAILED with error %d", err);
@@ -778,6 +781,7 @@ static bool html_redraw_linear_gradient(
         };
         ctx->plot->rectangle(ctx, &pstyle, r);
     }
+    free(stops);
     return true;
 
 #else /* !NEOSURF_USE_NATIVE_GRADIENTS */
@@ -902,7 +906,8 @@ static bool html_redraw_radial_gradient(
     NSLOG(plot, DEBUG, "Radial gradient: Using NATIVE rendering path");
     if (ctx->plot->radial_gradient != NULL) {
         /* Build gradient stops array */
-        struct gradient_stop *stops = alloca(gradient->stop_count * sizeof(struct gradient_stop));
+        struct gradient_stop *stops = malloc(gradient->stop_count * sizeof(struct gradient_stop));
+        if (stops == NULL) return false;
         for (unsigned int i = 0; i < gradient->stop_count; i++) {
             stops[i].color = nscss_color_to_ns(gradient->stops[i].color);
             stops[i].offset = FIXTOFLT(gradient->stops[i].offset) / 100.0f;
@@ -912,6 +917,7 @@ static bool html_redraw_radial_gradient(
             rx, ry, gradient->stop_count);
         /* CSS gradients use clip rect, not path - pass NULL for path */
         nserror err = ctx->plot->radial_gradient(ctx, NULL, 0, NULL, cx, cy, rx, ry, stops, gradient->stop_count);
+        free(stops);
         if (err == NSERROR_OK) {
             NSLOG(plot, DEBUG, "Radial gradient: Native plotter succeeded");
             return true;

@@ -870,7 +870,8 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
     if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
         return;
 
-    *has_height = false;
+    if (has_height)
+        *has_height = false;
 
     for (child = inline_container->children; child;) {
         child = layout_minmax_line(child, &line_min, &line_max, first_line, &line_has_height, font_func, content);
@@ -879,7 +880,8 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
         if (max < line_max)
             max = line_max;
         first_line = false;
-        *has_height |= line_has_height;
+        if (has_height)
+            *has_height |= line_has_height;
     }
 
     inline_container->min_width.value = min;
@@ -3093,7 +3095,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
     /* find new sides using this height */
     x0 = cx;
     x1 = cx + *width;
-    find_sides(cont->float_children, cy, cy + height, &x0, &x1, &left, &right);
+    if (cont)
+        find_sides(cont->float_children, cy, cy + height, &x0, &x1, &left, &right);
     x0 -= cx;
     x1 -= cx;
 
@@ -4140,7 +4143,8 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
         in_margin = true;
 
         box = box->next;
-        box->y = y;
+        if (box)
+            box->y = y;
     }
 
     /* Account for bottom margin of last contained block */

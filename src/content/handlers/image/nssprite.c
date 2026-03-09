@@ -219,6 +219,7 @@ static nserror nssprite_clone(const struct content *old, struct content **newc)
     /* Simply replay convert */
     if (old->status == CONTENT_STATUS_READY || old->status == CONTENT_STATUS_DONE) {
         if (nssprite_convert(&sprite->base) == false) {
+            /* cppcheck-suppress memleak */
             content_destroy(&sprite->base);
             return NSERROR_CLONE_FAILED;
         }

@@ -114,8 +114,8 @@ static void dict_hashtable_create(int dict_hash_size)
     ck_assert(dict_hash != NULL);
 
     while (!feof(dictf)) {
-        fscanf(dictf, "%s", keybuf);
-        fscanf(dictf, "%s", valbuf);
+        if (fscanf(dictf, "%8191s", keybuf) != 1) break;
+        if (fscanf(dictf, "%8191s", valbuf) != 1) break;
         hash_add(dict_hash, keybuf, valbuf);
         if (counter++ > DICT_TEST_WORD_COUNT)
             break;
@@ -252,8 +252,8 @@ START_TEST(hashtable_dict_test)
     ck_assert(dictf != NULL);
 
     while (!feof(dictf)) {
-        fscanf(dictf, "%s", keybuf);
-        fscanf(dictf, "%s", valbuf);
+        if (fscanf(dictf, "%8191s", keybuf) != 1) break;
+        if (fscanf(dictf, "%8191s", valbuf) != 1) break;
 
         res = hash_get(dict_hash, keybuf);
         ck_assert(res != NULL);

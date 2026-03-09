@@ -70,7 +70,7 @@ static void dict_bloom_create(void)
     ck_assert(dict_bloom != NULL);
 
     for (i = 0; i < BLOOM_SIZE; i++) {
-        fscanf(dictf, "%s", buf);
+        if (fscanf(dictf, "%8191s", buf) != 1) break;
         bloom_insert_str(dict_bloom, buf, strlen(buf));
     }
 
@@ -152,7 +152,7 @@ START_TEST(bloom_match_test)
     ck_assert(dictf != NULL);
 
     for (i = 0; i < BLOOM_SIZE; i++) {
-        fscanf(dictf, "%s", buf);
+        if (fscanf(dictf, "%8191s", buf) != 1) break;
         ck_assert(bloom_search_str(dict_bloom, buf, strlen(buf)));
     }
     fclose(dictf);
@@ -190,12 +190,12 @@ START_TEST(bloom_falsepositive_test)
 
     /* skip elements known presnent */
     for (i = 0; i < BLOOM_SIZE; i++) {
-        fscanf(dictf, "%s", buf);
+        if (fscanf(dictf, "%8191s", buf) != 1) break;
     }
 
     /* false positives are possible we are checking for low rate */
     for (i = 0; i < BLOOM_SIZE; i++) {
-        fscanf(dictf, "%s", buf);
+        if (fscanf(dictf, "%8191s", buf) != 1) break;
         if (bloom_search_str(dict_bloom, buf, strlen(buf)) == true)
             false_positives++;
     }

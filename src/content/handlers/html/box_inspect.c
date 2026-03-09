@@ -764,7 +764,7 @@ void box_dump(FILE *stream, struct box *box, unsigned int depth, bool style)
     }
 
     if (box->text)
-        fprintf(stream, "%li '%.*s' ", (unsigned long)box->byte_offset, (int)box->length, box->text);
+        fprintf(stream, "%lu '%.*s' ", (unsigned long)box->byte_offset, (int)box->length, box->text);
     if (box->space)
         fprintf(stream, "space ");
     if (box->object) {
