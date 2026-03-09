@@ -1190,7 +1190,7 @@ void _dom_document_destroy(dom_node_internal *node)
     dom_document *doc = (dom_document *)node;
 
     if (_dom_document_finalise(doc) == true) {
-        free(doc);
+        if (doc && doc->arena) arena_destroy(doc->arena); else free(doc);
     }
 }
 

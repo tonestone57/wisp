@@ -11,12 +11,12 @@
 #include <sys/time.h>
 #endif
 
-WispWorker *wisp_worker_pool = NULL;
-WispQueue wisp_queue;
-int wisp_worker_count = 0;
+static WispWorker *wisp_worker_pool = NULL;
+static WispQueue wisp_queue;
+static int wisp_worker_count = 0;
 
-int active_workers = 0;
-int busy_workers = 0;
+static int active_workers = 0;
+static int busy_workers = 0;
 
 static void start_worker(int i) {
     wisp_worker_pool[i].worker_id = i;

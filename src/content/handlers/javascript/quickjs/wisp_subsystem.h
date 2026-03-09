@@ -46,9 +46,9 @@ typedef struct {
 } WispWorker;
 
 // The globals expected by qjs.c
-extern WispWorker *wisp_worker_pool;
-extern WispQueue wisp_queue;
-extern int wisp_worker_count;
+// extern WispWorker *wisp_worker_pool;
+// extern WispQueue wisp_queue;
+// extern int wisp_worker_count;
 
 void init_wisp_subsystem(int queue_size);
 void shutdown_wisp_subsystem(void);
