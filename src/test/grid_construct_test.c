@@ -140,10 +140,6 @@ uint8_t css_computed_float(const css_computed_style *style)
 {
     return CSS_FLOAT_NONE;
 }
-uint8_t css_computed_white_space(const css_computed_style *style)
-{
-    return CSS_WHITE_SPACE_NORMAL;
-}
 uint8_t css_computed_list_style_type(const css_computed_style *style)
 {
     return CSS_LIST_STYLE_TYPE_NONE;
@@ -203,9 +199,6 @@ void box_free(struct box *box)
         css_select_results_destroy(box->styles);
     }
     /* Free text if any */
-    if (box->text) {
-        talloc_free(box->text);
-    }
     free(box);
 }
 
@@ -459,7 +452,7 @@ START_TEST(test_grid_construction)
     ctx->n = (dom_node *)root_el; /* Start construction at Root element (HTML) */
     ctx->root_box = NULL;
     ctx->cb = box_complete_cb;
-    ctx->bctx = NULL;
+    ctx->bctx = arena_create(4096);
 
     /* RUN 1: Process GRID (and its children recursively via
      * convert_xml_to_box logic) */
@@ -559,6 +552,8 @@ START_TEST(test_grid_construction)
     dom_node_unref(grid_el);
     dom_node_unref(root_el);
     dom_node_unref(doc);
+    arena_destroy(ctx->bctx);
+    free(ctx);
     unlink("/tmp/ns_test_grid.html");
 }
 END_TEST
