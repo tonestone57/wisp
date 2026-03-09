@@ -133,15 +133,25 @@ static void log_drain_all(void)
         if (verbose_log && logfile)
             fprintf(logfile, "%s", node->text);
 #endif
+#ifdef _WIN32
+        if (async_logging) {
+            EnterCriticalSection(&log_queue_cs);
+        }
+#endif
         if (split_logging) {
             int i;
-            for (i = 0; i < 6; i++) {
+            for (i = 0; i < 7; i++) {
                 if (split_log_files[i] && node->level >= i) {
                     fprintf(split_log_files[i], "%s", node->text);
                     fflush(split_log_files[i]);
                 }
             }
         }
+#ifdef _WIN32
+        if (async_logging) {
+            LeaveCriticalSection(&log_queue_cs);
+        }
+#endif
         free(node->text);
         free(node);
     }
@@ -246,10 +256,9 @@ static int timeval_subtract(struct timeval *result, struct timeval *x, struct ti
  *
  * \return formatted string of the time since first log call
  */
-static const char *nslog_gettime(void)
+static const char *nslog_gettime(char *buff, size_t buff_size)
 {
     static struct timeval start_tv;
-    static char buff[32];
 
     struct timeval tv;
     struct timeval now_tv;
@@ -261,7 +270,7 @@ static const char *nslog_gettime(void)
 
     timeval_subtract(&tv, &now_tv, &start_tv);
 
-    snprintf(buff, sizeof(buff), "(%ld.%06ld)", (long)tv.tv_sec, (long)tv.tv_usec);
+    snprintf(buff, buff_size, "(%ld.%06ld)", (long)tv.tv_sec, (long)tv.tv_usec);
 
     return buff;
 }
@@ -282,10 +291,13 @@ NSLOG_DEFINE_CATEGORY(jserrors, "JavaScript error messages");
 
 static void wisp_render_log(void *_ctx, nslog_entry_context_t *ctx, const char *fmt, va_list args)
 {
+    char time_buf[32];
+    nslog_gettime(time_buf, sizeof(time_buf));
+
 #ifdef _WIN32
     if (async_logging) {
         char prefix_buf[256];
-        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s [%s %.*s] %.*s:%i %.*s: ", nslog_gettime(),
+        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s [%s %.*s] %.*s:%i %.*s: ", time_buf,
             nslog_short_level_name(ctx->level), ctx->category->namelen, ctx->category->name, ctx->filenamelen,
             ctx->filename, ctx->lineno, ctx->funcnamelen, ctx->funcname);
         if (pre_len < 0)
@@ -300,7 +312,7 @@ static void wisp_render_log(void *_ctx, nslog_entry_context_t *ctx, const char *
             if (split_log_files[i] && (int)ctx->level >= i) {
                 va_list ap;
                 va_copy(ap, args);
-                fprintf(split_log_files[i], "%s [%s %.*s] %.*s:%i %.*s: ", nslog_gettime(),
+                fprintf(split_log_files[i], "%s [%s %.*s] %.*s:%i %.*s: ", time_buf,
                     nslog_short_level_name(ctx->level), ctx->category->namelen, ctx->category->name, ctx->filenamelen,
                     ctx->filename, ctx->lineno, ctx->funcnamelen, ctx->funcname);
 
@@ -313,7 +325,7 @@ static void wisp_render_log(void *_ctx, nslog_entry_context_t *ctx, const char *
         }
     }
 
-    fprintf(logfile, "%s [%s %.*s] %.*s:%i %.*s: ", nslog_gettime(), nslog_short_level_name(ctx->level),
+    fprintf(logfile, "%s [%s %.*s] %.*s:%i %.*s: ", time_buf, nslog_short_level_name(ctx->level),
         ctx->category->namelen, ctx->category->name, ctx->filenamelen, ctx->filename, ctx->lineno, ctx->funcnamelen,
         ctx->funcname);
 
@@ -352,10 +364,13 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
 {
     va_list ap;
     int i;
+    char time_buf[32];
+    nslog_gettime(time_buf, sizeof(time_buf));
+
 #ifdef _WIN32
     if (async_logging) {
         char prefix_buf[256];
-        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s %s:%i %s: ", nslog_gettime(), file, ln, func);
+        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s %s:%i %s: ", time_buf, file, ln, func);
         va_start(ap, format);
         log_enqueue_formatted((int)level, prefix_buf, format, ap);
         va_end(ap);
@@ -364,7 +379,7 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
 #endif
 
     if (verbose_log) {
-        fprintf(logfile, "%s %s:%i %s: ", nslog_gettime(), file, ln, func);
+        fprintf(logfile, "%s %s:%i %s: ", time_buf, file, ln, func);
 
         va_start(ap, format);
 
@@ -376,13 +391,12 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
     }
 
     if (split_logging) {
-        const char *time_str = nslog_gettime();
         /* Iterate over split files. */
         for (i = 0; i < 7; i++) {
             /* Check if file is open and level is sufficient for
              * this file */
             if (split_log_files[i] && (int)level >= i) {
-                fprintf(split_log_files[i], "%s %s:%i %s: ", time_str, file, ln, func);
+                fprintf(split_log_files[i], "%s %s:%i %s: ", time_buf, file, ln, func);
 
                 va_start(ap, format);
                 vfprintf(split_log_files[i], format, ap);
