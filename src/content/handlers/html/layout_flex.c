@@ -164,7 +164,6 @@ static struct flex_ctx *layout_flex_ctx__create(html_content *content, const str
     if (ctx == NULL) {
         return NULL;
     }
-    ctx->line.alloc = 1;
 
     ctx->item.count = box_count_children(flex);
     ctx->item.data = calloc(ctx->item.count, sizeof(*ctx->item.data));
@@ -279,7 +278,6 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
     int auto_margin_count = 0;
     css_fixed grow_factor_sum = 0;
     int grow_item_count = 0;
-    int child_count = 0;
 
     NSLOG(flex, INFO, "Flex redistribute: container_h=%d", container_height);
 
@@ -312,8 +310,6 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
         if (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT) {
             continue;
         }
-
-        child_count++;
 
         /* Calculate this child's outer height (excluding auto margins which we'll compute) */
         int child_outer_height = child->height + child->padding[TOP] + child->padding[BOTTOM] +
