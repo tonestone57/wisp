@@ -1417,7 +1417,7 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
         fprintf(stream, "overflow-x: scroll ");
         break;
     case CSS_OVERFLOW_AUTO:
-        fprintf(stream, "overflow-x auto ");
+        fprintf(stream, "overflow-x: auto ");
         break;
     default:
         break;

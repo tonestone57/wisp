@@ -164,7 +164,6 @@ static struct flex_ctx *layout_flex_ctx__create(html_content *content, const str
     if (ctx == NULL) {
         return NULL;
     }
-    ctx->line.alloc = 1;
 
     ctx->item.count = box_count_children(flex);
     ctx->item.data = calloc(ctx->item.count, sizeof(*ctx->item.data));
@@ -279,7 +278,6 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
     int auto_margin_count = 0;
     css_fixed grow_factor_sum = 0;
     int grow_item_count = 0;
-    int child_count = 0;
 
     NSLOG(flex, INFO, "Flex redistribute: container_h=%d", container_height);
 
@@ -312,8 +310,6 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
         if (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT) {
             continue;
         }
-
-        child_count++;
 
         /* Calculate this child's outer height (excluding auto margins which we'll compute) */
         int child_outer_height = child->height + child->padding[TOP] + child->padding[BOTTOM] +
@@ -1905,20 +1901,20 @@ static void layout_flex__place_lines(struct flex_ctx *ctx)
 
     for (size_t i = 0; i < ctx->line.count; i++) {
         struct flex_line_data *line = &ctx->line.data[i];
+        int line_extra = (extra_remainder > 0) ? 1 : 0;
 
         line_pos += pre_multiplier * line->cross_size;
         line->pos = line_pos;
-        line_pos += post_multiplier * line->cross_size + extra + extra_remainder;
+        line_pos += post_multiplier * line->cross_size + extra + line_extra;
 
         /* Add cross_gap between lines (not after the last line) */
         if (i < ctx->line.count - 1 && ctx->cross_gap > 0) {
             line_pos += (!reversed ? 1 : -1) * ctx->cross_gap;
         }
 
-        layout_flex__place_line_items_cross(ctx, line, extra + extra_remainder);
+        layout_flex__place_line_items_cross(ctx, line, extra + line_extra);
 
         if (extra_remainder > 0) {
-
             extra_remainder--;
         }
     }
