@@ -583,7 +583,7 @@ static nserror nspng_clone(const struct content *old_c, struct content **new_c)
 
     error = content__clone(old_c, &clone_png_c->base);
     if (error != NSERROR_OK) {
-        content_destroy(&clone_png_c->base);
+        free(clone_png_c);
         return error;
     }
 

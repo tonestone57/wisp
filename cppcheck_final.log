@@ -1,0 +1,2094 @@
+src/content/content.c:689:46: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+uint32_t content_count_users(struct content *c)
+                                             ^
+src/content/content.c:691:26: style: Variable 'user' can be declared as pointer to const [constVariablePointer]
+    struct content_user *user;
+                         ^
+src/content/content.c:1098:52: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+content_status content__get_status(struct content *c)
+                                                   ^
+src/content/content.c:1115:57: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+const char *content__get_status_message(struct content *c)
+                                                        ^
+src/content/content.c:1132:40: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+int content__get_width(struct content *c)
+                                       ^
+src/content/content.c:1149:41: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+int content__get_height(struct content *c)
+                                        ^
+src/content/content.c:1185:50: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+int content__get_available_width(struct content *c)
+                                                 ^
+src/content/content.c:1240:49: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+nsurl *content__get_refresh_url(struct content *c)
+                                                ^
+src/content/content.c:1291:21: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    struct content *c = hlcache_handle_get_content(h);
+                    ^
+src/content/content.c:1328:41: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+bool content__is_locked(struct content *c)
+                                        ^
+src/content/content.c:1335:66: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+const llcache_handle *content_get_llcache_handle(struct content *c)
+                                                                 ^
+src/content/content_factory.c:55:28: style: The scope of the variable 'victim' can be reduced. [variableScope]
+    content_handler_entry *victim;
+                           ^
+src/content/fetch.c:234:9: style: The scope of the variable 'fetcherd' can be reduced. [variableScope]
+    int fetcherd;
+        ^
+src/content/fetch.c:551:36: style: Parameter 'fetch' can be declared as pointer to const [constParameterPointer]
+long fetch_http_code(struct fetch *fetch)
+                                   ^
+src/content/fetch.c:101:19: style: struct member 'fetch::r_prev' is never used. [unusedStructMember]
+    struct fetch *r_prev; /**< Previous active fetch in ::fetch_ring. */
+                  ^
+src/content/fetchers/about/about.c:602:33: style: The scope of the variable 'c' can be reduced. [variableScope]
+    struct fetch_about_context *c, *save_ring = NULL;
+                                ^
+src/content/fetchers/about/about.c:216:56: style: Parameter 'ctx' can be declared as pointer to const [constParameterPointer]
+nsurl *fetch_about_get_url(struct fetch_about_context *ctx)
+                                                       ^
+src/content/fetchers/about/about.c:223:90: style: Parameter 'ctx' can be declared as pointer to const [constParameterPointer]
+const struct fetch_multipart_data *fetch_about_get_multipart(struct fetch_about_context *ctx)
+                                                                                         ^
+src/content/fetchers/about/about.c:71:33: style: struct member 'fetch_about_context::r_next' is never used. [unusedStructMember]
+    struct fetch_about_context *r_next, *r_prev;
+                                ^
+src/content/fetchers/about/about.c:71:42: style: struct member 'fetch_about_context::r_prev' is never used. [unusedStructMember]
+    struct fetch_about_context *r_next, *r_prev;
+                                         ^
+src/content/fetchers/about/certificate.c:80:9: style: struct member 'ns_cert_info::sig_type' is never used. [unusedStructMember]
+    int sig_type; /**< Signature type */
+        ^
+src/content/fetchers/about/certificate.c:275:21: style: The scope of the variable 'ecpoint' can be reduced. [variableScope]
+    const EC_POINT *ecpoint;
+                    ^
+src/content/fetchers/about/certificate.c:276:12: style: The scope of the variable 'len' can be reduced. [variableScope]
+    size_t len;
+           ^
+src/content/fetchers/about/certificate.c:277:13: style: The scope of the variable 'bnctx' can be reduced. [variableScope]
+    BN_CTX *bnctx;
+            ^
+src/content/fetchers/about/certificate.c:338:22: style: The scope of the variable 'entry' can be reduced. [variableScope]
+    X509_NAME_ENTRY *entry; /* current name entry */
+                     ^
+src/content/fetchers/about/certificate.c:341:18: style: The scope of the variable 'name' can be reduced. [variableScope]
+    ASN1_OBJECT *name;
+                 ^
+src/content/fetchers/about/certificate.c:342:9: style: The scope of the variable 'name_nid' can be reduced. [variableScope]
+    int name_nid;
+        ^
+src/content/fetchers/about/certificate.c:407:11: style: The scope of the variable 'out' can be reduced. [variableScope]
+    char *out;
+          ^
+src/content/fetchers/about/certificate.c:408:9: style: The scope of the variable 'cn' can be reduced. [variableScope]
+    int cn = 0;
+        ^
+src/content/fetchers/about/certificate.c:442:11: style: The scope of the variable 'out' can be reduced. [variableScope]
+    char *out;
+          ^
+src/content/fetchers/about/certificate.c:443:18: style: The scope of the variable 'idx' can be reduced. [variableScope]
+    unsigned int idx;
+                 ^
+src/content/fetchers/about/certificate.c:684:13: style: The scope of the variable 'bignum' can be reduced. [variableScope]
+    BIGNUM *bignum;
+            ^
+src/content/fetchers/about/certificate.c:439:36: style: Parameter 'bin' can be declared as pointer to const [constParameterPointer]
+static char *bindup(unsigned char *bin, unsigned int binlen)
+                                   ^
+src/content/fetchers/about/certificate.c:339:18: style: The scope of the variable 'value' can be reduced. [variableScope]
+    ASN1_STRING *value;
+                 ^
+src/content/fetchers/about/certificate.c:634:25: style: The scope of the variable 'current_name' can be reduced. [variableScope]
+    const GENERAL_NAME *current_name;
+                        ^
+src/content/fetchers/about/chart.c:139:9: warning: %d in format string (no. 1) requires 'int' but the argument type is 'unsigned int'. [invalidPrintfArgType_sint]
+        snprintf(chart->data.label[lidx].title, 19, "item %d", lidx + 1);
+        ^
+src/content/fetchers/about/testament.c:75:9: error: syntax error [syntaxError]
+        "# This Wisp was built outside of our revision "
+        ^
+src/content/fetchers/about/testament.c:68:9: error: syntax error [syntaxError]
+        "# This is a tagged build of Wisp\n"
+        ^
+src/content/fetchers/curl.c:321:26: style: The scope of the variable 'h' can be reduced. [variableScope]
+    struct cache_handle *h;
+                         ^
+src/content/fetchers/curl.c:1768:37: style: Parameter 'data' can be declared as pointer to const. However it seems that 'fetch_curl_data' is a callback function, if 'data' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static size_t fetch_curl_data(char *data, size_t size, size_t nmemb, void *_f)
+                                    ^
+src/content/fetchers/curl.c:2013:5: note: You might need to cast the function pointer here
+    SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
+    ^
+src/content/fetchers/curl.c:1768:37: note: Parameter 'data' can be declared as pointer to const
+static size_t fetch_curl_data(char *data, size_t size, size_t nmemb, void *_f)
+                                    ^
+src/content/fetchers/curl.c:219:10: style: struct member 'cert_info::err' is never used. [unusedStructMember]
+    long err; /**< OpenSSL error code */
+         ^
+src/content/fetchers/curl.c:821:29: style: Variable 'f' can be declared as pointer to const [constVariablePointer]
+    struct curl_fetch_info *f = (struct curl_fetch_info *)parm;
+                            ^
+src/content/fetchers/data.c:54:32: style: struct member 'fetch_data_context::r_next' is never used. [unusedStructMember]
+    struct fetch_data_context *r_next, *r_prev;
+                               ^
+src/content/fetchers/data.c:54:41: style: struct member 'fetch_data_context::r_prev' is never used. [unusedStructMember]
+    struct fetch_data_context *r_next, *r_prev;
+                                        ^
+src/content/fetchers/file/dirlist.c:276:72: style: Parameter 'name' can be declared as pointer to const [constParameterPointer]
+bool dirlist_generate_row(bool even, bool directory, nsurl *url, char *name, const char *mimetype, long long size,
+                                                                       ^
+src/content/fetchers/file/dirlist.c:277:11: style: Parameter 'date' can be declared as pointer to const [constParameterPointer]
+    char *date, char *time, char *buffer, int buffer_length)
+          ^
+src/content/fetchers/file/dirlist.c:277:23: style: Parameter 'time' can be declared as pointer to const [constParameterPointer]
+    char *date, char *time, char *buffer, int buffer_length)
+                      ^
+src/content/fetchers/file/file.c:726:32: style: The scope of the variable 'c' can be reduced. [variableScope]
+    struct fetch_file_context *c, *save_ring = NULL;
+                               ^
+src/content/fetchers/file/file.c:70:32: style: struct member 'fetch_file_context::r_next' is never used. [unusedStructMember]
+    struct fetch_file_context *r_next, *r_prev;
+                               ^
+src/content/fetchers/file/file.c:70:41: style: struct member 'fetch_file_context::r_prev' is never used. [unusedStructMember]
+    struct fetch_file_context *r_next, *r_prev;
+                                        ^
+src/content/fetchers/resource.c:428:36: style: The scope of the variable 'c' can be reduced. [variableScope]
+    struct fetch_resource_context *c, *save_ring = NULL;
+                                   ^
+src/content/fetchers/resource.c:71:36: style: struct member 'fetch_resource_context::r_next' is never used. [unusedStructMember]
+    struct fetch_resource_context *r_next, *r_prev;
+                                   ^
+src/content/fetchers/resource.c:71:45: style: struct member 'fetch_resource_context::r_prev' is never used. [unusedStructMember]
+    struct fetch_resource_context *r_next, *r_prev;
+                                            ^
+src/content/fs_backing_store.c:1857:5: warning: %u in format string (no. 1) requires 'unsigned int' but the argument type is 'signed int'. [invalidPrintfArgType_uint]
+    fprintf(fcontrol, "%u%c", CONTROL_VERSION, 0);
+    ^
+src/content/fs_backing_store.c:1244:14: style: The scope of the variable 'map' can be reduced. [variableScope]
+    uint8_t *map;
+             ^
+src/content/fs_backing_store.c:2065:9: style: The scope of the variable 'bf' can be reduced. [variableScope]
+    int bf; /* block file index */
+        ^
+src/content/fs_backing_store.c:2066:18: style: The scope of the variable 'op_count' can be reduced. [variableScope]
+    unsigned int op_count;
+                 ^
+src/content/fs_backing_store.c:2309:13: style: The scope of the variable 'rd' can be reduced. [variableScope]
+    ssize_t rd; /* return from read */
+            ^
+src/content/fs_backing_store.c:440:36: warning: String literal compared with variable 'NULL'. Did you intend to use strcmp() instead? [literalWithCharPtrCompare]
+        assert("bad element index" == NULL);
+                                   ^
+src/content/handlers/css/css.c:501:29: style: Variable 'import' can be declared as pointer to const [constVariablePointer]
+            struct content *import = hlcache_handle_get_content(css->imports[i].c);
+                            ^
+src/content/handlers/css/css.c:582:57: style: Parameter 'parent' can be declared as pointer to const. However it seems that 'nscss_handle_import' is a callback function, if 'parent' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
+                                                        ^
+src/content/handlers/css/css.c:222:21: note: You might need to cast the function pointer here
+    params.import = nscss_handle_import;
+                    ^
+src/content/handlers/css/css.c:582:57: note: Parameter 'parent' can be declared as pointer to const
+css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
+                                                        ^
+src/content/handlers/css/hints.c:103:13: style: The scope of the variable 'pwr' can be reduced. [variableScope]
+    int32_t pwr = 1;
+            ^
+src/content/handlers/css/hints.c:527:18: style: The scope of the variable 'hint_prop' can be reduced. [variableScope]
+        uint32_t hint_prop;
+                 ^
+src/content/handlers/css/hints.c:553:18: style: The scope of the variable 'hint_prop' can be reduced. [variableScope]
+        uint32_t hint_prop;
+                 ^
+src/content/handlers/css/hints.c:571:18: style: The scope of the variable 'hint_prop' can be reduced. [variableScope]
+        uint32_t hint_prop;
+                 ^
+src/content/handlers/css/hints.c:893:18: style: The scope of the variable 'hint_prop' can be reduced. [variableScope]
+        uint32_t hint_prop;
+                 ^
+src/content/handlers/css/hints.c:202:23: portability: Shifting a negative value is technically undefined behaviour [shiftNegativeLHS]
+    *value = (intpart << 10) | fracpart;
+                      ^
+src/content/handlers/css/select.c:1205:21: style: Local variable 'node_name' shadows outer function [shadowFunction]
+        dom_string *node_name = NULL;
+                    ^
+src/content/handlers/css/select.c:35:18: note: Shadowed declaration
+static css_error node_name(void *pw, void *node, css_qname *qname);
+                 ^
+src/content/handlers/css/select.c:1205:21: note: Shadow variable
+        dom_string *node_name = NULL;
+                    ^
+src/content/handlers/css/select.c:1238:17: style: Local variable 'node_name' shadows outer function [shadowFunction]
+    dom_string *node_name = NULL;
+                ^
+src/content/handlers/css/select.c:35:18: note: Shadowed declaration
+static css_error node_name(void *pw, void *node, css_qname *qname);
+                 ^
+src/content/handlers/css/select.c:1238:17: note: Shadow variable
+    dom_string *node_name = NULL;
+                ^
+src/content/handlers/css/select.c:1349:17: style: Local variable 'node_name' shadows outer function [shadowFunction]
+    dom_string *node_name = NULL;
+                ^
+src/content/handlers/css/select.c:35:18: note: Shadowed declaration
+static css_error node_name(void *pw, void *node, css_qname *qname);
+                 ^
+src/content/handlers/css/select.c:1349:17: note: Shadow variable
+    dom_string *node_name = NULL;
+                ^
+src/content/handlers/html/box_construct.c:2160:32: style: The scope of the variable 'apos1' can be reduced. [variableScope]
+    char *s, *s1, *apos0 = 0, *apos1 = 0, *quot0 = 0, *quot1 = 0;
+                               ^
+src/content/handlers/html/box_construct.c:2160:56: style: The scope of the variable 'quot1' can be reduced. [variableScope]
+    char *s, *s1, *apos0 = 0, *apos1 = 0, *quot0 = 0, *quot1 = 0;
+                                                       ^
+src/content/handlers/html/box_construct.c:173:21: style: Variable 'parent_box' can be declared as pointer to const [constVariablePointer]
+        struct box *parent_box;
+                    ^
+src/content/handlers/html/box_construct.c:1126:41: style: Variable 'val' is assigned a value that is never used. [unreadVariable]
+                            int32_t val = counters->value;
+                                        ^
+src/content/handlers/html/box_construct.c:916:17: style: Unused variable: bgimage_uri [unusedVariable]
+    lwc_string *bgimage_uri;
+                ^
+src/content/handlers/html/box_construct.c:1833:16: style: Unused variable: i [unusedVariable]
+        size_t i;
+               ^
+src/content/handlers/html/box_construct.c:2160:26: style: Variable 'apos0' is assigned a value that is never used. [unreadVariable]
+    char *s, *s1, *apos0 = 0, *apos1 = 0, *quot0 = 0, *quot1 = 0;
+                         ^
+src/content/handlers/html/box_construct.c:2160:50: style: Variable 'quot0' is assigned a value that is never used. [unreadVariable]
+    char *s, *s1, *apos0 = 0, *apos1 = 0, *quot0 = 0, *quot1 = 0;
+                                                 ^
+src/content/handlers/html/box_inspect.c:767:9: warning: %li in format string (no. 1) requires 'long' but the argument type is 'unsigned long'. [invalidPrintfArgType_sint]
+        fprintf(stream, "%li '%.*s' ", (unsigned long)box->byte_offset, (int)box->length, box->text);
+        ^
+src/content/handlers/html/box_inspect.c:424:9: style: The scope of the variable 'yd' can be reduced. [variableScope]
+    int yd = INT_MAX;
+        ^
+src/content/handlers/html/box_inspect.c:425:9: style: The scope of the variable 'xd' can be reduced. [variableScope]
+    int xd = INT_MAX;
+        ^
+src/content/handlers/html/box_inspect.c:644:21: style: The scope of the variable 'b' can be reduced. [variableScope]
+    struct box *a, *b;
+                    ^
+src/content/handlers/html/box_inspect.c:154:63: style: Parameter 'b' can be declared as pointer to const [constParameterPointer]
+static inline void box_offset_to_containing_block(struct box *b, int *dx, int *dy)
+                                                              ^
+src/content/handlers/html/box_inspect.c:677:21: style: Variable 'prev' can be declared as pointer to const [constVariablePointer]
+    struct box *c, *prev;
+                    ^
+src/content/handlers/html/box_normalise.c:448:18: style: The scope of the variable 'group_rows_left' can be reduced. [variableScope]
+    unsigned int group_rows_left;
+                 ^
+src/content/handlers/html/box_normalise.c:442:39: style: Parameter 'table' can be declared as pointer to const [constParameterPointer]
+box_normalise_table_spans(struct box *table, const struct box *root, struct span_info *spans, html_content *c)
+                                      ^
+src/content/handlers/html/box_normalise.c:444:17: style: Variable 'table_row_group' can be declared as pointer to const [constVariablePointer]
+    struct box *table_row_group;
+                ^
+src/content/handlers/html/box_normalise.c:571:24: style: Variable 'group_rows_left' is assigned a value that is never used. [unreadVariable]
+        group_rows_left--;
+                       ^
+src/content/handlers/html/box_special.c:668:10: style: The scope of the variable 'ok' can be reduced. [variableScope]
+    bool ok;
+         ^
+src/content/handlers/html/box_special.c:978:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/content/handlers/html/box_special.c:1968:27: style: Local variable 'exc' shadows outer variable [shadowVariable]
+            dom_exception exc;
+                          ^
+src/content/handlers/html/box_special.c:1894:19: note: Shadowed declaration
+    dom_exception exc;
+                  ^
+src/content/handlers/html/box_special.c:1968:27: note: Shadow variable
+            dom_exception exc;
+                          ^
+src/content/handlers/html/box_special.c:789:51: style: Parameter 'content' can be declared as pointer to const [constParameterPointer]
+static bool box_canvas(dom_node *n, html_content *content, struct box *box, bool *convert_children)
+                                                  ^
+src/content/handlers/html/box_special.c:1477:53: style: Parameter 'content' can be declared as pointer to const [constParameterPointer]
+static bool box_noscript(dom_node *n, html_content *content, struct box *box, bool *convert_children)
+                                                    ^
+src/content/handlers/html/css.c:247:9: portability: Returning an integer in a function with pointer return type is not portable. [CastIntegerToAddressAtReturn]
+        return false;
+        ^
+src/content/handlers/html/css.c:347:43: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+bool html_css_process_style(html_content *c, dom_node *node)
+                                          ^
+src/content/handlers/html/css.c:504:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/css.c:516:54: style: Parameter 'html' can be declared as pointer to const [constParameterPointer]
+bool html_css_saw_insecure_stylesheets(html_content *html)
+                                                     ^
+src/content/handlers/html/css_fetcher.c:49:44: style: struct member 'html_css_fetcher_item::r_prev' is never used. [unusedStructMember]
+    struct html_css_fetcher_item *r_next, *r_prev;
+                                           ^
+src/content/handlers/html/css_fetcher.c:61:47: style: struct member 'html_css_fetcher_context::r_prev' is never used. [unusedStructMember]
+    struct html_css_fetcher_context *r_next, *r_prev;
+                                              ^
+src/content/handlers/html/dom_event.c:657:19: style: The scope of the variable 'htmlc' can be reduced. [variableScope]
+    html_content *htmlc = pw;
+                  ^
+src/content/handlers/html/font_face.c:447:50: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+nserror html_font_face_fini(struct html_content *c)
+                                                 ^
+src/content/handlers/html/form.c:1022:23: style: The scope of the variable 'len1' can be reduced. [variableScope]
+    unsigned int len, len1, len_init;
+                      ^
+src/content/handlers/html/form.c:1378:9: style: The scope of the variable 'line_height_with_spacing' can be reduced. [variableScope]
+    int line_height_with_spacing;
+        ^
+src/content/handlers/html/form.c:1381:9: style: The scope of the variable 'total_height' can be reduced. [variableScope]
+    int total_height;
+        ^
+src/content/handlers/html/form.c:1460:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/content/handlers/html/form.c:898:58: style: Parameter 'submit_control' can be declared as pointer to const [constParameterPointer]
+form_dom_to_data(struct form *form, struct form_control *submit_control, struct fetch_multipart_data **fetch_data_out)
+                                                         ^
+src/content/handlers/html/form.c:1081:92: style: Parameter 'scrollbar_data' can be declared as pointer to const. However it seems that 'form_select_menu_scroll_callback' is a callback function, if 'scrollbar_data' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static void form_select_menu_scroll_callback(void *client_data, struct scrollbar_msg_data *scrollbar_data)
+                                                                                           ^
+src/content/handlers/html/form.c:1420:13: note: You might need to cast the function pointer here
+            form_select_menu_scroll_callback, &(menu->scrollbar));
+            ^
+src/content/handlers/html/form.c:1081:92: note: Parameter 'scrollbar_data' can be declared as pointer to const
+static void form_select_menu_scroll_callback(void *client_data, struct scrollbar_msg_data *scrollbar_data)
+                                                                                           ^
+src/content/handlers/html/form.c:1198:25: style: Variable 'option' can be declared as pointer to const [constVariablePointer]
+    struct form_option *option;
+                        ^
+src/content/handlers/html/form.c:1589:30: style: Variable 'menu' can be declared as pointer to const [constVariablePointer]
+    struct form_select_menu *menu = control->data.select.menu;
+                             ^
+src/content/handlers/html/form.c:1632:50: style: Parameter 'control' can be declared as pointer to const [constParameterPointer]
+char *form_control_get_name(struct form_control *control)
+                                                 ^
+src/content/handlers/html/form.c:900:17: style: Variable 'res' is assigned a value that is never used. [unreadVariable]
+    nserror res = NSERROR_OK;
+                ^
+src/content/handlers/html/form.c:1879:25: style: Variable 'err' is assigned a value that is never used. [unreadVariable]
+                    err = dom_html_text_area_element_set_value((dom_html_text_area_element *)(control->node), str);
+                        ^
+src/content/handlers/html/form.c:1881:25: style: Variable 'err' is assigned a value that is never used. [unreadVariable]
+                    err = dom_html_input_element_set_value((dom_html_input_element *)(control->node), str);
+                        ^
+src/content/handlers/html/forms.c:164:74: style: Parameter 'form' can be declared as pointer to const [constParameterPointer]
+static struct form *find_form(struct form *forms, dom_html_form_element *form)
+                                                                         ^
+src/content/handlers/html/html.c:1434:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/content/handlers/html/html.c:2286:17: style: The scope of the variable 'enc_token' can be reduced. [variableScope]
+    static char enc_token[10] = "Encoding0";
+                ^
+src/content/handlers/html/html.c:544:58: style: Parameter 'data' can be declared as pointer to const. However it seems that 'html_document_user_data_handler' is a callback function, if 'data' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+    dom_node_operation operation, dom_string *key, void *data, struct dom_node *src, struct dom_node *dst)
+                                                         ^
+src/content/handlers/html/html.c:697:9: note: You might need to cast the function pointer here
+        html_document_user_data_handler, (void *)&old_node_data);
+        ^
+src/content/handlers/html/html.c:544:58: note: Parameter 'data' can be declared as pointer to const
+    dom_node_operation operation, dom_string *key, void *data, struct dom_node *src, struct dom_node *dst)
+                                                         ^
+src/content/handlers/html/html.c:1020:46: style: Parameter 'htmlc' can be declared as pointer to const [constParameterPointer]
+bool html_can_begin_conversion(html_content *htmlc)
+                                             ^
+src/content/handlers/html/html.c:2251:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/html.c:2269:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/html.c:2285:19: style: Variable 'html' can be declared as pointer to const [constVariablePointer]
+    html_content *html = (html_content *)c;
+                  ^
+src/content/handlers/html/html.c:2307:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/html.c:2322:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/html.c:2337:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/html.c:2352:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/html_svg.c:226:22: style: The scope of the variable 'symbol' can be reduced. [variableScope]
+        dom_element *symbol;
+                     ^
+src/content/handlers/html/html_svg.c:161:56: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+nserror html_resolve_svg_use_refs(struct html_content *c, dom_document *doc)
+                                                       ^
+src/content/handlers/html/html_svg.c:997:17: style: Variable 'err' is assigned a value that is never used. [unreadVariable]
+    nserror err = NSERROR_OK;
+                ^
+src/content/handlers/html/imagemap.c:166:30: style: The scope of the variable 'prev' can be reduced. [variableScope]
+    struct mapentry *entry, *prev;
+                             ^
+src/content/handlers/html/imagemap.c:369:15: style: Variable 'val' can be declared as pointer to const [constVariablePointer]
+        char *val = strtok((char *)dom_string_data(coords), ",");
+              ^
+src/content/handlers/html/imagemap.c:666:21: style: Parameter 'xpt' can be declared as pointer to const [constParameterPointer]
+    int num, float *xpt, float *ypt, unsigned long x, unsigned long y, unsigned long click_x, unsigned long click_y)
+                    ^
+src/content/handlers/html/imagemap.c:666:33: style: Parameter 'ypt' can be declared as pointer to const [constParameterPointer]
+    int num, float *xpt, float *ypt, unsigned long x, unsigned long y, unsigned long click_x, unsigned long click_y)
+                                ^
+src/content/handlers/html/imagemap.c:695:42: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+nsurl *imagemap_get(struct html_content *c, const char *key, unsigned long x, unsigned long y, unsigned long click_x,
+                                         ^
+src/content/handlers/html/imagemap.c:367:16: style: Unused variable: xcoords [unusedVariable]
+        float *xcoords, *ycoords;
+               ^
+src/content/handlers/html/imagemap.c:367:26: style: Unused variable: ycoords [unusedVariable]
+        float *xcoords, *ycoords;
+                         ^
+src/content/handlers/html/interaction.c:1548:17: style: The scope of the variable 'box' can be reduced. [variableScope]
+    struct box *box;
+                ^
+src/content/handlers/html/interaction.c:1411:82: style: Parameter 'scrollbar_data' can be declared as pointer to const [constParameterPointer]
+void html_overflow_scroll_callback(void *client_data, struct scrollbar_msg_data *scrollbar_data)
+                                                                                 ^
+src/content/handlers/html/interaction.c:1091:24: style: Variable 'sel_owner.none' is assigned a value that is never used. [unreadVariable]
+        sel_owner.none = true;
+                       ^
+src/content/handlers/html/layout.c:5263:25: style: Redundant condition: box->style. '!A || (A && B)' is equivalent to '!A || B' [redundantCondition]
+        if (!box->style || (box->style && css_computed_position(box->style) != CSS_POSITION_RELATIVE))
+                        ^
+src/content/handlers/html/layout.c:1381:53: style: Condition '-(unsigned int)box->margin[TOP]>*max_neg_margin' is always false [knownConditionTrueFalse]
+                    -(unsigned int)box->margin[TOP] > *max_neg_margin) {
+                                                    ^
+src/content/handlers/html/layout.c:1474:56: style: Condition '-(unsigned int)box->margin[BOTTOM]>*max_neg_margin' is always false [knownConditionTrueFalse]
+                    -(unsigned int)box->margin[BOTTOM] > *max_neg_margin)
+                                                       ^
+src/content/handlers/html/layout.c:873:6: warning: Possible null pointer dereference: has_height [nullPointer]
+    *has_height = false;
+     ^
+src/content/handlers/html/layout.c:1256:45: note: Calling function 'layout_minmax_inline_container', 2nd argument 'NULL' value is 0
+        layout_minmax_inline_container(box, NULL, font_func, content);
+                                            ^
+src/content/handlers/html/layout.c:870:58: note: Assuming condition is false
+    if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
+                                                         ^
+src/content/handlers/html/layout.c:873:6: note: Null pointer dereference
+    *has_height = false;
+     ^
+src/content/handlers/html/layout.c:3096:16: warning: Either the condition 'cont!=NULL' is redundant or there is possible null pointer dereference: cont. [nullPointerRedundantCheck]
+    find_sides(cont->float_children, cy, cy + height, &x0, &x1, &left, &right);
+               ^
+src/content/handlers/html/layout.c:3113:24: note: Assuming that condition 'cont!=NULL' is not redundant
+    if (indent && cont != NULL && cont->styles != NULL && cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE] != NULL) {
+                       ^
+src/content/handlers/html/layout.c:3096:16: note: Null pointer dereference
+    find_sides(cont->float_children, cy, cy + height, &x0, &x1, &left, &right);
+               ^
+src/content/handlers/html/layout.c:4143:9: warning: Either the condition 'box' is redundant or there is possible null pointer dereference: box. [nullPointerRedundantCheck]
+        box->y = y;
+        ^
+src/content/handlers/html/layout.c:3675:12: note: Assuming that condition 'box' is not redundant
+    while (box) {
+           ^
+src/content/handlers/html/layout.c:4143:9: note: Null pointer dereference
+        box->y = y;
+        ^
+src/content/handlers/html/layout.c:4140:19: style: Variable 'in_margin' is reassigned a value before the old one has been used. [redundantAssignment]
+        in_margin = true;
+                  ^
+src/content/handlers/html/layout.c:4073:31: note: in_margin is assigned
+                    in_margin = false;
+                              ^
+src/content/handlers/html/layout.c:4140:19: note: in_margin is overwritten
+        in_margin = true;
+                  ^
+src/content/handlers/html/layout.c:4140:19: style: Variable 'in_margin' is reassigned a value before the old one has been used. [redundantAssignment]
+        in_margin = true;
+                  ^
+src/content/handlers/html/layout.c:4108:27: note: in_margin is assigned
+                in_margin = false;
+                          ^
+src/content/handlers/html/layout.c:4140:19: note: in_margin is overwritten
+        in_margin = true;
+                  ^
+src/content/handlers/html/layout.c:1528:9: style: The scope of the variable 'fy0' can be reduced. [variableScope]
+    int fy0, fy1, fx0, fx1;
+        ^
+src/content/handlers/html/layout.c:1528:14: style: The scope of the variable 'fy1' can be reduced. [variableScope]
+    int fy0, fy1, fx0, fx1;
+             ^
+src/content/handlers/html/layout.c:2332:9: style: The scope of the variable 'h' can be reduced. [variableScope]
+    int h;
+        ^
+src/content/handlers/html/layout.c:1126:13: style: Local variable 'width' shadows outer variable [shadowVariable]
+        int width;
+            ^
+src/content/handlers/html/layout.c:908:15: note: Shadowed declaration
+    css_fixed width = 0;
+              ^
+src/content/handlers/html/layout.c:1126:13: note: Shadow variable
+        int width;
+            ^
+src/content/handlers/html/layout.c:1128:26: style: Local variable 'wtype' shadows outer variable [shadowVariable]
+        enum css_width_e wtype;
+                         ^
+src/content/handlers/html/layout.c:907:22: note: Shadowed declaration
+    enum css_width_e wtype = CSS_WIDTH_AUTO;
+                     ^
+src/content/handlers/html/layout.c:1128:26: note: Shadow variable
+        enum css_width_e wtype;
+                         ^
+src/content/handlers/html/layout.c:1295:22: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    for (struct box *c = box->children; c != NULL; c = c->next) {
+                     ^
+src/content/handlers/html/layout.c:1313:22: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    for (struct box *c = box->children; c != NULL; c = c->next) {
+                     ^
+src/content/handlers/html/layout.c:1337:26: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+        for (struct box *c = box->children; c != NULL; c = c->next) {
+                         ^
+src/content/handlers/html/layout.c:5040:38: style: Parameter 'box' can be declared as pointer to const [constParameterPointer]
+layout_position_absolute(struct box *box, struct box *containing_block, int cx, int cy, html_content *content)
+                                     ^
+src/content/handlers/html/layout.c:5105:29: style: Variable 'p' can be declared as pointer to const [constVariablePointer]
+                struct box *p;
+                            ^
+src/content/handlers/html/layout.c:5302:21: style: Variable 'p' can be declared as pointer to const [constVariablePointer]
+        struct box *p = box->parent;
+                    ^
+src/content/handlers/html/layout.c:397:37: style: Variable 'fixed_width' is assigned a value that is never used. [unreadVariable]
+                        fixed_width += col[i + j].width;
+                                    ^
+src/content/handlers/html/layout.c:2610:24: style: Variable 'size' is assigned a value that is never used. [unreadVariable]
+        css_fixed size = 0;
+                       ^
+src/content/handlers/html/layout.c:5304:22: style: Variable 'box_type' is assigned a value that is never used. [unreadVariable]
+        int box_type = box->parent ? box->parent->type : -1;
+                     ^
+src/content/handlers/html/layout_flex.c:1600:13: style: The scope of the variable 'extra_post' can be reduced. [variableScope]
+        int extra_post = 0;
+            ^
+src/content/handlers/html/layout_flex.c:310:17: style: Variable 'prev_child' can be declared as pointer to const [constVariablePointer]
+    struct box *prev_child = NULL;
+                ^
+src/content/handlers/html/layout_flex.c:632:29: style: Variable 'b' can be declared as pointer to const [constVariablePointer]
+                struct box *b = item->box;
+                            ^
+src/content/handlers/html/layout_flex.c:1231:97: style: Parameter 'line' can be declared as pointer to const [constParameterPointer]
+static inline int layout_flex__remaining_free_main(struct flex_ctx *ctx, struct flex_line_data *line,
+                                                                                                ^
+src/content/handlers/html/layout_flex.c:1271:100: style: Parameter 'line' can be declared as pointer to const [constParameterPointer]
+static inline int layout_flex__get_min_max_violations(struct flex_ctx *ctx, struct flex_line_data *line)
+                                                                                                   ^
+src/content/handlers/html/layout_flex.c:51:17: style: union member 'css_fixed_or_calc::calc' is never used. [unusedStructMember]
+    lwc_string *calc;
+                ^
+src/content/handlers/html/layout_flex.c:310:17: style: Variable 'prev_child' is assigned a value that is never used. [unreadVariable]
+    struct box *prev_child = NULL;
+                ^
+src/content/handlers/html/layout_grid.c:326:13: style: The scope of the variable 'grid_template_type' can be reduced. [variableScope]
+    uint8_t grid_template_type;
+            ^
+src/content/handlers/html/layout_grid.c:1249:25: style: Local variable 'child' shadows outer variable [shadowVariable]
+            struct box *child = cached->box;
+                        ^
+src/content/handlers/html/layout_grid.c:670:17: note: Shadowed declaration
+    struct box *child;
+                ^
+src/content/handlers/html/layout_grid.c:1249:25: note: Shadow variable
+            struct box *child = cached->box;
+                        ^
+src/content/handlers/html/layout_grid.c:673:9: style: Unused variable: x [unusedVariable]
+    int x, y;
+        ^
+src/content/handlers/html/layout_grid.c:673:12: style: Unused variable: y [unusedVariable]
+    int x, y;
+           ^
+src/content/handlers/html/layout_grid.c:674:9: style: Variable 'col_idx' is assigned a value that is never used. [unreadVariable]
+    int col_idx = 0;
+        ^
+src/content/handlers/html/layout_grid.c:675:9: style: Variable 'row_idx' is assigned a value that is never used. [unreadVariable]
+    int row_idx = 0;
+        ^
+src/content/handlers/html/layout_grid.c:704:9: style: Variable 'row_height' is assigned a value that is never used. [unreadVariable]
+    int row_height = 0;
+        ^
+src/content/handlers/html/object.c:67:19: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    html_content *c = (html_content *)hlcache_handle_get_content(h);
+                  ^
+src/content/handlers/html/object.c:753:49: style: Parameter 'html' can be declared as pointer to const [constParameterPointer]
+nserror html_object_close_objects(html_content *html)
+                                                ^
+src/content/handlers/html/object.c:592:22: style: The scope of the variable 'delay' can be reduced. [variableScope]
+            uint64_t delay = 0;
+                     ^
+src/content/handlers/html/object.c:592:28: style: Variable 'delay' is assigned a value that is never used. [unreadVariable]
+            uint64_t delay = 0;
+                           ^
+src/content/handlers/html/object.c:594:23: style: Variable 'delay' is assigned a value that is never used. [unreadVariable]
+                delay = c->base.reformat_time - ms_now;
+                      ^
+src/content/handlers/html/redraw.c:2327:58: style: Redundant condition: box->parent!=NULL. 'A || (!A && B)' is equivalent to 'A || B' [redundantCondition]
+            bool is_root_or_body = (box->parent == NULL) || (box->parent != NULL && box->parent->parent == NULL);
+                                                         ^
+src/content/handlers/html/redraw.c:984:19: style: The scope of the variable 'transform' can be reduced. [variableScope]
+            float transform[6] = {scale_x, 0.0f, 0.0f, scale_y, cx, cy};
+                  ^
+src/content/handlers/html/redraw.c:1617:12: style: The scope of the variable 'i' can be reduced. [variableScope]
+    size_t i;
+           ^
+src/content/handlers/html/redraw.c:1980:21: style: The scope of the variable 'tag' can be reduced. [variableScope]
+        const char *tag = "";
+                    ^
+src/content/handlers/html/redraw.c:1981:21: style: The scope of the variable 'cls' can be reduced. [variableScope]
+        const char *cls = "";
+                    ^
+src/content/handlers/html/redraw.c:2922:25: style: The scope of the variable 'tag' can be reduced. [variableScope]
+            const char *tag = "";
+                        ^
+src/content/handlers/html/redraw.c:2923:25: style: The scope of the variable 'cls' can be reduced. [variableScope]
+            const char *cls = "";
+                        ^
+src/content/handlers/html/redraw.c:2244:23: style: Local variable 'result' shadows outer variable [shadowVariable]
+        clip_result_t result = html_clip_intersect_box(&r, clip, has_transform);
+                      ^
+src/content/handlers/html/redraw.c:1849:10: note: Shadowed declaration
+    bool result = true; /* Track success/failure for cleanup */
+         ^
+src/content/handlers/html/redraw.c:2244:23: note: Shadow variable
+        clip_result_t result = html_clip_intersect_box(&r, clip, has_transform);
+                      ^
+src/content/handlers/html/redraw.c:1441:17: style: Variable 'c' can be declared as pointer to const [constVariablePointer]
+    struct box *c;
+                ^
+src/content/handlers/html/redraw.c:1439:17: style: Parameter 'box' can be declared as pointer to const [constParameterPointer]
+    struct box *box, int x, int y, float scale, colour colour, float ratio, const struct redraw_context *ctx)
+                ^
+src/content/handlers/html/redraw.c:1480:17: style: Parameter 'box' can be declared as pointer to const [constParameterPointer]
+    struct box *box, int x, int y, float scale, colour colour, float ratio, const struct redraw_context *ctx)
+                ^
+src/content/handlers/html/redraw.c:1980:25: style: Variable 'tag' is assigned a value that is never used. [unreadVariable]
+        const char *tag = "";
+                        ^
+src/content/handlers/html/redraw.c:1981:25: style: Variable 'cls' is assigned a value that is never used. [unreadVariable]
+        const char *cls = "";
+                        ^
+src/content/handlers/html/redraw.c:1986:21: style: Variable 'tag' is assigned a value that is never used. [unreadVariable]
+                tag = dom_string_data(name);
+                    ^
+src/content/handlers/html/redraw.c:1990:21: style: Variable 'cls' is assigned a value that is never used. [unreadVariable]
+                cls = dom_string_data(class_attr);
+                    ^
+src/content/handlers/html/redraw.c:2922:29: style: Variable 'tag' is assigned a value that is never used. [unreadVariable]
+            const char *tag = "";
+                            ^
+src/content/handlers/html/redraw.c:2923:29: style: Variable 'cls' is assigned a value that is never used. [unreadVariable]
+            const char *cls = "";
+                            ^
+src/content/handlers/html/redraw.c:2928:25: style: Variable 'tag' is assigned a value that is never used. [unreadVariable]
+                    tag = dom_string_data(name);
+                        ^
+src/content/handlers/html/redraw.c:2932:25: style: Variable 'cls' is assigned a value that is never used. [unreadVariable]
+                    cls = dom_string_data(class_attr);
+                        ^
+src/content/handlers/html/redraw.c:2307:17: style: Variable 'pos_enum' is assigned a value that is never used. [unreadVariable]
+        uint8_t pos_enum = (box->style != NULL) ? css_computed_position(box->style) : CSS_POSITION_STATIC;
+                ^
+src/content/handlers/html/redraw.c:2311:14: style: Variable 'log_target' is assigned a value that is never used. [unreadVariable]
+        bool log_target = (cls != NULL &&
+             ^
+src/content/handlers/html/redraw.c:713:35: warning: Obsolete function 'alloca' called. In C99 and later it is recommended to use a variable length array instead. [allocaCalled]
+    struct gradient_stop *stops = alloca(gradient->stop_count * sizeof(struct gradient_stop));
+                                  ^
+src/content/handlers/html/redraw.c:905:39: warning: Obsolete function 'alloca' called. In C99 and later it is recommended to use a variable length array instead. [allocaCalled]
+        struct gradient_stop *stops = alloca(gradient->stop_count * sizeof(struct gradient_stop));
+                                      ^
+src/content/handlers/html/redraw_border.c:405:21: style: The scope of the variable 'side' can be reduced. [variableScope]
+    unsigned int i, side;
+                    ^
+src/content/handlers/html/redraw_border.c:400:18: style: Variable 'sides' can be declared as const array [constVariable]
+    unsigned int sides[] = {LEFT, RIGHT, TOP, BOTTOM};
+                 ^
+src/content/handlers/html/script.c:674:46: style: Parameter 'htmlc' can be declared as pointer to const [constParameterPointer]
+bool html_saw_insecure_scripts(html_content *htmlc)
+                                             ^
+src/content/handlers/html/table.c:689:21: style: Local variable 'row' shadows outer variable [shadowVariable]
+        struct box *row = cell->parent;
+                    ^
+src/content/handlers/html/table.c:666:17: note: Shadowed declaration
+    struct box *row = cell->parent;
+                ^
+src/content/handlers/html/table.c:689:21: note: Shadow variable
+        struct box *row = cell->parent;
+                    ^
+src/content/handlers/html/table.c:224:51: style: Parameter 'cell' can be declared as pointer to const [constParameterPointer]
+    const css_unit_ctx *unit_len_ctx, struct box *cell, struct box *row, struct border *a, box_type *a_src)
+                                                  ^
+src/content/handlers/html/table.c:393:25: style: Variable 'row' can be declared as pointer to const [constVariablePointer]
+            struct box *row;
+                        ^
+src/content/handlers/html/table.c:666:17: style: Variable 'row' can be declared as pointer to const [constVariablePointer]
+    struct box *row = cell->parent;
+                ^
+src/content/handlers/html/table.c:420:19: style: Variable 'a_src' is assigned a value that is never used. [unreadVariable]
+            a_src = b_src;
+                  ^
+src/content/handlers/html/table.c:471:19: style: Variable 'a_src' is assigned a value that is never used. [unreadVariable]
+            a_src = b_src;
+                  ^
+src/content/handlers/html/table.c:645:19: style: Variable 'a_src' is assigned a value that is never used. [unreadVariable]
+            a_src = b_src;
+                  ^
+src/content/handlers/html/textselection.c:198:25: style: Local variable 'next' shadows outer variable [shadowVariable]
+            struct box *next = child->next;
+                        ^
+src/content/handlers/html/textselection.c:188:21: note: Shadowed declaration
+        struct box *next = child->next;
+                    ^
+src/content/handlers/html/textselection.c:198:25: note: Shadow variable
+            struct box *next = child->next;
+                        ^
+src/content/handlers/html/textselection.c:353:25: style: Local variable 'next' shadows outer variable [shadowVariable]
+            struct box *next = child->next;
+                        ^
+src/content/handlers/html/textselection.c:343:21: note: Shadowed declaration
+        struct box *next = child->next;
+                    ^
+src/content/handlers/html/textselection.c:353:25: note: Shadow variable
+            struct box *next = child->next;
+                        ^
+src/content/handlers/html/textselection.c:60:27: style: Parameter 'box' can be declared as pointer to const [constParameterPointer]
+selected_part(struct box *box, unsigned start_idx, unsigned end_idx, unsigned *start_offset, unsigned *end_offset)
+                          ^
+src/content/handlers/image/bmp.c:245:20: style: Variable 'bmp' can be declared as pointer to const [constVariablePointer]
+    nsbmp_content *bmp = (nsbmp_content *)c;
+                   ^
+src/content/handlers/image/ico.c:117:23: style: Variable 'bmp' can be declared as pointer to const [constVariablePointer]
+    struct bmp_image *bmp;
+                      ^
+src/content/handlers/image/image.c:122:9: style: The scope of the variable 'height' can be reduced. [variableScope]
+    int height;
+        ^
+src/content/handlers/image/image.c:123:20: style: The scope of the variable 'pixel' can be reduced. [variableScope]
+    unsigned char *pixel;
+                   ^
+src/content/handlers/image/image_cache.c:742:25: warning: %u in format string (no. 1) requires 'unsigned int' but the argument type is 'signed int'. [invalidPrintfArgType_uint]
+                slen += snprintf(string + slen, size - slen, "%u", pct ? 100 : op_count);
+                        ^
+src/content/handlers/image/image_cache.c:483:44: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+bool image_cache_speculate(struct content *c)
+                                           ^
+src/content/handlers/image/image_cache.c:507:33: style: Variable 'centry' can be declared as pointer to const [constVariablePointer]
+    struct image_cache_entry_s *centry;
+                                ^
+src/content/handlers/image/image_cache.c:505:56: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+struct bitmap *image_cache_find_bitmap(struct content *c)
+                                                       ^
+src/content/handlers/image/image_cache.c:929:44: style: Parameter 'c' can be declared as pointer to const [constParameterPointer]
+bool image_cache_is_opaque(struct content *c)
+                                           ^
+src/content/handlers/image/nssprite.c:223:13: error: Memory leak: sprite [memleak]
+            return NSERROR_CLONE_FAILED;
+            ^
+src/content/handlers/image/nssprite.c:129:20: style: Variable 'spritebuf' can be declared as pointer to const [constVariablePointer]
+    unsigned char *spritebuf = (unsigned char *)sprite->image;
+                   ^
+src/content/handlers/image/nssprite.c:234:23: style: Variable 'nssprite' can be declared as pointer to const [constVariablePointer]
+    nssprite_content *nssprite = (nssprite_content *)c;
+                      ^
+src/content/handlers/image/png.c:420:9: style: The scope of the variable 'hloop' can be reduced. [variableScope]
+    int hloop;
+        ^
+src/content/handlers/image/svg.c:951:33: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
+                            res = svg_plot_dashed_line_as_rects(ctx, stroke_colour, x1, y1, x2, y2,
+                                ^
+src/content/handlers/image/svg.c:933:33: note: res is assigned
+                            res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
+                                ^
+src/content/handlers/image/svg.c:951:33: note: res is overwritten
+                            res = svg_plot_dashed_line_as_rects(ctx, stroke_colour, x1, y1, x2, y2,
+                                ^
+src/content/handlers/image/svg.c:1316:18: style: Variable 'svg' can be declared as pointer to const [constVariablePointer]
+    svg_content *svg = (svg_content *)c;
+                 ^
+src/content/handlers/image/svg.c:94:14: style: Variable 'px' is assigned a value that is never used. [unreadVariable]
+    float px = -ndy * stroke_width / 2.0f;
+             ^
+src/content/handlers/image/svg.c:95:14: style: Variable 'py' is assigned a value that is never used. [unreadVariable]
+    float py = ndx * stroke_width / 2.0f;
+             ^
+src/content/handlers/image/svg.c:204:35: warning: Obsolete function 'alloca' called. In C99 and later it is recommended to use a variable length array instead. [allocaCalled]
+    struct gradient_stop *stops = alloca(shape->fill_grad_stop_count * sizeof(struct gradient_stop));
+                                  ^
+src/content/handlers/image/webp.c:85:14: style: Variable 'decoded' can be declared as pointer to const [constVariablePointer]
+    uint8_t *decoded;
+             ^
+src/content/handlers/javascript/fetcher.c:40:47: style: struct member 'fetch_javascript_context::r_prev' is never used. [unusedStructMember]
+    struct fetch_javascript_context *r_next, *r_prev;
+                                              ^
+src/content/handlers/javascript/quickjs/event_target.c:125:89: style: Parameter 'argv' can be declared as pointer to const. However it seems that 'js_dispatchEvent' is a callback function, if 'argv' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+                                                                                        ^
+src/content/handlers/javascript/quickjs/event_target.c:177:78: note: You might need to cast the function pointer here
+    JS_SetPropertyStr(ctx, global_obj, "dispatchEvent", JS_NewCFunction(ctx, js_dispatchEvent, "dispatchEvent", 1));
+                                                                             ^
+src/content/handlers/javascript/quickjs/event_target.c:125:89: note: Parameter 'argv' can be declared as pointer to const
+JSValue js_dispatchEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+                                                                                        ^
+src/content/handlers/javascript/quickjs/qjs.c:113:22: style: Variable 't' can be declared as pointer to const [constVariablePointer]
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+                     ^
+src/content/handlers/javascript/quickjs/qjs.c:129:22: style: Variable 't' can be declared as pointer to const [constVariablePointer]
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+                     ^
+src/content/handlers/javascript/quickjs/qjs.c:152:20: style: Variable 'heap' can be declared as pointer to const [constVariablePointer]
+    struct jsheap *heap = opaque;
+                   ^
+src/content/handlers/javascript/quickjs/qjs.c:569:30: style: Parameter 'thread' can be declared as pointer to const [constParameterPointer]
+bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
+                             ^
+src/content/handlers/javascript/quickjs/qjs.c:592:17: style: Variable 'exc' is assigned a value that is never used. [unreadVariable]
+            exc = dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
+                ^
+src/content/handlers/javascript/quickjs/xhr.c:151:14: style: Variable 'data' can be declared as pointer to const [constVariablePointer]
+    XHRData *data = JS_GetOpaque2(ctx, this_val, xhr_class_id);
+             ^
+src/content/handlers/text/textplain.c:974:12: style: The scope of the variable 'length' can be reduced. [variableScope]
+    size_t length;
+           ^
+src/content/handlers/text/textplain.c:1025:21: style: Local variable 'res' shadows outer variable [shadowVariable]
+            nserror res;
+                    ^
+src/content/handlers/text/textplain.c:976:13: note: Shadowed declaration
+    nserror res;
+            ^
+src/content/handlers/text/textplain.c:1025:21: note: Shadow variable
+            nserror res;
+                    ^
+src/content/handlers/text/textplain.c:1066:30: style: Local variable 'start_idx' shadows outer variable [shadowVariable]
+                    unsigned start_idx, end_idx;
+                             ^
+src/content/handlers/text/textplain.c:1059:26: note: Shadowed declaration
+                unsigned start_idx, end_idx;
+                         ^
+src/content/handlers/text/textplain.c:1066:30: note: Shadow variable
+                    unsigned start_idx, end_idx;
+                             ^
+src/content/handlers/text/textplain.c:1066:41: style: Local variable 'end_idx' shadows outer variable [shadowVariable]
+                    unsigned start_idx, end_idx;
+                                        ^
+src/content/handlers/text/textplain.c:1059:37: note: Shadowed declaration
+                unsigned start_idx, end_idx;
+                                    ^
+src/content/handlers/text/textplain.c:1066:41: note: Shadow variable
+                    unsigned start_idx, end_idx;
+                                        ^
+src/content/handlers/text/textplain.c:1354:21: style: Local variable 'text' shadows outer variable [shadowVariable]
+        const char *text = utf8_data + line[lineno].start;
+                    ^
+src/content/handlers/text/textplain.c:1322:24: note: Shadowed declaration
+    textplain_content *text = (textplain_content *)c;
+                       ^
+src/content/handlers/text/textplain.c:1354:21: note: Shadow variable
+        const char *text = utf8_data + line[lineno].start;
+                    ^
+src/content/handlers/text/textplain.c:963:28: style: Variable 'bw' can be declared as pointer to const [constVariablePointer]
+    struct browser_window *bw = text->bw;
+                           ^
+src/content/handlers/text/textplain.c:960:52: style: Parameter 'data' can be declared as pointer to const. However it seems that 'textplain_redraw' is a callback function, if 'data' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+    struct content *c, struct content_redraw_data *data, const struct rect *clip, const struct redraw_context *ctx)
+                                                   ^
+src/content/handlers/text/textplain.c:1477:15: note: You might need to cast the function pointer here
+    .redraw = textplain_redraw,
+              ^
+src/content/handlers/text/textplain.c:960:52: note: Parameter 'data' can be declared as pointer to const
+    struct content *c, struct content_redraw_data *data, const struct rect *clip, const struct redraw_context *ctx)
+                                                   ^
+src/content/handlers/text/textplain.c:1187:24: style: Variable 'text' can be declared as pointer to const [constVariablePointer]
+    textplain_content *text = (textplain_content *)c;
+                       ^
+src/content/handlers/text/textplain.c:1207:28: style: Variable 'line' can be declared as pointer to const [constVariablePointer]
+    struct textplain_line *line;
+                           ^
+src/content/handlers/text/textplain.c:1234:28: style: Variable 'line' can be declared as pointer to const [constVariablePointer]
+    struct textplain_line *line;
+                           ^
+src/content/handlers/text/textplain.c:1378:24: style: Variable 'text' can be declared as pointer to const [constVariablePointer]
+    textplain_content *text = (textplain_content *)c;
+                       ^
+src/content/handlers/text/textplain.c:1457:24: style: Variable 'text' can be declared as pointer to const [constVariablePointer]
+    textplain_content *text = (textplain_content *)c;
+                       ^
+src/content/hlcache.c:114:33: style: Parameter 'force_clean_flag' can be declared as pointer to const. However it seems that 'hlcache_clean' is a callback function, if 'force_clean_flag' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static void hlcache_clean(void *force_clean_flag)
+                                ^
+src/content/hlcache.c:649:30: note: You might need to cast the function pointer here
+    guit->misc->schedule(-1, hlcache_clean, NULL);
+                             ^
+src/content/hlcache.c:114:33: note: Parameter 'force_clean_flag' can be declared as pointer to const
+static void hlcache_clean(void *force_clean_flag)
+                                ^
+src/content/hlcache.c:660:66: style: Parameter 'child' can be declared as pointer to const [constParameterPointer]
+    hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
+                                                                 ^
+src/content/hlcache.c:1012:66: style: Parameter 'child' can be declared as pointer to const [constParameterPointer]
+    hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
+                                                                 ^
+src/content/llcache.c:2762:14: style: The scope of the variable 'total_bandwidth' can be reduced. [variableScope]
+    uint64_t total_bandwidth; /* total bandwidth */
+             ^
+src/content/llcache.c:3537:9: style: The scope of the variable 'remaining_lifetime' can be reduced. [variableScope]
+    int remaining_lifetime;
+        ^
+src/content/llcache.c:3424:29: style: Variable 'oh' can be declared as pointer to const [constVariablePointer]
+            llcache_header *oh = &(object->headers[newobj->num_headers]);
+                            ^
+src/content/llcache.c:3927:26: style: Variable 'user' can be declared as pointer to const [constVariablePointer]
+    llcache_object_user *user = llcache_object_find_user(handle);
+                         ^
+src/content/textsearch.c:572:66: style: Parameter 'textsearch' can be declared as pointer to const [constParameterPointer]
+bool content_textsearch_ishighlighted(struct textsearch_context *textsearch, unsigned start_offset, unsigned end_offset,
+                                                                 ^
+src/content/textsearch.c:388:10: style: Variable 'type' is assigned a value that is never used. [unreadVariable]
+    type = c->handler->type();
+         ^
+src/content/urldb.c:2830:23: style: Redundant condition: The condition '*p' is redundant since '*p == ' '' is sufficient. [redundantCondition]
+            while (*p && *p == ' ') {
+                      ^
+src/content/urldb.c:2837:23: style: Redundant condition: The condition '*p' is redundant since '*p == ' '' is sufficient. [redundantCondition]
+            while (*p && *p == ' ')
+                      ^
+src/content/urldb.c:4334:19: style: Redundant condition: The condition '*p' is redundant since '*p == '\t'' is sufficient. [redundantCondition]
+        for (; *p && *p == '\t'; p++)
+                  ^
+src/content/urldb.c:391:21: warning: %d in format string (no. 1) requires 'int' but the argument type is 'unsigned int'. [invalidPrintfArgType_sint]
+                    fprintf(fp, "%d\n", p->port);
+                    ^
+src/content/urldb.c:423:17: warning: %i in format string (no. 1) requires 'int' but the argument type is 'unsigned int'. [invalidPrintfArgType_sint]
+                fprintf(fp, "%i\n", p->urld.visits);
+                ^
+src/content/urldb.c:568:9: warning: %i in format string (no. 1) requires 'int' but the argument type is 'unsigned int'. [invalidPrintfArgType_sint]
+        fprintf(fp, "%i\n", path_count);
+        ^
+src/content/urldb.c:2502:13: warning: Either the condition 'parent' is redundant or there is possible null pointer dereference: p. [nullPointerRedundantCheck]
+        if (p->cookies != NULL) {
+            ^
+src/content/urldb.c:2499:18: note: Assuming that condition 'parent' is not redundant
+    assert(fp && parent);
+                 ^
+src/content/urldb.c:2496:27: note: Assignment 'p=parent', assigned value is 0
+    struct path_data *p = parent;
+                          ^
+src/content/urldb.c:2502:13: note: Null pointer dereference
+        if (p->cookies != NULL) {
+            ^
+src/content/urldb.c:719:15: style: The scope of the variable 'ret' can be reduced. [variableScope]
+    int plen, ret;
+              ^
+src/content/urldb.c:1141:9: style: The scope of the variable 'plen' can be reduced. [variableScope]
+    int plen, ret;
+        ^
+src/content/urldb.c:1141:15: style: The scope of the variable 'ret' can be reduced. [variableScope]
+    int plen, ret;
+              ^
+src/content/urldb.c:1478:9: style: The scope of the variable 'ret' can be reduced. [variableScope]
+    int ret;
+        ^
+src/content/urldb.c:2772:9: style: The scope of the variable 'length' can be reduced. [variableScope]
+    int length;
+        ^
+src/content/urldb.c:2866:18: style: The scope of the variable 'url' can be reduced. [variableScope]
+            char url[64 + 3 + 256 + 6 + 4096 + 1 + 1];
+                 ^
+src/content/urldb.c:449:21: style: Local variable 'seglen' shadows outer variable [shadowVariable]
+                int seglen = p->segment != NULL ? strlen(p->segment) : 0;
+                    ^
+src/content/urldb.c:355:13: note: Shadowed declaration
+        int seglen = p->segment != NULL ? strlen(p->segment) : 0;
+            ^
+src/content/urldb.c:449:21: note: Shadow variable
+                int seglen = p->segment != NULL ? strlen(p->segment) : 0;
+                    ^
+src/content/urldb.c:521:22: style: Variable 'end' can be declared as pointer to const [constVariablePointer]
+    char *path, *p, *end;
+                     ^
+src/content/urldb.c:3106:23: style: Variable 'h' can be declared as pointer to const [constVariablePointer]
+    struct host_part *h;
+                      ^
+src/content/urldb.c:3107:23: style: Variable 'p' can be declared as pointer to const [constVariablePointer]
+    struct path_data *p;
+                      ^
+src/content/urldb.c:3269:31: style: Variable 'u' can be declared as pointer to const [constVariablePointer]
+    struct url_internal_data *u;
+                              ^
+src/content/urldb.c:3286:23: style: Variable 'p' can be declared as pointer to const [constVariablePointer]
+    struct path_data *p;
+                      ^
+src/content/urldb.c:3362:35: style: Variable 'p_top' can be declared as pointer to const [constVariablePointer]
+    struct path_data *p, *p_cur, *p_top;
+                                  ^
+src/content/urldb.c:4243:23: style: Variable 'end' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                      ^
+src/content/urldb.c:4243:33: style: Variable 'domain' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                                ^
+src/content/urldb.c:4243:42: style: Variable 'path' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                                         ^
+src/content/urldb.c:4243:49: style: Variable 'name' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                                                ^
+src/content/urldb.c:4243:56: style: Variable 'value' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                                                       ^
+src/content/urldb.c:4243:64: style: Variable 'scheme' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                                                               ^
+src/content/urldb.c:4243:79: style: Variable 'comment' can be declared as pointer to const [constVariablePointer]
+        char *p = s, *end = 0, *domain, *path, *name, *value, *scheme, *url, *comment;
+                                                                              ^
+src/content/urldb.c:657:17: style: Unused variable: sane_host [unusedVariable]
+    const char *sane_host;
+                ^
+src/content/urldb.c:658:17: style: Unused variable: slash [unusedVariable]
+    const char *slash;
+                ^
+src/desktop/browser_history.c:100:24: style: The scope of the variable 'bmsrc_data' can be reduced. [variableScope]
+        unsigned char *bmsrc_data;
+                       ^
+src/desktop/browser_history.c:101:24: style: The scope of the variable 'bmdst_data' can be reduced. [variableScope]
+        unsigned char *bmdst_data;
+                       ^
+src/desktop/browser_history.c:102:16: style: The scope of the variable 'bmsize' can be reduced. [variableScope]
+        size_t bmsize;
+               ^
+src/desktop/browser_history.c:100:24: style: Variable 'bmsrc_data' can be declared as pointer to const [constVariablePointer]
+        unsigned char *bmsrc_data;
+                       ^
+src/desktop/browser_history.c:449:66: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+nserror browser_window_history_get_scroll(struct browser_window *bw, float *sx, float *sy)
+                                                                 ^
+src/desktop/browser_window.c:865:9: style: Variable 'res' is reassigned a value before the old one has been used. [redundantAssignment]
+    res = browser_window_create_iframes(bw);
+        ^
+src/desktop/browser_window.c:862:9: note: res is assigned
+    res = browser_window_create_frameset(bw);
+        ^
+src/desktop/browser_window.c:865:9: note: res is overwritten
+    res = browser_window_create_iframes(bw);
+        ^
+src/desktop/browser_window.c:99:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/desktop/browser_window.c:271:32: style: The scope of the variable 'bwc' can be reduced. [variableScope]
+        struct browser_window *bwc;
+                               ^
+src/desktop/browser_window.c:343:9: style: The scope of the variable 'children' can be reduced. [variableScope]
+    int children, index;
+        ^
+src/desktop/browser_window.c:884:9: style: The scope of the variable 'scrollx' can be reduced. [variableScope]
+    int scrollx;
+        ^
+src/desktop/browser_window.c:885:9: style: The scope of the variable 'scrolly' can be reduced. [variableScope]
+    int scrolly;
+        ^
+src/desktop/browser_window.c:974:12: style: The scope of the variable 'len' can be reduced. [variableScope]
+    size_t len;
+           ^
+src/desktop/browser_window.c:1952:32: style: The scope of the variable 'child' can be reduced. [variableScope]
+        struct browser_window *child;
+                               ^
+src/desktop/browser_window.c:2082:32: style: The scope of the variable 'child' can be reduced. [variableScope]
+        struct browser_window *child;
+                               ^
+src/desktop/browser_window.c:2205:32: style: The scope of the variable 'bwc' can be reduced. [variableScope]
+        struct browser_window *bwc;
+                               ^
+src/desktop/browser_window.c:2253:32: style: The scope of the variable 'bwc' can be reduced. [variableScope]
+        struct browser_window *bwc;
+                               ^
+src/desktop/browser_window.c:2292:26: style: The scope of the variable 'path' can be reduced. [variableScope]
+    lwc_string *scheme, *path;
+                         ^
+src/desktop/browser_window.c:2391:32: style: The scope of the variable 'child' can be reduced. [variableScope]
+        struct browser_window *child;
+                               ^
+src/desktop/browser_window.c:3804:21: style: The scope of the variable 'c' can be reduced. [variableScope]
+    hlcache_handle *c;
+                    ^
+src/desktop/browser_window.c:3805:18: style: The scope of the variable 'i' can be reduced. [variableScope]
+    unsigned int i;
+                 ^
+src/desktop/browser_window.c:1176:26: style: Local variable 'err' shadows outer variable [shadowVariable]
+            ssl_cert_err err = bw->loading_cert_chain->certs[idx].err;
+                         ^
+src/desktop/browser_window.c:1156:13: note: Shadowed declaration
+    nserror err;
+            ^
+src/desktop/browser_window.c:1176:26: note: Shadow variable
+            ssl_cert_err err = bw->loading_cert_chain->certs[idx].err;
+                         ^
+src/desktop/browser_window.c:151:76: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+static inline void browser_window_get_scrollbar_pos(struct browser_window *bw, bool horizontal, int *x, int *y)
+                                                                           ^
+src/desktop/browser_window.c:184:65: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+static inline int get_vert_scrollbar_len(struct browser_window *bw)
+                                                                ^
+src/desktop/browser_window.c:2318:56: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+nserror browser_window_get_name(struct browser_window *bw, const char **out_name)
+                                                       ^
+src/desktop/browser_window.c:2740:56: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+bool browser_window_is_frameset(struct browser_window *bw)
+                                                       ^
+src/desktop/browser_window.c:2747:66: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+nserror browser_window_get_scrollbar_type(struct browser_window *bw, browser_scrolling *h, browser_scrolling *v)
+                                                                 ^
+src/desktop/browser_window.c:3621:67: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+struct history *browser_window_get_history(struct browser_window *bw)
+                                                                  ^
+src/desktop/browser_window.c:3630:56: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+bool browser_window_has_content(struct browser_window *bw)
+                                                       ^
+src/desktop/browser_window.c:3643:74: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+struct hlcache_handle *browser_window_get_content(struct browser_window *bw)
+                                                                         ^
+src/desktop/browser_window.c:3990:55: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+float browser_window_get_scale(struct browser_window *bw)
+                                                      ^
+src/desktop/browser_window.c:4171:61: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+bool browser_window_reload_available(struct browser_window *bw)
+                                                            ^
+src/desktop/browser_window.c:4338:61: style: Parameter 'bw' can be declared as pointer to const [constParameterPointer]
+nserror browser_window_get_ssl_chain(struct browser_window *bw, struct cert_chain **chain)
+                                                            ^
+src/desktop/cookie_manager.c:781:9: style: Variable 'err' is reassigned a value before the old one has been used. [redundantAssignment]
+    err = treeview_fini();
+        ^
+src/desktop/cookie_manager.c:768:9: note: err is assigned
+    err = treeview_destroy(cm_ctx.tree);
+        ^
+src/desktop/cookie_manager.c:781:9: note: err is overwritten
+    err = treeview_fini();
+        ^
+src/desktop/cookie_manager.c:635:17: style: The scope of the variable 'domain' can be reduced. [variableScope]
+    const char *domain;
+                ^
+src/desktop/cookie_manager.c:636:17: style: The scope of the variable 'path' can be reduced. [variableScope]
+    const char *path;
+                ^
+src/desktop/cookie_manager.c:637:17: style: The scope of the variable 'name' can be reduced. [variableScope]
+    const char *name;
+                ^
+src/desktop/cookie_manager.c:231:15: style: Local variable 'value' shadows outer argument [shadowArgument]
+        char *value = malloc(vsize);
+              ^
+src/desktop/cookie_manager.c:221:87: note: Shadowed declaration
+    enum cookie_manager_field field, struct treeview_field_data *fdata, const time_t *value)
+                                                                                      ^
+src/desktop/cookie_manager.c:231:15: note: Shadow variable
+        char *value = malloc(vsize);
+              ^
+src/desktop/cookie_manager.c:223:16: style: Variable 'ftime' can be declared as pointer to const [constVariablePointer]
+    struct tm *ftime;
+               ^
+src/desktop/frames.c:280:20: style: Condition 'window!=NULL' is always true [knownConditionTrueFalse]
+        if (window != NULL && window->box != NULL) {
+                   ^
+src/desktop/frames.c:273:28: style: The scope of the variable 'window' can be reduced. [variableScope]
+    struct browser_window *window;
+                           ^
+src/desktop/frames.c:295:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/desktop/frames.c:323:9: style: The scope of the variable 'avail_width' can be reduced. [variableScope]
+    int avail_width, avail_height;
+        ^
+src/desktop/frames.c:323:22: style: The scope of the variable 'avail_height' can be reduced. [variableScope]
+    int avail_width, avail_height;
+                     ^
+src/desktop/frames.c:328:9: style: The scope of the variable 'x' can be reduced. [variableScope]
+    int x, y;
+        ^
+src/desktop/frames.c:859:10: style: The scope of the variable 'left' can be reduced. [variableScope]
+    bool left, right, up, down;
+         ^
+src/desktop/frames.c:859:16: style: The scope of the variable 'right' can be reduced. [variableScope]
+    bool left, right, up, down;
+               ^
+src/desktop/frames.c:859:23: style: The scope of the variable 'up' can be reduced. [variableScope]
+    bool left, right, up, down;
+                      ^
+src/desktop/frames.c:859:27: style: The scope of the variable 'down' can be reduced. [variableScope]
+    bool left, right, up, down;
+                          ^
+src/desktop/frames.c:860:12: style: The scope of the variable 'resize_margin' can be reduced. [variableScope]
+    int i, resize_margin;
+           ^
+src/desktop/global_history.c:658:98: style: Condition 'existing==NULL' is always true [knownConditionTrueFalse]
+        if (msg.data.node_launch.mouse & (BROWSER_MOUSE_MOD_1 | BROWSER_MOUSE_MOD_2) || existing == NULL) {
+                                                                                                 ^
+src/desktop/global_history.c:653:43: note: Assignment 'existing=NULL', assigned value is 0
+        struct browser_window *existing = NULL;
+                                          ^
+src/desktop/global_history.c:658:98: note: Condition 'existing==NULL' is always true
+        if (msg.data.node_launch.mouse & (BROWSER_MOUSE_MOD_1 | BROWSER_MOUSE_MOD_2) || existing == NULL) {
+                                                                                                 ^
+src/desktop/global_history.c:762:9: style: Variable 'err' is reassigned a value before the old one has been used. [redundantAssignment]
+    err = treeview_fini();
+        ^
+src/desktop/global_history.c:754:9: note: err is assigned
+    err = treeview_destroy(gh_ctx.tree);
+        ^
+src/desktop/global_history.c:762:9: note: err is overwritten
+    err = treeview_fini();
+        ^
+src/desktop/global_history.c:251:16: style: Variable 'lvtime' can be declared as pointer to const [constVariablePointer]
+    struct tm *lvtime;
+               ^
+src/desktop/gui_factory.c:228:69: style: Parameter 'cwt' can be declared as pointer to const [constParameterPointer]
+static nserror verify_corewindow_register(struct core_window_table *cwt)
+                                                                    ^
+src/desktop/gui_factory.c:284:68: style: Parameter 'gdt' can be declared as pointer to const [constParameterPointer]
+static nserror verify_download_register(struct gui_download_table *gdt)
+                                                                   ^
+src/desktop/gui_factory.c:372:60: style: Parameter 'gut' can be declared as pointer to const [constParameterPointer]
+static nserror verify_utf8_register(struct gui_utf8_table *gut)
+                                                           ^
+src/desktop/gui_factory.c:455:72: style: Parameter 'gswt' can be declared as pointer to const [constParameterPointer]
+static nserror verify_search_web_register(struct gui_search_web_table *gswt)
+                                                                       ^
+src/desktop/gui_factory.c:471:66: style: Parameter 'glt' can be declared as pointer to const [constParameterPointer]
+static nserror verify_llcache_register(struct gui_llcache_table *glt)
+                                                                 ^
+src/desktop/gui_factory.c:568:60: style: Parameter 'gft' can be declared as pointer to const [constParameterPointer]
+static nserror verify_file_register(struct gui_file_table *gft)
+                                                           ^
+src/desktop/gui_factory.c:601:64: style: Parameter 'gbt' can be declared as pointer to const [constParameterPointer]
+static nserror verify_bitmap_register(struct gui_bitmap_table *gbt)
+                                                               ^
+src/desktop/gui_factory.c:658:64: style: Parameter 'glt' can be declared as pointer to const [constParameterPointer]
+static nserror verify_layout_register(struct gui_layout_table *glt)
+                                                               ^
+src/desktop/hotlist.c:568:98: style: Condition 'existing==NULL' is always true [knownConditionTrueFalse]
+        if (msg.data.node_launch.mouse & (BROWSER_MOUSE_MOD_1 | BROWSER_MOUSE_MOD_2) || existing == NULL) {
+                                                                                                 ^
+src/desktop/hotlist.c:563:43: note: Assignment 'existing=NULL', assigned value is 0
+        struct browser_window *existing = NULL;
+                                          ^
+src/desktop/hotlist.c:568:98: note: Condition 'existing==NULL' is always true
+        if (msg.data.node_launch.mouse & (BROWSER_MOUSE_MOD_1 | BROWSER_MOUSE_MOD_2) || existing == NULL) {
+                                                                                                 ^
+src/desktop/hotlist.c:513:12: style: The scope of the variable 'old_url' can be reduced. [variableScope]
+    nsurl *old_url;
+           ^
+src/desktop/hotlist.c:192:20: style: Variable 'lvtime' can be declared as pointer to const [constVariablePointer]
+        struct tm *lvtime;
+                   ^
+src/desktop/knockout.c:487:9: style: The scope of the variable 'kx0' can be reduced. [variableScope]
+    int kx0, ky0, kx1, ky1;
+        ^
+src/desktop/knockout.c:487:14: style: The scope of the variable 'ky0' can be reduced. [variableScope]
+    int kx0, ky0, kx1, ky1;
+             ^
+src/desktop/knockout.c:487:19: style: The scope of the variable 'kx1' can be reduced. [variableScope]
+    int kx0, ky0, kx1, ky1;
+                  ^
+src/desktop/knockout.c:487:24: style: The scope of the variable 'ky1' can be reduced. [variableScope]
+    int kx0, ky0, kx1, ky1;
+                       ^
+src/desktop/local_history.c:247:27: style: The scope of the variable 'found' can be reduced. [variableScope]
+    struct history_entry *found;
+                          ^
+src/desktop/local_history.c:475:43: style: Local variable 'ent' shadows outer variable [shadowVariable]
+                    struct history_entry *ent = branch_point->back->forward;
+                                          ^
+src/desktop/local_history.c:465:35: note: Shadowed declaration
+            struct history_entry *ent = session->cursor->back->forward;
+                                  ^
+src/desktop/local_history.c:475:43: note: Shadow variable
+                    struct history_entry *ent = branch_point->back->forward;
+                                          ^
+src/desktop/page-info.c:782:46: style: Parameter 'pi' can be declared as pointer to const [constParameterPointer]
+nserror page_info_get_size(struct page_info *pi, int *width, int *height)
+                                             ^
+src/desktop/print.c:93:28: style: Local variable 'printed_content' shadows outer variable [shadowVariable]
+    struct hlcache_handle *printed_content;
+                           ^
+src/desktop/print.c:48:31: note: Shadowed declaration
+static struct hlcache_handle *printed_content;
+                              ^
+src/desktop/print.c:93:28: note: Shadow variable
+    struct hlcache_handle *printed_content;
+                           ^
+src/desktop/print.c:169:81: style: Parameter 'settings' can be declared as pointer to const [constParameterPointer]
+bool print_draw_next_page(const struct printer *printer, struct print_settings *settings)
+                                                                                ^
+src/desktop/save_complete.c:568:21: style: The scope of the variable 'content' can be reduced. [variableScope]
+    hlcache_handle *content;
+                    ^
+src/desktop/save_complete.c:908:25: style: The scope of the variable 'text_data' can be reduced. [variableScope]
+            const char *text_data;
+                        ^
+src/desktop/save_complete.c:909:20: style: The scope of the variable 'text_len' can be reduced. [variableScope]
+            size_t text_len;
+                   ^
+src/desktop/save_complete.c:285:29: style: Variable 'content' can be declared as pointer to const [constVariablePointer]
+            hlcache_handle *content;
+                            ^
+src/desktop/save_complete.c:568:21: style: Variable 'content' can be declared as pointer to const [constVariablePointer]
+    hlcache_handle *content;
+                    ^
+src/desktop/save_pdf.c:405:9: style: Condition 'content' is always false [knownConditionTrueFalse]
+    if (content) {
+        ^
+src/desktop/save_pdf.c:401:31: note: Assignment 'content=NULL', assigned value is 0
+    hlcache_handle *content = NULL;
+                              ^
+src/desktop/save_pdf.c:405:9: note: Condition 'content' is always false
+    if (content) {
+        ^
+src/desktop/save_pdf.c:433:9: style: Condition '!image' is always true [knownConditionTrueFalse]
+    if (!image) {
+        ^
+src/desktop/save_pdf.c:400:24: note: Assignment 'image=NULL', assigned value is 0
+    HPDF_Image image = NULL;
+                       ^
+src/desktop/save_pdf.c:433:9: note: Condition '!image' is always true
+    if (!image) {
+        ^
+src/desktop/save_pdf.c:435:24: style: Variable 'img_buffer' can be declared as pointer to const [constVariablePointer]
+        unsigned char *img_buffer, *rgb_buffer, *alpha_buffer;
+                       ^
+src/desktop/save_text.c:133:60: style: Redundant condition: box->parent&&box->parent->list_marker==box. '!A || (A && B)' is equivalent to '!A || B' [redundantCondition]
+        (!(box->parent && box->parent->list_marker == box) ||
+                                                           ^
+src/desktop/save_text.c:55:51: style: Parameter 'path' can be declared as pointer to const [constParameterPointer]
+void save_as_text(struct hlcache_handle *c, char *path)
+                                                  ^
+src/desktop/save_text.c:122:28: style: Parameter 'first' can be declared as pointer to const [constParameterPointer]
+    struct box *box, bool *first, save_text_whitespace *before, const char **whitespace_text, size_t *whitespace_length)
+                           ^
+src/desktop/save_text.c:251:75: style: Parameter 'box' can be declared as pointer to const [constParameterPointer]
+bool save_text_add_to_buffer(const char *text, size_t length, struct box *box, const char *whitespace_text,
+                                                                          ^
+src/desktop/scrollbar.c:149:90: style: Parameter 'area' can be declared as pointer to const [constParameterPointer]
+static inline nserror scrollbar_rectangle(const struct redraw_context *ctx, struct rect *area, colour c, bool inset)
+                                                                                         ^
+src/desktop/scrollbar.c:610:44: style: Parameter 's' can be declared as pointer to const [constParameterPointer]
+int scrollbar_get_offset(struct scrollbar *s)
+                                           ^
+src/desktop/scrollbar.c:674:48: style: Parameter 's' can be declared as pointer to const [constParameterPointer]
+bool scrollbar_is_horizontal(struct scrollbar *s)
+                                               ^
+src/desktop/scrollbar.c:961:44: style: Parameter 's' can be declared as pointer to const [constParameterPointer]
+void *scrollbar_get_data(struct scrollbar *s)
+                                           ^
+src/desktop/searchweb.c:308:11: style: The scope of the variable 'eterm' can be reduced. [variableScope]
+    char *eterm; /* encoded/altered search term */
+          ^
+src/desktop/searchweb.c:418:12: style: The scope of the variable 'pidx' can be reduced. [variableScope]
+    size_t pidx;
+           ^
+src/desktop/selection.c:180:69: style: Parameter 'style' can be declared as pointer to const [constParameterPointer]
+    const char *text, size_t length, bool space, plot_font_style_t *style, struct selection_string *sel_string)
+                                                                    ^
+src/desktop/selection.c:547:41: style: Parameter 's' can be declared as pointer to const [constParameterPointer]
+bool selection_active(struct selection *s)
+                                        ^
+src/desktop/selection.c:552:43: style: Parameter 's' can be declared as pointer to const [constParameterPointer]
+bool selection_dragging(struct selection *s)
+                                          ^
+src/desktop/selection.c:557:49: style: Parameter 's' can be declared as pointer to const [constParameterPointer]
+bool selection_dragging_start(struct selection *s)
+                                                ^
+src/desktop/system_colour.c:51:28: style: Variable 'opt' can be declared as pointer to const [constVariablePointer]
+        struct nsoption_s *opt;
+                           ^
+src/desktop/textarea.c:2589:43: style: Array index 'caret' is used before limits check. [arrayIndexThenCheck]
+            if (strchr(sep, ta->show->data[caret]) != NULL && caret < ta->show->len - 1) {
+                                          ^
+src/desktop/textarea.c:2590:50: style: Array index 'caret' is used before limits check. [arrayIndexThenCheck]
+                while (strchr(sep, ta->show->data[caret]) != NULL && caret < ta->show->len - 1) {
+                                                 ^
+src/desktop/textarea.c:2599:46: style: Array index 'caret' is used before limits check. [arrayIndexThenCheck]
+            while (strchr(sep, ta->show->data[caret]) != NULL && caret < ta->show->len - 1)
+                                             ^
+src/desktop/textarea.c:2622:46: style: Array index 'caret_copy' is used before limits check. [arrayIndexThenCheck]
+            while (strchr(sep, ta->show->data[caret_copy]) != NULL && caret_copy < ta->show->len - 1)
+                                             ^
+src/desktop/textarea.c:2155:36: style: Condition 'sel_end>b_pos' is always true [knownConditionTrueFalse]
+                } else if (sel_end > b_pos) {
+                                   ^
+src/desktop/textarea.c:2137:29: note: Assuming that condition 'sel_end<=b_pos' is not redundant
+                if (sel_end <= b_pos || sel_start > b_pos + b_len) {
+                            ^
+src/desktop/textarea.c:2155:36: note: Condition 'sel_end>b_pos' is always true
+                } else if (sel_end > b_pos) {
+                                   ^
+src/desktop/textarea.c:246:17: style: The scope of the variable 'y0' can be reduced. [variableScope]
+    int x0, x1, y0, y1; /* area we want caret inside */
+                ^
+src/desktop/textarea.c:246:21: style: The scope of the variable 'y1' can be reduced. [variableScope]
+    int x0, x1, y0, y1; /* area we want caret inside */
+                    ^
+src/desktop/textarea.c:247:12: style: The scope of the variable 'y' can be reduced. [variableScope]
+    int x, y; /* caret pos */
+           ^
+src/desktop/textarea.c:345:18: style: The scope of the variable 'b_off' can be reduced. [variableScope]
+    unsigned int b_off;
+                 ^
+src/desktop/textarea.c:346:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/desktop/textarea.c:347:9: style: The scope of the variable 'index' can be reduced. [variableScope]
+    int index;
+        ^
+src/desktop/textarea.c:348:12: style: The scope of the variable 'y' can be reduced. [variableScope]
+    int x, y;
+           ^
+src/desktop/textarea.c:349:17: style: The scope of the variable 'x1' can be reduced. [variableScope]
+    int x0, y0, x1, y1;
+                ^
+src/desktop/textarea.c:349:21: style: The scope of the variable 'y1' can be reduced. [variableScope]
+    int x0, y0, x1, y1;
+                    ^
+src/desktop/textarea.c:485:9: style: The scope of the variable 'swap' can be reduced. [variableScope]
+    int swap;
+        ^
+src/desktop/textarea.c:867:18: style: The scope of the variable 'len' can be reduced. [variableScope]
+    unsigned int len;
+                 ^
+src/desktop/textarea.c:875:9: style: The scope of the variable 'avail_width' can be reduced. [variableScope]
+    int avail_width;
+        ^
+src/desktop/textarea.c:2268:10: style: The scope of the variable 'utf8' can be reduced. [variableScope]
+    char utf8[6];
+         ^
+src/desktop/textarea.c:2269:37: style: The scope of the variable 'length' can be reduced. [variableScope]
+    unsigned int caret, caret_copy, length, b_off, b_len;
+                                    ^
+src/desktop/textarea.c:2269:45: style: The scope of the variable 'b_off' can be reduced. [variableScope]
+    unsigned int caret, caret_copy, length, b_off, b_len;
+                                            ^
+src/desktop/textarea.c:2269:52: style: The scope of the variable 'b_len' can be reduced. [variableScope]
+    unsigned int caret, caret_copy, length, b_off, b_len;
+                                                   ^
+src/desktop/textarea.c:2274:9: style: The scope of the variable 'x' can be reduced. [variableScope]
+    int x, y;
+        ^
+src/desktop/textarea.c:2274:12: style: The scope of the variable 'y' can be reduced. [variableScope]
+    int x, y;
+           ^
+src/desktop/textarea.c:2285:47: style: Clarify calculation precedence for '&' and '?'. [clarifyCalculation]
+    readonly = (ta->flags & TEXTAREA_READONLY ? true : false);
+                                              ^
+src/desktop/textarea.c:687:87: style: Parameter 'scrollbar_data' can be declared as pointer to const. However it seems that 'textarea_scrollbar_callback' is a callback function, if 'scrollbar_data' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static void textarea_scrollbar_callback(void *client_data, struct scrollbar_msg_data *scrollbar_data)
+                                                                                      ^
+src/desktop/textarea.c:1053:54: note: You might need to cast the function pointer here
+            if (scrollbar_create(false, h, h, h, ta, textarea_scrollbar_callback, &(ta->bar_y)) != NSERROR_OK) {
+                                                     ^
+src/desktop/textarea.c:687:87: note: Parameter 'scrollbar_data' can be declared as pointer to const
+static void textarea_scrollbar_callback(void *client_data, struct scrollbar_msg_data *scrollbar_data)
+                                                                                      ^
+src/desktop/textarea.c:3004:47: style: Parameter 'ta' can be declared as pointer to const [constParameterPointer]
+char *textarea_get_selection(struct textarea *ta)
+                                              ^
+src/desktop/textarea.c:3034:47: style: Parameter 'ta' can be declared as pointer to const [constParameterPointer]
+void textarea_get_dimensions(struct textarea *ta, int *width, int *height)
+                                              ^
+src/desktop/treeview.c:3653:28: style: Condition 'ns.curr!=NULL' is always false [knownConditionTrueFalse]
+        } else if (ns.curr != NULL) {
+                           ^
+src/desktop/treeview.c:3634:21: note: Assuming that condition 'ns.curr!=NULL' is not redundant
+        if (ns.curr != NULL) {
+                    ^
+src/desktop/treeview.c:3653:28: note: Condition 'ns.curr!=NULL' is always false
+        } else if (ns.curr != NULL) {
+                           ^
+src/desktop/treeview.c:1763:16: warning: Either the condition 'node!=NULL' is redundant or there is possible null pointer dereference: node. [nullPointerRedundantCheck]
+        assert(node->parent != NULL);
+               ^
+src/desktop/treeview.c:1710:17: note: Assuming that condition 'node!=NULL' is not redundant
+    while (node != NULL) {
+                ^
+src/desktop/treeview.c:1763:16: note: Null pointer dereference
+        assert(node->parent != NULL);
+               ^
+src/desktop/treeview.c:1765:18: warning: Either the condition 'node!=NULL' is redundant or there is possible null pointer dereference: node. [nullPointerRedundantCheck]
+        parent = node->parent;
+                 ^
+src/desktop/treeview.c:1710:17: note: Assuming that condition 'node!=NULL' is not redundant
+    while (node != NULL) {
+                ^
+src/desktop/treeview.c:1765:18: note: Null pointer dereference
+        parent = node->parent;
+                 ^
+src/desktop/treeview.c:1766:24: warning: Either the condition 'node!=NULL' is redundant or there is possible null pointer dereference: node. [nullPointerRedundantCheck]
+        next_sibling = node->next_sib;
+                       ^
+src/desktop/treeview.c:1710:17: note: Assuming that condition 'node!=NULL' is not redundant
+    while (node != NULL) {
+                ^
+src/desktop/treeview.c:1766:24: note: Null pointer dereference
+        next_sibling = node->next_sib;
+                       ^
+src/desktop/treeview.c:1767:54: warning: Either the condition 'node!=NULL' is redundant or there is possible null pointer dereference: node. [nullPointerRedundantCheck]
+        child = (node->flags & TV_NFLAGS_EXPANDED) ? node->children : NULL;
+                                                     ^
+src/desktop/treeview.c:1710:17: note: Assuming that condition 'node!=NULL' is not redundant
+    while (node != NULL) {
+                ^
+src/desktop/treeview.c:1767:54: note: Null pointer dereference
+        child = (node->flags & TV_NFLAGS_EXPANDED) ? node->children : NULL;
+                                                     ^
+src/desktop/treeview.c:2389:9: style: The scope of the variable 'inset' can be reduced. [variableScope]
+    int inset;
+        ^
+src/desktop/treeview.c:2982:36: style: The scope of the variable 'ef' can be reduced. [variableScope]
+            struct treeview_field *ef;
+                                   ^
+src/desktop/treeview.c:4691:20: style: The scope of the variable 'pos' can be reduced. [variableScope]
+    unsigned char *pos;
+                   ^
+src/desktop/treeview.c:4845:20: style: The scope of the variable 'pos' can be reduced. [variableScope]
+    unsigned char *pos;
+                   ^
+src/desktop/treeview.c:445:75: style: Parameter 'tree' can be declared as pointer to const [constParameterPointer]
+static inline struct treeview_text *treeview_get_text_for_field(treeview *tree, treeview_node *n, int i)
+                                                                          ^
+src/desktop/treeview.c:777:32: style: Variable 'ef' can be declared as pointer to const [constVariablePointer]
+        struct treeview_field *ef = &(sw->tree->fields[i + 1]);
+                               ^
+src/desktop/treeview.c:1187:115: style: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+treeview_update_node_folder(treeview *tree, treeview_node *folder, const struct treeview_field_data *field, void *data)
+                                                                                                                  ^
+src/desktop/treeview.c:1230:115: style: Parameter 'data' can be declared as pointer to const [constParameterPointer]
+treeview_update_node_entry(treeview *tree, treeview_node *entry, const struct treeview_field_data fields[], void *data)
+                                                                                                                  ^
+src/desktop/treeview.c:2381:20: style: Variable 'root' can be declared as pointer to const [constVariablePointer]
+    treeview_node *root = tree->root;
+                   ^
+src/desktop/treeview.c:2562:20: style: Variable 'root' can be declared as pointer to const [constVariablePointer]
+    treeview_node *root = tree->root;
+                   ^
+src/desktop/treeview.c:2730:77: style: Parameter 'clip' can be declared as pointer to const [constParameterPointer]
+void treeview_redraw(treeview *tree, const int x, const int y, struct rect *clip, const struct redraw_context *ctx)
+                                                                            ^
+src/desktop/treeview.c:2982:36: style: Variable 'ef' can be declared as pointer to const [constVariablePointer]
+            struct treeview_field *ef;
+                                   ^
+src/desktop/treeview.c:2983:35: style: Variable 'val' can be declared as pointer to const [constVariablePointer]
+            struct treeview_text *val;
+                                  ^
+src/desktop/treeview.c:3421:64: style: Parameter 'n' can be declared as pointer to const. However it seems that 'treeview_node_launch_walk_bwd_cb' is a callback function, if 'n' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static nserror treeview_node_launch_walk_bwd_cb(treeview_node *n, void *ctx, bool *end)
+                                                               ^
+src/desktop/treeview.c:3481:9: note: You might need to cast the function pointer here
+        treeview_node_launch_walk_bwd_cb, treeview_node_launch_walk_fwd_cb, &lw);
+        ^
+src/desktop/treeview.c:3421:64: note: Parameter 'n' can be declared as pointer to const
+static nserror treeview_node_launch_walk_bwd_cb(treeview_node *n, void *ctx, bool *end)
+                                                               ^
+src/desktop/treeview.c:3598:27: style: Variable 'scroll_to_node' can be declared as pointer to const [constVariablePointer]
+    struct treeview_node *scroll_to_node = NULL;
+                          ^
+src/desktop/treeview.c:3799:20: style: Variable 'orig' can be declared as pointer to const [constVariablePointer]
+    treeview_node *orig = target;
+                   ^
+src/desktop/treeview.c:4170:37: style: Variable 'entry' can be declared as pointer to const [constVariablePointer]
+        struct treeview_node_entry *entry = (struct treeview_node_entry *)node;
+                                    ^
+src/desktop/treeview.c:4172:36: style: Variable 'ef' can be declared as pointer to const [constVariablePointer]
+            struct treeview_field *ef = &(ma->tree->fields[i + 1]);
+                                   ^
+src/desktop/treeview.c:4537:35: style: Parameter 'tree' can be declared as pointer to const [constParameterPointer]
+int treeview_get_height(treeview *tree)
+                                  ^
+src/desktop/treeview.c:4800:20: style: Variable 'orig_data' can be declared as pointer to const [constVariablePointer]
+    unsigned char *orig_data;
+                   ^
+src/desktop/treeview.c:4847:20: style: Variable 'orig_pos' can be declared as pointer to const [constVariablePointer]
+    unsigned char *orig_pos;
+                   ^
+src/desktop/treeview.c:4752:17: style: Variable 'pos' is assigned a value that is never used. [unreadVariable]
+            pos += 4;
+                ^
+src/test/bloom.c:73:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", buf);
+        ^
+src/test/bloom.c:155:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", buf);
+        ^
+src/test/bloom.c:193:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", buf);
+        ^
+src/test/bloom.c:198:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", buf);
+        ^
+src/test/box_construct_race_test.c:167:69: style: Parameter 'ctx' can be declared as pointer to const [constParameterPointer]
+static bool was_conversion_cancelled(struct mock_box_construct_ctx *ctx)
+                                                                    ^
+src/test/grid_construct_test.c:278:9: style: 'continue' is redundant since it is the last statement in a loop. [redundantContinue]
+        continue;
+        ^
+src/test/grid_construct_test.c:421:15: style: Variable 'curr' can be declared as pointer to const [constVariablePointer]
+    dom_node *curr = (dom_node *)root_el;
+              ^
+src/test/grid_construct_test.c:422:15: style: Variable 'next' can be declared as pointer to const [constVariablePointer]
+    dom_node *next = NULL;
+              ^
+src/test/grid_construct_test.c:421:20: style: Variable 'curr' is assigned a value that is never used. [unreadVariable]
+    dom_node *curr = (dom_node *)root_el;
+                   ^
+src/test/grid_construct_test.c:422:15: style: Variable 'next' is assigned a value that is never used. [unreadVariable]
+    dom_node *next = NULL;
+              ^
+src/test/grid_layout_test.c:434:31: style: Variable 'ctx' is assigned a value that is never used. [unreadVariable]
+    struct redraw_context ctx = {
+                              ^
+src/test/grid_layout_test.c:441:22: style: Variable 'clip' is assigned a value that is never used. [unreadVariable]
+    struct rect clip = {.x0 = 0, .y0 = 0, .x1 = 300, .y1 = 300};
+                     ^
+src/test/grid_parse_test.c:66:32: style: Variable 'handler' is assigned a value that is never used. [unreadVariable]
+    css_select_handler handler = {
+                               ^
+src/test/grid_parse_test.c:65:25: style: Unused variable: results [unusedVariable]
+    css_select_results *results;
+                        ^
+src/test/hashmap.c:148:68: style: Parameter 'ctx' can be declared as pointer to const. However it seems that 'hashmap_test_iterator_cb' is a callback function, if 'ctx' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+static bool hashmap_test_iterator_cb(void *key, void *value, void *ctx)
+                                                                   ^
+src/test/hashmap.c:423:45: note: You might need to cast the function pointer here
+    ck_assert(hashmap_iterate(test_hashmap, hashmap_test_iterator_cb, &iteration_ctx) == false);
+                                            ^
+src/test/hashmap.c:148:68: note: Parameter 'ctx' can be declared as pointer to const
+static bool hashmap_test_iterator_cb(void *key, void *value, void *ctx)
+                                                                   ^
+src/test/hashmap.c:198:27: style: Variable 'value' can be declared as pointer to const [constVariablePointer]
+    hashmap_test_value_t *value = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+                          ^
+src/test/hashmap.c:213:27: style: Variable 'value' can be declared as pointer to const [constVariablePointer]
+    hashmap_test_value_t *value = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+                          ^
+src/test/hashmap.c:228:27: style: Variable 'value' can be declared as pointer to const [constVariablePointer]
+    hashmap_test_value_t *value = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+                          ^
+src/test/hashmap.c:246:27: style: Variable 'value' can be declared as pointer to const [constVariablePointer]
+    hashmap_test_value_t *value = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+                          ^
+src/test/hashmap.c:257:27: style: Variable 'value' can be declared as pointer to const [constVariablePointer]
+    hashmap_test_value_t *value = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+                          ^
+src/test/hashtable.c:117:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", keybuf);
+        ^
+src/test/hashtable.c:118:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", valbuf);
+        ^
+src/test/hashtable.c:255:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", keybuf);
+        ^
+src/test/hashtable.c:256:9: warning: fscanf() without field width limits can crash with huge input data. [invalidscanf]
+        fscanf(dictf, "%s", valbuf);
+        ^
+src/test/hashtable.c:246:17: style: The scope of the variable 'res' can be reduced. [variableScope]
+    const char *res;
+                ^
+src/test/layout_flex_test.c:435:9: style: The scope of the variable 'extra_space' can be reduced. [variableScope]
+    int extra_space = 0;
+        ^
+src/test/layout_flex_test.c:435:21: style: Variable 'extra_space' is assigned a value that is never used. [unreadVariable]
+    int extra_space = 0;
+                    ^
+src/test/llcache.c:270:18: style: The scope of the variable 'event_names' can be reduced. [variableScope]
+    static char *event_names[] = {"HAD_HEADERS", "HAD_DATA", "DONE", "ERROR", "PROGRESS"};
+                 ^
+src/test/llcache.c:268:39: style: Parameter 'handle' can be declared as pointer to const. However it seems that 'event_handler' is a callback function, if 'handle' is declared with const you might also need to cast function pointer(s). [constParameterCallback]
+nserror event_handler(llcache_handle *handle, const llcache_event *event, void *pw)
+                                      ^
+src/test/llcache.c:328:83: note: You might need to cast the function pointer here
+    error = llcache_handle_retrieve(url, LLCACHE_RETRIEVE_VERIFIABLE, NULL, NULL, event_handler, &done, &handle2);
+                                                                                  ^
+src/test/llcache.c:268:39: note: Parameter 'handle' can be declared as pointer to const
+nserror event_handler(llcache_handle *handle, const llcache_event *event, void *pw)
+                                      ^
+src/test/llcache.c:270:18: style: Variable 'event_names' can be declared as const array [constVariable]
+    static char *event_names[] = {"HAD_HEADERS", "HAD_DATA", "DONE", "ERROR", "PROGRESS"};
+                 ^
+src/test/log.c:43:13: style: The scope of the variable 'ap' can be reduced. [variableScope]
+    va_list ap;
+            ^
+src/test/mimesniff.c:52:10: style: struct member 'test_mimetype::safe' is never used. [unusedStructMember]
+    bool safe;
+         ^
+src/test/nsoption.c:134:9: style: The scope of the variable 'ch1' can be reduced. [variableScope]
+    int ch1;
+        ^
+src/test/nsoption.c:135:9: style: The scope of the variable 'ch2' can be reduced. [variableScope]
+    int ch2;
+        ^
+src/test/nsoption.c:339:11: style: Variable 'outnam' can be declared as pointer to const [constVariablePointer]
+    char *outnam;
+          ^
+src/test/nsurl.c:874:17: style: Variable 'lwcs' can be declared as pointer to const [constVariablePointer]
+    lwc_string *lwcs;
+                ^
+src/test/nsurl.c:888:17: style: Variable 'lwcs' can be declared as pointer to const [constVariablePointer]
+    lwc_string *lwcs;
+                ^
+src/test/nsurl.c:1272:12: style: Unused variable: tc_api_assert [unusedVariable]
+    TCase *tc_api_assert;
+           ^
+src/test/stacking_test.c:87:10: style: The scope of the variable 'result' can be reduced. [variableScope]
+    bool result;
+         ^
+src/test/stacking_test.c:228:9: style: The scope of the variable 'transition_index' can be reduced. [variableScope]
+    int transition_index = -1;
+        ^
+src/test/stacking_test.c:228:26: style: Variable 'transition_index' is assigned a value that is never used. [unreadVariable]
+    int transition_index = -1;
+                         ^
+src/test/stacking_test.c:252:34: style: Variable 'transition_index' is assigned a value that is never used. [unreadVariable]
+                transition_index = i;
+                                 ^
+src/test/svg_redraw_combo_driver.c:243:49: style: Parameter 'diagram' can be declared as pointer to const [constParameterPointer]
+bool svg_redraw_diagram(struct svgtiny_diagram *diagram, int x, int y, int width, int height, const struct rect *clip,
+                                                ^
+src/test/svg_redraw_driver.c:79:49: style: Parameter 'diagram' can be declared as pointer to const [constParameterPointer]
+bool svg_redraw_diagram(struct svgtiny_diagram *diagram, int x, int y, int width, int height, const struct rect *clip,
+                                                ^
+src/test/urldbtest.c:123:9: style: The scope of the variable 'ch1' can be reduced. [variableScope]
+    int ch1;
+        ^
+src/test/urldbtest.c:124:9: style: The scope of the variable 'ch2' can be reduced. [variableScope]
+    int ch2;
+        ^
+src/test/utils.c:97:11: style: The scope of the variable 'res_str' can be reduced. [variableScope]
+    char *res_str;
+          ^
+src/test/utils.c:98:30: style: The scope of the variable 'tst' can be reduced. [variableScope]
+    const struct test_pairs *tst;
+                             ^
+src/utils/bloom.c:107:43: style: Parameter 'b' can be declared as pointer to const [constParameterPointer]
+uint32_t bloom_items(struct bloom_filter *b)
+                                          ^
+src/utils/corestrings.c:122:1: style: Label 'error' is not used. [unusedLabel]
+error:
+^
+src/utils/corestrings.c:81:19: style: Variable 'error' is assigned a value that is never used. [unreadVariable]
+    nserror error = NSERROR_OK;
+                  ^
+src/utils/corestrings.c:80:15: style: Unused variable: lerror [unusedVariable]
+    lwc_error lerror;
+              ^
+src/utils/corestrings.c:82:19: style: Unused variable: exc [unusedVariable]
+    dom_exception exc;
+                  ^
+src/utils/filename.c:237:20: style: Variable 'entry' can be declared as pointer to const [constVariablePointer]
+    struct dirent *entry;
+                   ^
+src/utils/filename.c:391:20: style: Variable 'last_2' can be declared as pointer to const [constVariablePointer]
+    char *last_1, *last_2;
+                   ^
+src/utils/filename.c:98:29: portability: Shifting signed 32-bit value by 31 bits is implementation-defined behaviour. See condition at line 97. [shiftTooManyBitsSigned]
+        dir->low_used |= (1 << i);
+                            ^
+src/utils/filename.c:97:11: note: Assuming that condition 'i<32' is not redundant
+    if (i < 32)
+          ^
+src/utils/filename.c:98:29: note: Shift
+        dir->low_used |= (1 << i);
+                            ^
+src/utils/filename.c:100:30: portability: Shifting signed 32-bit value by 31 bits is implementation-defined behaviour [shiftTooManyBitsSigned]
+        dir->high_used |= (1 << (i - 32));
+                             ^
+src/utils/filename.c:94:13: note: Assignment 'i=63', assigned value is 63
+        i = 63;
+            ^
+src/utils/filename.c:100:30: note: Shift
+        dir->high_used |= (1 << (i - 32));
+                             ^
+src/utils/filename.c:134:32: portability: Shifting signed 32-bit value by 31 bits is implementation-defined behaviour. See condition at line 133. [shiftTooManyBitsSigned]
+        if (dir->low_used & (1 << file))
+                               ^
+src/utils/filename.c:133:14: note: Assuming that condition 'file<32' is not redundant
+    if (file < 32) {
+             ^
+src/utils/filename.c:134:32: note: Shift
+        if (dir->low_used & (1 << file))
+                               ^
+src/utils/filename.c:166:38: portability: Shifting signed 32-bit value by 31 bits is implementation-defined behaviour. See condition at line 165. [shiftTooManyBitsSigned]
+                dir->low_used &= ~(1 << file);
+                                     ^
+src/utils/filename.c:165:22: note: Assuming that condition 'file<32' is not redundant
+            if (file < 32)
+                     ^
+src/utils/filename.c:166:38: note: Shift
+                dir->low_used &= ~(1 << file);
+                                     ^
+src/utils/filename.c:319:52: portability: Shifting signed 32-bit value by 31 bits is implementation-defined behaviour. See condition at line 318. [shiftTooManyBitsSigned]
+                        del = !(dir->low_used & (1 << number));
+                                                   ^
+src/utils/filename.c:318:32: note: Assuming that condition 'number<32' is not redundant
+                    if (number < 32)
+                               ^
+src/utils/filename.c:319:52: note: Shift
+                        del = !(dir->low_used & (1 << number));
+                                                   ^
+src/utils/filepath.c:159:10: style: The scope of the variable 't' can be reduced. [variableScope]
+    char t[PATH_MAX];
+         ^
+src/utils/filepath.c:301:9: style: The scope of the variable 'elen' can be reduced. [variableScope]
+    int elen;
+        ^
+src/utils/filepath.c:188:15: style: Variable 'langc' is assigned a value that is never used. [unreadVariable]
+    int langc = 0;
+              ^
+src/utils/hashmap.c:226:33: style: Parameter 'hashmap' can be declared as pointer to const [constParameterPointer]
+bool hashmap_iterate(hashmap_t *hashmap, hashmap_iteration_cb_t cb, void *ctx)
+                                ^
+src/utils/hashmap.c:240:33: style: Parameter 'hashmap' can be declared as pointer to const [constParameterPointer]
+size_t hashmap_count(hashmap_t *hashmap)
+                                ^
+src/utils/hashtable.c:332:41: style: Parameter 'ht' can be declared as pointer to const [constParameterPointer]
+const char *hash_get(struct hash_table *ht, const char *key)
+                                        ^
+src/utils/http/cache-control.c:324:57: style: Parameter 'cc' can be declared as pointer to const [constParameterPointer]
+bool http_cache_control_has_max_age(http_cache_control *cc)
+                                                        ^
+src/utils/http/cache-control.c:330:57: style: Parameter 'cc' can be declared as pointer to const [constParameterPointer]
+uint32_t http_cache_control_max_age(http_cache_control *cc)
+                                                        ^
+src/utils/http/cache-control.c:336:54: style: Parameter 'cc' can be declared as pointer to const [constParameterPointer]
+bool http_cache_control_no_cache(http_cache_control *cc)
+                                                     ^
+src/utils/http/cache-control.c:342:54: style: Parameter 'cc' can be declared as pointer to const [constParameterPointer]
+bool http_cache_control_no_store(http_cache_control *cc)
+                                                     ^
+src/utils/http/strict-transport-security.c:321:81: style: Parameter 'sts' can be declared as pointer to const [constParameterPointer]
+uint32_t http_strict_transport_security_max_age(http_strict_transport_security *sts)
+                                                                                ^
+src/utils/http/strict-transport-security.c:327:88: style: Parameter 'sts' can be declared as pointer to const [constParameterPointer]
+bool http_strict_transport_security_include_subdomains(http_strict_transport_security *sts)
+                                                                                       ^
+src/utils/idna.c:364:14: style: Redundant initialization for 'nfc_size'. The initialized value is overwritten before it is read. [redundantInitialization]
+    nfc_size = utf8proc_reencode(nfc_label, ucs4_len, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
+             ^
+src/utils/idna.c:356:22: note: nfc_size is initialized
+    ssize_t nfc_size = ucs4_len;
+                     ^
+src/utils/idna.c:364:14: note: nfc_size is overwritten
+    nfc_size = utf8proc_reencode(nfc_label, ucs4_len, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
+             ^
+src/utils/idna.c:243:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/utils/idna.c:244:10: style: The scope of the variable 'match' can be reduced. [variableScope]
+    bool match;
+         ^
+src/utils/libdom.c:293:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i;
+        ^
+src/utils/log.c:221:69: style: Parameter 'x' can be declared as pointer to const [constParameterPointer]
+static int timeval_subtract(struct timeval *result, struct timeval *x, struct timeval *y)
+                                                                    ^
+src/utils/log.c:78:36: style: Array index 'i' is used before limits check. [arrayIndexThenCheck]
+                if (split_log_files[i] && level >= i) {
+                                   ^
+src/utils/log.c:358:21: style: Variable 'pre_len' is assigned a value that is never used. [unreadVariable]
+        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s %s:%i %s: ", nslog_gettime(), file, ln, func);
+                    ^
+src/utils/nsoption.c:886:16: style: Condition 'option==NULL' is always false [knownConditionTrueFalse]
+    if (option == NULL || option->key == NULL) {
+               ^
+src/utils/nsoption.c:800:9: style: The scope of the variable 'arglen' can be reduced. [variableScope]
+    int arglen;
+        ^
+src/utils/nsoption.c:705:49: style: Parameter 'defs' can be declared as pointer to const [constParameterPointer]
+    struct nsoption_s *opts, struct nsoption_s *defs)
+                                                ^
+src/utils/nsurl/nsurl.c:750:25: style: Array index 'pos' is used before limits check. [arrayIndexThenCheck]
+                if (data[pos] == '/' && pos < len - 1) {
+                        ^
+src/utils/nsurl/nsurl.c:723:17: style: The scope of the variable 'data' can be reduced. [variableScope]
+    const char *data;
+                ^
+src/utils/nsurl/nsurl.c:724:12: style: The scope of the variable 'len' can be reduced. [variableScope]
+    size_t len;
+           ^
+src/utils/nsurl/parse.c:541:26: style: Condition '*pos=='/'' is always true [knownConditionTrueFalse]
+                if (*pos == '/')
+                         ^
+src/utils/nsurl/parse.c:539:18: note: Assuming that condition '*pos=='/'' is not redundant
+        if (*pos == '/') {
+                 ^
+src/utils/nsurl/parse.c:541:26: note: Condition '*pos=='/'' is always true
+                if (*pos == '/')
+                         ^
+src/utils/nsurl/parse.c:727:30: style: Condition '*path_pos=='.'' is always false [knownConditionTrueFalse]
+        } else if (*path_pos == '.') {
+                             ^
+src/utils/nsurl/parse.c:1435:9: style: Condition 'path_query' is always true [knownConditionTrueFalse]
+    if (path_query) {
+        ^
+src/utils/nsurl/parse.c:1684:32: style: Checking if unsigned expression 'm.scheme_end-m.start' is less than zero. [unsignedLessThanZero]
+    if (m.scheme_end - m.start <= 0) {
+                               ^
+src/utils/nsurl/parse.c:1689:34: style: Checking if unsigned expression 'm.path-m.authority' is less than zero. [unsignedLessThanZero]
+        if (m.path - m.authority <= 0) {
+                                 ^
+src/utils/nsurl/parse.c:1694:34: style: Checking if unsigned expression 'm.query-m.path' is less than zero. [unsignedLessThanZero]
+            if (m.query - m.path <= 0) {
+                                 ^
+src/utils/nsurl/parse.c:1699:42: style: Checking if unsigned expression 'm.fragment-m.query' is less than zero. [unsignedLessThanZero]
+                if (m.fragment - m.query <= 0) {
+                                         ^
+src/utils/nsurl/parse.c:759:62: style: Parameter 'm' can be declared as pointer to const [constParameterPointer]
+static size_t nsurl__get_longest_section(struct url_markers *m)
+                                                             ^
+src/utils/nsurl/parse.c:1235:86: style: Parameter 'l' can be declared as pointer to const [constParameterPointer]
+    const struct nsurl_components *url, char *url_s, struct nsurl_component_lengths *l, enum nsurl_string_flags flags)
+                                                                                     ^
+src/utils/nsurl/parse.c:1577:10: style: Unused variable: match [unusedVariable]
+    bool match;
+         ^
+src/utils/punycode.c:102:27: style: Condition 'input_length_orig>maxint' is always true [knownConditionTrueFalse]
+    if (input_length_orig > maxint)
+                          ^
+src/utils/punycode.c:116:19: style: Condition 'j<input_length' is always false [knownConditionTrueFalse]
+    for (j = 0; j < input_length; ++j) {
+                  ^
+src/utils/punycode.c:102:27: note: Assuming that condition 'input_length_orig>maxint' is not redundant
+    if (input_length_orig > maxint)
+                          ^
+src/utils/punycode.c:104:20: note: Assignment 'input_length=(unsigned int)input_length_orig', assigned value is less than 0
+    input_length = (punycode_uint)input_length_orig;
+                   ^
+src/utils/punycode.c:116:19: note: Condition 'j<input_length' is always false
+    for (j = 0; j < input_length; ++j) {
+                  ^
+src/utils/punycode.c:138:14: style: Condition 'h<input_length' is always false [knownConditionTrueFalse]
+    while (h < input_length) {
+             ^
+src/utils/punycode.c:102:27: note: Assuming that condition 'input_length_orig>maxint' is not redundant
+    if (input_length_orig > maxint)
+                          ^
+src/utils/punycode.c:104:20: note: Assignment 'input_length=(unsigned int)input_length_orig', assigned value is less than 0
+    input_length = (punycode_uint)input_length_orig;
+                   ^
+src/utils/punycode.c:138:14: note: Condition 'h<input_length' is always false
+    while (h < input_length) {
+             ^
+src/utils/punycode.c:161:29: style: Condition '++delta==0' is always false [knownConditionTrueFalse]
+                if (++delta == 0)
+                            ^
+src/utils/punycode.c:210:30: style: Condition '*output_length>maxint' is always true [knownConditionTrueFalse]
+    max_out = *output_length > maxint ? maxint : (punycode_uint)*output_length;
+                             ^
+src/utils/punycode.c:269:27: style: Condition 'i/(out+1)>maxint-n' is always true [knownConditionTrueFalse]
+        if (i / (out + 1) > maxint - n)
+                          ^
+src/utils/ssl_certs.c:295:12: style: The scope of the variable 'depth' can be reduced. [variableScope]
+    size_t depth;
+           ^
+src/utils/ssl_certs.c:319:12: style: The scope of the variable 'depth' can be reduced. [variableScope]
+    size_t depth;
+           ^
+src/utils/talloc.c:259:5: error: Memory leak: tc [memleak]
+    return TC_PTR_FROM_CHUNK(tc);
+    ^
+src/utils/talloc.c:406:13: warning: Either the condition 'tc' is redundant or there is possible null pointer dereference: tc. [nullPointerRedundantCheck]
+        if (tc->parent->child) {
+            ^
+src/utils/talloc.c:405:9: note: Assuming that condition 'tc' is not redundant
+        _TLIST_REMOVE(tc->parent->child, tc);
+        ^
+src/utils/talloc.c:406:13: note: Null pointer dereference
+        if (tc->parent->child) {
+            ^
+src/utils/talloc.c:468:17: warning: Either the condition 'tc' is redundant or there is possible null pointer dereference: tc. [nullPointerRedundantCheck]
+            if (tc->parent->child) {
+                ^
+src/utils/talloc.c:467:13: note: Assuming that condition 'tc' is not redundant
+            _TLIST_REMOVE(tc->parent->child, tc);
+            ^
+src/utils/talloc.c:468:17: note: Null pointer dereference
+            if (tc->parent->child) {
+                ^
+src/utils/talloc.c:490:13: warning: Either the condition 'tc' is redundant or there is possible null pointer dereference: tc. [nullPointerRedundantCheck]
+        if (tc->parent->child) {
+            ^
+src/utils/talloc.c:489:9: note: Assuming that condition 'tc' is not redundant
+        _TLIST_REMOVE(tc->parent->child, tc);
+        ^
+src/utils/talloc.c:490:13: note: Null pointer dereference
+        if (tc->parent->child) {
+            ^
+src/utils/talloc.c:545:26: style: Variable 'tc_p' can be declared as pointer to const [constVariablePointer]
+    struct talloc_chunk *tc_p, *new_p;
+                         ^
+src/utils/talloc.c:546:11: style: Variable 'new_parent' can be declared as pointer to const [constVariablePointer]
+    void *new_parent;
+          ^
+src/utils/talloc.c:718:33: style: Parameter 'ptr' can be declared as pointer to const [constParameterPointer]
+void talloc_free_children(void *ptr)
+                                ^
+src/utils/talloc.c:1240:26: style: Variable 'tc' can be declared as pointer to const [constVariablePointer]
+    struct talloc_chunk *tc;
+                         ^
+src/utils/talloc.c:1366:26: style: Variable 'tc' can be declared as pointer to const [constVariablePointer]
+    struct talloc_chunk *tc;
+                         ^
+src/utils/talloc.c:1197:5: error: va_list 'ap2' used before va_start() was called. [va_list_usedBeforeStarted]
+    va_copy(ap2, ap);
+    ^
+src/utils/talloc.c:1198:33: error: va_list 'ap2' used before va_start() was called. [va_list_usedBeforeStarted]
+    len = vsnprintf(&c, 1, fmt, ap2);
+                                ^
+src/utils/talloc.c:1199:5: error: va_list 'ap2' used before va_start() was called. [va_list_usedBeforeStarted]
+    va_end(ap2);
+    ^
+src/utils/talloc.c:595:27: error: There is an unknown macro here somewhere. Configuration is required. If talloc_set_name_v is a macro then please configure it. [unknownMacro]
+static inline const char *talloc_set_name_v(const void *ptr, const char *fmt, va_list ap) PRINTF_ATTRIBUTE(2, 0);
+                          ^
+src/utils/time.c:160:16: style: Variable 'tm' can be declared as pointer to const [constVariablePointer]
+    struct tm *tm = gmtime(&t);
+               ^
+src/utils/time.c:185:16: style: Variable 'ltm' can be declared as pointer to const [constVariablePointer]
+    struct tm *ltm;
+               ^
+src/utils/time.c:177:49: style: Parameter 'timep' can be declared as pointer to const [constParameterPointer]
+int nsc_sntimet(char *str, size_t size, time_t *timep)
+                                                ^
+src/utils/utf8.c:320:12: style: The scope of the variable 'ret' can be reduced. [variableScope]
+    size_t ret, esclen;
+           ^
+src/utils/utf8.c:321:14: style: The scope of the variable 'ucs4' can be reduced. [variableScope]
+    uint32_t ucs4;
+             ^
+src/utils/utf8.c:356:11: style: Variable 'pescape' can be declared as pointer to const [constVariablePointer]
+    char *pescape, escape[11];
+          ^
+src/utils/utils.c:360:9: style: 'continue' is redundant since it is the last statement in a loop. [redundantContinue]
+        continue;
+        ^
+src/utils/utils.c:41:9: style: The scope of the variable 'i' can be reduced. [variableScope]
+    int i = 0, j = 0;
+        ^
+src/utils/utils.c:41:16: style: The scope of the variable 'j' can be reduced. [variableScope]
+    int i = 0, j = 0;
+               ^
+src/utils/utils.c:538:17: style: The scope of the variable 'xdigits' can be reduced. [variableScope]
+    const char *xdigits, *chp;
+                ^
+src/utils/utils.c:538:27: style: Unused variable: chp [unusedVariable]
+    const char *xdigits, *chp;
+                          ^

@@ -494,7 +494,7 @@ static void table_used_top_border_for_cell(const css_unit_ctx *unit_len_ctx, str
 
     /* Initialise to computed top border for cell */
     a.style = css_computed_border_top_style(cell->style);
-    css_computed_border_top_color(cell->style, &a.c);
+    a.color = css_computed_border_top_color(cell->style, &a.c);
     css_computed_border_top_width(cell->style, &a.width, &a.unit);
     a.width = css_unit_len2device_px(cell->style, unit_len_ctx, a.width, a.unit);
     a.unit = CSS_UNIT_PX;
@@ -502,7 +502,7 @@ static void table_used_top_border_for_cell(const css_unit_ctx *unit_len_ctx, str
 
     /* Top border of row */
     b.style = css_computed_border_top_style(row->style);
-    css_computed_border_top_color(row->style, &b.c);
+    b.color = css_computed_border_top_color(row->style, &b.c);
     css_computed_border_top_width(row->style, &b.width, &b.unit);
     b.width = css_unit_len2device_px(row->style, unit_len_ctx, b.width, b.unit);
     b.unit = CSS_UNIT_PX;

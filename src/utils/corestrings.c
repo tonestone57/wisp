@@ -78,7 +78,7 @@ nserror corestrings_fini(void)
 nserror corestrings_init(void)
 {
     lwc_error lerror;
-    nserror error;
+    nserror error = NSERROR_OK;
     dom_exception exc;
 
     if (corestring_lwc_a != NULL) {

@@ -322,7 +322,7 @@ static nserror gif_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, &gif->base);
     if (error != NSERROR_OK) {
-        content_destroy(&gif->base);
+        free(gif);
         return error;
     }
 

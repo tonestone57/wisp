@@ -217,7 +217,7 @@ static nserror nsbmp_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, &new_bmp->base);
     if (error != NSERROR_OK) {
-        content_destroy(&new_bmp->base);
+        free(new_bmp);
         return error;
     }
 

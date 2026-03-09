@@ -227,7 +227,7 @@ static nserror nsico_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, &ico->base);
     if (error != NSERROR_OK) {
-        content_destroy(&ico->base);
+        free(ico);
         return error;
     }
 
