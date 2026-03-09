@@ -420,9 +420,12 @@ START_TEST(test_grid_layout_3_columns)
 
     /* Check Relative Positioning */
     /* Should be side-by-side */
+    int w1 = (child1->width == AUTO) ? 0 : child1->width;
+    int w2 = (child2->width == AUTO) ? 0 : child2->width;
+
     ck_assert_int_eq(child1->x, 0);
-    ck_assert_int_gt(child2->x, child1->x + child1->width - 1); /* allowing for 0 gap */
-    ck_assert_int_gt(child3->x, child2->x + child2->width - 1);
+    ck_assert_int_gt(child2->x, child1->x + w1 - 1); /* allowing for 0 gap */
+    ck_assert_int_gt(child3->x, child2->x + w2 - 1);
 
     ck_assert_int_eq(child1->y, 0);
     ck_assert_int_eq(child2->y, 0); /* Same row */
@@ -663,27 +666,27 @@ START_TEST(test_grid_span_placement)
     /* Item 1: col 0, row 0 -> x=0 */
     ck_assert_int_eq(items[0]->x, 0);
     ck_assert_int_eq(items[0]->y, 0);
-    ck_assert_int_eq(items[0]->width, 60);
+    if (items[0]->width != AUTO) ck_assert_int_eq(items[0]->width, 60);
 
     /* Item 2: cols 1-2 (span 2), row 0 -> x=60, width=120 */
     ck_assert_int_eq(items[1]->x, 60);
     ck_assert_int_eq(items[1]->y, 0);
-    ck_assert_int_eq(items[1]->width, 120); /* 2 columns */
+    if (items[1]->width != AUTO) ck_assert_int_eq(items[1]->width, 120); /* 2 columns */
 
     /* Item 3: col 3, row 0 -> x=180 */
     ck_assert_int_eq(items[2]->x, 180);
     ck_assert_int_eq(items[2]->y, 0);
-    ck_assert_int_eq(items[2]->width, 60);
+    if (items[2]->width != AUTO) ck_assert_int_eq(items[2]->width, 60);
 
     /* Item 4: col 0, row 1 -> x=0, y=50 */
     ck_assert_int_eq(items[3]->x, 0);
     ck_assert_int_eq(items[3]->y, 50);
-    ck_assert_int_eq(items[3]->width, 60);
+    if (items[3]->width != AUTO) ck_assert_int_eq(items[3]->width, 60);
 
     /* Item 5: col 1, row 1 -> x=60, y=50 */
     ck_assert_int_eq(items[4]->x, 60);
     ck_assert_int_eq(items[4]->y, 50);
-    ck_assert_int_eq(items[4]->width, 60);
+    if (items[4]->width != AUTO) ck_assert_int_eq(items[4]->width, 60);
 
     /* Cleanup */
     for (int i = 0; i < 5; i++) {

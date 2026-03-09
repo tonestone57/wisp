@@ -14,7 +14,7 @@ typedef struct arena_chunk {
     struct arena_chunk *next;
     size_t size;
     size_t used;
-    char data[];
+    char data[] __attribute__((aligned(16)));
 } arena_chunk;
 
 struct arena {
@@ -35,8 +35,8 @@ struct arena *arena_create(size_t chunk_size) {
 
 void *arena_alloc(struct arena *a, size_t size) {
     if (!a) return NULL;
-    size_t alloc_size = ALIGN_UP(size, 8);
-    if (!a->head || a->head->used + alloc_size > a->head->size) {
+    size_t alloc_size = ALIGN_UP(size, 16);
+    if (!a->head || ALIGN_UP(a->head->used, 16) + alloc_size > a->head->size) {
         size_t chunk_alloc = alloc_size > a->default_chunk_size ? alloc_size : a->default_chunk_size;
         arena_chunk *chunk = malloc(sizeof(arena_chunk) + chunk_alloc);
         if (!chunk) return NULL;
@@ -45,8 +45,9 @@ void *arena_alloc(struct arena *a, size_t size) {
         chunk->next = a->head;
         a->head = chunk;
     }
-    void *ptr = a->head->data + a->head->used;
-    a->head->used += alloc_size;
+    size_t current_used = ALIGN_UP(a->head->used, 16);
+    void *ptr = a->head->data + current_used;
+    a->head->used = current_used + alloc_size;
     return ptr;
 }
 
