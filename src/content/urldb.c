@@ -2861,7 +2861,7 @@ nserror urldb_load(const char *filename)
             char url[64 + 3 + 256 + 6 + 4096 + 1 + 1];
             unsigned int port;
             bool is_file = false;
-            nsurl *nsurl;
+            nsurl *nsurl = NULL, *new_nsurl = NULL;
             lwc_string *scheme_lwc = NULL, *fragment_lwc = NULL;
             char *path_query = NULL;
             size_t len;
@@ -2983,12 +2983,17 @@ nserror urldb_load(const char *filename)
                 return NSERROR_NOMEM;
             }
 
-            if (nsurl_create_from_components_str(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
+            if (nsurl_create_from_components_str(scheme_lwc, host_lwc, port ? ports : NULL, s, &new_nsurl) != NSERROR_OK) {
                 lwc_string_unref(scheme_lwc);
                 lwc_string_unref(host_lwc);
+                if (version < 108 && nsurl) nsurl_unref(nsurl);
                 fclose(fp);
                 return NSERROR_NOMEM;
             }
+            if (version < 108 && nsurl) {
+                nsurl_unref(nsurl);
+            }
+            nsurl = new_nsurl;
 
             lwc_string_unref(host_lwc);
 
@@ -3110,8 +3115,7 @@ bool urldb_add_url(nsurl *url)
     bool match;
     unsigned int port_int;
 
-    if (url == NULL)
-        return false;
+    if (url == NULL) return false;
 
     if (url_bloom == NULL)
         url_bloom = bloom_create(BLOOM_SIZE);
