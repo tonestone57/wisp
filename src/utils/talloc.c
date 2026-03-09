@@ -237,6 +237,11 @@ static inline void *__talloc(const void *context, size_t size)
     if (likely(context)) {
         struct talloc_chunk *parent = talloc_chunk_from_ptr(context);
 
+        if (parent->flags & TALLOC_FLAG_LOOP) {
+            free(tc);
+            return NULL;
+        }
+
         if (parent->child) {
             parent->child->parent = NULL;
             tc->next = parent->child;
@@ -1178,6 +1183,7 @@ char *talloc_strndup(const void *t, const char *p, size_t n)
 #endif
 #endif
 
+// cppcheck-suppress va_list_usedBeforeStarted
 char *talloc_vasprintf(const void *t, const char *fmt, va_list ap)
 {
     int len;
@@ -1187,6 +1193,7 @@ char *talloc_vasprintf(const void *t, const char *fmt, va_list ap)
 
     /* this call looks strange, but it makes it work on older solaris boxes
      */
+// cppcheck-suppress va_list_usedBeforeStarted
     va_copy(ap2, ap);
     len = vsnprintf(&c, 1, fmt, ap2);
     va_end(ap2);
@@ -1195,6 +1202,7 @@ char *talloc_vasprintf(const void *t, const char *fmt, va_list ap)
     }
 
     ret = (char *)__talloc(t, len + 1);
+// cppcheck-suppress va_list_usedBeforeStarted
     if (ret) {
         va_copy(ap2, ap);
         vsnprintf(ret, len + 1, fmt, ap2);

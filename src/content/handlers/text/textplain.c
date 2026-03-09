@@ -528,7 +528,7 @@ static nserror textplain_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, &text->base);
     if (error != NSERROR_OK) {
-        content_destroy(&text->base);
+        free(text);
         return error;
     }
 

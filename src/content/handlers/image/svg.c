@@ -1276,7 +1276,7 @@ static nserror svg_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, &svg->base);
     if (error != NSERROR_OK) {
-        content_destroy(&svg->base);
+        free(svg);
         return error;
     }
 

@@ -1812,7 +1812,7 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
         if (cross_free_space > 0 && (has_auto_margin_cross_start || has_auto_margin_cross_end)) {
             int extra_cross_pre = 0;
             int auto_margin_count = (has_auto_margin_cross_start ? 1 : 0) + (has_auto_margin_cross_end ? 1 : 0);
-            int margin_per_auto = cross_free_space / auto_margin_count;
+            int margin_per_auto = auto_margin_count > 0 ? (cross_free_space / auto_margin_count) : 0;
 
             if (has_auto_margin_cross_start) {
                 extra_cross_pre = margin_per_auto;

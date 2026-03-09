@@ -288,7 +288,7 @@ static nserror nsjpegxl_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, jpegxl_c);
     if (error != NSERROR_OK) {
-        content_destroy(jpegxl_c);
+        free(jpegxl_c);
         return error;
     }
 

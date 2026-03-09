@@ -394,7 +394,7 @@ nserror nscss_clone(const struct content *old, struct content **newc)
     /* Clone content */
     error = content__clone(old, &new_css->base);
     if (error != NSERROR_OK) {
-        content_destroy(&new_css->base);
+        free(new_css);
         return error;
     }
 

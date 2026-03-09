@@ -434,7 +434,7 @@ static nserror nsjpeg_clone(const struct content *old, struct content **newc)
 
     error = content__clone(old, jpeg_c);
     if (error != NSERROR_OK) {
-        content_destroy(jpeg_c);
+        free(jpeg_c);
         return error;
     }
 

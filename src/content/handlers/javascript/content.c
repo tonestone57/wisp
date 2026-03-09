@@ -81,7 +81,7 @@ static nserror javascript_clone(const struct content *old, struct content **newc
 
     error = content__clone(old, &script->base);
     if (error != NSERROR_OK) {
-        content_destroy(&script->base);
+        free(script);
         return error;
     }
 
