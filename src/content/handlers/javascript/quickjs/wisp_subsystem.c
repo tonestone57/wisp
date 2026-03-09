@@ -20,7 +20,6 @@ int busy_workers = 0;
 
 static void start_worker(int i) {
     wisp_worker_pool[i].worker_id = i;
-    wisp_worker_pool[i].running = true;
     wisp_worker_pool[i].rt = JS_NewRuntime();
     wisp_worker_pool[i].ctx = JS_NewContext(wisp_worker_pool[i].rt);
 
@@ -29,7 +28,18 @@ static void start_worker(int i) {
 #else
     pthread_create(&wisp_worker_pool[i].thread, NULL, wisp_worker_routine, &wisp_worker_pool[i]);
 #endif
+
+#ifdef _WIN32
+    EnterCriticalSection(&wisp_queue.lock);
+#else
+    pthread_mutex_lock(&wisp_queue.lock);
+#endif
     active_workers++;
+#ifdef _WIN32
+    LeaveCriticalSection(&wisp_queue.lock);
+#else
+    pthread_mutex_unlock(&wisp_queue.lock);
+#endif
 }
 
 void init_wisp_subsystem(int queue_size) {
@@ -80,6 +90,7 @@ void init_wisp_subsystem(int queue_size) {
 #endif
 
     // 4. Spawn the seed thread
+    wisp_worker_pool[0].running = true;
     start_worker(0);
 }
 
@@ -279,23 +290,30 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
         wisp_queue.count++;
 
         // Scale up if all workers are busy and we haven't reached max
+        int worker_to_start = -1;
         if (busy_workers == active_workers && active_workers < wisp_worker_count) {
             for (int i=0; i<wisp_worker_count; i++) {
                 if (!wisp_worker_pool[i].running) {
-                    start_worker(i);
+                    worker_to_start = i;
+                    wisp_worker_pool[i].running = true; // Mark as running so another thread doesn't pick it up
                     break;
                 }
             }
         }
 
         WakeConditionVariable(&wisp_queue.cond);
+        LeaveCriticalSection(&wisp_queue.lock);
+
+        if (worker_to_start != -1) {
+            start_worker(worker_to_start);
+        }
     } else {
+        LeaveCriticalSection(&wisp_queue.lock);
         if (new_task->script) {
             free(new_task->script);
         }
         free(new_task); // Queue full
     }
-    LeaveCriticalSection(&wisp_queue.lock);
 #else
     pthread_mutex_lock(&wisp_queue.lock);
     if (wisp_queue.count < wisp_queue.capacity) {
@@ -309,24 +327,31 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
         wisp_queue.count++;
 
         // Scale up if all workers are busy and we haven't reached max
+        int worker_to_start = -1;
         if (busy_workers == active_workers && active_workers < wisp_worker_count) {
             pthread_t null_thread;
             memset(&null_thread, 0, sizeof(pthread_t));
             for (int i=0; i<wisp_worker_count; i++) {
                 if (!wisp_worker_pool[i].running && memcmp(&wisp_worker_pool[i].thread, &null_thread, sizeof(pthread_t)) == 0) {
-                    start_worker(i);
+                    worker_to_start = i;
+                    wisp_worker_pool[i].running = true; // Mark as running so another thread doesn't pick it up
                     break;
                 }
             }
         }
 
         pthread_cond_signal(&wisp_queue.cond);
+        pthread_mutex_unlock(&wisp_queue.lock);
+
+        if (worker_to_start != -1) {
+            start_worker(worker_to_start);
+        }
     } else {
+        pthread_mutex_unlock(&wisp_queue.lock);
         if (new_task->script) {
             free(new_task->script);
         }
         free(new_task); // Queue full
     }
-    pthread_mutex_unlock(&wisp_queue.lock);
 #endif
 }
