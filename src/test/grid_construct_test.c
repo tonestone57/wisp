@@ -111,11 +111,6 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *node, const
 
 /* Mock css getters matching utils.h signatures and direct calls */
 
-uint8_t css_computed_white_space(const css_computed_style *style)
-{
-    return CSS_WHITE_SPACE_NORMAL;
-}
-
 uint8_t ns_computed_display(const css_computed_style *style, bool root)
 {
     if (style == MOCK_STYLE_GRID)
