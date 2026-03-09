@@ -1905,20 +1905,20 @@ static void layout_flex__place_lines(struct flex_ctx *ctx)
 
     for (size_t i = 0; i < ctx->line.count; i++) {
         struct flex_line_data *line = &ctx->line.data[i];
+        int line_extra = (extra_remainder > 0) ? 1 : 0;
 
         line_pos += pre_multiplier * line->cross_size;
         line->pos = line_pos;
-        line_pos += post_multiplier * line->cross_size + extra + extra_remainder;
+        line_pos += post_multiplier * line->cross_size + extra + line_extra;
 
         /* Add cross_gap between lines (not after the last line) */
         if (i < ctx->line.count - 1 && ctx->cross_gap > 0) {
             line_pos += (!reversed ? 1 : -1) * ctx->cross_gap;
         }
 
-        layout_flex__place_line_items_cross(ctx, line, extra + extra_remainder);
+        layout_flex__place_line_items_cross(ctx, line, extra + line_extra);
 
         if (extra_remainder > 0) {
-
             extra_remainder--;
         }
     }

@@ -290,6 +290,9 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
 
         WakeConditionVariable(&wisp_queue.cond);
     } else {
+        if (new_task->script) {
+            free(new_task->script);
+        }
         free(new_task); // Queue full
     }
     LeaveCriticalSection(&wisp_queue.lock);
@@ -319,6 +322,9 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
 
         pthread_cond_signal(&wisp_queue.cond);
     } else {
+        if (new_task->script) {
+            free(new_task->script);
+        }
         free(new_task); // Queue full
     }
     pthread_mutex_unlock(&wisp_queue.lock);
