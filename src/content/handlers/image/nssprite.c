@@ -219,7 +219,10 @@ static nserror nssprite_clone(const struct content *old, struct content **newc)
     /* Simply replay convert */
     if (old->status == CONTENT_STATUS_READY || old->status == CONTENT_STATUS_DONE) {
         if (nssprite_convert(&sprite->base) == false) {
-            content__destroy(&sprite->base);
+            /* Destroy properly cleans up internal structures, but if it failed to convert, maybe we just free?
+             * No, content_destroy checks magic etc.
+             * It's actually safer to just free(sprite) since we only just called content__clone and nssprite_convert.
+             */
             free(sprite);
             return NSERROR_CLONE_FAILED;
         }

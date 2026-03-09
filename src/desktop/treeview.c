@@ -1759,11 +1759,12 @@ static nserror treeview_delete_empty_nodes(treeview *tree, bool interaction)
             node = next_sibling;
         }
 
-        if (node != NULL) {
-            parent = node->parent;
-            next_sibling = node->next_sib;
-            child = (node->flags & TV_NFLAGS_EXPANDED) ? node->children : NULL;
-        }
+        assert(node != NULL);
+        assert(node->parent != NULL);
+
+        parent = node->parent;
+        next_sibling = node->next_sib;
+        child = (node->flags & TV_NFLAGS_EXPANDED) ? node->children : NULL;
     }
 
     return NSERROR_OK;
