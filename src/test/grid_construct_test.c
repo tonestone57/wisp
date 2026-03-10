@@ -197,10 +197,7 @@ void box_free(struct box *box)
     if (box->styles) {
         css_select_results_destroy(box->styles);
     }
-    /* Free text if any */
-    if (box->text) {
-        talloc_free(box->text);
-    }
+    /* box->text is allocated from the arena, so do not free it */
     free(box);
 }
 
@@ -454,7 +451,7 @@ START_TEST(test_grid_construction)
     ctx->n = (dom_node *)root_el; /* Start construction at Root element (HTML) */
     ctx->root_box = NULL;
     ctx->cb = box_complete_cb;
-    ctx->bctx = NULL;
+    ctx->bctx = arena_create(8192);
 
     /* RUN 1: Process GRID (and its children recursively via
      * convert_xml_to_box logic) */
@@ -555,6 +552,7 @@ START_TEST(test_grid_construction)
     dom_node_unref(root_el);
     dom_node_unref(doc);
     unlink("/tmp/ns_test_grid.html");
+    arena_destroy(htmlc.bctx);
 }
 END_TEST
 
