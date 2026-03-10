@@ -2749,6 +2749,7 @@ void urldb_destroy(void)
         b = a->next;
         urldb_destroy_host_tree(a);
     }
+    urldb_destroy_path_node_content(&db_root.paths);
     memset(&db_root, 0, sizeof(db_root));
 
     /* And the bloom filter */
@@ -4450,6 +4451,7 @@ void urldb_clear_all_entries(void)
         b = a->next;
         urldb_destroy_host_tree(a);
     }
+    urldb_destroy_path_node_content(&db_root.paths);
 
     memset(&db_root, 0, sizeof(db_root));
 

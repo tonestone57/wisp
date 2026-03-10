@@ -45,11 +45,11 @@ START_TEST(test_user_agent_oom)
 
     ua = user_agent_string();
 
-    ck_assert(ua != NULL);
-    ck_assert_str_eq(ua, "Mozilla/5.0 (Unknown) Wisp/0");
-
     /* Reset limit */
     malloc_limit(-1);
+
+    ck_assert(ua != NULL);
+    ck_assert_str_eq(ua, "Mozilla/5.0 (Unknown) Wisp/0");
 
     free_user_agent_string();
 }
