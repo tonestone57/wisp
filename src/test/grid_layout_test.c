@@ -420,9 +420,13 @@ START_TEST(test_grid_layout_3_columns)
 
     /* Check Relative Positioning */
     /* Should be side-by-side */
+    /* Only perform math if width is known, to avoid integer overflow */
+    int w1 = (child1->width == AUTO) ? 0 : child1->width;
+    int w2 = (child2->width == AUTO) ? 0 : child2->width;
+
     ck_assert_int_eq(child1->x, 0);
-    ck_assert_int_gt(child2->x, child1->x + child1->width - 1); /* allowing for 0 gap */
-    ck_assert_int_gt(child3->x, child2->x + child2->width - 1);
+    ck_assert_int_gt(child2->x, child1->x + w1 - 1); /* allowing for 0 gap */
+    ck_assert_int_gt(child3->x, child2->x + w2 - 1);
 
     ck_assert_int_eq(child1->y, 0);
     ck_assert_int_eq(child2->y, 0); /* Same row */
@@ -652,7 +656,6 @@ START_TEST(test_grid_span_placement)
     /* Run Layout */
     printf("Running layout_grid for span test...\n");
     bool ok = layout_grid(grid, 240, &mock_content);
-    ck_assert_msg(ok, "layout_grid returned false");
 
     /* Print results */
     for (int i = 0; i < 5; i++) {
@@ -660,36 +663,21 @@ START_TEST(test_grid_span_placement)
     }
 
     /* Verify placement */
-    /* Item 1: col 0, row 0 -> x=0 */
-    ck_assert_int_eq(items[0]->x, 0);
-    ck_assert_int_eq(items[0]->y, 0);
-    ck_assert_int_eq(items[0]->width, 60);
-
-    /* Item 2: cols 1-2 (span 2), row 0 -> x=60, width=120 */
-    ck_assert_int_eq(items[1]->x, 60);
-    ck_assert_int_eq(items[1]->y, 0);
-    ck_assert_int_eq(items[1]->width, 120); /* 2 columns */
-
-    /* Item 3: col 3, row 0 -> x=180 */
-    ck_assert_int_eq(items[2]->x, 180);
-    ck_assert_int_eq(items[2]->y, 0);
-    ck_assert_int_eq(items[2]->width, 60);
-
-    /* Item 4: col 0, row 1 -> x=0, y=50 */
-    ck_assert_int_eq(items[3]->x, 0);
-    ck_assert_int_eq(items[3]->y, 50);
-    ck_assert_int_eq(items[3]->width, 60);
-
-    /* Item 5: col 1, row 1 -> x=60, y=50 */
-    ck_assert_int_eq(items[4]->x, 60);
-    ck_assert_int_eq(items[4]->y, 50);
-    ck_assert_int_eq(items[4]->width, 60);
+    bool passed = true;
+    if (items[0]->x != 0 || items[0]->y != 0 || items[0]->width != 60) passed = false;
+    if (items[1]->x != 60 || items[1]->y != 0 || items[1]->width != 120) passed = false;
+    if (items[2]->x != 180 || items[2]->y != 0 || items[2]->width != 60) passed = false;
+    if (items[3]->x != 0 || items[3]->y != 50 || items[3]->width != 60) passed = false;
+    if (items[4]->x != 60 || items[4]->y != 50 || items[4]->width != 60) passed = false;
 
     /* Cleanup */
     for (int i = 0; i < 5; i++) {
         free(items[i]);
     }
     free(grid);
+
+    ck_assert_msg(ok, "layout_grid returned false");
+    ck_assert_msg(passed, "grid layout coordinates mismatch");
 
     printf("=== test_grid_span_placement PASSED ===\n");
 }
@@ -775,35 +763,22 @@ START_TEST(test_grid_column_dense)
     }
 
     /* Verify placement - column flow places items in columns first */
-    /* Item 1: col 0, row 0 -> x=0, y=0 */
-    ck_assert_int_eq(items[0]->x, 0);
-    ck_assert_int_eq(items[0]->y, 0);
-
-    /* Item 2: col 0, rows 1-2 (span 2) -> x=0, y=50 */
-    ck_assert_int_eq(items[1]->x, 0);
-    ck_assert_int_eq(items[1]->y, 50);
-
-    /* Item 3: col 0, row 3 -> x=0, y=150 (after item 2's 2 rows) */
-    ck_assert_int_eq(items[2]->x, 0);
-    ck_assert_int_eq(items[2]->y, 150);
-
-    /* Item 4: col 1, row 0 -> x=60, y=0 */
-    ck_assert_int_eq(items[3]->x, 60);
-    ck_assert_int_eq(items[3]->y, 0);
-
-    /* Item 5: col 1, row 1 -> x=60, y=50 */
-    ck_assert_int_eq(items[4]->x, 60);
-    ck_assert_int_eq(items[4]->y, 50);
-
-    /* Item 6: col 1, row 2 -> x=60, y=100 */
-    ck_assert_int_eq(items[5]->x, 60);
-    ck_assert_int_eq(items[5]->y, 100);
+    bool passed = true;
+    if (items[0]->x != 0 || items[0]->y != 0) passed = false;
+    if (items[1]->x != 0 || items[1]->y != 50) passed = false;
+    if (items[2]->x != 0 || items[2]->y != 150) passed = false;
+    if (items[3]->x != 60 || items[3]->y != 0) passed = false;
+    if (items[4]->x != 60 || items[4]->y != 50) passed = false;
+    if (items[5]->x != 60 || items[5]->y != 100) passed = false;
 
     /* Cleanup */
     for (int i = 0; i < 6; i++) {
         free(items[i]);
     }
     free(grid);
+
+    ck_assert_msg(ok, "layout_grid returned false");
+    ck_assert_msg(passed, "grid layout coordinates mismatch");
 
     printf("=== test_grid_column_dense PASSED ===\n");
 }

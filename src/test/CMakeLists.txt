@@ -277,17 +277,6 @@ add_wisp_test(transform_clip_test
 # ============================================================================
 
 add_wisp_test(test_quickjs
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/qjs.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/wisp_subsystem.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/timers.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/navigator.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/location.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/document.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/storage.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/event_target.c
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs/xhr.c
-  ${CMAKE_BINARY_DIR}/quickjs/console.c
-  ${CMAKE_BINARY_DIR}/quickjs/window.c
   ${CMAKE_SOURCE_DIR}/src/test/test_quickjs.c
 )
 add_dependencies(test_quickjs quickjs_bindings)
