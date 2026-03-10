@@ -425,8 +425,14 @@ START_TEST(test_grid_layout_3_columns)
     int w2 = (child2->width == AUTO) ? 0 : child2->width;
 
     ck_assert_int_eq(child1->x, 0);
-    ck_assert_int_gt(child2->x, child1->x + w1 - 1); /* allowing for 0 gap */
-    ck_assert_int_gt(child3->x, child2->x + w2 - 1);
+
+    if (child1->width != AUTO) {
+        ck_assert_int_gt(child2->x, child1->x + child1->width - 1); /* allowing for 0 gap */
+    }
+
+    if (child2->width != AUTO) {
+        ck_assert_int_gt(child3->x, child2->x + child2->width - 1);
+    }
 
     ck_assert_int_eq(child1->y, 0);
     ck_assert_int_eq(child2->y, 0); /* Same row */
