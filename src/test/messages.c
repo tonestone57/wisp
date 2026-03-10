@@ -47,7 +47,7 @@ static void test_lwc_iterator(lwc_string *str, void *pw)
 
 #define NELEMS(x) (sizeof(x) / sizeof((x)[0]))
 
-const char *test_messages_path = "test/data/Messages";
+const char *test_messages_path = "src/test/data/Messages";
 
 struct message_test_vec_s {
     int test;

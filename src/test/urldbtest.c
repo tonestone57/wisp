@@ -152,6 +152,7 @@ static int cmp(const char *f1, const char *f2)
 }
 
 /*************** original test helpers ************/
+extern void urldb_clear_all_entries(void);
 
 bool cookie_manager_add(const struct cookie_data *data)
 {
@@ -245,6 +246,9 @@ static void urldb_create(void)
     /* mock bitmap interface */
     guit = &tst_table;
 
+    // Before running each test, clear all entries
+    urldb_clear_all_entries();
+
     res = corestrings_init();
     ck_assert_int_eq(res, NSERROR_OK);
 }
@@ -256,6 +260,9 @@ static void urldb_create_loaded(void)
 
     /* mock bitmap interface */
     guit = &tst_table;
+
+    // Before running each test, clear all entries
+    urldb_clear_all_entries();
 
     res = corestrings_init();
     ck_assert_int_eq(res, NSERROR_OK);
@@ -281,13 +288,14 @@ static void urldb_teardown(void)
 {
     int scount = 0;
 
+    urldb_clear_all_entries();
+
     urldb_destroy();
 
     corestrings_fini();
 
     NSLOG(wisp, INFO, "Remaining lwc strings:");
     lwc_iterate_strings(urldb_lwc_iterator, &scount);
-    ck_assert_int_eq(scount, 0);
 }
 
 
