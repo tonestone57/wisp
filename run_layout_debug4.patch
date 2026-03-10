@@ -1,0 +1,6 @@
+--- src/content/handlers/html/layout_grid.c
++++ src/content/handlers/html/layout_grid.c
+@@ -1071,2 +1071,3 @@
+     if (!row_heights || !row_first_item_done) {
++        fprintf(stderr, "Missing row heights\n");
+         return false;

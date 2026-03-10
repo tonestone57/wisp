@@ -1,0 +1,6 @@
+--- src/content/handlers/html/layout_grid.c
++++ src/content/handlers/html/layout_grid.c
+@@ -1080,2 +1080,3 @@
+         if (!child) {
++            fprintf(stderr, "No child?\n");
+             return false;

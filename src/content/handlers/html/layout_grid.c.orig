@@ -1048,7 +1048,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
             for (int r = item_row; r < item_row + row_span; r++) {
                 int old_capacity = row_heights_capacity;
                 if (!ensure_row_capacity(&row_heights, &row_heights_capacity, r)) {
-                    fprintf(stderr, "ensure_row_capacity failed 2\n");
                     free(item_cache);
                     free(occupied);
                     free(row_first_item_done);

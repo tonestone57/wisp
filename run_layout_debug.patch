@@ -1,0 +1,6 @@
+--- src/content/handlers/html/layout_grid.c
++++ src/content/handlers/html/layout_grid.c
+@@ -1017,2 +1017,3 @@
+                     free(col_widths);
++                    fprintf(stderr, "layout_block_context failed\n");
+                     return false;

@@ -48,6 +48,7 @@ void *arena_alloc(struct arena *a, size_t size) {
     size_t current_used = ALIGN_UP(a->head->used, 16);
     void *ptr = a->head->data + current_used;
     a->head->used = current_used + alloc_size;
+    memset(ptr, 0, size);
     return ptr;
 }
 
