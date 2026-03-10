@@ -1,3 +1,10 @@
+#ifndef _ISOC11_SOURCE
+#define _ISOC11_SOURCE
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include "arena.h"
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +32,7 @@ struct arena {
 
 struct arena *arena_create(size_t chunk_size) {
     if (chunk_size == 0) chunk_size = 64 * 1024;
-    struct arena *a = malloc(sizeof(struct arena));
+    struct arena *a = aligned_alloc(16, ALIGN_UP(sizeof(struct arena), 16));
     if (!a) return NULL;
     a->head = NULL;
     a->default_chunk_size = chunk_size;

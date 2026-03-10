@@ -4432,6 +4432,35 @@ void urldb_save_cookies(const char *filename)
 }
 
 
+void urldb_clear_all_entries(void)
+{
+    struct host_part *a, *b;
+    int i;
+
+    /* Clean up search trees */
+    for (i = 0; i < NUM_SEARCH_TREES; i++) {
+        if (search_trees[i] != &empty) {
+            urldb_destroy_search_tree(search_trees[i]);
+            search_trees[i] = &empty;
+        }
+    }
+
+    /* And database */
+    for (a = db_root.children; a; a = b) {
+        b = a->next;
+        urldb_destroy_host_tree(a);
+    }
+
+    memset(&db_root, 0, sizeof(db_root));
+
+    /* And the bloom filter */
+    if (url_bloom != NULL) {
+        bloom_destroy(url_bloom);
+        url_bloom = NULL;
+    }
+}
+
+
 /* exported interface documented in netsurf/url_db.h */
 void urldb_dump(void)
 {

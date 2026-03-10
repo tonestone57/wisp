@@ -57,7 +57,7 @@ static nserror cap_path(const struct redraw_context *ctx, const plot_style_t *st
     cap->last_len = n;
     if (n > cap->max_len)
         cap->max_len = n;
-    if (n >= 900) {
+    if (n >= 2048) {
         return NSERROR_BAD_PARAMETER;
     }
     return NSERROR_OK;
@@ -73,7 +73,7 @@ static const struct plotter_table cap_plotters = {
 
 START_TEST(test_svg_wordmark_final_flush_failure)
 {
-    const char *svg_path = "../contrib/libsvgtiny/test/data/wikipedia-wordmark-en.svg";
+    const char *svg_path = "contrib/libsvgtiny/test/data/wikipedia-wordmark-en.svg";
     FILE *fd = fopen(svg_path, "rb");
     ck_assert_msg(fd != NULL, "Failed to open %s", svg_path);
 
@@ -82,9 +82,10 @@ START_TEST(test_svg_wordmark_final_flush_failure)
     ck_assert_msg(size > 0, "Empty SVG file: %s", svg_path);
     fseek(fd, 0, SEEK_SET);
 
-    char *buffer = malloc((size_t)size);
+    char *buffer = malloc((size_t)size + 1);
     ck_assert_ptr_nonnull(buffer);
     size_t nread = fread(buffer, 1, (size_t)size, fd);
+    buffer[nread] = '\0';
     fclose(fd);
     ck_assert_int_eq(nread, (size_t)size);
 
