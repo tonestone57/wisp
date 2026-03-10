@@ -447,11 +447,19 @@ START_TEST(test_grid_construction)
     htmlc.conversion_begun = true; /* Mark as running */
 
     struct box_construct_ctx *ctx = calloc(1, sizeof(*ctx));
+    if (!ctx) {
+        ck_assert_msg(0, "Failed to allocate box_construct_ctx");
+    }
     ctx->content = &htmlc;
     ctx->n = (dom_node *)root_el; /* Start construction at Root element (HTML) */
     ctx->root_box = NULL;
     ctx->cb = box_complete_cb;
     ctx->bctx = arena_create(8192);
+    if (!ctx->bctx) {
+        free(ctx);
+        ck_assert_msg(0, "Failed to create arena allocator");
+    }
+    htmlc.bctx = ctx->bctx;
 
     /* RUN 1: Process GRID (and its children recursively via
      * convert_xml_to_box logic) */
@@ -551,8 +559,12 @@ START_TEST(test_grid_construction)
     dom_node_unref(grid_el);
     dom_node_unref(root_el);
     dom_node_unref(doc);
+
+    if (htmlc.bctx) {
+        arena_destroy(htmlc.bctx);
+    }
+
     unlink("/tmp/ns_test_grid.html");
-    arena_destroy(htmlc.bctx);
 }
 END_TEST
 
