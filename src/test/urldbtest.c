@@ -247,8 +247,6 @@ static void urldb_create(void)
     guit = &tst_table;
 
     // Before running each test, clear all entries
-    urldb_clear_all_entries();
-
     urldb_destroy();
     urldb_init();
 
@@ -265,8 +263,6 @@ static void urldb_create_loaded(void)
     guit = &tst_table;
 
     // Before running each test, clear all entries
-    urldb_clear_all_entries();
-
     urldb_destroy();
     urldb_init();
 
@@ -293,8 +289,6 @@ static void urldb_lwc_iterator(lwc_string *str, void *pw)
 static void urldb_teardown(void)
 {
     int scount = 0;
-
-    urldb_clear_all_entries();
 
     urldb_destroy();
 
