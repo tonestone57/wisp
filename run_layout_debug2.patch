@@ -1,6 +1,0 @@
---- src/content/handlers/html/layout_grid.c
-+++ src/content/handlers/html/layout_grid.c
-@@ -1025,2 +1025,3 @@
-                     free(col_widths);
-+                    fprintf(stderr, "layout_table failed\n");
-                     return false;

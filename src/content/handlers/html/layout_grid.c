@@ -1017,7 +1017,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                     free(row_first_item_done);
                     free(row_heights);
                     free(col_widths);
-                    fprintf(stderr, "layout_block_context failed\n");
                     return false;
                 }
                 child->float_container = NULL;
@@ -1029,7 +1028,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                     free(row_first_item_done);
                     free(row_heights);
                     free(col_widths);
-                    fprintf(stderr, "layout_table failed\n");
                     return false;
                 }
                 child->float_container = NULL;
@@ -1048,13 +1046,11 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
             for (int r = item_row; r < item_row + row_span; r++) {
                 int old_capacity = row_heights_capacity;
                 if (!ensure_row_capacity(&row_heights, &row_heights_capacity, r)) {
-                    fprintf(stderr, "ensure_row_capacity failed 2\n");
                     free(item_cache);
                     free(occupied);
                     free(row_first_item_done);
                     free(row_heights);
                     free(col_widths);
-                    fprintf(stderr, "ensure_row_capacity failed 1\n");
                     return false;
                 }
 
@@ -1066,11 +1062,9 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                         free(row_first_item_done);
                         free(row_heights);
                         free(col_widths);
-                        fprintf(stderr, "realloc failed\n");
                         return false;
                     }
                     memset(new_rfd + old_capacity, 0, (row_heights_capacity - old_capacity) * sizeof(bool));
-        fprintf(stderr, "Missing row heights\n");
                     row_first_item_done = new_rfd;
                 }
 
@@ -1079,7 +1073,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                         row_heights[r], height_per_row, child);
                     /* If this row already had an item, mark those items for re-stretch */
                     if (row_first_item_done[r]) {
-            fprintf(stderr, "No child?\n");
                         needs_pass3 = true;
                         NSLOG(layout, WARNING, "GRID: needs_pass3 set TRUE because row[%d] already had item", r);
                         /* Mark all cached items in this row for re-stretch */

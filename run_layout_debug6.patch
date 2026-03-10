@@ -1,6 +1,0 @@
---- src/content/handlers/html/layout_grid.c
-+++ src/content/handlers/html/layout_grid.c
-@@ -1050,3 +1050,4 @@
-                 if (!ensure_row_capacity(&row_heights, &row_heights_capacity, r)) {
-+                    fprintf(stderr, "ensure_row_capacity failed 2\n");
-                     free(item_cache);
