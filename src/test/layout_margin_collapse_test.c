@@ -175,7 +175,7 @@ START_TEST(test_sibling_both_positive)
     ck_assert(ok);
 
     /* Collapsed margin = max(20,10) = 20. b.y = 10 + 20 = 30 */
-    ck_assert_msg(true || b->y == 30, "sibling_both_positive: expected b->y=30, got %d", b->y);
+    ck_assert_msg(b->y == 30, "sibling_both_positive: expected b->y=30, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -205,7 +205,7 @@ START_TEST(test_sibling_both_negative)
     ck_assert(ok);
 
     /* Collapsed = most negative = -10. b.y = 10 - 10 = 0 */
-    ck_assert_msg(true || b->y == 0, "sibling_both_negative: expected b->y=0, got %d", b->y);
+    ck_assert_msg(b->y == 0, "sibling_both_negative: expected b->y=0, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -235,7 +235,7 @@ START_TEST(test_sibling_pos_neg)
     ck_assert(ok);
 
     /* Collapsed = 20 - 5 = 15. b.y = 10 + 15 = 25 */
-    ck_assert_msg(true || b->y == 25, "sibling_pos_neg: expected b->y=25, got %d", b->y);
+    ck_assert_msg(b->y == 25, "sibling_pos_neg: expected b->y=25, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -262,7 +262,7 @@ START_TEST(test_sibling_no_margin)
     bool ok = layout_block_context(block, 768, content);
     ck_assert(ok);
 
-    ck_assert_msg(true || b->y == 10, "sibling_no_margin: expected b->y=10, got %d", b->y);
+    ck_assert_msg(b->y == 10, "sibling_no_margin: expected b->y=10, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -303,7 +303,7 @@ START_TEST(test_collapse_through_empty)
     ck_assert(ok);
 
     /* All margins are adjoining: max(10, 5, 15) = 15. b.y = 10 + 15 = 25 */
-    ck_assert_msg(true || b->y == 25, "collapse_through_empty: expected b->y=25, got %d", b->y);
+    ck_assert_msg(b->y == 25, "collapse_through_empty: expected b->y=25, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -341,8 +341,8 @@ START_TEST(test_no_collapse_through_height)
      * mid.y = 10 + 10 = 20.
      * mid.mb=15 collapses with b.mt=0 → max(15,0)=15.
      * b.y = 20 + 10 + 15 = 45. */
-    ck_assert_msg(true || mid->y == 20, "no_collapse_through_height: expected mid->y=20, got %d", mid->y);
-    ck_assert_msg(true || b->y == 45, "no_collapse_through_height: expected b->y=45, got %d", b->y);
+    ck_assert_msg(mid->y == 20, "no_collapse_through_height: expected mid->y=20, got %d", mid->y);
+    ck_assert_msg(b->y == 45, "no_collapse_through_height: expected b->y=45, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -377,11 +377,11 @@ START_TEST(test_parent_child_no_separator)
 
     /* Per spec: parent margin collapses with first child margin.
      * Parent should be pushed down by 20, child at top of parent. */
-    ck_assert_msg(true || p->y == 20,
+    ck_assert_msg(p->y == 20,
         "parent_child_no_separator: expected p->y=20, got %d "
         "(child margin should push parent down)",
         p->y);
-    ck_assert_msg(true || c->y == 0,
+    ck_assert_msg(c->y == 0,
         "parent_child_no_separator: expected c->y=0, got %d "
         "(child should be at top of parent)",
         c->y);
@@ -415,8 +415,8 @@ START_TEST(test_parent_child_with_border)
     /* Border blocks collapse: parent border adds to y (engine convention
      * at layout.c:3702), child margin applied inside parent:
      * p.y = 0 + border(1) = 1,  c.y = margin(20) = 20 */
-    ck_assert_msg(true || p->y == 1, "parent_child_with_border: expected p->y=1, got %d", p->y);
-    ck_assert_msg(true || c->y == 20, "parent_child_with_border: expected c->y=20, got %d", c->y);
+    ck_assert_msg(p->y == 1, "parent_child_with_border: expected p->y=1, got %d", p->y);
+    ck_assert_msg(c->y == 20, "parent_child_with_border: expected c->y=20, got %d", c->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -446,8 +446,8 @@ START_TEST(test_parent_child_with_padding)
 
     /* Padding blocks collapse: parent stays at 0, child margin
      * applied inside parent: c.y = padding(5) + margin(20) = 25 */
-    ck_assert_msg(true || p->y == 0, "parent_child_with_padding: expected p->y=0, got %d", p->y);
-    ck_assert_msg(true || c->y == 25, "parent_child_with_padding: expected c->y=25, got %d", c->y);
+    ck_assert_msg(p->y == 0, "parent_child_with_padding: expected p->y=0, got %d", p->y);
+    ck_assert_msg(c->y == 25, "parent_child_with_padding: expected c->y=25, got %d", c->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -489,8 +489,8 @@ START_TEST(test_three_siblings_cascade)
 
     /* a.mb=10 collapses with b.mt=20 → max(10,20)=20. b.y = 10+20 = 30
      * b.mb=15 collapses with c.mt=5 → max(15,5)=15. c.y = 30+10+15 = 55 */
-    ck_assert_msg(true || b->y == 30, "three_siblings_cascade: expected b->y=30, got %d", b->y);
-    ck_assert_msg(true || c->y == 55, "three_siblings_cascade: expected c->y=55, got %d", c->y);
+    ck_assert_msg(b->y == 30, "three_siblings_cascade: expected b->y=30, got %d", b->y);
+    ck_assert_msg(c->y == 55, "three_siblings_cascade: expected c->y=55, got %d", c->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -534,7 +534,7 @@ START_TEST(test_no_collapse_abspos_skipped)
 
     /* absbox is out of flow, so a.mb=20 collapses with b.mt=10.
      * collapsed = max(20,10) = 20.  b.y = 10 + 20 = 30 */
-    ck_assert_msg(true || b->y == 30, "abspos_skipped: expected b->y=30, got %d", b->y);
+    ck_assert_msg(b->y == 30, "abspos_skipped: expected b->y=30, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -564,8 +564,8 @@ START_TEST(test_no_collapse_overflow_hidden)
 
     /* overflow:hidden starts new BFC. Child margin stays inside.
      * p.y = 0, c.y = 20 (margin applied inside new BFC) */
-    ck_assert_msg(true || p->y == 0, "overflow_hidden: expected p->y=0, got %d", p->y);
-    ck_assert_msg(true || c->y == 20, "overflow_hidden: expected c->y=20, got %d", c->y);
+    ck_assert_msg(p->y == 0, "overflow_hidden: expected p->y=0, got %d", p->y);
+    ck_assert_msg(c->y == 20, "overflow_hidden: expected c->y=20, got %d", c->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -604,7 +604,7 @@ START_TEST(test_last_child_auto_height)
 
     /* Per spec: c.mb=20 collapses with p.mb=0 (auto height, no border).
      * P.height = 10 (from child), next.y = 0 + 10 + 20 = 30 */
-    ck_assert_msg(true || next->y == 30,
+    ck_assert_msg(next->y == 30,
         "last_child_auto_height: expected next->y=30, got %d "
         "(last child margin should propagate out of auto-height parent)",
         next->y);
@@ -642,7 +642,7 @@ START_TEST(test_last_child_fixed_height)
     ck_assert(ok);
 
     /* Fixed height: c.mb stays inside p. next.y = p.height = 100 */
-    ck_assert_msg(true || next->y == 100, "last_child_fixed_height: expected next->y=100, got %d", next->y);
+    ck_assert_msg(next->y == 100, "last_child_fixed_height: expected next->y=100, got %d", next->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -679,7 +679,7 @@ START_TEST(test_last_child_with_border_bottom)
      * p.height = auto(10) + border_bottom(1) area.
      * next.y = p.height_auto(10) + p.border_bottom(1) = 11
      * (c.mb=20 does NOT propagate) */
-    ck_assert_msg(true || next->y == 11, "last_child_with_border_bottom: expected next->y=11, got %d", next->y);
+    ck_assert_msg(next->y == 11, "last_child_with_border_bottom: expected next->y=11, got %d", next->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -726,7 +726,7 @@ START_TEST(test_nested_collapse_through)
     /* All margins are adjoining via collapse-through:
      * a.mb=10, e1.mt=5, e1.mb=8, e2.mt=12, e2.mb=3
      * collapsed = max(10, 5, 8, 12, 3) = 12.  b.y = 10 + 12 = 22 */
-    ck_assert_msg(true || b->y == 22, "nested_collapse_through: expected b->y=22, got %d", b->y);
+    ck_assert_msg(b->y == 22, "nested_collapse_through: expected b->y=22, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -805,7 +805,7 @@ START_TEST(test_collapse_through_abspos_children)
      * a.mb=10, label.mt=0, label.mb=7, input.mt=0
      * collapsed = max(10, 0, 7, 0) = 10
      * input.y = a.height(10) + collapsed(10) = 20 */
-    ck_assert_msg(true || input->y == 20,
+    ck_assert_msg(input->y == 20,
         "collapse_through_abspos_children: expected input->y=20, got %d "
         "(label with only abspos children should collapse through)",
         input->y);
@@ -878,7 +878,7 @@ START_TEST(test_collapse_through_empty_ic)
      * a.mb=10, label.mt=0, label.mb=7, input.mt=0
      * collapsed = max(10, 0, 7, 0) = 10
      * input.y = a.height(10) + collapsed(10) = 20 */
-    ck_assert_msg(true || input->y == 20,
+    ck_assert_msg(input->y == 20,
         "collapse_through_empty_ic: expected input->y=20, got %d "
         "(label with only empty IC child should self-collapse)",
         input->y);
@@ -929,11 +929,11 @@ START_TEST(test_parent_child_abspos)
      * Per spec: P.y = 20 (margin pushed to parent), norm_c.y = 0.
      * Current engine doesn't implement parent-child collapse, so
      * expects: P.y = 0, norm_c.y = 20 (margin inside parent). */
-    ck_assert_msg(true || p->y == 20,
+    ck_assert_msg(p->y == 20,
         "parent_child_abspos: expected p->y=20, got %d "
         "(abspos child should be skipped, normal child margin should collapse with parent)",
         p->y);
-    ck_assert_msg(true || norm_c->y == 0, "parent_child_abspos: expected norm_c->y=0, got %d", norm_c->y);
+    ck_assert_msg(norm_c->y == 0, "parent_child_abspos: expected norm_c->y=0, got %d", norm_c->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -980,8 +980,8 @@ START_TEST(test_no_collapse_through_border)
      *   bordered.y = 10 + 10 + border(1) = 21 (border adds to y per engine convention)
      * Group 2: bordered.mb=15 ↔ b.mt=0 → max(15,0) = 15
      *   b.y = 21 + 0 + 15 = 36 */
-    ck_assert_msg(true || bordered->y == 21, "no_collapse_through_border: expected bordered->y=21, got %d", bordered->y);
-    ck_assert_msg(true || b->y == 36, "no_collapse_through_border: expected b->y=36, got %d", b->y);
+    ck_assert_msg(bordered->y == 21, "no_collapse_through_border: expected bordered->y=21, got %d", bordered->y);
+    ck_assert_msg(b->y == 36, "no_collapse_through_border: expected b->y=36, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -1016,8 +1016,8 @@ START_TEST(test_first_child_margin_top)
     ck_assert(ok);
 
     /* First child margin-top = 15. a.y = 15, b.y = 15 + 10 = 25 */
-    ck_assert_msg(true || a->y == 15, "first_child_margin_top: expected a->y=15, got %d", a->y);
-    ck_assert_msg(true || b->y == 25, "first_child_margin_top: expected b->y=25, got %d", b->y);
+    ck_assert_msg(a->y == 15, "first_child_margin_top: expected a->y=15, got %d", a->y);
+    ck_assert_msg(b->y == 25, "first_child_margin_top: expected b->y=25, got %d", b->y);
 
     free_box_tree(block);
     destroy_test_content(content);
@@ -1059,7 +1059,7 @@ START_TEST(test_last_child_with_padding_bottom)
      * p.height = auto(10) + padding_bottom(5) = content+padding area.
      * next.y = p.height_auto(10) + p.padding_bottom(5) = 15
      * (c.mb=20 does NOT propagate) */
-    ck_assert_msg(true || next->y == 15, "last_child_with_padding_bottom: expected next->y=15, got %d", next->y);
+    ck_assert_msg(next->y == 15, "last_child_with_padding_bottom: expected next->y=15, got %d", next->y);
 
     free_box_tree(root);
     destroy_test_content(content);
@@ -1095,7 +1095,7 @@ START_TEST(test_last_child_parent_has_mb)
     /* Per spec: c.mb=20 collapses with p.mb=15.
      * Collapsed = max(20, 15) = 20.
      * p.height = auto(10), next.y = 0 + 10 + 20 = 30 */
-    ck_assert_msg(true || next->y == 30,
+    ck_assert_msg(next->y == 30,
         "last_child_parent_has_mb: expected next->y=30, got %d "
         "(collapsed margin should be max(c.mb=20, p.mb=15) = 20)",
         next->y);
@@ -1134,7 +1134,7 @@ START_TEST(test_last_child_parent_mb_larger)
     /* Per spec: c.mb=20 collapses with p.mb=30.
      * Collapsed = max(30, 20) = 30.
      * p.height = auto(10), next.y = 0 + 10 + 30 = 40 */
-    ck_assert_msg(true || next->y == 40,
+    ck_assert_msg(next->y == 40,
         "last_child_parent_mb_larger: expected next->y=40, got %d "
         "(collapsed margin should be max(p.mb=30, c.mb=20) = 30)",
         next->y);
@@ -1173,7 +1173,7 @@ START_TEST(test_last_child_min_height_blocks)
     /* min-height=20 blocks last-child collapse.
      * c.mb=20 stays inside p. p.height = max(auto(10), min-height(20)) = 20.
      * next.y = p.y + p.height = 0 + 20 = 20 */
-    ck_assert_msg(true || next->y == 20,
+    ck_assert_msg(next->y == 20,
         "last_child_min_height_blocks: expected next->y=20, got %d "
         "(min-height should block last-child margin collapse)",
         next->y);

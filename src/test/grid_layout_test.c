@@ -664,12 +664,11 @@ START_TEST(test_grid_span_placement)
 
     /* Verify placement */
     bool passed = true;
-    // Wisp grid layout uses AUTO for auto elements currently in some dummy mocked tests
-    // if (items[0]->x != 0 || items[0]->y != 0 || items[0]->width != 60) passed = false;
-    // if (items[1]->x != 60 || items[1]->y != 0 || items[1]->width != 120) passed = false;
-    // if (items[2]->x != 180 || items[2]->y != 0 || items[2]->width != 60) passed = false;
-    // if (items[3]->x != 0 || items[3]->y != 50 || items[3]->width != 60) passed = false;
-    // if (items[4]->x != 60 || items[4]->y != 50 || items[4]->width != 60) passed = false;
+    if (items[0]->x != 0 || items[0]->y != 0 || items[0]->width != 60) passed = false;
+    if (items[1]->x != 60 || items[1]->y != 0 || items[1]->width != 120) passed = false;
+    if (items[2]->x != 180 || items[2]->y != 0 || items[2]->width != 60) passed = false;
+    if (items[3]->x != 0 || items[3]->y != 50 || items[3]->width != 60) passed = false;
+    if (items[4]->x != 60 || items[4]->y != 50 || items[4]->width != 60) passed = false;
 
     /* Cleanup */
     for (int i = 0; i < 5; i++) {
@@ -678,7 +677,7 @@ START_TEST(test_grid_span_placement)
     free(grid);
 
     ck_assert_msg(ok, "layout_grid returned false");
-    // ck_assert_msg(passed, "grid layout coordinates mismatch");
+    ck_assert_msg(passed, "grid layout coordinates mismatch");
 
     printf("=== test_grid_span_placement PASSED ===\n");
 }
@@ -765,12 +764,12 @@ START_TEST(test_grid_column_dense)
 
     /* Verify placement - column flow places items in columns first */
     bool passed = true;
-    // if (items[0]->x != 0 || items[0]->y != 0) passed = false;
-    // if (items[1]->x != 0 || items[1]->y != 50) passed = false;
-    // if (items[2]->x != 0 || items[2]->y != 150) passed = false;
-    // if (items[3]->x != 60 || items[3]->y != 0) passed = false;
-    // if (items[4]->x != 60 || items[4]->y != 50) passed = false;
-    // if (items[5]->x != 60 || items[5]->y != 100) passed = false;
+    if (items[0]->x != 0 || items[0]->y != 0) passed = false;
+    if (items[1]->x != 0 || items[1]->y != 50) passed = false;
+    if (items[2]->x != 0 || items[2]->y != 150) passed = false;
+    if (items[3]->x != 60 || items[3]->y != 0) passed = false;
+    if (items[4]->x != 60 || items[4]->y != 50) passed = false;
+    if (items[5]->x != 60 || items[5]->y != 100) passed = false;
 
     /* Cleanup */
     for (int i = 0; i < 6; i++) {
@@ -779,7 +778,7 @@ START_TEST(test_grid_column_dense)
     free(grid);
 
     ck_assert_msg(ok, "layout_grid returned false");
-    // ck_assert_msg(passed, "grid layout coordinates mismatch");
+    ck_assert_msg(passed, "grid layout coordinates mismatch");
 
     printf("=== test_grid_column_dense PASSED ===\n");
 }
@@ -863,23 +862,22 @@ START_TEST(test_grid_explicit_placement)
 
     /* Verify: Item 2 (explicit) should be at x=0 (col 0)
      * With 3-phase: Item 2 at (0,0), Item 1 at (100,0), Item 3 at (200,0)
-     * Actually Wisp layout is buggy / different sometimes with AUTO and MOCK, so let's just make the test not check the broken auto values but just the explicit ones or just ignore grid layout mismatch as it's testing mock setup too.
      */
-    // ck_assert_msg(items[1]->x == 0, "Item 2 (explicit) should be at x=0, got x=%d", items[1]->x);
-    // ck_assert_msg(items[1]->y == 0, "Item 2 (explicit) should be at y=0, got y=%d", items[1]->y);
+    ck_assert_msg(items[1]->x == 0, "Item 2 (explicit) should be at x=0, got x=%d", items[1]->x);
+    ck_assert_msg(items[1]->y == 0, "Item 2 (explicit) should be at y=0, got y=%d", items[1]->y);
 
     /* Item 1 should be at x=100 (col 1) - it should have been pushed to make room */
-    // ck_assert_msg(items[0]->x == 100, "Item 1 (auto) should be at x=100, got x=%d", items[0]->x);
-    // ck_assert_msg(items[0]->y == 0, "Item 1 (auto) should be at y=0, got y=%d", items[0]->y);
+    ck_assert_msg(items[0]->x == 100, "Item 1 (auto) should be at x=100, got x=%d", items[0]->x);
+    ck_assert_msg(items[0]->y == 0, "Item 1 (auto) should be at y=0, got y=%d", items[0]->y);
 
     /* Item 3 should be at x=200 (col 2) */
-    // ck_assert_msg(items[2]->x == 200, "Item 3 (auto) should be at x=200, got x=%d", items[2]->x);
-    // ck_assert_msg(items[2]->y == 0, "Item 3 (auto) should be at y=0, got y=%d", items[2]->y);
+    ck_assert_msg(items[2]->x == 200, "Item 3 (auto) should be at x=200, got x=%d", items[2]->x);
+    ck_assert_msg(items[2]->y == 0, "Item 3 (auto) should be at y=0, got y=%d", items[2]->y);
 
     /* Verify all items are visible (distinct x positions) */
-    // ck_assert_msg(items[0]->x != items[1]->x, "Item 1 and Item 2 overlap! Both at x=%d", items[0]->x);
-    // ck_assert_msg(items[0]->x != items[2]->x, "Item 1 and Item 3 overlap! Both at x=%d", items[0]->x);
-    // ck_assert_msg(items[1]->x != items[2]->x, "Item 2 and Item 3 overlap! Both at x=%d", items[1]->x);
+    ck_assert_msg(items[0]->x != items[1]->x, "Item 1 and Item 2 overlap! Both at x=%d", items[0]->x);
+    ck_assert_msg(items[0]->x != items[2]->x, "Item 1 and Item 3 overlap! Both at x=%d", items[0]->x);
+    ck_assert_msg(items[1]->x != items[2]->x, "Item 2 and Item 3 overlap! Both at x=%d", items[1]->x);
 
     /* Cleanup */
     for (int i = 0; i < 3; i++) {
@@ -953,22 +951,22 @@ START_TEST(test_grid_explicit_column_only)
      * After Phase 2 places X, cursor advances past X (to col 4 which wraps to row 1)
      * Then A,B go to row 0, C,D wrap to row 1
      */
-    // ck_assert_msg(items[2]->x == 180, "X (explicit col 4) should be at x=180 (col 3 * 60px), got x=%d", items[2]->x);
-    // ck_assert_msg(items[2]->y == 0, "X should be at y=0 (first free row), got y=%d", items[2]->y);
+    ck_assert_msg(items[2]->x == 180, "X (explicit col 4) should be at x=180 (col 3 * 60px), got x=%d", items[2]->x);
+    ck_assert_msg(items[2]->y == 0, "X should be at y=0 (first free row), got y=%d", items[2]->y);
 
     /* A,B should fill cols 0,1 of row 0 (before X in DOM) */
-    // ck_assert_msg(items[0]->x == 0, "A should be at x=0, got x=%d", items[0]->x);
-    // ck_assert_msg(items[0]->y == 0, "A should be at y=0, got y=%d", items[0]->y);
-    // ck_assert_msg(items[1]->x == 60, "B should be at x=60, got x=%d", items[1]->x);
-    // ck_assert_msg(items[1]->y == 0, "B should be at y=0, got y=%d", items[1]->y);
+    ck_assert_msg(items[0]->x == 0, "A should be at x=0, got x=%d", items[0]->x);
+    ck_assert_msg(items[0]->y == 0, "A should be at y=0, got y=%d", items[0]->y);
+    ck_assert_msg(items[1]->x == 60, "B should be at x=60, got x=%d", items[1]->x);
+    ck_assert_msg(items[1]->y == 0, "B should be at y=0, got y=%d", items[1]->y);
 
     /* C should be in row 1, col 0 (after cursor wrapped past X) */
-    // ck_assert_msg(items[3]->x == 0, "C should be at x=0, got x=%d", items[3]->x);
-    // ck_assert_msg(items[3]->y == 50, "C should be at y=50 (row 1), got y=%d", items[3]->y);
+    ck_assert_msg(items[3]->x == 0, "C should be at x=0, got x=%d", items[3]->x);
+    ck_assert_msg(items[3]->y == 50, "C should be at y=50 (row 1), got y=%d", items[3]->y);
 
     /* D should be in row 1, col 1 */
-    // ck_assert_msg(items[4]->x == 60, "D should be at x=60, got x=%d", items[4]->x);
-    // ck_assert_msg(items[4]->y == 50, "D should be at y=50 (row 1), got y=%d", items[4]->y);
+    ck_assert_msg(items[4]->x == 60, "D should be at x=60, got x=%d", items[4]->x);
+    ck_assert_msg(items[4]->y == 50, "D should be at y=50 (row 1), got y=%d", items[4]->y);
 
     /* Cleanup */
     for (int i = 0; i < 5; i++) {
