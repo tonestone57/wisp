@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 #include "wisp/utils/log.h"
+#include "wisp/utils/utils.h"
+
 
 #ifdef _WIN32
 #else
@@ -57,11 +59,8 @@ void init_wisp_subsystem(int queue_size) {
     n_cores = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 
-    wisp_worker_count = (int)(n_cores - 1);
-
-    // Manual Clamp: min 1, max 7
-    if (wisp_worker_count < 1) wisp_worker_count = 1;
-    if (wisp_worker_count > 7) wisp_worker_count = 7;
+    // Clamp: min 1, max 7
+    wisp_worker_count = clamp((int)(n_cores - 1), 1, 7);
 
     // 2. Allocate the worker pool for max workers (not all spawned yet)
     wisp_worker_pool = calloc(wisp_worker_count, sizeof(WispWorker));
