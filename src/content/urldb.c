@@ -2960,22 +2960,6 @@ nserror urldb_load(const char *filename)
                 fragment_lwc = nsurl_get_component(nsurl, NSURL_FRAGMENT);
             }
 
-            lwc_string *host_lwc;
-            const char *h_ptr = is_file ? "" : host;
-            if (lwc_intern_string(h_ptr, strlen(h_ptr), &host_lwc) != lwc_error_ok) {
-                lwc_string_unref(scheme_lwc);
-                fclose(fp);
-                return NSERROR_NOMEM;
-            }
-
-            if (nsurl_create_from_components_char(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
-                lwc_string_unref(scheme_lwc);
-                lwc_string_unref(host_lwc);
-                fclose(fp);
-                return NSERROR_NOMEM;
-            }
-
-            lwc_string_unref(host_lwc);
 
             if (url_bloom != NULL) {
                 uint32_t hash = nsurl_hash(nsurl);

@@ -406,6 +406,7 @@ nserror libdom_dump_structure(dom_node *node, FILE *f, int depth)
 nserror libdom_parse_file(const char *filename, const char *encoding, dom_document **doc)
 {
     dom_hubbub_parser_params parse_params;
+    memset(&parse_params, 0, sizeof(parse_params));
     dom_hubbub_error error;
     dom_hubbub_parser *parser;
     dom_document *document;
