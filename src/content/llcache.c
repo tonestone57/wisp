@@ -2952,7 +2952,10 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
             /* If source_len is 0, then temp may be NULL */
             if (temp != NULL || object->source_len == 0) {
                 object->source_data = temp;
-                object->source_alloc = object->source_len;
+                /* only update source_alloc if we're not using a backing store */
+                if (object->store_state == LLCACHE_STATE_RAM) {
+                    object->source_alloc = object->source_len;
+                }
             }
 
             llcache_object_cache_update(object);

@@ -2048,8 +2048,6 @@ static struct path_data *urldb_add_path(lwc_string *scheme, unsigned int port, c
         segment = slash + 1;
     } while (1);
 
-    free(path_query);
-
     if (d && !d->url) {
         /* Insert defragmented URL */
         if (nsurl_defragment(url, &d->url) != NSERROR_OK)
@@ -2970,6 +2968,7 @@ nserror urldb_load(const char *filename)
             }
 
             p = urldb_add_path(scheme_lwc, port, h, path_query, fragment_lwc, nsurl);
+            free(path_query);
             if (nsurl != NULL)
                 nsurl_unref(nsurl);
             if (scheme_lwc != NULL)
@@ -3137,9 +3136,9 @@ bool urldb_add_url(nsurl *url)
     if (h != NULL) {
         p = urldb_add_path(scheme, port_int, h, path_query, fragment, url);
     } else {
-        free(path_query);
         p = NULL;
     }
+    free(path_query);
 
     lwc_string_unref(scheme);
     if (fragment != NULL)

@@ -782,10 +782,10 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
     if (item_count > 0) {
         item_cache = calloc(item_count, sizeof(struct grid_item_cache));
         if (!item_cache) {
-            free(occupied);
-            free(row_first_item_done);
-            free(row_heights);
-            free(col_widths);
+            if (occupied) free(occupied);
+            if (row_first_item_done) free(row_first_item_done);
+            if (row_heights) free(row_heights);
+            if (col_widths) free(col_widths);
             return false;
         }
     }

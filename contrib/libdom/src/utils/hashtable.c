@@ -406,8 +406,8 @@ int main(int argc, char *argv[])
     }
 
     while (!feof(dict)) {
-        fscanf(dict, "%s", keybuf);
-        fscanf(dict, "%s", valbuf);
+        if (fscanf(dict, "%8191s", keybuf) != 1) break;
+        if (fscanf(dict, "%8191s", valbuf) != 1) break;
         _dom_hash_add(a, keybuf, valbuf, true);
         _dom_hash_add(b, keybuf, valbuf, true);
     }
@@ -416,8 +416,8 @@ int main(int argc, char *argv[])
         fseek(dict, 0, SEEK_SET);
 
         while (!feof(dict)) {
-            fscanf(dict, "%s", keybuf);
-            fscanf(dict, "%s", valbuf);
+            if (fscanf(dict, "%8191s", keybuf) != 1) break;
+            if (fscanf(dict, "%8191s", valbuf) != 1) break;
             assert(strcmp(hash_get(a, keybuf), valbuf) == 0);
             assert(strcmp(hash_get(b, keybuf), valbuf) == 0);
         }

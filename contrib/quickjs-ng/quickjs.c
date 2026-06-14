@@ -3340,8 +3340,16 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
                 goto minus_zero;
         }
         if (!is_num(c)) {
-            /* String should be normalized, therefore 8-bit only */
-            return JS_UNDEFINED;
+            if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2) && str16(p)[0] != '-') {
+                /* valid NaN, but reject -NaN */
+            } else if (c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, "nfinity", 7)) {
+                /* valid Infinity */
+            } else if (c == 'I' && (r_end - r) == 9 && !memcmp(r + 1, "nfinity", 7)) {
+                /* valid -Infinity (prefix handled above) */
+            } else {
+                /* String should be normalized, therefore 8-bit only */
+                return JS_UNDEFINED;
+            }
         }
     } else {
         const uint8_t *r = str8(p), *r_end = str8(p) + len;
@@ -3361,11 +3369,12 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
         }
         if (!is_num(c)) {
             if (c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, "nfinity", 7)) {
-                /* valid */
-            } else if (c == 'I' && (r_end - r) == 9 && !memcmp(r + 1, "nfinity", 7)) { /* len=9 handled because of prefix `-` */
-                /* valid */
-            } else if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2)) {
-                /* valid */
+                /* valid Infinity */
+            } else if (c == 'I' && (r_end - r) == 9 && !memcmp(r + 1, "nfinity", 7)) {
+                /* valid -Infinity (handled by prefix '-' above) */
+            } else if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2) && p->is_wide_char == 0 && str8(p)[0] != '-') {
+                /* valid NaN, but reject -NaN */
+                /* Note: for 8-bit strings, check first char isn't '-' */
             } else {
                 return JS_UNDEFINED;
             }
