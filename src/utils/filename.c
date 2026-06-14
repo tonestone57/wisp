@@ -227,8 +227,8 @@ void filename_flush(void)
  * A single call to this function may not delete all the files in
  * a directory. It should be called until it returns false.
  *
- * \param folder	the folder to search
- * \param depth		the folder depth
+ * \param folder    the folder to search
+ * \param depth        the folder depth
  * \returns whether further calls may be needed
  */
 bool filename_flush_directory(const char *folder, int depth)
@@ -403,7 +403,7 @@ static struct directory *filename_create_directory(const char *prefix)
             prev_dir = old_dir;
         }
 
-		snprintf(dir_prefix, sizeof(dir_prefix), "%.2i/%.2i/%.2i/", ((index >> 12) & 63), ((index >> 6) & 63), ((index >> 0) & 63));
+        snprintf(dir_prefix, sizeof(dir_prefix), "%.2i/%.2i/%.2i/", ((index >> 12) & 63), ((index >> 6) & 63), ((index >> 0) & 63));
 
         prefix = dir_prefix;
     } else {
@@ -446,7 +446,7 @@ static struct directory *filename_create_directory(const char *prefix)
      * create the child. */
     if (prev_dir && strncmp(prev_dir->prefix, new_dir->prefix, 6) == 0) {
         new_dir->prefix[8] = '\0';
-		snprintf(filename_directory, sizeof(filename_directory), "%s/%s", TEMP_FILENAME_PREFIX, new_dir->prefix);
+        snprintf(filename_directory, sizeof(filename_directory), "%s/%s", TEMP_FILENAME_PREFIX, new_dir->prefix);
         new_dir->prefix[8] = '/';
 
         if (!is_dir(filename_directory)) {
@@ -462,7 +462,7 @@ static struct directory *filename_create_directory(const char *prefix)
     }
 
     /* create the directory structure */
-	snprintf(filename_directory, sizeof(filename_directory), "%s/", TEMP_FILENAME_PREFIX);
+    snprintf(filename_directory, sizeof(filename_directory), "%s/", TEMP_FILENAME_PREFIX);
     last_1 = filename_directory + SLEN(TEMP_FILENAME_PREFIX) + 1;
     last_2 = new_dir->prefix;
 

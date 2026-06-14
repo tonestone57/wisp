@@ -322,6 +322,7 @@ START_TEST(test_grid_layout_3_columns)
     struct box *grid = calloc(1, sizeof(struct box));
     grid->type = BOX_GRID;
     grid->flags |= DIRTY;
+    grid->flags |= DIRTY;
     grid->x = 0;
     grid->y = 0;
     grid->width = 300; /* Force 300px width */
@@ -374,6 +375,7 @@ START_TEST(test_grid_layout_3_columns)
     struct box *child1 = calloc(1, sizeof(struct box));
     child1->type = BOX_BLOCK;
     child1->flags |= DIRTY;
+    child1->flags |= DIRTY;
     child1->width = AUTO; /* Should be sized by grid */
     child1->height = 50;
     child1->style = (css_computed_style *)dummy_style;
@@ -381,12 +383,14 @@ START_TEST(test_grid_layout_3_columns)
     struct box *child2 = calloc(1, sizeof(struct box));
     child2->type = BOX_BLOCK;
     child2->flags |= DIRTY;
+    child2->flags |= DIRTY;
     child2->width = AUTO;
     child2->height = 50;
     child2->style = (css_computed_style *)dummy_style;
 
     struct box *child3 = calloc(1, sizeof(struct box));
     child3->type = BOX_BLOCK;
+    child3->flags |= DIRTY;
     child3->flags |= DIRTY;
     child3->width = AUTO;
     child3->height = 50;
@@ -619,6 +623,7 @@ START_TEST(test_grid_span_placement)
     struct box *grid = calloc(1, sizeof(struct box));
     grid->type = BOX_GRID;
     grid->flags |= DIRTY;
+    grid->flags |= DIRTY;
     grid->x = 0;
     grid->y = 0;
     grid->width = 240;
@@ -635,6 +640,7 @@ START_TEST(test_grid_span_placement)
     for (int i = 0; i < 5; i++) {
         items[i] = calloc(1, sizeof(struct box));
         items[i]->type = BOX_BLOCK;
+        items[i]->flags |= DIRTY;
         items[i]->width = AUTO;
         items[i]->height = 50;
         items[i]->flags |= DIRTY;
@@ -725,6 +731,7 @@ START_TEST(test_grid_column_dense)
     struct box *grid = calloc(1, sizeof(struct box));
     grid->type = BOX_GRID;
     grid->flags |= DIRTY;
+    grid->flags |= DIRTY;
     grid->x = 0;
     grid->y = 0;
     grid->width = 120;
@@ -736,6 +743,7 @@ START_TEST(test_grid_column_dense)
     for (int i = 0; i < 6; i++) {
         items[i] = calloc(1, sizeof(struct box));
         items[i]->type = BOX_BLOCK;
+        items[i]->flags |= DIRTY;
         items[i]->width = AUTO;
         items[i]->height = 50;
         items[i]->flags |= DIRTY;
@@ -836,6 +844,7 @@ START_TEST(test_grid_explicit_placement)
     for (int i = 0; i < 3; i++) {
         items[i] = calloc(1, sizeof(struct box));
         items[i]->type = BOX_BLOCK;
+        items[i]->flags |= DIRTY;
         items[i]->width = AUTO;
         items[i]->height = 50;
         items[i]->flags |= DIRTY;
@@ -924,6 +933,7 @@ START_TEST(test_grid_explicit_column_only)
     for (int i = 0; i < 5; i++) {
         items[i] = calloc(1, sizeof(struct box));
         items[i]->type = BOX_BLOCK;
+        items[i]->flags |= DIRTY;
         items[i]->width = AUTO;
         items[i]->height = 50;
         items[i]->flags |= DIRTY;
