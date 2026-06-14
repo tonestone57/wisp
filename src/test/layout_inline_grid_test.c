@@ -202,6 +202,7 @@ START_TEST(test_inline_grid_auto_width_fails_assert)
     /* Construct inline grid */
     struct box *grid = calloc(1, sizeof(struct box));
     grid->type = BOX_INLINE_GRID;
+    grid->flags |= DIRTY;
     grid->style = (css_computed_style *)mock_style_inline_grid;
     grid->width = UNKNOWN_WIDTH; /* AUTO */
     grid->height = UNKNOWN_WIDTH;

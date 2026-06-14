@@ -389,6 +389,16 @@ static void box_complete_cb(struct html_content *c, bool status)
 START_TEST(test_grid_construction)
 {
     /* Setup DOM Tree via File Parsing */
+    /* Setup Helper Strings */
+#define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
+    INIT_STR(corestring_dom_id, "id");
+    INIT_STR(corestring_dom_class, "class");
+    INIT_STR(corestring_dom_title, "title");
+    INIT_STR(corestring_dom_style, "style");
+    INIT_STR(corestring_dom_colspan, "colspan");
+    INIT_STR(corestring_dom_rowspan, "rowspan");
+    INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
+
     FILE *fp = fopen("/tmp/ns_test_grid.html", "w");
     ck_assert_ptr_nonnull(fp);
     /* <div id="grid"> is the Grid container. <div id="child"> is the child.
@@ -430,16 +440,6 @@ START_TEST(test_grid_construction)
 
     ck_assert_ptr_nonnull(grid_el);
 
-    /* Setup Helper Strings */
-#define INIT_STR(x, v) dom_string_create((const uint8_t *)(v), strlen(v), &x)
-    INIT_STR(corestring_dom_id, "id");
-    INIT_STR(corestring_dom_class, "class");
-    INIT_STR(corestring_dom_title, "title");
-    INIT_STR(corestring_dom_style, "style");
-    INIT_STR(corestring_dom_colspan, "colspan");
-    INIT_STR(corestring_dom_rowspan, "rowspan");
-    INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
-    INIT_STR(corestring_dom_class, "class");
 
     /* Context Setup - Heap Alloc */
     struct html_content htmlc = {0};
@@ -558,11 +558,12 @@ START_TEST(test_grid_construction)
     box_free_tree(root);
     dom_node_unref(grid_el);
     dom_node_unref(root_el);
-    dom_node_unref(doc);
 
     if (htmlc.bctx) {
         arena_destroy(htmlc.bctx);
+        htmlc.bctx = NULL;
     }
+    dom_node_unref(doc);
 
     unlink("/tmp/ns_test_grid.html");
 }

@@ -32,17 +32,17 @@
  *
  * This provides something looking like:
  *
- *			      root (a sentinel)
- *				|
- *	-------------------------------------------------
- *	|	|	|	|	|	|	|
- *     com     edu     gov  127.0.0.1  net     org     uk	TLDs
- *	|	|	|		|	|	|
- *    google   ...     ...             ...     ...     co	2LDs
- *	|						|
- *     www					       bbc  Hosts/Subdomains
- *							|
- *						       www	...
+ *                root (a sentinel)
+ *              |
+ *  -------------------------------------------------
+ *  |   |   |   |   |   |   |
+ *     com     edu     gov  127.0.0.1  net     org     uk   TLDs
+ *  |   |   |       |   |   |
+ *    google   ...     ...             ...     ...     co   2LDs
+ *  |                       |
+ *     www                         bbc  Hosts/Subdomains
+ *                          |
+ *                             www  ...
  *
  * Each of the nodes in this tree is a struct host_part. This stores the
  * FQDN segment (or IP address) with which the node is concerned. Each node
@@ -60,13 +60,13 @@
  * traversed in the order root -> "com" -> "example" -> "www". The "www"
  * node would have attached to it a tree of struct path_data:
  *
- *			    (sentinel)
- *				|
- *			       path
- *				|
- *			       to
- *				|
- *			   resource.html
+ *              (sentinel)
+ *              |
+ *                 path
+ *              |
+ *                 to
+ *              |
+ *             resource.html
  *
  * This represents the absolute path "/path/to/resource.html". The leaf node
  * "resource.html" contains the last visited time of the resource.
@@ -828,7 +828,7 @@ static bool urldb_iterate_partial_host(
  * Given: http://www.example.org/a/b/c/d//e
  * and assuming a path tree:
  *     ^
- *    /	\
+ *    / \
  *   a1 b1
  *  / \
  * a2 b2
@@ -841,17 +841,17 @@ static bool urldb_iterate_partial_host(
  *      / \
  *      f g
  *
- * Prefix will be:	p will be:
+ * Prefix will be:  p will be:
  *
- * a/b/c/d//e		a1
- *   b/c/d//e		a2
- *   b/c/d//e		b3
- *     c/d//e		a3
- *     c/d//e		b3
- *     c/d//e		c
- *       d//e		d
- *         /e		e		(skip /)
- *          e		e
+ * a/b/c/d//e       a1
+ *   b/c/d//e       a2
+ *   b/c/d//e       b3
+ *     c/d//e       a3
+ *     c/d//e       b3
+ *     c/d//e       c
+ *       d//e       d
+ *         /e       e       (skip /)
+ *          e       e
  *
  * I.E. perform a breadth-first search of the tree.
  *
@@ -2846,7 +2846,7 @@ nserror urldb_load(const char *filename)
             char url[64 + 3 + 256 + 6 + 4096 + 1 + 1];
             unsigned int port;
             bool is_file = false;
-            nsurl *nsurl;
+            nsurl *nsurl = NULL;
             lwc_string *scheme_lwc = NULL, *fragment_lwc = NULL;
             char *path_query = NULL;
             size_t len;
@@ -2925,6 +2925,8 @@ nserror urldb_load(const char *filename)
                 path_query = malloc(pq_len);
                 if (!path_query) {
                     nsurl_unref(nsurl);
+                    if (scheme_lwc) lwc_string_unref(scheme_lwc);
+                    if (fragment_lwc) lwc_string_unref(fragment_lwc);
                     fclose(fp);
                     return NSERROR_NOMEM;
                 }
@@ -2952,6 +2954,7 @@ nserror urldb_load(const char *filename)
                 /* Copy and merge path/query strings */
                 if (nsurl_get(nsurl, NSURL_PATH | NSURL_QUERY, &path_query, &len) != NSERROR_OK) {
                     NSLOG(wisp, INFO, "Failed inserting '%s'", url);
+                    nsurl_unref(nsurl);
                     fclose(fp);
                     return NSERROR_NOMEM;
                 }
@@ -2960,22 +2963,6 @@ nserror urldb_load(const char *filename)
                 fragment_lwc = nsurl_get_component(nsurl, NSURL_FRAGMENT);
             }
 
-            lwc_string *host_lwc;
-            const char *h_ptr = is_file ? "" : host;
-            if (lwc_intern_string(h_ptr, strlen(h_ptr), &host_lwc) != lwc_error_ok) {
-                lwc_string_unref(scheme_lwc);
-                fclose(fp);
-                return NSERROR_NOMEM;
-            }
-
-            if (nsurl_create_from_components_char(scheme_lwc, host_lwc, port ? ports : NULL, s, &nsurl) != NSERROR_OK) {
-                lwc_string_unref(scheme_lwc);
-                lwc_string_unref(host_lwc);
-                fclose(fp);
-                return NSERROR_NOMEM;
-            }
-
-            lwc_string_unref(host_lwc);
 
             if (url_bloom != NULL) {
                 uint32_t hash = nsurl_hash(nsurl);
@@ -2983,16 +2970,18 @@ nserror urldb_load(const char *filename)
             }
 
             p = urldb_add_path(scheme_lwc, port, h, path_query, fragment_lwc, nsurl);
+            if (nsurl != NULL)
+                nsurl_unref(nsurl);
+            if (scheme_lwc != NULL)
+                lwc_string_unref(scheme_lwc);
+            if (fragment_lwc != NULL)
+                lwc_string_unref(fragment_lwc);
+
             if (!p) {
                 NSLOG(wisp, INFO, "Failed inserting path");
                 fclose(fp);
                 return NSERROR_NOMEM;
             }
-            nsurl_unref(nsurl);
-            if (scheme_lwc != NULL)
-                lwc_string_unref(scheme_lwc);
-            if (fragment_lwc != NULL)
-                lwc_string_unref(fragment_lwc);
 
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
                 break;
@@ -3148,6 +3137,7 @@ bool urldb_add_url(nsurl *url)
     if (h != NULL) {
         p = urldb_add_path(scheme, port_int, h, path_query, fragment, url);
     } else {
+        free(path_query);
         p = NULL;
     }
 
@@ -3893,10 +3883,10 @@ bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
              * look like:
              *
              * for (int i = 0; i < (hlen - dlen); i++) {
-             *	if (host[i] == '.') {
-             *		urldb_free_cookie(c);
-             *		goto error;
-             *	}
+             *  if (host[i] == '.') {
+             *      urldb_free_cookie(c);
+             *      goto error;
+             *  }
              * }
              */
         }

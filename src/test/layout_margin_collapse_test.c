@@ -112,6 +112,7 @@ static struct box *create_box_with_style(int width)
     struct box *b = calloc(1, sizeof(struct box));
     assert(b != NULL);
     b->type = BOX_BLOCK;
+    b->flags |= DIRTY;
     b->style = s;
     b->width = width;
     b->height = AUTO;
