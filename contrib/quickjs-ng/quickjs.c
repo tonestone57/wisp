@@ -3331,20 +3331,22 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
             return JS_UNDEFINED;
         c = *r;
         if (c == '-') {
+            r++;
             if (r >= r_end)
                 return JS_UNDEFINED;
-            r++;
             c = *r;
             /* -0 case is specific */
             if (c == '0' && len == 2)
                 goto minus_zero;
         }
         if (!is_num(c)) {
-            if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2) && str16(p)[0] != '-') {
+            if (c == 'N' && (r_end - r) == 3 && r[1] == 'a' && r[2] == 'N' && str16(p)[0] != '-') {
                 /* valid NaN, but reject -NaN */
-            } else if (c == 'I' && (r_end - r) == 8 && !memcmp(r + 1, "nfinity", 7)) {
+            } else if (c == 'I' && (r_end - r) == 8 && r[1] == 'n' && r[2] == 'f' && r[3] == 'i' && r[4] == 'n' &&
+                r[5] == 'i' && r[6] == 't' && r[7] == 'y') {
                 /* valid Infinity */
-            } else if (c == 'I' && (r_end - r) == 9 && !memcmp(r + 1, "nfinity", 7)) {
+            } else if (c == 'I' && (r_end - r) == 9 && r[1] == 'n' && r[2] == 'f' && r[3] == 'i' && r[4] == 'n' &&
+                r[5] == 'i' && r[6] == 't' && r[7] == 'y') {
                 /* valid -Infinity (prefix handled above) */
             } else {
                 /* String should be normalized, therefore 8-bit only */
@@ -3357,9 +3359,9 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
             return JS_UNDEFINED;
         c = *r;
         if (c == '-') {
+            r++;
             if (r >= r_end)
                 return JS_UNDEFINED;
-            r++;
             c = *r;
             /* -0 case is specific */
             if (c == '0' && len == 2) {
@@ -3372,7 +3374,7 @@ static JSValue JS_AtomIsNumericIndex1(JSContext *ctx, JSAtom atom)
                 /* valid Infinity */
             } else if (c == 'I' && (r_end - r) == 9 && !memcmp(r + 1, "nfinity", 7)) {
                 /* valid -Infinity (handled by prefix '-' above) */
-            } else if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2) && p->is_wide_char == 0 && str8(p)[0] != '-') {
+            } else if (c == 'N' && (r_end - r) == 3 && !memcmp(r + 1, "aN", 2) && str8(p)[0] != '-') {
                 /* valid NaN, but reject -NaN */
                 /* Note: for 8-bit strings, check first char isn't '-' */
             } else {

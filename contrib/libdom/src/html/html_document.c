@@ -87,17 +87,23 @@ dom_exception _dom_html_document_create(dom_events_default_action_fetcher daf, v
 {
     dom_exception error;
     dom_html_document *result;
+    struct arena *arena;
 
-    result = malloc(sizeof(dom_html_document));
-    if (result == NULL)
+    arena = arena_create(64 * 1024);
+    result = arena ? arena_alloc(arena, sizeof(dom_html_document)) : malloc(sizeof(dom_html_document));
+    if (result == NULL) {
+        if (arena) arena_destroy(arena);
         return DOM_NO_MEM_ERR;
+    }
+
+    result->base.arena = arena;
 
     result->base.base.base.vtable = &html_document_vtable;
     result->base.base.vtable = &html_document_protect_vtable;
 
     error = _dom_html_document_initialise(result, daf, daf_ctx);
     if (error != DOM_NO_ERR) {
-        free(result);
+        if (arena) arena_destroy(arena); else free(result);
         return error;
     }
 
@@ -220,9 +226,11 @@ bool _dom_html_document_finalise(dom_html_document *doc)
 void _dom_html_document_destroy(dom_node_internal *node)
 {
     dom_html_document *doc = (dom_html_document *)node;
+    struct arena *arena = doc->base.arena;
 
-    if (_dom_html_document_finalise(doc) == true)
-        free(doc);
+    if (_dom_html_document_finalise(doc) == true) {
+        if (arena) arena_destroy(arena); else free(doc);
+    }
 }
 
 dom_exception _dom_html_document_copy(dom_node_internal *old, dom_node_internal **copy)

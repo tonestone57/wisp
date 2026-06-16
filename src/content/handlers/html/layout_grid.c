@@ -1012,8 +1012,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                 child->type == BOX_INLINE_FLEX || child->type == BOX_GRID || child->type == BOX_INLINE_GRID) {
                 child->float_container = grid;
                 if (!layout_block_context(child, -1, content)) {
-                    free(item_cache);
-                    free(occupied);
+                    if (item_cache) free(item_cache);
+                    if (occupied) free(occupied);
                     free(row_first_item_done);
                     free(row_heights);
                     free(col_widths);
@@ -1023,8 +1023,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
             } else if (child->type == BOX_TABLE) {
                 child->float_container = grid;
                 if (!layout_table(child, child_width, content)) {
-                    free(item_cache);
-                    free(occupied);
+                    if (item_cache) free(item_cache);
+                    if (occupied) free(occupied);
                     free(row_first_item_done);
                     free(row_heights);
                     free(col_widths);
@@ -1057,15 +1057,31 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                 if (row_heights_capacity > old_capacity) {
                     bool *new_rfd = realloc(row_first_item_done, row_heights_capacity * sizeof(bool));
                     if (!new_rfd) {
-                        free(item_cache);
-                        free(occupied);
-                        free(row_first_item_done);
-                        free(row_heights);
-                        free(col_widths);
+                        if (item_cache) free(item_cache);
+                        if (occupied) free(occupied);
+                        if (row_first_item_done) free(row_first_item_done);
+                        if (row_heights) free(row_heights);
+                        if (col_widths) free(col_widths);
                         return false;
                     }
                     memset(new_rfd + old_capacity, 0, (row_heights_capacity - old_capacity) * sizeof(bool));
                     row_first_item_done = new_rfd;
+
+                    /* Also grow occupied grid */
+                    if (occupied != NULL) {
+                        bool *new_occ = realloc(occupied, row_heights_capacity * num_cols * sizeof(bool));
+                        if (!new_occ) {
+                            if (item_cache) free(item_cache);
+                            free(occupied);
+                            if (row_first_item_done) free(row_first_item_done);
+                            if (row_heights) free(row_heights);
+                            if (col_widths) free(col_widths);
+                            return false;
+                        }
+                        memset(new_occ + old_capacity * num_cols, 0, (row_heights_capacity - old_capacity) * num_cols * sizeof(bool));
+                        occupied = new_occ;
+                    }
+                    occupied_max_rows = row_heights_capacity;
                 }
 
                 if (height_per_row > row_heights[r]) {
@@ -1076,9 +1092,11 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
                         needs_pass3 = true;
                         NSLOG(layout, WARNING, "GRID: needs_pass3 set TRUE because row[%d] already had item", r);
                         /* Mark all cached items in this row for re-stretch */
-                        for (int ci = 0; ci < cache_idx; ci++) {
-                            if (item_cache[ci].item_row <= r && r < item_cache[ci].item_row + item_cache[ci].row_span) {
-                                item_cache[ci].needs_restretch = true;
+                        if (item_cache != NULL) {
+                            for (int ci = 0; ci < cache_idx; ci++) {
+                                if (item_cache[ci].item_row <= r && r < item_cache[ci].item_row + item_cache[ci].row_span) {
+                                    item_cache[ci].needs_restretch = true;
+                                }
                             }
                         }
                     }
@@ -1267,6 +1285,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
         NSLOG(layout, INFO, "GRID LAYOUT: Pass 3 (optimized) - processing %d cached items", cache_idx);
         for (int ci = 0; ci < cache_idx; ci++) {
             struct grid_item_cache *cached = &item_cache[ci];
+            if (!cached->box) continue;
 
             /* Skip items that don't need re-stretch */
             if (!cached->needs_restretch) {

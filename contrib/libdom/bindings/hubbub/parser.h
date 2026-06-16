@@ -70,6 +70,8 @@ typedef struct dom_hubbub_parser_params {
 
     /** default action fetcher function */
     dom_events_default_action_fetcher daf;
+
+    struct dom_string *idname; /**< Name of ID attribute */
 } dom_hubbub_parser_params;
 
 /* Create a Hubbub parser instance */

@@ -764,15 +764,19 @@ dom_hubbub_parser_create(dom_hubbub_parser_params *params, dom_hubbub_parser **p
     /* set the document id parameter before the parse so searches
      * based on id succeed.
      */
-    err = dom_string_create_interned((const uint8_t *)"id", SLEN("id"), &idname);
-    if (err != DOM_NO_ERR) {
-        binding->msg(DOM_MSG_ERROR, binding->mctx, "Can't set DOM document id name");
-        hubbub_parser_destroy(binding->parser);
-        free(binding);
-        return DOM_HUBBUB_DOM;
+    if (params->idname != NULL) {
+        _dom_document_set_id_name(binding->doc, params->idname);
+    } else {
+        err = dom_string_create_interned((const uint8_t *)"id", SLEN("id"), &idname);
+        if (err != DOM_NO_ERR) {
+            binding->msg(DOM_MSG_ERROR, binding->mctx, "Can't set DOM document id name");
+            hubbub_parser_destroy(binding->parser);
+            free(binding);
+            return DOM_HUBBUB_DOM;
+        }
+        _dom_document_set_id_name(binding->doc, idname);
+        dom_string_unref(idname);
     }
-    _dom_document_set_id_name(binding->doc, idname);
-    dom_string_unref(idname);
 
     /* set return parameters */
     *document = (dom_document *)dom_node_ref(binding->doc);
