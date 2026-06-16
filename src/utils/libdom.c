@@ -26,6 +26,7 @@
 
 #include <wisp/utils/config.h>
 #include <wisp/utils/log.h>
+#include <wisp/utils/corestrings.h>
 #include "utils/libdom.h"
 
 
@@ -426,6 +427,7 @@ nserror libdom_parse_file(const char *filename, const char *encoding, dom_docume
     parse_params.script = NULL;
     parse_params.ctx = NULL;
     parse_params.daf = NULL;
+    parse_params.idname = corestring_dom_id;
 
     error = dom_hubbub_parser_create(&parse_params, &parser, &document);
     if (error != DOM_HUBBUB_OK) {

@@ -178,13 +178,15 @@ void* wisp_worker_routine(void *arg) {
                     // Time to live expired, scale down
                     worker->running = false;
                     active_workers--;
-                    LeaveCriticalSection(&wisp_queue.lock);
-                    // Free context
+
+                    // Free context while holding lock to avoid races with shutdown
                     JS_FreeContext(worker->ctx);
                     JS_FreeRuntime(worker->rt);
                     worker->ctx = NULL;
                     worker->rt = NULL;
                     worker->thread = NULL;
+
+                    LeaveCriticalSection(&wisp_queue.lock);
                     return NULL;
                 }
             }
@@ -215,19 +217,21 @@ void* wisp_worker_routine(void *arg) {
                     worker->running = false;
                     active_workers--;
 
+                    // Free context while holding lock to avoid races with shutdown
+                    JS_FreeContext(worker->ctx);
+                    JS_FreeRuntime(worker->rt);
+                    worker->ctx = NULL;
+                    worker->rt = NULL;
+
                     pthread_t null_thread;
                     memset(&null_thread, 0, sizeof(pthread_t));
                     worker->thread = null_thread;
+
                     pthread_mutex_unlock(&wisp_queue.lock);
 
                     // Detach so resources are freed immediately upon exit
                     pthread_detach(pthread_self());
 
-                    // Free context
-                    JS_FreeContext(worker->ctx);
-                    JS_FreeRuntime(worker->rt);
-                    worker->ctx = NULL;
-                    worker->rt = NULL;
                     return NULL;
                 }
             }

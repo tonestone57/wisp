@@ -2048,14 +2048,15 @@ static struct path_data *urldb_add_path(lwc_string *scheme, unsigned int port, c
         segment = slash + 1;
     } while (1);
 
-    free(path_query);
-
     if (d && !d->url) {
         /* Insert defragmented URL */
-        if (nsurl_defragment(url, &d->url) != NSERROR_OK)
+        if (nsurl_defragment(url, &d->url) != NSERROR_OK) {
+            free(path_query);
             return NULL;
+        }
     }
 
+    free(path_query);
     return d;
 }
 
@@ -2194,7 +2195,12 @@ static bool urldb_insert_cookie(struct cookie_internal_data *c, lwc_string *sche
         }
 
         /* find path */
-        p = urldb_add_path(scheme, 0, h, strdup(c->path), NULL, url);
+        char *path_dup = strdup(c->path);
+        if (path_dup == NULL) {
+            urldb_free_cookie(c);
+            return false;
+        }
+        p = urldb_add_path(scheme, 0, h, path_dup, NULL, url);
         if (!p) {
             urldb_free_cookie(c);
             return false;
@@ -2970,18 +2976,23 @@ nserror urldb_load(const char *filename)
             }
 
             p = urldb_add_path(scheme_lwc, port, h, path_query, fragment_lwc, nsurl);
+            if (!p) {
+                if (nsurl != NULL)
+                    nsurl_unref(nsurl);
+                if (scheme_lwc != NULL)
+                    lwc_string_unref(scheme_lwc);
+                if (fragment_lwc != NULL)
+                    lwc_string_unref(fragment_lwc);
+                NSLOG(wisp, INFO, "Failed inserting path");
+                fclose(fp);
+                return NSERROR_NOMEM;
+            }
             if (nsurl != NULL)
                 nsurl_unref(nsurl);
             if (scheme_lwc != NULL)
                 lwc_string_unref(scheme_lwc);
             if (fragment_lwc != NULL)
                 lwc_string_unref(fragment_lwc);
-
-            if (!p) {
-                NSLOG(wisp, INFO, "Failed inserting path");
-                fclose(fp);
-                return NSERROR_NOMEM;
-            }
 
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
                 break;
@@ -3137,8 +3148,8 @@ bool urldb_add_url(nsurl *url)
     if (h != NULL) {
         p = urldb_add_path(scheme, port_int, h, path_query, fragment, url);
     } else {
-        free(path_query);
         p = NULL;
+        free(path_query);
     }
 
     lwc_string_unref(scheme);

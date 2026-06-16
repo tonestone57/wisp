@@ -272,10 +272,10 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *n, const cs
         error = css_computed_style_compose(
             styles->styles[CSS_PSEUDO_ELEMENT_NONE], styles->styles[pseudo_element], unit_len_ctx, &composed);
         if (error != CSS_OK) {
-            /* TODO: perhaps this shouldn't be quite so
-             * catastrophic? */
-            css_select_results_destroy(styles);
-            return NULL;
+            NSLOG(wisp, WARNING, "Failed composing pseudo-element style: %d", error);
+            css_computed_style_destroy(styles->styles[pseudo_element]);
+            styles->styles[pseudo_element] = NULL;
+            continue;
         }
 
         /* Replace select_results style with composed style */

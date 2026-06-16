@@ -86,7 +86,7 @@ nserror http_parse_content_type(const char *header_value, http_content_type **re
         return NSERROR_NOMEM;
     }
 
-    sprintf(mime, "%.*s/%.*s", (int)lwc_string_length(type), lwc_string_data(type), (int)lwc_string_length(subtype),
+    snprintf(mime, mime_len + 1, "%.*s/%.*s", (int)lwc_string_length(type), lwc_string_data(type), (int)lwc_string_length(subtype),
         lwc_string_data(subtype));
 
     lwc_string_unref(subtype);
