@@ -476,6 +476,7 @@ add_qjs_libc_if_needed(function_source)
 target_include_directories(function_source PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(function_source PRIVATE ${qjs_defines})
 target_link_libraries(function_source PRIVATE qjs)
+endif()
 
 # Examples
 #
