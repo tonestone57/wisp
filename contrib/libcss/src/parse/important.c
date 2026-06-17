@@ -371,7 +371,7 @@ void css__make_style_important(css_style *style)
             case CSS_PROP_GRID_COLUMN_END:
             case CSS_PROP_GRID_ROW_START:
             case CSS_PROP_GRID_ROW_END:
-                if (value == GRID_LINE_SET)
+                if (value == GRID_LINE_SET || value == GRID_LINE_SPAN)
                     offset++; /* line index */
                 break;
 
@@ -381,8 +381,11 @@ void css__make_style_important(css_style *style)
                 break;
 
             case CSS_PROP_OBJECT_POSITION:
-                if (value == OBJECT_POSITION_SET)
-                    offset += 4; /* two length + units */
+                if ((value & 0xf0) == OBJECT_POSITION_HORZ_SET)
+                    offset += 2; /* length + units */
+
+                if ((value & 0x0f) == OBJECT_POSITION_VERT_SET)
+                    offset += 2; /* length + units */
                 break;
 
             case CSS_PROP_ORPHANS:
