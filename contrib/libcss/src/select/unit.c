@@ -24,33 +24,34 @@
  * \param[in] unit             Unit to map.
  * \return the mapped unit.
  */
-static inline css_unit css_unit__map_viewport_units(const css_computed_style *style, const css_fixed viewport_height,
-    const css_fixed viewport_width, const css_unit unit)
+static inline css_unit css_unit__map_viewport_units(
+		const css_computed_style *style,
+		const css_fixed viewport_height,
+		const css_fixed viewport_width,
+		const css_unit unit)
 {
-    switch (unit) {
-    case CSS_UNIT_VI:
-        return (style != NULL && get_writing_mode(style) != CSS_WRITING_MODE_HORIZONTAL_TB) ? CSS_UNIT_VH : CSS_UNIT_VW;
+	switch (unit) {
+	case CSS_UNIT_VI:
+		return (style != NULL && get_writing_mode(style) !=
+				CSS_WRITING_MODE_HORIZONTAL_TB) ?
+				CSS_UNIT_VH : CSS_UNIT_VW;
 
-    case CSS_UNIT_VB:
-        return (style != NULL && get_writing_mode(style) != CSS_WRITING_MODE_HORIZONTAL_TB) ? CSS_UNIT_VW : CSS_UNIT_VH;
+	case CSS_UNIT_VB:
+		return (style != NULL && get_writing_mode(style) !=
+				CSS_WRITING_MODE_HORIZONTAL_TB) ?
+				CSS_UNIT_VW : CSS_UNIT_VH;
 
-    case CSS_UNIT_CQI:
-        return (style != NULL && get_writing_mode(style) != CSS_WRITING_MODE_HORIZONTAL_TB) ? CSS_UNIT_CQH
-                                                                                            : CSS_UNIT_CQW;
+	case CSS_UNIT_VMIN:
+		return (viewport_height < viewport_width) ?
+				CSS_UNIT_VH : CSS_UNIT_VW;
 
-    case CSS_UNIT_CQB:
-        return (style != NULL && get_writing_mode(style) != CSS_WRITING_MODE_HORIZONTAL_TB) ? CSS_UNIT_CQW
-                                                                                            : CSS_UNIT_CQH;
+	case CSS_UNIT_VMAX:
+		return (viewport_height > viewport_width) ?
+				CSS_UNIT_VH : CSS_UNIT_VW;
 
-    case CSS_UNIT_VMIN:
-        return (viewport_height < viewport_width) ? CSS_UNIT_VH : CSS_UNIT_VW;
-
-    case CSS_UNIT_VMAX:
-        return (viewport_height > viewport_width) ? CSS_UNIT_VH : CSS_UNIT_VW;
-
-    default:
-        return unit;
-    }
+	default:
+		return unit;
+	}
 }
 
 /**
@@ -63,51 +64,70 @@ static inline css_unit css_unit__map_viewport_units(const css_computed_style *st
  * \param[in] unit             Current unit of length.
  * \return length in points (pt).
  */
-static inline css_fixed css_unit__absolute_len2pt(const css_computed_style *style, const css_fixed viewport_height,
-    const css_fixed viewport_width, const css_fixed length, const css_unit unit)
+static inline css_fixed css_unit__absolute_len2pt(
+		const css_computed_style *style,
+		const css_fixed viewport_height,
+		const css_fixed viewport_width,
+		const css_fixed length,
+		const css_unit unit)
 {
-    /* Length must not be relative */
-    assert(unit != CSS_UNIT_EM && unit != CSS_UNIT_EX && unit != CSS_UNIT_CH && unit != CSS_UNIT_IC &&
-        unit != CSS_UNIT_REM);
+	/* Length must not be relative */
+	assert(unit != CSS_UNIT_EM &&
+	       unit != CSS_UNIT_EX &&
+	       unit != CSS_UNIT_CH &&
+	       unit != CSS_UNIT_REM);
 
-    switch (css_unit__map_viewport_units(style, viewport_height, viewport_width, unit)) {
-    case CSS_UNIT_PX:
-        return FDIV(FMUL(length, F_72), F_96);
+	switch (css_unit__map_viewport_units(style,
+			viewport_height,
+			viewport_width,
+			unit)) {
+	case CSS_UNIT_PX:
+		return FDIV(FMUL(length, F_72), F_96);
 
-    case CSS_UNIT_IN:
-        return FMUL(length, F_72);
+	case CSS_UNIT_IN:
+		return FMUL(length, F_72);
 
-    case CSS_UNIT_CM:
-        return FMUL(length, FDIV(F_72, FLTTOFIX(2.54)));
+	case CSS_UNIT_CM:
+		return FMUL(length, FDIV(F_72, FLTTOFIX(2.54)));
 
-    case CSS_UNIT_MM:
-        return FMUL(length, FDIV(F_72, FLTTOFIX(25.4)));
+	case CSS_UNIT_MM:
+		return FMUL(length, FDIV(F_72, FLTTOFIX(25.4)));
 
-    case CSS_UNIT_Q:
-        return FMUL(length, FDIV(F_72, FLTTOFIX(101.6)));
+	case CSS_UNIT_Q:
+		return FMUL(length, FDIV(F_72, FLTTOFIX(101.6)));
 
-    case CSS_UNIT_PT:
-        return length;
+	case CSS_UNIT_PT:
+		return length;
 
-    case CSS_UNIT_PC:
-        return FMUL(length, INTTOFIX(12));
+	case CSS_UNIT_PC:
+		return FMUL(length, INTTOFIX(12));
 
-    case CSS_UNIT_VH:
-        return FDIV(FMUL(FDIV(FMUL(length, viewport_height), F_100), F_72), F_96);
+	case CSS_UNIT_VH:
+		return FDIV(FMUL(FDIV(FMUL(length, viewport_height), F_100),
+				F_72), F_96);
 
-    case CSS_UNIT_VW:
-        return FDIV(FMUL(FDIV(FMUL(length, viewport_width), F_100), F_72), F_96);
+	case CSS_UNIT_VW:
+		return FDIV(FMUL(FDIV(FMUL(length, viewport_width), F_100),
+				F_72), F_96);
 
-    default:
-        return 0;
-    }
+	default:
+		return 0;
+	}
 }
 
 /* Exported function, documented in libcss/unit.h. */
 css_fixed css_unit_font_size_len2pt(
-    const css_computed_style *style, const css_unit_ctx *ctx, const css_fixed length, const css_unit unit)
+		const css_computed_style *style,
+		const css_unit_ctx *ctx,
+		const css_fixed length,
+		const css_unit unit)
 {
-    return css_unit__absolute_len2pt(style, ctx->viewport_height, ctx->viewport_width, length, unit);
+	return css_unit__absolute_len2pt(
+			style,
+			ctx->viewport_height,
+			ctx->viewport_width,
+			length,
+			unit);
 }
 
 /**
@@ -122,31 +142,39 @@ css_fixed css_unit_font_size_len2pt(
  * \param[in] viewport_width     Client viewport width.
  * \return font-size in CSS pixels.
  */
-static inline css_fixed css_unit__font_size_px(const css_computed_style *style, const css_fixed font_size_default,
-    const css_fixed font_size_minimum, const css_fixed viewport_height, const css_fixed viewport_width)
+static inline css_fixed css_unit__font_size_px(
+		const css_computed_style *style,
+		const css_fixed font_size_default,
+		const css_fixed font_size_minimum,
+		const css_fixed viewport_height,
+		const css_fixed viewport_width)
 {
-    css_fixed font_length = 0;
-    css_unit font_unit = CSS_UNIT_PT;
+	css_fixed font_length = 0;
+	css_unit font_unit = CSS_UNIT_PT;
 
-    if (style == NULL) {
-        return font_size_default;
-    }
+	if (style == NULL) {
+		return font_size_default;
+	}
 
-    get_font_size(style, &font_length, &font_unit);
+	get_font_size(style, &font_length, &font_unit);
 
-    if (font_unit != CSS_UNIT_PX) {
-        font_length = css_unit__absolute_len2pt(style, viewport_height, viewport_width, font_length, font_unit);
+	if (font_unit != CSS_UNIT_PX) {
+		font_length = css_unit__absolute_len2pt(style,
+				viewport_height,
+				viewport_width,
+				font_length,
+				font_unit);
 
-        /* Convert from pt to CSS pixels.*/
-        font_length = FDIV(FMUL(font_length, F_96), F_72);
-    }
+		/* Convert from pt to CSS pixels.*/
+		font_length = FDIV(FMUL(font_length, F_96), F_72);
+	}
 
-    /* Clamp to configured minimum */
-    if (font_length < font_size_minimum) {
-        font_length = font_size_minimum;
-    }
+	/* Clamp to configured minimum */
+	if (font_length < font_size_minimum) {
+		font_length = font_size_minimum;
+	}
 
-    return font_length;
+	return font_length;
 }
 
 /**
@@ -163,109 +191,185 @@ static inline css_fixed css_unit__font_size_px(const css_computed_style *style, 
  * \param[in] pw                 Client private word for measure callback.
  * \return Number of CSS pixels equivalent to the given unit.
  */
-static inline css_fixed css_unit__px_per_unit(const css_unit_len_measure measure, const css_computed_style *ref_style,
-    const css_computed_style *root_style, const css_fixed font_size_default, const css_fixed font_size_minimum,
-    const css_fixed viewport_height, const css_fixed viewport_width, const css_unit unit, void *pw)
+static inline css_fixed css_unit__px_per_unit(
+		const css_unit_len_measure measure,
+		const css_computed_style *ref_style,
+		const css_computed_style *root_style,
+		const css_fixed font_size_default,
+		const css_fixed font_size_minimum,
+		const css_fixed viewport_height,
+		const css_fixed viewport_width,
+		const css_unit unit,
+		void *pw)
 {
-    switch (css_unit__map_viewport_units(ref_style, viewport_height, viewport_width, unit)) {
-    case CSS_UNIT_EM:
-        return css_unit__font_size_px(ref_style, font_size_default, font_size_minimum, viewport_height, viewport_width);
+	switch (css_unit__map_viewport_units(
+			ref_style,
+			viewport_height,
+			viewport_width,
+			unit)) {
+	case CSS_UNIT_EM:
+		return css_unit__font_size_px(
+				ref_style,
+				font_size_default,
+				font_size_minimum,
+				viewport_height,
+				viewport_width);
 
-    case CSS_UNIT_EX:
-        if (measure != NULL) {
-            return measure(pw, ref_style, CSS_UNIT_EX);
-        }
-        return FMUL(
-            css_unit__font_size_px(ref_style, font_size_default, font_size_minimum, viewport_height, viewport_width),
-            FLTTOFIX(0.6));
+	case CSS_UNIT_EX:
+		if (measure != NULL) {
+			return measure(pw, ref_style, CSS_UNIT_EX);
+		}
+		return FMUL(css_unit__font_size_px(
+				ref_style,
+				font_size_default,
+				font_size_minimum,
+				viewport_height,
+				viewport_width), FLTTOFIX(0.6));
 
-    case CSS_UNIT_CH:
-        if (measure != NULL) {
-            return measure(pw, ref_style, CSS_UNIT_CH);
-        }
-        return FMUL(
-            css_unit__font_size_px(ref_style, font_size_default, font_size_minimum, viewport_height, viewport_width),
-            FLTTOFIX(0.4));
+	case CSS_UNIT_CH:
+		if (measure != NULL) {
+			return measure(pw, ref_style, CSS_UNIT_CH);
+		}
+		return FMUL(css_unit__font_size_px(
+				ref_style,
+				font_size_default,
+				font_size_minimum,
+				viewport_height,
+				viewport_width), FLTTOFIX(0.4));
 
-    case CSS_UNIT_IC:
-        if (measure != NULL) {
-            return measure(pw, ref_style, CSS_UNIT_IC);
-        }
-        return css_unit__font_size_px(ref_style, font_size_default, font_size_minimum, viewport_height, viewport_width);
+	case CSS_UNIT_IC:
+		if (measure != NULL) {
+			return measure(pw, ref_style, CSS_UNIT_IC);
+		}
+		return css_unit__font_size_px(ref_style, font_size_default, font_size_minimum, viewport_height, viewport_width);
 
-    case CSS_UNIT_PX:
-        return F_1;
 
-    case CSS_UNIT_IN:
-        return F_96;
 
-    case CSS_UNIT_CM:
-        return FDIV(F_96, FLTTOFIX(2.54));
+	case CSS_UNIT_PX:
+		return F_1;
 
-    case CSS_UNIT_MM:
-        return FDIV(F_96, FLTTOFIX(25.4));
+	case CSS_UNIT_IN:
+		return F_96;
 
-    case CSS_UNIT_Q:
-        return FDIV(F_96, FLTTOFIX(101.6));
+	case CSS_UNIT_CM:
+		return FDIV(F_96, FLTTOFIX(2.54));
 
-    case CSS_UNIT_PT:
-        return FDIV(F_96, F_72);
+	case CSS_UNIT_MM:
+		return FDIV(F_96, FLTTOFIX(25.4));
 
-    case CSS_UNIT_PC:
-        return FDIV(F_96, INTTOFIX(6));
+	case CSS_UNIT_Q:
+		return FDIV(F_96, FLTTOFIX(101.6));
 
-    case CSS_UNIT_REM:
-        return css_unit__font_size_px(
-            root_style, font_size_default, font_size_minimum, viewport_height, viewport_width);
+	case CSS_UNIT_PT:
+		return FDIV(F_96, F_72);
 
-    case CSS_UNIT_VH:
-        return FDIV(viewport_height, F_100);
+	case CSS_UNIT_PC:
+		return FDIV(F_96, INTTOFIX(6));
 
-    case CSS_UNIT_VW:
-        return FDIV(viewport_width, F_100);
+	case CSS_UNIT_REM:
+		return css_unit__font_size_px(
+				root_style,
+				font_size_default,
+				font_size_minimum,
+				viewport_height,
+				viewport_width);
 
-    case CSS_UNIT_CQW:
-    case CSS_UNIT_CQH:
-        return 0;
+	case CSS_UNIT_VH:
+		return FDIV(viewport_height, F_100);
 
-    default:
-        return 0;
-    }
+	case CSS_UNIT_VW:
+		return FDIV(viewport_width, F_100);
+
+	case CSS_UNIT_CQW:
+	case CSS_UNIT_CQH:
+		return 0;
+
+
+
+	default:
+		return 0;
+	}
 }
 
 /* Exported function, documented in unit.h. */
-css_fixed css_unit_len2px_mq(const css_unit_ctx *ctx, const css_fixed length, const css_unit unit)
+css_fixed css_unit_len2px_mq(
+		const css_unit_ctx *ctx,
+		const css_fixed length,
+		const css_unit unit)
 {
-    /* In the media query context there is no reference or root element
-     * style, so these are hard-coded to NULL. */
-    css_fixed px_per_unit = css_unit__px_per_unit(ctx->measure, NULL, NULL, ctx->font_size_default,
-        ctx->font_size_minimum, ctx->viewport_height, ctx->viewport_width, unit, ctx->pw);
+	/* In the media query context there is no reference or root element
+	 * style, so these are hard-coded to NULL. */
+	css_fixed px_per_unit = css_unit__px_per_unit(
+			ctx->measure,
+			NULL,
+			NULL,
+			ctx->font_size_default,
+			ctx->font_size_minimum,
+			ctx->viewport_height,
+			ctx->viewport_width,
+			unit,
+			ctx->pw);
 
-    /* Calculate total number of pixels */
-    return FMUL(length, px_per_unit);
+	/* Ensure we round px_per_unit to the nearest whole number of pixels:
+	 * the use of FIXTOINT() below will truncate. */
+	px_per_unit += F_0_5;
+
+	/* Calculate total number of pixels */
+	return FMUL(length, TRUNCATEFIX(px_per_unit));
 }
 
 /* Exported function, documented in libcss/unit.h. */
 css_fixed css_unit_len2css_px(
-    const css_computed_style *style, const css_unit_ctx *ctx, const css_fixed length, const css_unit unit)
+		const css_computed_style *style,
+		const css_unit_ctx *ctx,
+		const css_fixed length,
+		const css_unit unit)
 {
-    css_fixed px_per_unit = css_unit__px_per_unit(ctx->measure, style, ctx->root_style, ctx->font_size_default,
-        ctx->font_size_minimum, ctx->viewport_height, ctx->viewport_width, unit, ctx->pw);
+	css_fixed px_per_unit = css_unit__px_per_unit(
+			ctx->measure,
+			style,
+			ctx->root_style,
+			ctx->font_size_default,
+			ctx->font_size_minimum,
+			ctx->viewport_height,
+			ctx->viewport_width,
+			unit,
+			ctx->pw);
 
-    /* Calculate total number of pixels */
-    return FMUL(length, px_per_unit);
+	/* Ensure we round px_per_unit to the nearest whole number of pixels:
+	 * the use of FIXTOINT() below will truncate. */
+	px_per_unit += F_0_5;
+
+	/* Calculate total number of pixels */
+	return FMUL(length, TRUNCATEFIX(px_per_unit));
 }
 
 /* Exported function, documented in libcss/unit.h. */
 css_fixed css_unit_len2device_px(
-    const css_computed_style *style, const css_unit_ctx *ctx, const css_fixed length, const css_unit unit)
+		const css_computed_style *style,
+		const css_unit_ctx *ctx,
+		const css_fixed length,
+		const css_unit unit)
 {
-    css_fixed px_per_unit = css_unit__px_per_unit(ctx->measure, style, ctx->root_style, ctx->font_size_default,
-        ctx->font_size_minimum, ctx->viewport_height, ctx->viewport_width, unit, ctx->pw);
+	css_fixed px_per_unit = css_unit__px_per_unit(
+			ctx->measure,
+			style,
+			ctx->root_style,
+			ctx->font_size_default,
+			ctx->font_size_minimum,
+			ctx->viewport_height,
+			ctx->viewport_width,
+			unit,
+			ctx->pw);
 
-    px_per_unit = css_unit_css2device_px(px_per_unit, ctx->device_dpi);
+	px_per_unit = css_unit_css2device_px(px_per_unit, ctx->device_dpi);
 
-    return FMUL(length, px_per_unit);
+	/* Ensure we round px_per_unit to the nearest whole number of pixels:
+	 * the use of FIXTOINT() below will truncate. */
+	px_per_unit += F_0_5;
+
+	/* Calculate total number of pixels */
+	return FMUL(length, TRUNCATEFIX(px_per_unit));
 }
 
 /**
