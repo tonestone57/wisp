@@ -760,6 +760,9 @@ class MultiFileGenerator:
             'ZERO_VALUE':       '0',
             # C keyword collision — 'wrap' is used by WRAP: in specs
             'WRAP_STRING':      'wrap',
+            'LIBCSS_LEFT':      '-libcss-left',
+            'LIBCSS_CENTER':    '-libcss-center',
+            'LIBCSS_RIGHT':     '-libcss-right',
         }
         
         # ═══════════════════════════════════════════════════════════════
