@@ -817,6 +817,68 @@ START_TEST(test_collapse_through_abspos_children)
 END_TEST
 
 /**
+ * Test: a self-collapsing block followed by an out-of-flow sibling.
+ *
+ * This reproduces the townhall crash path: margin-collapse traversal starts
+ * from an empty in-flow block, advances to the next sibling, and must skip an
+ * absolute-positioned box instead of trying to measure it as part of the
+ * collapse chain.
+ *
+ * Structure:
+ *   block  (root BFC)
+ *     a      (height:10, mb:10)
+ *     label  (height:0, mt:0, mb:7)   ← collapses through
+ *     absbox (position:absolute)       ← must be skipped
+ *     input  (height:10, mt:0)
+ *
+ * Expected: absbox does not participate. The collapse chain is
+ * a.mb=10, label.mt=0, label.mb=7, input.mt=0 → collapsed = 10.
+ * input.y = 10 + 10 = 20.
+ */
+START_TEST(test_collapse_through_skips_abspos_next_sibling)
+{
+    html_content *content = create_test_content();
+
+    struct box *block = create_box_with_style(200);
+
+    struct box *a = create_box_with_style(200);
+    style_set_height_px(a->style, 10);
+    a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(a->style, 0, 0, 10, 0);
+
+    struct box *label = create_box_with_style(200);
+    style_set_height_px(label->style, 0);
+    style_set_margins(label->style, 0, 0, 7, 0);
+
+    struct box *absbox = create_box_with_style(200);
+    style_set_position_absolute(absbox->style);
+    style_set_height_px(absbox->style, 1);
+    absbox->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+    style_set_margins(absbox->style, 100, 0, 100, 0);
+
+    struct box *input = create_box_with_style(200);
+    style_set_height_px(input->style, 10);
+    input->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(block, a);
+    add_child(block, label);
+    add_child(block, absbox);
+    add_child(block, input);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    ck_assert_msg(input->y == 20,
+        "collapse_through_skips_abspos_next_sibling: expected input->y=20, got %d "
+        "(self-collapsing box must skip abspos next sibling in margin traversal)",
+        input->y);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
+/**
  * CSS 2.1 §8.3.1: A block element whose only child is an
  * INLINE_CONTAINER with no line boxes should self-collapse.
  *
@@ -1207,6 +1269,7 @@ static Suite *margin_collapse_suite(void)
     tcase_add_test(tc_through, test_nested_collapse_through);
     tcase_add_test(tc_through, test_no_collapse_through_border);
     tcase_add_test(tc_through, test_collapse_through_abspos_children);
+    tcase_add_test(tc_through, test_collapse_through_skips_abspos_next_sibling);
     tcase_add_test(tc_through, test_collapse_through_empty_ic);
     suite_add_tcase(s, tc_through);
 

@@ -161,6 +161,8 @@ static void css__destroy_node_data(struct css_node_data *node_data)
         }
     }
 
+    css__variables_ctx_destroy(node_data->var_ctx);
+
     free(node_data);
 }
 
@@ -671,6 +673,10 @@ static css_error css__set_node_data(void *node, css_select_state *state, css_sel
         node_data->partial.styles[i] = css__computed_style_ref(results->styles[i]);
     }
 
+    /* Transfer working var_ctx to node_data for child inheritance */
+    node_data->var_ctx = state->var_ctx;
+    state->var_ctx = NULL;
+
     error = handler->set_libcss_node_data(pw, node, node_data);
     if (error != CSS_OK) {
         css__destroy_node_data(node_data);
@@ -944,6 +950,11 @@ static void css_select__finalise_selection_state(css_select_state *state)
         css__destroy_node_data(state->node_data);
     }
 
+    if (state->var_ctx != NULL) {
+        css__variables_ctx_destroy(state->var_ctx);
+        state->var_ctx = NULL;
+    }
+
     if (state->classes != NULL) {
         for (uint32_t i = 0; i < state->n_classes; i++) {
             lwc_string_unref(state->classes[i]);
@@ -1011,6 +1022,24 @@ static css_error css_select__initialise_selection_state(css_select_state *state,
     }
 
     error = css__get_parent_bloom(parent, handler, pw, &state->node_data->bloom);
+    if (error != CSS_OK) {
+        goto failed;
+    }
+
+    /* Clone parent's variable context for inheritance */
+    if (parent != NULL) {
+        struct css_node_data *parent_data = NULL;
+        error = handler->get_libcss_node_data(pw, parent,
+            (void **)(void *)&parent_data);
+        if (error != CSS_OK) {
+            goto failed;
+        }
+        error = css__variables_ctx_clone(
+            parent_data != NULL ? parent_data->var_ctx : NULL,
+            &state->var_ctx);
+    } else {
+        error = css__variables_ctx_create(&state->var_ctx);
+    }
     if (error != CSS_OK) {
         goto failed;
     }
@@ -2464,6 +2493,46 @@ css_error match_detail(css_select_ctx *ctx, void *node, const css_selector_detai
             *pseudo_element = CSS_PSEUDO_ELEMENT_BEFORE;
         } else if (detail->qname.name == ctx->str.after) {
             *pseudo_element = CSS_PSEUDO_ELEMENT_AFTER;
+        } else if (detail->qname.name == ctx->str.backdrop) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_BACKDROP;
+        } else if (detail->qname.name == ctx->str.file_selector_button) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_FILE_SELECTOR_BUTTON;
+        } else if (detail->qname.name == ctx->str.placeholder) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_PLACEHOLDER;
+        } else if (detail->qname.name == ctx->str.marker) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_MARKER;
+        } else if (detail->qname.name == ctx->str.webkit_search_decoration) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_SEARCH_DECORATION;
+        } else if (detail->qname.name == ctx->str.webkit_date_and_time_value) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATE_AND_TIME_VALUE;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_fields_wrapper) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_FIELDS_WRAPPER;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_year_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_YEAR_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_month_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_MONTH_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_day_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_DAY_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_hour_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_HOUR_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_minute_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_MINUTE_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_second_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_SECOND_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_millisecond_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_MILLISECOND_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_datetime_edit_meridiem_field) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_DATETIME_EDIT_MERIDIEM_FIELD;
+        } else if (detail->qname.name == ctx->str.webkit_calendar_picker_indicator) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_CALENDAR_PICKER_INDICATOR;
+        } else if (detail->qname.name == ctx->str.webkit_inner_spin_button) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_INNER_SPIN_BUTTON;
+        } else if (detail->qname.name == ctx->str.webkit_outer_spin_button) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_OUTER_SPIN_BUTTON;
+        } else if (detail->qname.name == ctx->str.webkit_scrollbar) {
+            *pseudo_element = CSS_PSEUDO_ELEMENT_WEBKIT_SCROLLBAR;
         } else
             *match = false;
         break;
@@ -2519,6 +2588,28 @@ css_error cascade_style(const css_style *style, css_select_state *state)
         advance_bytecode(&s, sizeof(opv));
 
         op = getOpcode(opv);
+
+        /* Custom property declarations: skip the 2 trailing words
+         * (name_string_idx, value_string_idx). Full processing
+         * will be added when the variable context is implemented. */
+        if (op == CSS_PROP_CUSTOM_PROPERTY) {
+            /* Read name and value string indices from bytecode */
+            uint32_t name_idx = *s.bytecode;
+            advance_bytecode(&s, sizeof(css_code_t));
+            uint32_t value_idx = *s.bytecode;
+            advance_bytecode(&s, sizeof(css_code_t));
+
+            /* Resolve lwc_strings from the stylesheet's string_vector */
+            lwc_string *name_str = NULL;
+            lwc_string *value_str = NULL;
+            css__stylesheet_string_get(s.sheet, name_idx, &name_str);
+            css__stylesheet_string_get(s.sheet, value_idx, &value_str);
+
+            if (name_str != NULL && value_str != NULL && state->var_ctx != NULL) {
+                css__variables_ctx_set(state->var_ctx, name_str, value_str);
+            }
+            continue;
+        }
 
         /* DEBUG: Log opcode to trace out-of-bounds access */
         // fprintf(stderr, "DEBUG cascade: opcode=%d (0x%03x), CSS_N_PROPERTIES=%d\n", op, op, CSS_N_PROPERTIES);

@@ -1118,9 +1118,18 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         assert(0);
     }
 
-    /* fixed width takes priority */
-    if (block->type != BOX_TABLE_CELL && !lh__box_is_flex_item(block)) {
+    /* Apply CSS width / min-width / max-width constraints.
+     *
+     * For normal blocks, an explicit width replaces the content-based
+     * min/max (the block's intrinsic size IS the specified width).
+     *
+     * For flex items, CSS Flexbox §9.9.3 says the intrinsic size
+     * contribution is the LARGER of content size and preferred size
+     * (if not auto), clamped by min/max main size.  So the explicit
+     * width acts as a floor, not a replacement. */
+    if (block->type != BOX_TABLE_CELL) {
         bool border_box = bs == CSS_BOX_SIZING_BORDER_BOX;
+        bool is_flex_item = lh__box_is_flex_item(block);
         enum css_max_width_e max_type;
         enum css_min_width_e min_type;
         css_unit unit = CSS_UNIT_PX;
@@ -1131,9 +1140,23 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         wtype = css_computed_width(block->style, &value, &unit);
 
         if (wtype == CSS_WIDTH_SET && unit == CSS_UNIT_PCT) {
-            min = 0;
+            if (!is_flex_item) {
+                min = 0;
+            }
+            /* For flex items with percentage width, the content-based
+             * min/max computed from children is kept as-is. */
         } else if (css_computed_width_px(block->style, &content->unit_len_ctx, -1, &width) == CSS_WIDTH_SET) {
-            min = max = width;
+            if (is_flex_item) {
+                /* CSS Flexbox §9.9.3: contribution = max(content, preferred).
+                 * Preferred size is a floor for the content-based sizes. */
+                if (width > min)
+                    min = width;
+                if (width > max)
+                    max = width;
+            } else {
+                /* Normal block: preferred size replaces content sizes. */
+                min = max = width;
+            }
             using_max_border_box = border_box;
             using_min_border_box = border_box;
         }
@@ -1151,7 +1174,9 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         max_type = css_computed_max_width(block->style, &value, &unit);
         if (max_type == CSS_MAX_WIDTH_SET) {
             if (unit == CSS_UNIT_PCT) {
-                min = 0;
+                if (!is_flex_item) {
+                    min = 0;
+                }
             } else {
                 int val = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, value, unit));
 
@@ -1477,13 +1502,14 @@ static struct box *layout_next_margin_block(const css_unit_ctx *unit_len_ctx, st
                     *max_neg_margin = -(unsigned int)box->margin[BOTTOM];
             }
 
-            /* To next sibling. */
+            /* To next sibling.
+             * CSS 2.1 §8.3.1 only allows collapse with the next in-flow
+             * sibling, so skip out-of-flow boxes here and let the top of
+             * the loop compute margins for the next valid participant. */
             box = box->next;
-
-            /* Get margins */
-            if (box->style) {
-                layout_find_dimensions(unit_len_ctx, box->parent->width, viewport_height, box, box->style, NULL, NULL,
-                    NULL, NULL, NULL, NULL, box->margin, box->padding, box->border);
+            while (box != NULL && box_is_out_of_flow(box)) {
+                NSLOG(layout, DEBUG, "margin collapse: skipping out-of-flow sibling %p type=%d", box, box->type);
+                box = box->next;
             }
         }
     }
