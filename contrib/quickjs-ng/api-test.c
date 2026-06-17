@@ -1,32 +1,44 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
-#include "cutils.h"
-#include "quickjs.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include "quickjs.h"
+#include "cutils.h"
+
+static JSRuntime *new_runtime(void)
+{
+    JSRuntime *rt = JS_NewRuntime();
+
+    if (rt)
+        JS_SetDumpFlags(rt, JS_ABORT_ON_LEAKS);
+    return rt;
+}
 
 static JSValue eval(JSContext *ctx, const char *code)
 {
     return JS_Eval(ctx, code, strlen(code), "<input>", JS_EVAL_TYPE_GLOBAL);
 }
 
-static JSValue cfunc_callback(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static JSValue cfunc_callback(JSContext *ctx, JSValueConst this_val,
+                              int argc, JSValueConst *argv)
 {
     return JS_ThrowTypeError(ctx, "from cfunc");
 }
 
-static JSValue cfuncdata_callback(
-    JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValueConst *func_data)
+static JSValue cfuncdata_callback(JSContext *ctx, JSValueConst this_val,
+                                  int argc, JSValueConst *argv,
+                                  int magic, JSValueConst *func_data)
 {
     return JS_ThrowTypeError(ctx, "from cfuncdata");
 }
 
-static JSValue
-cclosure_callback(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, void *func_data)
+static JSValue cclosure_callback(JSContext *ctx, JSValueConst this_val,
+                                 int argc, JSValueConst *argv,
+                                 int magic, void *func_data)
 {
-    return JS_ThrowTypeError(ctx, "from cclosure");
+  return JS_ThrowTypeError(ctx, "from cclosure");
 }
 
 static bool closure_finalized = false;
@@ -43,13 +55,15 @@ static void cfunctions(void)
     const char *s;
     JSValue ret, stack;
 
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     JSValue cfunc = JS_NewCFunction(ctx, cfunc_callback, "cfunc", 42);
-    JSValue cfuncdata = JS_NewCFunctionData2(ctx, cfuncdata_callback, "cfuncdata",
-        /*length*/ 1337, /*magic*/ 0, /*data_len*/ 0, NULL);
-    JSValue cclosure = JS_NewCClosure(ctx, cclosure_callback, "cclosure", cclosure_opaque_finalize,
-        /*length*/ 0xC0DE, /*magic*/ 11, /*opaque*/ (void *)12);
+    JSValue cfuncdata =
+        JS_NewCFunctionData2(ctx, cfuncdata_callback, "cfuncdata",
+                             /*length*/1337, /*magic*/0, /*data_len*/0, NULL);
+    JSValue cclosure =
+        JS_NewCClosure(ctx, cclosure_callback, "cclosure", cclosure_opaque_finalize,
+                       /*length*/0xC0DE, /*magic*/11, /*opaque*/(void*)12);
     JSValue global = JS_GetGlobalObject(ctx);
     JS_SetPropertyStr(ctx, global, "cfunc", cfunc);
     JS_SetPropertyStr(ctx, global, "cfuncdata", cfuncdata);
@@ -167,13 +181,14 @@ static int timeout_interrupt_handler(JSRuntime *rt, void *opaque)
 
 static void sync_call(void)
 {
-    static const char code[] = "(function() { \
+    static const char code[] =
+"(function() { \
     try { \
         while (true) {} \
     } catch (e) {} \
 })();";
 
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     int time = 0;
     JS_SetInterruptHandler(rt, timeout_interrupt_handler, &time);
@@ -191,7 +206,8 @@ static void sync_call(void)
 
 static void async_call(void)
 {
-    static const char code[] = "(async function() { \
+    static const char code[] =
+"(async function() { \
     const loop = async () => { \
         await Promise.resolve(); \
         while (true) {} \
@@ -199,7 +215,7 @@ static void async_call(void)
     await loop().catch(() => {}); \
 })();";
 
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     int time = 0;
     JS_SetInterruptHandler(rt, timeout_interrupt_handler, &time);
@@ -221,7 +237,8 @@ static void async_call(void)
     JS_FreeRuntime(rt);
 }
 
-static JSValue save_value(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static JSValue save_value(JSContext *ctx, JSValueConst this_val,
+                          int argc, JSValueConst *argv)
 {
     assert(argc == 1);
     JSValue *p = (JSValue *)JS_GetContextOpaque(ctx);
@@ -231,7 +248,8 @@ static JSValue save_value(JSContext *ctx, JSValueConst this_val, int argc, JSVal
 
 static void async_call_stack_overflow(void)
 {
-    static const char code[] = "(async function() { \
+    static const char code[] =
+"(async function() { \
     const f = () => f(); \
     try { \
         await Promise.resolve(); \
@@ -241,7 +259,7 @@ static void async_call_stack_overflow(void)
     } \
 })();";
 
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     JSValue value = JS_UNDEFINED;
     JS_SetContextOpaque(ctx, &value);
@@ -267,7 +285,7 @@ static void async_call_stack_overflow(void)
 // https://github.com/quickjs-ng/quickjs/issues/914
 static void raw_context_global_var(void)
 {
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContextRaw(rt);
     JS_AddIntrinsicEval(ctx);
     {
@@ -291,7 +309,7 @@ static void raw_context_global_var(void)
 
 static void is_array(void)
 {
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     {
         JSValue ret = eval(ctx, "[]");
@@ -327,7 +345,8 @@ static JSModuleDef *loader(JSContext *ctx, const char *name, void *opaque)
     loader_calls++;
     assert(!strcmp(name, "b"));
     static const char code[] = "export function f(x){}";
-    JSValue ret = JS_Eval(ctx, code, strlen(code), "b", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    JSValue ret = JS_Eval(ctx, code, strlen(code), "b",
+                          JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY);
     assert(!JS_IsException(ret));
     JSModuleDef *m = JS_VALUE_GET_PTR(ret);
     assert(m);
@@ -337,18 +356,20 @@ static JSModuleDef *loader(JSContext *ctx, const char *name, void *opaque)
 
 static void module_serde(void)
 {
-    JSRuntime *rt = JS_NewRuntime();
-    // JS_SetDumpFlags(rt, JS_DUMP_MODULE_RESOLVE);
+    JSRuntime *rt = new_runtime();
+    //JS_SetDumpFlags(rt, JS_DUMP_MODULE_RESOLVE);
     JS_SetModuleLoaderFunc(rt, NULL, loader, NULL);
     JSContext *ctx = JS_NewContext(rt);
     static const char code[] = "import {f} from 'b'; f()";
     assert(loader_calls == 0);
-    JSValue mod = JS_Eval(ctx, code, strlen(code), "a", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    JSValue mod = JS_Eval(ctx, code, strlen(code), "a",
+                          JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY);
     assert(loader_calls == 1);
     assert(!JS_IsException(mod));
     assert(JS_IsModule(mod));
     size_t len = 0;
-    uint8_t *buf = JS_WriteObject(ctx, &len, mod, JS_WRITE_OBJ_BYTECODE | JS_WRITE_OBJ_REFERENCE);
+    uint8_t *buf = JS_WriteObject(ctx, &len, mod,
+                                  JS_WRITE_OBJ_BYTECODE|JS_WRITE_OBJ_REFERENCE);
     assert(buf);
     assert(len > 0);
     JS_FreeValue(ctx, mod);
@@ -372,7 +393,7 @@ static void module_serde(void)
 
 static void runtime_cstring_free(void)
 {
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     // string -> cstring + JS_FreeCStringRT
     {
@@ -408,12 +429,12 @@ static void runtime_cstring_free(void)
     JS_FreeRuntime(rt);
 }
 
-static void two_byte_string(void)
+static void utf16_string(void)
 {
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     {
-        JSValue v = JS_NewTwoByteString(ctx, NULL, 0);
+        JSValue v = JS_NewStringUTF16(ctx, NULL, 0);
         assert(!JS_IsException(v));
         const char *s = JS_ToCString(ctx, v);
         assert(s);
@@ -422,23 +443,59 @@ static void two_byte_string(void)
         JS_FreeValue(ctx, v);
     }
     {
-        JSValue v = JS_NewTwoByteString(ctx, (uint16_t[]){'o', 'k'}, 2);
+        JSValue v = JS_NewStringUTF16(ctx, (uint16_t[]){'o','k'}, 2);
         assert(!JS_IsException(v));
         const char *s = JS_ToCString(ctx, v);
         assert(s);
         assert(!strcmp(s, "ok"));
         JS_FreeCString(ctx, s);
+        size_t n;
+        const uint16_t *u = JS_ToCStringLenUTF16(ctx, &n, v);
+        assert(u);
+        assert(n == 2);
+        assert(u[0] == 'o');
+        assert(u[1] == 'k');
+        JS_FreeCStringUTF16(ctx, u);
         JS_FreeValue(ctx, v);
     }
     {
-        JSValue v = JS_NewTwoByteString(ctx, (uint16_t[]){0xD800}, 1);
+        JSValue v = JS_NewStringUTF16(ctx, (uint16_t[]){0xD800}, 1);
         assert(!JS_IsException(v));
         const char *s = JS_ToCString(ctx, v);
         assert(s);
         // questionable but surrogates don't map to UTF-8 without WTF-8
         assert(!strcmp(s, "\xED\xA0\x80"));
         JS_FreeCString(ctx, s);
+        size_t n;
+        const uint16_t *u = JS_ToCStringLenUTF16(ctx, &n, v);
+        assert(u);
+        assert(n == 1);
+        assert(u[0] == 0xD800);
+        JS_FreeCStringUTF16(ctx, u);
         JS_FreeValue(ctx, v);
+    }
+    {
+        JSValue v = JS_NewStringLen(ctx, "ok", 2); // ascii -> ucs
+        assert(!JS_IsException(v));
+        size_t n;
+        const uint16_t *u = JS_ToCStringLenUTF16(ctx, &n, v);
+        assert(u);
+        assert(n == 2);
+        assert(u[0] == 'o');
+        assert(u[1] == 'k');
+        JS_FreeCStringUTF16(ctx, u);
+        JS_FreeValue(ctx, v);
+    }
+    {
+        JSValue v = JS_NewStringUTF16(ctx, NULL, (size_t)INT_MAX + 1);
+        assert(JS_IsException(v));
+        JSValue e = JS_GetException(ctx);
+        assert(JS_IsError(e));
+        const char *s = JS_ToCString(ctx, e);
+        assert(s);
+        assert(strstr(s, "invalid string length") != NULL);
+        JS_FreeCString(ctx, s);
+        JS_FreeValue(ctx, e);
     }
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
@@ -446,7 +503,8 @@ static void two_byte_string(void)
 
 static void weak_map_gc_check(void)
 {
-    static const char init_code[] = "const map = new WeakMap(); \
+    static const char init_code[] =
+"const map = new WeakMap(); \
 function addItem() { \
     const k = { \
         text: 'a', \
@@ -455,7 +513,7 @@ function addItem() { \
 }";
     static const char test_code[] = "addItem()";
 
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
 
     JSValue ret = eval(ctx, init_code);
@@ -489,16 +547,20 @@ struct {
     int hook_type_call_count[4];
 } promise_hook_state;
 
-static void
-promise_hook_cb(JSContext *ctx, JSPromiseHookType type, JSValueConst promise, JSValueConst parent_promise, void *opaque)
+static void promise_hook_cb(JSContext *ctx, JSPromiseHookType type,
+                            JSValueConst promise, JSValueConst parent_promise,
+                            void *opaque)
 {
-    assert(type == JS_PROMISE_HOOK_INIT || type == JS_PROMISE_HOOK_BEFORE || type == JS_PROMISE_HOOK_AFTER ||
-        type == JS_PROMISE_HOOK_RESOLVE);
+    assert(type == JS_PROMISE_HOOK_INIT ||
+           type == JS_PROMISE_HOOK_BEFORE ||
+           type == JS_PROMISE_HOOK_AFTER ||
+           type == JS_PROMISE_HOOK_RESOLVE);
     promise_hook_state.hook_type_call_count[type]++;
     assert(opaque == (void *)&promise_hook_state);
     if (!JS_IsUndefined(parent_promise)) {
         JSValue global_object = JS_GetGlobalObject(ctx);
-        JS_SetPropertyStr(ctx, global_object, "actual", JS_DupValue(ctx, parent_promise));
+        JS_SetPropertyStr(ctx, global_object, "actual",
+                          JS_DupValue(ctx, parent_promise));
         JS_FreeValue(ctx, global_object);
     }
 }
@@ -507,8 +569,8 @@ static void promise_hook(void)
 {
     int *cc = promise_hook_state.hook_type_call_count;
     JSContext *unused;
-    JSRuntime *rt = JS_NewRuntime();
-    // JS_SetDumpFlags(rt, JS_DUMP_PROMISE);
+    JSRuntime *rt = new_runtime();
+    //JS_SetDumpFlags(rt, JS_DUMP_PROMISE);
     JS_SetPromiseHook(rt, promise_hook_cb, &promise_hook_state);
     JSContext *ctx = JS_NewContext(rt);
     JSValue global_object = JS_GetGlobalObject(ctx);
@@ -575,10 +637,11 @@ static void promise_hook(void)
     memset(&promise_hook_state, 0, sizeof(promise_hook_state));
     {
         // module with promise chain
-        static const char code[] = "globalThis.count = 0;"
-                                   "globalThis.actual = undefined;" // set by promise_hook_cb
-                                   "globalThis.expected = new Promise(resolve => resolve());"
-                                   "expected.then(_ => count++)";
+        static const char code[] =
+            "globalThis.count = 0;"
+            "globalThis.actual = undefined;" // set by promise_hook_cb
+            "globalThis.expected = new Promise(resolve => resolve());"
+            "expected.then(_ => count++)";
         JSValue ret = JS_Eval(ctx, code, strlen(code), "<input>", JS_EVAL_TYPE_MODULE);
         assert(!JS_IsException(ret));
         assert(JS_IsPromise(ret));
@@ -618,7 +681,8 @@ static void promise_hook(void)
     memset(&promise_hook_state, 0, sizeof(promise_hook_state));
     {
         // module with thenable; fires before and after hooks
-        static const char code[] = "new Promise(resolve => resolve({then(resolve){ resolve() }}))";
+        static const char code[] =
+            "new Promise(resolve => resolve({then(resolve){ resolve() }}))";
         JSValue ret = JS_Eval(ctx, code, strlen(code), "<input>", JS_EVAL_TYPE_MODULE);
         assert(!JS_IsException(ret));
         assert(JS_IsPromise(ret));
@@ -649,15 +713,16 @@ static void dump_memory_usage(void)
     JSRuntime *rt = NULL;
     JSContext *ctx = NULL;
 
-    rt = JS_NewRuntime();
+    rt = new_runtime();
     ctx = JS_NewContext(rt);
 
-    // JS_SetDumpFlags(rt, JS_DUMP_PROMISE);
+    //JS_SetDumpFlags(rt, JS_DUMP_PROMISE);
 
-    static const char code[] = "globalThis.count = 0;"
-                               "globalThis.actual = undefined;" // set by promise_hook_cb
-                               "globalThis.expected = new Promise(resolve => resolve());"
-                               "expected.then(_ => count++)";
+    static const char code[] =
+    "globalThis.count = 0;"
+    "globalThis.actual = undefined;" // set by promise_hook_cb
+    "globalThis.expected = new Promise(resolve => resolve());"
+    "expected.then(_ => count++)";
 
     JSValue evalVal = JS_Eval(ctx, code, strlen(code), "<input>", 0);
     JS_FreeValue(ctx, evalVal);
@@ -680,16 +745,16 @@ static void new_errors(void)
         JSValue (*func)(JSContext *, const char *, ...);
     } Entry;
     static const Entry entries[] = {
-        {"Error", JS_NewPlainError},
-        {"InternalError", JS_NewInternalError},
-        {"RangeError", JS_NewRangeError},
-        {"ReferenceError", JS_NewReferenceError},
-        {"SyntaxError", JS_NewSyntaxError},
-        {"TypeError", JS_NewTypeError},
+        {"Error",           JS_NewPlainError},
+        {"InternalError",   JS_NewInternalError},
+        {"RangeError",      JS_NewRangeError},
+        {"ReferenceError",  JS_NewReferenceError},
+        {"SyntaxError",     JS_NewSyntaxError},
+        {"TypeError",       JS_NewTypeError},
     };
     const Entry *e;
 
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     for (e = entries; e < endof(entries); e++) {
         JSValue obj = (*e->func)(ctx, "the %s", "needle");
@@ -711,7 +776,39 @@ static void new_errors(void)
     JS_FreeRuntime(rt);
 }
 
-static int gop_get_own_property(JSContext *ctx, JSPropertyDescriptor *desc, JSValueConst obj, JSAtom prop)
+static void backtrace_oom_current_exception(void)
+{
+    static const char setup_code[] =
+        "globalThis.f = function() { missing; };\n"
+        "Object.defineProperty(f, 'name', { value: 'x'.repeat(2 * 1024 * 1024) });";
+    JSMemoryUsage stats;
+    JSValue ret, exception;
+    JSRuntime *rt;
+    JSContext *ctx;
+
+    rt = new_runtime();
+    ctx = JS_NewContext(rt);
+
+    ret = eval(ctx, setup_code);
+    assert(!JS_IsException(ret));
+    JS_FreeValue(ctx, ret);
+
+    JS_ComputeMemoryUsage(rt, &stats);
+    JS_SetMemoryLimit(rt, (size_t)stats.malloc_size + 128 * 1024);
+
+    ret = eval(ctx, "f()");
+    assert(JS_IsException(ret));
+    assert(JS_HasException(ctx));
+    exception = JS_GetException(ctx);
+    JS_FreeValue(ctx, exception);
+    JS_SetMemoryLimit(rt, 0);
+
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+}
+
+static int gop_get_own_property(JSContext *ctx, JSPropertyDescriptor *desc,
+                                JSValueConst obj, JSAtom prop)
 {
     const char *name;
     int found;
@@ -742,7 +839,7 @@ static void global_object_prototype(void)
     int res;
 
     {
-        rt = JS_NewRuntime();
+        rt = new_runtime();
         ctx = JS_NewContext(rt);
         proto = JS_NewObject(ctx);
         assert(JS_IsObject(proto));
@@ -771,7 +868,7 @@ static void global_object_prototype(void)
             .class_name = "Global Object",
             .exotic = &exotic,
         };
-        rt = JS_NewRuntime();
+        rt = new_runtime();
         class_id = 0;
         JS_NewClassID(rt, &class_id);
         res = JS_NewClass(rt, class_id, &def);
@@ -799,7 +896,7 @@ static void global_object_prototype(void)
 // https://github.com/quickjs-ng/quickjs/issues/1178
 static void slice_string_tocstring(void)
 {
-    JSRuntime *rt = JS_NewRuntime();
+    JSRuntime *rt = new_runtime();
     JSContext *ctx = JS_NewContext(rt);
     JSValue ret = eval(ctx, "'.'.repeat(16384).slice(1, -1)");
     assert(!JS_IsException(ret));
@@ -808,6 +905,228 @@ static void slice_string_tocstring(void)
     assert(strlen(str) == 16382);
     JS_FreeCString(ctx, str);
     JS_FreeValue(ctx, ret);
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+}
+
+static void immutable_array_buffer(void)
+{
+    JSValue obj, ret;
+    bool immutable;
+    char buf[96];
+    int i, v;
+
+    JSRuntime *rt = new_runtime();
+    JSContext *ctx = JS_NewContext(rt);
+    for (i = 0; i < 2; i++) {
+        obj = JS_NewObject(ctx);
+        immutable = (i == 0);
+        assert(-1 == JS_IsImmutableArrayBuffer(JS_NULL));
+        assert(-1 == JS_IsImmutableArrayBuffer(JS_UNDEFINED));
+        assert(-1 == JS_IsImmutableArrayBuffer(obj));
+        assert(-1 == JS_SetImmutableArrayBuffer(JS_NULL, immutable));
+        assert(-1 == JS_SetImmutableArrayBuffer(JS_UNDEFINED, immutable));
+        assert(-1 == JS_SetImmutableArrayBuffer(obj, immutable));
+        JS_FreeValue(ctx, obj);
+    }
+    obj = eval(ctx, "globalThis.ab = new ArrayBuffer(1)");
+    assert(!JS_IsException(obj));
+    assert(JS_IsArrayBuffer(obj));
+    assert(!JS_IsImmutableArrayBuffer(obj));
+    for (i = 1; i <= 3; i++) {
+        immutable = (i == 2);
+        if (i > 1)
+            JS_SetImmutableArrayBuffer(obj, immutable);
+        assert(immutable == JS_IsImmutableArrayBuffer(obj));
+        snprintf(buf, sizeof(buf),
+                 "var ta = new Uint8Array(ab); ta[0] = %d; ta[0]", i);
+        ret = eval(ctx, buf);
+        assert(!JS_IsException(ret));
+        assert(JS_IsNumber(ret));
+        assert(0 == JS_ToInt32(ctx, &v, ret));
+        JS_FreeValue(ctx, ret);
+        if (immutable) {
+            assert(v != i);
+        } else {
+            assert(v == i);
+        }
+    }
+    JS_FreeValue(ctx, obj);
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+}
+
+static void *sab_test_alloc(void *opaque, size_t size)
+{
+    return malloc(size);
+}
+
+static void sab_test_free(void *opaque, void *ptr)
+{
+    free(ptr);
+}
+
+static void shared_array_buffer_growth(void)
+{
+    JSRuntime *rt = new_runtime();
+    JSContext *ctx = JS_NewContext(rt);
+    JSValue ret, exception;
+
+    ret = eval(ctx, "new SharedArrayBuffer(16)");
+    assert(!JS_IsException(ret));
+    JS_FreeValue(ctx, ret);
+
+    ret = eval(ctx,
+               "const sab = new SharedArrayBuffer(16, { maxByteLength: 16 });"
+               "sab.grow(16);"
+               "sab.byteLength === 16 && sab.maxByteLength === 16");
+    assert(!JS_IsException(ret));
+    assert(JS_IsBool(ret));
+    assert(JS_VALUE_GET_BOOL(ret));
+    JS_FreeValue(ctx, ret);
+
+    ret = eval(ctx, "new SharedArrayBuffer(16, { maxByteLength: 16384 })");
+    assert(JS_IsException(ret));
+    assert(JS_HasException(ctx));
+    exception = JS_GetException(ctx);
+    assert(JS_IsError(exception));
+    JS_FreeValue(ctx, exception);
+
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+
+    JSSharedArrayBufferFunctions funcs = {
+        .sab_alloc = sab_test_alloc,
+        .sab_free = sab_test_free,
+        .sab_dup = NULL,
+        .sab_opaque = NULL,
+    };
+
+    rt = new_runtime();
+    JS_SetSharedArrayBufferFunctions(rt, &funcs);
+    ctx = JS_NewContext(rt);
+    ret = eval(ctx,
+               "const sab = new SharedArrayBuffer(16, { maxByteLength: 16384 });"
+               "const u8 = new Uint8Array(sab);"
+               "sab.grow(16384);"
+               "u8[1024] === 0 && u8.byteLength === 16384");
+    assert(!JS_IsException(ret));
+    assert(JS_IsBool(ret));
+    assert(JS_VALUE_GET_BOOL(ret));
+    JS_FreeValue(ctx, ret);
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+}
+
+static void get_uint8array(void)
+{
+    JSRuntime *rt = new_runtime();
+    JSContext *ctx = JS_NewContext(rt);
+    JSValue val;
+    uint8_t *p;
+    size_t size;
+    uint8_t buf[3] = { 1, 2, 3 };
+
+    val = eval(ctx, "new Uint8Array(0)");
+    assert(!JS_IsException(val));
+    p = JS_GetUint8Array(ctx, &size, val);
+    assert(p != NULL);
+    assert(size == 0);
+    JS_FreeValue(ctx, val);
+
+    val = JS_NewUint8Array(ctx, NULL, 0, NULL, NULL, false);
+    assert(!JS_IsException(val));
+    p = JS_GetUint8Array(ctx, &size, val);
+    assert(p != NULL);
+    assert(size == 0);
+    JS_FreeValue(ctx, val);
+
+    val = JS_NewUint8ArrayCopy(ctx, NULL, 0);
+    assert(!JS_IsException(val));
+    p = JS_GetUint8Array(ctx, &size, val);
+    assert(p != NULL);
+    assert(size == 0);
+    JS_FreeValue(ctx, val);
+
+    val = JS_NewUint8ArrayCopy(ctx, buf, sizeof(buf));
+    assert(!JS_IsException(val));
+    p = JS_GetUint8Array(ctx, &size, val);
+    assert(p != NULL);
+    assert(size == 3);
+    assert(p[0] == 1 && p[1] == 2 && p[2] == 3);
+    JS_FreeValue(ctx, val);
+
+    val = eval(ctx, "new Uint8Array([4, 5, 6])");
+    assert(!JS_IsException(val));
+    p = JS_GetUint8Array(ctx, &size, val);
+    assert(p != NULL);
+    assert(size == 3);
+    assert(p[0] == 4 && p[1] == 5 && p[2] == 6);
+    JS_FreeValue(ctx, val);
+
+    val = eval(ctx, "new Int32Array(4)");
+    assert(!JS_IsException(val));
+    p = JS_GetUint8Array(ctx, &size, val);
+    assert(p == NULL);
+    assert(size == 0);
+    JS_FreeValue(ctx, val);
+
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+}
+
+static void new_symbol(void)
+{
+    JSRuntime *rt = new_runtime();
+    JSContext *ctx = JS_NewContext(rt);
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue sym, ret;
+
+    /* Local symbol with NULL description -> Symbol() */
+    sym = JS_NewSymbol(ctx, NULL, false);
+    assert(!JS_IsException(sym));
+    assert(JS_IsSymbol(sym));
+    JS_SetPropertyStr(ctx, global, "sym_local_null", sym);
+
+    ret = eval(ctx, "typeof sym_local_null === 'symbol' && sym_local_null.description === undefined && Symbol.keyFor(sym_local_null) === undefined");
+    assert(JS_IsBool(ret));
+    assert(JS_VALUE_GET_BOOL(ret));
+    JS_FreeValue(ctx, ret);
+
+    /* Global symbol with NULL description -> Symbol.for() -> Symbol.for('undefined') */
+    sym = JS_NewSymbol(ctx, NULL, true);
+    assert(!JS_IsException(sym));
+    assert(JS_IsSymbol(sym));
+    JS_SetPropertyStr(ctx, global, "sym_global_null", sym);
+
+    ret = eval(ctx, "typeof sym_global_null === 'symbol' && sym_global_null.description === 'undefined' && Symbol.keyFor(sym_global_null) === 'undefined'");
+    assert(JS_IsBool(ret));
+    assert(JS_VALUE_GET_BOOL(ret));
+    JS_FreeValue(ctx, ret);
+
+    /* Local symbol with description -> Symbol('test_local') */
+    sym = JS_NewSymbol(ctx, "test_local", false);
+    assert(!JS_IsException(sym));
+    assert(JS_IsSymbol(sym));
+    JS_SetPropertyStr(ctx, global, "sym_local_str", sym);
+
+    ret = eval(ctx, "sym_local_str.description === 'test_local' && Symbol.keyFor(sym_local_str) === undefined");
+    assert(JS_IsBool(ret));
+    assert(JS_VALUE_GET_BOOL(ret));
+    JS_FreeValue(ctx, ret);
+
+    /* Global symbol with description -> Symbol.for('test_global') */
+    sym = JS_NewSymbol(ctx, "test_global", true);
+    assert(!JS_IsException(sym));
+    assert(JS_IsSymbol(sym));
+    JS_SetPropertyStr(ctx, global, "sym_global_str", sym);
+
+    ret = eval(ctx, "sym_global_str.description === 'test_global' && Symbol.keyFor(sym_global_str) === 'test_global'");
+    assert(JS_IsBool(ret));
+    assert(JS_VALUE_GET_BOOL(ret));
+    JS_FreeValue(ctx, ret);
+
+    JS_FreeValue(ctx, global);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -822,12 +1141,17 @@ int main(void)
     is_array();
     module_serde();
     runtime_cstring_free();
-    two_byte_string();
+    utf16_string();
     weak_map_gc_check();
     promise_hook();
     dump_memory_usage();
     new_errors();
+    backtrace_oom_current_exception();
     global_object_prototype();
     slice_string_tocstring();
+    immutable_array_buffer();
+    shared_array_buffer_growth();
+    get_uint8array();
+    new_symbol();
     return 0;
 }
