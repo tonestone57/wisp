@@ -472,8 +472,22 @@ static const char *opcode_names[] = {
     "flex-wrap",
     "justify-content",
     "order",
+    "fill",
     "fill-opacity",
     "stroke-opacity",
+    "stroke",
+    "stroke-width",
+    "grid-template-columns",
+    "grid-template-rows",
+    "grid-auto-flow",
+    "row-gap",
+    "grid-column-start",
+    "grid-column-end",
+    "grid-row-start",
+    "grid-row-end",
+    "object-fit",
+    "object-position",
+    "transform",
 };
 
 static void dump_css_fixed(css_fixed f, char **ptr)
@@ -981,6 +995,119 @@ void dump_bytecode(css_style *style, char **ptr, uint32_t depth)
                     uint32_t colour = *((uint32_t *)bytecode);
                     ADVANCE(sizeof(colour));
                     *ptr += sprintf(*ptr, "#%08x", colour);
+                } break;
+                }
+                break;
+            case CSS_PROP_GRID_COLUMN_START:
+            case CSS_PROP_GRID_COLUMN_END:
+            case CSS_PROP_GRID_ROW_START:
+            case CSS_PROP_GRID_ROW_END:
+                switch (value) {
+                case GRID_LINE_AUTO:
+                    *ptr += sprintf(*ptr, "auto");
+                    break;
+                case GRID_LINE_SET: {
+                    css_fixed val = *((css_fixed *)bytecode);
+                    ADVANCE(sizeof(val));
+                    dump_number(val, ptr);
+                } break;
+                case GRID_LINE_SPAN: {
+                    css_fixed val = *((css_fixed *)bytecode);
+                    ADVANCE(sizeof(val));
+                    *ptr += sprintf(*ptr, "span ");
+                    dump_number(val, ptr);
+                } break;
+                }
+                break;
+            case CSS_PROP_FILL:
+                switch (value) {
+                case FILL_NONE:
+                    *ptr += sprintf(*ptr, "none");
+                    break;
+                case FILL_CURRENT_COLOR:
+                    *ptr += sprintf(*ptr, "currentColor");
+                    break;
+                case FILL_SET: {
+                    uint32_t colour = *((uint32_t *)bytecode);
+                    ADVANCE(sizeof(colour));
+                    *ptr += sprintf(*ptr, "#%08x", colour);
+                } break;
+                }
+                break;
+            case CSS_PROP_STROKE:
+                switch (value) {
+                case STROKE_NONE:
+                    *ptr += sprintf(*ptr, "none");
+                    break;
+                case STROKE_CURRENT_COLOR:
+                    *ptr += sprintf(*ptr, "currentColor");
+                    break;
+                case STROKE_SET: {
+                    uint32_t colour = *((uint32_t *)bytecode);
+                    ADVANCE(sizeof(colour));
+                    *ptr += sprintf(*ptr, "#%08x", colour);
+                } break;
+                }
+                break;
+            case CSS_PROP_STROKE_WIDTH:
+                switch (value) {
+                case STROKE_WIDTH_SET: {
+                    uint32_t unit;
+                    css_fixed val = *((css_fixed *)bytecode);
+                    ADVANCE(sizeof(val));
+                    unit = *((uint32_t *)bytecode);
+                    ADVANCE(sizeof(unit));
+                    dump_unit(val, unit, ptr);
+                } break;
+                }
+                break;
+            case CSS_PROP_OBJECT_FIT:
+                switch (value) {
+                case OBJECT_FIT_FILL:
+                    *ptr += sprintf(*ptr, "fill");
+                    break;
+                case OBJECT_FIT_CONTAIN:
+                    *ptr += sprintf(*ptr, "contain");
+                    break;
+                case OBJECT_FIT_COVER:
+                    *ptr += sprintf(*ptr, "cover");
+                    break;
+                case OBJECT_FIT_NONE:
+                    *ptr += sprintf(*ptr, "none");
+                    break;
+                case OBJECT_FIT_SCALE_DOWN:
+                    *ptr += sprintf(*ptr, "scale-down");
+                    break;
+                }
+                break;
+            case CSS_PROP_GRID_AUTO_FLOW:
+                switch (value) {
+                case GRID_AUTO_FLOW_ROW:
+                    *ptr += sprintf(*ptr, "row");
+                    break;
+                case GRID_AUTO_FLOW_COLUMN:
+                    *ptr += sprintf(*ptr, "column");
+                    break;
+                case GRID_AUTO_FLOW_ROW_DENSE:
+                    *ptr += sprintf(*ptr, "row dense");
+                    break;
+                case GRID_AUTO_FLOW_COLUMN_DENSE:
+                    *ptr += sprintf(*ptr, "column dense");
+                    break;
+                }
+                break;
+            case CSS_PROP_ROW_GAP:
+                switch (value) {
+                case ROW_GAP_NORMAL:
+                    *ptr += sprintf(*ptr, "normal");
+                    break;
+                case ROW_GAP_SET: {
+                    uint32_t unit;
+                    css_fixed val = *((css_fixed *)bytecode);
+                    ADVANCE(sizeof(val));
+                    unit = *((uint32_t *)bytecode);
+                    ADVANCE(sizeof(unit));
+                    dump_unit(val, unit, ptr);
                 } break;
                 }
                 break;

@@ -347,9 +347,42 @@ void css__make_style_important(css_style *style)
                     offset++; /* value */
                 break;
 
+            case CSS_PROP_FILL:
+                if (value == FILL_SET)
+                    offset++; /* color */
+                break;
+
+            case CSS_PROP_STROKE:
+                if (value == STROKE_SET)
+                    offset++; /* color */
+                break;
+
+            case CSS_PROP_STROKE_WIDTH:
+                if (value == STROKE_WIDTH_SET)
+                    offset += 2; /* length + units */
+                break;
+
             case CSS_PROP_ORDER:
                 if (value == ORDER_SET)
                     offset++; /* value */
+                break;
+
+            case CSS_PROP_GRID_COLUMN_START:
+            case CSS_PROP_GRID_COLUMN_END:
+            case CSS_PROP_GRID_ROW_START:
+            case CSS_PROP_GRID_ROW_END:
+                if (value == GRID_LINE_SET)
+                    offset++; /* line index */
+                break;
+
+            case CSS_PROP_ROW_GAP:
+                if (value == ROW_GAP_SET)
+                    offset += 2; /* length + units */
+                break;
+
+            case CSS_PROP_OBJECT_POSITION:
+                if (value == OBJECT_POSITION_SET)
+                    offset += 4; /* two length + units */
                 break;
 
             case CSS_PROP_ORPHANS:
