@@ -760,6 +760,12 @@ class MultiFileGenerator:
             'ZERO_VALUE':       '0',
             # C keyword collision — 'wrap' is used by WRAP: in specs
             'WRAP_STRING':      'wrap',
+            'LIBCSS_ALIGN_LEFT': '-libcss-left',
+            'LIBCSS_ALIGN_CENTER': '-libcss-center',
+            'LIBCSS_ALIGN_RIGHT': '-libcss-right',
+            'TEXT_ALIGN_LIBCSS_LEFT': '-libcss-left',
+            'TEXT_ALIGN_LIBCSS_CENTER': '-libcss-center',
+            'TEXT_ALIGN_LIBCSS_RIGHT': '-libcss-right',
         }
         
         # ═══════════════════════════════════════════════════════════════
@@ -771,6 +777,8 @@ class MultiFileGenerator:
             # LIBCSS_ prefix: avoids C keyword collisions
             # LIBCSS_DOUBLE → "double", LIBCSS_STATIC → "static", etc.
             ('LIBCSS_', 'C keyword collision'),
+            # libcss internal alignment keywords
+            ('TEXT_ALIGN_LIBCSS_', 'libcss internal alignment'),
             # DC prefix: deprecated system colour aliases
             # DCBACKGROUND → "background"  
             ('DC', 'Deprecated system colour alias'),
@@ -882,7 +890,7 @@ class MultiFileGenerator:
             # slot is needed for the FIRST_DEPRECATEDCOLOUR..LAST_DEPRECATEDCOLOUR
             # positional iteration in utils.c, even though its string "background"
             # duplicates the background property.
-            if css_string in prop_css_names and name not in ('DCBACKGROUND',):
+            if css_string in prop_css_names and name not in ('DCBACKGROUND', 'LIBCSS_ALIGN_LEFT', 'LIBCSS_ALIGN_RIGHT', 'LIBCSS_ALIGN_CENTER'):
                 collisions.append((name, css_string))
         
         if collisions:

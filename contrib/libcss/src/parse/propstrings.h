@@ -417,6 +417,12 @@ enum {
     /* CSS gradient functions */
     LINEAR_GRADIENT,
     RADIAL_GRADIENT,
+
+    /* libcss specific keywords */
+    LIBCSS_ALIGN_LEFT,
+    LIBCSS_ALIGN_CENTER,
+    LIBCSS_ALIGN_RIGHT,
+
     /* Named colours */
     FIRST_COLOUR,
 
