@@ -63,6 +63,8 @@ typedef struct nsvideo_content {
     bool decoding;
     bool abort;
 
+    float volume;
+
     void *current_bitmap;
     pthread_mutex_t bitmap_lock;
 } nsvideo_content;
@@ -175,7 +177,7 @@ static void *nsvideo_decode_loop(void *arg)
 
         if (guit->audio) {
             AVChannelLayout out_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
-            swr_alloc_set_opts2(&swr_ctx, &out_ch_layout, AV_SAMPLE_FMT_S16, 44100,
+            swr_alloc_set_opts2(&swr_ctx, &out_ch_layout, AV_SAMPLE_FMT_FLT, 44100,
                                &video->audio_codec_ctx->ch_layout, video->audio_codec_ctx->sample_fmt, video->audio_codec_ctx->sample_rate, 0, NULL);
             swr_init(swr_ctx);
             guit->audio->init(44100, 2);
@@ -224,9 +226,18 @@ static void *nsvideo_decode_loop(void *arg)
                     if (guit->audio && swr_ctx) {
                         uint8_t *out_data[1];
                         int out_samples = av_rescale_rnd(swr_get_delay(swr_ctx, frame->sample_rate) + frame->nb_samples, 44100, frame->sample_rate, AV_ROUND_UP);
-                        av_samples_alloc(out_data, NULL, 2, out_samples, AV_SAMPLE_FMT_S16, 0);
+                        av_samples_alloc(out_data, NULL, 2, out_samples, AV_SAMPLE_FMT_FLT, 0);
                         int converted = swr_convert(swr_ctx, out_data, out_samples, (const uint8_t **)frame->data, frame->nb_samples);
-                        guit->audio->play(out_data[0], converted * 2 * 2);
+
+                        /* Apply software volume scaling (Float) */
+                        if (video->volume != 1.0f) {
+                            float *samples = (float *)out_data[0];
+                            for (int i = 0; i < converted * 2; i++) {
+                                samples[i] *= video->volume;
+                            }
+                        }
+
+                        guit->audio->play(out_data[0], converted * 4 * 2);
                         av_freep(&out_data[0]);
                     }
                 }
@@ -273,6 +284,7 @@ static nserror nsvideo_create(const content_handler *handler, lwc_string *imime_
     pthread_mutex_init(&video->bitmap_lock, NULL);
 
     video->decoding = true;
+    video->volume = 1.0f;
     video->avio_buffer = av_malloc(4096);
     video->avio_ctx = avio_alloc_context(video->avio_buffer, 4096, 0, video, nsvideo_read_packet, NULL, nsvideo_seek);
     video->format_ctx = avformat_alloc_context();
@@ -334,7 +346,7 @@ static bool nsvideo_redraw(
 
     pthread_mutex_lock(&video->bitmap_lock);
     if (video->current_bitmap) {
-        ctx->plot->bitmap(data->x, data->y, data->width, data->height, video->current_bitmap, 0xffffffff, 0);
+        ctx->plot->bitmap(ctx, (struct bitmap *)video->current_bitmap, data->x, data->y, data->width, data->height, 0xffffffff, 0);
     }
     pthread_mutex_unlock(&video->bitmap_lock);
 

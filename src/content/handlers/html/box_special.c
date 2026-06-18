@@ -1961,6 +1961,27 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
         res = box_textarea(node, content, box, convert_children);
         break;
 
+    case DOM_HTML_ELEMENT_TYPE_VIDEO:
+    case DOM_HTML_ELEMENT_TYPE_AUDIO: {
+        nsurl *url = NULL;
+        dom_string *s;
+        dom_exception err;
+        err = dom_element_get_attribute(node, corestring_dom_src, &s);
+        if (err == DOM_NO_ERR && s != NULL) {
+            box_extract_link(content, s, content->base_url, &url);
+            dom_string_unref(s);
+        }
+        if (url != NULL) {
+            box->flags |= IS_REPLACED;
+            res = html_fetch_object(content, url, box, CONTENT_ANY, false);
+            nsurl_unref(url);
+        } else {
+            res = true;
+        }
+        *convert_children = false;
+        break;
+    }
+
     default:
         /* Check for SVG elements by tag name (not HTML element type) */
         {

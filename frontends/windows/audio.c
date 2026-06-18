@@ -29,6 +29,13 @@ static bool win32_audio_init(int rate, int channels) {
     hr = pAudioClient->GetMixFormat(&pwfx);
     if (FAILED(hr)) return false;
 
+    pwfx->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
+    pwfx->nSamplesPerSec = rate;
+    pwfx->nChannels = channels;
+    pwfx->wBitsPerSample = 32;
+    pwfx->nBlockAlign = (pwfx->wBitsPerSample * pwfx->nChannels) / 8;
+    pwfx->nAvgBytesPerSec = pwfx->nSamplesPerSec * pwfx->nBlockAlign;
+
     hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 10000000, 0, pwfx, NULL);
     if (FAILED(hr)) return false;
 
