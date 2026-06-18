@@ -171,6 +171,7 @@ CORESTRING_LWC_VALUE(image_jxl, "image/jxl");
 CORESTRING_LWC_VALUE(image_bmp, "image/bmp");
 CORESTRING_LWC_VALUE(image_vnd_microsoft_icon, "image/vnd.microsoft.icon");
 CORESTRING_LWC_VALUE(image_webp, "image/webp");
+CORESTRING_LWC_VALUE(image_avif, "image/avif");
 CORESTRING_LWC_VALUE(application_rss_xml, "application/rss+xml");
 CORESTRING_LWC_VALUE(application_atom_xml, "application/atom+xml");
 CORESTRING_LWC_VALUE(audio_wave, "audio/wave");

@@ -544,8 +544,8 @@ static bool box_nearest_text_box(struct box *box, int bx, int by, int fx, int fy
 void box_coords(struct box *box, int *x, int *y)
 {
     struct box *orig = box;
-    *x = box->x;
-    *y = box->y;
+    *x = box->x + box->sticky_x;
+    *y = box->y + box->sticky_y;
 
     /* Check if this is an absolute/fixed positioned box */
     if (box->style != NULL) {

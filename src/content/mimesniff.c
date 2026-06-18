@@ -231,6 +231,7 @@ mimesniff__match_unknown_exact(const uint8_t *data, size_t len, bool allow_unsaf
         SIG(&corestring_lwc_image_gif, "GIF89a", true), SIG(&corestring_lwc_image_png, "\x89PNG\r\n\x1a\n", true),
         SIG(&corestring_lwc_image_jpeg, "\xff\xd8\xff", true), SIG(&corestring_lwc_image_bmp, "BM", true),
         SIG(&corestring_lwc_image_vnd_microsoft_icon, "\x00\x00\x01\x00", true),
+        SIG(&corestring_lwc_image_avif, "ftypavif", false),
         SIG(&corestring_lwc_application_ogg, "OggS\x00", true),
         SIG(&corestring_lwc_video_webm, "\x1a\x45\xdf\xa3", true),
         SIG(&corestring_lwc_application_x_rar_compressed, "Rar \x1a\x07\x00", true),
@@ -344,6 +345,7 @@ mimesniff__compute_image(lwc_string *official_type, const uint8_t *data, size_t 
     } image_types[] = {SIG(&corestring_lwc_image_gif, "GIF87a"), SIG(&corestring_lwc_image_gif, "GIF89a"),
         SIG(&corestring_lwc_image_png, "\x89PNG\r\n\x1a\n"), SIG(&corestring_lwc_image_jpeg, "\xff\xd8\xff"),
         SIG(&corestring_lwc_image_bmp, "BM"), SIG(&corestring_lwc_image_vnd_microsoft_icon, "\x00\x00\x01\x00"),
+        SIG(&corestring_lwc_image_avif, "ftypavif"),
         SIG(&corestring_lwc_image_jxl, "\xFF\x0A"), /* containerless jpeg xl*/
         {(const uint8_t *)"\x00\x00\x00\x0CJXL \x0D\x0A\x87\x0A", 12,
             &corestring_lwc_image_jxl}, /* containered jpeg xl*/
