@@ -1,414 +1,339 @@
-/*
- * Copyright 2025 Neosurf Contributors
- *
- * This file is part of NeoSurf, http://www.netsurf-browser.org/
- */
-
-#include "document.h"
-#include "event_target.h"
-#include <wisp/utils/log.h>
-#include "quickjs.h"
+/* Implementation for Document */
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include "quickjs.h"
+#include "dom_bridge.h"
+#include <wisp/utils/log.h>
+#include "utils/libdom.h"
 
-/* Forward declarations for element methods */
-static JSValue js_element_appendChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_removeChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_insertBefore(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_cloneNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_getAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_setAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_hasAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-static JSValue js_element_removeAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
-#include "event_target.h"
+#include "document.inc"
 
-/**
- * Create a dummy style object that accepts any property without error.
- */
-static JSValue create_style_object(JSContext *ctx)
+static void js_document_finalizer(JSRuntime *rt, JSValue val)
 {
-    NSLOG(wisp, DEBUG, "Creating dummy style object for element");
-    return JS_NewObject(ctx);
-}
-
-/**
- * Create a dummy classList object with add/remove/contains/toggle methods.
- */
-static JSValue create_classlist_object(JSContext *ctx)
-{
-    JSValue classList = JS_NewObject(ctx);
-    /* Stubs that do nothing but don't crash */
-    JS_SetPropertyStr(ctx, classList, "add", JS_NewCFunction(ctx, (JSCFunction *)js_element_setAttribute, "add", 1));
-    JS_SetPropertyStr(
-        ctx, classList, "remove", JS_NewCFunction(ctx, (JSCFunction *)js_element_removeAttribute, "remove", 1));
-    JS_SetPropertyStr(
-        ctx, classList, "contains", JS_NewCFunction(ctx, (JSCFunction *)js_element_hasAttribute, "contains", 1));
-    JS_SetPropertyStr(
-        ctx, classList, "toggle", JS_NewCFunction(ctx, (JSCFunction *)js_element_hasAttribute, "toggle", 1));
-    return classList;
-}
-
-/**
- * Create a dummy element object with common properties.
- * Elements need: style, classList, tagName, parentNode, childNodes, and
- * methods.
- */
-static JSValue create_element_object(JSContext *ctx, const char *tag)
-{
-    JSValue element = JS_NewObject(ctx);
-
-    /* Add style property */
-    JS_SetPropertyStr(ctx, element, "style", create_style_object(ctx));
-
-    /* Add classList */
-    JS_SetPropertyStr(ctx, element, "classList", create_classlist_object(ctx));
-
-    /* Add tagName and nodeName */
-    if (tag) {
-        JS_SetPropertyStr(ctx, element, "tagName", JS_NewString(ctx, tag));
-        JS_SetPropertyStr(ctx, element, "nodeName", JS_NewString(ctx, tag));
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_document_class_id);
+    if (priv) {
+        qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);
+        if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
+        free(priv);
     }
-
-    /* Node properties */
-    JS_SetPropertyStr(ctx, element, "nodeType", JS_NewInt32(ctx, 1)); /* ELEMENT_NODE */
-    JS_SetPropertyStr(ctx, element, "parentNode", JS_NULL);
-    JS_SetPropertyStr(ctx, element, "parentElement", JS_NULL);
-    JS_SetPropertyStr(ctx, element, "firstChild", JS_NULL);
-    JS_SetPropertyStr(ctx, element, "lastChild", JS_NULL);
-    JS_SetPropertyStr(ctx, element, "nextSibling", JS_NULL);
-    JS_SetPropertyStr(ctx, element, "previousSibling", JS_NULL);
-    JS_SetPropertyStr(ctx, element, "ownerDocument", JS_NULL);
-
-    /* Empty child arrays */
-    JS_SetPropertyStr(ctx, element, "childNodes", JS_NewArray(ctx));
-    JS_SetPropertyStr(ctx, element, "children", JS_NewArray(ctx));
-
-    /* Content properties */
-    JS_SetPropertyStr(ctx, element, "innerHTML", JS_NewString(ctx, ""));
-    JS_SetPropertyStr(ctx, element, "outerHTML", JS_NewString(ctx, ""));
-    JS_SetPropertyStr(ctx, element, "textContent", JS_NewString(ctx, ""));
-    JS_SetPropertyStr(ctx, element, "innerText", JS_NewString(ctx, ""));
-    JS_SetPropertyStr(ctx, element, "id", JS_NewString(ctx, ""));
-    JS_SetPropertyStr(ctx, element, "className", JS_NewString(ctx, ""));
-
-    /* Dimension stubs */
-    JS_SetPropertyStr(ctx, element, "offsetWidth", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "offsetHeight", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "offsetTop", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "offsetLeft", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "clientWidth", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "clientHeight", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "scrollWidth", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "scrollHeight", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "scrollTop", JS_NewInt32(ctx, 0));
-    JS_SetPropertyStr(ctx, element, "scrollLeft", JS_NewInt32(ctx, 0));
-
-    /* Element methods */
-    JS_SetPropertyStr(ctx, element, "appendChild", JS_NewCFunction(ctx, js_element_appendChild, "appendChild", 1));
-    JS_SetPropertyStr(ctx, element, "removeChild", JS_NewCFunction(ctx, js_element_removeChild, "removeChild", 1));
-    JS_SetPropertyStr(ctx, element, "insertBefore", JS_NewCFunction(ctx, js_element_insertBefore, "insertBefore", 2));
-    JS_SetPropertyStr(ctx, element, "cloneNode", JS_NewCFunction(ctx, js_element_cloneNode, "cloneNode", 1));
-    JS_SetPropertyStr(ctx, element, "getAttribute", JS_NewCFunction(ctx, js_element_getAttribute, "getAttribute", 1));
-    JS_SetPropertyStr(ctx, element, "setAttribute", JS_NewCFunction(ctx, js_element_setAttribute, "setAttribute", 2));
-    JS_SetPropertyStr(ctx, element, "hasAttribute", JS_NewCFunction(ctx, js_element_hasAttribute, "hasAttribute", 1));
-    JS_SetPropertyStr(
-        ctx, element, "removeAttribute", JS_NewCFunction(ctx, js_element_removeAttribute, "removeAttribute", 1));
-    JS_SetPropertyStr(
-        ctx, element, "addEventListener", JS_NewCFunction(ctx, js_addEventListener, "addEventListener", 2));
-    JS_SetPropertyStr(ctx, element, "removeEventListener",
-        JS_NewCFunction(ctx, js_removeEventListener, "removeEventListener", 2));
-    JS_SetPropertyStr(ctx, element, "dispatchEvent", JS_NewCFunction(ctx, js_dispatchEvent, "dispatchEvent", 1));
-
-    NSLOG(wisp, DEBUG, "Created element stub with DOM properties, tagName='%s'", tag ? tag : "(null)");
-
-    return element;
-}
-
-/* Element method stubs */
-static JSValue js_element_appendChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "element.appendChild() called (stub)");
-    if (argc > 0) {
-        return JS_DupValue(ctx, argv[0]); /* Return the appended child */
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue js_element_removeChild(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "element.removeChild() called (stub)");
-    if (argc > 0) {
-        return JS_DupValue(ctx, argv[0]); /* Return the removed child */
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue js_element_insertBefore(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "element.insertBefore() called (stub)");
-    if (argc > 0) {
-        return JS_DupValue(ctx, argv[0]); /* Return the inserted node */
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue js_element_cloneNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "element.cloneNode() called (stub)");
-    /* Return a new empty element as a "clone" */
-    return create_element_object(ctx, NULL);
-}
-
-static JSValue js_element_getAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *name = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "element.getAttribute('%s') -> null (stub)", name ? name : "(null)");
-        if (name)
-            JS_FreeCString(ctx, name);
-    }
-    return JS_NULL;
-}
-
-static JSValue js_element_setAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc >= 2) {
-        const char *name = JS_ToCString(ctx, argv[0]);
-        const char *value = JS_ToCString(ctx, argv[1]);
-        NSLOG(wisp, DEBUG, "element.setAttribute('%s', '%s') (stub)", name ? name : "(null)",
-            value ? value : "(null)");
-        if (name)
-            JS_FreeCString(ctx, name);
-        if (value)
-            JS_FreeCString(ctx, value);
-    }
-    return JS_UNDEFINED;
-}
-
-static JSValue js_element_hasAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *name = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "element.hasAttribute('%s') -> false (stub)", name ? name : "(null)");
-        if (name)
-            JS_FreeCString(ctx, name);
-    }
-    return JS_FALSE;
-}
-
-static JSValue js_element_removeAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *name = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "element.removeAttribute('%s') (stub)", name ? name : "(null)");
-        if (name)
-            JS_FreeCString(ctx, name);
-    }
-    return JS_UNDEFINED;
-}
-
-
-
-
-static JSValue js_document_getElementById(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *id = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.getElementById called with: '%s' -> returning null (stub)", id ? id : "(null)");
-        if (id)
-            JS_FreeCString(ctx, id);
-    } else {
-        NSLOG(wisp, DEBUG, "document.getElementById called with no args -> null");
-    }
-    return JS_NULL;
-}
-
 static JSValue js_document_getElementsByTagName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    if (argc > 0) {
-        const char *tag = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.getElementsByTagName('%s') -> returning empty array (stub)",
-            tag ? tag : "(null)");
-        if (tag)
-            JS_FreeCString(ctx, tag);
-    }
-    /* Return empty array */
+    NSLOG(wisp, DEBUG, "Document.getElementsByTagName() called (stub)");
+    return JS_NewArray(ctx);
+}
+
+static JSValue js_document_getElementsByTagNameNS(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.getElementsByTagNameNS() called (stub)");
     return JS_NewArray(ctx);
 }
 
 static JSValue js_document_getElementsByClassName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    if (argc > 0) {
-        const char *cls = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.getElementsByClassName('%s') -> returning empty array (stub)",
-            cls ? cls : "(null)");
-        if (cls)
-            JS_FreeCString(ctx, cls);
-    }
-    /* Return empty array */
-    return JS_NewArray(ctx);
-}
-
-static JSValue js_document_querySelector(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *sel = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.querySelector('%s') -> returning null (stub)", sel ? sel : "(null)");
-        if (sel)
-            JS_FreeCString(ctx, sel);
-    }
-    return JS_NULL;
-}
-
-static JSValue js_document_querySelectorAll(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *sel = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.querySelectorAll('%s') -> returning empty array (stub)", sel ? sel : "(null)");
-        if (sel)
-            JS_FreeCString(ctx, sel);
-    }
-    /* Return empty array-like object */
+    NSLOG(wisp, DEBUG, "Document.getElementsByClassName() called (stub)");
     return JS_NewArray(ctx);
 }
 
 static JSValue js_document_createElement(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    const char *tag = NULL;
-    if (argc > 0) {
-        tag = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.createElement('%s') -> creating element stub", tag ? tag : "(null)");
-    } else {
-        NSLOG(wisp, DEBUG, "document.createElement() with no args");
-    }
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_EXCEPTION;
+    if (argc < 1) return JS_EXCEPTION;
 
-    /* Create element with style property and common attributes */
-    JSValue element = create_element_object(ctx, tag);
+    const char *tag = JS_ToCString(ctx, argv[0]);
+    if (!tag) return JS_EXCEPTION;
 
-    if (tag)
-        JS_FreeCString(ctx, tag);
-    return element;
+    dom_string *tag_dom = NULL;
+    dom_string_create((const uint8_t *)tag, strlen(tag), &tag_dom);
+    JS_FreeCString(ctx, tag);
+
+    struct dom_element *result = NULL;
+    dom_exception exc = dom_document_create_element((dom_document *)priv->node, tag_dom, &result);
+    dom_string_unref(tag_dom);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "dom_document_create_element failed");
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
+}
+
+static JSValue js_document_createElementNS(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createElementNS() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createDocumentFragment(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createDocumentFragment() called (stub)");
+    return JS_UNDEFINED;
 }
 
 static JSValue js_document_createTextNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    if (argc > 0) {
-        const char *text = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.createTextNode('%s')", text ? text : "(null)");
-        if (text)
-            JS_FreeCString(ctx, text);
-    }
-    /* Return a simple text node object */
-    JSValue node = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, node, "nodeType", JS_NewInt32(ctx, 3)); /* TEXT_NODE */
-    return node;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_EXCEPTION;
+    if (argc < 1) return JS_EXCEPTION;
+
+    const char *data = JS_ToCString(ctx, argv[0]);
+    if (!data) return JS_EXCEPTION;
+
+    dom_string *data_dom = NULL;
+    dom_string_create((const uint8_t *)data, strlen(data), &data_dom);
+    JS_FreeCString(ctx, data);
+
+    struct dom_text *result = NULL;
+    dom_exception exc = dom_document_create_text_node((dom_document *)priv->node, data_dom, &result);
+    dom_string_unref(data_dom);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "dom_document_create_text_node failed");
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
 }
 
-static JSValue js_document_write(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static JSValue js_document_createComment(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    if (argc > 0) {
-        const char *str = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.write('%s') (ignored)", str ? str : "(null)");
-        if (str)
-            JS_FreeCString(ctx, str);
-    }
+    NSLOG(wisp, DEBUG, "Document.createComment() called (stub)");
     return JS_UNDEFINED;
 }
 
-static JSValue js_document_body_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static JSValue js_document_createProcessingInstruction(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "document.body getter -> returning stub element");
-    /* Return an element with style property */
-    return create_element_object(ctx, "BODY");
-}
-
-static JSValue js_document_documentElement_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "document.documentElement getter -> returning stub element");
-    return create_element_object(ctx, "HTML");
-}
-
-static JSValue js_document_head_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "document.head getter -> returning stub element");
-    return create_element_object(ctx, "HEAD");
-}
-
-static JSValue js_document_readyState_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "document.readyState getter -> 'complete'");
-    return JS_NewString(ctx, "complete");
-}
-
-static JSValue js_document_cookie_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "document.cookie getter -> ''");
-    return JS_NewString(ctx, "");
-}
-
-static JSValue js_document_cookie_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc > 0) {
-        const char *cookie = JS_ToCString(ctx, argv[0]);
-        NSLOG(wisp, DEBUG, "document.cookie setter: '%s' (ignored)", cookie ? cookie : "(null)");
-        if (cookie)
-            JS_FreeCString(ctx, cookie);
-    }
+    NSLOG(wisp, DEBUG, "Document.createProcessingInstruction() called (stub)");
     return JS_UNDEFINED;
 }
 
-static void define_getter(JSContext *ctx, JSValue obj, const char *name, JSCFunction *func)
+static JSValue js_document_importNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    JSAtom atom = JS_NewAtom(ctx, name);
-    JS_DefinePropertyGetSet(
-        ctx, obj, atom, JS_NewCFunction(ctx, func, name, 0), JS_UNDEFINED, JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE);
-    JS_FreeAtom(ctx, atom);
+    NSLOG(wisp, DEBUG, "Document.importNode() called (stub)");
+    return JS_UNDEFINED;
 }
 
-static void
-define_getter_setter(JSContext *ctx, JSValue obj, const char *name, JSCFunction *getter, JSCFunction *setter)
+static JSValue js_document_adoptNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    JSAtom atom = JS_NewAtom(ctx, name);
-    JS_DefinePropertyGetSet(ctx, obj, atom, JS_NewCFunction(ctx, getter, name, 0),
-        JS_NewCFunction(ctx, setter, name, 1), JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE);
-    JS_FreeAtom(ctx, atom);
+    NSLOG(wisp, DEBUG, "Document.adoptNode() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createAttribute(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createAttribute() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createAttributeNS(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createAttributeNS() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createEvent(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createEvent() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createRange(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createRange() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createNodeIterator(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createNodeIterator() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_createTreeWalker(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.createTreeWalker() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_getElementById(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    if (argc < 1) return JS_NULL;
+    const char *id = JS_ToCString(ctx, argv[0]);
+    if (!id) return JS_NULL;
+
+    dom_string *id_dom = NULL;
+    dom_string_create((const uint8_t *)id, strlen(id), &id_dom);
+    JS_FreeCString(ctx, id);
+
+    struct dom_element *result = NULL;
+    dom_exception exc = dom_document_get_element_by_id((dom_document *)priv->node, id_dom, &result);
+    dom_string_unref(id_dom);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_NULL;
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
+}
+
+static JSValue js_document_prepend(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.prepend() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_append(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.append() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_query(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.query() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_queryAll(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.queryAll() called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_querySelector(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    /* Fallback implementation using getElementById for simple ID selectors */
+    if (argc > 0) {
+        const char *selector = JS_ToCString(ctx, argv[0]);
+        if (selector && selector[0] == '#' && strpbrk(selector, " .[") == NULL) {
+            JSValue id_val = JS_NewString(ctx, selector + 1);
+            JSValue res = js_document_getElementById(ctx, this_val, 1, &id_val);
+            JS_FreeValue(ctx, id_val);
+            JS_FreeCString(ctx, selector);
+            return res;
+        }
+        if (selector) JS_FreeCString(ctx, selector);
+    }
+    NSLOG(wisp, DEBUG, "Document.querySelector() called with non-trivial selector (stub)");
+    return JS_NULL;
+}
+
+static JSValue js_document_querySelectorAll(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Document.querySelectorAll() called (stub)");
+    return JS_NewArray(ctx);
+}
+
+static JSValue js_document_implementation_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.implementation getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_URL_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.URL getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_documentURI_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.documentURI getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_origin_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.origin getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_compatMode_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.compatMode getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_characterSet_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.characterSet getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_inputEncoding_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.inputEncoding getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_contentType_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.contentType getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_doctype_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.doctype getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_documentElement_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_element *documentElement = NULL;
+    dom_exception exc = dom_document_get_document_element((dom_document *)priv->node, &documentElement);
+    if (exc != DOM_NO_ERR || !documentElement) return JS_NULL;
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)documentElement);
+    dom_node_unref((dom_node *)documentElement);
+    return val;
+}
+
+static JSValue js_document_children_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.children getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_firstElementChild_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.firstElementChild getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_lastElementChild_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.lastElementChild getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_document_childElementCount_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Document.childElementCount getter called (stub)");
+    return JS_UNDEFINED;
 }
 
 int qjs_init_document(JSContext *ctx)
 {
-    NSLOG(wisp, DEBUG, "Initializing document binding");
-
-    JSValue global_obj = JS_GetGlobalObject(ctx);
-    JSValue document = JS_NewObject(ctx);
-
-    /* Methods */
-    JS_SetPropertyStr(
-        ctx, document, "getElementById", JS_NewCFunction(ctx, js_document_getElementById, "getElementById", 1));
-    JS_SetPropertyStr(ctx, document, "getElementsByTagName",
-        JS_NewCFunction(ctx, js_document_getElementsByTagName, "getElementsByTagName", 1));
-    JS_SetPropertyStr(ctx, document, "getElementsByClassName",
-        JS_NewCFunction(ctx, js_document_getElementsByClassName, "getElementsByClassName", 1));
-    JS_SetPropertyStr(
-        ctx, document, "querySelector", JS_NewCFunction(ctx, js_document_querySelector, "querySelector", 1));
-    JS_SetPropertyStr(
-        ctx, document, "querySelectorAll", JS_NewCFunction(ctx, js_document_querySelectorAll, "querySelectorAll", 1));
-    JS_SetPropertyStr(
-        ctx, document, "createElement", JS_NewCFunction(ctx, js_document_createElement, "createElement", 1));
-    JS_SetPropertyStr(
-        ctx, document, "createTextNode", JS_NewCFunction(ctx, js_document_createTextNode, "createTextNode", 1));
-    JS_SetPropertyStr(ctx, document, "write", JS_NewCFunction(ctx, js_document_write, "write", 1));
-
-    /* Properties */
-    define_getter(ctx, document, "body", js_document_body_getter);
-    define_getter(ctx, document, "documentElement", js_document_documentElement_getter);
-    define_getter(ctx, document, "head", js_document_head_getter);
-    define_getter(ctx, document, "readyState", js_document_readyState_getter);
-    define_getter_setter(ctx, document, "cookie", js_document_cookie_getter, js_document_cookie_setter);
-
-    /* Attach document to global object and window.document */
-    JS_SetPropertyStr(ctx, global_obj, "document", document);
-
-    JS_FreeValue(ctx, global_obj);
-
-    NSLOG(wisp, DEBUG, "Document binding initialized with element stubs");
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_document_class_id == 0) JS_NewClassID(rt, &qjs_document_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_document_class_id)) JS_NewClass(rt, qjs_document_class_id, &js_document_class);
+    JSValue proto = JS_NewObject(ctx);
+    JS_SetPropertyFunctionList(ctx, proto, js_document_proto_funcs, sizeof(js_document_proto_funcs) / sizeof(js_document_proto_funcs[0]));
+    JS_SetClassProto(ctx, qjs_document_class_id, proto);
     return 0;
+}
+
+JSValue qjs_new_document(JSContext *ctx, void *node, bool is_dom_node)
+{
+    JSValue obj = JS_NewObjectClass(ctx, qjs_document_class_id);
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) return JS_ThrowOutOfMemory(ctx);
+    priv->node = node; priv->ctx = ctx; priv->is_dom_node = is_dom_node;
+    if (is_dom_node && node) dom_node_ref((dom_node *)node);
+    JS_SetOpaque(obj, priv); return obj;
 }

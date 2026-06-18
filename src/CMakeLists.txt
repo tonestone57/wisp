@@ -169,10 +169,16 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/timers.c
 	content/handlers/javascript/quickjs/navigator.c
 	content/handlers/javascript/quickjs/location.c
+	content/handlers/javascript/quickjs/node.c
+	content/handlers/javascript/quickjs/element.c
 	content/handlers/javascript/quickjs/document.c
+	content/handlers/javascript/quickjs/text.c
 	content/handlers/javascript/quickjs/storage.c
 	content/handlers/javascript/quickjs/event_target.c
+	content/handlers/javascript/quickjs/dom_bridge.c
 	content/handlers/javascript/quickjs/xhr.c
+	content/handlers/javascript/quickjs/window.c
+	content/handlers/javascript/quickjs/console.c
 	content/handlers/javascript/quickjs/unimplemented.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
@@ -191,7 +197,6 @@ add_library(wisp ${WISP_LIB_TYPE}
 	desktop/treeview.c
 	desktop/page-info.c
 	desktop/browser.c
-	desktop/browser_window.c
 	desktop/browser_history.c
 	desktop/download.c
 	desktop/frames.c
@@ -238,11 +243,8 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/nsurl/nsurl.c
 	utils/nsurl/parse.c
 	# QuickJS-ng generated bindings
-	${CMAKE_BINARY_DIR}/quickjs/console.c
-	${CMAKE_BINARY_DIR}/quickjs/window.c
 )
 # QuickJS-ng dependencies
-add_dependencies(wisp quickjs_bindings)
 set_target_properties(wisp PROPERTIES SOVERSION ${WISP_ABI})
 
 if(WISP_ENABLE_GPROF)

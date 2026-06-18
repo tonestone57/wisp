@@ -711,8 +711,12 @@ START_TEST(test_quickjs_document)
     ck_assert(result == true);
 
     /* Test getElementById stub */
-    const char *code2 = "document.getElementById('foo') === null";
+    const char *code2 = "document.getElementById('foo') === null && typeof document.createElement('div') === 'object' && typeof document.createTextNode('test') === 'object'";
     result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_getElementById");
+    /* Test appendChild and removeChild */
+    const char *code_tree = "var p = document.createElement('p'); var t = document.createTextNode('hi'); p.appendChild(t); p.firstChild === t && p.hasChildNodes() === true && (p.removeChild(t), p.hasChildNodes() === false);";
+    result = js_exec(thread, (const uint8_t *)code_tree, strlen(code_tree), "test_dom_tree");
+    ck_assert(result == true);
     ck_assert(result == true);
 
     /* Test createElement stub */
@@ -916,6 +920,50 @@ START_TEST(test_quickjs_events_dispatch)
 }
 END_TEST
 
+
+START_TEST(test_quickjs_dom_identity)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    js_newthread(heap, NULL, NULL, &thread);
+
+    const char *code = "var body1 = document.body; var body2 = document.body; body1 === body2;";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_identity");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_dom_attributes)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    js_newthread(heap, NULL, NULL, &thread);
+
+    const char *code = "var el = document.createElement('div'); el.className = 'test-class'; el.setAttribute('id', 'test-id'); el.className === 'test-class' && el.getAttribute('id') === 'test-id';";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_attributes");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
 Suite *quickjs_suite(void)
 {
 
@@ -967,8 +1015,9 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_event_target_full);
     tcase_add_test(tc_window, test_quickjs_xhr);
     tcase_add_test(tc_window, test_quickjs_events_dispatch);
-    suite_add_tcase(s, tc_window);
 
+    tcase_add_test(tc_window, test_quickjs_dom_identity);
+    tcase_add_test(tc_window, test_quickjs_dom_attributes);
     return s;
 }
 
