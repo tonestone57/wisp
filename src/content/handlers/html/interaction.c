@@ -59,6 +59,7 @@
 #include "content/handlers/html/box_textarea.h"
 #include "content/handlers/html/font.h"
 #include "content/handlers/html/imagemap.h"
+#include "content/handlers/html/layout.h"
 
 /**
  * Get pointer shape for given box
@@ -1425,6 +1426,9 @@ void html_overflow_scroll_callback(void *client_data, struct scrollbar_msg_data 
              * be redrawn after layout anyway. */
             break;
         }
+
+        /* Update dynamic sticky clamping offsets for this scroll container */
+        layout_apply_sticky_clamping(html);
 
         html__redraw_a_box(html, box);
         break;

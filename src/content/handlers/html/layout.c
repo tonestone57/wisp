@@ -72,6 +72,7 @@
 #include "content/handlers/html/layout_grid.h"
 #include "content/handlers/html/layout_internal.h"
 #include "content/handlers/html/table.h"
+#include "desktop/browser_private.h"
 #include <svgtiny.h>
 
 /** Array of per-side access functions for computed style margins. */
@@ -5166,8 +5167,9 @@ static void layout_compute_relative_offset(const css_unit_ctx *unit_len_ctx, str
 {
     int left, right, top, bottom;
     struct box *containing_block;
+    uint8_t pos = css_computed_position(box->style);
 
-    assert(box && box->parent && box->style && css_computed_position(box->style) == CSS_POSITION_RELATIVE);
+    assert(box && box->parent && box->style && (pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_STICKY));
 
     if (box->float_container &&
         (css_computed_float(box->style) == CSS_FLOAT_LEFT || css_computed_float(box->style) == CSS_FLOAT_RIGHT)) {
@@ -5230,7 +5232,151 @@ static void layout_compute_relative_offset(const css_unit_ctx *unit_len_ctx, str
  *               between current box, "root", and the block formatting context
  *               box, "fp", for float children of "root"
  */
-static void layout_position_relative(const css_unit_ctx *unit_len_ctx, struct box *root, struct box *fp, int fx, int fy)
+/**
+ * Register a box for sticky positioning and cache its layout-time constraints.
+ */
+static void layout_register_sticky_box(struct html_content *content, struct box *box)
+{
+    struct box *p;
+
+    /* Find nearest scrollable ancestor (scroller) and containing block (cb) */
+    box->sticky_constraints.scroller = NULL;
+    box->sticky_constraints.cb = NULL;
+
+    for (p = box->parent; p != NULL; p = (p->type == BOX_FLOAT_LEFT || p->type == BOX_FLOAT_RIGHT) ? p->float_container : p->parent) {
+        if (box->sticky_constraints.scroller == NULL && p->style != NULL) {
+            enum css_overflow_e ox = css_computed_overflow_x(p->style);
+            enum css_overflow_e oy = css_computed_overflow_y(p->style);
+            if (ox != CSS_OVERFLOW_VISIBLE || oy != CSS_OVERFLOW_VISIBLE) {
+                box->sticky_constraints.scroller = p;
+            }
+        }
+        /* Sticky CB is the nearest block-level ancestor */
+        if (p->type == BOX_BLOCK || p->type == BOX_FLEX || p->type == BOX_GRID) {
+            box->sticky_constraints.cb = p;
+            break;
+        }
+    }
+
+    /* Cache CSS offsets in pixels */
+    layout_compute_offsets(&content->unit_len_ctx, box, box->parent,
+        &box->sticky_constraints.top, &box->sticky_constraints.right,
+        &box->sticky_constraints.bottom, &box->sticky_constraints.left);
+
+    /* Cache static position in document coordinates (Phase 1: sticky_x/y are 0) */
+    box->sticky_x = 0;
+    box->sticky_y = 0;
+    box_coords(box, &box->sticky_constraints.static_doc_x, &box->sticky_constraints.static_doc_y);
+
+    /* Cache containing block bounds in document coordinates */
+    if (box->sticky_constraints.cb) {
+        int cb_x, cb_y;
+        box_coords(box->sticky_constraints.cb, &cb_x, &cb_y);
+        box->sticky_constraints.cb_doc_x0 = cb_x + box->sticky_constraints.cb->padding[LEFT];
+        box->sticky_constraints.cb_doc_y0 = cb_y + box->sticky_constraints.cb->padding[TOP];
+        box->sticky_constraints.cb_doc_x1 = box->sticky_constraints.cb_doc_x0 + box->sticky_constraints.cb->width;
+        box->sticky_constraints.cb_doc_y1 = box->sticky_constraints.cb_doc_y0 + box->sticky_constraints.cb->height;
+    }
+
+    /* Add to document's sticky registry */
+    box->next_sticky = content->sticky_list;
+    content->sticky_list = box;
+}
+
+/**
+ * Apply dynamic sticky clamping based on current scroll positions.
+ */
+void layout_apply_sticky_clamping(struct html_content *content)
+{
+    struct box *b;
+
+    for (b = content->sticky_list; b != NULL; b = b->next_sticky) {
+        int vx0, vy0, vx1, vy1; /* Viewport in document coords */
+
+        if (b->sticky_constraints.scroller) {
+            int sx, sy;
+            box_coords(b->sticky_constraints.scroller, &sx, &sy);
+            vx0 = sx + b->sticky_constraints.scroller->padding[LEFT];
+            vy0 = sy + b->sticky_constraints.scroller->padding[TOP];
+            vx1 = vx0 + b->sticky_constraints.scroller->width;
+            vy1 = vy0 + b->sticky_constraints.scroller->height;
+        } else {
+            /* Global viewport (browser window) */
+            int scroll_x = (content->bw) ? scrollbar_get_offset(content->bw->scroll_x) : 0;
+            int scroll_y = (content->bw) ? scrollbar_get_offset(content->bw->scroll_y) : 0;
+            vx0 = scroll_x;
+            vy0 = scroll_y;
+            vx1 = vx0 + FIXTOINT(content->unit_len_ctx.viewport_width);
+            vy1 = vy0 + FIXTOINT(content->unit_len_ctx.viewport_height);
+        }
+
+        /* Y-axis clamping (Top / Bottom) */
+        b->sticky_y = 0;
+        int box_h = b->height + b->padding[TOP] + b->padding[BOTTOM] +
+                    b->border[TOP].width + b->border[BOTTOM].width +
+                    lh__non_auto_margin(b, TOP) + lh__non_auto_margin(b, BOTTOM);
+
+        if (b->sticky_constraints.top != AUTO) {
+            int target_y = vy0 + b->sticky_constraints.top;
+            int offset = target_y - b->sticky_constraints.static_doc_y;
+            if (offset > 0) {
+                /* Limit by containing block bottom */
+                int max_offset = b->sticky_constraints.cb_doc_y1 - (b->sticky_constraints.static_doc_y + box_h);
+                if (offset > max_offset) offset = max_offset;
+                b->sticky_y = offset;
+            }
+        } else if (b->sticky_constraints.bottom != AUTO) {
+            int target_y = vy1 - b->sticky_constraints.bottom - box_h;
+            int offset = target_y - b->sticky_constraints.static_doc_y;
+            if (offset < 0) {
+                /* Limit by containing block top */
+                int min_offset = b->sticky_constraints.cb_doc_y0 - b->sticky_constraints.static_doc_y;
+                if (offset < min_offset) offset = min_offset;
+                b->sticky_y = offset;
+            }
+        }
+
+        /* X-axis clamping (Left / Right) */
+        b->sticky_x = 0;
+        int box_w = b->width + b->padding[LEFT] + b->padding[RIGHT] +
+                    b->border[LEFT].width + b->border[RIGHT].width +
+                    lh__non_auto_margin(b, LEFT) + lh__non_auto_margin(b, RIGHT);
+
+        if (b->sticky_constraints.left != AUTO) {
+            int target_x = vx0 + b->sticky_constraints.left;
+            int offset = target_x - b->sticky_constraints.static_doc_x;
+            if (offset > 0) {
+                int max_offset = b->sticky_constraints.cb_doc_x1 - (b->sticky_constraints.static_doc_x + box_w);
+                if (offset > max_offset) offset = max_offset;
+                b->sticky_x = offset;
+            }
+        } else if (b->sticky_constraints.right != AUTO) {
+            int target_x = vx1 - b->sticky_constraints.right - box_w;
+            int offset = target_x - b->sticky_constraints.static_doc_x;
+            if (offset < 0) {
+                int min_offset = b->sticky_constraints.cb_doc_x0 - b->sticky_constraints.static_doc_x;
+                if (offset < min_offset) offset = min_offset;
+                b->sticky_x = offset;
+            }
+        }
+    }
+}
+
+/**
+ * Adjust positions of relatively positioned boxes.
+ *
+ * \param  content  HTML content
+ * \param  root  box to adjust the position of
+ * \param  fp    box which forms the block formatting context for children of
+ *		 "root" which are floats
+ * \param  fx    x offset due to intervening relatively positioned boxes
+ *               between current box, "root", and the block formatting context
+ *               box, "fp", for float children of "root"
+ * \param  fy    y offset due to intervening relatively positioned boxes
+ *               between current box, "root", and the block formatting context
+ *               box, "fp", for float children of "root"
+ */
+static void layout_position_relative(struct html_content *content, struct box *root, struct box *fp, int fx, int fy)
 {
     struct box *box; /* for children of "root" */
     struct box *fn; /* for block formatting context box for children of
@@ -5240,6 +5386,7 @@ static void layout_position_relative(const css_unit_ctx *unit_len_ctx, struct bo
     int x, y; /* for the offsets resulting from any relative
                * positioning on the current block */
     int fnx, fny; /* for affsets which apply to flat children of "box" */
+    const css_unit_ctx *unit_len_ctx = &content->unit_len_ctx;
 
     /**\todo ensure containing box is large enough after moving boxes */
 
@@ -5251,8 +5398,10 @@ static void layout_position_relative(const css_unit_ctx *unit_len_ctx, struct bo
         if (box->type == BOX_TEXT)
             continue;
 
-        /* If relatively positioned, get offsets */
+        /* If relatively or sticky positioned, get offsets */
         if (box->style && css_computed_position(box->style) == CSS_POSITION_RELATIVE)
+            layout_compute_relative_offset(unit_len_ctx, box, &x, &y);
+        else if (box->style && css_computed_position(box->style) == CSS_POSITION_STICKY)
             layout_compute_relative_offset(unit_len_ctx, box, &x, &y);
         else
             x = y = 0;
@@ -5287,14 +5436,22 @@ static void layout_position_relative(const css_unit_ctx *unit_len_ctx, struct bo
         }
 
         /* recurse first */
-        layout_position_relative(unit_len_ctx, box, fn, fnx, fny);
+        layout_position_relative(content, box, fn, fnx, fny);
 
         /* Ignore things we're not interested in. */
-        if (!box->style || (box->style && css_computed_position(box->style) != CSS_POSITION_RELATIVE))
+        if (!box->style)
             continue;
 
-        box->x += x;
-        box->y += y;
+        uint8_t position = css_computed_position(box->style);
+        if (position != CSS_POSITION_RELATIVE && position != CSS_POSITION_STICKY)
+            continue;
+
+        if (position == CSS_POSITION_STICKY) {
+            layout_register_sticky_box(content, box);
+        } else {
+            box->x += x;
+            box->y += y;
+        }
 
         /* Handle INLINEs - their "children" are in fact
          * the sibling boxes between the INLINE and
@@ -5770,7 +5927,13 @@ bool layout_document(html_content *content, int width, int height)
 
     layout_lists(content, doc);
     layout_position_absolute(doc, doc, 0, 0, content);
-    layout_position_relative(&content->unit_len_ctx, doc, doc, 0, 0);
+
+    /* Phase 1: Layout and Constraint Caching for sticky boxes */
+    content->sticky_list = NULL;
+    layout_position_relative(content, doc, doc, 0, 0);
+
+    /* Phase 2: Dynamic Clamping for sticky boxes */
+    layout_apply_sticky_clamping(content);
 
     layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
     layout_log_final_box_heights(&content->unit_len_ctx, doc);

@@ -252,6 +252,12 @@ static bool avif_convert(struct content *c)
 
     image_cache_add(c, NULL, avif_cache_convert);
 
+    bitmap_fmt_t avif_fmt = {
+        .layout = bitmap_fmt.layout,
+        .pma = bitmap_fmt.pma,
+    };
+    bitmap_format_to_client(NULL, &avif_fmt);
+
     content_set_ready(c);
     content_set_done(c);
 

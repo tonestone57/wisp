@@ -44,4 +44,11 @@ struct gui_layout_table;
  */
 bool layout_document(struct html_content *content, int width, int height);
 
+/**
+ * Apply sticky positioning clamping for all registered sticky elements.
+ *
+ * \param  content  HTML content
+ */
+void layout_apply_sticky_clamping(struct html_content *content);
+
 #endif

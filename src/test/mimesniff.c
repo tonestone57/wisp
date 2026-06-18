@@ -142,6 +142,7 @@ static struct test_mimetype match_unknown_exact_tests[] = {
     SIG("Rar \x1a\x07\x00", application_x_rar_compressed, true),
     SIG("PK\x03\x04", application_zip, true),
     SIG("\x1f\x8b\x08", application_x_gzip, true),
+    SIG("ftypavif", image_avif, false),
     SIG("%!PS-Adobe-", application_postscript, true),
     SIG("%PDF-", application_pdf, false),
 };

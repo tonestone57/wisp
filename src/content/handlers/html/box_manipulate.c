@@ -166,6 +166,7 @@ struct box *box_create(css_select_results *styles, css_computed_style *style, bo
     box->object_params = NULL;
     box->iframe = NULL;
     box->node = NULL;
+    box->sticky_x = box->sticky_y = 0;
 
     return box;
 }

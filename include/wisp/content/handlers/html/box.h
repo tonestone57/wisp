@@ -354,6 +354,21 @@ struct box {
     int descendant_x1; /**< right edge of descendants */
     int descendant_y1; /**< bottom edge of descendants */
 
+    /** Current dynamic offsets for sticky items. */
+    int sticky_x, sticky_y;
+
+    /** Cached constraints for sticky items. */
+    struct {
+        int top, right, bottom, left; /**< Specified CSS offsets (pixels or AUTO) */
+        struct box *scroller;         /**< Nearest scrollable ancestor */
+        struct box *cb;               /**< Containing block */
+        int static_doc_x, static_doc_y;
+        int cb_doc_x0, cb_doc_y0, cb_doc_x1, cb_doc_y1;
+    } sticky_constraints;
+
+    /** Next box in the document's sticky registry. */
+    struct box *next_sticky;
+
     /**
      * Margin: TOP, RIGHT, BOTTOM, LEFT.
      */

@@ -163,6 +163,9 @@ typedef struct html_content {
     void *box_conversion_context;
     /** Box tree, or NULL. */
     struct box *layout;
+
+    /** Registry of active sticky elements in this document. */
+    struct box *sticky_list;
     /** Document background colour. */
     colour background_colour;
 
