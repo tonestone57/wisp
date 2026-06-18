@@ -1,0 +1,113 @@
+
+#include "dom_bridge.h"
+#include "qjs_internal.h"
+#include <wisp/utils/log.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include "utils/hashmap.h"
+
+typedef struct {
+    JSContext *ctx;
+    struct dom_node *node;
+} bridge_key_t;
+
+static uint32_t bridge_key_hash(void *key) {
+    bridge_key_t *k = key;
+    return (uint32_t)((uintptr_t)k->ctx ^ (uintptr_t)k->node);
+}
+
+static bool bridge_key_eq(void *key1, void *key2) {
+    bridge_key_t *k1 = key1, *k2 = key2;
+    return k1->ctx == k2->ctx && k1->node == k2->node;
+}
+
+static void *bridge_key_clone(void *key) {
+    bridge_key_t *k = malloc(sizeof(*k));
+    if (k) memcpy(k, key, sizeof(*k));
+    return k;
+}
+
+static void bridge_key_destroy(void *key) {
+    free(key);
+}
+
+static void bridge_value_destroy(void *val) {
+    /* We don't free the JSValue here because it's a weak-like ref managed by GC and finalizers */
+    free(val);
+}
+
+static hashmap_parameters_t bridge_map_params = {
+    .key_clone = bridge_key_clone,
+    .key_hash = bridge_key_hash,
+    .key_eq = bridge_key_eq,
+    .key_destroy = bridge_key_destroy,
+    .value_alloc = NULL, /* We manage value allocation manually in insert */
+    .value_destroy = bridge_value_destroy
+};
+
+JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
+{
+    if (node == NULL) return JS_NULL;
+
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (!map) {
+        NSLOG(wisp, ERROR, "DOM bridge map not initialized");
+        return JS_UNDEFINED;
+    }
+
+    bridge_key_t key = { ctx, node };
+    JSValue *existing = hashmap_lookup(map, &key);
+    if (existing) {
+        return JS_DupValue(ctx, *existing);
+    }
+
+    dom_node_type type;
+    dom_node_get_node_type(node, &type);
+
+    JSValue wrapper;
+    switch (type) {
+        case DOM_ELEMENT_NODE:
+            wrapper = qjs_new_element(ctx, node, true);
+            break;
+        case DOM_DOCUMENT_NODE:
+            wrapper = qjs_new_document(ctx, node, true);
+            break;
+        case DOM_TEXT_NODE:
+            wrapper = qjs_new_text(ctx, node, true);
+            break;
+        default:
+            wrapper = qjs_new_node(ctx, node, true);
+            break;
+    }
+
+    JSValue *val_ptr = hashmap_insert(map, &key);
+    if (val_ptr) {
+        *val_ptr = wrapper; /* Map stores the JSValue (no extra ref, weak-like) */
+    }
+
+    return wrapper;
+}
+
+void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx)
+{
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (map) {
+        bridge_key_t key = { ctx, node };
+        hashmap_remove(map, &key);
+    }
+}
+
+int qjs_init_dom_bridge(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (!map) {
+        map = hashmap_create(&bridge_map_params);
+        JS_SetRuntimeOpaque(rt, map);
+    }
+    return 0;
+}
+
+void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }

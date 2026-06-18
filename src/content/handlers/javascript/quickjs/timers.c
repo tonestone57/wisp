@@ -6,38 +6,142 @@
 
 #include "timers.h"
 #include <wisp/utils/log.h>
+#include <wisp/desktop/gui_table.h>
+#include <wisp/misc.h>
 #include "quickjs.h"
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
+
+extern struct wisp_table *guit;
+
+struct qjs_timer {
+    JSContext *ctx;
+    JSValue func;
+    bool repeat;
+    int interval;
+    int id;
+    bool cancelled;
+    struct qjs_timer *next;
+};
+
+static struct qjs_timer *active_timers = NULL;
+static int next_timer_id = 1;
+
+static void qjs_timer_callback(void *p)
+{
+    struct qjs_timer *timer = p;
+    if (timer->cancelled) {
+        /* Timer was cancelled, but callback already scheduled */
+        return;
+    }
+
+    JSContext *ctx = timer->ctx;
+
+    JSValue ret = JS_Call(ctx, timer->func, JS_UNDEFINED, 0, NULL);
+    if (JS_IsException(ret)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+        NSLOG(wisp, WARNING, "JS Error in timer callback: %s", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
+    JS_FreeValue(ctx, ret);
+
+    /* Process pending jobs (Promises) after timer execution */
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1) > 0) ;
+
+    if (timer->repeat && !timer->cancelled) {
+        /* Re-schedule if interval and not cancelled */
+        if (guit && guit->misc && guit->misc->schedule) {
+            guit->misc->schedule(timer->interval, qjs_timer_callback, timer);
+        }
+    } else {
+        /* Remove from active list and free */
+        struct qjs_timer **prev = &active_timers;
+        struct qjs_timer *curr = active_timers;
+        while (curr) {
+            if (curr == timer) {
+                *prev = curr->next;
+                break;
+            }
+            prev = &curr->next;
+            curr = curr->next;
+        }
+        JS_FreeValue(ctx, timer->func);
+        free(timer);
+    }
+}
+
+static JSValue js_setTimeout_internal(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, bool repeat)
+{
+    if (argc < 1 || !JS_IsFunction(ctx, argv[0])) {
+        return JS_ThrowTypeError(ctx, "Expected function as first argument");
+    }
+
+    int32_t delay = 0;
+    if (argc >= 2) {
+        JS_ToInt32(ctx, &delay, argv[1]);
+    }
+    if (delay < 0) delay = 0;
+
+    struct qjs_timer *timer = malloc(sizeof(*timer));
+    if (!timer) return JS_ThrowOutOfMemory(ctx);
+
+    timer->ctx = ctx;
+    timer->func = JS_DupValue(ctx, argv[0]);
+    timer->repeat = repeat;
+    timer->interval = delay;
+    timer->id = next_timer_id++;
+    timer->cancelled = false;
+
+    timer->next = active_timers;
+    active_timers = timer;
+
+    if (guit && guit->misc && guit->misc->schedule) {
+        if (guit->misc->schedule(delay, qjs_timer_callback, timer) != NSERROR_OK) {
+            active_timers = timer->next;
+            JS_FreeValue(ctx, timer->func);
+            free(timer);
+            return JS_ThrowInternalError(ctx, "Failed to schedule timer");
+        }
+    } else {
+        NSLOG(wisp, WARNING, "No GUI scheduler available for timers");
+        active_timers = timer->next;
+        JS_FreeValue(ctx, timer->func);
+        free(timer);
+        return JS_UNDEFINED;
+    }
+
+    return JS_NewInt32(ctx, timer->id);
+}
 
 static JSValue js_setTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    /* Stub implementation: just log and return a dummy ID */
-    NSLOG(wisp, INFO, "setTimeout called");
-    if (argc > 0 && JS_IsFunction(ctx, argv[0])) {
-        /* In a real implementation we would schedule this.
-           For now, to unblock basic scripts that use 0 delay,
-           we could potentially execute it immediately or just queue it.
-           But usually executing immediately breaks expectations.
-           Refining to just log for now. */
-    }
-    return JS_NewInt32(ctx, 1);
-}
-
-static JSValue js_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, INFO, "clearTimeout called");
-    return JS_UNDEFINED;
+    return js_setTimeout_internal(ctx, this_val, argc, argv, false);
 }
 
 static JSValue js_setInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, INFO, "setInterval called");
-    return JS_NewInt32(ctx, 2);
+    return js_setTimeout_internal(ctx, this_val, argc, argv, true);
 }
 
-static JSValue js_clearInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static JSValue js_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, INFO, "clearInterval called");
+    if (argc < 1) return JS_UNDEFINED;
+    int32_t id;
+    JS_ToInt32(ctx, &id, argv[0]);
+
+    struct qjs_timer *curr = active_timers;
+    while (curr) {
+        if (curr->id == id) {
+            curr->cancelled = true;
+            NSLOG(wisp, INFO, "Timer %d cancelled", id);
+            return JS_UNDEFINED;
+        }
+        curr = curr->next;
+    }
     return JS_UNDEFINED;
 }
 

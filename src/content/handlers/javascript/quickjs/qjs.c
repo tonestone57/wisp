@@ -33,18 +33,10 @@
 #include "utils/libdom.h"
 
 #include "quickjs.h"
+#include "utils/hashmap.h"
 
 #include "content/handlers/javascript/js.h"
-#include "content/handlers/javascript/quickjs/console.h"
-#include "content/handlers/javascript/quickjs/document.h"
-#include "content/handlers/javascript/quickjs/event_target.h"
-#include "content/handlers/javascript/quickjs/location.h"
-#include "content/handlers/javascript/quickjs/navigator.h"
-#include "content/handlers/javascript/quickjs/storage.h"
-#include "content/handlers/javascript/quickjs/timers.h"
-#include "content/handlers/javascript/quickjs/window.h"
-#include "content/handlers/javascript/quickjs/xhr.h"
-#include "content/handlers/javascript/quickjs/unimplemented.h"
+#include "qjs_internal.h"
 #include "wisp_subsystem.h"
 #include <nsutils/time.h>
 
@@ -55,6 +47,7 @@
 #include <pthread.h>
 #endif
 
+#include "content/handlers/javascript/quickjs/dom_bridge.h"
 /**
  * JavaScript heap structure.
  *
@@ -87,15 +80,7 @@ struct jsheap {
  *
  * Maps to QuickJS's JSContext - one per browsing context.
  */
-struct jsthread {
-    jsheap *heap;
-    JSContext *ctx;
-    bool closed;
-    void *win_priv;
-    void *doc_priv;
-    struct qjs_event_listener_ctx *listeners;
-    struct qjs_event_map *events;
-};
+
 
 
 /**
@@ -213,6 +198,8 @@ void js_destroyheap(jsheap *heap)
     NSLOG(wisp, DEBUG, "Destroying QuickJS heap %p", heap);
 
     if (heap->rt != NULL) {
+        hashmap_t *map = JS_GetRuntimeOpaque(heap->rt);
+        if (map) hashmap_destroy(map);
         JS_FreeRuntime(heap->rt);
     }
 
@@ -247,119 +234,31 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->closed = false;
 
     /* Store thread pointer in context for later retrieval */
+
     JS_SetContextOpaque(t->ctx, t);
 
-    /* Initialize Console binding */
-    if (qjs_init_console(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS console binding");
-    }
+    qjs_init_dom_bridge(t->ctx);
+    qjs_init_console(t->ctx);
+    qjs_init_window(t->ctx);
+    qjs_init_timers(t->ctx);
+    qjs_init_navigator(t->ctx);
+    qjs_init_location(t->ctx);
+    qjs_init_eventtarget(t->ctx);
+    qjs_init_node(t->ctx);
+    qjs_init_element(t->ctx);
+    qjs_init_text(t->ctx);
+    qjs_init_document(t->ctx);
 
-    /* Initialize Window binding */
-    if (qjs_init_window(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS window binding");
-    }
-
-    /* Initialize Timers */
-    if (qjs_init_timers(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS timers");
-    }
-
-    /* Initialize Navigator */
-    if (qjs_init_navigator(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS navigator");
-    }
-
-    /* Initialize Location */
-    if (qjs_init_location(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS location");
-    }
-
-    /* Initialize Document */
-    if (qjs_init_document(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS document");
-    }
-
-    /* Initialize Storage (localStorage, sessionStorage) */
-    if (qjs_init_storage(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS storage");
-    }
-
-    /* Initialize EventTarget (addEventListener, etc.) */
-    if (qjs_init_event_target(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS event target");
-    }
-
-    /* Initialize XMLHttpRequest */
-    if (qjs_init_xhr(t->ctx) < 0) {
-        NSLOG(wisp, ERROR, "Failed to initialize QuickJS XMLHttpRequest");
-    }
-
-    /* Initialize unimplemented APIs as stubs */
-    if (qjs_init_unimplemented(t->ctx) < 0) {
-        NSLOG(wisp, WARNING, "Failed to initialize unimplemented API stubs");
-    }
-
-
-    /* Add DOM constructor stubs that third-party JS commonly checks */
-    {
+    if (doc_priv) {
+        JSValue doc_val = qjs_wrap_node(t->ctx, (dom_node *)doc_priv);
         JSValue global_obj = JS_GetGlobalObject(t->ctx);
-        JSValue proto;
-
-        /* HTMLElement constructor with prototype */
-        JSValue html_element = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, html_element, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "HTMLElement", html_element);
-
-        /* Element constructor */
-        JSValue element = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, element, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "Element", element);
-
-        /* Node constructor */
-        JSValue node = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, node, "prototype", proto);
-        /* Node type constants */
-        JS_SetPropertyStr(t->ctx, node, "ELEMENT_NODE", JS_NewInt32(t->ctx, 1));
-        JS_SetPropertyStr(t->ctx, node, "TEXT_NODE", JS_NewInt32(t->ctx, 3));
-        JS_SetPropertyStr(t->ctx, node, "DOCUMENT_NODE", JS_NewInt32(t->ctx, 9));
-        JS_SetPropertyStr(t->ctx, global_obj, "Node", node);
-
-        /* Text constructor */
-        JSValue text = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, text, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "Text", text);
-
-        /* DocumentFragment constructor */
-        JSValue doc_frag = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, doc_frag, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "DocumentFragment", doc_frag);
-
-        /* HTMLDocument constructor */
-        JSValue html_doc = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, html_doc, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "HTMLDocument", html_doc);
-
-        /* Event constructor */
-        JSValue event_ctor = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, event_ctor, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "Event", event_ctor);
-
-        /* CustomEvent constructor */
-        JSValue custom_event = JS_NewObject(t->ctx);
-        proto = JS_NewObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, custom_event, "prototype", proto);
-        JS_SetPropertyStr(t->ctx, global_obj, "CustomEvent", custom_event);
-
+        JS_SetPropertyStr(t->ctx, global_obj, "document", doc_val);
         JS_FreeValue(t->ctx, global_obj);
-        NSLOG(wisp, DEBUG, "DOM constructor stubs initialized");
     }
+
+    qjs_init_storage(t->ctx);
+    qjs_init_xhr(t->ctx);
+    qjs_init_unimplemented(t->ctx);
 
     NSLOG(wisp, DEBUG, "Created QuickJS thread %p in heap %p", t, heap);
 
@@ -437,6 +336,7 @@ void js_destroythread(jsthread *thread)
 
         thread->heap->deadline_ms = 0;
 
+        qjs_finalise_dom_bridge(thread->ctx);
         JS_FreeContext(thread->ctx);
     }
 
@@ -486,6 +386,12 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
     thread->heap->deadline_ms = 0;
+
+    /* Execute any pending jobs (Promises, etc.) */
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) > 0) {
+        /* Jobs executed */
+    }
 
     if (JS_IsException(result)) {
         JSValue exc = JS_GetException(thread->ctx);
