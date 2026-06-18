@@ -71,12 +71,12 @@ Below is an analysis of each library, detailing the extent of divergences betwee
 *   **Upgrade Feasibility:** **Low**. Similar to `libcss`, Wisp has essentially forked this library to add specific rendering and parsing paths.
 
 ### `quickjs-ng` (JavaScript Engine)
-*   **Upstream (quickjs-ng):** Mar 2026 (v0.12+)
-*   **Wisp Current Version:** v0.11.0 (QJS_VERSION_MINOR 11)
+*   **Upstream (quickjs-ng):** Latest stable (v0.15.1)
+*   **Wisp Current Version:** v0.15.1
 *   **Wisp Modifications:** Moderate.
     *   **Modified files:** 47
 *   **Key Divergences:** CMake integration, `#include` path adjustments, custom C-API wrappers, and specific memory usage adaptations for the Wisp subsystem.
-*   **Upgrade Feasibility:** **Medium to High**. QuickJS-ng can be upgraded to the latest release (e.g., v0.12.1), provided the Wisp CMake file (`CMakeLists.txt`) and specific memory/subsystem hooks are re-applied. Since it's an actively developed engine, upgrading is highly recommended for ES6+ compliance and performance improvements.
+*   **Upgrade Feasibility:** **Modernized**. Wisp is now tracking current QuickJS-ng releases.
 
 ---
 

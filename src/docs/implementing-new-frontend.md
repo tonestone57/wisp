@@ -27,8 +27,8 @@ Experience has shown that attempting to port to a platform and
 implement a toolkit at the same time generally results in failure to
 achieve either goal.
 
-Wisp is built using GNU make and frontends are expected to
-integrate with this buildsystem.
+Wisp is built using CMake and frontends are expected to
+integrate with this build system by adding their own subdirectory.
 
 Implementation languages have historically been limited to C, C++ and
 objective C. However any language that can call C functions and
@@ -73,16 +73,11 @@ targets list.
 
 ## Build system
 
-A frontend must provide three GNU Makefile fragments (these will be
-included from the core Makefile):
+A frontend should provide a `CMakeLists.txt` file in its directory.
 
- - `Makefile` - This is used to extend CFLAGS, CXXFLAGS and LDFLAGS variables as required. The executable target is set with EXETARGET and the browser source files are listed in the SOURCES variable
- - `Makefile.defaults` - allows setting frontend specific makefile variables and overriding of the default core build variables.
- - `Makefile.tools` - allows setting up frontend specific build tooling (as a minimum a tool for the package configuration in PKG_CONFIG)
- 
 Source code modules can be named as the developer desires within the
-frontend directory and should be added to the SOURCES variable as
-desired.
+frontend directory and should be added to the appropriate target in
+CMake.
  
 ## Program entry
 
@@ -193,24 +188,11 @@ equivalent implementation in other languages should be obvious.
 
 ## Building
 
-The [frontends/Makefile.hts](https://git.netsurf-browser.org/netsurf.git/diff/frontends/Makefile.hts?h=vince/fltk&id=28ecbf82ed3024f51be4c87928fd91bacfc15cbc)
-had the fltk target added to the VLDTARGET variable. This allows
-Wisp to be built for this frontend with `make TARGET=fltk`
+The frontend directory should be added to `frontends/CMakeLists.txt`
+using `add_subdirectory()`.
 
-As previously described the three GNU Make files are added:
-
-[Makefile](https://git.netsurf-browser.org/netsurf.git/diff/frontends/fltk/Makefile?h=vince/fltk&id=28ecbf82ed3024f51be4c87928fd91bacfc15cbc)
-this shows how the flags are extended to add the fltk headers and
-library. Additionally the list of sources are built here, as the
-comment suggests it is important the SOURCES variable is not expanded
-here so the S_FRONTEND variable is used to allow expansion at the
-correct time in the build process.
-
-[Makefile.defaults](https://git.netsurf-browser.org/netsurf.git/diff/frontends/fltk/Makefile.defaults?h=vince/fltk&id=28ecbf82ed3024f51be4c87928fd91bacfc15cbc) 
-has the default setting to control the build parameters and file locations. These can be overridden by the `Makefile.config` at compile time.
-
-[Makefile.tools](https://git.netsurf-browser.org/netsurf.git/diff/frontends/fltk/Makefile.tools?h=vince/fltk&id=28ecbf82ed3024f51be4c87928fd91bacfc15cbc)
-allows the configuration of additional tools necessary to build for the target as a minimum pkg-config is usually required to find libraries.
+The frontend's `CMakeLists.txt` should define the executable target
+and link against the `wisp` library and other dependencies.
  
 ## Program entry
 

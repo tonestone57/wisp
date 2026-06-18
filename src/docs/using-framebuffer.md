@@ -65,7 +65,7 @@ Overview
 Running
 =======
 
-  The framebuffer frontend is executed with the nsfb command. This
+  The framebuffer frontend is executed with the wisp-fb command. This
    command takes parameters to control the operation of the
    browser. The 'Configuring' section describes the available options
    in detail.
@@ -74,13 +74,13 @@ Running
    switch, the available display surfaces can be shown by passing '?'
    as the parameter.
 
-    $ ./nsfb -f ?
-    ./nsfb: Valid surface names are:
-    ./nsfb: ram
-    ./nsfb: sdl
-    ./nsfb: x
-    ./nsfb: vnc
-    ./nsfb: wld
+    $ ./build/frontends/framebuffer/wisp-fb -f ?
+    ./build/frontends/framebuffer/wisp-fb: Valid surface names are:
+    ./build/frontends/framebuffer/wisp-fb: ram
+    ./build/frontends/framebuffer/wisp-fb: sdl
+    ./build/frontends/framebuffer/wisp-fb: x
+    ./build/frontends/framebuffer/wisp-fb: vnc
+    ./build/frontends/framebuffer/wisp-fb: wld
 
   The avilable surfaces are dependant on what was compiled into the
    nsfb library.

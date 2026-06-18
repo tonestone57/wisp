@@ -24,32 +24,24 @@ Compilation control
 -------------------
 
 At compilation time the logging behaviour can be controlled by using
-configuration overrides in a Makefile.config The parameters are:
+CMake variables. The parameters are:
 
-  - WISP_USE_NSLOG  
-  This controls if the Wisp logging library (nslog) is used to
-  allow comprehensive filtering of messages. The value defaults to
-  AUTO which will use pkg-config to locate the library and enable if
-  present. If set to NO or the library cannot be located the browsers
-  logging will revert to simple boolean enabled/disabled logging
-  controlled by the -v command line switch.
-  
   - WISP_LOG_LEVEL  
   This controls what level of message is compiled into the Wisp
-  binary. The default value is VERBOSE and when not using nslog this
-  value is also used to select what level of logging is shown with the
-  -v command line switch.
+  binary. Supported values: ERROR, WARNING, INFO, DEBUG, VERBOSE,
+  DEEPDEBUG, CRITICAL.
+  The default value is DEEPDEBUG for Debug builds and INFO for others.
   
-  - WISP_BUILTIN_LOG_FILTER  
-  When using nslog this sets the default non-verbose filter. The
-  default value ("level:WARNING") shows all messages of level WARNING
-  and above
+  - WISP_DISABLE_LOGGING
+  This is automatically set for non-Debug builds to disable all logging
+  and tracing for performance.
 
-  - WISP_BUILTIN_VERBOSE_FILTER  
-  When using nslog this sets the default verbose filter. The default
-  value ("level:VERBOSE") shows all messages of level VERBOSE and
-  above. The verbose level is selected from the commandline with the
-  -v switch
+  - WISP_BUILTIN_LOG_FILTER (via options.h)
+  Sets the default non-verbose filter.
+
+  - WISP_BUILTIN_VERBOSE_FILTER (via options.h)
+  Sets the default verbose filter. The verbose level is selected from
+  the commandline with the -v switch.
 
 Command line
 ------------

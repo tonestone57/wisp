@@ -28,19 +28,17 @@ Obtaining the build dependencies
 --------------------------------
 
 Many of Wisp's dependencies are packaged on various operating systems.
-The remainder must be installed manually.  Currently, some of the libraries
-developed as part of the Wisp project have not had official releases.
-Hopefully they will soon be released with downloadable tarballs and packaged
-in common distros.  For now, you'll have to make do with Git checkouts.
+Most core Wisp libraries (libcss, libdom, etc.) are now bundled in the
+`contrib/` directory of the source tree.
 
 ### Package installation
 
 Debian-like OS:
 
-    $ sudo apt-get install cmake libgtk-3-dev libcurl4-openssl-dev 
-    $ apt-get install librsvg2-dev libjpeg-dev
-
-If you want to build with gtk 3 replace libgtk2.0-dev with libgtk-3-dev 
+    $ sudo apt-get install cmake libgtk-3-dev libcurl4-openssl-dev \
+        libjpeg-dev libpng-dev libwebp-dev libavif-dev \
+        libavformat-dev libavcodec-dev libswscale-dev libswresample-dev \
+        libavutil-dev gperf libutf8proc-dev libpsl-dev
 
 Recent OS versions might need libcurl4-dev instead of libcurl3-dev but
 note that when it has not been built with OpenSSL, the SSL_CTX is not
@@ -148,32 +146,16 @@ And change to the 'wisp' directory:
 Building and executing Wisp
 ------------------------------
 
-First of all, you should examine the options in Makefile.defaults
-and gtk/Makefile.defaults and enable and disable relevant features
-as you see fit by editing a Makefile.config file.
+Wisp uses CMake for building.
 
-Some of these options can be automatically detected and used, and
-where this is the case they are set to such.  Others cannot be
-automatically detected from the Makefile, so you will either need to
-install the dependencies, or set them to NO.
+Once dependencies are installed, to build GTK Wisp on a UNIX-like platform:
 
-You should then obtain Wisp's dependencies, keeping in mind which options
-you have enabled in the configuration file.  See the next section for
-specifics.
+    $ cmake -B build -DWISP_BUILD_GTK_FRONTEND=ON
+    $ make -C build -j$(nproc)
 
-Once done, to build GTK Wisp on a UNIX-like platform, simply run:
+Run Wisp by executing the binary:
 
-    $ make
-
-If that produces errors, you probably don't have some of Wisp's
-build dependencies installed. See "Obtaining Wisp's dependencies"
-below. Or turn off the complaining features in a Makefile.config
-file. You may need to "make clean" before attempting to build after
-installing the dependencies.
-
-Run Wisp by executing "nsgtk3":
-
-    $ ./nsgtk3
+    $ ./build/frontends/gtk/wisp-gtk
 
 
 ### Builtin resources

@@ -9,8 +9,7 @@ Automated testing
 -----------------
 
 If you want to run the monkey_driver.py or monkey-see-monkey-do tools then
-you will need python3 and pyyaml installed.  The latter also needs internet
-access to test.wispbrowser.com to acquire test data.
+you will need python3 and pyyaml installed.
 
 Overview
 --------
@@ -27,7 +26,7 @@ front end.
 Monkey is not a tool for building web-crawling robots or indeed anything other
 than a debug tool for the Wisp developers.
 
-### How to interact with `nsmonkey`
+### How to interact with `wisp-monkey`
 
 In brief, `nsmonkey` will produce tagged output on stdout and expect
 commands on stdin.  Windows are numbered and for the most part

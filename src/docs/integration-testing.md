@@ -30,10 +30,11 @@ extend test capabilities.
 # Running a test
 
 An individual test can be run using the monkey_driver.py python script
-from within the Wisp repository
+from within the Wisp repository. First, build the monkey frontend:
 
-    $ make TARGET=monkey
-    $ ./test/monkey_driver.py -m ./nsmonkey -t test/monkey-tests/start-stop.yaml
+    $ cmake -B build -DWISP_BUILD_MONKEY_FRONTEND=ON
+    $ make -C build -j$(nproc)
+    $ ./test/monkey_driver.py -m ./build/frontends/monkey/nsmonkey -t test/monkey-tests/start-stop.yaml
 
 The command actually executed can be augmented using the wrapper
 switch, this allows the test to be run under a debugger or profiler.

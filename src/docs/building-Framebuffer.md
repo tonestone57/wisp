@@ -155,30 +155,16 @@
   Building and executing Wisp
 --------------------------------
 
-  First of all, you should examine the contents of Makefile.defaults
-  and enable and disable relevant features as you see fit in a
-  Makefile.config file.  Some of these options can be automatically
-  detected and used, and where this is the case they are set to such.
-  Others cannot be automatically detected from the Makefile, so you
-  will either need to install the dependencies, or set them to NO.
+  Wisp uses CMake for building.
   
-  You should then obtain Wisp's dependencies, keeping in mind which options
-  you have enabled in the configuration file.  See the "Obtaining Wisp's
-  dependencies" section for specifics.
-  
-  Once done, to build Framebuffer Wisp on a UNIX-like platform, simply run:
+  To build Framebuffer Wisp on a UNIX-like platform, simply run:
 
-      $ make TARGET=framebuffer
+      $ cmake -B build -DWISP_BUILD_FB_FRONTEND=ON
+      $ make -C build -j$(nproc)
 
-  If that produces errors, you probably don't have some of Wisp's build
-  dependencies installed. See "Obtaining Wisp's dependencies" below.
-  Or turn off the complaining features in your Makefile.config.  You may
-  need to "make clean" before attempting to build after installing the 
-  dependencies.
+  Run Wisp by executing the "wisp-fb" program:
 
-  Run Wisp by executing the "nsfb" program:
-
-      $ ./nsfb
+      $ ./build/frontends/framebuffer/wisp-fb
 
   | Note: Wisp uses certain resources at run time.  In order to find these
   |       resources, it searches three locations:

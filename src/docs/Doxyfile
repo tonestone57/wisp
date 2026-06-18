@@ -817,7 +817,7 @@ INPUT                  = docs \
                          content/handlers/image \
                          content/handlers/css \
                          content/handlers/javascript \
-                         content/handlers/javascript/duktape \
+                         content/handlers/javascript/quickjs \
                          content/handlers/html \
                          content/handlers/text \
                          utils \

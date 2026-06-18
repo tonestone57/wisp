@@ -21,10 +21,11 @@
   Manual building
 ================================
 
-  To build Wisp on a BeOS, provided you have the relevant
+  Wisp uses CMake for building. Provided you have the relevant
   build dependencies installed, simply run:
 
-      $ make
+      $ cmake -B build
+      $ make -C build -j$(nproc)
 
   If that produces errors, you probably don't have some of Wisp's build
   dependencies installed. See "Obtaining Wisp's dependencies" below. You

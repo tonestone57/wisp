@@ -9,20 +9,30 @@
   Wisp Core
 ==============
 
-  Required:
+  Most core libraries are now bundled in the `contrib/` directory of the
+  Wisp repository.
 
-      $ git clone git://git.netsurf-browser.org/buildsystem
-      $ git clone git://git.netsurf-browser.org/libwapcaplet
-      $ git clone git://git.netsurf-browser.org/libparserutils
-      $ git clone git://git.netsurf-browser.org/libhubbub
-      $ git clone git://git.netsurf-browser.org/libcss
-      $ git clone git://git.netsurf-browser.org/libdom
-      $ git clone git://git.netsurf-browser.org/libnsbmp
-      $ git clone git://git.netsurf-browser.org/libnsgif
+  Bundled Libraries:
 
-  Optional:
+      - libparserutils
+      - libnsutils (includes libwapcaplet)
+      - libhubbub
+      - libcss
+      - libdom
+      - libnsbmp
+      - libnsgif
+      - libsvgtiny
+      - quickjs-ng
 
-      $ git clone git://git.netsurf-browser.org/libsvgtiny
+  External Dependencies:
+
+      - libcurl
+      - OpenSSL / LibreSSL
+      - libxml2
+      - FFmpeg (libavformat, libavcodec, libswscale, libswresample, libavutil)
+      - libpng, libjpeg, libwebp, libavif
+      - libutf8proc
+      - libpsl
 
 
   RISC OS front end

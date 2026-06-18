@@ -20,13 +20,18 @@ Current development is focused on adding compatibility with modern websites, int
 * Simplified frontend development
 
 ## Known Issues
-All other frontends, except for the Qt one on Linux and the GDI one on Windows, are not tested and probably don't work.
-The JS engine using QuickJS is just a stub.
+All other frontends, except for the Qt one on Linux, the GTK one on Linux, and
+the GDI one on Windows, are not tested and probably don't work.
+The QuickJS engine is integrated with DOM bindings (Window, Document, Node,
+Element, etc.) but many web APIs remain unimplemented.
 
 ## Building and installation
+Wisp uses a unified CMake-based build system for all platforms.
+
 Wisp can be built:
-* On Windows (for the Windows frontend) using MSYS2 and the MinGW-w64 toolchain.
-* On Linux (for the Qt frontend) using CMake and ninja or make.
+* On Windows (for the Windows frontend) using MSYS2 and the MinGW-w64 toolchain
+  with CMake.
+* On Linux (for the Qt or GTK frontends) using CMake and ninja or make.
 
 
 Wisp intends to be portable, keeping a lean C99 codebase and minimal dependencies.

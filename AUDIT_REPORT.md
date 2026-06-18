@@ -20,28 +20,27 @@ An audit of the `contrib/` directory was performed to evaluate the feasibility o
 *   **Recommendation**: Can be re-synced with upstream while preserving Wisp's CMake integration.
 
 ### JavaScript Engine (`quickjs-ng`)
-*   **Status**: Moderately modified (v0.11.0).
-*   **Assessment**: **Upgrade Recommended.**
-*   **Recommendation**: Sync with upstream v0.12.x to benefit from ES6+ improvements and bug fixes. Ensure Wisp-specific memory hooks and subsystem bindings are preserved.
+*   **Status**: Updated to v0.15.1.
+*   **Assessment**: **Modernized.**
+*   **Recommendation**: Continue maintaining Wisp-specific memory hooks and subsystem bindings while tracking upstream QuickJS-ng releases.
 
 ---
 
 ## 2. Critical Rendering and Major Bugs
 
-### CSS Variables Support (Missing)
-*   **Issue**: `libcss` does not support CSS Variables (`var()`) or custom properties (`--name`).
-*   **Impact**: Critical. Many modern websites (e.g., CTV News) use variables for core layout properties like `display: flex`. Without support, layouts collapse or render incorrectly.
-*   **Recommendation**: Implement a variable resolution pass during the CSS cascade.
+### CSS Variables Support (Partial)
+*   **Issue**: `libcss` now supports lexing and parsing of CSS Variables (`var()`) and custom properties (`--name`), but layout resolution is still work-in-progress.
+*   **Impact**: High. Many modern websites use variables for core layout properties. Partial support improves compatibility but full resolution is required.
+*   **Recommendation**: Complete the variable resolution pass during the CSS cascade.
 
 ### `position: sticky` (Partial)
 *   **Issue**: Parsed by `libcss` but ignored by the layout engine in `src/content/handlers/html/layout.c`.
 *   **Impact**: Header elements fail to remain fixed during scroll on modern sites.
 *   **Recommendation**: Implement sticky positioning logic in the layout routines.
 
-### AVIF Image Support (Missing)
-*   **Issue**: The browser does not support the AVIF image format.
-*   **Impact**: Many modern sites fail to load images, resulting in numerous 404/Unsupported Format errors in logs.
-*   **Recommendation**: Integrate `libavif` into the image handling subsystem.
+### AVIF Image Support (Implemented)
+*   **Status**: Supported via `libavif`.
+*   **Recommendation**: Ensure all frontends correctly handle AVIF-decoded surfaces.
 
 ---
 

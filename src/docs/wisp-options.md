@@ -23,7 +23,6 @@ General Options
  Option Key           | Type   | Default   | Description                      
  -------------------- | ------ | --------- | -------------------------------- 
  http_proxy           | bool   | false     | An HTTP proxy should be used.    
- http_proxy           | bool   | false     | An HTTP proxy should be used.    
  http_proxy_host      | string | NULL      | Hostname of proxy.               
  http_proxy_port      | int    | 8080      | Proxy port.                      
  http_proxy_auth      | int    | 0         | Proxy authentication method.     
@@ -44,12 +43,13 @@ General Options
  disc_cache_age       | int    | 28        | Preferred expiry age of disc cache in days. 
  disc_cache_path      | string |  NULL     | Path to disc cache, NULL means to use system path |
  block_advertisements | bool   | false     | Whether to block advertisements  
+ disable_popups       | bool   | false     | Whether to block popups
  do_not_track         | bool   | false     | Disable website tracking [1]     
  send_referer         | bool   | true      | Whether to send the referer HTTP header.
  foreground_images    | bool   | true      | Whether to fetch foreground images 
  background_images    | bool   | true      | Whether to fetch background images 
  animate_images       | bool   | true      | Whether to animate images        
- enable_javascript    | bool   | false     | Whether to execute javascript    
+ enable_javascript    | bool   | true      | Whether to execute javascript
  script_timeout       | int    | 10        | Maximum time to wait for a script to run in seconds 
  expire_url           | int    | 28        | How many days to retain URL data for. 
  font_default         | int    | 0         | Default font family              
@@ -58,20 +58,21 @@ General Options
  cookie_file          | string | NULL      | Cookie file location             
  cookie_jar           | string | NULL      | Cookie jar location              
  homepage_url         | string | NULL      | Home page location               
- search_url_bar       | bool   | false     | search web from url bar          
- search_provider      | int    | 0         | default web search provider      
+ search_url_bar       | bool   | true      | search web from url bar
+ search_web_provider  | string | DuckDuckGo| default web search provider
  url_suggestion       | bool   | true      | URL completion in url bar        
  window_x             | int    | 0         | default x position of new windows 
  window_y             | int    | 0         | default y position of new windows 
  window_width         | int    | 0         | default width of new windows     
  window_height        | int    | 0         | default height of new windows    
- window_screen_width  | int    | 0         | width of screen when above options were saved 
- window_screen_height | int    | 0         | height of screen when above options were saved 
  toolbar_status_size  | int    | 6667      | default size of status bar vs. h scroll bar 
  scale                | int    | 100       | default window scale             
- incremental_reflow   | bool   | true      | Whether to reflow web pages while objects are fetching 
  min_reflow_period    | uint   | 25        | Minimum time (in cs) between HTML reflows while objects are fetching 
  core_select_menu     | bool   | false     | Use core selection menu          
+ display_decoded_idn  | bool   | false     | Display decoded IDN hostnames
+ prefer_dark_mode     | bool   | false     | Prefer dark mode system colors
+ log_filter           | string | (WISP_BUILTIN_LOG_FILTER) | Filter for non-verbose logging
+ verbose_filter       | string | (WISP_BUILTIN_VERBOSE_FILTER) | Filter for verbose logging
 
 [1] http://www.w3.org/Submission/2011/SUBM-web-tracking-protection-20110224/#dnt-uas
 
@@ -80,8 +81,8 @@ Fetcher options
 
  Option Key               | Type | Default | Description                         
  ------------------------ | -----| ------- | ----------------------------------- 
- max_fetchers             | int  | 24      | Maximum simultaneous active fetchers 
- max_fetchers_per_host    | int  | 5       | Maximum simultaneous active fetchers per host. (<=option_max_fetchers else it makes no sense) [2]       
+ max_fetchers             | int  | 256     | Maximum simultaneous active fetchers
+ max_fetchers_per_host    | int  | 64      | Maximum simultaneous active fetchers per host. (<=option_max_fetchers else it makes no sense) [2]
  max_cached_fetch_handles | int  |  6      | Maximum number of inactive fetchers cached. The total number of handles wisp will therefore have open is this plus option_max_fetchers. 
  suppress_curl_debug      | bool | true    | Suppress debug output from cURL.    
  target_blank             | bool | true    | Whether to allow target="_blank"    
@@ -117,31 +118,22 @@ generated output.
 
  Option Key                     | Type   | Default   
  ------------------------------ | ------ | ----------
- sys_colour_ActiveBorder        | colour | 0x00d3d3d3 
- sys_colour_ActiveCaption       | colour | 0x00f1f1f1 
- sys_colour_AppWorkspace        | colour | 0x00f1f1f1 
- sys_colour_Background          | colour | 0x006e6e6e 
- sys_colour_ButtonFace          | colour | 0x00f9f9f9 
- sys_colour_ButtonHighlight     | colour | 0x00ffffff 
- sys_colour_ButtonShadow        | colour | 0x00aeaeae 
- sys_colour_ButtonText          | colour | 0x004c4c4c 
- sys_colour_CaptionText         | colour | 0x004c4c4c 
- sys_colour_GrayText            | colour | 0x00505050 
- sys_colour_Highlight           | colour | 0x00c00800 
- sys_colour_HighlightText       | colour | 0x00ffffff 
- sys_colour_InactiveBorder      | colour | 0x00f1f1f1 
- sys_colour_InactiveCaption     | colour | 0x00e6e6e6 
- sys_colour_InactiveCaptionText | colour | 0x00a6a6a6 
- sys_colour_InfoBackground      | colour | 0x008fdfef 
- sys_colour_InfoText            | colour | 0x00000000 
- sys_colour_Menu                | colour | 0x00f1f1f1 
- sys_colour_MenuText            | colour | 0x004e4e4e 
- sys_colour_Scrollbar           | colour | 0x00cccccc 
- sys_colour_ThreeDDarkShadow    | colour | 0x00aeaeae 
- sys_colour_ThreeDFace          | colour | 0x00f9f9f9 
- sys_colour_ThreeDHighlight     | colour | 0x00ffffff 
- sys_colour_ThreeDLightShadow   | colour | 0x00ffffff 
- sys_colour_ThreeDShadow        | colour | 0x00d5d5d5 
- sys_colour_Window              | colour | 0x00f1f1f1 
- sys_colour_WindowFrame         | colour | 0x004e4e4e 
- sys_colour_WindowText          | colour | 0x00000000 
+ sys_colour_AccentColor         | colour | 0x00666666
+ sys_colour_AccentColorText     | colour | 0x00ffffff
+ sys_colour_ActiveText          | colour | 0x000000ee
+ sys_colour_ButtonBorder        | colour | 0x004e4e4e
+ sys_colour_ButtonFace          | colour | 0x00f9f9f9
+ sys_colour_ButtonText          | colour | 0x004c4c4c
+ sys_colour_Canvas              | colour | 0x00f1f1f1
+ sys_colour_CanvasText          | colour | 0x00000000
+ sys_colour_Field               | colour | 0x00f1f1f1
+ sys_colour_FieldText           | colour | 0x00000000
+ sys_colour_GrayText            | colour | 0x00a6a6a6
+ sys_colour_Highlight           | colour | 0x00c00800
+ sys_colour_HighlightText       | colour | 0x00ffffff
+ sys_colour_LinkText            | colour | 0x00ee0000
+ sys_colour_Mark                | colour | 0x0000ffff
+ sys_colour_MarkText            | colour | 0x00000000
+ sys_colour_SelectedItem        | colour | 0x00e48435
+ sys_colour_SelectedItemText    | colour | 0x00ffffff
+ sys_colour_VisitedText         | colour | 0x008b1a55

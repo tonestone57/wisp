@@ -12,43 +12,17 @@
   Building and executing Wisp
 ================================
 
-  The windows wisp port uses the MinGW (Minimal GNU on Windows)
-  system as its build infrastructure. This allows the normal wisp
-  build process to be used.
+  Wisp uses CMake for building. The Windows port is typically cross-compiled
+  from Linux using MinGW-w64 or built natively on Windows using MSYS2.
 
-  The method outlined here to create executables cross compiles
-  windows executable from a Linux OS host.
+  To cross-compile for Windows from Linux:
 
-  First of all, you should examine the contents of Makefile.defaults
-  and enable and disable relevant features as you see fit by creating
-  a Makefile.config file.  Some of these options can be automatically
-  detected and used, and where this is the case they are set to such.
-  Others cannot be automatically detected from the Makefile, so you
-  will either need to install the dependencies, or set them to NO.
-  
-  You should then obtain Wisp's dependencies, keeping in mind which
-  options you have enabled in the configuration file.  See the next
-  section for specifics.
-  
-  Once done, to build windows Wisp on a UNIX-like platform, simply run:
+      $ cmake -B build-win -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-mingw64.cmake
+      $ make -C build-win -j$(nproc)
 
-      $ export MINGW_PREFIX=i586-mingw32msvc-
-      $ export MINGW_INSTALL_ENV=/usr/i586-mingw32msvc/
-      $ make TARGET=windows
+  Run Wisp using Wine or on a Windows machine:
 
-  If that produces errors, you probably don't have some of Wisp's
-  build dependencies installed. See "Obtaining Wisp's dependencies"
-  below. Or turn off the complaining features in a Makefile.config
-  file. You may need to "make clean" before attempting to build after
-  installing the dependencies.
-
-  You will need the libgnurx-0.dll from /usr/i586-mingw32msvc/bin/
-  copied next to the exe and the windows/res directory available, also
-  next to the executable.
-
-  Run Wisp by executing it:
-
-      $ wine Wisp.exe
+      $ wine build-win/frontends/windows/wisp-windows.exe
 
   The staticaly linked binary which is generated may be several
   megabytes in size, this can be reduced by stripping the binary.

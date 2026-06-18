@@ -86,15 +86,15 @@ Qt-synced frontend changes missing in Windows
 
 Windows frontend action plan
 
-1) Implement transform-aware clip and transform stack
+1) Implement transform-aware clip and transform stack [DONE]
    - Add plotter state for current transform and stack.
    - Implement push/pop in windows plotter to mirror Qt behavior.
    - Update clip() to inverse-map the clip rect via the current transform.
 
-2) Fix bitmap repeat alignment
+2) Fix bitmap repeat alignment [DONE]
    - Rework bitmap() to align tile origin based on clip rect, matching Qt’s offset calculations.
 
-3) Add gradient plotters
+3) Add gradient plotters [DONE]
   - Add a linear gradient plotter using GDI GradientFill. Leave radial gradients to the core fallback path.
 
 4) Validate against core changes
@@ -104,4 +104,5 @@ Windows frontend action plan
 
 Others:
 
-1) CSS transforms ( Push and pop transform)
+1) CSS transforms (Push and pop transform) [DONE]
+2) Web font (@font-face) support [DONE]

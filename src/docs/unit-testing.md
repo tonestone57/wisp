@@ -17,7 +17,12 @@ programs contain more than one suite.
 # Execution
 
 The test programs are executed by using the standard "test" target
-from the top level make invocation. The "coverage" target additionally
+from the CMake build.
+
+    $ cmake -B build -DWISP_ENABLE_TESTS=ON
+    $ make -C build test
+
+The "coverage" target additionally
 generates code coverage reports allowing visibility on how much of a
 code module is being exercised.
 

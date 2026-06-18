@@ -105,8 +105,7 @@ Javascript provision is split into four parts:
 
 ## Library
 
-JavaScript is provided by integrating the duktape library. There are
-[instructions](docs/updating-duktape.md) on how to update the library.
+JavaScript is provided by integrating the QuickJS-ng library.
 
 ## Interface binding
 
@@ -119,5 +118,4 @@ Language (IDL) within the relevant specifications
 (e.g. https://dom.spec.whatwg.org/).
 
 Each interface described by the webIDL must be bound (connected) to
-the browsers internal representation for the DOM or CSS, etc. The
-process of [writing bindings](docs/jsbinding.md) is ongoing.
+the browsers internal representation for the DOM or CSS, etc.

@@ -31,15 +31,16 @@ Frontend specific to the Haiku OS
 
 ## framebuffer
 
-There is a basic user guide for the [framebuffer](docs/using-framebuffer.md)
+There is a basic user guide for the [framebuffer](docs/using-framebuffer.md).
+The binary is named `wisp-fb`.
 
 ## gtk
 
-Frontend that uses the GTK+2 or GTK+3 toolkit
+Frontend that uses the GTK+3 toolkit. The binary is named `wisp-gtk`.
 
 ## monkey
 
-This is the internal unit test frontend.
+This is the internal unit test frontend. The binary is named `nsmonkey`.
 
 There is a basic user guide [monkey](docs/using-monkey.md)
 
@@ -49,7 +50,8 @@ Frontend for the RISC OS WIMP toolkit.
 
 ## windows
 
-Frontend which uses the Microsodt win32 GDI toolkit.
+Frontend which uses the Microsoft win32 GDI toolkit. The binary is
+named `wisp-windows.exe`.
 
 # User configuration
 

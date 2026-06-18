@@ -87,16 +87,24 @@ Build and run Wisp
 
       $ cd wisp
 
-To build the native front end (the GTK front end on Linux, BSDs, etc)
-  you could do:
+Wisp uses CMake for building. To build the default front end (typically Qt
+on Linux, GDI on Windows):
 
-      $ make
-      $ ./nsgtk3
+      $ cmake -B build
+      $ make -C build -j$(nproc)
+      $ ./build/frontends/qt/wisp-qt
 
-To build the framebuffer front end, you could do:
+To build the GTK front end:
 
-      $ make TARGET=framebuffer
-      $ ./nsfb
+      $ cmake -B build -DWISP_BUILD_GTK_FRONTEND=ON
+      $ make -C build -j$(nproc)
+      $ ./build/frontends/gtk/wisp-gtk
+
+To build the framebuffer front end:
+
+      $ cmake -B build -DWISP_BUILD_FB_FRONTEND=ON
+      $ make -C build -j$(nproc)
+      $ ./build/frontends/framebuffer/wisp-fb
 
 More detailed documentation on using the [framebuffer](docs/using-framebuffer.md)
   frontend are available.
