@@ -432,6 +432,33 @@ void css__make_style_important(css_style *style)
                     offset++; /* rate */
                 break;
 
+            case CSS_PROP_BORDER_COLLAPSE:
+            case CSS_PROP_CAPTION_SIDE:
+            case CSS_PROP_CLEAR:
+            case CSS_PROP_DIRECTION:
+            case CSS_PROP_DISPLAY:
+            case CSS_PROP_EMPTY_CELLS:
+            case CSS_PROP_FLOAT:
+            case CSS_PROP_FONT_STYLE:
+            case CSS_PROP_FONT_VARIANT:
+            case CSS_PROP_LIST_STYLE_POSITION:
+            case CSS_PROP_POSITION:
+            case CSS_PROP_TABLE_LAYOUT:
+            case CSS_PROP_TEXT_TRANSFORM:
+            case CSS_PROP_VISIBILITY:
+            case CSS_PROP_WHITE_SPACE:
+            case CSS_PROP_BOX_SIZING:
+            case CSS_PROP_WRITING_MODE:
+            case CSS_PROP_ALIGN_CONTENT:
+            case CSS_PROP_ALIGN_ITEMS:
+            case CSS_PROP_ALIGN_SELF:
+            case CSS_PROP_FLEX_DIRECTION:
+            case CSS_PROP_FLEX_WRAP:
+            case CSS_PROP_JUSTIFY_CONTENT:
+            case CSS_PROP_GRID_AUTO_FLOW:
+            case CSS_PROP_OBJECT_FIT:
+                break;
+
             case CSS_PROP_VERTICAL_ALIGN:
                 if (value == VERTICAL_ALIGN_SET)
                     offset += 2; /* length + units */

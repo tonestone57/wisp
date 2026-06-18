@@ -33,6 +33,8 @@ struct arena {
 
 struct arena *arena_create(size_t chunk_size) {
     if (chunk_size == 0) chunk_size = 64 * 1024;
+    /* chunk_size must be 16-byte aligned for data alignment */
+    chunk_size = ALIGN_UP(chunk_size, 16);
     struct arena *a = aligned_alloc(16, ALIGN_UP(sizeof(struct arena), 16));
     if (!a) return NULL;
     a->head = NULL;
