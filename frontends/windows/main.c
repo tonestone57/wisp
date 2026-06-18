@@ -390,6 +390,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     nserror ret;
     const char *addr;
     nsurl *url;
+    extern struct gui_audio_table *win32_audio_table;
     struct wisp_table win32_table = {
         .misc = &win32_misc_table,
         .window = win32_window_table,
@@ -402,6 +403,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
         .llcache = filesystem_llcache_table,
         .bitmap = win32_bitmap_table,
         .layout = win32_layout_table,
+        .audio = win32_audio_table,
     };
 
     ret = wisp_register(&win32_table);

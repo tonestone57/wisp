@@ -22,6 +22,9 @@
  */
 
 #include <QGridLayout>
+#include <QHBoxLayout>
+#include <QSlider>
+#include <QToolButton>
 
 extern "C" {
 
@@ -105,7 +108,25 @@ NS_Window::NS_Window(QWidget *parent, struct browser_window *bw)
     layout->addWidget(m_nswidget, 1, 0);
     layout->addWidget(m_vscrollbar, 1, 1);
     layout->setRowStretch(1, 1);
-    layout->addWidget(splitter, 2, 0);
+
+    // media controls
+    QWidget *media_widget = new QWidget();
+    QHBoxLayout *media_layout = new QHBoxLayout(media_widget);
+    media_layout->setContentsMargins(2, 2, 2, 2);
+    QToolButton *play_btn = new QToolButton();
+    play_btn->setText("Play");
+    QSlider *seek_bar = new QSlider(Qt::Horizontal);
+    seek_bar->setRange(0, 100);
+    QSlider *vol_bar = new QSlider(Qt::Horizontal);
+    vol_bar->setRange(0, 100);
+    vol_bar->setValue(100);
+    vol_bar->setFixedWidth(80);
+    media_layout->addWidget(play_btn);
+    media_layout->addWidget(seek_bar, 1);
+    media_layout->addWidget(vol_bar);
+    layout->addWidget(media_widget, 2, 0, 1, 2);
+
+    layout->addWidget(splitter, 3, 0);
 
     /* actions */
     addAction(m_actions->m_quit);

@@ -973,13 +973,14 @@ int main(int argc, char **argv)
 {
     nserror ret;
     BPath options;
+    extern struct gui_audio_table *beos_audio_table;
     struct wisp_table beos_table = {&beos_misc_table, beos_window_table, NULL, /* corewindow */
         beos_download_table, beos_clipboard_table, &beos_fetch_table, NULL, /* use POSIX file */
         NULL, /* default utf8 */
         NULL, /* default search */
         NULL, /* default web search */
         NULL, /* default low level cache persistant storage */
-        beos_bitmap_table, beos_layout_table};
+        beos_bitmap_table, beos_layout_table, beos_audio_table};
 
     ret = wisp_register(&beos_table);
     if (ret != NSERROR_OK) {
