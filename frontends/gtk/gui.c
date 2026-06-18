@@ -1160,6 +1160,7 @@ int main(int argc, char **argv)
 {
     nserror res;
     char *cache_home = NULL;
+    extern struct gui_audio_table *nsgtk_audio_table;
     struct wisp_table nsgtk_table = {
         .misc = nsgtk_misc_table,
         .window = nsgtk_window_table,
@@ -1172,6 +1173,7 @@ int main(int argc, char **argv)
         .search_web = nsgtk_search_web_table,
         .bitmap = nsgtk_bitmap_table,
         .layout = nsgtk_layout_table,
+        .audio = nsgtk_audio_table,
     };
 
     res = wisp_register(&nsgtk_table);

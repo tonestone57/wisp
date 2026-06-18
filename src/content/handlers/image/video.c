@@ -16,48 +16,233 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <gst/gst.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libavutil/avutil.h>
+#include <libavutil/imgutils.h>
+#include <libswscale/swscale.h>
+#include <libswresample/swresample.h>
 
 #include <wisp/content/content_protected.h>
+#include <wisp/desktop/gui_internal.h>
+#include <wisp/bitmap.h>
+#include <wisp/utils/log.h>
 #include "content/content_factory.h"
 
 #include "content/handlers/image/video.h"
 
+#define VIDEO_BUFFER_SIZE (4096 * 1024)
+
 typedef struct nsvideo_content {
     struct content base;
 
-    GstElement *playbin;
-    GstElement *appsrc;
+    AVFormatContext *format_ctx;
+    AVCodecContext *video_codec_ctx;
+    AVCodecContext *audio_codec_ctx;
+    int video_stream_idx;
+    int audio_stream_idx;
+
+    AVIOContext *avio_ctx;
+    unsigned char *avio_buffer;
+
+    struct {
+        unsigned char *data;
+        size_t size;
+        size_t capacity;
+        size_t pos;
+        pthread_mutex_t lock;
+    } buffer;
+
+    pthread_t decode_thread;
+    bool decoding;
+    bool abort;
+
+    void *current_bitmap;
+    pthread_mutex_t bitmap_lock;
 } nsvideo_content;
 
-static gboolean nsvideo_bus_call(GstBus *bus, GstMessage *msg, nsvideo_content *video)
+static int nsvideo_read_packet(void *opaque, uint8_t *buf, int buf_size)
 {
-    switch (GST_MESSAGE_TYPE(msg)) {
-    case GST_MESSAGE_ERROR:
-        break;
-    case GST_MESSAGE_EOS:
-        break;
-    default:
-        break;
+    nsvideo_content *video = opaque;
+    int read_size = 0;
+
+    pthread_mutex_lock(&video->buffer.lock);
+
+    while (video->buffer.pos >= video->buffer.size && !video->abort && video->decoding) {
+        pthread_mutex_unlock(&video->buffer.lock);
+        usleep(10000);
+        pthread_mutex_lock(&video->buffer.lock);
     }
 
-    return TRUE;
+    if (video->abort || !video->decoding) {
+        pthread_mutex_unlock(&video->buffer.lock);
+        return AVERROR_EOF;
+    }
+
+    read_size = video->buffer.size - video->buffer.pos;
+    if (read_size > buf_size)
+        read_size = buf_size;
+
+    memcpy(buf, video->buffer.data + video->buffer.pos, read_size);
+    video->buffer.pos += read_size;
+
+    pthread_mutex_unlock(&video->buffer.lock);
+
+    return read_size;
 }
 
-static void nsvideo_need_data_event(GstElement *playbin, guint size, nsvideo_content *video)
+static int64_t nsvideo_seek(void *opaque, int64_t offset, int whence)
 {
+    nsvideo_content *video = opaque;
+    int64_t new_pos = -1;
+
+    pthread_mutex_lock(&video->buffer.lock);
+
+    switch (whence) {
+    case SEEK_SET:
+        new_pos = offset;
+        break;
+    case SEEK_CUR:
+        new_pos = video->buffer.pos + offset;
+        break;
+    case SEEK_END:
+        new_pos = video->buffer.size + offset;
+        break;
+    case AVSEEK_SIZE:
+        new_pos = video->buffer.size;
+        pthread_mutex_unlock(&video->buffer.lock);
+        return new_pos;
+    }
+
+    if (new_pos < 0 || new_pos > (int64_t)video->buffer.size) {
+        pthread_mutex_unlock(&video->buffer.lock);
+        return -1;
+    }
+
+    video->buffer.pos = new_pos;
+    pthread_mutex_unlock(&video->buffer.lock);
+
+    return new_pos;
 }
 
-static void nsvideo_enough_data_event(GstElement *playbin, nsvideo_content *video)
+static void *nsvideo_decode_loop(void *arg)
 {
-}
+    nsvideo_content *video = arg;
+    AVPacket *packet = av_packet_alloc();
+    AVFrame *frame = av_frame_alloc();
+    struct SwsContext *sws_ctx = NULL;
+    int ret;
 
-static void nsvideo_source_event(GObject *object, GObject *orig, GParamSpec *pspec, nsvideo_content *video)
-{
-    g_object_get(orig, pspec->name, &video->appsrc, NULL);
+    if (avformat_open_input(&video->format_ctx, NULL, NULL, NULL) < 0) {
+        NSLOG(wisp, ERROR, "FFmpeg: Failed to open input");
+        goto cleanup;
+    }
 
-    g_signal_connect(video->appsrc, "need-data", G_CALLBACK(nsvideo_need_data_event), video);
-    g_signal_connect(video->appsrc, "enough-data", G_CALLBACK(nsvideo_enough_data_event), video);
+    if (avformat_find_stream_info(video->format_ctx, NULL) < 0) {
+        NSLOG(wisp, ERROR, "FFmpeg: Failed to find stream info");
+        goto cleanup;
+    }
+
+    video->video_stream_idx = -1;
+    video->audio_stream_idx = -1;
+    for (unsigned int i = 0; i < video->format_ctx->nb_streams; i++) {
+        if (video->format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO && video->video_stream_idx == -1) {
+            video->video_stream_idx = i;
+        } else if (video->format_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO && video->audio_stream_idx == -1) {
+            video->audio_stream_idx = i;
+        }
+    }
+
+    if (video->video_stream_idx != -1) {
+        const AVCodec *vcodec = avcodec_find_decoder(video->format_ctx->streams[video->video_stream_idx]->codecpar->codec_id);
+        video->video_codec_ctx = avcodec_alloc_context3(vcodec);
+        avcodec_parameters_to_context(video->video_codec_ctx, video->format_ctx->streams[video->video_stream_idx]->codecpar);
+        avcodec_open2(video->video_codec_ctx, vcodec, NULL);
+    }
+
+    struct SwrContext *swr_ctx = NULL;
+    if (video->audio_stream_idx != -1) {
+        const AVCodec *acodec = avcodec_find_decoder(video->format_ctx->streams[video->audio_stream_idx]->codecpar->codec_id);
+        video->audio_codec_ctx = avcodec_alloc_context3(acodec);
+        avcodec_parameters_to_context(video->audio_codec_ctx, video->format_ctx->streams[video->audio_stream_idx]->codecpar);
+        avcodec_open2(video->audio_codec_ctx, acodec, NULL);
+
+        if (guit->audio) {
+            AVChannelLayout out_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
+            swr_alloc_set_opts2(&swr_ctx, &out_ch_layout, AV_SAMPLE_FMT_S16, 44100,
+                               &video->audio_codec_ctx->ch_layout, video->audio_codec_ctx->sample_fmt, video->audio_codec_ctx->sample_rate, 0, NULL);
+            swr_init(swr_ctx);
+            guit->audio->init(44100, 2);
+        }
+    }
+
+    while (!video->abort) {
+        ret = av_read_frame(video->format_ctx, packet);
+        if (ret < 0) break;
+
+        if (packet->stream_index == video->video_stream_idx && video->video_codec_ctx) {
+            ret = avcodec_send_packet(video->video_codec_ctx, packet);
+            if (ret >= 0) {
+                while (avcodec_receive_frame(video->video_codec_ctx, frame) >= 0) {
+                    pthread_mutex_lock(&video->bitmap_lock);
+                    if (video->current_bitmap == NULL) {
+                        video->current_bitmap = guit->bitmap->create(frame->width, frame->height, BITMAP_OPAQUE);
+                    }
+
+                    if (video->current_bitmap != NULL) {
+                        enum bitmap_layout layout = BITMAP_LAYOUT_ARGB8888;
+#ifdef __HAIKU__
+                        layout = BITMAP_LAYOUT_B8G8R8A8;
+#elif defined(WIN32)
+                        layout = BITMAP_LAYOUT_B8G8R8A8;
+#endif
+                        enum AVPixelFormat dst_pix_fmt = (layout == BITMAP_LAYOUT_ARGB8888) ? AV_PIX_FMT_RGBA : AV_PIX_FMT_BGRA;
+
+                        sws_ctx = sws_getCachedContext(sws_ctx, frame->width, frame->height, (enum AVPixelFormat)frame->format,
+                            frame->width, frame->height, dst_pix_fmt, SWS_BILINEAR, NULL, NULL, NULL);
+
+                        uint8_t *dst_data[4] = { guit->bitmap->get_buffer(video->current_bitmap), NULL, NULL, NULL };
+                        int dst_linesize[4] = { (int)guit->bitmap->get_rowstride(video->current_bitmap), 0, 0, 0 };
+
+                        sws_scale(sws_ctx, (const uint8_t *const *)frame->data, frame->linesize, 0, frame->height, dst_data, dst_linesize);
+                        guit->bitmap->modified(video->current_bitmap);
+                    }
+                    pthread_mutex_unlock(&video->bitmap_lock);
+                    usleep(30000);
+                }
+            }
+        } else if (packet->stream_index == video->audio_stream_idx && video->audio_codec_ctx) {
+            ret = avcodec_send_packet(video->audio_codec_ctx, packet);
+            if (ret >= 0) {
+                while (avcodec_receive_frame(video->audio_codec_ctx, frame) >= 0) {
+                    if (guit->audio && swr_ctx) {
+                        uint8_t *out_data[1];
+                        int out_samples = av_rescale_rnd(swr_get_delay(swr_ctx, frame->sample_rate) + frame->nb_samples, 44100, frame->sample_rate, AV_ROUND_UP);
+                        av_samples_alloc(out_data, NULL, 2, out_samples, AV_SAMPLE_FMT_S16, 0);
+                        int converted = swr_convert(swr_ctx, out_data, out_samples, (const uint8_t **)frame->data, frame->nb_samples);
+                        guit->audio->play(out_data[0], converted * 2 * 2);
+                        av_freep(&out_data[0]);
+                    }
+                }
+            }
+        }
+        av_packet_unref(packet);
+    }
+
+cleanup:
+    if (sws_ctx) sws_freeContext(sws_ctx);
+    if (swr_ctx) swr_free(&swr_ctx);
+    if (guit->audio) guit->audio->fini();
+    av_frame_free(&frame);
+    av_packet_free(&packet);
+    video->decoding = false;
+    return NULL;
 }
 
 static nserror nsvideo_create(const content_handler *handler, lwc_string *imime_type, const http_parameter *params,
@@ -65,7 +250,6 @@ static nserror nsvideo_create(const content_handler *handler, lwc_string *imime_
 {
     nsvideo_content *video;
     nserror error;
-    GstBus *bus;
 
     video = calloc(1, sizeof(nsvideo_content));
     if (video == NULL)
@@ -83,22 +267,18 @@ static nserror nsvideo_create(const content_handler *handler, lwc_string *imime_
         return error;
     }
 
-    video->playbin = gst_element_factory_make("playbin2", NULL);
-    if (video->playbin == NULL) {
-        free(video);
-        return NSERROR_NOMEM;
-    }
+    video->buffer.capacity = VIDEO_BUFFER_SIZE;
+    video->buffer.data = malloc(video->buffer.capacity);
+    pthread_mutex_init(&video->buffer.lock, NULL);
+    pthread_mutex_init(&video->bitmap_lock, NULL);
 
-    bus = gst_pipeline_get_bus(GST_PIPELINE(video->playbin));
-    gst_bus_add_watch(bus, (GstBusFunc)nsvideo_bus_call, video);
-    gst_object_unref(bus);
+    video->decoding = true;
+    video->avio_buffer = av_malloc(4096);
+    video->avio_ctx = avio_alloc_context(video->avio_buffer, 4096, 0, video, nsvideo_read_packet, NULL, nsvideo_seek);
+    video->format_ctx = avformat_alloc_context();
+    video->format_ctx->pb = video->avio_ctx;
 
-    g_object_set(video->playbin, "uri", "appsrc://", NULL);
-    g_signal_connect(video->playbin, "deep-notify::source", G_CALLBACK(nsvideo_source_event), video);
-
-    /** \todo Create appsink & register with playbin */
-
-    gst_element_set_state(video->playbin, GST_STATE_PLAYING);
+    pthread_create(&video->decode_thread, NULL, nsvideo_decode_loop, video);
 
     *c = (struct content *)video;
 
@@ -108,63 +288,73 @@ static nserror nsvideo_create(const content_handler *handler, lwc_string *imime_
 static bool nsvideo_process_data(struct content *c, const char *data, unsigned int size)
 {
     nsvideo_content *video = (nsvideo_content *)c;
-    GstBuffer *buffer;
-    GstFlowReturn ret;
 
-    buffer = gst_buffer_new();
-    GST_BUFFER_DATA(buffer) = (guint8 *)data;
-    GST_BUFFER_SIZE(buffer) = (gsize)size;
+    pthread_mutex_lock(&video->buffer.lock);
+    if (video->buffer.size + size > video->buffer.capacity) {
+        video->buffer.capacity = (video->buffer.size + size) * 2;
+        video->buffer.data = realloc(video->buffer.data, video->buffer.capacity);
+    }
+    memcpy(video->buffer.data + video->buffer.size, data, size);
+    video->buffer.size += size;
+    pthread_mutex_unlock(&video->buffer.lock);
 
-    /* Send data to appsrc */
-    g_signal_emit_by_name(video->appsrc, "push-buffer", buffer, &ret);
-
-    return ret == GST_FLOW_OK;
+    return true;
 }
 
 static bool nsvideo_convert(struct content *c)
 {
-    nsvideo_content *video = (nsvideo_content *)c;
-    GstFlowReturn ret;
-
-    /* Tell appsrc we're done */
-    g_signal_emit_by_name(video->appsrc, "end-of-stream", &ret);
-
-    /* Appsink will flag DONE on receipt of first frame */
-
-    return ret == GST_FLOW_OK;
+    return true;
 }
 
 static void nsvideo_destroy(struct content *c)
 {
     nsvideo_content *video = (nsvideo_content *)c;
 
-    gst_element_set_state(video->playbin, GST_STATE_NULL);
-    gst_object_unref(video->playbin);
+    video->abort = true;
+    pthread_join(video->decode_thread, NULL);
+
+    pthread_mutex_destroy(&video->buffer.lock);
+    pthread_mutex_destroy(&video->bitmap_lock);
+
+    if (video->video_codec_ctx) avcodec_free_context(&video->video_codec_ctx);
+    if (video->format_ctx) avformat_close_input(&video->format_ctx);
+    if (video->avio_ctx) av_free(video->avio_ctx);
+    if (video->avio_buffer) av_free(video->avio_buffer);
+    if (video->buffer.data) free(video->buffer.data);
+    if (video->current_bitmap) guit->bitmap->destroy(video->current_bitmap);
+
+    content__fini(&video->base);
+    free(video);
 }
 
 static bool nsvideo_redraw(
     struct content *c, struct content_redraw_data *data, const struct rect *clip, const struct redraw_context *ctx)
 {
-    /** \todo Implement */
+    nsvideo_content *video = (nsvideo_content *)c;
+
+    pthread_mutex_lock(&video->bitmap_lock);
+    if (video->current_bitmap) {
+        ctx->plot->bitmap(data->x, data->y, data->width, data->height, video->current_bitmap, 0xffffffff, 0);
+    }
+    pthread_mutex_unlock(&video->bitmap_lock);
+
     return true;
 }
 
 static nserror nsvideo_clone(const struct content *old, struct content **newc)
 {
-    /** \todo Implement */
     return NSERROR_CLONE_FAILED;
 }
 
 static content_type nsvideo_type(void)
 {
-    /** \todo Lies */
     return CONTENT_IMAGE;
 }
 
 static void *nsvideo_get_internal(const struct content *c, void *context)
 {
-    /** \todo Return pointer to bitmap containing current frame, if any? */
-    return NULL;
+    nsvideo_content *video = (nsvideo_content *)c;
+    return video->current_bitmap;
 }
 
 static const content_handler nsvideo_content_handler = {.create = nsvideo_create,
@@ -175,7 +365,6 @@ static const content_handler nsvideo_content_handler = {.create = nsvideo_create
     .clone = nsvideo_clone,
     .type = nsvideo_type,
     .get_internal = nsvideo_get_internal,
-    /* Can't share videos because we stream them */
     .no_share = true};
 
 static const char *nsvideo_types[] = {"video/mp4", "video/webm"};

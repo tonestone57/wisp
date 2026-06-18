@@ -24,6 +24,20 @@ pkg_check_modules(LIBCURL REQUIRED libcurl)
 include_directories(${LIBCURL_INCLUDE_DIRS})
 add_definitions(-DWITH_CURL)
 
+pkg_check_modules(LIBAVFORMAT REQUIRED libavformat)
+pkg_check_modules(LIBAVCODEC REQUIRED libavcodec)
+pkg_check_modules(LIBSWSCALE REQUIRED libswscale)
+pkg_check_modules(LIBSWRESAMPLE REQUIRED libswresample)
+pkg_check_modules(LIBAVUTIL REQUIRED libavutil)
+
+include_directories(
+    ${LIBAVFORMAT_INCLUDE_DIRS}
+    ${LIBAVCODEC_INCLUDE_DIRS}
+    ${LIBSWSCALE_INCLUDE_DIRS}
+    ${LIBSWRESAMPLE_INCLUDE_DIRS}
+    ${LIBAVUTIL_INCLUDE_DIRS}
+)
+
 pkg_check_modules(LIBCRYPTO REQUIRED libcrypto)
 include_directories(${LIBCRYPTO_INCLUDE_DIRS})
 
@@ -144,8 +158,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	${JPEG_SRC}
 	${PNG_SRC}
 	content/handlers/image/svg.c
-
-	#content/handlers/image/video.c # requires gstreamer TODO: replace with ffmpeg/libmpv
+	content/handlers/image/video.c
 	${WEBP_SRC}
 	${AVIF_SRC}
 	content/handlers/javascript/fetcher.c
@@ -250,7 +263,7 @@ if(WISP_BUILD_XXD)
 	)
 endif()
 
-set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES} pthread)
+set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES} ${LIBAVFORMAT_LIBRARIES} ${LIBAVCODEC_LIBRARIES} ${LIBSWSCALE_LIBRARIES} ${LIBSWRESAMPLE_LIBRARIES} ${LIBAVUTIL_LIBRARIES} pthread)
 
 
 

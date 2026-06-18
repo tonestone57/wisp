@@ -48,9 +48,10 @@ add_executable(wisp-gtk
 	cookies.c
 	hotlist.c
 	page_info.c
+	audio.c
 )
 
-target_link_libraries(wisp-gtk wisp m ${WISP_COMMON_LIBS} ${GTK_LIBRARIES})
+target_link_libraries(wisp-gtk wisp m ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} libpulse-simple)
 
 install(TARGETS wisp-gtk DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
