@@ -37,7 +37,8 @@ bool box_creates_stacking_context(const struct box *box)
     }
 
     uint8_t pos = css_computed_position(box->style);
-    bool is_positioned = (pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_ABSOLUTE || pos == CSS_POSITION_FIXED);
+    bool is_positioned = (pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_ABSOLUTE ||
+        pos == CSS_POSITION_FIXED || pos == CSS_POSITION_STICKY);
 
     if (!is_positioned) {
         return false;
@@ -59,7 +60,8 @@ int32_t box_get_z_index(const struct box *box)
 
     /* Only positioned elements can have z-index */
     uint8_t pos = css_computed_position(box->style);
-    bool is_positioned = (pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_ABSOLUTE || pos == CSS_POSITION_FIXED);
+    bool is_positioned = (pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_ABSOLUTE ||
+        pos == CSS_POSITION_FIXED || pos == CSS_POSITION_STICKY);
 
     if (!is_positioned) {
         return Z_INDEX_AUTO;
