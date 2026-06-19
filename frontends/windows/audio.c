@@ -2,6 +2,7 @@
 #include <mmdeviceapi.h>
 #include <audioclient.h>
 #include <stdbool.h>
+#include <initguid.h>
 #include <wisp/audio.h>
 
 static IAudioClient *pAudioClient = NULL;
@@ -29,12 +30,16 @@ static bool win32_audio_init(int rate, int channels) {
     hr = pAudioClient->GetMixFormat(&pwfx);
     if (FAILED(hr)) return false;
 
-    pwfx->wFormatTag = WAVE_FORMAT_EXTENSIBLE;
-    pwfx->nSamplesPerSec = rate;
-    pwfx->nChannels = channels;
-    pwfx->wBitsPerSample = 32;
-    pwfx->nBlockAlign = (pwfx->wBitsPerSample * pwfx->nChannels) / 8;
-    pwfx->nAvgBytesPerSec = pwfx->nSamplesPerSec * pwfx->nBlockAlign;
+    if (pwfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
+        WAVEFORMATEXTENSIBLE *pEwfx = (WAVEFORMATEXTENSIBLE*)pwfx;
+        pEwfx->Format.nSamplesPerSec = rate;
+        pEwfx->Format.nChannels = channels;
+        pEwfx->Format.wBitsPerSample = 32;
+        pEwfx->Format.nBlockAlign = (pEwfx->Format.wBitsPerSample * pEwfx->Format.nChannels) / 8;
+        pEwfx->Format.nAvgBytesPerSec = pEwfx->Format.nSamplesPerSec * pEwfx->Format.nBlockAlign;
+        pEwfx->Samples.wValidBitsPerSample = 32;
+        pEwfx->SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+    }
 
     hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 10000000, 0, pwfx, NULL);
     if (FAILED(hr)) return false;
@@ -57,12 +62,14 @@ static void win32_audio_play(const void *data, size_t size) {
     pAudioClient->GetCurrentPadding(&numFramesPadding);
 
     UINT32 numFramesAvailable = bufferFrameCount - numFramesPadding;
-    pRenderClient->GetBuffer(numFramesAvailable, &pData);
+    UINT32 framesToWrite = size / 8; // 4 bytes per sample * 2 channels
+    if (framesToWrite > numFramesAvailable) framesToWrite = numFramesAvailable;
 
-    // Copy data to pData (simplified)
-    memcpy(pData, data, size < numFramesAvailable * 4 ? size : numFramesAvailable * 4);
-
-    pRenderClient->ReleaseBuffer(numFramesAvailable, 0);
+    if (framesToWrite > 0) {
+        pRenderClient->GetBuffer(framesToWrite, &pData);
+        memcpy(pData, data, framesToWrite * 8);
+        pRenderClient->ReleaseBuffer(framesToWrite, 0);
+    }
 }
 
 static void win32_audio_fini(void) {
