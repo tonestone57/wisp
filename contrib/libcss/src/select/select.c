@@ -115,8 +115,104 @@ static css_error match_details(css_select_ctx *ctx, void *node, const css_select
 static css_error match_detail(css_select_ctx *ctx, void *node, const css_selector_detail *detail,
     css_select_state *state, bool *match, css_pseudo_element *pseudo_element);
 static css_error cascade_style(const css_style *style, css_select_state *state);
+static bool tokenIsCharLocal(const css_token *t, const char *c) { return (t->type == CSS_TOKEN_CHAR && t->data.len == 1 && t->data.data[0] == c[0]); }
+static css_error deserialize_tokens(lwc_string *serialized, parserutils_vector **vector)
+{
+    const uint8_t *data = (const uint8_t *)lwc_string_data(serialized);
+    size_t len = lwc_string_length(serialized);
+    if (len < sizeof(uint32_t)) return CSS_INVALID;
+    uint32_t n = *(uint32_t *)data;
+    const uint8_t *p = data + sizeof(uint32_t);
+    const uint8_t *end = data + len;
+    if (parserutils_vector_create(sizeof(css_token), 8, vector) != PARSERUTILS_OK) return CSS_NOMEM;
+    for (uint32_t i = 0; i < n; i++) {
+        if (p + sizeof(css_token) > end) break;
+        css_token token = *(css_token *)p;
+        p += sizeof(css_token);
+        if (token.data.data != NULL) {
+            size_t token_len = token.data.len;
+            if (p + token_len > end) break;
+            token.data.data = (uint8_t *)malloc(token_len);
+            if (token.data.data == NULL) return CSS_NOMEM;
+            memcpy((void *)token.data.data, p, token_len);
+            p += token_len;
+        }
+        if (token.idata != NULL) lwc_string_ref(token.idata);
+        parserutils_vector_append(*vector, &token);
+    }
+    return CSS_OK;
+}
+static css_error css__select_add_deferred_prop(css_select_state *state, opcode_t opcode, uint8_t flags, lwc_string *serialized)
+{
+    css_deferred_prop *p = malloc(sizeof(*p));
+    if (p == NULL) return CSS_NOMEM;
+    p->opcode = opcode;
+    p->flags = flags;
+    p->pseudo = state->current_pseudo;
+    p->serialized = lwc_string_ref(serialized);
+    p->next = NULL;
+    if (state->deferred.tail) state->deferred.tail->next = p;
+    else state->deferred.head = p;
+    state->deferred.tail = p;
+    return CSS_OK;
+}
+static int32_t find_matching_paren(parserutils_vector *tokens, int32_t start)
+{
+    int depth = 0; size_t len; parserutils_vector_get_length(tokens, &len);
+    for (int32_t i = start; i < (int32_t)len; i++) {
+        const css_token *t = parserutils_vector_peek(tokens, i);
+        if (t->type == CSS_TOKEN_FUNCTION || tokenIsCharLocal(t, "{") || tokenIsCharLocal(t, "(") || tokenIsCharLocal(t, "[")) depth++;
+        else if (tokenIsCharLocal(t, ")") || tokenIsCharLocal(t, "}") || tokenIsCharLocal(t, "]")) { depth--; if (depth == 0) return i; }
+    } return -1;
+}
+static css_error css__resolve_var_tokens(css_select_state *state, parserutils_vector *src, parserutils_vector **dst)
+{
+    size_t len; parserutils_vector_get_length(src, &len); uint32_t n_tokens = (uint32_t)len;
+    if (parserutils_vector_create(sizeof(css_token), 8, dst) != PARSERUTILS_OK) return CSS_NOMEM;
+    for (uint32_t i = 0; i < n_tokens; i++) {
+        const css_token *t = parserutils_vector_peek(src, i); bool match = false;
+        if (t->type == CSS_TOKEN_FUNCTION && lwc_string_caseless_isequal(t->idata, state->sheet->propstrings[VAR], &match) == lwc_error_ok && match) {
+            int32_t end_paren = find_matching_paren(src, i);
+            int32_t scan = i + 1;
+            while (scan < end_paren) {
+                const css_token *nt = parserutils_vector_peek(src, scan);
+                if (nt->type == CSS_TOKEN_S) { scan++; continue; }
+                if (nt->type == CSS_TOKEN_CUSTOM_PROPERTY) {
+                    parserutils_vector *resolved = css__variables_ctx_get(state->var_ctx, nt->idata);
+                    if (resolved) {
+                        size_t rlen; parserutils_vector_get_length(resolved, &rlen);
+                        for (uint32_t j = 0; j < (uint32_t)rlen; j++) {
+                            const css_token *rt = parserutils_vector_peek(resolved, j); css_token rcloned = *rt;
+                            if (rcloned.idata) lwc_string_ref(rcloned.idata);
+                            if (rcloned.data.data) { rcloned.data.data = malloc(rcloned.data.len); memcpy((void *)rcloned.data.data, rt->data.data, rcloned.data.len); }
+                            parserutils_vector_append(*dst, &rcloned);
+                        }
+                    } else {
+                        int32_t comma_scan = scan + 1;
+                        while (comma_scan < end_paren && !tokenIsCharLocal(parserutils_vector_peek(src, comma_scan), ",")) comma_scan++;
+                        if (comma_scan < end_paren) {
+                            for (int32_t j = comma_scan + 1; j < end_paren; j++) {
+                                const css_token *ft = parserutils_vector_peek(src, j); css_token fcloned = *ft;
+                                if (fcloned.idata) lwc_string_ref(fcloned.idata);
+                                if (fcloned.data.data) { fcloned.data.data = malloc(fcloned.data.len); memcpy((void *)fcloned.data.data, ft->data.data, fcloned.data.len); }
+                                parserutils_vector_append(*dst, &fcloned);
+                            }
+                        }
+                    } break;
+                } scan++;
+            }
+            if (end_paren >= 0) i = end_paren;
+        } else {
+            css_token cloned = *t;
+            if (cloned.idata) lwc_string_ref(cloned.idata);
+            if (cloned.data.data) { cloned.data.data = malloc(cloned.data.len); memcpy((void *)cloned.data.data, t->data.data, cloned.data.len); }
+            parserutils_vector_append(*dst, &cloned);
+        }
+    } return CSS_OK;
+}
 
 static css_error select_font_faces_from_sheet(
+static bool tokenIsCharLocal(const css_token *t, const char *c) { return (t->type == CSS_TOKEN_CHAR && t->data.len == 1 && t->data.data[0] == c[0]); }
     const css_stylesheet *sheet, css_origin origin, css_select_font_faces_state *state, const css_select_strings *str);
 
 #ifdef DEBUG_CHAIN_MATCHING
@@ -953,6 +1049,15 @@ static void css_select__finalise_selection_state(css_select_state *state)
     if (state->var_ctx != NULL) {
         css__variables_ctx_destroy(state->var_ctx);
         state->var_ctx = NULL;
+
+    css_deferred_prop *p = state->deferred.head;
+    while (p) {
+        css_deferred_prop *next = p->next;
+        lwc_string_unref(p->serialized);
+        free(p);
+        p = next;
+    }
+    state->deferred.head = state->deferred.tail = NULL;
     }
 
     if (state->classes != NULL) {
@@ -1400,6 +1505,28 @@ css_error css_select_style(css_select_ctx *ctx, void *node, const css_unit_ctx *
             goto cleanup;
     }
 
+    /* Resolve deferred properties (CSS Variables) */
+    css_deferred_prop *dp = state.deferred.head;
+    while (dp) {
+        parserutils_vector *tokens, *resolved;
+        if (deserialize_tokens(dp->serialized, &tokens) == CSS_OK) {
+            if (css__resolve_var_tokens(&state, tokens, &resolved) == CSS_OK) {
+                css_style *resolved_style = NULL;
+                if (css__stylesheet_parse_tokens((css_stylesheet *)state.sheet, dp->opcode, resolved, &resolved_style) == CSS_OK) {
+                    state.current_pseudo = dp->pseudo;
+                    state.computed = state.results->styles[dp->pseudo];
+                    uint32_t opv = *resolved_style->bytecode;
+                    advance_bytecode(resolved_style, sizeof(uint32_t));
+                    prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
+                    css__stylesheet_style_destroy(resolved_style);
+                }
+                css__tokens_destroy(resolved);
+            }
+            css__tokens_destroy(tokens);
+        }
+        dp = dp->next;
+    }
+
     /* Intern the partial computed styles */
     for (j = CSS_PSEUDO_ELEMENT_NONE; j < CSS_PSEUDO_ELEMENT_COUNT; j++) {
         /* Skip non-existent pseudo elements */
@@ -1550,32 +1677,30 @@ cleanup:
     if (state.author_font_faces.count != 0)
         free(state.author_font_faces.font_faces);
 
-    return error;
-}
+    /* Resolve deferred properties (CSS Variables) */
+    css_deferred_prop *dp = state.deferred.head;
+    while (dp) {
+        parserutils_vector *tokens, *resolved;
+        if (deserialize_tokens(dp->serialized, &tokens) == CSS_OK) {
+            if (css__resolve_var_tokens(&state, tokens, &resolved) == CSS_OK) {
+                css_style *resolved_style = NULL;
+                if (css__stylesheet_parse_tokens((css_stylesheet *)state.sheet, dp->opcode, resolved, &resolved_style) == CSS_OK) {
+                    state.current_pseudo = dp->pseudo;
+                    state.computed = state.results->styles[dp->pseudo];
 
-/**
- * Destroy a font-face result set
- *
- * \param results  Result set to destroy
- * \return CSS_OK on success, appropriate error otherwise
- */
-css_error css_select_font_faces_results_destroy(css_select_font_faces_results *results)
-{
-    if (results == NULL)
-        return CSS_BADPARM;
+                    /* Cascade the resolved style */
+                    uint32_t opv = *resolved_style->bytecode;
+                    advance_bytecode(resolved_style, sizeof(uint32_t));
+                    prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
 
-    if (results->font_faces != NULL) {
-        /* Don't destroy the individual css_font_faces, they're owned
-           by their respective sheets */
-        free(results->font_faces);
+                    css__stylesheet_style_destroy(resolved_style);
+                }
+                css__tokens_destroy(resolved);
+            }
+            css__tokens_destroy(tokens);
+        }
+        dp = dp->next;
     }
-
-    free(results);
-
-    return CSS_OK;
-}
-
-/******************************************************************************
  * Selection engine internals below here                                      *
  ******************************************************************************/
 
@@ -2606,9 +2731,18 @@ css_error cascade_style(const css_style *style, css_select_state *state)
             css__stylesheet_string_get(s.sheet, value_idx, &value_str);
 
             if (name_str != NULL && value_str != NULL && state->var_ctx != NULL) {
-                css__variables_ctx_set(state->var_ctx, name_str, value_str);
+                 { parserutils_vector *tokens; if (deserialize_tokens(value_str, &tokens) == CSS_OK) { css__variables_ctx_set(state->var_ctx, name_str, tokens); css__tokens_destroy(tokens); } }
             }
             continue;
+
+        if (isVariable(opv)) {
+            uint32_t val_idx = *s.bytecode;
+            advance_bytecode(&s, sizeof(css_code_t));
+            lwc_string *serialized;
+            css__stylesheet_string_get(s.sheet, val_idx, &serialized);
+            css__select_add_deferred_prop(state, op, getFlags(opv), serialized);
+            continue;
+        }
         }
 
         /* DEBUG: Log opcode to trace out-of-bounds access */

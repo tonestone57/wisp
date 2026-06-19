@@ -488,6 +488,7 @@ static const char *opcode_names[] = {
     "object-fit",
     "object-position",
     "transform",
+    "custom-property",
 };
 
 static void dump_css_fixed(css_fixed f, char **ptr)
@@ -794,6 +795,13 @@ void dump_bytecode(css_style *style, char **ptr, uint32_t depth)
             *ptr += sprintf(*ptr, "revert");
         } else if (getFlagValue(opv) == FLAG_VALUE_UNSET) {
             *ptr += sprintf(*ptr, "unset");
+        } else if (isVariable(opv)) {
+            lwc_string *serialized = NULL;
+            uint32_t snum;
+            snum = *((uint32_t *)bytecode);
+            ADVANCE(sizeof(snum));
+            css__stylesheet_string_get(style->sheet, snum, &serialized);
+            *ptr += sprintf(*ptr, "var(...)");
         } else if (isCalc(opv)) {
             lwc_string *calc_expr = NULL;
             const uint8_t *codeptr = NULL;

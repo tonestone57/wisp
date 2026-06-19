@@ -32,6 +32,19 @@ typedef struct prop_state {
     enum flag_value explicit_default : 3; /* Property is set to inherit */
 } prop_state;
 
+typedef struct css_deferred_prop {
+    opcode_t opcode;
+    uint8_t flags;
+    css_pseudo_element pseudo;
+    lwc_string *serialized;
+    struct css_deferred_prop *next;
+} css_deferred_prop;
+
+typedef struct css_deferred_prop_list {
+    css_deferred_prop *head;
+    css_deferred_prop *tail;
+} css_deferred_prop_list;
+
 
 typedef enum css_node_flags {
     CSS_NODE_FLAGS_NONE = 0,
@@ -95,6 +108,8 @@ typedef struct css_select_state {
     struct css_node_data *node_data; /* Data we'll store on node */
 
     css_var_context *var_ctx;  /* Working variable context during selection */
+
+    css_deferred_prop_list deferred;
 
     prop_state props[CSS_N_PROPERTIES][CSS_PSEUDO_ELEMENT_COUNT];
 } css_select_state;

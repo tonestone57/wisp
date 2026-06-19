@@ -634,6 +634,8 @@ enum {
 
     LAST_DEPRECATEDCOLOUR = WINDOWTEXT,
 
+    VAR,
+
     LAST_KNOWN
 };
 

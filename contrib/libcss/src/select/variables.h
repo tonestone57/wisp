@@ -9,14 +9,16 @@
 
 #include <libwapcaplet/libwapcaplet.h>
 #include <libcss/errors.h>
+#include <parserutils/utils/vector.h>
 
 /**
  * A single custom property binding: name → value.
- * Both are ref-counted lwc_strings owned by this entry.
+ * name is a ref-counted lwc_string.
+ * tokens is a parserutils_vector of css_tokens.
  */
 typedef struct css_var_entry {
     lwc_string *name;   /* e.g. "--primary" */
-    lwc_string *value;  /* raw CSS text, e.g. "blue" */
+    parserutils_vector *tokens; /* pre-tokenized value */
 } css_var_entry;
 
 /**
@@ -48,17 +50,20 @@ void css__variables_ctx_destroy(css_var_context *ctx);
 
 /**
  * Set a variable in the context. If name already exists, its value
- * is replaced. Both name and value are ref'd by this function.
+ * is replaced. Both name and tokens are ref'd/copied by this function.
  */
 css_error css__variables_ctx_set(css_var_context *ctx,
-    lwc_string *name, lwc_string *value);
+    lwc_string *name, parserutils_vector *tokens);
 
 /**
  * Look up a variable by name.
- * Returns the value lwc_string (not ref'd — caller must ref if keeping),
+ * Returns the tokens vector (not ref'd — caller must NOT destroy),
  * or NULL if not found.
  */
-lwc_string *css__variables_ctx_get(const css_var_context *ctx,
+parserutils_vector *css__variables_ctx_get(const css_var_context *ctx,
     lwc_string *name);
+
+parserutils_error css__tokens_clone(parserutils_vector *src, parserutils_vector **dst);
+void css__tokens_destroy(parserutils_vector *v);
 
 #endif
