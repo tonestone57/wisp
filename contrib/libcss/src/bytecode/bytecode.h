@@ -34,6 +34,7 @@ enum flag {
     FLAG_INITIAL = (FLAG_VALUE_INITIAL << 1),
     FLAG_REVERT = (FLAG_VALUE_REVERT << 1),
     FLAG_UNSET = (FLAG_VALUE_UNSET << 1),
+    FLAG_VARIABLE = (1 << 5),
 };
 
 enum calc_opcodes {
@@ -47,8 +48,7 @@ enum calc_opcodes {
 };
 
 typedef enum unit {
-    UNIT_NUMBER = (1u << 13), /* Unitless number (e.g., scale factors, line-height multipliers). Uses bit 13 to
-                                 avoid collision with length units that have odd offsets (which set bit 0). */
+    UNIT_NUMBER = (1u << 13),
     UNIT_LENGTH = (1u << 8),
     UNIT_PX = (1u << 8) + 0,
     UNIT_EX = (1u << 8) + 1,
@@ -73,7 +73,7 @@ typedef enum unit {
     UNIT_CQH = (1u << 8) + 20,
     UNIT_CQI = (1u << 8) + 21,
     UNIT_CQB = (1u << 8) + 22,
-    UNIT_FR = (1u << 8) + 23, /* CSS Grid fraction unit */
+    UNIT_FR = (1u << 8) + 23,
 
     UNIT_PCT = (1 << 9),
 
@@ -96,14 +96,12 @@ typedef enum unit {
     UNIT_DPCM = (1 << 13) + 1,
     UNIT_DPPX = (1 << 13) + 2,
 
-    /* Intrinsic sizing keywords (fit-content, min-content, max-content) */
     UNIT_SIZING = (1 << 14),
     UNIT_FIT_CONTENT = (1 << 14) + 0,
     UNIT_MIN_CONTENT = (1 << 14) + 1,
     UNIT_MAX_CONTENT = (1 << 14) + 2,
-    UNIT_MINMAX = (1 << 14) + 3, /* Grid minmax() marker */
+    UNIT_MINMAX = (1 << 14) + 3,
 
-    /* These are special only to the CALC bytecodes */
     UNIT_CALC_ANY = (1 << 20),
     UNIT_CALC_NUMBER = (1 << 20) + 1,
 } unit;
@@ -155,6 +153,11 @@ static inline bool isInherit(css_code_t OPV)
 static inline bool isCalc(css_code_t OPV)
 {
     return getValue(OPV) == VALUE_IS_CALC;
+}
+
+static inline bool isVariable(css_code_t OPV)
+{
+    return getFlags(OPV) & FLAG_VARIABLE;
 }
 
 #endif

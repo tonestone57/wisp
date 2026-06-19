@@ -74,8 +74,67 @@ static css_error parseSelector(css_language *c, const parserutils_vector *vector
 static css_error parseSelectorList(css_language *c, const parserutils_vector *vector, css_rule *rule);
 
 /* Declaration parsing */
+static css_error parseDeferredProperty(
+    css_language *c, opcode_t opcode, const parserutils_vector *vector, int32_t *ctx, css_rule *rule)
+{
+    css_error error;
+    uint8_t flags = FLAG_VARIABLE;
+    css_style *style = NULL;
+    const css_token *token;
+    uint32_t value_idx;
+    lwc_string *value_str;
+    int32_t value_start = *ctx;
+    int32_t scan = value_start;
+    int32_t excl_pos = -1;
+    while ((token = parserutils_vector_iterate(vector, &scan)) != NULL) {
+        if (tokenIsChar(token, "!"))
+            excl_pos = scan - 1;
+    }
+    if (excl_pos >= 0) {
+        int32_t imp_ctx = excl_pos;
+        uint8_t imp_flags = 0;
+        error = css__parse_important(c, vector, &imp_ctx, &imp_flags);
+        if (error == CSS_OK && imp_flags != 0) {
+            flags |= FLAG_IMPORTANT;
+        }
+    }
+    int32_t value_end = value_start;
+    scan = value_start;
+    uint32_t n = 0;
+    while ((token = parserutils_vector_iterate(vector, &scan)) != NULL) {
+        if ((flags & FLAG_IMPORTANT) && (scan - 1) == excl_pos)
+            break;
+        n++;
+        value_end = scan;
+    }
+    parserutils_buffer *buf;
+    if (parserutils_buffer_create(&buf) != PARSERUTILS_OK) return CSS_NOMEM;
+    parserutils_buffer_append(buf, (const uint8_t *)&n, sizeof(n));
+    scan = value_start;
+    while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) {
+        parserutils_buffer_append(buf, (const uint8_t *)token, sizeof(*token));
+        if (token->data.data != NULL)
+            parserutils_buffer_append(buf, token->data.data, token->data.len);
+    }
+    error = css_error_from_lwc_error(lwc_intern_string((const char *)buf->data, buf->length, &value_str));
+    parserutils_buffer_destroy(buf);
+    if (error != CSS_OK) return error;
+    error = css__stylesheet_string_add(c->sheet, value_str, &value_idx);
+    error = css__stylesheet_style_create(c->sheet, &style);
+    error = css__stylesheet_style_appendOPV(style, opcode, flags, 0);
+    error = css__stylesheet_style_append(style, value_idx);
+    error = css__stylesheet_rule_append_style(c->sheet, rule, style);
+    *ctx = value_end;
+    if (flags & FLAG_IMPORTANT) {
+        *ctx = excl_pos;
+        error = css__parse_important(c, vector, ctx, &flags);
+    }
+    return CSS_OK;
+}
+
 static css_error parseProperty(
     css_language *c, const css_token *property, const parserutils_vector *vector, int32_t *ctx, css_rule *rule);
+static css_error parseDeferredProperty(css_language *c, opcode_t opcode, const parserutils_vector *vector, int32_t *ctx, css_rule *rule);
 static css_error parseCustomProperty(
     css_language *c, const css_token *property, const parserutils_vector *vector, int32_t *ctx, css_rule *rule);
 
@@ -1764,6 +1823,30 @@ css_error parseProperty(
     const css_token *token;
 
     /* O(1) property lookup using perfect hash table */
+    bool has_var = false;
+    int32_t temp_ctx = *ctx;
+    const css_token *t;
+    while ((t = parserutils_vector_iterate(vector, &temp_ctx)) != NULL) {
+        if (t->type == CSS_TOKEN_FUNCTION) {
+            bool match;
+            if (lwc_string_caseless_isequal(t->idata, c->strings[VAR], &match) == lwc_error_ok && match) {
+                has_var = true;
+                break;
+            }
+        }
+    }
+    if (has_var) {
+        opcode_t opcode = CSS_N_PROPERTIES;
+        for (uint32_t i = 0; i < CSS_N_PROPERTIES; i++) {
+            if (c->strings[FIRST_PROP + 1 + i] == property->idata) {
+                opcode = (opcode_t)i;
+                break;
+            }
+        }
+        if (opcode != CSS_N_PROPERTIES) {
+            return parseDeferredProperty(c, opcode, vector, ctx, rule);
+        }
+    }
     handler = css_prop_lookup(lwc_string_data(property->idata), lwc_string_length(property->idata));
 
     if (handler == NULL) {
@@ -1831,7 +1914,7 @@ css_error parseCustomProperty(
     uint8_t flags = 0;
     css_style *style = NULL;
     const css_token *token;
-    uint32_t name_idx, value_idx;
+    uint32_t name_idx;
     lwc_string *value_str;
     int32_t value_start = *ctx;
 
@@ -1869,39 +1952,23 @@ css_error parseCustomProperty(
     }
 
     /* Third pass: build the concatenated value string */
-    char *buf = malloc(total_len + 1);
-    if (buf == NULL)
-        return CSS_NOMEM;
-
-    size_t offset = 0;
+    parserutils_buffer *buf;
+    if (parserutils_buffer_create(&buf) != PARSERUTILS_OK) return CSS_NOMEM;
+    uint32_t n = 0;
+    scan = value_start;
+    while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) n++;
+    parserutils_buffer_append(buf, (const uint8_t *)&n, sizeof(n));
     scan = value_start;
     while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) {
-        memcpy(buf + offset, token->data.data, token->data.len);
-        offset += token->data.len;
+        parserutils_buffer_append(buf, (const uint8_t *)token, sizeof(*token));
+        if (token->data.data != NULL)
+            parserutils_buffer_append(buf, token->data.data, token->data.len);
     }
-
-    /* Trim trailing whitespace from the value */
-    while (offset > 0 && (buf[offset - 1] == ' ' || buf[offset - 1] == '\t' ||
-                             buf[offset - 1] == '\n' || buf[offset - 1] == '\r' ||
-                             buf[offset - 1] == '\f')) {
-        offset--;
-    }
-
-    /* Intern the value string */
-    lwc_error lerr = lwc_intern_string(buf, offset, &value_str);
-    free(buf);
-    if (lerr != lwc_error_ok)
-        return CSS_NOMEM;
-
-    /* Add name string to stylesheet (string_add takes ownership of the ref) */
-    lwc_string *name_ref = lwc_string_ref(property->idata);
-    error = css__stylesheet_string_add(c->sheet, name_ref, &name_idx);
-    if (error != CSS_OK) {
-        lwc_string_unref(value_str);
-        return error;
-    }
-
-    /* Add value string to stylesheet */
+    lwc_string *value_str;
+    error = css_error_from_lwc_error(lwc_intern_string((const char *)buf->data, buf->length, &value_str));
+    parserutils_buffer_destroy(buf);
+    if (error != CSS_OK) return error;
+    uint32_t value_idx;
     error = css__stylesheet_string_add(c->sheet, value_str, &value_idx);
     if (error != CSS_OK) {
         return error;
@@ -1943,5 +2010,33 @@ css_error parseCustomProperty(
         return error;
     }
 
+    return CSS_OK;
+}
+
+css_error css__stylesheet_parse_tokens(css_stylesheet *sheet, opcode_t opcode, const parserutils_vector *tokens, css_style **result)
+{
+    css_error error;
+    css_prop_handler handler;
+    int32_t ctx = 0;
+    css_style *style;
+    lwc_string **strings;
+    css__propstrings_get(&strings);
+    lwc_string *prop_name = strings[FIRST_PROP + 1 + opcode];
+
+    handler = css_prop_lookup(lwc_string_data(prop_name), lwc_string_length(prop_name));
+    css__propstrings_unref();
+
+    if (handler == NULL) return CSS_INVALID;
+
+    error = css__stylesheet_style_create(sheet, &style);
+    if (error != CSS_OK) return error;
+
+    error = handler(sheet->parser_frontend, tokens, &ctx, style);
+    if (error != CSS_OK) {
+        css__stylesheet_style_destroy(style);
+        return error;
+    }
+
+    *result = style;
     return CSS_OK;
 }

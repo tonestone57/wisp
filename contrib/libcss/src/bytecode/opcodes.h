@@ -11,6 +11,8 @@
 #include <inttypes.h>
 
 #define VALUE_IS_CALC 0x007f
+#define CSS_VALUE_VAR 0x007e
+#define CSS_VALUE_TEXT 0x007d
 
 /* Auto-generated opcode enums from properties.gen (property_generator.py) */
 #include "opcodes.inc"
