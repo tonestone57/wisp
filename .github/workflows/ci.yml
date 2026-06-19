@@ -20,7 +20,7 @@ jobs:
 
     - name: Configure CMake
       # Debug build implicitly enables ASAN and UBSAN due to the logic in CMakeLists.txt
-      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DWISP_ENABLE_TESTS=ON -DWISP_BUILD_MONKEY_FRONTEND=ON -DWISP_BUILD_QT_FRONTEND=ON
+      run: cmake -B build -S . -DCMAKE_BUILD_TYPE=Debug -DWISP_ENABLE_TESTS=ON -DWISP_BUILD_MONKEY_FRONTEND=ON -DWISP_BUILD_QT_FRONTEND=ON -DAVIF_LIBYUV=SYSTEM
 
     - name: Build tests
       # We must build all targets, including the tests, before running them
