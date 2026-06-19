@@ -8,8 +8,10 @@
 typedef struct {
     void *node; /* Pointer to libdom object or other native data */
     bool is_dom_node;
+    JSContext *ctx;
 } QJSNodePrivate;
 
+extern JSClassID qjs_eventtarget_class_id;
 extern JSClassID qjs_node_class_id;
 extern JSClassID qjs_element_class_id;
 extern JSClassID qjs_document_class_id;

@@ -166,3 +166,123 @@ JSValue qjs_new_window(JSContext *ctx, void *node, bool is_dom_node)
     priv->node = node; priv->is_dom_node = is_dom_node;
     JS_SetOpaque(obj, priv); return obj;
 }
+
+static JSValue js_window_setTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    return js_setTimeout(ctx, this_val, argc, argv);
+}
+
+static JSValue js_window_setInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    return js_setInterval(ctx, this_val, argc, argv);
+}
+
+static JSValue js_window_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    return js_clearTimeout(ctx, this_val, argc, argv);
+}
+
+static JSValue js_window_clearInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    return js_clearInterval(ctx, this_val, argc, argv);
+}
+
+static JSValue js_window_createImageBitmap(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    NSLOG(wisp, DEBUG, "Window.createImageBitmap() called (stub)");
+    return JS_NULL;
+}
+
+static JSValue js_window_localStorage_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Window.localStorage getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+static JSValue js_window_sessionStorage_get(JSContext *ctx, JSValueConst this_val)
+{
+    NSLOG(wisp, DEBUG, "Window.sessionStorage getter called (stub)");
+    return JS_UNDEFINED;
+}
+
+/* Event handler stubs */
+#define WINDOW_EVENT_STUB(name) \
+static JSValue js_window_on##name##_get(JSContext *ctx, JSValueConst this_val) { return JS_NULL; } \
+static JSValue js_window_on##name##_set(JSContext *ctx, JSValueConst this_val, JSValueConst val) { return JS_UNDEFINED; }
+
+WINDOW_EVENT_STUB(abort)
+WINDOW_EVENT_STUB(autocomplete)
+WINDOW_EVENT_STUB(autocompleteerror)
+WINDOW_EVENT_STUB(blur)
+WINDOW_EVENT_STUB(cancel)
+WINDOW_EVENT_STUB(canplay)
+WINDOW_EVENT_STUB(canplaythrough)
+WINDOW_EVENT_STUB(change)
+WINDOW_EVENT_STUB(click)
+WINDOW_EVENT_STUB(close)
+WINDOW_EVENT_STUB(contextmenu)
+WINDOW_EVENT_STUB(cuechange)
+WINDOW_EVENT_STUB(dblclick)
+WINDOW_EVENT_STUB(drag)
+WINDOW_EVENT_STUB(dragend)
+WINDOW_EVENT_STUB(dragenter)
+WINDOW_EVENT_STUB(dragexit)
+WINDOW_EVENT_STUB(dragleave)
+WINDOW_EVENT_STUB(dragover)
+WINDOW_EVENT_STUB(dragstart)
+WINDOW_EVENT_STUB(drop)
+WINDOW_EVENT_STUB(durationchange)
+WINDOW_EVENT_STUB(emptied)
+WINDOW_EVENT_STUB(ended)
+WINDOW_EVENT_STUB(error)
+WINDOW_EVENT_STUB(focus)
+WINDOW_EVENT_STUB(input)
+WINDOW_EVENT_STUB(invalid)
+WINDOW_EVENT_STUB(keydown)
+WINDOW_EVENT_STUB(keypress)
+WINDOW_EVENT_STUB(keyup)
+WINDOW_EVENT_STUB(load)
+WINDOW_EVENT_STUB(loadeddata)
+WINDOW_EVENT_STUB(loadedmetadata)
+WINDOW_EVENT_STUB(loadstart)
+WINDOW_EVENT_STUB(mousedown)
+WINDOW_EVENT_STUB(mouseenter)
+WINDOW_EVENT_STUB(mouseleave)
+WINDOW_EVENT_STUB(mousemove)
+WINDOW_EVENT_STUB(mouseout)
+WINDOW_EVENT_STUB(mouseover)
+WINDOW_EVENT_STUB(mouseup)
+WINDOW_EVENT_STUB(wheel)
+WINDOW_EVENT_STUB(pause)
+WINDOW_EVENT_STUB(play)
+WINDOW_EVENT_STUB(playing)
+WINDOW_EVENT_STUB(progress)
+WINDOW_EVENT_STUB(ratechange)
+WINDOW_EVENT_STUB(reset)
+WINDOW_EVENT_STUB(resize)
+WINDOW_EVENT_STUB(scroll)
+WINDOW_EVENT_STUB(seeked)
+WINDOW_EVENT_STUB(seeking)
+WINDOW_EVENT_STUB(select)
+WINDOW_EVENT_STUB(show)
+WINDOW_EVENT_STUB(sort)
+WINDOW_EVENT_STUB(stalled)
+WINDOW_EVENT_STUB(submit)
+WINDOW_EVENT_STUB(suspend)
+WINDOW_EVENT_STUB(timeupdate)
+WINDOW_EVENT_STUB(toggle)
+WINDOW_EVENT_STUB(waiting)
+WINDOW_EVENT_STUB(afterprint)
+WINDOW_EVENT_STUB(beforeprint)
+WINDOW_EVENT_STUB(beforeunload)
+WINDOW_EVENT_STUB(hashchange)
+WINDOW_EVENT_STUB(languagechange)
+WINDOW_EVENT_STUB(message)
+WINDOW_EVENT_STUB(offline)
+WINDOW_EVENT_STUB(online)
+WINDOW_EVENT_STUB(pagehide)
+WINDOW_EVENT_STUB(pageshow)
+WINDOW_EVENT_STUB(popstate)
+WINDOW_EVENT_STUB(storage)
+WINDOW_EVENT_STUB(unload)
+WINDOW_EVENT_STUB(volumechange)

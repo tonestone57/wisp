@@ -8,28 +8,31 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 
-JSClassID qjs_node_class_id;
-
 #include "node.inc"
 
 static void js_node_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_node_class_id);
     if (priv) {
-        qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
+
+static JSClassDef js_node_class = {
+    "Node",
+    .finalizer = js_node_finalizer,
+};
+
 static QJSNodePrivate *qjs_get_node_priv(JSContext *ctx, JSValueConst val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_node_class_id);
     if (priv) return priv;
     priv = JS_GetOpaque(val, qjs_element_class_id);
     if (priv) return priv;
-    priv = JS_GetOpaque(val, qjs_text_class_id);
-    if (priv) return priv;
     priv = JS_GetOpaque(val, qjs_document_class_id);
-    return priv;
+    if (priv) return priv;
+    return NULL;
 }
 
 static JSValue js_node_hasChildNodes(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -52,25 +55,27 @@ static JSValue js_node_normalize(JSContext *ctx, JSValueConst this_val, int argc
 static JSValue js_node_cloneNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
-    if (!priv || !priv->node) return JS_EXCEPTION;
+    if (!priv || !priv->node) return JS_NULL;
     bool deep = false;
-    if (argc > 0) deep = JS_ToBool(ctx, argv[0]);
+    if (argc >= 1) deep = JS_ToBool(ctx, argv[0]);
     struct dom_node *result = NULL;
-    dom_exception exc = dom_node_clone_node((dom_node *)priv->node, deep, &result);
-    if (exc != DOM_NO_ERR || result == NULL) return JS_NULL;
-    JSValue val = qjs_wrap_node(ctx, result);
-    dom_node_unref(result);
-    return val;
+    dom_node_clone_node((dom_node *)priv->node, deep, &result);
+    if (result) {
+        JSValue val = qjs_wrap_node(ctx, result);
+        dom_node_unref(result);
+        return val;
+    }
+    return JS_NULL;
 }
 
 static JSValue js_node_isEqualNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
     if (!priv || !priv->node || argc < 1) return JS_FALSE;
-    QJSNodePrivate *other_priv = qjs_get_node_priv(ctx, argv[0]);
-    if (!other_priv || !other_priv->node) return JS_FALSE;
+    QJSNodePrivate *other = qjs_get_node_priv(ctx, argv[0]);
+    if (!other || !other->node) return JS_FALSE;
     bool result = false;
-    dom_node_is_equal_node((dom_node *)priv->node, (dom_node *)other_priv->node, &result);
+    dom_node_is_equal_node((dom_node *)priv->node, (dom_node *)other->node, &result);
     return JS_NewBool(ctx, result);
 }
 
@@ -84,11 +89,17 @@ static JSValue js_node_contains(JSContext *ctx, JSValueConst this_val, int argc,
 {
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
     if (!priv || !priv->node || argc < 1) return JS_FALSE;
-    QJSNodePrivate *other_priv = qjs_get_node_priv(ctx, argv[0]);
-    if (!other_priv || !other_priv->node) return JS_FALSE;
-    bool result = false;
-    dom_node_contains((dom_node *)priv->node, (dom_node *)other_priv->node, &result);
-    return JS_NewBool(ctx, result);
+    QJSNodePrivate *other = qjs_get_node_priv(ctx, argv[0]);
+    if (!other || !other->node) return JS_FALSE;
+    struct dom_node *curr = (dom_node *)other->node;
+    while (curr) {
+        if (curr == (dom_node *)priv->node) return JS_TRUE;
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node(curr, &parent);
+        curr = parent;
+        if (parent) dom_node_unref(parent);
+    }
+    return JS_FALSE;
 }
 
 static JSValue js_node_lookupPrefix(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -114,7 +125,7 @@ static JSValue js_node_insertBefore(JSContext *ctx, JSValueConst this_val, int a
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
     if (!priv || !priv->node || argc < 1) return JS_EXCEPTION;
     QJSNodePrivate *new_priv = qjs_get_node_priv(ctx, argv[0]);
-    if (!new_priv || !new_priv->node) return JS_ThrowTypeError(ctx, "Argument 1 is not a Node");
+    if (!new_priv || !new_priv->node) return JS_ThrowTypeError(ctx, "Argument is not a Node");
     struct dom_node *ref_node = NULL;
     if (argc >= 2 && !JS_IsNull(argv[1])) {
         QJSNodePrivate *ref_priv = qjs_get_node_priv(ctx, argv[1]);
@@ -192,7 +203,6 @@ static JSValue js_node_nodeName_get(JSContext *ctx, JSValueConst this_val)
 
 static JSValue js_node_baseURI_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Node.baseURI getter called (stub)");
     return JS_NULL;
 }
 
@@ -229,7 +239,7 @@ static JSValue js_node_parentElement_get(JSContext *ctx, JSValueConst this_val)
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
     if (!priv || !priv->node) return JS_UNDEFINED;
     struct dom_element *parent = NULL;
-    dom_node_get_parent_element((dom_node *)priv->node, &parent);
+    dom_node_get_parent_node((dom_node *)priv->node, (struct dom_node **)&parent);
     if (parent) {
         JSValue val = qjs_wrap_node(ctx, (dom_node *)parent);
         dom_node_unref((dom_node *)parent);
@@ -240,7 +250,6 @@ static JSValue js_node_parentElement_get(JSContext *ctx, JSValueConst this_val)
 
 static JSValue js_node_childNodes_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Node.childNodes getter called (stub)");
     return JS_NewArray(ctx);
 }
 
@@ -364,11 +373,9 @@ int qjs_init_node(JSContext *ctx)
     if (qjs_node_class_id == 0) JS_NewClassID(rt, &qjs_node_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_node_class_id)) JS_NewClass(rt, qjs_node_class_id, &js_node_class);
     JSValue proto = JS_NewObject(ctx);
-
     JSValue parent_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
     JS_SetPrototype(ctx, proto, parent_proto);
     JS_FreeValue(ctx, parent_proto);
-
     JS_SetPropertyFunctionList(ctx, proto, js_node_proto_funcs, sizeof(js_node_proto_funcs) / sizeof(js_node_proto_funcs[0]));
     JS_SetClassProto(ctx, qjs_node_class_id, proto);
     return 0;
