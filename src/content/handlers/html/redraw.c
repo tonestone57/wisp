@@ -2031,8 +2031,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
                 unscaled_y += data->y;
             }
         } else {
-            x = x_parent + box->x;
-            y = y_parent + box->y;
+            x = x_parent + box->x + box->sticky_x;
+            y = y_parent + box->y + box->sticky_y;
             unscaled_x = x;
             unscaled_y = y;
         }
@@ -2073,10 +2073,10 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             unscaled_x = abs_x;
             unscaled_y = abs_y;
         } else {
-            x = (x_parent + box->x) * scale;
-            y = (y_parent + box->y) * scale;
-            unscaled_x = x_parent + box->x;
-            unscaled_y = y_parent + box->y;
+            x = (x_parent + box->x + box->sticky_x) * scale;
+            y = (y_parent + box->y + box->sticky_y) * scale;
+            unscaled_x = x_parent + box->x + box->sticky_x;
+            unscaled_y = y_parent + box->y + box->sticky_y;
         }
         width = box->width * scale;
         height = box->height * scale;

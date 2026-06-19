@@ -194,11 +194,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
         if (b->abs_containing_block != NULL) {
             int dx, dy;
             box_offset_to_containing_block(b, &dx, &dy);
-            *x += b->x - dx;
-            *y += b->y - dy;
+            *x += b->x + b->sticky_x - dx;
+            *y += b->y + b->sticky_y - dy;
         } else {
-            *x += b->x;
-            *y += b->y;
+            *x += b->x + b->sticky_x;
+            *y += b->y + b->sticky_y;
         }
         if (!box_is_float(b)) {
             rb = b;
@@ -213,11 +213,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
                 /* Absolute box - calculate position of parent to "exit" correctly */
                 int dx, dy;
                 box_offset_to_containing_block(b, &dx, &dy);
-                *x -= b->x - dx;
-                *y -= b->y - dy;
+                *x -= b->x + b->sticky_x - dx;
+                *y -= b->y + b->sticky_y - dy;
             } else {
-                *x -= b->x;
-                *y -= b->y;
+                *x -= b->x + b->sticky_x;
+                *y -= b->y + b->sticky_y;
             }
             b = b->next;
             if (b == NULL)
@@ -228,11 +228,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
             if (b->abs_containing_block != NULL) {
                 int dx, dy;
                 box_offset_to_containing_block(b, &dx, &dy);
-                *x += b->x - dx;
-                *y += b->y - dy;
+                *x += b->x + b->sticky_x - dx;
+                *y += b->y + b->sticky_y - dy;
             } else {
-                *x += b->x;
-                *y += b->y;
+                *x += b->x + b->sticky_x;
+                *y += b->y + b->sticky_y;
             }
         } while (box_is_float(b));
         rb = b;
@@ -244,11 +244,11 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
             /* For absolute box, get parent's position directly */
             int dx, dy;
             box_offset_to_containing_block(b, &dx, &dy);
-            *x -= b->x - dx;
-            *y -= b->y - dy;
+            *x -= b->x + b->sticky_x - dx;
+            *y -= b->y + b->sticky_y - dy;
         } else {
-            *x -= b->x;
-            *y -= b->y;
+            *x -= b->x + b->sticky_x;
+            *y -= b->y + b->sticky_y;
         }
         rb = b->parent;
         break;
@@ -257,25 +257,25 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
         b = b->float_children;
         if (b == NULL)
             break;
-        *x += b->x;
-        *y += b->y;
+        *x += b->x + b->sticky_x;
+        *y += b->y + b->sticky_y;
         rb = b;
         break;
 
     case BOX_WALK_NEXT_FLOAT_SIBLING:
-        *x -= b->x;
-        *y -= b->y;
+        *x -= b->x + b->sticky_x;
+        *y -= b->y + b->sticky_y;
         b = b->next_float;
         if (b == NULL)
             break;
-        *x += b->x;
-        *y += b->y;
+        *x += b->x + b->sticky_x;
+        *y += b->y + b->sticky_y;
         rb = b;
         break;
 
     case BOX_WALK_FLOAT_CONTAINER:
-        *x -= b->x;
-        *y -= b->y;
+        *x -= b->x + b->sticky_x;
+        *y -= b->y + b->sticky_y;
         rb = b->float_container;
         break;
 
@@ -562,8 +562,8 @@ void box_coords(struct box *box, int *x, int *y)
 
             /* Jump directly to the containing block and walk from there */
             box = box->abs_containing_block;
-            *x += box->x - scrollbar_get_offset(box->scroll_x);
-            *y += box->y - scrollbar_get_offset(box->scroll_y);
+            *x += box->x + box->sticky_x - scrollbar_get_offset(box->scroll_x);
+            *y += box->y + box->sticky_y - scrollbar_get_offset(box->scroll_y);
 
             NSLOG(wisp, INFO, "box_coords after CB: y=%d", *y);
         }
@@ -577,8 +577,8 @@ void box_coords(struct box *box, int *x, int *y)
         } else {
             box = box->parent;
         }
-        *x += box->x - scrollbar_get_offset(box->scroll_x);
-        *y += box->y - scrollbar_get_offset(box->scroll_y);
+        *x += box->x + box->sticky_x - scrollbar_get_offset(box->scroll_x);
+        *y += box->y + box->sticky_y - scrollbar_get_offset(box->scroll_y);
     }
 
     NSLOG(wisp, DEBUG, "box_coords FINAL: orig=%p final_x=%d final_y=%d", (void *)orig, *x, *y);

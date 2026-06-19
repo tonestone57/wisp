@@ -5252,8 +5252,11 @@ static void layout_register_sticky_box(struct html_content *content, struct box 
             }
         }
         /* Sticky CB is the nearest block-level ancestor */
-        if (p->type == BOX_BLOCK || p->type == BOX_FLEX || p->type == BOX_GRID) {
+        if (box->sticky_constraints.cb == NULL && (p->type == BOX_BLOCK || p->type == BOX_FLEX || p->type == BOX_GRID)) {
             box->sticky_constraints.cb = p;
+        }
+
+        if (box->sticky_constraints.scroller != NULL && box->sticky_constraints.cb != NULL) {
             break;
         }
     }
@@ -5397,6 +5400,10 @@ static void layout_position_relative(struct html_content *content, struct box *r
 
         if (box->type == BOX_TEXT)
             continue;
+
+        /* Reset sticky offsets during layout */
+        box->sticky_x = 0;
+        box->sticky_y = 0;
 
         /* If relatively or sticky positioned, get offsets */
         if (box->style && css_computed_position(box->style) == CSS_POSITION_RELATIVE)
