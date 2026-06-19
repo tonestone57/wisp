@@ -38,10 +38,9 @@ An audit of the `contrib/` directory was performed to evaluate the feasibility o
 *   **Impact**: Header elements fail to remain fixed during scroll on modern sites.
 *   **Recommendation**: Implement sticky positioning logic in the layout routines.
 
-### AVIF Image Support (Missing)
-*   **Issue**: The browser does not support the AVIF image format.
-*   **Impact**: Many modern sites fail to load images, resulting in numerous 404/Unsupported Format errors in logs.
-*   **Recommendation**: Integrate `libavif` into the image handling subsystem.
+### AVIF Image Support (Implemented)
+*   **Status**: Integrated `libavif` v1.4.2 into the core image handling subsystem.
+*   **Implementation**: Bundled `libavif` in `contrib/` with support for ISOBMFF signature sniffing and static image decoding.
 
 ---
 
@@ -66,6 +65,6 @@ An audit of the `contrib/` directory was performed to evaluate the feasibility o
 | Library | QuickJS-ng Update | Medium | High |
 | Feature | CSS Variables | High | Medium (Complex) |
 | Feature | position: sticky | Medium | Medium |
-| Feature | AVIF Support | Low | Medium |
+| Feature | AVIF Support | Low | Done |
 | Stability | sprintf -> snprintf | Medium | High |
 | Performance| Logging Cleanup | Medium | High |

@@ -231,7 +231,6 @@ mimesniff__match_unknown_exact(const uint8_t *data, size_t len, bool allow_unsaf
         SIG(&corestring_lwc_image_gif, "GIF89a", true), SIG(&corestring_lwc_image_png, "\x89PNG\r\n\x1a\n", true),
         SIG(&corestring_lwc_image_jpeg, "\xff\xd8\xff", true), SIG(&corestring_lwc_image_bmp, "BM", true),
         SIG(&corestring_lwc_image_vnd_microsoft_icon, "\x00\x00\x01\x00", true),
-        SIG(&corestring_lwc_image_avif, "ftypavif", false),
         SIG(&corestring_lwc_application_ogg, "OggS\x00", true),
         SIG(&corestring_lwc_video_webm, "\x1a\x45\xdf\xa3", true),
         SIG(&corestring_lwc_application_x_rar_compressed, "Rar \x1a\x07\x00", true),
@@ -256,9 +255,32 @@ mimesniff__match_unknown_exact(const uint8_t *data, size_t len, bool allow_unsaf
     return NSERROR_NOT_FOUND;
 }
 
+static nserror mimesniff__match_avif(const uint8_t *data, size_t len, lwc_string **effective_type)
+{
+    /* ISOBMFF ftyp check for AVIF.
+     * bytes 4-7 are "ftyp"
+     * bytes 8-11 (major brand) are "avif" or "avis"
+     */
+    if (len < 12)
+        return NSERROR_NOT_FOUND;
+
+    if (data[4] != 'f' || data[5] != 't' || data[6] != 'y' || data[7] != 'p')
+        return NSERROR_NOT_FOUND;
+
+    if (data[8] == 'a' && data[9] == 'v' && data[10] == 'i' && (data[11] == 'f' || data[11] == 's')) {
+        *effective_type = lwc_string_ref(corestring_lwc_image_avif);
+        return NSERROR_OK;
+    }
+
+    return NSERROR_NOT_FOUND;
+}
+
 static nserror mimesniff__match_unknown(const uint8_t *data, size_t len, bool allow_unsafe, lwc_string **effective_type)
 {
     if (mimesniff__match_unknown_exact(data, len, allow_unsafe, effective_type) == NSERROR_OK)
+        return NSERROR_OK;
+
+    if (mimesniff__match_avif(data, len, effective_type) == NSERROR_OK)
         return NSERROR_OK;
 
     if (mimesniff__match_unknown_riff(data, len, effective_type) == NSERROR_OK)
@@ -345,7 +367,6 @@ mimesniff__compute_image(lwc_string *official_type, const uint8_t *data, size_t 
     } image_types[] = {SIG(&corestring_lwc_image_gif, "GIF87a"), SIG(&corestring_lwc_image_gif, "GIF89a"),
         SIG(&corestring_lwc_image_png, "\x89PNG\r\n\x1a\n"), SIG(&corestring_lwc_image_jpeg, "\xff\xd8\xff"),
         SIG(&corestring_lwc_image_bmp, "BM"), SIG(&corestring_lwc_image_vnd_microsoft_icon, "\x00\x00\x01\x00"),
-        SIG(&corestring_lwc_image_avif, "ftypavif"),
         SIG(&corestring_lwc_image_jxl, "\xFF\x0A"), /* containerless jpeg xl*/
         {(const uint8_t *)"\x00\x00\x00\x0CJXL \x0D\x0A\x87\x0A", 12,
             &corestring_lwc_image_jxl}, /* containered jpeg xl*/
@@ -372,6 +393,11 @@ mimesniff__compute_image(lwc_string *official_type, const uint8_t *data, size_t 
         memcmp(data + SLEN("RIFF????"), "WEBPVP", SLEN("WEBPVP")) == 0) {
         lwc_string_unref(official_type);
         *effective_type = lwc_string_ref(corestring_lwc_image_webp);
+        return NSERROR_OK;
+    }
+
+    if (mimesniff__match_avif(data, len, effective_type) == NSERROR_OK) {
+        lwc_string_unref(official_type);
         return NSERROR_OK;
     }
 

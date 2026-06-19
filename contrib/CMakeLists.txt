@@ -7,6 +7,16 @@ add_subdirectory(libnsutils)
 add_subdirectory(libparserutils)
 add_subdirectory(libsvgtiny)
 
+set(AVIF_CODEC_AOM SYSTEM CACHE STRING "")
+set(AVIF_CODEC_DAV1D SYSTEM CACHE STRING "")
+set(AVIF_BUILD_APPS OFF CACHE BOOL "")
+set(AVIF_BUILD_EXAMPLES OFF CACHE BOOL "")
+set(AVIF_BUILD_TESTS OFF CACHE BOOL "")
+set(AVIF_LIBYUV OFF CACHE STRING "")
+set(AVIF_ZLIBPNG OFF CACHE STRING "")
+set(AVIF_JPEG OFF CACHE STRING "")
+add_subdirectory(libavif)
+
 # QuickJS-ng needs to be compiled with -fPIC for linking into shared library
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(quickjs-ng)

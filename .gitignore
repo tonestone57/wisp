@@ -5,3 +5,9 @@ build/
 build/
 build/
 /build/
+contrib/libavif/*
+!contrib/libavif/CMakeLists.txt
+!contrib/libavif/include
+!contrib/libavif/src
+!contrib/libavif/LICENSE
+!contrib/libavif/README.md

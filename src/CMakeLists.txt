@@ -53,8 +53,8 @@ if(WISP_USE_WEBP)
 endif()
 
 if(WISP_USE_AVIF)
-    pkg_check_modules(LIBAVIF REQUIRED libavif)
-    include_directories(${LIBAVIF_INCLUDE_DIRS})
+    include_directories("${CMAKE_SOURCE_DIR}/contrib/libavif/include")
+    set(LIBAVIF_LIBRARIES avif)
 endif()
 
 
