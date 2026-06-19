@@ -18,16 +18,17 @@ Current development is focused on adding compatibility with modern websites, int
 * Numerous privacy improvements
 * Rewritten build system
 * Simplified frontend development
+* **Modern CSS Features**: Integrated support for CSS Grid, Flexbox, `calc()`, and `position: sticky`.
+* **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support.
 
 ## Known Issues
-All other frontends, except for the Qt one on Linux and the GDI one on Windows, are not tested and probably don't work.
-The JS engine using QuickJS is just a stub.
+* All other frontends, except for the Qt one on Linux and the GDI one on Windows, are not regularly tested and may have issues.
+* CSS Variables support is partially implemented and undergoing active development.
 
 ## Building and installation
 Wisp can be built:
 * On Windows (for the Windows frontend) using MSYS2 and the MinGW-w64 toolchain.
 * On Linux (for the Qt frontend) using CMake and ninja or make.
-
 
 Wisp intends to be portable, keeping a lean C99 codebase and minimal dependencies.
 
