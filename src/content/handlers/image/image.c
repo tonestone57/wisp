@@ -40,6 +40,7 @@
 #include "content/handlers/image/avif.h"
 #include "content/handlers/image/svg.h"
 #include "content/handlers/image/webp.h"
+#include "content/handlers/image/video.h"
 
 /**
  * Initialise image content handlers
@@ -108,6 +109,10 @@ nserror image_init(void)
     if (error != NSERROR_OK)
         return error;
 #endif
+
+    error = nsvideo_init();
+    if (error != NSERROR_OK)
+        return error;
 
     return error;
 }

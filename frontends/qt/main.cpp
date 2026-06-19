@@ -40,6 +40,13 @@ extern "C" {
 #include "qt/resources.h"
 #include "qt/window.h"
 
+#ifdef __APPLE__
+extern "C" {
+#include <wisp/audio.h>
+extern struct gui_audio_table *macos_audio_table;
+}
+#endif
+
 
 /**
  * Main entry point from OS.
@@ -65,6 +72,9 @@ int main(int argc, char **argv)
 #endif
         .bitmap = nsqt_bitmap_table,
         .layout = nsqt_layout_table,
+#ifdef __APPLE__
+        .audio = macos_audio_table,
+#endif
     };
     NS_Application *nsapp;
 

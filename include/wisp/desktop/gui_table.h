@@ -39,6 +39,7 @@ struct gui_search_web_table;
 struct gui_llcache_table;
 struct gui_bitmap_table;
 struct gui_layout_table;
+struct gui_audio_table;
 
 /**
  * NetSurf operation function table
@@ -161,6 +162,13 @@ struct wisp_table {
      * The table is mandatory and must be provided.
      */
     struct gui_layout_table *layout;
+
+    /**
+     * Audio table.
+     *
+     * Provides audio output capabilities.
+     */
+    struct gui_audio_table *audio;
 };
 
 #endif

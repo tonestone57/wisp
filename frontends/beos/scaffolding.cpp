@@ -116,6 +116,8 @@ struct beos_scaffolding {
     BControl *stop_button;
     BControl *reload_button;
     BControl *home_button;
+    BButton *media_play_button;
+    BSlider *media_seek_bar;
 
     NSIconTextControl *url_bar;
     BTextControl *search_bar;
@@ -433,6 +435,22 @@ NSBaseView::~NSBaseView()
 void NSBaseView::MessageReceived(BMessage *message)
 {
     switch (message->what) {
+    case NS_MEDIA_PLAY:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            if (c) {
+                if (nsvideo_is_paused(c)) nsvideo_play(c);
+                else nsvideo_pause(c);
+            }
+        }
+        break;
+    case NS_MEDIA_SEEK:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            int32 val = 0;
+            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+        }
+        break;
     case B_SIMPLE_DATA:
     case B_ABOUT_REQUESTED:
     case B_ARGV_RECEIVED:
@@ -2070,8 +2088,12 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     rect.OffsetBySelf(TOOLBAR_HEIGHT, 0);
     message = new BMessage('home');
     message->AddPointer("scaffolding", g);
+    g->media_play_button = new BButton(rect, "play", "P", new BMessage(NS_MEDIA_PLAY));
+    g->media_seek_bar = new BSlider(rect, "seek", "Seek", new BMessage(NS_MEDIA_SEEK), 0, 100);
     g->home_button = new BBitmapButton(rect, "home_button", "H", message);
     g->tool_bar->AddChild(g->home_button);
+    g->tool_bar->AddChild(g->media_play_button);
+    g->tool_bar->AddChild(g->media_seek_bar);
     nButtons++;
 
 

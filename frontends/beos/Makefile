@@ -85,7 +85,7 @@ requires	{\n\
 S_FRONTEND := about.cpp bitmap.cpp cookies.cpp download.cpp		\
 	fetch_rsrc.cpp filetype.cpp font.cpp gui.cpp login.cpp		\
 	gui_options.cpp plotters.cpp scaffolding.cpp search.cpp		\
-	schedule.cpp throbber.cpp window.cpp
+	schedule.cpp throbber.cpp window.cpp audio.cpp
 
 # This is the final source build list
 # Note this is deliberately *not* expanded here as common and image

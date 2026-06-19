@@ -78,6 +78,11 @@
 #include "gtk/warn.h"
 #include "gtk/window.h"
 
+#ifdef __APPLE__
+#include <wisp/audio.h>
+extern struct gui_audio_table *macos_audio_table;
+#endif
+
 bool nsgtk_complete = false;
 
 /* exported global defined in gtk/gui.h */
@@ -1160,8 +1165,12 @@ int main(int argc, char **argv)
 {
     nserror res;
     char *cache_home = NULL;
+    extern struct gui_audio_table *nsgtk_audio_table;
     struct wisp_table nsgtk_table = {
         .misc = nsgtk_misc_table,
+#ifdef __APPLE__
+        .audio = macos_audio_table,
+#endif
         .window = nsgtk_window_table,
         .corewindow = nsgtk_core_window_table,
         .clipboard = nsgtk_clipboard_table,
@@ -1172,6 +1181,7 @@ int main(int argc, char **argv)
         .search_web = nsgtk_search_web_table,
         .bitmap = nsgtk_bitmap_table,
         .layout = nsgtk_layout_table,
+        .audio = nsgtk_audio_table,
     };
 
     res = wisp_register(&nsgtk_table);

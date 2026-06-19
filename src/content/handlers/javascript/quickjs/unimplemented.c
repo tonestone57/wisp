@@ -7,6 +7,84 @@
 #include "unimplemented.h"
 #include <wisp/utils/log.h>
 #include "quickjs.h"
+#include <wisp/types.h>
+#include <wisp/browser_window.h>
+#include "desktop/browser_private.h"
+#include "content/handlers/image/video.h"
+#include "content/content_protected.h"
+#include "content/hlcache.h"
+#include "content/handlers/html/html.h"
+#include "content/handlers/html/private.h"
+
+#include "content/handlers/image/video.h"
+#include "content/content_protected.h"
+#include "content/hlcache.h"
+#include "desktop/browser_private.h"
+#include "content/handlers/html/html.h"
+#include "content/handlers/html/private.h"
+
+extern void *qjs_get_window_priv(JSContext *ctx);
+static struct content *find_media_content(JSContext *ctx) {
+    struct browser_window *bw = (struct browser_window *)qjs_get_window_priv(ctx);
+    if (!bw || !bw->current_content) return NULL;
+    struct content *c = hlcache_handle_get_content(bw->current_content);
+    if (!c) return NULL;
+    if (c->handler->type() == CONTENT_IMAGE) return c;
+    if (c->handler->type() == CONTENT_HTML) {
+        html_content *htmlc = (html_content *)c;
+        struct content_html_object *obj = htmlc->object_list;
+        while (obj) {
+            if (obj->content) {
+                struct content *oc = hlcache_handle_get_content(obj->content);
+                if (oc && oc->handler->type() == CONTENT_IMAGE) return oc;
+            }
+            obj = obj->next;
+        }
+    }
+    return NULL;
+}
+
+static JSValue js_htmlmediaelement_play(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    if (c) nsvideo_play(c);
+    return JS_UNDEFINED;
+}
+static JSValue js_htmlmediaelement_pause(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    if (c) nsvideo_pause(c);
+    return JS_UNDEFINED;
+}
+static JSValue js_htmlmediaelement_currentTime_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    if (c) return JS_NewFloat64(ctx, nsvideo_get_time(c));
+    return JS_NewInt32(ctx, 0);
+}
+static JSValue js_htmlmediaelement_currentTime_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    double val;
+    if (c && JS_ToFloat64(ctx, &val, argv[0]) == 0) nsvideo_seek_to(c, val);
+    return JS_UNDEFINED;
+}
+static JSValue js_htmlmediaelement_duration_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    if (c) return JS_NewFloat64(ctx, nsvideo_get_duration(c));
+    return JS_NewFloat64(ctx, 0.0);
+}
+static JSValue js_htmlmediaelement_volume_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    return JS_NewFloat64(ctx, 1.0);
+}
+static JSValue js_htmlmediaelement_volume_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    double val;
+    if (c && JS_ToFloat64(ctx, &val, argv[0]) == 0) nsvideo_set_volume(c, (float)val);
+    return JS_UNDEFINED;
+}
+static JSValue js_htmlmediaelement_paused_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    struct content *c = find_media_content(ctx);
+    if (c) return JS_NewBool(ctx, nsvideo_is_paused(c));
+    return JS_TRUE;
+}
+
 
 static JSValue js_urlsearchparams_append(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
@@ -11583,11 +11661,7 @@ static JSValue js_htmlmediaelement_readyState_getter(JSContext *ctx, JSValueCons
     NSLOG(wisp, DEBUG, "HTMLMediaElement.readyState getter is unimplemented");
     return JS_UNDEFINED;
 }
-static JSValue js_htmlmediaelement_currentTime_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.currentTime getter is unimplemented");
-    return JS_UNDEFINED;
-}
+
 static JSValue js_htmlmediaelement_played_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "HTMLMediaElement.played getter is unimplemented");
@@ -11603,11 +11677,7 @@ static JSValue js_htmlmediaelement_autoplay_getter(JSContext *ctx, JSValueConst 
     NSLOG(wisp, DEBUG, "HTMLMediaElement.autoplay getter is unimplemented");
     return JS_UNDEFINED;
 }
-static JSValue js_htmlmediaelement_volume_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.volume getter is unimplemented");
-    return JS_UNDEFINED;
-}
+
 static JSValue js_htmlmediaelement_currentSrc_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "HTMLMediaElement.currentSrc getter is unimplemented");
@@ -11628,16 +11698,8 @@ static JSValue js_htmlmediaelement_mediaGroup_getter(JSContext *ctx, JSValueCons
     NSLOG(wisp, DEBUG, "HTMLMediaElement.mediaGroup getter is unimplemented");
     return JS_UNDEFINED;
 }
-static JSValue js_htmlmediaelement_paused_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.paused getter is unimplemented");
-    return JS_UNDEFINED;
-}
-static JSValue js_htmlmediaelement_duration_getter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.duration getter is unimplemented");
-    return JS_UNDEFINED;
-}
+
+
 static JSValue js_htmlmediaelement_crossOrigin_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "HTMLMediaElement.crossOrigin setter is unimplemented");
@@ -11658,11 +11720,7 @@ static JSValue js_htmlmediaelement_controls_setter(JSContext *ctx, JSValueConst 
     NSLOG(wisp, DEBUG, "HTMLMediaElement.controls setter is unimplemented");
     return JS_UNDEFINED;
 }
-static JSValue js_htmlmediaelement_volume_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.volume setter is unimplemented");
-    return JS_UNDEFINED;
-}
+
 static JSValue js_htmlmediaelement_playbackRate_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "HTMLMediaElement.playbackRate setter is unimplemented");
@@ -11703,26 +11761,14 @@ static JSValue js_htmlmediaelement_defaultMuted_setter(JSContext *ctx, JSValueCo
     NSLOG(wisp, DEBUG, "HTMLMediaElement.defaultMuted setter is unimplemented");
     return JS_UNDEFINED;
 }
-static JSValue js_htmlmediaelement_currentTime_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.currentTime setter is unimplemented");
-    return JS_UNDEFINED;
-}
+
 static JSValue js_htmlmediaelement_src_setter(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "HTMLMediaElement.src setter is unimplemented");
     return JS_UNDEFINED;
 }
-static JSValue js_htmlmediaelement_play(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.play() is unimplemented");
-    return JS_UNDEFINED;
-}
-static JSValue js_htmlmediaelement_pause(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    NSLOG(wisp, DEBUG, "HTMLMediaElement.pause() is unimplemented");
-    return JS_UNDEFINED;
-}
+
+
 static JSValue js_htmlmediaelement_load(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "HTMLMediaElement.load() is unimplemented");

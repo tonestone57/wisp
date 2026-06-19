@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 John-Mark Bell <jmb@netsurf-browser.org>
+ * Copyright 2025 Wisp
  *
  * This file is part of NetSurf, http://www.netsurf-browser.org/
  *
@@ -16,20 +16,37 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef WISP_IMAGE_VIDEO_H_
-#define WISP_IMAGE_VIDEO_H_
+#ifndef _WISP_AUDIO_H_
+#define _WISP_AUDIO_H_
 
-#include <wisp/utils/errors.h>
-#include <wisp/content.h>
+#include <stdbool.h>
+#include <stddef.h>
 
-nserror nsvideo_init(void);
+/**
+ * Audio operations.
+ */
+struct gui_audio_table {
+    /**
+     * Initialize audio output.
+     *
+     * \param rate      Sample rate (e.g., 44100)
+     * \param channels  Number of channels (e.g., 2)
+     * \return true on success, false on error.
+     */
+    bool (*init)(int rate, int channels);
 
-void nsvideo_play(struct content *c);
-void nsvideo_pause(struct content *c);
-void nsvideo_seek_to(struct content *c, double time);
-void nsvideo_set_volume(struct content *c, float volume);
-double nsvideo_get_duration(struct content *c);
-double nsvideo_get_time(struct content *c);
-bool nsvideo_is_paused(struct content *c);
+    /**
+     * Play audio data.
+     *
+     * \param data  Pointer to PCM data (S16LE)
+     * \param size  Size of data in bytes
+     */
+    void (*play)(const void *data, size_t size);
+
+    /**
+     * Finalize audio output.
+     */
+    void (*fini)(void);
+};
 
 #endif
