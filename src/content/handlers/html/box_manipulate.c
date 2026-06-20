@@ -125,6 +125,7 @@ struct box *box_create(css_select_results *styles, css_computed_style *style, bo
     box->styles = styles;
     box->style = style;
     box->x = box->y = 0;
+    box->last_available_width = -1;
     box->width = UNKNOWN_WIDTH;
     box->height = 0;
     box->descendant_x0 = box->descendant_y0 = 0;
