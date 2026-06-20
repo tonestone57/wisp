@@ -4,8 +4,11 @@
 #include <stdbool.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
+#include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+
+static void js_document_finalizer(JSRuntime *rt, JSValue val);
 
 #include "document.inc"
 
@@ -17,10 +20,40 @@ static void js_document_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
+
 static JSValue js_document_getElementsByTagName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Document.getElementsByTagName() called (stub)");
-    return JS_NewArray(ctx);
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_NewArray(ctx);
+
+    const char *tag = JS_ToCString(ctx, argv[0]);
+    if (!tag) return JS_NewArray(ctx);
+
+    dom_string *tag_dom = NULL;
+    dom_string_create((const uint8_t *)tag, strlen(tag), &tag_dom);
+    JS_FreeCString(ctx, tag);
+
+    struct dom_nodelist *list = NULL;
+    dom_exception exc = dom_document_get_elements_by_tag_name((dom_document *)priv->node, tag_dom, &list);
+    dom_string_unref(tag_dom);
+
+    if (exc != DOM_NO_ERR || list == NULL) return JS_NewArray(ctx);
+
+    uint32_t len = 0;
+    dom_nodelist_get_length(list, &len);
+
+    JSValue arr = JS_NewArray(ctx);
+    for (uint32_t i = 0; i < len; i++) {
+        struct dom_node *node = NULL;
+        dom_nodelist_item(list, i, &node);
+        if (node) {
+            JS_SetPropertyUint32(ctx, arr, i, qjs_wrap_node(ctx, node));
+            dom_node_unref(node);
+        }
+    }
+    dom_nodelist_unref(list);
+    return arr;
 }
 
 static JSValue js_document_getElementsByTagNameNS(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -31,7 +64,9 @@ static JSValue js_document_getElementsByTagNameNS(JSContext *ctx, JSValueConst t
 
 static JSValue js_document_getElementsByClassName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Document.getElementsByClassName() called (stub)");
+    /* LibDOM 0.9.x does not have dom_document_get_elements_by_class_name.
+       Stubbing it to return an empty array for now. */
+    NSLOG(wisp, DEBUG, "Document.getElementsByClassName() called (not supported in current LibDOM)");
     return JS_NewArray(ctx);
 }
 
@@ -67,8 +102,17 @@ static JSValue js_document_createElementNS(JSContext *ctx, JSValueConst this_val
 
 static JSValue js_document_createDocumentFragment(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Document.createDocumentFragment() called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_EXCEPTION;
+
+    struct dom_document_fragment *result = NULL;
+    dom_exception exc = dom_document_create_document_fragment((dom_document *)priv->node, &result);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "dom_document_create_document_fragment failed");
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
 }
 
 static JSValue js_document_createTextNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -97,8 +141,26 @@ static JSValue js_document_createTextNode(JSContext *ctx, JSValueConst this_val,
 
 static JSValue js_document_createComment(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Document.createComment() called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_EXCEPTION;
+    if (argc < 1) return JS_EXCEPTION;
+
+    const char *data = JS_ToCString(ctx, argv[0]);
+    if (!data) return JS_EXCEPTION;
+
+    dom_string *data_dom = NULL;
+    dom_string_create((const uint8_t *)data, strlen(data), &data_dom);
+    JS_FreeCString(ctx, data);
+
+    struct dom_comment *result = NULL;
+    dom_exception exc = dom_document_create_comment((dom_document *)priv->node, data_dom, &result);
+    dom_string_unref(data_dom);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "dom_document_create_comment failed");
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
 }
 
 static JSValue js_document_createProcessingInstruction(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -235,14 +297,19 @@ static JSValue js_document_implementation_get(JSContext *ctx, JSValueConst this_
 
 static JSValue js_document_URL_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.URL getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *url = NULL;
+    dom_exception exc = dom_document_get_uri((dom_document *)priv->node, &url);
+    if (exc != DOM_NO_ERR || url == NULL) return JS_NewString(ctx, "about:blank");
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(url), dom_string_byte_length(url));
+    dom_string_unref(url);
+    return val;
 }
 
 static JSValue js_document_documentURI_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.documentURI getter called (stub)");
-    return JS_UNDEFINED;
+    return js_document_URL_get(ctx, this_val);
 }
 
 static JSValue js_document_origin_get(JSContext *ctx, JSValueConst this_val)
@@ -254,31 +321,44 @@ static JSValue js_document_origin_get(JSContext *ctx, JSValueConst this_val)
 static JSValue js_document_compatMode_get(JSContext *ctx, JSValueConst this_val)
 {
     NSLOG(wisp, DEBUG, "Document.compatMode getter called (stub)");
-    return JS_UNDEFINED;
+    return JS_NewString(ctx, "CSS1Compat");
 }
 
 static JSValue js_document_characterSet_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.characterSet getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *enc = NULL;
+    dom_exception exc = dom_document_get_input_encoding((dom_document *)priv->node, &enc);
+    if (exc != DOM_NO_ERR || enc == NULL) return JS_NewString(ctx, "UTF-8");
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(enc), dom_string_byte_length(enc));
+    dom_string_unref(enc);
+    return val;
 }
 
 static JSValue js_document_inputEncoding_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.inputEncoding getter called (stub)");
-    return JS_UNDEFINED;
+    return js_document_characterSet_get(ctx, this_val);
 }
 
 static JSValue js_document_contentType_get(JSContext *ctx, JSValueConst this_val)
 {
     NSLOG(wisp, DEBUG, "Document.contentType getter called (stub)");
-    return JS_UNDEFINED;
+    return JS_NewString(ctx, "text/html");
 }
 
 static JSValue js_document_doctype_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.doctype getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_document_type *doctype = NULL;
+    dom_document_get_doctype((dom_document *)priv->node, &doctype);
+    if (doctype) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)doctype);
+        dom_node_unref((dom_node *)doctype);
+        return val;
+    }
+    return JS_NULL;
 }
 
 static JSValue js_document_documentElement_get(JSContext *ctx, JSValueConst this_val)
@@ -295,26 +375,114 @@ static JSValue js_document_documentElement_get(JSContext *ctx, JSValueConst this
 
 static JSValue js_document_children_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.children getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NewArray(ctx);
+
+    JSValue arr = JS_NewArray(ctx);
+    struct dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    uint32_t i = 0;
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            JS_SetPropertyUint32(ctx, arr, i++, qjs_wrap_node(ctx, child));
+        }
+        struct dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    return arr;
 }
 
 static JSValue js_document_firstElementChild_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.firstElementChild getter called (stub)");
-    return JS_UNDEFINED;
+    return js_document_documentElement_get(ctx, this_val);
 }
 
 static JSValue js_document_lastElementChild_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.lastElementChild getter called (stub)");
-    return JS_UNDEFINED;
+    return js_document_documentElement_get(ctx, this_val);
 }
 
 static JSValue js_document_childElementCount_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Document.childElementCount getter called (stub)");
-    return JS_UNDEFINED;
+    JSValue children = js_document_children_get(ctx, this_val);
+    if (JS_IsException(children)) return JS_NewInt32(ctx, 0);
+    JSValue len_val = JS_GetPropertyStr(ctx, children, "length");
+    JS_FreeValue(ctx, children);
+    return len_val;
+}
+
+static JSValue js_document_body_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    struct dom_html_element *body = NULL;
+    dom_exception exc = dom_html_document_get_body((dom_html_document *)priv->node, &body);
+    if (exc != DOM_NO_ERR || body == NULL) return JS_NULL;
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)body);
+    dom_node_unref((dom_node *)body);
+    return val;
+}
+
+static JSValue js_document_title_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *title = NULL;
+    dom_exception exc = dom_html_document_get_title((dom_html_document *)priv->node, &title);
+    if (exc != DOM_NO_ERR || title == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(title), dom_string_byte_length(title));
+    dom_string_unref(title);
+    return val;
+}
+
+static JSValue js_document_cookie_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *cookie = NULL;
+    dom_exception exc = dom_html_document_get_cookie((dom_html_document *)priv->node, &cookie);
+    if (exc != DOM_NO_ERR || cookie == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(cookie), dom_string_byte_length(cookie));
+    dom_string_unref(cookie);
+    return val;
+}
+
+static JSValue js_document_referrer_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *referrer = NULL;
+    dom_exception exc = dom_html_document_get_referrer((dom_html_document *)priv->node, &referrer);
+    if (exc != DOM_NO_ERR || referrer == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(referrer), dom_string_byte_length(referrer));
+    dom_string_unref(referrer);
+    return val;
+}
+
+static JSValue js_document_domain_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *domain = NULL;
+    dom_exception exc = dom_html_document_get_domain((dom_html_document *)priv->node, &domain);
+    if (exc != DOM_NO_ERR || domain == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(domain), dom_string_byte_length(domain));
+    dom_string_unref(domain);
+    return val;
 }
 
 int qjs_init_document(JSContext *ctx)
@@ -324,6 +492,14 @@ int qjs_init_document(JSContext *ctx)
     if (!JS_IsRegisteredClass(rt, qjs_document_class_id)) JS_NewClass(rt, qjs_document_class_id, &js_document_class);
     JSValue proto = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, proto, js_document_proto_funcs, sizeof(js_document_proto_funcs) / sizeof(js_document_proto_funcs[0]));
+
+    /* Add extra HTMLDocument properties that might not be in document.inc yet */
+    JS_SetPropertyStr(ctx, proto, "body", JS_NewCFunction2(ctx, (JSCFunction *)js_document_body_get, "body", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "title", JS_NewCFunction2(ctx, (JSCFunction *)js_document_title_get, "title", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "cookie", JS_NewCFunction2(ctx, (JSCFunction *)js_document_cookie_get, "cookie", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "referrer", JS_NewCFunction2(ctx, (JSCFunction *)js_document_referrer_get, "referrer", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "domain", JS_NewCFunction2(ctx, (JSCFunction *)js_document_domain_get, "domain", 0, JS_CFUNC_getter, 0));
+
     JS_SetClassProto(ctx, qjs_document_class_id, proto);
     return 0;
 }

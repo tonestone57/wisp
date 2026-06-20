@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  See the file COPYING for details.
  */
 
 /**
@@ -48,50 +48,9 @@
 #endif
 
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
-/**
- * JavaScript heap structure.
- *
- * Maps to QuickJS's JSRuntime - one per browser window.
- */
-
-struct qjs_event_listener_ctx {
-    struct qjs_event_listener_ctx *next;
-    struct jsthread *thread;
-    JSValue func;
-    struct dom_event_target *target;
-    struct dom_string *type;
-    struct dom_event_listener *listener;
-};
-
-struct qjs_event_map {
-    struct qjs_event_map *next;
-    struct dom_event *evt;
-    JSValue js_evt;
-};
-
-struct jsheap {
-    JSRuntime *rt;
-    int timeout;
-    uint64_t deadline_ms;
-};
-
-/**
- * JavaScript thread structure.
- *
- * Maps to QuickJS's JSContext - one per browsing context.
- */
-
-
 
 /**
  * Get the window private data from a JS context.
- *
- * This allows other QuickJS binding modules to access the browser_window
- * pointer stored in the jsthread.
- *
- * \param ctx The QuickJS context
- * \return The win_priv pointer (struct browser_window *), or NULL if
- * unavailable
  */
 void *qjs_get_window_priv(JSContext *ctx)
 {
@@ -104,10 +63,6 @@ void *qjs_get_window_priv(JSContext *ctx)
 
 /**
  * Get the document private data from a JS context.
- *
- * \param ctx The QuickJS context
- * \return The doc_priv pointer (struct dom_document *), or NULL if
- * unavailable
  */
 void *qjs_get_document_priv(JSContext *ctx)
 {
@@ -124,8 +79,6 @@ void js_initialise(void)
     init_wisp_subsystem(64);
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine initialised");
 }
-
-
 
 
 /**
@@ -147,6 +100,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 
     return 0; /* Continue execution */
 }
+
 /* exported interface documented in js.h */
 void js_finalise(void)
 {
@@ -291,7 +245,15 @@ void js_destroythread(jsthread *thread)
 
     NSLOG(wisp, DEBUG, "Destroying QuickJS thread %p", thread);
 
-
+    struct qjs_timer *tim = thread->timers;
+    while (tim != NULL) {
+        struct qjs_timer *next = tim->next;
+        tim->cancelled = true;
+        JS_FreeValue(thread->ctx, tim->func);
+        free(tim);
+        tim = next;
+    }
+    thread->timers = NULL;
 
     struct qjs_event_listener_ctx *l = thread->listeners;
     while (l != NULL) {
@@ -505,16 +467,16 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 }
 
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
-    struct dom_string *event_type_dom, void *js_funcval)
+    struct dom_string *event_type_dom, JSValue js_funcval)
 {
-    if (!thread || !node || !js_funcval) return false;
+    if (!thread || !node) return false;
 
     struct qjs_event_listener_ctx *ctx = malloc(sizeof(*ctx));
     if (!ctx) return false;
 
     ctx->thread = thread;
     JSContext *jsctx = thread->ctx;
-    ctx->func = JS_DupValue(jsctx, *(JSValue*)js_funcval);
+    ctx->func = JS_DupValue(jsctx, js_funcval);
     ctx->target = (struct dom_event_target *)node;
     ctx->type = event_type_dom;
     dom_node_ref(node);
@@ -544,12 +506,11 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 
 
 bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
-    struct dom_string *event_type_dom, void *js_funcval)
+    struct dom_string *event_type_dom, JSValue js_funcval)
 {
-    if (!thread || !node || !js_funcval) return false;
+    if (!thread || !node) return false;
 
     JSContext *jsctx = thread->ctx;
-    JSValue *func = (JSValue *)js_funcval;
 
     struct qjs_event_listener_ctx **prev = &thread->listeners;
     struct qjs_event_listener_ctx *curr = thread->listeners;
@@ -557,7 +518,7 @@ bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *documen
     while (curr != NULL) {
         if (curr->target == (struct dom_event_target *)node &&
             dom_string_isequal(curr->type, event_type_dom) &&
-            JS_VALUE_GET_PTR(curr->func) == JS_VALUE_GET_PTR(*func)) {
+            JS_VALUE_GET_PTR(curr->func) == JS_VALUE_GET_PTR(js_funcval)) {
 
             dom_event_target_remove_event_listener(curr->target, curr->type, curr->listener, false);
             dom_node_unref((struct dom_node *)curr->target);
