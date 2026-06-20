@@ -103,6 +103,13 @@ void box_free_box(struct box *box);
 nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, bool right);
 
 
+
+/**
+ * Mark a box as dirty and propagate CHILD_DIRTY to ancestors.
+ * \param box The box to mark dirty
+ */
+void box_mark_dirty(struct box *box);
+
 #endif
 
 /**

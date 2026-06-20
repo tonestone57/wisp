@@ -5,11 +5,15 @@
 #include <stdint.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
+#include "content/handlers/html/box_construct.h"
+#include "content/handlers/html/box_manipulate.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include <dom/html/html_element.h>
 #include <dom/core/node.h>
+
+static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
 static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
@@ -76,6 +80,7 @@ static JSValue js_element_setAttribute(JSContext *ctx, JSValueConst this_val, in
     JS_FreeCString(ctx, name);
     JS_FreeCString(ctx, value);
     dom_element_set_attribute((dom_element *)priv->node, name_dom, value_dom);
+    { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
     dom_string_unref(name_dom);
     dom_string_unref(value_dom);
     return JS_UNDEFINED;
@@ -97,6 +102,7 @@ static JSValue js_element_removeAttribute(JSContext *ctx, JSValueConst this_val,
     dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
     JS_FreeCString(ctx, name);
     dom_element_remove_attribute((dom_element *)priv->node, name_dom);
+    { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
     dom_string_unref(name_dom);
     return JS_UNDEFINED;
 }
@@ -314,6 +320,7 @@ static JSValue js_element_remove(JSContext *ctx, JSValueConst this_val, int argc
     dom_node_get_parent_node((dom_node *)priv->node, &parent);
     if (parent) {
         dom_node_remove_child(parent, (dom_node *)priv->node, NULL);
+        { struct box *b = box_for_node(parent); if (b) box_mark_dirty(b); }
         dom_node_unref(parent);
     }
     return JS_UNDEFINED;
