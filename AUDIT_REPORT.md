@@ -46,27 +46,14 @@ An audit of the `contrib/` directory was performed to evaluate the state of bund
 ### Windows Rendering Modernization (Implemented)
 *   **Status**: **Fully Integrated.**
 *   **Features**:
-    *   **Transform Stack**: Support for `push_transform` and `pop_transform` using GDI `SetWorldTransform`.
+    *   **Transform Stack**: Support for `push_transform` and `pop_transform` using GDI `SetWorldTransform`. This enables CSS transforms and SVG coordinate systems.
     *   **Linear Gradients**: Native GDI `GradientFill` implementation for linear gradients.
     *   **Bitmap Tiling**: Corrected tile origin alignment to match Qt/CSS expectations.
     *   **Transform-aware Clipping**: Inverse-mapping of clip regions when transforms are active.
 
 ---
 
-## 3. Performance and Stability
-
-### Logging Verbosity
-*   **Issue**: Excessive debug tracing in `layout_flex.c` and `layout_grid.c` can generate large log files.
-*   **Recommendation**: Continue wrapping layout traces in `NSLOG(..., DEEPDEBUG, ...)` or specific debug flags.
-
-### String and Memory Safety
-*   **Issue**: Legacy use of `sprintf` in some utility functions.
-*   **Impact**: Potential buffer overflows.
-*   **Status**: Ongoing migration to `snprintf`.
-
----
-
-## 4. Library Detail Table (Merged from CONTRIB_AUDIT)
+## 3. Library Detail Table (Merged from CONTRIB_AUDIT)
 
 | Library | Current Version | Divergence | Upgrade Feasibility | Recommendation |
 |---------|-----------------|------------|---------------------|----------------|
@@ -82,13 +69,28 @@ An audit of the `contrib/` directory was performed to evaluate the state of bund
 
 ---
 
-## 5. Remaining Outstanding Tasks
+## 4. Remaining Outstanding Tasks
 
-Based on the audit, the following tasks remain for project completion/modernization:
-
+### Browser Completion
 1.  **CSS Variables Resolution**: Complete the implementation of the variable resolution pass during the CSS cascade in `libcss` and ensure layout correctly handles resolved values.
-2.  **Incremental Layout**: Implement dirty-bit based incremental layout to avoid full reflows on every change (see `plan_dirty_bits.md`).
-3.  **Logging Refactor**: Wrap remaining layout traces in `layout_flex.c` and `layout_grid.c` with appropriate debug flags to reduce log file sizes.
-4.  **Security Hardening**: Complete the migration from `sprintf` to `snprintf` across all utility and core functions.
-5.  **Windows Direct2D**: Investigate and implement a Direct2D-based plotter for improved performance on modern Windows systems.
-6.  **JS Binding Completion**: Continue implementing unimplemented WebIDL bindings (approx. 1500 remaining as per `UnimplementedJavascript.md`).
+2.  **JS Binding Completion**: Continue implementing unimplemented WebIDL bindings (approx. 1500 remaining as per `UnimplementedJavascript.md`), specifically high-value interfaces like `URLSearchParams`, `MutationObserver`, and `IntersectionObserver`.
+3.  **Canvas API**: Implement core 2D canvas drawing methods in the QuickJS subsystem and bridge them to frontend plotters.
+
+### Performance
+1.  **Incremental Layout**: Implement dirty-bit based incremental layout to avoid full reflows on every change. Ensure proper `CHILD_DIRTY` propagation up the box tree (see `plan_dirty_bits.md`).
+2.  **Logging Refactor**: Wrap or demote approximately 80 high-verbosity `NSLOG` traces (currently at `WARNING` or `INFO` levels) in `layout_flex.c` and `layout_grid.c` to `DEEPDEBUG` to reduce log file sizes during normal operation.
+3.  **Arena Alignment**: Audit all arena-based allocations to ensure 16-byte alignment, preventing AddressSanitizer misaligned access errors.
+
+### Security
+1.  **String Safety**: Complete the migration of the remaining 38 `sprintf` calls to `snprintf`. Priority targets:
+    *   `src/content/urldb.c`: 13 calls in cookie and URL handling.
+    *   `src/desktop/searchweb.c`: 1 call in search URL generation.
+    *   `frontends/windows/download.c`: 4 calls in UI formatting.
+    *   `frontends/gtk/download.c`: 2 calls in path and speed formatting.
+2.  **MIME Sniffing**: Extend AVIF sniffing to support all common ISOBMFF-based image types to prevent MIME-type spoofing.
+
+### Stability
+1.  **Build System Fix**: Resolve a critical compilation error in `src/content/handlers/html/box_manipulate.c` where `box_mark_dirty` is defined twice, currently breaking the build on some platforms.
+2.  **Windows Direct2D**: Implement a Direct2D-based plotter for the Windows frontend to improve rendering performance and support for advanced features like subpixel antialiasing and blur effects.
+3.  **Frontend Parity**: Improve regular testing coverage for non-Qt/GDI frontends (Haiku, Framebuffer, Monkey) to ensure they haven't regressed after core layout changes.
+4.  **Error Handling**: Replace remaining `assert()` calls in layout coordinate calculations with graceful error recovery and `NSLOG` reporting.
