@@ -10,6 +10,10 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include <dom/html/html_element.h>
+#include <dom/core/node.h>
+
+static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
 static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
@@ -132,8 +136,20 @@ static JSValue js_element_hasAttributeNS(JSContext *ctx, JSValueConst this_val, 
 
 static JSValue js_element_getAttributeNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Element.getAttributeNode() called (stub)");
-    return JS_NULL;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_NULL;
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) return JS_NULL;
+    dom_string *name_dom = NULL;
+    dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
+    JS_FreeCString(ctx, name);
+    struct dom_attr *result = NULL;
+    dom_exception exc = dom_element_get_attribute_node((dom_element *)priv->node, name_dom, &result);
+    dom_string_unref(name_dom);
+    if (exc != DOM_NO_ERR || result == NULL) return JS_NULL;
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
 }
 
 static JSValue js_element_getAttributeNodeNS(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -144,7 +160,18 @@ static JSValue js_element_getAttributeNodeNS(JSContext *ctx, JSValueConst this_v
 
 static JSValue js_element_setAttributeNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Element.setAttributeNode() called (stub)");
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_NULL;
+    QJSNodePrivate *attr_priv = JS_GetOpaque(argv[0], qjs_attr_class_id);
+    if (!attr_priv || !attr_priv->node) return JS_ThrowTypeError(ctx, "Argument is not an Attr");
+    struct dom_attr *old_attr = NULL;
+    dom_exception exc = dom_element_set_attribute_node((dom_element *)priv->node, (dom_attr *)attr_priv->node, &old_attr);
+    if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_element_set_attribute_node failed");
+    if (old_attr) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)old_attr);
+        dom_node_unref((dom_node *)old_attr);
+        return val;
+    }
     return JS_NULL;
 }
 
@@ -156,7 +183,18 @@ static JSValue js_element_setAttributeNodeNS(JSContext *ctx, JSValueConst this_v
 
 static JSValue js_element_removeAttributeNode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Element.removeAttributeNode() called (stub)");
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_NULL;
+    QJSNodePrivate *attr_priv = JS_GetOpaque(argv[0], qjs_attr_class_id);
+    if (!attr_priv || !attr_priv->node) return JS_ThrowTypeError(ctx, "Argument is not an Attr");
+    struct dom_attr *old_attr = NULL;
+    dom_exception exc = dom_element_remove_attribute_node((dom_element *)priv->node, (dom_attr *)attr_priv->node, &old_attr);
+    if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_element_remove_attribute_node failed");
+    if (old_attr) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)old_attr);
+        dom_node_unref((dom_node *)old_attr);
+        return val;
+    }
     return JS_NULL;
 }
 
@@ -290,17 +328,44 @@ static JSValue js_element_remove(JSContext *ctx, JSValueConst this_val, int argc
 
 static JSValue js_element_namespaceURI_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Element.namespaceURI getter called (stub)");
-    return JS_NULL;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *ns = NULL;
+    dom_exception exc = dom_node_get_namespace((dom_node *)priv->node, &ns);
+    if (exc != DOM_NO_ERR || ns == NULL) return JS_NULL;
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(ns), dom_string_byte_length(ns));
+    dom_string_unref(ns);
+    return val;
 }
 
 static JSValue js_element_prefix_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Element.prefix getter called (stub)");
-    return JS_NULL;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *pre = NULL;
+    dom_exception exc = dom_node_get_prefix((dom_node *)priv->node, &pre);
+    if (exc != DOM_NO_ERR || pre == NULL) return JS_NULL;
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(pre), dom_string_byte_length(pre));
+    dom_string_unref(pre);
+    return val;
 }
 
 static JSValue js_element_localName_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    dom_string *name = NULL;
+    dom_string_create((const uint8_t *)"", 0, &name);
+    dom_node_get_local_name((dom_node *)priv->node, &name);
+    if (name) {
+        JSValue val = JS_NewStringLen(ctx, dom_string_data(name), dom_string_byte_length(name));
+        dom_string_unref(name);
+        return val;
+    }
+    return JS_NULL;
+}
+
+static JSValue js_element_tagName_get(JSContext *ctx, JSValueConst this_val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
     if (!priv || !priv->node) return JS_UNDEFINED;
@@ -312,11 +377,6 @@ static JSValue js_element_localName_get(JSContext *ctx, JSValueConst this_val)
         return val;
     }
     return JS_NULL;
-}
-
-static JSValue js_element_tagName_get(JSContext *ctx, JSValueConst this_val)
-{
-    return js_element_localName_get(ctx, this_val);
 }
 
 static JSValue js_element_id_get(JSContext *ctx, JSValueConst this_val)
@@ -363,8 +423,14 @@ static JSValue js_element_classList_get(JSContext *ctx, JSValueConst this_val)
 
 static JSValue js_element_attributes_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Element.attributes getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_namednodemap *map = NULL;
+    dom_exception exc = dom_node_get_attributes((dom_node *)priv->node, &map);
+    if (exc != DOM_NO_ERR || map == NULL) return JS_NULL;
+    JSValue val = qjs_new_namednodemap(ctx, map);
+    dom_namednodemap_unref(map);
+    return val;
 }
 
 static JSValue js_element_children_get(JSContext *ctx, JSValueConst this_val)
@@ -487,6 +553,87 @@ static JSValue js_element_nextElementSibling_get(JSContext *ctx, JSValueConst th
     return JS_NULL;
 }
 
+static JSValue js_element_dir_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *dir = NULL;
+    dom_exception exc = dom_html_element_get_dir((dom_html_element *)priv->node, &dir);
+    if (exc != DOM_NO_ERR || dir == NULL) return JS_NewString(ctx, "ltr");
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(dir), dom_string_byte_length(dir));
+    dom_string_unref(dir);
+    return val;
+}
+
+static JSValue js_element_lang_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *lang = NULL;
+    dom_exception exc = dom_html_element_get_lang((dom_html_element *)priv->node, &lang);
+    if (exc != DOM_NO_ERR || lang == NULL) return JS_NewString(ctx, "");
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(lang), dom_string_byte_length(lang));
+    dom_string_unref(lang);
+    return val;
+}
+
+static JSValue js_element_title_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *title = NULL;
+    dom_exception exc = dom_html_element_get_title((dom_html_element *)priv->node, &title);
+    if (exc != DOM_NO_ERR || title == NULL) return JS_NewString(ctx, "");
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(title), dom_string_byte_length(title));
+    dom_string_unref(title);
+    return val;
+}
+
+static JSValue js_element_dir_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, val);
+    if (str) {
+        dom_string *dir_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &dir_dom);
+        dom_html_element_set_dir((dom_html_element *)priv->node, dir_dom);
+        dom_string_unref(dir_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue js_element_lang_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, val);
+    if (str) {
+        dom_string *lang_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &lang_dom);
+        dom_html_element_set_lang((dom_html_element *)priv->node, lang_dom);
+        dom_string_unref(lang_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue js_element_title_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, val);
+    if (str) {
+        dom_string *title_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &title_dom);
+        dom_html_element_set_title((dom_html_element *)priv->node, title_dom);
+        dom_string_unref(title_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
 int qjs_init_element(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
@@ -494,6 +641,30 @@ int qjs_init_element(JSContext *ctx)
     if (!JS_IsRegisteredClass(rt, qjs_element_class_id)) JS_NewClass(rt, qjs_element_class_id, &js_element_class);
     JSValue proto = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, proto, js_element_proto_funcs, sizeof(js_element_proto_funcs) / sizeof(js_element_proto_funcs[0]));
+
+    /* Add extra HTMLElement properties */
+    JS_SetPropertyStr(ctx, proto, "dir", JS_NewCFunction2(ctx, (JSCFunction *)js_element_dir_get, "dir", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "lang", JS_NewCFunction2(ctx, (JSCFunction *)js_element_lang_get, "lang", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "title", JS_NewCFunction2(ctx, (JSCFunction *)js_element_title_get, "title", 0, JS_CFUNC_getter, 0));
+
+    /* Setters for dir, lang, title */
+    JS_DefinePropertyValueStr(ctx, proto, "dir", JS_UNDEFINED, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_SetPropertyStr(ctx, proto, "dir", JS_NewCFunction2(ctx, (JSCFunction *)js_element_dir_get, "dir", 0, JS_CFUNC_getter, 0));
+    /* Need to use JS_DefineProperty for getters/setters properly if not using JSCFunctionListEntry */
+    JSValue dir_name = JS_NewString(ctx, "dir");
+    JSValue dir_get = JS_NewCFunction2(ctx, (JSCFunction *)js_element_dir_get, "dir", 0, JS_CFUNC_getter, 0);
+    JSValue dir_set = JS_NewCFunction2(ctx, (JSCFunction *)js_element_dir_set, "dir", 1, JS_CFUNC_setter, 0);
+    JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "dir"), dir_get, dir_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_FreeValue(ctx, dir_name);
+
+    JSValue lang_get = JS_NewCFunction2(ctx, (JSCFunction *)js_element_lang_get, "lang", 0, JS_CFUNC_getter, 0);
+    JSValue lang_set = JS_NewCFunction2(ctx, (JSCFunction *)js_element_lang_set, "lang", 1, JS_CFUNC_setter, 0);
+    JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "lang"), lang_get, lang_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+
+    JSValue title_get = JS_NewCFunction2(ctx, (JSCFunction *)js_element_title_get, "title", 0, JS_CFUNC_getter, 0);
+    JSValue title_set = JS_NewCFunction2(ctx, (JSCFunction *)js_element_title_set, "title", 1, JS_CFUNC_setter, 0);
+    JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "title"), title_get, title_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+
     JS_SetClassProto(ctx, qjs_element_class_id, proto);
     return 0;
 }

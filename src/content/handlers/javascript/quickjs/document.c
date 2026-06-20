@@ -7,6 +7,11 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include <dom/html/html_document.h>
+#include <dom/html/html_element.h>
+#include <dom/html/html_collection.h>
+
+static void js_document_finalizer(JSRuntime *rt, JSValue val);
 
 static void js_document_finalizer(JSRuntime *rt, JSValue val);
 
@@ -429,6 +434,17 @@ static JSValue js_document_body_get(JSContext *ctx, JSValueConst this_val)
     return val;
 }
 
+static JSValue js_document_body_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    QJSNodePrivate *body_priv = JS_GetOpaque(val, qjs_element_class_id);
+    if (!body_priv || !body_priv->node) return JS_ThrowTypeError(ctx, "Argument is not an Element");
+
+    (dom_html_document_set_body)((dom_html_document *)priv->node, (struct dom_html_element *)body_priv->node);
+    return JS_UNDEFINED;
+}
+
 static JSValue js_document_title_get(JSContext *ctx, JSValueConst this_val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
@@ -443,6 +459,21 @@ static JSValue js_document_title_get(JSContext *ctx, JSValueConst this_val)
     return val;
 }
 
+static JSValue js_document_title_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, val);
+    if (str) {
+        dom_string *title_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &title_dom);
+        dom_html_document_set_title((dom_html_document *)priv->node, title_dom);
+        dom_string_unref(title_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
 static JSValue js_document_cookie_get(JSContext *ctx, JSValueConst this_val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
@@ -454,6 +485,47 @@ static JSValue js_document_cookie_get(JSContext *ctx, JSValueConst this_val)
 
     JSValue val = JS_NewStringLen(ctx, dom_string_data(cookie), dom_string_byte_length(cookie));
     dom_string_unref(cookie);
+    return val;
+}
+
+static JSValue js_document_cookie_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, val);
+    if (str) {
+        dom_string *cookie_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &cookie_dom);
+        dom_html_document_set_cookie((dom_html_document *)priv->node, cookie_dom);
+        dom_string_unref(cookie_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+static JSValue js_document_referrer_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *referrer = NULL;
+    dom_exception exc = dom_html_document_get_referrer((dom_html_document *)priv->node, &referrer);
+    if (exc != DOM_NO_ERR || referrer == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(referrer), dom_string_byte_length(referrer));
+    dom_string_unref(referrer);
+    return val;
+}
+
+static JSValue js_document_domain_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *domain = NULL;
+    dom_exception exc = dom_html_document_get_domain((dom_html_document *)priv->node, &domain);
+    if (exc != DOM_NO_ERR || domain == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(domain), dom_string_byte_length(domain));
+    dom_string_unref(domain);
     return val;
 }
 
@@ -485,6 +557,88 @@ static JSValue js_document_domain_get(JSContext *ctx, JSValueConst this_val)
     return val;
 }
 
+static JSValue js_document_getElementsByName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_NewArray(ctx);
+
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) return JS_NewArray(ctx);
+
+    dom_string *name_dom = NULL;
+    dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
+    JS_FreeCString(ctx, name);
+
+    struct dom_nodelist *list = NULL;
+    dom_exception exc = dom_html_document_get_elements_by_name((dom_html_document *)priv->node, name_dom, &list);
+    dom_string_unref(name_dom);
+
+    if (exc != DOM_NO_ERR || list == NULL) return JS_NewArray(ctx);
+
+    uint32_t len = 0;
+    dom_nodelist_get_length(list, &len);
+
+    JSValue arr = JS_NewArray(ctx);
+    for (uint32_t i = 0; i < len; i++) {
+        struct dom_node *node = NULL;
+        dom_nodelist_item(list, i, &node);
+        if (node) {
+            JS_SetPropertyUint32(ctx, arr, i, qjs_wrap_node(ctx, node));
+            dom_node_unref(node);
+        }
+    }
+    dom_nodelist_unref(list);
+    return arr;
+}
+
+static JSValue js_document_images_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_html_collection *col = NULL;
+    dom_exception exc = dom_html_document_get_images((dom_html_document *)priv->node, &col);
+    if (exc != DOM_NO_ERR || col == NULL) return JS_NULL;
+    JSValue val = qjs_new_htmlcollection(ctx, col);
+    dom_html_collection_unref(col);
+    return val;
+}
+
+static JSValue js_document_links_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_html_collection *col = NULL;
+    dom_exception exc = dom_html_document_get_links((dom_html_document *)priv->node, &col);
+    if (exc != DOM_NO_ERR || col == NULL) return JS_NULL;
+    JSValue val = qjs_new_htmlcollection(ctx, col);
+    dom_html_collection_unref(col);
+    return val;
+}
+
+static JSValue js_document_forms_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_html_collection *col = NULL;
+    dom_exception exc = dom_html_document_get_forms((dom_html_document *)priv->node, &col);
+    if (exc != DOM_NO_ERR || col == NULL) return JS_NULL;
+    JSValue val = qjs_new_htmlcollection(ctx, col);
+    dom_html_collection_unref(col);
+    return val;
+}
+
+static JSValue js_document_anchors_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_html_collection *col = NULL;
+    dom_exception exc = dom_html_document_get_anchors((dom_html_document *)priv->node, &col);
+    if (exc != DOM_NO_ERR || col == NULL) return JS_NULL;
+    JSValue val = qjs_new_htmlcollection(ctx, col);
+    dom_html_collection_unref(col);
+    return val;
+}
+
 int qjs_init_document(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
@@ -494,6 +648,25 @@ int qjs_init_document(JSContext *ctx)
     JS_SetPropertyFunctionList(ctx, proto, js_document_proto_funcs, sizeof(js_document_proto_funcs) / sizeof(js_document_proto_funcs[0]));
 
     /* Add extra HTMLDocument properties that might not be in document.inc yet */
+    JSValue body_get = JS_NewCFunction2(ctx, (JSCFunction *)js_document_body_get, "body", 0, JS_CFUNC_getter, 0);
+    JSValue body_set = JS_NewCFunction2(ctx, (JSCFunction *)js_document_body_set, "body", 1, JS_CFUNC_setter, 0);
+    JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "body"), body_get, body_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+
+    JSValue title_get = JS_NewCFunction2(ctx, (JSCFunction *)js_document_title_get, "title", 0, JS_CFUNC_getter, 0);
+    JSValue title_set = JS_NewCFunction2(ctx, (JSCFunction *)js_document_title_set, "title", 1, JS_CFUNC_setter, 0);
+    JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "title"), title_get, title_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+
+    JSValue cookie_get = JS_NewCFunction2(ctx, (JSCFunction *)js_document_cookie_get, "cookie", 0, JS_CFUNC_getter, 0);
+    JSValue cookie_set = JS_NewCFunction2(ctx, (JSCFunction *)js_document_cookie_set, "cookie", 1, JS_CFUNC_setter, 0);
+    JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "cookie"), cookie_get, cookie_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+
+    JS_SetPropertyStr(ctx, proto, "referrer", JS_NewCFunction2(ctx, (JSCFunction *)js_document_referrer_get, "referrer", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "domain", JS_NewCFunction2(ctx, (JSCFunction *)js_document_domain_get, "domain", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "getElementsByName", JS_NewCFunction(ctx, js_document_getElementsByName, "getElementsByName", 1));
+    JS_SetPropertyStr(ctx, proto, "images", JS_NewCFunction2(ctx, (JSCFunction *)js_document_images_get, "images", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "links", JS_NewCFunction2(ctx, (JSCFunction *)js_document_links_get, "links", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "forms", JS_NewCFunction2(ctx, (JSCFunction *)js_document_forms_get, "forms", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "anchors", JS_NewCFunction2(ctx, (JSCFunction *)js_document_anchors_get, "anchors", 0, JS_CFUNC_getter, 0));
     JS_SetPropertyStr(ctx, proto, "body", JS_NewCFunction2(ctx, (JSCFunction *)js_document_body_get, "body", 0, JS_CFUNC_getter, 0));
     JS_SetPropertyStr(ctx, proto, "title", JS_NewCFunction2(ctx, (JSCFunction *)js_document_title_get, "title", 0, JS_CFUNC_getter, 0));
     JS_SetPropertyStr(ctx, proto, "cookie", JS_NewCFunction2(ctx, (JSCFunction *)js_document_cookie_get, "cookie", 0, JS_CFUNC_getter, 0));

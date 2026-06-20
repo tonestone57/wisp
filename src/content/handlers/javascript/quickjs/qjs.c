@@ -199,9 +199,12 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_location(t->ctx);
     qjs_init_eventtarget(t->ctx);
     qjs_init_node(t->ctx);
+    qjs_init_attr(t->ctx);
     qjs_init_element(t->ctx);
     qjs_init_text(t->ctx);
     qjs_init_document(t->ctx);
+    qjs_init_namednodemap(t->ctx);
+    qjs_init_htmlcollection(t->ctx);
 
     if (doc_priv) {
         JSValue doc_val = qjs_wrap_node(t->ctx, (dom_node *)doc_priv);

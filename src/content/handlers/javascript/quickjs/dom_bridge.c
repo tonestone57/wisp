@@ -7,6 +7,10 @@
 #include <stdint.h>
 #include "utils/hashmap.h"
 
+JSClassID qjs_attr_class_id;
+JSClassID qjs_namednodemap_class_id;
+JSClassID qjs_htmlcollection_class_id;
+
 typedef struct {
     JSContext *ctx;
     struct dom_node *node;
@@ -76,6 +80,9 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
             break;
         case DOM_TEXT_NODE:
             wrapper = qjs_new_text(ctx, node, true);
+            break;
+        case DOM_ATTRIBUTE_NODE:
+            wrapper = qjs_new_attr(ctx, node, true);
             break;
         default:
             wrapper = qjs_new_node(ctx, node, true);
