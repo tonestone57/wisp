@@ -624,6 +624,7 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 
     c->has_dirty_rect = false;
     c->dirty_rect = (struct rect){0, 0, 0, 0};
+    c->dirty_list = NULL;
 
     pthread_mutex_init(&c->doc_mutex, NULL);
 

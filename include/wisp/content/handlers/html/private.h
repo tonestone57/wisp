@@ -251,6 +251,9 @@ typedef struct html_content {
     /** Linked list of pre-parsed inline SVG diagrams, or NULL */
     struct html_inline_svg *inline_svgs;
 
+    /** Registry of boxes changed during this layout cycle. */
+    struct box *dirty_list;
+
     /** Union of all dirty areas accumulated since last redraw */
     struct rect dirty_rect;
     /** Whether dirty_rect contains valid data */

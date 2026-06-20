@@ -114,7 +114,8 @@ typedef enum {
     DIRTY_INTRINSIC = 1 << 14, /* box needs min/max width recalculation */
     CHILD_DIRTY = 1 << 15, /* box has a dirty descendant */
     DIRTY_LAYOUT = 1 << 16, /* box needs layout/reflow (e.g. bounds changed) */
-    DIRTY = (DIRTY_INTRINSIC | DIRTY_LAYOUT) /* box needs layout/reflow */
+    DIRTY = (DIRTY_INTRINSIC | DIRTY_LAYOUT), /* box needs layout/reflow */
+    BOX_IN_DIRTY_LIST = 1 << 17 /* box is already in the document's dirty list */
 } box_flags;
 
 
@@ -376,6 +377,9 @@ struct box {
 
     /** Next box in the document's sticky registry. */
     struct box *next_sticky;
+
+    /** Next box in the document's dirty accumulation list. */
+    struct box *next_dirty;
 
     /**
      * Margin: TOP, RIGHT, BOTTOM, LEFT.

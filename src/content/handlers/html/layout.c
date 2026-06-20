@@ -116,31 +116,18 @@ const css_border_color_func border_color_funcs[4] = {
 };
 
 /**
- * Accumulate the new absolute bounding box of a box after it has been laid out.
+ * Add a box to the document's dirty list for post-layout bounding box capture.
  */
-static void layout_accumulate_dirty_rect(struct html_content *content, struct box *box)
+static void layout_add_to_dirty_list(struct html_content *content, struct box *box)
 {
-	struct rect r;
-	int x, y;
-
 	if (content == NULL || box == NULL) {
 		return;
 	}
 
-	box_coords(box, &x, &y);
-	r.x0 = x + box->descendant_x0;
-	r.y0 = y + box->descendant_y0;
-	r.x1 = x + box->descendant_x1;
-	r.y1 = y + box->descendant_y1;
-
-	if (content->has_dirty_rect) {
-		if (r.x0 < content->dirty_rect.x0) content->dirty_rect.x0 = r.x0;
-		if (r.y0 < content->dirty_rect.y0) content->dirty_rect.y0 = r.y0;
-		if (r.x1 > content->dirty_rect.x1) content->dirty_rect.x1 = r.x1;
-		if (r.y1 > content->dirty_rect.y1) content->dirty_rect.y1 = r.y1;
-	} else {
-		content->dirty_rect = r;
-		content->has_dirty_rect = true;
+	if (!(box->flags & BOX_IN_DIRTY_LIST)) {
+		box->next_dirty = content->dirty_list;
+		content->dirty_list = box;
+		box->flags |= BOX_IN_DIRTY_LIST;
 	}
 }
 
@@ -2384,11 +2371,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table->width = table_width;
     table->height = table_height;
 
-    /* Calculate bounding boxes for the table and its cells */
-    layout_calculate_descendant_bboxes(&content->unit_len_ctx, table);
-
-    /* Accumulate the NEW bounding box */
-    layout_accumulate_dirty_rect(content, table);
+    /* Add to dirty list for NEW bounding box capture at end of layout */
+    layout_add_to_dirty_list(content, table);
 
     table->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
@@ -4258,11 +4242,8 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
             block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
     }
 
-    /* Calculate bounding boxes for the block and its children */
-    layout_calculate_descendant_bboxes(&content->unit_len_ctx, block);
-
-    /* Accumulate the NEW bounding box */
-    layout_accumulate_dirty_rect(content, block);
+    /* Add to dirty list for NEW bounding box capture at end of layout */
+    layout_add_to_dirty_list(content, block);
 
     block->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
@@ -6033,6 +6014,29 @@ bool layout_document(html_content *content, int width, int height)
 
     layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
     layout_log_final_box_heights(&content->unit_len_ctx, doc);
+
+    /* Process dirty list to capture NEW bounding boxes */
+    struct box *dirty_box = content->dirty_list;
+    while (dirty_box != NULL) {
+	    struct rect r;
+	    int x, y;
+	    box_coords(dirty_box, &x, &y);
+	    r.x0 = x + dirty_box->descendant_x0;
+	    r.y0 = y + dirty_box->descendant_y0;
+	    r.x1 = x + dirty_box->descendant_x1;
+	    r.y1 = y + dirty_box->descendant_y1;
+
+	    if (content->has_dirty_rect) {
+		    ns_rect_union(&content->dirty_rect, &r);
+	    } else {
+		    content->dirty_rect = r;
+		    content->has_dirty_rect = true;
+	    }
+
+	    dirty_box->flags &= ~BOX_IN_DIRTY_LIST;
+	    dirty_box = dirty_box->next_dirty;
+    }
+    content->dirty_list = NULL;
 
     /* Trigger redraw for the accumulated dirty rectangle */
     if (content->has_dirty_rect) {

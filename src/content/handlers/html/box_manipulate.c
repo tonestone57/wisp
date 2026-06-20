@@ -404,17 +404,6 @@ struct html_content *box_get_html_content(struct box *box)
 	return html;
 }
 
-/**
- * Union two rectangles.
- */
-static void rect_union(struct rect *res, const struct rect *r)
-{
-	if (r->x0 < res->x0) res->x0 = r->x0;
-	if (r->y0 < res->y0) res->y0 = r->y0;
-	if (r->x1 > res->x1) res->x1 = r->x1;
-	if (r->y1 > res->y1) res->y1 = r->y1;
-}
-
 void box_mark_dirty(struct box *box)
 {
 	if (box == NULL) {
@@ -426,7 +415,7 @@ void box_mark_dirty(struct box *box)
 		return;
 	}
 
-	/* Accumulate OLD bounding box of dirty element */
+	/* Accumulate OLD bounding box of dirty element and add to dirty list */
 	struct html_content *html = box_get_html_content(box);
 	if (html != NULL) {
 		struct rect r;
@@ -438,10 +427,17 @@ void box_mark_dirty(struct box *box)
 		r.y1 = y + box->descendant_y1;
 
 		if (html->has_dirty_rect) {
-			rect_union(&html->dirty_rect, &r);
+			ns_rect_union(&html->dirty_rect, &r);
 		} else {
 			html->dirty_rect = r;
 			html->has_dirty_rect = true;
+		}
+
+		/* Add to dirty list for post-layout bounding box capture */
+		if (!(box->flags & BOX_IN_DIRTY_LIST)) {
+			box->next_dirty = html->dirty_list;
+			html->dirty_list = box;
+			box->flags |= BOX_IN_DIRTY_LIST;
 		}
 	}
 
