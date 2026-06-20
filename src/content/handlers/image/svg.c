@@ -556,6 +556,12 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
 
             bool has_dash = (diagram->shape[i].stroke_dasharray_set && diagram->shape[i].stroke_dasharray_count > 0);
 
+            if (has_dash) {
+                current_pstyle.stroke_dasharray = diagram->shape[i].stroke_dasharray;
+                current_pstyle.stroke_dasharray_count = diagram->shape[i].stroke_dasharray_count;
+                current_pstyle.stroke_dashoffset = diagram->shape[i].stroke_dashoffset * stroke_scale;
+            }
+
             svgtiny_colour fill_c = diagram->shape[i].fill;
             if (fill_c == svgtiny_CURRENT_COLOR) {
                 current_pstyle.fill_type = PLOT_OP_TYPE_SOLID;
@@ -645,7 +651,8 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
                         float x1 = diagram->shape[i].path[1] * sx; float y1 = diagram->shape[i].path[2] * sy;
                         float x2 = diagram->shape[i].path[4] * sx; float y2 = diagram->shape[i].path[5] * sy;
                         static float sd[16];
-                        for (unsigned int d = 0; d < diagram->shape[i].stroke_dasharray_count; d++) sd[d] = diagram->shape[i].stroke_dasharray[d] * stroke_scale;
+                        for (unsigned int d = 0; d < diagram->shape[i].stroke_dasharray_count && d < 16; d++)
+                            sd[d] = diagram->shape[i].stroke_dasharray[d] * stroke_scale;
                         svg_plot_dashed_line_as_rects(ctx, current_pstyle.stroke_colour, x1, y1, x2, y2, sw, sd, diagram->shape[i].stroke_dasharray_count, diagram->shape[i].stroke_dashoffset * stroke_scale, transform);
                     } else {
                         if (use_stateful) {

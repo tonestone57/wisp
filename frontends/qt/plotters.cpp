@@ -36,7 +36,6 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QRadialGradient>
-#include <stack>
 #include <stddef.h>
 
 extern "C" {
