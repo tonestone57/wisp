@@ -10,20 +10,22 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ![GNU.org](img/wisp_gnu.png?raw=true "GNU.org")
 
 ## Development
-Current development is focused on adding compatibility with modern websites, integrating the QuickJS-ng JS engine and porting to different platforms, most notably modern Windows using Direct2D, OS X, Haiku and Remarkable.
+Current development is focused on adding compatibility with modern websites, completing the CSS Variables implementation, and refining the Incremental Layout engine. We are also working on porting to different platforms, most notably modern Windows using Direct2D, OS X, Haiku, and Remarkable.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
 * Dedicated LibreSSL support
 * Numerous privacy improvements
-* Rewritten build system
+* Rewritten build system (CMake-based)
 * Simplified frontend development
-* **Modern CSS Features**: Integrated support for CSS Grid, Flexbox, `calc()`, and `position: sticky`.
+* **Modern CSS Features**: Native support for CSS Grid, Flexbox, `calc()`, and `position: sticky`.
 * **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support.
+* **Modern Media**: Native AVIF image support via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
 ## Known Issues
 * All other frontends, except for the Qt one on Linux and the GDI one on Windows, are not regularly tested and may have issues.
 * CSS Variables support is partially implemented and undergoing active development.
+* Full incremental layout (dirty bits) is in early implementation and may cause rendering artifacts in some edge cases.
 
 ## Building and installation
 Wisp can be built:
