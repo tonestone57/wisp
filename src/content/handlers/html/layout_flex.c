@@ -2028,8 +2028,8 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
             flex->height = 0;
         }
         layout_flex_ctx__destroy(ctx);
-        flex->flags &= ~(DIRTY | CHILD_DIRTY);
-        return true;
+            flex->flags &= ~(DIRTY | CHILD_DIRTY);
+    return true;
     }
 
     /* Place items onto lines. */

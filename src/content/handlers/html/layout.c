@@ -327,7 +327,6 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
     if (table->max_width != UNKNOWN_MAX_WIDTH && !((table->flags & DIRTY) || (table->flags & CHILD_DIRTY)))
         return;
 
-
     if (table_calculate_column_types(&content->unit_len_ctx, table) == false) {
         NSLOG(wisp, ERROR, "Could not establish table column types.");
         return;
@@ -872,7 +871,6 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
     if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
         return;
 
-
     if (has_height)
         *has_height = false;
 
@@ -929,7 +927,6 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
     /* check if the widths have already been calculated */
     if (block->max_width != UNKNOWN_MAX_WIDTH && !((block->flags & DIRTY) || (block->flags & CHILD_DIRTY)))
         return;
-
 
     if (block->style != NULL) {
         wtype = css_computed_width(block->style, &width, &wunit);
