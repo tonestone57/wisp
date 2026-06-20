@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
+#include <wisp/content/handlers/html/box.h>
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/box_manipulate.h"
 #include "qjs_internal.h"

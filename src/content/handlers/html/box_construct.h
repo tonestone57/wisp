@@ -19,58 +19,18 @@
 /**
  * \file
  * HTML Box tree construction interface.
- *
- * This stage of rendering converts a tree of dom_nodes (produced by libdom)
- * to a tree of struct box. The box tree represents the structure of the
- * document as given by the CSS display and float properties.
- *
- * For example, consider the following HTML:
- * \code
- *   <h1>Example Heading</h1>
- *   <p>Example paragraph <em>with emphasised text</em> etc.</p>       \endcode
- *
- * This would produce approximately the following box tree with default CSS
- * rules:
- * \code
- *   BOX_BLOCK (corresponds to h1)
- *     BOX_INLINE_CONTAINER
- *       BOX_INLINE "Example Heading"
- *   BOX_BLOCK (p)
- *     BOX_INLINE_CONTAINER
- *       BOX_INLINE "Example paragraph "
- *       BOX_INLINE "with emphasised text" (em)
- *       BOX_INLINE "etc."                                             \endcode
- *
- * Note that the em has been collapsed into the INLINE_CONTAINER.
- *
- * If these CSS rules were applied:
- * \code
- *   h1 { display: table-cell }
- *   p { display: table-cell }
- *   em { float: left; width: 5em }                                    \endcode
- *
- * then the box tree would instead look like this:
- * \code
- *   BOX_TABLE
- *     BOX_TABLE_ROW_GROUP
- *       BOX_TABLE_ROW
- *         BOX_TABLE_CELL (h1)
- *           BOX_INLINE_CONTAINER
- *             BOX_INLINE "Example Heading"
- *         BOX_TABLE_CELL (p)
- *           BOX_INLINE_CONTAINER
- *             BOX_INLINE "Example paragraph "
- *             BOX_FLOAT_LEFT (em)
- *               BOX_BLOCK
- *                 BOX_INLINE_CONTAINER
- *                   BOX_INLINE "with emphasised text"
- *             BOX_INLINE "etc."                                       \endcode
- *
- * Here implied boxes have been added and a float is present.
  */
 
 #ifndef WISP_HTML_BOX_CONSTRUCT_H
 #define WISP_HTML_BOX_CONSTRUCT_H
+
+#include <wisp/utils/errors.h>
+#include <wisp/content/handlers/html/box.h>
+
+struct dom_node;
+struct html_content;
+struct dom_string;
+struct nsurl;
 
 /**
  * Construct a box tree from a dom and html content
@@ -81,8 +41,7 @@
  * \param box_conversion_context pointer that recives the conversion context
  * \return netsurf error code indicating status of call
  */
-nserror
-dom_to_box(struct dom_node *n, struct html_content *c, box_construct_complete_cb cb, void **box_conversion_context);
+nserror dom_to_box(struct dom_node *n, struct html_content *c, box_construct_complete_cb cb, void **box_conversion_context);
 
 
 /**

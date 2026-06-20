@@ -25,6 +25,14 @@
 #ifndef WISP_HTML_BOX_MANIPULATE_H
 #define WISP_HTML_BOX_MANIPULATE_H
 
+#include <wisp/utils/errors.h>
+#include <wisp/content/handlers/html/box.h>
+#include <libwapcaplet/libwapcaplet.h>
+
+struct content;
+struct nsurl;
+struct css_select_results;
+struct css_computed_style;
 
 /**
  * Create a box tree node.
@@ -42,7 +50,7 @@
  * styles is always owned by the box, if it is set.
  * style is only owned by the box in the case of implied boxes.
  */
-struct box *box_create(css_select_results *styles, css_computed_style *style, bool style_owned, struct nsurl *href,
+struct box *box_create(struct css_select_results *styles, struct css_computed_style *style, bool style_owned, struct nsurl *href,
     const char *target, const char *title, lwc_string *id, void *context);
 
 
@@ -111,9 +119,3 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
 void box_mark_dirty(struct box *box);
 
 #endif
-
-/**
- * Mark a box as dirty and propagate CHILD_DIRTY to ancestors.
- * \param box The box to mark dirty
- */
-void box_mark_dirty(struct box *box);
