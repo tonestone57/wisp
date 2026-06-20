@@ -317,4 +317,6 @@ css_error css__stylesheet_string_get(css_stylesheet *sheet, uint32_t string_numb
 
 css_error css__stylesheet_string_add(css_stylesheet *sheet, lwc_string *string, uint32_t *string_number);
 
+css_error css__stylesheet_parse_tokens(css_stylesheet *sheet, opcode_t opcode, const parserutils_vector *tokens, css_style **result);
+
 #endif

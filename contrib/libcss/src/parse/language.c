@@ -1964,6 +1964,7 @@ css_error parseCustomProperty(
         if (token->data.data != NULL)
             parserutils_buffer_append(buf, token->data.data, token->data.len);
     }
+
     error = css_error_from_lwc_error(lwc_intern_string((const char *)buf->data, buf->length, &value_str));
     parserutils_buffer_destroy(buf);
     if (error != CSS_OK) return error;

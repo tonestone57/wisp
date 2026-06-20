@@ -15,6 +15,8 @@ static void js_node_finalizer(JSRuntime *rt, JSValue val);
 
 JSClassID qjs_node_class_id;
 
+static void js_node_finalizer(JSRuntime *rt, JSValue val);
+
 #include "node.inc"
 
 static void js_node_finalizer(JSRuntime *rt, JSValue val)

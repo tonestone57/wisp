@@ -2,6 +2,8 @@
 #define WISP_QUICKJS_INTERNAL_H
 
 #include "quickjs.h"
+#include <stdbool.h>
+#include <stdint.h>
 #include "utils/libdom.h"
 #include "content/handlers/javascript/js.h"
 
@@ -26,6 +28,10 @@ struct qjs_event_map {
     JSValue js_evt;
 };
 
+struct jsheap {
+    JSRuntime *rt;
+    int timeout;
+    uint64_t deadline_ms;
 struct qjs_timer {
     JSContext *ctx;
     JSValue func;
@@ -44,6 +50,9 @@ struct jsthread {
     bool closed;
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
+};
+
+void qjs_finalise_dom_bridge(JSContext *ctx);
     struct qjs_timer *timers;
 };
 

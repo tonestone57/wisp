@@ -15,6 +15,8 @@ static void js_document_finalizer(JSRuntime *rt, JSValue val);
 
 static void js_document_finalizer(JSRuntime *rt, JSValue val);
 
+static void js_document_finalizer(JSRuntime *rt, JSValue val);
+
 #include "document.inc"
 
 static void js_document_finalizer(JSRuntime *rt, JSValue val)

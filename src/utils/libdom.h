@@ -24,6 +24,7 @@
 #ifndef WISP_UTILS_LIBDOM_H_
 #define WISP_UTILS_LIBDOM_H_
 
+#include <wisp/utils/errors.h>
 #include <stdbool.h>
 #include <stdio.h>
 

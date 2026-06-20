@@ -48,6 +48,20 @@
 #endif
 
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
+/**
+ * JavaScript heap structure.
+ *
+ * Maps to QuickJS's JSRuntime - one per browser window.
+ */
+
+
+/**
+ * JavaScript thread structure.
+ *
+ * Maps to QuickJS's JSContext - one per browsing context.
+ */
+
+
 
 /**
  * Get the window private data from a JS context.

@@ -17,6 +17,8 @@ static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
 static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
+static void js_element_finalizer(JSRuntime *rt, JSValue val);
+
 #include "element.inc"
 
 static void js_element_finalizer(JSRuntime *rt, JSValue val)

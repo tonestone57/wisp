@@ -11,6 +11,7 @@ typedef struct {
     bool is_dom_node;
 } QJSNodePrivate;
 
+extern JSClassID qjs_eventtarget_class_id;
 extern JSClassID qjs_node_class_id;
 extern JSClassID qjs_element_class_id;
 extern JSClassID qjs_document_class_id;
@@ -36,6 +37,8 @@ JSValue qjs_new_text(JSContext *ctx, void *node, bool is_dom_node);
 JSValue qjs_new_attr(JSContext *ctx, void *node, bool is_dom_node);
 JSValue qjs_new_namednodemap(JSContext *ctx, void *map);
 JSValue qjs_new_htmlcollection(JSContext *ctx, void *col);
+
+void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx);
 
 /**
  * Wrap a libdom node into a QuickJS object.
