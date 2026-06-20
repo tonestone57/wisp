@@ -596,14 +596,132 @@ static nserror nsgtk_plot_text(const struct redraw_context *ctx, const struct pl
 }
 
 
+/**
+ * Push a transformation matrix onto the transform stack.
+ */
+static nserror nsgtk_plot_push_transform(const struct redraw_context *ctx, const float transform[6])
+{
+    cairo_save(current_cr);
+    cairo_matrix_t m;
+    cairo_matrix_init(&m, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+    cairo_transform(current_cr, &m);
+    return NSERROR_OK;
+}
+
+/**
+ * Pop the most recent transform from the transform stack.
+ */
+static nserror nsgtk_plot_pop_transform(const struct redraw_context *ctx)
+{
+    cairo_restore(current_cr);
+    return NSERROR_OK;
+}
+
+/**
+ * Start a new path.
+ */
+static nserror nsgtk_plot_path_begin(const struct redraw_context *ctx)
+{
+    cairo_new_path(current_cr);
+    return NSERROR_OK;
+}
+
+/**
+ * Move the current path point.
+ */
+static nserror nsgtk_plot_path_move_to(const struct redraw_context *ctx, float x, float y)
+{
+    cairo_move_to(current_cr, x, y);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a line to the path.
+ */
+static nserror nsgtk_plot_path_line_to(const struct redraw_context *ctx, float x, float y)
+{
+    cairo_line_to(current_cr, x, y);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a cubic Bezier curve to the path.
+ */
+static nserror nsgtk_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    cairo_curve_to(current_cr, x1, y1, x2, y2, x3, y3);
+    return NSERROR_OK;
+}
+
+/**
+ * Close the current subpath.
+ */
+static nserror nsgtk_plot_path_close(const struct redraw_context *ctx)
+{
+    cairo_close_path(current_cr);
+    return NSERROR_OK;
+}
+
+/**
+ * Fill the current path.
+ */
+static nserror nsgtk_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (pstyle->fill_colour == NS_TRANSPARENT)
+        return NSERROR_OK;
+
+    cairo_save(current_cr);
+    if (transform) {
+        cairo_matrix_t m;
+        cairo_matrix_init(&m, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        cairo_transform(current_cr, &m);
+    }
+    nsgtk_set_colour(pstyle->fill_colour);
+    cairo_fill_preserve(current_cr);
+    cairo_restore(current_cr);
+    return NSERROR_OK;
+}
+
+/**
+ * Stroke the current path.
+ */
+static nserror nsgtk_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (pstyle->stroke_colour == NS_TRANSPARENT)
+        return NSERROR_OK;
+
+    cairo_save(current_cr);
+    if (transform) {
+        cairo_matrix_t m;
+        cairo_matrix_init(&m, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        cairo_transform(current_cr, &m);
+    }
+    nsgtk_set_colour(pstyle->stroke_colour);
+    nsgtk_set_line_width(pstyle->stroke_width);
+    cairo_stroke_preserve(current_cr);
+    cairo_restore(current_cr);
+    return NSERROR_OK;
+}
+
 /** GTK plotter table */
-const struct plotter_table nsgtk_plotters = {.clip = nsgtk_plot_clip,
+const struct plotter_table nsgtk_plotters = {
+    .clip = nsgtk_plot_clip,
     .arc = nsgtk_plot_arc,
     .disc = nsgtk_plot_disc,
     .line = nsgtk_plot_line,
     .rectangle = nsgtk_plot_rectangle,
     .polygon = nsgtk_plot_polygon,
     .path = nsgtk_plot_path,
+    .path_begin = nsgtk_plot_path_begin,
+    .path_move_to = nsgtk_plot_path_move_to,
+    .path_line_to = nsgtk_plot_path_line_to,
+    .path_bezier_to = nsgtk_plot_path_bezier_to,
+    .path_close = nsgtk_plot_path_close,
+    .path_fill = nsgtk_plot_path_fill,
+    .path_stroke = nsgtk_plot_path_stroke,
     .bitmap = nsgtk_plot_bitmap,
     .text = nsgtk_plot_text,
-    .option_knockout = true};
+    .push_transform = nsgtk_plot_push_transform,
+    .pop_transform = nsgtk_plot_pop_transform,
+    .option_knockout = true
+};

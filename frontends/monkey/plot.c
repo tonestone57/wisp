@@ -163,6 +163,69 @@ static nserror monkey_plot_path(const struct redraw_context *ctx, const plot_sty
     return NSERROR_OK;
 }
 
+/**
+ * Start a new path.
+ */
+static nserror monkey_plot_path_begin(const struct redraw_context *ctx)
+{
+    moutf(MOUT_PLOT, "PATH BEGIN");
+    return NSERROR_OK;
+}
+
+/**
+ * Move the current path point.
+ */
+static nserror monkey_plot_path_move_to(const struct redraw_context *ctx, float x, float y)
+{
+    moutf(MOUT_PLOT, "PATH MOVE TO %f %f", x, y);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a line to the path.
+ */
+static nserror monkey_plot_path_line_to(const struct redraw_context *ctx, float x, float y)
+{
+    moutf(MOUT_PLOT, "PATH LINE TO %f %f", x, y);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a cubic Bezier curve to the path.
+ */
+static nserror monkey_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    moutf(MOUT_PLOT, "PATH BEZIER TO %f %f, %f %f, %f %f", x1, y1, x2, y2, x3, y3);
+    return NSERROR_OK;
+}
+
+/**
+ * Close the current subpath.
+ */
+static nserror monkey_plot_path_close(const struct redraw_context *ctx)
+{
+    moutf(MOUT_PLOT, "PATH CLOSE");
+    return NSERROR_OK;
+}
+
+/**
+ * Fill the current path.
+ */
+static nserror monkey_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    moutf(MOUT_PLOT, "PATH FILL COLOUR %x", pstyle->fill_colour);
+    return NSERROR_OK;
+}
+
+/**
+ * Stroke the current path.
+ */
+static nserror monkey_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    moutf(MOUT_PLOT, "PATH STROKE COLOUR %x WIDTH %f", pstyle->stroke_colour, plot_style_fixed_to_float(pstyle->stroke_width));
+    return NSERROR_OK;
+}
+
 
 /**
  * Plot a bitmap
@@ -224,6 +287,13 @@ static const struct plotter_table plotters = {
     .rectangle = monkey_plot_rectangle,
     .polygon = monkey_plot_polygon,
     .path = monkey_plot_path,
+    .path_begin = monkey_plot_path_begin,
+    .path_move_to = monkey_plot_path_move_to,
+    .path_line_to = monkey_plot_path_line_to,
+    .path_bezier_to = monkey_plot_path_bezier_to,
+    .path_close = monkey_plot_path_close,
+    .path_fill = monkey_plot_path_fill,
+    .path_stroke = monkey_plot_path_stroke,
     .bitmap = monkey_plot_bitmap,
     .text = monkey_plot_text,
     .option_knockout = true,

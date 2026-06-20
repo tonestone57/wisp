@@ -46,6 +46,8 @@ extern "C" {
 #warning MAKE ME static
 /*static*/ BView *current_view;
 
+static __thread BShape *stateful_shape = NULL;
+
 /*
  * NOTE: BeOS rects differ from NetSurf ones:
  * the right-bottom pixel is actually part of the BRect!
@@ -694,16 +696,92 @@ static nserror nsbeos_plot_text(const struct redraw_context *ctx, const struct p
 }
 
 
+static nserror nsbeos_plot_path_begin(const struct redraw_context *ctx)
+{
+    if (!stateful_shape) stateful_shape = new BShape();
+    stateful_shape->Clear();
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_path_move_to(const struct redraw_context *ctx, float x, float y)
+{
+    if (stateful_shape) stateful_shape->MoveTo(BPoint(x, y));
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_path_line_to(const struct redraw_context *ctx, float x, float y)
+{
+    if (stateful_shape) stateful_shape->LineTo(BPoint(x, y));
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    if (stateful_shape) {
+        BPoint pts[3] = { BPoint(x1, y1), BPoint(x2, y2), BPoint(x3, y3) };
+        stateful_shape->BezierTo(pts);
+    }
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_path_close(const struct redraw_context *ctx)
+{
+    if (stateful_shape) stateful_shape->Close();
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (!stateful_shape) return NSERROR_OK;
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
+
+    if (pstyle->fill_colour != NS_TRANSPARENT) {
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour));
+        // Transform handling would be needed here for full parity
+        view->FillShape(stateful_shape);
+    }
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (!stateful_shape) return NSERROR_OK;
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
+
+    if (pstyle->stroke_colour != NS_TRANSPARENT) {
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour));
+        view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
+        view->StrokeShape(stateful_shape);
+    }
+    return NSERROR_OK;
+}
+
 /**
  * beos plotter operation table
  */
 const struct plotter_table nsbeos_plotters = {
-    nsbeos_plot_clip, nsbeos_plot_arc, nsbeos_plot_disc, nsbeos_plot_line, nsbeos_plot_rectangle, nsbeos_plot_polygon,
-    nsbeos_plot_path, nsbeos_plot_bitmap, nsbeos_plot_text,
-    NULL, // Group Start
-    NULL, // Group End
-    NULL, // Flush
-    true // option_knockout
+    .clip = nsbeos_plot_clip,
+    .arc = nsbeos_plot_arc,
+    .disc = nsbeos_plot_disc,
+    .line = nsbeos_plot_line,
+    .rectangle = nsbeos_plot_rectangle,
+    .polygon = nsbeos_plot_polygon,
+    .path = nsbeos_plot_path,
+    .path_begin = nsbeos_plot_path_begin,
+    .path_move_to = nsbeos_plot_path_move_to,
+    .path_line_to = nsbeos_plot_path_line_to,
+    .path_bezier_to = nsbeos_plot_path_bezier_to,
+    .path_close = nsbeos_plot_path_close,
+    .path_fill = nsbeos_plot_path_fill,
+    .path_stroke = nsbeos_plot_path_stroke,
+    .bitmap = nsbeos_plot_bitmap,
+    .text = nsbeos_plot_text,
+    .group_start = NULL,
+    .group_end = NULL,
+    .flush = NULL,
+    .option_knockout = true
 };
 
 

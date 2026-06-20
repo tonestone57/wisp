@@ -20,3 +20,7 @@ add_subdirectory(libavif)
 # QuickJS-ng needs to be compiled with -fPIC for linking into shared library
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(quickjs-ng)
+
+set(BLEND2D_STATIC ON CACHE BOOL "")
+set(BLEND2D_NO_INSTALL ON CACHE BOOL "")
+add_subdirectory(blend2d EXCLUDE_FROM_ALL)
