@@ -26,6 +26,8 @@ static void js_text_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
+
 static JSClassDef js_text_class = {
     "Text",
     .finalizer = js_text_finalizer,
@@ -40,14 +42,35 @@ static const JSCFunctionListEntry js_text_proto_funcs[] = {
 
 static JSValue js_text_splitText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Text.splitText() called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_EXCEPTION;
+
+    uint32_t offset = 0;
+    JS_ToUint32(ctx, &offset, argv[0]);
+
+    struct dom_text *result = NULL;
+    dom_exception exc = dom_text_split_text((dom_text *)priv->node, offset, &result);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "dom_text_split_text failed");
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
 }
 
 static JSValue js_text_wholeText_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Text.wholeText getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *text = NULL;
+    dom_exception exc = dom_text_get_whole_text((dom_text *)priv->node, &text);
+
+    if (exc != DOM_NO_ERR || text == NULL) return JS_NULL;
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(text), dom_string_byte_length(text));
+    dom_string_unref(text);
+    return val;
 }
 
 int qjs_init_text(JSContext *ctx)
@@ -85,14 +108,4 @@ JSValue qjs_new_text(JSContext *ctx, void *node, bool is_dom_node)
     priv->node = node; priv->ctx = ctx; priv->is_dom_node = is_dom_node;
     if (is_dom_node && node) dom_node_ref((dom_node *)node);
     JS_SetOpaque(obj, priv); return obj;
-}
-
-    priv->node = node; priv->ctx = ctx;
-    priv->is_dom_node = is_dom_node;
-    if (is_dom_node && node) {
-        dom_node_ref((dom_node *)node);
-    }
-
-    JS_SetOpaque(obj, priv);
-    return obj;
 }

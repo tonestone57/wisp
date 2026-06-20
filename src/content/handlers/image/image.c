@@ -39,6 +39,7 @@
 
 #include "content/handlers/image/avif.h"
 #include "content/handlers/image/svg.h"
+#include "content/handlers/image/video.h"
 #include "content/handlers/image/webp.h"
 
 /**
@@ -108,6 +109,9 @@ nserror image_init(void)
     if (error != NSERROR_OK)
         return error;
 #endif
+error = nsvideo_init();
+    if (error != NSERROR_OK)
+        return error;
 
     return error;
 }

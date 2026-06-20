@@ -275,6 +275,34 @@ static nserror mimesniff__match_avif(const uint8_t *data, size_t len, lwc_string
     return NSERROR_NOT_FOUND;
 }
 
+static nserror
+mimesniff__match_video(const uint8_t *data, size_t len, lwc_string **effective_type)
+{
+	/* mp4 */
+	if (len >= 12 &&
+	    data[4] == 'f' && data[5] == 't' && data[6] == 'y' && data[7] == 'p' &&
+	    data[8] == 'i' && data[9] == 's' && data[10] == 'o' && data[11] == 'm') {
+		*effective_type = lwc_string_ref(corestring_lwc_video_mp4);
+		return NSERROR_OK;
+	}
+
+	/* webm / matroska */
+	if (len >= 4 &&
+	    data[0] == 0x1a && data[1] == 0x45 && data[2] == 0xdf && data[3] == 0xa3) {
+		*effective_type = lwc_string_ref(corestring_lwc_video_webm);
+		return NSERROR_OK;
+	}
+
+	/* ogg */
+	if (len >= 4 &&
+	    data[0] == 'O' && data[1] == 'g' && data[2] == 'g' && data[3] == 'S') {
+		*effective_type = lwc_string_ref(corestring_lwc_video_ogg);
+		return NSERROR_OK;
+	}
+
+	return NSERROR_NOT_FOUND;
+}
+
 static nserror mimesniff__match_unknown(const uint8_t *data, size_t len, bool allow_unsafe, lwc_string **effective_type)
 {
     if (mimesniff__match_unknown_exact(data, len, allow_unsafe, effective_type) == NSERROR_OK)
@@ -284,6 +312,9 @@ static nserror mimesniff__match_unknown(const uint8_t *data, size_t len, bool al
         return NSERROR_OK;
 
     if (mimesniff__match_unknown_riff(data, len, effective_type) == NSERROR_OK)
+        return NSERROR_OK;
+
+    if (mimesniff__match_video(data, len, effective_type) == NSERROR_OK)
         return NSERROR_OK;
 
     if (allow_unsafe == false)
@@ -393,6 +424,11 @@ mimesniff__compute_image(lwc_string *official_type, const uint8_t *data, size_t 
         memcmp(data + SLEN("RIFF????"), "WEBPVP", SLEN("WEBPVP")) == 0) {
         lwc_string_unref(official_type);
         *effective_type = lwc_string_ref(corestring_lwc_image_webp);
+        return NSERROR_OK;
+    }
+
+    if (mimesniff__match_video(data, len, effective_type) == NSERROR_OK) {
+        lwc_string_unref(official_type);
         return NSERROR_OK;
     }
 

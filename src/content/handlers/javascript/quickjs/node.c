@@ -7,8 +7,11 @@
 #include "dom_bridge.h"
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/box_manipulate.h"
+#include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+
+static void js_node_finalizer(JSRuntime *rt, JSValue val);
 
 JSClassID qjs_node_class_id;
 
@@ -22,6 +25,8 @@ static void js_node_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
+
 static QJSNodePrivate *qjs_get_node_priv(JSContext *ctx, JSValueConst val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_node_class_id);
@@ -72,7 +77,7 @@ static JSValue js_node_isEqualNode(JSContext *ctx, JSValueConst this_val, int ar
     QJSNodePrivate *other_priv = qjs_get_node_priv(ctx, argv[0]);
     if (!other_priv || !other_priv->node) return JS_FALSE;
     bool result = false;
-    dom_node_is_equal_node((dom_node *)priv->node, (dom_node *)other_priv->node, &result);
+    dom_node_is_equal((dom_node *)priv->node, (dom_node *)other_priv->node, &result);
     return JS_NewBool(ctx, result);
 }
 
@@ -234,12 +239,20 @@ static JSValue js_node_parentElement_get(JSContext *ctx, JSValueConst this_val)
 {
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
     if (!priv || !priv->node) return JS_UNDEFINED;
-    struct dom_element *parent = NULL;
-    dom_node_get_parent_element((dom_node *)priv->node, &parent);
-    if (parent) {
-        JSValue val = qjs_wrap_node(ctx, (dom_node *)parent);
-        dom_node_unref((dom_node *)parent);
-        return val;
+    struct dom_node *parent = NULL;
+    dom_node_get_parent_node((dom_node *)priv->node, &parent);
+    while (parent) {
+        dom_node_type type;
+        dom_node_get_node_type(parent, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            JSValue val = qjs_wrap_node(ctx, parent);
+            dom_node_unref(parent);
+            return val;
+        }
+        struct dom_node *next_parent = NULL;
+        dom_node_get_parent_node(parent, &next_parent);
+        dom_node_unref(parent);
+        parent = next_parent;
     }
     return JS_NULL;
 }

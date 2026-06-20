@@ -115,6 +115,8 @@ struct beos_scaffolding {
     BControl *forward_button;
     BControl *stop_button;
     BControl *reload_button;
+BButton *media_play_button;
+    BSlider *media_seek_bar;
     BControl *home_button;
 
     NSIconTextControl *url_bar;
@@ -433,6 +435,22 @@ NSBaseView::~NSBaseView()
 void NSBaseView::MessageReceived(BMessage *message)
 {
     switch (message->what) {
+    case NS_MEDIA_PLAY:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            if (c) {
+                if (nsvideo_is_paused(c)) nsvideo_play(c);
+                else nsvideo_pause(c);
+            }
+        }
+        break;
+    case NS_MEDIA_SEEK:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            int32 val = 0;
+            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+        }
+        break;
     case B_SIMPLE_DATA:
     case B_ABOUT_REQUESTED:
     case B_ARGV_RECEIVED:
@@ -682,6 +700,22 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
 {
     BMessage *msg;
     switch (message->what) {
+    case NS_MEDIA_PLAY:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            if (c) {
+                if (nsvideo_is_paused(c)) nsvideo_play(c);
+                else nsvideo_pause(c);
+            }
+        }
+        break;
+    case NS_MEDIA_SEEK:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            int32 val = 0;
+            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+        }
+        break;
     case B_UI_SETTINGS_CHANGED:
         msg = new BMessage(*message);
         nsbeos_pipe_message_top(msg, this, fScaffolding);
@@ -694,6 +728,22 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
 void NSBrowserWindow::MessageReceived(BMessage *message)
 {
     switch (message->what) {
+    case NS_MEDIA_PLAY:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            if (c) {
+                if (nsvideo_is_paused(c)) nsvideo_play(c);
+                else nsvideo_pause(c);
+            }
+        }
+        break;
+    case NS_MEDIA_SEEK:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            int32 val = 0;
+            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+        }
+        break;
     case B_ARGV_RECEIVED:
     case B_REFS_RECEIVED:
     case B_UI_SETTINGS_CHANGED:
@@ -816,6 +866,22 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
 
     NSLOG(wisp, INFO, "nsbeos_scaffolding_dispatch_event() what = 0x%08" PRIx32, message->what);
     switch (message->what) {
+    case NS_MEDIA_PLAY:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            if (c) {
+                if (nsvideo_is_paused(c)) nsvideo_play(c);
+                else nsvideo_pause(c);
+            }
+        }
+        break;
+    case NS_MEDIA_SEEK:
+        {
+            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            int32 val = 0;
+            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+        }
+        break;
     case B_QUIT_REQUESTED:
         nsbeos_scaffolding_destroy(scaffold);
         break;
@@ -2074,11 +2140,22 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->tool_bar->AddChild(g->home_button);
     nButtons++;
 
+    rect.OffsetBySelf(TOOLBAR_HEIGHT, 0);
+    g->media_play_button = new BButton(rect, "play", "P", new BMessage(NS_MEDIA_PLAY));
+    g->tool_bar->AddChild(g->media_play_button);
+    nButtons++;
+
+    rect.OffsetBySelf(TOOLBAR_HEIGHT, 0);
+    rect.right += 100;
+    g->media_seek_bar = new BSlider(rect, "seek", "Seek", new BMessage(NS_MEDIA_SEEK), 0, 100);
+    g->tool_bar->AddChild(g->media_seek_bar);
+    nButtons++;
+
 
     // url bar
     rect = g->tool_bar->Bounds();
-    rect.left += TOOLBAR_HEIGHT * nButtons;
-    rect.right -= TOOLBAR_HEIGHT * 1 + 100;
+    rect.left += TOOLBAR_HEIGHT * nButtons + 100;
+    rect.right -= TOOLBAR_HEIGHT * 1 + 100 + 100;
     rect.InsetBySelf(5, 5);
     message = new BMessage('urle');
     message->AddPointer("scaffolding", g);
@@ -2093,7 +2170,7 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
 
     rect = g->tool_bar->Bounds();
     rect.left = g->url_bar->Frame().right;
-    rect.right -= TOOLBAR_HEIGHT * 1;
+    rect.right -= TOOLBAR_HEIGHT * 1 + 100;
     rect.InsetBy(5, 5);
     message = new BMessage('sear');
     message->AddPointer("scaffolding", g);

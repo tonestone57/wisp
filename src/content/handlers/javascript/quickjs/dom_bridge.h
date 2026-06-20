@@ -7,6 +7,7 @@
 
 typedef struct {
     void *node; /* Pointer to libdom object or other native data */
+    JSContext *ctx;
     bool is_dom_node;
 } QJSNodePrivate;
 
@@ -14,6 +15,8 @@ extern JSClassID qjs_node_class_id;
 extern JSClassID qjs_element_class_id;
 extern JSClassID qjs_document_class_id;
 extern JSClassID qjs_text_class_id;
+extern JSClassID qjs_window_class_id;
+extern JSClassID qjs_eventtarget_class_id;
 
 int qjs_init_node(JSContext *ctx);
 int qjs_init_element(JSContext *ctx);
@@ -36,6 +39,9 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node);
  * Initialize the DOM bridge for a context.
  */
 int qjs_init_dom_bridge(JSContext *ctx);
+
+void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx);
+void qjs_finalise_dom_bridge(JSContext *ctx);
 
 /* Other component initializers */
 int qjs_init_console(JSContext *ctx);
