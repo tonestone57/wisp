@@ -3643,8 +3643,10 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
     assert(block->type == BOX_BLOCK || block->type == BOX_INLINE_BLOCK || block->type == BOX_TABLE_CELL ||
         block->type == BOX_FLEX || block->type == BOX_GRID || block->type == BOX_INLINE_FLEX ||
         block->type == BOX_INLINE_GRID);
-    assert(block->width != UNKNOWN_WIDTH);
-    assert(block->width != AUTO);
+    if (block->width == UNKNOWN_WIDTH || block->width == AUTO) {
+        NSLOG(wisp, ERROR, "block %p has invalid width for layout_block_context: %d", (void *)block, block->width);
+        return false;
+    }
 
     block->float_children = NULL;
     block->cached_place_below_level = 0;
@@ -4642,9 +4644,13 @@ static void layout_compute_offsets(const css_unit_ctx *unit_len_ctx, struct box 
     css_fixed value = 0;
     css_unit unit = CSS_UNIT_PX;
 
-    assert(containing_block->width != UNKNOWN_WIDTH);
-    assert(containing_block->width != AUTO);
-    assert(containing_block->height != AUTO);
+    if (containing_block->width == UNKNOWN_WIDTH || containing_block->width == AUTO ||
+        containing_block->height == AUTO) {
+        NSLOG(wisp, ERROR, "containing_block %p has invalid dimensions for layout_compute_offsets: w=%d, h=%d",
+            (void *)containing_block, containing_block->width, containing_block->height);
+        *top = *right = *bottom = *left = 0;
+        return;
+    }
 
     /* left */
     type = css_computed_left(box->style, &value, &unit);
@@ -5540,8 +5546,11 @@ static void layout_get_box_bbox(
     *desc_x1 = box->padding[LEFT] + box->width + box->padding[RIGHT] + box->border[RIGHT].width;
     *desc_y1 = box->padding[TOP] + box->height + box->padding[BOTTOM] + box->border[BOTTOM].width;
 
-    /* Assert: result must be reasonable */
-    assert(*desc_x1 < 100000000 && "desc_x1 calculation produced huge value");
+    /* result must be reasonable */
+    if (*desc_x1 >= 100000000) {
+        NSLOG(wisp, ERROR, "desc_x1 calculation produced huge value: %d", *desc_x1);
+        *desc_x1 = 1000000;
+    }
 
     /* To stop the top of text getting clipped when css line-height is
      * reduced, we increase the top of the descendant bbox. */
@@ -5587,10 +5596,15 @@ static void layout_update_descendant_bbox(
         overflow_y = css_computed_overflow_y(child->style);
     }
 
-    /* Assert: child's width must be valid before computing bbox */
-    assert(child->width != UNKNOWN_WIDTH && "child has UNKNOWN_WIDTH in layout_update_descendant_bbox");
-    assert(
-        child->width >= -1 && child->width < 100000000 && "child has invalid width in layout_update_descendant_bbox");
+    /* child's width must be valid before computing bbox */
+    if (child->width == UNKNOWN_WIDTH) {
+        NSLOG(wisp, ERROR, "child %p has UNKNOWN_WIDTH in layout_update_descendant_bbox", (void *)child);
+        return;
+    }
+    if (child->width < -1 || child->width >= 100000000) {
+        NSLOG(wisp, ERROR, "child %p has invalid width in layout_update_descendant_bbox: %d", (void *)child, child->width);
+        return;
+    }
 
     /* Get child's border edge */
     layout_get_box_bbox(unit_len_ctx, child, &child_desc_x0, &child_desc_y0, &child_desc_x1, &child_desc_y1);
@@ -5599,8 +5613,11 @@ static void layout_update_descendant_bbox(
         /* get child's descendant bbox relative to box */
         child_desc_x0 = child->descendant_x0;
         child_desc_x1 = child->descendant_x1;
-        /* Assert: child's descendant_x1 must be reasonable */
-        assert(child_desc_x1 < 100000000 && "child has INT_MAX descendant_x1 - propagating to parent");
+        /* child's descendant_x1 must be reasonable */
+        if (child_desc_x1 >= 100000000) {
+            NSLOG(wisp, ERROR, "child %p has INT_MAX descendant_x1 - propagating to parent: %d", (void *)child, child_desc_x1);
+            child_desc_x1 = 1000000;
+        }
     }
     if (overflow_y == CSS_OVERFLOW_VISIBLE && html_object == false) {
         /* get child's descendant bbox relative to box */
@@ -5619,9 +5636,13 @@ static void layout_update_descendant_bbox(
     if (child_desc_y0 < box->descendant_y0)
         box->descendant_y0 = child_desc_y0;
     if (box->descendant_x1 < child_desc_x1) {
-        /* Assert: catch INT_MAX propagation */
-        assert(child_desc_x1 < 100000000 && "About to set box->descendant_x1 to INT_MAX from child");
-        box->descendant_x1 = child_desc_x1;
+        /* catch INT_MAX propagation */
+        if (child_desc_x1 >= 100000000) {
+            NSLOG(wisp, ERROR, "About to set box %p descendant_x1 to huge value from child %p: %d", (void *)box, (void *)child, child_desc_x1);
+            box->descendant_x1 = 1000000;
+        } else {
+            box->descendant_x1 = child_desc_x1;
+        }
     }
     if (box->descendant_y1 < child_desc_y1)
         box->descendant_y1 = child_desc_y1;
@@ -5639,8 +5660,14 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 {
     struct box *child;
 
-    assert(box->width != UNKNOWN_WIDTH);
-    assert(box->height != AUTO);
+    if (box->width == UNKNOWN_WIDTH) {
+        NSLOG(wisp, ERROR, "box %p has UNKNOWN_WIDTH in layout_calculate_descendant_bboxes", (void *)box);
+        return;
+    }
+    if (box->height == AUTO) {
+        NSLOG(wisp, ERROR, "box %p has AUTO height in layout_calculate_descendant_bboxes", (void *)box);
+        return;
+    }
     /* assert((box->width >= 0) && (box->height >= 0)); */
 
     /* Handle boxes with invalid negative width - set descendant to box size to prevent overflow */

@@ -1922,9 +1922,10 @@ static gboolean openfile_button_clicked_cb(GtkWidget *widget, gpointer data)
 
         filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dlgOpen));
 
-        urltxt = malloc(strlen(filename) + FILE_SCHEME_PREFIX_LEN + 1);
+        size_t urltxt_len = strlen(filename) + FILE_SCHEME_PREFIX_LEN + 1;
+        urltxt = malloc(urltxt_len);
         if (urltxt != NULL) {
-            sprintf(urltxt, FILE_SCHEME_PREFIX "%s", filename);
+            snprintf(urltxt, urltxt_len, FILE_SCHEME_PREFIX "%s", filename);
 
             res = nsurl_create(urltxt, &url);
             if (res == NSERROR_OK) {
