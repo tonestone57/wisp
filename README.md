@@ -1,9 +1,9 @@
 # Wisp
 
-This project is a fork of Netsurf with various fixes and improvements, a new JS engine, and a revamped build system.
+Wisp is tackling some of the hardest problems in browser development—bringing modern layout paradigms (Grid, Flexbox, CSS variables) and modern JS to a lightweight, forked codebase. While it maintains the spirit of a lean, portable browser, Wisp aspires to be a first-class citizen of the "modern web".
 
 ## Why?
-Wisp has a different development vision from Netsurf. While Netsurf is a browser for the "old web", Wisp aspires to be a browser for the "modern web".
+Wisp has a different development vision from Netsurf. While Netsurf is a browser for the "old web", Wisp provides a bridge to modern standards without the bloat of mainstream engines.
 We appreciate the philosophy of Netsurf, and intend to keep the spirit of the project alive: a lean, small, and portable browser.
 
 ![Wisp](img/wisp_home.png?raw=true "Wisp Homepage")
@@ -19,8 +19,9 @@ Current development is focused on adding compatibility with modern websites, com
 * Rewritten build system (CMake-based)
 * Simplified frontend development
 * **Modern CSS Features**: Native support for CSS Grid, Flexbox, `calc()`, and `position: sticky`.
-* **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support.
-* **Modern Media**: Native AVIF image support via `libavif` v1.4.2 and FFmpeg-based media pipeline.
+* **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support. Automated WebIDL binding generation ensures rapid coverage of modern DOM APIs.
+* **Incremental Layout**: High-performance "dirty-bit" based reflow system designed to minimize CPU cycles on dynamic modern pages.
+* **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
 ## Known Issues
 * All other frontends, except for the Qt one on Linux and the GDI one on Windows, are not regularly tested and may have issues.

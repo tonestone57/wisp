@@ -23,7 +23,8 @@ An audit of the `contrib/` directory was performed to evaluate the state of bund
 ### JavaScript Engine (`quickjs-ng`)
 *   **Status**: Updated to **v0.15.1**.
 *   **Assessment**: **Up-to-date.**
-*   **Note**: Wisp-specific memory hooks and subsystem bindings are preserved. Previous versions used v0.11.0; the current version provides significant ES2023+ improvements and bug fixes.
+*   **Note**: Wisp-specific memory hooks and subsystem bindings are preserved.
+*   **Modernization Path**: Implementing a lightweight Python-based WebIDL compiler to automate the remaining ~1,500 bindings and prioritize MutationObserver/IntersectionObserver via microtask integration (`JS_ExecutePendingJob`).
 
 ---
 
@@ -39,17 +40,17 @@ An audit of the `contrib/` directory was performed to evaluate the state of bund
 *   **Implementation**: Supported across layout, coordinate calculation (`box_coords`), and rendering. Elements remain fixed within their containing blocks using `sticky_x` and `sticky_y` offsets.
 *   **References**: `src/content/handlers/html/layout.c`, `src/content/handlers/html/redraw.c`.
 
-### AVIF Image Support (Implemented)
+### ISOBMFF Image Support (Implemented)
 *   **Status**: **Fully Integrated.**
-*   **Implementation**: Bundled `libavif` v1.4.2. Core image handling includes ISOBMFF signature sniffing and static image decoding.
+*   **Implementation**: Bundled `libavif` v1.4.2. Core image handling includes generalized ISOBMFF signature sniffing (`mimesniff.c`) supporting AVIF, HEIC, and HEIF brands.
 
-### Windows Rendering Modernization (Implemented)
-*   **Status**: **Fully Integrated.**
-*   **Features**:
-    *   **Transform Stack**: Support for `push_transform` and `pop_transform` using GDI `SetWorldTransform`. This enables CSS transforms and SVG coordinate systems.
-    *   **Linear Gradients**: Native GDI `GradientFill` implementation for linear gradients.
-    *   **Bitmap Tiling**: Corrected tile origin alignment to match Qt/CSS expectations.
-    *   **Transform-aware Clipping**: Inverse-mapping of clip regions when transforms are active.
+### Frontend & Rendering Modernization
+*   **Status**: **Active Development.**
+*   **Implementation**: Abstracting the plotter engine to support diverse backends.
+*   **Target Backends**:
+    *   **Windows**: Moving from GDI to Direct2D/DirectWrite for hardware acceleration and superior text antialiasing.
+    *   **Linux/Cross-Platform**: Evaluating **Blend2D** for non-Qt lean frontends (Framebuffer/Haiku) to leverage JIT-compiled vector graphics.
+    *   **Vector Path API**: Standardizing the plotter vfunc table around path-building syntax (MoveTo, BezierTo) for cleaner SVG rendering.
 
 ---
 
@@ -76,21 +77,48 @@ An audit of the `contrib/` directory was performed to evaluate the state of bund
 2.  **JS Binding Completion**: Continue implementing unimplemented WebIDL bindings (approx. 1500 remaining as per `UnimplementedJavascript.md`), specifically high-value interfaces like `URLSearchParams`, `MutationObserver`, and `IntersectionObserver`.
 3.  **Canvas API**: Implement core 2D canvas drawing methods in the QuickJS subsystem and bridge them to frontend plotters.
 
-### Performance
-1.  **Incremental Layout**: Implement dirty-bit based incremental layout to avoid full reflows on every change. Ensure proper `CHILD_DIRTY` propagation up the box tree (see `plan_dirty_bits.md`).
-2.  **Logging Refactor**: Wrap or demote approximately 80 high-verbosity `NSLOG` traces (currently at `WARNING` or `INFO` levels) in `layout_flex.c` and `layout_grid.c` to `DEEPDEBUG` to reduce log file sizes during normal operation.
-3.  **Arena Alignment**: Audit all arena-based allocations to ensure 16-byte alignment, preventing AddressSanitizer misaligned access errors.
+### Performance & Caching
+1.  **Incremental Layout**: Refining the incremental layout engine using a **Dual-Pass Dirty Bit Strategy** (DIRTY_INTRINSIC vs DIRTY_LAYOUT) to skip down-tree processing when parent-allocated constraints remain stable.
+2.  **Split-Level Caching**: Productionizing the Low-Level vs High-Level cache. Utilizing a zero-copy, append-only journal for low-level storage and `mmap` for larger assets (AVIF/Scripts) to minimize physical memory footprint.
+3.  **Logging Refactor**: Wrap or demote approximately 80 high-verbosity `NSLOG` traces in `layout_flex.c` and `layout_grid.c` to `DEEPDEBUG`.
 
-### Security
-1.  **String Safety**: Complete the migration of the remaining 38 `sprintf` calls to `snprintf`. Priority targets:
-    *   `src/content/urldb.c`: 13 calls in cookie and URL handling.
-    *   `src/desktop/searchweb.c`: 1 call in search URL generation.
-    *   `frontends/windows/download.c`: 4 calls in UI formatting.
-    *   `frontends/gtk/download.c`: 2 calls in path and speed formatting.
-2.  **MIME Sniffing**: Extend AVIF sniffing to support all common ISOBMFF-based image types to prevent MIME-type spoofing.
+### Security & Networking
+1.  **String Safety**: All legacy `sprintf` calls in `src/` and frontends have been migrated to `snprintf`.
+2.  **MIME Sniffing**: Generalized ISOBMFF sniffing is implemented, protecting against spoofing of modern image types.
+3.  **Web Crypto**: Bridging `crypto.subtle` bindings to LibreSSL to satisfy modern authentication and encryption requirements.
+4.  **Networking**: Refactoring the fetch pipeline into an asynchronous, Fetch-API-aligned architecture to move away from legacy blocking loops.
 
 ### Stability
-1.  **Build System Fix**: Resolve a critical compilation error in `src/content/handlers/html/box_manipulate.c` where `box_mark_dirty` is defined twice, currently breaking the build on some platforms.
-2.  **Windows Direct2D**: Implement a Direct2D-based plotter for the Windows frontend to improve rendering performance and support for advanced features like subpixel antialiasing and blur effects.
-3.  **Frontend Parity**: Improve regular testing coverage for non-Qt/GDI frontends (Haiku, Framebuffer, Monkey) to ensure they haven't regressed after core layout changes.
-4.  **Error Handling**: Replace remaining `assert()` calls in layout coordinate calculations with graceful error recovery and `NSLOG` reporting.
+1.  **Windows Direct2D**: Implement a Direct2D-based plotter for the Windows frontend to improve rendering performance and support for advanced features like subpixel antialiasing and blur effects.
+2.  **Frontend Parity**: Improve regular testing coverage for non-Qt/GDI frontends (Haiku, Framebuffer, Monkey) to ensure they haven't regressed after core layout changes.
+
+---
+
+## 5. Strategic Architectural Roadmap
+
+To accelerate Wisp's transition into a competitive modern browser, the following strategic directions are prioritized:
+
+### JS Subsystem: Automating the WebIDL Bottleneck
+*   **Lightweight WebIDL Compiler**: Develop a custom Python script to parse standard WebIDL files and auto-generate QuickJS-ng C bindings, JSClassID registrations, and prototype boilerplate.
+*   **Async/Event Loop Integration**: Ensure the top-level event loop correctly drains the QuickJS microtask queue (`JS_ExecutePendingJob`) after layout/paint cycles to support `MutationObserver` and `IntersectionObserver`.
+
+### Layout Engine: Dual-Pass Incremental Layout
+*   **Refined Dirty Bits**: Implement a **Dual-Pass Dirty Bit Strategy** distinguishing between `DIRTY_INTRINSIC` (content/style changes) and `DIRTY_LAYOUT` (parent-driven constraint changes).
+*   **Down-tree Pruning**: Skip down-tree processing during the layout pass if a node's parent-allocated constraints match its previous run and it lacks its own `DIRTY` bit.
+
+### Caching: Production-Grade Cache
+*   **Zero-Copy Low-Level Storage**: Use an append-only journal file with an in-memory hash map index for the low-level cache to avoid heavy database dependencies.
+*   **Memory-Mapped Files (mmap)**: Utilize `mmap` (POSIX) or `CreateFileMapping` (Windows) for large assets like AVIF images and scripts to minimize physical memory footprint.
+
+### Graphics & Frontend: Abstract Plotter Engine
+Drawing logic in `redraw.c` is being abstracted to support modern hardware-accelerated backends:
+
+| Target Frontend | Suggested Backend | Strategy |
+|---|---|---|
+| **Windows** | Direct2D / DirectWrite | Provides hardware-accelerated rendering and vastly superior subpixel text antialiasing over GDI. |
+| **Linux / Qt** | QPainter / Embedded Blend2D | **Blend2D** is prioritized for non-Qt lean frontends (Framebuffer/Haiku). It utilizes JIT compilation for high-performance vector graphics. |
+| **Cross-Platform** | Abstracted Vector Path API | Ensuring the plotter vfunc table supports native path-building (MoveTo, LineTo, BezierTo) to improve SVG support via `libsvgtiny`. |
+
+### Security & Networking Foundations
+*   **LibreSSL for Web Crypto**: Bridge JavaScript `crypto.subtle` bindings directly to LibreSSL's crypto library for modern authentication support.
+*   **Asynchronous Fetch Pipeline**: Refactor network operations into a modern asynchronous pipeline aligned with the Fetch API paradigm.
