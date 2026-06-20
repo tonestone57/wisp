@@ -2088,5 +2088,9 @@ cleanup:
 
     layout_flex_ctx__destroy(ctx);
 
+    if (success) {
+        flex->flags &= ~(DIRTY | CHILD_DIRTY);
+    }
+
     return success;
 }

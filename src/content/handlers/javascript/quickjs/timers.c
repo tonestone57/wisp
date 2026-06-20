@@ -4,28 +4,18 @@
  * This file is part of NeoSurf, http://www.netsurf-browser.org/
  */
 
-#include "timers.h"
 #include <wisp/utils/log.h>
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
 #include "quickjs.h"
+#include "qjs_internal.h"
+#include "dom_bridge.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 
 extern struct wisp_table *guit;
 
-struct qjs_timer {
-    JSContext *ctx;
-    JSValue func;
-    bool repeat;
-    int interval;
-    int id;
-    bool cancelled;
-    struct qjs_timer *next;
-};
-
-static struct qjs_timer *active_timers = NULL;
 static int next_timer_id = 1;
 
 static void qjs_timer_callback(void *p)
@@ -59,15 +49,18 @@ static void qjs_timer_callback(void *p)
         }
     } else {
         /* Remove from active list and free */
-        struct qjs_timer **prev = &active_timers;
-        struct qjs_timer *curr = active_timers;
-        while (curr) {
-            if (curr == timer) {
-                *prev = curr->next;
-                break;
+        struct jsthread *t = JS_GetContextOpaque(ctx);
+        if (t) {
+            struct qjs_timer **prev = &t->timers;
+            struct qjs_timer *curr = t->timers;
+            while (curr) {
+                if (curr == timer) {
+                    *prev = curr->next;
+                    break;
+                }
+                prev = &curr->next;
+                curr = curr->next;
             }
-            prev = &curr->next;
-            curr = curr->next;
         }
         JS_FreeValue(ctx, timer->func);
         free(timer);
@@ -76,6 +69,9 @@ static void qjs_timer_callback(void *p)
 
 static JSValue js_setTimeout_internal(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, bool repeat)
 {
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return JS_EXCEPTION;
+
     if (argc < 1 || !JS_IsFunction(ctx, argv[0])) {
         return JS_ThrowTypeError(ctx, "Expected function as first argument");
     }
@@ -96,19 +92,19 @@ static JSValue js_setTimeout_internal(JSContext *ctx, JSValueConst this_val, int
     timer->id = next_timer_id++;
     timer->cancelled = false;
 
-    timer->next = active_timers;
-    active_timers = timer;
+    timer->next = t->timers;
+    t->timers = timer;
 
     if (guit && guit->misc && guit->misc->schedule) {
         if (guit->misc->schedule(delay, qjs_timer_callback, timer) != NSERROR_OK) {
-            active_timers = timer->next;
+            t->timers = timer->next;
             JS_FreeValue(ctx, timer->func);
             free(timer);
             return JS_ThrowInternalError(ctx, "Failed to schedule timer");
         }
     } else {
         NSLOG(wisp, WARNING, "No GUI scheduler available for timers");
-        active_timers = timer->next;
+        t->timers = timer->next;
         JS_FreeValue(ctx, timer->func);
         free(timer);
         return JS_UNDEFINED;
@@ -129,11 +125,14 @@ static JSValue js_setInterval(JSContext *ctx, JSValueConst this_val, int argc, J
 
 static JSValue js_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return JS_UNDEFINED;
+
     if (argc < 1) return JS_UNDEFINED;
     int32_t id;
     JS_ToInt32(ctx, &id, argv[0]);
 
-    struct qjs_timer *curr = active_timers;
+    struct qjs_timer *curr = t->timers;
     while (curr) {
         if (curr->id == id) {
             curr->cancelled = true;
@@ -143,6 +142,11 @@ static JSValue js_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, 
         curr = curr->next;
     }
     return JS_UNDEFINED;
+}
+
+static JSValue js_clearInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    return js_clearTimeout(ctx, this_val, argc, argv);
 }
 
 int qjs_init_timers(JSContext *ctx)

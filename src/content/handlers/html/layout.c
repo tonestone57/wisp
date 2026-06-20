@@ -1740,6 +1740,13 @@ static void layout_block_find_dimensions(
     struct box_border *border = box->border;
     const css_computed_style *style = box->style;
 
+    if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width && !(box->flags & DIRTY) &&
+        !(box->flags & CHILD_DIRTY)) {
+        return;
+    }
+
+    box->last_available_width = available_width;
+
     layout_find_dimensions(unit_len_ctx, available_width, viewport_height, box, style, &width, &height, &max_width,
         &min_width, &max_height, &min_height, margin, padding, border);
 
@@ -5905,6 +5912,13 @@ bool layout_document(html_content *content, int width, int height)
 
     NSLOG(layout, DEBUG, "Doing layout to %ix%i of %s", width, height, nsurl_access(content_get_url(&content->base)));
 
+    if (content->had_initial_layout && width == content->last_layout_width && height == content->last_layout_height &&
+        !(doc->flags & DIRTY) && !(doc->flags & CHILD_DIRTY)) {
+        NSLOG(layout, DEBUG, "layout_document: SKIPPING full reflow (not dirty and same dimensions)");
+        NSLOG(wisp, DEBUG, "PROFILER: STOP layout_document %p (SKIPPED)", content);
+        return true;
+    }
+
     layout_minmax_block(doc, font_func, content);
 
     layout_block_find_dimensions(&content->unit_len_ctx, width, height, 0, 0, doc);
@@ -5944,6 +5958,12 @@ bool layout_document(html_content *content, int width, int height)
 
     layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
     layout_log_final_box_heights(&content->unit_len_ctx, doc);
+
+    doc->flags &= ~(DIRTY | CHILD_DIRTY);
+
+    content->had_initial_layout = true;
+    content->last_layout_width = width;
+    content->last_layout_height = height;
 
     NSLOG(wisp, DEBUG, "PROFILER: STOP layout_document %p", content);
 

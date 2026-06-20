@@ -4,6 +4,14 @@
 #include "quickjs.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include "utils/libdom.h"
+#include "content/handlers/javascript/js.h"
+
+struct jsheap {
+    JSRuntime *rt;
+    int timeout;
+    uint64_t deadline_ms;
+};
 
 struct qjs_event_listener_ctx {
     struct qjs_event_listener_ctx *next;
@@ -24,6 +32,14 @@ struct jsheap {
     JSRuntime *rt;
     int timeout;
     uint64_t deadline_ms;
+struct qjs_timer {
+    JSContext *ctx;
+    JSValue func;
+    bool repeat;
+    int interval;
+    int id;
+    bool cancelled;
+    struct qjs_timer *next;
 };
 
 struct jsthread {
@@ -37,5 +53,10 @@ struct jsthread {
 };
 
 void qjs_finalise_dom_bridge(JSContext *ctx);
+    struct qjs_timer *timers;
+};
+
+void *qjs_get_window_priv(JSContext *ctx);
+void *qjs_get_document_priv(JSContext *ctx);
 
 #endif /* WISP_QUICKJS_INTERNAL_H */

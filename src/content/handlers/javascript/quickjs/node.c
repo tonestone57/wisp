@@ -5,8 +5,13 @@
 #include <stdint.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
+#include "content/handlers/html/box_construct.h"
+#include "content/handlers/html/box_manipulate.h"
+#include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+
+static void js_node_finalizer(JSRuntime *rt, JSValue val);
 
 JSClassID qjs_node_class_id;
 
@@ -23,6 +28,7 @@ static void js_node_finalizer(JSRuntime *rt, JSValue val)
         free(priv);
     }
 }
+
 static QJSNodePrivate *qjs_get_node_priv(JSContext *ctx, JSValueConst val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_node_class_id);
@@ -73,7 +79,7 @@ static JSValue js_node_isEqualNode(JSContext *ctx, JSValueConst this_val, int ar
     QJSNodePrivate *other_priv = qjs_get_node_priv(ctx, argv[0]);
     if (!other_priv || !other_priv->node) return JS_FALSE;
     bool result = false;
-    dom_node_is_equal_node((dom_node *)priv->node, (dom_node *)other_priv->node, &result);
+    dom_node_is_equal((dom_node *)priv->node, (dom_node *)other_priv->node, &result);
     return JS_NewBool(ctx, result);
 }
 
@@ -126,6 +132,7 @@ static JSValue js_node_insertBefore(JSContext *ctx, JSValueConst this_val, int a
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_insert_before((dom_node *)priv->node, (dom_node *)new_priv->node, ref_node, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_insert_before failed");
+    { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
     if (result) dom_node_unref(result);
     return JS_DupValue(ctx, argv[0]);
 }
@@ -139,6 +146,7 @@ static JSValue js_node_appendChild(JSContext *ctx, JSValueConst this_val, int ar
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_append_child((dom_node *)priv->node, (dom_node *)child_priv->node, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
+    { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
     if (result) dom_node_unref(result);
     return JS_DupValue(ctx, argv[0]);
 }
@@ -153,6 +161,7 @@ static JSValue js_node_replaceChild(JSContext *ctx, JSValueConst this_val, int a
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_replace_child((dom_node *)priv->node, (dom_node *)new_priv->node, (dom_node *)old_priv->node, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_replace_child failed");
+    { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
     if (result) dom_node_unref(result);
     return JS_DupValue(ctx, argv[1]);
 }
@@ -166,6 +175,7 @@ static JSValue js_node_removeChild(JSContext *ctx, JSValueConst this_val, int ar
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_remove_child((dom_node *)priv->node, (dom_node *)child_priv->node, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_remove_child failed");
+    { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
     if (result) dom_node_unref(result);
     return JS_DupValue(ctx, argv[0]);
 }
@@ -231,12 +241,20 @@ static JSValue js_node_parentElement_get(JSContext *ctx, JSValueConst this_val)
 {
     QJSNodePrivate *priv = qjs_get_node_priv(ctx, this_val);
     if (!priv || !priv->node) return JS_UNDEFINED;
-    struct dom_element *parent = NULL;
-    dom_node_get_parent_element((dom_node *)priv->node, &parent);
-    if (parent) {
-        JSValue val = qjs_wrap_node(ctx, (dom_node *)parent);
-        dom_node_unref((dom_node *)parent);
-        return val;
+    struct dom_node *parent = NULL;
+    dom_node_get_parent_node((dom_node *)priv->node, &parent);
+    while (parent) {
+        dom_node_type type;
+        dom_node_get_node_type(parent, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            JSValue val = qjs_wrap_node(ctx, parent);
+            dom_node_unref(parent);
+            return val;
+        }
+        struct dom_node *next_parent = NULL;
+        dom_node_get_parent_node(parent, &next_parent);
+        dom_node_unref(parent);
+        parent = next_parent;
     }
     return JS_NULL;
 }
@@ -355,6 +373,7 @@ static JSValue js_node_textContent_set(JSContext *ctx, JSValueConst this_val, JS
         dom_string *dstr = NULL;
         dom_string_create((const uint8_t *)str, strlen(str), &dstr);
         dom_node_set_text_content((dom_node *)priv->node, dstr);
+        { struct box *b = box_for_node((dom_node *)priv->node); if (b) box_mark_dirty(b); }
         dom_string_unref(dstr);
         JS_FreeCString(ctx, str);
     }
