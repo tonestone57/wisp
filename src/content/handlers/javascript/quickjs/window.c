@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
+#include "crypto.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 

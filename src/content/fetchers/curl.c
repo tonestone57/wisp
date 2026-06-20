@@ -2021,6 +2021,8 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_NOSIGNAL, 1L);
     SETOPT(CURLOPT_CONNECTTIMEOUT, (long)nsoption_uint(curl_fetch_timeout));
     SETOPT(CURLOPT_TIMEOUT, 300L);
+    /* Enable asynchronous DNS resolving for modern pipeline responsiveness */
+    SETOPT(CURLOPT_DNS_CACHE_TIMEOUT, 60L);
     SETOPT(CURLOPT_OPENSOCKETFUNCTION, fetch_curl_socket_open);
     SETOPT(CURLOPT_CLOSESOCKETFUNCTION, fetch_curl_socket_close);
 

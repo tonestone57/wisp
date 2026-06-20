@@ -172,6 +172,37 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
  */
 void fetch_abort(struct fetch *f);
 
+/**
+ * Fetch request structure for modern Fetch API parity
+ */
+struct fetch_request {
+    nsurl *url;
+    char *method;
+    struct fetch_multipart_data *postdata;
+    const char **headers;
+    bool no_cache;
+};
+
+/**
+ * Fetch response structure for modern Fetch API parity
+ */
+struct fetch_response {
+    long http_code;
+    const uint8_t *header_buf;
+    size_t header_len;
+    const uint8_t *data_buf;
+    size_t data_len;
+};
+
+typedef void (*fetch_pipeline_callback)(const struct fetch_response *res, void *p);
+
+/**
+ * Start an asynchronous fetch via the new pipeline.
+ *
+ * This decouples from legacy hlcache/llcache loops.
+ */
+nserror fetch_pipeline_start(struct fetch_request *req, fetch_pipeline_callback callback, void *p, struct fetch **f_out);
+
 
 /**
  * Check if a URL's scheme can be fetched.

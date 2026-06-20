@@ -943,6 +943,46 @@ START_TEST(test_quickjs_dom_identity)
 }
 END_TEST
 
+/**
+ * Test Crypto API.
+ */
+START_TEST(test_quickjs_crypto)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = js_newthread(heap, NULL, NULL, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test crypto object exists */
+    const char *code1 = "typeof crypto === 'object' && typeof crypto.subtle === 'object'";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_crypto_exists");
+    ck_assert(result == true);
+
+    /* Test getRandomValues */
+    const char *code2 = "var arr = new Uint8Array(8); crypto.getRandomValues(arr); var sum = 0; for(var i=0; i<8; i++) sum += arr[i]; sum > 0;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_getRandomValues");
+    ck_assert(result == true);
+
+    /* Test subtle.digest */
+    const char *code3 = "var data = new Uint8Array([1, 2, 3]); crypto.subtle.digest('SHA-256', data).then(h => { window.hashLen = h.byteLength; });";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_digest");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_dom_attributes)
 {
     jsheap *heap = NULL;
@@ -1015,6 +1055,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_event_target_full);
     tcase_add_test(tc_window, test_quickjs_xhr);
     tcase_add_test(tc_window, test_quickjs_events_dispatch);
+
+    tcase_add_test(tc_window, test_quickjs_crypto);
 
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
