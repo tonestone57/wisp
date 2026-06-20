@@ -387,27 +387,3 @@ void box_mark_dirty(struct box *box)
         parent = parent->parent;
     }
 }
-
-void box_mark_dirty(struct box *box)
-{
-    if (box == NULL) {
-        return;
-    }
-
-    if (box->flags & DIRTY) {
-        /* Already dirty, no need to propagate */
-        return;
-    }
-
-    box->flags |= DIRTY;
-
-    struct box *parent = box->parent;
-    while (parent != NULL) {
-        if (parent->flags & CHILD_DIRTY) {
-            /* Ancestor already knows it has a dirty child, stop propagating */
-            break;
-        }
-        parent->flags |= CHILD_DIRTY;
-        parent = parent->parent;
-    }
-}
