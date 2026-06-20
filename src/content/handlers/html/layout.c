@@ -324,7 +324,7 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
     struct box *row_group, *row, *cell;
 
     /* check if the widths have already been calculated */
-    if (table->max_width != UNKNOWN_MAX_WIDTH && !((table->flags & DIRTY) || (table->flags & CHILD_DIRTY)))
+    if (table->max_width != UNKNOWN_MAX_WIDTH && !((table->flags & DIRTY_INTRINSIC) || (table->flags & CHILD_DIRTY)))
         return;
 
     if (table_calculate_column_types(&content->unit_len_ctx, table) == false) {
@@ -868,7 +868,7 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
     assert(inline_container->type == BOX_INLINE_CONTAINER);
 
     /* check if the widths have already been calculated */
-    if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY) || (inline_container->flags & CHILD_DIRTY)))
+    if (inline_container->max_width != UNKNOWN_MAX_WIDTH && !((inline_container->flags & DIRTY_INTRINSIC) || (inline_container->flags & CHILD_DIRTY)))
         return;
 
     if (has_height)
@@ -925,7 +925,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
         block->type == BOX_TABLE_CELL);
 
     /* check if the widths have already been calculated */
-    if (block->max_width != UNKNOWN_MAX_WIDTH && !((block->flags & DIRTY) || (block->flags & CHILD_DIRTY)))
+    if (block->max_width != UNKNOWN_MAX_WIDTH && !((block->flags & DIRTY_INTRINSIC) || (block->flags & CHILD_DIRTY)))
         return;
 
     if (block->style != NULL) {
@@ -1262,7 +1262,7 @@ void layout_minmax_box(struct box *box, const struct gui_layout_table *font_func
 {
 
     /* Check if already calculated */
-    if (box->max_width != UNKNOWN_MAX_WIDTH && !((box->flags & DIRTY) || (box->flags & CHILD_DIRTY)))
+    if (box->max_width != UNKNOWN_MAX_WIDTH && !((box->flags & DIRTY_INTRINSIC) || (box->flags & CHILD_DIRTY)))
         return;
 
     switch (box->type) {
@@ -1740,7 +1740,9 @@ static void layout_block_find_dimensions(
     struct box_border *border = box->border;
     const css_computed_style *style = box->style;
 
-    if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width && !(box->flags & DIRTY) &&
+    int prev_width = box->width;
+
+    if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width && !(box->flags & DIRTY_INTRINSIC) &&
         !(box->flags & CHILD_DIRTY)) {
         return;
     }
@@ -1798,6 +1800,10 @@ static void layout_block_find_dimensions(
 
     box->width = layout_solve_width(box, available_width, width, lm, rm, max_width, min_width.value);
     box->height = height;
+
+    if (box->width != prev_width) {
+        box->flags |= DIRTY_LAYOUT;
+    }
 
     if (margin[TOP] == AUTO)
         margin[TOP] = 0;
@@ -1871,7 +1877,7 @@ static void layout_move_children(struct box *box, int x, int y)
 /* Documented in layout_internal.h */
 bool layout_table(struct box *table, int available_width, html_content *content)
 {
-    if (!(table->flags & DIRTY) && !(table->flags & CHILD_DIRTY)) {
+    if (!(table->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(table->flags & CHILD_DIRTY)) {
         return true;
     }
 
@@ -2348,7 +2354,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     table->width = table_width;
     table->height = table_height;
 
-    table->flags &= ~(DIRTY | CHILD_DIRTY);
+    table->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
     return true;
 }
@@ -3556,7 +3562,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 static bool layout_inline_container(
     struct box *inline_container, int width, struct box *cont, int cx, int cy, html_content *content)
 {
-    if (!(inline_container->flags & DIRTY) && !(inline_container->flags & CHILD_DIRTY)) {
+    if (!(inline_container->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(inline_container->flags & CHILD_DIRTY)) {
         return true;
     }
 
@@ -3616,7 +3622,7 @@ static bool layout_inline_container(
         inline_container, inline_container->parent, inline_container->y, inline_container->height,
         inline_container->parent ? inline_container->parent->list_marker : NULL);
 
-    inline_container->flags &= ~(DIRTY | CHILD_DIRTY);
+    inline_container->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
     return true;
 }
 
@@ -3636,7 +3642,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
     css_fixed gadget_size;
     css_unit gadget_unit; /* Checkbox / radio buttons */
 
-    if (!(block->flags & DIRTY) && !(block->flags & CHILD_DIRTY)) {
+    if (!(block->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(block->flags & CHILD_DIRTY)) {
         return true;
     }
 
@@ -4216,7 +4222,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
             block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
     }
 
-    block->flags &= ~(DIRTY | CHILD_DIRTY);
+    block->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
     return true;
 }
@@ -5940,7 +5946,7 @@ bool layout_document(html_content *content, int width, int height)
     NSLOG(layout, DEBUG, "Doing layout to %ix%i of %s", width, height, nsurl_access(content_get_url(&content->base)));
 
     if (content->had_initial_layout && width == content->last_layout_width && height == content->last_layout_height &&
-        !(doc->flags & DIRTY) && !(doc->flags & CHILD_DIRTY)) {
+        !(doc->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(doc->flags & CHILD_DIRTY)) {
         NSLOG(layout, DEBUG, "layout_document: SKIPPING full reflow (not dirty and same dimensions)");
         NSLOG(wisp, DEBUG, "PROFILER: STOP layout_document %p (SKIPPED)", content);
         return true;
@@ -5986,7 +5992,7 @@ bool layout_document(html_content *content, int width, int height)
     layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
     layout_log_final_box_heights(&content->unit_len_ctx, doc);
 
-    doc->flags &= ~(DIRTY | CHILD_DIRTY);
+    doc->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
     content->had_initial_layout = true;
     content->last_layout_width = width;

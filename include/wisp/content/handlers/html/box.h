@@ -111,8 +111,10 @@ typedef enum {
     CONVERT_CHILDREN = 1 << 11, /* wanted children converting */
     IS_REPLACED = 1 << 12, /* box is a replaced element */
         HEIGHT_STRETCHED = 1 << 13 /* height was set by parent's cross-axis stretch */,
-    DIRTY = 1 << 14, /* box needs layout/reflow */
-    CHILD_DIRTY = 1 << 15 /* box has a dirty descendant */
+    DIRTY_INTRINSIC = 1 << 14, /* box needs min/max width recalculation */
+    CHILD_DIRTY = 1 << 15, /* box has a dirty descendant */
+    DIRTY_LAYOUT = 1 << 16, /* box needs layout/reflow (e.g. bounds changed) */
+    DIRTY = (DIRTY_INTRINSIC | DIRTY_LAYOUT) /* box needs layout/reflow */
 } box_flags;
 
 

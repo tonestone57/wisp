@@ -419,7 +419,7 @@ void layout_minmax_grid(struct box *grid, const struct gui_layout_table *font_fu
     assert(grid->type == BOX_GRID || grid->type == BOX_INLINE_GRID);
 
     /* Already calculated? */
-    if (grid->max_width != UNKNOWN_MAX_WIDTH)
+    if (grid->max_width != UNKNOWN_MAX_WIDTH && !((grid->flags & DIRTY_INTRINSIC) || (grid->flags & CHILD_DIRTY)))
         return;
 
     num_cols = layout_grid_get_column_count(grid);
@@ -677,7 +677,7 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 
 bool layout_grid(struct box *grid, int available_width, html_content *content)
 {
-    if (!(grid->flags & DIRTY) && !(grid->flags & CHILD_DIRTY)) {
+    if (!(grid->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(grid->flags & CHILD_DIRTY)) {
         return true;
     }
 
@@ -1424,6 +1424,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
     free(row_heights);
     free(col_widths);
 
-    grid->flags &= ~(DIRTY | CHILD_DIRTY);
+    grid->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
     return true;
 }

@@ -1939,7 +1939,7 @@ static int flex_item_cmp(const void *a, const void *b)
 
 bool layout_flex(struct box *flex, int available_width, html_content *content)
 {
-    if (!(flex->flags & DIRTY) && !(flex->flags & CHILD_DIRTY)) {
+    if (!(flex->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(flex->flags & CHILD_DIRTY)) {
         return true;
     }
 
@@ -2028,7 +2028,7 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
             flex->height = 0;
         }
         layout_flex_ctx__destroy(ctx);
-            flex->flags &= ~(DIRTY | CHILD_DIRTY);
+            flex->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
     return true;
     }
 
@@ -2089,7 +2089,7 @@ cleanup:
     layout_flex_ctx__destroy(ctx);
 
     if (success) {
-        flex->flags &= ~(DIRTY | CHILD_DIRTY);
+        flex->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
     }
 
     return success;

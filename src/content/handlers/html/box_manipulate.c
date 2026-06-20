@@ -370,12 +370,12 @@ void box_mark_dirty(struct box *box)
         return;
     }
 
-    if (box->flags & DIRTY) {
+    if (box->flags & DIRTY_INTRINSIC) {
         /* Already dirty, no need to propagate */
         return;
     }
 
-    box->flags |= DIRTY;
+    box->flags |= DIRTY_INTRINSIC;
 
     struct box *parent = box->parent;
     while (parent != NULL) {
