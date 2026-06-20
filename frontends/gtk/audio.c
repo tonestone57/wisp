@@ -9,7 +9,7 @@ static pa_simple *pa_s = NULL;
 
 static bool nsgtk_audio_init(int rate, int channels) {
     pa_sample_spec ss;
-    ss.format = PA_SAMPLE_S16LE;
+    ss.format = PA_SAMPLE_FLOAT32LE;
     ss.rate = rate;
     ss.channels = channels;
 
@@ -32,6 +32,7 @@ static void nsgtk_audio_play(const void *data, size_t size) {
 
 static void nsgtk_audio_fini(void) {
     if (pa_s) {
+        pa_simple_drain(pa_s, NULL);
         pa_simple_free(pa_s);
         pa_s = NULL;
     }

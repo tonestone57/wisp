@@ -196,6 +196,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	desktop/global_history.c
 	desktop/treeview.c
 	desktop/page-info.c
+	desktop/browser_window.c
 	desktop/browser.c
 	desktop/browser_history.c
 	desktop/download.c

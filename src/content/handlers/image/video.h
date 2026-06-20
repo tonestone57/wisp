@@ -20,7 +20,16 @@
 #define WISP_IMAGE_VIDEO_H_
 
 #include <wisp/utils/errors.h>
+#include <wisp/content.h>
 
 nserror nsvideo_init(void);
+
+void nsvideo_play(struct content *c);
+void nsvideo_pause(struct content *c);
+void nsvideo_seek_to(struct content *c, double time);
+void nsvideo_set_volume(struct content *c, float volume);
+double nsvideo_get_duration(struct content *c);
+double nsvideo_get_time(struct content *c);
+bool nsvideo_is_paused(struct content *c);
 
 #endif
