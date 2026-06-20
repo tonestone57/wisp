@@ -727,6 +727,125 @@ void fetch_set_http_code(struct fetch *fetch, long http_code)
 }
 
 
+struct fetch_pipeline_context {
+    fetch_pipeline_callback callback;
+    void *p;
+    struct fetch *f;
+    struct fetch_response response;
+    uint8_t *header_data;
+    size_t header_alloc;
+    uint8_t *body_data;
+    size_t body_alloc;
+};
+
+static void fetch_pipeline_callback_wrapper(const fetch_msg *msg, void *p)
+{
+    struct fetch_pipeline_context *ctx = p;
+    uint8_t *new_ptr;
+    size_t required;
+
+    switch (msg->type) {
+    case FETCH_HEADER:
+        required = ctx->response.header_len + msg->data.header_or_data.len;
+        if (required > ctx->header_alloc) {
+            size_t new_alloc = ctx->header_alloc;
+            while (new_alloc < required) new_alloc *= 2;
+            new_ptr = realloc(ctx->header_data, new_alloc);
+            if (!new_ptr) {
+                fetch_abort(ctx->f);
+                return;
+            }
+            ctx->header_data = new_ptr;
+            ctx->header_alloc = new_alloc;
+        }
+        memcpy(ctx->header_data + ctx->response.header_len, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+        ctx->response.header_len += msg->data.header_or_data.len;
+        break;
+
+    case FETCH_DATA:
+        required = ctx->response.data_len + msg->data.header_or_data.len;
+        if (required > ctx->body_alloc) {
+            size_t new_alloc = ctx->body_alloc;
+            while (new_alloc < required) new_alloc *= 2;
+            new_ptr = realloc(ctx->body_data, new_alloc);
+            if (!new_ptr) {
+                fetch_abort(ctx->f);
+                return;
+            }
+            ctx->body_data = new_ptr;
+            ctx->body_alloc = new_alloc;
+        }
+        memcpy(ctx->body_data + ctx->response.data_len, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+        ctx->response.data_len += msg->data.header_or_data.len;
+        break;
+
+    case FETCH_FINISHED:
+        ctx->response.http_code = fetch_http_code(ctx->f);
+        ctx->response.header_buf = ctx->header_data;
+        ctx->response.data_buf = ctx->body_data;
+        ctx->callback(&ctx->response, ctx->p);
+        free(ctx->header_data);
+        free(ctx->body_data);
+        free(ctx);
+        break;
+
+    case FETCH_ERROR:
+        ctx->callback(NULL, ctx->p);
+        free(ctx->header_data);
+        free(ctx->body_data);
+        free(ctx);
+        break;
+
+    default:
+        break;
+    }
+}
+
+nserror fetch_pipeline_start(struct fetch_request *req, fetch_pipeline_callback callback, void *p, struct fetch **f_out)
+{
+    struct fetch_pipeline_context *ctx;
+    struct fetch_postdata post;
+    nserror res;
+
+    ctx = calloc(1, sizeof(*ctx));
+    if (!ctx) return NSERROR_NOMEM;
+
+    ctx->callback = callback;
+    ctx->p = p;
+
+    post.type = req->postdata ? FETCH_POSTDATA_MULTIPART : FETCH_POSTDATA_NONE;
+    post.data.multipart = req->postdata;
+
+    /* Initial allocations for geometric growth */
+    ctx->header_alloc = 1024;
+    ctx->header_data = malloc(ctx->header_alloc);
+    if (!ctx->header_data) {
+        free(ctx);
+        return NSERROR_NOMEM;
+    }
+
+    ctx->body_alloc = 4096;
+    ctx->body_data = malloc(ctx->body_alloc);
+    if (!ctx->body_data) {
+        free(ctx->header_data);
+        free(ctx);
+        return NSERROR_NOMEM;
+    }
+
+    /* Map req->method and no_cache to fetch_start parameters.
+       Note: fetch_start uses post_urlenc/post_multipart to determine POST.
+       We map verifiable=true for no_cache to bypass some internal persistence. */
+    res = fetch_start(req->url, NULL, fetch_pipeline_callback_wrapper, ctx, false, &post, req->no_cache, false, req->headers, &ctx->f);
+    if (res != NSERROR_OK) {
+        free(ctx);
+        return res;
+    }
+
+    if (f_out) *f_out = ctx->f;
+
+    return NSERROR_OK;
+}
+
 /* exported interface documented in content/fetch.h */
 void fetch_set_cookie(struct fetch *fetch, const char *data)
 {

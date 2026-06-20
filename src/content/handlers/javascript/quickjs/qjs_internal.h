@@ -13,6 +13,16 @@ struct jsheap {
     uint64_t deadline_ms;
 };
 
+struct qjs_timer {
+    JSContext *ctx;
+    JSValue func;
+    bool repeat;
+    int interval;
+    int id;
+    bool cancelled;
+    struct qjs_timer *next;
+};
+
 struct qjs_event_listener_ctx {
     struct qjs_event_listener_ctx *next;
     struct jsthread *thread;
@@ -28,20 +38,6 @@ struct qjs_event_map {
     JSValue js_evt;
 };
 
-struct jsheap {
-    JSRuntime *rt;
-    int timeout;
-    uint64_t deadline_ms;
-struct qjs_timer {
-    JSContext *ctx;
-    JSValue func;
-    bool repeat;
-    int interval;
-    int id;
-    bool cancelled;
-    struct qjs_timer *next;
-};
-
 struct jsthread {
     JSContext *ctx;
     struct jsheap *heap;
@@ -50,11 +46,10 @@ struct jsthread {
     bool closed;
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
+    struct qjs_timer *timers;
 };
 
 void qjs_finalise_dom_bridge(JSContext *ctx);
-    struct qjs_timer *timers;
-};
 
 void *qjs_get_window_priv(JSContext *ctx);
 void *qjs_get_document_priv(JSContext *ctx);
