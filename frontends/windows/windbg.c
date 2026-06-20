@@ -624,7 +624,7 @@ const char *msg_num_to_name(int msg)
         return "WM_MOUSELEAVE	";
     }
 
-    sprintf(str, "%d", msg);
+    snprintf(str, sizeof(str), "%d", msg);
 
     return str;
 }

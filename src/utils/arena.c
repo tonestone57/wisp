@@ -44,7 +44,7 @@ struct arena *arena_create(size_t chunk_size) {
 }
 
 void *arena_alloc(struct arena *a, size_t size) {
-    if (!a || ((uintptr_t)a & 7) != 0) return NULL;
+    if (!a || ((uintptr_t)a & 15) != 0) return NULL;
 
     size_t alloc_size = ALIGN_UP(size, 16);
     if (!a->head || ALIGN_UP(a->head->used, 16) + alloc_size > a->head->size) {
@@ -74,7 +74,7 @@ void arena_register_destructor(struct arena *a, void *ptr, void (*fn)(void *)) {
 }
 
 void arena_destroy(struct arena *a) {
-    if (!a || ((uintptr_t)a & 7) != 0) return;
+    if (!a || ((uintptr_t)a & 15) != 0) return;
 
     arena_destructor *d = a->destructors;
     while (d) {

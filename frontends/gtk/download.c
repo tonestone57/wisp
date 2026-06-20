@@ -311,8 +311,9 @@ static void nsgtk_download_store_update_item(struct gui_download_window *dl)
 {
     gchar *info = nsgtk_download_info_to_string(dl);
     char *human = human_friendly_bytesize(dl->speed);
-    char speed[strlen(human) + SLEN("/s") + 1];
-    sprintf(speed, "%s/s", human);
+    size_t speed_len = strlen(human) + SLEN("/s") + 1;
+    char speed[speed_len];
+    snprintf(speed, speed_len, "%s/s", human);
     gchar *time = nsgtk_download_time_to_string(dl->time_remaining);
     gboolean pulse = dl->status == NSGTK_DOWNLOAD_WORKING;
 
@@ -528,12 +529,13 @@ static gchar *nsgtk_download_dialog_show(const gchar *filename, const gchar *dom
         break;
     }
     case GTK_RESPONSE_DOWNLOAD: {
-        destination = malloc(strlen(nsoption_charp(downloads_directory)) + strlen(filename) + SLEN("/") + 1);
+        size_t destination_len = strlen(nsoption_charp(downloads_directory)) + strlen(filename) + SLEN("/") + 1;
+        destination = malloc(destination_len);
         if (destination == NULL) {
             nsgtk_warning(messages_get("NoMemory"), 0);
             break;
         }
-        sprintf(destination, "%s/%s", nsoption_charp(downloads_directory), filename);
+        snprintf(destination, destination_len, "%s/%s", nsoption_charp(downloads_directory), filename);
         /* Test if file already exists and display overwrite
          * confirmation if needed */
         if (g_file_test(destination, G_FILE_TEST_EXISTS) && nsoption_bool(request_overwrite)) {

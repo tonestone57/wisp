@@ -175,6 +175,8 @@ CORESTRING_LWC_VALUE(video_mp4, "video/mp4");
 CORESTRING_LWC_VALUE(video_webm, "video/webm");
 CORESTRING_LWC_VALUE(video_ogg, "video/ogg");
 CORESTRING_LWC_VALUE(image_avif, "image/avif");
+CORESTRING_LWC_VALUE(image_heic, "image/heic");
+CORESTRING_LWC_VALUE(image_heif, "image/heif");
 CORESTRING_LWC_VALUE(application_rss_xml, "application/rss+xml");
 CORESTRING_LWC_VALUE(application_atom_xml, "application/atom+xml");
 CORESTRING_LWC_VALUE(audio_wave, "audio/wave");

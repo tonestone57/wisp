@@ -339,7 +339,7 @@ nserror search_web_omni(const char *term, enum search_web_omni_flags flags, stru
         if (eterm == NULL) {
             return NSERROR_NOMEM;
         }
-        sprintf(eterm, "https://%s", term);
+        snprintf(eterm, strlen(term) + SLEN("https://") + 1, "https://%s", term);
         ret = nsurl_create(eterm, &url);
         free(eterm);
         if (ret == NSERROR_OK) {

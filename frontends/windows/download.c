@@ -87,21 +87,23 @@ static void nsws_download_update_label(void *p)
             temp = temp / 10;
             i++;
         } while (temp > 2);
-        w->time_left = malloc(i + SLEN(" s") + 1);
+        size_t time_left_len = i + SLEN(" s") + 1;
+        w->time_left = malloc(time_left_len);
         if (w->time_left != NULL) {
             if (w->time_remaining > 3600)
-                sprintf(w->time_left, "%d h", w->time_remaining / 3600);
+                snprintf(w->time_left, time_left_len, "%d h", w->time_remaining / 3600);
             else if (w->time_remaining > 60)
-                sprintf(w->time_left, "%d m", w->time_remaining / 60);
+                snprintf(w->time_left, time_left_len, "%d m", w->time_remaining / 60);
             else
-                sprintf(w->time_left, "%d s", w->time_remaining);
+                snprintf(w->time_left, time_left_len, "%d s", w->time_remaining);
         }
     }
-    char label[strlen(w->title) + strlen(size) + strlen(w->total_size) + +strlen(w->domain) + strlen(w->filename) +
+    size_t label_len = strlen(w->title) + strlen(size) + strlen(w->total_size) + +strlen(w->domain) + strlen(w->filename) +
         SLEN("download  from  to \n[\t/\t]\n estimate of time"
              " remaining ") +
-        i + 1];
-    sprintf(label,
+        i + 1;
+    char label[label_len];
+    snprintf(label, label_len,
         "download %s  from %s to %s\n[%s\t/\t%s] [%d%%]\n"
         "estimate of time remaining %s",
         w->title, w->domain, w->filename, size, w->total_size, w->progress / 100, w->time_left);

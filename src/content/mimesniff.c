@@ -255,11 +255,12 @@ mimesniff__match_unknown_exact(const uint8_t *data, size_t len, bool allow_unsaf
     return NSERROR_NOT_FOUND;
 }
 
-static nserror mimesniff__match_avif(const uint8_t *data, size_t len, lwc_string **effective_type)
+static nserror mimesniff__match_isobmff_image(const uint8_t *data, size_t len, lwc_string **effective_type)
 {
-    /* ISOBMFF ftyp check for AVIF.
+    uint32_t box_size, i;
+
+    /* ISOBMFF ftyp check for images (AVIF, HEIC, etc.)
      * bytes 4-7 are "ftyp"
-     * bytes 8-11 (major brand) are "avif" or "avis"
      */
     if (len < 12)
         return NSERROR_NOT_FOUND;
@@ -267,9 +268,45 @@ static nserror mimesniff__match_avif(const uint8_t *data, size_t len, lwc_string
     if (data[4] != 'f' || data[5] != 't' || data[6] != 'y' || data[7] != 'p')
         return NSERROR_NOT_FOUND;
 
-    if (data[8] == 'a' && data[9] == 'v' && data[10] == 'i' && (data[11] == 'f' || data[11] == 's')) {
-        *effective_type = lwc_string_ref(corestring_lwc_image_avif);
-        return NSERROR_OK;
+    /* Box size is big-endian */
+    box_size = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) | (uint32_t)data[3];
+
+    /* Require that we can read the entire box, and reject bad box sizes */
+    if (len < box_size || box_size % 4 != 0)
+        return NSERROR_NOT_FOUND;
+
+    /* Check brands. Major brand is at offset 8, compatible brands start at offset 16. */
+    for (i = 8; i <= box_size - 4; i += 4) {
+        if (i == 12) continue; /* Skip minor_version */
+
+        /* AVIF / AVIS */
+        if (data[i] == 'a' && data[i + 1] == 'v' && data[i + 2] == 'i' && (data[i + 3] == 'f' || data[i + 3] == 's')) {
+            *effective_type = lwc_string_ref(corestring_lwc_image_avif);
+            return NSERROR_OK;
+        }
+
+        /* HEIC / HEIX / HEVC / HEVX */
+        if (data[i] == 'h' && data[i + 1] == 'e' &&
+            ((data[i + 2] == 'i' && (data[i + 3] == 'c' || data[i + 3] == 'x')) ||
+             (data[i + 2] == 'v' && (data[i + 3] == 'c' || data[i + 3] == 'x')))) {
+            *effective_type = lwc_string_ref(corestring_lwc_image_heic);
+            return NSERROR_OK;
+        }
+
+        /* HEIF / HEVC sequence */
+        if ((data[i] == 'h' && data[i + 1] == 'e' && data[i + 2] == 'v' && data[i + 3] == 'f') ||
+            (data[i] == 'm' && data[i + 1] == 's' && data[i + 2] == 'f' && data[i + 3] == '1')) {
+            *effective_type = lwc_string_ref(corestring_lwc_image_heif);
+            return NSERROR_OK;
+        }
+
+        /* MIF1 / MIAF / MIF3 */
+        if ((data[i] == 'm' && data[i + 1] == 'i' &&
+             (data[i + 2] == 'f' && (data[i + 3] == '1' || data[i + 3] == '3'))) ||
+            (data[i] == 'm' && data[i + 1] == 'i' && data[i + 2] == 'a' && data[i + 3] == 'f')) {
+            *effective_type = lwc_string_ref(corestring_lwc_image_heif);
+            return NSERROR_OK;
+        }
     }
 
     return NSERROR_NOT_FOUND;
@@ -308,7 +345,7 @@ static nserror mimesniff__match_unknown(const uint8_t *data, size_t len, bool al
     if (mimesniff__match_unknown_exact(data, len, allow_unsafe, effective_type) == NSERROR_OK)
         return NSERROR_OK;
 
-    if (mimesniff__match_avif(data, len, effective_type) == NSERROR_OK)
+    if (mimesniff__match_isobmff_image(data, len, effective_type) == NSERROR_OK)
         return NSERROR_OK;
 
     if (mimesniff__match_unknown_riff(data, len, effective_type) == NSERROR_OK)
@@ -432,7 +469,7 @@ mimesniff__compute_image(lwc_string *official_type, const uint8_t *data, size_t 
         return NSERROR_OK;
     }
 
-    if (mimesniff__match_avif(data, len, effective_type) == NSERROR_OK) {
+    if (mimesniff__match_isobmff_image(data, len, effective_type) == NSERROR_OK) {
         lwc_string_unref(official_type);
         return NSERROR_OK;
     }

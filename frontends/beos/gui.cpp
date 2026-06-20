@@ -1026,7 +1026,7 @@ int main(int argc, char **argv)
         lang.SetTo(getenv("LC_MESSAGES"));
 
     char path[12];
-    sprintf(path, "%.2s/Messages", lang.String());
+    snprintf(path, sizeof(path), "%.2s/Messages", lang.String());
     NSLOG(wisp, INFO, "Loading messages from resource %s\n", path);
 
     const uint8_t *res = (const uint8_t *)resources.LoadResource('data', path, &size);
