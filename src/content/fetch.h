@@ -25,10 +25,10 @@
 
 #include <stdbool.h>
 
-#include "utils/config.h"
-#include "utils/inet.h"
-#include "utils/nsurl.h"
-#include "wisp/ssl_certs.h"
+#include <wisp/ssl_certs.h>
+#include <wisp/utils/config.h>
+#include <wisp/utils/inet.h>
+#include <wisp/utils/nsurl.h>
 
 struct content;
 struct fetch;
@@ -155,8 +155,7 @@ typedef void (*fetch_callback)(const fetch_msg *msg, void *p);
  * \param callback
  * \param p
  * \param only_2xx
- * \param post_urlenc
- * \param post_multipart
+ * \param postdata
  * \param verifiable
  * \param downgrade_tls
  * \param headers
@@ -164,8 +163,8 @@ typedef void (*fetch_callback)(const fetch_msg *msg, void *p);
  * \return NSERROR_OK and fetch_out updated else appropriate error code
  */
 nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p, bool only_2xx,
-    const char *post_urlenc, const struct fetch_multipart_data *post_multipart, bool verifiable, bool downgrade_tls,
-    const char *headers[], struct fetch **fetch_out);
+    const struct fetch_postdata *postdata, bool verifiable, bool downgrade_tls, const char *headers[],
+    struct fetch **fetch_out);
 
 /**
  * Abort a fetch.
