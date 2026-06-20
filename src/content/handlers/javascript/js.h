@@ -24,6 +24,7 @@
 #define WISP_JAVASCRIPT_JS_H_
 
 #include <wisp/utils/errors.h>
+#include "quickjs.h"
 
 struct dom_event;
 struct dom_document;
@@ -135,7 +136,10 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target);
 
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
-    struct dom_string *event_type_dom, void *js_funcval);
+    struct dom_string *event_type_dom, JSValue js_funcval);
+
+bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
+    struct dom_string *event_type_dom, JSValue js_funcval);
 
 /*** New Events ***/
 
@@ -158,4 +162,4 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node);
  */
 void js_event_cleanup(jsthread *thread, struct dom_event *evt);
 
-#endif /* NETSURF_JAVASCRIPT_JS_H_ */
+#endif /* WISP_JAVASCRIPT_JS_H_ */

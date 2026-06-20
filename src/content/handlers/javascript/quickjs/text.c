@@ -11,6 +11,8 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "dom_bridge.h"
+#include "qjs_internal.h"
+#include <dom/core/characterdata.h>
 
 /* Forward declarations for Text */
 static JSValue js_text_splitText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
@@ -26,28 +28,173 @@ static void js_text_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
+
 static JSClassDef js_text_class = {
     "Text",
     .finalizer = js_text_finalizer,
 };
 
+/* CharacterData shared methods */
+static JSValue js_characterdata_data_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *data = NULL;
+    dom_exception exc = dom_characterdata_get_data((struct dom_characterdata *)priv->node, &data);
+    if (exc != DOM_NO_ERR || data == NULL) return JS_NewString(ctx, "");
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(data), dom_string_byte_length(data));
+    dom_string_unref(data);
+    return val;
+}
+
+static JSValue js_characterdata_data_set(JSContext *ctx, JSValueConst this_val, JSValueConst val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, val);
+    if (str) {
+        dom_string *data_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &data_dom);
+        dom_characterdata_set_data((struct dom_characterdata *)priv->node, data_dom);
+        dom_string_unref(data_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue js_characterdata_length_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    uint32_t len = 0;
+    dom_characterdata_get_length((struct dom_characterdata *)priv->node, &len);
+    return JS_NewUint32(ctx, len);
+}
+
+static JSValue js_characterdata_substringData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 2) return JS_EXCEPTION;
+    uint32_t offset, count;
+    JS_ToUint32(ctx, &offset, argv[0]);
+    JS_ToUint32(ctx, &count, argv[1]);
+    dom_string *data = NULL;
+    dom_exception exc = dom_characterdata_substring_data((struct dom_characterdata *)priv->node, offset, count, &data);
+    if (exc != DOM_NO_ERR || data == NULL) return JS_NULL;
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(data), dom_string_byte_length(data));
+    dom_string_unref(data);
+    return val;
+}
+
+static JSValue js_characterdata_appendData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_UNDEFINED;
+    const char *str = JS_ToCString(ctx, argv[0]);
+    if (str) {
+        dom_string *data_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &data_dom);
+        dom_characterdata_append_data((struct dom_characterdata *)priv->node, data_dom);
+        dom_string_unref(data_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue js_characterdata_insertData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 2) return JS_UNDEFINED;
+    uint32_t offset;
+    JS_ToUint32(ctx, &offset, argv[0]);
+    const char *str = JS_ToCString(ctx, argv[1]);
+    if (str) {
+        dom_string *data_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &data_dom);
+        dom_characterdata_insert_data((struct dom_characterdata *)priv->node, offset, data_dom);
+        dom_string_unref(data_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue js_characterdata_deleteData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 2) return JS_UNDEFINED;
+    uint32_t offset, count;
+    JS_ToUint32(ctx, &offset, argv[0]);
+    JS_ToUint32(ctx, &count, argv[1]);
+    dom_characterdata_delete_data((struct dom_characterdata *)priv->node, offset, count);
+    return JS_UNDEFINED;
+}
+
+static JSValue js_characterdata_replaceData(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 3) return JS_UNDEFINED;
+    uint32_t offset, count;
+    JS_ToUint32(ctx, &offset, argv[0]);
+    JS_ToUint32(ctx, &count, argv[1]);
+    const char *str = JS_ToCString(ctx, argv[2]);
+    if (str) {
+        dom_string *data_dom = NULL;
+        dom_string_create((const uint8_t *)str, strlen(str), &data_dom);
+        dom_characterdata_replace_data((struct dom_characterdata *)priv->node, offset, count, data_dom);
+        dom_string_unref(data_dom);
+        JS_FreeCString(ctx, str);
+    }
+    return JS_UNDEFINED;
+}
+
 static const JSCFunctionListEntry js_text_proto_funcs[] = {
     JS_CFUNC_DEF("splitText", 1, js_text_splitText),
     JS_CGETSET_DEF("wholeText", js_text_wholeText_get, NULL),
+    /* CharacterData inherits from Node, so it should also have Node methods but these are on Node prototype.
+       We add CharacterData methods here directly to Text for now. */
+    JS_CGETSET_DEF("data", js_characterdata_data_get, js_characterdata_data_set),
+    JS_CGETSET_DEF("length", js_characterdata_length_get, NULL),
+    JS_CFUNC_DEF("substringData", 2, js_characterdata_substringData),
+    JS_CFUNC_DEF("appendData", 1, js_characterdata_appendData),
+    JS_CFUNC_DEF("insertData", 2, js_characterdata_insertData),
+    JS_CFUNC_DEF("deleteData", 2, js_characterdata_deleteData),
+    JS_CFUNC_DEF("replaceData", 3, js_characterdata_replaceData),
 };
 
 /* Implementation stubs */
 
 static JSValue js_text_splitText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    NSLOG(wisp, DEBUG, "Text.splitText() called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node || argc < 1) return JS_EXCEPTION;
+
+    uint32_t offset = 0;
+    JS_ToUint32(ctx, &offset, argv[0]);
+
+    struct dom_text *result = NULL;
+    dom_exception exc = dom_text_split_text((dom_text *)priv->node, offset, &result);
+
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "dom_text_split_text failed");
+
+    JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+    dom_node_unref((dom_node *)result);
+    return val;
 }
 
 static JSValue js_text_wholeText_get(JSContext *ctx, JSValueConst this_val)
 {
-    NSLOG(wisp, DEBUG, "Text.wholeText getter called (stub)");
-    return JS_UNDEFINED;
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_text_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *text = NULL;
+    dom_exception exc = dom_text_get_whole_text((dom_text *)priv->node, &text);
+
+    if (exc != DOM_NO_ERR || text == NULL) return JS_NULL;
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(text), dom_string_byte_length(text));
+    dom_string_unref(text);
+    return val;
 }
 
 int qjs_init_text(JSContext *ctx)
@@ -62,16 +209,13 @@ int qjs_init_text(JSContext *ctx)
     }
 
     JSValue proto = JS_NewObject(ctx);
+    JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
+    JS_SetPrototype(ctx, proto, node_proto);
+    JS_FreeValue(ctx, node_proto);
+
     JS_SetPropertyFunctionList(ctx, proto, js_text_proto_funcs, sizeof(js_text_proto_funcs) / sizeof(js_text_proto_funcs[0]));
 
     JS_SetClassProto(ctx, qjs_text_class_id, proto);
-
-    /* For Window, we often want to attach everything to the global object */
-    if (strcmp("Text", "Window") == 0) {
-        JSValue global_obj = JS_GetGlobalObject(ctx);
-        JS_SetPropertyFunctionList(ctx, global_obj, js_text_proto_funcs, sizeof(js_text_proto_funcs) / sizeof(js_text_proto_funcs[0]));
-        JS_FreeValue(ctx, global_obj);
-    }
 
     return 0;
 }
@@ -85,14 +229,4 @@ JSValue qjs_new_text(JSContext *ctx, void *node, bool is_dom_node)
     priv->node = node; priv->ctx = ctx; priv->is_dom_node = is_dom_node;
     if (is_dom_node && node) dom_node_ref((dom_node *)node);
     JS_SetOpaque(obj, priv); return obj;
-}
-
-    priv->node = node; priv->ctx = ctx;
-    priv->is_dom_node = is_dom_node;
-    if (is_dom_node && node) {
-        dom_node_ref((dom_node *)node);
-    }
-
-    JS_SetOpaque(obj, priv);
-    return obj;
 }
