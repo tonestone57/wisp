@@ -327,6 +327,12 @@ struct box {
     int y;
 
     /**
+     * Available width for this box during last layout.
+     * Used for incremental layout optimizations.
+     */
+    int last_available_width;
+
+    /**
      * Width of content box (excluding padding etc.).
      */
     int width;

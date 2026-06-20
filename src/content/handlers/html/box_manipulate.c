@@ -125,6 +125,7 @@ struct box *box_create(css_select_results *styles, css_computed_style *style, bo
     box->styles = styles;
     box->style = style;
     box->x = box->y = 0;
+    box->last_available_width = -1;
     box->width = UNKNOWN_WIDTH;
     box->height = 0;
     box->descendant_x0 = box->descendant_y0 = 0;
@@ -361,6 +362,30 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
     }
 
     return NSERROR_OK;
+}
+
+void box_mark_dirty(struct box *box)
+{
+    if (box == NULL) {
+        return;
+    }
+
+    if (box->flags & DIRTY) {
+        /* Already dirty, no need to propagate */
+        return;
+    }
+
+    box->flags |= DIRTY;
+
+    struct box *parent = box->parent;
+    while (parent != NULL) {
+        if (parent->flags & CHILD_DIRTY) {
+            /* Ancestor already knows it has a dirty child, stop propagating */
+            break;
+        }
+        parent->flags |= CHILD_DIRTY;
+        parent = parent->parent;
+    }
 }
 
 void box_mark_dirty(struct box *box)

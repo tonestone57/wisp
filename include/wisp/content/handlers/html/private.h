@@ -149,6 +149,10 @@ typedef struct html_content {
     /** Whether an initial layout has been done */
     bool had_initial_layout;
 
+    /** Dimensions of the last successful layout */
+    int last_layout_width;
+    int last_layout_height;
+
     /** Whether scripts are enabled for this content */
     bool enable_scripting;
 

@@ -1423,6 +1423,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
     free(occupied);
     free(row_heights);
     free(col_widths);
-        grid->flags &= ~(DIRTY | CHILD_DIRTY);
+
+    grid->flags &= ~(DIRTY | CHILD_DIRTY);
     return true;
 }
