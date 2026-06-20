@@ -40,6 +40,7 @@
 
 
 #include <wisp/content/handlers/html/box.h>
+#include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/content/handlers/html/interaction.h>
 #include <wisp/content/handlers/html/private.h>
@@ -364,26 +365,95 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
     return NSERROR_OK;
 }
 
+/**
+ * Find the html_content associated with a box.
+ */
+struct html_content *box_get_html_content(struct box *box)
+{
+	struct box *curr = box;
+	while (curr->parent != NULL) {
+		curr = curr->parent;
+	}
+
+	if (curr->node == NULL) {
+		return NULL;
+	}
+
+	dom_node *node = curr->node;
+	dom_node_type type;
+	if (dom_node_get_node_type(node, &type) != DOM_NO_ERR) {
+		return NULL;
+	}
+
+	dom_document *doc;
+	if (type == DOM_DOCUMENT_NODE) {
+		doc = (dom_document *)node;
+	} else {
+		if (dom_node_get_owner_document(node, &doc) != DOM_NO_ERR) {
+			return NULL;
+		}
+		/* dom_node_get_owner_document does not increment refcount in LibDOM */
+	}
+
+	struct html_content *html = NULL;
+	if (dom_node_get_user_data(doc, corestring_dom___ns_key_html_content_data,
+				   &html) != DOM_NO_ERR) {
+		return NULL;
+	}
+
+	return html;
+}
+
+/**
+ * Union two rectangles.
+ */
+static void rect_union(struct rect *res, const struct rect *r)
+{
+	if (r->x0 < res->x0) res->x0 = r->x0;
+	if (r->y0 < res->y0) res->y0 = r->y0;
+	if (r->x1 > res->x1) res->x1 = r->x1;
+	if (r->y1 > res->y1) res->y1 = r->y1;
+}
+
 void box_mark_dirty(struct box *box)
 {
-    if (box == NULL) {
-        return;
-    }
+	if (box == NULL) {
+		return;
+	}
 
-    if (box->flags & DIRTY_INTRINSIC) {
-        /* Already dirty, no need to propagate */
-        return;
-    }
+	if (box->flags & DIRTY_INTRINSIC) {
+		/* Already dirty, no need to propagate */
+		return;
+	}
 
-    box->flags |= DIRTY_INTRINSIC;
+	/* Accumulate OLD bounding box of dirty element */
+	struct html_content *html = box_get_html_content(box);
+	if (html != NULL) {
+		struct rect r;
+		int x, y;
+		box_coords(box, &x, &y);
+		r.x0 = x + box->descendant_x0;
+		r.y0 = y + box->descendant_y0;
+		r.x1 = x + box->descendant_x1;
+		r.y1 = y + box->descendant_y1;
 
-    struct box *parent = box->parent;
-    while (parent != NULL) {
-        if (parent->flags & CHILD_DIRTY) {
-            /* Ancestor already knows it has a dirty child, stop propagating */
-            break;
-        }
-        parent->flags |= CHILD_DIRTY;
-        parent = parent->parent;
-    }
+		if (html->has_dirty_rect) {
+			rect_union(&html->dirty_rect, &r);
+		} else {
+			html->dirty_rect = r;
+			html->has_dirty_rect = true;
+		}
+	}
+
+	box->flags |= DIRTY_INTRINSIC;
+
+	struct box *parent = box->parent;
+	while (parent != NULL) {
+		if (parent->flags & CHILD_DIRTY) {
+			/* Ancestor already knows it has a dirty child, stop propagating */
+			break;
+		}
+		parent->flags |= CHILD_DIRTY;
+		parent = parent->parent;
+	}
 }

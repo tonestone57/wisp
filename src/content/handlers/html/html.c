@@ -622,6 +622,9 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
     c->scripts = NULL;
     c->jsthread = NULL;
 
+    c->has_dirty_rect = false;
+    c->dirty_rect = (struct rect){0, 0, 0, 0};
+
     pthread_mutex_init(&c->doc_mutex, NULL);
 
     c->enable_scripting = nsoption_bool(enable_javascript);
