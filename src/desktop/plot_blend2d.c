@@ -131,8 +131,9 @@ static nserror blend2d_plot_polygon(const struct redraw_context *ctx, const plot
     }
 
     if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
+        BLArrayView view = { pts, n };
         blend2d_set_colour(bl_ctx, pstyle->fill_colour, pstyle->fill_opacity, true);
-        blContextFillGeometry(bl_ctx, BL_GEOMETRY_TYPE_POLYGON, pts);
+        blContextFillGeometry(bl_ctx, BL_GEOMETRY_TYPE_POLYGON, &view);
     }
 
     free(pts);
@@ -141,9 +142,34 @@ static nserror blend2d_plot_polygon(const struct redraw_context *ctx, const plot
 
 static nserror blend2d_plot_path(const struct redraw_context *ctx, const plot_style_t *pstyle, const float *p, unsigned int n, const float transform[6])
 {
-    /* This can be implemented using the new path API calls internally or by direct path building.
-     * For now, we'll implement the new Path API first and maybe redirect this there. */
-    return NSERROR_NOT_IMPLEMENTED;
+    nserror err;
+    if ((err = blend2d_plot_path_begin(ctx)) != NSERROR_OK) return err;
+
+    for (unsigned int i = 0; i < n; ) {
+        int cmd = (int)p[i++];
+        switch (cmd) {
+        case PLOTTER_PATH_MOVE:
+            blend2d_plot_path_move_to(ctx, p[i], p[i+1]);
+            i += 2;
+            break;
+        case PLOTTER_PATH_LINE:
+            blend2d_plot_path_line_to(ctx, p[i], p[i+1]);
+            i += 2;
+            break;
+        case PLOTTER_PATH_BEZIER:
+            blend2d_plot_path_bezier_to(ctx, p[i], p[i+1], p[i+2], p[i+3], p[i+4], p[i+5]);
+            i += 6;
+            break;
+        case PLOTTER_PATH_CLOSE:
+            blend2d_plot_path_close(ctx);
+            break;
+        }
+    }
+
+    if (pstyle->fill_type != PLOT_OP_TYPE_NONE) blend2d_plot_path_fill(ctx, pstyle, transform);
+    if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) blend2d_plot_path_stroke(ctx, pstyle, transform);
+
+    return NSERROR_OK;
 }
 
 static nserror blend2d_plot_path_begin(const struct redraw_context *ctx)
