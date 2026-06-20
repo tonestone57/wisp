@@ -385,8 +385,6 @@ static void nsvideo_destroy(struct content *c)
     if (video->avio_buffer) av_free(video->avio_buffer);
     if (video->buffer.data) free(video->buffer.data);
     if (video->current_bitmap) guit->bitmap->destroy(video->current_bitmap);
-    content__fini(&video->base);
-
 
     free(video);
 }

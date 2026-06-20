@@ -212,7 +212,6 @@ static css_error css__resolve_var_tokens(css_select_state *state, parserutils_ve
 }
 
 static css_error select_font_faces_from_sheet(
-static bool tokenIsCharLocal(const css_token *t, const char *c) { return (t->type == CSS_TOKEN_CHAR && t->data.len == 1 && t->data.data[0] == c[0]); }
     const css_stylesheet *sheet, css_origin origin, css_select_font_faces_state *state, const css_select_strings *str);
 
 #ifdef DEBUG_CHAIN_MATCHING
@@ -1677,30 +1676,10 @@ cleanup:
     if (state.author_font_faces.count != 0)
         free(state.author_font_faces.font_faces);
 
-    /* Resolve deferred properties (CSS Variables) */
-    css_deferred_prop *dp = state.deferred.head;
-    while (dp) {
-        parserutils_vector *tokens, *resolved;
-        if (deserialize_tokens(dp->serialized, &tokens) == CSS_OK) {
-            if (css__resolve_var_tokens(&state, tokens, &resolved) == CSS_OK) {
-                css_style *resolved_style = NULL;
-                if (css__stylesheet_parse_tokens((css_stylesheet *)state.sheet, dp->opcode, resolved, &resolved_style) == CSS_OK) {
-                    state.current_pseudo = dp->pseudo;
-                    state.computed = state.results->styles[dp->pseudo];
+    return error;
+}
 
-                    /* Cascade the resolved style */
-                    uint32_t opv = *resolved_style->bytecode;
-                    advance_bytecode(resolved_style, sizeof(uint32_t));
-                    prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
-
-                    css__stylesheet_style_destroy(resolved_style);
-                }
-                css__tokens_destroy(resolved);
-            }
-            css__tokens_destroy(tokens);
-        }
-        dp = dp->next;
-    }
+/******************************************************************************
  * Selection engine internals below here                                      *
  ******************************************************************************/
 

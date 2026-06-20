@@ -7,6 +7,8 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 
+static void js_document_finalizer(JSRuntime *rt, JSValue val);
+
 #include "document.inc"
 
 static void js_document_finalizer(JSRuntime *rt, JSValue val)
@@ -17,6 +19,7 @@ static void js_document_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
 static JSValue js_document_getElementsByTagName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     NSLOG(wisp, DEBUG, "Document.getElementsByTagName() called (stub)");

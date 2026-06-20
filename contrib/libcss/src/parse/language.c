@@ -87,7 +87,7 @@ static css_error parseDeferredProperty(
     int32_t scan = value_start;
     int32_t excl_pos = -1;
     while ((token = parserutils_vector_iterate(vector, &scan)) != NULL) {
-        if (tokenIsChar(token, "!"))
+        if (tokenIsChar(token, '!'))
             excl_pos = scan - 1;
     }
     if (excl_pos >= 0) {
@@ -1964,7 +1964,7 @@ css_error parseCustomProperty(
         if (token->data.data != NULL)
             parserutils_buffer_append(buf, token->data.data, token->data.len);
     }
-    lwc_string *value_str;
+
     error = css_error_from_lwc_error(lwc_intern_string((const char *)buf->data, buf->length, &value_str));
     parserutils_buffer_destroy(buf);
     if (error != CSS_OK) return error;

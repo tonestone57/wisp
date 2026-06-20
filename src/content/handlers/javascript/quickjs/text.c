@@ -26,6 +26,7 @@ static void js_text_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
 static JSClassDef js_text_class = {
     "Text",
     .finalizer = js_text_finalizer,
@@ -85,14 +86,4 @@ JSValue qjs_new_text(JSContext *ctx, void *node, bool is_dom_node)
     priv->node = node; priv->ctx = ctx; priv->is_dom_node = is_dom_node;
     if (is_dom_node && node) dom_node_ref((dom_node *)node);
     JS_SetOpaque(obj, priv); return obj;
-}
-
-    priv->node = node; priv->ctx = ctx;
-    priv->is_dom_node = is_dom_node;
-    if (is_dom_node && node) {
-        dom_node_ref((dom_node *)node);
-    }
-
-    JS_SetOpaque(obj, priv);
-    return obj;
 }

@@ -54,26 +54,6 @@
  * Maps to QuickJS's JSRuntime - one per browser window.
  */
 
-struct qjs_event_listener_ctx {
-    struct qjs_event_listener_ctx *next;
-    struct jsthread *thread;
-    JSValue func;
-    struct dom_event_target *target;
-    struct dom_string *type;
-    struct dom_event_listener *listener;
-};
-
-struct qjs_event_map {
-    struct qjs_event_map *next;
-    struct dom_event *evt;
-    JSValue js_evt;
-};
-
-struct jsheap {
-    JSRuntime *rt;
-    int timeout;
-    uint64_t deadline_ms;
-};
 
 /**
  * JavaScript thread structure.

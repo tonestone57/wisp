@@ -10,6 +10,8 @@
 
 JSClassID qjs_node_class_id;
 
+static void js_node_finalizer(JSRuntime *rt, JSValue val);
+
 #include "node.inc"
 
 static void js_node_finalizer(JSRuntime *rt, JSValue val)
@@ -20,6 +22,7 @@ static void js_node_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
 static QJSNodePrivate *qjs_get_node_priv(JSContext *ctx, JSValueConst val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_node_class_id);

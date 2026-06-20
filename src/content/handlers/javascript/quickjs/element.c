@@ -8,6 +8,8 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 
+static void js_element_finalizer(JSRuntime *rt, JSValue val);
+
 #include "element.inc"
 
 static void js_element_finalizer(JSRuntime *rt, JSValue val)
@@ -18,6 +20,7 @@ static void js_element_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
 static JSValue js_element_hasAttributes(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_element_class_id);

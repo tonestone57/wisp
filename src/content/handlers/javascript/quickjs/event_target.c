@@ -17,6 +17,7 @@ static void js_eventtarget_finalizer(JSRuntime *rt, JSValue val)
         if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);
         free(priv);
     }
+}
 static JSClassDef js_eventtarget_class = {
     "EventTarget",
     .finalizer = js_eventtarget_finalizer,
