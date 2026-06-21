@@ -212,10 +212,11 @@ static const JSCFunctionListEntry xhr_class_props[] = {
 int qjs_init_xhr(JSContext *ctx)
 {
     JSValue global_obj, proto, ctor;
+    JSRuntime *rt = JS_GetRuntime(ctx);
 
     /* Register class */
-    JS_NewClassID(JS_GetRuntime(ctx), &xhr_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), xhr_class_id, &xhr_class);
+    JS_NewClassID(rt, &xhr_class_id);
+    JS_NewClass(rt, xhr_class_id, &xhr_class);
 
     /* Create prototype */
     proto = JS_NewObject(ctx);
@@ -226,6 +227,7 @@ int qjs_init_xhr(JSContext *ctx)
     JS_SetPropertyFunctionList(ctx, proto, xhr_class_props, sizeof(xhr_class_props) / sizeof(xhr_class_props[0]));
 
     JS_SetClassProto(ctx, xhr_class_id, proto);
+    JS_FreeValue(ctx, proto);
 
     /* Create constructor */
     ctor = JS_NewCFunction2(ctx, xhr_constructor, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);

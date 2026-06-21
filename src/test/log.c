@@ -27,10 +27,13 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "utils/log.h"
+// #include "utils/log.h"
+#include <stdbool.h>
+#include <wisp/utils/errors.h>
+#include <wisp/utils/log.h>
 
 /** flag to enable verbose logging */
-bool verbose_log = false;
+// static bool verbose_log = false;
 
 nserror nslog_init(nslog_ensure_t *ensure, int *pargc, char **argv)
 {

@@ -106,6 +106,7 @@ int qjs_init_attr(JSContext *ctx)
     JS_FreeValue(ctx, node_proto);
     JS_SetPropertyFunctionList(ctx, proto, js_attr_proto_funcs, sizeof(js_attr_proto_funcs) / sizeof(js_attr_proto_funcs[0]));
     JS_SetClassProto(ctx, qjs_attr_class_id, proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }
 

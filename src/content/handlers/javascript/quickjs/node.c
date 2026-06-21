@@ -393,6 +393,7 @@ int qjs_init_node(JSContext *ctx)
 
     JS_SetPropertyFunctionList(ctx, proto, js_node_proto_funcs, sizeof(js_node_proto_funcs) / sizeof(js_node_proto_funcs[0]));
     JS_SetClassProto(ctx, qjs_node_class_id, proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }
 

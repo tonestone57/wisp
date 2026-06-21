@@ -644,6 +644,7 @@ int qjs_init_document(JSContext *ctx)
     JS_SetPropertyStr(ctx, proto, "anchors", JS_NewCFunction2(ctx, (JSCFunction *)js_document_anchors_get, "anchors", 0, JS_CFUNC_getter, 0));
 
     JS_SetClassProto(ctx, qjs_document_class_id, proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }
 

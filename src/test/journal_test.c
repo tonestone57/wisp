@@ -9,6 +9,7 @@
 #include <wisp/content/backing_store.h>
 #include "utils/corestrings.h"
 #include <wisp/misc.h>
+#include <wisp/desktop/gui_table.h>
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/utils/file.h>
 
@@ -19,12 +20,11 @@ struct gui_misc_table misc_table = {
     .schedule = schedule,
 };
 
-struct wisp_table guit_test = {
+static struct wisp_table guit_test = {
     .llcache = NULL, /* initialized in main */
     .misc = &misc_table,
     .file = NULL,    /* initialized in main */
 };
-struct wisp_table *guit = &guit_test;
 
 int main(int argc, char **argv)
 {
@@ -38,6 +38,7 @@ int main(int argc, char **argv)
     ret = corestrings_init();
     assert(ret == NSERROR_OK);
 
+    guit = &guit_test;
     guit->llcache = filesystem_llcache_table;
     guit->file = default_file_table;
 
@@ -116,6 +117,8 @@ int main(int argc, char **argv)
 
     nsurl_unref(url1);
     nsurl_unref(url2);
+    free(data1);
+    free(data2);
 
     printf("Journal test passed!\n");
     return 0;

@@ -668,6 +668,7 @@ int qjs_init_element(JSContext *ctx)
     JS_DefinePropertyGetSet(ctx, proto, JS_NewAtom(ctx, "title"), title_get, title_set, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
 
     JS_SetClassProto(ctx, qjs_element_class_id, proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }
 

@@ -86,6 +86,7 @@ int qjs_init_htmlcollection(JSContext *ctx)
     JSValue proto = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, proto, js_htmlcollection_proto_funcs, sizeof(js_htmlcollection_proto_funcs) / sizeof(js_htmlcollection_proto_funcs[0]));
     JS_SetClassProto(ctx, qjs_htmlcollection_class_id, proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }
 

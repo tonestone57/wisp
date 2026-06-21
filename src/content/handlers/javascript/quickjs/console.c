@@ -63,6 +63,7 @@ int qjs_init_console(JSContext *ctx)
     JSValue proto = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, proto, js_console_proto_funcs, sizeof(js_console_proto_funcs) / sizeof(js_console_proto_funcs[0]));
     JS_SetClassProto(ctx, qjs_console_class_id, proto);
+    JS_FreeValue(ctx, proto);
 
     JSValue console_obj = JS_NewObjectClass(ctx, qjs_console_class_id);
     JSValue global_obj = JS_GetGlobalObject(ctx);

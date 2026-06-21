@@ -215,6 +215,7 @@ int qjs_init_text(JSContext *ctx)
     JS_SetPropertyFunctionList(ctx, proto, js_text_proto_funcs, sizeof(js_text_proto_funcs) / sizeof(js_text_proto_funcs[0]));
 
     JS_SetClassProto(ctx, qjs_text_class_id, proto);
+    JS_FreeValue(ctx, proto);
 
     return 0;
 }

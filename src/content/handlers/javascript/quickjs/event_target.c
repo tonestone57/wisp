@@ -112,5 +112,6 @@ int qjs_init_eventtarget(JSContext *ctx)
     JSValue proto = JS_NewObject(ctx);
     JS_SetPropertyFunctionList(ctx, proto, js_eventtarget_proto_funcs, sizeof(js_eventtarget_proto_funcs) / sizeof(js_eventtarget_proto_funcs[0]));
     JS_SetClassProto(ctx, qjs_eventtarget_class_id, proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }
