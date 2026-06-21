@@ -5963,6 +5963,7 @@ bool layout_document(html_content *content, int width, int height)
 	const struct gui_layout_table *font_func = content->font_func;
 
 	NSLOG(wisp, DEBUG, "PROFILER: START layout_document %p", content);
+    content->dirty_list = NULL;
 
 	NSLOG(layout, DEBUG, "Doing layout to %ix%i of %s", width, height, nsurl_access(content_get_url(&content->base)));
 
@@ -6054,9 +6055,11 @@ bool layout_document(html_content *content, int width, int height)
 
 	doc->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
-	content->had_initial_layout = true;
-	content->last_layout_width = width;
-	content->last_layout_height = height;
+	if (ret) {
+		content->had_initial_layout = true;
+		content->last_layout_width = width;
+		content->last_layout_height = height;
+	}
 
 	NSLOG(wisp, DEBUG, "PROFILER: STOP layout_document %p", content);
 

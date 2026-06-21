@@ -582,7 +582,7 @@ static bool box_ensure_inline_container(struct html_content *content, struct box
 	}
 
 	/* Create new inline container */
-	struct box *ic = box_create(ctx->content, NULL, NULL, false, NULL, NULL, NULL, NULL, bctx);
+	struct box *ic = box_create(content, NULL, NULL, false, NULL, NULL, NULL, NULL, bctx);
 	if (ic == NULL) {
 		return false;
 	}
@@ -617,7 +617,7 @@ static bool box_add_with_float_wrap(struct html_content *content, struct box *bo
 	bool is_floated = !is_flex_child && (float_val == CSS_FLOAT_LEFT || float_val == CSS_FLOAT_RIGHT);
 
 	if (is_floated) {
-		struct box *flt = box_create(ctx->content, NULL, NULL, false, NULL, NULL, NULL, NULL, bctx);
+		struct box *flt = box_create(content, NULL, NULL, false, NULL, NULL, NULL, NULL, bctx);
 		if (flt == NULL) {
 			return false;
 		}

@@ -202,6 +202,8 @@ struct object_params {
  * Node in box tree. All dimensions are in pixels.
  */
 struct box {
+    /** Associated HTML content. */
+    struct html_content *content;
 	/**
 	 * Associated HTML content.
 	 */

@@ -504,6 +504,33 @@ static JSValue js_document_cookie_set(JSContext *ctx, JSValueConst this_val, JSV
     }
     return JS_UNDEFINED;
 }
+static JSValue js_document_referrer_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *referrer = NULL;
+    dom_exception exc = dom_html_document_get_referrer((dom_html_document *)priv->node, &referrer);
+    if (exc != DOM_NO_ERR || referrer == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(referrer), dom_string_byte_length(referrer));
+    dom_string_unref(referrer);
+    return val;
+}
+
+static JSValue js_document_domain_get(JSContext *ctx, JSValueConst this_val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(this_val, qjs_document_class_id);
+    if (!priv || !priv->node) return JS_NULL;
+
+    dom_string *domain = NULL;
+    dom_exception exc = dom_html_document_get_domain((dom_html_document *)priv->node, &domain);
+    if (exc != DOM_NO_ERR || domain == NULL) return JS_NewString(ctx, "");
+
+    JSValue val = JS_NewStringLen(ctx, dom_string_data(domain), dom_string_byte_length(domain));
+    dom_string_unref(domain);
+    return val;
+}
 
 static JSValue js_document_referrer_get(JSContext *ctx, JSValueConst this_val)
 {
@@ -643,6 +670,11 @@ int qjs_init_document(JSContext *ctx)
     JS_SetPropertyStr(ctx, proto, "links", JS_NewCFunction2(ctx, (JSCFunction *)js_document_links_get, "links", 0, JS_CFUNC_getter, 0));
     JS_SetPropertyStr(ctx, proto, "forms", JS_NewCFunction2(ctx, (JSCFunction *)js_document_forms_get, "forms", 0, JS_CFUNC_getter, 0));
     JS_SetPropertyStr(ctx, proto, "anchors", JS_NewCFunction2(ctx, (JSCFunction *)js_document_anchors_get, "anchors", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "body", JS_NewCFunction2(ctx, (JSCFunction *)js_document_body_get, "body", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "title", JS_NewCFunction2(ctx, (JSCFunction *)js_document_title_get, "title", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "cookie", JS_NewCFunction2(ctx, (JSCFunction *)js_document_cookie_get, "cookie", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "referrer", JS_NewCFunction2(ctx, (JSCFunction *)js_document_referrer_get, "referrer", 0, JS_CFUNC_getter, 0));
+    JS_SetPropertyStr(ctx, proto, "domain", JS_NewCFunction2(ctx, (JSCFunction *)js_document_domain_get, "domain", 0, JS_CFUNC_getter, 0));
 
     JS_SetClassProto(ctx, qjs_document_class_id, proto);
     return 0;

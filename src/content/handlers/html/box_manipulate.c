@@ -119,6 +119,7 @@ struct box *box_create(struct html_content *content, css_select_results *styles,
 	}
 
 	arena_register_destructor(context, box, box_talloc_destructor);
+    box->content = content;
 
 	box->content = content;
 	box->type = BOX_INLINE;
