@@ -207,7 +207,7 @@ static struct flex_ctx *layout_flex_ctx__create(html_content *content, const str
 			}
 		}
 
-		NSLOG(flex, INFO, "Gap parsed: flex=%p horizontal=%d main_gap=%d", flex, ctx->horizontal, ctx->main_gap);
+		NSLOG(flex, DEEPDEBUG, "Gap parsed: flex=%p horizontal=%d main_gap=%d", flex, ctx->horizontal, ctx->main_gap);
 
 		/* Cross gap */
 		if (ctx->horizontal) {
@@ -279,7 +279,7 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 	css_fixed grow_factor_sum = 0;
 	int grow_item_count = 0;
 
-	NSLOG(flex, INFO, "Flex redistribute: container_h=%d", container_height);
+	NSLOG(flex, DEEPDEBUG, "Flex redistribute: container_h=%d", container_height);
 
 	/* Get CSS row-gap for column flex (this is the main axis gap) */
 	int css_row_gap = 0;
@@ -356,12 +356,12 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 			if (grow > 0) {
 				grow_factor_sum += grow;
 				grow_item_count++;
-				NSLOG(flex, INFO, "  Child %p: height=%d, grow=%d", child, child->height, FIXTOINT(grow));
+				NSLOG(flex, DEEPDEBUG, "  Child %p: height=%d, grow=%d", child, child->height, FIXTOINT(grow));
 			}
 		}
 	}
 
-	NSLOG(flex, INFO, "  Initial: content_h=%d, auto_margins=%d, grow_sum=%d, gap_total=%d", content_height,
+	NSLOG(flex, DEEPDEBUG, "  Initial: content_h=%d, auto_margins=%d, grow_sum=%d, gap_total=%d", content_height,
 		auto_margin_count, FIXTOINT(grow_factor_sum), gap_total);
 
 	/* Calculate extra space, accounting for gaps between items */
@@ -369,7 +369,7 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 
 	if (extra_space <= 0) {
 		/* No extra space to distribute */
-		NSLOG(flex, INFO, "  No extra space (extra=%d)", extra_space);
+		NSLOG(flex, DEEPDEBUG, "  No extra space (extra=%d)", extra_space);
 		return true;
 	}
 
@@ -399,7 +399,7 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 					child->height += growth;
 					distributed += growth;
 
-					NSLOG(flex, INFO, "  GROW: child %p: %d -> %d (+%d)", child, old_height, child->height, growth);
+					NSLOG(flex, DEEPDEBUG, "  GROW: child %p: %d -> %d (+%d)", child, old_height, child->height, growth);
 				}
 			}
 		}
@@ -409,7 +409,7 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 		content_height += distributed;
 		extra_space = container_height - content_height;
 
-		NSLOG(flex, INFO, "  After grow: distributed=%d, new extra_space=%d", distributed, extra_space);
+		NSLOG(flex, DEEPDEBUG, "  After grow: distributed=%d, new extra_space=%d", distributed, extra_space);
 	}
 
 	/* Step 2: Redistribute remaining space to auto margins AND reposition children.
@@ -419,7 +419,7 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 	int margin_remainder = (auto_margin_count > 0 && extra_space > 0) ? (extra_space % auto_margin_count) : 0;
 
 	if (auto_margin_count > 0 && extra_space > 0) {
-		NSLOG(flex, INFO, "  Auto margin redistribute: extra=%d, margin_each=%d", extra_space, margin_each);
+		NSLOG(flex, DEEPDEBUG, "  Auto margin redistribute: extra=%d, margin_each=%d", extra_space, margin_each);
 	}
 
 	/* Reposition all children - this is needed after both GROW and auto margin distribution */
@@ -528,7 +528,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 			total_pct_demand += resolved;
 			scaled_shrink_sum += FMUL(item->shrink, INTTOFIX(resolved));
 
-			NSLOG(flex, INFO, "PASS2: item %p pct=%d%% resolved=%dpx against h=%d", b, pct, resolved, definite_height);
+			NSLOG(flex, DEEPDEBUG, "PASS2: item %p pct=%d%% resolved=%dpx against h=%d", b, pct, resolved, definite_height);
 		} else {
 			/* Non-percentage items: calculate outer height */
 			total_other += b->height + b->padding[TOP] + b->padding[BOTTOM] + b->border[TOP].width +
@@ -544,7 +544,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 	int available = definite_height - gap_total;
 	int total_demand = total_pct_demand + total_other;
 
-	NSLOG(flex, INFO, "PASS2: available=%d total_demand=%d (pct=%d other=%d gap=%d)", available, total_demand,
+	NSLOG(flex, DEEPDEBUG, "PASS2: available=%d total_demand=%d (pct=%d other=%d gap=%d)", available, total_demand,
 		total_pct_demand, total_other, gap_total);
 
 	if (total_demand > available && total_pct_demand > 0 && scaled_shrink_sum > 0) {
@@ -573,14 +573,14 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 					new_heights[i] = content_min;
 					frozen[i] = true;
 					frozen_total += content_min;
-					NSLOG(flex, INFO, "PASS2: item %p FROZEN: pct=%d%% resolved=%d < content=%d", b, pct, resolved,
+					NSLOG(flex, DEEPDEBUG, "PASS2: item %p FROZEN: pct=%d%% resolved=%d < content=%d", b, pct, resolved,
 						content_min);
 				} else {
 					/* This item can shrink */
 					new_heights[i] = resolved;
 					shrinkable_total += resolved;
 					shrinkable_factor_sum += FMUL(item->shrink, INTTOFIX(resolved));
-					NSLOG(flex, INFO, "PASS2: item %p SHRINKABLE: pct=%d%% resolved=%d content=%d", b, pct, resolved,
+					NSLOG(flex, DEEPDEBUG, "PASS2: item %p SHRINKABLE: pct=%d%% resolved=%d content=%d", b, pct, resolved,
 						content_min);
 				}
 			}
@@ -589,14 +589,14 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 		/* Calculate remaining space for shrinkable items */
 		int remaining_for_shrinkable = available - frozen_total;
 
-		NSLOG(flex, INFO, "PASS2: available=%d frozen_total=%d remaining=%d shrinkable_total=%d", available,
+		NSLOG(flex, DEEPDEBUG, "PASS2: available=%d frozen_total=%d remaining=%d shrinkable_total=%d", available,
 			frozen_total, remaining_for_shrinkable, shrinkable_total);
 
 		if (remaining_for_shrinkable > 0 && shrinkable_total > remaining_for_shrinkable) {
 			/* Need to shrink the shrinkable items */
 			int overflow = shrinkable_total - remaining_for_shrinkable;
 
-			NSLOG(flex, INFO, "PASS2: shrinkable overflow=%d", overflow);
+			NSLOG(flex, DEEPDEBUG, "PASS2: shrinkable overflow=%d", overflow);
 
 			/* Distribute shrink proportionally to shrinkable items */
 			for (size_t i = 0; i < ctx->item.count && i < 64; i++) {
@@ -616,7 +616,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 						target = content_min;
 					}
 
-					NSLOG(flex, INFO, "PASS2: item %p shrink: %d - %d = %d (min=%d)", b, new_heights[i], shrink_amount,
+					NSLOG(flex, DEEPDEBUG, "PASS2: item %p shrink: %d - %d = %d (min=%d)", b, new_heights[i], shrink_amount,
 						target, content_min);
 					new_heights[i] = target;
 				}
@@ -638,7 +638,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 			struct box *b = item->box;
 
 			if (item->has_pct_basis) {
-				NSLOG(flex, INFO, "PASS2: item %p: final height=%d (was %d)", b, new_heights[i], b->height);
+				NSLOG(flex, DEEPDEBUG, "PASS2: item %p: final height=%d (was %d)", b, new_heights[i], b->height);
 				b->height = new_heights[i];
 			}
 		}
@@ -654,7 +654,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 			bool child_is_column = (child_flex_dir == CSS_FLEX_DIRECTION_COLUMN ||
 				child_flex_dir == CSS_FLEX_DIRECTION_COLUMN_REVERSE);
 			if (child_is_column) {
-				NSLOG(flex, INFO, "PASS2: re-running redistribute on nested flex %p (h=%d)", b, b->height);
+				NSLOG(flex, DEEPDEBUG, "PASS2: re-running redistribute on nested flex %p (h=%d)", b, b->height);
 				layout_flex_redistribute_auto_margins_vertical(b);
 			}
 		}
@@ -737,7 +737,7 @@ static inline bool layout_flex__base_and_main_sizes(
 	}
 
 	NSLOG(flex, DEEPDEBUG, "box %p: delta_outer_main: %i", b, delta_outer_main);
-	NSLOG(flex, DEBUG, "box %p: item->basis=%d (SET=1, AUTO=2, CONTENT=3)", b, item->basis);
+	NSLOG(flex, DEEPDEBUG, "box %p: item->basis=%d (SET=1, AUTO=2, CONTENT=3)", b, item->basis);
 
 	if (item->basis == CSS_FLEX_BASIS_SET) {
 		/* Use css_computed_flex_basis_px to properly evaluate calc() expressions.
@@ -766,7 +766,7 @@ static inline bool layout_flex__base_and_main_sizes(
 			 * size" not "use zero height". Defer to content-based sizing. */
 			if (ctx->horizontal == false && basis_px == 0) {
 				item->base_size = AUTO;
-				NSLOG(flex, DEBUG, "box %p: flex-basis:0 in column flex, deferred to content sizing", b);
+				NSLOG(flex, DEEPDEBUG, "box %p: flex-basis:0 in column flex, deferred to content sizing", b);
 			} else {
 				item->base_size = basis_px;
 			}
@@ -795,14 +795,14 @@ static inline bool layout_flex__base_and_main_sizes(
 			} else {
 				item->base_size = b->width;
 			}
-			NSLOG(flex, DEBUG, "box %p: flex-basis:auto horizontal, base_size=%d from width", b, item->base_size);
+			NSLOG(flex, DEEPDEBUG, "box %p: flex-basis:auto horizontal, base_size=%d from width", b, item->base_size);
 		} else {
 			item->base_size = AUTO; /* Will be set after layout below */
-			NSLOG(flex, DEBUG, "box %p: flex-basis:auto column, deferred base_size to AUTO", b);
+			NSLOG(flex, DEEPDEBUG, "box %p: flex-basis:auto column, deferred base_size to AUTO", b);
 		}
 	} else {
 		item->base_size = AUTO;
-		NSLOG(flex, DEBUG, "box %p: flex-basis not SET or AUTO (basis=%d), base_size=AUTO", b, item->basis);
+		NSLOG(flex, DEEPDEBUG, "box %p: flex-basis not SET or AUTO (basis=%d), base_size=AUTO", b, item->basis);
 	}
 
 
@@ -863,7 +863,7 @@ static inline bool layout_flex__base_and_main_sizes(
 
 	if (item->base_size == AUTO) {
 		if (ctx->horizontal == false) {
-			NSLOG(flex, DEBUG, "box %p: setting base_size from b->height=%d", b, b->height);
+			NSLOG(flex, DEEPDEBUG, "box %p: setting base_size from b->height=%d", b, b->height);
 
 			css_fixed value;
 			css_unit unit;
@@ -891,7 +891,7 @@ static inline bool layout_flex__base_and_main_sizes(
 	if (ctx->horizontal && b->width != AUTO) {
 		int specified_main = b->width + delta_outer_main;
 		if (content_min_width > specified_main) {
-			NSLOG(flex, WARNING, "AUTO-MIN CAP: content_min_width %d -> %d (specified width=%d)", content_min_width,
+			NSLOG(flex, DEEPDEBUG, "AUTO-MIN CAP: content_min_width %d -> %d (specified width=%d)", content_min_width,
 				specified_main, b->width);
 			content_min_width = specified_main;
 		}
@@ -1141,17 +1141,17 @@ static struct flex_line_data *layout_flex__build_line(struct flex_ctx *ctx, size
 						item_cls = dom_string_data(item_class_attr);
 					}
 				}
-				NSLOG(flex, INFO,
+				NSLOG(flex, DEEPDEBUG,
 					"MARGIN_CHECK: box %p class='%s' margin[LEFT]=%d margin[RIGHT]=%d (AUTO=%d) start_side=%d end_side=%d",
 					b, item_cls, b->margin[LEFT], b->margin[RIGHT], AUTO, start_side, end_side);
 				if (b->margin[start_side] == AUTO) {
 					line->main_auto_margin_count++;
-					NSLOG(flex, INFO, "  -> auto margin on START side detected, count now %d",
+					NSLOG(flex, DEEPDEBUG, "  -> auto margin on START side detected, count now %d",
 						line->main_auto_margin_count);
 				}
 				if (b->margin[end_side] == AUTO) {
 					line->main_auto_margin_count++;
-					NSLOG(flex, INFO, "  -> auto margin on END side detected, count now %d",
+					NSLOG(flex, DEEPDEBUG, "  -> auto margin on END side detected, count now %d",
 						line->main_auto_margin_count);
 				}
 				if (item_class_attr != NULL)
@@ -1170,7 +1170,7 @@ static struct flex_line_data *layout_flex__build_line(struct flex_ctx *ctx, size
 		if (line->count > 1 && ctx->main_gap > 0) {
 			int gap_total = (int)(line->count - 1) * ctx->main_gap;
 			line->main_size += gap_total;
-			NSLOG(flex, INFO, "LINE gap added: count=%zu main_gap=%d gap_total=%d new main_size=%d", line->count,
+			NSLOG(flex, DEEPDEBUG, "LINE gap added: count=%zu main_gap=%d gap_total=%d new main_size=%d", line->count,
 				ctx->main_gap, gap_total, line->main_size);
 		}
 		ctx->line.count++;
@@ -1417,10 +1417,10 @@ static bool layout_flex__resolve_line(struct flex_ctx *ctx, struct flex_line_dat
 	/* Subtract gap space from available main - gaps are fixed gutters per CSS spec */
 	if (line->count > 1 && ctx->main_gap > 0) {
 		int gap_total = (int)(line->count - 1) * ctx->main_gap;
-		NSLOG(flex, WARNING, "GAP DEDUCT: available_main_before=%d gap_total=%d line->count=%zu", available_main,
+		NSLOG(flex, DEEPDEBUG, "GAP DEDUCT: available_main_before=%d gap_total=%d line->count=%zu", available_main,
 			gap_total, line->count);
 		available_main -= gap_total;
-		NSLOG(flex, WARNING, "GAP DEDUCT: available_main_after=%d", available_main);
+		NSLOG(flex, DEEPDEBUG, "GAP DEDUCT: available_main_after=%d", available_main);
 	}
 
 	grow = (line->main_size < available_main);
@@ -1628,7 +1628,7 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 					}
 					b->height = content_bottom;
 					NSLOG(
-						flex, WARNING, "ITEM[%zu]: computed height %d from children per CSS spec §9.4.7", i, b->height);
+						flex, DEEPDEBUG, "ITEM[%zu]: computed height %d from children per CSS spec §9.4.7", i, b->height);
 				}
 			}
 		}
@@ -1667,7 +1667,7 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 
 			/* DIAG: Log detailed child contribution for column flex debugging */
 			if (!ctx->horizontal) {
-				NSLOG(flex, WARNING,
+				NSLOG(flex, DEEPDEBUG,
 					"COLUMN_CHILD[%zu]: box %p type=%d h=%d m_top=%d m_bot=%d delta_outer=%d total_contrib=%d running_main=%d",
 					i, b, b->type, box_size_main, b->margin[TOP], b->margin[BOTTOM], lh__delta_outer_main(ctx->flex, b),
 					box_size_main + lh__delta_outer_main(ctx->flex, b), main_pos);
@@ -1707,7 +1707,7 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 			/* CSS FLEXBOX §9.8 COMPLIANCE: Cross Size Determination */
 			cross_size = box_size_cross + lh__delta_outer_cross(ctx->flex, b);
 			if (line->cross_size < cross_size) {
-				NSLOG(flex, WARNING, "LINE CROSS_SIZE update: box %p type=%d height=%d -> line->cross_size=%d", b,
+				NSLOG(flex, DEEPDEBUG, "LINE CROSS_SIZE update: box %p type=%d height=%d -> line->cross_size=%d", b,
 					b->type, box_size_cross, cross_size);
 				line->cross_size = cross_size;
 			}
@@ -1751,7 +1751,7 @@ static bool layout_flex__collect_items_into_lines(struct flex_ctx *ctx)
 		}
 
 		/* DIAG: Log line finalization */
-		NSLOG(flex, WARNING, "LINE FINAL: container %p line_idx=%zu items=%zu cross_size=%d main_size=%d", ctx->flex,
+		NSLOG(flex, DEEPDEBUG, "LINE FINAL: container %p line_idx=%zu items=%zu cross_size=%d main_size=%d", ctx->flex,
 			ctx->line.count - 1, line->count, line->cross_size, line->main_size);
 
 		ctx->cross_size += line->cross_size;
@@ -1793,7 +1793,7 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 		cross_free_space = line->cross_size + extra - *box_size_cross - lh__delta_outer_cross(ctx->flex, b);
 
 		/* DIAG: Log cross placement for each item */
-		NSLOG(flex, INFO, "CROSS_PLACE[%zu]: box %p type=%d line_cross=%d item_cross=%d free_space=%d", i, b, b->type,
+		NSLOG(flex, DEEPDEBUG, "CROSS_PLACE[%zu]: box %p type=%d line_cross=%d item_cross=%d free_space=%d", i, b, b->type,
 			line->cross_size, *box_size_cross, cross_free_space);
 
 		/* CSS Flexbox §8.1: "Prior to alignment via justify-content and align-self,
@@ -1845,7 +1845,7 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 				if (ctx->horizontal && cross_free_space > 0 && b->type == BOX_FLEX && b->style) {
 					uint8_t child_dir = css_computed_flex_direction(b->style);
 					if (child_dir == CSS_FLEX_DIRECTION_COLUMN || child_dir == CSS_FLEX_DIRECTION_COLUMN_REVERSE) {
-						NSLOG(flex, INFO, "Stretched column flex %p: height %d -> %d, redistributing", b,
+						NSLOG(flex, DEEPDEBUG, "Stretched column flex %p: height %d -> %d, redistributing", b,
 							old_cross_size, target_cross_size);
 						layout_flex_redistribute_auto_margins_vertical(b);
 					}
@@ -1976,7 +1976,7 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 		&max_width, &min_width, &max_height, &min_height, flex->margin, flex->padding, flex->border);
 
 	if (height_was_stretched) {
-		NSLOG(flex, DEBUG, "box %p: preserved stretched height %d", flex, flex->height);
+		NSLOG(flex, DEEPDEBUG, "box %p: preserved stretched height %d", flex, flex->height);
 	}
 
 	available_width = min(available_width, flex->width);
@@ -2010,8 +2010,6 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 
 	NSLOG(flex, DEEPDEBUG, "box %p: available_main: %i", flex, ctx->available_main);
 	NSLOG(flex, DEEPDEBUG, "box %p: available_cross: %i", flex, ctx->available_cross);
-	NSLOG(flex, INFO, "box %p: available_main: %i", flex, ctx->available_main);
-	NSLOG(flex, INFO, "box %p: available_cross: %i", flex, ctx->available_cross);
 
 	layout_flex_ctx__populate_item_data(ctx, flex, available_width);
 
@@ -2062,7 +2060,7 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 	 * distributing extra vertical space after the container's final height is known.
 	 */
 	if (!ctx->horizontal) {
-		NSLOG(flex, INFO, "Column flex %p: final height=%d, calling redistribute", flex, flex->height);
+		NSLOG(flex, DEEPDEBUG, "Column flex %p: final height=%d, calling redistribute", flex, flex->height);
 		layout_flex_redistribute_auto_margins_vertical(flex);
 
 		/* Also handle nested column flex containers recursively */
@@ -2072,7 +2070,7 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 				bool child_is_column = (child_flex_dir == CSS_FLEX_DIRECTION_COLUMN ||
 					child_flex_dir == CSS_FLEX_DIRECTION_COLUMN_REVERSE);
 				if (child_is_column) {
-					NSLOG(flex, INFO, "Nested column flex %p: redistributing", child);
+					NSLOG(flex, DEEPDEBUG, "Nested column flex %p: redistributing", child);
 					layout_flex_redistribute_auto_margins_vertical(child);
 				}
 			}
@@ -2080,7 +2078,9 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 	}
 
 	if (success) {
+#ifndef TESTING
 		if (flex->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, flex);
+#endif
 	}
 	success = true;
 

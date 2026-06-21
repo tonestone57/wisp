@@ -24,7 +24,9 @@
 #ifndef WISP_QT_PLOTTERS_H
 #define WISP_QT_PLOTTERS_H 1
 
-struct plotter_table;
+extern "C" {
+#include "wisp/plotters.h"
+}
 
 extern const struct plotter_table nsqt_plotters;
 

@@ -34,7 +34,7 @@ static JSValue js_document_getElementsByTagName(JSContext *ctx, JSValueConst thi
     if (!tag) return JS_NewArray(ctx);
 
     dom_string *tag_dom = NULL;
-    dom_string_create((const uint8_t *)tag, strlen(tag), &title_dom);
+    dom_string_create((const uint8_t *)tag, strlen(tag), &tag_dom);
     JS_FreeCString(ctx, tag);
 
     struct dom_nodelist *list = NULL;
@@ -81,7 +81,7 @@ static JSValue js_document_createElement(JSContext *ctx, JSValueConst this_val, 
     if (!tag) return JS_EXCEPTION;
 
     dom_string *tag_dom = NULL;
-    dom_string_create((const uint8_t *)tag, strlen(tag), &title_dom);
+    dom_string_create((const uint8_t *)tag, strlen(tag), &tag_dom);
     JS_FreeCString(ctx, tag);
 
     struct dom_element *result = NULL;

@@ -856,13 +856,13 @@ static nserror nsqt_plot_path_stroke(const struct redraw_context *ctx, const plo
  */
 const struct plotter_table nsqt_plotters = {
     .clip = nsqt_plot_clip,
-    .finalise = nsqt_plot_finalise,
     .arc = nsqt_plot_arc,
     .disc = nsqt_plot_disc,
     .line = nsqt_plot_line,
     .rectangle = nsqt_plot_rectangle,
     .polygon = nsqt_plot_polygon,
     .path = nsqt_plot_path,
+    .finalise = nsqt_plot_finalise,
     .path_begin = nsqt_plot_path_begin,
     .path_move_to = nsqt_plot_path_move_to,
     .path_line_to = nsqt_plot_path_line_to,
