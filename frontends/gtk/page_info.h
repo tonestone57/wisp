@@ -1,3 +1,4 @@
+struct nsgtk_pi_window;
 /*
  * Copyright 2019 Vincent Sanders <vince@netsurf-browser.org>
  *

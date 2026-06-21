@@ -44,12 +44,21 @@
 #include "windows/window.h"
 
 HDC plot_hdc;
+static __thread struct gdi_path_command *stateful_path = NULL;
+static __thread unsigned int stateful_path_count = 0;
+static __thread unsigned int stateful_path_alloc = 0;
 
 /** Current gui_window being painted (for setting gradient flag) */
 struct gui_window *plot_gw;
 
 /** currently set clipping rectangle */
 static RECT plot_clip;
+
+/** Stateful Path API storage */
+struct gdi_path_command {
+    path_command type;
+    float x1, y1, x2, y2, x3, y3;
+};
 
 /** Transform stack for push_transform/pop_transform support */
 #define TRANSFORM_STACK_SIZE 16
@@ -1520,11 +1529,171 @@ static nserror win_pop_transform(const struct redraw_context *ctx)
 }
 
 
+static void win_plot_stateful_add_command(enum path_command type, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    if (stateful_path_count >= stateful_path_alloc) {
+        unsigned int new_alloc = stateful_path_alloc ? stateful_path_alloc * 2 : 64;
+        struct gdi_path_command *new_path = realloc(stateful_path, sizeof(struct gdi_path_command) * new_alloc);
+        if (new_path == NULL) {
+            NSLOG(wisp, ERROR, "Failed to allocate memory for stateful path");
+            return;
+        }
+        stateful_path = new_path;
+        stateful_path_alloc = new_alloc;
+    }
+    stateful_path[stateful_path_count++] = (struct gdi_path_command){type, x1, y1, x2, y2, x3, y3};
+}
+
+/**
+ * Start a new path.
+ */
+
+static nserror win_plot_finalise(void)
+{
+    if (stateful_path) {
+        free(stateful_path);
+        stateful_path = NULL;
+    }
+    stateful_path_count = 0;
+    stateful_path_alloc = 0;
+    return NSERROR_OK;
+}
+
+static nserror win_plot_path_begin(const struct redraw_context *ctx)
+{
+    stateful_path_count = 0;
+    return NSERROR_OK;
+}
+
+/**
+ * Move the current path point.
+ */
+static nserror win_plot_path_move_to(const struct redraw_context *ctx, float x, float y)
+{
+    win_plot_stateful_add_command(PLOTTER_PATH_MOVE, x, y, 0, 0, 0, 0);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a line to the path.
+ */
+static nserror win_plot_path_line_to(const struct redraw_context *ctx, float x, float y)
+{
+    win_plot_stateful_add_command(PLOTTER_PATH_LINE, x, y, 0, 0, 0, 0);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a cubic Bezier curve to the path.
+ */
+static nserror win_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    win_plot_stateful_add_command(PLOTTER_PATH_BEZIER, x1, y1, x2, y2, x3, y3);
+    return NSERROR_OK;
+}
+
+/**
+ * Close the current subpath.
+ */
+static nserror win_plot_path_close(const struct redraw_context *ctx)
+{
+    win_plot_stateful_add_command(PLOTTER_PATH_CLOSE, 0, 0, 0, 0, 0, 0);
+    return NSERROR_OK;
+}
+
+static void win_plot_play_stateful_path(HDC hdc)
+{
+    BeginPath(hdc);
+    for (unsigned int i = 0; i < stateful_path_count; i++) {
+        struct gdi_path_command *cmd = &stateful_path[i];
+        switch (cmd->type) {
+        case PLOTTER_PATH_MOVE:
+            MoveToEx(hdc, (int)cmd->x1, (int)cmd->y1, NULL);
+            break;
+        case PLOTTER_PATH_LINE:
+            LineTo(hdc, (int)cmd->x1, (int)cmd->y1);
+            break;
+        case PLOTTER_PATH_BEZIER: {
+            POINT pts[3] = {{(LONG)cmd->x1, (LONG)cmd->y1}, {(LONG)cmd->x2, (LONG)cmd->y2}, {(LONG)cmd->x3, (LONG)cmd->y3}};
+            PolyBezierTo(hdc, pts, 3);
+            break;
+        }
+        case PLOTTER_PATH_CLOSE:
+            CloseFigure(hdc);
+            break;
+        }
+    }
+    EndPath(hdc);
+}
+
+/**
+ * Fill the current path.
+ */
+static nserror win_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (plot_hdc == NULL) return NSERROR_INVALID;
+    if (pstyle->fill_colour == NS_TRANSPARENT) return NSERROR_OK;
+
+    win_plot_play_stateful_path(plot_hdc);
+
+    HBRUSH brush = CreateSolidBrush((DWORD)(pstyle->fill_colour & 0x00FFFFFF));
+    HGDIOBJ old_brush = SelectObject(plot_hdc, brush);
+
+    XFORM old_xform;
+    BOOL has_xform = (transform != NULL);
+    if (has_xform) {
+        GetWorldTransform(plot_hdc, &old_xform);
+        XFORM new_xform = {transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]};
+        ModifyWorldTransform(plot_hdc, &new_xform, MWT_RIGHTMULTIPLY);
+    }
+
+    SetPolyFillMode(plot_hdc, WINDING);
+    FillPath(plot_hdc);
+
+    if (has_xform) SetWorldTransform(plot_hdc, &old_xform);
+    SelectObject(plot_hdc, old_brush);
+    DeleteObject(brush);
+
+    return NSERROR_OK;
+}
+
+/**
+ * Stroke the current path.
+ */
+static nserror win_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (plot_hdc == NULL) return NSERROR_INVALID;
+    if (pstyle->stroke_colour == NS_TRANSPARENT) return NSERROR_OK;
+
+    win_plot_play_stateful_path(plot_hdc);
+
+    LOGBRUSH lb = {BS_SOLID, (DWORD)(pstyle->stroke_colour & 0x00FFFFFF), 0};
+    HPEN pen = ExtCreatePen(PS_GEOMETRIC | PS_SOLID, plot_style_fixed_to_int(pstyle->stroke_width), &lb, 0, NULL);
+    HGDIOBJ old_pen = SelectObject(plot_hdc, pen);
+
+    XFORM old_xform;
+    BOOL has_xform = (transform != NULL);
+    if (has_xform) {
+        GetWorldTransform(plot_hdc, &old_xform);
+        XFORM new_xform = {transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]};
+        ModifyWorldTransform(plot_hdc, &new_xform, MWT_RIGHTMULTIPLY);
+    }
+
+    StrokePath(plot_hdc);
+
+    if (has_xform) SetWorldTransform(plot_hdc, &old_xform);
+    SelectObject(plot_hdc, old_pen);
+    DeleteObject(pen);
+
+    return NSERROR_OK;
+}
+
 /**
  * win32 API plot operation table
  */
 const struct plotter_table win_plotters = {
     .rectangle = rectangle,
+    .finalise = win_plot_finalise,
     .line = line,
     .polygon = polygon,
     .clip = clip,
@@ -1533,6 +1702,13 @@ const struct plotter_table win_plotters = {
     .arc = arc,
     .bitmap = bitmap,
     .path = path,
+    .path_begin = win_plot_path_begin,
+    .path_move_to = win_plot_path_move_to,
+    .path_line_to = win_plot_path_line_to,
+    .path_bezier_to = win_plot_path_bezier_to,
+    .path_close = win_plot_path_close,
+    .path_fill = win_plot_path_fill,
+    .path_stroke = win_plot_path_stroke,
     .push_transform = win_push_transform,
     .pop_transform = win_pop_transform,
 #ifdef WISP_WINDOWS_NATIVE_LINEAR_GRADIENT

@@ -12,9 +12,7 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include <dom/html/html_collection.h>
-
 JSClassID qjs_htmlcollection_class_id;
-
 typedef struct {
     void *col;
 } QJSHTMLCollectionPrivate;

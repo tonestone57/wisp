@@ -291,6 +291,9 @@ void wisp_exit(void)
     hlcache_stop();
 
     NSLOG(wisp, INFO, "Closing GUI");
+
+
+
     guit->misc->quit();
 
     NSLOG(wisp, INFO, "Finalising page-info module");

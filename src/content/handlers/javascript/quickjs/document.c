@@ -10,11 +10,11 @@
 #include <dom/html/html_document.h>
 #include <dom/html/html_element.h>
 #include <dom/html/html_collection.h>
+JSClassID qjs_document_class_id;
 
 static void js_document_finalizer(JSRuntime *rt, JSValue val);
 
 #include "document.inc"
-
 static void js_document_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_document_class_id);
@@ -525,6 +525,8 @@ static JSValue js_document_domain_get(JSContext *ctx, JSValueConst this_val)
     dom_string_unref(domain);
     return val;
 }
+
+
 
 static JSValue js_document_getElementsByName(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {

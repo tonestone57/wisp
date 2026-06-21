@@ -1,3 +1,4 @@
+#include "wisp/plotters.h"
 /*
  * Copyright 2011 Daniel Silverstone <dsilvers@digital-scurf.org>
  *
@@ -42,6 +43,9 @@
 #include "wisp/cookie_db.h"
 #include "wisp/misc.h"
 #include "wisp/wisp.h"
+#include "wisp/plotters.h"
+#include "monkey/plot.h"
+#include "monkey/plot.h"
 #include "wisp/url_db.h"
 #include "wisp/utils/sys_time.h"
 
@@ -533,6 +537,7 @@ int main(int argc, char **argv)
     moutf(MOUT_GENERIC, "CLOSING_DOWN");
     monkey_kill_browser_windows();
 
+    if (monkey_plotters->finalise) monkey_plotters->finalise();
     wisp_exit();
     moutf(MOUT_GENERIC, "FINISHED");
 

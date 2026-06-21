@@ -1,3 +1,4 @@
+#include <gtk/gtk.h>
 /*
  * Copyright 2008 Rob Kendrick <rjek@rjek.com>
  *

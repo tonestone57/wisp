@@ -180,6 +180,8 @@ else()
 endif()
 option(WISP_USE_NATIVE_RADIAL_GRADIENTS "Use native frontend radial gradient rendering when available" ${DEFAULT_NATIVE_RADIAL})
 
+option(WISP_USE_BLEND2D "Use Blend2D for high-performance 2D rendering" OFF)
+
 if(WISP_USE_NATIVE_RADIAL_GRADIENTS)
     add_compile_definitions(WISP_USE_NATIVE_RADIAL_GRADIENTS=1)
     message(STATUS "Native radial gradient rendering enabled")

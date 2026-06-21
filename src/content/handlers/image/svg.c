@@ -211,14 +211,34 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
     }
 
 #ifdef SVG_GRADIENT_BBOX_CLIP
-    /* Optional: Set clip to the shape's bounding box.
-     * This can cause slight edge cutting for bezier curves due to bbox
-     * calculation using control points rather than actual curve bounds.
-     * Disabled by default since fillPath() clips to path shape naturally. */
+    /* Optional: Set clip to the shape's bounding box. */
     ctx->plot->clip(ctx, bbox);
 #else
     (void)bbox; /* Unused when not clipping to bbox */
 #endif
+
+    /* Create scaled path for the old gradient API */
+    float *scaled_path = malloc(sizeof(float) * path_len);
+    if (!scaled_path) {
+        free(stops);
+        return NSERROR_NOMEM;
+    }
+    unsigned int k = 0, jj = 0;
+    while (jj < path_len) {
+        int cmd = (int)path[jj++];
+        scaled_path[k++] = (float)cmd;
+        if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
+            scaled_path[k++] = path[jj++] * sx;
+            scaled_path[k++] = path[jj++] * sy;
+        } else if (cmd == PLOTTER_PATH_BEZIER) {
+            scaled_path[k++] = path[jj++] * sx;
+            scaled_path[k++] = path[jj++] * sy;
+            scaled_path[k++] = path[jj++] * sx;
+            scaled_path[k++] = path[jj++] * sy;
+            scaled_path[k++] = path[jj++] * sx;
+            scaled_path[k++] = path[jj++] * sy;
+        }
+    }
 
     /* Scale gradient coordinates to match path space (scaled but not translated).
      * The transform is applied during rendering by the plotter. */
@@ -233,7 +253,7 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
             "SVG gradient: Calling native linear plotter (%.1f,%.1f) to (%.1f,%.1f) with %u stops, path_len=%u", gx1,
             gy1, gx2, gy2, shape->fill_grad_stop_count, path_len);
         err = ctx->plot->linear_gradient(
-            ctx, path, path_len, transform, gx1, gy1, gx2, gy2, stops, shape->fill_grad_stop_count);
+            ctx, scaled_path, k, transform, gx1, gy1, gx2, gy2, stops, shape->fill_grad_stop_count);
     } else {
         /* Radial gradient: fill_grad_x1,y1 = center, fill_grad_x2,y2 = radii
          * Scale to match path space (scaled but not translated). */
@@ -245,7 +265,7 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
             "SVG gradient: Calling native radial plotter (%.1f,%.1f) rx=%.1f ry=%.1f with %u stops, path_len=%u", cx,
             cy, rx, ry, shape->fill_grad_stop_count, path_len);
         err = ctx->plot->radial_gradient(
-            ctx, path, path_len, transform, cx, cy, rx, ry, stops, shape->fill_grad_stop_count);
+            ctx, scaled_path, k, transform, cx, cy, rx, ry, stops, shape->fill_grad_stop_count);
     }
 
     if (err == NSERROR_OK) {
@@ -254,6 +274,7 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
         NSLOG(wisp, WARNING, "SVG gradient: Native plotter FAILED with error %d", err);
     }
 
+    free(scaled_path);
     free(stops);
     return err;
 #else
@@ -272,216 +293,6 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
 }
 
 
-/* Maximum number of floats sent per plotter path call to avoid oversized
- * buffers */
-#define SVG_COMBO_FLUSH_LIMIT 960
-
-/* Split a path buffer into safe chunks at MOVE boundaries and plot each chunk
- */
-static nserror svg_plot_path_chunked(const struct redraw_context *ctx, const plot_style_t *style, const float *p,
-    unsigned int n, const float transform[6])
-{
-    unsigned int pos = 0;
-    unsigned int grp_start = 0;
-    unsigned int grp_len = 0;
-    unsigned int grp_moves = 0;
-    float gb_minx = 0.0f, gb_miny = 0.0f, gb_maxx = 0.0f, gb_maxy = 0.0f;
-    int gb_init = 0;
-    nserror r = NSERROR_OK;
-
-    while (pos < n) {
-        while (pos < n && (int)p[pos] != PLOTTER_PATH_MOVE)
-            pos++;
-        if (pos >= n)
-            break;
-
-        unsigned int sp_start = pos;
-        float sb_minx = 0.0f, sb_miny = 0.0f, sb_maxx = 0.0f, sb_maxy = 0.0f;
-        int sb_init = 0;
-
-        while (pos < n) {
-            int cmd = (int)p[pos++];
-            if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
-                float xx = p[pos++];
-                float yy = p[pos++];
-                if (!sb_init) {
-                    sb_minx = sb_maxx = xx;
-                    sb_miny = sb_maxy = yy;
-                    sb_init = 1;
-                }
-                if (xx < sb_minx)
-                    sb_minx = xx;
-                if (xx > sb_maxx)
-                    sb_maxx = xx;
-                if (yy < sb_miny)
-                    sb_miny = yy;
-                if (yy > sb_maxy)
-                    sb_maxy = yy;
-            } else if (cmd == PLOTTER_PATH_BEZIER) {
-                float x1 = p[pos++];
-                float y1 = p[pos++];
-                float x2 = p[pos++];
-                float y2 = p[pos++];
-                float x3 = p[pos++];
-                float y3 = p[pos++];
-                if (!sb_init) {
-                    sb_minx = sb_maxx = x1;
-                    sb_miny = sb_maxy = y1;
-                    sb_init = 1;
-                }
-                if (x1 < sb_minx)
-                    sb_minx = x1;
-                if (x1 > sb_maxx)
-                    sb_maxx = x1;
-                if (y1 < sb_miny)
-                    sb_miny = y1;
-                if (y1 > sb_maxy)
-                    sb_maxy = y1;
-                if (x2 < sb_minx)
-                    sb_minx = x2;
-                if (x2 > sb_maxx)
-                    sb_maxx = x2;
-                if (y2 < sb_miny)
-                    sb_miny = y2;
-                if (y2 > sb_maxy)
-                    sb_maxy = y2;
-                if (x3 < sb_minx)
-                    sb_minx = x3;
-                if (x3 > sb_maxx)
-                    sb_maxx = x3;
-                if (y3 < sb_miny)
-                    sb_miny = y3;
-                if (y3 > sb_maxy)
-                    sb_maxy = y3;
-            } else if (cmd == PLOTTER_PATH_CLOSE) {
-                /* no coords */
-            }
-            if (pos < n && (int)p[pos] == PLOTTER_PATH_MOVE)
-                break;
-        }
-        unsigned int sp_end = pos;
-        unsigned int sp_len = sp_end - sp_start;
-        NSLOG(wisp, INFO, "SVG subpath parsed: sp_len=%u sbbox=%.2f,%.2f..%.2f,%.2f", sp_len, sb_minx, sb_miny, sb_maxx,
-            sb_maxy);
-
-        if (grp_len == 0) {
-            grp_start = sp_start;
-            grp_len = sp_len;
-            grp_moves = 1;
-            gb_minx = sb_minx;
-            gb_miny = sb_miny;
-            gb_maxx = sb_maxx;
-            gb_maxy = sb_maxy;
-            gb_init = sb_init;
-            continue;
-        }
-
-        int overlap = (sb_maxx >= gb_minx && sb_minx <= gb_maxx && sb_maxy >= gb_miny && sb_miny <= gb_maxy);
-        NSLOG(wisp, INFO,
-            "SVG group decision: grp_len=%u grp_moves=%u sb_len=%u gbbox=%.2f,%.2f..%.2f,%.2f sbbox=%.2f,%.2f..%.2f,%.2f overlap=%d next_total=%u limit=%u",
-            grp_len, grp_moves, sp_len, gb_minx, gb_miny, gb_maxx, gb_maxy, sb_minx, sb_miny, sb_maxx, sb_maxy, overlap,
-            grp_len + sp_len, SVG_COMBO_FLUSH_LIMIT);
-        if (!overlap || grp_len + sp_len > SVG_COMBO_FLUSH_LIMIT) {
-            NSLOG(wisp, INFO, "SVG chunk flush: len=%u moves=%u reason=%s", grp_len, grp_moves,
-                (!overlap ? "disjoint" : "limit"));
-            nserror rr = ctx->plot->path(ctx, style, p + grp_start, grp_len, transform);
-            if (rr != NSERROR_OK) {
-                NSLOG(wisp, ERROR, "SVG chunk flush failed: len=%u err=%d; splitting fallback", grp_len, rr);
-                unsigned int pos2 = grp_start;
-                while (pos2 < grp_start + grp_len) {
-                    while (pos2 < grp_start + grp_len && (int)p[pos2] != PLOTTER_PATH_MOVE)
-                        pos2++;
-                    if (pos2 >= grp_start + grp_len)
-                        break;
-                    unsigned int sp = pos2;
-                    unsigned int ep = sp + 1;
-                    while (ep < grp_start + grp_len) {
-                        int c = (int)p[ep++];
-                        if (c == PLOTTER_PATH_MOVE || c == PLOTTER_PATH_LINE) {
-                            ep += 2;
-                        } else if (c == PLOTTER_PATH_BEZIER) {
-                            ep += 6;
-                        } else if (c == PLOTTER_PATH_CLOSE) {
-                        }
-                        if (ep < grp_start + grp_len && (int)p[ep] == PLOTTER_PATH_MOVE)
-                            break;
-                    }
-                    unsigned int slen = ep - sp;
-                    NSLOG(wisp, INFO, "SVG chunk fallback split: subpath_len=%u", slen);
-                    nserror rr2 = ctx->plot->path(ctx, style, p + sp, slen, transform);
-                    if (rr2 != NSERROR_OK) {
-                        NSLOG(wisp, ERROR, "SVG fallback subpath failed: len=%u err=%d", slen, rr2);
-                        r = rr2;
-                    }
-                    pos2 = ep;
-                }
-            }
-            grp_start = sp_start;
-            grp_len = sp_len;
-            grp_moves = 1;
-            gb_minx = sb_minx;
-            gb_miny = sb_miny;
-            gb_maxx = sb_maxx;
-            gb_maxy = sb_maxy;
-            gb_init = sb_init;
-        } else {
-            grp_len += sp_len;
-            grp_moves += 1;
-            if (!gb_init) {
-                gb_minx = sb_minx;
-                gb_miny = sb_miny;
-                gb_maxx = sb_maxx;
-                gb_maxy = sb_maxy;
-                gb_init = sb_init;
-            }
-            if (sb_minx < gb_minx)
-                gb_minx = sb_minx;
-            if (sb_maxx > gb_maxx)
-                gb_maxx = sb_maxx;
-            if (sb_miny < gb_miny)
-                gb_miny = sb_miny;
-            if (sb_maxy > gb_maxy)
-                gb_maxy = sb_maxy;
-        }
-    }
-
-    if (grp_len > 0) {
-        NSLOG(wisp, INFO, "SVG chunk final flush: len=%u moves=%u", grp_len, grp_moves);
-        nserror rr = ctx->plot->path(ctx, style, p + grp_start, grp_len, transform);
-        if (rr != NSERROR_OK) {
-            NSLOG(wisp, ERROR, "SVG chunk final flush failed: len=%u err=%d; splitting fallback", grp_len, rr);
-            unsigned int pos2 = grp_start;
-            while (pos2 < grp_start + grp_len) {
-                while (pos2 < grp_start + grp_len && (int)p[pos2] != PLOTTER_PATH_MOVE)
-                    pos2++;
-                if (pos2 >= grp_start + grp_len)
-                    break;
-                unsigned int sp = pos2;
-                unsigned int ep = sp + 1;
-                while (ep < grp_start + grp_len) {
-                    int c = (int)p[ep++];
-                    if (c == PLOTTER_PATH_MOVE || c == PLOTTER_PATH_LINE) {
-                        ep += 2;
-                    } else if (c == PLOTTER_PATH_BEZIER) {
-                        ep += 6;
-                    } else if (c == PLOTTER_PATH_CLOSE) {
-                    }
-                    if (ep < grp_start + grp_len && (int)p[ep] == PLOTTER_PATH_MOVE)
-                        break;
-                }
-                unsigned int slen = ep - sp;
-                NSLOG(wisp, INFO, "SVG chunk fallback split: subpath_len=%u", slen);
-                nserror rr2 = ctx->plot->path(ctx, style, p + sp, slen, transform);
-                if (rr2 != NSERROR_OK) {
-                    NSLOG(wisp, ERROR, "SVG fallback subpath failed: len=%u err=%d", slen, rr2);
-                    r = rr2;
-                }
-                pos2 = ep;
-            }
-        }
-    }
-    return r;
-}
 
 typedef struct svg_content {
     struct content base;
@@ -664,23 +475,15 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
 {
     float transform[6];
     struct svgtiny_diagram *diagram = svg->diagram;
-    int px, py;
     unsigned int i;
     plot_font_style_t fstyle = *plot_style_font;
-    plot_style_t pstyle;
     nserror res;
     bool ok = true;
-    /* For inline SVGs, content_get_url may return NULL - handle gracefully */
     nsurl *content_url = content_get_url(&svg->base);
     const char *url_str = content_url ? nsurl_access(content_url) : "(inline)";
 
     assert(diagram);
 
-    /* Scale from the coordinate space paths were parsed at (base.width/height,
-     * updated by svg_reformat to diagram->width/height) to the display size.
-     * Do NOT use the intrinsic dimensions from svg_convert because
-     * svgtiny_parse already bakes the viewBox→viewport transform into path
-     * coordinates via the CTM — using intrinsic dims would double-scale. */
     int intrinsic_w = svg->base.width;
     int intrinsic_h = svg->base.height;
     int parse_w = intrinsic_w;
@@ -688,483 +491,239 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
     if (svg->diagram->width > 0 && svg->diagram->height > 0) {
         parse_w = svg->diagram->width;
         parse_h = svg->diagram->height;
-    } else {
-        NSLOG(wisp, WARNING,
-            "SVG redraw: diagram->width=%d diagram->height=%d invalid, falling back to intrinsic %dx%d. "
-            "SVG may be missing width, height, and viewBox attributes.",
-            svg->diagram->width, svg->diagram->height, intrinsic_w, intrinsic_h);
     }
     float sx = (float)width / (float)parse_w;
     float sy = (float)height / (float)parse_h;
-    NSLOG(wisp, DEBUG, "SVG redraw: display=%dx%d parsed=%dx%d intrinsic=%dx%d sx=%.3f sy=%.3f", width, height, parse_w,
-        parse_h, intrinsic_w, intrinsic_h, sx, sy);
-    transform[0] = 1.0f;
-    transform[1] = 0.0f;
-    transform[2] = 0.0f;
-    transform[3] = 1.0f;
-    transform[4] = x;
-    transform[5] = y;
+    float stroke_scale = (sx + sy) / 2.0f;
+
+    transform[0] = 1.0f; transform[1] = 0.0f;
+    transform[2] = 0.0f; transform[3] = 1.0f;
+    transform[4] = (float)x;    transform[5] = (float)y;
 
     NSLOG(wisp, DEBUG, "PROFILER: START SVG rendering %p", svg);
-    NSLOG(wisp, INFO, "SVG redraw start: url=%s clip=%d,%d..%d,%d limit=%u", url_str, clip->x0, clip->y0, clip->x1,
-        clip->y1, SVG_COMBO_FLUSH_LIMIT);
 
 #define BGR(c) (((svgtiny_RED((c))) | (svgtiny_GREEN((c)) << 8) | (svgtiny_BLUE((c)) << 16)))
 
-    unsigned int max_path_len = 0;
-    for (i = 0; i != diagram->shape_count; i++) {
-        if (diagram->shape[i].path && diagram->shape[i].path_length > max_path_len) {
-            max_path_len = diagram->shape[i].path_length;
-        }
-    }
-    float *scaled = NULL;
-    if (max_path_len > 0) {
-        scaled = malloc(sizeof(float) * max_path_len);
-        if (scaled == NULL) {
-            return false;
-        }
-    }
-    float *combo = NULL;
-    unsigned int combo_len = 0;
-    unsigned int combo_cap = 0;
-    unsigned int combo_shapes = 0;
-    plot_style_t combo_style;
-    int combo_active = 0;
+    bool use_stateful = (ctx->plot->path_begin != NULL &&
+                        ctx->plot->path_fill != NULL &&
+                        ctx->plot->path_stroke != NULL);
+
+    /* Batching state */
+    bool batch_active = false;
+    plot_style_t batch_style;
+    float *batch_path = NULL;
+    unsigned int batch_path_len = 0;
+    unsigned int batch_path_alloc = 0;
+
+    #define FLUSH_BATCH() do { \
+        if (batch_active) { \
+            if (use_stateful) { \
+                if (batch_style.fill_type != PLOT_OP_TYPE_NONE) ctx->plot->path_fill(ctx, &batch_style, transform); \
+                if (batch_style.stroke_type != PLOT_OP_TYPE_NONE) ctx->plot->path_stroke(ctx, &batch_style, transform); \
+            } else { \
+                if (batch_style.fill_type != PLOT_OP_TYPE_NONE) { \
+                    plot_style_t _fs = batch_style; _fs.stroke_type = PLOT_OP_TYPE_NONE; \
+                    ctx->plot->path(ctx, &_fs, batch_path, batch_path_len, transform); \
+                } \
+                if (batch_style.stroke_type != PLOT_OP_TYPE_NONE) { \
+                    plot_style_t _ss = batch_style; _ss.fill_type = PLOT_OP_TYPE_NONE; \
+                    ctx->plot->path(ctx, &_ss, batch_path, batch_path_len, transform); \
+                } \
+            } \
+            batch_active = false; \
+            batch_path_len = 0; \
+        } \
+    } while(0)
 
     for (i = 0; i != diagram->shape_count; i++) {
         if (diagram->shape[i].path) {
-            NSLOG(wisp, WARNING, "SVG shape[%u/%u]: fill=0x%x stroke=0x%x stroke_width=%d dasharray=%s", i,
-                diagram->shape_count, (unsigned)diagram->shape[i].fill, (unsigned)diagram->shape[i].stroke,
-                diagram->shape[i].stroke_width, diagram->shape[i].stroke_dasharray_set ? "yes" : "no");
-            /* stroke style */
+            plot_style_t current_pstyle;
+            memset(&current_pstyle, 0, sizeof(plot_style_t));
             svgtiny_colour stroke_c = diagram->shape[i].stroke;
-
             if (stroke_c == svgtiny_CURRENT_COLOR) {
-                /* currentColor from CSS is already in neosurf format */
-                pstyle.stroke_type = PLOT_OP_TYPE_SOLID;
-                pstyle.stroke_colour = current_color;
+                current_pstyle.stroke_type = PLOT_OP_TYPE_SOLID;
+                current_pstyle.stroke_colour = current_color;
             } else if (stroke_c == svgtiny_TRANSPARENT) {
-                pstyle.stroke_type = PLOT_OP_TYPE_NONE;
-                pstyle.stroke_colour = NS_TRANSPARENT;
+                current_pstyle.stroke_type = PLOT_OP_TYPE_NONE;
+                current_pstyle.stroke_colour = NS_TRANSPARENT;
             } else {
-                pstyle.stroke_type = PLOT_OP_TYPE_SOLID;
-                pstyle.stroke_colour = BGR(stroke_c);
+                current_pstyle.stroke_type = PLOT_OP_TYPE_SOLID;
+                current_pstyle.stroke_colour = BGR(stroke_c);
             }
-            /* Scale stroke_width by display/intrinsic ratio, just like path coordinates.
-             * Use average of sx and sy for uniform stroke appearance. */
-            float stroke_scale = (sx + sy) / 2.0f;
-            int scaled_stroke_width = (int)(diagram->shape[i].stroke_width * stroke_scale + 0.5f);
-            if (diagram->shape[i].stroke_width > 0 && scaled_stroke_width == 0)
-                scaled_stroke_width = 1; /* Ensure visible strokes don't disappear */
-            pstyle.stroke_width = plot_style_int_to_fixed(scaled_stroke_width);
+            float sw = (float)diagram->shape[i].stroke_width * stroke_scale;
+            if (diagram->shape[i].stroke_width > 0 && sw < 1.0f) sw = 1.0f;
+            current_pstyle.stroke_width = (plot_style_fixed)(sw * PLOT_STYLE_SCALE);
 
-            /* Pass dasharray to plotter for custom dash patterns */
-            float scaled_dasharray[16]; /* Stack-allocated for common dash patterns */
-            if (diagram->shape[i].stroke_dasharray_set && diagram->shape[i].stroke_dasharray_count > 0 &&
-                diagram->shape[i].stroke_dasharray_count <= 16) {
-                /* Scale dasharray values by same factor as stroke_width */
-                for (unsigned int d = 0; d < diagram->shape[i].stroke_dasharray_count; d++) {
-                    scaled_dasharray[d] = diagram->shape[i].stroke_dasharray[d] * stroke_scale;
-                }
-                NSLOG(wisp, WARNING, "svg.c dasharray: raw=[%.1f,%.1f] stroke_scale=%.3f scaled=[%.1f,%.1f]",
-                    diagram->shape[i].stroke_dasharray[0],
-                    diagram->shape[i].stroke_dasharray_count > 1 ? diagram->shape[i].stroke_dasharray[1] : 0,
-                    stroke_scale, scaled_dasharray[0],
-                    diagram->shape[i].stroke_dasharray_count > 1 ? scaled_dasharray[1] : 0);
-                pstyle.stroke_dasharray = scaled_dasharray;
-                pstyle.stroke_dasharray_count = diagram->shape[i].stroke_dasharray_count;
-                /* Scale dashoffset by the same factor as stroke_width */
-                pstyle.stroke_dashoffset = diagram->shape[i].stroke_dashoffset * stroke_scale;
-            } else {
-                pstyle.stroke_dasharray = NULL;
-                pstyle.stroke_dasharray_count = 0;
-                pstyle.stroke_dashoffset = 0;
+            bool has_dash = (diagram->shape[i].stroke_dasharray_set && diagram->shape[i].stroke_dasharray_count > 0);
+
+            if (has_dash) {
+                current_pstyle.stroke_dasharray = diagram->shape[i].stroke_dasharray;
+                current_pstyle.stroke_dasharray_count = diagram->shape[i].stroke_dasharray_count;
+                current_pstyle.stroke_dashoffset = diagram->shape[i].stroke_dashoffset * stroke_scale;
             }
 
-            /* fill style */
             svgtiny_colour fill_c = diagram->shape[i].fill;
-
             if (fill_c == svgtiny_CURRENT_COLOR) {
-                /* currentColor from CSS is already in neosurf format */
-                pstyle.fill_type = PLOT_OP_TYPE_SOLID;
-                pstyle.fill_colour = current_color;
+                current_pstyle.fill_type = PLOT_OP_TYPE_SOLID;
+                current_pstyle.fill_colour = current_color;
             } else if (fill_c == svgtiny_TRANSPARENT) {
-                pstyle.fill_type = PLOT_OP_TYPE_NONE;
-                pstyle.fill_colour = NS_TRANSPARENT;
+                current_pstyle.fill_type = PLOT_OP_TYPE_NONE;
+                current_pstyle.fill_colour = NS_TRANSPARENT;
             } else {
-                pstyle.fill_type = PLOT_OP_TYPE_SOLID;
-                pstyle.fill_colour = BGR(fill_c);
+                current_pstyle.fill_type = PLOT_OP_TYPE_SOLID;
+                current_pstyle.fill_colour = BGR(fill_c);
+            }
+            current_pstyle.fill_opacity = diagram->shape[i].fill_opacity_set ? diagram->shape[i].fill_opacity : 1.0f;
+            current_pstyle.stroke_opacity = diagram->shape[i].stroke_opacity_set ? diagram->shape[i].stroke_opacity : 1.0f;
+
+            bool can_batch = !has_dash && (diagram->shape[i].fill_gradient_type == svgtiny_GRADIENT_NONE);
+
+            if (batch_active && (!can_batch ||
+                memcmp(&batch_style, &current_pstyle, sizeof(plot_style_t)) != 0)) {
+                FLUSH_BATCH();
             }
 
-            /* Apply SVG fill-opacity and stroke-opacity */
-            pstyle.fill_opacity = diagram->shape[i].fill_opacity_set ? diagram->shape[i].fill_opacity : 1.0f;
-            pstyle.stroke_opacity = diagram->shape[i].stroke_opacity_set ? diagram->shape[i].stroke_opacity : 1.0f;
-            if (scaled != NULL) {
+            if (!batch_active && can_batch) {
+                batch_active = true;
+                batch_style = current_pstyle;
+                if (use_stateful) ctx->plot->path_begin(ctx);
+            }
+
+            if (can_batch) {
                 unsigned int j = 0;
-                unsigned int k = 0;
-                float minx = 0.0f, miny = 0.0f, maxx = 0.0f, maxy = 0.0f;
-                int initbb = 0;
+                if (!use_stateful) {
+                    if (batch_path_len + diagram->shape[i].path_length > batch_path_alloc) {
+                        batch_path_alloc = (batch_path_len + diagram->shape[i].path_length) * 2;
+                        float *nb = realloc(batch_path, sizeof(float) * batch_path_alloc);
+                        if (!nb) { ok = false; break; }
+                        batch_path = nb;
+                    }
+                }
                 while (j < diagram->shape[i].path_length) {
                     int cmd = (int)diagram->shape[i].path[j++];
-                    scaled[k++] = (float)cmd;
-                    switch (cmd) {
-                    case PLOTTER_PATH_MOVE:
-                    case PLOTTER_PATH_LINE: {
-                        float xx = diagram->shape[i].path[j++] * sx;
-                        float yy = diagram->shape[i].path[j++] * sy;
-                        scaled[k++] = xx;
-                        scaled[k++] = yy;
-                        if (!initbb) {
-                            minx = maxx = xx;
-                            miny = maxy = yy;
-                            initbb = 1;
-                        }
-                        if (xx < minx)
-                            minx = xx;
-                        if (xx > maxx)
-                            maxx = xx;
-                        if (yy < miny)
-                            miny = yy;
-                        if (yy > maxy)
-                            maxy = yy;
-                        break;
-                    }
-                    case PLOTTER_PATH_BEZIER: {
-                        float x1 = diagram->shape[i].path[j++] * sx;
-                        float y1 = diagram->shape[i].path[j++] * sy;
-                        float x2 = diagram->shape[i].path[j++] * sx;
-                        float y2 = diagram->shape[i].path[j++] * sy;
-                        float x3 = diagram->shape[i].path[j++] * sx;
-                        float y3 = diagram->shape[i].path[j++] * sy;
-                        scaled[k++] = x1;
-                        scaled[k++] = y1;
-                        scaled[k++] = x2;
-                        scaled[k++] = y2;
-                        scaled[k++] = x3;
-                        scaled[k++] = y3;
-                        if (!initbb) {
-                            minx = maxx = x1;
-                            miny = maxy = y1;
-                            initbb = 1;
-                        }
-                        if (x1 < minx)
-                            minx = x1;
-                        if (x1 > maxx)
-                            maxx = x1;
-                        if (y1 < miny)
-                            miny = y1;
-                        if (y1 > maxy)
-                            maxy = y1;
-                        if (x2 < minx)
-                            minx = x2;
-                        if (x2 > maxx)
-                            maxx = x2;
-                        if (y2 < miny)
-                            miny = y2;
-                        if (y2 > maxy)
-                            maxy = y2;
-                        if (x3 < minx)
-                            minx = x3;
-                        if (x3 > maxx)
-                            maxx = x3;
-                        if (y3 < miny)
-                            miny = y3;
-                        if (y3 > maxy)
-                            maxy = y3;
-                        break;
-                    }
-                    case PLOTTER_PATH_CLOSE:
-                    default:
-                        break;
-                    }
-                }
-                int lx = (int)floorf(minx) + x;
-                int rx = (int)ceilf(maxx) + x;
-                int ty = (int)floorf(miny) + y;
-                int by = (int)ceilf(maxy) + y;
-                if (!(rx < clip->x0 || lx >= clip->x1 || by < clip->y0 || ty >= clip->y1)) {
-                    NSLOG(wisp, INFO, "SVG path begin: url=%s index=%u orig_len=%u scaled_len=%u bbox=%d,%d..%d,%d",
-                        url_str, i, diagram->shape[i].path_length, k, lx, ty, rx, by);
-                    NSLOG(
-                        wisp, DEBUG, "  SVG bbox raw: minx=%.2f miny=%.2f maxx=%.2f maxy=%.2f", minx, miny, maxx, maxy);
-                    NSLOG(wisp, DEBUG, "  SVG bbox floored: lx=%d ty=%d rx=%d by=%d (x=%d y=%d)", lx, ty, rx, by, x, y);
-                    NSLOG(wisp, DEBUG, "  SVG transform: [%.2f,%.2f,%.2f,%.2f,%.2f,%.2f]", transform[0], transform[1],
-                        transform[2], transform[3], transform[4], transform[5]);
-
-                    /* Check for gradient fill and render it */
-                    if (diagram->shape[i].fill_gradient_type != svgtiny_GRADIENT_NONE) {
-                        struct rect grad_clip = {.x0 = lx, .y0 = ty, .x1 = rx, .y1 = by};
-                        nserror grad_err = svg_plot_gradient_fill(
-                            ctx, &diagram->shape[i], scaled, k, &grad_clip, sx, sy, transform);
-                        if (grad_err == NSERROR_OK) {
-                            NSLOG(wisp, DEBUG, "SVG gradient fill rendered successfully for shape %u", i);
-                            /* Continue to render stroke if present */
-                            if (pstyle.stroke_type != PLOT_OP_TYPE_NONE) {
-                                plot_style_t stroke_only = pstyle;
-                                stroke_only.fill_type = PLOT_OP_TYPE_NONE;
-                                res = ctx->plot->path(ctx, &stroke_only, scaled, k, transform);
-                            }
-                            continue; /* Skip normal path rendering since gradient is done */
-                        }
-                        /* If gradient rendering failed, fall through to normal rendering */
-                        NSLOG(wisp, WARNING, "SVG gradient fill failed for shape %u, falling back to solid", i);
-                    }
-
-#ifdef WISP_SVG_COMBO_DISABLE
-                    res = ctx->plot->path(ctx, &pstyle, scaled, k, transform);
-                    if (res != NSERROR_OK) {
-                        ok = false;
-                        int stroke_rgb = (svgtiny_RED(diagram->shape[i].stroke) << 16) |
-                            (svgtiny_GREEN(diagram->shape[i].stroke) << 8) | (svgtiny_BLUE(diagram->shape[i].stroke));
-                        int fill_rgb = (svgtiny_RED(diagram->shape[i].fill) << 16) |
-                            (svgtiny_GREEN(diagram->shape[i].fill) << 8) | (svgtiny_BLUE(diagram->shape[i].fill));
-                        NSLOG(wisp, ERROR,
-                            "SVG render failed: url=%s element=path index=%u path_len=%u err=%d stroke=#%06x fill=#%06x stroke_w=%d",
-                            url_str, i, diagram->shape[i].path_length, res, stroke_rgb, fill_rgb,
-                            diagram->shape[i].stroke_width);
-                    }
-                    continue;
-#endif
-                    /* For shapes with dasharray, use cross-platform rectangle rendering for
-                     * simple lines (MOVE+LINE), or plot the path directly for complex shapes.
-                     * This is also plotted immediately (not batched) because pstyle.stroke_dasharray
-                     * points to a stack-allocated array. */
-                    if (pstyle.stroke_dasharray != NULL) {
-                        /* Flush any pending combo first */
-                        if (combo_active && combo_len > 0) {
-                            res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
-                            combo_len = 0;
-                        }
-
-                        /* Check if this is a simple line:
-                         * - 6 elements: MOVE,x,y,LINE,x,y (raw line)
-                         * - 7 elements: MOVE,x,y,LINE,x,y,CLOSE (<line> element from svgtiny) */
-                        bool is_simple_line = (((k == 6 || k == 7) && (int)scaled[0] == PLOTTER_PATH_MOVE &&
-                            (int)scaled[3] == PLOTTER_PATH_LINE));
-
-                        /* Use cross-platform rectangle-based rendering for simple dashed lines */
-                        if (is_simple_line) {
-                            float x1 = scaled[1];
-                            float y1 = scaled[2];
-                            float x2 = scaled[4];
-                            float y2 = scaled[5];
-                            colour stroke_colour = pstyle.stroke_colour;
-
-                            res = svg_plot_dashed_line_as_rects(ctx, stroke_colour, x1, y1, x2, y2,
-                                (float)scaled_stroke_width, pstyle.stroke_dasharray, pstyle.stroke_dasharray_count,
-                                (float)diagram->shape[i].stroke_dashoffset, transform);
-
-                            NSLOG(wisp, INFO, "Dashed line->rects: stroke_width=%d dasharray=[%.1f,%.1f]",
-                                scaled_stroke_width, pstyle.stroke_dasharray[0],
-                                pstyle.stroke_dasharray_count > 1 ? pstyle.stroke_dasharray[1] : 0.0f);
+                    if (!use_stateful) batch_path[batch_path_len++] = (float)cmd;
+                    if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
+                        float xx = diagram->shape[i].path[j++] * sx; float yy = diagram->shape[i].path[j++] * sy;
+                        if (use_stateful) {
+                            if (cmd == PLOTTER_PATH_MOVE) ctx->plot->path_move_to(ctx, xx, yy);
+                            else ctx->plot->path_line_to(ctx, xx, yy);
                         } else {
-                            /* Fall back to standard path rendering for complex shapes */
-                            res = ctx->plot->path(ctx, &pstyle, scaled, k, transform);
+                            batch_path[batch_path_len++] = xx; batch_path[batch_path_len++] = yy;
                         }
-
-                        if (res != NSERROR_OK) {
-                            ok = false;
+                    } else if (cmd == PLOTTER_PATH_BEZIER) {
+                        float x1 = diagram->shape[i].path[j++] * sx; float y1 = diagram->shape[i].path[j++] * sy;
+                        float x2 = diagram->shape[i].path[j++] * sx; float y2 = diagram->shape[i].path[j++] * sy;
+                        float x3 = diagram->shape[i].path[j++] * sx; float y3 = diagram->shape[i].path[j++] * sy;
+                        if (use_stateful) ctx->plot->path_bezier_to(ctx, x1, y1, x2, y2, x3, y3);
+                        else {
+                            batch_path[batch_path_len++] = x1; batch_path[batch_path_len++] = y1;
+                            batch_path[batch_path_len++] = x2; batch_path[batch_path_len++] = y2;
+                            batch_path[batch_path_len++] = x3; batch_path[batch_path_len++] = y3;
                         }
-                        continue;
+                    } else if (cmd == PLOTTER_PATH_CLOSE) {
+                        if (use_stateful) ctx->plot->path_close(ctx);
                     }
-                    int same = combo_active && combo_style.stroke_type == pstyle.stroke_type &&
-                        combo_style.fill_type == pstyle.fill_type &&
-                        combo_style.stroke_colour == pstyle.stroke_colour &&
-                        combo_style.fill_colour == pstyle.fill_colour &&
-                        combo_style.stroke_width == pstyle.stroke_width;
-                    if (!same) {
-                        /* Flush previous combo group in
-                         * chunks when style changes */
-                        if (combo_active && combo_len > 0) {
-                            NSLOG(
-                                wisp, INFO, "SVG combo style change flush: len=%u shapes=%u", combo_len, combo_shapes);
-                            res = (combo_shapes <= 1)
-                                ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
-                                : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
-                            if (res != NSERROR_OK) {
-                                ok = false;
-                                NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path combo_flush len=%u", url_str,
-                                    combo_len);
+                }
+            } else {
+                FLUSH_BATCH();
+                if (diagram->shape[i].fill_gradient_type != svgtiny_GRADIENT_NONE) {
+                    float minx = 0.0f, miny = 0.0f, maxx = 0.0f, maxy = 0.0f;
+                    unsigned int jj = 0; int initbb = 0;
+                    while (jj < diagram->shape[i].path_length) {
+                        int cmd = (int)diagram->shape[i].path[jj++];
+                        if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
+                            float xx = diagram->shape[i].path[jj++] * sx; float yy = diagram->shape[i].path[jj++] * sy;
+                            if (!initbb) { minx = maxx = xx; miny = maxy = yy; initbb = 1; }
+                            if (xx < minx) minx = xx; if (xx > maxx) maxx = xx; if (yy < miny) miny = yy; if (yy > maxy) maxy = yy;
+                        } else if (cmd == PLOTTER_PATH_BEZIER) {
+                            for (int k = 0; k < 3; k++) {
+                                float xx = diagram->shape[i].path[jj++] * sx; float yy = diagram->shape[i].path[jj++] * sy;
+                                if (!initbb) { minx = maxx = xx; miny = maxy = yy; initbb = 1; }
+                                if (xx < minx) minx = xx; if (xx > maxx) maxx = xx; if (yy < miny) miny = yy; if (yy > maxy) maxy = yy;
                             }
-                            combo_len = 0;
-                            combo_shapes = 0;
                         }
-                        combo_style = pstyle;
-                        combo_active = 1;
                     }
-                    /* Flush combo if adding current path
-                     * would exceed chunk limit */
-                    if (combo_active && combo_len > 0 && combo_len + k > SVG_COMBO_FLUSH_LIMIT) {
-                        NSLOG(wisp, INFO, "SVG combo limit flush: combo_len=%u next_len=%u shapes=%u", combo_len, k,
-                            combo_shapes);
-                        res = (combo_shapes <= 1)
-                            ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
-                            : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
-                        if (res != NSERROR_OK) {
-                            ok = false;
-                            NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path combo_flush len=%u", url_str,
-                                combo_len);
-                        }
-                        combo_len = 0;
-                        combo_shapes = 0;
-                    }
-                    if (k > SVG_COMBO_FLUSH_LIMIT) {
-                        /* Single shape too large for combo — plot directly
-                         * without chunking to preserve fill-rule semantics
-                         * across subpaths within the same shape */
-                        NSLOG(wisp, INFO, "SVG direct plot: scaled_len=%u limit=%u", k, SVG_COMBO_FLUSH_LIMIT);
-                        res = ctx->plot->path(ctx, &pstyle, scaled, k, transform);
-                        if (res != NSERROR_OK) {
-                            ok = false;
-                            int stroke_rgb = (svgtiny_RED(diagram->shape[i].stroke) << 16) |
-                                (svgtiny_GREEN(diagram->shape[i].stroke) << 8) |
-                                (svgtiny_BLUE(diagram->shape[i].stroke));
-                            int fill_rgb = (svgtiny_RED(diagram->shape[i].fill) << 16) |
-                                (svgtiny_GREEN(diagram->shape[i].fill) << 8) | (svgtiny_BLUE(diagram->shape[i].fill));
-                            NSLOG(wisp, ERROR,
-                                "SVG render failed: url=%s element=path index=%u path_len=%u scaled_len=%u err=%d stroke=#%06x fill=#%06x stroke_w=%d",
-                                url_str, i, diagram->shape[i].path_length, k, res, stroke_rgb, fill_rgb,
-                                diagram->shape[i].stroke_width);
-                        }
-                        continue;
-                    }
-                    if (combo_len + k > combo_cap) {
-                        unsigned int ncap = combo_cap ? combo_cap * 2 : k;
-                        while (ncap < combo_len + k)
-                            ncap *= 2;
-                        float *nbuf = realloc(combo, sizeof(float) * ncap);
-                        if (nbuf == NULL) {
-                            if (scaled)
+                    struct rect grad_clip = {(int)floorf(minx + (float)x), (int)floorf(miny + (float)y), (int)ceilf(maxx + (float)x), (int)ceilf(maxy + (float)y)};
+                    svg_plot_gradient_fill(ctx, &diagram->shape[i], diagram->shape[i].path, diagram->shape[i].path_length, &grad_clip, sx, sy, transform);
+                } else if (has_dash) {
+                    if ((diagram->shape[i].path_length == 6 || diagram->shape[i].path_length == 7) &&
+                        (int)diagram->shape[i].path[0] == PLOTTER_PATH_MOVE && (int)diagram->shape[i].path[3] == PLOTTER_PATH_LINE) {
+                        float x1 = diagram->shape[i].path[1] * sx; float y1 = diagram->shape[i].path[2] * sy;
+                        float x2 = diagram->shape[i].path[4] * sx; float y2 = diagram->shape[i].path[5] * sy;
+                        static float sd[16];
+                        for (unsigned int d = 0; d < diagram->shape[i].stroke_dasharray_count && d < 16; d++)
+                            sd[d] = diagram->shape[i].stroke_dasharray[d] * stroke_scale;
+                        svg_plot_dashed_line_as_rects(ctx, current_pstyle.stroke_colour, x1, y1, x2, y2, sw, sd, diagram->shape[i].stroke_dasharray_count, diagram->shape[i].stroke_dashoffset * stroke_scale, transform);
+                    } else {
+                        if (use_stateful) {
+                            ctx->plot->path_begin(ctx);
+                            unsigned int jj = 0;
+                            while (jj < diagram->shape[i].path_length) {
+                                int cmd = (int)diagram->shape[i].path[jj++];
+                                if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
+                                    float xx = diagram->shape[i].path[jj++] * sx; float yy = diagram->shape[i].path[jj++] * sy;
+                                    if (cmd == PLOTTER_PATH_MOVE) ctx->plot->path_move_to(ctx, xx, yy); else ctx->plot->path_line_to(ctx, xx, yy);
+                                } else if (cmd == PLOTTER_PATH_BEZIER) {
+                                    float x1 = diagram->shape[i].path[jj++] * sx; float y1 = diagram->shape[i].path[jj++] * sy;
+                                    float x2 = diagram->shape[i].path[jj++] * sx; float y2 = diagram->shape[i].path[jj++] * sy;
+                                    float x3 = diagram->shape[i].path[jj++] * sx; float y3 = diagram->shape[i].path[jj++] * sy;
+                                    ctx->plot->path_bezier_to(ctx, x1, y1, x2, y2, x3, y3);
+                                } else if (cmd == PLOTTER_PATH_CLOSE) ctx->plot->path_close(ctx);
+                            }
+                            if (current_pstyle.fill_type != PLOT_OP_TYPE_NONE) ctx->plot->path_fill(ctx, &current_pstyle, transform);
+                            if (current_pstyle.stroke_type != PLOT_OP_TYPE_NONE) ctx->plot->path_stroke(ctx, &current_pstyle, transform);
+                        } else {
+                            float *scaled = malloc(sizeof(float) * diagram->shape[i].path_length);
+                            if (scaled) {
+                                unsigned int jj = 0, kk = 0;
+                                while (jj < diagram->shape[i].path_length) {
+                                    int cmd = (int)diagram->shape[i].path[jj++];
+                                    scaled[kk++] = (float)cmd;
+                                    if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
+                                        scaled[kk++] = diagram->shape[i].path[jj++] * sx; scaled[kk++] = diagram->shape[i].path[jj++] * sy;
+                                    } else if (cmd == PLOTTER_PATH_BEZIER) {
+                                        for (int m = 0; m < 3; m++) { scaled[kk++] = diagram->shape[i].path[jj++] * sx; scaled[kk++] = diagram->shape[i].path[jj++] * sy; }
+                                    }
+                                }
+                                ctx->plot->path(ctx, &current_pstyle, scaled, kk, transform);
                                 free(scaled);
-                            if (combo)
-                                free(combo);
-                            return false;
+                            }
                         }
-                        combo = nbuf;
-                        combo_cap = ncap;
-                    }
-                    memcpy(combo + combo_len, scaled, sizeof(float) * k);
-                    combo_len += k;
-                    combo_shapes++;
-                    /* Periodic chunked flush to keep combo
-                     * buffer bounded */
-                    if (combo_len >= SVG_COMBO_FLUSH_LIMIT) {
-                        NSLOG(wisp, INFO, "SVG periodic combo flush: len=%u shapes=%u", combo_len, combo_shapes);
-                        res = (combo_shapes <= 1)
-                            ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
-                            : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
-                        if (res != NSERROR_OK) {
-                            ok = false;
-                            NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path combo_flush len=%u", url_str,
-                                combo_len);
-                        }
-                        combo_len = 0;
-                        combo_shapes = 0;
                     }
                 }
             }
-
         } else if (diagram->shape[i].text) {
-            NSLOG(wisp, WARNING,
-                "SVGDIAG text shape[%u]: raw text_x=%.2f text_y=%.2f "
-                "font_size=%.2f fill=0x%x text='%s' anchor=%d sx=%.3f sy=%.3f",
-                i, diagram->shape[i].text_x, diagram->shape[i].text_y, diagram->shape[i].font_size,
-                diagram->shape[i].fill, diagram->shape[i].text, diagram->shape[i].text_anchor, sx, sy);
-            /* Ensure combo is flushed safely before plotting text
-             */
-            if (combo_active && combo_len > 0) {
-                res = svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
-                if (res != NSERROR_OK) {
-                    ok = false;
-                    NSLOG(wisp, ERROR, "SVG render failed: url=%s element=text combo_flush", url_str);
-                }
-                combo_len = 0;
-                combo_active = 0;
-            }
-            px = (int)(diagram->shape[i].text_x * sx) + transform[4];
-            py = (int)(diagram->shape[i].text_y * sy) + transform[5];
-
-            NSLOG(wisp, WARNING, "SVGDIAG text computed: px=%d py=%d (transform[4]=%.1f [5]=%.1f)", px, py,
-                transform[4], transform[5]);
-
+            FLUSH_BATCH();
+            int tpx = (int)(diagram->shape[i].text_x * sx) + x;
+            int tpy = (int)(diagram->shape[i].text_y * sy) + y;
             fstyle.background = 0xffffff;
-            /* Use SVG fill color for text, default to black if
-             * transparent */
-            if (diagram->shape[i].fill == svgtiny_TRANSPARENT) {
-                fstyle.foreground = 0x000000;
-            } else {
-                fstyle.foreground = BGR(diagram->shape[i].fill);
-            }
-            /* Use SVG font-size, fallback to 12.
-             * SVG font-size is in USER UNITS (pixels). Scale with viewport
-             * so fonts grow/shrink proportionally with the SVG.
-             * Use sx (display_width/intrinsic_width) as the scale factor.
-             * Use FONTF_SIZE_PIXELS flag to tell the frontend to use the
-             * size directly as pixels without point-to-pixel conversion.
-             */
+            if (diagram->shape[i].fill == svgtiny_TRANSPARENT) fstyle.foreground = 0x000000;
+            else fstyle.foreground = BGR(diagram->shape[i].fill);
             float fsize = diagram->shape[i].font_size;
-            if (fsize <= 0.0f) {
-                fsize = 12.0f;
-            }
-            /* Apply viewport scale (sx) so fonts scale with SVG display size */
-            float scaled_fsize = fsize * sx;
-            fstyle.size = (int)(scaled_fsize * PLOT_STYLE_SCALE);
+            if (fsize <= 0.0f) fsize = 12.0f;
+            fstyle.size = (int)(fsize * sx * PLOT_STYLE_SCALE);
             fstyle.flags |= FONTF_SIZE_PIXELS;
+            if (diagram->shape[i].font_weight_bold) fstyle.weight = 700;
 
-
-            /* Apply font-weight bold if specified */
-            if (diagram->shape[i].font_weight_bold) {
-                fstyle.weight = 700;
-            }
-
-            /* Adjust position for text-anchor */
             if (diagram->shape[i].text_anchor != svgtiny_TEXT_ANCHOR_START) {
-                int text_width = 0;
-                size_t text_len = strlen(diagram->shape[i].text);
-                /* Use layout API if available, otherwise
-                 * approximate */
-                if (guit != NULL && guit->layout != NULL && guit->layout->width != NULL) {
+                int text_width = 0; size_t text_len = strlen(diagram->shape[i].text);
+                if (guit != NULL && guit->layout != NULL && guit->layout->width != NULL)
                     guit->layout->width(&fstyle, diagram->shape[i].text, text_len, &text_width);
-                } else {
-                    /* Approximate: 0.6 * font_height per
-                     * char */
-                    int cw = (fstyle.size / PLOT_STYLE_SCALE) * 6 / 10;
-                    text_width = (int)text_len * cw;
-                }
-                if (diagram->shape[i].text_anchor == svgtiny_TEXT_ANCHOR_MIDDLE) {
-                    px -= text_width / 2;
-                } else if (diagram->shape[i].text_anchor == svgtiny_TEXT_ANCHOR_END) {
-                    px -= text_width;
-                }
+                else { int cw = (fstyle.size / PLOT_STYLE_SCALE) * 6 / 10; text_width = (int)text_len * cw; }
+                if (diagram->shape[i].text_anchor == svgtiny_TEXT_ANCHOR_MIDDLE) tpx -= text_width / 2;
+                else if (diagram->shape[i].text_anchor == svgtiny_TEXT_ANCHOR_END) tpx -= text_width;
             }
-
-            res = ctx->plot->text(ctx, &fstyle, px, py, diagram->shape[i].text, strlen(diagram->shape[i].text));
-            if (res != NSERROR_OK) {
-                ok = false;
-                NSLOG(wisp, ERROR, "SVG render failed: url=%s element=text index=%u pos=%d,%d text='%s'", url_str, i,
-                    px, py, diagram->shape[i].text);
-            } else {
-                NSLOG(wisp, DEBUG, "SVG render text: url=%s index=%u pos=%d,%d fsize=%d text='%s' anchor=%d", url_str,
-                    i, px, py, fstyle.size, diagram->shape[i].text, diagram->shape[i].text_anchor);
-            }
+            res = ctx->plot->text(ctx, &fstyle, tpx, tpy, diagram->shape[i].text, strlen(diagram->shape[i].text));
+            if (res != NSERROR_OK) ok = false;
         }
     }
+
+    FLUSH_BATCH();
+    if (batch_path) free(batch_path);
 
 #undef BGR
-    /* Final chunked flush of any remaining combined paths */
-    if (combo_active && combo_len > 0) {
-        NSLOG(wisp, INFO, "SVG final combo flush: len=%u shapes=%u", combo_len, combo_shapes);
-        res = (combo_shapes <= 1) ? ctx->plot->path(ctx, &combo_style, combo, combo_len, transform)
-                                  : svg_plot_path_chunked(ctx, &combo_style, combo, combo_len, transform);
-        if (res != NSERROR_OK) {
-            ok = false;
-            NSLOG(wisp, ERROR, "SVG render failed: url=%s element=path final_flush len=%u", url_str, combo_len);
-        }
-    }
-    if (scaled)
-        free(scaled);
-    if (combo)
-        free(combo);
+#undef FLUSH_BATCH
+
     NSLOG(wisp, DEBUG, "PROFILER: STOP SVG rendering %p", svg);
     return ok;
 }

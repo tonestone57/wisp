@@ -1,3 +1,4 @@
+#include "gtk/toolbar_items.h"
 /*
  * Copyright 2009 Mark Benjamin <netsurf-browser.org.MarkBenjamin@dfgh.net>
  *

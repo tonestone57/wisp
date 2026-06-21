@@ -21,7 +21,7 @@
 #include "content/handlers/javascript/js.h"
 
 /* Include QuickJS directly for console binding tests */
-#include "content/handlers/javascript/quickjs/console.h"
+#include "content/handlers/javascript/quickjs/dom_bridge.h"
 #include "quickjs.h"
 
 /**

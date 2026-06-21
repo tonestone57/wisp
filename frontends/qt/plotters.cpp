@@ -52,6 +52,7 @@ extern "C" {
 #include "qt/plotters.h"
 #include "qt/window.h"
 
+static __thread QPainterPath *current_path = nullptr;
 
 /**
  * setup qt painter styles according to netsurf plot style
@@ -759,15 +760,116 @@ static nserror nsqt_plot_radial_gradient(const struct redraw_context *ctx, const
 
 
 /**
+ * Start a new path.
+ */
+
+static nserror nsqt_plot_finalise(void)
+{
+    if (current_path) {
+        delete current_path;
+        current_path = nullptr;
+    }
+    return NSERROR_OK;
+}
+
+static nserror nsqt_plot_path_begin(const struct redraw_context *ctx)
+{
+    if (!current_path) current_path = new QPainterPath();
+    *current_path = QPainterPath();
+    return NSERROR_OK;
+}
+
+/**
+ * Move the current path point.
+ */
+static nserror nsqt_plot_path_move_to(const struct redraw_context *ctx, float x, float y)
+{
+    if (current_path) current_path->moveTo(x, y);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a line to the path.
+ */
+static nserror nsqt_plot_path_line_to(const struct redraw_context *ctx, float x, float y)
+{
+    if (current_path) current_path->lineTo(x, y);
+    return NSERROR_OK;
+}
+
+/**
+ * Add a cubic Bezier curve to the path.
+ */
+static nserror nsqt_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3)
+{
+    if (current_path) current_path->cubicTo(x1, y1, x2, y2, x3, y3);
+    return NSERROR_OK;
+}
+
+/**
+ * Close the current subpath.
+ */
+static nserror nsqt_plot_path_close(const struct redraw_context *ctx)
+{
+    if (current_path) current_path->closeSubpath();
+    return NSERROR_OK;
+}
+
+/**
+ * Fill the current path.
+ */
+static nserror nsqt_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (!current_path) return NSERROR_OK;
+    QPainter *painter = (QPainter *)ctx->priv;
+    nsqt_set_style(painter, pstyle);
+
+    QTransform orig = painter->transform();
+    if (transform) {
+        painter->setTransform(QTransform(transform[0], transform[1], 0.0, transform[2], transform[3], 0.0, transform[4], transform[5], 1.0), true);
+    }
+    painter->fillPath(*current_path, painter->brush());
+    painter->setTransform(orig);
+    return NSERROR_OK;
+}
+
+/**
+ * Stroke the current path.
+ */
+static nserror nsqt_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
+{
+    if (!current_path) return NSERROR_OK;
+    QPainter *painter = (QPainter *)ctx->priv;
+    nsqt_set_style(painter, pstyle);
+
+    QTransform orig = painter->transform();
+    if (transform) {
+        painter->setTransform(QTransform(transform[0], transform[1], 0.0, transform[2], transform[3], 0.0, transform[4], transform[5], 1.0), true);
+    }
+    painter->drawPath(*current_path);
+    painter->setTransform(orig);
+    return NSERROR_OK;
+}
+
+/**
  * QT plotter table
  */
-const struct plotter_table nsqt_plotters = {.clip = nsqt_plot_clip,
+const struct plotter_table nsqt_plotters = {
+    .clip = nsqt_plot_clip,
+    .finalise = nsqt_plot_finalise,
     .arc = nsqt_plot_arc,
     .disc = nsqt_plot_disc,
     .line = nsqt_plot_line,
     .rectangle = nsqt_plot_rectangle,
     .polygon = nsqt_plot_polygon,
     .path = nsqt_plot_path,
+    .path_begin = nsqt_plot_path_begin,
+    .path_move_to = nsqt_plot_path_move_to,
+    .path_line_to = nsqt_plot_path_line_to,
+    .path_bezier_to = nsqt_plot_path_bezier_to,
+    .path_close = nsqt_plot_path_close,
+    .path_fill = nsqt_plot_path_fill,
+    .path_stroke = nsqt_plot_path_stroke,
     .bitmap = nsqt_plot_bitmap,
     .text = nsqt_plot_text,
     .group_start = NULL,
@@ -777,4 +879,5 @@ const struct plotter_table nsqt_plotters = {.clip = nsqt_plot_clip,
     .pop_transform = nsqt_pop_transform,
     .linear_gradient = nsqt_plot_linear_gradient,
     .radial_gradient = nsqt_plot_radial_gradient,
-    .option_knockout = true};
+    .option_knockout = true
+};

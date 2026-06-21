@@ -1,3 +1,4 @@
+#include "wisp/plotters.h"
 /*
  * Copyright 2004-2010 James Bursa <bursa@users.sourceforge.net>
  * Copyright 2010-2016 Vincent Sanders <vince@netsurf-browser.org>
@@ -66,6 +67,10 @@
 #include "gtk/local_history.h"
 #include "gtk/misc.h"
 #include "gtk/resources.h"
+#include "gtk/plotters.h"
+#include "wisp/plotters.h"
+#include "gtk/plotters.h"
+#include "gtk/plotters.h"
 #include "gtk/scaffolding.h"
 #include "gtk/schedule.h"
 #include "gtk/search.h"
@@ -1106,6 +1111,7 @@ static void nsgtk_finalise(void)
     nserror res;
 
     NSLOG(wisp, INFO, "Quitting GUI");
+    nsgtk_plotters.finalise();
 
     /* Ensure all scaffoldings are destroyed before we go into exit */
     nsgtk_download_destroy();

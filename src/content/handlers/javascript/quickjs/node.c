@@ -11,15 +11,14 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
-
-static void js_node_finalizer(JSRuntime *rt, JSValue val);
-
 JSClassID qjs_node_class_id;
 
 static void js_node_finalizer(JSRuntime *rt, JSValue val);
 
-#include "node.inc"
 
+static void js_node_finalizer(JSRuntime *rt, JSValue val);
+
+#include "node.inc"
 static void js_node_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_node_class_id);

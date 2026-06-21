@@ -39,12 +39,12 @@ typedef unsigned long bitmap_flags_t;
 #define BITMAPF_REPEAT_X 1
 #define BITMAPF_REPEAT_Y 2
 
-enum path_command {
+typedef enum path_command {
     PLOTTER_PATH_MOVE,
     PLOTTER_PATH_CLOSE,
     PLOTTER_PATH_LINE,
     PLOTTER_PATH_BEZIER,
-};
+} path_command;
 
 /**
  * Gradient color stop for native gradient rendering.
@@ -223,6 +223,82 @@ struct plotter_table {
      */
     nserror (*path)(const struct redraw_context *ctx, const plot_style_t *pstyle, const float *p, unsigned int n,
         const float transform[6]);
+
+    /**
+     * Finalise the plotter.
+     *
+     * Optional, may be NULL.
+     *
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*finalise)(void);
+
+    /**
+     * Start a new path.
+     *
+     * \param ctx The current redraw context.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_begin)(const struct redraw_context *ctx);
+
+    /**
+     * Move the current path point.
+     *
+     * \param ctx The current redraw context.
+     * \param x The x coordinate.
+     * \param y The y coordinate.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_move_to)(const struct redraw_context *ctx, float x, float y);
+
+    /**
+     * Add a line to the path.
+     *
+     * \param ctx The current redraw context.
+     * \param x The x coordinate.
+     * \param y The y coordinate.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_line_to)(const struct redraw_context *ctx, float x, float y);
+
+    /**
+     * Add a cubic Bezier curve to the path.
+     *
+     * \param ctx The current redraw context.
+     * \param x1, y1 First control point.
+     * \param x2, y2 Second control point.
+     * \param x3, y3 End point.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_bezier_to)(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3);
+
+    /**
+     * Close the current subpath.
+     *
+     * \param ctx The current redraw context.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_close)(const struct redraw_context *ctx);
+
+    /**
+     * Fill the current path.
+     *
+     * \param ctx The current redraw context.
+     * \param pstyle Style controlling the fill.
+     * \param transform A transform to apply to the path before filling.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_fill)(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6]);
+
+    /**
+     * Stroke the current path.
+     *
+     * \param ctx The current redraw context.
+     * \param pstyle Style controlling the stroke.
+     * \param transform A transform to apply to the path before stroking.
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*path_stroke)(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6]);
 
     /**
      * Plot a bitmap
