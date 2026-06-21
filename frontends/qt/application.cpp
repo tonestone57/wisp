@@ -45,6 +45,7 @@ extern "C" {
 #include "wisp/content.h"
 #include "wisp/cookie_db.h"
 #include "wisp/wisp.h"
+#include "wisp/plotters.h"
 #include "wisp/url_db.h"
 
 #include "desktop/hotlist.h"
