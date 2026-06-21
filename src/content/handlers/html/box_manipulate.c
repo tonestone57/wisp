@@ -54,336 +54,392 @@
  */
 static void box_talloc_destructor(void *ptr)
 {
-    struct box *b = (struct box *)ptr;
-    struct html_scrollbar_data *data;
+	struct box *b = (struct box *)ptr;
+	struct html_scrollbar_data *data;
 
-    if ((b->flags & STYLE_OWNED)) {
-        if (b->original_style != NULL) {
-            css_computed_style_destroy(b->original_style);
-            b->original_style = NULL;
-        } else if (b->style != NULL) {
-            css_computed_style_destroy(b->style);
-        }
-        b->style = NULL;
-    }
+	if ((b->flags & STYLE_OWNED)) {
+		if (b->original_style != NULL) {
+			css_computed_style_destroy(b->original_style);
+			b->original_style = NULL;
+		} else if (b->style != NULL) {
+			css_computed_style_destroy(b->style);
+		}
+		b->style = NULL;
+	}
 
-    if (b->styles != NULL) {
-        css_select_results_destroy(b->styles);
-        b->styles = NULL;
-    }
+	if (b->styles != NULL) {
+		css_select_results_destroy(b->styles);
+		b->styles = NULL;
+	}
 
-    if (!(b->flags & CLONE) && b->href != NULL)
-        nsurl_unref(b->href);
+	if (!(b->flags & CLONE) && b->href != NULL)
+		nsurl_unref(b->href);
 
-    if (!(b->flags & CLONE) && b->id != NULL) {
-        lwc_string_unref(b->id);
-    }
+	if (!(b->flags & CLONE) && b->id != NULL) {
+		lwc_string_unref(b->id);
+	}
 
-    if (!(b->flags & CLONE) && b->node != NULL) {
-        dom_node_unref(b->node);
-    }
+	if (!(b->flags & CLONE) && b->node != NULL) {
+		dom_node_unref(b->node);
+	}
 
-    if (b->scroll_x != NULL) {
-        data = scrollbar_get_data(b->scroll_x);
-        scrollbar_destroy(b->scroll_x);
-        free(data);
-    }
+	if (b->scroll_x != NULL) {
+		data = scrollbar_get_data(b->scroll_x);
+		scrollbar_destroy(b->scroll_x);
+		free(data);
+	}
 
-    if (b->scroll_y != NULL) {
-        data = scrollbar_get_data(b->scroll_y);
-        scrollbar_destroy(b->scroll_y);
-        free(data);
-    }
+	if (b->scroll_y != NULL) {
+		data = scrollbar_get_data(b->scroll_y);
+		scrollbar_destroy(b->scroll_y);
+		free(data);
+	}
 
-    if (!(b->flags & CLONE) && b->gadget != NULL) {
-        form_free_control(b->gadget);
-        b->gadget = NULL;
-    }
+	if (!(b->flags & CLONE) && b->gadget != NULL) {
+		form_free_control(b->gadget);
+		b->gadget = NULL;
+	}
 
 
-    return;
+	return;
 }
 
 
 /* Exported function documented in html/box.h */
-struct box *box_create(css_select_results *styles, css_computed_style *style, bool style_owned, nsurl *href,
-    const char *target, const char *title, lwc_string *id, void *context)
+struct box *box_create(struct html_content *content, css_select_results *styles, css_computed_style *style, bool style_owned, nsurl *href,
+	const char *target, const char *title, lwc_string *id, void *context)
 {
-    unsigned int i;
-    struct box *box;
+	unsigned int i;
+	struct box *box;
 
-    box = arena_alloc(context, sizeof(struct box));
-    if (!box) {
-        return 0;
-    }
+	box = arena_alloc(context, sizeof(struct box));
+	if (!box) {
+		return 0;
+	}
 
-    arena_register_destructor(context, box, box_talloc_destructor);
+	arena_register_destructor(context, box, box_talloc_destructor);
+	box->content = content;
 
-    box->type = BOX_INLINE;
-    box->flags = DIRTY;
-    box->flags = style_owned ? (box->flags | STYLE_OWNED) : box->flags;
-    box->styles = styles;
-    box->style = style;
-    box->x = box->y = 0;
-    box->last_available_width = -1;
-    box->width = UNKNOWN_WIDTH;
-    box->height = 0;
-    box->descendant_x0 = box->descendant_y0 = 0;
-    box->descendant_x1 = box->descendant_y1 = 0;
-    for (i = 0; i != 4; i++)
-        box->margin[i] = box->padding[i] = box->border[i].width = 0;
-    box->scroll_x = box->scroll_y = NULL;
-    box->min_width = (struct css_size){.type = CSS_SIZE_AUTO, .value = 0};
-    box->max_width = UNKNOWN_MAX_WIDTH;
-    box->byte_offset = 0;
-    box->text = NULL;
-    box->length = 0;
-    box->space = 0;
-    box->href = (href == NULL) ? NULL : nsurl_ref(href);
-    box->target = target;
-    box->title = title;
-    box->columns = 1;
-    box->rows = 1;
-    box->start_column = 0;
-    box->next = NULL;
-    box->prev = NULL;
-    box->children = NULL;
-    box->last = NULL;
-    box->parent = NULL;
-    box->inline_end = NULL;
-    box->float_children = NULL;
-    box->float_container = NULL;
-    box->abs_containing_block = NULL;
-    box->next_float = NULL;
-    box->cached_place_below_level = 0;
-    box->list_value = 1;
-    box->list_marker = NULL;
-    box->col = NULL;
-    box->gadget = NULL;
-    box->usemap = NULL;
-    box->id = id;
-    box->background = NULL;
-    box->object = NULL;
-    box->object_params = NULL;
-    box->iframe = NULL;
-    box->node = NULL;
-    box->sticky_x = box->sticky_y = 0;
+	box->type = BOX_INLINE;
+	box->flags = DIRTY;
+	box->flags = style_owned ? (box->flags | STYLE_OWNED) : box->flags;
+	box->styles = styles;
+	box->style = style;
+	box->x = box->y = 0;
+	box->last_available_width = -1;
+	box->width = UNKNOWN_WIDTH;
+	box->height = 0;
+	box->descendant_x0 = box->descendant_y0 = 0;
+	box->descendant_x1 = box->descendant_y1 = 0;
+	for (i = 0; i != 4; i++)
+		box->margin[i] = box->padding[i] = box->border[i].width = 0;
+	box->scroll_x = box->scroll_y = NULL;
+	box->min_width = (struct css_size){.type = CSS_SIZE_AUTO, .value = 0};
+	box->max_width = UNKNOWN_MAX_WIDTH;
+	box->byte_offset = 0;
+	box->text = NULL;
+	box->length = 0;
+	box->space = 0;
+	box->href = (href == NULL) ? NULL : nsurl_ref(href);
+	box->target = target;
+	box->title = title;
+	box->columns = 1;
+	box->rows = 1;
+	box->start_column = 0;
+	box->next = NULL;
+	box->prev = NULL;
+	box->children = NULL;
+	box->last = NULL;
+	box->parent = NULL;
+	box->inline_end = NULL;
+	box->float_children = NULL;
+	box->float_container = NULL;
+	box->abs_containing_block = NULL;
+	box->next_float = NULL;
+	box->cached_place_below_level = 0;
+	box->list_value = 1;
+	box->list_marker = NULL;
+	box->col = NULL;
+	box->gadget = NULL;
+	box->usemap = NULL;
+	box->id = id;
+	box->background = NULL;
+	box->object = NULL;
+	box->object_params = NULL;
+	box->iframe = NULL;
+	box->node = NULL;
+	box->sticky_x = box->sticky_y = 0;
 
-    return box;
+	return box;
 }
 
 
 /* Exported function documented in html/box.h */
 void box_add_child(struct box *parent, struct box *child)
 {
-    assert(parent);
-    assert(child);
+	assert(parent);
+	assert(child);
 
 #ifdef DEBUG_ADD_CHILD
-    /* Log when flex containers or their children are added */
-    if (parent->type == BOX_FLEX || parent->type == BOX_INLINE_FLEX || child->type == BOX_FLEX ||
-        child->type == BOX_INLINE_FLEX) {
-        dom_string *class_str = NULL;
-        const char *class_name = "";
-        if (child->node != NULL) {
-            dom_element_get_attribute(child->node, corestring_dom_class, &class_str);
-            if (class_str != NULL) {
-                class_name = dom_string_data(class_str);
-            }
-        }
-        NSLOG(wisp, INFO, "box_add_child: FLEX parent=%p type=%d child=%p type=%d class='%s'", parent, parent->type,
-            child, child->type, class_name);
-        if (class_str != NULL) {
-            dom_string_unref(class_str);
-        }
-    }
+	/* Log when flex containers or their children are added */
+	if (parent->type == BOX_FLEX || parent->type == BOX_INLINE_FLEX || child->type == BOX_FLEX ||
+		child->type == BOX_INLINE_FLEX) {
+		dom_string *class_str = NULL;
+		const char *class_name = "";
+		if (child->node != NULL) {
+			dom_element_get_attribute(child->node, corestring_dom_class, &class_str);
+			if (class_str != NULL) {
+				class_name = dom_string_data(class_str);
+			}
+		}
+		NSLOG(wisp, INFO, "box_add_child: FLEX parent=%p type=%d child=%p type=%d class='%s'", parent, parent->type,
+			child, child->type, class_name);
+		if (class_str != NULL) {
+			dom_string_unref(class_str);
+		}
+	}
 
-    /* Log any box with "vector" or "menu" in class name */
-    if (child->node != NULL) {
-        dom_string *class_str = NULL;
-        dom_element_get_attribute(child->node, corestring_dom_class, &class_str);
-        if (class_str != NULL) {
-            const char *class_name = dom_string_data(class_str);
-            if (strstr(class_name, "vector") != NULL || strstr(class_name, "menu") != NULL ||
-                strstr(class_name, "mw-portlet") != NULL) {
-                NSLOG(wisp, INFO, "box_add_child: TRACE parent=%p child=%p class='%s'", parent, child, class_name);
-            }
-            dom_string_unref(class_str);
-        }
-    }
+	/* Log any box with "vector" or "menu" in class name */
+	if (child->node != NULL) {
+		dom_string *class_str = NULL;
+		dom_element_get_attribute(child->node, corestring_dom_class, &class_str);
+		if (class_str != NULL) {
+			const char *class_name = dom_string_data(class_str);
+			if (strstr(class_name, "vector") != NULL || strstr(class_name, "menu") != NULL ||
+				strstr(class_name, "mw-portlet") != NULL) {
+				NSLOG(wisp, INFO, "box_add_child: TRACE parent=%p child=%p class='%s'", parent, child, class_name);
+			}
+			dom_string_unref(class_str);
+		}
+	}
 #endif
-    if (parent->children != 0) { /* has children already */
-        parent->last->next = child;
-        child->prev = parent->last;
-    } else { /* this is the first child */
-        parent->children = child;
-        child->prev = 0;
-    }
+	if (parent->children != 0) { /* has children already */
+		parent->last->next = child;
+		child->prev = parent->last;
+	} else { /* this is the first child */
+		parent->children = child;
+		child->prev = 0;
+	}
 
-    parent->last = child;
-    child->parent = parent;
+	parent->last = child;
+	child->parent = parent;
 }
 
 
 /* Exported function documented in html/box.h */
 void box_insert_sibling(struct box *box, struct box *new_box)
 {
-    new_box->parent = box->parent;
-    new_box->prev = box;
-    new_box->next = box->next;
-    box->next = new_box;
-    if (new_box->next)
-        new_box->next->prev = new_box;
-    else if (new_box->parent)
-        new_box->parent->last = new_box;
+	new_box->parent = box->parent;
+	new_box->prev = box;
+	new_box->next = box->next;
+	box->next = new_box;
+	if (new_box->next)
+		new_box->next->prev = new_box;
+	else if (new_box->parent)
+		new_box->parent->last = new_box;
 }
 
 
 /* Exported function documented in html/box.h */
 void box_unlink_and_free(struct box *box)
 {
-    struct box *parent = box->parent;
-    struct box *next = box->next;
-    struct box *prev = box->prev;
+	struct box *parent = box->parent;
+	struct box *next = box->next;
+	struct box *prev = box->prev;
 
-    if (parent) {
-        if (parent->children == box)
-            parent->children = next;
-        if (parent->last == box)
-            parent->last = next ? next : prev;
-    }
+	if (parent) {
+		if (parent->children == box)
+			parent->children = next;
+		if (parent->last == box)
+			parent->last = next ? next : prev;
+	}
 
-    if (prev)
-        prev->next = next;
-    if (next)
-        next->prev = prev;
+	if (prev)
+		prev->next = next;
+	if (next)
+		next->prev = prev;
 
-    box_free(box);
+	box_free(box);
 }
 
 
 /* Exported function documented in html/box.h */
-void box_free(struct box *box)
-{
-    struct box *child, *next;
-
-    /* free children first */
-    for (child = box->children; child; child = next) {
-        next = child->next;
-        box_free(child);
-    }
-
-    /* last this box */
-    box_free_box(box);
-}
 
 
 /* Exported function documented in html/box.h */
 void box_free_box(struct box *box)
 {
-    /* Handled by arena destruction or box_talloc_destructor. */
+	/* Handled by arena destruction or box_talloc_destructor. */
 }
 
 
 /* exported interface documented in html/box.h */
 nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, bool right)
 {
-    struct html_scrollbar_data *data;
-    int visible_width, visible_height;
-    int full_width, full_height;
-    nserror res;
+	struct html_scrollbar_data *data;
+	int visible_width, visible_height;
+	int full_width, full_height;
+	nserror res;
 
-    if (!bottom && box->scroll_x != NULL) {
-        data = scrollbar_get_data(box->scroll_x);
-        scrollbar_destroy(box->scroll_x);
-        free(data);
-        box->scroll_x = NULL;
-    }
+	if (!bottom && box->scroll_x != NULL) {
+		data = scrollbar_get_data(box->scroll_x);
+		scrollbar_destroy(box->scroll_x);
+		free(data);
+		box->scroll_x = NULL;
+	}
 
-    if (!right && box->scroll_y != NULL) {
-        data = scrollbar_get_data(box->scroll_y);
-        scrollbar_destroy(box->scroll_y);
-        free(data);
-        box->scroll_y = NULL;
-    }
+	if (!right && box->scroll_y != NULL) {
+		data = scrollbar_get_data(box->scroll_y);
+		scrollbar_destroy(box->scroll_y);
+		free(data);
+		box->scroll_y = NULL;
+	}
 
-    if (!bottom && !right) {
-        return NSERROR_OK;
-    }
+	if (!bottom && !right) {
+		return NSERROR_OK;
+	}
 
-    visible_width = box->width + box->padding[RIGHT] + box->padding[LEFT];
-    visible_height = box->height + box->padding[TOP] + box->padding[BOTTOM];
+	visible_width = box->width + box->padding[RIGHT] + box->padding[LEFT];
+	visible_height = box->height + box->padding[TOP] + box->padding[BOTTOM];
 
-    full_width = ((box->descendant_x1 - box->border[RIGHT].width) > visible_width)
-        ? box->descendant_x1 + box->padding[RIGHT]
-        : visible_width;
-    full_height = ((box->descendant_y1 - box->border[BOTTOM].width) > visible_height)
-        ? box->descendant_y1 + box->padding[BOTTOM]
-        : visible_height;
+	full_width = ((box->descendant_x1 - box->border[RIGHT].width) > visible_width)
+		? box->descendant_x1 + box->padding[RIGHT]
+		: visible_width;
+	full_height = ((box->descendant_y1 - box->border[BOTTOM].width) > visible_height)
+		? box->descendant_y1 + box->padding[BOTTOM]
+		: visible_height;
 
-    if (right) {
-        if (box->scroll_y == NULL) {
-            data = malloc(sizeof(struct html_scrollbar_data));
-            if (data == NULL) {
-                return NSERROR_NOMEM;
-            }
-            data->c = c;
-            data->box = box;
-            res = scrollbar_create(false, visible_height, full_height, visible_height, data,
-                html_overflow_scroll_callback, &(box->scroll_y));
-            if (res != NSERROR_OK) {
-                return res;
-            }
-        } else {
-            scrollbar_set_extents(box->scroll_y, visible_height, visible_height, full_height);
-        }
-    }
-    if (bottom) {
-        if (box->scroll_x == NULL) {
-            data = malloc(sizeof(struct html_scrollbar_data));
-            if (data == NULL) {
-                return NSERROR_OK;
-            }
-            data->c = c;
-            data->box = box;
-            res = scrollbar_create(true, visible_width - (right ? SCROLLBAR_WIDTH : 0), full_width, visible_width, data,
-                html_overflow_scroll_callback, &box->scroll_x);
-            if (res != NSERROR_OK) {
-                return res;
-            }
-        } else {
-            scrollbar_set_extents(
-                box->scroll_x, visible_width - (right ? SCROLLBAR_WIDTH : 0), visible_width, full_width);
-        }
-    }
+	if (right) {
+		if (box->scroll_y == NULL) {
+			data = malloc(sizeof(struct html_scrollbar_data));
+			if (data == NULL) {
+				return NSERROR_NOMEM;
+			}
+			data->c = c;
+			data->box = box;
+			res = scrollbar_create(false, visible_height, full_height, visible_height, data,
+				html_overflow_scroll_callback, &(box->scroll_y));
+			if (res != NSERROR_OK) {
+				return res;
+			}
+		} else {
+			scrollbar_set_extents(box->scroll_y, visible_height, visible_height, full_height);
+		}
+	}
+	if (bottom) {
+		if (box->scroll_x == NULL) {
+			data = malloc(sizeof(struct html_scrollbar_data));
+			if (data == NULL) {
+				return NSERROR_OK;
+			}
+			data->c = c;
+			data->box = box;
+			res = scrollbar_create(true, visible_width - (right ? SCROLLBAR_WIDTH : 0), full_width, visible_width, data,
+				html_overflow_scroll_callback, &box->scroll_x);
+			if (res != NSERROR_OK) {
+				return res;
+			}
+		} else {
+			scrollbar_set_extents(
+				box->scroll_x, visible_width - (right ? SCROLLBAR_WIDTH : 0), visible_width, full_width);
+		}
+	}
 
-    if (right && bottom) {
-        scrollbar_make_pair(box->scroll_x, box->scroll_y);
-    }
+	if (right && bottom) {
+		scrollbar_make_pair(box->scroll_x, box->scroll_y);
+	}
 
-    return NSERROR_OK;
+	return NSERROR_OK;
+}
+
+/**
+ * Find the html_content associated with a box.
+ */
+struct html_content *box_get_html_content(struct box *box)
+{
+	return box->content;
 }
 
 void box_mark_dirty(struct box *box)
 {
-    if (box == NULL) {
-        return;
-    }
+	if (box == NULL) {
+		return;
+	}
 
-    if (box->flags & DIRTY_INTRINSIC) {
-        /* Already dirty, no need to propagate */
-        return;
-    }
+	if (box->flags & DIRTY_INTRINSIC) {
+		/* Already dirty, no need to propagate */
+		return;
+	}
 
-    box->flags |= DIRTY_INTRINSIC;
+	/* Accumulate OLD bounding box of dirty element and add to dirty list */
+	struct html_content *html = box_get_html_content(box);
+	if (html != NULL) {
+		struct rect r;
+		int x, y;
+		box_coords(box, &x, &y);
+		r.x0 = x + box->descendant_x0;
+		r.y0 = y + box->descendant_y0;
+		r.x1 = x + box->descendant_x1;
+		r.y1 = y + box->descendant_y1;
 
-    struct box *parent = box->parent;
-    while (parent != NULL) {
-        if (parent->flags & CHILD_DIRTY) {
-            /* Ancestor already knows it has a dirty child, stop propagating */
-            break;
-        }
-        parent->flags |= CHILD_DIRTY;
-        parent = parent->parent;
-    }
+		if (html->has_dirty_rect) {
+			ns_rect_union(&html->dirty_rect, &r);
+		} else {
+			html->dirty_rect = r;
+			html->has_dirty_rect = true;
+		}
+
+		/* Add to dirty list for post-layout bounding box capture */
+		if (!(box->flags & BOX_IN_DIRTY_LIST)) {
+			box->next_dirty = html->dirty_list;
+			html->dirty_list = box;
+			box->flags |= BOX_IN_DIRTY_LIST;
+		}
+	}
+
+	box->flags |= DIRTY_INTRINSIC;
+
+	struct box *parent = box->parent;
+	while (parent != NULL) {
+		if (parent->flags & CHILD_DIRTY) {
+			/* Ancestor already knows it has a dirty child, stop propagating */
+			break;
+		}
+		parent->flags |= CHILD_DIRTY;
+		parent = parent->parent;
+	}
+}
+
+void box_free(struct box *box)
+{
+	struct box *child, *next;
+
+	/* Ensure box is removed from dirty list to prevent dangling pointers */
+	struct html_content *html = box_get_html_content(box);
+	if (html != NULL && (box->flags & BOX_IN_DIRTY_LIST)) {
+		struct box *prev = NULL;
+		struct box *curr = html->dirty_list;
+		while (curr != NULL) {
+			if (curr == box) {
+				if (prev == NULL) {
+					html->dirty_list = curr->next_dirty;
+				} else {
+					prev->next_dirty = curr->next_dirty;
+				}
+				box->flags &= ~BOX_IN_DIRTY_LIST;
+				break;
+			}
+			prev = curr;
+			curr = curr->next_dirty;
+		}
+	}
+
+	/* free children first */
+	for (child = box->children; child; child = next) {
+		next = child->next;
+		box_free(child);
+	}
+
+	/* last this box */
+	box_free_box(box);
 }
