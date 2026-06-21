@@ -162,7 +162,7 @@ static bool init_row_heights_from_css(const css_computed_style *style, int **row
 		return true; /* No explicit rows defined */
 	}
 
-	NSLOG(layout, WARNING, "GRID LAYOUT: initializing %d row tracks from CSS", n_row_tracks);
+	NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: initializing %d row tracks from CSS", n_row_tracks);
 
 	for (int32_t i = 0; i < n_row_tracks; i++) {
 		if (!ensure_row_capacity(row_heights, row_heights_capacity, i)) {
@@ -170,7 +170,7 @@ static bool init_row_heights_from_css(const css_computed_style *style, int **row
 		}
 
 		/* Debug: log raw track values */
-		NSLOG(layout, WARNING, "GRID LAYOUT: row track[%d] raw: unit=%d value=%d", i, row_tracks[i].unit,
+		NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: row track[%d] raw: unit=%d value=%d", i, row_tracks[i].unit,
 			FIXTOINT(row_tracks[i].value));
 
 		int row_height_px = 0;
@@ -199,7 +199,7 @@ static bool init_row_heights_from_css(const css_computed_style *style, int **row
 		}
 
 		(*row_heights)[i] = row_height_px;
-		NSLOG(layout, WARNING, "GRID LAYOUT: row[%d] height=%d (from CSS)", i, row_height_px);
+		NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: row[%d] height=%d (from CSS)", i, row_height_px);
 	}
 
 	return true;
@@ -343,11 +343,11 @@ static int layout_grid_get_column_count(struct box *grid)
 	if (grid->style != NULL) {
 		grid_template_type = css_computed_grid_template_columns(grid->style, &n_tracks, &tracks);
 
-		NSLOG(layout, INFO, "grid_get_column_count: type=%d, n_tracks=%d, tracks=%p", grid_template_type, n_tracks,
+		NSLOG(layout, DEEPDEBUG, "grid_get_column_count: type=%d, n_tracks=%d, tracks=%p", grid_template_type, n_tracks,
 			tracks);
 
 		if (grid_template_type == CSS_GRID_TEMPLATE_SET && n_tracks > 0) {
-			NSLOG(layout, INFO, "CSS grid-template-columns: %d tracks", n_tracks);
+			NSLOG(layout, DEEPDEBUG, "CSS grid-template-columns: %d tracks", n_tracks);
 			/* Log each track for debugging */
 			for (int32_t i = 0; i < n_tracks; i++) {
 				const char *unit_str = "unknown";
@@ -371,13 +371,13 @@ static int layout_grid_get_column_count(struct box *grid)
 					unit_str = "max-content";
 					break;
 				case CSS_UNIT_MINMAX:
-					NSLOG(layout, INFO, "  Track %d: minmax(min=%f %d, max=%f %d)", i, FIXTOFLT(tracks[i].value),
+					NSLOG(layout, DEEPDEBUG, "  Track %d: minmax(min=%f %d, max=%f %d)", i, FIXTOFLT(tracks[i].value),
 						tracks[i].min_unit, FIXTOFLT(tracks[i].max_value), tracks[i].max_unit);
 					continue;
 				default:
 					break;
 				}
-				NSLOG(layout, INFO, "  Track %d: %f %s", i, FIXTOFLT(tracks[i].value), unit_str);
+				NSLOG(layout, DEEPDEBUG, "  Track %d: %f %s", i, FIXTOFLT(tracks[i].value), unit_str);
 			}
 			return n_tracks;
 		} else if (grid_template_type == CSS_GRID_TEMPLATE_NONE) {
@@ -534,7 +534,7 @@ void layout_minmax_grid(struct box *grid, const struct gui_layout_table *font_fu
 	grid->max_width = max;
 	grid->flags |= HAS_HEIGHT;
 
-	NSLOG(layout, DEBUG, "Grid %p minmax: min=%d max=%d cols=%d gap=%d", grid, min, max, num_cols, gap_px);
+	NSLOG(layout, DEEPDEBUG, "Grid %p minmax: min=%d max=%d cols=%d gap=%d", grid, min, max, num_cols, gap_px);
 }
 
 static void layout_grid_compute_tracks(struct box *grid, int available_width, int *col_widths, int num_cols,
@@ -689,7 +689,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	int row_idx = 0;
 	int num_cols = layout_grid_get_column_count(grid);
 
-	NSLOG(layout, WARNING, "GRID LAYOUT: grid=%p avail_w=%d num_cols=%d children=%p", grid, available_width, num_cols,
+	NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: grid=%p avail_w=%d num_cols=%d children=%p", grid, available_width, num_cols,
 		grid->children);
 
 	int *col_widths; /* Array allocated locally */
@@ -712,7 +712,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
 	/* Log computed column widths */
 	for (int i = 0; i < num_cols; i++) {
-		NSLOG(layout, WARNING, "GRID LAYOUT: col[%d] width=%d", i, col_widths[i]);
+		NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: col[%d] width=%d", i, col_widths[i]);
 	}
 
 	int row_height = 0;
@@ -755,7 +755,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	}
 	bool flow_is_column = (auto_flow == CSS_GRID_AUTO_FLOW_COLUMN || auto_flow == CSS_GRID_AUTO_FLOW_COLUMN_DENSE);
 
-	NSLOG(layout, INFO, "GRID LAYOUT: grid-auto-flow=%d (column=%s)", auto_flow, flow_is_column ? "yes" : "no");
+	NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: grid-auto-flow=%d (column=%s)", auto_flow, flow_is_column ? "yes" : "no");
 
 	/* For column mode, we need explicit row count to know when to wrap */
 	int num_rows = flow_is_column ? layout_grid_get_explicit_row_count(grid) : 1; /* row mode doesn't need this */
@@ -783,7 +783,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 		return false;
 	}
 	NSLOG(
-		layout, INFO, "GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", num_cols, occupied_max_rows, is_dense);
+		layout, DEEPDEBUG, "GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", num_cols, occupied_max_rows, is_dense);
 
 	/* Count children for item cache allocation */
 	int item_count = 0;
@@ -816,7 +816,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	 *         This ensures DOM order is respected for auto-placement.
 	 */
 	for (int pass = 1; pass <= 2; pass++) {
-		NSLOG(layout, INFO, "GRID PLACEMENT: Starting pass %d", pass);
+		NSLOG(layout, DEEPDEBUG, "GRID PLACEMENT: Starting pass %d", pass);
 
 		for (child = grid->children; child; child = child->next) {
 			int col_start, col_end, row_start, row_end;
@@ -837,7 +837,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				continue; /* Already processed in Pass 1 */
 			}
 
-			NSLOG(layout, WARNING,
+			NSLOG(layout, DEEPDEBUG,
 				"GRID PLACEMENT pass=%d item_phase=%d: col_start=%d col_end=%d row_start=%d row_end=%d col_span=%d row_span=%d",
 				pass, item_phase, col_start, col_end, row_start, row_end, col_span, row_span);
 
@@ -966,7 +966,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			}
 			/* Note: for fully auto-placed items, item_row is already set by the scan above */
 
-			NSLOG(layout, WARNING,
+			NSLOG(layout, DEEPDEBUG,
 				"GRID PLACE DECISION: item_col=%d item_row=%d (cursor col=%d row=%d) flow_is_column=%d", item_col,
 				item_row, auto_col, auto_row, flow_is_column);
 
@@ -1058,7 +1058,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			}
 			int height_per_row = total_height / row_span;
 
-			NSLOG(layout, WARNING,
+			NSLOG(layout, DEEPDEBUG,
 				"GRID ROW_HEIGHT: child %p content_h=%d pad=%d,%d border=%d,%d total=%d row_span=%d height_per_row=%d",
 				child, child->height, child->padding[TOP], child->padding[BOTTOM], child->border[TOP].width,
 				child->border[BOTTOM].width, total_height, row_span, height_per_row);
@@ -1105,12 +1105,12 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				}
 
 				if (height_per_row > row_heights[r]) {
-					NSLOG(layout, WARNING, "GRID ROW_HEIGHT UPDATE: row[%d] %d -> %d (from child %p)", r,
+					NSLOG(layout, DEEPDEBUG, "GRID ROW_HEIGHT UPDATE: row[%d] %d -> %d (from child %p)", r,
 						row_heights[r], height_per_row, child);
 					/* If this row already had an item, mark those items for re-stretch */
 					if (row_first_item_done[r]) {
 						needs_pass3 = true;
-						NSLOG(layout, WARNING, "GRID: needs_pass3 set TRUE because row[%d] already had item", r);
+						NSLOG(layout, DEEPDEBUG, "GRID: needs_pass3 set TRUE because row[%d] already had item", r);
 						/* Mark all cached items in this row for re-stretch */
 						if (item_cache != NULL) {
 							for (int ci = 0; ci < cache_idx; ci++) {
@@ -1223,7 +1223,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				cache_idx++;
 			}
 
-			NSLOG(layout, INFO, "Grid item placed: col=%d-%d row=%d-%d x=%d y=%d w=%d h=%d", item_col,
+			NSLOG(layout, DEEPDEBUG, "Grid item placed: col=%d-%d row=%d-%d x=%d y=%d w=%d h=%d", item_col,
 				item_col + col_span, item_row, item_row + row_span, child_x, child_y, child->width, child->height);
 
 			/* Redistribute auto margins for column flex grid items.
@@ -1302,7 +1302,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	 * OPTIMIZATION: Instead of re-parsing CSS for all items, use cached placement info.
 	 * Only process items that were marked for re-stretch. */
 	if (needs_pass3 && item_cache != NULL) {
-		NSLOG(layout, INFO, "GRID LAYOUT: Pass 3 (optimized) - processing %d cached items", cache_idx);
+		NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: Pass 3 (optimized) - processing %d cached items", cache_idx);
 		for (int ci = 0; ci < cache_idx; ci++) {
 			struct grid_item_cache *cached = &item_cache[ci];
 			if (!cached->box) continue;
@@ -1345,7 +1345,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			}
 			child->y = final_y;
 
-			NSLOG(layout, INFO, "Grid pass 3: item at row=%d height=%d->%d y=%d (cached)", item_row, original_height,
+			NSLOG(layout, DEEPDEBUG, "Grid pass 3: item at row=%d height=%d->%d y=%d (cached)", item_row, original_height,
 				child->height, child->y);
 
 			/* If height changed, redistribute auto margins in nested flex containers */
@@ -1372,7 +1372,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			}
 		}
 	} else {
-		NSLOG(layout, INFO, "GRID LAYOUT: Pass 3 skipped - no items needed re-stretch");
+		NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: Pass 3 skipped - no items needed re-stretch");
 	}
 
 	/* Calculate total grid height */

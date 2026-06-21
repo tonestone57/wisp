@@ -40,6 +40,7 @@
 
 
 #include <wisp/content/handlers/html/box.h>
+#include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/content/handlers/html/interaction.h>
 #include <wisp/content/handlers/html/private.h>
