@@ -119,6 +119,11 @@ extern const css_border_style_func border_style_funcs[4];
 /** Array of per-side access functions for computed style border colors. */
 extern const css_border_color_func border_color_funcs[4];
 
+/**
+ * Add a box to the document's dirty list for post-layout bounding box capture.
+ */
+void layout_add_to_dirty_list(struct html_content *content, struct box *box);
+
 /** Layout helper: Check whether box is a float. */
 static inline bool lh__box_is_float_box(const struct box *b)
 {

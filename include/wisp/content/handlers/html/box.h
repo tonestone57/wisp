@@ -54,8 +54,8 @@ typedef void (*box_construct_complete_cb)(struct html_content *c, bool success);
  * Distinguishes between 'auto' values and explicitly set values.
  */
 enum css_size_type {
-    CSS_SIZE_AUTO, /**< min-height/width: auto (use content size for flex) */
-    CSS_SIZE_SET /**< min-height/width is explicitly set (including 0) */
+	CSS_SIZE_AUTO, /**< min-height/width: auto (use content size for flex) */
+	CSS_SIZE_SET /**< min-height/width is explicitly set (including 0) */
 };
 
 /**
@@ -63,8 +63,8 @@ enum css_size_type {
  * Used for min-width and min-height to distinguish auto from explicit values.
  */
 struct css_size {
-    enum css_size_type type;
-    int value;
+	enum css_size_type type;
+	int value;
 };
 
 
@@ -72,24 +72,24 @@ struct css_size {
  * Type of a struct box.
  */
 typedef enum {
-    BOX_BLOCK,
-    BOX_INLINE_CONTAINER,
-    BOX_INLINE,
-    BOX_TABLE,
-    BOX_TABLE_ROW,
-    BOX_TABLE_CELL,
-    BOX_TABLE_ROW_GROUP,
-    BOX_FLOAT_LEFT,
-    BOX_FLOAT_RIGHT,
-    BOX_INLINE_BLOCK,
-    BOX_BR,
-    BOX_TEXT,
-    BOX_INLINE_END,
-    BOX_NONE,
-    BOX_FLEX,
-    BOX_INLINE_FLEX,
-    BOX_GRID,
-    BOX_INLINE_GRID,
+	BOX_BLOCK,
+	BOX_INLINE_CONTAINER,
+	BOX_INLINE,
+	BOX_TABLE,
+	BOX_TABLE_ROW,
+	BOX_TABLE_CELL,
+	BOX_TABLE_ROW_GROUP,
+	BOX_FLOAT_LEFT,
+	BOX_FLOAT_RIGHT,
+	BOX_INLINE_BLOCK,
+	BOX_BR,
+	BOX_TEXT,
+	BOX_INLINE_END,
+	BOX_NONE,
+	BOX_FLEX,
+	BOX_INLINE_FLEX,
+	BOX_GRID,
+	BOX_INLINE_GRID,
 } box_type;
 
 
@@ -97,24 +97,25 @@ typedef enum {
  * Flags for a struct box.
  */
 typedef enum {
-    NEW_LINE = 1 << 0, /* first inline on a new line */
-    STYLE_OWNED = 1 << 1, /* style is owned by this box */
-    PRINTED = 1 << 2, /* box has already been printed */
-    PRE_STRIP = 1 << 3, /* PRE tag needing leading newline stripped */
-    CLONE = 1 << 4, /* continuation of previous box from wrapping */
-    MEASURED = 1 << 5, /* text box width has been measured */
-    HAS_HEIGHT = 1 << 6, /* box has height (perhaps due to children) */
-    MAKE_HEIGHT = 1 << 7, /* box causes its own height */
-    NEED_MIN = 1 << 8, /* minimum width is required for layout */
-    REPLACE_DIM = 1 << 9, /* replaced element has given dimensions */
-    IFRAME = 1 << 10, /* box contains an iframe */
-    CONVERT_CHILDREN = 1 << 11, /* wanted children converting */
-    IS_REPLACED = 1 << 12, /* box is a replaced element */
-        HEIGHT_STRETCHED = 1 << 13 /* height was set by parent's cross-axis stretch */,
-    DIRTY_INTRINSIC = 1 << 14, /* box needs min/max width recalculation */
-    CHILD_DIRTY = 1 << 15, /* box has a dirty descendant */
-    DIRTY_LAYOUT = 1 << 16, /* box needs layout/reflow (e.g. bounds changed) */
-    DIRTY = (DIRTY_INTRINSIC | DIRTY_LAYOUT) /* box needs layout/reflow */
+	NEW_LINE = 1 << 0, /* first inline on a new line */
+	STYLE_OWNED = 1 << 1, /* style is owned by this box */
+	PRINTED = 1 << 2, /* box has already been printed */
+	PRE_STRIP = 1 << 3, /* PRE tag needing leading newline stripped */
+	CLONE = 1 << 4, /* continuation of previous box from wrapping */
+	MEASURED = 1 << 5, /* text box width has been measured */
+	HAS_HEIGHT = 1 << 6, /* box has height (perhaps due to children) */
+	MAKE_HEIGHT = 1 << 7, /* box causes its own height */
+	NEED_MIN = 1 << 8, /* minimum width is required for layout */
+	REPLACE_DIM = 1 << 9, /* replaced element has given dimensions */
+	IFRAME = 1 << 10, /* box contains an iframe */
+	CONVERT_CHILDREN = 1 << 11, /* wanted children converting */
+	IS_REPLACED = 1 << 12, /* box is a replaced element */
+		HEIGHT_STRETCHED = 1 << 13 /* height was set by parent's cross-axis stretch */,
+	DIRTY_INTRINSIC = 1 << 14, /* box needs min/max width recalculation */
+	CHILD_DIRTY = 1 << 15, /* box has a dirty descendant */
+	DIRTY_LAYOUT = 1 << 16, /* box needs layout/reflow (e.g. bounds changed) */
+	DIRTY = (DIRTY_INTRINSIC | DIRTY_LAYOUT), /* box needs layout/reflow */
+	BOX_IN_DIRTY_LIST = 1 << 17 /* box is already in the document's dirty list */ /* box needs layout/reflow */
 } box_flags;
 
 
@@ -128,9 +129,9 @@ enum box_side { TOP, RIGHT, BOTTOM, LEFT };
  * Container for box border details
  */
 struct box_border {
-    enum css_border_style_e style; /**< border-style */
-    css_color c; /**< border-color value */
-    int width; /**< border-width (pixels) */
+	enum css_border_style_e style; /**< border-style */
+	css_color c; /**< border-color value */
+	int width; /**< border-width (pixels) */
 };
 
 
@@ -138,37 +139,37 @@ struct box_border {
  * Table column data.
  */
 struct column {
-    /**
-     * Type of column.
-     */
-    enum {
-        COLUMN_WIDTH_UNKNOWN,
-        COLUMN_WIDTH_FIXED,
-        COLUMN_WIDTH_AUTO,
-        COLUMN_WIDTH_PERCENT,
-        COLUMN_WIDTH_RELATIVE
-    } type;
+	/**
+	 * Type of column.
+	 */
+	enum {
+		COLUMN_WIDTH_UNKNOWN,
+		COLUMN_WIDTH_FIXED,
+		COLUMN_WIDTH_AUTO,
+		COLUMN_WIDTH_PERCENT,
+		COLUMN_WIDTH_RELATIVE
+	} type;
 
-    /**
-     * Preferred width of column. Pixels for FIXED, percentage for
-     *  PERCENT, relative units for RELATIVE, unused for AUTO.
-     */
-    int width;
+	/**
+	 * Preferred width of column. Pixels for FIXED, percentage for
+	 *  PERCENT, relative units for RELATIVE, unused for AUTO.
+	 */
+	int width;
 
-    /**
-     * Minimum width of content.
-     */
-    int min;
+	/**
+	 * Minimum width of content.
+	 */
+	int min;
 
-    /**
-     * Maximum width of content.
-     */
-    int max;
+	/**
+	 * Maximum width of content.
+	 */
+	int max;
 
-    /**
-     * Whether all of column's cells are css positioned.
-     */
-    bool positioned;
+	/**
+	 * Whether all of column's cells are css positioned.
+	 */
+	bool positioned;
 };
 
 
@@ -176,11 +177,11 @@ struct column {
  * Linked list of object element parameters.
  */
 struct object_param {
-    char *name;
-    char *value;
-    char *type;
-    char *valuetype;
-    struct object_param *next;
+	char *name;
+	char *value;
+	char *type;
+	char *valuetype;
+	struct object_param *next;
 };
 
 
@@ -188,12 +189,12 @@ struct object_param {
  * Parameters for object element and similar elements.
  */
 struct object_params {
-    struct nsurl *data;
-    char *type;
-    char *codetype;
-    struct nsurl *codebase;
-    struct nsurl *classid;
-    struct object_param *params;
+	struct nsurl *data;
+	char *type;
+	char *codetype;
+	struct nsurl *codebase;
+	struct nsurl *classid;
+	struct object_param *params;
 };
 
 
@@ -201,321 +202,325 @@ struct object_params {
  * Node in box tree. All dimensions are in pixels.
  */
 struct box {
-    /**
-     * Type of box.
-     */
-    box_type type;
+	/** Associated HTML content. */
+	struct html_content *content;
+	/**
+	 * Type of box.
+	 */
+	box_type type;
 
-    /**
-     * Box flags
-     */
-    box_flags flags;
+	/**
+	 * Box flags
+	 */
+	box_flags flags;
 
-    /**
-     * DOM node that generated this box or NULL
-     */
-    struct dom_node *node;
+	/**
+	 * DOM node that generated this box or NULL
+	 */
+	struct dom_node *node;
 
-    /**
-     * Array of active CSS counters instantiated or incremented by this box.
-     */
-    struct css_computed_counter *counters;
-    uint32_t n_counters;
+	/**
+	 * Array of active CSS counters instantiated or incremented by this box.
+	 */
+	struct css_computed_counter *counters;
+	uint32_t n_counters;
 
-    /**
-     * Computed styles for elements and their pseudo elements.
-     *  NULL on non-element boxes.
-     */
-    css_select_results *styles;
+	/**
+	 * Computed styles for elements and their pseudo elements.
+	 *  NULL on non-element boxes.
+	 */
+	css_select_results *styles;
 
-    /**
-     * Style for this box. 0 for INLINE_CONTAINER and
-     *  FLOAT_*. Pointer into a box's 'styles' select results,
-     *  except for implied boxes, where it is a pointer to an
-     *  owned computed style.
-     */
-    css_computed_style *style;
+	/**
+	 * Style for this box. 0 for INLINE_CONTAINER and
+	 *  FLOAT_*. Pointer into a box's 'styles' select results,
+	 *  except for implied boxes, where it is a pointer to an
+	 *  owned computed style.
+	 */
+	css_computed_style *style;
 
-    /**
-     * Original style for this box, used to restore after
-     * temporary pseudo-element style overrides (like ::first-line).
-     */
-    css_computed_style *original_style;
+	/**
+	 * Original style for this box, used to restore after
+	 * temporary pseudo-element style overrides (like ::first-line).
+	 */
+	css_computed_style *original_style;
 
-    /**
-     *  value of id attribute (or name for anchors)
-     */
-    lwc_string *id;
-
-
-    /**
-     * Next sibling box, or NULL.
-     */
-    struct box *next;
-
-    /**
-     * Previous sibling box, or NULL.
-     */
-    struct box *prev;
-
-    /**
-     * First child box, or NULL.
-     */
-    struct box *children;
-
-    /**
-     * Last child box, or NULL.
-     */
-    struct box *last;
-
-    /**
-     * Parent box, or NULL.
-     */
-    struct box *parent;
-
-    /**
-     * INLINE_END box corresponding to this INLINE box, or INLINE
-     * box corresponding to this INLINE_END box.
-     */
-    struct box *inline_end;
+	/**
+	 *  value of id attribute (or name for anchors)
+	 */
+	lwc_string *id;
 
 
-    /**
-     * First float child box, or NULL. Float boxes are in the tree
-     * twice, in this list for the block box which defines the
-     * area for floats, and also in the standard tree given by
-     * children, next, prev, etc.
-     */
-    struct box *float_children;
+	/**
+	 * Next sibling box, or NULL.
+	 */
+	struct box *next;
 
-    /**
-     * Next sibling float box.
-     */
-    struct box *next_float;
+	/**
+	 * Previous sibling box, or NULL.
+	 */
+	struct box *prev;
 
-    /**
-     * If box is a float, points to box's containing block
-     */
-    struct box *float_container;
+	/**
+	 * First child box, or NULL.
+	 */
+	struct box *children;
 
-    /**
-     * For absolutely/fixed positioned boxes, points to the containing block
-     * (nearest positioned ancestor per CSS 2.1 §10.1). NULL for non-positioned
-     * boxes or when not yet computed.
-     */
-    struct box *abs_containing_block;
+	/**
+	 * Last child box, or NULL.
+	 */
+	struct box *last;
 
-    /**
-     * Level below which subsequent floats must be cleared.  This
-     * is used only for boxes with float_children
-     */
-    int clear_level;
+	/**
+	 * Parent box, or NULL.
+	 */
+	struct box *parent;
 
-    /**
-     * Level below which floats have been placed.
-     */
-    int cached_place_below_level;
+	/**
+	 * INLINE_END box corresponding to this INLINE box, or INLINE
+	 * box corresponding to this INLINE_END box.
+	 */
+	struct box *inline_end;
 
 
-    /**
-     * Coordinate of left padding edge relative to parent box, or
-     * relative to ancestor that contains this box in
-     * float_children for FLOAT_.
-     */
-    int x;
-    /**
-     * Coordinate of top padding edge, relative as for x.
-     */
-    int y;
+	/**
+	 * First float child box, or NULL. Float boxes are in the tree
+	 * twice, in this list for the block box which defines the
+	 * area for floats, and also in the standard tree given by
+	 * children, next, prev, etc.
+	 */
+	struct box *float_children;
 
-    /**
-     * Available width for this box during last layout.
-     * Used for incremental layout optimizations.
-     */
-    int last_available_width;
+	/**
+	 * Next sibling float box.
+	 */
+	struct box *next_float;
 
-    /**
-     * Width of content box (excluding padding etc.).
-     */
-    int width;
-    /**
-     * Height of content box (excluding padding etc.).
-     */
-    int height;
+	/**
+	 * If box is a float, points to box's containing block
+	 */
+	struct box *float_container;
 
-    /* These four variables determine the maximum extent of a box's
-     * descendants. They are relative to the x,y coordinates of the box.
-     *
-     * Their use depends on the overflow CSS property:
-     *
-     * Overflow:	Usage:
-     * visible	The content of the box is displayed within these
-     *		dimensions.
-     * hidden	These are ignored. Content is plotted within the box
-     *		dimensions.
-     * scroll	These are used to determine the extent of the
-     *		scrollable area.
-     * auto		As "scroll".
-     */
-    int descendant_x0; /**< left edge of descendants */
-    int descendant_y0; /**< top edge of descendants */
-    int descendant_x1; /**< right edge of descendants */
-    int descendant_y1; /**< bottom edge of descendants */
+	/**
+	 * For absolutely/fixed positioned boxes, points to the containing block
+	 * (nearest positioned ancestor per CSS 2.1 §10.1). NULL for non-positioned
+	 * boxes or when not yet computed.
+	 */
+	struct box *abs_containing_block;
 
-    /** Current dynamic offsets for sticky items. */
-    int sticky_x, sticky_y;
+	/**
+	 * Level below which subsequent floats must be cleared.  This
+	 * is used only for boxes with float_children
+	 */
+	int clear_level;
 
-    /** Cached constraints for sticky items. */
-    struct {
-        int top, right, bottom, left; /**< Specified CSS offsets (pixels or AUTO) */
-        struct box *scroller;         /**< Nearest scrollable ancestor */
-        struct box *cb;               /**< Containing block */
-        int static_doc_x, static_doc_y;
-        int cb_doc_x0, cb_doc_y0, cb_doc_x1, cb_doc_y1;
-    } sticky_constraints;
-
-    /** Next box in the document's sticky registry. */
-    struct box *next_sticky;
-
-    /**
-     * Margin: TOP, RIGHT, BOTTOM, LEFT.
-     */
-    int margin[4];
-
-    /**
-     * Padding: TOP, RIGHT, BOTTOM, LEFT.
-     */
-    int padding[4];
-
-    /**
-     * Border: TOP, RIGHT, BOTTOM, LEFT.
-     */
-    struct box_border border[4];
-
-    /**
-     * Horizontal scroll.
-     */
-    struct scrollbar *scroll_x;
-
-    /**
-     * Vertical scroll.
-     */
-    struct scrollbar *scroll_y;
-
-    /**
-     * Width of box taking all line breaks (including margins
-     * etc). For flex items, use .type to check if auto vs explicit.
-     */
-    struct css_size min_width;
-
-    /**
-     * Width that would be taken with no line breaks. Must be
-     * non-negative.
-     */
-    int max_width;
+	/**
+	 * Level below which floats have been placed.
+	 */
+	int cached_place_below_level;
 
 
-    /**
-     * Text, or NULL if none. Unterminated.
-     */
-    char *text;
+	/**
+	 * Coordinate of left padding edge relative to parent box, or
+	 * relative to ancestor that contains this box in
+	 * float_children for FLOAT_.
+	 */
+	int x;
+	/**
+	 * Coordinate of top padding edge, relative as for x.
+	 */
+	int y;
 
-    /**
-     * Length of text.
-     */
-    size_t length;
+	/**
+	 * Available width for this box during last layout.
+	 * Used for incremental layout optimizations.
+	 */
+	int last_available_width;
 
-    /**
-     * Width of space after current text (depends on font and size).
-     */
-    int space;
+	/**
+	 * Width of content box (excluding padding etc.).
+	 */
+	int width;
+	/**
+	 * Height of content box (excluding padding etc.).
+	 */
+	int height;
 
-    /**
-     * Byte offset within a textual representation of this content.
-     */
-    size_t byte_offset;
+	/* These four variables determine the maximum extent of a box's
+	 * descendants. They are relative to the x,y coordinates of the box.
+	 *
+	 * Their use depends on the overflow CSS property:
+	 *
+	 * Overflow:    Usage:
+	 * visible  The content of the box is displayed within these
+	 *      dimensions.
+	 * hidden   These are ignored. Content is plotted within the box
+	 *      dimensions.
+	 * scroll   These are used to determine the extent of the
+	 *      scrollable area.
+	 * auto     As "scroll".
+	 */
+	int descendant_x0; /**< left edge of descendants */
+	int descendant_y0; /**< top edge of descendants */
+	int descendant_x1; /**< right edge of descendants */
+	int descendant_y1; /**< bottom edge of descendants */
 
+	/** Current dynamic offsets for sticky items. */
+	int sticky_x, sticky_y;
 
-    /**
-     * Link, or NULL.
-     */
-    struct nsurl *href;
+	/** Cached constraints for sticky items. */
+	struct {
+		int top, right, bottom, left; /**< Specified CSS offsets (pixels or AUTO) */
+		struct box *scroller;         /**< Nearest scrollable ancestor */
+		struct box *cb;               /**< Containing block */
+		int static_doc_x, static_doc_y;
+		int cb_doc_x0, cb_doc_y0, cb_doc_x1, cb_doc_y1;
+	} sticky_constraints;
 
-    /**
-     * Link target, or NULL.
-     */
-    const char *target;
+	/** Next box in the document's sticky registry. */
+	struct box *next_sticky;
+	/** Next box in the document's dirty accumulation list. */
+	struct box *next_dirty;
 
-    /**
-     * Title, or NULL.
-     */
-    const char *title;
+	/**
+	 * Margin: TOP, RIGHT, BOTTOM, LEFT.
+	 */
+	int margin[4];
 
+	/**
+	 * Padding: TOP, RIGHT, BOTTOM, LEFT.
+	 */
+	int padding[4];
 
-    /**
-     * Number of columns for TABLE / TABLE_CELL.
-     */
-    unsigned int columns;
+	/**
+	 * Border: TOP, RIGHT, BOTTOM, LEFT.
+	 */
+	struct box_border border[4];
 
-    /**
-     * Number of rows for TABLE only.
-     */
-    unsigned int rows;
+	/**
+	 * Horizontal scroll.
+	 */
+	struct scrollbar *scroll_x;
 
-    /**
-     * Start column for TABLE_CELL only.
-     */
-    unsigned int start_column;
+	/**
+	 * Vertical scroll.
+	 */
+	struct scrollbar *scroll_y;
 
-    /**
-     * Array of table column data for TABLE only.
-     */
-    struct column *col;
+	/**
+	 * Width of box taking all line breaks (including margins
+	 * etc). For flex items, use .type to check if auto vs explicit.
+	 */
+	struct css_size min_width;
 
-    /**
-     * List item value.
-     */
-    int list_value;
-
-    /**
-     * List marker box if this is a list-item, or NULL.
-     */
-    struct box *list_marker;
-
-
-    /**
-     * Form control data, or NULL if not a form control.
-     */
-    struct form_control *gadget;
-
-
-    /**
-     * (Image)map to use with this object, or NULL if none
-     */
-    char *usemap;
-
-
-    /**
-     * Background image for this box, or NULL if none
-     */
-    struct hlcache_handle *background;
-
-
-    /**
-     * Object in this box (usually an image), or NULL if none.
-     */
-    struct hlcache_handle *object;
-
-    /**
-     * Parameters for the object, or NULL.
-     */
-    struct object_params *object_params;
+	/**
+	 * Width that would be taken with no line breaks. Must be
+	 * non-negative.
+	 */
+	int max_width;
 
 
-    /**
-     * Iframe's browser_window, or NULL if none
-     */
-    struct browser_window *iframe;
+	/**
+	 * Text, or NULL if none. Unterminated.
+	 */
+	char *text;
+
+	/**
+	 * Length of text.
+	 */
+	size_t length;
+
+	/**
+	 * Width of space after current text (depends on font and size).
+	 */
+	int space;
+
+	/**
+	 * Byte offset within a textual representation of this content.
+	 */
+	size_t byte_offset;
+
+
+	/**
+	 * Link, or NULL.
+	 */
+	struct nsurl *href;
+
+	/**
+	 * Link target, or NULL.
+	 */
+	const char *target;
+
+	/**
+	 * Title, or NULL.
+	 */
+	const char *title;
+
+
+	/**
+	 * Number of columns for TABLE / TABLE_CELL.
+	 */
+	unsigned int columns;
+
+	/**
+	 * Number of rows for TABLE only.
+	 */
+	unsigned int rows;
+
+	/**
+	 * Start column for TABLE_CELL only.
+	 */
+	unsigned int start_column;
+
+	/**
+	 * Array of table column data for TABLE only.
+	 */
+	struct column *col;
+
+	/**
+	 * List item value.
+	 */
+	int list_value;
+
+	/**
+	 * List marker box if this is a list-item, or NULL.
+	 */
+	struct box *list_marker;
+
+
+	/**
+	 * Form control data, or NULL if not a form control.
+	 */
+	struct form_control *gadget;
+
+
+	/**
+	 * (Image)map to use with this object, or NULL if none
+	 */
+	char *usemap;
+
+
+	/**
+	 * Background image for this box, or NULL if none
+	 */
+	struct hlcache_handle *background;
+
+
+	/**
+	 * Object in this box (usually an image), or NULL if none.
+	 */
+	struct hlcache_handle *object;
+
+	/**
+	 * Parameters for the object, or NULL.
+	 */
+	struct object_params *object_params;
+
+
+	/**
+	 * Iframe's browser_window, or NULL if none
+	 */
+	struct browser_window *iframe;
 };
 
 

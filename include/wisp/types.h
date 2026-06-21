@@ -42,4 +42,15 @@ typedef struct rect {
     int x1, y1; /**< Bottom right */
 } rect;
 
+/**
+ * Union of two rectangles.
+ */
+static inline void ns_rect_union(struct rect *res, const struct rect *r)
+{
+	if (r->x0 < res->x0) res->x0 = r->x0;
+	if (r->y0 < res->y0) res->y0 = r->y0;
+	if (r->x1 > res->x1) res->x1 = r->x1;
+	if (r->y1 > res->y1) res->y1 = r->y1;
+}
+
 #endif
