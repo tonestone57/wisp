@@ -2078,7 +2078,9 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 	}
 
 	if (success) {
+#ifndef TESTING
 		if (flex->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, flex);
+#endif
 	}
 	success = true;
 

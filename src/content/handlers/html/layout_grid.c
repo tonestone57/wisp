@@ -1425,7 +1425,9 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	free(col_widths);
 
 	grid->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
+#ifndef TESTING
 	if (grid->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, grid);
+#endif
 
 	return true;
 }

@@ -190,7 +190,6 @@ add_wisp_test(html_redraw_borders_test
 
 add_wisp_test(layout_flex_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/layout_flex.c
-  ${CMAKE_SOURCE_DIR}/src/test/layout_flex_stubs.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/layout_flex_test.c
 )
