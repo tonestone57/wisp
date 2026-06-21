@@ -191,6 +191,7 @@ add_wisp_test(html_redraw_borders_test
 add_wisp_test(layout_flex_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/layout_flex.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/layout_flex_stubs.c
   ${CMAKE_SOURCE_DIR}/src/test/layout_flex_test.c
 )
 # Define TESTING so layout_flex.c can use test stubs
@@ -245,6 +246,7 @@ add_wisp_test(box_construct_race_test
 add_wisp_test(grid_layout_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/layout_grid.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/layout_flex_stubs.c
   ${CMAKE_SOURCE_DIR}/src/test/grid_layout_test.c
 )
 # Define TESTING so layout_grid.c uses test stubs instead of calling layout_minmax_box
@@ -253,6 +255,7 @@ target_compile_definitions(grid_layout_test PRIVATE TESTING)
 add_wisp_test(layout_inline_grid_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/layout_grid.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/layout_flex_stubs.c
   ${CMAKE_SOURCE_DIR}/src/test/layout_inline_grid_test.c
 )
 target_compile_definitions(layout_inline_grid_test PRIVATE TESTING)
@@ -358,4 +361,10 @@ if(NOT WIN32)
     ${CMAKE_SOURCE_DIR}/src/test/corestrings.c
   )
   target_link_libraries(corestrings PRIVATE malloc_fig)
+
+add_wisp_test(journal_test
+  ${CMAKE_SOURCE_DIR}/src/test/journal_test.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(journal_test PRIVATE wisp)
 endif()
