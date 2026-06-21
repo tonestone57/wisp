@@ -63,6 +63,7 @@
 
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/box_inspect.h>
+#include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/content/handlers/html/html.h>
 #include <wisp/content/handlers/html/html_save.h>
@@ -1874,6 +1875,7 @@ static void layout_move_children(struct box *box, int x, int y)
 }
 
 
+/* Documented in layout_internal.h */
 /**
  * Add a box to the document's dirty list for post-layout bounding box capture.
  */
@@ -1886,15 +1888,11 @@ void layout_add_to_dirty_list(struct html_content *content, struct box *box)
 	}
 }
 
-/* Documented in layout_internal.h */
 bool layout_table(struct box *table, int available_width, html_content *content)
 {
 	if (!(table->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(table->flags & CHILD_DIRTY)) {
 		return true;
 	}
-
-	/* Add to dirty list for NEW bounding box capture at end of layout */
-	layout_add_to_dirty_list(content, table);
 
 	unsigned int columns = table->columns; /* total columns */
 	unsigned int i;
@@ -2759,6 +2757,7 @@ static bool layout_float(struct box *b, int width, html_content *content)
 				css_computed_display(b->style, false) == CSS_DISPLAY_FLEX ||
 				css_computed_display(b->style, false) == CSS_DISPLAY_INLINE_FLEX))) {
 		if (b->type == BOX_TABLE) {
+	if (b->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, b);
 			if (!layout_table(b, width, content))
 				return false;
 		} else if (b->type == BOX_GRID || b->type == BOX_INLINE_GRID ||
@@ -3631,9 +3630,7 @@ static bool layout_inline_container(
 
 	inline_container->width = maxwidth;
 	inline_container->height = y;
-
-	/* Add to dirty list for NEW bounding box capture at end of layout */
-	layout_add_to_dirty_list(content, inline_container);
+	if (inline_container->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, inline_container);
 
 	/* Log inline container final dimensions */
 	NSLOG(wisp, INFO, "INLINE_CONTAINER_DONE: ic=%p parent=%p ic_y=%d ic_height=%d (parent_list_marker=%p)",
@@ -4228,9 +4225,6 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 		layout_apply_minmax_height(&content->unit_len_ctx, block, NULL);
 	}
 
-	/* Add to dirty list for NEW bounding box capture at end of layout */
-	layout_add_to_dirty_list(content, block);
-
 	if (block->gadget &&
 		(block->gadget->type == GADGET_TEXTAREA || block->gadget->type == GADGET_PASSWORD ||
 			block->gadget->type == GADGET_TEXTBOX)) {
@@ -4243,6 +4237,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 			block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
 	}
 
+	if (block->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, block);
 	block->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
 	return true;
@@ -5963,7 +5958,6 @@ bool layout_document(html_content *content, int width, int height)
 	const struct gui_layout_table *font_func = content->font_func;
 
 	NSLOG(wisp, DEBUG, "PROFILER: START layout_document %p", content);
-    content->dirty_list = NULL;
 
 	NSLOG(layout, DEBUG, "Doing layout to %ix%i of %s", width, height, nsurl_access(content_get_url(&content->base)));
 

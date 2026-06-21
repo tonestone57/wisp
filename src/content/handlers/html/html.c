@@ -1718,6 +1718,9 @@ static nserror html_close(struct content *c)
 		 */
 		js_destroythread(htmlc->jsthread);
 		htmlc->jsthread = NULL;
+	c->has_dirty_rect = false;
+	c->dirty_rect = (struct rect){0, 0, 0, 0};
+	c->dirty_list = NULL;
 	}
 
 	return ret;

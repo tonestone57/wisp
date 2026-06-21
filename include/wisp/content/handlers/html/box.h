@@ -115,7 +115,7 @@ typedef enum {
 	CHILD_DIRTY = 1 << 15, /* box has a dirty descendant */
 	DIRTY_LAYOUT = 1 << 16, /* box needs layout/reflow (e.g. bounds changed) */
 	DIRTY = (DIRTY_INTRINSIC | DIRTY_LAYOUT), /* box needs layout/reflow */
-	BOX_IN_DIRTY_LIST = 1 << 17 /* box is already in the document's dirty list */
+	BOX_IN_DIRTY_LIST = 1 << 17 /* box is already in the document's dirty list */ /* box needs layout/reflow */
 } box_flags;
 
 
@@ -202,13 +202,8 @@ struct object_params {
  * Node in box tree. All dimensions are in pixels.
  */
 struct box {
-    /** Associated HTML content. */
-    struct html_content *content;
-	/**
-	 * Associated HTML content.
-	 */
+	/** Associated HTML content. */
 	struct html_content *content;
-
 	/**
 	 * Type of box.
 	 */
@@ -384,7 +379,6 @@ struct box {
 
 	/** Next box in the document's sticky registry. */
 	struct box *next_sticky;
-
 	/** Next box in the document's dirty accumulation list. */
 	struct box *next_dirty;
 

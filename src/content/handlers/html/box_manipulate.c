@@ -40,7 +40,6 @@
 
 
 #include <wisp/content/handlers/html/box.h>
-#include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/content/handlers/html/interaction.h>
 #include <wisp/content/handlers/html/private.h>
@@ -107,8 +106,8 @@ static void box_talloc_destructor(void *ptr)
 
 
 /* Exported function documented in html/box.h */
-struct box *box_create(struct html_content *content, css_select_results *styles, css_computed_style *style,
-	bool style_owned, nsurl *href, const char *target, const char *title, lwc_string *id, void *context)
+struct box *box_create(struct html_content *content, css_select_results *styles, css_computed_style *style, bool style_owned, nsurl *href,
+	const char *target, const char *title, lwc_string *id, void *context)
 {
 	unsigned int i;
 	struct box *box;
@@ -119,9 +118,8 @@ struct box *box_create(struct html_content *content, css_select_results *styles,
 	}
 
 	arena_register_destructor(context, box, box_talloc_destructor);
-    box->content = content;
-
 	box->content = content;
+
 	box->type = BOX_INLINE;
 	box->flags = DIRTY;
 	box->flags = style_owned ? (box->flags | STYLE_OWNED) : box->flags;
@@ -265,48 +263,7 @@ void box_unlink_and_free(struct box *box)
 }
 
 
-/**
- * Find the html_content associated with a box.
- */
-struct html_content *box_get_html_content(struct box *box)
-{
-	return box->content;
-}
-
 /* Exported function documented in html/box.h */
-void box_free(struct box *box)
-{
-	struct box *child, *next;
-
-	/* Ensure box is removed from dirty list to prevent dangling pointers */
-	struct html_content *html = box_get_html_content(box);
-	if (html != NULL && (box->flags & BOX_IN_DIRTY_LIST)) {
-		struct box *prev = NULL;
-		struct box *curr = html->dirty_list;
-		while (curr != NULL) {
-			if (curr == box) {
-				if (prev == NULL) {
-					html->dirty_list = curr->next_dirty;
-				} else {
-					prev->next_dirty = curr->next_dirty;
-				}
-				box->flags &= ~BOX_IN_DIRTY_LIST;
-				break;
-			}
-			prev = curr;
-			curr = curr->next_dirty;
-		}
-	}
-
-	/* free children first */
-	for (child = box->children; child; child = next) {
-		next = child->next;
-		box_free(child);
-	}
-
-	/* last this box */
-	box_free_box(box);
-}
 
 
 /* Exported function documented in html/box.h */
@@ -395,6 +352,14 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
 	return NSERROR_OK;
 }
 
+/**
+ * Find the html_content associated with a box.
+ */
+struct html_content *box_get_html_content(struct box *box)
+{
+	return box->content;
+}
+
 void box_mark_dirty(struct box *box)
 {
 	if (box == NULL) {
@@ -443,4 +408,38 @@ void box_mark_dirty(struct box *box)
 		parent->flags |= CHILD_DIRTY;
 		parent = parent->parent;
 	}
+}
+
+void box_free(struct box *box)
+{
+	struct box *child, *next;
+
+	/* Ensure box is removed from dirty list to prevent dangling pointers */
+	struct html_content *html = box_get_html_content(box);
+	if (html != NULL && (box->flags & BOX_IN_DIRTY_LIST)) {
+		struct box *prev = NULL;
+		struct box *curr = html->dirty_list;
+		while (curr != NULL) {
+			if (curr == box) {
+				if (prev == NULL) {
+					html->dirty_list = curr->next_dirty;
+				} else {
+					prev->next_dirty = curr->next_dirty;
+				}
+				box->flags &= ~BOX_IN_DIRTY_LIST;
+				break;
+			}
+			prev = curr;
+			curr = curr->next_dirty;
+		}
+	}
+
+	/* free children first */
+	for (child = box->children; child; child = next) {
+		next = child->next;
+		box_free(child);
+	}
+
+	/* last this box */
+	box_free_box(box);
 }

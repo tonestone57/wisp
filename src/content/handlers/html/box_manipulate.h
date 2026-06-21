@@ -50,9 +50,8 @@ struct css_computed_style;
  * styles is always owned by the box, if it is set.
  * style is only owned by the box in the case of implied boxes.
  */
-struct box *box_create(struct html_content *content, struct css_select_results *styles,
-    struct css_computed_style *style, bool style_owned, struct nsurl *href, const char *target, const char *title,
-    lwc_string *id, void *context);
+struct box *box_create(struct html_content *content, struct css_select_results *styles, struct css_computed_style *style, bool style_owned, struct nsurl *href,
+    const char *target, const char *title, lwc_string *id, void *context);
 
 
 /**
