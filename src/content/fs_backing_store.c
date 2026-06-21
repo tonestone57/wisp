@@ -42,6 +42,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#ifndef _WIN32
+#include <sys/mman.h>
+#endif
 #ifdef _WIN32
 #include <io.h>
 #define fsync _commit
@@ -84,7 +87,7 @@ static int open_file_binary(const char *fname, int flags, int mode)
 #include <wisp/content/backing_store.h>
 
 /** Backing store file format version */
-#define CONTROL_VERSION 202
+#define CONTROL_VERSION 203
 
 static void control_maintenance(void *s);
 static int flush_fd(int fd);
@@ -160,6 +163,8 @@ enum store_entry_elem_flags {
     ENTRY_ELEM_FLAG_MMAP = 0x2,
     /** entry data allocation is in small object pool */
     ENTRY_ELEM_FLAG_SMALL = 0x4,
+    /** entry data resides in journal */
+    ENTRY_ELEM_FLAG_JOURNAL = 0x8,
 };
 
 
@@ -186,6 +191,8 @@ struct store_entry_element {
     uint8_t *data; /**< data allocated */
     uint32_t size; /**< size of entry element on disc */
     block_index_t block; /**< small object data block */
+    uint64_t journal_offset; /**< offset into journal file */
+    uint32_t journal_length; /**< length in journal file */
     uint8_t ref; /**< element data reference count */
     uint8_t flags; /**< entry flags */
 };
@@ -258,6 +265,12 @@ struct store_state {
      * since maintenance was previously done.
      */
     bool blocks_opened;
+
+    /** journal file descriptor */
+    int journal_fd;
+
+    /** current size of journal file */
+    uint64_t journal_size;
 
 
     /* stats */
@@ -696,6 +709,12 @@ static nserror write_entry(struct store_entry *ent, int fd)
             return NSERROR_SAVE_FAILED;
         if (write(fd, &ent->elem[i].block, sizeof(ent->elem[i].block)) != sizeof(ent->elem[i].block))
             return NSERROR_SAVE_FAILED;
+        if (write(fd, &ent->elem[i].journal_offset, sizeof(ent->elem[i].journal_offset)) !=
+            sizeof(ent->elem[i].journal_offset))
+            return NSERROR_SAVE_FAILED;
+        if (write(fd, &ent->elem[i].journal_length, sizeof(ent->elem[i].journal_length)) !=
+            sizeof(ent->elem[i].journal_length))
+            return NSERROR_SAVE_FAILED;
         if (write(fd, &ent->elem[i].flags, sizeof(ent->elem[i].flags)) != sizeof(ent->elem[i].flags))
             return NSERROR_SAVE_FAILED;
     }
@@ -724,7 +743,71 @@ static void validate_entries_after_write(struct store_state *state)
             truncated = true;
             goto vd_done;
         }
-        if (ver == 2) {
+        if (ver == 3) {
+            uint32_t expected = 0;
+            if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
+                truncated = true;
+                goto vd_done;
+            }
+            for (uint32_t i = 0; i < expected; i++) {
+                uint32_t urllen;
+                if (read(fd, &urllen, sizeof(urllen)) != sizeof(urllen)) {
+                    truncated = true;
+                    break;
+                }
+                if (urllen > MAX_CACHED_URL_LEN) {
+                    truncated = true;
+                    break;
+                }
+                lseek(fd, urllen, SEEK_CUR);
+                int64_t last_used;
+                uint16_t use_count;
+                uint8_t flags;
+                if (read(fd, &last_used, sizeof(last_used)) != sizeof(last_used)) {
+                    truncated = true;
+                    break;
+                }
+                if (read(fd, &use_count, sizeof(use_count)) != sizeof(use_count)) {
+                    truncated = true;
+                    break;
+                }
+                if (read(fd, &flags, sizeof(flags)) != sizeof(flags)) {
+                    truncated = true;
+                    break;
+                }
+                for (int j = 0; j < ENTRY_ELEM_COUNT; j++) {
+                    uint32_t sz;
+                    block_index_t blk;
+                    uint64_t joff;
+                    uint32_t jlen;
+                    uint8_t efl;
+                    if (read(fd, &sz, sizeof(sz)) != sizeof(sz)) {
+                        truncated = true;
+                        goto vd_done;
+                    }
+                    if (read(fd, &blk, sizeof(blk)) != sizeof(blk)) {
+                        truncated = true;
+                        goto vd_done;
+                    }
+                    if (read(fd, &joff, sizeof(joff)) != sizeof(joff)) {
+                        truncated = true;
+                        goto vd_done;
+                    }
+                    if (read(fd, &jlen, sizeof(jlen)) != sizeof(jlen)) {
+                        truncated = true;
+                        goto vd_done;
+                    }
+                    if (read(fd, &efl, sizeof(efl)) != sizeof(efl)) {
+                        truncated = true;
+                        goto vd_done;
+                    }
+                }
+                count++;
+            }
+            if (count != expected) {
+                truncated = true;
+            }
+        } else if (ver == 2) {
             uint32_t expected = 0;
             if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
                 truncated = true;
@@ -985,7 +1068,7 @@ static nserror write_entries(struct store_state *state)
 
     {
         char magic[4] = {'E', 'N', 'T', 'R'};
-        uint32_t ver = 2;
+        uint32_t ver = CONTROL_VERSION;
         if (write(weistate.fd, magic, 4) != 4) {
             flush_fd(weistate.fd);
             close(weistate.fd);
@@ -1214,6 +1297,87 @@ static nserror set_block_extents(struct store_state *state)
 
     state->blocks_opened = false;
 
+    return NSERROR_OK;
+}
+
+/**
+ * Rebuild entries hashmap from journal file.
+ */
+static nserror recover_from_journal(struct store_state *state)
+{
+    if (state->journal_fd == -1)
+        return NSERROR_NOT_FOUND;
+
+    NSLOG(wisp, INFO, "Attempting journal recovery");
+
+    lseek(state->journal_fd, 0, SEEK_SET);
+    uint64_t pos = 0;
+    size_t recovered = 0;
+
+    while (pos < state->journal_size) {
+        char magic[4];
+        if (read(state->journal_fd, magic, 4) != 4)
+            break;
+        if (memcmp(magic, "JRNE", 4) != 0) {
+            /* Try to find next JRNE magic if we got out of sync */
+            pos++;
+            lseek(state->journal_fd, pos, SEEK_SET);
+            continue;
+        }
+
+        uint32_t urllen, datalen;
+        uint8_t elem_idx;
+        if (read(state->journal_fd, &urllen, 4) != 4)
+            break;
+        if (read(state->journal_fd, &datalen, 4) != 4)
+            break;
+        if (read(state->journal_fd, &elem_idx, 1) != 1)
+            break;
+
+        char *urlstr = malloc(urllen + 1);
+        if (urlstr == NULL)
+            return NSERROR_NOMEM;
+        if (read(state->journal_fd, urlstr, urllen) != (ssize_t)urllen) {
+            free(urlstr);
+            break;
+        }
+        urlstr[urllen] = '\0';
+
+        nsurl *url;
+        if (nsurl_create(urlstr, &url) == NSERROR_OK) {
+            struct store_entry *se = hashmap_lookup(state->entries, url);
+            if (se == NULL) {
+                se = hashmap_insert(state->entries, url);
+            }
+            if (se != NULL) {
+                uint64_t header_len = 4 + 4 + 4 + 1 + urllen;
+                uint64_t data_pos = pos + header_len;
+                if (datalen > 16384) {
+                    data_pos = (data_pos + 4095) & ~4095ULL;
+                }
+                se->elem[elem_idx].journal_offset = data_pos;
+                se->elem[elem_idx].journal_length = datalen;
+                se->elem[elem_idx].size = datalen;
+                se->elem[elem_idx].flags |= ENTRY_ELEM_FLAG_JOURNAL;
+                se->last_used = time(NULL);
+                state->total_alloc += datalen;
+                recovered++;
+            }
+            nsurl_unref(url);
+        }
+        free(urlstr);
+
+        /* Move pos to after the data */
+        uint64_t header_len = 4 + 4 + 4 + 1 + urllen;
+        uint64_t data_pos = pos + header_len;
+        if (datalen > 16384) {
+            data_pos = (data_pos + 4095) & ~4095ULL;
+        }
+        pos = data_pos + datalen;
+        lseek(state->journal_fd, pos, SEEK_SET);
+    }
+
+    NSLOG(wisp, INFO, "Recovered %zu elements from journal", recovered);
     return NSERROR_OK;
 }
 
@@ -1488,7 +1652,138 @@ static nserror read_entries(struct store_state *state)
                 truncated = true;
                 goto rd_done;
             }
-            if (ver == 2) {
+            if (ver == 3) {
+                uint32_t expected = 0;
+                if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
+                    truncated = true;
+                    goto rd_done;
+                }
+                newfmt = true;
+                NSLOG(wisp, INFO, "Entries index format v%u detected", ver);
+                for (uint32_t i = 0; i < expected; i++) {
+                    if (read(fd, &urllen, sizeof(urllen)) != sizeof(urllen)) {
+                        truncated = true;
+                        break;
+                    }
+                    if (urllen > MAX_CACHED_URL_LEN) {
+                        NSLOG(wisp, ERROR, "read_entries: URL length (%u) exceeds limit", urllen);
+                        truncated = true;
+                        break;
+                    }
+                    url = calloc(1, urllen + 1);
+                    if (url == NULL) {
+                        close(fd);
+                        free(fname);
+                        return NSERROR_NOMEM;
+                    }
+                    {
+                        ssize_t got = read(fd, url, urllen);
+                        if (got != (ssize_t)urllen) {
+                            struct stat st;
+                            off_t off = lseek(fd, 0, SEEK_CUR);
+                            fstat(fd, &st);
+                            NSLOG(wisp, ERROR,
+                                "read_entries: short read for URL length %u (got %" PRIssizet
+                                ") at off %lld of size %lld errno %d",
+                                urllen, got, (long long)off, (long long)st.st_size, errno);
+                            free(url);
+                            truncated = true;
+                            break;
+                        }
+                    }
+                    ret = nsurl_create(url, &nsurl);
+                    if (ret != NSERROR_OK) {
+                        NSLOG(wisp, ERROR, "read_entries: invalid URL in index");
+                        free(url);
+                        truncated = true;
+                        break;
+                    }
+                    free(url);
+                    ent = hashmap_insert(state->entries, nsurl);
+                    if (ent == NULL) {
+                        nsurl_unref(nsurl);
+                        close(fd);
+                        free(fname);
+                        return NSERROR_NOMEM;
+                    }
+                    if (read(fd, &ent->last_used, sizeof(ent->last_used)) != sizeof(ent->last_used)) {
+                        ent->url = nsurl;
+                        nsurl_unref(nsurl);
+                        hashmap_remove(state->entries, ent->url);
+                        truncated = true;
+                        break;
+                    }
+                    if (read(fd, &ent->use_count, sizeof(ent->use_count)) != sizeof(ent->use_count)) {
+                        ent->url = nsurl;
+                        nsurl_unref(nsurl);
+                        hashmap_remove(state->entries, ent->url);
+                        truncated = true;
+                        break;
+                    }
+                    if (read(fd, &ent->flags, sizeof(ent->flags)) != sizeof(ent->flags)) {
+                        ent->url = nsurl;
+                        nsurl_unref(nsurl);
+                        hashmap_remove(state->entries, ent->url);
+                        truncated = true;
+                        break;
+                    }
+                    for (int i2 = 0; i2 < ENTRY_ELEM_COUNT; i2++) {
+                        if (read(fd, &ent->elem[i2].size, sizeof(ent->elem[i2].size)) != sizeof(ent->elem[i2].size)) {
+                            ent->url = nsurl;
+                            nsurl_unref(nsurl);
+                            hashmap_remove(state->entries, ent->url);
+                            truncated = true;
+                            goto rd_break_v3;
+                        }
+                        if (read(fd, &ent->elem[i2].block, sizeof(ent->elem[i2].block)) != sizeof(ent->elem[i2].block)) {
+                            ent->url = nsurl;
+                            nsurl_unref(nsurl);
+                            hashmap_remove(state->entries, ent->url);
+                            truncated = true;
+                            goto rd_break_v3;
+                        }
+                        if (read(fd, &ent->elem[i2].journal_offset, sizeof(ent->elem[i2].journal_offset)) !=
+                            sizeof(ent->elem[i2].journal_offset)) {
+                            ent->url = nsurl;
+                            nsurl_unref(nsurl);
+                            hashmap_remove(state->entries, ent->url);
+                            truncated = true;
+                            goto rd_break_v3;
+                        }
+                        if (read(fd, &ent->elem[i2].journal_length, sizeof(ent->elem[i2].journal_length)) !=
+                            sizeof(ent->elem[i2].journal_length)) {
+                            ent->url = nsurl;
+                            nsurl_unref(nsurl);
+                            hashmap_remove(state->entries, ent->url);
+                            truncated = true;
+                            goto rd_break_v3;
+                        }
+                        if (read(fd, &ent->elem[i2].flags, sizeof(ent->elem[i2].flags)) != sizeof(ent->elem[i2].flags)) {
+                            ent->url = nsurl;
+                            nsurl_unref(nsurl);
+                            hashmap_remove(state->entries, ent->url);
+                            truncated = true;
+                            goto rd_break_v3;
+                        }
+                    }
+                    ent->url = nsurl;
+                    nsurl_unref(nsurl);
+                    NSLOG(wisp, DEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
+                    read_entries++;
+                    state->total_alloc += ent->elem[ENTRY_ELEM_DATA].size;
+                    state->total_alloc += ent->elem[ENTRY_ELEM_META].size;
+                    ent->elem[ENTRY_ELEM_DATA].flags &= ~(ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP);
+                    ent->elem[ENTRY_ELEM_META].flags &= ~(ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP);
+
+                rd_break_v3:;
+                    if (truncated)
+                        goto rd_done;
+                }
+                if (read_entries != expected) {
+                    truncated = true;
+                }
+                goto rd_done;
+            } else if (ver == 2) {
                 uint32_t expected = 0;
                 if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
                     truncated = true;
@@ -2010,6 +2305,7 @@ static nserror initialise(const struct llcache_store_parameters *parameters)
     newstate->path = strdup(parameters->path);
     newstate->limit = parameters->limit;
     newstate->hysteresis = parameters->hysteresis;
+    newstate->journal_fd = -1;
 
     /* read store control and create new if required */
     ret = read_control(newstate);
@@ -2088,7 +2384,27 @@ static nserror initialise(const struct llcache_store_parameters *parameters)
         return ret;
     }
 
+    /* open journal file */
+    {
+        char *jname = NULL;
+        ret = wisp_mkpath(&jname, NULL, 2, newstate->path, "journal");
+        if (ret == NSERROR_OK) {
+            newstate->journal_fd = open_file_binary(jname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+            if (newstate->journal_fd != -1) {
+                newstate->journal_size = lseek(newstate->journal_fd, 0, SEEK_END);
+                NSLOG(wisp, INFO, "Opened journal file, size %" PRIu64, newstate->journal_size);
+            } else {
+                NSLOG(wisp, ERROR, "Failed to open journal file %s", jname);
+            }
+            free(jname);
+        }
+    }
+
     storestate = newstate;
+
+    if (hashmap_count(newstate->entries) == 0 && newstate->journal_size > 0) {
+        recover_from_journal(newstate);
+    }
 
     NSLOG(wisp, INFO, "FS backing store init successful");
 
@@ -2117,6 +2433,11 @@ static nserror finalise(void)
         write_entries(storestate);
         write_blocks(storestate);
         validate_entries_after_write(storestate);
+
+        /* close journal */
+        if (storestate->journal_fd != -1) {
+            close(storestate->journal_fd);
+        }
 
         /* ensure all block files are closed */
         for (bf = 0; bf < BLOCK_FILE_COUNT; bf++) {
@@ -2187,6 +2508,67 @@ static nserror store_write_block(struct store_state *state, struct store_entry *
 
     NSLOG(wisp, INFO, "Wrote %" PRIssizet " bytes from %p at %" PRIsizet " block %d", wr, bse->elem[elem_idx].data,
         (size_t)offst, bse->elem[elem_idx].block);
+
+    return NSERROR_OK;
+}
+
+/**
+ * Write an element of an entry to backing storage in the journal file.
+ *
+ * \param state The backing store state to use.
+ * \param bse The entry to store
+ * \param elem_idx The element index within the entry.
+ * \return NSERROR_OK on success or error code.
+ */
+static nserror store_write_journal(struct store_state *state, struct store_entry *bse, int elem_idx)
+{
+    struct store_entry_element *elem = &bse->elem[elem_idx];
+    uint32_t urllen = strlen(nsurl_access(bse->url));
+    uint64_t current_pos = state->journal_size;
+    uint32_t header_size = 4 + 4 + 4 + 1 + urllen;
+    uint64_t data_pos = current_pos + header_size;
+
+    if (elem->size > 16384) {
+        /* Align to 4KB boundary for mmap */
+        uint64_t aligned_data_pos = (data_pos + 4095) & ~4095ULL;
+        uint32_t padding = (uint32_t)(aligned_data_pos - data_pos);
+        header_size += padding;
+        data_pos = aligned_data_pos;
+    }
+
+    /* Write header */
+    lseek(state->journal_fd, current_pos, SEEK_SET);
+    if (write(state->journal_fd, "JRNE", 4) != 4)
+        return NSERROR_SAVE_FAILED;
+    if (write(state->journal_fd, &urllen, 4) != 4)
+        return NSERROR_SAVE_FAILED;
+    if (write(state->journal_fd, &elem->size, 4) != 4)
+        return NSERROR_SAVE_FAILED;
+    uint8_t eidx = (uint8_t)elem_idx;
+    if (write(state->journal_fd, &eidx, 1) != 1)
+        return NSERROR_SAVE_FAILED;
+    if (write(state->journal_fd, nsurl_access(bse->url), urllen) != (ssize_t)urllen)
+        return NSERROR_SAVE_FAILED;
+
+    /* Padding if needed to reach aligned data_pos */
+    if (data_pos > current_pos + 4 + 4 + 4 + 1 + urllen) {
+        lseek(state->journal_fd, data_pos - 1, SEEK_SET);
+        char zero = 0;
+        if (write(state->journal_fd, &zero, 1) != 1)
+            return NSERROR_SAVE_FAILED;
+    }
+
+    /* Write data */
+    lseek(state->journal_fd, data_pos, SEEK_SET);
+    if (write(state->journal_fd, elem->data, elem->size) != (ssize_t)elem->size) {
+        return NSERROR_SAVE_FAILED;
+    }
+
+    elem->journal_offset = data_pos;
+    elem->journal_length = elem->size;
+    elem->flags |= ENTRY_ELEM_FLAG_JOURNAL;
+
+    state->journal_size = data_pos + elem->size;
 
     return NSERROR_OK;
 }
@@ -2272,7 +2654,10 @@ static nserror store(nsurl *url, enum backing_store_flags bsflags, uint8_t *data
         return ret;
     }
 
-    if (bse->elem[elem_idx].block != 0) {
+    if (storestate->journal_fd != -1) {
+        /* journal storage */
+        ret = store_write_journal(storestate, bse, elem_idx);
+    } else if (bse->elem[elem_idx].block != 0) {
         /* small block storage */
         ret = store_write_block(storestate, bse, elem_idx);
     } else {
@@ -2294,6 +2679,27 @@ static nserror entry_release_alloc(struct store_entry_element *elem)
             NSLOG(wisp, DEEPDEBUG, "freeing %p", elem->data);
             free(elem->data);
             elem->flags &= ~ENTRY_ELEM_FLAG_HEAP;
+        }
+    } else if ((elem->flags & ENTRY_ELEM_FLAG_MMAP) != 0) {
+        elem->ref--;
+        if (elem->ref == 0) {
+            NSLOG(wisp, DEEPDEBUG, "unmapping %p", elem->data);
+#ifdef _WIN32
+            SYSTEM_INFO sysInfo;
+            GetSystemInfo(&sysInfo);
+            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
+            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            UnmapViewOfFile(elem->data - offset_in_page);
+#else
+            long page_size = sysconf(_SC_PAGE_SIZE);
+            uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            uint32_t mapped_size = elem->size + offset_in_page;
+            munmap(elem->data - offset_in_page, mapped_size);
+#endif
+            elem->data = NULL;
+            elem->flags &= ~ENTRY_ELEM_FLAG_MMAP;
         }
     }
     return NSERROR_OK;
@@ -2339,6 +2745,76 @@ static nserror store_read_block(struct store_state *state, struct store_entry *b
 
     NSLOG(wisp, DEEPDEBUG, "Read %" PRIssizet " bytes into %p from %" PRIsizet " block %d", rd,
         bse->elem[elem_idx].data, (size_t)offst, bse->elem[elem_idx].block);
+
+    return NSERROR_OK;
+}
+
+/**
+ * Read an element of an entry from the journal file in the backing storage.
+ *
+ * \param state The backing store state to use.
+ * \param bse The entry to read.
+ * \param elem_idx The element index within the entry.
+ * \return NSERROR_OK on success or error code.
+ */
+static nserror store_read_journal(struct store_state *state, struct store_entry *bse, int elem_idx)
+{
+    struct store_entry_element *elem = &bse->elem[elem_idx];
+    ssize_t rd;
+
+    if (elem->size > 16384) {
+#ifdef _WIN32
+        HANDLE hFile = (HANDLE)_get_osfhandle(state->journal_fd);
+        HANDLE hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+        if (hMapping != NULL) {
+            SYSTEM_INFO sysInfo;
+            GetSystemInfo(&sysInfo);
+            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
+            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            uint32_t view_size = elem->size + offset_in_page;
+
+            elem->data = MapViewOfFile(hMapping, FILE_MAP_READ, (DWORD)(aligned_offset >> 32),
+                (DWORD)(aligned_offset & 0xFFFFFFFF), view_size);
+            CloseHandle(hMapping);
+            if (elem->data != NULL) {
+                elem->data += offset_in_page;
+                elem->flags |= ENTRY_ELEM_FLAG_MMAP;
+                elem->ref = 1;
+                return NSERROR_OK;
+            }
+        }
+#else
+        long page_size = sysconf(_SC_PAGE_SIZE);
+        uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
+        uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+        uint32_t mapped_size = elem->size + offset_in_page;
+
+        void *map = mmap(NULL, mapped_size, PROT_READ, MAP_PRIVATE, state->journal_fd, aligned_offset);
+        if (map != MAP_FAILED) {
+            elem->data = (uint8_t *)map + offset_in_page;
+            elem->flags |= ENTRY_ELEM_FLAG_MMAP;
+            elem->ref = 1;
+            return NSERROR_OK;
+        }
+#endif
+    }
+
+    /* Fallback to malloc + read */
+    elem->data = malloc(elem->size);
+    if (elem->data == NULL)
+        return NSERROR_NOMEM;
+
+    lseek(state->journal_fd, elem->journal_offset, SEEK_SET);
+    rd = read(state->journal_fd, elem->data, elem->size);
+    if (rd != (ssize_t)elem->size) {
+        free(elem->data);
+        elem->data = NULL;
+        return NSERROR_SAVE_FAILED;
+    }
+
+    elem->flags |= ENTRY_ELEM_FLAG_HEAP;
+    elem->ref = 1;
 
     return NSERROR_OK;
 }
@@ -2424,29 +2900,35 @@ static nserror fetch(nsurl *url, enum backing_store_flags bsflags, uint8_t **dat
     elem = &bse->elem[elem_idx];
 
     /* if an allocation already exists return it */
-    if ((elem->flags & ENTRY_ELEM_FLAG_HEAP) != 0) {
+    if ((elem->flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0) {
         /* use the existing allocation and bump the ref count. */
         elem->ref++;
 
         NSLOG(wisp, DEEPDEBUG, "Using existing entry (%p) allocation %p refs:%d", bse, elem->data, elem->ref);
-
+        ret = NSERROR_OK;
     } else {
-        /* allocate from the heap */
-        elem->data = malloc(elem->size);
-        if (elem->data == NULL) {
-            NSLOG(wisp, ERROR, "Failed to create new heap allocation");
-            return NSERROR_NOMEM;
-        }
-        NSLOG(wisp, DEEPDEBUG, "Created new heap allocation %p", elem->data);
-
-        /* mark the entry as having a valid heap allocation */
-        elem->flags |= ENTRY_ELEM_FLAG_HEAP;
-        elem->ref = 1;
-
-        /* fill the new block */
-        if (elem->block != 0) {
+        /* mark the entry as having a valid allocation and fill the new block */
+        if ((elem->flags & ENTRY_ELEM_FLAG_JOURNAL) != 0) {
+            ret = store_read_journal(storestate, bse, elem_idx);
+        } else if (elem->block != 0) {
+            /* allocate from the heap */
+            elem->data = malloc(elem->size);
+            if (elem->data == NULL) {
+                NSLOG(wisp, ERROR, "Failed to create new heap allocation");
+                return NSERROR_NOMEM;
+            }
+            elem->flags |= ENTRY_ELEM_FLAG_HEAP;
+            elem->ref = 1;
             ret = store_read_block(storestate, bse, elem_idx);
         } else {
+            /* allocate from the heap */
+            elem->data = malloc(elem->size);
+            if (elem->data == NULL) {
+                NSLOG(wisp, ERROR, "Failed to create new heap allocation");
+                return NSERROR_NOMEM;
+            }
+            elem->flags |= ENTRY_ELEM_FLAG_HEAP;
+            elem->ref = 1;
             ret = store_read_file(storestate, bse, elem_idx);
         }
     }
