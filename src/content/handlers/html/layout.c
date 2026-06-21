@@ -115,26 +115,9 @@ const css_border_color_func border_color_funcs[4] = {
     [LEFT] = css_computed_border_left_color,
 };
 
-/**
- * Add a box to the document's dirty list for post-layout bounding box capture.
- */
-static void layout_add_to_dirty_list(struct html_content *content, struct box *box)
-{
-	if (content == NULL || box == NULL) {
-		return;
-	}
-
-	if (!(box->flags & BOX_IN_DIRTY_LIST)) {
-		box->next_dirty = content->dirty_list;
-		content->dirty_list = box;
-		box->flags |= BOX_IN_DIRTY_LIST;
-	}
-}
-
 /* forward declaration to break cycles */
 static void
 layout_minmax_block(struct box *block, const struct gui_layout_table *font_func, const html_content *content);
-static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx, struct box *box);
 
 /**
  * Compute the size of replaced boxes with auto dimensions, according to
@@ -1891,12 +1874,27 @@ static void layout_move_children(struct box *box, int x, int y)
 }
 
 
+/**
+ * Add a box to the document's dirty list for post-layout bounding box capture.
+ */
+void layout_add_to_dirty_list(struct html_content *content, struct box *box)
+{
+	if (!(box->flags & BOX_IN_DIRTY_LIST)) {
+		box->next_dirty = content->dirty_list;
+		content->dirty_list = box;
+		box->flags |= BOX_IN_DIRTY_LIST;
+	}
+}
+
 /* Documented in layout_internal.h */
 bool layout_table(struct box *table, int available_width, html_content *content)
 {
-    if (!(table->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(table->flags & CHILD_DIRTY)) {
-        return true;
-    }
+	if (!(table->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(table->flags & CHILD_DIRTY)) {
+		return true;
+	}
+
+	/* Add to dirty list for NEW bounding box capture at end of layout */
+	layout_add_to_dirty_list(content, table);
 
     unsigned int columns = table->columns; /* total columns */
     unsigned int i;
@@ -2370,9 +2368,6 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
     table->width = table_width;
     table->height = table_height;
-
-    /* Add to dirty list for NEW bounding box capture at end of layout */
-    layout_add_to_dirty_list(content, table);
 
     table->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
@@ -3618,26 +3613,29 @@ static bool layout_inline_container(
      * shrink back to 'width' if no word is wider than 'width' (Or just set
      * curwidth = width and have the multiword lines wrap to the min width)
      */
-    for (c = inline_container->children; c;) {
+	for (c = inline_container->children; c;) {
 
-        fflush(stderr);
+		fflush(stderr);
 
-        NSLOG(layout, DEBUG, "c %p", c);
+		NSLOG(layout, DEBUG, "c %p", c);
 
-        /* Use the available width for layout, not inline_container->width which
-         * may contain a stale min_width value from minmax calculation */
-        curwidth = (inline_container->width > width) ? width : inline_container->width;
-        if (!layout_line(c, &curwidth, &y, cx, cy + y, cont, first_line, has_text_children, content, &next))
-            return false;
-        maxwidth = max(maxwidth, curwidth);
-        c = next;
-        first_line = false;
-    }
+		/* Use the available width for layout, not inline_container->width which
+		 * may contain a stale min_width value from minmax calculation */
+		curwidth = (inline_container->width > width) ? width : inline_container->width;
+		if (!layout_line(c, &curwidth, &y, cx, cy + y, cont, first_line, has_text_children, content, &next))
+			return false;
+		maxwidth = max(maxwidth, curwidth);
+		c = next;
+		first_line = false;
+	}
 
-    inline_container->width = maxwidth;
-    inline_container->height = y;
+	inline_container->width = maxwidth;
+	inline_container->height = y;
 
-    /* Log inline container final dimensions */
+	/* Add to dirty list for NEW bounding box capture at end of layout */
+	layout_add_to_dirty_list(content, inline_container);
+
+	/* Log inline container final dimensions */
     NSLOG(wisp, INFO, "INLINE_CONTAINER_DONE: ic=%p parent=%p ic_y=%d ic_height=%d (parent_list_marker=%p)",
         inline_container, inline_container->parent, inline_container->y, inline_container->height,
         inline_container->parent ? inline_container->parent->list_marker : NULL);
@@ -4219,16 +4217,19 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
             cy = y;
     }
 
-    if (block->height == AUTO) {
-        block->height = cy - block->padding[TOP];
-        if (block->type == BOX_BLOCK)
-            layout_block_add_scrollbar(block, BOTTOM);
-    }
+	if (block->height == AUTO) {
+		block->height = cy - block->padding[TOP];
+		if (block->type == BOX_BLOCK)
+			layout_block_add_scrollbar(block, BOTTOM);
+	}
 
-    if (block->style && css_computed_position(block->style) != CSS_POSITION_ABSOLUTE) {
-        /* Block is in normal flow */
-        layout_apply_minmax_height(&content->unit_len_ctx, block, NULL);
-    }
+	if (block->style && css_computed_position(block->style) != CSS_POSITION_ABSOLUTE) {
+		/* Block is in normal flow */
+		layout_apply_minmax_height(&content->unit_len_ctx, block, NULL);
+	}
+
+	/* Add to dirty list for NEW bounding box capture at end of layout */
+	layout_add_to_dirty_list(content, block);
 
     if (block->gadget &&
         (block->gadget->type == GADGET_TEXTAREA || block->gadget->type == GADGET_PASSWORD ||
@@ -4241,9 +4242,6 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
         textarea_set_layout(block->gadget->data.text.ta, &fstyle, ta_width, ta_height, block->padding[TOP],
             block->padding[RIGHT], block->padding[BOTTOM], block->padding[LEFT]);
     }
-
-    /* Add to dirty list for NEW bounding box capture at end of layout */
-    layout_add_to_dirty_list(content, block);
 
     block->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 
@@ -6015,44 +6013,44 @@ bool layout_document(html_content *content, int width, int height)
     layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
     layout_log_final_box_heights(&content->unit_len_ctx, doc);
 
-    /* Process dirty list to capture NEW bounding boxes */
-    struct box *dirty_box = content->dirty_list;
-    while (dirty_box != NULL) {
-	    struct rect r;
-	    int x, y;
-	    box_coords(dirty_box, &x, &y);
-	    r.x0 = x + dirty_box->descendant_x0;
-	    r.y0 = y + dirty_box->descendant_y0;
-	    r.x1 = x + dirty_box->descendant_x1;
-	    r.y1 = y + dirty_box->descendant_y1;
+	/* Process dirty list to capture NEW bounding boxes */
+	struct box *dirty_box = content->dirty_list;
+	while (dirty_box != NULL) {
+		struct rect r;
+		int x, y;
+		box_coords(dirty_box, &x, &y);
+		r.x0 = x + dirty_box->descendant_x0;
+		r.y0 = y + dirty_box->descendant_y0;
+		r.x1 = x + dirty_box->descendant_x1;
+		r.y1 = y + dirty_box->descendant_y1;
 
-	    if (content->has_dirty_rect) {
-		    ns_rect_union(&content->dirty_rect, &r);
-	    } else {
-		    content->dirty_rect = r;
-		    content->has_dirty_rect = true;
-	    }
+		if (content->has_dirty_rect) {
+			ns_rect_union(&content->dirty_rect, &r);
+		} else {
+			content->dirty_rect = r;
+			content->has_dirty_rect = true;
+		}
 
-	    dirty_box->flags &= ~BOX_IN_DIRTY_LIST;
-	    dirty_box = dirty_box->next_dirty;
-    }
-    content->dirty_list = NULL;
+		dirty_box->flags &= ~BOX_IN_DIRTY_LIST;
+		dirty_box = dirty_box->next_dirty;
+	}
+	content->dirty_list = NULL;
 
-    /* Trigger redraw for the accumulated dirty rectangle */
-    if (content->has_dirty_rect) {
-        NSLOG(layout, INFO, "Redraw request for dirty rect: (%d, %d) to (%d, %d)",
-              content->dirty_rect.x0, content->dirty_rect.y0,
-              content->dirty_rect.x1, content->dirty_rect.y1);
+	/* Trigger redraw for the accumulated dirty rectangle */
+	if (content->has_dirty_rect) {
+		NSLOG(layout, INFO, "Redraw request for dirty rect: (%d, %d) to (%d, %d)",
+		      content->dirty_rect.x0, content->dirty_rect.y0,
+		      content->dirty_rect.x1, content->dirty_rect.y1);
 
-        content__request_redraw((struct content *)content,
-                                content->dirty_rect.x0,
-                                content->dirty_rect.y0,
-                                content->dirty_rect.x1 - content->dirty_rect.x0,
-                                content->dirty_rect.y1 - content->dirty_rect.y0);
+		content__request_redraw((struct content *)content,
+					content->dirty_rect.x0,
+					content->dirty_rect.y0,
+					content->dirty_rect.x1 - content->dirty_rect.x0,
+					content->dirty_rect.y1 - content->dirty_rect.y0);
 
-        content->has_dirty_rect = false;
-        content->dirty_rect = (struct rect){0, 0, 0, 0};
-    }
+		content->has_dirty_rect = false;
+		content->dirty_rect = (struct rect){0, 0, 0, 0};
+	}
 
     doc->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 

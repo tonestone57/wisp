@@ -1424,6 +1424,9 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
     free(row_heights);
     free(col_widths);
 
+	/* Add to dirty list for NEW bounding box capture at end of layout */
+	layout_add_to_dirty_list(content, grid);
+
     grid->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
     return true;
 }

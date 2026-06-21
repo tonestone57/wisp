@@ -2089,6 +2089,8 @@ cleanup:
     layout_flex_ctx__destroy(ctx);
 
     if (success) {
+		/* Add to dirty list for NEW bounding box capture at end of layout */
+		layout_add_to_dirty_list(content, flex);
         flex->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
     }
 

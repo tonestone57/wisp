@@ -263,19 +263,78 @@ void box_unlink_and_free(struct box *box)
 }
 
 
+/**
+ * Find the html_content associated with a box.
+ */
+struct html_content *box_get_html_content(struct box *box)
+{
+	struct box *curr = box;
+	while (curr->parent != NULL) {
+		curr = curr->parent;
+	}
+
+	if (curr->node == NULL) {
+		return NULL;
+	}
+
+	dom_node *node = curr->node;
+	dom_node_type type;
+	if (dom_node_get_node_type(node, &type) != DOM_NO_ERR) {
+		return NULL;
+	}
+
+	dom_document *doc;
+	if (type == DOM_DOCUMENT_NODE) {
+		doc = (dom_document *)node;
+	} else {
+		if (dom_node_get_owner_document(node, &doc) != DOM_NO_ERR) {
+			return NULL;
+		}
+		/* dom_node_get_owner_document does not increment refcount in LibDOM */
+	}
+
+	struct html_content *html = NULL;
+	if (dom_node_get_user_data(doc, corestring_dom___ns_key_html_content_data,
+				   &html) != DOM_NO_ERR) {
+		return NULL;
+	}
+
+	return html;
+}
+
 /* Exported function documented in html/box.h */
 void box_free(struct box *box)
 {
-    struct box *child, *next;
+	struct box *child, *next;
 
-    /* free children first */
-    for (child = box->children; child; child = next) {
-        next = child->next;
-        box_free(child);
-    }
+	/* Ensure box is removed from dirty list to prevent dangling pointers */
+	struct html_content *html = box_get_html_content(box);
+	if (html != NULL && (box->flags & BOX_IN_DIRTY_LIST)) {
+		struct box *prev = NULL;
+		struct box *curr = html->dirty_list;
+		while (curr != NULL) {
+			if (curr == box) {
+				if (prev == NULL) {
+					html->dirty_list = curr->next_dirty;
+				} else {
+					prev->next_dirty = curr->next_dirty;
+				}
+				box->flags &= ~BOX_IN_DIRTY_LIST;
+				break;
+			}
+			prev = curr;
+			curr = curr->next_dirty;
+		}
+	}
 
-    /* last this box */
-    box_free_box(box);
+	/* free children first */
+	for (child = box->children; child; child = next) {
+		next = child->next;
+		box_free(child);
+	}
+
+	/* last this box */
+	box_free_box(box);
 }
 
 
@@ -363,45 +422,6 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
     }
 
     return NSERROR_OK;
-}
-
-/**
- * Find the html_content associated with a box.
- */
-struct html_content *box_get_html_content(struct box *box)
-{
-	struct box *curr = box;
-	while (curr->parent != NULL) {
-		curr = curr->parent;
-	}
-
-	if (curr->node == NULL) {
-		return NULL;
-	}
-
-	dom_node *node = curr->node;
-	dom_node_type type;
-	if (dom_node_get_node_type(node, &type) != DOM_NO_ERR) {
-		return NULL;
-	}
-
-	dom_document *doc;
-	if (type == DOM_DOCUMENT_NODE) {
-		doc = (dom_document *)node;
-	} else {
-		if (dom_node_get_owner_document(node, &doc) != DOM_NO_ERR) {
-			return NULL;
-		}
-		/* dom_node_get_owner_document does not increment refcount in LibDOM */
-	}
-
-	struct html_content *html = NULL;
-	if (dom_node_get_user_data(doc, corestring_dom___ns_key_html_content_data,
-				   &html) != DOM_NO_ERR) {
-		return NULL;
-	}
-
-	return html;
 }
 
 void box_mark_dirty(struct box *box)

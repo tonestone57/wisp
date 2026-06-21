@@ -621,7 +621,6 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
     c->scripts_count = 0;
     c->scripts = NULL;
     c->jsthread = NULL;
-
     c->has_dirty_rect = false;
     c->dirty_rect = (struct rect){0, 0, 0, 0};
     c->dirty_list = NULL;
@@ -1500,6 +1499,10 @@ static void html_free_layout(html_content *htmlc)
         htmlc->bctx = NULL;
     }
     htmlc->layout = NULL;
+    /* Clear dirty rectangle and list to prevent dangling pointers */
+    htmlc->dirty_list = NULL;
+    htmlc->has_dirty_rect = false;
+    htmlc->dirty_rect = (struct rect){0, 0, 0, 0};
 
     /* Clear the CSS selection context when freeing the layout.
      * The select_ctx is semantically tied to the layout - it was used
