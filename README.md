@@ -10,7 +10,13 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ![GNU.org](img/wisp_gnu.png?raw=true "GNU.org")
 
 ## Development
-Current development is focused on adding compatibility with modern websites, completing the CSS Variables implementation, and refining the Incremental Layout engine. We are also working on porting to different platforms, most notably modern Windows using Direct2D, OS X, Haiku, and Remarkable.
+Current development is focused on completing the CSS Variables implementation, and refining the Incremental Layout engine. The project has recently achieved parity between the Windows GDI frontend and the reference Qt frontend, and integrated high-performance vector graphics via Blend2D.
+
+### Recently Completed
+*   **Position: Sticky**: Full support for sticky positioning across layout and rendering.
+*   **Stateful Path API**: A modernized plotter interface for efficient vector shape rendering.
+*   **ISOBMFF Support**: Native AVIF, HEIC, and HEIF image decoding.
+*   **Incremental Layout Core**: Implemented a dual-pass dirty-bit system (`DIRTY_INTRINSIC`, `DIRTY_LAYOUT`) to optimize reflows.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
@@ -24,9 +30,9 @@ Current development is focused on adding compatibility with modern websites, com
 * **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
 ## Known Issues
-* All other frontends, except for the Qt one on Linux and the GDI one on Windows, are not regularly tested and may have issues.
-* CSS Variables support is partially implemented and undergoing active development.
-* Full incremental layout (dirty bits) is in early implementation and may cause rendering artifacts in some edge cases.
+* CSS Variables support is partially implemented (variable resolution pass is in progress).
+* Advanced JS APIs like `MutationObserver` and `IntersectionObserver` are pending manual implementation.
+* Haiku and Framebuffer frontends require re-testing after recent core layout updates.
 
 ## Building and installation
 Wisp can be built:

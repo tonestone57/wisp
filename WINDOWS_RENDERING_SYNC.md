@@ -39,3 +39,8 @@ All major rendering features identified in the previous audit have been implemen
 ## Future Considerations
 - **Radial Gradients**: Currently use core fallback (triangle decomposition). Native GDI implementation is possible but complex.
 - **Hardware Acceleration**: Exploration of Direct2D for improved performance on modern Windows versions.
+
+### 7. Vector Path API
+- **Status**: Completed.
+- **Details**: Windows plotter implements the stateful Path API (`path_begin`, `path_move_to`, `path_bezier_to`, etc.) using a command accumulator to handle GDI path consumption behavior.
+- **Reference**: `frontends/windows/plot.c`.
