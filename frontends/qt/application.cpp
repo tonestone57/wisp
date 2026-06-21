@@ -52,6 +52,7 @@ extern "C" {
 }
 
 #include "qt/misc.h"
+#include "qt/plotters.h"
 #include "qt/resources.h"
 
 #include "qt/application.cls.h"
