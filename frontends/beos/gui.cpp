@@ -1048,6 +1048,7 @@ int main(int argc, char **argv)
         nsbeos_gui_poll();
     }
 
+    nsbeos_plotters.finalise();
     wisp_exit();
 
     /* finalise options */

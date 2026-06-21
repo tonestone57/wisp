@@ -488,6 +488,9 @@ NS_Application::~NS_Application()
         NSLOG(wisp, INFO, "Error finalising hotlist: %s", messages_get_errorcode(res));
     }
 
+    /* finalise plotter */
+    nsqt_plotters.finalise();
+
     /* common finalisation */
     wisp_exit();
 

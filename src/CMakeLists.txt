@@ -186,6 +186,10 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/xhr.c
 	content/handlers/javascript/quickjs/window.c
 	content/handlers/javascript/quickjs/console.c
+	content/handlers/javascript/quickjs/crypto.c
+	content/handlers/javascript/quickjs/attr.c
+	content/handlers/javascript/quickjs/named_node_map.c
+	content/handlers/javascript/quickjs/html_collection.c
 	content/handlers/javascript/quickjs/unimplemented.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c

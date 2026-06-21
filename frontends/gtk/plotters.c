@@ -620,6 +620,12 @@ static nserror nsgtk_plot_pop_transform(const struct redraw_context *ctx)
 /**
  * Start a new path.
  */
+
+static nserror nsgtk_plot_finalise(void)
+{
+    return NSERROR_OK;
+}
+
 static nserror nsgtk_plot_path_begin(const struct redraw_context *ctx)
 {
     cairo_new_path(current_cr);
@@ -706,6 +712,7 @@ static nserror nsgtk_plot_path_stroke(const struct redraw_context *ctx, const pl
 /** GTK plotter table */
 const struct plotter_table nsgtk_plotters = {
     .clip = nsgtk_plot_clip,
+    .finalise = nsgtk_plot_finalise,
     .arc = nsgtk_plot_arc,
     .disc = nsgtk_plot_disc,
     .line = nsgtk_plot_line,

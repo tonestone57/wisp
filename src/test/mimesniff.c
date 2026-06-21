@@ -142,7 +142,7 @@ static struct test_mimetype match_unknown_exact_tests[] = {
     SIG("Rar \x1a\x07\x00", application_x_rar_compressed, true),
     SIG("PK\x03\x04", application_zip, true),
     SIG("\x1f\x8b\x08", application_x_gzip, true),
-    SIG("ftypavif", image_avif, false),
+    SIG("\x00\x00\x00\x0c" "ftyp" "avif", image_avif, false),
     SIG("%!PS-Adobe-", application_postscript, true),
     SIG("%PDF-", application_pdf, false),
 };
@@ -185,7 +185,7 @@ static struct test_mimetype match_unknown_mp4_tests[] = {
 };
 
 static struct test_mimetype match_unknown_bad_mp4_tests[] = {
-    SIG("\x00\x00\x00\044ftypisom\x00\x00\x02\x00isomiso2avc1mp41", application_octet_stream, true),
+    SIG("\x00\x00\x00\044ftypisom\x00\x00\x02\x00isomiso2avc1mp41", video_mp4, true),
     SIG("\x00\x00\x00\037ftypmp41\x00\x00\x02\x00isomiso2avc1mp41", application_octet_stream, true),
     SIG("\x00\x00\x00\040atypmp41\x00\x00\x02\x00isomiso2avc1mp41", application_octet_stream, true),
     SIG("\x00\x00\x00\040faypmp41\x00\x00\x02\x00isomiso2avc1mp41", application_octet_stream, true),

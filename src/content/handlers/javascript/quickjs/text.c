@@ -13,12 +13,11 @@
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <dom/core/characterdata.h>
-
+JSClassID qjs_text_class_id;
 /* Forward declarations for Text */
 static JSValue js_text_splitText(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
 static JSValue js_text_wholeText_get(JSContext *ctx, JSValueConst this_val);
 
-JSClassID qjs_text_class_id;
 
 static void js_text_finalizer(JSRuntime *rt, JSValue val)
 {

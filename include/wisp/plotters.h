@@ -39,12 +39,12 @@ typedef unsigned long bitmap_flags_t;
 #define BITMAPF_REPEAT_X 1
 #define BITMAPF_REPEAT_Y 2
 
-enum path_command {
+typedef enum path_command {
     PLOTTER_PATH_MOVE,
     PLOTTER_PATH_CLOSE,
     PLOTTER_PATH_LINE,
     PLOTTER_PATH_BEZIER,
-};
+} path_command;
 
 /**
  * Gradient color stop for native gradient rendering.
@@ -223,6 +223,15 @@ struct plotter_table {
      */
     nserror (*path)(const struct redraw_context *ctx, const plot_style_t *pstyle, const float *p, unsigned int n,
         const float transform[6]);
+
+    /**
+     * Finalise the plotter.
+     *
+     * Optional, may be NULL.
+     *
+     * \return NSERROR_OK on success else error code.
+     */
+    nserror (*finalise)(void);
 
     /**
      * Start a new path.

@@ -51,7 +51,7 @@ add_executable(wisp-gtk
 	audio.c
 )
 
-target_link_libraries(wisp-gtk wisp m ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} libpulse-simple)
+target_link_libraries(wisp-gtk wisp m ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} pulse-simple pulse)
 
 install(TARGETS wisp-gtk DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)

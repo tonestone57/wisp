@@ -1,0 +1,3 @@
+[submodule "contrib/blend2d"]
+	path = contrib/blend2d
+	url = https://github.com/blend2d/blend2d.git

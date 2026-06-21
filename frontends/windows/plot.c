@@ -56,7 +56,7 @@ static RECT plot_clip;
 
 /** Stateful Path API storage */
 struct gdi_path_command {
-    enum path_command type;
+    path_command type;
     float x1, y1, x2, y2, x3, y3;
 };
 
@@ -1547,6 +1547,18 @@ static void win_plot_stateful_add_command(enum path_command type, float x1, floa
 /**
  * Start a new path.
  */
+
+static nserror win_plot_finalise(void)
+{
+    if (stateful_path) {
+        free(stateful_path);
+        stateful_path = NULL;
+    }
+    stateful_path_count = 0;
+    stateful_path_alloc = 0;
+    return NSERROR_OK;
+}
+
 static nserror win_plot_path_begin(const struct redraw_context *ctx)
 {
     stateful_path_count = 0;
@@ -1681,6 +1693,7 @@ static nserror win_plot_path_stroke(const struct redraw_context *ctx, const plot
  */
 const struct plotter_table win_plotters = {
     .rectangle = rectangle,
+    .finalise = win_plot_finalise,
     .line = line,
     .polygon = polygon,
     .clip = clip,

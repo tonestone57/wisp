@@ -12,9 +12,7 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include <dom/core/attr.h>
-
 JSClassID qjs_attr_class_id;
-
 static void js_attr_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_attr_class_id);

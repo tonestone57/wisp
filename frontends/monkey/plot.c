@@ -166,6 +166,12 @@ static nserror monkey_plot_path(const struct redraw_context *ctx, const plot_sty
 /**
  * Start a new path.
  */
+
+static nserror monkey_plot_finalise(void)
+{
+    return NSERROR_OK;
+}
+
 static nserror monkey_plot_path_begin(const struct redraw_context *ctx)
 {
     moutf(MOUT_PLOT, "PATH BEGIN");
@@ -281,6 +287,7 @@ static nserror monkey_plot_text(const struct redraw_context *ctx, const struct p
 /** monkey plotter operations table */
 static const struct plotter_table plotters = {
     .clip = monkey_plot_clip,
+    .finalise = monkey_plot_finalise,
     .arc = monkey_plot_arc,
     .disc = monkey_plot_disc,
     .line = monkey_plot_line,

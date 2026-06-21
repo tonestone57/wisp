@@ -12,6 +12,7 @@
 #include "utils/libdom.h"
 #include <dom/html/html_element.h>
 #include <dom/core/node.h>
+JSClassID qjs_element_class_id;
 
 static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
@@ -20,7 +21,6 @@ static void js_element_finalizer(JSRuntime *rt, JSValue val);
 static void js_element_finalizer(JSRuntime *rt, JSValue val);
 
 #include "element.inc"
-
 static void js_element_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_element_class_id);

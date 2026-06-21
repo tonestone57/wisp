@@ -1,3 +1,4 @@
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 /*
  * Copyright 2015 Vincent Sanders <vince@netsurf-browser.org>
  *

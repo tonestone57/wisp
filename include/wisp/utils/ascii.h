@@ -1,3 +1,4 @@
+#include <stdbool.h>
 /*
  * Copyright 2016 Michael Drake <tlsa@netsurf-browser.org>
  *

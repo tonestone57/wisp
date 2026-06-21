@@ -12,9 +12,7 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include <dom/core/namednodemap.h>
-
 JSClassID qjs_namednodemap_class_id;
-
 typedef struct {
     void *map;
 } QJSNamedNodeMapPrivate;

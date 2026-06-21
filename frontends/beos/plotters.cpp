@@ -696,6 +696,16 @@ static nserror nsbeos_plot_text(const struct redraw_context *ctx, const struct p
 }
 
 
+
+static nserror nsbeos_plot_finalise(void)
+{
+    if (stateful_shape) {
+        delete stateful_shape;
+        stateful_shape = NULL;
+    }
+    return NSERROR_OK;
+}
+
 static nserror nsbeos_plot_path_begin(const struct redraw_context *ctx)
 {
     if (!stateful_shape) stateful_shape = new BShape();
@@ -763,6 +773,7 @@ static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const p
  */
 const struct plotter_table nsbeos_plotters = {
     .clip = nsbeos_plot_clip,
+    .finalise = nsbeos_plot_finalise,
     .arc = nsbeos_plot_arc,
     .disc = nsbeos_plot_disc,
     .line = nsbeos_plot_line,

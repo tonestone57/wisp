@@ -181,13 +181,11 @@ CORESTRING_LWC_VALUE(application_rss_xml, "application/rss+xml");
 CORESTRING_LWC_VALUE(application_atom_xml, "application/atom+xml");
 CORESTRING_LWC_VALUE(audio_wave, "audio/wave");
 CORESTRING_LWC_VALUE(application_ogg, "application/ogg");
-CORESTRING_LWC_VALUE(video_webm, "video/webm");
 CORESTRING_LWC_VALUE(application_x_rar_compressed, "application/x-rar-compressed");
 CORESTRING_LWC_VALUE(application_zip, "application/zip");
 CORESTRING_LWC_VALUE(application_x_gzip, "application/x-gzip");
 CORESTRING_LWC_VALUE(application_postscript, "application/postscript");
 CORESTRING_LWC_VALUE(application_pdf, "application/pdf");
-CORESTRING_LWC_VALUE(video_mp4, "video/mp4");
 CORESTRING_LWC_VALUE(image_svg, "image/svg+xml");
 
 

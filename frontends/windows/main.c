@@ -507,6 +507,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     urldb_save_cookies(nsoption_charp(cookie_jar));
     urldb_save(nsoption_charp(url_file));
 
+    win_plotters.finalise();
+
     wisp_exit();
 
     /* finalise options */

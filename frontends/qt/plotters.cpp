@@ -762,6 +762,16 @@ static nserror nsqt_plot_radial_gradient(const struct redraw_context *ctx, const
 /**
  * Start a new path.
  */
+
+static nserror nsqt_plot_finalise(void)
+{
+    if (current_path) {
+        delete current_path;
+        current_path = nullptr;
+    }
+    return NSERROR_OK;
+}
+
 static nserror nsqt_plot_path_begin(const struct redraw_context *ctx)
 {
     if (!current_path) current_path = new QPainterPath();
@@ -846,6 +856,7 @@ static nserror nsqt_plot_path_stroke(const struct redraw_context *ctx, const plo
  */
 const struct plotter_table nsqt_plotters = {
     .clip = nsqt_plot_clip,
+    .finalise = nsqt_plot_finalise,
     .arc = nsqt_plot_arc,
     .disc = nsqt_plot_disc,
     .line = nsqt_plot_line,
