@@ -24,6 +24,7 @@
 #include <blend2d.h>
 #include <assert.h>
 #include <math.h>
+#include <stdlib.h>
 
 #include "wisp/plotters.h"
 #include "wisp/utils/log.h"
@@ -41,7 +42,7 @@ static void blend2d_set_colour(BLContextCore *ctx, colour c, float opacity, bool
     uint8_t b = (c >> 16) & 0xFF;
     uint8_t a = 255 - ((c >> 24) & 0xFF);
 
-    if (opacity > 0.0f && opacity < 1.0f) {
+    if (opacity >= 0.0f && opacity < 1.0f) {
         a = (uint8_t)(a * opacity);
     }
 
@@ -54,6 +55,20 @@ static void blend2d_set_colour(BLContextCore *ctx, colour c, float opacity, bool
     }
 }
 
+static void blend2d_set_gradient_stops(BLGradientCore *gr, const struct gradient_stop *stops, unsigned int stop_count)
+{
+    for (unsigned int i = 0; i < stop_count; i++) {
+        BLRgba32 bl_color;
+        colour c = stops[i].color;
+        uint8_t r = c & 0xFF;
+        uint8_t g = (c >> 8) & 0xFF;
+        uint8_t b = (c >> 16) & 0xFF;
+        uint8_t a = 255 - ((c >> 24) & 0xFF);
+        bl_color.value = (a << 24) | (r << 16) | (g << 8) | b;
+        blGradientAddStopRgba32(gr, (double)stops[i].offset, bl_color.value);
+    }
+}
+
 static nserror blend2d_plot_clip(const struct redraw_context *ctx, const struct rect *clip)
 {
     BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
@@ -62,11 +77,32 @@ static nserror blend2d_plot_clip(const struct redraw_context *ctx, const struct 
     return NSERROR_OK;
 }
 
+static nserror blend2d_plot_path_begin(const struct redraw_context *ctx);
+static nserror blend2d_plot_path_move_to(const struct redraw_context *ctx, float x, float y);
+static nserror blend2d_plot_path_line_to(const struct redraw_context *ctx, float x, float y);
+static nserror blend2d_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3);
+static nserror blend2d_plot_path_close(const struct redraw_context *ctx);
+
 static nserror blend2d_plot_arc(const struct redraw_context *ctx, const plot_style_t *pstyle, int x, int y, int radius, int angle1, int angle2)
 {
-    /* Blend2D doesn't have a direct arc function in the same way,
-     * would need to build a path. Skipping for brevity in this initial integration. */
-    return NSERROR_NOT_IMPLEMENTED;
+    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    BLPathCore path;
+    blPathInit(&path);
+
+    double start_angle = angle1 * (M_PI / 180.0);
+    double end_angle = angle2 * (M_PI / 180.0);
+    double sweep_angle = end_angle - start_angle;
+
+    blPathAddArc(&path, (double)x, (double)y, (double)radius, (double)radius, start_angle, sweep_angle, true);
+
+    if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
+        blend2d_set_colour(bl_ctx, pstyle->stroke_colour, pstyle->stroke_opacity, false);
+        blContextSetStrokeWidth(bl_ctx, plot_style_fixed_to_double(pstyle->stroke_width));
+        blContextStrokePath(bl_ctx, &path);
+    }
+
+    blPathReset(&path);
+    return NSERROR_OK;
 }
 
 static nserror blend2d_plot_disc(const struct redraw_context *ctx, const plot_style_t *pstyle, int x, int y, int radius)
@@ -139,6 +175,9 @@ static nserror blend2d_plot_polygon(const struct redraw_context *ctx, const plot
     free(pts);
     return NSERROR_OK;
 }
+
+static nserror blend2d_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6]);
+static nserror blend2d_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6]);
 
 static nserror blend2d_plot_path(const struct redraw_context *ctx, const plot_style_t *pstyle, const float *p, unsigned int n, const float transform[6])
 {
@@ -271,6 +310,117 @@ static nserror blend2d_pop_transform(const struct redraw_context *ctx)
     return NSERROR_OK;
 }
 
+static nserror blend2d_plot_linear_gradient(const struct redraw_context *ctx, const float *p, unsigned int n,
+    const float transform[6], float x0, float y0, float x1, float y1, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    BLGradientCore gr;
+    BLLinearGradientValues values = { (double)x0, (double)y0, (double)x1, (double)y1 };
+
+    blGradientInitAs(&gr, BL_GRADIENT_TYPE_LINEAR, &values, BL_EXTEND_MODE_PAD, NULL, 0, NULL);
+    blend2d_set_gradient_stops(&gr, stops, stop_count);
+
+    BLPathCore path;
+    blPathInit(&path);
+    for (unsigned int i = 0; i < n; ) {
+        int cmd = (int)p[i++];
+        switch (cmd) {
+        case PLOTTER_PATH_MOVE:
+            blPathMoveTo(&path, (double)p[i], (double)p[i+1]);
+            i += 2;
+            break;
+        case PLOTTER_PATH_LINE:
+            blPathLineTo(&path, (double)p[i], (double)p[i+1]);
+            i += 2;
+            break;
+        case PLOTTER_PATH_BEZIER:
+            blPathCubicTo(&path, (double)p[i], (double)p[i+1], (double)p[i+2], (double)p[i+3], (double)p[i+4], (double)p[i+5]);
+            i += 6;
+            break;
+        case PLOTTER_PATH_CLOSE:
+            blPathClose(&path);
+            break;
+        }
+    }
+
+    blContextSave(bl_ctx, NULL);
+    if (transform) {
+        BLMatrix2D m = { (double)transform[0], (double)transform[1], (double)transform[2], (double)transform[3], (double)transform[4], (double)transform[5] };
+        blContextApplyTransform(bl_ctx, &m);
+    }
+
+    blContextSetFillStyle(bl_ctx, &gr);
+    blContextFillPath(bl_ctx, &path);
+
+    blContextRestore(bl_ctx, NULL);
+    blPathReset(&path);
+    blGradientReset(&gr);
+
+    return NSERROR_OK;
+}
+
+static nserror blend2d_plot_radial_gradient(const struct redraw_context *ctx, const float *p, unsigned int n,
+    const float transform[6], float cx, float cy, float rx, float ry, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    BLGradientCore gr;
+    /* Blend2D radial is centered at (x1, y1) with focal point at (x0, y0). We use cx, cy for both. */
+    BLRadialGradientValues values = { (double)cx, (double)cy, (double)cx, (double)cy, (double)rx };
+
+    blGradientInitAs(&gr, BL_GRADIENT_TYPE_RADIAL, &values, BL_EXTEND_MODE_PAD, NULL, 0, NULL);
+    blend2d_set_gradient_stops(&gr, stops, stop_count);
+
+    if (rx != ry && rx > 0) {
+        /* If radii are different, we apply a scaling transform to the gradient style */
+        BLMatrix2D m;
+        blMatrix2DSetIdentity(&m);
+        blMatrix2DTranslate(&m, (double)cx, (double)cy);
+        blMatrix2DScale(&m, 1.0, (double)ry / (double)rx);
+        blMatrix2DTranslate(&m, -(double)cx, -(double)cy);
+        blGradientApplyTransform(&gr, &m);
+    }
+
+    BLPathCore path;
+    blPathInit(&path);
+    for (unsigned int i = 0; i < n; ) {
+        int cmd = (int)p[i++];
+        switch (cmd) {
+        case PLOTTER_PATH_MOVE:
+            blPathMoveTo(&path, (double)p[i], (double)p[i+1]);
+            i += 2;
+            break;
+        case PLOTTER_PATH_LINE:
+            blPathLineTo(&path, (double)p[i], (double)p[i+1]);
+            i += 2;
+            break;
+        case PLOTTER_PATH_BEZIER:
+            blPathCubicTo(&path, (double)p[i], (double)p[i+1], (double)p[i+2], (double)p[i+3], (double)p[i+4], (double)p[i+5]);
+            i += 6;
+            break;
+        case PLOTTER_PATH_CLOSE:
+            blPathClose(&path);
+            break;
+        }
+    }
+
+    blContextSave(bl_ctx, NULL);
+    if (transform) {
+        BLMatrix2D m = { (double)transform[0], (double)transform[1], (double)transform[2], (double)transform[3], (double)transform[4], (double)transform[5] };
+        blContextApplyTransform(bl_ctx, &m);
+    }
+
+    blContextSetFillStyle(bl_ctx, &gr);
+    blContextFillPath(bl_ctx, &path);
+
+    blContextRestore(bl_ctx, NULL);
+    blPathReset(&path);
+    blGradientReset(&gr);
+
+    return NSERROR_OK;
+}
+
 const struct plotter_table blend2d_plotters = {
     .clip = blend2d_plot_clip,
     .arc = blend2d_plot_arc,
@@ -290,5 +440,7 @@ const struct plotter_table blend2d_plotters = {
     .text = blend2d_plot_text,
     .push_transform = blend2d_push_transform,
     .pop_transform = blend2d_pop_transform,
+    .linear_gradient = blend2d_plot_linear_gradient,
+    .radial_gradient = blend2d_plot_radial_gradient,
     .option_knockout = true
 };
