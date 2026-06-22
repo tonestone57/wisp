@@ -83,6 +83,11 @@ css_error css__cascade_transform(uint32_t opv, css_style *style, css_select_stat
                 free(functions);
             return error;
         }
+        if (value != CSS_TRANSFORM_FUNCTIONS) {
+            if (functions)
+                free(functions);
+        }
+        functions = NULL;
     } else {
         /* Not using, free the allocated functions */
         if (functions)

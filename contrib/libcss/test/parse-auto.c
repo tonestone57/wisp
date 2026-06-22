@@ -497,6 +497,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 /* String */
                 lwc_string *p;
 
+                p = NULL;
                 css__stylesheet_string_get(s->style->sheet, (s->style->bytecode[i / sizeof(css_code_t)]), &p);
 
                 if (p == NULL) {
