@@ -1,114 +1,69 @@
-# Wisp Browser Audit and Modernization Report
+# Wisp Code Audit Report - June 2026
 
-## 1. Library Modernization Assessment
+## 1. Executive Summary
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, and the QuickJS-based JavaScript subsystem. Wisp has achieved significant milestones in standard conformance while maintaining a lean architecture. The migration to QuickJS-ng is a major architectural shift, providing a robust foundation for modern web standards.
 
-An audit of the `contrib/` directory was performed to evaluate the state of bundled libraries and the feasibility of upgrading them to their latest upstream versions.
+## 2. Library Versions Audit
 
-### NetSurf Libraries (`libcss`, `libdom`, `libhubbub`, `libparserutils`, `libsvgtiny`, `libnsutils`)
-*   **Status**: Heavily Forked.
-*   **Assessment**: **Upgrading to upstream is not recommended.**
-*   **Reasoning**: Wisp has implemented major features that are not present in upstream NetSurf, including:
-    *   **CSS Grid** layout support.
-    *   `calc()` function support in CSS.
-    *   Unified CMake build system.
-    *   Native SVG DOM integration using `libdom`.
-    *   Merged `libwapcaplet` into `libnsutils`.
-*   **Recommendation**: Modernize by manually cherry-picking security patches and critical bug fixes from upstream rather than performing a full sync.
+| Library | Repo Version | Latest Online (June 2026) | Status |
+|---------|--------------|---------------------------|--------|
+| `quickjs-ng` | v0.15.1 | v0.15.1 | Up-to-date |
+| `blend2d` | v0.21.2 | v0.21.2 | Up-to-date |
+| `libavif` | v1.4.2 | v1.4.2 | Up-to-date |
+| `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | Diverged (Forked for Grid/Calc) |
+| `libdom` | Jan 2026 Fork | Upstream Git | Diverged (Forked for SVG/JS) |
+| `libhubbub` | Jan 2026 Sync | Upstream Git | Moderate Divergence |
+| `libnsbmp` | Jan 2026 Sync | Upstream Git | Up-to-date |
+| `libnsgif` | Jan 2026 Sync | Upstream Git | Up-to-date |
+| `FFmpeg` | Linked System | 7.1 | Compatible |
+| `LibreSSL` | Linked System | 4.0.0 | Compatible |
 
-### Image Decoders (`libnsbmp`, `libnsgif`)
-*   **Status**: Lightly modified.
-*   **Assessment**: High upgrade feasibility.
-*   **Recommendation**: Can be re-synced with upstream while preserving Wisp's CMake integration.
+## 3. Feature Status Categorization
 
-### JavaScript Engine (`quickjs-ng`)
-*   **Status**: Updated to **v0.15.1**.
-*   **Assessment**: **Up-to-date.**
-*   **Note**: Wisp-specific memory hooks and subsystem bindings are preserved.
-*   **Modernization Path**: Implementing a lightweight Python-based WebIDL compiler to automate the remaining ~1,500 bindings and prioritize MutationObserver/IntersectionObserver via microtask integration (`JS_ExecutePendingJob`).
+### 3.1 Complete Implementation
+*   **Position: Sticky**: Full support for sticky positioning, including multi-axis clamping and scroll-container constraints. Verified in `layout_apply_sticky_clamping`.
+*   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
+*   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI), and Blend2D.
+*   **Incremental Layout Core**: Dual-pass reflow system using `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags.
+*   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL.
 
----
+### 3.2 Partial Implementation
+*   **CSS Variables**: Selection and parsing of `var()` and custom properties are complete; resolution pass during cascade is in progress.
+*   **CSS Grid**: Core layout logic implemented in LibCSS fork; specific edge cases in `fr` unit distribution and auto-placement remain.
+*   **Percentage Widths**: Basic support exists, but complex contexts (IFRAMEs, nested flexbox) still have `TODO` markers in `layout.c`.
+*   **CSS Counters**: Initial support for counters; nested counter scope resolution needs implementation in `box_construct.c`.
+*   **Incremental Reflow**: Functional, but bounding box union logic in `box_mark_dirty` lacks optimization for elements entirely contained within parent dirty regions.
 
-## 2. Rendering and Major Feature Status
+### 3.3 Not Implemented / Planned
+*   **MutationObserver / IntersectionObserver**: Manual bindings are pending; required for many modern single-page applications.
+*   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing.
+*   **Advanced JS Bindings**: Approximately 1,500 WebIDL bindings are auto-generated as weak stubs by `utils/qjs_binding_generator.py`. These allow code to run without crashing but currently only log warnings.
 
-### CSS Variables Support (Partial/In-Progress)
-*   **Issue**: `libcss` has initial support for `CSS_PROP_CUSTOM_PROPERTY` and `var()` parsing, but full resolution during the CSS cascade and application to layout is still maturing.
-*   **Impact**: High. Many modern websites use variables for core layout properties.
-*   **Current State**: Basic parsing is present; selection logic handles custom properties.
+## 4. QuickJS Binding Generator Deep-Dive
+The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`) to bridge QuickJS-ng and LibDOM.
+*   **Coverage**: The generator processes all `.idl` files in `src/content/handlers/javascript/WebIDL/`.
+*   **Mechanism**: It generates one `.gen.c` and `.gen.h` file per interface.
+*   **Stubs**: For unimplemented methods, it generates `__attribute__((weak))` C stubs that log a warning. This prevents "undefined symbol" errors during linking and allows incremental implementation of the 1,539+ missing bindings.
+*   **Optimization**: The generator handles inheritance via `JS_SetPrototype` and avoids variable name collisions with C keywords by appending `_val`.
 
-### `position: sticky` (Implemented)
-*   **Status**: **Fully Implemented.**
-*   **Implementation**: Supported across layout, coordinate calculation (`box_coords`), and rendering. Elements remain fixed within their containing blocks using `sticky_x` and `sticky_y` offsets calculated in `layout_apply_sticky_clamping`.
-*   **References**: `src/content/handlers/html/layout.c`, `src/content/handlers/html/redraw.c`.
+## 5. Bugs and Technical Debt
 
-### ISOBMFF Image Support (Implemented)
-*   **Status**: **Fully Integrated.**
-*   **Implementation**: Bundled `libavif` v1.4.2. Core image handling includes generalized ISOBMFF signature sniffing (`mimesniff.c`) supporting AVIF, HEIC, and HEIF brands.
+### 5.1 Identified Bugs
+*   **ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
+*   **QuickJS Leaks**: LeakSanitizer identified ~720 bytes leaked during JS runtime teardown, specifically in `emalloc` and `erealloc` wrappers.
+*   **CSS Variable Regression**: `libcss_parse_auto` fails on certain custom property definitions involving complex fallbacks.
+*   **Percentage Width TODOs**: `src/content/handlers/html/layout.c:801` and `layout_internal.h:547` identify missing percentage resolution for IFRAMEs and max-height constraints.
+*   **Iframe Static Positioning**: `browser_window.c:3571` has a TODO about whether to return URLs for loading content, which might affect address bar updates during navigation.
 
-### Frontend & Rendering Modernization
-*   **Status**: **Active Development.**
-*   **Implementation**: Abstracting the plotter engine to support diverse backends.
-*   **Target Backends**:
-    *   **Windows**: Windows GDI plotter is feature-complete; exploration of Direct2D for hardware acceleration is ongoing.
-    *   **Linux/Cross-Platform**: **Blend2D** integration is complete for non-Qt lean frontends (Framebuffer/Haiku), leveraging JIT-compiled vector graphics.
-    *   **Vector Path API**: Standardized the plotter vfunc table around a stateful path-building API (path_begin, path_move_to, path_bezier_to, path_fill, path_stroke).
+### 5.2 Potential Improvements & Optimizations
+*   **Redraw Tiling**: Currently, Wisp unions all dirty rectangles into a single bounding box. Implementing a tiled or list-based redraw would prevent redundant painting of clean areas between distant updates.
+*   **Path Accumulation**: In the Windows GDI plotter, stateful paths could be further optimized by using `PolyBezier` for contiguous segments.
+*   **Arena Alignment**: Ensure `arena_alloc` maintains 16-byte alignment strictly to satisfy modern SIMD requirements on all platforms.
+*   **JS Registration**: Centralize all manual and automated binding registrations to ensure deterministic initialization order.
 
----
-
-## 3. Library Detail Table (Merged from CONTRIB_AUDIT)
-
-| Library | Current Version | Divergence | Upgrade Feasibility | Recommendation |
-|---------|-----------------|------------|---------------------|----------------|
-| `libcss` | ~Jan 2026 Sync | Extremely Heavy (Grid, calc) | Low | Manual Patching |
-| `libdom` | ~Jan 2026 Sync | Extremely Heavy | Low | Manual Patching |
-| `libhubbub` | ~Jan 2026 Sync | Moderate (Wisp-specific IDs) | Low/Medium | Manual Patching |
-| `libavif` | v1.4.2 | Light | High | Stay Synced |
-| `libnsbmp` | ~Jan 2026 Sync | Light | High | Periodic Sync |
-| `libnsgif` | ~Jan 2026 Sync | Light | High | Periodic Sync |
-| `libnsutils` | ~Jan 2026 Sync | Significant (Merged wapcaplet) | Medium | Manual Patching |
-| `libsvgtiny` | ~Jan 2026 Sync | Heavy (DOM integration) | Low | Manual Patching |
-| `quickjs-ng` | v0.15.1 | Moderate (Wisp Subsystem) | High (Applied) | Keep Synced |
-
----
-
-## 4. Remaining Outstanding Tasks
-
-### Browser Completion
-1.  **CSS Variables Resolution**: Complete the implementation of the variable resolution pass during the CSS cascade in `libcss` and ensure layout correctly handles resolved values.
-2.  **JS Binding Completion**: Continue implementing unimplemented WebIDL bindings (approx. 1500 remaining as per `UnimplementedJavascript.md`), specifically high-value interfaces like `MutationObserver` and `IntersectionObserver`.
-3.  **Canvas API**: Implement core 2D canvas drawing methods in the QuickJS subsystem and bridge them to frontend plotters.
-
-### Performance & Caching
-1.  **Incremental Layout**: Refining the incremental layout engine using the **Dual-Pass Dirty Bit Strategy** (DIRTY_INTRINSIC, CHILD_DIRTY, DIRTY_LAYOUT). Current focus is on optimizing bounding box unions in `box_mark_dirty`.
-2.  **Split-Level Caching**: Productionizing the Low-Level vs High-Level cache using a zero-copy, append-only journal and `mmap` for larger assets.
-3.  **Logging Refactor**: Wrap or demote high-verbosity `NSLOG` traces in layout engines to `DEEPDEBUG`.
-
-### Security & Networking
-1.  **String Safety**: Verified migration of legacy `sprintf` calls to `snprintf`.
-2.  **MIME Sniffing**: Generalized ISOBMFF sniffing is implemented for AVIF, HEIC, and HEIF.
-3.  **Web Crypto**: Bridging `crypto.subtle` bindings to LibreSSL for modern authentication.
-4.  **Networking**: Asynchronous fetch pipeline is implemented and providing a Request/Response model with geometric buffer growth.
-
-### Stability
-1.  **Frontend Parity**: Continuous testing of GTK, Windows GDI, and Blend2D plotters. Recent tests identified regressions in CSS variable parsing and an ODR violation in `journal_test`. *(Note: Fixes for these are currently in progress in a separate branch)*
-2.  **JS Engine Memory**: AddressSanitizer identified memory leaks in the QuickJS subsystem that must be resolved to ensure long-term stability.
-3.  **Haiku/Framebuffer**: Re-verifying non-mainstream frontends after major layout changes.
-
----
-
-## 5. Strategic Architectural Roadmap
-
-### JS Subsystem: Automating the WebIDL Bottleneck
-*   **Lightweight WebIDL Compiler**: Custom Python script (`utils/qjs_binding_generator.py`) parses WebIDL and auto-generates QuickJS-ng C bindings.
-
-### Layout Engine: Dual-Pass Incremental Layout
-*   **Dirty Bits**: Utilizing `DIRTY_INTRINSIC` (Bit 14), `CHILD_DIRTY` (Bit 15), and `DIRTY_LAYOUT` (Bit 16) in `box_flags`.
-*   **Down-tree Pruning**: `layout_block_find_dimensions` tracks `last_available_width` to skip stable containers.
-
-### Graphics & Frontend: Abstract Plotter Engine
-Drawing logic in `redraw.c` utilizes an abstracted Vector Path API:
-
-| Target Frontend | Backend | Status |
-|---|---|---|
-| **Windows** | GDI / Future Direct2D | GDI parity complete; supports transforms and gradients. |
-| **Linux / Haiku** | Blend2D | Integration complete; high-performance JIT vector graphics. |
-| **Linux / Qt** | QPainter | Reference implementation. |
+## 6. Conclusion
+Wisp has made significant strides in modernization. The immediate focus should be:
+1.  Resolving percentage width issues in the layout engine.
+2.  Completing the high-value JS bindings (MutationObserver).
+3.  Resolving identified memory leaks in the QuickJS subsystem.
+4.  Ensuring all frontend backends (Haiku, Framebuffer) are re-verified against the new incremental layout engine.
