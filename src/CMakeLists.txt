@@ -174,23 +174,20 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/qjs.c
 	content/handlers/javascript/quickjs/wisp_subsystem.c
 	content/handlers/javascript/quickjs/timers.c
-	content/handlers/javascript/quickjs/navigator.c
-	content/handlers/javascript/quickjs/location.c
-	content/handlers/javascript/quickjs/node.c
-	content/handlers/javascript/quickjs/element.c
-	content/handlers/javascript/quickjs/document.c
-	content/handlers/javascript/quickjs/text.c
-	content/handlers/javascript/quickjs/storage.c
-	content/handlers/javascript/quickjs/event_target.c
 	content/handlers/javascript/quickjs/dom_bridge.c
-	content/handlers/javascript/quickjs/xhr.c
-	content/handlers/javascript/quickjs/window.c
-	content/handlers/javascript/quickjs/console.c
+	# Manual implementations for generated bindings
+	content/handlers/javascript/quickjs/impl/node_impl.c
+	content/handlers/javascript/quickjs/impl/element_impl.c
+	content/handlers/javascript/quickjs/impl/document_impl.c
+	content/handlers/javascript/quickjs/impl/text_impl.c
+	content/handlers/javascript/quickjs/impl/attr_impl.c
+	content/handlers/javascript/quickjs/impl/console_impl.c
+	content/handlers/javascript/quickjs/impl/window_impl.c
+	content/handlers/javascript/quickjs/impl/eventtarget_impl.c
+	content/handlers/javascript/quickjs/impl/storage_impl.c
+	content/handlers/javascript/quickjs/impl/navigator_impl.c
+	content/handlers/javascript/quickjs/impl/xhr_impl.c
 	content/handlers/javascript/quickjs/crypto.c
-	content/handlers/javascript/quickjs/attr.c
-	content/handlers/javascript/quickjs/named_node_map.c
-	content/handlers/javascript/quickjs/html_collection.c
-	content/handlers/javascript/quickjs/unimplemented.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
 	desktop/knockout.c
@@ -256,7 +253,9 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/nsurl/nsurl.c
 	utils/nsurl/parse.c
 	# QuickJS-ng generated bindings
+	${QUICKJS_GEN_SOURCES}
 )
+add_dependencies(wisp quickjs_bindings)
 # QuickJS-ng dependencies
 set_target_properties(wisp PROPERTIES SOVERSION ${WISP_ABI})
 
@@ -292,7 +291,11 @@ list(APPEND WISP_COMMON_LIBS qjs)
 
 target_link_libraries(wisp ${WISP_COMMON_LIBS} Threads::Threads)
 
-target_include_directories(wisp PRIVATE ${CMAKE_SOURCE_DIR}/contrib ${CMAKE_BINARY_DIR})
+target_include_directories(wisp PRIVATE
+    ${CMAKE_SOURCE_DIR}/contrib
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
+)
 
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)
