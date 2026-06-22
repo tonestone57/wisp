@@ -24,7 +24,7 @@ struct wisp_table guit_test = {
     .misc = &misc_table,
     .file = NULL,    /* initialized in main */
 };
-struct wisp_table *guit __attribute__((weak)) = &guit_test;
+struct wisp_table *guit = &guit_test;
 
 int main(int argc, char **argv)
 {
@@ -116,9 +116,6 @@ int main(int argc, char **argv)
 
     nsurl_unref(url1);
     nsurl_unref(url2);
-
-    free(data1);
-    free(data2);
 
     printf("Journal test passed!\n");
     return 0;

@@ -32,7 +32,7 @@
  * Things that we'd reasonably expect to have to implement                    *
  ******************************************************************************/
 
-bool verbose_log __attribute__((weak));
+bool verbose_log;
 
 /* utils/utils.h */
 char *filename_from_path(char *path)
