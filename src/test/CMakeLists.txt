@@ -284,6 +284,7 @@ target_include_directories(test_quickjs PRIVATE
   ${CMAKE_SOURCE_DIR}/contrib/quickjs-ng
   ${CMAKE_SOURCE_DIR}/contrib/libnsutils/include
   ${CMAKE_BINARY_DIR}/quickjs
+  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
 )
 target_link_libraries(test_quickjs PRIVATE qjs nsutils wisp)
 

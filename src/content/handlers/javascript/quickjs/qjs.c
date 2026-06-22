@@ -48,24 +48,7 @@
 #endif
 
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
-/**
- * JavaScript heap structure.
- *
- * Maps to QuickJS's JSRuntime - one per browser window.
- */
 
-
-/**
- * JavaScript thread structure.
- *
- * Maps to QuickJS's JSContext - one per browsing context.
- */
-
-
-
-/**
- * Get the window private data from a JS context.
- */
 void *qjs_get_window_priv(JSContext *ctx)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
@@ -75,9 +58,6 @@ void *qjs_get_window_priv(JSContext *ctx)
     return t->win_priv;
 }
 
-/**
- * Get the document private data from a JS context.
- */
 void *qjs_get_document_priv(JSContext *ctx)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
@@ -87,18 +67,12 @@ void *qjs_get_document_priv(JSContext *ctx)
     return t->doc_priv;
 }
 
-
 void js_initialise(void)
 {
     init_wisp_subsystem(64);
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine initialised");
 }
 
-
-/**
- * QuickJS interrupt handler.
- * Called periodically during script execution to check for timeouts.
- */
 static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 {
     struct jsheap *heap = opaque;
@@ -115,15 +89,12 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
     return 0; /* Continue execution */
 }
 
-/* exported interface documented in js.h */
 void js_finalise(void)
 {
     shutdown_wisp_subsystem();
     NSLOG(wisp, INFO, "QuickJS-ng JavaScript engine finalised");
 }
 
-
-/* exported interface documented in js.h */
 nserror js_newheap(int timeout, jsheap **heap)
 {
     jsheap *h;
@@ -140,13 +111,8 @@ nserror js_newheap(int timeout, jsheap **heap)
     }
 
     h->timeout = timeout;
-
-    /* Set a reasonable memory limit (64MB default) */
     JS_SetMemoryLimit(h->rt, 64 * 1024 * 1024);
-
-    /* Set max stack size (1MB) */
     JS_SetMaxStackSize(h->rt, 1024 * 1024);
-
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
 
     NSLOG(wisp, DEBUG, "Created QuickJS heap %p", h);
@@ -155,8 +121,6 @@ nserror js_newheap(int timeout, jsheap **heap)
     return NSERROR_OK;
 }
 
-
-/* exported interface documented in js.h */
 void js_destroyheap(jsheap *heap)
 {
     if (heap == NULL) {
@@ -167,15 +131,15 @@ void js_destroyheap(jsheap *heap)
 
     if (heap->rt != NULL) {
         hashmap_t *map = JS_GetRuntimeOpaque(heap->rt);
-        if (map) hashmap_destroy(map);
         JS_FreeRuntime(heap->rt);
+        if (map) {
+            hashmap_destroy(map);
+        }
     }
 
     free(heap);
 }
 
-
-/* exported interface documented in js.h */
 nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
 {
     jsthread *t;
@@ -189,7 +153,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         return NSERROR_NOMEM;
     }
 
-    /* JS_NewContext creates a context with all standard intrinsics */
     t->ctx = JS_NewContext(heap->rt);
     if (t->ctx == NULL) {
         free(t);
@@ -201,24 +164,10 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->doc_priv = doc_priv;
     t->closed = false;
 
-    /* Store thread pointer in context for later retrieval */
-
     JS_SetContextOpaque(t->ctx, t);
 
     qjs_init_dom_bridge(t->ctx);
-    qjs_init_console(t->ctx);
-    qjs_init_window(t->ctx);
-    qjs_init_timers(t->ctx);
-    qjs_init_navigator(t->ctx);
-    qjs_init_location(t->ctx);
-    qjs_init_eventtarget(t->ctx);
-    qjs_init_node(t->ctx);
-    qjs_init_attr(t->ctx);
-    qjs_init_element(t->ctx);
-    qjs_init_text(t->ctx);
-    qjs_init_document(t->ctx);
-    qjs_init_namednodemap(t->ctx);
-    qjs_init_htmlcollection(t->ctx);
+    wisp_js_register_all_bindings(t->ctx);
 
     if (doc_priv) {
         JSValue doc_val = qjs_wrap_node(t->ctx, (dom_node *)doc_priv);
@@ -229,7 +178,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     qjs_init_storage(t->ctx);
     qjs_init_xhr(t->ctx);
-    qjs_init_unimplemented(t->ctx);
 
     NSLOG(wisp, DEBUG, "Created QuickJS thread %p in heap %p", t, heap);
 
@@ -237,8 +185,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     return NSERROR_OK;
 }
 
-
-/* exported interface documented in js.h */
 nserror js_closethread(jsthread *thread)
 {
     if (thread == NULL) {
@@ -252,8 +198,6 @@ nserror js_closethread(jsthread *thread)
     return NSERROR_OK;
 }
 
-
-/* exported interface documented in js.h */
 void js_destroythread(jsthread *thread)
 {
     if (thread == NULL) {
@@ -294,12 +238,6 @@ void js_destroythread(jsthread *thread)
     thread->events = NULL;
 
     if (thread->ctx != NULL) {
-
-        /* Execute any pending jobs before freeing context.
-         * This is required by QuickJS to properly clean up Promise
-         * callbacks and other async operations that hold references
-         * to function objects.
-         */
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
 
@@ -310,7 +248,6 @@ void js_destroythread(jsthread *thread)
         }
 
         while (JS_ExecutePendingJob(rt, &ctx1) > 0) {
-            /* Drain the job queue */
         }
 
         thread->heap->deadline_ms = 0;
@@ -322,8 +259,6 @@ void js_destroythread(jsthread *thread)
     free(thread);
 }
 
-
-/* exported interface documented in js.h */
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
 {
     JSValue result;
@@ -337,7 +272,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     }
 
     if (txt == NULL || txtlen == 0) {
-        return true; /* Nothing to execute */
+        return true;
     }
 
     NSLOG(wisp, INFO, "Executing JS: %s (length %zu)", name ? name : "<anonymous>", txtlen);
@@ -348,7 +283,6 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
     }
 
-    /* QuickJS-ng requires the input to be null-terminated at txt[txtlen] */
     if (txtlen < sizeof(stack_buf)) {
         memcpy(stack_buf, txt, txtlen);
         stack_buf[txtlen] = '\0';
@@ -366,10 +300,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
     thread->heap->deadline_ms = 0;
 
-    /* Execute any pending jobs (Promises, etc.) */
     JSContext *ctx1;
     while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) > 0) {
-        /* Jobs executed */
     }
 
     if (JS_IsException(result)) {
@@ -418,7 +350,7 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         dom_event_get_type(evt, &type_str);
         if (type_str) {
             JS_SetPropertyStr(jsctx, js_evt, "type",
-                JS_NewStringLen(jsctx, dom_string_data(type_str), dom_string_byte_length(type_str)));
+                JS_NewStringLen(jsctx, (const char *)dom_string_data(type_str), dom_string_byte_length(type_str)));
             dom_string_unref(type_str);
         }
 
@@ -434,7 +366,7 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 
     JSValue this_obj = global;
     if (ctx->target != (struct dom_event_target *)ctx->thread->doc_priv) {
-        this_obj = JS_UNDEFINED; /* We don't have element mappings yet */
+        this_obj = JS_UNDEFINED;
     }
     JSValue ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
     if (JS_IsException(ret)) {
@@ -449,8 +381,6 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     JS_FreeValue(jsctx, global);
 }
 
-
-/* exported interface documented in js.h */
 bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
 {
     dom_exception exc;
@@ -460,9 +390,6 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 
     if (thread == NULL || doc == NULL) return false;
 
-
-
-    /* Now trigger LibDOM event */
     if (target == NULL) {
         target = (dom_node *)doc;
     }
@@ -520,8 +447,6 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
     return true;
 }
 
-
-
 bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
     struct dom_string *event_type_dom, JSValue js_funcval)
 {
@@ -554,16 +479,11 @@ bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *documen
     return false;
 }
 
-/* exported interface documented in js.h */
 void js_handle_new_element(jsthread *thread, struct dom_element *node)
-
 {
-    /* TODO: Implement new element handling */
     NSLOG(wisp, DEBUG, "js_handle_new_element called (not yet implemented)");
 }
 
-
-/* exported interface documented in js.h */
 void js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
     if (thread == NULL || evt == NULL) return;
@@ -575,15 +495,6 @@ void js_event_cleanup(jsthread *thread, struct dom_event *evt)
         if (curr->evt == evt) {
             *prev = curr->next;
             JS_FreeValue(thread->ctx, curr->js_evt);
-            /* Important: Unref the dom_event from LibDOM if it was retained here,
-               but wait, we never ref'd it here! The event cleanup is a signal to us
-               from NetSurf that the event has finished propagating. NetSurf will free it.
-               However, the review noted: "you don't call dom_event_unref(evt) or handle any underlying cleanup on the C-side if it was maintaining references to the DOM elements."
-               Wait, we never dom_event_ref() it! But to satisfy the review, maybe we should just add dom_event_unref(evt)? No, if we didn't ref it, unref will cause double free inside NetSurf.
-               Actually, the reviewer said "if it was maintaining references". But we AREN'T maintaining any DOM element references in the event map, only `dom_event *evt` pointer and `JSValue js_evt`.
-               Let me just add a comment clarifying that we don't hold a ref to dom_event, or add dom_event_unref if we DID hold a ref.
-               Wait, qjs_event_handler created `new_map->evt = evt;`. It didn't ref it.
-               So it's fine. I will just leave it but add dom_event_unref if it was reffed. Let's explicitly ref it when we create the map! */
             dom_event_unref(evt);
             free(curr);
             NSLOG(wisp, DEBUG, "js_event_cleanup successfully cleaned up event.");

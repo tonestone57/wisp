@@ -97,17 +97,6 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/urldb.c
 	content/no_backing_store.c
 	content/fs_backing_store.c
-	content/fetchers/data.c
-	content/fetchers/resource.c
-	content/fetchers/curl.c
-	content/fetchers/about/about.c
-	content/fetchers/about/choices.c
-	content/fetchers/about/testament.c
-	content/fetchers/about/websearch.c
-	content/fetchers/about/blank.c
-	content/fetchers/about/certificate.c
-	content/fetchers/about/chart.c
-	content/fetchers/about/config.c
 	content/fetchers/about/imagecache.c
 	content/fetchers/about/nscolours.c
 	content/fetchers/about/query.c
@@ -117,11 +106,21 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/fetchers/about/query_timeout.c
 	content/fetchers/file/dirlist.c
 	content/fetchers/file/file.c
+	content/fetchers/data.c
+	content/fetchers/resource.c
+	content/fetchers/curl.c
+	content/fetchers/about/about.c
+	content/fetchers/about/choices.c
 	content/handlers/css/css.c
 	content/handlers/css/dump.c
 	content/handlers/css/internal.c
 	content/handlers/css/hints.c
 	content/handlers/css/select.c
+	content/fetchers/about/testament.c
+	content/fetchers/about/websearch.c
+	content/fetchers/about/blank.c
+	content/fetchers/about/certificate.c
+	content/fetchers/about/chart.c
 	content/handlers/html/box_construct.c
 	content/handlers/html/box_inspect.c
 	content/handlers/html/box_manipulate.c
@@ -134,6 +133,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/html/font.c
 	content/handlers/html/font_face.c
 	content/handlers/html/form.c
+	content/fetchers/about/config.c
 	content/handlers/html/forms.c
 	content/handlers/html/html.c
 	content/handlers/html/html_svg.c
@@ -167,19 +167,19 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/qjs.c
 	content/handlers/javascript/quickjs/wisp_subsystem.c
 	content/handlers/javascript/quickjs/timers.c
-	content/handlers/javascript/quickjs/navigator.c
-	content/handlers/javascript/quickjs/location.c
-	content/handlers/javascript/quickjs/node.c
-	content/handlers/javascript/quickjs/element.c
-	content/handlers/javascript/quickjs/document.c
-	content/handlers/javascript/quickjs/text.c
-	content/handlers/javascript/quickjs/storage.c
-	content/handlers/javascript/quickjs/event_target.c
 	content/handlers/javascript/quickjs/dom_bridge.c
-	content/handlers/javascript/quickjs/xhr.c
-	content/handlers/javascript/quickjs/window.c
-	content/handlers/javascript/quickjs/console.c
-	content/handlers/javascript/quickjs/unimplemented.c
+	# Manual implementations for generated bindings
+	content/handlers/javascript/quickjs/impl/node_impl.c
+	content/handlers/javascript/quickjs/impl/element_impl.c
+	content/handlers/javascript/quickjs/impl/document_impl.c
+	content/handlers/javascript/quickjs/impl/text_impl.c
+	content/handlers/javascript/quickjs/impl/attr_impl.c
+	content/handlers/javascript/quickjs/impl/console_impl.c
+	content/handlers/javascript/quickjs/impl/window_impl.c
+	content/handlers/javascript/quickjs/impl/eventtarget_impl.c
+	content/handlers/javascript/quickjs/impl/storage_impl.c
+	content/handlers/javascript/quickjs/impl/navigator_impl.c
+	content/handlers/javascript/quickjs/impl/xhr_impl.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
 	desktop/knockout.c
@@ -244,7 +244,15 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/nsurl/nsurl.c
 	utils/nsurl/parse.c
 	# QuickJS-ng generated bindings
+	${QUICKJS_REG_FILE}
 )
+add_dependencies(wisp quickjs_bindings)
+
+# Automatically add all generated binding implementation files
+# Pre-generation in quickjs_bindings.cmake ensures these exist for GLOB
+file(GLOB QUICKJS_GEN_BINDINGS "${QUICKJS_GEN_DIR}/*.gen.c")
+target_sources(wisp PRIVATE ${QUICKJS_GEN_BINDINGS})
+
 # QuickJS-ng dependencies
 set_target_properties(wisp PROPERTIES SOVERSION ${WISP_ABI})
 
@@ -280,7 +288,11 @@ list(APPEND WISP_COMMON_LIBS qjs)
 
 target_link_libraries(wisp ${WISP_COMMON_LIBS} Threads::Threads)
 
-target_include_directories(wisp PRIVATE ${CMAKE_SOURCE_DIR}/contrib ${CMAKE_BINARY_DIR})
+target_include_directories(wisp PRIVATE
+    ${CMAKE_SOURCE_DIR}/contrib
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
+)
 
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)

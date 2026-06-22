@@ -7,9 +7,6 @@
 #include <stdint.h>
 #include "utils/hashmap.h"
 
-JSClassID qjs_attr_class_id;
-JSClassID qjs_namednodemap_class_id;
-JSClassID qjs_htmlcollection_class_id;
 
 typedef struct {
     JSContext *ctx;

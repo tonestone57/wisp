@@ -13,6 +13,16 @@ struct jsheap {
     uint64_t deadline_ms;
 };
 
+struct qjs_timer {
+    JSContext *ctx;
+    JSValue func;
+    bool repeat;
+    int interval;
+    int id;
+    bool cancelled;
+    struct qjs_timer *next;
+};
+
 struct qjs_event_listener_ctx {
     struct qjs_event_listener_ctx *next;
     struct jsthread *thread;
@@ -28,20 +38,6 @@ struct qjs_event_map {
     JSValue js_evt;
 };
 
-struct jsheap {
-    JSRuntime *rt;
-    int timeout;
-    uint64_t deadline_ms;
-struct qjs_timer {
-    JSContext *ctx;
-    JSValue func;
-    bool repeat;
-    int interval;
-    int id;
-    bool cancelled;
-    struct qjs_timer *next;
-};
-
 struct jsthread {
     JSContext *ctx;
     struct jsheap *heap;
@@ -50,13 +46,31 @@ struct jsthread {
     bool closed;
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
-};
-
-void qjs_finalise_dom_bridge(JSContext *ctx);
     struct qjs_timer *timers;
 };
 
+/* Private data for JS DOM objects */
+typedef struct QJSNodePrivate {
+    uint32_t magic;         /* Magic number for type safety */
+    void *node;             /* Underlying LibDOM node/object */
+    JSContext *ctx;         /* Associated context */
+    bool is_dom_node;       /* True if node is dom_node* (needs unref) */
+} QJSNodePrivate;
+
+#define QJS_DOM_MAGIC 0x444F4D31
+
+static inline QJSNodePrivate *qjs_get_dom_priv(JSValueConst val) {
+    JSClassID class_id;
+    QJSNodePrivate *priv = JS_GetAnyOpaque(val, &class_id);
+    if (priv && priv->magic == QJS_DOM_MAGIC) return priv;
+    return NULL;
+}
+
+void qjs_finalise_dom_bridge(JSContext *ctx);
 void *qjs_get_window_priv(JSContext *ctx);
 void *qjs_get_document_priv(JSContext *ctx);
+
+/* From generated code */
+void wisp_js_register_all_bindings(JSContext *ctx);
 
 #endif /* WISP_QUICKJS_INTERNAL_H */
