@@ -1968,6 +1968,13 @@ css_error parseCustomProperty(
     error = css_error_from_lwc_error(lwc_intern_string((const char *)buf->data, buf->length, &value_str));
     parserutils_buffer_destroy(buf);
     if (error != CSS_OK) return error;
+
+    lwc_string_ref(property->idata);
+    error = css__stylesheet_string_add(c->sheet, property->idata, &name_idx);
+    if (error != CSS_OK) {
+        return error;
+    }
+
     uint32_t value_idx;
     error = css__stylesheet_string_add(c->sheet, value_str, &value_idx);
     if (error != CSS_OK) {

@@ -497,7 +497,13 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 /* String */
                 lwc_string *p;
 
+                p = NULL;
                 css__stylesheet_string_get(s->style->sheet, (s->style->bytecode[i / sizeof(css_code_t)]), &p);
+
+                if (p == NULL) {
+                    printf("FAIL String pointer is NULL\n");
+                    return true;
+                }
 
                 if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                     memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
