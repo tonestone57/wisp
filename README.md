@@ -30,9 +30,10 @@ Current development is focused on completing the CSS Variables implementation, a
 * **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
 ## Known Issues
-* CSS Variables support is partially implemented (variable resolution pass is in progress).
-* Advanced JS APIs like `MutationObserver` and `IntersectionObserver` are pending manual implementation.
-* Haiku and Framebuffer frontends require re-testing after recent core layout updates.
+* **CSS Variables**: Support is partially implemented; variable resolution pass during cascade is currently in progress.
+* **JS Observers**: Advanced APIs like `MutationObserver` and `IntersectionObserver` are pending manual implementation (high priority).
+* **Canvas API**: Bridging of the 2D Canvas API to the plotter engine is not yet implemented.
+* **Frontend Compatibility**: Haiku and Framebuffer frontends require re-testing after recent core incremental layout updates.
 
 ## Building and installation
 Wisp can be built:
