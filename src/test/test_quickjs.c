@@ -360,6 +360,8 @@ START_TEST(test_quickjs_console_init)
 
     JS_FreeValue(ctx, console);
     JS_FreeValue(ctx, global);
+
+    JS_RunGC(rt);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -375,7 +377,9 @@ START_TEST(test_quickjs_console_log)
     JSValue result;
 
     rt = JS_NewRuntime();
+    ck_assert_ptr_nonnull(rt);
     ctx = JS_NewContext(rt);
+    ck_assert_ptr_nonnull(ctx);
     qjs_init_console(ctx);
 
     /* Execute console.log - should not throw */
@@ -385,6 +389,7 @@ START_TEST(test_quickjs_console_log)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    JS_RunGC(rt);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -400,7 +405,9 @@ START_TEST(test_quickjs_console_error)
     JSValue result;
 
     rt = JS_NewRuntime();
+    ck_assert_ptr_nonnull(rt);
     ctx = JS_NewContext(rt);
+    ck_assert_ptr_nonnull(ctx);
     qjs_init_console(ctx);
 
     /* Execute console.error - should not throw */
@@ -410,6 +417,7 @@ START_TEST(test_quickjs_console_error)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    JS_RunGC(rt);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -425,7 +433,9 @@ START_TEST(test_quickjs_console_warn)
     JSValue result;
 
     rt = JS_NewRuntime();
+    ck_assert_ptr_nonnull(rt);
     ctx = JS_NewContext(rt);
+    ck_assert_ptr_nonnull(ctx);
     qjs_init_console(ctx);
 
     /* Execute console.warn - should not throw */
@@ -435,6 +445,7 @@ START_TEST(test_quickjs_console_warn)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    JS_RunGC(rt);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -450,7 +461,9 @@ START_TEST(test_quickjs_console_multiple_args)
     JSValue result;
 
     rt = JS_NewRuntime();
+    ck_assert_ptr_nonnull(rt);
     ctx = JS_NewContext(rt);
+    ck_assert_ptr_nonnull(ctx);
     qjs_init_console(ctx);
 
     /* Execute console.log with multiple arguments */
@@ -460,6 +473,7 @@ START_TEST(test_quickjs_console_multiple_args)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    JS_RunGC(rt);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -475,7 +489,9 @@ START_TEST(test_quickjs_console_group)
     JSValue result;
 
     rt = JS_NewRuntime();
+    ck_assert_ptr_nonnull(rt);
     ctx = JS_NewContext(rt);
+    ck_assert_ptr_nonnull(ctx);
     qjs_init_console(ctx);
 
     /* Execute grouping */
@@ -487,6 +503,7 @@ START_TEST(test_quickjs_console_group)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    JS_RunGC(rt);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }

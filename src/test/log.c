@@ -30,7 +30,7 @@
 #include "utils/log.h"
 
 /** flag to enable verbose logging */
-bool verbose_log = false;
+bool verbose_log __attribute__((weak)) = false;
 
 nserror nslog_init(nslog_ensure_t *ensure, int *pargc, char **argv)
 {
