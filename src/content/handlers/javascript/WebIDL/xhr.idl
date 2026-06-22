@@ -1,0 +1,24 @@
+interface XMLHttpRequest : EventTarget {
+  void open(DOMString method, DOMString url);
+  void send();
+  void abort();
+
+  const unsigned short UNSENT = 0;
+  const unsigned short OPENED = 1;
+  const unsigned short HEADERS_RECEIVED = 2;
+  const unsigned short LOADING = 3;
+  const unsigned short DONE = 4;
+  readonly attribute unsigned short readyState;
+
+  attribute DOMString responseType;
+  readonly attribute any response;
+  readonly attribute DOMString responseText;
+  readonly attribute Document? responseXML;
+
+  readonly attribute unsigned short status;
+  readonly attribute DOMString statusText;
+
+  void setRequestHeader(DOMString header, DOMString value);
+  DOMString? getResponseHeader(DOMString header);
+  DOMString getAllResponseHeaders();
+};
