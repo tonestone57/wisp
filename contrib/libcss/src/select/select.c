@@ -1791,7 +1791,8 @@ static css_error _select_font_face_from_rule(const css_rule_font_face *rule, css
     if (mq_rule_good_for_media((const css_rule *)rule, state->unit_ctx, state->media, str)) {
         bool correct_family = false;
 
-        if (lwc_string_isequal(rule->font_face->font_family, state->font_family, &correct_family) == lwc_error_ok &&
+        if (rule->font_face != NULL && rule->font_face->font_family != NULL &&
+            lwc_string_isequal(rule->font_face->font_family, state->font_family, &correct_family) == lwc_error_ok &&
             correct_family) {
             css_select_font_faces_list *faces = NULL;
             const css_font_face **new_faces;
