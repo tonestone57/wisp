@@ -38,12 +38,16 @@ static void bridge_value_destroy(void *val) {
     free(val);
 }
 
+static void *bridge_value_alloc(void *key) {
+    return malloc(sizeof(JSValue));
+}
+
 static hashmap_parameters_t bridge_map_params = {
     .key_clone = bridge_key_clone,
     .key_hash = bridge_key_hash,
     .key_eq = bridge_key_eq,
     .key_destroy = bridge_key_destroy,
-    .value_alloc = NULL, /* We manage value allocation manually in insert */
+    .value_alloc = bridge_value_alloc,
     .value_destroy = bridge_value_destroy
 };
 
