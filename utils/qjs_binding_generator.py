@@ -131,9 +131,14 @@ class QuickJSBindingGenerator:
                             'type': str(m.idl_type).strip(),
                             'custom': custom
                         }
-                elif isinstance(m, widlparser.productions.Operation):
+                elif isinstance(m, (widlparser.productions.Operation, widlparser.productions.SpecialOperation)):
+                    if isinstance(m, widlparser.productions.SpecialOperation):
+                        op = m.operation
+                    else:
+                        op = m
+
                     args = []
-                    for arg in m.arguments:
+                    for arg in op.arguments:
                         args.append({'name': arg.name, 'type': get_actual_type(arg), 'optional': arg.optional})
 
                     # Group by name, prefer the one with most arguments for the Marshaller
@@ -145,13 +150,23 @@ class QuickJSBindingGenerator:
                             'custom': custom,
                             'return_type': str(m.return_type).strip()
                         }
+                elif isinstance(m, widlparser.productions.Stringifier):
+                    name = member.name if (member.name and member.name != "__stringifier__") else "toString"
+                    if name not in members_by_name:
+                         members_by_name[name] = {
+                            'kind': 'operation',
+                            'name': name,
+                            'args': [],
+                            'custom': False,
+                            'return_type': 'DOMString'
+                        }
                 elif isinstance(m, widlparser.constructs.Const):
                      if member.name not in members_by_name:
                         members_by_name[member.name] = {
                             'kind': 'const',
                             'name': member.name,
                             'value': str(m.value).strip(),
-                            'type': str(m.idl_type).strip()
+                            'type': str(m.type).strip()
                         }
 
         attributes = sorted([m for m in members_by_name.values() if m['kind'] == 'attribute'], key=lambda x: x['name'])

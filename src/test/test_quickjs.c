@@ -1060,6 +1060,7 @@ Suite *quickjs_suite(void)
 
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
+    suite_add_tcase(s, tc_window);
     return s;
 }
 

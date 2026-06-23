@@ -31,13 +31,19 @@ JSValue wisp_xmlhttprequest_setRequestHeader_impl(JSContext *ctx, QJSNodePrivate
 JSValue wisp_xmlhttprequest_getResponseHeader_impl(JSContext *ctx, QJSNodePrivate *priv, const char * header) { return JS_NULL; }
 JSValue wisp_xmlhttprequest_getAllResponseHeaders_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 
+static JSValue js_xmlhttprequest_constructor(JSContext *ctx, JSValueConst new_target,
+                                           int argc, JSValueConst *argv)
+{
+    return qjs_new_xmlhttprequest(ctx, NULL, false);
+}
+
 int qjs_init_xhr(JSContext *ctx)
 {
     qjs_init_xmlhttprequest_gen(ctx);
     JSValue global_obj = JS_GetGlobalObject(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_xmlhttprequest_class_id);
-    JSValue ctor = JS_NewCFunction2(ctx, (JSCFunction *)qjs_new_xmlhttprequest, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);
+    JSValue ctor = JS_NewCFunction2(ctx, js_xmlhttprequest_constructor, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "XMLHttpRequest", ctor);
 
