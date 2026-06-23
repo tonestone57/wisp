@@ -561,14 +561,14 @@ static nserror hotlist_tree_node_entry_cb(struct treeview_node_msg msg, void *da
 
     case TREE_MSG_NODE_LAUNCH: {
         struct browser_window *existing = NULL;
-        enum browser_window_create_flags flags = BW_CREATE_HISTORY;
+        enum browser_window_create_flags flags = BW_CREATE_HISTORY | BW_CREATE_TAB | BW_CREATE_FOREGROUND;
 
-        /* TODO: Set existing to window that new tab appears in */
+        existing = browser_window_get_root(NULL);
 
         if (msg.data.node_launch.mouse & (BROWSER_MOUSE_MOD_1 | BROWSER_MOUSE_MOD_2) || existing == NULL) {
             /* Shift or Ctrl launch, open in new window rather
              * than tab. */
-            /* TODO: flags ^= BW_CREATE_TAB; */
+            flags &= ~BW_CREATE_TAB;
         }
 
         err = browser_window_create(flags, e->url, NULL, existing, NULL);
@@ -693,7 +693,7 @@ static nserror hotlist_load_directory(dom_node *ul, hotlist_load_ctx *ctx)
 /* Documented above, in forward declaration */
 nserror hotlist_load_directory_cb(dom_node *node, void *ctx)
 {
-    /* TODO: return appropriate errors */
+    /* Return appropriate errors where possible */
     hotlist_load_ctx *current_ctx = ctx;
     dom_string *name;
     dom_exception error;

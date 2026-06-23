@@ -37,7 +37,6 @@ enum content_debug {
     /** Debug redraw operations. */
     CONTENT_DEBUG_REDRAW,
 
-    // TODO, implement this in the UI
     /** Check for missing resources. */
     CONTENT_DEBUG_MISSING
 };

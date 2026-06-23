@@ -439,3 +439,15 @@ void box_free(struct box *box)
 	/* last this box */
 	box_free_box(box);
 }
+
+/* exported interface documented in content/handlers/html/box_manipulate.h */
+void box_get_dimensions(const struct box *box, int *width, int *height)
+{
+	if (box->max_width != UNKNOWN_MAX_WIDTH) {
+		*width = box->width;
+		*height = box->height;
+	} else {
+		*width = 0;
+		*height = 0;
+	}
+}

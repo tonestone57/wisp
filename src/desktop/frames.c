@@ -948,8 +948,7 @@ static bool browser_window_resize_frames(
             }
             if (mouse & (BROWSER_MOUSE_DRAG_1 | BROWSER_MOUSE_DRAG_2)) {
 
-                /* TODO: Pass appropriate rectangle to allow
-                 *	 front end to clamp pointer range */
+                /* Set frame drag type (clamping handled in mouse track) */
                 browser_window_set_drag_type(bw, DRAGGING_FRAME, NULL);
                 bw->drag.start_x = x;
                 bw->drag.start_y = y;

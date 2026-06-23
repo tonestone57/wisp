@@ -1431,3 +1431,23 @@ nserror content_abort(struct content *c)
     /* And for now, abort our llcache object */
     return llcache_handle_abort(c->llcache);
 }
+
+/* exported interface documented in include/wisp/content.h */
+bool content_is_selectable(struct hlcache_handle *h)
+{
+    content_type type;
+    if (h == NULL)
+        return false;
+    type = content_get_type(h);
+    return (type == CONTENT_HTML || type == CONTENT_TEXTPLAIN);
+}
+
+/* exported interface documented in include/wisp/content.h */
+bool content_is_searchable(struct hlcache_handle *h)
+{
+    content_type type;
+    if (h == NULL)
+        return false;
+    type = content_get_type(h);
+    return (type == CONTENT_HTML || type == CONTENT_TEXTPLAIN);
+}

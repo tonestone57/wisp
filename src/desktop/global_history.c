@@ -651,14 +651,14 @@ static nserror global_history_tree_node_entry_cb(struct treeview_node_msg msg, v
 
     case TREE_MSG_NODE_LAUNCH: {
         struct browser_window *existing = NULL;
-        enum browser_window_create_flags flags = BW_CREATE_HISTORY;
+        enum browser_window_create_flags flags = BW_CREATE_HISTORY | BW_CREATE_TAB | BW_CREATE_FOREGROUND;
 
-        /* TODO: Set existing to window that new tab appears in */
+        existing = browser_window_get_root(NULL);
 
         if (msg.data.node_launch.mouse & (BROWSER_MOUSE_MOD_1 | BROWSER_MOUSE_MOD_2) || existing == NULL) {
             /* Shift or Ctrl launch, open in new window rather
              * than tab. */
-            /* TODO: flags ^= BW_CREATE_TAB; */
+            flags &= ~BW_CREATE_TAB;
         }
 
         ret = browser_window_create(flags, e->url, NULL, existing, NULL);

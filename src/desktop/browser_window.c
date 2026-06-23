@@ -2695,13 +2695,7 @@ bool browser_window_can_select(struct browser_window *bw)
     if (bw == NULL || bw->current_content == NULL)
         return false;
 
-    /* TODO: We shouldn't have to know about specific content types
-     *       here.  There should be a content_is_selectable() call. */
-    if (content_get_type(bw->current_content) != CONTENT_HTML &&
-        content_get_type(bw->current_content) != CONTENT_TEXTPLAIN)
-        return false;
-
-    return true;
+    return content_is_selectable(bw->current_content);
 }
 
 
@@ -2724,15 +2718,7 @@ bool browser_window_can_search(struct browser_window *bw)
     if (bw == NULL || bw->current_content == NULL)
         return false;
 
-    /** \todo We shouldn't have to know about specific content
-     * types here. There should be a content_is_searchable() call.
-     */
-    if ((content_get_type(bw->current_content) != CONTENT_HTML) &&
-        (content_get_type(bw->current_content) != CONTENT_TEXTPLAIN)) {
-        return false;
-    }
-
-    return true;
+    return content_is_searchable(bw->current_content);
 }
 
 

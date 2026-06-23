@@ -3121,11 +3121,11 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			layout_get_object_dimensions(&content->unit_len_ctx, b, &b->width, &b->height, min_width, max_width,
 				min_height, max_height, *width /* containing block / available line width */);
 		} else if (b->flags & IFRAME) {
-			/* TODO: should we look at the content dimensions? */
+			/* IFRAMEs with AUTO dimensions use 300x150 default per HTML5 §4.8.2 */
 			if (b->width == AUTO)
-				b->width = 400;
+				b->width = 300;
 			if (b->height == AUTO)
-				b->height = 300;
+				b->height = 150;
 
 			/* We reformat the iframe browser window to new
 			 * dimensions in pass 2 */

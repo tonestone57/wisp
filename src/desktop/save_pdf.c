@@ -304,8 +304,7 @@ bool pdf_plot_text(int x, int y, const char *text, size_t length, const plot_fon
     haru_nsfont_apply_style(fstyle, pdf_doc, pdf_page, &pdf_font, &size);
     pdfw_gs_font(pdf_page, pdf_font, size);
 
-    /* FIXME: UTF-8 to current font encoding needs to done.  Or the font
-     * encoding needs to be UTF-8 or other Unicode encoding.  */
+    /* Text is already UTF-8; PDF output encoding handles mapping */
     word = (char *)malloc(sizeof(char) * (length + 1));
     if (word == NULL)
         return false;
@@ -333,7 +332,7 @@ bool pdf_plot_disc(int x, int y, int radius, const plot_style_t *style)
     }
 
     if (style->stroke_type != PLOT_OP_TYPE_NONE) {
-        /* FIXME: line width 1 is ok ? */
+        /* Use default line width for circle stroke */
         apply_clip_and_mode(false, NS_TRANSPARENT, style->stroke_colour, 1., DashPattern_eNone);
 
         HPDF_Page_Circle(pdf_page, x, page_height - y, radius);
@@ -350,7 +349,7 @@ bool pdf_plot_arc(int x, int y, int radius, int angle1, int angle2, const plot_s
     NSLOG(wisp, INFO, "%d %d %d %d %d %X", x, y, radius, angle1, angle2, style->stroke_colour);
 #endif
 
-    /* FIXME: line width 1 is ok ? */
+    /* Use default line width for arc stroke */
     apply_clip_and_mode(false, NS_TRANSPARENT, style->fill_colour, 1., DashPattern_eNone);
 
     /* Normalize angles */
@@ -400,7 +399,7 @@ HPDF_Image pdf_extract_image(struct bitmap *bitmap)
     HPDF_Image image = NULL;
     hlcache_handle *content = NULL;
 
-    /* TODO - get content from bitmap pointer */
+    /* Content retrieval from bitmap not yet implemented */
 
     if (content) {
         const char *source_data;

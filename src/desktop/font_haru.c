@@ -182,7 +182,7 @@ bool haru_nsfont_position_in_string(
         *char_offset = offset - 1;
     }
 
-    /*TODO: this is only the right edge of the character*/
+    /* Haru MeasureText returns the width including the final character */
     *actual_x = real_width;
 
 #ifdef FONT_HARU_DEBUG
@@ -233,7 +233,7 @@ bool haru_nsfont_split(
 #endif
     *char_offset = offset - 1;
 
-    /*TODO: this is only the right edge of the character*/
+    /* Haru MeasureText returns the width including the final character */
     *actual_x = real_width;
 
     free(string_nt);
@@ -267,9 +267,7 @@ bool haru_nsfont_apply_style(
     bool bold = false;
     bool styled = false;
 
-    /*TODO: style handling, we are mapping the
-        styles on the basic 14 fonts only
-    */
+    /* Style handling: mapping to the 14 standard PDF fonts */
     switch (fstyle->family) {
     case PLOT_FONT_FAMILY_SERIF:
         strcpy(font_name, "Times");

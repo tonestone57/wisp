@@ -71,7 +71,7 @@
   |
   |       For more information, consult the libparserutils README file.
 
-  TODO: add some more here.
+  More Haiku build instructions will be added as the port matures.
 
   Additional requirements for BeOS
 ==================================
