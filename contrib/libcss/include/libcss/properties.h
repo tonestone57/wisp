@@ -248,6 +248,13 @@ enum css_counter_reset_e {
     CSS_COUNTER_RESET_NAMED = 0x1,
     CSS_COUNTER_RESET_NONE = 0x1
 };
+enum css_counter_set_e {
+    CSS_COUNTER_SET_INHERIT = 0x0,
+    /* Consult pointer in struct to determine which */
+    CSS_COUNTER_SET_NAMED = 0x1,
+    CSS_COUNTER_SET_NONE = 0x2
+};
+
 
 enum css_cursor_e {
     CSS_CURSOR_INHERIT = 0x00,

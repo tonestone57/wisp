@@ -382,6 +382,7 @@ static struct box *create_content_box(
 
 		/* Find counter in ancestor boxes */
 		struct box *cbox = box_for_node(node);
+		if (cbox == NULL && box != NULL) cbox = box;
 		while (cbox != NULL) {
 			bool found = false;
 			for (size_t i = 0; i < cbox->n_counters; i++) {
@@ -422,6 +423,7 @@ static struct box *create_content_box(
 		size_t n_values = 0;
 
 		struct box *cbox = box_for_node(node);
+		if (cbox == NULL && box != NULL) cbox = box;
 		while (cbox != NULL && n_values < 32) {
 			for (size_t i = 0; i < cbox->n_counters; i++) {
 				bool match = false;
@@ -1072,83 +1074,91 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 		goto error;
 	}
 
-	/* Handle the :before pseudo element */
-	if (!(box->flags & IS_REPLACED)) {
-		box_construct_generate(ctx->n, ctx, box, box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE]);
-	}
-
 	if (box->type != BOX_NONE && ns_computed_display(box->style, props.node_is_root) != CSS_DISPLAY_NONE) {
-		const css_computed_counter *counters;
+		const css_computed_counter *reset = NULL, *inc = NULL, *set = NULL;
 		uint32_t total_counters = 0;
-
-		/* Count total counters for allocation */
-		if (css_computed_counter_reset(box->style, &counters) == CSS_COUNTER_RESET_NAMED) {
-			for (size_t i = 0; counters[i].name != NULL; i++) {
-				total_counters++;
-			}
+		if (css_computed_counter_reset(box->style, &reset) == CSS_COUNTER_RESET_NAMED) {
+			for (size_t i = 0; reset[i].name != NULL; i++) total_counters++;
 		}
-		if (css_computed_counter_increment(box->style, &counters) == CSS_COUNTER_INCREMENT_NAMED) {
-			for (size_t i = 0; counters[i].name != NULL; i++) {
-				total_counters++;
-			}
+		if (css_computed_counter_set(box->style, &set) == CSS_COUNTER_SET_NAMED) {
+			for (size_t i = 0; set[i].name != NULL; i++) total_counters++;
 		}
-
+		if (css_computed_counter_increment(box->style, &inc) == CSS_COUNTER_INCREMENT_NAMED) {
+			for (size_t i = 0; inc[i].name != NULL; i++) total_counters++;
+		}
 		if (total_counters > 0) {
-			box->counters = talloc_zero_array(ctx->bctx, struct css_computed_counter, total_counters * 2);
+			box->counters = talloc_zero_array(ctx->bctx, struct css_computed_counter, total_counters);
 			if (box->counters != NULL) {
 				uint32_t idx = 0;
-
-				if (css_computed_counter_reset(box->style, &counters) == CSS_COUNTER_RESET_NAMED) {
-					while (counters->name != NULL) {
-						box->counters[idx].name = lwc_string_ref(counters->name);
-						box->counters[idx].value = counters->value;
-						idx++;
-						counters++;
+				if (reset != NULL) {
+					for (size_t i = 0; reset[i].name != NULL; i++) {
+						box->counters[idx].name = lwc_string_ref(reset[i].name);
+						box->counters[idx].value = reset[i].value; idx++;
 					}
 				}
-
-				if (css_computed_counter_increment(box->style, &counters) == CSS_COUNTER_INCREMENT_NAMED) {
-					while (counters->name != NULL) {
+				if (set != NULL) {
+					for (size_t i = 0; set[i].name != NULL; i++) {
 						bool found = false;
-						/* Check existing from reset */
-						for (uint32_t i = 0; i < idx; i++) {
+						for (uint32_t j = 0; j < idx; j++) {
 							bool match = false;
-							if (lwc_string_isequal(box->counters[i].name, counters->name, &match) == lwc_error_ok && match) {
-								box->counters[i].value += counters->value;
-								found = true;
-								break;
+							if (lwc_string_isequal(box->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
+								box->counters[j].value = set[i].value; found = true; break;
 							}
 						}
-
-						/* Check ancestor */
 						if (!found) {
 							struct box *cbox = props.containing_block;
-							int32_t val = counters->value;
 							while (cbox != NULL && !found) {
-								for (size_t i = 0; i < cbox->n_counters; i++) {
+								for (size_t j = 0; j < cbox->n_counters; j++) {
 									bool match = false;
-									if (lwc_string_isequal(cbox->counters[i].name, counters->name, &match) == lwc_error_ok && match) {
-										cbox->counters[i].value += counters->value;
-										found = true;
-										break;
+									if (lwc_string_isequal(cbox->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
+										cbox->counters[j].value = set[i].value; found = true; break;
 									}
 								}
 								cbox = cbox->parent;
 							}
-
-							if (!found) {
-								box->counters[idx].name = lwc_string_ref(counters->name);
-								box->counters[idx].value = counters->value;
-								idx++;
+						}
+						if (!found) {
+							box->counters[idx].name = lwc_string_ref(set[i].name);
+							box->counters[idx].value = set[i].value; idx++;
+						}
+					}
+				}
+				if (inc != NULL) {
+					for (size_t i = 0; inc[i].name != NULL; i++) {
+						bool found = false;
+						for (uint32_t j = 0; j < idx; j++) {
+							bool match = false;
+							if (lwc_string_isequal(box->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
+								box->counters[j].value += inc[i].value; found = true; break;
 							}
 						}
-						counters++;
+						if (!found) {
+							struct box *cbox = props.containing_block;
+							while (cbox != NULL && !found) {
+								for (size_t j = 0; j < cbox->n_counters; j++) {
+									bool match = false;
+									if (lwc_string_isequal(cbox->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
+										cbox->counters[j].value += inc[i].value; found = true; break;
+									}
+								}
+								cbox = cbox->parent;
+							}
+						}
+						if (!found) {
+							box->counters[idx].name = lwc_string_ref(inc[i].name);
+							box->counters[idx].value = inc[i].value; idx++;
+						}
 					}
 				}
 				box->n_counters = idx;
 			}
 		}
 	}
+	/* Handle the :before pseudo element */
+	if (!(box->flags & IS_REPLACED)) {
+		box_construct_generate(ctx->n, ctx, box, box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE]);
+	}
+
 
 	if (box->type == BOX_NONE ||
 		(ns_computed_display(box->style, props.node_is_root) == CSS_DISPLAY_NONE && props.node_is_root == false)) {

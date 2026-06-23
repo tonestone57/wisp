@@ -176,6 +176,8 @@ uint8_t css_computed_word_spacing(const css_computed_style *style, css_fixed *le
 uint8_t css_computed_counter_increment(const css_computed_style *style, const css_computed_counter **counters);
 
 uint8_t css_computed_counter_reset(const css_computed_style *style, const css_computed_counter **counters);
+uint8_t css_computed_counter_set(const css_computed_style *style, const css_computed_counter **counters);
+
 
 uint8_t css_computed_cursor(const css_computed_style *style, lwc_string ***urls);
 
