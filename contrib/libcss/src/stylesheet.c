@@ -166,7 +166,7 @@ css_error css_stylesheet_create(const css_stylesheet_params *params, css_stylesh
         error = css__parser_setopt(sheet->parser, CSS_PARSER_QUIRKS, &optparams);
         if (error != CSS_OK) {
             css__parser_destroy(sheet->parser);
-            css__propstrings_unref();
+        css__propstrings_unref();
             free(sheet);
             return error;
         }
@@ -207,7 +207,7 @@ css_error css_stylesheet_create(const css_stylesheet_params *params, css_stylesh
             css__selector_hash_destroy(sheet->selectors);
             css__language_destroy(sheet->parser_frontend);
             css__parser_destroy(sheet->parser);
-            css__propstrings_unref();
+        css__propstrings_unref();
             free(sheet);
             return CSS_NOMEM;
         }
@@ -295,8 +295,8 @@ css_error css_stylesheet_destroy(css_stylesheet *sheet)
     if (sheet->string_vector != NULL)
         free(sheet->string_vector);
 
-    css__propstrings_unref();
 
+    css__propstrings_unref();
     free(sheet);
 
     return CSS_OK;

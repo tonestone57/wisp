@@ -131,11 +131,8 @@ void js_destroyheap(jsheap *heap)
     NSLOG(wisp, DEBUG, "Destroying QuickJS heap %p", heap);
 
     if (heap->rt != NULL) {
-        hashmap_t *map = JS_GetRuntimeOpaque(heap->rt);
+        qjs_bridge_cleanup(heap->rt);
         JS_FreeRuntime(heap->rt);
-        if (map) {
-            hashmap_destroy(map);
-        }
     }
 
     free(heap);
@@ -174,7 +171,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     if (doc_priv) {
         JSValue doc_val = qjs_wrap_node(t->ctx, (dom_node *)doc_priv);
         JSValue global_obj = JS_GetGlobalObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, global_obj, "document", doc_val);
+        JS_SetPropertyStr(t->ctx, global_obj, "document", JS_DupValue(t->ctx, doc_val));
+        JS_FreeValue(t->ctx, doc_val);
         JS_FreeValue(t->ctx, global_obj);
     }
 

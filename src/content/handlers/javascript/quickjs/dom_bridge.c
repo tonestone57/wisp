@@ -118,4 +118,22 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
+static bool qjs_bridge_cleanup_iter(void *key, void *value, void *context)
+{
+    JSContext *ctx = ((bridge_key_t *)key)->ctx;
+    JSValue *val = (JSValue *)value;
+    JS_FreeValue(ctx, *val);
+    return true;
+}
+
+void qjs_bridge_cleanup(JSRuntime *rt)
+{
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (map) {
+        hashmap_iterate(map, qjs_bridge_cleanup_iter, NULL);
+        hashmap_destroy(map);
+        JS_SetRuntimeOpaque(rt, NULL);
+    }
+}
+
 void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }

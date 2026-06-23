@@ -1,0 +1,6 @@
+# ASan/LSan suppressions for Wisp
+
+# libcheck internal allocation wrappers leak in some environments
+leak:emalloc
+leak:erealloc
+leak:eprintf

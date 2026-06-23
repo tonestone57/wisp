@@ -112,7 +112,13 @@ static css_error parseDeferredProperty(
     parserutils_buffer_append(buf, (const uint8_t *)&n, sizeof(n));
     scan = value_start;
     while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) {
-        parserutils_buffer_append(buf, (const uint8_t *)token, sizeof(*token));
+        css_token stoken = *token;
+        if (stoken.idata != NULL) {
+            uint32_t idx;
+            css__stylesheet_string_add(c->sheet, lwc_string_ref(stoken.idata), &idx);
+            stoken.idata = (void *)(uintptr_t)idx;
+        }
+        parserutils_buffer_append(buf, (const uint8_t *)&stoken, sizeof(stoken));
         if (token->data.data != NULL)
             parserutils_buffer_append(buf, token->data.data, token->data.len);
     }
@@ -1960,7 +1966,13 @@ css_error parseCustomProperty(
     parserutils_buffer_append(buf, (const uint8_t *)&n, sizeof(n));
     scan = value_start;
     while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) {
-        parserutils_buffer_append(buf, (const uint8_t *)token, sizeof(*token));
+        css_token stoken = *token;
+        if (stoken.idata != NULL) {
+            uint32_t idx;
+            css__stylesheet_string_add(c->sheet, lwc_string_ref(stoken.idata), &idx);
+            stoken.idata = (void *)(uintptr_t)idx;
+        }
+        parserutils_buffer_append(buf, (const uint8_t *)&stoken, sizeof(stoken));
         if (token->data.data != NULL)
             parserutils_buffer_append(buf, token->data.data, token->data.len);
     }
