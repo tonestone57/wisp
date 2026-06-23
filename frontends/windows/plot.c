@@ -1617,14 +1617,15 @@ static void win_plot_play_stateful_path(HDC hdc)
                 count++;
             }
             if (count > 1) {
-                POINT *pts = malloc(sizeof(POINT) * count);
+                POINT stack_pts[32];
+                POINT *pts = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count);
                 if (pts) {
                     for (unsigned int j = 0; j < count; j++) {
                         pts[j].x = (LONG)stateful_path[i + j].x1;
                         pts[j].y = (LONG)stateful_path[i + j].y1;
                     }
                     PolyLineTo(hdc, pts, count);
-                    free(pts);
+                    if (pts != stack_pts) free(pts);
                     i += count - 1;
                 } else {
                     LineTo(hdc, (int)cmd->x1, (int)cmd->y1);
@@ -1641,7 +1642,8 @@ static void win_plot_play_stateful_path(HDC hdc)
                 count++;
             }
             if (count > 1) {
-                POINT *pts = malloc(sizeof(POINT) * count * 3);
+                POINT stack_pts[32 * 3];
+                POINT *pts = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count * 3);
                 if (pts) {
                     for (unsigned int j = 0; j < count; j++) {
                         pts[j * 3].x = (LONG)stateful_path[i + j].x1;
@@ -1652,7 +1654,7 @@ static void win_plot_play_stateful_path(HDC hdc)
                         pts[j * 3 + 2].y = (LONG)stateful_path[i + j].y3;
                     }
                     PolyBezierTo(hdc, pts, count * 3);
-                    free(pts);
+                    if (pts != stack_pts) free(pts);
                     i += count - 1;
                 } else {
                     POINT pts[3] = {{(LONG)cmd->x1, (LONG)cmd->y1}, {(LONG)cmd->x2, (LONG)cmd->y2}, {(LONG)cmd->x3, (LONG)cmd->y3}};
