@@ -1,4 +1,3 @@
-/* Implementation for Console */
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -55,18 +54,26 @@ JSValue wisp_console_dir_impl(JSContext *ctx, QJSNodePrivate *priv, void * objec
 
 int qjs_init_console(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "console");
+    if (JS_IsObject(check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     /* Initialize the class and prototype using the generated function */
     qjs_init_console_gen(ctx);
 
     /* Add the "console" property to the global object. */
-    JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue console = qjs_new_console(ctx, NULL, false);
     if (JS_IsException(console)) {
         NSLOG(wisp, ERROR, "Failed to create console object");
         JS_FreeValue(ctx, global_obj);
         return -1;
     }
-    JS_SetPropertyStr(ctx, global_obj, "console", console);
+    JS_DefinePropertyValueStr(ctx, global_obj, "console", console, JS_PROP_C_W_E);
     JS_FreeValue(ctx, global_obj);
     return 0;
 }

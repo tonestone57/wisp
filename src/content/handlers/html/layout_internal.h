@@ -544,8 +544,32 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
 
         if (type == CSS_MAX_HEIGHT_SET) {
             if (unit == CSS_UNIT_PCT) {
-                /* TODO: handle percentage */
-                *max_height = -1;
+                enum css_height_e cbhtype = CSS_HEIGHT_AUTO;
+
+                if (containing_block == NULL && box->parent) {
+                    if (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE) {
+                        containing_block = box->float_container;
+                    } else if (box->parent->type != BOX_INLINE_CONTAINER) {
+                        containing_block = box->parent;
+                    } else if (box->parent->parent) {
+                        containing_block = box->parent->parent;
+                    }
+                }
+
+                if (containing_block) {
+                    css_fixed f = 0;
+                    css_unit u = CSS_UNIT_PX;
+                    cbhtype = css_computed_height(containing_block->style, &f, &u);
+                }
+
+                if (containing_block && containing_block->height != AUTO &&
+                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET)) {
+                    *max_height = FPCT_OF_INT_TOINT(value, containing_block->height);
+                } else if ((!box->parent || !box->parent->parent) && viewport_height >= 0) {
+                    *max_height = FPCT_OF_INT_TOINT(value, viewport_height);
+                } else {
+                    *max_height = -1;
+                }
             } else {
                 *max_height = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }
@@ -565,8 +589,32 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         if (type == CSS_MIN_HEIGHT_SET) {
             min_height->type = CSS_SIZE_SET;
             if (unit == CSS_UNIT_PCT) {
-                /* TODO: handle percentage */
-                min_height->value = 0;
+                enum css_height_e cbhtype = CSS_HEIGHT_AUTO;
+
+                if (containing_block == NULL && box->parent) {
+                    if (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE) {
+                        containing_block = box->float_container;
+                    } else if (box->parent->type != BOX_INLINE_CONTAINER) {
+                        containing_block = box->parent;
+                    } else if (box->parent->parent) {
+                        containing_block = box->parent->parent;
+                    }
+                }
+
+                if (containing_block) {
+                    css_fixed f = 0;
+                    css_unit u = CSS_UNIT_PX;
+                    cbhtype = css_computed_height(containing_block->style, &f, &u);
+                }
+
+                if (containing_block && containing_block->height != AUTO &&
+                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET)) {
+                    min_height->value = FPCT_OF_INT_TOINT(value, containing_block->height);
+                } else if ((!box->parent || !box->parent->parent) && viewport_height >= 0) {
+                    min_height->value = FPCT_OF_INT_TOINT(value, viewport_height);
+                } else {
+                    min_height->value = 0;
+                }
             } else {
                 min_height->value = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }
