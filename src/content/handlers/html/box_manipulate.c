@@ -383,12 +383,7 @@ void box_mark_dirty(struct box *box)
 		r.x1 = x + box->descendant_x1;
 		r.y1 = y + box->descendant_y1;
 
-		if (html->has_dirty_rect) {
-			ns_rect_union(&html->dirty_rect, &r);
-		} else {
-			html->dirty_rect = r;
-			html->has_dirty_rect = true;
-		}
+		html_add_dirty_rect(html, &r);
 
 		/* Add to dirty list for post-layout bounding box capture */
 		if (!(box->flags & BOX_IN_DIRTY_LIST)) {

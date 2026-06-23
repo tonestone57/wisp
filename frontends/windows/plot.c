@@ -1610,12 +1610,60 @@ static void win_plot_play_stateful_path(HDC hdc)
         case PLOTTER_PATH_MOVE:
             MoveToEx(hdc, (int)cmd->x1, (int)cmd->y1, NULL);
             break;
-        case PLOTTER_PATH_LINE:
-            LineTo(hdc, (int)cmd->x1, (int)cmd->y1);
+        case PLOTTER_PATH_LINE: {
+            /* Batch consecutive LINE commands into PolyLineTo */
+            unsigned int count = 1;
+            while (i + count < stateful_path_count && stateful_path[i + count].type == PLOTTER_PATH_LINE) {
+                count++;
+            }
+            if (count > 1) {
+                POINT stack_pts[32];
+                POINT *pts = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count);
+                if (pts) {
+                    for (unsigned int j = 0; j < count; j++) {
+                        pts[j].x = (LONG)stateful_path[i + j].x1;
+                        pts[j].y = (LONG)stateful_path[i + j].y1;
+                    }
+                    PolyLineTo(hdc, pts, count);
+                    if (pts != stack_pts) free(pts);
+                    i += count - 1;
+                } else {
+                    LineTo(hdc, (int)cmd->x1, (int)cmd->y1);
+                }
+            } else {
+                LineTo(hdc, (int)cmd->x1, (int)cmd->y1);
+            }
             break;
+        }
         case PLOTTER_PATH_BEZIER: {
-            POINT pts[3] = {{(LONG)cmd->x1, (LONG)cmd->y1}, {(LONG)cmd->x2, (LONG)cmd->y2}, {(LONG)cmd->x3, (LONG)cmd->y3}};
-            PolyBezierTo(hdc, pts, 3);
+            /* Batch consecutive BEZIER commands into PolyBezierTo */
+            unsigned int count = 1;
+            while (i + count < stateful_path_count && stateful_path[i + count].type == PLOTTER_PATH_BEZIER) {
+                count++;
+            }
+            if (count > 1) {
+                POINT stack_pts[32 * 3];
+                POINT *pts = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count * 3);
+                if (pts) {
+                    for (unsigned int j = 0; j < count; j++) {
+                        pts[j * 3].x = (LONG)stateful_path[i + j].x1;
+                        pts[j * 3].y = (LONG)stateful_path[i + j].y1;
+                        pts[j * 3 + 1].x = (LONG)stateful_path[i + j].x2;
+                        pts[j * 3 + 1].y = (LONG)stateful_path[i + j].y2;
+                        pts[j * 3 + 2].x = (LONG)stateful_path[i + j].x3;
+                        pts[j * 3 + 2].y = (LONG)stateful_path[i + j].y3;
+                    }
+                    PolyBezierTo(hdc, pts, count * 3);
+                    if (pts != stack_pts) free(pts);
+                    i += count - 1;
+                } else {
+                    POINT pts[3] = {{(LONG)cmd->x1, (LONG)cmd->y1}, {(LONG)cmd->x2, (LONG)cmd->y2}, {(LONG)cmd->x3, (LONG)cmd->y3}};
+                    PolyBezierTo(hdc, pts, 3);
+                }
+            } else {
+                POINT pts[3] = {{(LONG)cmd->x1, (LONG)cmd->y1}, {(LONG)cmd->x2, (LONG)cmd->y2}, {(LONG)cmd->x3, (LONG)cmd->y3}};
+                PolyBezierTo(hdc, pts, 3);
+            }
             break;
         }
         case PLOTTER_PATH_CLOSE:
