@@ -89,6 +89,17 @@ struct grid_item_cache {
  * \param row_start Row start placement value
  * \return The placement phase for this item
  */
+static bool grid_item_fits(bool *occupied, int occupied_max_rows, int num_cols, int row, int col, int row_span, int col_span)
+{
+	if (col < 0 || col + col_span > num_cols || row < 0) return false;
+	for (int dr = 0; dr < row_span; dr++) {
+		for (int dc = 0; dc < col_span; dc++) {
+			int r = row + dr; int c = col + dc;
+			if (r < occupied_max_rows && occupied[r * num_cols + c]) return false;
+		}
+	}
+	return true;
+}
 static grid_placement_phase_t get_placement_phase(int col_start, int row_start)
 {
 	bool col_definite = (col_start != GRID_PLACEMENT_AUTO && col_start != GRID_PLACEMENT_SPAN);
@@ -643,33 +654,18 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 	if (fr_tracks > 0 && fr_total > 0) {
 		NSLOG(layout, DEEPDEBUG, "Distributing FR: Remaining %d, FR Total %d", remaining_width, fr_total);
 		int px_per_fr = remaining_width / fr_total;
-		NSLOG(layout, DEEPDEBUG, "PX per FR: %d", px_per_fr);
+		int remainder = remaining_width % fr_total;
+		NSLOG(layout, DEEPDEBUG, "PX per FR: %d (remainder %d)", px_per_fr, remainder);
 		for (i = 0; i < num_cols; i++) {
-			/* Check if this column was an FR track.
-			   We need to re-check the track definition or use a
-			   flag. Re-checking logic for simplicity.
-			*/
-			bool is_fr = false;
-			int fr_val = 0;
-
+			bool is_fr = false; int fr_val = 0;
 			if (n_tracks > 0) {
 				css_computed_grid_track *t = &tracks[i % n_tracks];
-				if (t->unit == CSS_UNIT_FR) {
-					is_fr = true;
-					fr_val = FIXTOINT(t->value);
-				} else if (t->unit == CSS_UNIT_MIN_CONTENT || t->unit == CSS_UNIT_MAX_CONTENT) {
-					/* min-content/max-content were marked
-					 * for FR distribution */
-					is_fr = true;
-					fr_val = 1;
-				}
-			} else {
-				is_fr = true; /* Fallback all fr */
-				fr_val = 1;
-			}
-
+				if (t->unit == CSS_UNIT_FR) { is_fr = true; fr_val = FIXTOINT(t->value); }
+				else if (t->unit == CSS_UNIT_MIN_CONTENT || t->unit == CSS_UNIT_MAX_CONTENT) { is_fr = true; fr_val = 1; }
+			} else { is_fr = true; fr_val = 1; }
 			if (is_fr) {
 				col_widths[i] = px_per_fr * fr_val;
+				if (remainder > 0) { col_widths[i]++; remainder--; }
 			}
 		}
 	}
@@ -863,92 +859,57 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			if (col_start != GRID_PLACEMENT_AUTO && col_start != GRID_PLACEMENT_SPAN) {
 				item_col = col_start;
 			} else if (is_dense) {
-				/* CSS Grid spec §8.5: Dense mode - scan from start
-				 * for first available cell that fits item's span.
-				 * For row flow: scan row-by-row (row 0: cols 0,1,2..., row 1: cols 0,1,2...)
-				 * For column flow: scan column-by-column (col 0: rows 0,1,2..., col 1: rows 0,1,2...)
-				 */
 				item_col = -1;
 				if (flow_is_column) {
-					/* Column flow: scan column-first, respecting explicit row count */
-					int max_scan_row = num_rows - row_span;
-					for (int scan_col = 0; scan_col <= num_cols - col_span && item_col < 0; scan_col++) {
-						for (int scan_row = 0; scan_row <= max_scan_row; scan_row++) {
-							/* Check if all cells in span are free */
-							bool fits = true;
-							for (int dr = 0; dr < row_span && fits; dr++) {
-								for (int dc = 0; dc < col_span && fits; dc++) {
-									int idx = (scan_row + dr) * num_cols + scan_col + dc;
-									if (idx >= occupied_max_rows * num_cols || occupied[idx]) {
-										fits = false;
-									}
-								}
-							}
-							if (fits) {
-								item_col = scan_col;
-								item_row = scan_row;
-								goto dense_found;
+					for (int scan_col = 0; item_col < 0; scan_col++) {
+						for (int scan_row = 0; scan_row <= num_rows - row_span; scan_row++) {
+							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
+								item_col = scan_col; item_row = scan_row; break;
 							}
 						}
 					}
 				} else {
-					/* Row flow: scan row-first */
-					for (int scan_row = 0; scan_row < occupied_max_rows && item_col < 0; scan_row++) {
+					for (int scan_row = 0; item_col < 0; scan_row++) {
 						for (int scan_col = 0; scan_col <= num_cols - col_span; scan_col++) {
-							/* Check if all cells in span are free */
-							bool fits = true;
-							for (int dr = 0; dr < row_span && fits; dr++) {
-								for (int dc = 0; dc < col_span && fits; dc++) {
-									int idx = (scan_row + dr) * num_cols + scan_col + dc;
-									if (idx >= occupied_max_rows * num_cols || occupied[idx]) {
-										fits = false;
-									}
-								}
-							}
-							if (fits) {
-								item_col = scan_col;
-								item_row = scan_row;
-								goto dense_found;
+							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
+								item_col = scan_col; item_row = scan_row; break;
 							}
 						}
 					}
-				}
-			dense_found:
-				if (item_col < 0) {
-					/* Fallback: use cursor if scan failed */
-					item_col = auto_col;
-					item_row = auto_row;
 				}
 			} else {
-				/* Normal mode: scan from cursor for first free cell */
 				item_col = -1;
-				item_row = auto_row;
-				for (int scan_col = auto_col; scan_col < num_cols && item_col < 0; scan_col++) {
-					/* Check if cell is free */
-					int idx = auto_row * num_cols + scan_col;
-					if (idx < occupied_max_rows * num_cols && !occupied[idx]) {
-						item_col = scan_col;
-						break; /* Found first free cell */
+				if (flow_is_column) {
+					item_col = auto_col; item_row = auto_row;
+					for (int scan_row = auto_row; scan_row <= num_rows - row_span; scan_row++) {
+						if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, auto_col, row_span, col_span)) {
+							item_row = scan_row; goto found;
+						}
 					}
-				}
-				/* If no free cell in current row, advance to next rows */
-				if (item_col < 0) {
-					for (int scan_row = auto_row + 1; scan_row < occupied_max_rows && item_col < 0; scan_row++) {
-						for (int scan_col = 0; scan_col < num_cols; scan_col++) {
-							int idx = scan_row * num_cols + scan_col;
-							if (!occupied[idx]) {
-								item_col = scan_col;
-								item_row = scan_row;
-								break;
+					for (int scan_col = auto_col + 1; item_col < 0; scan_col++) {
+						for (int scan_row = 0; scan_row <= num_rows - row_span; scan_row++) {
+							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
+								item_col = scan_col; item_row = scan_row; break;
+							}
+						}
+					}
+				} else {
+					item_row = auto_row;
+					for (int scan_col = auto_col; scan_col <= num_cols - col_span; scan_col++) {
+						if (grid_item_fits(occupied, occupied_max_rows, num_cols, auto_row, scan_col, row_span, col_span)) {
+							item_col = scan_col; goto found;
+						}
+					}
+					for (int scan_row = auto_row + 1; item_col < 0; scan_row++) {
+						for (int scan_col = 0; scan_col <= num_cols - col_span; scan_col++) {
+							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
+								item_col = scan_col; item_row = scan_row; break;
 							}
 						}
 					}
 				}
-				if (item_col < 0) {
-					/* Fallback: use cursor if scan failed */
-					item_col = auto_col;
-					item_row = auto_row;
-				}
+			found:
+				if (item_col < 0) { item_col = auto_col; item_row = auto_row; }
 			}
 
 			if (row_start != GRID_PLACEMENT_AUTO && row_start != GRID_PLACEMENT_SPAN) {
