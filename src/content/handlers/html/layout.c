@@ -477,6 +477,18 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
  * \param[in]  b  Box to check.
  * \return true iff box has percnetage max width.
  */
+static inline bool box_has_percentage_width(struct box *b)
+{
+	css_unit unit = CSS_UNIT_PX;
+	enum css_width_e type;
+	css_fixed value = 0;
+
+	assert(b != NULL);
+
+	type = css_computed_width(b->style, &value, &unit);
+	return ((type == CSS_WIDTH_SET) && (unit == CSS_UNIT_PCT));
+}
+
 static inline bool box_has_percentage_max_width(struct box *b)
 {
 	css_unit unit = CSS_UNIT_PX;
@@ -798,9 +810,13 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 			if (0 < width + fixed)
 				width += fixed;
 		} else if (b->flags & IFRAME) {
-			/* TODO: handle percentage widths properly */
-			if (width == AUTO)
-				width = 400;
+			if (width == AUTO) {
+				if (box_has_percentage_width(b)) {
+					width = 0;
+				} else {
+					width = 400;
+				}
+			}
 
 			fixed = frac = 0;
 			if (bs == CSS_BOX_SIZING_BORDER_BOX) {

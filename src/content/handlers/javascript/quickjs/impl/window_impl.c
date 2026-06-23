@@ -5,28 +5,103 @@
 #include "dom_bridge.h"
 #include <wisp/utils/log.h>
 #include "JSWindow.gen.h"
+#include "qjs_internal.h"
 
-/* Custom Window init to handle global object */
+/* Custom Window init */
 int qjs_init_window(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_window_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     /* Initialize the class and prototype using the generated function */
     qjs_init_window_gen(ctx);
 
-    JSValue global_obj = JS_GetGlobalObject(ctx);
-
-    /* NetSurf/Wisp specific: The global object needs to have the Window properties.
-     * We achieve this by setting the Window prototype as the global object's prototype.
-     */
     JSValue proto = JS_GetClassProto(ctx, qjs_window_class_id);
-    if (JS_IsObject(proto)) {
-        JS_SetPrototype(ctx, global_obj, proto);
+
+    /* Link Window to EventTarget */
+    JSValue et_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
+    if (JS_IsObject(proto) && JS_IsObject(et_proto)) {
+        JS_SetPrototype(ctx, proto, et_proto);
     }
+    JS_FreeValue(ctx, et_proto);
     JS_FreeValue(ctx, proto);
 
-    /* Set self references */
-    JS_SetPropertyStr(ctx, global_obj, "window", JS_DupValue(ctx, global_obj));
-    JS_SetPropertyStr(ctx, global_obj, "self", JS_DupValue(ctx, global_obj));
-
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_window_init", JS_TRUE, 0);
     JS_FreeValue(ctx, global_obj);
+
     return 0;
+}
+
+JSValue wisp_window_window_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_GetGlobalObject(ctx);
+}
+
+JSValue wisp_window_self_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_GetGlobalObject(ctx);
+}
+
+JSValue wisp_window_document_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t && t->doc_priv) {
+        return qjs_wrap_node(ctx, (dom_node *)t->doc_priv);
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_window_navigator_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue nav = JS_GetPropertyStr(ctx, global, "navigator");
+    JS_FreeValue(ctx, global);
+    return nav;
+}
+
+JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue loc = JS_GetPropertyStr(ctx, global, "location");
+    JS_FreeValue(ctx, global);
+    return loc;
+}
+
+JSValue wisp_window_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue store = JS_GetPropertyStr(ctx, global, "localStorage");
+    JS_FreeValue(ctx, global);
+    return store;
+}
+
+JSValue wisp_window_sessionStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue store = JS_GetPropertyStr(ctx, global, "sessionStorage");
+    JS_FreeValue(ctx, global);
+    return store;
+}
+
+JSValue wisp_window_console_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue console = JS_GetPropertyStr(ctx, global, "console");
+    JS_FreeValue(ctx, global);
+    return console;
+}
+
+JSValue wisp_window_alert_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message)
+{
+    NSLOG(wisp, INFO, "Window.alert: %s", message ? message : "");
+    return JS_UNDEFINED;
 }

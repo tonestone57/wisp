@@ -95,4 +95,12 @@ JSValue wisp_document_writeln_impl(JSContext *ctx, QJSNodePrivate *priv, const c
 JSValue wisp_document_cookie_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) { return JS_UNDEFINED; }
 
-int qjs_init_document(JSContext *ctx) { return qjs_init_document_gen(ctx); }
+int qjs_init_document(JSContext *ctx) {
+    qjs_init_document_gen(ctx);
+    JSValue proto = JS_GetClassProto(ctx, qjs_document_class_id);
+    JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
+    if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
+    JS_FreeValue(ctx, node_proto);
+    JS_FreeValue(ctx, proto);
+    return 0;
+}
