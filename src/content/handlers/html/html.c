@@ -2114,7 +2114,7 @@ static bool html_drop_file_at_point(struct content *c, int x, int y, char *file)
 
 		/* Sniff for text: check first 128 bytes for non-textual control chars */
 		for (size_t i = 0; i < (file_len < 128 ? file_len : 128); i++) {
-			if (buffer[i] < 32 && buffer[i] != "\t" && buffer[i] != "\n" && buffer[i] != "\r") {
+			if (buffer[i] < 32 && buffer[i] != '\t' && buffer[i] != '\n' && buffer[i] != '\r') {
 				NSLOG(wisp, INFO, "Dropped file appears to be binary, ignoring");
 				free(buffer);
 				return true;
