@@ -125,10 +125,11 @@ void js_destroyheap(jsheap *heap)
 
     if (heap->rt != NULL) {
         hashmap_t *map = JS_GetRuntimeOpaque(heap->rt);
-        JS_FreeRuntime(heap->rt);
         if (map) {
             hashmap_destroy(map);
+            JS_SetRuntimeOpaque(heap->rt, NULL);
         }
+        JS_FreeRuntime(heap->rt);
     }
 
     free(heap);

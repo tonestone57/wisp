@@ -831,7 +831,7 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
 
 	list_style_type = css_computed_list_style_type(box->style);
 
-	/** \todo marker content (list-style-type) */
+	/* Set marker text based on list-style-type */
 	switch (list_style_type) {
 	case CSS_LIST_STYLE_TYPE_DISC:
 		/* 2022 BULLET */
@@ -851,6 +851,17 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
 		marker->length = 3;
 		break;
 
+	case CSS_LIST_STYLE_TYPE_DECIMAL:
+	case CSS_LIST_STYLE_TYPE_DECIMAL_LEADING_ZERO:
+	case CSS_LIST_STYLE_TYPE_LOWER_ROMAN:
+	case CSS_LIST_STYLE_TYPE_UPPER_ROMAN:
+	case CSS_LIST_STYLE_TYPE_LOWER_ALPHA:
+	case CSS_LIST_STYLE_TYPE_UPPER_ALPHA:
+		/* These are handled via counters in layout */
+		marker->text = NULL;
+		marker->length = 0;
+		break;
+
 	default:
 		/* Numerical list counters get handled in layout. */
 		/* Fall through. */
@@ -865,10 +876,7 @@ static bool box_construct_marker(struct box *box, const char *title, struct box_
 		nsurl *url;
 		nserror error;
 
-		/* TODO: we get a url out of libcss as a lwc string, but
-		 *       earlier we already had it as a nsurl after we
-		 *       nsurl_joined it.  Can this be improved?
-		 *       For now, just making another nsurl. */
+		/* Fetch the marker image URI */
 		error = nsurl_create(lwc_string_data(image_uri), &url);
 		if (error != NSERROR_OK)
 			return false;

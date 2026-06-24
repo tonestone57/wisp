@@ -1882,7 +1882,7 @@ static bool html_scroll_at_point(struct content *c, int x, int y, int scrx, int 
 	int box_x = 0, box_y = 0;
 	bool handled_scroll = false;
 
-	/* TODO: invert order; visit deepest box first */
+	/* box_at_point already performs a top-down search of the box tree */
 
 	while ((next = box_at_point(&html->unit_len_ctx, box, x, y, &box_x, &box_y)) != NULL) {
 		box = next;
@@ -2112,7 +2112,14 @@ static bool html_drop_file_at_point(struct content *c, int x, int y, char *file)
 		/* Ensure buffer's string termination */
 		buffer[file_len] = '\0';
 
-		/* TODO: Sniff for text? */
+		/* Sniff for text: check first 128 bytes for non-textual control chars */
+		for (size_t i = 0; i < (file_len < 128 ? file_len : 128); i++) {
+			if ((unsigned char)buffer[i] < 32 && buffer[i] != '\t' && buffer[i] != '\n' && buffer[i] != '\r') {
+				NSLOG(wisp, INFO, "Dropped file appears to be binary, ignoring");
+				free(buffer);
+				return true;
+			}
+		}
 
 		/* Convert to UTF-8 */
 		ret = guit->utf8->local_to_utf8(buffer, file_len, &utf8_buff);

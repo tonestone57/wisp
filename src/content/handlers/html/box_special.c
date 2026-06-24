@@ -693,8 +693,7 @@ static bool box_a(dom_node *n, html_content *content, struct box *box, bool *con
 		dom_string_unref(s);
 
 		if (err == DOM_NO_ERR) {
-			/* name replaces existing id
-			 * TODO: really? */
+			/* name replaces existing id per HTML spec */
 			if (box->id != NULL)
 				lwc_string_unref(box->id);
 

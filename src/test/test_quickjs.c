@@ -181,7 +181,7 @@ START_TEST(test_quickjs_exec_syntax_error)
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test syntax error - should return false */
-    const char *code = "function( { broken syntax";
+    const char *code = "function broken_syntax() { return 1;";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_error");
     ck_assert(result == false);
 
@@ -361,6 +361,13 @@ START_TEST(test_quickjs_console_init)
     JS_FreeValue(ctx, console);
     JS_FreeValue(ctx, global);
     JS_FreeContext(ctx);
+    {
+        hashmap_t *map = JS_GetRuntimeOpaque(rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(rt, NULL);
+        }
+    }
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -386,6 +393,13 @@ START_TEST(test_quickjs_console_log)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
+    {
+        hashmap_t *map = JS_GetRuntimeOpaque(rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(rt, NULL);
+        }
+    }
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -411,6 +425,13 @@ START_TEST(test_quickjs_console_error)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
+    {
+        hashmap_t *map = JS_GetRuntimeOpaque(rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(rt, NULL);
+        }
+    }
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -436,6 +457,13 @@ START_TEST(test_quickjs_console_warn)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
+    {
+        hashmap_t *map = JS_GetRuntimeOpaque(rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(rt, NULL);
+        }
+    }
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -461,6 +489,13 @@ START_TEST(test_quickjs_console_multiple_args)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
+    {
+        hashmap_t *map = JS_GetRuntimeOpaque(rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(rt, NULL);
+        }
+    }
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -488,6 +523,13 @@ START_TEST(test_quickjs_console_group)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
+    {
+        hashmap_t *map = JS_GetRuntimeOpaque(rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(rt, NULL);
+        }
+    }
     JS_FreeRuntime(rt);
 }
 END_TEST

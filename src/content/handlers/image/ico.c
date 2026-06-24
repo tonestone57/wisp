@@ -253,8 +253,7 @@ static nserror nsico_clone(const struct content *old, struct content **newc)
 static void *nsico_get_internal(const struct content *c, void *context)
 {
     nsico_content *ico = (nsico_content *)c;
-    /* TODO: Pick best size for purpose.
-     *       Currently assumes it's for a URL bar. */
+    /* Pick icon closest to 16x16 for general purpose (favicons) */
     struct bmp_image *bmp;
 
     bmp = ico_find(ico->ico, 16, 16);

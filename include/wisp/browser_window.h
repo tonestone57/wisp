@@ -622,6 +622,14 @@ browser_drag_type browser_window_get_drag_type(struct browser_window *bw);
  * \param  bw    The browser window
  * \return flags indicating editor flags
  */
+/**
+ * Get the root browser window for a given browser window.
+ *
+ * \param bw  A browser window.
+ * \return The root browser window.
+ */
+struct browser_window *browser_window_get_root(struct browser_window *bw);
+
 browser_editor_flags browser_window_get_editor_flags(struct browser_window *bw);
 
 /**

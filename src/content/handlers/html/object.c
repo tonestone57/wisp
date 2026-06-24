@@ -106,10 +106,13 @@ static void html_object_done(struct box *box, hlcache_handle *object, bool backg
     /* Normalise the box type, now it has been replaced. */
     switch (box->type) {
     case BOX_TABLE:
+    case BOX_INLINE_BLOCK:
+    case BOX_INLINE_FLEX:
+    case BOX_INLINE_GRID:
         box->type = BOX_BLOCK;
         break;
     default:
-        /* TODO: Any other box types need mapping? */
+        /* Already correct or non-replaceable type */
         break;
     }
 
@@ -205,9 +208,9 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
             content_can_reformat(object), box->max_width != UNKNOWN_MAX_WIDTH ? box->width : 0,
             box->max_width != UNKNOWN_MAX_WIDTH ? box->height : 0);
         if (content_can_reformat(object)) {
-            /* TODO: avoid knowledge of box internals here */
-            content_reformat(object, false, box->max_width != UNKNOWN_MAX_WIDTH ? box->width : 0,
-                box->max_width != UNKNOWN_MAX_WIDTH ? box->height : 0);
+            int width, height;
+            box_get_dimensions(box, &width, &height);
+            content_reformat(object, false, width, height);
 
             /* Adjust parent content for new object size */
             html_object_done(box, object, o->background);

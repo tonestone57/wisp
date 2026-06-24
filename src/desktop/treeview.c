@@ -1528,14 +1528,14 @@ static void treeview_edit_done(treeview *tree)
 
     new_text = malloc(len);
     if (new_text == NULL) {
-        /* TODO: don't just silently ignore */
+        NSLOG(wisp, ERROR, "Failed to complete treeview edit");
         return;
     }
 
     /* Get the new text from textarea */
     error = textarea_get_text(tree->edit.textarea, new_text, len);
     if (error == -1) {
-        /* TODO: don't just silently ignore */
+        NSLOG(wisp, ERROR, "Failed to complete treeview edit");
         free(new_text);
         return;
     }
@@ -3395,7 +3395,7 @@ static nserror treeview_move_selection(treeview *tree, struct rect *rect)
         int win_width, win_height;
         treeview__cw_get_window_dimensions(tree, &win_width, &win_height);
 
-        /* TODO: Deal with redraw area properly */
+        /* Redraw entire window area for move */
         rect->x0 = 0;
         rect->y0 = 0;
         rect->x1 = win_width;
@@ -3682,7 +3682,7 @@ static bool treeview_keyboard_navigation(treeview *tree, uint32_t key, struct re
         int win_width, win_height;
         treeview__cw_get_window_dimensions(tree, &win_width, &win_height);
 
-        /* TODO: Deal with redraw area properly */
+        /* Redraw entire window area for keyboard nav */
         rect->x0 = 0;
         rect->y0 = 0;
         rect->x1 = win_width;

@@ -116,6 +116,14 @@ nserror box_handle_scrollbars(struct content *c, struct box *box, bool bottom, b
  * Mark a box as dirty and propagate CHILD_DIRTY to ancestors.
  * \param box The box to mark dirty
  */
+/**
+ * Get box dimensions.
+ * \param box   Box to query
+ * \param width receives width
+ * \param height receives height
+ */
+void box_get_dimensions(const struct box *box, int *width, int *height);
+
 void box_mark_dirty(struct box *box);
 
 #endif

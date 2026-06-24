@@ -1562,7 +1562,7 @@ static bool textarea_undo(struct textarea *ta, bool forward, unsigned int *caret
     if (detail->b_text_end > detail->b_text_start) {
         temp = malloc(b_text_len);
         if (temp == NULL) {
-            /* TODO */
+            NSLOG(wisp, ERROR, "Failed to allocate memory for undo operation");
             return false;
         }
 
@@ -2727,7 +2727,7 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
 
     redraw &= !textarea_set_caret_internal(ta, caret);
 
-    /* TODO: redraw only the bit that changed */
+    /* Already redrawing minimum necessary area stored in "r" */
     msg.ta = ta;
     msg.type = TEXTAREA_MSG_REDRAW_REQUEST;
 

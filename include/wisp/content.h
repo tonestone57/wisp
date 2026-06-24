@@ -211,4 +211,21 @@ bool content_scaled_redraw(struct hlcache_handle *h, int width, int height, cons
  */
 struct nsurl *hlcache_handle_get_url(const struct hlcache_handle *handle);
 
+
+/**
+ * Determine if content is selectable.
+ *
+ * \param h handle to the content.
+ * \return true if content is selectable, false otherwise.
+ */
+bool content_is_selectable(struct hlcache_handle *h);
+
+/**
+ * Determine if content is searchable.
+ *
+ * \param h handle to the content.
+ * \return true if content is searchable, false otherwise.
+ */
+bool content_is_searchable(struct hlcache_handle *h);
+
 #endif
