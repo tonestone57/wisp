@@ -270,10 +270,10 @@ JSValue wisp_node_nodeValue_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
-JSValue wisp_node_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value)
+JSValue wisp_node_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
-    dom_node_set_node_value((dom_node *)priv->node, (dom_string *)value);
+    dom_string *ds; dom_string_create((const uint8_t *)value, strlen(value), &ds); dom_node_set_node_value((dom_node *)priv->node, ds); dom_string_unref(ds);
     return JS_UNDEFINED;
 }
 
@@ -290,10 +290,10 @@ JSValue wisp_node_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
-JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value)
+JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
-    dom_node_set_text_content((dom_node *)priv->node, (dom_string *)value);
+    dom_string *ds; dom_string_create((const uint8_t *)value, strlen(value), &ds); dom_node_set_text_content((dom_node *)priv->node, ds); dom_string_unref(ds);
     return JS_UNDEFINED;
 }
 

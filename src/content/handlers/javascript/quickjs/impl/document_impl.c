@@ -93,6 +93,6 @@ JSValue wisp_document_documentElement_get_impl(JSContext *ctx, QJSNodePrivate *p
 JSValue wisp_document_write_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text) { return JS_UNDEFINED; }
 JSValue wisp_document_writeln_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text) { return JS_UNDEFINED; }
 JSValue wisp_document_cookie_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) { return JS_UNDEFINED; }
+JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 
 int qjs_init_document(JSContext *ctx) { return qjs_init_document_gen(ctx); }

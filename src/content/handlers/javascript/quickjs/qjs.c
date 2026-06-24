@@ -180,6 +180,10 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     qjs_init_storage(t->ctx);
     qjs_init_xhr(t->ctx);
+    qjs_init_mutationobserver(t->ctx);
+    qjs_init_intersectionobserver(t->ctx);
+    qjs_init_domrectreadonly(t->ctx);
+    qjs_init_domrect(t->ctx);
 
     NSLOG(wisp, DEBUG, "Created QuickJS thread %p in heap %p", t, heap);
 
