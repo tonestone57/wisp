@@ -8,25 +8,16 @@
 
 static JSValue js_xhr_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
 {
-    return JS_NewInt32(ctx, 0);
+    /* The generator provides qjs_new_xmlhttprequest, but we wrap it in a proper constructor */
+    return qjs_new_xmlhttprequest(ctx, NULL, false);
 }
-
-JSValue wisp_xmlhttprequest_responseType_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_xmlhttprequest_responseType_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
-JSValue wisp_xmlhttprequest_response_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
-JSValue wisp_xmlhttprequest_responseText_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_xmlhttprequest_responseXML_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
-JSValue wisp_xmlhttprequest_status_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewInt32(ctx, 0); }
-JSValue wisp_xmlhttprequest_statusText_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 
 JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, const char * method, const char * url)
 {
     NSLOG(wisp, INFO, "XMLHttpRequest.open called: %s %s", method, url);
     return JS_UNDEFINED;
-    return qjs_new_xmlhttprequest(ctx, NULL, false);
 }
 
-JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, const char * method, const char * url) { return JS_UNDEFINED; }
 JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_xmlhttprequest_abort_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_xmlhttprequest_setRequestHeader_impl(JSContext *ctx, QJSNodePrivate *priv, const char * header, const char * value) { return JS_UNDEFINED; }
@@ -47,7 +38,7 @@ JSValue wisp_xmlhttprequest_withCredentials_set_impl(JSContext *ctx, QJSNodePriv
 JSValue wisp_xmlhttprequest_upload_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_xmlhttprequest_responseURL_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 JSValue wisp_xmlhttprequest_responseType_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_xmlhttprequest_responseType_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) { return JS_UNDEFINED; }
+JSValue wisp_xmlhttprequest_responseType_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 
 int qjs_init_xhr(JSContext *ctx)
 {
