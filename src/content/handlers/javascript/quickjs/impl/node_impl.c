@@ -69,7 +69,7 @@ JSValue wisp_node_lookupPrefix_impl(JSContext *ctx, QJSNodePrivate *priv, const 
     return JS_NULL;
 }
 
-JSValue wisp_node_lookupNamespaceURI_impl(JSContext *ctx, QJSNodePrivate *priv, const char * prefix)
+JSValue wisp_node_lookupNamespaceURI_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespaceURI)
 {
     NSLOG(wisp, DEBUG, "Node.lookupNamespaceURI() called (stub)");
     return JS_NULL;
@@ -297,4 +297,12 @@ JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, voi
     return JS_UNDEFINED;
 }
 
-int qjs_init_node(JSContext *ctx) { return qjs_init_node_gen(ctx); }
+int qjs_init_node(JSContext *ctx) {
+    qjs_init_node_gen(ctx);
+    JSValue proto = JS_GetClassProto(ctx, qjs_node_class_id);
+    JSValue et_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
+    if (JS_IsObject(proto) && JS_IsObject(et_proto)) JS_SetPrototype(ctx, proto, et_proto);
+    JS_FreeValue(ctx, et_proto);
+    JS_FreeValue(ctx, proto);
+    return 0;
+}

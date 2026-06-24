@@ -23,10 +23,18 @@ JSValue wisp_navigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 int qjs_init_navigator(JSContext *ctx)
 {
-    qjs_init_navigator_gen(ctx);
     JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "navigator");
+    if (JS_IsObject(check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    qjs_init_navigator_gen(ctx);
     JSValue navigator = qjs_new_navigator(ctx, NULL, false);
-    JS_SetPropertyStr(ctx, global_obj, "navigator", navigator);
+    JS_DefinePropertyValueStr(ctx, global_obj, "navigator", navigator, JS_PROP_C_W_E);
     JS_FreeValue(ctx, global_obj);
     return 0;
 }

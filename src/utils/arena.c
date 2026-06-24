@@ -22,7 +22,7 @@ typedef struct arena_chunk {
     struct arena_chunk *next;
     size_t size;
     size_t used;
-    char data[] __attribute__((aligned(16)));
+    char data[] __attribute__((aligned(64)));
 } arena_chunk;
 
 struct arena {
@@ -33,9 +33,9 @@ struct arena {
 
 struct arena *arena_create(size_t chunk_size) {
     if (chunk_size == 0) chunk_size = 64 * 1024;
-    /* chunk_size must be 16-byte aligned for data alignment */
-    chunk_size = ALIGN_UP(chunk_size, 16);
-    struct arena *a = aligned_alloc(16, ALIGN_UP(sizeof(struct arena), 16));
+    /* chunk_size must be 64-byte aligned for data alignment (AVX-512) */
+    chunk_size = ALIGN_UP(chunk_size, 64);
+    struct arena *a = aligned_alloc(64, ALIGN_UP(sizeof(struct arena), 64));
     if (!a) return NULL;
     a->head = NULL;
     a->default_chunk_size = chunk_size;
@@ -44,19 +44,19 @@ struct arena *arena_create(size_t chunk_size) {
 }
 
 void *arena_alloc(struct arena *a, size_t size) {
-    if (!a || ((uintptr_t)a & 15) != 0) return NULL;
+    if (!a || ((uintptr_t)a & 63) != 0) return NULL;
 
-    size_t alloc_size = ALIGN_UP(size, 16);
-    if (!a->head || ALIGN_UP(a->head->used, 16) + alloc_size > a->head->size) {
+    size_t alloc_size = ALIGN_UP(size, 64);
+    if (!a->head || ALIGN_UP(a->head->used, 64) + alloc_size > a->head->size) {
         size_t chunk_alloc = alloc_size > a->default_chunk_size ? alloc_size : a->default_chunk_size;
-        arena_chunk *chunk = aligned_alloc(16, ALIGN_UP(sizeof(arena_chunk) + chunk_alloc, 16));
+        arena_chunk *chunk = aligned_alloc(64, ALIGN_UP(sizeof(arena_chunk) + chunk_alloc, 64));
         if (!chunk) return NULL;
         chunk->size = chunk_alloc;
         chunk->used = 0;
         chunk->next = a->head;
         a->head = chunk;
     }
-    size_t current_used = ALIGN_UP(a->head->used, 16);
+    size_t current_used = ALIGN_UP(a->head->used, 64);
     void *ptr = a->head->data + current_used;
     a->head->used = current_used + alloc_size;
     memset(ptr, 0, size);
@@ -74,7 +74,7 @@ void arena_register_destructor(struct arena *a, void *ptr, void (*fn)(void *)) {
 }
 
 void arena_destroy(struct arena *a) {
-    if (!a || ((uintptr_t)a & 15) != 0) return;
+    if (!a || ((uintptr_t)a & 63) != 0) return;
 
     arena_destructor *d = a->destructors;
     while (d) {

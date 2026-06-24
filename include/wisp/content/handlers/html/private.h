@@ -254,12 +254,55 @@ typedef struct html_content {
     /** Registry of boxes changed during this layout cycle. */
     struct box *dirty_list;
 
-    /** Union of all dirty areas accumulated since last redraw */
-    struct rect dirty_rect;
-    /** Whether dirty_rect contains valid data */
-    bool has_dirty_rect;
+    /** List of disjoint dirty areas accumulated since last redraw */
+    struct rect dirty_rects[16];
+    /** Number of rectangles in dirty_rects */
+    unsigned int dirty_rect_count;
+    /** Whether we have fallen back to a single unioned bounding box */
+    bool dirty_use_union;
 
 } html_content;
+
+/**
+ * Add a rectangle to the document's disjoint dirty list.
+ */
+static inline void html_add_dirty_rect(struct html_content *html, const struct rect *r)
+{
+	if (html->dirty_use_union) {
+		if (html->dirty_rect_count == 0) {
+			html->dirty_rects[0] = *r;
+			html->dirty_rect_count = 1;
+		} else {
+			ns_rect_union(&html->dirty_rects[0], r);
+		}
+	} else {
+		bool merged = false;
+		for (unsigned int i = 0; i < html->dirty_rect_count; i++) {
+			struct rect *e = &html->dirty_rects[i];
+			/* Check for overlap */
+			if (!(r->x1 < e->x0 || r->x0 > e->x1 || r->y1 < e->y0 || r->y0 > e->y1)) {
+				ns_rect_union(e, r);
+				merged = true;
+				break;
+			}
+		}
+		if (!merged) {
+			if (html->dirty_rect_count < 16) {
+				html->dirty_rects[html->dirty_rect_count++] = *r;
+			} else {
+				/* Fallback to union if too many disjoint regions */
+				struct rect union_rect = html->dirty_rects[0];
+				for (unsigned int i = 1; i < html->dirty_rect_count; i++) {
+					ns_rect_union(&union_rect, &html->dirty_rects[i]);
+				}
+				ns_rect_union(&union_rect, r);
+				html->dirty_rects[0] = union_rect;
+				html->dirty_rect_count = 1;
+				html->dirty_use_union = true;
+			}
+		}
+	}
+}
 
 /**
  * Set our drag status, and inform whatever owns the content

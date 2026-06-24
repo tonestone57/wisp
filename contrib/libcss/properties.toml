@@ -1921,3 +1921,17 @@ shorthand = true
 cascade = "none"
 computed = "none"
 
+
+[counter_set]
+enum = "CSS_PROP_COUNTER_SET"
+inherited = false
+cascade = "counter"
+computed = "auto"
+bits = 2
+initial = "NONE"
+initial_data = ['NULL']
+values = "counter_arr"
+defaults = "CSS_COUNTER_SET_NONE"
+outer_struct = true
+select_comments = "Encode counter_set as an array of name, value pairs, terminated with a blank entry."
+parse = """IDENT:( INHERIT: INITIAL: REVERT: UNSET: NONE:0,COUNTER_SET_NONE IDENT:) IDENT_LIST:( STRING_OPTNUM:COUNTER_SET_NAMED 0:COUNTER_SET_NONE IDENT_LIST:)"""

@@ -477,6 +477,18 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
  * \param[in]  b  Box to check.
  * \return true iff box has percnetage max width.
  */
+static inline bool box_has_percentage_width(struct box *b)
+{
+	css_unit unit = CSS_UNIT_PX;
+	enum css_width_e type;
+	css_fixed value = 0;
+
+	assert(b != NULL);
+
+	type = css_computed_width(b->style, &value, &unit);
+	return ((type == CSS_WIDTH_SET) && (unit == CSS_UNIT_PCT));
+}
+
 static inline bool box_has_percentage_max_width(struct box *b)
 {
 	css_unit unit = CSS_UNIT_PX;
@@ -798,9 +810,13 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 			if (0 < width + fixed)
 				width += fixed;
 		} else if (b->flags & IFRAME) {
-			/* TODO: handle percentage widths properly */
-			if (width == AUTO)
-				width = 400;
+			if (width == AUTO) {
+				if (box_has_percentage_width(b)) {
+					width = 0;
+				} else {
+					width = 400;
+				}
+			}
 
 			fixed = frac = 0;
 			if (bs == CSS_BOX_SIZING_BORDER_BOX) {
@@ -6019,33 +6035,27 @@ bool layout_document(html_content *content, int width, int height)
 		r.x1 = x + dirty_box->descendant_x1;
 		r.y1 = y + dirty_box->descendant_y1;
 
-		if (content->has_dirty_rect) {
-			ns_rect_union(&content->dirty_rect, &r);
-		} else {
-			content->dirty_rect = r;
-			content->has_dirty_rect = true;
-		}
+		html_add_dirty_rect(content, &r);
 
 		dirty_box->flags &= ~BOX_IN_DIRTY_LIST;
 		dirty_box = dirty_box->next_dirty;
 	}
 	content->dirty_list = NULL;
 
-	/* Trigger redraw for the accumulated dirty rectangle */
-	if (content->has_dirty_rect) {
-		NSLOG(layout, INFO, "Redraw request for dirty rect: (%d, %d) to (%d, %d)",
-			  content->dirty_rect.x0, content->dirty_rect.y0,
-			  content->dirty_rect.x1, content->dirty_rect.y1);
+	/* Trigger redraw for the accumulated dirty rectangles */
+	for (unsigned int i = 0; i < content->dirty_rect_count; i++) {
+		struct rect *r = &content->dirty_rects[i];
+		NSLOG(layout, INFO, "Redraw request for dirty rect %u/%u: (%d, %d) to (%d, %d)",
+			  i + 1, content->dirty_rect_count, r->x0, r->y0, r->x1, r->y1);
 
 		content__request_redraw((struct content *)content,
-					content->dirty_rect.x0,
-					content->dirty_rect.y0,
-					content->dirty_rect.x1 - content->dirty_rect.x0,
-					content->dirty_rect.y1 - content->dirty_rect.y0);
-
-		content->has_dirty_rect = false;
-		content->dirty_rect = (struct rect){0, 0, 0, 0};
+					r->x0,
+					r->y0,
+					r->x1 - r->x0,
+					r->y1 - r->y0);
 	}
+	content->dirty_rect_count = 0;
+	content->dirty_use_union = false;
 
 	doc->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 

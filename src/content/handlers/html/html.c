@@ -621,8 +621,8 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->scripts_count = 0;
 	c->scripts = NULL;
 	c->jsthread = NULL;
-	c->has_dirty_rect = false;
-	c->dirty_rect = (struct rect){0, 0, 0, 0};
+	c->dirty_rect_count = 0;
+	c->dirty_use_union = false;
 	c->dirty_list = NULL;
 
 	pthread_mutex_init(&c->doc_mutex, NULL);
@@ -1501,8 +1501,8 @@ static void html_free_layout(html_content *htmlc)
 	htmlc->layout = NULL;
 	/* Clear dirty rectangle and list to prevent dangling pointers */
 	htmlc->dirty_list = NULL;
-	htmlc->has_dirty_rect = false;
-	htmlc->dirty_rect = (struct rect){0, 0, 0, 0};
+	htmlc->dirty_rect_count = 0;
+	htmlc->dirty_use_union = false;
 
 	/* Clear the CSS selection context when freeing the layout.
 	 * The select_ctx is semantically tied to the layout - it was used
@@ -1720,8 +1720,8 @@ static nserror html_close(struct content *c)
 		htmlc->jsthread = NULL;
 	}
 
-	htmlc->has_dirty_rect = false;
-	htmlc->dirty_rect = (struct rect){0, 0, 0, 0};
+	htmlc->dirty_rect_count = 0;
+	htmlc->dirty_use_union = false;
 	htmlc->dirty_list = NULL;
 
 	return ret;

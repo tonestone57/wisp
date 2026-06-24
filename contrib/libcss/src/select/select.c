@@ -165,51 +165,76 @@ static int32_t find_matching_paren(parserutils_vector *tokens, int32_t start)
         else if (tokenIsCharLocal(t, ")") || tokenIsCharLocal(t, "}") || tokenIsCharLocal(t, "]")) { depth--; if (depth == 0) return i; }
     } return -1;
 }
-static css_error css__resolve_var_tokens(css_select_state *state, parserutils_vector *src, parserutils_vector **dst)
+static css_error css__resolve_var_tokens_recursive(css_select_state *state, parserutils_vector *src, parserutils_vector **dst, int depth)
 {
+    if (depth > 32) return CSS_INVALID;
     size_t len; parserutils_vector_get_length(src, &len); uint32_t n_tokens = (uint32_t)len;
     if (parserutils_vector_create(sizeof(css_token), 8, dst) != PARSERUTILS_OK) return CSS_NOMEM;
     for (uint32_t i = 0; i < n_tokens; i++) {
         const css_token *t = parserutils_vector_peek(src, i); bool match = false;
         if (t->type == CSS_TOKEN_FUNCTION && lwc_string_caseless_isequal(t->idata, state->sheet->propstrings[VAR], &match) == lwc_error_ok && match) {
             int32_t end_paren = find_matching_paren(src, i);
-            int32_t scan = i + 1;
+            if (end_paren < 0) { css__tokens_destroy(*dst); return CSS_INVALID; }
+            lwc_string *var_name = NULL; int32_t scan = i + 1; int32_t comma_pos = -1;
             while (scan < end_paren) {
                 const css_token *nt = parserutils_vector_peek(src, scan);
                 if (nt->type == CSS_TOKEN_S) { scan++; continue; }
-                if (nt->type == CSS_TOKEN_CUSTOM_PROPERTY) {
-                    parserutils_vector *resolved = css__variables_ctx_get(state->var_ctx, nt->idata);
-                    if (resolved) {
-                        size_t rlen; parserutils_vector_get_length(resolved, &rlen);
-                        for (uint32_t j = 0; j < (uint32_t)rlen; j++) {
-                            const css_token *rt = parserutils_vector_peek(resolved, j); css_token rcloned = *rt;
-                            if (rcloned.idata) lwc_string_ref(rcloned.idata);
-                            if (rcloned.data.data) { rcloned.data.data = malloc(rcloned.data.len); memcpy((void *)rcloned.data.data, rt->data.data, rcloned.data.len); }
-                            parserutils_vector_append(*dst, &rcloned);
-                        }
-                    } else {
-                        int32_t comma_scan = scan + 1;
-                        while (comma_scan < end_paren && !tokenIsCharLocal(parserutils_vector_peek(src, comma_scan), ",")) comma_scan++;
-                        if (comma_scan < end_paren) {
-                            for (int32_t j = comma_scan + 1; j < end_paren; j++) {
-                                const css_token *ft = parserutils_vector_peek(src, j); css_token fcloned = *ft;
-                                if (fcloned.idata) lwc_string_ref(fcloned.idata);
-                                if (fcloned.data.data) { fcloned.data.data = malloc(fcloned.data.len); memcpy((void *)fcloned.data.data, ft->data.data, fcloned.data.len); }
-                                parserutils_vector_append(*dst, &fcloned);
-                            }
-                        }
+                if (nt->type == CSS_TOKEN_CUSTOM_PROPERTY || nt->type == CSS_TOKEN_IDENT) {
+                    var_name = nt->idata; scan++;
+                    while (scan < end_paren) {
+                        const css_token *ct = parserutils_vector_peek(src, scan);
+                        if (ct->type == CSS_TOKEN_S) { scan++; continue; }
+                        if (tokenIsCharLocal(ct, ",")) comma_pos = scan;
+                        break;
                     } break;
-                } scan++;
+                }
+                css__tokens_destroy(*dst); return CSS_INVALID;
             }
-            if (end_paren >= 0) i = end_paren;
+            parserutils_vector *resolved = var_name ? css__variables_ctx_get(state->var_ctx, var_name) : NULL;
+            if (resolved) {
+                parserutils_vector *nr;
+                if (css__resolve_var_tokens_recursive(state, resolved, &nr, depth + 1) == CSS_OK) {
+                    size_t nr_len; parserutils_vector_get_length(nr, &nr_len);
+                    for (uint32_t j = 0; j < (uint32_t)nr_len; j++) {
+                        const css_token *rt = parserutils_vector_peek(nr, j); css_token rcloned = *rt;
+                        if (rcloned.idata) lwc_string_ref(rcloned.idata);
+                        if (rcloned.data.data) { rcloned.data.data = malloc(rcloned.data.len); if (rcloned.data.data) memcpy((void *)rcloned.data.data, rt->data.data, rcloned.data.len); }
+                        parserutils_vector_append(*dst, &rcloned);
+                    }
+                    css__tokens_destroy(nr);
+                } else { css__tokens_destroy(*dst); return CSS_INVALID; }
+            } else if (comma_pos >= 0) {
+                parserutils_vector *fb; parserutils_vector_create(sizeof(css_token), 8, &fb);
+                for (int32_t j = comma_pos + 1; j < end_paren; j++) {
+                    const css_token *ft = parserutils_vector_peek(src, j); css_token fcloned = *ft;
+                    if (fcloned.idata) lwc_string_ref(fcloned.idata);
+                    if (fcloned.data.data) { fcloned.data.data = malloc(fcloned.data.len); if (fcloned.data.data) memcpy((void *)fcloned.data.data, ft->data.data, fcloned.data.len); }
+                    parserutils_vector_append(fb, &fcloned);
+                }
+                parserutils_vector *rf;
+                if (css__resolve_var_tokens_recursive(state, fb, &rf, depth + 1) == CSS_OK) {
+                    size_t rf_len; parserutils_vector_get_length(rf, &rf_len);
+                    for (uint32_t j = 0; j < (uint32_t)rf_len; j++) {
+                        const css_token *rt = parserutils_vector_peek(rf, j); css_token rcloned = *rt;
+                        if (rcloned.idata) lwc_string_ref(rcloned.idata);
+                        if (rcloned.data.data) { rcloned.data.data = malloc(rcloned.data.len); if (rcloned.data.data) memcpy((void *)rcloned.data.data, rt->data.data, rcloned.data.len); }
+                        parserutils_vector_append(*dst, &rcloned);
+                    }
+                    css__tokens_destroy(rf);
+                } else { css__tokens_destroy(fb); css__tokens_destroy(*dst); return CSS_INVALID; }
+                css__tokens_destroy(fb);
+            } else { css__tokens_destroy(*dst); return CSS_INVALID; }
+            i = end_paren;
         } else {
             css_token cloned = *t;
             if (cloned.idata) lwc_string_ref(cloned.idata);
-            if (cloned.data.data) { cloned.data.data = malloc(cloned.data.len); memcpy((void *)cloned.data.data, t->data.data, cloned.data.len); }
+            if (cloned.data.data) { cloned.data.data = malloc(cloned.data.len); if (cloned.data.data) memcpy((void *)cloned.data.data, t->data.data, cloned.data.len); }
             parserutils_vector_append(*dst, &cloned);
         }
     } return CSS_OK;
 }
+static css_error css__resolve_var_tokens(css_select_state *state, parserutils_vector *src, parserutils_vector **dst)
+{ return css__resolve_var_tokens_recursive(state, src, dst, 0); }
 
 static css_error select_font_faces_from_sheet(
     const css_stylesheet *sheet, css_origin origin, css_select_font_faces_state *state, const css_select_strings *str);

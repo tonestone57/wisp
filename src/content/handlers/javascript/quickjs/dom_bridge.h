@@ -52,9 +52,9 @@ int qjs_init_window(JSContext *ctx);
 int qjs_init_timers(JSContext *ctx);
 int qjs_init_navigator(JSContext *ctx);
 int qjs_init_location(JSContext *ctx);
+JSValue qjs_new_location(JSContext *ctx, void *node, bool is_dom_node);
 int qjs_init_storage(JSContext *ctx);
 int qjs_init_eventtarget(JSContext *ctx);
 int qjs_init_xhr(JSContext *ctx);
-int qjs_init_unimplemented(JSContext *ctx);
 
 #endif /* WISP_QUICKJS_DOM_BRIDGE_H */
