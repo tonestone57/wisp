@@ -66,7 +66,7 @@
   You may also want to change Wisp's user agent string to include the
   name of your distribution.  The user agent string is built by a function
   kept in utils/useragent.c - you'll want to change the macro called
-  WISP_UA_FORMAT_STRING.  It's processed via sprintf, so keep that in
+  WISP_UA_FORMAT_STRING.  It's processed via snprintf, so keep that in
   mind when changing it.  The first format parameter is the OS name (uname -s)
   and the remainder are major and minor version numbers.  You might want
   to change this to something like:

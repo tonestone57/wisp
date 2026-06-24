@@ -350,7 +350,7 @@ START_TEST(test_quickjs_console_init)
     ck_assert_ptr_nonnull(ctx);
 
     /* Initialize console binding */
-    qjs_init_dom_bridge(ctx); qjs_init_console(ctx); ret = 0;
+    ret = qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
     ck_assert_int_eq(ret, 0);
 
     /* Verify console object exists */
@@ -755,10 +755,10 @@ START_TEST(test_quickjs_document)
     /* Test getElementById stub */
     const char *code2 = "document.getElementById('foo') === null && typeof document.createElement('div') === 'object' && typeof document.createTextNode('test') === 'object'";
     result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_getElementById");
-    ck_assert(result == true);
     /* Test appendChild and removeChild */
     const char *code_tree = "var p = document.createElement('p'); var t = document.createTextNode('hi'); p.appendChild(t); p.firstChild === t && p.hasChildNodes() === true && (p.removeChild(t), p.hasChildNodes() === false);";
     result = js_exec(thread, (const uint8_t *)code_tree, strlen(code_tree), "test_dom_tree");
+    ck_assert(result == true);
     ck_assert(result == true);
 
     /* Test createElement stub */
