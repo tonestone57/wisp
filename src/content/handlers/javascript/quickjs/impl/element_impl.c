@@ -9,11 +9,11 @@
 #include "utils/libdom.h"
 #include "JSElement.gen.h"
 
-JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
+JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_NULL;
     dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
+    dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
     dom_element_get_attribute((dom_element *)priv->node, name_dom, &value_dom);
     dom_string_unref(name_dom);
@@ -25,12 +25,12 @@ JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
     return JS_NULL;
 }
 
-JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name, const char * value)
+JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     dom_string *name_dom = NULL;
+    dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
-    dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
     dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
     dom_element_set_attribute((dom_element *)priv->node, name_dom, value_dom);
     dom_string_unref(name_dom);
@@ -38,21 +38,21 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
     return JS_UNDEFINED;
 }
 
-JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
+JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
+    dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_element_remove_attribute((dom_element *)priv->node, name_dom);
     dom_string_unref(name_dom);
     return JS_UNDEFINED;
 }
 
-JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
+JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_FALSE;
     dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
+    dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     bool result = false;
     dom_element_has_attribute((dom_element *)priv->node, name_dom, &result);
     dom_string_unref(name_dom);
@@ -66,8 +66,29 @@ JSValue wisp_element_className_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
 
 JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_element_tagName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    dom_string *name = NULL;
+    dom_element_get_tag_name((dom_element *)priv->node, &name);
+    if (name) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(name), dom_string_byte_length(name));
+        dom_string_unref(name);
+        return val;
+    }
+    return JS_NULL;
+}
+
 JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewObject(ctx); }
 
-int qjs_init_element(JSContext *ctx) { return qjs_init_element_gen(ctx); }
+int qjs_init_element(JSContext *ctx) {
+    qjs_init_element_gen(ctx);
+    JSValue proto = JS_GetClassProto(ctx, qjs_element_class_id);
+    JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
+    if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
+    JS_FreeValue(ctx, node_proto);
+    JS_FreeValue(ctx, proto);
+    return 0;
+}

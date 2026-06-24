@@ -7,6 +7,16 @@
 #include "utils/libdom.h"
 #include "content/handlers/javascript/js.h"
 
+/* Private data for JS DOM objects */
+typedef struct QJSNodePrivate {
+    uint32_t magic;         /* Magic number for type safety */
+    void *node;             /* Underlying LibDOM node/object */
+    JSContext *ctx;         /* Associated context */
+    bool is_dom_node;       /* True if node is dom_node* (needs unref) */
+} QJSNodePrivate;
+
+#define QJS_DOM_MAGIC 0x57495350
+
 struct jsheap {
     JSRuntime *rt;
     int timeout;
@@ -43,21 +53,12 @@ struct jsthread {
     struct jsheap *heap;
     void *win_priv;
     void *doc_priv;
+    QJSNodePrivate global_window_priv;
     bool closed;
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
     struct qjs_timer *timers;
 };
-
-/* Private data for JS DOM objects */
-typedef struct QJSNodePrivate {
-    uint32_t magic;         /* Magic number for type safety */
-    void *node;             /* Underlying LibDOM node/object */
-    JSContext *ctx;         /* Associated context */
-    bool is_dom_node;       /* True if node is dom_node* (needs unref) */
-} QJSNodePrivate;
-
-#define QJS_DOM_MAGIC 0x444F4D31
 
 static inline QJSNodePrivate *qjs_get_dom_priv(JSValueConst val) {
     JSClassID class_id;

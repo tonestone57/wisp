@@ -49,7 +49,7 @@ int main(int argc, char **argv)
         .hysteresis = 128 * 1024
     };
 
-    system("rm -rf test_cache");
+    if (system("rm -rf test_cache")) {}
     mkdir("test_cache", 0755);
 
     ret = guit->llcache->initialise(&params);

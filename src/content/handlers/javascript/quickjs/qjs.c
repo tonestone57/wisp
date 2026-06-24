@@ -16,16 +16,10 @@
  * along with this program.  See the file COPYING for details.
  */
 
-/**
- * \file
- * QuickJS-ng implementation of JavaScript engine functions.
- *
- * This implements the js.h interface using the QuickJS-ng engine.
- */
-
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -39,6 +33,7 @@
 #include "qjs_internal.h"
 #include "wisp_subsystem.h"
 #include "crypto.h"
+#include "dom_bridge.h"
 #include <nsutils/time.h>
 
 #ifdef _WIN32
@@ -47,8 +42,6 @@
 #include <unistd.h>
 #include <pthread.h>
 #endif
-
-#include "content/handlers/javascript/quickjs/dom_bridge.h"
 
 void *qjs_get_window_priv(JSContext *ctx)
 {
@@ -167,15 +160,48 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     JS_SetContextOpaque(t->ctx, t);
 
+    /* Initialize Window opaque for the global object */
+    t->global_window_priv.magic = QJS_DOM_MAGIC;
+    t->global_window_priv.node = win_priv;
+    t->global_window_priv.ctx = t->ctx;
+    t->global_window_priv.is_dom_node = false;
+
+    JSValue global_obj = JS_GetGlobalObject(t->ctx);
+    JS_SetOpaque(global_obj, &t->global_window_priv);
+
     qjs_init_dom_bridge(t->ctx);
+
+    /* Correct Order for prototype inheritance */
+    qjs_init_eventtarget(t->ctx);
+    qjs_init_node(t->ctx);
+    qjs_init_element(t->ctx);
+    qjs_init_document(t->ctx);
+    qjs_init_window(t->ctx);
+
     wisp_js_register_all_bindings(t->ctx);
+
+    qjs_init_console(t->ctx);
+    qjs_init_navigator(t->ctx);
+    qjs_init_location(t->ctx);
+    qjs_init_timers(t->ctx);
     qjs_init_crypto(t->ctx);
+    qjs_init_storage(t->ctx);
+    qjs_init_xhr(t->ctx);
+
+    /* Set global object prototype to Window prototype */
+    JSValue window_proto = JS_GetClassProto(t->ctx, qjs_window_class_id);
+    if (JS_IsObject(window_proto)) {
+        JS_SetPrototype(t->ctx, global_obj, window_proto);
+    }
+    JS_FreeValue(t->ctx, window_proto);
+
+    /* Set mandatory global properties */
+    JS_DefinePropertyValueStr(t->ctx, global_obj, "window", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(t->ctx, global_obj, "self", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
 
     if (doc_priv) {
         JSValue doc_val = qjs_wrap_node(t->ctx, (dom_node *)doc_priv);
-        JSValue global_obj = JS_GetGlobalObject(t->ctx);
-        JS_SetPropertyStr(t->ctx, global_obj, "document", doc_val);
-        JS_FreeValue(t->ctx, global_obj);
+        JS_DefinePropertyValueStr(t->ctx, global_obj, "document", doc_val, JS_PROP_C_W_E);
     }
 
     qjs_init_storage(t->ctx);
@@ -184,6 +210,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_intersectionobserver(t->ctx);
     qjs_init_domrectreadonly(t->ctx);
     qjs_init_domrect(t->ctx);
+    JS_FreeValue(t->ctx, global_obj);
 
     NSLOG(wisp, DEBUG, "Created QuickJS thread %p in heap %p", t, heap);
 
@@ -314,7 +341,9 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
 
-        NSLOG(wisp, WARNING, "JavaScript error: %s", exc_str ? exc_str : "<unknown error>");
+        NSLOG(wisp, WARNING, "JavaScript error in %s: %s", name ? name : "<script>", exc_str ? exc_str : "<unknown error>");
+        /* Also print to stderr for test visibility */
+        if (exc_str) fprintf(stderr, "JS Error [%s]: %s\n", name ? name : "<script>", exc_str);
 
         if (exc_str) {
             JS_FreeCString(thread->ctx, exc_str);

@@ -3567,8 +3567,9 @@ nsurl *browser_window_access_url(const struct browser_window *bw)
     if (bw->current_content != NULL) {
         return hlcache_handle_get_url(bw->current_content);
 
-    } else if (bw->loading_content != NULL) {
-        /* TODO: should we return this? */
+    } else if (bw->loading_content != NULL &&
+               bw->browser_window_type == BROWSER_WINDOW_NORMAL) {
+        /* only return loading URL for top-level windows */
         return hlcache_handle_get_url(bw->loading_content);
     }
 
