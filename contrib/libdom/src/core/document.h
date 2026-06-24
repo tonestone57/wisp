@@ -37,6 +37,12 @@ struct arena;
 
 struct dom_doc_nl;
 
+struct dom_mutation_callback_entry {
+    dom_mutation_callback callback;
+    void *pw;
+    struct dom_mutation_callback_entry *next;
+};
+
 /**
  * DOM document
  * This should be protected, because later the HTMLDocument will inherit from
@@ -79,7 +85,12 @@ struct dom_document {
     dom_string *_memo_domsubtreemodified; /**< DOMSubtreeModified */
 
     uint32_t dispatching_mutation; /**< Mutation event semaphore */
+
+    struct dom_mutation_callback_entry *mutation_callbacks;
 };
+
+void _dom_document_notify_mutation(dom_document *doc,
+    const struct dom_mutation_notification *notification);
 
 /* Create a DOM document */
 dom_exception _dom_document_create(dom_events_default_action_fetcher daf, void *daf_ctx, dom_document **doc);
