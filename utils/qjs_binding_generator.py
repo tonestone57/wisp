@@ -51,9 +51,16 @@ def idl_to_js_type(idl_type):
         return 'bool'
     if t in ['unsigned short', 'unsigned long', 'short', 'long']:
         return 'int'
-    if t in ['double', 'float']:
+    if t in ['double', 'float'] or 'double' in t or 'float' in t:
         return 'float'
     return 'value'
+
+def normalize_primitive_type(idl_type):
+    type_str = str(idl_type).strip()
+    if type_str.startswith('unrestricted '):
+        type_str = type_str.replace('unrestricted ', '').strip()
+    type_mapping = {'double': 'double', 'float': 'float', 'long': 'int32_t', 'unsigned long': 'uint32_t', 'boolean': 'bool'}
+    return type_mapping.get(type_str, None)
 
 def get_actual_type(arg):
     if hasattr(arg, 'type'):
@@ -123,12 +130,20 @@ class QuickJSBindingGenerator:
 
                 if isinstance(m, widlparser.productions.Attribute):
                     if member.name not in members_by_name:
-                        attr_str = str(m.attribute)
+                        # Extract type from m.attribute.type for more accurate results
+                        if hasattr(m, 'attribute') and hasattr(m.attribute, 'type'):
+                            idl_type_val = str(m.attribute.type).strip()
+                        else:
+                            idl_type_val = str(m.idl_type).strip()
+
+                        if idl_type_val.startswith('unrestricted '):
+                            idl_type_val = idl_type_val.replace('unrestricted ', '').strip()
+
                         members_by_name[member.name] = {
                             'kind': 'attribute',
                             'name': member.name,
-                            'readonly': 'readonly' in attr_str,
-                            'type': str(m.idl_type).strip(),
+                            'readonly': m.readonly if hasattr(m, 'readonly') else ('readonly' in str(m)),
+                            'type': idl_type_val,
                             'custom': custom
                         }
                 elif isinstance(m, (widlparser.productions.Operation, widlparser.productions.SpecialOperation)):
@@ -139,7 +154,10 @@ class QuickJSBindingGenerator:
 
                     args = []
                     for arg in op.arguments:
-                        args.append({'name': arg.name, 'type': get_actual_type(arg), 'optional': arg.optional})
+                        actual_type = get_actual_type(arg)
+                        if actual_type.startswith('unrestricted '):
+                            actual_type = actual_type.replace('unrestricted ', '').strip()
+                        args.append({'name': arg.name, 'type': actual_type, 'optional': arg.optional})
 
                     # Group by name, prefer the one with most arguments for the Marshaller
                     if member.name not in members_by_name or members_by_name[member.name]['kind'] != 'operation' or len(args) > len(members_by_name[member.name]['args']):
@@ -195,6 +213,9 @@ class QuickJSBindingGenerator:
             elif js_type == 'int':
                 code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
+            elif js_type == 'float':
+                code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
+                impl_args.append(arg_name)
             else:
                 # Assume it's another interface
                 code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
@@ -207,8 +228,10 @@ class QuickJSBindingGenerator:
         for arg in op['args']:
             js_type = idl_to_js_type(arg['type'])
             arg_name = safe_name(arg['name'])
-            if js_type in ['string', 'bool', 'int']:
+            if js_type in ['string', 'bool', 'int', 'float']:
                 c_type = TYPE_MAP.get(arg['type'], "JSValue")
+                if js_type == 'float':
+                    c_type = "double"
             else:
                 c_type = "void *"
             sig_args.append(f"{c_type} {arg_name}")
@@ -242,19 +265,24 @@ class QuickJSBindingGenerator:
         impl_func = f"wisp_{lower_name}_{attr['name']}_{'set' if is_set else 'get'}_impl"
 
         if is_set:
-            js_type = idl_to_js_type(attr['type'])
-            if js_type == 'string':
+            primitive_type = normalize_primitive_type(attr['type'])
+            if primitive_type in ['double', 'float']:
+                code += f"    double value = 0; JS_ToFloat64(ctx, &value, val);\n"
+                code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
+                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, double value)"
+                stub_body = "    return JS_UNDEFINED;"
+            elif idl_to_js_type(attr['type']) == 'string':
                 code += f"    const char *value = JS_ToCString(ctx, val);\n"
                 code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
                 code += f"    JS_FreeCString(ctx, value);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, const char * value)"
                 stub_body = "    return JS_UNDEFINED;"
-            elif js_type == 'bool':
+            elif idl_to_js_type(attr['type']) == 'bool':
                 code += f"    bool value = JS_ToBool(ctx, val);\n"
                 code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, bool value)"
                 stub_body = "    return JS_UNDEFINED;"
-            elif js_type == 'int':
+            elif idl_to_js_type(attr['type']) == 'int':
                 code += f"    int32_t value = 0; JS_ToInt32(ctx, &value, val);\n"
                 code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
@@ -274,7 +302,7 @@ class QuickJSBindingGenerator:
         self.current_impl_signatures.append(sig)
         self.current_weak_stubs.append(f"__attribute__((weak)) {sig} {{\n"
                                f"    NSLOG(wisp, WARNING, \"Unimplemented WebIDL attribute {'set' if is_set else 'get'}: {interface_name}.{attr['name']}\");\n"
-                               f"{stub_body}\n}}")
+                               f"    {stub_body}\n}}")
         return code
 
     def generate_interface_files(self, interface_name: str):

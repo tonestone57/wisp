@@ -1,0 +1,64 @@
+// Observers WebIDL for Wisp
+
+typedef double DOMHighResTimeStamp;
+
+[Exposed=Window]
+interface DOMRectReadOnly {
+    static DOMRectReadOnly fromRect(optional DOMRectInit other);
+
+    readonly attribute double x;
+    readonly attribute double y;
+    readonly attribute double width;
+    readonly attribute double height;
+    readonly attribute double top;
+    readonly attribute double right;
+    readonly attribute double bottom;
+    readonly attribute double left;
+};
+
+dictionary DOMRectInit {
+    double x = 0;
+    double y = 0;
+    double width = 0;
+    double height = 0;
+};
+
+[Exposed=Window]
+interface DOMRect : DOMRectReadOnly {
+    static DOMRect fromRect(optional DOMRectInit other);
+
+    attribute double x;
+    attribute double y;
+    attribute double width;
+    attribute double height;
+};
+
+callback IntersectionObserverCallback = void (sequence<IntersectionObserverEntry> entries, IntersectionObserver observer);
+
+[Exposed=Window, Constructor(IntersectionObserverCallback callback, optional IntersectionObserverInit options)]
+interface IntersectionObserver {
+    readonly attribute Element? root;
+    readonly attribute double rootMargin;
+    readonly attribute sequence<double> thresholds;
+    void observe(Element target);
+    void unobserve(Element target);
+    void disconnect();
+    sequence<IntersectionObserverEntry> takeRecords();
+};
+
+dictionary IntersectionObserverInit {
+    (Element or Document)? root = null;
+    DOMString rootMargin = "0px";
+    (double or sequence<double>) threshold = 0;
+};
+
+[Exposed=Window]
+interface IntersectionObserverEntry {
+    readonly attribute DOMHighResTimeStamp time;
+    readonly attribute DOMRectReadOnly? rootBounds;
+    readonly attribute DOMRectReadOnly boundingClientRect;
+    readonly attribute DOMRectReadOnly intersectionRect;
+    readonly attribute double isIntersecting;
+    readonly attribute double intersectionRatio;
+    readonly attribute Element target;
+};

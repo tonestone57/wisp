@@ -35,10 +35,10 @@ JSValue wisp_attr_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
-JSValue wisp_attr_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value)
+JSValue wisp_attr_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
-    dom_attr_set_value((dom_attr *)priv->node, (dom_string *)value);
+    dom_string *ds; dom_string_create((const uint8_t *)value, strlen(value), &ds); dom_attr_set_value((dom_attr *)priv->node, ds); dom_string_unref(ds);
     return JS_UNDEFINED;
 }
 
@@ -67,8 +67,8 @@ JSValue wisp_attr_localName_get_impl(JSContext *ctx, QJSNodePrivate *priv) { ret
 JSValue wisp_attr_namespaceURI_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_attr_prefix_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_attr_nodeValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_attr_value_get_impl(ctx, priv); }
-JSValue wisp_attr_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) { return wisp_attr_value_set_impl(ctx, priv, value); }
+JSValue wisp_attr_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_attr_value_set_impl(ctx, priv, value); }
 JSValue wisp_attr_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_attr_value_get_impl(ctx, priv); }
-JSValue wisp_attr_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) { return wisp_attr_value_set_impl(ctx, priv, value); }
+JSValue wisp_attr_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_attr_value_set_impl(ctx, priv, value); }
 
 int qjs_init_attr(JSContext *ctx) { return qjs_init_attr_gen(ctx); }
