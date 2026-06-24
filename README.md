@@ -10,16 +10,17 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ![GNU.org](img/wisp_gnu.png?raw=true "GNU.org")
 
 ## Development
-Current development is focused on completing the CSS Variables implementation, and refining the Incremental Layout engine. The project has recently achieved parity between the Windows GDI frontend and the reference Qt frontend, and integrated high-performance vector graphics via Blend2D.
+Current development is focused on completing the CSS Variables implementation, and refining the Incremental Layout engine. The project has unified its rendering backbone around **Blend2D** for pixel-perfect consistency across all platforms and is transitioning to a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
 ### Core Features Status (June 2026)
+*   **[Finished] Unified Rendering (Blend2D)**: Blend2D is the primary rendering engine across all frontends, ensuring massive code deduplication and industry-leading software rasterization.
 *   **[Finished] Position: Sticky**: Full support for multi-axis sticky positioning with scroll-container constraints.
 *   **[Finished] Stateful Vector Path API**: Efficient path rendering (MoveTo, LineTo, BezierTo) across all modern frontends.
 *   **[Finished] ISOBMFF & AVIF**: Native support for AVIF, HEIC, and HEIF formats via `libavif` v1.4.2.
 *   **[Finished] QuickJS-ng Integration**: Migration to QuickJS-ng (v0.15.1) for ES2023+ support.
 *   **[Partial] CSS Grid**: Robust 3-phase auto-placement and FR unit distribution; dense packing refinements ongoing.
 *   **[Partial] CSS Flexbox**: Support for flex-grow, shrink, auto-margins, and column-flex two-pass resolution.
-*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system (`DIRTY_INTRINSIC`, `CHILD_DIRTY`, `DIRTY_LAYOUT`) active.
+*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Transitioning from union-based invalidation to a **Tiled Redraw** strategy (256x256 fixed tiles).
 *   **[Partial] CSS Variables**: Parsing and selection of `var()` complete; resolution pass is active with minor regressions.
 
 ## Biggest differences from Netsurf

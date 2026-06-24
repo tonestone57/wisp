@@ -27,7 +27,8 @@ Frontend specific to the atari
 
 ## beos
 
-Frontend specific to the Haiku OS
+Frontend specific to the Haiku OS (Legacy). Note: Haiku modernization
+now primarily targets the Qt6 frontend.
 
 ## framebuffer
 

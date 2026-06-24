@@ -19,7 +19,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 ### 3.1 Core Layout engine
 *   **Incremental Layout [Partial]**: Utilizes `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags. Correctly skips reflows for stable subtrees.
     *   *Optimization*: Dirty rectangle accumulation in `box_mark_dirty` ensures previous positions are cleared.
-    *   *Improvement needed*: Bounding box union logic could be optimized for elements entirely contained within parent dirty regions.
+    *   *Fixed-Tile Redraw*: Transitioning to a 256x256 fixed-tile system to optimize cache locality and eliminate overdraw.
 *   **CSS Grid [Partial]**: Core layout logic and 3-phase auto-placement implemented.
     *   *Optimization*: Pass 3 uses cached placement data to avoid re-parsing CSS during final stretch.
     *   *Improvement needed*: Dense packing algorithm and complex spanning edge cases require further refinement.
@@ -45,7 +45,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **Windows GDI [Finished]**: Achieved parity with Qt frontend.
     *   *Optimization*: Batching of consecutive path commands reduces kernel transitions.
 *   **GTK/Cairo [Finished]**: Stable reference frontend.
-*   **Blend2D Backend [Finished]**: High-performance vector rendering.
+*   **Blend2D Backend [Finished]**: Unified high-performance vector rendering across all platforms. Serves as the single source of truth for rasterization to ensure pixel-perfect consistency.
 *   **Haiku / BeOS [Partial]**: Requires re-verification against the new incremental layout engine.
 
 ## 4. Bugs and Technical Debt
@@ -54,8 +54,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **[Debt] Box Construction**: Missing support for nested CSS counters and tab character expansion in `box_construct.c`.
 
 ## 5. Future Recommendations and Optimizations
-1.  **Redraw Tiling**: Implement a tiled redraw strategy in `html_content` to avoid redundant painting of clean areas when multiple disjoint regions are dirty.
-2.  **LibDOM Native Observers**: Implement a native notification system within LibDOM to allow `MutationObserver` to respond to DOM changes without relying on legacy MutationEvents.
+1.  **LibDOM Native Observers**: Implement a native notification system within LibDOM to allow `MutationObserver` to respond to DOM changes without relying on legacy MutationEvents.
 3.  **SIMD Alignment**: Strictly enforce 64-byte alignment in the arena allocator (`src/utils/arena.c`) to better support AVX-512 operations in layout and rendering.
 4.  **JS Event Loop Integration**: Tighten integration between the asynchronous fetch pipeline and the QuickJS event loop to reduce latency in SPAs.
 5.  **Path Accumulation**: Further optimize the Windows GDI plotter by using `PolyBezier` for contiguous segments.

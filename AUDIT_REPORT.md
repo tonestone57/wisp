@@ -25,6 +25,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
 *   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI), and Blend2D.
 *   **Incremental Layout Core**: Dual-pass reflow system using `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags.
+*   **Unified Rendering (Blend2D)**: Blend2D serves as the primary rendering backbone across all OSes, ensuring pixel-perfect consistency and industry-leading software performance.
 *   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL.
 
 ### 3.2 Partial Implementation [Partial]
@@ -62,7 +63,7 @@ The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`)
 *   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` should be demoted to `NSLOG_LEVEL_DEEPDEBUG`.
 
 ## 6. Future Recommendations and Advice
-1.  **Redraw Optimization**: Move from union-based dirty regions to a tiled redraw strategy to improve performance on large, complex pages.
+1.  **Fixed-Tile Redraw**: Transition to a 256x256 fixed-tile redraw strategy to optimize cache locality on retro hardware (i586) and enable parallel rendering on modern multi-core systems.
 2.  **LibDOM Native Observers**: Refactor LibDOM to provide a native internal notification system for mutations, which would allow a performant implementation of `MutationObserver`.
 3.  **SIMD Acceleration**: Leverage the 64-byte aligned arena allocator to implement SIMD-accelerated layout calculations and color space conversions.
 4.  **FFmpeg Pipeline**: Improve synchronization between audio and video tracks in `video.c` by implementing a more robust master-clock system.
