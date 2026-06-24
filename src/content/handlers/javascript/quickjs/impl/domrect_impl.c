@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <math.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
 #include "qjs_internal.h"
@@ -45,10 +46,26 @@ JSValue wisp_domrectreadonly_x_get_impl(JSContext *ctx, QJSNodePrivate *priv) { 
 JSValue wisp_domrectreadonly_y_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return priv ? JS_NewFloat64(ctx, ((WispRect*)priv->node)->y) : JS_UNDEFINED; }
 JSValue wisp_domrectreadonly_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return priv ? JS_NewFloat64(ctx, ((WispRect*)priv->node)->width) : JS_UNDEFINED; }
 JSValue wisp_domrectreadonly_height_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return priv ? JS_NewFloat64(ctx, ((WispRect*)priv->node)->height) : JS_UNDEFINED; }
-JSValue wisp_domrectreadonly_top_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_domrectreadonly_y_get_impl(ctx, priv); }
-JSValue wisp_domrectreadonly_left_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_domrectreadonly_x_get_impl(ctx, priv); }
-JSValue wisp_domrectreadonly_right_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return priv ? JS_NewFloat64(ctx, ((WispRect*)priv->node)->x + ((WispRect*)priv->node)->width) : JS_UNDEFINED; }
-JSValue wisp_domrectreadonly_bottom_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return priv ? JS_NewFloat64(ctx, ((WispRect*)priv->node)->y + ((WispRect*)priv->node)->height) : JS_UNDEFINED; }
+JSValue wisp_domrectreadonly_top_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv) return JS_UNDEFINED;
+    WispRect *r = (WispRect*)priv->node;
+    return JS_NewFloat64(ctx, fmin(r->y, r->y + r->height));
+}
+JSValue wisp_domrectreadonly_left_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv) return JS_UNDEFINED;
+    WispRect *r = (WispRect*)priv->node;
+    return JS_NewFloat64(ctx, fmin(r->x, r->x + r->width));
+}
+JSValue wisp_domrectreadonly_right_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv) return JS_UNDEFINED;
+    WispRect *r = (WispRect*)priv->node;
+    return JS_NewFloat64(ctx, fmax(r->x, r->x + r->width));
+}
+JSValue wisp_domrectreadonly_bottom_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv) return JS_UNDEFINED;
+    WispRect *r = (WispRect*)priv->node;
+    return JS_NewFloat64(ctx, fmax(r->y, r->y + r->height));
+}
 
 JSValue wisp_domrect_x_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_domrectreadonly_x_get_impl(ctx, priv); }
 JSValue wisp_domrect_y_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_domrectreadonly_y_get_impl(ctx, priv); }
