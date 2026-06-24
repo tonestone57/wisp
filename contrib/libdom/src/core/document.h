@@ -23,6 +23,7 @@
 #include <dom/core/node.h>
 #include <dom/core/pi.h>
 #include <dom/core/text.h>
+#include <dom/core/mutation_observer.h>
 
 #include "core/node.h"
 struct arena;
