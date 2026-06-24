@@ -74,6 +74,7 @@ typedef struct nsvideo_content {
 
     float volume;
     double video_clock; /* PTS of last decoded video frame */
+    double audio_clock; /* PTS of last played audio sample */
     int64_t start_time;
 
     bool seek_requested;
@@ -111,6 +112,14 @@ static int nsvideo_read_packet(void *opaque, uint8_t *buf, int buf_size)
     pthread_mutex_unlock(&video->buffer.lock);
 
     return read_size;
+}
+
+static double get_master_clock(nsvideo_content *video)
+{
+    if (video->audio_stream_idx != -1) {
+        return video->audio_clock;
+    }
+    return (av_gettime() - video->start_time) / 1000000.0;
 }
 
 static int64_t nsvideo_seek(void *opaque, int64_t offset, int whence)
@@ -194,10 +203,10 @@ static void *nsvideo_decode_loop(void *arg)
 
             if (guit->audio) {
                 AVChannelLayout out_ch_layout = AV_CHANNEL_LAYOUT_STEREO;
-                swr_alloc_set_opts2(&swr_ctx, &out_ch_layout, AV_SAMPLE_FMT_FLT, 44100,
+                swr_alloc_set_opts2(&swr_ctx, &out_ch_layout, AV_SAMPLE_FMT_FLT, video->audio_codec_ctx->sample_rate,
                                    &video->audio_codec_ctx->ch_layout, video->audio_codec_ctx->sample_fmt, video->audio_codec_ctx->sample_rate, 0, NULL);
                 swr_init(swr_ctx);
-                guit->audio->init(44100, 2);
+                guit->audio->init(video->audio_codec_ctx->sample_rate, 2);
             }
         }
     }
@@ -219,17 +228,18 @@ static void *nsvideo_decode_loop(void *arg)
                 while (avcodec_receive_frame(video->video_codec_ctx, frame) >= 0) {
                     double pts = frame->best_effort_timestamp * av_q2d(video->format_ctx->streams[video->video_stream_idx]->time_base);
 
-                    /* Sync logic */
-                    double delay = pts - video->video_clock;
-                    if (delay > 0 && delay < 1.0) {
-                        video->video_clock = pts;
+                    /* Sync logic against master clock */
+                    double master_clock = get_master_clock(video);
+                    double diff = pts - master_clock;
+
+                    if (diff > 0.01) {
+                        av_usleep((unsigned int)(diff * 1000000.0));
+                    } else if (diff < -0.1) {
+                        /* Video too slow, skip frame */
+                        continue;
                     }
 
-                    int64_t actual_time = av_gettime() - video->start_time;
-                    int64_t pts_time = (int64_t)(pts * 1000000.0);
-                    if (pts_time > actual_time) {
-                        av_usleep((unsigned int)(pts_time - actual_time));
-                    }
+                    video->video_clock = pts;
 
                     pthread_mutex_lock(&video->bitmap_lock);
                     if (video->current_bitmap == NULL) {
@@ -266,7 +276,7 @@ static void *nsvideo_decode_loop(void *arg)
                 while (avcodec_receive_frame(video->audio_codec_ctx, frame) >= 0) {
                     if (guit->audio && swr_ctx) {
                         uint8_t *out_data[1];
-                        int out_samples = (int)av_rescale_rnd(swr_get_delay(swr_ctx, frame->sample_rate) + frame->nb_samples, 44100, frame->sample_rate, AV_ROUND_UP);
+                        int out_samples = (int)av_rescale_rnd(swr_get_delay(swr_ctx, frame->sample_rate) + frame->nb_samples, video->audio_codec_ctx->sample_rate, frame->sample_rate, AV_ROUND_UP);
                         av_samples_alloc(out_data, NULL, 2, out_samples, AV_SAMPLE_FMT_FLT, 0);
                         int converted = swr_convert(swr_ctx, out_data, out_samples, (const uint8_t **)frame->data, frame->nb_samples);
 
@@ -280,6 +290,12 @@ static void *nsvideo_decode_loop(void *arg)
 
                         guit->audio->play(out_data[0], (size_t)converted * 4 * 2);
                         av_freep(&out_data[0]);
+
+                        if (frame->pts != AV_NOPTS_VALUE) {
+                            video->audio_clock = frame->pts * av_q2d(video->format_ctx->streams[video->audio_stream_idx]->time_base);
+                        } else {
+                            video->audio_clock += (double)converted / (double)video->audio_codec_ctx->sample_rate;
+                        }
                     }
                 }
             }

@@ -326,13 +326,13 @@ static void get_grid_item_placement(const css_computed_style *style, int *col_st
 
 	/* Validate: per CSS Grid spec, span values must be >= 1 */
 	if (*col_span < 1) {
-		NSLOG(layout, ERROR,
+		NSLOG(layout, DEEPDEBUG,
 			  "Invalid grid col_span=%d (must be >= 1), "
 			  "possible propset normalization bug", *col_span);
 		*col_span = 1;
 	}
 	if (*row_span < 1) {
-		NSLOG(layout, ERROR,
+		NSLOG(layout, DEEPDEBUG,
 			  "Invalid grid row_span=%d (must be >= 1), "
 			  "possible propset normalization bug", *row_span);
 		*row_span = 1;
@@ -1375,8 +1375,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			/* We'll just assign it here as the basic "shrink-to-fit" width */
 			grid->width = total_width;
 		} else {
-			fprintf(stderr, "GRID_BUG: grid %p width still not set (=%d)\n", (void *)grid, grid->width);
-			fflush(stderr);
+			NSLOG(layout, DEEPDEBUG, "GRID_BUG: grid %p width still not set (=%d)", (void *)grid, grid->width);
 			assert(0 && "Grid width must be resolved by layout_grid");
 			/* Fallback for safety in Release builds if assert disabled */
 			grid->width = grid_width;
