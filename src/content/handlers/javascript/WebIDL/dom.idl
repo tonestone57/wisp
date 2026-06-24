@@ -128,7 +128,7 @@ interface HTMLCollection {
 
 [Constructor(MutationCallback callback)]
 interface MutationObserver {
-  void observe(Node target, MutationObserverInit options);
+  [Custom] void observe(Node target, MutationObserverInit options);
   void disconnect();
   sequence<MutationRecord> takeRecords();
 };
