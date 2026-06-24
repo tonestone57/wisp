@@ -23,6 +23,7 @@
 /* Include QuickJS directly for console binding tests */
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
 #include "quickjs.h"
+#include "utils/hashmap.h"
 
 /**
  * Test that js_initialise and js_finalise work without crashing.
