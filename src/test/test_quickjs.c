@@ -181,7 +181,7 @@ START_TEST(test_quickjs_exec_syntax_error)
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test syntax error - should return false */
-    const char *code = "function( { broken syntax";
+    const char *code = "if (true) {";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_error");
     ck_assert(result == false);
 
@@ -360,6 +360,7 @@ START_TEST(test_quickjs_console_init)
 
     JS_FreeValue(ctx, console);
     JS_FreeValue(ctx, global);
+    qjs_finalise_dom_bridge(ctx);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -385,6 +386,7 @@ START_TEST(test_quickjs_console_log)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_finalise_dom_bridge(ctx);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -410,6 +412,7 @@ START_TEST(test_quickjs_console_error)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_finalise_dom_bridge(ctx);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -435,6 +438,7 @@ START_TEST(test_quickjs_console_warn)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_finalise_dom_bridge(ctx);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -460,6 +464,7 @@ START_TEST(test_quickjs_console_multiple_args)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_finalise_dom_bridge(ctx);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -487,6 +492,7 @@ START_TEST(test_quickjs_console_group)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_finalise_dom_bridge(ctx);
     JS_FreeContext(ctx);
     JS_FreeRuntime(rt);
 }
@@ -713,6 +719,7 @@ START_TEST(test_quickjs_document)
     /* Test getElementById stub */
     const char *code2 = "document.getElementById('foo') === null && typeof document.createElement('div') === 'object' && typeof document.createTextNode('test') === 'object'";
     result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_getElementById");
+    ck_assert(result == true);
     /* Test appendChild and removeChild */
     const char *code_tree = "var p = document.createElement('p'); var t = document.createTextNode('hi'); p.appendChild(t); p.firstChild === t && p.hasChildNodes() === true && (p.removeChild(t), p.hasChildNodes() === false);";
     result = js_exec(thread, (const uint8_t *)code_tree, strlen(code_tree), "test_dom_tree");

@@ -118,4 +118,4 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
-void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }
+void qjs_finalise_dom_bridge(JSContext *ctx) { JSRuntime *rt = JS_GetRuntime(ctx); hashmap_t *map = JS_GetRuntimeOpaque(rt); if (map) { hashmap_destroy(map); JS_SetRuntimeOpaque(rt, NULL); } }

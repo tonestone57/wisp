@@ -9,6 +9,7 @@
 
 #include "utils/css_utils.h"
 #include "stylesheet.h"
+#include "lex/lex.h"
 
 #include "testutils.h"
 
@@ -56,6 +57,44 @@ static void dump_selector_list(css_selector *list, char **ptr);
 static void dump_selector(css_selector *selector, char **ptr);
 static void dump_selector_detail(css_selector_detail *detail, char **ptr);
 static void dump_string(lwc_string *string, char **ptr);
+
+static css_error deserialize_tokens(lwc_string *serialized, parserutils_vector **vector)
+{
+    const uint8_t *data = (const uint8_t *)lwc_string_data(serialized);
+    size_t len = lwc_string_length(serialized);
+    if (len < sizeof(uint32_t)) return CSS_INVALID;
+    uint32_t n = *(uint32_t *)data;
+    const uint8_t *p = data + sizeof(uint32_t);
+    const uint8_t *end = data + len;
+    if (parserutils_vector_create(sizeof(css_token), 8, vector) != PARSERUTILS_OK) return CSS_NOMEM;
+    for (uint32_t i = 0; i < n; i++) {
+        if (p + sizeof(css_token) > end) break;
+        css_token token = *(css_token *)p;
+        p += sizeof(css_token);
+        if (token.data.data != NULL) {
+            size_t token_len = token.data.len;
+            if (p + token_len > end) break;
+            token.data.data = (uint8_t *)malloc(token_len);
+            if (token.data.data == NULL) return CSS_NOMEM;
+            memcpy((void *)token.data.data, p, token_len);
+            p += token_len;
+        }
+        if (token.idata != NULL) lwc_string_ref(token.idata);
+        parserutils_vector_append(*vector, &token);
+    }
+    return CSS_OK;
+}
+
+static void css__tokens_destroy(parserutils_vector *v)
+{
+    if (v == NULL) return;
+    for (uint32_t i = 0; i < parserutils_vector_size(v); i++) {
+        css_token *t = parserutils_vector_get_element(v, i);
+        if (t->data.data) free(t->data.data);
+        if (t->idata) lwc_string_unref(t->idata);
+    }
+    parserutils_vector_destroy(v);
+}
 
 static css_error resolve_url(void *pw, const char *base, lwc_string *rel, lwc_string **abs)
 {
@@ -485,6 +524,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
             return true;
         }
 
+        uint16_t cur_op = 0;
         for (i = 0; i < e->bcused; i++) {
             size_t j;
 
@@ -506,7 +546,42 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     return true;
                 }
 
-                if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                bool is_custom_value = (cur_op == CSS_PROP_CUSTOM_PROPERTY && (j > 0 && e->stringtab[j-1].off == i - sizeof(css_code_t)));
+
+                if (is_custom_value) {
+                    /* Custom property value: p is a serialized token buffer */
+                    parserutils_vector *tokens;
+                    if (deserialize_tokens(p, &tokens) == CSS_OK) {
+                        /* Reconstruct string from tokens for comparison */
+                        size_t total_len = 0;
+                        for (uint32_t k = 0; k < parserutils_vector_size(tokens); k++) {
+                            css_token *t = parserutils_vector_get_element(tokens, k);
+                            total_len += t->data.len;
+                        }
+                        char *res = malloc(total_len + 1);
+                        char *q = res;
+                        for (uint32_t k = 0; k < parserutils_vector_size(tokens); k++) {
+                            css_token *t = parserutils_vector_get_element(tokens, k);
+                            memcpy(q, t->data.data, t->data.len);
+                            q += t->data.len;
+                        }
+                        *q = '\0';
+                        if (strcmp(res, e->stringtab[j].string) != 0) {
+                            printf("FAIL Strings differ (custom value)\n"
+                                   "    Got string '%s'. "
+                                   "Expected '%s'\n",
+                                res, e->stringtab[j].string);
+                            free(res);
+                            css__tokens_destroy(tokens);
+                            return true;
+                        }
+                        free(res);
+                        css__tokens_destroy(tokens);
+                    } else {
+                        printf("FAIL Failed to deserialize custom property tokens\n");
+                        return true;
+                    }
+                } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                     memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
                     printf("FAIL Strings differ\n"
                            "    Got string '%.*s'. "
@@ -516,7 +591,11 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 }
 
                 i += sizeof(css_code_t) - 1;
-            } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
+            } else {
+                if ((i % sizeof(css_code_t)) == 0) {
+                    cur_op = getOpcode(*(css_code_t *)(&((uint8_t *)s->style->bytecode)[i]));
+                }
+                if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
                 printf("FAIL Bytecode differs\n"
                        "    Bytecode differs at %u\n	",
                     (int)i);

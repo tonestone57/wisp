@@ -11,7 +11,7 @@
 #errors
 #expected
 | 1 *
-|   0x0000008d PTR(--primary-color) PTR(ff0000)
+|   0x0000008d PTR(--primary-color) PTR(#ff0000)
 #reset
 
 #data
