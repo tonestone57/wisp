@@ -279,6 +279,10 @@ static inline void html_add_dirty_rect(struct html_content *html, const struct r
 		bool merged = false;
 		for (unsigned int i = 0; i < html->dirty_rect_count; i++) {
 			struct rect *e = &html->dirty_rects[i];
+			/* Check if new rect is entirely contained in existing one */
+			if (r->x0 >= e->x0 && r->x1 <= e->x1 && r->y0 >= e->y0 && r->y1 <= e->y1) {
+				return;
+			}
 			/* Check for overlap */
 			if (!(r->x1 < e->x0 || r->x0 > e->x1 || r->y1 < e->y0 || r->y0 > e->y1)) {
 				ns_rect_union(e, r);
