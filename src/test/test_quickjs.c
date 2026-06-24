@@ -1046,6 +1046,40 @@ START_TEST(test_quickjs_dom_attributes)
     js_finalise();
 }
 END_TEST
+
+START_TEST(test_quickjs_observers)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    js_newthread(heap, NULL, NULL, &thread);
+
+    /* Test MutationObserver existence and constructor */
+    const char *code1 = "typeof MutationObserver === 'function' && typeof (new MutationObserver(() => {})) === 'object'";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_mutation_observer");
+    ck_assert(result == true);
+
+    /* Test IntersectionObserver existence and constructor */
+    const char *code2 = "typeof IntersectionObserver === 'function' && typeof (new IntersectionObserver(() => {})) === 'object'";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_intersection_observer");
+    ck_assert(result == true);
+
+    /* Test DOMRect existence */
+    const char *code3 = "typeof DOMRect === 'function'";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_domrect");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
 
@@ -1102,6 +1136,7 @@ Suite *quickjs_suite(void)
 
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
+    tcase_add_test(tc_window, test_quickjs_observers);
     suite_add_tcase(s, tc_window);
     return s;
 }

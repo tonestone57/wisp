@@ -21,6 +21,10 @@ extern JSClassID qjs_location_class_id;
 extern JSClassID qjs_navigator_class_id;
 extern JSClassID qjs_storage_class_id;
 extern JSClassID qjs_xhr_class_id;
+extern JSClassID qjs_mutationobserver_class_id;
+extern JSClassID qjs_intersectionobserver_class_id;
+extern JSClassID qjs_domrect_class_id;
+extern JSClassID qjs_domrectreadonly_class_id;
 
 int qjs_init_node(JSContext *ctx);
 int qjs_init_element(JSContext *ctx);
@@ -61,5 +65,10 @@ JSValue qjs_new_location(JSContext *ctx, void *node, bool is_dom_node);
 int qjs_init_storage(JSContext *ctx);
 int qjs_init_eventtarget(JSContext *ctx);
 int qjs_init_xhr(JSContext *ctx);
+int qjs_init_mutationobserver(JSContext *ctx);
+int qjs_init_intersectionobserver(JSContext *ctx);
+int qjs_init_domrect(JSContext *ctx);
+int qjs_init_domrectreadonly(JSContext *ctx);
+int qjs_init_unimplemented(JSContext *ctx);
 
 #endif /* WISP_QUICKJS_DOM_BRIDGE_H */
