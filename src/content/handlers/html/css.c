@@ -438,7 +438,9 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     if (exc != DOM_NO_ERR || href == NULL)
         return true;
 
-    /* Load linked stylesheet (HTML4 14.3, HTML5 4.8.4) */
+    /* TODO: only the first preferred stylesheets (ie.
+     * those with a title attribute) should be loaded
+     * (see HTML4 14.3) */
 
     ns_error = nsurl_join(htmlc->base_url, dom_string_data(href), &joined);
     if (ns_error != NSERROR_OK) {
@@ -671,7 +673,13 @@ nserror html_css_new_selection_context(html_content *c, css_select_ctx **ret_sel
         css_stylesheet *sheet = NULL;
         css_origin origin = CSS_ORIGIN_AUTHOR;
 
-        /* Add stylesheet to context (filtering is handled by LibCSS selection) */
+        /* Filter out stylesheets for non-screen media. */
+        /* TODO: We should probably pass the sheet in anyway, and let
+         *       libcss handle the filtering.
+         */
+        if (hsheet->unused) {
+            continue;
+        }
 
         if (i < STYLESHEET_USER) {
             origin = CSS_ORIGIN_UA;

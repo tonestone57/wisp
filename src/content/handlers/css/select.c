@@ -305,7 +305,8 @@ nscss_get_blank_style(nscss_select_ctx *ctx, const css_unit_ctx *unit_len_ctx, c
         return NULL;
     }
 
-    /* Compose defaults with parent style to cascade inherited properties */
+    /* TODO: Do we really need to compose?  Initial style shouldn't
+     * have any inherited properties. */
     error = css_computed_style_compose(parent, partial, unit_len_ctx, &composed);
     css_computed_style_destroy(partial);
     if (error != CSS_OK) {
@@ -1414,7 +1415,8 @@ css_error node_is_visited(void *pw, void *node, bool *match)
     }
 
     /* Make href absolute */
-    /* Resolve href against base URL */
+    /* TODO: this duplicates what we do for box->href
+     *       should we put the absolute URL on the dom node? */
     error = nsurl_join(ctx->base_url, dom_string_data(s), &url);
 
     /* Finished with href string */

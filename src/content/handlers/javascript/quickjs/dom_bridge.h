@@ -15,6 +15,12 @@ extern JSClassID qjs_attr_class_id;
 extern JSClassID qjs_namednodemap_class_id;
 extern JSClassID qjs_htmlcollection_class_id;
 extern JSClassID qjs_window_class_id;
+extern JSClassID qjs_event_class_id;
+extern JSClassID qjs_console_class_id;
+extern JSClassID qjs_location_class_id;
+extern JSClassID qjs_navigator_class_id;
+extern JSClassID qjs_storage_class_id;
+extern JSClassID qjs_xhr_class_id;
 
 int qjs_init_node(JSContext *ctx);
 int qjs_init_element(JSContext *ctx);
