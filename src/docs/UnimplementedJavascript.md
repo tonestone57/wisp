@@ -1520,9 +1520,9 @@ getter | MutationRecord::nextSibling(user);
 getter | MutationRecord::attributeName(string);
 getter | MutationRecord::attributeNamespace(string);
 getter | MutationRecord::oldValue(string);
-method | MutationObserver::observe();
-method | MutationObserver::disconnect();
-method | MutationObserver::takeRecords();
+method | MutationObserver::observe(); (Partial - stub exists)
+method | MutationObserver::disconnect(); (Partial - stub exists)
+method | MutationObserver::takeRecords(); (Partial - stub exists)
 method | DocumentType::before();
 method | DocumentType::after();
 method | DocumentType::replaceWith();

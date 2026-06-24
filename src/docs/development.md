@@ -105,8 +105,7 @@ Javascript provision is split into four parts:
 
 ## Library
 
-JavaScript is provided by integrating the duktape library. There are
-[instructions](docs/updating-duktape.md) on how to update the library.
+JavaScript is provided by integrating the QuickJS-ng (v0.15.1) engine. This provides modern ES2023+ support and efficient memory usage.
 
 ## Interface binding
 
