@@ -38,13 +38,14 @@ To keep the core clean, Wisp utilizes an internal rendering layer that implement
 
 Wisp is transitioning from a union-based dirty region system (which suffers from "overdraw hell") to a **Fixed-Tile Redraw** strategy.
 
-### Why Fixed Tiles (256x256)?
+### Why Fixed Tiles?
 1.  **Cache Locality**: i586 and older processors benefit significantly from cache locality. A 256x256 tile represents a tiny, contiguous chunk of memory that is more likely to stay in the CPU's L1/L2 cache. **Cache locality is the surrogate SIMD for older hardware.**
-2.  **Zero Fragmentation**: Every tile backing buffer requires exactly 256KB (256x256x4). This allows for a fixed-block pool inside the **Arena Allocator**. Tiles can be recycled without `malloc`/`free` overhead.
-3.  **Fast Coordinate Translation**: Finding a tile for a pixel uses bit-shifts (`x >> 8`) instead of expensive integer division. On an i586, this makes tile lookup practically free.
+2.  **Zero Fragmentation**: Every tile backing buffer requires a fixed amount of memory (e.g., 256KB for 256x256). This allows for a fixed-block pool inside the **Arena Allocator**. Tiles can be recycled without `malloc`/`free` overhead.
+3.  **Fast Coordinate Translation**: Finding a tile for a pixel uses bit-shifts (e.g., `x >> 8` for 256x256) instead of expensive integer division. On an i586, this makes tile lookup practically free.
 4.  **Predictable Threading**: Fixed-size tiles provide uniform workloads for multi-threaded rendering, avoiding the "one giant tile" bottleneck common in dynamic tiling systems.
 
 ### Implementation Details
+*   **Scale-Aware Fixed Tiles**: While 256x256 is the "sweet spot" for retro systems, modern High-DPI, 4K, and mobile screens utilize **512x512** tiles to reduce tile-management overhead on high-density displays. The size is locked once during initialization based on platform DPI.
 *   **Clipping**: The rendering loop iterates through dirty tiles and clips the `B2Context` to the tile bounds. Blend2D's rasterizer then rejects geometry outside that boundary.
 *   **Global Redraw Threshold**: If >70% of tiles are dirty, the engine drops the tiling loop for a single full-screen pass to reduce management overhead.
 *   **Bleeding Margins**: Dirty tile calculations include a slight "padding" (1-2 pixels) to prevent clipping artifacts for glyphs or borders sitting exactly on a boundary.

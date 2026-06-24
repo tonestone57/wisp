@@ -67,8 +67,8 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
     return JS_NewBool(ctx, success);
 }
 
-JSValue wisp_eventtarget_addEventListener_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, void * callback, bool capture) { return JS_UNDEFINED; }
-JSValue wisp_eventtarget_removeEventListener_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, void * callback, bool capture) { return JS_UNDEFINED; }
+JSValue wisp_eventtarget_addEventListener_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue callback, bool capture) { return JS_UNDEFINED; }
+JSValue wisp_eventtarget_removeEventListener_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue callback, bool capture) { return JS_UNDEFINED; }
 JSValue wisp_eventtarget_dispatchEvent_impl(JSContext *ctx, QJSNodePrivate *priv, void * event) { return JS_FALSE; }
 
 int qjs_init_eventtarget(JSContext *ctx)
