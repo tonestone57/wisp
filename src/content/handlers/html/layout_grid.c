@@ -1240,7 +1240,11 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
 			/* Phase 3: fully auto items */
 			if (col_auto && row_auto) {
-				if (flow_is_column) {
+				if (is_dense) {
+					/* CSS Grid spec §8.5: For dense packing, search cursor is reset to (0,0) for each item */
+					auto_row = 0;
+					auto_col = 0;
+				} else if (flow_is_column) {
 					/* Column mode: advance row past the placed item's span */
 					auto_row = item_row + row_span;
 					if (auto_row >= num_rows) {

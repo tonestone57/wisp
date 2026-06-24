@@ -165,7 +165,7 @@ static int32_t find_matching_paren(parserutils_vector *tokens, int32_t start)
         else if (tokenIsCharLocal(t, ")") || tokenIsCharLocal(t, "}") || tokenIsCharLocal(t, "]")) { depth--; if (depth == 0) return i; }
     } return -1;
 }
-static css_error css__resolve_var_tokens_recursive(css_select_state *state, parserutils_vector *src, parserutils_vector **dst, int depth)
+static css_error css__resolve_var_tokens_recursive(css_select_state *state, parserutils_vector *src, parserutils_vector **dst, lwc_string **stack, int depth)
 {
     if (depth > 32) return CSS_INVALID;
     size_t len; parserutils_vector_get_length(src, &len); uint32_t n_tokens = (uint32_t)len;
@@ -190,10 +190,26 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
                 }
                 css__tokens_destroy(*dst); return CSS_INVALID;
             }
+
+            /* Cycle detection */
+            if (var_name) {
+                for (int j = 0; j < depth; j++) {
+                    if (lwc_string_isequal(stack[j], var_name, &match) == lwc_error_ok && match) {
+                        /* Cycle detected */
+                        var_name = NULL;
+                        break;
+                    }
+                }
+            }
+
             parserutils_vector *resolved = var_name ? css__variables_ctx_get(state->var_ctx, var_name) : NULL;
             if (resolved) {
                 parserutils_vector *nr;
-                if (css__resolve_var_tokens_recursive(state, resolved, &nr, depth + 1) == CSS_OK) {
+                lwc_string *new_stack[33];
+                if (depth > 0) memcpy(new_stack, stack, sizeof(lwc_string *) * depth);
+                new_stack[depth] = var_name;
+
+                if (css__resolve_var_tokens_recursive(state, resolved, &nr, new_stack, depth + 1) == CSS_OK) {
                     size_t nr_len; parserutils_vector_get_length(nr, &nr_len);
                     for (uint32_t j = 0; j < (uint32_t)nr_len; j++) {
                         const css_token *rt = parserutils_vector_peek(nr, j); css_token rcloned = *rt;
@@ -212,7 +228,7 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
                     parserutils_vector_append(fb, &fcloned);
                 }
                 parserutils_vector *rf;
-                if (css__resolve_var_tokens_recursive(state, fb, &rf, depth + 1) == CSS_OK) {
+                if (css__resolve_var_tokens_recursive(state, fb, &rf, stack, depth) == CSS_OK) {
                     size_t rf_len; parserutils_vector_get_length(rf, &rf_len);
                     for (uint32_t j = 0; j < (uint32_t)rf_len; j++) {
                         const css_token *rt = parserutils_vector_peek(rf, j); css_token rcloned = *rt;
@@ -234,7 +250,7 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
     } return CSS_OK;
 }
 static css_error css__resolve_var_tokens(css_select_state *state, parserutils_vector *src, parserutils_vector **dst)
-{ return css__resolve_var_tokens_recursive(state, src, dst, 0); }
+{ return css__resolve_var_tokens_recursive(state, src, dst, NULL, 0); }
 
 static css_error select_font_faces_from_sheet(
     const css_stylesheet *sheet, css_origin origin, css_select_font_faces_state *state, const css_select_strings *str);

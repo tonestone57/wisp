@@ -503,11 +503,9 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
  */
 static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex)
 {
-	/* DISABLED: Two-pass algorithm not working correctly.
-	 * Regular redistribute_auto_margins_vertical handles this case. */
-	(void)ctx;
-	(void)flex;
-	return;
+	if (!ctx->needs_two_pass) {
+		return;
+	}
 
 	int definite_height = flex->height; /* Now known after pass 1 */
 	int gap_total = (ctx->item.count > 1) ? (int)(ctx->item.count - 1) * ctx->main_gap : 0;

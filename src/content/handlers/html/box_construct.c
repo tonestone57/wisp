@@ -1107,24 +1107,27 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 				if (set != NULL) {
 					for (size_t i = 0; set[i].name != NULL; i++) {
 						bool found = false;
-						for (uint32_t j = 0; j < idx; j++) {
-							bool match = false;
-							if (lwc_string_isequal(box->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
-								box->counters[j].value = set[i].value; found = true; break;
-							}
-						}
-						if (!found) {
-							struct box *cbox = props.containing_block;
-							while (cbox != NULL && !found) {
-								for (size_t j = 0; j < cbox->n_counters; j++) {
-									bool match = false;
-									if (lwc_string_isequal(cbox->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
-										cbox->counters[j].value = set[i].value; found = true; break;
-									}
+						/* Search for existing counter of same name in ancestors (innermost first) */
+						struct box *cbox = box->parent;
+						while (cbox != NULL && !found) {
+							for (size_t j = 0; j < cbox->n_counters; j++) {
+								bool match = false;
+								if (lwc_string_isequal(cbox->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
+									cbox->counters[j].value = set[i].value; found = true; break;
 								}
-								cbox = cbox->parent;
+							}
+							cbox = cbox->parent;
+						}
+						/* If not found in ancestors, check if it was just reset on this box */
+						if (!found) {
+							for (uint32_t j = 0; j < idx; j++) {
+								bool match = false;
+								if (lwc_string_isequal(box->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
+									box->counters[j].value = set[i].value; found = true; break;
+								}
 							}
 						}
+						/* If still not found, instantiate it on this box */
 						if (!found) {
 							box->counters[idx].name = lwc_string_ref(set[i].name);
 							box->counters[idx].value = set[i].value; idx++;
@@ -1134,24 +1137,27 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 				if (inc != NULL) {
 					for (size_t i = 0; inc[i].name != NULL; i++) {
 						bool found = false;
-						for (uint32_t j = 0; j < idx; j++) {
-							bool match = false;
-							if (lwc_string_isequal(box->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
-								box->counters[j].value += inc[i].value; found = true; break;
-							}
-						}
-						if (!found) {
-							struct box *cbox = props.containing_block;
-							while (cbox != NULL && !found) {
-								for (size_t j = 0; j < cbox->n_counters; j++) {
-									bool match = false;
-									if (lwc_string_isequal(cbox->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
-										cbox->counters[j].value += inc[i].value; found = true; break;
-									}
+						/* Search for existing counter of same name in ancestors (innermost first) */
+						struct box *cbox = box->parent;
+						while (cbox != NULL && !found) {
+							for (size_t j = 0; j < cbox->n_counters; j++) {
+								bool match = false;
+								if (lwc_string_isequal(cbox->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
+									cbox->counters[j].value += inc[i].value; found = true; break;
 								}
-								cbox = cbox->parent;
+							}
+							cbox = cbox->parent;
+						}
+						/* If not found in ancestors, check if it was just reset/set on this box */
+						if (!found) {
+							for (uint32_t j = 0; j < idx; j++) {
+								bool match = false;
+								if (lwc_string_isequal(box->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
+									box->counters[j].value += inc[i].value; found = true; break;
+								}
 							}
 						}
+						/* If still not found, instantiate it on this box */
 						if (!found) {
 							box->counters[idx].name = lwc_string_ref(inc[i].name);
 							box->counters[idx].value = inc[i].value; idx++;
