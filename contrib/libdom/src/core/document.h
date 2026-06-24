@@ -23,6 +23,7 @@
 #include <dom/core/node.h>
 #include <dom/core/pi.h>
 #include <dom/core/text.h>
+#include <dom/core/mutation_observer.h>
 
 #include "core/node.h"
 struct arena;
@@ -36,6 +37,12 @@ struct arena;
 #include "events/document_event.h"
 
 struct dom_doc_nl;
+
+struct dom_mutation_callback_entry {
+    dom_mutation_callback callback;
+    void *pw;
+    struct dom_mutation_callback_entry *next;
+};
 
 /**
  * DOM document
@@ -79,7 +86,12 @@ struct dom_document {
     dom_string *_memo_domsubtreemodified; /**< DOMSubtreeModified */
 
     uint32_t dispatching_mutation; /**< Mutation event semaphore */
+
+    struct dom_mutation_callback_entry *mutation_callbacks;
 };
+
+void _dom_document_notify_mutation(dom_document *doc,
+    const struct dom_mutation_notification *notification);
 
 /* Create a DOM document */
 dom_exception _dom_document_create(dom_events_default_action_fetcher daf, void *daf_ctx, dom_document **doc);

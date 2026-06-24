@@ -87,6 +87,50 @@ START_TEST(test_quickjs_event_target_full)
 }
 END_TEST
 
+START_TEST(test_quickjs_mutation_observer_e2e)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    js_newthread(heap, NULL, NULL, &thread);
+
+    const char *code =
+        "var records = [];\n"
+        "var observer = new MutationObserver(function(muts) {\n"
+        "  records = records.concat(muts);\n"
+        "});\n"
+        "var div = document.createElement('div');\n"
+        "var span = document.createElement('span');\n"
+        "observer.observe(div, { childList: true, attributes: true });\n"
+        "observer.observe(span, { childList: true, characterData: true });\n"
+        "div.setAttribute('id', 'test');\n"
+        "div.appendChild(document.createTextNode('hello'));\n"
+        "span.appendChild(document.createTextNode('world'));\n"
+        "span.firstChild.data = 'new world';\n"
+        "// At this point records should still be empty because it's a microtask\n"
+        "if (records.length !== 0) throw new Error('Not asynchronous');\n"
+        "var taken = observer.takeRecords();\n"
+        "// div: attr, childList. span: childList (for 'world'), characterData (for 'new world')\n"
+        "taken.length === 4 && \n"
+        "taken[0].type === 'attributes' && taken[0].target === div &&\n"
+        "taken[1].type === 'childList' && taken[1].target === div &&\n"
+        "taken[2].type === 'childList' && taken[2].target === span &&\n"
+        "taken[3].type === 'characterData' && taken[3].target === span.firstChild;";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_mutation_observer_e2e");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 /**
  * Test creating and destroying a heap.
  */
@@ -1139,6 +1183,12 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_observers);
     suite_add_tcase(s, tc_window);
+
+    /* MutationObserver test case */
+    TCase *tc_mutation = tcase_create("MutationObserver");
+    tcase_add_test(tc_mutation, test_quickjs_mutation_observer_e2e);
+    suite_add_tcase(s, tc_mutation);
+
     return s;
 }
 

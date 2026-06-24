@@ -265,6 +265,8 @@ dom_exception _dom_document_initialise(dom_document *doc, dom_events_default_act
 
     doc->dispatching_mutation = 0;
 
+    doc->mutation_callbacks = NULL;
+
     /* We should not pass a NULL when all things hook up */
     return _dom_document_event_internal_initialise(&doc->dei, daf, daf_ctx);
 }
@@ -330,6 +332,13 @@ bool _dom_document_finalise(dom_document *doc)
     dom_string_unref(doc->_memo_domsubtreemodified);
 
     _dom_document_event_internal_finalise(&doc->dei);
+
+    struct dom_mutation_callback_entry *entry = doc->mutation_callbacks;
+    while (entry != NULL) {
+        struct dom_mutation_callback_entry *next = entry->next;
+        free(entry);
+        entry = next;
+    }
 
     return true;
 }
@@ -1492,4 +1501,51 @@ dom_exception _dom_document_set_quirks_mode(dom_document *doc, dom_document_quir
 {
     doc->quirks = quirks;
     return DOM_NO_ERR;
+}
+
+dom_exception dom_document_add_mutation_callback(struct dom_document *doc,
+        dom_mutation_callback callback, void *pw)
+{
+    struct dom_mutation_callback_entry *entry = malloc(sizeof(*entry));
+    if (entry == NULL)
+        return DOM_NO_MEM_ERR;
+
+    entry->callback = callback;
+    entry->pw = pw;
+    entry->next = doc->mutation_callbacks;
+    doc->mutation_callbacks = entry;
+
+    return DOM_NO_ERR;
+}
+
+dom_exception dom_document_remove_mutation_callback(struct dom_document *doc,
+        dom_mutation_callback callback, void *pw)
+{
+    struct dom_mutation_callback_entry *entry = doc->mutation_callbacks;
+    struct dom_mutation_callback_entry *prev = NULL;
+
+    while (entry != NULL) {
+        if (entry->callback == callback && entry->pw == pw) {
+            if (prev == NULL)
+                doc->mutation_callbacks = entry->next;
+            else
+                prev->next = entry->next;
+            free(entry);
+            return DOM_NO_ERR;
+        }
+        prev = entry;
+        entry = entry->next;
+    }
+
+    return DOM_NOT_FOUND_ERR;
+}
+
+void _dom_document_notify_mutation(dom_document *doc,
+    const struct dom_mutation_notification *notification)
+{
+    struct dom_mutation_callback_entry *entry = doc->mutation_callbacks;
+    while (entry != NULL) {
+        entry->callback(notification, entry->pw);
+        entry = entry->next;
+    }
 }

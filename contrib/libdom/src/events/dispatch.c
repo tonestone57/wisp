@@ -10,6 +10,7 @@
 #include "core/document.h"
 #include "events/dispatch.h"
 #include "events/mutation_event.h"
+#include <dom/core/mutation_observer.h>
 
 #include "utils/utils.h"
 
@@ -52,6 +53,26 @@ dom_exception __dom_dispatch_node_change_event(
     err = dom_event_target_dispatch_event(et, evt, success);
     if (err != DOM_NO_ERR)
         goto cleanup;
+
+    /* Notify internal mutation observers */
+    struct dom_mutation_notification notification;
+    notification.type = DOM_MUTATION_NOTIFICATION_CHILD_LIST;
+    notification.target = (struct dom_node *)related;
+    if (change == DOM_MUTATION_ADDITION) {
+        notification.added_node = (struct dom_node *)et;
+        notification.removed_node = NULL;
+    } else {
+        notification.added_node = NULL;
+        notification.removed_node = (struct dom_node *)et;
+    }
+    notification.previous_sibling = (struct dom_node *)((dom_node_internal *)et)->previous;
+    notification.next_sibling = (struct dom_node *)((dom_node_internal *)et)->next;
+    notification.attr_name = NULL;
+    notification.attr_namespace = NULL;
+    notification.old_value = NULL;
+    notification.new_value = NULL;
+
+    _dom_document_notify_mutation(doc, &notification);
 
 cleanup:
     dom_event_unref(evt);
@@ -138,6 +159,23 @@ dom_exception __dom_dispatch_attr_modified_event(dom_document *doc, dom_event_ta
 
     err = dom_event_target_dispatch_event(et, evt, success);
 
+    if (err == DOM_NO_ERR) {
+        /* Notify internal mutation observers */
+        struct dom_mutation_notification notification;
+        notification.type = DOM_MUTATION_NOTIFICATION_ATTRIBUTES;
+        notification.target = (struct dom_node *)et;
+        notification.added_node = NULL;
+        notification.removed_node = NULL;
+        notification.previous_sibling = NULL;
+        notification.next_sibling = NULL;
+        notification.attr_name = attr_name;
+        notification.attr_namespace = (related != NULL) ? ((dom_node_internal *)related)->namespace : NULL;
+        notification.old_value = prev;
+        notification.new_value = new;
+
+        _dom_document_notify_mutation(doc, &notification);
+    }
+
 cleanup:
     dom_event_unref(evt);
 
@@ -178,6 +216,23 @@ dom_exception __dom_dispatch_characterdata_modified_event(
     }
 
     err = dom_event_target_dispatch_event(et, evt, success);
+
+    if (err == DOM_NO_ERR) {
+        /* Notify internal mutation observers */
+        struct dom_mutation_notification notification;
+        notification.type = DOM_MUTATION_NOTIFICATION_CHARACTER_DATA;
+        notification.target = (struct dom_node *)et;
+        notification.added_node = NULL;
+        notification.removed_node = NULL;
+        notification.previous_sibling = NULL;
+        notification.next_sibling = NULL;
+        notification.attr_name = NULL;
+        notification.attr_namespace = NULL;
+        notification.old_value = prev;
+        notification.new_value = new;
+
+        _dom_document_notify_mutation(doc, &notification);
+    }
 
 cleanup:
     dom_event_unref(evt);

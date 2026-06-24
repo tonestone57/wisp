@@ -37,6 +37,7 @@
 #include "core/string.h"
 #include "core/text.h"
 #include "events/mutation_event.h"
+#include <dom/core/mutation_observer.h>
 
 static bool _dom_node_permitted_child(const dom_node_internal *parent, const dom_node_internal *child);
 static inline dom_exception _dom_node_attach(
@@ -496,13 +497,33 @@ dom_exception _dom_node_set_node_value(dom_node_internal *node, dom_string *valu
     if (node->type == DOM_ATTRIBUTE_NODE)
         return dom_attr_set_value((struct dom_attr *)node, value);
 
-    if (node->value != NULL)
-        dom_string_unref(node->value);
+    dom_string *old_value = node->value;
 
     if (value != NULL)
         dom_string_ref(value);
 
     node->value = value;
+
+    /* Notify internal mutation observers if this is character data */
+    if (node->type == DOM_TEXT_NODE || node->type == DOM_CDATA_SECTION_NODE ||
+        node->type == DOM_COMMENT_NODE || node->type == DOM_PROCESSING_INSTRUCTION_NODE) {
+        struct dom_mutation_notification notification;
+        notification.type = DOM_MUTATION_NOTIFICATION_CHARACTER_DATA;
+        notification.target = (struct dom_node *)node;
+        notification.added_node = NULL;
+        notification.removed_node = NULL;
+        notification.previous_sibling = NULL;
+        notification.next_sibling = NULL;
+        notification.attr_name = NULL;
+        notification.attr_namespace = NULL;
+        notification.old_value = old_value;
+        notification.new_value = value;
+
+        _dom_document_notify_mutation(node->owner, &notification);
+    }
+
+    if (old_value != NULL)
+        dom_string_unref(old_value);
 
     return DOM_NO_ERR;
 }
