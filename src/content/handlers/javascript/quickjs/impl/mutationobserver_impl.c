@@ -225,7 +225,7 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 
     /* Parse options */
     MutationObserverOptions mo_opts = {0};
-    JSValue opts = (JSValue)options;
+    JSValue opts = *(JSValue *)options;
     JSValue val;
 
     val = JS_GetPropertyStr(ctx, opts, "childList");
