@@ -16,11 +16,11 @@ Current development is focused on completing the CSS Variables implementation, a
 *   **[Finished] Unified Rendering (Blend2D)**: Blend2D is the primary rendering engine across all frontends, ensuring massive code deduplication and industry-leading software rasterization.
 *   **[Finished] Position: Sticky**: Full support for multi-axis sticky positioning with scroll-container constraints.
 *   **[Finished] Stateful Vector Path API**: Efficient path rendering (MoveTo, LineTo, BezierTo) across all modern frontends.
-*   **[Finished] ISOBMFF & AVIF**: Native support for AVIF, HEIC, and HEIF formats via `libavif` v1.4.2.
-*   **[Finished] QuickJS-ng Integration**: Migration to QuickJS-ng (v0.15.1) for ES2023+ support.
+*   **[Finished] ISOBMFF & AVIF**: Native support for AVIF, HEIC, and HEIF formats via linked submodules.
+*   **[Finished] QuickJS-ng Integration**: Migration to QuickJS-ng for ES2023+ support via submodule.
 *   **[Partial] CSS Grid**: Robust 3-phase auto-placement and FR unit distribution; dense packing refinements ongoing.
 *   **[Partial] CSS Flexbox**: Support for flex-grow, shrink, auto-margins, and column-flex two-pass resolution.
-*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Transitioning from union-based invalidation to a **Tiled Redraw** strategy (256x256 fixed tiles).
+*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Transitioning from union-based invalidation to a **Scale-Aware Fixed-Tile Redraw** strategy.
 *   **[Partial] CSS Variables**: Parsing and selection of `var()` complete; resolution pass is active with minor regressions.
 
 ## Biggest differences from Netsurf

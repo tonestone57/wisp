@@ -489,14 +489,8 @@ def main():
     for idl in args.idl_files:
         generator.parse_idl(idl)
 
-    # Detect dictionaries and interfaces
-    dictionaries = []
-    for construct in generator.parser.constructs:
-        if isinstance(construct, widlparser.constructs.Dictionary):
-            dictionaries.append(construct.name)
-
-    for name in list(generator.all_interface_names):
-        if name in dictionaries:
+    for name in generator.all_interface_names:
+        if name in generator.dictionaries:
             continue
         generator.generate_interface_files(name)
         print(f"Generated: {name}")

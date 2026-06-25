@@ -13,13 +13,13 @@ Wisp has unified its rendering backbone around **Blend2D** across all supported 
 4.  **Modern CSS Support**: Blend2D natively handles complex gradients, blending modes, and arbitrary path clipping required by modern web specifications.
 
 ### Recommended Architecture
-To keep the core clean, Wisp utilizes an internal rendering layer that implements the NetSurf `plotter_table` using Blend2D.
+To keep the core clean, Wisp utilizes an internal rendering layer called **librender_blend2d**.
 
 ```
 [ Wisp Core / LibDOM ]
          │
          ▼
-[ libwisp_render_b2d ]  <-- Implements plotter_table using Blend2D
+[ librender_blend2d ]  <-- Implements plotter_table using Blend2D
          │
          ├────────────────────────┐
          ▼                        ▼

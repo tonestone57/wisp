@@ -7,9 +7,11 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 
 | Library | Repo Version | Latest Online (June 2026) | Status |
 |---------|--------------|---------------------------|--------|
-| `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
-| `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
-| `libavif` | v1.4.2 | v1.4.2 | **[Finished]** Up-to-date |
+| `quickjs-ng` | Submodule | Latest | **[Finished]** Tracking latest |
+| `blend2d` | Submodule | v0.21.2 | **[Finished]** Tracking latest |
+| `libavif` | Submodule | v1.4.2 | **[Finished]** Tracking latest |
+| `libnsbmp` | Submodule | Latest | **[Finished]** Tracking latest |
+| `libnsgif` | Submodule | Latest | **[Finished]** Tracking latest |
 | `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged for Grid/Calc |
 | `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged for SVG/JS |
 | `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |

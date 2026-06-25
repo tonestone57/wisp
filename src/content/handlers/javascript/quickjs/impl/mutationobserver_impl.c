@@ -211,7 +211,7 @@ static void libdom_mutation_callback(const struct dom_mutation_notification *not
     }
 }
 
-JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target, void * options)
+JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target, JSValue options)
 {
     if (!priv || !priv->node || !target) return JS_EXCEPTION;
     WispMutationObserver *observer = priv->node;
@@ -225,7 +225,7 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 
     /* Parse options */
     MutationObserverOptions mo_opts = {0};
-    JSValue opts = (JSValue)options;
+    JSValue opts = options;
     JSValue val;
 
     val = JS_GetPropertyStr(ctx, opts, "childList");
