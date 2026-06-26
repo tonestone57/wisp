@@ -53,7 +53,7 @@ extern "C" {
 
 struct bitmap {
     BBitmap *primary;
-    BBitmap *shadow; // in NetSurf's ABGR order
+    BBitmap *shadow; // in Wisp's preferred ARGB/XRGB order (actually ABGR/XBGR in some parts)
     BBitmap *pretile_x;
     BBitmap *pretile_y;
     BBitmap *pretile_xy;
@@ -63,52 +63,52 @@ struct bitmap {
 #define MIN_PRETILE_WIDTH 256
 #define MIN_PRETILE_HEIGHT 256
 
-#warning TODO: check rgba order
-#warning TODO: add correct locking (not strictly required)
-
-
 /**
- * Convert to BeOS RGBA32_LITTLE (strictly BGRA) from NetSurf's favoured ABGR
- * format.
+ * Convert Wisp's XBGR color format to BeOS BGRA32 byte layout.
  *
- * Copies the converted data elsewhere.  Operation is rotate left 8 bits.
+ * Wisp Integer Format (0xAABBGGRR):
+ *   - [MSB] Alpha | Blue | Green | Red [LSB]
+ *   - Alpha: 0 = opaque, 255 = transparent (inverted)
  *
- * \param src       Source 32-bit pixels arranged in ABGR order.
- * \param dst       Output data in BGRA order.
- * \param width     Width of the bitmap
- * \param height    Height of the bitmap
- * \param rowstride Number of bytes to skip after each row (this implementation
- *                  requires this to be a multiple of 4.)
+ * Memory Layout on Little-Endian (Haiku/x86):
+ *   - Byte 0: Red
+ *   - Byte 1: Green
+ *   - Byte 2: Blue
+ *   - Byte 3: Alpha
+ *
+ * Haiku B_RGBA32 Expected Byte Order (BGRA):
+ *   - Byte 0: Blue
+ *   - Byte 1: Green
+ *   - Byte 2: Red
+ *   - Byte 3: Alpha (255 = opaque, 0 = transparent)
+ *
+ * This function performs a Red-Blue channel swap and Alpha inversion to
+ * ensure correct rendering through Haiku's AGG-based app_server.
  */
-static inline void nsbeos_rgba_to_bgra(void *src, void *dst, int width, int height, size_t rowstride)
+static inline void nsbeos_xbgr_to_bgra(void *src, void *dst, int width, int height, size_t rowstride)
 {
-    struct abgr {
-        uint8 a, b, g, r;
-    };
-    struct rgba {
+    struct xbgr {
         uint8 r, g, b, a;
     };
     struct bgra {
         uint8 b, g, r, a;
     };
-    struct rgba *from = (struct rgba *)src;
+    struct xbgr *from = (struct xbgr *)src;
     struct bgra *to = (struct bgra *)dst;
 
-    rowstride >>= 2;
+    int stride_pixels = rowstride >> 2;
 
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             to[x].b = from[x].b;
             to[x].g = from[x].g;
             to[x].r = from[x].r;
-            to[x].a = from[x].a;
-            /*
-              if (from[x].a == 0)
-              *(rgb_color *)&to[x] = B_TRANSPARENT_32_BIT;
-              */
+            /* Invert alpha: Wisp 0 is opaque, 255 is transparent.
+               BeOS/AGG 255 is opaque, 0 is transparent. */
+            to[x].a = 255 - from[x].a;
         }
-        from += rowstride;
-        to += rowstride;
+        from += stride_pixels;
+        to += stride_pixels;
     }
 }
 
@@ -132,12 +132,17 @@ static void *bitmap_create(int width, int height, enum gui_bitmap_flags flags)
         Bflags |= B_BITMAP_CLEAR_TO_WHITE;
 
     BRect frame(0, 0, width - 1, height - 1);
-    // XXX: bytes per row ?
     bmp->primary = new BBitmap(frame, Bflags, B_RGBA32);
     bmp->shadow = new BBitmap(frame, Bflags, B_RGBA32);
 
-    bmp->pretile_x = bmp->pretile_y = bmp->pretile_xy = NULL;
+    if (bmp->primary->InitCheck() != B_OK || bmp->shadow->InitCheck() != B_OK) {
+        delete bmp->primary;
+        delete bmp->shadow;
+        free(bmp);
+        return NULL;
+    }
 
+    bmp->pretile_x = bmp->pretile_y = bmp->pretile_xy = NULL;
     bmp->opaque = (flags & BITMAP_OPAQUE) != 0;
 
     return bmp;
@@ -176,15 +181,13 @@ static bool bitmap_get_opaque(void *vbitmap)
  *
  * \param  vbitmap  a bitmap, as returned by bitmap_create()
  * \return pointer to the pixel buffer
- *
- * The pixel data is packed as BITMAP_FORMAT, possibly with padding at the end
- * of rows. The width of a row in bytes is given by bitmap_get_rowstride().
  */
 
 static unsigned char *bitmap_get_buffer(void *vbitmap)
 {
     struct bitmap *bitmap = (struct bitmap *)vbitmap;
     assert(bitmap);
+    /* Wisp core writes to the shadow buffer */
     return (unsigned char *)(bitmap->shadow->Bits());
 }
 
@@ -199,7 +202,7 @@ static size_t bitmap_get_rowstride(void *vbitmap)
 {
     struct bitmap *bitmap = (struct bitmap *)vbitmap;
     assert(bitmap);
-    return (bitmap->primary->BytesPerRow());
+    return (bitmap->shadow->BytesPerRow());
 }
 
 
@@ -245,9 +248,19 @@ static void bitmap_destroy(void *vbitmap)
 void bitmap_modified(void *vbitmap)
 {
     struct bitmap *bitmap = (struct bitmap *)vbitmap;
-    // convert the shadow (ABGR) to into the primary bitmap
-    nsbeos_rgba_to_bgra(bitmap->shadow->Bits(), bitmap->primary->Bits(), bitmap->primary->Bounds().Width() + 1,
-        bitmap->primary->Bounds().Height() + 1, bitmap->primary->BytesPerRow());
+
+    /* Convert the shadow (Wisp XBGR) into the primary bitmap (BeOS BGRA) */
+    bitmap->primary->LockBits();
+    bitmap->shadow->LockBits();
+
+    nsbeos_xbgr_to_bgra(bitmap->shadow->Bits(), bitmap->primary->Bits(),
+        (int)bitmap->primary->Bounds().Width() + 1,
+        (int)bitmap->primary->Bounds().Height() + 1,
+        bitmap->primary->BytesPerRow());
+
+    bitmap->shadow->UnlockBits();
+    bitmap->primary->UnlockBits();
+
     nsbeos_bitmap_free_pretiles(bitmap);
 }
 
@@ -255,33 +268,35 @@ void bitmap_modified(void *vbitmap)
 static int bitmap_get_width(void *vbitmap)
 {
     struct bitmap *bitmap = (struct bitmap *)vbitmap;
-    return bitmap->primary->Bounds().Width() + 1;
+    return (int)bitmap->primary->Bounds().Width() + 1;
 }
 
 
 static int bitmap_get_height(void *vbitmap)
 {
     struct bitmap *bitmap = (struct bitmap *)vbitmap;
-    return bitmap->primary->Bounds().Height() + 1;
+    return (int)bitmap->primary->Bounds().Height() + 1;
 }
 
 
 static BBitmap *nsbeos_bitmap_generate_pretile(BBitmap *primary, int repeat_x, int repeat_y)
 {
-    int width = primary->Bounds().Width() + 1;
-    int height = primary->Bounds().Height() + 1;
+    int width = (int)primary->Bounds().Width() + 1;
+    int height = (int)primary->Bounds().Height() + 1;
     size_t primary_stride = primary->BytesPerRow();
     BRect frame(0, 0, width * repeat_x - 1, height * repeat_y - 1);
     BBitmap *result = new BBitmap(frame, 0, B_RGBA32);
 
+    if (result->InitCheck() != B_OK) {
+        delete result;
+        return NULL;
+    }
+
     char *target_buffer = (char *)result->Bits();
     int x, y, row;
-    /* This algorithm won't work if the strides are not multiples */
-    assert((size_t)(result->BytesPerRow()) == (primary_stride * repeat_x));
 
     if (repeat_x == 1 && repeat_y == 1) {
         delete result;
-        // just return a copy
         return new BBitmap(primary);
     }
 
@@ -318,9 +333,8 @@ BBitmap *nsbeos_bitmap_get_primary(struct bitmap *bitmap)
 BBitmap *nsbeos_bitmap_get_pretile_x(struct bitmap *bitmap)
 {
     if (!bitmap->pretile_x) {
-        int width = bitmap->primary->Bounds().Width() + 1;
+        int width = (int)bitmap->primary->Bounds().Width() + 1;
         int xmult = (MIN_PRETILE_WIDTH + width - 1) / width;
-        NSLOG(wisp, INFO, "Pretiling %p for X*%d", bitmap, xmult);
         bitmap->pretile_x = nsbeos_bitmap_generate_pretile(bitmap->primary, xmult, 1);
     }
     return bitmap->pretile_x;
@@ -335,9 +349,8 @@ BBitmap *nsbeos_bitmap_get_pretile_x(struct bitmap *bitmap)
 BBitmap *nsbeos_bitmap_get_pretile_y(struct bitmap *bitmap)
 {
     if (!bitmap->pretile_y) {
-        int height = bitmap->primary->Bounds().Height() + 1;
+        int height = (int)bitmap->primary->Bounds().Height() + 1;
         int ymult = (MIN_PRETILE_HEIGHT + height - 1) / height;
-        NSLOG(wisp, INFO, "Pretiling %p for Y*%d", bitmap, ymult);
         bitmap->pretile_y = nsbeos_bitmap_generate_pretile(bitmap->primary, 1, ymult);
     }
     return bitmap->pretile_y;
@@ -352,11 +365,10 @@ BBitmap *nsbeos_bitmap_get_pretile_y(struct bitmap *bitmap)
 BBitmap *nsbeos_bitmap_get_pretile_xy(struct bitmap *bitmap)
 {
     if (!bitmap->pretile_xy) {
-        int width = bitmap->primary->Bounds().Width() + 1;
-        int height = bitmap->primary->Bounds().Height() + 1;
+        int width = (int)bitmap->primary->Bounds().Width() + 1;
+        int height = (int)bitmap->primary->Bounds().Height() + 1;
         int xmult = (MIN_PRETILE_WIDTH + width - 1) / width;
         int ymult = (MIN_PRETILE_HEIGHT + height - 1) / height;
-        NSLOG(wisp, INFO, "Pretiling %p for X*%d Y*%d", bitmap, xmult, ymult);
         bitmap->pretile_xy = nsbeos_bitmap_generate_pretile(bitmap->primary, xmult, ymult);
     }
     return bitmap->pretile_xy;
@@ -382,7 +394,6 @@ static nserror bitmap_render(struct bitmap *bitmap, hlcache_handle *content)
     float height;
     int big_width;
     int big_height;
-    int depth;
 
     struct redraw_context ctx;
     ctx.interactive = false;
@@ -395,20 +406,19 @@ static nserror bitmap_render(struct bitmap *bitmap, hlcache_handle *content)
     thumbnail = nsbeos_bitmap_get_primary(bitmap);
     width = thumbnail->Bounds().Width();
     height = thumbnail->Bounds().Height();
-    depth = 32;
 
     big_width = MIN(content_get_width(content), 1024);
     big_height = (int)(((big_width * height) + (width / 2)) / width);
 
     BRect contentRect(0, 0, big_width - 1, big_height - 1);
-    big = new BBitmap(contentRect, B_BITMAP_ACCEPTS_VIEWS, B_RGB32);
+    big = new BBitmap(contentRect, B_BITMAP_ACCEPTS_VIEWS, B_RGBA32);
 
     if (big->InitCheck() < B_OK) {
         delete big;
         return NSERROR_NOMEM;
     }
 
-    small = new BBitmap(thumbnail->Bounds(), B_BITMAP_ACCEPTS_VIEWS, B_RGB32);
+    small = new BBitmap(thumbnail->Bounds(), B_BITMAP_ACCEPTS_VIEWS, B_RGBA32);
 
     if (small->InitCheck() < B_OK) {
         delete small;
@@ -416,8 +426,6 @@ static nserror bitmap_render(struct bitmap *bitmap, hlcache_handle *content)
         return NSERROR_NOMEM;
     }
 
-    // XXX: _lock ?
-    //  backup the current gc
     oldView = nsbeos_current_gc();
 
     view = new BView(contentRect, "thumbnailer", B_FOLLOW_NONE, B_WILL_DRAW);
@@ -427,42 +435,30 @@ static nserror bitmap_render(struct bitmap *bitmap, hlcache_handle *content)
     small->AddChild(thumbView);
 
     view->LockLooper();
-
-    /* impose our view on the content... */
     nsbeos_current_gc_set(view);
-
-    /* render the content */
     content_scaled_redraw(content, big_width, big_height, &ctx);
-
     view->Sync();
     view->UnlockLooper();
 
-    // restore the current gc
     nsbeos_current_gc_set(oldView);
 
-
-    // now scale it down
-    // XXX: use Zeta's bilinear scaler ?
-    // #ifdef B_ZETA_VERSION
-    //	err = ScaleBitmap(*shot, *scaledBmp);
-    // #else
     thumbView->LockLooper();
-    thumbView->DrawBitmap(big, big->Bounds(), small->Bounds());
+    /* Draw scaled with high quality (bilinear filtering via AGG) */
+    thumbView->DrawBitmap(big, big->Bounds(), small->Bounds(), B_FILTER_BITMAP_BILINEAR);
     thumbView->Sync();
     thumbView->UnlockLooper();
 
     small->LockBits();
     thumbnail->LockBits();
-
-    // copy it to the bitmap
     memcpy(thumbnail->Bits(), small->Bits(), thumbnail->BitsLength());
-
     thumbnail->UnlockBits();
     small->UnlockBits();
 
-    bitmap_modified(bitmap);
+    /* Primary is now ready. Update shadow if needed, though usually render
+       output is only used for display. */
 
-    // cleanup
+    nsbeos_bitmap_free_pretiles(bitmap);
+
     small->RemoveChild(thumbView);
     delete thumbView;
     delete small;

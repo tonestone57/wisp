@@ -12,7 +12,12 @@ static struct nsurl *stub_url;
 
 /* Stub guit for tests - layout is NULL so svg.c will use approximation */
 static struct wisp_table stub_gui_table = {0};
-struct wisp_table *guit = &stub_gui_table;
+extern struct wisp_table *guit;
+
+void content_stubs_init(void)
+{
+    guit = &stub_gui_table;
+}
 
 nserror content__init(struct content *c, const struct content_handler *handler, lwc_string *imime_type,
     const struct http_parameter *params, struct llcache_handle *llcache, const char *fallback_charset, bool quirks)

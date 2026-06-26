@@ -200,7 +200,7 @@ class QuickJSBindingGenerator:
         if op['custom']:
             return f"    return js_{lower_name}_{op['name']}_custom(ctx, this_val, argc, argv);\n"
 
-        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);\n"
+        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);\n"
         code += f"    if (!priv) return JS_EXCEPTION;\n"
 
         impl_args = ["priv"]
@@ -223,6 +223,14 @@ class QuickJSBindingGenerator:
                 # Interface
                 code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
                 code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
+            else:
+                # Differentiate between another IDL interface and other types (any, dictionary)
+                actual_type = arg['type']
+                if actual_type in self.all_interface_names:
+                    code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
+                    code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
+                else:
+                    code += f"    JSValue {arg_name} = (argc > {i}) ? JS_DupValue(ctx, argv[{i}]) : JS_UNDEFINED;\n"
                 impl_args.append(arg_name)
             else:
                 # Dictionary or 'any' or other types passed as JSValue
@@ -243,6 +251,12 @@ class QuickJSBindingGenerator:
                 c_type = "void *"
             else:
                 c_type = "JSValue"
+            else:
+                actual_type = arg['type']
+                if actual_type in self.all_interface_names:
+                    c_type = "void *"
+                else:
+                    c_type = "JSValue"
             sig_args.append(f"{c_type} {arg_name}")
 
         sig = f"JSValue {impl_func}(JSContext *ctx, {', '.join(sig_args)})"
@@ -256,8 +270,11 @@ class QuickJSBindingGenerator:
 
         for i, arg in enumerate(op['args']):
             arg_name = safe_name(arg['name'])
-            if idl_to_js_type(arg['type']) == 'string':
+            js_type = idl_to_js_type(arg['type'])
+            if js_type == 'string':
                 code += f"    if ({arg_name}) JS_FreeCString(ctx, {arg_name});\n"
+            elif js_type == 'value' and arg['type'] not in self.all_interface_names:
+                code += f"    JS_FreeValue(ctx, {arg_name});\n"
 
         code += "    return ret;\n"
         return code
@@ -268,7 +285,7 @@ class QuickJSBindingGenerator:
             suffix = "set" if is_set else "get"
             return f"    return js_{lower_name}_{attr['name']}_{suffix}_custom(ctx, this_val, val);\n"
 
-        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);\n"
+        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);\n"
         code += f"    if (!priv) return JS_EXCEPTION;\n"
 
         impl_func = f"wisp_{lower_name}_{attr['name']}_{'set' if is_set else 'get'}_impl"
@@ -300,6 +317,17 @@ class QuickJSBindingGenerator:
                 code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(val);\n"
                 code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
+            else:
+                actual_type = attr['type']
+                if actual_type in self.all_interface_names:
+                    code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
+                else:
+                    code += f"    JSValue val_dup = JS_DupValue(ctx, val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, val_dup);\n"
+                    code += f"    JS_FreeValue(ctx, val_dup);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, JSValue value)"
                 stub_body = "    return JS_UNDEFINED;"
             else:
                 code += f"    JSValue ret = {impl_func}(ctx, priv, val);\n"

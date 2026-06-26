@@ -155,7 +155,7 @@ static void nsc_gmtime_fallback(time_t t, int *year, int *month, int *day, int *
 /* exported interface documented in utils/time.h */
 const char *rfc1123_date(time_t t)
 {
-    static char ret[32];
+    static char ret[64];
 
     struct tm *tm = gmtime(&t);
     if (tm != NULL) {

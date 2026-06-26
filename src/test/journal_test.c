@@ -29,6 +29,7 @@ extern struct wisp_table *guit;
 
 int main(int argc, char **argv)
 {
+    guit = &guit_test;
     nserror ret;
     struct nsurl *url1, *url2;
     uint8_t *data1, *data2;
@@ -39,7 +40,6 @@ int main(int argc, char **argv)
     ret = corestrings_init();
     assert(ret == NSERROR_OK);
 
-    guit = &guit_test;
     guit->llcache = filesystem_llcache_table;
     guit->file = default_file_table;
 

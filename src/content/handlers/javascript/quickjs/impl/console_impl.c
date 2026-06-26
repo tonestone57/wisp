@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
+#include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "JSConsole.gen.h"
@@ -12,6 +13,7 @@ static JSValue wisp_console_log_internal(JSContext *ctx, const char *msg, JSValu
     if (msg) {
         NSLOG(wisp, INFO, "Console [%s]: %s", level, msg);
     }
+
     return JS_UNDEFINED;
 }
 
