@@ -508,46 +508,48 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 }
 
                 if (snum > 0 && snum <= s->style->sheet->string_vector_c &&
-                    lwc_string_length(p) >= sizeof(uint32_t) &&
-                    *(uint32_t*)lwc_string_data(p) > 0 &&
-                    *(uint32_t*)lwc_string_data(p) < 1000) {
-                    /* Binary token stream detected */
-                    const uint8_t *data = (const uint8_t *)lwc_string_data(p);
-                    uint32_t n_tokens = *(uint32_t *)data;
-                    const uint8_t *ptr_tok = data + sizeof(uint32_t);
-                    const uint8_t *end_tok = data + lwc_string_length(p);
-                    char actual_val[4096]; actual_val[0] = '\0';
-                    size_t actual_len = 0;
-                    for (uint32_t k = 0; k < n_tokens; k++) {
-                        css_token tok;
-                        if (ptr_tok + sizeof(tok) > end_tok) break;
-                        memcpy(&tok, ptr_tok, sizeof(tok));
-                        ptr_tok += sizeof(tok);
-                        if (tok.data.len > 0) {
-                            if (ptr_tok + tok.data.len <= end_tok) {
-                                if (actual_len + tok.data.len < 4095) {
-                                    memcpy(actual_val + actual_len, ptr_tok, tok.data.len);
-                                    actual_len += tok.data.len;
-                                    actual_val[actual_len] = '\0';
+                    lwc_string_length(p) >= sizeof(uint32_t)) {
+                    uint32_t n_tokens;
+                    memcpy(&n_tokens, lwc_string_data(p), sizeof(n_tokens));
+                    if (n_tokens > 0 && n_tokens < 1000) {
+                        /* Binary token stream detected */
+                        const uint8_t *data = (const uint8_t *)lwc_string_data(p);
+                        const uint8_t *ptr_tok = data + sizeof(uint32_t);
+                        const uint8_t *end_tok = data + lwc_string_length(p);
+                        char actual_val[4096]; actual_val[0] = '\0';
+                        size_t actual_len = 0;
+                        for (uint32_t k = 0; k < n_tokens; k++) {
+                            css_token tok;
+                            if (ptr_tok + sizeof(tok) > end_tok) break;
+                            memcpy(&tok, ptr_tok, sizeof(tok));
+                            ptr_tok += sizeof(tok);
+                            if (tok.data.len > 0) {
+                                if (ptr_tok + tok.data.len <= end_tok) {
+                                    if (actual_len + tok.data.len < 4095) {
+                                        memcpy(actual_val + actual_len, ptr_tok, tok.data.len);
+                                        actual_len += tok.data.len;
+                                        actual_val[actual_len] = '\0';
+                                    }
+                                    ptr_tok += tok.data.len;
                                 }
-                                ptr_tok += tok.data.len;
                             }
                         }
-                    }
-                    /* Trim trailing and leading space for comparison */
-                    while (actual_len > 0 && isspace((unsigned char)actual_val[actual_len - 1])) {
-                        actual_val[--actual_len] = '\0';
-                    }
-                    char *start_ptr = actual_val;
-                    while (*start_ptr && isspace((unsigned char)*start_ptr)) start_ptr++;
-                    if (strcmp(start_ptr, e->stringtab[j].string) != 0) {
-                        printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", start_ptr, e->stringtab[j].string);
+                        /* Trim trailing whitespace */
+                        while (actual_len > 0 && (actual_val[actual_len-1] == ' ' || actual_val[actual_len-1] == '\n' || actual_val[actual_len-1] == '\r' || actual_val[actual_len-1] == '\t')) {
+                            actual_val[--actual_len] = '\0';
+                        }
+                        if (strcmp(actual_val, e->stringtab[j].string) != 0) {
+                            printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", actual_val, e->stringtab[j].string);
+                            return true;
+                        }
+                    } else goto fallback;
+                } else {
+                fallback:
+                    if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                        memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
+                        printf("FAIL Strings differ\n    Got string '%.*s'. Expected '%s'\n", (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
                         return true;
                     }
-                } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
-                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
-                    printf("FAIL Strings differ\n    Got string '%.*s'. Expected '%s'\n", (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return true;
                 }
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
