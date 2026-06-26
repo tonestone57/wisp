@@ -197,7 +197,7 @@ class QuickJSBindingGenerator:
         if op['custom']:
             return f"    return js_{lower_name}_{op['name']}_custom(ctx, this_val, argc, argv);\n"
 
-        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);\n"
+        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);\n"
         code += f"    if (!priv) return JS_EXCEPTION;\n"
 
         impl_args = ["priv"]
@@ -218,7 +218,7 @@ class QuickJSBindingGenerator:
                 impl_args.append(arg_name)
             else:
                 # Assume it's another interface
-                code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
+                code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(ctx, argv[{i}]) : NULL;\n"
                 code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
                 impl_args.append(arg_name)
 
@@ -259,7 +259,7 @@ class QuickJSBindingGenerator:
             suffix = "set" if is_set else "get"
             return f"    return js_{lower_name}_{attr['name']}_{suffix}_custom(ctx, this_val, val);\n"
 
-        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);\n"
+        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);\n"
         code += f"    if (!priv) return JS_EXCEPTION;\n"
 
         impl_func = f"wisp_{lower_name}_{attr['name']}_{'set' if is_set else 'get'}_impl"
@@ -288,7 +288,7 @@ class QuickJSBindingGenerator:
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
                 stub_body = "    return JS_UNDEFINED;"
             else:
-                code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(val);\n"
+                code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(ctx, val);\n"
                 code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
                 stub_body = "    return JS_UNDEFINED;"
