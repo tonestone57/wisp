@@ -11,6 +11,7 @@
 #include "stylesheet.h"
 
 #include "testutils.h"
+#include "lex/lex.h"
 
 /** \todo at some point, we need to extend this to handle nested blocks */
 typedef struct exp_entry {
@@ -498,23 +499,45 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 lwc_string *p;
 
                 p = NULL;
-                css__stylesheet_string_get(s->style->sheet, (s->style->bytecode[i / sizeof(css_code_t)]), &p);
+                uint32_t snum = s->style->bytecode[i / sizeof(css_code_t)];
+                css__stylesheet_string_get(s->style->sheet, snum, &p);
 
                 if (p == NULL) {
-                    /* ODR/Null fix: gracefully handle NULL string from sheet */
-                    printf("FAIL String pointer is NULL for index %u\n", (unsigned int)s->style->bytecode[i / sizeof(css_code_t)]);
+                    printf("FAIL String pointer is NULL for index %u\n", (unsigned int)snum);
                     return true;
                 }
 
-                if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                if (snum > 0 && snum <= s->style->sheet->string_vector_c &&
+                    lwc_string_length(p) >= sizeof(uint32_t) &&
+                    *(uint32_t*)lwc_string_data(p) > 0 &&
+                    *(uint32_t*)lwc_string_data(p) < 1000) {
+                    /* Binary token stream detected */
+                    const uint8_t *data = (const uint8_t *)lwc_string_data(p);
+                    uint32_t n_tokens = *(uint32_t *)data;
+                    const uint8_t *ptr_tok = data + sizeof(uint32_t);
+                    const uint8_t *end_tok = data + lwc_string_length(p);
+                    char actual_val[4096]; actual_val[0] = '\0';
+                    for (uint32_t k = 0; k < n_tokens; k++) {
+                        if (ptr_tok + sizeof(css_token) > end_tok) break;
+                        css_token *tok = (css_token *)ptr_tok;
+                        size_t tok_data_len = tok->data.len;
+                        ptr_tok += sizeof(css_token);
+                        if (tok_data_len > 0) {
+                            if (ptr_tok + tok_data_len <= end_tok) {
+                                strncat(actual_val, (const char *)ptr_tok, tok_data_len);
+                                ptr_tok += tok_data_len;
+                            }
+                        }
+                    }
+                    if (strcmp(actual_val, e->stringtab[j].string) != 0) {
+                        printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", actual_val, e->stringtab[j].string);
+                        return true;
+                    }
+                } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                     memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
-                    printf("FAIL Strings differ\n"
-                           "    Got string '%.*s'. "
-                           "Expected '%s'\n",
-                        (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
+                    printf("FAIL Strings differ\n    Got string '%.*s'. Expected '%s'\n", (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
                     return true;
                 }
-
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
                 printf("FAIL Bytecode differs\n"

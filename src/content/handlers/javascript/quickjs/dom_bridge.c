@@ -146,9 +146,10 @@ void qjs_bridge_cleanup(JSRuntime *rt)
 {
     hashmap_t *map = (hashmap_t *)JS_GetRuntimeOpaque(rt);
     if (map) {
+        /* Unset opaque first so finalizers don't try to modify the map while we iterate */
+        JS_SetRuntimeOpaque(rt, NULL);
         hashmap_iterate(map, qjs_bridge_cleanup_cb, rt);
         hashmap_destroy(map);
-        JS_SetRuntimeOpaque(rt, NULL);
     }
 }
 
