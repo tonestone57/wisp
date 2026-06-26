@@ -83,11 +83,6 @@ void js_destroyheap(jsheap *heap)
     if (!heap) return;
     if (heap->rt) {
         qjs_bridge_cleanup(heap->rt);
-        hashmap_t *map = (hashmap_t *)JS_GetRuntimeOpaque(heap->rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(heap->rt, NULL);
-        }
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
