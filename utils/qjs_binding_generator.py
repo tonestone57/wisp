@@ -403,7 +403,7 @@ class QuickJSBindingGenerator:
         c_code += f"    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_{lower_name}_class_id);\n"
         c_code += f"    if (priv) {{\n"
         c_code += f"        if (priv->magic == QJS_DOM_MAGIC) {{\n"
-        c_code += f"            qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
+        c_code += f"            if (priv->is_dom_node && priv->node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
         c_code += f"            if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);\n"
         c_code += f"        }}\n"
         c_code += f"        free(priv);\n"

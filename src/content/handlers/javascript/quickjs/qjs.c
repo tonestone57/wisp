@@ -231,6 +231,41 @@ void js_destroythread(jsthread *thread)
 
     if (!thread) return;
     if (thread->ctx) {
+        /* Cleanup event listeners */
+        struct qjs_event_listener_ctx *l = thread->listeners;
+        while (l) {
+            struct qjs_event_listener_ctx *next = l->next;
+            if (l->target) {
+                dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+                if (l->is_dom_node) dom_node_unref((struct dom_node *)l->target);
+            }
+            dom_string_unref(l->type);
+            JS_FreeValue(thread->ctx, l->func);
+            free(l);
+            l = next;
+        }
+        thread->listeners = NULL;
+
+        /* Cleanup pending events */
+        struct qjs_event_map *e = thread->events;
+        while (e) {
+            struct qjs_event_map *next = e->next;
+            JS_FreeValue(thread->ctx, e->js_evt);
+            free(e);
+            e = next;
+        }
+        thread->events = NULL;
+
+        /* Cleanup timers */
+        struct qjs_timer *t = thread->timers;
+        while (t) {
+            struct qjs_timer *next = t->next;
+            JS_FreeValue(thread->ctx, t->func);
+            free(t);
+            t = next;
+        }
+        thread->timers = NULL;
+
         qjs_finalise_dom_bridge(thread->ctx);
         JS_FreeContext(thread->ctx);
     }
@@ -343,7 +378,8 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
     ctx->func = JS_DupValue(thread->ctx, js_funcval);
     ctx->target = (struct dom_event_target *)node;
     ctx->type = event_type_dom;
-    dom_node_ref(node);
+    ctx->is_dom_node = (node != NULL);
+    if (node) dom_node_ref(node);
     dom_string_ref(event_type_dom);
 
     dom_event_listener *listener;

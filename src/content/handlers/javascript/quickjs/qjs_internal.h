@@ -40,6 +40,7 @@ struct qjs_event_listener_ctx {
     struct dom_event_target *target;
     struct dom_string *type;
     struct dom_event_listener *listener;
+    bool is_dom_node;
 };
 
 struct qjs_event_map {
