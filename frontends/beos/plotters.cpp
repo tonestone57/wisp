@@ -112,25 +112,22 @@ static nserror nsbeos_plot_bbitmap(int x, int y, int width, int height, BBitmap 
     return NSERROR_OK;
 }
 
-static BPoint transform_pt(float x, float y, const float transform[6])
-{
-    if (!transform) return BPoint(x, y);
-    BPoint pt;
-    pt.x = transform[0] * x + transform[2] * y + transform[4];
-    pt.y = transform[1] * x + transform[3] * y + transform[5];
-    return pt;
-}
-
-rgb_color nsbeos_rgb_colour(colour c)
+rgb_color nsbeos_rgb_colour(colour c, float opacity)
 {
     rgb_color color;
     if (c == NS_TRANSPARENT)
         return B_TRANSPARENT_32_BIT;
-    color.red = c & 0x0000ff;
-    color.green = (c & 0x00ff00) >> 8;
-    color.blue = (c & 0xff0000) >> 16;
-    color.alpha = (c & 0xff000000) >> 24;
-    if (color.alpha == 0) color.alpha = 255; // Default to opaque if not specified
+
+    /* Wisp color is 0xAABBGGRR with inverted alpha */
+    color.red = c & 0xff;
+    color.green = (c >> 8) & 0xff;
+    color.blue = (c >> 16) & 0xff;
+    color.alpha = 255 - ((c >> 24) & 0xff);
+
+    if (opacity > 0.0f && opacity < 1.0f) {
+        color.alpha = (uint8)(color.alpha * opacity);
+    }
+
     return color;
 }
 
@@ -139,6 +136,24 @@ void nsbeos_set_colour(colour c)
     rgb_color color = nsbeos_rgb_colour(c);
     BView *view = nsbeos_current_gc();
     view->SetHighColor(color);
+}
+
+static void nsbeos_apply_style(const plot_style_t *pstyle, bool fill)
+{
+    BView *view = nsbeos_current_gc();
+    if (fill) {
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour, pstyle->fill_opacity));
+    } else {
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour, pstyle->stroke_opacity));
+        view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
+
+        pattern pat = B_SOLID_HIGH;
+        if (pstyle->stroke_type == PLOT_OP_TYPE_DOT) pat = kDottedPattern;
+        else if (pstyle->stroke_type == PLOT_OP_TYPE_DASH) pat = kDashedPattern;
+
+        /* Note: BView doesn't have a direct way to set pattern globally for all calls,
+           so we may need to pass it to Stroke* calls. */
+    }
 }
 
 void nsbeos_plot_caret(int x, int y, int h)
@@ -179,12 +194,9 @@ static nserror nsbeos_plot_arc(
     const struct redraw_context *ctx, const plot_style_t *style, int x, int y, int radius, int angle1, int angle2)
 {
     BView *view = nsbeos_current_gc();
-    if (view == NULL) {
-        beos_warn_user("No GC", 0);
-        return NSERROR_INVALID;
-    }
+    if (view == NULL) return NSERROR_INVALID;
 
-    nsbeos_set_colour(style->stroke_colour);
+    nsbeos_apply_style(style, false);
 
     BPoint center(x, y);
     float angle = angle1;
@@ -197,18 +209,16 @@ static nserror nsbeos_plot_arc(
 static nserror nsbeos_plot_disc(const struct redraw_context *ctx, const plot_style_t *style, int x, int y, int radius)
 {
     BView *view = nsbeos_current_gc();
-    if (view == NULL) {
-        beos_warn_user("No GC", 0);
-        return NSERROR_INVALID;
-    }
-
-    nsbeos_set_colour(style->fill_colour);
+    if (view == NULL) return NSERROR_INVALID;
 
     BPoint center(x, y);
-    if (style->fill_type != PLOT_OP_TYPE_NONE)
+    if (style->fill_type != PLOT_OP_TYPE_NONE) {
+        nsbeos_apply_style(style, true);
         view->FillEllipse(center, radius, radius);
-    else {
-        nsbeos_set_colour(style->stroke_colour);
+    }
+
+    if (style->stroke_type != PLOT_OP_TYPE_NONE) {
+        nsbeos_apply_style(style, false);
         view->StrokeEllipse(center, radius, radius);
     }
 
@@ -217,36 +227,18 @@ static nserror nsbeos_plot_disc(const struct redraw_context *ctx, const plot_sty
 
 static nserror nsbeos_plot_line(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *line)
 {
-    pattern pat;
     BView *view = nsbeos_current_gc();
-    if (view == NULL) {
-        beos_warn_user("No GC", 0);
-        return NSERROR_OK;
-    }
+    if (view == NULL) return NSERROR_OK;
 
-    switch (style->stroke_type) {
-    case PLOT_OP_TYPE_SOLID:
-    default:
-        pat = B_SOLID_HIGH;
-        break;
-    case PLOT_OP_TYPE_DOT:
-        pat = kDottedPattern;
-        break;
-    case PLOT_OP_TYPE_DASH:
-        pat = kDashedPattern;
-        break;
-    }
+    nsbeos_apply_style(style, false);
 
-    nsbeos_set_colour(style->stroke_colour);
-
-    float pensize = view->PenSize();
-    view->SetPenSize(plot_style_fixed_to_float(style->stroke_width));
+    pattern pat = B_SOLID_HIGH;
+    if (style->stroke_type == PLOT_OP_TYPE_DOT) pat = kDottedPattern;
+    else if (style->stroke_type == PLOT_OP_TYPE_DASH) pat = kDashedPattern;
 
     BPoint start(line->x0, line->y0);
     BPoint end(line->x1, line->y1);
     view->StrokeLine(start, end, pat);
-
-    view->SetPenSize(pensize);
 
     return NSERROR_OK;
 }
@@ -255,38 +247,21 @@ static nserror
 nsbeos_plot_rectangle(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *nsrect)
 {
     BView *view = nsbeos_current_gc();
-    if (view == NULL) {
-        beos_warn_user("No GC", 0);
-        return NSERROR_INVALID;
-    }
+    if (view == NULL) return NSERROR_INVALID;
+
+    BRect rect(nsrect->x0, nsrect->y0, nsrect->x1 - 1, nsrect->y1 - 1);
 
     if (style->fill_type != PLOT_OP_TYPE_NONE) {
-        nsbeos_set_colour(style->fill_colour);
-        BRect rect(nsrect->x0, nsrect->y0, nsrect->x1 - 1, nsrect->y1 - 1);
+        nsbeos_apply_style(style, true);
         view->FillRect(rect);
     }
 
     if (style->stroke_type != PLOT_OP_TYPE_NONE) {
-        pattern pat;
-        switch (style->stroke_type) {
-        case PLOT_OP_TYPE_SOLID:
-        default:
-            pat = B_SOLID_HIGH;
-            break;
-        case PLOT_OP_TYPE_DOT:
-            pat = kDottedPattern;
-            break;
-        case PLOT_OP_TYPE_DASH:
-            pat = kDashedPattern;
-            break;
-        }
-
-        nsbeos_set_colour(style->stroke_colour);
-        float pensize = view->PenSize();
-        view->SetPenSize(plot_style_fixed_to_float(style->stroke_width));
-        BRect rect(nsrect->x0, nsrect->y0, nsrect->x1 - 1, nsrect->y1 - 1);
+        nsbeos_apply_style(style, false);
+        pattern pat = B_SOLID_HIGH;
+        if (style->stroke_type == PLOT_OP_TYPE_DOT) pat = kDottedPattern;
+        else if (style->stroke_type == PLOT_OP_TYPE_DASH) pat = kDashedPattern;
         view->StrokeRect(rect, pat);
-        view->SetPenSize(pensize);
     }
 
     return NSERROR_OK;
@@ -297,23 +272,21 @@ nsbeos_plot_polygon(const struct redraw_context *ctx, const plot_style_t *style,
 {
     unsigned int i;
     BView *view = nsbeos_current_gc();
-    if (view == NULL) {
-        beos_warn_user("No GC", 0);
-        return NSERROR_INVALID;
-    }
-
-    nsbeos_set_colour(style->fill_colour);
+    if (view == NULL) return NSERROR_INVALID;
 
     BPoint points[n];
     for (i = 0; i < n; i++) {
         points[i] = BPoint(p[2 * i], p[2 * i + 1]);
     }
 
-    if (style->fill_type == PLOT_OP_TYPE_NONE) {
-        nsbeos_set_colour(style->stroke_colour);
-        view->StrokePolygon(points, (int32)n);
-    } else {
+    if (style->fill_type != PLOT_OP_TYPE_NONE) {
+        nsbeos_apply_style(style, true);
         view->FillPolygon(points, (int32)n);
+    }
+
+    if (style->stroke_type != PLOT_OP_TYPE_NONE) {
+        nsbeos_apply_style(style, false);
+        view->StrokePolygon(points, (int32)n);
     }
 
     return NSERROR_OK;
@@ -334,17 +307,16 @@ static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_sty
 
     for (i = 0; i < n;) {
         if (p[i] == PLOTTER_PATH_MOVE) {
-            shape.MoveTo(transform_pt(p[i + 1], p[i + 2], transform));
+            shape.MoveTo(BPoint(p[i + 1], p[i + 2]));
             i += 3;
         } else if (p[i] == PLOTTER_PATH_CLOSE) {
             shape.Close();
             i++;
         } else if (p[i] == PLOTTER_PATH_LINE) {
-            shape.LineTo(transform_pt(p[i + 1], p[i + 2], transform));
+            shape.LineTo(BPoint(p[i + 1], p[i + 2]));
             i += 3;
         } else if (p[i] == PLOTTER_PATH_BEZIER) {
-            BPoint pt[3] = {transform_pt(p[i + 1], p[i + 2], transform), transform_pt(p[i + 3], p[i + 4], transform),
-                transform_pt(p[i + 5], p[i + 6], transform)};
+            BPoint pt[3] = {BPoint(p[i + 1], p[i + 2]), BPoint(p[i + 3], p[i + 4]), BPoint(p[i + 5], p[i + 6])};
             shape.BezierTo(pt);
             i += 7;
         } else {
@@ -356,15 +328,31 @@ static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_sty
     BView *view = nsbeos_current_gc();
     if (view == NULL) return NSERROR_INVALID;
 
+#ifdef __HAIKU__
+    if (transform) {
+        view->PushState();
+        BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        BAffineTransform current = view->Transform();
+        current.Multiply(matrix);
+        view->SetTransform(current);
+    }
+#endif
+
     if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
-        view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour));
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour, pstyle->fill_opacity));
         view->FillShape(&shape);
     }
     if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
-        view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour));
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour, pstyle->stroke_opacity));
         view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
         view->StrokeShape(&shape);
     }
+
+#ifdef __HAIKU__
+    if (transform) {
+        view->PopState();
+    }
+#endif
 
     return NSERROR_OK;
 }
@@ -484,19 +472,17 @@ static nserror nsbeos_plot_path_fill(const struct redraw_context *ctx, const plo
     if (view == NULL) return NSERROR_INVALID;
 
     if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
-        view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour));
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour, pstyle->fill_opacity));
 #ifdef __HAIKU__
+        view->PushState();
         if (transform) {
-            view->PushState();
             BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
             BAffineTransform current = view->Transform();
             current.Multiply(matrix);
             view->SetTransform(current);
-            view->FillShape(stateful_shape);
-            view->PopState();
-        } else {
-            view->FillShape(stateful_shape);
         }
+        view->FillShape(stateful_shape);
+        view->PopState();
 #else
         view->FillShape(stateful_shape);
 #endif
@@ -511,20 +497,18 @@ static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const p
     if (view == NULL) return NSERROR_INVALID;
 
     if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
-        view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour));
+        view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour, pstyle->stroke_opacity));
         view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
 #ifdef __HAIKU__
+        view->PushState();
         if (transform) {
-            view->PushState();
             BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
             BAffineTransform current = view->Transform();
             current.Multiply(matrix);
             view->SetTransform(current);
-            view->StrokeShape(stateful_shape);
-            view->PopState();
-        } else {
-            view->StrokeShape(stateful_shape);
         }
+        view->StrokeShape(stateful_shape);
+        view->PopState();
 #else
         view->StrokeShape(stateful_shape);
 #endif
@@ -573,6 +557,14 @@ static nserror nsbeos_plot_linear_gradient(const struct redraw_context *ctx, con
         gradient.AddColor(nsbeos_rgb_colour(stops[i].color), stops[i].offset);
     }
 
+    view->PushState();
+    if (transform) {
+        BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        BAffineTransform current = view->Transform();
+        current.Multiply(matrix);
+        view->SetTransform(current);
+    }
+
     if (path && path_len > 0) {
         BShape shape;
         for (unsigned int i = 0; i < path_len;) {
@@ -591,20 +583,11 @@ static nserror nsbeos_plot_linear_gradient(const struct redraw_context *ctx, con
                 i += 7;
             } else break;
         }
-        if (transform) {
-            view->PushState();
-            BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-            BAffineTransform current = view->Transform();
-            current.Multiply(matrix);
-            view->SetTransform(current);
-            view->FillShape(&shape, gradient);
-            view->PopState();
-        } else {
-            view->FillShape(&shape, gradient);
-        }
+        view->FillShape(&shape, gradient);
     } else {
         view->FillRect(view->Bounds(), gradient);
     }
+    view->PopState();
     return NSERROR_OK;
 #else
     return NSERROR_NOT_IMPLEMENTED;
@@ -620,12 +603,20 @@ static nserror nsbeos_plot_radial_gradient(const struct redraw_context *ctx, con
     if (view == NULL) return NSERROR_INVALID;
 
     BGradientRadial gradient(BPoint(cx, cy), rx);
-    // Note: Haiku BGradientRadial only takes one radius, Wisp/CSS can have two (elliptical).
-    // For now we use rx and could potentially use SetTransform to handle ry if different.
-
     for (unsigned int i = 0; i < stop_count; i++) {
         gradient.AddColor(nsbeos_rgb_colour(stops[i].color), stops[i].offset);
     }
+
+    view->PushState();
+    BAffineTransform current = view->Transform();
+    if (transform) {
+        BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        current.Multiply(matrix);
+    }
+    if (rx != ry && rx > 0) {
+        current.ScaleBy(BPoint(cx, cy), 1.0, ry / rx);
+    }
+    view->SetTransform(current);
 
     if (path && path_len > 0) {
         BShape shape;
@@ -645,29 +636,32 @@ static nserror nsbeos_plot_radial_gradient(const struct redraw_context *ctx, con
                 i += 7;
             } else break;
         }
-        if (transform || rx != ry) {
-            view->PushState();
-            BAffineTransform current = view->Transform();
-            if (transform) {
-                BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-                current.Multiply(matrix);
-            }
-            if (rx != ry && rx > 0) {
-                current.ScaleBy(BPoint(cx, cy), 1.0, ry / rx);
-            }
-            view->SetTransform(current);
-            view->FillShape(&shape, gradient);
-            view->PopState();
-        } else {
-            view->FillShape(&shape, gradient);
-        }
+        view->FillShape(&shape, gradient);
     } else {
         view->FillRect(view->Bounds(), gradient);
     }
+    view->PopState();
     return NSERROR_OK;
 #else
     return NSERROR_NOT_IMPLEMENTED;
 #endif
+}
+
+static nserror nsbeos_plot_group_start(const struct redraw_context *ctx, const char *name)
+{
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_group_end(const struct redraw_context *ctx)
+{
+    return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_flush(const struct redraw_context *ctx)
+{
+    BView *view = nsbeos_current_gc();
+    if (view != NULL) view->Sync();
+    return NSERROR_OK;
 }
 
 /**
@@ -691,9 +685,9 @@ const struct plotter_table nsbeos_plotters = {
     .path_stroke = nsbeos_plot_path_stroke,
     .bitmap = nsbeos_plot_bitmap,
     .text = nsbeos_plot_text,
-    .group_start = NULL,
-    .group_end = NULL,
-    .flush = NULL,
+    .group_start = nsbeos_plot_group_start,
+    .group_end = nsbeos_plot_group_end,
+    .flush = nsbeos_plot_flush,
     .push_transform = nsbeos_plot_push_transform,
     .pop_transform = nsbeos_plot_pop_transform,
     .linear_gradient = nsbeos_plot_linear_gradient,
