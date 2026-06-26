@@ -162,4 +162,16 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node);
  */
 void js_event_cleanup(jsthread *thread, struct dom_event *evt);
 
+/**
+ * Handle intersection checks after layout.
+ *
+ * This is called after a layout pass to allow IntersectionObserver
+ * to check for changes in visibility.
+ *
+ * \param thread The JS thread
+ * \param viewport_width Viewport width in pixels
+ * \param viewport_height Viewport height in pixels
+ */
+void js_handle_intersection_check(jsthread *thread, int viewport_width, int viewport_height);
+
 #endif /* WISP_JAVASCRIPT_JS_H_ */

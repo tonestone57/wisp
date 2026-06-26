@@ -1,0 +1,35 @@
+Running suite(s): QuickJS
+JS Error [test_error]: SyntaxError: unexpected token in expression: ''
+JS Error [test_dispatchEvent_window]: [uninitialized]
+JS Error [test_events_dispatch]: [uninitialized]
+93%: Checks: 30, Failures: 2, Errors: 0
+/app/src/test/test_quickjs.c:34:P:Core:test_quickjs_init_finalise:0: Passed
+/app/src/test/test_quickjs.c:111:P:Core:test_quickjs_heap_create_destroy:0: Passed
+/app/src/test/test_quickjs.c:141:P:Core:test_quickjs_thread_create_destroy:0: Passed
+/app/src/test/test_quickjs.c:382:P:Core:test_quickjs_multiple_threads:0: Passed
+/app/src/test/test_quickjs.c:178:P:Execution:test_quickjs_exec_simple:0: Passed
+/app/src/test/test_quickjs.c:216:P:Execution:test_quickjs_exec_syntax_error:0: Passed
+/app/src/test/test_quickjs.c:256:P:Execution:test_quickjs_exec_objects:0: Passed
+/app/src/test/test_quickjs.c:295:P:Execution:test_quickjs_exec_console_log:0: Passed
+/app/src/test/test_quickjs.c:337:P:Execution:test_quickjs_exec_closed_thread:0: Passed
+/app/src/test/test_quickjs.c:424:P:Console:test_quickjs_console_init:0: Passed
+/app/src/test/test_quickjs.c:456:P:Console:test_quickjs_console_log:0: Passed
+/app/src/test/test_quickjs.c:487:P:Console:test_quickjs_console_error:0: Passed
+/app/src/test/test_quickjs.c:518:P:Console:test_quickjs_console_warn:0: Passed
+/app/src/test/test_quickjs.c:549:P:Console:test_quickjs_console_multiple_args:0: Passed
+/app/src/test/test_quickjs.c:582:P:Console:test_quickjs_console_group:0: Passed
+/app/src/test/test_quickjs.c:632:P:Window:test_quickjs_window_global:0: Passed
+/app/src/test/test_quickjs.c:670:P:Window:test_quickjs_window_methods:0: Passed
+/app/src/test/test_quickjs.c:713:P:Window:test_quickjs_timers:0: Passed
+/app/src/test/test_quickjs.c:756:P:Window:test_quickjs_navigator:0: Passed
+/app/src/test/test_quickjs.c:818:P:Window:test_quickjs_location:0: Passed
+/app/src/test/test_quickjs.c:892:P:Window:test_quickjs_document:0: Passed
+/app/src/test/test_quickjs.c:940:P:Window:test_quickjs_storage:0: Passed
+/app/src/test/test_quickjs.c:988:P:Window:test_quickjs_event_target:0: Passed
+/app/src/test/test_quickjs.c:69:F:Window:test_quickjs_event_target_full:0: Assertion 'result == 1' failed
+/app/src/test/test_quickjs.c:1041:P:Window:test_quickjs_xhr:0: Passed
+/app/src/test/test_quickjs.c:1092:F:Window:test_quickjs_events_dispatch:0: Assertion 'result == 1' failed
+/app/src/test/test_quickjs.c:1171:P:Window:test_quickjs_crypto:0: Passed
+/app/src/test/test_quickjs.c:1123:P:Window:test_quickjs_dom_identity:0: Passed
+/app/src/test/test_quickjs.c:1201:P:Window:test_quickjs_dom_attributes:0: Passed
+/app/src/test/test_quickjs.c:1242:P:Window:test_quickjs_observers:0: Passed

@@ -639,6 +639,25 @@ box_at_point(const css_unit_ctx *unit_len_ctx, struct box *box, const int x, con
 
 
 /* Exported function documented in html/box.h */
+struct box *box_find_by_node(struct box *box, struct dom_node *node)
+{
+    struct box *a, *b;
+
+    if (box->node == node) {
+        return box;
+    }
+
+    for (a = box->children; a; a = a->next) {
+        if ((b = box_find_by_node(a, node)) != NULL) {
+            return b;
+        }
+    }
+
+    return NULL;
+}
+
+
+/* Exported function documented in html/box.h */
 struct box *box_find_by_id(struct box *box, lwc_string *id)
 {
     struct box *a, *b;

@@ -25,6 +25,7 @@
 #include <dom/core/comment.h>
 #include <dom/core/doc_fragment.h>
 #include <dom/core/document.h>
+#include <dom/core/mutation_hook.h>
 #include <dom/core/document_type.h>
 #include <dom/core/element.h>
 #include <dom/core/entity_ref.h>

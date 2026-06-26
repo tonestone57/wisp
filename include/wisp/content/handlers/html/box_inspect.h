@@ -26,6 +26,11 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <libcss/libcss.h>
+#include <wisp/types.h>
+#include <wisp/content/handlers/html/box.h>
+
+struct html_content;
 
 /**
  * Find the absolute coordinates of a box.
@@ -35,6 +40,16 @@
  * \param  y    updated to y coordinate
  */
 void box_coords(struct box *box, int *x, int *y);
+
+
+/**
+ * Find a box based upon its associated DOM node.
+ *
+ * \param  box   box tree to search
+ * \param  node  node to look for
+ * \return  the box or 0 if not found
+ */
+struct box *box_find_by_node(struct box *box, struct dom_node *node);
 
 
 /**

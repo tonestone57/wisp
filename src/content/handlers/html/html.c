@@ -1373,6 +1373,12 @@ static void html_reformat(struct content *c, int width, int height)
 	c->height = layout->y + layout->padding[TOP] + layout->height + layout->padding[BOTTOM] +
 		layout->border[BOTTOM].width + layout->margin[BOTTOM];
 
+#ifdef WISP_WITH_QUICKJS
+	if (htmlc->jsthread) {
+		js_handle_intersection_check(htmlc->jsthread, width, height);
+	}
+#endif
+
 	/* if boxes overflow right or bottom edge, expand to contain it */
 	if (c->width < layout->x + layout->descendant_x1)
 		c->width = layout->x + layout->descendant_x1;

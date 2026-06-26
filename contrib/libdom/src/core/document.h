@@ -79,6 +79,9 @@ struct dom_document {
     dom_string *_memo_domsubtreemodified; /**< DOMSubtreeModified */
 
     uint32_t dispatching_mutation; /**< Mutation event semaphore */
+
+    dom_mutation_hook mutation_hook;
+    void *mutation_hook_pw;
 };
 
 /* Create a DOM document */

@@ -1,21 +1,6 @@
 
 #include "dom_bridge.h"
 
-JSClassID qjs_eventtarget_class_id;
-JSClassID qjs_node_class_id;
-JSClassID qjs_element_class_id;
-JSClassID qjs_document_class_id;
-JSClassID qjs_text_class_id;
-JSClassID qjs_attr_class_id;
-JSClassID qjs_namednodemap_class_id;
-JSClassID qjs_htmlcollection_class_id;
-JSClassID qjs_window_class_id;
-JSClassID qjs_event_class_id;
-JSClassID qjs_console_class_id;
-JSClassID qjs_location_class_id;
-JSClassID qjs_navigator_class_id;
-JSClassID qjs_storage_class_id;
-JSClassID qjs_xhr_class_id;
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include <stdlib.h>

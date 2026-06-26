@@ -17,6 +17,10 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include "quickjs.h"
+#include "utils/hashmap.h"
+#include <dom/dom.h>
+#include <dom/core/implementation.h>
 
 #include "content/handlers/javascript/js.h"
 
@@ -27,8 +31,7 @@
 /**
  * Test that js_initialise and js_finalise work without crashing.
  */
-START_TEST(test_quickjs_init_finalise)
-{
+START_TEST(test_quickjs_init_finalise){
     js_initialise();
     js_finalise();
 }
@@ -37,19 +40,23 @@ END_TEST
 /**
  * Test EventTarget full functionality.
  */
-START_TEST(test_quickjs_event_target_full)
-{
+START_TEST(test_quickjs_event_target_full){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test adding and dispatching on window */
@@ -82,6 +89,10 @@ START_TEST(test_quickjs_event_target_full)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -89,8 +100,7 @@ END_TEST
 /**
  * Test creating and destroying a heap.
  */
-START_TEST(test_quickjs_heap_create_destroy)
-{
+START_TEST(test_quickjs_heap_create_destroy){
     jsheap *heap = NULL;
     nserror err;
 
@@ -108,18 +118,22 @@ END_TEST
 /**
  * Test creating and destroying a thread.
  */
-START_TEST(test_quickjs_thread_create_destroy)
-{
+START_TEST(test_quickjs_thread_create_destroy){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_ptr_nonnull(thread);
 
@@ -128,6 +142,10 @@ START_TEST(test_quickjs_thread_create_destroy)
 
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -135,19 +153,23 @@ END_TEST
 /**
  * Test executing simple JavaScript code.
  */
-START_TEST(test_quickjs_exec_simple)
-{
+START_TEST(test_quickjs_exec_simple){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test simple expression */
@@ -158,6 +180,10 @@ START_TEST(test_quickjs_exec_simple)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -165,19 +191,23 @@ END_TEST
 /**
  * Test executing JavaScript with syntax error.
  */
-START_TEST(test_quickjs_exec_syntax_error)
-{
+START_TEST(test_quickjs_exec_syntax_error){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test syntax error - should return false */
@@ -188,6 +218,10 @@ START_TEST(test_quickjs_exec_syntax_error)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -195,19 +229,23 @@ END_TEST
 /**
  * Test executing JavaScript that creates objects.
  */
-START_TEST(test_quickjs_exec_objects)
-{
+START_TEST(test_quickjs_exec_objects){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test creating objects and arrays */
@@ -220,6 +258,10 @@ START_TEST(test_quickjs_exec_objects)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -228,19 +270,23 @@ END_TEST
  * Test console.log via js.h API (integration test).
  * This verifies the console binding is automatically initialized.
  */
-START_TEST(test_quickjs_exec_console_log)
-{
+START_TEST(test_quickjs_exec_console_log){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test console.log - should work now that it's auto-initialized */
@@ -251,6 +297,10 @@ START_TEST(test_quickjs_exec_console_log)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -258,19 +308,23 @@ END_TEST
 /**
  * Test that execution on closed thread fails gracefully.
  */
-START_TEST(test_quickjs_exec_closed_thread)
-{
+START_TEST(test_quickjs_exec_closed_thread){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Close the thread first */
@@ -284,6 +338,10 @@ START_TEST(test_quickjs_exec_closed_thread)
 
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -291,8 +349,9 @@ END_TEST
 /**
  * Test multiple threads in one heap.
  */
-START_TEST(test_quickjs_multiple_threads)
-{
+START_TEST(test_quickjs_multiple_threads){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread1 = NULL;
     jsthread *thread2 = NULL;
@@ -300,6 +359,9 @@ START_TEST(test_quickjs_multiple_threads)
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
@@ -325,6 +387,10 @@ START_TEST(test_quickjs_multiple_threads)
     js_destroythread(thread1);
     js_destroythread(thread2);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -337,8 +403,7 @@ END_TEST
 /**
  * Test initializing the console binding.
  */
-START_TEST(test_quickjs_console_init)
-{
+START_TEST(test_quickjs_console_init){
     JSRuntime *rt;
     JSContext *ctx;
     int ret;
@@ -375,8 +440,7 @@ END_TEST
 /**
  * Test console.log() execution.
  */
-START_TEST(test_quickjs_console_log)
-{
+START_TEST(test_quickjs_console_log){
     JSRuntime *rt;
     JSContext *ctx;
     JSValue result;
@@ -407,8 +471,7 @@ END_TEST
 /**
  * Test console.error() execution.
  */
-START_TEST(test_quickjs_console_error)
-{
+START_TEST(test_quickjs_console_error){
     JSRuntime *rt;
     JSContext *ctx;
     JSValue result;
@@ -439,8 +502,7 @@ END_TEST
 /**
  * Test console.warn() execution.
  */
-START_TEST(test_quickjs_console_warn)
-{
+START_TEST(test_quickjs_console_warn){
     JSRuntime *rt;
     JSContext *ctx;
     JSValue result;
@@ -471,8 +533,7 @@ END_TEST
 /**
  * Test console with multiple arguments.
  */
-START_TEST(test_quickjs_console_multiple_args)
-{
+START_TEST(test_quickjs_console_multiple_args){
     JSRuntime *rt;
     JSContext *ctx;
     JSValue result;
@@ -503,8 +564,7 @@ END_TEST
 /**
  * Test console.group() and console.groupEnd().
  */
-START_TEST(test_quickjs_console_group)
-{
+START_TEST(test_quickjs_console_group){
     JSRuntime *rt;
     JSContext *ctx;
     JSValue result;
@@ -537,19 +597,23 @@ END_TEST
 /**
  * Test Window global object basics.
  */
-START_TEST(test_quickjs_window_global)
-{
+START_TEST(test_quickjs_window_global){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test 1: window global exists */
@@ -570,6 +634,10 @@ START_TEST(test_quickjs_window_global)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -577,19 +645,23 @@ END_TEST
 /**
  * Test Window methods exist (stubs).
  */
-START_TEST(test_quickjs_window_methods)
-{
+START_TEST(test_quickjs_window_methods){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test that alert is a function (from Window interface) */
@@ -600,6 +672,10 @@ START_TEST(test_quickjs_window_methods)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -607,19 +683,23 @@ END_TEST
 /**
  * Test Timers (stubs).
  */
-START_TEST(test_quickjs_timers)
-{
+START_TEST(test_quickjs_timers){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test setTimeout exists and returns a number */
@@ -635,6 +715,10 @@ START_TEST(test_quickjs_timers)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -642,19 +726,23 @@ END_TEST
 /**
  * Test Navigator.
  */
-START_TEST(test_quickjs_navigator)
-{
+START_TEST(test_quickjs_navigator){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test UserAgent */
@@ -670,6 +758,10 @@ START_TEST(test_quickjs_navigator)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -677,19 +769,23 @@ END_TEST
 /**
  * Test Location.
  */
-START_TEST(test_quickjs_location)
-{
+START_TEST(test_quickjs_location){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test location exists */
@@ -725,6 +821,10 @@ START_TEST(test_quickjs_location)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -732,19 +832,23 @@ END_TEST
 /**
  * Test Document.
  */
-START_TEST(test_quickjs_document)
-{
+START_TEST(test_quickjs_document){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test document exists */
@@ -790,6 +894,10 @@ START_TEST(test_quickjs_document)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -797,19 +905,23 @@ END_TEST
 /**
  * Test Storage (localStorage, sessionStorage).
  */
-START_TEST(test_quickjs_storage)
-{
+START_TEST(test_quickjs_storage){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test localStorage exists */
@@ -830,6 +942,10 @@ START_TEST(test_quickjs_storage)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -837,19 +953,23 @@ END_TEST
 /**
  * Test EventTarget (addEventListener, removeEventListener).
  */
-START_TEST(test_quickjs_event_target)
-{
+START_TEST(test_quickjs_event_target){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test addEventListener exists on window */
@@ -870,6 +990,10 @@ START_TEST(test_quickjs_event_target)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -877,19 +1001,23 @@ END_TEST
 /**
  * Test XMLHttpRequest.
  */
-START_TEST(test_quickjs_xhr)
-{
+START_TEST(test_quickjs_xhr){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test XMLHttpRequest constructor exists */
@@ -915,24 +1043,32 @@ START_TEST(test_quickjs_xhr)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
 
 
-START_TEST(test_quickjs_events_dispatch)
-{
+START_TEST(test_quickjs_events_dispatch){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
 
@@ -958,21 +1094,29 @@ START_TEST(test_quickjs_events_dispatch)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
 
 
-START_TEST(test_quickjs_dom_identity)
-{
+START_TEST(test_quickjs_dom_identity){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
     js_newheap(5, &heap);
-    js_newthread(heap, NULL, NULL, &thread);
+    js_newthread(heap, (void*)doc, (void*)doc, &thread);
 
     const char *code = "var body1 = document.body; var body2 = document.body; body1 === body2;";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_identity");
@@ -981,6 +1125,10 @@ START_TEST(test_quickjs_dom_identity)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -988,19 +1136,23 @@ END_TEST
 /**
  * Test Crypto API.
  */
-START_TEST(test_quickjs_crypto)
-{
+START_TEST(test_quickjs_crypto){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = js_newthread(heap, NULL, NULL, &thread);
+    err = js_newthread(heap, (void*)doc, (void*)doc, &thread);
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test crypto object exists */
@@ -1021,20 +1173,28 @@ START_TEST(test_quickjs_crypto)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
 
-START_TEST(test_quickjs_dom_attributes)
-{
+START_TEST(test_quickjs_dom_attributes){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
     js_newheap(5, &heap);
-    js_newthread(heap, NULL, NULL, &thread);
+    js_newthread(heap, (void*)doc, (void*)doc, &thread);
 
     const char *code = "var el = document.createElement('div'); el.className = 'test-class'; el.setAttribute('id', 'test-id'); el.className === 'test-class' && el.getAttribute('id') === 'test-id';";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_attributes");
@@ -1043,20 +1203,28 @@ START_TEST(test_quickjs_dom_attributes)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
 
-START_TEST(test_quickjs_observers)
-{
+START_TEST(test_quickjs_observers){
+    struct dom_document *doc = NULL;
+
     jsheap *heap = NULL;
     jsthread *thread = NULL;
     nserror err;
     bool result;
 
     js_initialise();
+    dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+
+
     js_newheap(5, &heap);
-    js_newthread(heap, NULL, NULL, &thread);
+    js_newthread(heap, (void*)doc, (void*)doc, &thread);
 
     /* Test MutationObserver existence and constructor */
     const char *code1 = "typeof MutationObserver === 'function' && typeof (new MutationObserver(() => {})) === 'object'";
@@ -1076,6 +1244,10 @@ START_TEST(test_quickjs_observers)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+
+
+
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST

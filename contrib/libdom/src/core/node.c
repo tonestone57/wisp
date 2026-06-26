@@ -2598,6 +2598,13 @@ dom_exception _dom_node_dispatch_node_change_event(
     dom_node_internal *target;
     dom_exception err;
 
+    /* Fire mutation hook if present */
+    if (doc->mutation_hook != NULL) {
+        doc->mutation_hook(DOM_MUTATION_HOOK_CHILD_LIST,
+            (struct dom_node *)related, (struct dom_node *)node,
+            NULL, NULL, NULL, doc->mutation_hook_pw);
+    }
+
     /* Fire change event at immediate target */
     err = _dom_dispatch_node_change_event(doc, node, related, change, success);
     if (err != DOM_NO_ERR)
