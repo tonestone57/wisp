@@ -45,24 +45,24 @@ while (1) {
 			output_chunk((sprintf 'Unknown Extension 0x%.2x',
 					$gif[$z + 1]), $gif[$z + 2] + 3);
 		}
-		
+
 		while ($gif[$z] != 0) {
 			output_chunk('Data Sub-block', $gif[$z] + 1);
 		}
 		output_chunk('Block Terminator', 1);
 	}
-	
+
 	if ($gif[$z] == 0x3b) {
 		output_chunk('Trailer', 1);
 		last;
 	}
-	
+
 	if ($gif[$z] != 0x2c) {
 		last;
 	}
-	
+
 	output_chunk('Image Descriptor', 10);
-	
+
 	output_chunk('Table Based Image Data', 1);
 
 	while ($gif[$z] != 0) {
@@ -104,6 +104,6 @@ sub output_chunk
 		print "   ";
 	}
 	print "\n\n";
-	
+
 	$z += $length;
 }

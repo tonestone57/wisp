@@ -73,6 +73,7 @@
 #include "content/handlers/html/layout_grid.h"
 #include "content/handlers/html/layout_internal.h"
 #include "content/handlers/html/table.h"
+#include "content/handlers/javascript/js.h"
 #include "desktop/browser_private.h"
 #include <svgtiny.h>
 
@@ -711,13 +712,14 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 						b->width += SCROLLBAR_WIDTH;
 
 				} else if (b->text && b->length == 1 && b->text[0] == '\t') {
-					int tab_size = 8; /* Default tab-size */
+					int32_t tab_size = 8;
+					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
 						font_func->width(&fstyle, " ", 1, &space_w);
 					}
 					/* For min/max width, use maximum possible tab width */
-					b->width = tab_size * space_w;
+					b->width = (int)tab_size * space_w;
 					b->flags |= MEASURED;
 				} else {
 					font_func->width(&fstyle, b->text, b->length, &b->width);
@@ -3058,12 +3060,13 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					if (nsoption_bool(core_select_menu))
 						b->width += SCROLLBAR_WIDTH;
 				} else if (b->text && b->length == 1 && b->text[0] == '\t') {
-					int tab_size = 8;
+					int32_t tab_size = 8;
+					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
 						font_func->width(&fstyle, " ", 1, &space_w);
 					}
-					int tab_width = tab_size * space_w;
+					int tab_width = (int)tab_size * space_w;
 					if (tab_width > 0) {
 						b->width = tab_width - (x % tab_width);
 					} else {
@@ -3083,12 +3086,13 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			 * wrong for variable-width fonts and Unicode text). */
 			if (b->text && (x + b->width < x1 - x0) && !(b->flags & MEASURED)) {
 				if (b->length == 1 && b->text[0] == '\t') {
-					int tab_size = 8;
+					int32_t tab_size = 8;
+					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
 						font_func->width(&fstyle, " ", 1, &space_w);
 					}
-					int tab_width = tab_size * space_w;
+					int tab_width = (int)tab_size * space_w;
 					if (tab_width > 0) {
 						b->width = tab_width - (x % tab_width);
 					} else {
@@ -3226,13 +3230,14 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 			if (b->text && b->length == 1 && b->text[0] == '\t') {
 				/* Calculate tab width based on current x offset */
-				int tab_size = 8; /* Default tab-size */
+				int32_t tab_size = 8;
+				css_computed_tab_size(b->style, &tab_size);
 				int space_w = b->space;
 				if (space_w == UNKNOWN_WIDTH) {
 					font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
 					font_func->width(&fstyle, " ", 1, &space_w);
 				}
-				int tab_width = tab_size * space_w;
+				int tab_width = (int)tab_size * space_w;
 				if (tab_width > 0) {
 					b->width = tab_width - (x % tab_width);
 				} else {
@@ -6020,6 +6025,10 @@ bool layout_document(html_content *content, int width, int height)
 
 	/* Phase 2: Dynamic Clamping for sticky boxes */
 	layout_apply_sticky_clamping(content);
+
+	if (content->jsthread) {
+		js_handle_intersection_check(content->jsthread, doc, width, height);
+	}
 
 	layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
 	layout_log_final_box_heights(&content->unit_len_ctx, doc);

@@ -40,7 +40,7 @@ extern BView *nsbeos_current_gc_lock(void);
 extern void nsbeos_current_gc_unlock(void);
 extern void nsbeos_current_gc_set(BView *view);
 
-rgb_color nsbeos_rgb_colour(colour c);
+rgb_color nsbeos_rgb_colour(colour c, float opacity = 1.0f);
 void nsbeos_set_colour(colour c);
 void nsbeos_plot_caret(int x, int y, int h);
 

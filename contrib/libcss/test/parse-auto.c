@@ -11,6 +11,47 @@
 #include "stylesheet.h"
 
 #include "testutils.h"
+#include <parserutils/utils/buffer.h>
+#include "parse/properties/utils.h"
+
+static void deserialize_and_dump(lwc_string *p, char *buf, size_t buf_len) {
+    const uint8_t *data = (const uint8_t *)lwc_string_data(p);
+    size_t len = lwc_string_length(p);
+
+    if (len < 4) {
+        snprintf(buf, buf_len, "%.*s", (int)len, (const char *)data);
+        return;
+    }
+
+    uint32_t n_tokens;
+    memcpy(&n_tokens, data, 4);
+
+    if (n_tokens > 1000) { /* Heuristic for non-binary string */
+        snprintf(buf, buf_len, "%.*s", (int)len, (const char *)data);
+        return;
+    }
+
+    size_t off = 4;
+    size_t out_off = 0;
+    for (uint32_t i = 0; i < n_tokens && off < len; i++) {
+        css_token token;
+        if (off + sizeof(token) > len) break;
+        memcpy(&token, data + off, sizeof(token));
+        off += sizeof(token);
+
+        if (token.data.data != NULL) {
+            size_t tlen = token.data.len;
+            if (off + tlen > len) break;
+            if (out_off + tlen < buf_len - 1) {
+                memcpy(buf + out_off, data + off, tlen);
+                out_off += tlen;
+            }
+            off += tlen;
+        }
+    }
+    buf[out_off] = 0;
+}
+
 
 /** \todo at some point, we need to extend this to handle nested blocks */
 typedef struct exp_entry {
@@ -553,12 +594,19 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 
                 if (!is_token_stream && (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                     memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0)) {
+                {
+                char got_str[4096];
+                deserialize_and_dump(p, got_str, sizeof(got_str));
+                if (strcmp(got_str, e->stringtab[j].string) != 0) {
                     printf("FAIL Strings differ\n"
-                           "    Got string '%.*s'. "
+                           "    Got string '%s'. "
                            "Expected '%s'\n",
                         (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
                     return false;
+                        got_str, e->stringtab[j].string);
+                    return true;
                 }
+            }
 
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {

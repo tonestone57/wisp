@@ -82,6 +82,11 @@ The Wisp code makes use of Doxygen for code documentation.
 There are several documents which detail specific aspects of the
 codebase and APIs.
 
+## Rendering Architecture
+
+The [rendering architecture](docs/rendering.md) document details the
+unification around Blend2D and the fixed-tile redraw strategy.
+
 ## Core window
 
 The [core window API](docs/core-window-interface.md) allows frontends

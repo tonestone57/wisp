@@ -25,7 +25,7 @@ JavaScript runtime for Nintendo Switch homebrew applications.
 
 ## [quickjs-rusty](https://github.com/Icemic/quickjs-rusty)
 
-Rust wrapper focus on embedding-ready and no-pain type conversion and interoperability. 
+Rust wrapper focus on embedding-ready and no-pain type conversion and interoperability.
 
 ## [CSPro](https://github.com/csprousers/cspro)
 

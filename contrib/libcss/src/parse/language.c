@@ -112,6 +112,7 @@ static css_error parseDeferredProperty(
     parserutils_buffer_append(buf, (const uint8_t *)&n, sizeof(n));
     scan = value_start;
     while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) {
+        if (token->type == CSS_TOKEN_S && scan == value_end) break;
         parserutils_buffer_append(buf, (const uint8_t *)token, sizeof(*token));
         if (token->data.data != NULL)
             parserutils_buffer_append(buf, token->data.data, token->data.len);
@@ -1960,6 +1961,7 @@ css_error parseCustomProperty(
     parserutils_buffer_append(buf, (const uint8_t *)&n, sizeof(n));
     scan = value_start;
     while (scan < value_end && (token = parserutils_vector_iterate(vector, &scan)) != NULL) {
+        if (token->type == CSS_TOKEN_S && scan == value_end) break;
         parserutils_buffer_append(buf, (const uint8_t *)token, sizeof(*token));
         if (token->data.data != NULL)
             parserutils_buffer_append(buf, token->data.data, token->data.len);

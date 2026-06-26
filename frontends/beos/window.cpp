@@ -222,9 +222,7 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
 
 void NSBrowserFrameView::Draw(BRect updateRect)
 {
-    BMessage *message = NULL;
-    if (message == NULL)
-        message = new BMessage(_UPDATE_);
+    BMessage *message = new BMessage(_UPDATE_);
     message->AddRect("rect", updateRect);
     nsbeos_pipe_message(message, this, fGuiWindow);
 }
@@ -572,11 +570,11 @@ void nsbeos_dispatch_event(BMessage *message)
     delete message;
 }
 
+#define TILE_SIZE 256
+
 void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 {
     BRect updateRect;
-    struct rect clip;
-
     struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
 
     assert(g);
@@ -598,12 +596,40 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (view->Window())
         view->Window()->BeginViewTransaction();
 
-    clip.x0 = (int)updateRect.left;
-    clip.y0 = (int)updateRect.top;
-    clip.x1 = (int)updateRect.right + 1;
-    clip.y1 = (int)updateRect.bottom + 1;
+    /* Fixed-Tile Redraw Implementation (256x256 tiles) */
+    int x_start = (int)updateRect.left & ~(TILE_SIZE - 1);
+    int y_start = (int)updateRect.top & ~(TILE_SIZE - 1);
+    int x_end = (int)updateRect.right;
+    int y_end = (int)updateRect.bottom;
 
-    browser_window_redraw(g->bw, 0, 0, &clip, &ctx);
+    for (int ty = y_start; ty <= y_end; ty += TILE_SIZE) {
+        for (int tx = x_start; tx <= x_end; tx += TILE_SIZE) {
+            struct rect tile_clip;
+            tile_clip.x0 = tx;
+            tile_clip.y0 = ty;
+            tile_clip.x1 = tx + TILE_SIZE;
+            tile_clip.y1 = ty + TILE_SIZE;
+
+            /* Intersect tile with updateRect */
+            if (tile_clip.x0 < (int)updateRect.left) tile_clip.x0 = (int)updateRect.left;
+            if (tile_clip.y0 < (int)updateRect.top) tile_clip.y0 = (int)updateRect.top;
+            if (tile_clip.x1 > (int)updateRect.right + 1) tile_clip.x1 = (int)updateRect.right + 1;
+            if (tile_clip.y1 > (int)updateRect.bottom + 1) tile_clip.y1 = (int)updateRect.bottom + 1;
+
+            if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
+                continue;
+
+            /* Push tile clip and redraw */
+            BRegion region;
+            region.Set(BRect(tile_clip.x0, tile_clip.y0, tile_clip.x1 - 1, tile_clip.y1 - 1));
+            view->PushState();
+            view->ConstrainClippingRegion(&region);
+
+            browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
+
+            view->PopState();
+        }
+    }
 
     if (g->careth != 0)
         nsbeos_plot_caret(g->caretx, g->carety, g->careth);
@@ -611,7 +637,6 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (view->Window())
         view->Window()->EndViewTransaction();
 
-    view->ConstrainClippingRegion(NULL);
     nsbeos_current_gc_set(NULL);
     view->UnlockLooper();
 }
