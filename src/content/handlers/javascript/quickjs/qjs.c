@@ -173,7 +173,7 @@ void js_destroythread(jsthread *thread)
 {
     if (!thread) return;
     if (thread->ctx) {
-        /* Break cycles in global object */
+        /* Break cycles in global object and clear opaque */
         JSValue global_obj = JS_GetGlobalObject(thread->ctx);
         JS_SetOpaque(global_obj, NULL);
         JS_SetPropertyStr(thread->ctx, global_obj, "window", JS_UNDEFINED);
@@ -181,12 +181,10 @@ void js_destroythread(jsthread *thread)
         JS_SetPropertyStr(thread->ctx, global_obj, "document", JS_UNDEFINED);
         JS_FreeValue(thread->ctx, global_obj);
 
-        /* Clean up event listeners */
+        /* Clean up event listeners to break callback -> element cycles */
         struct qjs_event_listener_ctx *curr = thread->listeners;
         while (curr) {
             struct qjs_event_listener_ctx *next = curr->next;
-            /* We don't remove from LibDOM here because the DOM nodes might already be gone
-             * or are about to be. We just need to free the JSValue and the struct. */
             JS_FreeValue(thread->ctx, curr->func);
             free(curr);
             curr = next;

@@ -534,12 +534,15 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                                 }
                             }
                         }
-                        /* Trim trailing whitespace */
-                        while (actual_len > 0 && (actual_val[actual_len-1] == ' ' || actual_val[actual_len-1] == '\n' || actual_val[actual_len-1] == '\r' || actual_val[actual_len-1] == '\t')) {
+                        /* Trim trailing whitespace/non-printable */
+                        while (actual_len > 0 && (unsigned char)actual_val[actual_len-1] <= 32) {
                             actual_val[--actual_len] = '\0';
                         }
-                        if (strcmp(actual_val, e->stringtab[j].string) != 0) {
-                            printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", actual_val, e->stringtab[j].string);
+                        /* Trim leading whitespace */
+                        char *start_ptr = actual_val;
+                        while (*start_ptr && (unsigned char)*start_ptr <= 32) start_ptr++;
+                        if (strcmp(start_ptr, e->stringtab[j].string) != 0) {
+                            printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", start_ptr, e->stringtab[j].string);
                             return true;
                         }
                     } else goto fallback;

@@ -136,9 +136,11 @@ int qjs_init_dom_bridge(JSContext *ctx)
 
 static bool qjs_bridge_cleanup_cb(void *key, void *value, void *ctx)
 {
-    JSRuntime *rt = (JSRuntime *)ctx;
-    JSValue *val = (JSValue *)value;
-    JS_FreeValueRT(rt, *val);
+    /* Map stores weak-like references. We don't call JS_FreeValueRT here
+     * because these objects might still be reachable from other roots or
+     * already being processed by QuickJS GC. Force-freeing them can lead
+     * to Use-After-Free during JS_FreeRuntime. */
+    (void)key; (void)value; (void)ctx;
     return false;
 }
 
