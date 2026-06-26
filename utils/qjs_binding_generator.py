@@ -197,7 +197,7 @@ class QuickJSBindingGenerator:
         if op['custom']:
             return f"    return js_{lower_name}_{op['name']}_custom(ctx, this_val, argc, argv);\n"
 
-        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);\n"
+        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);\n"
         code += f"    if (!priv) return JS_EXCEPTION;\n"
 
         impl_args = ["priv"]
@@ -270,7 +270,7 @@ class QuickJSBindingGenerator:
             suffix = "set" if is_set else "get"
             return f"    return js_{lower_name}_{attr['name']}_{suffix}_custom(ctx, this_val, val);\n"
 
-        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);\n"
+        code = f"    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);\n"
         code += f"    if (!priv) return JS_EXCEPTION;\n"
 
         impl_func = f"wisp_{lower_name}_{attr['name']}_{'set' if is_set else 'get'}_impl"

@@ -31,6 +31,13 @@
 #include <Shape.h>
 #include <View.h>
 #include <math.h>
+
+#ifdef __HAIKU__
+#include <AffineTransform.h>
+#include <GradientLinear.h>
+#include <GradientRadial.h>
+#endif
+
 extern "C" {
 #include "utils/log.h"
 #include "utils/nsoption.h"
@@ -43,31 +50,19 @@ extern "C" {
 #include "beos/gui.h"
 #include "beos/plotters.h"
 
-#warning MAKE ME static
 /*static*/ BView *current_view;
 
 static __thread BShape *stateful_shape = NULL;
 
-/*
- * NOTE: BeOS rects differ from NetSurf ones:
- * the right-bottom pixel is actually part of the BRect!
- */
-
-#warning make patterns nicer
 static const pattern kDottedPattern = {0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa};
 static const pattern kDashedPattern = {0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0x33, 0x33};
 
 static const rgb_color kBlackColor = {0, 0, 0, 255};
 
-// struct plotter_table plot;
-
-// #pragma mark - implementation
-
 BView *nsbeos_current_gc(void)
 {
     return current_view;
 }
-
 
 BView *nsbeos_current_gc_lock(void)
 {
@@ -77,7 +72,6 @@ BView *nsbeos_current_gc_lock(void)
     return NULL;
 }
 
-
 void nsbeos_current_gc_unlock(void)
 {
     if (current_view) {
@@ -85,27 +79,18 @@ void nsbeos_current_gc_unlock(void)
     }
 }
 
-
 void nsbeos_current_gc_set(BView *view)
 {
-    // XXX: (un)lock previous ?
     current_view = view;
 }
 
-
 static nserror nsbeos_plot_bbitmap(int x, int y, int width, int height, BBitmap *b, colour bg)
 {
-    /* XXX: This currently ignores the background colour supplied.
-     * Does this matter?
-     */
-
     if (width == 0 || height == 0) {
         return NSERROR_OK;
     }
 
-    BView *view;
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return NSERROR_INVALID;
@@ -115,51 +100,26 @@ static nserror nsbeos_plot_bbitmap(int x, int y, int width, int height, BBitmap 
     source_alpha alpha;
     alpha_function func;
     view->GetBlendingMode(&alpha, &func);
-    // view->SetDrawingMode(B_OP_OVER);
     view->SetDrawingMode(B_OP_ALPHA);
     view->SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 
-    // XXX DrawBitmap() resamples if rect doesn't match,
-    // but doesn't do any filtering
-    // XXX: use Zeta API if available ?
-
     BRect rect(x, y, x + width - 1, y + height - 1);
-    /*
-      rgb_color old = view->LowColor();
-      if (bg != NS_TRANSPARENT) {
-      view->SetLowColor(nsbeos_rgb_colour(bg));
-      view->FillRect(rect, B_SOLID_LOW);
-      }
-    */
     view->DrawBitmap(b, rect);
-    // maybe not needed?
-    // view->SetLowColor(old);
+
     view->SetBlendingMode(alpha, func);
     view->SetDrawingMode(oldmode);
-
-    // nsbeos_current_gc_unlock();
 
     return NSERROR_OK;
 }
 
-
 static BPoint transform_pt(float x, float y, const float transform[6])
 {
-#warning XXX: verify
-    // return BPoint(x, y);
+    if (!transform) return BPoint(x, y);
     BPoint pt;
-    pt.x = x * transform[0] + y * transform[1] + transform[4];
-    pt.y = x * transform[2] + y * transform[3] + transform[5];
-    /*
-      printf("TR: {%f, %f} { %f, %f, %f, %f, %f, %f} = { %f, %f }\n",
-      x, y,
-      transform[0], transform[1], transform[2],
-      transform[3], transform[4], transform[5],
-      pt.x, pt.y);
-    */
+    pt.x = transform[0] * x + transform[2] * y + transform[4];
+    pt.y = transform[1] * x + transform[3] * y + transform[5];
     return pt;
 }
-
 
 rgb_color nsbeos_rgb_colour(colour c)
 {
@@ -169,9 +129,10 @@ rgb_color nsbeos_rgb_colour(colour c)
     color.red = c & 0x0000ff;
     color.green = (c & 0x00ff00) >> 8;
     color.blue = (c & 0xff0000) >> 16;
+    color.alpha = (c & 0xff000000) >> 24;
+    if (color.alpha == 0) color.alpha = 255; // Default to opaque if not specified
     return color;
 }
-
 
 void nsbeos_set_colour(colour c)
 {
@@ -180,19 +141,10 @@ void nsbeos_set_colour(colour c)
     view->SetHighColor(color);
 }
 
-
-/**
- * Plot a caret.
- *
- * It is assumed that the plotters have been set up.
- */
 void nsbeos_plot_caret(int x, int y, int h)
 {
-    BView *view;
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL)
-        /* TODO: report an error here */
         return;
 
     BPoint start(x, y);
@@ -203,26 +155,11 @@ void nsbeos_plot_caret(int x, int y, int h)
     view->SetHighColor(kBlackColor);
 #endif
     view->StrokeLine(start, end);
-
-    // nsbeos_current_gc_unlock();
 }
 
-
-/**
- * \brief Sets a clip rectangle for subsequent plot operations.
- *
- * \param ctx The current redraw context.
- * \param ns_clip The rectangle to limit all subsequent plot
- *              operations within.
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_clip(const struct redraw_context *ctx, const struct rect *ns_clip)
 {
-    BView *view;
-    // fprintf(stderr, "%s(%d, %d, %d, %d)\n", __FUNCTION__, clip_x0,
-    // clip_y0, clip_x1, clip_y1);
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return NSERROR_INVALID;
@@ -235,69 +172,31 @@ static nserror nsbeos_plot_clip(const struct redraw_context *ctx, const struct r
         view->ConstrainClippingRegion(&clip);
     }
 
-    // nsbeos_current_gc_unlock();
-
     return NSERROR_OK;
 }
 
-
-/**
- * Plots an arc
- *
- * plot an arc segment around (x,y), anticlockwise from angle1
- *  to angle2. Angles are measured anticlockwise from
- *  horizontal, in degrees.
- *
- * \param ctx The current redraw context.
- * \param style Style controlling the arc plot.
- * \param x The x coordinate of the arc.
- * \param y The y coordinate of the arc.
- * \param radius The radius of the arc.
- * \param angle1 The start angle of the arc.
- * \param angle2 The finish angle of the arc.
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_arc(
     const struct redraw_context *ctx, const plot_style_t *style, int x, int y, int radius, int angle1, int angle2)
 {
-    BView *view;
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return NSERROR_INVALID;
     }
 
-    nsbeos_set_colour(style->fill_colour);
+    nsbeos_set_colour(style->stroke_colour);
 
     BPoint center(x, y);
-    float angle = angle1; // in degree
-    float span = angle2 - angle1; // in degree
+    float angle = angle1;
+    float span = angle2 - angle1;
     view->StrokeArc(center, radius, radius, angle, span);
-
-    // nsbeos_current_gc_unlock();
 
     return NSERROR_OK;
 }
 
-
-/**
- * Plots a circle
- *
- * Plot a circle centered on (x,y), which is optionally filled.
- *
- * \param ctx The current redraw context.
- * \param style Style controlling the circle plot.
- * \param x x coordinate of circle centre.
- * \param y y coordinate of circle centre.
- * \param radius circle radius.
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_disc(const struct redraw_context *ctx, const plot_style_t *style, int x, int y, int radius)
 {
-    BView *view;
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return NSERROR_INVALID;
@@ -308,50 +207,34 @@ static nserror nsbeos_plot_disc(const struct redraw_context *ctx, const plot_sty
     BPoint center(x, y);
     if (style->fill_type != PLOT_OP_TYPE_NONE)
         view->FillEllipse(center, radius, radius);
-    else
+    else {
+        nsbeos_set_colour(style->stroke_colour);
         view->StrokeEllipse(center, radius, radius);
-
-    // nsbeos_current_gc_unlock();
+    }
 
     return NSERROR_OK;
 }
 
-
-/**
- * Plots a line
- *
- * plot a line from (x0,y0) to (x1,y1). Coordinates are at
- *  centre of line width/thickness.
- *
- * \param ctx The current redraw context.
- * \param style Style controlling the line plot.
- * \param line A rectangle defining the line to be drawn
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_line(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *line)
 {
     pattern pat;
-    BView *view;
-
-    switch (style->stroke_type) {
-    case PLOT_OP_TYPE_SOLID: /**< Solid colour */
-    default:
-        pat = B_SOLID_HIGH;
-        break;
-
-    case PLOT_OP_TYPE_DOT: /**< Doted plot */
-        pat = kDottedPattern;
-        break;
-
-    case PLOT_OP_TYPE_DASH: /**< dashed plot */
-        pat = kDashedPattern;
-        break;
-    }
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return NSERROR_OK;
+    }
+
+    switch (style->stroke_type) {
+    case PLOT_OP_TYPE_SOLID:
+    default:
+        pat = B_SOLID_HIGH;
+        break;
+    case PLOT_OP_TYPE_DOT:
+        pat = kDottedPattern;
+        break;
+    case PLOT_OP_TYPE_DASH:
+        pat = kDashedPattern;
+        break;
     }
 
     nsbeos_set_colour(style->stroke_colour);
@@ -365,108 +248,55 @@ static nserror nsbeos_plot_line(const struct redraw_context *ctx, const plot_sty
 
     view->SetPenSize(pensize);
 
-    // nsbeos_current_gc_unlock();
-
     return NSERROR_OK;
 }
 
-
-/**
- * Plots a rectangle.
- *
- * The rectangle can be filled an outline or both controlled
- *  by the plot style The line can be solid, dotted or
- *  dashed. Top left corner at (x0,y0) and rectangle has given
- *  width and height.
- *
- * \param ctx The current redraw context.
- * \param style Style controlling the rectangle plot.
- * \param nsrect A rectangle defining the line to be drawn
- * \return NSERROR_OK on success else error code.
- */
 static nserror
 nsbeos_plot_rectangle(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *nsrect)
 {
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) {
+        beos_warn_user("No GC", 0);
+        return NSERROR_INVALID;
+    }
+
     if (style->fill_type != PLOT_OP_TYPE_NONE) {
-        BView *view;
-
-        view = nsbeos_current_gc /*_lock*/ ();
-        if (view == NULL) {
-            beos_warn_user("No GC", 0);
-            return NSERROR_INVALID;
-        }
-
         nsbeos_set_colour(style->fill_colour);
-
         BRect rect(nsrect->x0, nsrect->y0, nsrect->x1 - 1, nsrect->y1 - 1);
         view->FillRect(rect);
-
-        // nsbeos_current_gc_unlock();
     }
 
     if (style->stroke_type != PLOT_OP_TYPE_NONE) {
         pattern pat;
-        BView *view;
-
         switch (style->stroke_type) {
-        case PLOT_OP_TYPE_SOLID: /**< Solid colour */
+        case PLOT_OP_TYPE_SOLID:
         default:
             pat = B_SOLID_HIGH;
             break;
-
-        case PLOT_OP_TYPE_DOT: /**< Doted plot */
+        case PLOT_OP_TYPE_DOT:
             pat = kDottedPattern;
             break;
-
-        case PLOT_OP_TYPE_DASH: /**< dashed plot */
+        case PLOT_OP_TYPE_DASH:
             pat = kDashedPattern;
             break;
         }
 
-        view = nsbeos_current_gc /*_lock*/ ();
-        if (view == NULL) {
-            beos_warn_user("No GC", 0);
-            return NSERROR_INVALID;
-        }
-
         nsbeos_set_colour(style->stroke_colour);
-
         float pensize = view->PenSize();
         view->SetPenSize(plot_style_fixed_to_float(style->stroke_width));
-
-        BRect rect(nsrect->x0, nsrect->y0, nsrect->x1, nsrect->y1);
+        BRect rect(nsrect->x0, nsrect->y0, nsrect->x1 - 1, nsrect->y1 - 1);
         view->StrokeRect(rect, pat);
-
         view->SetPenSize(pensize);
-
-        // nsbeos_current_gc_unlock();
     }
 
     return NSERROR_OK;
 }
 
-
-/**
- * Plot a polygon
- *
- * Plots a filled polygon with straight lines between
- * points. The lines around the edge of the ploygon are not
- * plotted. The polygon is filled with the non-zero winding
- * rule.
- *
- * \param ctx The current redraw context.
- * \param style Style controlling the polygon plot.
- * \param p verticies of polygon
- * \param n number of verticies.
- * \return NSERROR_OK on success else error code.
- */
 static nserror
 nsbeos_plot_polygon(const struct redraw_context *ctx, const plot_style_t *style, const int *p, unsigned int n)
 {
     unsigned int i;
-    BView *view;
-
-    view = nsbeos_current_gc /*_lock*/ ();
+    BView *view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return NSERROR_INVALID;
@@ -475,12 +305,12 @@ nsbeos_plot_polygon(const struct redraw_context *ctx, const plot_style_t *style,
     nsbeos_set_colour(style->fill_colour);
 
     BPoint points[n];
-
     for (i = 0; i < n; i++) {
-        points[i] = BPoint(p[2 * i] - 0.5, p[2 * i + 1] - 0.5);
+        points[i] = BPoint(p[2 * i], p[2 * i + 1]);
     }
 
-    if (style->fill_colour == NS_TRANSPARENT) {
+    if (style->fill_type == PLOT_OP_TYPE_NONE) {
+        nsbeos_set_colour(style->stroke_colour);
         view->StrokePolygon(points, (int32)n);
     } else {
         view->FillPolygon(points, (int32)n);
@@ -489,29 +319,13 @@ nsbeos_plot_polygon(const struct redraw_context *ctx, const plot_style_t *style,
     return NSERROR_OK;
 }
 
-
-/**
- * Plots a path.
- *
- * Path plot consisting of cubic Bezier curves. Line and fill colour is
- *  controlled by the plot style.
- *
- * \param ctx The current redraw context.
- * \param pstyle Style controlling the path plot.
- * \param p elements of path
- * \param n nunber of elements on path
- * \param transform A transform to apply to the path.
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_style_t *pstyle, const float *p,
     unsigned int n, const float transform[6])
 {
     unsigned int i;
     BShape shape;
 
-    if (n == 0) {
-        return NSERROR_OK;
-    }
+    if (n == 0) return NSERROR_OK;
 
     if (p[0] != PLOTTER_PATH_MOVE) {
         NSLOG(wisp, INFO, "path doesn't start with a move");
@@ -520,15 +334,13 @@ static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_sty
 
     for (i = 0; i < n;) {
         if (p[i] == PLOTTER_PATH_MOVE) {
-            BPoint pt(transform_pt(p[i + 1], p[i + 2], transform));
-            shape.MoveTo(pt);
+            shape.MoveTo(transform_pt(p[i + 1], p[i + 2], transform));
             i += 3;
         } else if (p[i] == PLOTTER_PATH_CLOSE) {
             shape.Close();
             i++;
         } else if (p[i] == PLOTTER_PATH_LINE) {
-            BPoint pt(transform_pt(p[i + 1], p[i + 2], transform));
-            shape.LineTo(pt);
+            shape.LineTo(transform_pt(p[i + 1], p[i + 2], transform));
             i += 3;
         } else if (p[i] == PLOTTER_PATH_BEZIER) {
             BPoint pt[3] = {transform_pt(p[i + 1], p[i + 2], transform), transform_pt(p[i + 3], p[i + 4], transform),
@@ -540,162 +352,87 @@ static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_sty
             return NSERROR_INVALID;
         }
     }
-    shape.Close();
 
-    BView *view;
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
 
-    view = nsbeos_current_gc /*_lock*/ ();
-    if (view == NULL) {
-        return NSERROR_INVALID;
-    }
-
-    rgb_color old_high = view->HighColor();
-    float old_pen = view->PenSize();
-    view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
-    view->MovePenTo(0, 0);
-    if (pstyle->fill_colour != NS_TRANSPARENT) {
+    if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
         view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour));
         view->FillShape(&shape);
     }
-    if (pstyle->stroke_colour != NS_TRANSPARENT) {
+    if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
         view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour));
+        view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
         view->StrokeShape(&shape);
     }
-    // restore
-    view->SetPenSize(old_pen);
-    view->SetHighColor(old_high);
-
-    // nsbeos_current_gc_unlock();
 
     return NSERROR_OK;
 }
 
-
-/**
- * Plot a bitmap
- *
- * Tiled plot of a bitmap image. (x,y) gives the top left
- * coordinate of an explicitly placed tile. From this tile the
- * image can repeat in all four directions -- up, down, left
- * and right -- to the extents given by the current clip
- * rectangle.
- *
- * The bitmap_flags say whether to tile in the x and y
- * directions. If not tiling in x or y directions, the single
- * image is plotted. The width and height give the dimensions
- * the image is to be scaled to.
- *
- * \param ctx The current redraw context.
- * \param bitmap The bitmap to plot
- * \param x The x coordinate to plot the bitmap
- * \param y The y coordiante to plot the bitmap
- * \param width The width of area to plot the bitmap into
- * \param height The height of area to plot the bitmap into
- * \param bg the background colour to alpha blend into
- * \param flags the flags controlling the type of plot operation
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, int x, int y, int width,
     int height, colour bg, bitmap_flags_t flags)
 {
-    int doneheight = 0, donewidth = 0;
     BBitmap *primary;
     BBitmap *pretiled;
     bool repeat_x = (flags & BITMAPF_REPEAT_X);
     bool repeat_y = (flags & BITMAPF_REPEAT_Y);
 
     if (!(repeat_x || repeat_y)) {
-        /* Not repeating at all, so just plot it */
         primary = nsbeos_bitmap_get_primary(bitmap);
         return nsbeos_plot_bbitmap(x, y, width, height, primary, bg);
     }
 
     if (repeat_x && !repeat_y)
         pretiled = nsbeos_bitmap_get_pretile_x(bitmap);
-    if (repeat_x && repeat_y)
+    else if (repeat_x && repeat_y)
         pretiled = nsbeos_bitmap_get_pretile_xy(bitmap);
-    if (!repeat_x && repeat_y)
+    else if (!repeat_x && repeat_y)
         pretiled = nsbeos_bitmap_get_pretile_y(bitmap);
+    else
+        pretiled = nsbeos_bitmap_get_primary(bitmap);
+
     primary = nsbeos_bitmap_get_primary(bitmap);
+    int p_w = primary->Bounds().Width() + 1;
+    int p_h = primary->Bounds().Height() + 1;
+    int t_w = pretiled->Bounds().Width() + 1;
+    int t_h = pretiled->Bounds().Height() + 1;
 
-    /* use the primary and pretiled widths to scale the w/h provided */
-    width *= pretiled->Bounds().Width() + 1;
-    width /= primary->Bounds().Width() + 1;
-    height *= pretiled->Bounds().Height() + 1;
-    height /= primary->Bounds().Height() + 1;
+    width *= t_w;
+    width /= p_w;
+    height *= t_h;
+    height /= p_h;
 
-    BView *view;
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
 
-    view = nsbeos_current_gc /*_lock*/ ();
-    if (view == NULL) {
-        beos_warn_user("No GC", 0);
-        return NSERROR_INVALID;
-    }
-
-    // XXX: do we really need to use clipping reg ?
-    // I guess it's faster to not draw clipped out stuff...
-
-    BRect cliprect;
     BRegion clipreg;
     view->GetClippingRegion(&clipreg);
-    cliprect = clipreg.Frame();
+    BRect cliprect = clipreg.Frame();
 
-    // XXX: FIXME
+    int doneheight = (y > cliprect.top) ? ((int)cliprect.top - height) + ((y - (int)cliprect.top) % height) : y;
 
-    if (y > cliprect.top) {
-        doneheight = ((int)cliprect.top - height) + ((y - (int)cliprect.top) % height);
-    } else {
-        doneheight = y;
-    }
-
-    while (doneheight < ((int)cliprect.bottom)) {
-        if (x > cliprect.left) {
-            donewidth = ((int)cliprect.left - width) + ((x - (int)cliprect.left) % width);
-        } else {
-            donewidth = x;
-        }
-
-        while (donewidth < (cliprect.right)) {
+    while (doneheight < cliprect.bottom) {
+        int donewidth = (x > cliprect.left) ? ((int)cliprect.left - width) + ((x - (int)cliprect.left) % width) : x;
+        while (donewidth < cliprect.right) {
             nsbeos_plot_bbitmap(donewidth, doneheight, width, height, pretiled, bg);
             donewidth += width;
-            if (!repeat_x) {
-                break;
-            }
+            if (!repeat_x) break;
         }
         doneheight += height;
-        if (!repeat_y) {
-            break;
-        }
+        if (!repeat_y) break;
     }
-
-#warning WRITEME
 
     return NSERROR_OK;
 }
 
-
-/**
- * Text plotting.
- *
- * \param ctx The current redraw context.
- * \param fstyle plot style for this text
- * \param x x coordinate
- * \param y y coordinate
- * \param text UTF-8 string to plot
- * \param length length of string, in bytes
- * \return NSERROR_OK on success else error code.
- */
 static nserror nsbeos_plot_text(const struct redraw_context *ctx, const struct plot_font_style *fstyle, int x, int y,
     const char *text, size_t length)
 {
     if (!nsfont_paint(fstyle, text, length, x, y)) {
         return NSERROR_INVALID;
     }
-
     return NSERROR_OK;
 }
-
-
 
 static nserror nsbeos_plot_finalise(void)
 {
@@ -746,10 +483,23 @@ static nserror nsbeos_plot_path_fill(const struct redraw_context *ctx, const plo
     BView *view = nsbeos_current_gc();
     if (view == NULL) return NSERROR_INVALID;
 
-    if (pstyle->fill_colour != NS_TRANSPARENT) {
+    if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
         view->SetHighColor(nsbeos_rgb_colour(pstyle->fill_colour));
-        // Transform handling would be needed here for full parity
+#ifdef __HAIKU__
+        if (transform) {
+            view->PushState();
+            BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+            BAffineTransform current = view->Transform();
+            current.Multiply(matrix);
+            view->SetTransform(current);
+            view->FillShape(stateful_shape);
+            view->PopState();
+        } else {
+            view->FillShape(stateful_shape);
+        }
+#else
         view->FillShape(stateful_shape);
+#endif
     }
     return NSERROR_OK;
 }
@@ -760,12 +510,164 @@ static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const p
     BView *view = nsbeos_current_gc();
     if (view == NULL) return NSERROR_INVALID;
 
-    if (pstyle->stroke_colour != NS_TRANSPARENT) {
+    if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
         view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour));
         view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
+#ifdef __HAIKU__
+        if (transform) {
+            view->PushState();
+            BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+            BAffineTransform current = view->Transform();
+            current.Multiply(matrix);
+            view->SetTransform(current);
+            view->StrokeShape(stateful_shape);
+            view->PopState();
+        } else {
+            view->StrokeShape(stateful_shape);
+        }
+#else
         view->StrokeShape(stateful_shape);
+#endif
     }
     return NSERROR_OK;
+}
+
+static nserror nsbeos_plot_push_transform(const struct redraw_context *ctx, const float transform[6])
+{
+#ifdef __HAIKU__
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
+    view->PushState();
+    BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+    BAffineTransform current = view->Transform();
+    current.Multiply(matrix);
+    view->SetTransform(current);
+    return NSERROR_OK;
+#else
+    return NSERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+static nserror nsbeos_plot_pop_transform(const struct redraw_context *ctx)
+{
+#ifdef __HAIKU__
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
+    view->PopState();
+    return NSERROR_OK;
+#else
+    return NSERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+static nserror nsbeos_plot_linear_gradient(const struct redraw_context *ctx, const float *path, unsigned int path_len,
+    const float transform[6], float x0, float y0, float x1, float y1, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+#ifdef __HAIKU__
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
+
+    BGradientLinear gradient(BPoint(x0, y0), BPoint(x1, y1));
+    for (unsigned int i = 0; i < stop_count; i++) {
+        gradient.AddColor(nsbeos_rgb_colour(stops[i].color), stops[i].offset);
+    }
+
+    if (path && path_len > 0) {
+        BShape shape;
+        for (unsigned int i = 0; i < path_len;) {
+            if (path[i] == PLOTTER_PATH_MOVE) {
+                shape.MoveTo(BPoint(path[i+1], path[i+2]));
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_CLOSE) {
+                shape.Close();
+                i++;
+            } else if (path[i] == PLOTTER_PATH_LINE) {
+                shape.LineTo(BPoint(path[i+1], path[i+2]));
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_BEZIER) {
+                BPoint pt[3] = { BPoint(path[i+1], path[i+2]), BPoint(path[i+3], path[i+4]), BPoint(path[i+5], path[i+6]) };
+                shape.BezierTo(pt);
+                i += 7;
+            } else break;
+        }
+        if (transform) {
+            view->PushState();
+            BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+            BAffineTransform current = view->Transform();
+            current.Multiply(matrix);
+            view->SetTransform(current);
+            view->FillShape(&shape, gradient);
+            view->PopState();
+        } else {
+            view->FillShape(&shape, gradient);
+        }
+    } else {
+        view->FillRect(view->Bounds(), gradient);
+    }
+    return NSERROR_OK;
+#else
+    return NSERROR_NOT_IMPLEMENTED;
+#endif
+}
+
+static nserror nsbeos_plot_radial_gradient(const struct redraw_context *ctx, const float *path, unsigned int path_len,
+    const float transform[6], float cx, float cy, float rx, float ry, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+#ifdef __HAIKU__
+    BView *view = nsbeos_current_gc();
+    if (view == NULL) return NSERROR_INVALID;
+
+    BGradientRadial gradient(BPoint(cx, cy), rx);
+    // Note: Haiku BGradientRadial only takes one radius, Wisp/CSS can have two (elliptical).
+    // For now we use rx and could potentially use SetTransform to handle ry if different.
+
+    for (unsigned int i = 0; i < stop_count; i++) {
+        gradient.AddColor(nsbeos_rgb_colour(stops[i].color), stops[i].offset);
+    }
+
+    if (path && path_len > 0) {
+        BShape shape;
+        for (unsigned int i = 0; i < path_len;) {
+            if (path[i] == PLOTTER_PATH_MOVE) {
+                shape.MoveTo(BPoint(path[i+1], path[i+2]));
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_CLOSE) {
+                shape.Close();
+                i++;
+            } else if (path[i] == PLOTTER_PATH_LINE) {
+                shape.LineTo(BPoint(path[i+1], path[i+2]));
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_BEZIER) {
+                BPoint pt[3] = { BPoint(path[i+1], path[i+2]), BPoint(path[i+3], path[i+4]), BPoint(path[i+5], path[i+6]) };
+                shape.BezierTo(pt);
+                i += 7;
+            } else break;
+        }
+        if (transform || rx != ry) {
+            view->PushState();
+            BAffineTransform current = view->Transform();
+            if (transform) {
+                BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+                current.Multiply(matrix);
+            }
+            if (rx != ry && rx > 0) {
+                current.ScaleBy(BPoint(cx, cy), 1.0, ry / rx);
+            }
+            view->SetTransform(current);
+            view->FillShape(&shape, gradient);
+            view->PopState();
+        } else {
+            view->FillShape(&shape, gradient);
+        }
+    } else {
+        view->FillRect(view->Bounds(), gradient);
+    }
+    return NSERROR_OK;
+#else
+    return NSERROR_NOT_IMPLEMENTED;
+#endif
 }
 
 /**
@@ -773,13 +675,13 @@ static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const p
  */
 const struct plotter_table nsbeos_plotters = {
     .clip = nsbeos_plot_clip,
-    .finalise = nsbeos_plot_finalise,
     .arc = nsbeos_plot_arc,
     .disc = nsbeos_plot_disc,
     .line = nsbeos_plot_line,
     .rectangle = nsbeos_plot_rectangle,
     .polygon = nsbeos_plot_polygon,
     .path = nsbeos_plot_path,
+    .finalise = nsbeos_plot_finalise,
     .path_begin = nsbeos_plot_path_begin,
     .path_move_to = nsbeos_plot_path_move_to,
     .path_line_to = nsbeos_plot_path_line_to,
@@ -792,86 +694,9 @@ const struct plotter_table nsbeos_plotters = {
     .group_start = NULL,
     .group_end = NULL,
     .flush = NULL,
+    .push_transform = nsbeos_plot_push_transform,
+    .pop_transform = nsbeos_plot_pop_transform,
+    .linear_gradient = nsbeos_plot_linear_gradient,
+    .radial_gradient = nsbeos_plot_radial_gradient,
     .option_knockout = true
 };
-
-
-#ifdef TEST_PLOTTERS
-//
-static void test_plotters(void)
-{
-    int x0, y0;
-    int x1, y1;
-    struct rect r;
-
-    x0 = 5;
-    y0 = 5;
-    x1 = 35;
-    y1 = 6;
-
-    plot.line(x0, y0, x1, y1, 1, 0x0000ff00, false, false);
-    y0 += 2;
-    y1 += 2;
-    plot.line(x0, y0, x1, y1, 1, 0x0000ff00, true, false);
-    y0 += 2;
-    y1 += 2;
-    plot.line(x0, y0, x1, y1, 1, 0x0000ff00, false, true);
-    y0 += 2;
-    y1 += 2;
-    plot.line(x0, y0, x1, y1, 1, 0x0000ff00, true, true);
-    y0 += 10;
-    y1 += 20;
-
-    plot.fill(x0, y0, x1, y1, 0x00ff0000);
-    plot.rectangle(x0 + 10, y0 + 10, x1 - x0 + 1, y1 - y0 + 1, 2, 0x00ffff00, true, false);
-    y0 += 30;
-    y1 += 30;
-
-    r.x0 = x0 + 2;
-    r.y0 = y0 + 2;
-    r.x1 = x1 - 2;
-    r.y1 = y1 - 2;
-    plot.clip(&r);
-
-    plot.fill(x0, y0, x1, y1, 0x00000000);
-    plot.disc(x1, y1, 8, 0x000000ff, false);
-
-    r.x0 = 0;
-    r.y0 = 0;
-    r.x1 = 300;
-    r.y1 = 300;
-    plot.clip(&r);
-
-    y0 += 30;
-    y1 += 30;
-}
-
-#include <Application.h>
-#include <View.h>
-#include <Window.h>
-class PTView : public BView
-{
-public:
-    PTView(BRect frame) : BView(frame, "view", B_FOLLOW_NONE, B_WILL_DRAW) {};
-    virtual ~PTView() {};
-    virtual void Draw(BRect update)
-    {
-        test_plotters();
-    };
-};
-
-extern "C" void test_plotters_main(void);
-void test_plotters_main(void)
-{
-    BApplication app("application/x-vnd.Wisp");
-    memcpy(&plot, &nsbeos_plotters, sizeof(plot));
-    BRect frame(0, 0, 300, 300);
-    PTView *view = new PTView(frame);
-    frame.OffsetBySelf(100, 100);
-    BWindow *win = new BWindow(frame, "WispPlotterTest", B_TITLED_WINDOW, B_QUIT_ON_WINDOW_CLOSE);
-    win->AddChild(view);
-    nsbeos_current_gc_set(view);
-    win->Show();
-    app.Run();
-}
-#endif /* TEST_PLOTTERS */

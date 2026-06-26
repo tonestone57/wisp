@@ -39,6 +39,7 @@
 #include <Roster.h>
 #include <Screen.h>
 #include <ScrollView.h>
+#include <Slider.h>
 #include <String.h>
 #include <StringView.h>
 #include <TextControl.h>
@@ -71,6 +72,7 @@ extern "C" {
 #include "desktop/search.h"
 #include "desktop/searchweb.h"
 #include "desktop/version.h"
+#include "content/handlers/image/video.h"
 }
 
 #include "beos/about.h"
@@ -79,11 +81,9 @@ extern "C" {
 #include "beos/gui_options.h"
 #include "beos/plotters.h"
 #include "beos/scaffolding.h"
-// #include "beos/completion.h"
 #include "beos/schedule.h"
 #include "beos/throbber.h"
 #include "beos/window.h"
-// #include "beos/download.h"
 #include "beos/cookies.h"
 
 #define TOOLBAR_HEIGHT 32
@@ -96,18 +96,10 @@ class NSBrowserWindow;
 class NSThrobber;
 
 struct beos_scaffolding {
-    NSBrowserWindow *window; // top-level container object
-
-    // top-level view, contains toolbar & top-level browser view
+    NSBrowserWindow *window;
     NSBaseView *top_view;
-
     BMenuBar *menu_bar;
-
     BPopUpMenu *popup_menu;
-
-#ifdef ENABLE_DRAGGER
-    BDragger *dragger;
-#endif
 
     BView *tool_bar;
 
@@ -115,13 +107,12 @@ struct beos_scaffolding {
     BControl *forward_button;
     BControl *stop_button;
     BControl *reload_button;
-BButton *media_play_button;
+    BButton *media_play_button;
     BSlider *media_seek_bar;
     BControl *home_button;
 
     NSIconTextControl *url_bar;
     BTextControl *search_bar;
-    // BMenuField	*url_bar_completion;
 
     NSThrobber *throbber;
 
@@ -137,7 +128,6 @@ BButton *media_play_button;
 
     bool fullscreen;
 
-    /** Object under menu, or 0 if no object. */
     struct hlcache_handle *current_menu_object;
 };
 
@@ -150,7 +140,6 @@ struct menu_events {
     const char *widget;
 };
 
-// passed to the replicant main thread
 struct replicant_thread_info {
     char app[B_PATH_NAME_LENGTH];
     BString url;
@@ -158,8 +147,8 @@ struct replicant_thread_info {
 };
 
 
-static int open_windows = 0; /**< current number of open browsers */
-static NSBaseView *replicant_view = NULL; /**< if not NULL, the replicant View we are running NetSurf for */
+static int open_windows = 0;
+static NSBaseView *replicant_view = NULL;
 static sem_id replicant_done_sem = -1;
 static thread_id replicant_thread = -1;
 
@@ -167,13 +156,9 @@ static void nsbeos_window_update_back_forward(struct beos_scaffolding *);
 static void nsbeos_throb(void *);
 static int32 nsbeos_replicant_main_thread(void *_arg);
 
-// in beos_gui.cpp
 extern int main(int argc, char **argv);
-
-// in fetch_rsrc.cpp
 extern BResources *gAppResources;
 
-// #pragma mark - class NSIconTextControl
 
 #define ICON_WIDTH 16
 
@@ -238,11 +223,8 @@ void NSIconTextControl::DrawAfterChildren(BRect updateRect)
     BTextControl::DrawAfterChildren(updateRect);
 
     PushState();
-
     SetDrawingMode(B_OP_ALPHA);
     DrawBitmap(fIconBitmap, fIconFrame);
-
-    // XXX: is this needed?
     PopState();
 }
 
@@ -259,20 +241,16 @@ void NSIconTextControl::SetBitmap(const BBitmap *bitmap)
     delete fIconBitmap;
     fIconBitmap = NULL;
 
-    // keep a copy
     if (bitmap)
         fIconBitmap = new BBitmap(bitmap);
-    // invalidate just the icon area
     Invalidate(fIconFrame);
 }
 
 
 void NSIconTextControl::FixupTextRect()
 {
-    // FIXME: this flickers on resize, quite ugly
     BRect r(TextView()->TextRect());
 
-    // don't fix the fix
     if (r.left > ICON_WIDTH)
         return;
 
@@ -283,7 +261,6 @@ void NSIconTextControl::FixupTextRect()
 
 #undef ICON_WIDTH
 
-// #pragma mark - class NSResizeKnob
 
 class NSResizeKnob : public BView
 {
@@ -309,7 +286,6 @@ NSResizeKnob::NSResizeKnob(BRect frame, BView *target)
     : BView(frame, "NSResizeKnob", B_FOLLOW_BOTTOM | B_FOLLOW_RIGHT, B_WILL_DRAW), fBitmap(NULL), fTarget(target),
       fOffset(-1, -1)
 {
-    SetViewColor(0, 255, 0);
 }
 
 
@@ -353,8 +329,6 @@ void NSResizeKnob::SetBitmap(const BBitmap *bitmap)
     Invalidate();
 }
 
-
-// #pragma mark - class NSThrobber
 
 class NSThrobber : public BView
 {
@@ -402,12 +376,8 @@ void NSThrobber::SetBitmap(const BBitmap *bitmap)
 }
 
 
-// #pragma mark - class NSBaseView
-
-
 NSBaseView::NSBaseView(BRect frame)
-    : BView(frame, "Wisp", B_FOLLOW_ALL_SIDES, 0 /*B_WILL_DRAW | B_NAVIGABLE | B_FRAME_EVENTS*/
-          /*| B_SUBPIXEL_PRECISE*/),
+    : BView(frame, "Wisp", B_FOLLOW_ALL_SIDES, 0),
       fScaffolding(NULL)
 {
 }
@@ -419,13 +389,11 @@ NSBaseView::NSBaseView(BMessage *archive) : BView(archive), fScaffolding(NULL)
 
 NSBaseView::~NSBaseView()
 {
-    // beos_warn_user("~NSBaseView()", NULL);
     if (replicated) {
         BMessage *message = new BMessage(B_QUIT_REQUESTED);
         nsbeos_pipe_message_top(message, NULL, fScaffolding);
         while (acquire_sem(replicant_done_sem) == EINTR)
             ;
-        // debugger("plop");
         status_t status = -1;
         wait_for_thread(replicant_thread, &status);
     }
@@ -459,9 +427,7 @@ void NSBaseView::MessageReceived(BMessage *message)
     case B_CUT:
     case B_PASTE:
     case B_SELECT_ALL:
-    // case B_MOUSE_WHEEL_CHANGED:
     case B_UI_SETTINGS_CHANGED:
-    // NetPositive messages
     case B_NETPOSITIVE_OPEN_URL:
     case B_NETPOSITIVE_BACK:
     case B_NETPOSITIVE_FORWARD:
@@ -470,7 +436,6 @@ void NSBaseView::MessageReceived(BMessage *message)
     case B_NETPOSITIVE_STOP:
     case B_NETPOSITIVE_DOWN:
     case B_NETPOSITIVE_UP:
-    // messages for top-level
     case 'back':
     case 'forw':
     case 'stop':
@@ -559,7 +524,6 @@ void NSBaseView::MessageReceived(BMessage *message)
         nsbeos_pipe_message_top(message, NULL, fScaffolding);
         break;
     default:
-        // message->PrintToStream();
         BView::MessageReceived(message);
     }
 }
@@ -567,16 +531,12 @@ void NSBaseView::MessageReceived(BMessage *message)
 
 status_t NSBaseView::Archive(BMessage *archive, bool deep) const
 {
-    // force archiving only the base view
     deep = false;
     status_t err;
     err = BView::Archive(archive, deep);
     if (err < B_OK)
         return err;
-    // add our own fields
-    // we try to reuse the same fields as NetPositive
     archive->AddString("add_on", "application/x-vnd.Wisp");
-    // archive->AddInt32("version", 2);
     archive->AddString("url", fScaffolding->url_bar->Text());
     archive->AddBool("openAsText", false);
     archive->AddInt32("encoding", 258);
@@ -606,9 +566,6 @@ BArchivable *NSBaseView::Instantiate(BMessage *archive)
     replicant_view = view;
     replicated = true;
 
-    // TODO:FIXME: fix replicants
-    //  do as much as possible in this thread to avoid deadlocks
-
     gui_init_replicant(2, info->args);
 
     replicant_done_sem = create_sem(0, "NS Replicant created");
@@ -620,8 +577,6 @@ BArchivable *NSBaseView::Instantiate(BMessage *archive)
         return NULL;
     }
     resume_thread(replicant_thread);
-    // XXX: deadlocks BeHappy
-    // while (acquire_sem(replicant_done_sem) == EINTR);
 
     return view;
 }
@@ -633,8 +588,6 @@ void NSBaseView::SetScaffolding(struct beos_scaffolding *scaf)
 }
 
 
-// AttachedToWindow() is not enough to get the dragger and status bar
-// stick to the panel color
 void NSBaseView::AllAttached()
 {
     BView::AllAttached();
@@ -642,7 +595,6 @@ void NSBaseView::AllAttached()
     struct beos_scaffolding *g = fScaffolding;
     if (!g)
         return;
-    // set targets to the topmost ns view
     g->back_button->SetTarget(this);
     g->forward_button->SetTarget(this);
     g->stop_button->SetTarget(this);
@@ -668,19 +620,12 @@ void NSBaseView::AllAttached()
     g->throbber->SetViewColor(c);
     g->scroll_view->SetViewColor(c);
 
-#ifdef ENABLE_DRAGGER
-    g->dragger->SetViewColor(c);
-#endif
-
     g->status_bar->SetViewColor(c);
     g->status_bar->SetLowColor(c);
 #if defined(__HAIKU__) || defined(B_DANO_VERSION)
     g->status_bar->SetHighColor(ui_color(B_PANEL_TEXT_COLOR));
 #endif
 }
-
-
-// #pragma mark - class NSBrowserWindow
 
 
 NSBrowserWindow::NSBrowserWindow(BRect frame, struct beos_scaffolding *scaf)
@@ -747,7 +692,6 @@ void NSBrowserWindow::MessageReceived(BMessage *message)
     case B_ARGV_RECEIVED:
     case B_REFS_RECEIVED:
     case B_UI_SETTINGS_CHANGED:
-    // NetPositive messages
     case B_NETPOSITIVE_OPEN_URL:
     case B_NETPOSITIVE_BACK:
     case B_NETPOSITIVE_FORWARD:
@@ -768,11 +712,10 @@ bool NSBrowserWindow::QuitRequested(void)
 {
     BWindow::QuitRequested();
     BMessage *message = DetachCurrentMessage();
-    // BApplication::Quit() calls us directly...
     if (message == NULL)
         message = new BMessage(B_QUIT_REQUESTED);
     nsbeos_pipe_message_top(message, this, fScaffolding);
-    return false; // we will Quit() ourselves from the main thread
+    return false;
 }
 
 
@@ -784,8 +727,6 @@ void NSBrowserWindow::WindowActivated(bool active)
         activeWindow = NULL;
 }
 
-
-// #pragma mark - implementation
 
 int32 nsbeos_replicant_main_thread(void *_arg)
 {
@@ -803,12 +744,8 @@ int32 nsbeos_replicant_main_thread(void *_arg)
 }
 
 
-/* event handlers and support functions for them */
-
 static void nsbeos_window_destroy_event(NSBrowserWindow *window, nsbeos_scaffolding *g, BMessage *event)
 {
-    NSLOG(wisp, INFO, "Being Destroyed = %d", g->being_destroyed);
-
     if (--open_windows == 0)
         nsbeos_done = true;
 
@@ -842,10 +779,6 @@ static void nsbeos_scaffolding_update_colors(nsbeos_scaffolding *g)
     g->throbber->SetViewColor(c);
     g->scroll_view->SetViewColor(c);
 
-#ifdef ENABLE_DRAGGER
-    g->dragger->SetViewColor(c);
-#endif
-
     g->status_bar->SetViewColor(c);
     g->status_bar->SetLowColor(c);
 #if defined(__HAIKU__) || defined(B_DANO_VERSION)
@@ -864,11 +797,10 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
     bw = nsbeos_get_browser_for_gui(scaffold->top_level);
     bool reloadAll = false;
 
-    NSLOG(wisp, INFO, "nsbeos_scaffolding_dispatch_event() what = 0x%08" PRIx32, message->what);
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(scaffold->top_level->bw->current_content);
             if (c) {
                 if (nsvideo_is_paused(c)) nsvideo_play(c);
                 else nsvideo_pause(c);
@@ -877,7 +809,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(scaffold->top_level->bw->current_content);
             int32 val = 0;
             if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
         }
@@ -889,16 +821,10 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         nsbeos_about(scaffold->top_level);
         break;
     }
-    case B_NETPOSITIVE_DOWN:
-        // XXX WRITEME
-        break;
     case B_SIMPLE_DATA: {
         if (!message->HasRef("refs")) {
-            // XXX handle DnD
             break;
         }
-        // FALL THROUGH
-        // handle refs
     }
         fallthrough;
     case B_REFS_RECEIVED: {
@@ -915,7 +841,6 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
             if (node.InitCheck() < B_OK)
                 break;
             if (node.IsSymLink()) {
-                // dereference the symlink
                 BEntry entry(path.Path(), true);
                 if (entry.InitCheck() < B_OK)
                     break;
@@ -940,7 +865,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
 
             error = nsurl_create(url.String(), &nsurl);
             if (error == NSERROR_OK) {
-                if (/*message->WasDropped() &&*/ i == 0) {
+                if (i == 0) {
                     browser_window_navigate(
                         bw, nsurl, NULL, (browser_window_nav_flags)(BW_NAVIGATE_HISTORY), NULL, NULL, NULL);
                 } else {
@@ -1004,7 +929,6 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         browser_window_key_press(bw, NS_KEY_PASTE);
         break;
     case B_SELECT_ALL:
-        NSLOG(wisp, INFO, "Selecting all text");
         browser_window_key_press(bw, NS_KEY_SELECT_ALL);
         break;
     case B_NETPOSITIVE_BACK:
@@ -1084,7 +1008,6 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
             break;
         text = scaffold->url_bar->Text();
         scaffold->url_bar->UnlockLooper();
-        // nsbeos_completion_update(text.String());
         break;
     }
     case 'sear': {
@@ -1116,22 +1039,6 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
 
         break;
     }
-        /*
-                case 'menu':
-                {
-                    menu_action action;
-                    if (message->FindInt32("action", (int32
-        *)&action) < B_OK) break; switch (action) { case NO_ACTION: case
-        HELP_OPEN_CONTENTS: case HELP_OPEN_GUIDE: case
-        HELP_OPEN_INFORMATION: case HELP_OPEN_ABOUT: case
-        HELP_LAUNCH_INTERACTIVE:
-
-                            break;
-                    }
-        #warning XXX
-                    break;
-                }
-        */
     case NO_ACTION:
         break;
     case HELP_OPEN_CONTENTS:
@@ -1325,7 +1232,6 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
 
 void nsbeos_scaffolding_destroy(nsbeos_scaffolding *scaffold)
 {
-    NSLOG(wisp, INFO, "Being Destroyed = %d", scaffold->being_destroyed);
     if (scaffold->being_destroyed)
         return;
     scaffold->being_destroyed = 1;
@@ -1409,9 +1315,6 @@ static void recursively_set_menu_items_target(BMenu *menu, BHandler *handler)
 
 void nsbeos_attach_toplevel_view(nsbeos_scaffolding *g, BView *view)
 {
-    NSLOG(wisp, INFO, "Attaching view to scaffolding %p", g);
-
-    // this is a replicant,... and it went bad
     if (!g->window) {
         if (g->top_view->Looper() && !g->top_view->LockLooper())
             return;
@@ -1422,46 +1325,32 @@ void nsbeos_attach_toplevel_view(nsbeos_scaffolding *g, BView *view)
     rect.right -= B_V_SCROLL_BAR_WIDTH;
     rect.bottom -= B_H_SCROLL_BAR_HEIGHT;
 
-    view->ResizeTo(rect.Width() /*+ 1*/, rect.Height() /*+ 1*/);
+    view->ResizeTo(rect.Width(), rect.Height());
     view->MoveTo(rect.LeftTop());
 
 
     g->scroll_view = new BScrollView("WispScrollView", view, B_FOLLOW_ALL, 0, true, true, B_NO_BORDER);
-
     g->top_view->AddChild(g->scroll_view);
 
-    // for replicants, add a NSResizeKnob to allow resizing
     if (!g->window) {
         BRect frame = g->scroll_view->Bounds();
         frame.left = frame.right - B_V_SCROLL_BAR_WIDTH;
         frame.top = frame.bottom - B_H_SCROLL_BAR_HEIGHT;
         NSResizeKnob *knob = new NSResizeKnob(frame, g->top_view);
-        // TODO: set bitmap
         g->scroll_view->AddChild(knob);
     }
 
     view->MakeFocus();
 
-    // resize the horiz scrollbar to make room for the status bar and add
-    // it.
-
     BScrollBar *sb = g->scroll_view->ScrollBar(B_HORIZONTAL);
     rect = sb->Frame();
     float divider = rect.Width() + 1;
-    // divider /= 2;
-    divider *= 67.0 / 100; // 67%
+    divider *= 67.0 / 100;
 
     sb->ResizeBy(-divider, 0);
     sb->MoveBy(divider, 0);
 
     rect.right = rect.left + divider - 1;
-
-    /*
-    BBox *statusBarBox = new BBox(rect, "StatusBarBox",
-        B_FOLLOW_LEFT_RIGHT | B_FOLLOW_BOTTOM,
-        B_WILL_DRAW | B_FRAME_EVENTS,
-        B_RAISED_BORDER);
-    */
 
     g->status_bar->MoveTo(rect.LeftTop());
     g->status_bar->ResizeTo(rect.Width() + 1, rect.Height() + 1);
@@ -1472,11 +1361,6 @@ void nsbeos_attach_toplevel_view(nsbeos_scaffolding *g, BView *view)
     g->status_bar->SetHighColor(ui_color(B_PANEL_TEXT_COLOR));
 #endif
 
-
-    // set targets to the topmost ns view,
-    // we might not have a window later (replicant ?)
-    // this won't work for replicants, since the base view isn't attached
-    // yet we'll redo this in NSBaseView::AllAttached
     g->back_button->SetTarget(view);
     g->forward_button->SetTarget(view);
     g->stop_button->SetTarget(view);
@@ -1493,7 +1377,6 @@ void nsbeos_attach_toplevel_view(nsbeos_scaffolding *g, BView *view)
     if (g->window) {
         recursively_set_menu_items_target(g->menu_bar, view);
 
-        // add toolbar shortcuts
         BMessage *message;
 
         message = new BMessage('back');
@@ -1518,8 +1401,6 @@ void nsbeos_attach_toplevel_view(nsbeos_scaffolding *g, BView *view)
 
 
 #if defined(__HAIKU__)
-        // Make sure the window is layouted and answering to events, but
-        // do not show it before it is actually resized
         g->window->Hide();
         g->window->Show();
 
@@ -1547,7 +1428,6 @@ static BMenuItem *make_menu_item(const char *name, BMessage *message, bool enabl
         accel = "";
     uint32 mods = 0;
     char key = 0;
-    // try to understand accelerators
     if (!accel.IsEmpty()) {
         if (accel.FindFirst("\xe2\x87\x91") > -1) {
             accel.RemoveFirst("\xe2\x87\x91");
@@ -1559,32 +1439,24 @@ static BMenuItem *make_menu_item(const char *name, BMessage *message, bool enabl
         }
         if (accel.FindFirst("PRINT") > -1) {
             accel.RemoveFirst("PRINT");
-            // mods |= ; // ALT!!!
             key = B_PRINT_KEY;
         }
 
-        /* replace UTF-8 glyphs (arrows...) with API codes */
         accel.ReplaceAll("\xE2\x86\x90", (BString() += B_LEFT_ARROW).String());
         accel.ReplaceAll("\xE2\x86\x92", (BString() += B_RIGHT_ARROW).String());
         accel.ReplaceAll("\xE2\x86\x91", (BString() += B_UP_ARROW).String());
 
-        if (accel.Length() > 1 && accel[0] == 'F') { // Function key
+        if (accel.Length() > 1 && accel[0] == 'F') {
             int num;
             if (sscanf(accel.String(), "F%d", &num) > 0) {
-                //
             }
         } else if (accel.Length() > 0) {
             key = accel[0];
         }
-        // printf("MENU: detected 	accel '%s' mods 0x%08lx, key
-        // %d\n", accel.String(), mods, key);
     }
 
-    // turn ... into ellipsis
     label.ReplaceAll("...", B_UTF8_ELLIPSIS);
-
     item = new BMenuItem(label.String(), message, key, mods);
-
     item->SetEnabled(enabled);
 
     return item;
@@ -1629,15 +1501,12 @@ void BBitmapButton::Draw(BRect updateRect)
 
     SetDrawingMode(B_OP_COPY);
     FillRect(updateRect, B_SOLID_LOW);
-    rgb_color color = LowColor();
 
     SetDrawingMode(B_OP_ALPHA);
     if (IsEnabled()) {
         if (Value() != 0) {
-            // button is clicked
             DrawBitmap(fBitmap, BPoint(1, 1));
         } else {
-            // button is released
             DrawBitmap(fBitmap, BPoint(0, 0));
         }
     } else
@@ -1652,7 +1521,6 @@ void BBitmapButton::SetBitmap(const char *attrname)
     const void *data = gAppResources->LoadResource('VICN', attrname, &size);
 
     if (!data) {
-        printf("CANT LOAD RESOURCE %s\n", attrname);
         return;
     }
 
@@ -1660,7 +1528,6 @@ void BBitmapButton::SetBitmap(const char *attrname)
     status_t status = BIconUtils::GetVectorIcon((const uint8 *)data, size, fBitmap);
 
     if (status != B_OK) {
-        fprintf(stderr, "%s > oops %s\n", attrname, strerror(status));
         delete fBitmap;
         fBitmap = NULL;
     }
@@ -1672,7 +1539,6 @@ void BBitmapButton::SetBitmap(const char *attrname)
         pixel++;
     }
 #else
-    // No vector icon support on BeOS. We could try to load a bitmap one
     fBitmap = NULL;
     fDisabledBitmap = NULL;
 #endif
@@ -1682,8 +1548,6 @@ void BBitmapButton::SetBitmap(const char *attrname)
 nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
 {
     struct beos_scaffolding *g = (struct beos_scaffolding *)malloc(sizeof(*g));
-
-    NSLOG(wisp, INFO, "Constructing a scaffold of %p for gui_window %p", g, toplevel);
 
     g->top_level = toplevel;
     g->being_destroyed = 0;
@@ -1699,7 +1563,6 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->menu_bar = NULL;
 
     if (replicated && !replicant_view) {
-        beos_warn_user("Error: No subwindow allowed when replicated.", NULL);
         return NULL;
     }
 
@@ -1711,8 +1574,6 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
             frame.OffsetToSelf(nsoption_int(window_x), nsoption_int(window_y));
         } else {
             BPoint pos(50, 50);
-            // XXX: use last BApplication::WindowAt()'s
-            // dynamic_cast<NSBrowserWindow *> Frame()
             NSBrowserWindow *win = nsbeos_find_last_window();
             if (win) {
                 pos = win->Frame().LeftTop();
@@ -1737,14 +1598,10 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
         rect = frame.OffsetToCopy(0, 0);
         rect.bottom = rect.top + 20;
 
-        // build menus
         g->menu_bar = new BMenuBar(rect, "menu_bar");
         g->window->AddChild(g->menu_bar);
 
         BMenu *menu;
-
-        // App menu
-        // XXX: use icon item ?
 
         menu = new BMenu(messages_get("Wisp"));
         g->menu_bar->AddItem(menu);
@@ -1753,72 +1610,12 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
         item = make_menu_item("Info", message, true);
         menu->AddItem(item);
 
-#if 0
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("AppHelp", message);
-		menu->AddItem(item);
-
-		submenu = new BMenu(messages_get("Open"));
-		menu->AddItem(submenu);
-
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("OpenURL", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(CHOICES_SHOW);
-		item = make_menu_item("Choices", message);
-		menu->AddItem(item);
-#endif
-
         message = new BMessage(APPLICATION_QUIT);
         item = make_menu_item("Quit", message, true);
         menu->AddItem(item);
 
-        // Page menu
-
         menu = new BMenu(messages_get("Page"));
         g->menu_bar->AddItem(menu);
-
-#if 0
-		message = new BMessage(BROWSER_PAGE_INFO);
-		item = make_menu_item("PageInfo", message);
-		menu->AddItem(item);
-
-		message = new BMessage(BROWSER_SAVE);
-		item = make_menu_item("SaveAsNS", message);
-		menu->AddItem(item);
-
-		message = new BMessage(BROWSER_SAVE_COMPLETE);
-		item = make_menu_item("SaveCompNS", message);
-		menu->AddItem(item);
-
-		submenu = new BMenu(messages_get("Export"));
-		menu->AddItem(submenu);
-
-		/*
-		message = new BMessage(BROWSER_EXPORT_DRAW);
-		item = make_menu_item("Draw", message);
-		submenu->AddItem(item);
-		*/
-
-		message = new BMessage(BROWSER_EXPORT_TEXT);
-		item = make_menu_item("LinkText", message);
-		submenu->AddItem(item);
-
-
-		submenu = new BMenu(messages_get("SaveURL"));
-		menu->AddItem(submenu);
-
-		//XXX
-		message = new BMessage(BROWSER_OBJECT_SAVE_URL_URL);
-		item = make_menu_item("URL", message);
-		submenu->AddItem(item);
-
-
-		message = new BMessage(BROWSER_PRINT);
-		item = make_menu_item("PrintNS", message);
-		menu->AddItem(item);
-#endif
 
         message = new BMessage(BROWSER_NEW_WINDOW);
         item = make_menu_item("NewWindowNS", message, true);
@@ -1827,28 +1624,6 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
         message = new BMessage(BROWSER_VIEW_SOURCE);
         item = make_menu_item("ViewSrc", message, true);
         menu->AddItem(item);
-
-#if 0 // FIXME This is supposed to be a popup menu!
-      // Object menu
-
-		menu = new BMenu(messages_get("Object"));
-		g->menu_bar->AddItem(menu);
-
-		message = new BMessage(BROWSER_OBJECT_INFO);
-		item = make_menu_item("ObjInfo", message);
-		menu->AddItem(item);
-
-		message = new BMessage(BROWSER_OBJECT_SAVE);
-		item = make_menu_item("ObjSave", message);
-		menu->AddItem(item);
-		// XXX: submenu: Sprite ?
-
-		message = new BMessage(BROWSER_OBJECT_RELOAD);
-		item = make_menu_item("ObjReload", message);
-		menu->AddItem(item);
-#endif
-
-        // Navigate menu
 
         menu = new BMenu(messages_get("Navigate"));
         g->menu_bar->AddItem(menu);
@@ -1877,144 +1652,15 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
         item = make_menu_item("Stop", message, true);
         menu->AddItem(item);
 
-#if 0
-		// View menu
-
-		menu = new BMenu(messages_get("View"));
-		g->menu_bar->AddItem(menu);
-
-		message = new BMessage(BROWSER_SCALE_VIEW);
-		item = make_menu_item("ScaleView", message);
-		menu->AddItem(item);
-
-		submenu = new BMenu(messages_get("Images"));
-		menu->AddItem(submenu);
-
-		message = new BMessage(BROWSER_IMAGES_FOREGROUND);
-		item = make_menu_item("ForeImg", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(BROWSER_IMAGES_BACKGROUND);
-		item = make_menu_item("BackImg", message);
-		submenu->AddItem(item);
-
-
-		submenu = new BMenu(messages_get("Toolbars"));
-		menu->AddItem(submenu);
-		submenu->SetEnabled(false);
-
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("ToolButtons", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("ToolAddress", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("ToolThrob", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("ToolStatus", message);
-		submenu->AddItem(item);
-
-
-		submenu = new BMenu(messages_get("Render"));
-		menu->AddItem(submenu);
-
-		message = new BMessage(BROWSER_BUFFER_ANIMS);
-		item = make_menu_item("RenderAnims", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(BROWSER_BUFFER_ALL);
-		item = make_menu_item("RenderAll", message);
-		submenu->AddItem(item);
-
-
-		message = new BMessage(NO_ACTION);
-		item = make_menu_item("OptDefault", message);
-		menu->AddItem(item);
-#endif
-
-        // Utilities menu
-
         menu = new BMenu(messages_get("Utilities"));
         g->menu_bar->AddItem(menu);
-
-#if 0
-		submenu = new BMenu(messages_get("Hotlist"));
-		menu->AddItem(submenu);
-
-		message = new BMessage(HOTLIST_ADD_URL);
-		item = make_menu_item("HotlistAdd", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(HOTLIST_SHOW);
-		item = make_menu_item("HotlistShowNS", message);
-		submenu->AddItem(item);
-
-
-		submenu = new BMenu(messages_get("History"));
-		menu->AddItem(submenu);
-
-		message = new BMessage(HISTORY_SHOW_LOCAL);
-		item = make_menu_item("HistLocal", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(HISTORY_SHOW_GLOBAL);
-		item = make_menu_item("HistGlobal", message);
-		submenu->AddItem(item);
-#endif
 
         message = new BMessage(COOKIES_SHOW);
         item = make_menu_item("Cookie manager", message, true);
         menu->AddItem(item);
 
-#if 0
-		message = new BMessage(BROWSER_FIND_TEXT);
-		item = make_menu_item("FindText", message);
-		menu->AddItem(item);
-
-		submenu = new BMenu(messages_get("Window"));
-		menu->AddItem(submenu);
-
-		message = new BMessage(BROWSER_WINDOW_DEFAULT);
-		item = make_menu_item("WindowSave", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(BROWSER_WINDOW_STAGGER);
-		item = make_menu_item("WindowStagr", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(BROWSER_WINDOW_COPY);
-		item = make_menu_item("WindowSize", message);
-		submenu->AddItem(item);
-
-		message = new BMessage(BROWSER_WINDOW_RESET);
-		item = make_menu_item("WindowReset", message);
-		submenu->AddItem(item);
-#endif
-
-
-        // Help menu
-
         menu = new BMenu(messages_get("Help"));
         g->menu_bar->AddItem(menu);
-
-#if 0
-		message = new BMessage(HELP_OPEN_CONTENTS);
-		item = make_menu_item("HelpContent", message);
-		menu->AddItem(item);
-
-		message = new BMessage(HELP_OPEN_GUIDE);
-		item = make_menu_item("HelpGuide", message);
-		menu->AddItem(item);
-
-		message = new BMessage(HELP_OPEN_INFORMATION);
-		item = make_menu_item("HelpInfo", message);
-		menu->AddItem(item);
-#endif
 
         message = new BMessage(HELP_OPEN_ABOUT);
         item = make_menu_item("HelpCredits", message, true);
@@ -2024,82 +1670,31 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
         item = make_menu_item("HelpLicence", message, true);
         menu->AddItem(item);
 
-#if 0
-		message = new BMessage(HELP_LAUNCH_INTERACTIVE);
-		item = make_menu_item("HelpInter", message);
-		menu->AddItem(item);
-#endif
-
-        // the base view that receives the toolbar, statusbar and
-        // top-level view.
         rect = frame.OffsetToCopy(0, 0);
         rect.top = g->menu_bar->Bounds().Height() + 1;
-        // rect.top = 20 + 1; // XXX
-        // rect.bottom -= B_H_SCROLL_BAR_HEIGHT;
         g->top_view = new NSBaseView(rect);
-        // add the top view to the window
         g->window->AddChild(g->top_view);
-    } else { // replicant_view
-        // the base view has already been created with the archive
-        // constructor
+    } else {
         g->top_view = replicant_view;
     }
     g->top_view->SetScaffolding(g);
 
-    // build popup menu
     g->popup_menu = new BPopUpMenu("popup", false, false);
-
-#if 0
-	message = new BMessage(BROWSER_OBJECT_INFO);
-	item = make_menu_item("ObjInfo", message);
-	g->popup_menu->AddItem(item);
-
-	message = new BMessage(BROWSER_OBJECT_SAVE);
-	item = make_menu_item("ObjSave", message);
-	g->popup_menu->AddItem(item);
-	// XXX: submenu: Sprite ?
-#endif
 
     message = new BMessage(BROWSER_OBJECT_RELOAD);
     item = make_menu_item("ObjReload", message, true);
     g->popup_menu->AddItem(item);
 
 
-#ifdef ENABLE_DRAGGER
-    // the dragger to allow replicating us
-    // XXX: try to stuff it in the status bar at the bottom
-    // (BDragger *must* be a parent, sibiling or direct child of
-    // NSBaseView!)
     rect = g->top_view->Bounds();
     rect.bottom = rect.top + TOOLBAR_HEIGHT - 1;
-    rect.left = rect.right - DRAGGER_WIDTH + 1;
-    g->dragger = new BDragger(rect, g->top_view, B_FOLLOW_RIGHT | B_FOLLOW_TOP, B_WILL_DRAW);
-    g->top_view->AddChild(g->dragger);
-    g->dragger->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-    g->dragger->SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-#endif
-
-    // tool_bar
-    // the toolbar is also the dragger for now
-    // XXX: try to stuff it in the status bar at the bottom
-    // (BDragger *must* be a parent, sibiling or direct child of
-    // NSBaseView!)
-    // XXX: B_FULL_UPDATE_ON_RESIZE avoids leaving bits on resize,
-    // but causes flicker
-    rect = g->top_view->Bounds();
-    rect.bottom = rect.top + TOOLBAR_HEIGHT - 1;
-#ifdef ENABLE_DRAGGER
-    rect.right = rect.right - DRAGGER_WIDTH;
-#else
     rect.right = rect.right + 1;
-#endif
     g->tool_bar = new BBox(rect, "Toolbar", B_FOLLOW_LEFT_RIGHT | B_FOLLOW_TOP,
         B_WILL_DRAW | B_FRAME_EVENTS | B_FULL_UPDATE_ON_RESIZE | B_NAVIGABLE_JUMP, B_PLAIN_BORDER);
     g->top_view->AddChild(g->tool_bar);
     g->tool_bar->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
     g->tool_bar->SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
-    // buttons
     rect = g->tool_bar->Bounds();
     rect.right = TOOLBAR_HEIGHT;
     rect.InsetBySelf(5, 5);
@@ -2152,7 +1747,6 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     nButtons++;
 
 
-    // url bar
     rect = g->tool_bar->Bounds();
     rect.left += TOOLBAR_HEIGHT * nButtons + 100;
     rect.right -= TOOLBAR_HEIGHT * 1 + 100 + 100;
@@ -2166,7 +1760,6 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->url_bar->TextView()->SetTextRect(rect);
     g->tool_bar->AddChild(g->url_bar);
 
-    // search bar
 
     rect = g->tool_bar->Bounds();
     rect.left = g->url_bar->Frame().right;
@@ -2179,7 +1772,6 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->search_bar->SetDivider(0);
     g->tool_bar->AddChild(g->search_bar);
 
-    // throbber
     rect.Set(0, 0, 24, 24);
     rect.OffsetTo(g->tool_bar->Bounds().right - 24 - (TOOLBAR_HEIGHT - 24) / 2, (TOOLBAR_HEIGHT - 24) / 2);
     g->throbber = new NSThrobber(rect);
@@ -2188,20 +1780,15 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->throbber->SetLowColor(g->tool_bar->ViewColor());
     g->throbber->SetDrawingMode(B_OP_ALPHA);
     g->throbber->SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
-    /* set up the throbber. */
     g->throbber->SetBitmap(nsbeos_throbber->framedata[0]);
     g->throb_frame = 0;
 
 
-    // the status bar at the bottom
     BString status("Wisp");
     status << " " << wisp_version;
     g->status_bar = new BStringView(
-        BRect(0, 0, -1, -1), "StatusBar", status.String(), B_FOLLOW_LEFT /*_RIGHT*/ | B_FOLLOW_BOTTOM);
+        BRect(0, 0, -1, -1), "StatusBar", status.String(), B_FOLLOW_LEFT | B_FOLLOW_BOTTOM);
 
-    // will be added to the scrollview when adding the top view.
-
-    // notify the thread creating the replicant that we're done
     if (replicant_view)
         release_sem(replicant_done_sem);
 
@@ -2216,7 +1803,6 @@ void gui_window_set_title(struct gui_window *_g, const char *title)
     if (g->top_level != _g)
         return;
 
-    // if we're a replicant, discard
     if (!g->window)
         return;
 
@@ -2264,7 +1850,6 @@ nserror gui_window_set_url(struct gui_window *gw, nsurl *url)
 
     if (g->top_view->LockLooper()) {
         g->url_bar->SetText(nsurl_access(url));
-
         g->top_view->UnlockLooper();
     }
 
@@ -2284,7 +1869,6 @@ void gui_window_start_throbber(struct gui_window *_g)
     g->top_view->UnlockLooper();
 
     nsbeos_window_update_back_forward(g);
-
     beos_schedule(100, nsbeos_throb, g);
 }
 
@@ -2293,7 +1877,6 @@ void gui_window_stop_throbber(struct gui_window *_g)
     struct beos_scaffolding *g = nsbeos_get_scaffold(_g);
 
     nsbeos_window_update_back_forward(g);
-
     beos_schedule(-1, nsbeos_throb, g);
 
     if (!g->top_view->LockLooper())
@@ -2308,9 +1891,6 @@ void gui_window_stop_throbber(struct gui_window *_g)
     g->top_view->UnlockLooper();
 }
 
-/**
- * add retrieved favicon to the gui
- */
 void gui_window_set_icon(struct gui_window *_g, hlcache_handle *icon)
 {
     BBitmap *bitmap = NULL;

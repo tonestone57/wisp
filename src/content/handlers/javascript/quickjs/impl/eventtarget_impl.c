@@ -10,7 +10,7 @@
 
 static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
     if (!priv) return JS_EXCEPTION;
     if (argc < 2) return JS_UNDEFINED;
 
@@ -28,7 +28,7 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
 
 static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
     if (!priv) return JS_EXCEPTION;
     if (argc < 2) return JS_UNDEFINED;
 
@@ -46,7 +46,7 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
 
 static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = qjs_get_dom_priv(this_val);
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
     if (!priv) return JS_EXCEPTION;
     if (argc < 1) return JS_FALSE;
 
