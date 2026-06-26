@@ -134,4 +134,22 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
+static bool qjs_bridge_cleanup_cb(void *key, void *value, void *ctx)
+{
+    JSRuntime *rt = (JSRuntime *)ctx;
+    JSValue *val = (JSValue *)value;
+    JS_FreeValueRT(rt, *val);
+    return false;
+}
+
+void qjs_bridge_cleanup(JSRuntime *rt)
+{
+    hashmap_t *map = (hashmap_t *)JS_GetRuntimeOpaque(rt);
+    if (map) {
+        hashmap_iterate(map, qjs_bridge_cleanup_cb, rt);
+        hashmap_destroy(map);
+        JS_SetRuntimeOpaque(rt, NULL);
+    }
+}
+
 void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }
