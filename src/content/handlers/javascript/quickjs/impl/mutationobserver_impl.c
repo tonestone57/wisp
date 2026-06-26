@@ -225,7 +225,7 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 
     /* Parse options */
     MutationObserverOptions mo_opts = {0};
-    JSValue opts = *(JSValue *)options;
+    JSValue opts = options ? *(JSValue *)options : JS_UNDEFINED;
     JSValue val;
 
     if (JS_IsObject(opts)) {
