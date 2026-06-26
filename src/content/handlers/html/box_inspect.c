@@ -902,3 +902,29 @@ struct box *box_pick_text_box(struct html_content *html, int x, int y, int dir, 
 
     return text_box;
 }
+
+struct box *box_find_by_node(struct box *box, struct dom_node *node)
+{
+	struct box *child;
+
+	if (box->node == node) {
+		return box;
+	}
+
+	for (child = box->children; child; child = child->next) {
+		struct box *found = box_find_by_node(child, node);
+		if (found) return found;
+	}
+
+	for (child = box->float_children; child; child = child->next_float) {
+		struct box *found = box_find_by_node(child, node);
+		if (found) return found;
+	}
+
+	if (box->list_marker) {
+		struct box *found = box_find_by_node(box->list_marker, node);
+		if (found) return found;
+	}
+
+	return NULL;
+}
