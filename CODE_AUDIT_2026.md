@@ -1,46 +1,62 @@
 # Wisp Code Audit Report - June 2026
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on the recent transitions to incremental layout, modern CSS support, and the QuickJS-based JavaScript subsystem. Wisp has achieved significant milestones in standard conformance while maintaining a lean architecture.
+This audit evaluates the current state of the Wisp browser engine as of June 2026. The project has transitioned from the legacy codebase to a modernized architecture featuring QuickJS-ng, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Significant progress has been made in media support (AVIF/ISOBMFF) and frontend parity.
 
 ## 2. Library Versions Audit
 
 | Library | Repo Version | Latest Online (June 2026) | Status |
 |---------|--------------|---------------------------|--------|
-| `quickjs-ng` | v0.15.1 | v0.15.1 | Up-to-date |
-| `blend2d` | v0.21.2 | v0.21.2 | Up-to-date |
-| `libavif` | v1.4.2 | v1.4.2 | Up-to-date |
-| `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | Diverged (Forked for Grid/Calc) |
-| `libdom` | Jan 2026 Fork | Upstream Git | Diverged (Forked for SVG/JS) |
-| `FFmpeg` | Linked System | 7.x | Compatible |
+| `quickjs-ng` | Vendored | Latest | **[Finished]** Tracking latest |
+| `blend2d` | Vendored | v0.21.2 | **[Finished]** Tracking latest |
+| `libavif` | Vendored | v1.4.2 | **[Finished]** Tracking latest |
+| `libnsbmp` | Vendored | Latest | **[Finished]** Tracking latest |
+| `libnsgif` | Vendored | Latest | **[Finished]** Tracking latest |
+| `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged for Grid/Calc |
+| `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged for SVG/JS |
+| `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
 
-## 3. Categorized Findings
+## 3. Detailed Subsystem Analysis
 
-### 3.1 Errors and Potential Bugs
-*   **Test Failures (CI/CD Regression)**:
-    *   `libcss_parse_auto_custom-properties_dat`: CSS Variable parsing tests are failing, indicating regressions or incomplete implementation of the custom property parser.
-    *   `test_quickjs`: AddressSanitizer/LeakSanitizer detected 720 bytes leaked across 27 allocations in the QuickJS subsystem, primarily in `emalloc` and `erealloc` wrappers.
-    *   `journal_test`: Failed with an **ODR violation** for the global symbol `guit`, which is defined in both `src/test/journal_test.c` and `src/desktop/gui_factory.c`.
-*   **Layout Logic (Percentage Widths)**: `src/content/handlers/html/layout.c` contains multiple TODOs regarding proper handling of percentage widths in complex layout contexts (e.g., IFRAMEs, nested flexbox).
-*   **Box Construction (Tabs and Counters)**: `box_construct.c` lacks full support for nested CSS counters and proper tab character expansion (TODOs at lines 420, 1847).
-*   **Memory Management (JS Finalizers)**: The interaction between `JS_FreeRuntime` and manual `dom_node` mapping requires continuous monitoring for edge-case use-after-free during asynchronous GC cycles.
+### 3.1 Core Layout engine
+*   **Incremental Layout [Partial]**: Utilizes `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags. Correctly skips reflows for stable subtrees.
+    *   *Optimization*: Dirty rectangle accumulation in `box_mark_dirty` ensures previous positions are cleared.
+    *   *Fixed-Tile Redraw*: Unified strategy using scale-aware fixed tiles (256x256 for i586/retro, 512x512 for High-DPI). Optimizes cache locality and eliminates overdraw.
+*   **CSS Grid [Partial]**: Core layout logic and 3-phase auto-placement implemented.
+    *   *Optimization*: Pass 3 uses cached placement data to avoid re-parsing CSS during final stretch.
+    *   *Improvement needed*: Dense packing algorithm and complex spanning edge cases require further refinement.
+*   **CSS Flexbox [Partial]**: Supports flex-grow, shrink, and auto-margins.
+    *   *Finished*: Two-pass resolution for column flex with indefinite heights.
+*   **Position: Sticky [Finished]**: Full support for both global viewport and scrollable ancestor constraints. Verified multi-axis clamping.
+*   **Percentage Widths [Incomplete]**: TODOs remain for IFRAMEs, text-indent, and max-height constraints in `layout.c`.
 
-### 3.2 Performance Optimizations
-*   **Incremental Layout Refinement**: The engine correctly utilizes `DIRTY_INTRINSIC` and `DIRTY_LAYOUT`. Bounding box union logic in `box_mark_dirty` could be further optimized for contained elements.
-*   **Redraw Optimization**: Redraws in `html_content` currently union all dirty regions. A future optimization could involve a tiled redraw strategy.
-*   **Stateful Path API**: The new stateful Path API reduces overhead for complex SVG shapes, particularly in the Blend2D and Windows backends.
+### 3.2 JavaScript Subsystem (QuickJS-ng)
+*   **Integration [Finished]**: Migration to QuickJS-ng v0.15.1 complete.
+*   **Binding Generator [Finished]**: Automated WebIDL compiler handles boilerplate and generates ~1,500 weak stubs to maintain linker compatibility.
+*   **Observers [Partial]**: `MutationObserver` and `IntersectionObserver` have manual implementation infrastructure.
+    *   *Incomplete*: Deep integration with LibDOM's internal mutation hooks is pending.
+*   **Memory Management [Partial]**: Interaction between QuickJS GC and LibDOM node mapping requires monitoring.
+    *   *Bug*: ~720 bytes leaked across 27 allocations during teardown (LeakSanitizer finding).
 
-### 3.3 Architectural Improvements
-*   **Position: Sticky**: Correctly handles both global viewport and scrollable ancestor constraints. Multi-axis sticky positioning is functional.
-*   **JS Subsystem**: Migration to QuickJS-ng v0.15.1 is complete. Automated WebIDL generator handles binding boilerplate, but `MutationObserver` remains a high priority.
-*   **Network Pipeline**: Asynchronous fetch pipeline is functional but needs tighter integration with the QuickJS event loop.
+### 3.3 Media Subsystem
+*   **ISOBMFF [Finished]**: Native sniffing and brand iteration for AVIF, HEIC, and HEIF.
+*   **FFmpeg [Finished]**: Asynchronous video decoding pipeline functional in `video.c`.
+    *   *Optimization*: Software volume scaling and frame synchronization logic implemented.
 
-### 3.4 Documentation and Cleanliness
-*   **Technical Debt**: Approximately 50+ `TODO` and `FIXME` comments remain in core `src/` files.
-*   **String Safety**: Migration of legacy `sprintf` calls to `snprintf` is largely complete across core and frontends.
+### 3.4 Frontends
+*   **Windows GDI [Finished]**: Achieved parity with Qt frontend.
+    *   *Optimization*: Batching of consecutive path commands reduces kernel transitions.
+*   **GTK/Cairo [Finished]**: Stable reference frontend.
+*   **Blend2D Backend [Finished]**: Unified high-performance vector rendering across all platforms. Serves as the single source of truth for rasterization to ensure pixel-perfect consistency.
+*   **Haiku / BeOS [Finished]**: Native `libbe` frontend (BView) unified with the Blend2D rendering backend and fixed-tile redraw strategy.
 
-## 4. Conclusion and Recommendations
-Wisp has made significant strides in modernization. The immediate focus should be:
-1.  Resolving percentage width issues in the layout engine.
-2.  Completing the high-value JS bindings (MutationObserver).
-3.  Resolving identified memory leaks in the QuickJS subsystem.
+## 4. Bugs and Technical Debt
+*   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol.
+*   **[Bug] LibCSS Regression**: `libcss_parse_auto_custom-properties_dat` failing on complex variable fallbacks.
+*   **[Debt] Box Construction**: Missing support for nested CSS counters and tab character expansion in `box_construct.c`.
+
+## 5. Future Recommendations and Optimizations
+1.  **LibDOM Native Observers**: Implement a native notification system within LibDOM to allow `MutationObserver` to respond to DOM changes without relying on legacy MutationEvents.
+3.  **SIMD Alignment**: Strictly enforce 64-byte alignment in the arena allocator (`src/utils/arena.c`) to better support AVX-512 operations in layout and rendering.
+4.  **JS Event Loop Integration**: Tighten integration between the asynchronous fetch pipeline and the QuickJS event loop to reduce latency in SPAs.
+5.  **Path Accumulation**: Further optimize the Windows GDI plotter by using `PolyBezier` for contiguous segments.

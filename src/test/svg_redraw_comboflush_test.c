@@ -122,8 +122,11 @@ Suite *svg_combo_suite(void)
     return s;
 }
 
+extern void content_stubs_init(void);
+
 int main(void)
 {
+    content_stubs_init();
     Suite *s = svg_combo_suite();
     SRunner *sr = srunner_create(s);
     srunner_run_all(sr, CK_ENV);

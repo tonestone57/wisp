@@ -3,7 +3,7 @@ import sys
 def main():
     if len(sys.argv) != 2:
         sys.exit(f"Usage: {sys.argv[0]} IMAGE")
-    
+
     image_path = sys.argv[1]
     try:
         with open(image_path, 'rb') as f:
@@ -21,11 +21,11 @@ def main():
         for i in range(length):
             if i % 8 == 0:
                 print(f"\n{z + i:8}:  ", end='')
-            
+
             if z + i >= len(gif_data):
                 print("EOF\n\nUnexpected end of file")
                 sys.exit()
-            
+
             c = gif_data[z + i]
             print(f"{c:02x} ", end='')
             if 32 <= c <= 126:
@@ -33,7 +33,7 @@ def main():
             else:
                 print("   ", end='')
             print(" ", end='')
-        
+
         print("\n")
         z += length
 
@@ -45,7 +45,7 @@ def main():
     # LSD is 6, 7, 8, 9, 10, 11, 12.
     # Header is 0-5. LSD is 6-12.
     # Byte 10 is indeed the packed field.
-    
+
     global_colors = gif_data[10] & 0x80
     color_table_size = 2 << (gif_data[10] & 0x07)
 
@@ -77,7 +77,7 @@ def main():
                     output_chunk(f'Unknown Extension 0x{ext_label:02x}', length + 3)
                 else:
                     output_chunk(f'Unknown Extension 0x{ext_label:02x}', 2)
-            
+
             # Blocks
             while z < len(gif_data) and gif_data[z] != 0:
                 output_chunk('Data Sub-block', gif_data[z] + 1)
@@ -91,10 +91,10 @@ def main():
 
         if gif_data[z] != 0x2c:
             break
-        
+
         # Image Descriptor
         output_chunk('Image Descriptor', 10)
-        
+
         # Local Color Table?
         # Packed field is at offset 9 of Image Descriptor.
         # Image Descriptor starts at z (before increment).
@@ -107,7 +107,7 @@ def main():
         # while ...
         # It misses Local Color Table parsing if present.
         # I should match Perl script behavior exactly as requested ("output is the same").
-        
+
         output_chunk('Table Based Image Data', 1)
 
         while z < len(gif_data) and gif_data[z] != 0:

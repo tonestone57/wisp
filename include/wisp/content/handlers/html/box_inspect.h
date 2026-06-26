@@ -133,6 +133,16 @@ struct box *box_pick_text_box(struct html_content *html, int x, int y, int dir, 
 
 
 /**
+ * Find a box by its associated DOM node.
+ *
+ * \param  box   Root box to start search from
+ * \param  node  DOM node to find the box for
+ * \return The box associated with the node, or NULL if not found.
+ */
+struct box *box_find_by_node(struct box *box, struct dom_node *node);
+
+
+/**
  * Check if layout box is a first child.
  *
  * \param[in] b  Box to check.

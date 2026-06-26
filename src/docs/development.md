@@ -82,6 +82,11 @@ The Wisp code makes use of Doxygen for code documentation.
 There are several documents which detail specific aspects of the
 codebase and APIs.
 
+## Rendering Architecture
+
+The [rendering architecture](docs/rendering.md) document details the
+unification around Blend2D and the fixed-tile redraw strategy.
+
 ## Core window
 
 The [core window API](docs/core-window-interface.md) allows frontends
@@ -105,8 +110,7 @@ Javascript provision is split into four parts:
 
 ## Library
 
-JavaScript is provided by integrating the duktape library. There are
-[instructions](docs/updating-duktape.md) on how to update the library.
+JavaScript is provided by integrating the QuickJS-ng (v0.15.1) engine. This provides modern ES2023+ support and efficient memory usage.
 
 ## Interface binding
 

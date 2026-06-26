@@ -61,57 +61,41 @@ extern "C" {
 class NSBrowserFrameView;
 
 struct gui_window {
-    /* All gui_window objects have an ultimate scaffold */
     nsbeos_scaffolding *scaffold;
     bool toplevel;
-    /* A gui_window is the rendering of a browser_window */
     struct browser_window *bw;
 
     struct {
         int pressed_x;
         int pressed_y;
-        int state; /* browser_mouse_state */
+        int state;
     } mouse;
 
-    /* These are the storage for the rendering */
     int caretx, carety, careth;
     gui_pointer_shape current_pointer;
     int last_x, last_y;
 
     NSBrowserFrameView *view;
 
-    // some cached events to speed up things
-    // those are the last queued event of their kind,
-    // we can safely drop others and avoid wasting cpu.
-    // number of pending resizes
     int32 pending_resizes;
-    // accumulated rects of pending redraws
-    // volatile BMessage	*lastRedraw;
-    // UNUSED YET
     BRect pendingRedraw;
 
-    /* Keep gui_windows in a list for cleanup later */
     struct gui_window *next, *prev;
 };
 
 
 static const rgb_color kWhiteColor = {255, 255, 255, 255};
 
-static struct gui_window *window_list = 0; /**< first entry in win list*/
+static struct gui_window *window_list = 0;
 
 static BString current_selection;
 static BList current_selection_textruns;
 
-/* Methods which apply only to a gui_window */
 static void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message);
 static void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event);
-/* Other useful bits */
 static void nsbeos_redraw_caret(struct gui_window *g);
-
-
-// #pragma mark - class NSBrowserFrameView
 
 
 NSBrowserFrameView::NSBrowserFrameView(BRect frame, struct gui_window *gui)
@@ -136,9 +120,7 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
     case B_CUT:
     case B_PASTE:
     case B_SELECT_ALL:
-    // case B_MOUSE_WHEEL_CHANGED:
     case B_UI_SETTINGS_CHANGED:
-    // NetPositive messages
     case B_NETPOSITIVE_OPEN_URL:
     case B_NETPOSITIVE_BACK:
     case B_NETPOSITIVE_FORWARD:
@@ -147,7 +129,6 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
     case B_NETPOSITIVE_STOP:
     case B_NETPOSITIVE_DOWN:
     case B_NETPOSITIVE_UP:
-    // messages for top-level
     case 'back':
     case 'forw':
     case 'stop':
@@ -234,7 +215,6 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
         nsbeos_pipe_message_top(message, NULL, fGuiWindow->scaffold);
         break;
     default:
-        // message->PrintToStream();
         BView::MessageReceived(message);
     }
 }
@@ -242,11 +222,7 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
 
 void NSBrowserFrameView::Draw(BRect updateRect)
 {
-    BMessage *message = NULL;
-    // message = Window()->DetachCurrentMessage();
-    //  might be called directly...
-    if (message == NULL)
-        message = new BMessage(_UPDATE_);
+    BMessage *message = new BMessage(_UPDATE_);
     message->AddRect("rect", updateRect);
     nsbeos_pipe_message(message, this, fGuiWindow);
 }
@@ -255,8 +231,6 @@ void NSBrowserFrameView::Draw(BRect updateRect)
 void NSBrowserFrameView::FrameResized(float new_width, float new_height)
 {
     BMessage *message = Window()->DetachCurrentMessage();
-    // discard any other pending resize,
-    // so we don't end up processing them all, the last one matters.
     atomic_add(&fGuiWindow->pending_resizes, 1);
     nsbeos_pipe_message(message, this, fGuiWindow);
     BView::FrameResized(new_width, new_height);
@@ -284,8 +258,6 @@ void NSBrowserFrameView::MouseDown(BPoint where)
 
 void NSBrowserFrameView::MouseUp(BPoint where)
 {
-    // BMessage *message = Window()->DetachCurrentMessage();
-    // nsbeos_pipe_message(message, this, fGuiWindow);
     BMessage *message = Window()->DetachCurrentMessage();
     BPoint screenWhere;
     if (message->FindPoint("screen_where", &screenWhere) < B_OK) {
@@ -307,8 +279,6 @@ void NSBrowserFrameView::MouseMoved(BPoint where, uint32 transit, const BMessage
 }
 
 
-// #pragma mark - gui_window
-
 struct browser_window *nsbeos_get_browser_window(struct gui_window *g)
 {
     return g->bw;
@@ -324,11 +294,10 @@ struct browser_window *nsbeos_get_browser_for_gui(struct gui_window *g)
     return g->bw;
 }
 
-/* Create a gui_window */
 static struct gui_window *
 gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_window_create_flags flags)
 {
-    struct gui_window *g; /**< what we're creating to return */
+    struct gui_window *g;
 
     g = (struct gui_window *)malloc(sizeof(*g));
     if (!g) {
@@ -345,52 +314,35 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->careth = 0;
     g->pending_resizes = 0;
 
-    /* Attach ourselves to the list (push_top) */
     if (window_list)
         window_list->prev = g;
     g->next = window_list;
     g->prev = NULL;
     window_list = g;
 
-    /* Now construct and attach a scaffold */
-    g->scaffold = nsbeos_new_scaffolding(g);
+    if (flags & GW_CREATE_TAB && existing) {
+        g->scaffold = existing->scaffold;
+        g->toplevel = false;
+    } else {
+        g->scaffold = nsbeos_new_scaffolding(g);
+        g->toplevel = true;
+    }
+
     if (!g->scaffold)
         return NULL;
 
-    /* Construct our primary elements */
-    BRect frame(0, 0, -1, -1); // will be resized later
+    BRect frame(0, 0, -1, -1);
     g->view = new NSBrowserFrameView(frame, g);
-    /* set the default background colour of the drawing area to white. */
-    // g->view->SetViewColor(kWhiteColor);
-    /* NOOO! Since we defer drawing (DetachCurrent()), the white flickers,
-     * besides sometimes text was drawn twice, making it ugly.
-     * Instead we set to transparent here, and implement plot_clg() to
-     * do it just before the rest. This almost removes the flicker. */
     g->view->SetViewColor(B_TRANSPARENT_COLOR);
     g->view->SetLowColor(kWhiteColor);
 
-#ifdef B_BEOS_VERSION_DANO
-    /* enable double-buffering on the content view */
-/*
-    XXX: doesn't really work
-    g->view->SetDoubleBuffering(B_UPDATE_INVALIDATED
-        | B_UPDATE_SCROLLED
-        //| B_UPDATE_RESIZED
-        | B_UPDATE_EXPOSED);
-*/
-#endif
-
-
-    g->toplevel = true;
-
-    /* Attach our viewport into the scaffold */
-    nsbeos_attach_toplevel_view(g->scaffold, g->view);
-
+    if (g->toplevel) {
+        nsbeos_attach_toplevel_view(g->scaffold, g->view);
+    }
 
     return g;
 }
 
-/* exported interface documented in beos/window.h */
 void nsbeos_dispatch_event(BMessage *message)
 {
     struct gui_window *gui = NULL;
@@ -398,7 +350,6 @@ void nsbeos_dispatch_event(BMessage *message)
     struct beos_scaffolding *scaffold = NULL;
     NSBrowserWindow *window = NULL;
 
-    // message->PrintToStream();
     if (message->FindPointer("View", (void **)&view) < B_OK)
         view = NULL;
     if (message->FindPointer("gui_window", (void **)&gui) < B_OK)
@@ -427,18 +378,14 @@ void nsbeos_dispatch_event(BMessage *message)
         return;
     }
 
-    // messages for top-level
     if (scaffold) {
-        NSLOG(wisp, INFO, "dispatching to top-level");
         nsbeos_scaffolding_dispatch_event(scaffold, message);
         delete message;
         return;
     }
 
-    NSLOG(wisp, DEEPDEBUG, "processing message");
     switch (message->what) {
     case B_QUIT_REQUESTED:
-        // from the BApplication
         nsbeos_done = true;
         break;
     case B_ABOUT_REQUESTED: {
@@ -457,8 +404,6 @@ void nsbeos_dispatch_event(BMessage *message)
 
         BPoint where;
         int32 mods;
-        // where refers to Window coords !?
-        // check be:view_where first
         if (message->FindPoint("be:view_where", &where) < B_OK) {
             if (message->FindPoint("where", &where) < B_OK)
                 break;
@@ -468,17 +413,11 @@ void nsbeos_dispatch_event(BMessage *message)
 
 
         if (gui->mouse.state & BROWSER_MOUSE_PRESS_1) {
-            /* Start button 1 drag */
             browser_window_mouse_click(gui->bw, BROWSER_MOUSE_DRAG_1, gui->mouse.pressed_x, gui->mouse.pressed_y);
-            /* Replace PRESS with HOLDING and declare drag in
-             * progress */
             gui->mouse.state ^= (BROWSER_MOUSE_PRESS_1 | BROWSER_MOUSE_HOLDING_1);
             gui->mouse.state |= BROWSER_MOUSE_DRAG_ON;
         } else if (gui->mouse.state & BROWSER_MOUSE_PRESS_2) {
-            /* Start button 2 drag */
             browser_window_mouse_click(gui->bw, BROWSER_MOUSE_DRAG_2, gui->mouse.pressed_x, gui->mouse.pressed_y);
-            /* Replace PRESS with HOLDING and declare drag in
-             * progress */
             gui->mouse.state ^= (BROWSER_MOUSE_PRESS_2 | BROWSER_MOUSE_HOLDING_2);
             gui->mouse.state |= BROWSER_MOUSE_DRAG_ON;
         }
@@ -486,7 +425,6 @@ void nsbeos_dispatch_event(BMessage *message)
         bool shift = mods & B_SHIFT_KEY;
         bool ctrl = mods & B_CONTROL_KEY;
 
-        /* Handle modifiers being removed */
         if (gui->mouse.state & BROWSER_MOUSE_MOD_1 && !shift)
             gui->mouse.state ^= BROWSER_MOUSE_MOD_1;
         if (gui->mouse.state & BROWSER_MOUSE_MOD_2 && !ctrl)
@@ -518,14 +456,13 @@ void nsbeos_dispatch_event(BMessage *message)
             mods = 0;
 
         if (buttons & B_SECONDARY_MOUSE_BUTTON) {
-            /* 2 == right button on BeOS */
             nsbeos_scaffolding_popup_menu(gui->scaffold, gui->bw, where, screenWhere);
             break;
         }
 
         gui->mouse.state = BROWSER_MOUSE_PRESS_1;
 
-        if (buttons & B_TERTIARY_MOUSE_BUTTON) /* 3 == middle button on BeOS */
+        if (buttons & B_TERTIARY_MOUSE_BUTTON)
             gui->mouse.state = BROWSER_MOUSE_PRESS_2;
 
         if (mods & B_SHIFT_KEY)
@@ -536,7 +473,6 @@ void nsbeos_dispatch_event(BMessage *message)
         gui->mouse.pressed_x = where.x;
         gui->mouse.pressed_y = where.y;
 
-        // make sure the view is in focus
         if (view && view->LockLooper()) {
             if (!view->IsFocus())
                 view->MakeFocus();
@@ -567,9 +503,6 @@ void nsbeos_dispatch_event(BMessage *message)
         if (message->FindInt32("modifiers", &mods) < B_OK)
             mods = 0;
 
-        /* If the mouse state is PRESS then we are waiting for a release
-         * to emit a click event, otherwise just reset the state to
-         * nothing*/
         if (gui->mouse.state & BROWSER_MOUSE_PRESS_1)
             gui->mouse.state ^= (BROWSER_MOUSE_PRESS_1 | BROWSER_MOUSE_CLICK_1);
         else if (gui->mouse.state & BROWSER_MOUSE_PRESS_2)
@@ -578,18 +511,10 @@ void nsbeos_dispatch_event(BMessage *message)
         bool shift = mods & B_SHIFT_KEY;
         bool ctrl = mods & B_CONTROL_KEY;
 
-        /* Handle modifiers being removed */
         if (gui->mouse.state & BROWSER_MOUSE_MOD_1 && !shift)
             gui->mouse.state ^= BROWSER_MOUSE_MOD_1;
         if (gui->mouse.state & BROWSER_MOUSE_MOD_2 && !ctrl)
             gui->mouse.state ^= BROWSER_MOUSE_MOD_2;
-
-        /*
-        if (view && view->LockLooper()) {
-            view->MakeFocus();
-            view->UnlockLooper();
-        }
-        */
 
         if (gui->mouse.state & (BROWSER_MOUSE_CLICK_1 | BROWSER_MOUSE_CLICK_2))
             browser_window_mouse_click(gui->bw, (browser_mouse_state)gui->mouse.state, where.x, where.y);
@@ -612,12 +537,10 @@ void nsbeos_dispatch_event(BMessage *message)
         if (gui && view)
             nsbeos_window_moved_event(view, gui, message);
         break;
-    case B_MOUSE_WHEEL_CHANGED:
-        break;
     case B_UI_SETTINGS_CHANGED:
         nsbeos_update_system_ui_colors();
         break;
-    case 'nsLO': // login
+    case 'nsLO':
     {
         nsurl *url;
         BString realm;
@@ -647,23 +570,16 @@ void nsbeos_dispatch_event(BMessage *message)
     delete message;
 }
 
+#define TILE_SIZE 256
+
 void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 {
     BRect updateRect;
-    struct rect clip;
-
     struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
 
     assert(g);
     assert(g->bw);
 
-    struct gui_window *z;
-    for (z = window_list; z && z != g; z = z->next)
-        continue;
-    assert(z);
-    assert(g->view == view);
-
-    // we'll be resizing = reflowing = redrawing everything anyway...
     if (g->pending_resizes > 1)
         return;
 
@@ -680,12 +596,40 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (view->Window())
         view->Window()->BeginViewTransaction();
 
-    clip.x0 = (int)updateRect.left;
-    clip.y0 = (int)updateRect.top;
-    clip.x1 = (int)updateRect.right + 1;
-    clip.y1 = (int)updateRect.bottom + 1;
+    /* Fixed-Tile Redraw Implementation (256x256 tiles) */
+    int x_start = (int)updateRect.left & ~(TILE_SIZE - 1);
+    int y_start = (int)updateRect.top & ~(TILE_SIZE - 1);
+    int x_end = (int)updateRect.right;
+    int y_end = (int)updateRect.bottom;
 
-    browser_window_redraw(g->bw, 0, 0, &clip, &ctx);
+    for (int ty = y_start; ty <= y_end; ty += TILE_SIZE) {
+        for (int tx = x_start; tx <= x_end; tx += TILE_SIZE) {
+            struct rect tile_clip;
+            tile_clip.x0 = tx;
+            tile_clip.y0 = ty;
+            tile_clip.x1 = tx + TILE_SIZE;
+            tile_clip.y1 = ty + TILE_SIZE;
+
+            /* Intersect tile with updateRect */
+            if (tile_clip.x0 < (int)updateRect.left) tile_clip.x0 = (int)updateRect.left;
+            if (tile_clip.y0 < (int)updateRect.top) tile_clip.y0 = (int)updateRect.top;
+            if (tile_clip.x1 > (int)updateRect.right + 1) tile_clip.x1 = (int)updateRect.right + 1;
+            if (tile_clip.y1 > (int)updateRect.bottom + 1) tile_clip.y1 = (int)updateRect.bottom + 1;
+
+            if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
+                continue;
+
+            /* Push tile clip and redraw */
+            BRegion region;
+            region.Set(BRect(tile_clip.x0, tile_clip.y0, tile_clip.x1 - 1, tile_clip.y1 - 1));
+            view->PushState();
+            view->ConstrainClippingRegion(&region);
+
+            browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
+
+            view->PopState();
+        }
+    }
 
     if (g->careth != 0)
         nsbeos_plot_caret(g->caretx, g->carety, g->careth);
@@ -693,8 +637,6 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (view->Window())
         view->Window()->EndViewTransaction();
 
-    // reset clipping just in case
-    view->ConstrainClippingRegion(NULL);
     nsbeos_current_gc_set(NULL);
     view->UnlockLooper();
 }
@@ -716,8 +658,6 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
         key = 0;
     if (event->FindInt32("raw_char", (int32 *)&raw_char) < B_OK)
         raw_char = 0;
-    /* check for byte[] first, because C-space gives bytes="" (and byte[0] =
-     * '\0') */
     for (i = 0; i < 5; i++) {
         buff[i] = '\0';
         if (event->FindInt8("byte", i, (int8 *)&buff[i]) < B_OK)
@@ -733,8 +673,7 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
     if (!numbytes)
         numbytes = strlen(bytes);
 
-    NSLOG(
-        wisp, INFO, "mods 0x%08" PRIx32 " key %" PRIu32 " raw %" PRIu32 " byte[0] %d", mods, key, raw_char, buff[0]);
+    NSLOG(wisp, INFO, "mods 0x%08" PRIx32 " key %" PRIu32 " raw %" PRIu32 " byte[0] %d", mods, key, raw_char, buff[0]);
 
     char byte;
     if (numbytes == 1) {
@@ -751,7 +690,6 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
             case B_TAB:
                 nskey = NS_KEY_TAB;
                 break;
-            /*case XK_Linefeed:	return QKlinefeed;*/
             case B_ENTER:
                 nskey = (uint32_t)10;
                 break;
@@ -764,15 +702,12 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
             case B_DELETE:
                 nskey = NS_KEY_DELETE_RIGHT;
                 break;
-            /*
-            case B_INSERT:	nskey = NS_KEYSYM("insert"); break;
-            */
             case B_HOME:
                 nskey = NS_KEY_LINE_START;
-                break; // XXX ?
+                break;
             case B_END:
                 nskey = NS_KEY_LINE_END;
-                break; // XXX ?
+                break;
             case B_PAGE_UP:
                 nskey = NS_KEY_PAGE_UP;
                 break;
@@ -791,33 +726,11 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
             case B_DOWN_ARROW:
                 nskey = NS_KEY_DOWN;
                 break;
-            /*
-            case B_FUNCTION_KEY:
-                switch (scancode) {
-                    case B_F1_KEY: nskey = KEYSYM("f1");
-            break; case B_F2_KEY: nskey = KEYSYM("f2"); break; case
-            B_F3_KEY: nskey = KEYSYM("f3"); break; case B_F4_KEY:
-            nskey = KEYSYM("f4"); break; case B_F5_KEY: nskey =
-            KEYSYM("f5"); break; case B_F6_KEY: nskey =
-            KEYSYM("f6"); break; case B_F7_KEY: nskey =
-            KEYSYM("f7"); break; case B_F8_KEY: nskey =
-            KEYSYM("f8"); break; case B_F9_KEY: nskey =
-            KEYSYM("f9"); break; case B_F10_KEY: nskey =
-            KEYSYM("f10"); break; case B_F11_KEY: nskey =
-            KEYSYM("f11"); break; case B_F12_KEY: nskey =
-            KEYSYM("f12"); break; case B_PRINT_KEY: nskey =
-            KEYSYM("print"); break; case B_SCROLL_KEY: nskey =
-            KEYSYM("scroll-lock"); break; case B_PAUSE_KEY: nskey =
-            KEYSYM("pause"); break;
-                }
-            */
             case 0:
                 nskey = (uint32_t)0;
                 break;
             default:
                 nskey = (uint32_t)raw_char;
-                /*if (simple_p)
-                    nskey = (uint32_t)0;*/
                 break;
             }
         }
@@ -828,7 +741,6 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
     if (browser_window_key_press(g->bw, nskey))
         return;
 
-    // Remaining events are for scrolling the page around
     float hdelta = 0.0f, vdelta = 0.0f;
     g->view->LockLooper();
     BRect size = g->view->Bounds();
@@ -836,10 +748,6 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
     case B_HOME:
         g->view->ScrollTo(0.0f, 0.0f);
         break;
-    case B_END: {
-        // TODO
-        break;
-    }
     case B_PAGE_UP:
         vdelta = -size.Height();
         break;
@@ -867,38 +775,18 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
 
 void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event)
 {
-    // CALLED();
-    int32 width;
-    int32 height;
-
-    // drop this event if we have at least 2 resize pending
     if (atomic_add(&g->pending_resizes, -1) > 1)
         return;
 
-    if (event->FindInt32("width", &width) < B_OK)
-        width = -1;
-    if (event->FindInt32("height", &height) < B_OK)
-        height = -1;
-    width++;
-    height++;
-
     browser_window_schedule_reformat(g->bw);
-
-    return;
 }
 
 
 void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event)
 {
-    // CALLED();
-
-#warning XXX: Invalidate ?
     if (!view || !view->LockLooper())
         return;
-    // view->Invalidate(view->Bounds());
     view->UnlockLooper();
-
-    return;
 }
 
 
@@ -930,9 +818,6 @@ static void gui_window_destroy(struct gui_window *g)
 
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
-    assert(g != NULL);
-    assert(g->bw != NULL);
-    NSLOG(wisp, INFO, "     Scaffolding: %p", g->scaffold);
 
     if (g->view == NULL)
         return;
@@ -940,7 +825,6 @@ static void gui_window_destroy(struct gui_window *g)
         return;
 
     BLooper *looper = g->view->Looper();
-    /* If we're a top-level gui_window, destroy our scaffold */
     if (g->toplevel) {
         g->view->RemoveSelf();
         delete g->view;
@@ -950,9 +834,6 @@ static void gui_window_destroy(struct gui_window *g)
         delete g->view;
         looper->Unlock();
     }
-    // XXX
-    // looper->Unlock();
-
 
     free(g);
 }
@@ -968,20 +849,11 @@ void nsbeos_redraw_caret(struct gui_window *g)
         return;
 
     nsbeos_current_gc_set(g->view);
-
     g->view->Invalidate(BRect(g->caretx, g->carety, g->caretx, g->carety + g->careth));
-
     nsbeos_current_gc_set(NULL);
     g->view->UnlockLooper();
 }
 
-/**
- * Invalidate an area of a beos browser window
- *
- * \param g The netsurf window being invalidated.
- * \param rect area to redraw or NULL for entrire window area.
- * \return NSERROR_OK or appropriate error code.
- */
 static nserror beos_window_invalidate_area(struct gui_window *g, const struct rect *rect)
 {
     if (browser_window_has_content(g->bw) == false) {
@@ -997,7 +869,6 @@ static nserror beos_window_invalidate_area(struct gui_window *g, const struct re
     }
 
     if (rect != NULL) {
-        // XXX +1 ??
         g->view->Invalidate(BRect(rect->x0, rect->y0, rect->x1 - 1, rect->y1 - 1));
     } else {
         g->view->Invalidate();
@@ -1010,13 +881,11 @@ static nserror beos_window_invalidate_area(struct gui_window *g, const struct re
 
 static bool gui_window_get_scroll(struct gui_window *g, int *sx, int *sy)
 {
-    // CALLED();
     if (g->view == NULL)
         return false;
     if (!g->view->LockLooper())
         return false;
 
-#warning XXX: report to view frame ?
     if (g->view->ScrollBar(B_HORIZONTAL))
         *sx = (int)g->view->ScrollBar(B_HORIZONTAL)->Value();
     if (g->view->ScrollBar(B_VERTICAL))
@@ -1026,20 +895,8 @@ static bool gui_window_get_scroll(struct gui_window *g, int *sx, int *sy)
     return true;
 }
 
-/**
- * Set the scroll position of a beos browser window.
- *
- * Scrolls the viewport to ensure the specified rectangle of the
- *   content is shown. The beos implementation scrolls the contents so
- *   the specified point in the content is at the top of the viewport.
- *
- * \param g gui window to scroll
- * \param rect The rectangle to ensure is shown.
- * \return NSERROR_OK on success or apropriate error code.
- */
 static nserror gui_window_set_scroll(struct gui_window *g, const struct rect *rect)
 {
-    // CALLED();
     if (g->view == NULL) {
         return NSERROR_BAD_PARAMETER;
     }
@@ -1047,7 +904,6 @@ static nserror gui_window_set_scroll(struct gui_window *g, const struct rect *re
         return NSERROR_BAD_PARAMETER;
     }
 
-#warning XXX: report to view frame ?
     if (g->view->ScrollBar(B_HORIZONTAL)) {
         g->view->ScrollBar(B_HORIZONTAL)->SetValue(rect->x0);
     }
@@ -1064,7 +920,6 @@ static nserror gui_window_set_scroll(struct gui_window *g, const struct rect *re
 static void gui_window_update_extent(struct gui_window *g)
 {
     nserror err;
-    // CALLED();
     if (browser_window_has_content(g->bw) == false)
         return;
 
@@ -1076,15 +931,15 @@ static void gui_window_update_extent(struct gui_window *g)
     int x_max, y_max;
 
     err = browser_window_get_extents(g->bw, true, &x_max, &y_max);
-    if (err != NSERROR_OK)
+    if (err != NSERROR_OK) {
+        g->view->UnlockLooper();
         return;
+    }
 
     float x_prop = g->view->Bounds().Width() / x_max;
     float y_prop = g->view->Bounds().Height() / y_max;
-    x_max -= g->view->Bounds().Width() + 1;
-    y_max -= g->view->Bounds().Height() + 1;
-
-    NSLOG(wisp, INFO, "x_max = %d y_max = %d x_prop = %f y_prop = %f\n", x_max, y_max, x_prop, y_prop);
+    x_max -= (int)g->view->Bounds().Width() + 1;
+    y_max -= (int)g->view->Bounds().Height() + 1;
 
     if (g->view->ScrollBar(B_HORIZONTAL)) {
         g->view->ScrollBar(B_HORIZONTAL)->SetRange(0, x_max);
@@ -1097,63 +952,46 @@ static void gui_window_update_extent(struct gui_window *g)
         g->view->ScrollBar(B_VERTICAL)->SetSteps(10, 50);
     }
 
-
     g->view->UnlockLooper();
 }
 
 static BCursorID gui_haiku_pointer(gui_pointer_shape shape)
 {
     switch (shape) {
-    case GUI_POINTER_POINT: /* link */
+    case GUI_POINTER_POINT:
         return B_CURSOR_ID_FOLLOW_LINK;
-
-    case GUI_POINTER_CARET: /* input */
+    case GUI_POINTER_CARET:
         return B_CURSOR_ID_I_BEAM;
-
     case GUI_POINTER_MENU:
         return B_CURSOR_ID_CONTEXT_MENU;
-
     case GUI_POINTER_UP:
         return B_CURSOR_ID_RESIZE_NORTH;
-
     case GUI_POINTER_DOWN:
         return B_CURSOR_ID_RESIZE_SOUTH;
-
     case GUI_POINTER_LEFT:
         return B_CURSOR_ID_RESIZE_WEST;
-
     case GUI_POINTER_RIGHT:
         return B_CURSOR_ID_RESIZE_EAST;
-
     case GUI_POINTER_RU:
         return B_CURSOR_ID_RESIZE_NORTH_EAST;
-
     case GUI_POINTER_LD:
         return B_CURSOR_ID_RESIZE_SOUTH_WEST;
-
     case GUI_POINTER_LU:
         return B_CURSOR_ID_RESIZE_NORTH_WEST;
-
     case GUI_POINTER_RD:
         return B_CURSOR_ID_RESIZE_SOUTH_EAST;
-
     case GUI_POINTER_CROSS:
         return B_CURSOR_ID_CROSS_HAIR;
-
     case GUI_POINTER_MOVE:
         return B_CURSOR_ID_MOVE;
-
     case GUI_POINTER_WAIT:
     case GUI_POINTER_PROGRESS:
         return B_CURSOR_ID_PROGRESS;
-
     case GUI_POINTER_NO_DROP:
     case GUI_POINTER_NOT_ALLOWED:
         return B_CURSOR_ID_NOT_ALLOWED;
-
     case GUI_POINTER_HELP:
         return B_CURSOR_ID_HELP;
-
     case GUI_POINTER_DEFAULT:
     default:
         break;
@@ -1178,7 +1016,6 @@ static void gui_window_set_pointer(struct gui_window *g, gui_pointer_shape shape
 
 static void gui_window_place_caret(struct gui_window *g, int x, int y, int height, const struct rect *clip)
 {
-    // CALLED();
     if (g->view == NULL)
         return;
     if (!g->view->LockLooper())
@@ -1211,9 +1048,7 @@ static void gui_window_remove_caret(struct gui_window *g)
         return;
 
     nsbeos_current_gc_set(g->view);
-
     g->view->Invalidate(BRect(g->caretx, g->carety, g->caretx, g->carety + oh));
-
     nsbeos_current_gc_set(NULL);
     g->view->UnlockLooper();
 }
@@ -1228,9 +1063,7 @@ static void gui_window_new_content(struct gui_window *g)
     if (!g->view->LockLooper())
         return;
 
-    // scroll back to top
     g->view->ScrollTo(0, 0);
-
     g->view->UnlockLooper();
 }
 
@@ -1240,7 +1073,6 @@ static void gui_start_selection(struct gui_window *g)
         return;
 
     g->view->MakeFocus();
-
     g->view->UnlockLooper();
 }
 
@@ -1300,60 +1132,43 @@ static struct gui_clipboard_table clipboard_table = {
 
 struct gui_clipboard_table *beos_clipboard_table = &clipboard_table;
 
-/**
- * Find the current dimensions of a beos browser window content area.
- *
- * \param g The gui window to measure content area of.
- * \param width receives width of window
- * \param height receives height of window
- * \return NSERROR_OK on sucess and width and height updated
- *          else error code.
- */
 static nserror gui_window_get_dimensions(struct gui_window *g, int *width, int *height)
 {
     if (g->view && g->view->LockLooper()) {
-        *width = g->view->Bounds().Width() + 1;
-        *height = g->view->Bounds().Height() + 1;
+        *width = (int)g->view->Bounds().Width() + 1;
+        *height = (int)g->view->Bounds().Height() + 1;
         g->view->UnlockLooper();
     }
     return NSERROR_OK;
 }
 
+static nserror gui_window_get_scrollbar_width(struct gui_window *g, int *width)
+{
+    *width = (int)B_V_SCROLL_BAR_WIDTH;
+    return NSERROR_OK;
+}
 
-/**
- * process miscellaneous window events
- *
- * \param gw The window receiving the event.
- * \param event The event code.
- * \return NSERROR_OK when processed ok
- */
 static nserror gui_window_event(struct gui_window *gw, enum gui_window_event event)
 {
     switch (event) {
     case GW_EVENT_UPDATE_EXTENT:
         gui_window_update_extent(gw);
         break;
-
     case GW_EVENT_REMOVE_CARET:
         gui_window_remove_caret(gw);
         break;
-
     case GW_EVENT_NEW_CONTENT:
         gui_window_new_content(gw);
         break;
-
     case GW_EVENT_START_SELECTION:
         gui_start_selection(gw);
         break;
-
     case GW_EVENT_START_THROBBER:
         gui_window_start_throbber(gw);
         break;
-
     case GW_EVENT_STOP_THROBBER:
         gui_window_stop_throbber(gw);
         break;
-
     default:
         break;
     }
@@ -1362,19 +1177,28 @@ static nserror gui_window_event(struct gui_window *gw, enum gui_window_event eve
 
 
 static struct gui_window_table window_table = {
-    gui_window_create, gui_window_destroy, beos_window_invalidate_area, gui_window_get_scroll, gui_window_set_scroll,
-    gui_window_get_dimensions, gui_window_event,
+    .create = gui_window_create,
+    .destroy = gui_window_destroy,
+    .invalidate = beos_window_invalidate_area,
+    .get_scroll = gui_window_get_scroll,
+    .set_scroll = gui_window_set_scroll,
+    .get_dimensions = gui_window_get_dimensions,
+    .get_scrollbar_width = gui_window_get_scrollbar_width,
+    .event = gui_window_event,
 
-    /* from scaffold */
-    gui_window_set_title, gui_window_set_url, gui_window_set_icon, gui_window_set_status, gui_window_set_pointer,
-    gui_window_place_caret,
-    NULL, // drag_start
-    NULL, // save_link
-    NULL, // create_form_select_menu
-    NULL, // file_gadget_open
-    NULL, // drag_save_object
-    NULL, // drag_save_selection
-    NULL // console_log
+    .set_title = gui_window_set_title,
+    .set_url = gui_window_set_url,
+    .set_icon = gui_window_set_icon,
+    .set_status = gui_window_set_status,
+    .set_pointer = gui_window_set_pointer,
+    .place_caret = gui_window_place_caret,
+    .drag_start = NULL,
+    .save_link = NULL,
+    .create_form_select_menu = NULL,
+    .file_gadget_open = NULL,
+    .drag_save_object = NULL,
+    .drag_save_selection = NULL,
+    .console_log = NULL
 };
 
 struct gui_window_table *beos_window_table = &window_table;

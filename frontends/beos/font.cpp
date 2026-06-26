@@ -18,8 +18,6 @@
 
 /** \file
  * Font handling (BeOS implementation).
- * TODO: check for correctness, the code is taken from the GTK one.
- * maybe use the current view instead of constructing a new BFont each time ?
  */
 
 
@@ -30,6 +28,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 extern "C" {
 #include "utils/log.h"
@@ -44,9 +43,22 @@ extern "C" {
 #include "beos/gui.h"
 #include "beos/plotters.h"
 
+#define FONT_CACHE_SIZE 32
+
+struct font_cache_entry {
+    char family[B_FONT_FAMILY_LENGTH + 1];
+    uint16 face;
+    float size;
+    BFont font;
+    uint32 last_use;
+};
+
+static struct font_cache_entry font_cache[FONT_CACHE_SIZE];
+static uint32 font_cache_count = 0;
+static uint32 font_usage_timer = 0;
 
 /**
- * Convert a font style to a PangoFontDescription.
+ * Convert a font style to a BFont.
  *
  * \param font Beos font object.
  * \param fstyle style for this text
@@ -80,16 +92,8 @@ void nsbeos_style_to_font(BFont &font, const struct plot_font_style *fstyle)
         face = B_ITALIC_FACE;
     } else if ((fstyle->flags & FONTF_OBLIQUE)) {
         face = B_ITALIC_FACE;
-        // XXX: no OBLIQUE flag ??
-        // maybe find "Oblique" style
-        // or use SetShear() ?
     }
 
-#ifndef __HAIKU__XXX
-    if (fstyle->weight >= 600) {
-        face |= B_BOLD_FACE;
-    }
-#else
     if (fstyle->weight >= 600) {
         if (fstyle->weight >= 800)
             face |= B_HEAVY_FACE;
@@ -98,49 +102,58 @@ void nsbeos_style_to_font(BFont &font, const struct plot_font_style *fstyle)
     } else if (fstyle->weight <= 300) {
         face |= B_LIGHT_FACE;
     }
-#endif
-    /*
-        case CSS_FONT_WEIGHT_100: weight = 100; break;
-        case CSS_FONT_WEIGHT_200: weight = 200; break;
-        case CSS_FONT_WEIGHT_300: weight = 300; break;
-        case CSS_FONT_WEIGHT_400: weight = 400; break;
-        case CSS_FONT_WEIGHT_500: weight = 500; break;
-        case CSS_FONT_WEIGHT_600: weight = 600; break;
-        case CSS_FONT_WEIGHT_700: weight = 700; break;
-        case CSS_FONT_WEIGHT_800: weight = 800; break;
-        case CSS_FONT_WEIGHT_900: weight = 900; break;
-    */
 
     if (!face)
         face = B_REGULAR_FACE;
 
-    // fprintf(stderr, "nsbeos_style_to_font: %d, %d, %d -> '%s' %04x\n",
-    // style->font_family, style->font_style, style->font_weight, family,
-    // face);
+    size = fstyle->size / PLOT_STYLE_SCALE;
 
+    /* Check cache */
+    font_usage_timer++;
+    for (uint32 i = 0; i < font_cache_count; i++) {
+        if (font_cache[i].face == face &&
+            font_cache[i].size == size &&
+            strcmp(font_cache[i].family, family ? family : "") == 0) {
+            font = font_cache[i].font;
+            font_cache[i].last_use = font_usage_timer;
+            return;
+        }
+    }
+
+    /* Not in cache, create new */
     if (family) {
         font_family beos_family;
-
         strncpy(beos_family, family, B_FONT_FAMILY_LENGTH);
-        // Ensure it's terminated
         beos_family[B_FONT_FAMILY_LENGTH] = '\0';
-
         font.SetFamilyAndFace(beos_family, face);
     } else {
-        // XXX not used
         font = be_plain_font;
         font.SetFace(face);
     }
-
-    // fprintf(stderr, "nsbeos_style_to_font: value %f unit %d\n",
-    // style->font_size.value.length.value,
-    // style->font_size.value.length.unit);
-    size = fstyle->size / PLOT_STYLE_SCALE;
-
-    // fprintf(stderr, "nsbeos_style_to_font: %f %d\n", size,
-    // style->font_size.value.length.unit);
-
     font.SetSize(size);
+
+    /* Add to cache */
+    uint32 index;
+    if (font_cache_count < FONT_CACHE_SIZE) {
+        index = font_cache_count++;
+    } else {
+        /* LRU replacement */
+        index = 0;
+        uint32 oldest = font_cache[0].last_use;
+        for (uint32 i = 1; i < FONT_CACHE_SIZE; i++) {
+            if (font_cache[i].last_use < oldest) {
+                oldest = font_cache[i].last_use;
+                index = i;
+            }
+        }
+    }
+
+    strncpy(font_cache[index].family, family ? family : "", B_FONT_FAMILY_LENGTH);
+    font_cache[index].family[B_FONT_FAMILY_LENGTH] = '\0';
+    font_cache[index].face = face;
+    font_cache[index].size = size;
+    font_cache[index].font = font;
+    font_cache[index].last_use = font_usage_timer;
 }
 
 
@@ -155,7 +168,6 @@ void nsbeos_style_to_font(BFont &font, const struct plot_font_style *fstyle)
  */
 static nserror beos_font_width(const plot_font_style_t *fstyle, const char *string, size_t length, int *width)
 {
-    // fprintf(stderr, "%s(, '%s', %d, )\n", __FUNCTION__, string, length);
     BFont font;
 
     if (length == 0) {
@@ -222,7 +234,7 @@ static nserror beos_font_position(
     BFont font;
 
     nsbeos_style_to_font(font, fstyle);
-    BString str(string);
+    BString str(string, length);
     int32 len = str.CountChars();
     float escapements[len];
     float esc = 0.0;
@@ -277,7 +289,7 @@ static nserror beos_font_split(
     BFont font;
 
     nsbeos_style_to_font(font, fstyle);
-    BString str(string);
+    BString str(string, length);
     int32 len = str.CountChars();
     float escapements[len];
     float esc = 0.0;
@@ -303,7 +315,7 @@ static nserror beos_font_split(
         current = font.Size() * esc + fstyle->letter_spacing * i;
         index += utf8_char_len(&string[index]);
     }
-    *actual_x = MIN(*actual_x, (int)current);
+    *actual_x = (int)current;
     *char_offset = index;
 
     return NSERROR_OK;
@@ -323,14 +335,11 @@ static nserror beos_font_split(
 
 bool nsfont_paint(const plot_font_style_t *fstyle, const char *string, size_t length, int x, int y)
 {
-    // fprintf(stderr, "%s(, '%s', %d, %d, %d, )\n", __FUNCTION__, string,
-    // length, x, y); CALLED();
     BFont font;
     rgb_color oldbg;
     rgb_color background;
     rgb_color foreground;
     BView *view;
-    float size;
 
     if (length == 0)
         return true;
@@ -339,7 +348,7 @@ bool nsfont_paint(const plot_font_style_t *fstyle, const char *string, size_t le
     background = nsbeos_rgb_colour(fstyle->background);
     foreground = nsbeos_rgb_colour(fstyle->foreground);
 
-    view = nsbeos_current_gc /*_lock*/ ();
+    view = nsbeos_current_gc();
     if (view == NULL) {
         beos_warn_user("No GC", 0);
         return false;
@@ -348,12 +357,6 @@ bool nsfont_paint(const plot_font_style_t *fstyle, const char *string, size_t le
     oldbg = view->LowColor();
     drawing_mode oldmode = view->DrawingMode();
     view->SetLowColor(B_TRANSPARENT_32_BIT);
-
-    // view->SetScale() XXX
-
-    // printf("nsfont_paint: Size: %f\n", font.Size());
-    size = (float)font.Size();
-#warning XXX use scale
 
     view->SetFont(&font);
     view->SetHighColor(foreground);
@@ -367,8 +370,6 @@ bool nsfont_paint(const plot_font_style_t *fstyle, const char *string, size_t le
     view->SetDrawingMode(oldmode);
     if (memcmp(&oldbg, &background, sizeof(rgb_color)))
         view->SetLowColor(oldbg);
-
-    // nsbeos_current_gc_unlock();
 
     return true;
 }

@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 
 # run test images through libnsbmp and count results
 

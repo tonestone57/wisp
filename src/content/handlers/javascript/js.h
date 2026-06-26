@@ -163,3 +163,5 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node);
 void js_event_cleanup(jsthread *thread, struct dom_event *evt);
 
 #endif /* WISP_JAVASCRIPT_JS_H_ */
+struct box;
+void js_handle_intersection_check(struct jsthread *thread, struct box *layout, int viewport_width, int viewport_height);

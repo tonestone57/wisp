@@ -27,7 +27,7 @@ Frontend specific to the atari
 
 ## beos
 
-Frontend specific to the Haiku OS
+The native Haiku/BeOS frontend utilizing `libbe` (BView). It has been updated to use the unified **Blend2D** rendering backend, ensuring pixel-perfect consistency and supporting Wisp's modern layout features while remaining a native application.
 
 ## framebuffer
 
@@ -50,6 +50,10 @@ Frontend for the RISC OS WIMP toolkit.
 ## windows
 
 Frontend which uses the Microsodt win32 GDI toolkit.
+
+# Rendering Backend
+
+Wisp has unified its rendering architecture around **Blend2D** across all platforms, including Windows, Linux, and Haiku. This provides a high-performance software rasterization pipeline and supports the **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
 # User configuration
 

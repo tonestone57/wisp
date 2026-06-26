@@ -65,7 +65,7 @@ static void mutationobserver_cleanup_targets(WispMutationObserver *observer)
 
     for (uint32_t i = 0; i < observer->doc_count; i++) {
         dom_document_remove_mutation_callback(observer->docs[i], libdom_mutation_callback, observer);
-        dom_node_unref(observer->docs[i]);
+        dom_node_unref((struct dom_node *)observer->docs[i]);
     }
     free(observer->docs);
     observer->docs = NULL;
@@ -81,6 +81,7 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
             mutationobserver_cleanup_targets(observer);
             JS_FreeValueRT(rt, observer->callback);
             JS_FreeValueRT(rt, observer->records);
+            JS_FreeValueRT(rt, observer->observer_val);
             free(observer);
         }
         free(priv);
@@ -135,7 +136,7 @@ static JSClassDef wisp_mutationrecord_class = {
 static JSValue mutation_observer_microtask(JSContext *ctx, int argc, JSValueConst *argv)
 {
     WispMutationObserver *observer = JS_GetOpaque(argv[0], qjs_mutationobserver_class_id);
-    if (!observer) return JS_UNDEFINED;
+    if (!observer || observer->thread->closed) return JS_UNDEFINED;
 
     observer->microtask_scheduled = false;
 
@@ -168,6 +169,7 @@ static char *dom_string_to_c(struct dom_string *s)
 static void libdom_mutation_callback(const struct dom_mutation_notification *notification, void *pw)
 {
     WispMutationObserver *observer = pw;
+    if (observer->thread->closed) return;
     JSContext *ctx = observer->thread->ctx;
 
     MutationObserverOptions *matched_options = NULL;
@@ -210,6 +212,32 @@ static void libdom_mutation_callback(const struct dom_mutation_notification *not
 
     if (notification->attr_name) record_data->attr_name = dom_string_to_c(notification->attr_name);
     if (notification->attr_namespace) record_data->attr_namespace = dom_string_to_c(notification->attr_namespace);
+    if (notification->type == DOM_MUTATION_NOTIFICATION_CHILD_LIST) {
+        JSValue added = JS_NewArray(ctx);
+        if (notification->added_node) {
+            JS_SetPropertyUint32(ctx, added, 0, qjs_wrap_node(ctx, notification->added_node));
+        }
+        JS_SetPropertyStr(ctx, record, "addedNodes", added);
+
+        JSValue removed = JS_NewArray(ctx);
+        if (notification->removed_node) {
+            JS_SetPropertyUint32(ctx, removed, 0, qjs_wrap_node(ctx, (struct dom_node *)notification->removed_node));
+        }
+        JS_SetPropertyStr(ctx, record, "removedNodes", removed);
+
+        if (notification->previous_sibling)
+            JS_SetPropertyStr(ctx, record, "previousSibling", qjs_wrap_node(ctx, notification->previous_sibling));
+        if (notification->next_sibling)
+            JS_SetPropertyStr(ctx, record, "nextSibling", qjs_wrap_node(ctx, notification->next_sibling));
+    }
+
+    if (notification->attr_name) {
+        JS_SetPropertyStr(ctx, record, "attributeName", dom_string_to_js(ctx, notification->attr_name));
+    }
+
+    if (notification->attr_namespace) {
+        JS_SetPropertyStr(ctx, record, "attributeNamespace", dom_string_to_js(ctx, notification->attr_namespace));
+    }
 
     if ((notification->type == DOM_MUTATION_NOTIFICATION_ATTRIBUTES && matched_options->attributeOldValue) ||
         (notification->type == DOM_MUTATION_NOTIFICATION_CHARACTER_DATA && matched_options->characterDataOldValue)) {
@@ -238,6 +266,7 @@ static void libdom_mutation_callback(const struct dom_mutation_notification *not
 }
 
 JSValue js_mutationobserver_observe_custom(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target, JSValue options)
 {
     QJSNodePrivate *priv = qjs_get_dom_priv(this_val);
     if (!priv || !priv->node) return JS_EXCEPTION;
@@ -246,34 +275,43 @@ JSValue js_mutationobserver_observe_custom(JSContext *ctx, JSValueConst this_val
     QJSNodePrivate *target_priv = qjs_get_dom_priv(argv[0]);
     if (!target_priv) return JS_ThrowTypeError(ctx, "First argument must be a Node");
     struct dom_node *node = target_priv->node;
+    struct dom_node *node = target;
+    struct dom_document *doc = NULL;
+    dom_exception err = dom_node_get_owner_document(node, &doc);
+    if (err != DOM_NO_ERR || !doc) {
+        doc = (struct dom_document *)dom_node_ref(node);
+    }
 
     JSValue opts = argv[1];
     MutationObserverOptions mo_opts = {0};
+    JSValue opts = options;
     JSValue val;
 
-    val = JS_GetPropertyStr(ctx, opts, "childList");
-    mo_opts.childList = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
+    if (JS_IsObject(opts)) {
+        val = JS_GetPropertyStr(ctx, opts, "childList");
+        mo_opts.childList = JS_ToBool(ctx, val);
+        JS_FreeValue(ctx, val);
 
-    val = JS_GetPropertyStr(ctx, opts, "attributes");
-    mo_opts.attributes = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
+        val = JS_GetPropertyStr(ctx, opts, "attributes");
+        mo_opts.attributes = JS_ToBool(ctx, val);
+        JS_FreeValue(ctx, val);
 
-    val = JS_GetPropertyStr(ctx, opts, "characterData");
-    mo_opts.characterData = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
+        val = JS_GetPropertyStr(ctx, opts, "characterData");
+        mo_opts.characterData = JS_ToBool(ctx, val);
+        JS_FreeValue(ctx, val);
 
-    val = JS_GetPropertyStr(ctx, opts, "subtree");
-    mo_opts.subtree = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
+        val = JS_GetPropertyStr(ctx, opts, "subtree");
+        mo_opts.subtree = JS_ToBool(ctx, val);
+        JS_FreeValue(ctx, val);
 
-    val = JS_GetPropertyStr(ctx, opts, "attributeOldValue");
-    mo_opts.attributeOldValue = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
+        val = JS_GetPropertyStr(ctx, opts, "attributeOldValue");
+        mo_opts.attributeOldValue = JS_ToBool(ctx, val);
+        JS_FreeValue(ctx, val);
 
-    val = JS_GetPropertyStr(ctx, opts, "characterDataOldValue");
-    mo_opts.characterDataOldValue = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
+        val = JS_GetPropertyStr(ctx, opts, "characterDataOldValue");
+        mo_opts.characterDataOldValue = JS_ToBool(ctx, val);
+        JS_FreeValue(ctx, val);
+    }
 
     struct dom_document *doc;
     dom_node_get_owner_document(node, &doc);
@@ -287,29 +325,36 @@ JSValue js_mutationobserver_observe_custom(JSContext *ctx, JSValueConst this_val
         }
     }
     if (!found) {
-        observer->targets = realloc(observer->targets, (observer->target_count + 1) * sizeof(WispObservedTarget));
-        observer->targets[observer->target_count].node = dom_node_ref(node);
-        observer->targets[observer->target_count].options = mo_opts;
-        observer->target_count++;
+        WispObservedTarget *new_targets = realloc(observer->targets, (observer->target_count + 1) * sizeof(WispObservedTarget));
+        if (new_targets) {
+            observer->targets = new_targets;
+            observer->targets[observer->target_count].node = dom_node_ref(node);
+            observer->targets[observer->target_count].options = mo_opts;
+            observer->target_count++;
+        }
     }
 
     bool doc_found = false;
     for (uint32_t i = 0; i < observer->doc_count; i++) {
         if (observer->docs[i] == doc) {
             doc_found = true; break;
+        if (observer->docs[i] == (struct dom_document *)doc) {
+            doc_found = true;
+            break;
         }
     }
     if (!doc_found) {
         observer->docs = realloc(observer->docs, (observer->doc_count + 1) * sizeof(struct dom_document *));
-        observer->docs[observer->doc_count] = (struct dom_document *)dom_node_ref(doc);
+        observer->docs[observer->doc_count] = (struct dom_document *)dom_node_ref((struct dom_node *)doc);
         observer->doc_count++;
         dom_document_add_mutation_callback(doc, libdom_mutation_callback, observer);
     }
 
     dom_node_unref(doc);
+    dom_node_unref((struct dom_node *)doc);
+
     return JS_UNDEFINED;
 }
-
 JSValue wisp_mutationobserver_disconnect_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_EXCEPTION;

@@ -58,12 +58,28 @@ struct jsthread {
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
     struct qjs_timer *timers;
+    struct WispIntersectionObserver *intersection_observers;
 };
 
-static inline QJSNodePrivate *qjs_get_dom_priv(JSValueConst val) {
+static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val) {
+    if (JS_VALUE_GET_TAG(val) != JS_TAG_OBJECT) return NULL;
+
     JSClassID class_id;
-    QJSNodePrivate *priv = JS_GetAnyOpaque(val, &class_id);
-    if (priv && priv->magic == QJS_DOM_MAGIC) return priv;
+    void *opaque = JS_GetAnyOpaque(val, &class_id);
+    if (opaque) {
+        QJSNodePrivate *priv = (QJSNodePrivate *)opaque;
+        if (priv->magic == QJS_DOM_MAGIC) return priv;
+    }
+
+    /* Fallback for global object (Window) */
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    bool is_global = JS_IsSameValue(ctx, val, global_obj);
+    JS_FreeValue(ctx, global_obj);
+    if (is_global) {
+        struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
+        if (t) return &t->global_window_priv;
+    }
+
     return NULL;
 }
 
