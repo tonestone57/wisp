@@ -188,6 +188,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     if (!thread || !thread->ctx || thread->closed) return false;
 
     char *code = (char *)malloc(txtlen + 1);
+    if (!code) return false;
     memcpy(code, txt, txtlen);
     code[txtlen] = '\0';
 
@@ -302,10 +303,8 @@ bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *documen
 
 void js_handle_new_element(jsthread *thread, struct dom_element *node)
 {
-    /* Not yet implemented but required for linker */
 }
 
 void js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
-    /* Not yet implemented but required for linker */
 }
