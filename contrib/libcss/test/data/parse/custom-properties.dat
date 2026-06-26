@@ -3,7 +3,7 @@
 #errors
 #expected
 | 1 *
-|   0x0000008d PTR(--color) PTR(red)
+|   0x0000009d PTR(--color) PTR(red)
 #reset
 
 #data
@@ -11,7 +11,7 @@
 #errors
 #expected
 | 1 *
-|   0x0000008d PTR(--primary-color) PTR(ff0000)
+|   0x0000009d PTR(--primary-color) PTR(ff0000)
 #reset
 
 #data
@@ -19,7 +19,7 @@
 #errors
 #expected
 | 1 *
-|   0x0000048d PTR(--color) PTR(red)
+|   0x0000049d PTR(--color) PTR(red)
 #reset
 
 #data
@@ -27,7 +27,7 @@
 #errors
 #expected
 | 1 *
-|   0x0000008d PTR(--spacing) PTR(10px)
+|   0x0000009d PTR(--spacing) PTR(10px)
 #reset
 
 #data
@@ -35,7 +35,7 @@
 #errors
 #expected
 | 1 *
-|   0x0000008d PTR(--multi) PTR(one two three)
+|   0x0000009d PTR(--multi) PTR(one two three)
 #reset
 
 #data
@@ -43,5 +43,5 @@
 #errors
 #expected
 | 1 *
-|   0x0000008d PTR(--color) PTR(red) 0x00000818
+|   0x0000009d PTR(--color) PTR(red) 0x00000818
 #reset
