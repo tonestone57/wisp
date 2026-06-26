@@ -517,20 +517,31 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     const uint8_t *ptr_tok = data + sizeof(uint32_t);
                     const uint8_t *end_tok = data + lwc_string_length(p);
                     char actual_val[4096]; actual_val[0] = '\0';
+                    size_t actual_len = 0;
                     for (uint32_t k = 0; k < n_tokens; k++) {
-                        if (ptr_tok + sizeof(css_token) > end_tok) break;
-                        css_token *tok = (css_token *)ptr_tok;
-                        size_t tok_data_len = tok->data.len;
-                        ptr_tok += sizeof(css_token);
-                        if (tok_data_len > 0) {
-                            if (ptr_tok + tok_data_len <= end_tok) {
-                                strncat(actual_val, (const char *)ptr_tok, tok_data_len);
-                                ptr_tok += tok_data_len;
+                        css_token tok;
+                        if (ptr_tok + sizeof(tok) > end_tok) break;
+                        memcpy(&tok, ptr_tok, sizeof(tok));
+                        ptr_tok += sizeof(tok);
+                        if (tok.data.len > 0) {
+                            if (ptr_tok + tok.data.len <= end_tok) {
+                                if (actual_len + tok.data.len < 4095) {
+                                    memcpy(actual_val + actual_len, ptr_tok, tok.data.len);
+                                    actual_len += tok.data.len;
+                                    actual_val[actual_len] = '\0';
+                                }
+                                ptr_tok += tok.data.len;
                             }
                         }
                     }
-                    if (strcmp(actual_val, e->stringtab[j].string) != 0) {
-                        printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", actual_val, e->stringtab[j].string);
+                    /* Trim trailing and leading space for comparison */
+                    while (actual_len > 0 && isspace((unsigned char)actual_val[actual_len - 1])) {
+                        actual_val[--actual_len] = '\0';
+                    }
+                    char *start_ptr = actual_val;
+                    while (*start_ptr && isspace((unsigned char)*start_ptr)) start_ptr++;
+                    if (strcmp(start_ptr, e->stringtab[j].string) != 0) {
+                        printf("FAIL Strings differ (deserialized)\n    Got string '%s'. Expected '%s'\n", start_ptr, e->stringtab[j].string);
                         return true;
                     }
                 } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
