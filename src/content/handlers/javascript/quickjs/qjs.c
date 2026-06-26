@@ -205,8 +205,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         JS_DefinePropertyValueStr(t->ctx, global_obj, "document", doc_val, JS_PROP_C_W_E);
     }
 
-    qjs_init_storage(t->ctx);
-    qjs_init_xhr(t->ctx);
     qjs_init_mutationobserver(t->ctx);
     qjs_init_intersectionobserver(t->ctx);
     qjs_init_domrectreadonly(t->ctx);
@@ -257,6 +255,7 @@ void js_destroythread(jsthread *thread)
         dom_node_unref((struct dom_node *)l->target);
         dom_string_unref(l->type);
         JS_FreeValue(thread->ctx, l->func);
+        dom_event_listener_unref(l->listener);
         free(l);
         l = next;
     }
@@ -266,6 +265,7 @@ void js_destroythread(jsthread *thread)
     while (e != NULL) {
         struct qjs_event_map *next = e->next;
         JS_FreeValue(thread->ctx, e->js_evt);
+        dom_event_unref(e->evt);
         free(e);
         e = next;
     }
@@ -424,11 +424,22 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
     dom_event *evt = NULL;
     bool success = true;
 
-    if (thread == NULL || doc == NULL) return false;
+    if (thread == NULL) return false;
+
+    if (doc == NULL) {
+        doc = (struct dom_document *)thread->doc_priv;
+    }
 
     if (target == NULL) {
         target = (dom_node *)doc;
     }
+
+    if (target == NULL) {
+        /* Fallback to global object if still no target/doc */
+        target = thread->global_window_priv.node;
+    }
+
+    if (target == NULL) return false;
 
     exc = dom_string_create((const uint8_t *)type, strlen(type), &type_str);
     if (exc != DOM_NO_ERR) return false;
@@ -539,4 +550,10 @@ void js_event_cleanup(jsthread *thread, struct dom_event *evt)
         prev = &curr->next;
         curr = curr->next;
     }
+}
+void js_handle_intersection_check(struct jsthread *thread, struct box *layout, int viewport_width, int viewport_height)
+{
+    /* Handled in intersectionobserver_impl.c */
+    extern void wisp_handle_intersection_check(struct jsthread *thread, struct box *layout, int viewport_width, int viewport_height);
+    wisp_handle_intersection_check(thread, layout, viewport_width, viewport_height);
 }

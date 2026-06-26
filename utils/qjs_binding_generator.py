@@ -217,9 +217,13 @@ class QuickJSBindingGenerator:
                 code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
             else:
-                # Assume it's another interface
-                code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
-                code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
+                # Differentiate between another IDL interface and other types (any, dictionary)
+                actual_type = arg['type']
+                if actual_type in self.all_interface_names:
+                    code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
+                    code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
+                else:
+                    code += f"    JSValue {arg_name} = (argc > {i}) ? JS_DupValue(ctx, argv[{i}]) : JS_UNDEFINED;\n"
                 impl_args.append(arg_name)
 
         impl_func = f"wisp_{lower_name}_{op['name']}_impl"
@@ -233,7 +237,11 @@ class QuickJSBindingGenerator:
                 if js_type == 'float':
                     c_type = "double"
             else:
-                c_type = "void *"
+                actual_type = arg['type']
+                if actual_type in self.all_interface_names:
+                    c_type = "void *"
+                else:
+                    c_type = "JSValue"
             sig_args.append(f"{c_type} {arg_name}")
 
         sig = f"JSValue {impl_func}(JSContext *ctx, {', '.join(sig_args)})"
@@ -247,8 +255,11 @@ class QuickJSBindingGenerator:
 
         for i, arg in enumerate(op['args']):
             arg_name = safe_name(arg['name'])
-            if idl_to_js_type(arg['type']) == 'string':
+            js_type = idl_to_js_type(arg['type'])
+            if js_type == 'string':
                 code += f"    if ({arg_name}) JS_FreeCString(ctx, {arg_name});\n"
+            elif js_type == 'value' and arg['type'] not in self.all_interface_names:
+                code += f"    JS_FreeValue(ctx, {arg_name});\n"
 
         code += "    return ret;\n"
         return code
@@ -288,9 +299,14 @@ class QuickJSBindingGenerator:
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
                 stub_body = "    return JS_UNDEFINED;"
             else:
-                code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(val);\n"
-                code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
-                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
+                actual_type = attr['type']
+                if actual_type in self.all_interface_names:
+                    code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
+                else:
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, JS_DupValue(ctx, val));\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, JSValue value)"
                 stub_body = "    return JS_UNDEFINED;"
 
             code += "    return ret;\n"

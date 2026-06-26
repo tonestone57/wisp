@@ -1922,6 +1922,18 @@ cascade = "none"
 computed = "none"
 
 
+[tab_size]
+enum = "CSS_PROP_TAB_SIZE"
+inherited = true
+cascade = "manual"
+computed = "auto"
+bits = 2
+initial = "SET"
+initial_data = ["INTTOFIX(8)"]
+values = "integer"
+condition = "CSS_TAB_SIZE_SET"
+parse = """IDENT:( INHERIT: INITIAL: REVERT: UNSET: IDENT:) NUMBER:( true:TAB_SIZE_SET RANGE:num<0 NUMBER:)"""
+
 [counter_set]
 enum = "CSS_PROP_COUNTER_SET"
 inherited = false

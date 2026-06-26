@@ -255,6 +255,10 @@ enum css_counter_set_e {
     CSS_COUNTER_SET_NONE = 0x2
 };
 
+enum css_tab_size_e {
+    CSS_TAB_SIZE_INHERIT = 0x0,
+    CSS_TAB_SIZE_SET = 0x1
+};
 
 enum css_cursor_e {
     CSS_CURSOR_INHERIT = 0x00,

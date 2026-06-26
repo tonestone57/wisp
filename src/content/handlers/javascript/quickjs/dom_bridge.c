@@ -134,4 +134,40 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
-void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }
+typedef struct {
+    JSContext *ctx;
+    bridge_key_t **keys;
+    size_t count;
+    size_t capacity;
+} bridge_cleanup_t;
+
+static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
+{
+    bridge_cleanup_t *cleanup = pw;
+    bridge_key_t *k = key;
+    if (k->ctx == cleanup->ctx) {
+        if (cleanup->count == cleanup->capacity) {
+            cleanup->capacity = cleanup->capacity ? cleanup->capacity * 2 : 16;
+            bridge_key_t **new_keys = realloc(cleanup->keys, cleanup->capacity * sizeof(bridge_key_t *));
+            if (!new_keys) return true; /* Stop iteration on OOM */
+            cleanup->keys = new_keys;
+        }
+        cleanup->keys[cleanup->count++] = k;
+    }
+    return false;
+}
+
+void qjs_finalise_dom_bridge(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (!map) return;
+
+    bridge_cleanup_t cleanup = { .ctx = ctx, .keys = NULL, .count = 0, .capacity = 0 };
+    hashmap_iterate(map, bridge_cleanup_ctx_cb, &cleanup);
+
+    for (size_t i = 0; i < cleanup.count; i++) {
+        hashmap_remove(map, cleanup.keys[i]);
+    }
+    free(cleanup.keys);
+}
