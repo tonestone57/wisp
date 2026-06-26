@@ -545,7 +545,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                                    "    Got string '%s'. Expected '%s'\n",
                                    merged, e->stringtab[j].string);
                             free(merged);
-                            return true;
+                        return false;
                         }
                         free(merged);
                     }
@@ -557,7 +557,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                            "    Got string '%.*s'. "
                            "Expected '%s'\n",
                         (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return true;
+                    return false;
                 }
 
                 i += sizeof(css_code_t) - 1;

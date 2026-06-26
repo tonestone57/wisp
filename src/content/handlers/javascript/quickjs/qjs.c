@@ -82,6 +82,11 @@ void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
     if (heap->rt) {
+        hashmap_t *map = (hashmap_t *)JS_GetRuntimeOpaque(heap->rt);
+        if (map) {
+            hashmap_destroy(map);
+            JS_SetRuntimeOpaque(heap->rt, NULL);
+        }
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -176,8 +181,10 @@ void js_destroythread(jsthread *thread)
         struct qjs_event_listener_ctx *l = thread->listeners;
         while (l) {
             struct qjs_event_listener_ctx *next = l->next;
-            dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
-            dom_node_unref((struct dom_node *)l->target);
+            if (l->target) {
+                dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+                if (l->is_dom_node) dom_node_unref((struct dom_node *)l->target);
+            }
             dom_string_unref(l->type);
             JS_FreeValue(thread->ctx, l->func);
             free(l);
@@ -286,7 +293,8 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
     ctx->func = JS_DupValue(thread->ctx, js_funcval);
     ctx->target = (struct dom_event_target *)node;
     ctx->type = event_type_dom;
-    dom_node_ref(node);
+    ctx->is_dom_node = (node != NULL);
+    if (node) dom_node_ref(node);
     dom_string_ref(event_type_dom);
 
     dom_event_listener *listener;

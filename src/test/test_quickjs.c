@@ -1248,7 +1248,7 @@ Suite *quickjs_suite(void)
 
     /* MutationObserver test case */
     TCase *tc_mutation = tcase_create("MutationObserver");
-//     tcase_add_test(tc_mutation, test_quickjs_mutation_observer_e2e);
+    tcase_add_test(tc_mutation, test_quickjs_mutation_observer_e2e);
     suite_add_tcase(s, tc_mutation);
 
     return s;
