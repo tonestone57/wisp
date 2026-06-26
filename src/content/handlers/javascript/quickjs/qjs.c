@@ -82,7 +82,6 @@ void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
     if (heap->rt) {
-        qjs_bridge_cleanup(heap->rt);
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -173,6 +172,39 @@ void js_destroythread(jsthread *thread)
 {
     if (!thread) return;
     if (thread->ctx) {
+        /* Cleanup event listeners */
+        struct qjs_event_listener_ctx *l = thread->listeners;
+        while (l) {
+            struct qjs_event_listener_ctx *next = l->next;
+            dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+            dom_node_unref((struct dom_node *)l->target);
+            dom_string_unref(l->type);
+            JS_FreeValue(thread->ctx, l->func);
+            free(l);
+            l = next;
+        }
+        thread->listeners = NULL;
+
+        /* Cleanup pending events */
+        struct qjs_event_map *e = thread->events;
+        while (e) {
+            struct qjs_event_map *next = e->next;
+            JS_FreeValue(thread->ctx, e->js_evt);
+            free(e);
+            e = next;
+        }
+        thread->events = NULL;
+
+        /* Cleanup timers */
+        struct qjs_timer *t = thread->timers;
+        while (t) {
+            struct qjs_timer *next = t->next;
+            JS_FreeValue(thread->ctx, t->func);
+            free(t);
+            t = next;
+        }
+        thread->timers = NULL;
+
         qjs_finalise_dom_bridge(thread->ctx);
         JS_FreeContext(thread->ctx);
     }

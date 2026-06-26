@@ -506,37 +506,53 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     return true;
                 }
 
-                if (lwc_string_length(p) >= sizeof(uint32_t) &&
-                    ((uint8_t *)lwc_string_data(p))[lwc_string_length(p)-1] != '\0') {
+                bool is_token_stream = false;
+                if (i >= 2 * sizeof(css_code_t)) {
+                    css_code_t opv = s->style->bytecode[i / sizeof(css_code_t) - 2];
+                    /* Custom property value is the second string after OPV */
+                    if (getOpcode(opv) == CSS_PROP_CUSTOM_PROPERTY) {
+                        is_token_stream = true;
+                    }
+                }
+
+                if (is_token_stream) {
                     /* Wisp binary token stream: deserialize for comparison */
                     const uint8_t *data = (const uint8_t *)lwc_string_data(p);
-                    uint32_t n_tokens = *(uint32_t *)data;
-                    char *merged = malloc(lwc_string_length(p));
-                    size_t m_off = 0;
-                    const uint8_t *ptr = data + sizeof(uint32_t);
-                    const uint8_t *end = data + lwc_string_length(p);
-                    for (uint32_t k = 0; k < n_tokens; k++) {
-                        if (ptr + sizeof(css_token) > end) break;
-                        const css_token *tok = (const css_token *)ptr;
-                        ptr += sizeof(css_token);
-                        if (tok->data.len > 0) {
-                            if (ptr + tok->data.len > end) break;
-                            memcpy(merged + m_off, ptr, tok->data.len);
-                            m_off += tok->data.len;
-                            ptr += tok->data.len;
+                    uint32_t n_tokens;
+                    if (lwc_string_length(p) < sizeof(uint32_t)) {
+                        is_token_stream = false; /* Not a valid stream */
+                    } else {
+                        memcpy(&n_tokens, data, sizeof(uint32_t));
+                        char *merged = malloc(lwc_string_length(p) + 1);
+                        size_t m_off = 0;
+                        const uint8_t *ptr = data + sizeof(uint32_t);
+                        const uint8_t *end = data + lwc_string_length(p);
+                        for (uint32_t k = 0; k < n_tokens; k++) {
+                            css_token tok;
+                            if (ptr + sizeof(css_token) > end) break;
+                            memcpy(&tok, ptr, sizeof(css_token));
+                            ptr += sizeof(css_token);
+                            if (tok.data.len > 0) {
+                                if (ptr + tok.data.len > end) break;
+                                memcpy(merged + m_off, ptr, tok.data.len);
+                                m_off += tok.data.len;
+                                ptr += tok.data.len;
+                            }
                         }
-                    }
-                    merged[m_off] = '\0';
-                    if (strcmp(merged, e->stringtab[j].string) != 0) {
-                        printf("FAIL Strings differ\n"
-                               "    Got string '%s'. Expected '%s'\n",
-                               merged, e->stringtab[j].string);
+                        merged[m_off] = '\0';
+                        if (strcmp(merged, e->stringtab[j].string) != 0) {
+                            printf("FAIL Strings differ\n"
+                                   "    Got string '%s'. Expected '%s'\n",
+                                   merged, e->stringtab[j].string);
+                            free(merged);
+                            return true;
+                        }
                         free(merged);
-                        return true;
                     }
-                    free(merged);
-                } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
-                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
+                }
+
+                if (!is_token_stream && (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0)) {
                     printf("FAIL Strings differ\n"
                            "    Got string '%.*s'. "
                            "Expected '%s'\n",

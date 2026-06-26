@@ -54,7 +54,6 @@ int qjs_init_dom_bridge(JSContext *ctx);
 
 void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx);
 void qjs_finalise_dom_bridge(JSContext *ctx);
-void qjs_bridge_cleanup(JSRuntime *rt);
 
 /* Other component initializers */
 int qjs_init_console(JSContext *ctx);

@@ -135,24 +135,3 @@ int qjs_init_dom_bridge(JSContext *ctx)
 }
 
 void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }
-
-static bool bridge_cleanup_iter(void *key, void *val, void *pw)
-{
-    JSRuntime *rt = pw;
-    JSValue *v = val;
-    JS_FreeValueRT(rt, *v);
-    return false;
-}
-
-void qjs_bridge_cleanup(JSRuntime *rt)
-{
-    hashmap_t *map = JS_GetRuntimeOpaque(rt);
-    if (map) {
-        /* Set opaque to NULL first so that finalizers triggered by
-         * JS_FreeValueRT don't try to access/mutate the map during iteration.
-         */
-        JS_SetRuntimeOpaque(rt, NULL);
-        hashmap_iterate(map, bridge_cleanup_iter, rt);
-        hashmap_destroy(map);
-    }
-}
