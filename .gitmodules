@@ -1,15 +1,3 @@
 [submodule "contrib/blend2d"]
 	path = contrib/blend2d
 	url = https://github.com/blend2d/blend2d.git
-[submodule "contrib/quickjs-ng"]
-	path = contrib/quickjs-ng
-	url = https://github.com/quickjs-ng/quickjs.git
-[submodule "contrib/libavif"]
-	path = contrib/libavif
-	url = https://github.com/AOMediaCodec/libavif.git
-[submodule "contrib/libnsbmp"]
-	path = contrib/libnsbmp
-	url = https://github.com/netsurf-browser/libnsbmp.git
-[submodule "contrib/libnsgif"]
-	path = contrib/libnsgif
-	url = https://github.com/netsurf-browser/libnsgif.git

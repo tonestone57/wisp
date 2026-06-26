@@ -58,6 +58,6 @@ Wisp is transitioning from a union-based dirty region system (which suffers from
 |---|---|---|
 | **Windows** | Blend2D -> GDI | Finished (Parity with Qt) |
 | **Linux** | Blend2D -> Qt6/GTK3 | Reference implementation |
-| **Haiku** | Blend2D -> Qt6 | Native libbe is currently broken |
+| **Haiku** | Blend2D -> libbe (BView) | Native implementation |
 | **macOS** | Blend2D -> Cocoa | Leveraging AArch64 JIT |
 | **i586** | Blend2D (Scalar) | Operational, benefits from tiling |

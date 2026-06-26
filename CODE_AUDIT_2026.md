@@ -7,11 +7,11 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 
 | Library | Repo Version | Latest Online (June 2026) | Status |
 |---------|--------------|---------------------------|--------|
-| `quickjs-ng` | Submodule | Latest | **[Finished]** Tracking latest |
-| `blend2d` | Submodule | v0.21.2 | **[Finished]** Tracking latest |
-| `libavif` | Submodule | v1.4.2 | **[Finished]** Tracking latest |
-| `libnsbmp` | Submodule | Latest | **[Finished]** Tracking latest |
-| `libnsgif` | Submodule | Latest | **[Finished]** Tracking latest |
+| `quickjs-ng` | Vendored | Latest | **[Finished]** Tracking latest |
+| `blend2d` | Vendored | v0.21.2 | **[Finished]** Tracking latest |
+| `libavif` | Vendored | v1.4.2 | **[Finished]** Tracking latest |
+| `libnsbmp` | Vendored | Latest | **[Finished]** Tracking latest |
+| `libnsgif` | Vendored | Latest | **[Finished]** Tracking latest |
 | `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged for Grid/Calc |
 | `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged for SVG/JS |
 | `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
@@ -21,7 +21,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 ### 3.1 Core Layout engine
 *   **Incremental Layout [Partial]**: Utilizes `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags. Correctly skips reflows for stable subtrees.
     *   *Optimization*: Dirty rectangle accumulation in `box_mark_dirty` ensures previous positions are cleared.
-    *   *Fixed-Tile Redraw*: Transitioning to a scale-aware fixed-tile system (256x256 or 512x512) to optimize cache locality and eliminate overdraw.
+    *   *Fixed-Tile Redraw*: Unified strategy using scale-aware fixed tiles (256x256 for i586/retro, 512x512 for High-DPI). Optimizes cache locality and eliminates overdraw.
 *   **CSS Grid [Partial]**: Core layout logic and 3-phase auto-placement implemented.
     *   *Optimization*: Pass 3 uses cached placement data to avoid re-parsing CSS during final stretch.
     *   *Improvement needed*: Dense packing algorithm and complex spanning edge cases require further refinement.
@@ -48,7 +48,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
     *   *Optimization*: Batching of consecutive path commands reduces kernel transitions.
 *   **GTK/Cairo [Finished]**: Stable reference frontend.
 *   **Blend2D Backend [Finished]**: Unified high-performance vector rendering across all platforms. Serves as the single source of truth for rasterization to ensure pixel-perfect consistency.
-*   **Haiku / BeOS [Partial]**: Requires re-verification against the new incremental layout engine.
+*   **Haiku / BeOS [Finished]**: Native `libbe` frontend (BView) unified with the Blend2D rendering backend and fixed-tile redraw strategy.
 
 ## 4. Bugs and Technical Debt
 *   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol.

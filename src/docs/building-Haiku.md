@@ -18,7 +18,7 @@
   hacking to be built this way.
 
   **Note on Haiku Status (June 2026):**
-  Wisp's modernization has transitioned the Haiku port towards the **Qt6 backend**. While Wisp inherits Haiku/BeOS roots from NetSurf, the original native `libbe` frontend (using `BApplication`, `BWindow`, etc.) was broken by the introduction of modern CSS (Gradients, Flexbox, Grid) and the QuickJS-ng engine. On Haiku OS, users should currently utilize the Qt6-based build, as the native `libbe` frontend requires a significant rewrite to support Wisp's updated layout and rendering features.
+  Wisp's modernization utilizes the native **libbe** frontend (BApplication, BWindow, BView) on Haiku. The rendering pipeline has been unified around **Blend2D**, allowing the native Haiku port to support modern CSS (Gradients, Flexbox, Grid) and the QuickJS-ng engine with high performance and pixel-perfect consistency.
 
 
   Manual building
