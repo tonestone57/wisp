@@ -362,7 +362,7 @@ function test_class()
     assert(S.x, 42);
     assert(S.y, 42);
     assert(S.z, 42);
-    
+
     class P {
         get;
         set;

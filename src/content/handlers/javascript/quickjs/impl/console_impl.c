@@ -52,7 +52,7 @@ JSValue wisp_console_groupCollapsed_impl(JSContext *ctx, QJSNodePrivate *priv) {
 JSValue wisp_console_groupEnd_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_console_time_impl(JSContext *ctx, QJSNodePrivate *priv, const char * timerName) { return JS_UNDEFINED; }
 JSValue wisp_console_timeEnd_impl(JSContext *ctx, QJSNodePrivate *priv, const char * timerName) { return JS_UNDEFINED; }
-JSValue wisp_console_dir_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue object) {  return JS_UNDEFINED; }
+JSValue wisp_console_dir_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue object) { return JS_UNDEFINED; }
 
 int qjs_init_console(JSContext *ctx)
 {

@@ -76,6 +76,7 @@ class QuickJSBindingGenerator:
         self.output_dir = output_dir
         self.parser = widlparser.Parser()
         self.interfaces = {}
+        self.dictionaries = set()
         self.mixins = {}
         self.all_interface_names = []
         self.current_impl_signatures = []
@@ -95,6 +96,8 @@ class QuickJSBindingGenerator:
 
                 if construct.name not in self.all_interface_names:
                     self.all_interface_names.append(construct.name)
+            elif isinstance(construct, widlparser.constructs.Dictionary):
+                self.dictionaries.add(construct.name)
             elif isinstance(construct, widlparser.constructs.ImplementsStatement):
                 if construct.name not in self.mixins:
                     self.mixins[construct.name] = []
@@ -216,6 +219,10 @@ class QuickJSBindingGenerator:
             elif js_type == 'float':
                 code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
+            elif js_type == 'value' and str(arg['type']) in self.all_interface_names and str(arg['type']) not in self.dictionaries:
+                # Interface
+                code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(argv[{i}]) : NULL;\n"
+                code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
             else:
                 # Differentiate between another IDL interface and other types (any, dictionary)
                 actual_type = arg['type']
@@ -224,6 +231,10 @@ class QuickJSBindingGenerator:
                     code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
                 else:
                     code += f"    JSValue {arg_name} = (argc > {i}) ? JS_DupValue(ctx, argv[{i}]) : JS_UNDEFINED;\n"
+                impl_args.append(arg_name)
+            else:
+                # Dictionary or 'any' or other types passed as JSValue
+                code += f"    JSValue {arg_name} = (argc > {i}) ? argv[{i}] : JS_UNDEFINED;\n"
                 impl_args.append(arg_name)
 
         impl_func = f"wisp_{lower_name}_{op['name']}_impl"
@@ -236,6 +247,10 @@ class QuickJSBindingGenerator:
                 c_type = TYPE_MAP.get(arg['type'], "JSValue")
                 if js_type == 'float':
                     c_type = "double"
+            elif js_type == 'value' and str(arg['type']) in self.all_interface_names and str(arg['type']) not in self.dictionaries:
+                c_type = "void *"
+            else:
+                c_type = "JSValue"
             else:
                 actual_type = arg['type']
                 if actual_type in self.all_interface_names:
@@ -298,6 +313,10 @@ class QuickJSBindingGenerator:
                 code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
                 stub_body = "    return JS_UNDEFINED;"
+            elif idl_to_js_type(attr['type']) == 'value' and str(attr['type']) in self.all_interface_names and str(attr['type']) not in self.dictionaries:
+                code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(val);\n"
+                code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
+                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
             else:
                 actual_type = attr['type']
                 if actual_type in self.all_interface_names:
@@ -309,6 +328,10 @@ class QuickJSBindingGenerator:
                     code += f"    JSValue ret = {impl_func}(ctx, priv, val_dup);\n"
                     code += f"    JS_FreeValue(ctx, val_dup);\n"
                     sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, JSValue value)"
+                stub_body = "    return JS_UNDEFINED;"
+            else:
+                code += f"    JSValue ret = {impl_func}(ctx, priv, val);\n"
+                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, JSValue value)"
                 stub_body = "    return JS_UNDEFINED;"
 
             code += "    return ret;\n"
@@ -495,6 +518,8 @@ def main():
         generator.parse_idl(idl)
 
     for name in generator.all_interface_names:
+        if name in generator.dictionaries:
+            continue
         generator.generate_interface_files(name)
         print(f"Generated: {name}")
 

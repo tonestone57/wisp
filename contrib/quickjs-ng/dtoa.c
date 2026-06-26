@@ -511,7 +511,7 @@ static void build_mul_log2_radix_table(void)
 static void mul_log2_radix_test(void)
 {
     int radix, i, ref, r;
-    
+
     for(radix = 2; radix <= 36; radix++) {
         for(i = -2048; i <= 2047; i++) {
             ref = (int)floor((double)i / log2(radix));
@@ -753,7 +753,7 @@ static const int16_t min_exponent[JS_RADIX_MAX - 1] = {
 void build_tables(void)
 {
     int r, j, radix, n, col, i;
-    
+
     /* radix_base_table */
     for(radix = 2; radix <= 36; radix++) {
         r = 1;
@@ -797,7 +797,7 @@ void build_tables(void)
     printf("\n};\n\n");
 
     printf("static const int16_t min_exponent[JS_RADIX_MAX - 1] = {\n");
-    col = 0; 
+    col = 0;
     for(radix = 2; radix <= 36; radix++) {
         printf("%5d, ", (int)floor(-1075 / log2(radix)));
         if (++col == 8) {
@@ -808,7 +808,7 @@ void build_tables(void)
     printf("\n};\n\n");
 
     printf("static const uint32_t pow5_table[16] = {\n");
-    col = 0; 
+    col = 0;
     for(i = 2; i <= 17; i++) {
         r = 1;
         for(j = 0; j < i; j++) {
@@ -824,7 +824,7 @@ void build_tables(void)
 
     /* high part */
     printf("static const uint8_t pow5h_table[4] = {\n");
-    col = 0; 
+    col = 0;
     for(i = 14; i <= 17; i++) {
         uint64_t r1;
         r1 = 1;
