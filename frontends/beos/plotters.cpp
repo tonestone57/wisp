@@ -112,13 +112,26 @@ static nserror nsbeos_plot_bbitmap(int x, int y, int width, int height, BBitmap 
     return NSERROR_OK;
 }
 
+/**
+ * Convert a Wisp color to a Haiku logical rgb_color structure.
+ *
+ * This function populates a logical structure that delegates final pixel
+ * layout to the OS (AGG-based app_server).
+ *
+ * @param c       Wisp color in 0xAABBGGRR format (inverted alpha).
+ * @param opacity Optional opacity multiplier (0.0 to 1.0).
+ * @return        Haiku rgb_color structure.
+ */
 rgb_color nsbeos_rgb_colour(colour c, float opacity)
 {
     rgb_color color;
     if (c == NS_TRANSPARENT)
         return B_TRANSPARENT_32_BIT;
 
-    /* Wisp color is 0xAABBGGRR with inverted alpha */
+    /* Wisp color integer format: 0xAABBGGRR
+     * [MSB] Alpha | Blue | Green | Red [LSB]
+     * Note: Alpha 0 is opaque, 255 is transparent.
+     */
     color.red = c & 0xff;
     color.green = (c >> 8) & 0xff;
     color.blue = (c >> 16) & 0xff;

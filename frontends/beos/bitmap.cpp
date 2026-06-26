@@ -64,10 +64,26 @@ struct bitmap {
 #define MIN_PRETILE_HEIGHT 256
 
 /**
- * Convert Wisp's XBGR (alpha in high byte, blue in next, then green, red in low)
- * to BeOS BGRA32 (B in low byte, then G, R, A in high).
- * Wisp uses 0xAABBGGRR where AA=0 is opaque and AA=255 is transparent.
- * BeOS B_RGBA32 is actually BGRA in memory on little-endian.
+ * Convert Wisp's XBGR color format to BeOS BGRA32 byte layout.
+ *
+ * Wisp Integer Format (0xAABBGGRR):
+ *   - [MSB] Alpha | Blue | Green | Red [LSB]
+ *   - Alpha: 0 = opaque, 255 = transparent (inverted)
+ *
+ * Memory Layout on Little-Endian (Haiku/x86):
+ *   - Byte 0: Red
+ *   - Byte 1: Green
+ *   - Byte 2: Blue
+ *   - Byte 3: Alpha
+ *
+ * Haiku B_RGBA32 Expected Byte Order (BGRA):
+ *   - Byte 0: Blue
+ *   - Byte 1: Green
+ *   - Byte 2: Red
+ *   - Byte 3: Alpha (255 = opaque, 0 = transparent)
+ *
+ * This function performs a Red-Blue channel swap and Alpha inversion to
+ * ensure correct rendering through Haiku's AGG-based app_server.
  */
 static inline void nsbeos_xbgr_to_bgra(void *src, void *dst, int width, int height, size_t rowstride)
 {
