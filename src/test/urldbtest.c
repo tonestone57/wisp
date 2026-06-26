@@ -71,7 +71,7 @@ const char *test_cookies_out_path = "src/test/data/cookies-out";
 
 const char *wikipedia_url = "http://www.wikipedia.org/";
 
-extern struct wisp_table *guit;
+struct wisp_table *guit;
 
 
 struct test_urls {
