@@ -156,6 +156,10 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         JS_DefinePropertyValueStr(t->ctx, global_obj, "document", doc_val, JS_PROP_C_W_E);
     }
 
+    qjs_init_mutationobserver(t->ctx);
+    qjs_init_intersectionobserver(t->ctx);
+    qjs_init_domrectreadonly(t->ctx);
+    qjs_init_domrect(t->ctx);
     JS_FreeValue(t->ctx, global_obj);
     NSLOG(wisp, DEBUG, "Created QuickJS thread %p in heap %p", t, heap);
 
@@ -171,6 +175,60 @@ nserror js_closethread(jsthread *thread)
 
 void js_destroythread(jsthread *thread)
 {
+    if (thread == NULL) {
+        return;
+    }
+
+    NSLOG(wisp, DEBUG, "Destroying QuickJS thread %p", thread);
+
+    struct qjs_timer *tim = thread->timers;
+    while (tim != NULL) {
+        struct qjs_timer *next = tim->next;
+        tim->cancelled = true;
+        JS_FreeValue(thread->ctx, tim->func);
+        free(tim);
+        tim = next;
+    }
+    thread->timers = NULL;
+
+    struct qjs_event_listener_ctx *l = thread->listeners;
+    while (l != NULL) {
+        struct qjs_event_listener_ctx *next = l->next;
+        dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+        dom_node_unref((struct dom_node *)l->target);
+        dom_string_unref(l->type);
+        JS_FreeValue(thread->ctx, l->func);
+        dom_event_listener_unref(l->listener);
+        free(l);
+        l = next;
+    }
+    thread->listeners = NULL;
+
+    struct qjs_event_map *e = thread->events;
+    while (e != NULL) {
+        struct qjs_event_map *next = e->next;
+        JS_FreeValue(thread->ctx, e->js_evt);
+        dom_event_unref(e->evt);
+        free(e);
+        e = next;
+    }
+    thread->events = NULL;
+
+    if (thread->ctx != NULL) {
+        JSRuntime *rt = JS_GetRuntime(thread->ctx);
+        JSContext *ctx1;
+
+        if (thread->heap->timeout > 0) {
+            uint64_t now;
+            nsu_getmonotonic_ms(&now);
+            thread->heap->deadline_ms = now + (thread->heap->timeout * 1000);
+        }
+
+        while (JS_ExecutePendingJob(rt, &ctx1) > 0) {
+        }
+
+        thread->heap->deadline_ms = 0;
+
     if (!thread) return;
     if (thread->ctx) {
         qjs_finalise_dom_bridge(thread->ctx);
@@ -230,6 +288,37 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 
 bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
 {
+    dom_exception exc;
+    dom_string *type_str = NULL;
+    dom_event *evt = NULL;
+    bool success = true;
+
+    if (thread == NULL) return false;
+
+    if (doc == NULL) {
+        doc = (struct dom_document *)thread->doc_priv;
+    }
+
+    if (target == NULL) {
+        target = (dom_node *)doc;
+    }
+
+    if (target == NULL) {
+        /* Fallback to global object if still no target/doc */
+        target = thread->global_window_priv.node;
+    }
+
+    if (target == NULL) return false;
+
+    exc = dom_string_create((const uint8_t *)type, strlen(type), &type_str);
+    if (exc != DOM_NO_ERR) return false;
+
+    exc = dom_event_create(&evt);
+    if (exc == DOM_NO_ERR) {
+        exc = dom_event_init(evt, type_str, false, false);
+        if (exc == DOM_NO_ERR) {
+            exc = dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
+        }
     dom_string *type_str;
     dom_event *evt;
     bool success = false;
@@ -303,4 +392,10 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node)
 
 void js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
+}
+void js_handle_intersection_check(struct jsthread *thread, struct box *layout, int viewport_width, int viewport_height)
+{
+    /* Handled in intersectionobserver_impl.c */
+    extern void wisp_handle_intersection_check(struct jsthread *thread, struct box *layout, int viewport_width, int viewport_height);
+    wisp_handle_intersection_check(thread, layout, viewport_width, viewport_height);
 }

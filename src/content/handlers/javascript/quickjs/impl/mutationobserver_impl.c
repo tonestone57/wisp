@@ -53,7 +53,7 @@ static void mutationobserver_cleanup_targets(WispMutationObserver *observer)
 
     for (uint32_t i = 0; i < observer->doc_count; i++) {
         dom_document_remove_mutation_callback(observer->docs[i], libdom_mutation_callback, observer);
-        dom_node_unref(observer->docs[i]);
+        dom_node_unref((struct dom_node *)observer->docs[i]);
     }
     free(observer->docs);
     observer->docs = NULL;
@@ -69,7 +69,7 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
             mutationobserver_cleanup_targets(observer);
             JS_FreeValueRT(rt, observer->callback);
             JS_FreeValueRT(rt, observer->records);
-            /* observer_val is managed by GC cycle detection */
+            JS_FreeValueRT(rt, observer->observer_val);
             free(observer);
         }
         free(priv);
@@ -98,7 +98,7 @@ static JSClassDef wisp_mutationobserver_class = {
 static JSValue mutation_observer_microtask(JSContext *ctx, int argc, JSValueConst *argv)
 {
     WispMutationObserver *observer = JS_GetOpaque(argv[0], qjs_mutationobserver_class_id);
-    if (!observer) return JS_UNDEFINED;
+    if (!observer || observer->thread->closed) return JS_UNDEFINED;
 
     observer->microtask_scheduled = false;
 
@@ -125,6 +125,7 @@ static JSValue dom_string_to_js(JSContext *ctx, struct dom_string *s)
 static void libdom_mutation_callback(const struct dom_mutation_notification *notification, void *pw)
 {
     WispMutationObserver *observer = pw;
+    if (observer->thread->closed) return;
     JSContext *ctx = observer->thread->ctx;
 
     /* Find if any observed target matches this mutation */
@@ -173,7 +174,7 @@ static void libdom_mutation_callback(const struct dom_mutation_notification *not
 
         JSValue removed = JS_NewArray(ctx);
         if (notification->removed_node) {
-            JS_SetPropertyUint32(ctx, removed, 0, qjs_wrap_node(ctx, notification->removed_node));
+            JS_SetPropertyUint32(ctx, removed, 0, qjs_wrap_node(ctx, (struct dom_node *)notification->removed_node));
         }
         JS_SetPropertyStr(ctx, record, "removedNodes", removed);
 
@@ -211,7 +212,7 @@ static void libdom_mutation_callback(const struct dom_mutation_notification *not
     }
 }
 
-JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target, void * options)
+JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target, JSValue options)
 {
     if (!priv || !priv->node || !target) return JS_EXCEPTION;
     WispMutationObserver *observer = priv->node;
@@ -225,7 +226,7 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 
     /* Parse options */
     MutationObserverOptions mo_opts = {0};
-    JSValue opts = *(JSValue *)options;
+    JSValue opts = options;
     JSValue val;
 
     if (JS_IsObject(opts)) {
@@ -276,22 +277,19 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
     /* Register with document if not already registered */
     bool doc_found = false;
     for (uint32_t i = 0; i < observer->doc_count; i++) {
-        if (observer->docs[i] == doc) {
+        if (observer->docs[i] == (struct dom_document *)doc) {
             doc_found = true;
             break;
         }
     }
     if (!doc_found) {
-        struct dom_document **new_docs = realloc(observer->docs, (observer->doc_count + 1) * sizeof(struct dom_document *));
-        if (new_docs) {
-            observer->docs = new_docs;
-            observer->docs[observer->doc_count] = (struct dom_document *)dom_node_ref(doc);
-            observer->doc_count++;
-            dom_document_add_mutation_callback(doc, libdom_mutation_callback, observer);
-        }
+        observer->docs = realloc(observer->docs, (observer->doc_count + 1) * sizeof(struct dom_document *));
+        observer->docs[observer->doc_count] = (struct dom_document *)dom_node_ref((struct dom_node *)doc);
+        observer->doc_count++;
+        dom_document_add_mutation_callback(doc, libdom_mutation_callback, observer);
     }
 
-    dom_node_unref(doc);
+    dom_node_unref((struct dom_node *)doc);
 
     return JS_UNDEFINED;
 }
