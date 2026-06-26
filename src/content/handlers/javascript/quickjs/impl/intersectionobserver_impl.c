@@ -52,6 +52,7 @@ static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
             free(observer->targets);
             JS_FreeValueRT(rt, observer->callback);
             JS_FreeValueRT(rt, observer->records);
+            JS_FreeValueRT(rt, observer->observer_val);
             free(observer);
         }
         free(priv);

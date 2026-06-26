@@ -69,7 +69,7 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
             mutationobserver_cleanup_targets(observer);
             JS_FreeValueRT(rt, observer->callback);
             JS_FreeValueRT(rt, observer->records);
-            /* observer_val is managed by GC cycle detection */
+            JS_FreeValueRT(rt, observer->observer_val);
             free(observer);
         }
         free(priv);

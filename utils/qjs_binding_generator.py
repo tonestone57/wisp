@@ -305,7 +305,9 @@ class QuickJSBindingGenerator:
                     code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
                     sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
                 else:
-                    code += f"    JSValue ret = {impl_func}(ctx, priv, JS_DupValue(ctx, val));\n"
+                    code += f"    JSValue val_dup = JS_DupValue(ctx, val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, val_dup);\n"
+                    code += f"    JS_FreeValue(ctx, val_dup);\n"
                     sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, JSValue value)"
                 stub_body = "    return JS_UNDEFINED;"
 
