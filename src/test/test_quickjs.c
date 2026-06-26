@@ -466,13 +466,7 @@ START_TEST(test_quickjs_console_init)
     JS_FreeValue(ctx, console);
     JS_FreeValue(ctx, global);
     JS_FreeContext(ctx);
-    {
-        hashmap_t *map = JS_GetRuntimeOpaque(rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(rt, NULL);
-        }
-    }
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -498,13 +492,7 @@ START_TEST(test_quickjs_console_log)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
-    {
-        hashmap_t *map = JS_GetRuntimeOpaque(rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(rt, NULL);
-        }
-    }
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -530,13 +518,7 @@ START_TEST(test_quickjs_console_error)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
-    {
-        hashmap_t *map = JS_GetRuntimeOpaque(rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(rt, NULL);
-        }
-    }
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -562,13 +544,7 @@ START_TEST(test_quickjs_console_warn)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
-    {
-        hashmap_t *map = JS_GetRuntimeOpaque(rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(rt, NULL);
-        }
-    }
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -594,13 +570,7 @@ START_TEST(test_quickjs_console_multiple_args)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
-    {
-        hashmap_t *map = JS_GetRuntimeOpaque(rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(rt, NULL);
-        }
-    }
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 }
 END_TEST
@@ -628,13 +598,7 @@ START_TEST(test_quickjs_console_group)
 
     JS_FreeValue(ctx, result);
     JS_FreeContext(ctx);
-    {
-        hashmap_t *map = JS_GetRuntimeOpaque(rt);
-        if (map) {
-            hashmap_destroy(map);
-            JS_SetRuntimeOpaque(rt, NULL);
-        }
-    }
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 }
 END_TEST

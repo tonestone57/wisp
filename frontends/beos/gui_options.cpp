@@ -43,11 +43,11 @@ void nsbeos_options_init(void)
 
 void nsbeos_options_load(void)
 {
-#warning WRITEME
+    /* Options are loaded via the core nsoption_read in gui.cpp */
 }
 
 
 void nsbeos_options_save(void)
 {
-#warning WRITEME
+    /* Options are saved via the core nsoption_write in gui.cpp */
 }

@@ -134,6 +134,24 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
+void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }
+
+static bool bridge_cleanup_iter(void *key, void *value, void *pw)
+{
+    JSRuntime *rt = pw;
+    JSValue *val = value;
+    JS_FreeValueRT(rt, *val);
+    return true;
+}
+
+void qjs_bridge_cleanup(JSRuntime *rt)
+{
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (map) {
+        JS_SetRuntimeOpaque(rt, NULL);
+        hashmap_iterate(map, bridge_cleanup_iter, rt);
+        hashmap_destroy(map);
+    }
 typedef struct {
     JSContext *ctx;
     bridge_key_t **keys;
