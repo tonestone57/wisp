@@ -105,6 +105,14 @@ dom_exception _dom_document_create(dom_events_default_action_fetcher daf, void *
 }
 
 /* Initialise the document */
+dom_exception dom_document_set_mutation_hook(struct dom_document *doc,
+    dom_mutation_hook hook, void *pw)
+{
+    doc->mutation_hook = hook;
+    doc->mutation_hook_pw = pw;
+    return DOM_NO_ERR;
+}
+
 dom_exception _dom_document_initialise(dom_document *doc, dom_events_default_action_fetcher daf, void *daf_ctx)
 {
     dom_exception err;

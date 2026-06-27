@@ -59,6 +59,8 @@ struct jsthread {
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
     struct qjs_timer *timers;
+
+    struct WispMutationObserver *mutation_observers;
     struct WispIntersectionObserver *intersection_observers;
 };
 

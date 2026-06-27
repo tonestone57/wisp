@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  See the file COPYING for details.
  */
 
 /** \file
@@ -162,6 +162,17 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node);
  */
 void js_event_cleanup(jsthread *thread, struct dom_event *evt);
 
-#endif /* WISP_JAVASCRIPT_JS_H_ */
+/**
+ * Handle intersection checks after layout.
+ *
+ * This is called after a layout pass to allow IntersectionObserver
+ * to check for changes in visibility.
+ *
+ * \param thread The JS thread
+ * \param viewport_width Viewport width in pixels
+ * \param viewport_height Viewport height in pixels
+ */
 struct box;
-void js_handle_intersection_check(struct jsthread *thread, struct box *layout, int viewport_width, int viewport_height);
+void js_handle_intersection_check(jsthread *thread, struct box *layout, int viewport_width, int viewport_height);
+
+#endif /* WISP_JAVASCRIPT_JS_H_ */
