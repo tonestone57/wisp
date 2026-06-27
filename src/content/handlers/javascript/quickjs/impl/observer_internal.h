@@ -11,6 +11,8 @@ typedef struct MutationObserverTarget {
     bool attributes;
     bool characterData;
     bool subtree;
+    bool attributeOldValue;
+    bool characterDataOldValue;
 } MutationObserverTarget;
 
 typedef struct WispMutationObserver {

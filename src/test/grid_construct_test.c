@@ -329,7 +329,7 @@ static struct gui_utf8_table mock_utf8_table = {
 static struct gui_misc_table mock_misc = {.schedule = mock_schedule};
 /* Define mock_gui matching struct neosurf_table (guit) */
 static struct wisp_table mock_gui = {.misc = &mock_misc, .utf8 = &mock_utf8_table};
-extern struct wisp_table *guit;
+struct wisp_table *guit;
 
 /* Helper stubs */
 #undef NSLOG

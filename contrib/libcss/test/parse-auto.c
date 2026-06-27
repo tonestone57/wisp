@@ -594,19 +594,16 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 
                 if (!is_token_stream && (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                     memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0)) {
-                {
-                char got_str[4096];
-                deserialize_and_dump(p, got_str, sizeof(got_str));
-                if (strcmp(got_str, e->stringtab[j].string) != 0) {
-                    printf("FAIL Strings differ\n"
-                           "    Got string '%s'. "
-                           "Expected '%s'\n",
-                        (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return false;
-                        got_str, e->stringtab[j].string);
-                    return true;
+                    char got_str[4096];
+                    deserialize_and_dump(p, got_str, sizeof(got_str));
+                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                        printf("FAIL Strings differ\n"
+                               "    Got string '%s'. "
+                               "Expected '%s'\n",
+                               got_str, e->stringtab[j].string);
+                        return false;
+                    }
                 }
-            }
 
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
@@ -621,7 +618,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     }
                 }
                 printf("\n");
-                return true;
+                return false;
             }
         }
     }

@@ -244,7 +244,6 @@ static void urldb_create(void)
     nserror res;
 
     /* mock bitmap interface */
-    extern struct wisp_table *guit;
     guit = &tst_table;
 
     // Before running each test, clear all entries
@@ -261,7 +260,6 @@ static void urldb_create_loaded(void)
     nserror res;
 
     /* mock bitmap interface */
-    extern struct wisp_table *guit;
     guit = &tst_table;
 
     // Before running each test, clear all entries
