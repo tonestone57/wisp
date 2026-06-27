@@ -1,21 +1,5 @@
-
 #include "dom_bridge.h"
 
-extern JSClassID qjs_eventtarget_class_id;
-extern JSClassID qjs_node_class_id;
-extern JSClassID qjs_element_class_id;
-extern JSClassID qjs_document_class_id;
-extern JSClassID qjs_text_class_id;
-extern JSClassID qjs_attr_class_id;
-extern JSClassID qjs_namednodemap_class_id;
-extern JSClassID qjs_htmlcollection_class_id;
-extern JSClassID qjs_window_class_id;
-extern JSClassID qjs_event_class_id;
-extern JSClassID qjs_console_class_id;
-extern JSClassID qjs_location_class_id;
-extern JSClassID qjs_navigator_class_id;
-extern JSClassID qjs_storage_class_id;
-extern JSClassID qjs_xhr_class_id;
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include <stdlib.h>
@@ -134,8 +118,6 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
-void qjs_finalise_dom_bridge(JSContext *ctx) { (void)ctx; }
-
 static bool bridge_cleanup_iter(void *key, void *value, void *pw)
 {
     JSRuntime *rt = pw;
@@ -152,6 +134,8 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         hashmap_iterate(map, bridge_cleanup_iter, rt);
         hashmap_destroy(map);
     }
+}
+
 typedef struct {
     JSContext *ctx;
     bridge_key_t **keys;

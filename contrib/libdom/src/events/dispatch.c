@@ -150,6 +150,13 @@ dom_exception __dom_dispatch_attr_modified_event(dom_document *doc, dom_event_ta
 
     type = dom_string_ref(doc->_memo_domattrmodified);
 
+    /* Fire mutation hook if present */
+    if (doc->mutation_hook != NULL) {
+        doc->mutation_hook(DOM_MUTATION_HOOK_ATTRIBUTES,
+            (struct dom_node *)et, (struct dom_node *)related,
+            prev, new, attr_name, NULL, doc->mutation_hook_pw);
+    }
+
     /* Initialise the event with corresponding parameters */
     err = dom_mutation_event_init(evt, type, true, false, related, prev, new, attr_name, change);
     dom_string_unref(type);
@@ -208,6 +215,13 @@ dom_exception __dom_dispatch_characterdata_modified_event(
         return err;
 
     type = dom_string_ref(doc->_memo_domcharacterdatamodified);
+
+    /* Fire mutation hook if present */
+    if (doc->mutation_hook != NULL) {
+        doc->mutation_hook(DOM_MUTATION_HOOK_CHARACTER_DATA,
+            (struct dom_node *)et, NULL,
+            prev, new, NULL, NULL, doc->mutation_hook_pw);
+    }
 
     err = dom_mutation_event_init(evt, type, true, false, et, prev, new, NULL, DOM_MUTATION_MODIFICATION);
     dom_string_unref(type);

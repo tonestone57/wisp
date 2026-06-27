@@ -8,10 +8,24 @@
 #include "utils/libdom.h"
 #include "JSEventTarget.gen.h"
 
+static QJSNodePrivate *get_priv_with_global(JSContext *ctx, JSValueConst val) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, val);
+    if (!priv) {
+        JSValue global = JS_GetGlobalObject(ctx);
+        if (JS_VALUE_GET_PTR(global) == JS_VALUE_GET_PTR(val)) {
+            struct jsthread *t = JS_GetContextOpaque(ctx);
+            priv = &t->global_window_priv;
+        }
+        JS_FreeValue(ctx, global);
+    }
+    return priv;
+}
+
+
 static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
-    if (!priv) return JS_EXCEPTION;
+    QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
+    if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
     if (argc < 2) return JS_UNDEFINED;
 
     const char *type = JS_ToCString(ctx, argv[0]);
@@ -28,8 +42,8 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
 
 static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
-    if (!priv) return JS_EXCEPTION;
+    QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
+    if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
     if (argc < 2) return JS_UNDEFINED;
 
     const char *type = JS_ToCString(ctx, argv[0]);
@@ -46,22 +60,26 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
 
 static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
-    if (!priv) return JS_EXCEPTION;
+    QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
+    if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
     if (argc < 1) return JS_FALSE;
 
     struct jsthread *thread = JS_GetContextOpaque(ctx);
-    const char *type = "click";
-    JSValue type_val = JS_GetPropertyStr(ctx, argv[0], "type");
-    if (JS_IsString(type_val)) {
-        type = JS_ToCString(ctx, type_val);
-    } else if (JS_IsString(argv[0])) {
+    const char *type = NULL;
+    JSValue type_val = JS_UNDEFINED;
+    if (JS_IsObject(argv[0])) {
+        type_val = JS_GetPropertyStr(ctx, argv[0], "type");
+        if (JS_IsString(type_val)) {
+            type = JS_ToCString(ctx, type_val);
+        }
+    }
+    if (!type && JS_IsString(argv[0])) {
         type = JS_ToCString(ctx, argv[0]);
     }
 
-    bool success = js_fire_event(thread, type, NULL, (dom_node *)priv->node);
+    bool success = js_fire_event(thread, type ? type : "click", (struct dom_document *)thread->doc_priv, (dom_node *)priv->node);
 
-    if (type != (const char *)"click") JS_FreeCString(ctx, (char *)type);
+    if (type) JS_FreeCString(ctx, (char *)type);
     JS_FreeValue(ctx, type_val);
 
     return JS_NewBool(ctx, success);

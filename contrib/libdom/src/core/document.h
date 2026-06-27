@@ -87,6 +87,9 @@ struct dom_document {
 
     uint32_t dispatching_mutation; /**< Mutation event semaphore */
 
+    dom_mutation_hook mutation_hook;
+    void *mutation_hook_pw;
+
     struct dom_mutation_callback_entry *mutation_callbacks;
 };
 
