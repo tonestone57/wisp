@@ -388,6 +388,9 @@ void nsbeos_dispatch_event(BMessage *message)
     case B_QUIT_REQUESTED:
         nsbeos_done = true;
         break;
+    case NO_ACTION:
+        delete message;
+        return;
     case B_ABOUT_REQUESTED: {
         if (gui == NULL)
             gui = window_list;
@@ -399,7 +402,7 @@ void nsbeos_dispatch_event(BMessage *message)
             nsbeos_window_expose_event(view, gui, message);
         break;
     case B_MOUSE_MOVED: {
-        if (gui == NULL)
+        if (gui == NULL || gui->bw == NULL)
             break;
 
         BPoint where;
@@ -437,7 +440,7 @@ void nsbeos_dispatch_event(BMessage *message)
         break;
     }
     case B_MOUSE_DOWN: {
-        if (gui == NULL)
+        if (gui == NULL || gui->bw == NULL)
             break;
 
         BPoint where;
@@ -485,7 +488,7 @@ void nsbeos_dispatch_event(BMessage *message)
         break;
     }
     case B_MOUSE_UP: {
-        if (gui == NULL)
+        if (gui == NULL || gui->bw == NULL)
             break;
 
         BPoint where;
@@ -597,24 +600,24 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
         view->Window()->BeginViewTransaction();
 
     /* Fixed-Tile Redraw Implementation (256x256 tiles) */
-    int x_start = (int)updateRect.left & ~(TILE_SIZE - 1);
-    int y_start = (int)updateRect.top & ~(TILE_SIZE - 1);
-    int x_end = (int)updateRect.right;
-    int y_end = (int)updateRect.bottom;
+    int rect_left = (int)updateRect.left;
+    int rect_top = (int)updateRect.top;
+    int rect_right = (int)updateRect.right + 1;
+    int rect_bottom = (int)updateRect.bottom + 1;
 
-    for (int ty = y_start; ty <= y_end; ty += TILE_SIZE) {
-        for (int tx = x_start; tx <= x_end; tx += TILE_SIZE) {
+    int x_start = rect_left & ~(TILE_SIZE - 1);
+    int y_start = rect_top & ~(TILE_SIZE - 1);
+
+    for (int ty = y_start; ty < rect_bottom; ty += TILE_SIZE) {
+        int t_y0 = MAX(ty, rect_top);
+        int t_y1 = MIN(ty + TILE_SIZE, rect_bottom);
+
+        for (int tx = x_start; tx < rect_right; tx += TILE_SIZE) {
             struct rect tile_clip;
-            tile_clip.x0 = tx;
-            tile_clip.y0 = ty;
-            tile_clip.x1 = tx + TILE_SIZE;
-            tile_clip.y1 = ty + TILE_SIZE;
-
-            /* Intersect tile with updateRect */
-            if (tile_clip.x0 < (int)updateRect.left) tile_clip.x0 = (int)updateRect.left;
-            if (tile_clip.y0 < (int)updateRect.top) tile_clip.y0 = (int)updateRect.top;
-            if (tile_clip.x1 > (int)updateRect.right + 1) tile_clip.x1 = (int)updateRect.right + 1;
-            if (tile_clip.y1 > (int)updateRect.bottom + 1) tile_clip.y1 = (int)updateRect.bottom + 1;
+            tile_clip.x0 = MAX(tx, rect_left);
+            tile_clip.y0 = t_y0;
+            tile_clip.x1 = MIN(tx + TILE_SIZE, rect_right);
+            tile_clip.y1 = t_y1;
 
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
@@ -742,7 +745,8 @@ void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
         return;
 
     float hdelta = 0.0f, vdelta = 0.0f;
-    g->view->LockLooper();
+    if (!g->view->LockLooper())
+        return;
     BRect size = g->view->Bounds();
     switch (byte) {
     case B_HOME:
