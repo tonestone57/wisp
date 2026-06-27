@@ -224,15 +224,21 @@ static nserror nsbeos_plot_disc(const struct redraw_context *ctx, const plot_sty
     BView *view = nsbeos_current_gc();
     if (view == NULL) return NSERROR_INVALID;
 
-    BPoint center(x, y);
+    /* Use BShape for circles to benefit from AGG's subpixel anti-aliasing */
+    BShape shape;
+    shape.MoveTo(BPoint(x + radius, y));
+    shape.ArcTo(radius, radius, 0, true, true, BPoint(x - radius, y));
+    shape.ArcTo(radius, radius, 0, true, true, BPoint(x + radius, y));
+    shape.Close();
+
     if (style->fill_type != PLOT_OP_TYPE_NONE) {
         nsbeos_apply_style(style, true);
-        view->FillEllipse(center, radius, radius);
+        view->FillShape(&shape);
     }
 
     if (style->stroke_type != PLOT_OP_TYPE_NONE) {
         nsbeos_apply_style(style, false);
-        view->StrokeEllipse(center, radius, radius);
+        view->StrokeShape(&shape);
     }
 
     return NSERROR_OK;
@@ -342,13 +348,15 @@ static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_sty
     if (view == NULL) return NSERROR_INVALID;
 
 #ifdef __HAIKU__
+    view->PushState();
     if (transform) {
-        view->PushState();
         BAffineTransform matrix(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
         BAffineTransform current = view->Transform();
         current.Multiply(matrix);
         view->SetTransform(current);
     }
+    view->SetDrawingMode(B_OP_ALPHA);
+    view->SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 #endif
 
     if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
@@ -358,13 +366,16 @@ static nserror nsbeos_plot_path(const struct redraw_context *ctx, const plot_sty
     if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
         view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour, pstyle->stroke_opacity));
         view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
-        view->StrokeShape(&shape);
+
+        pattern pat = B_SOLID_HIGH;
+        if (pstyle->stroke_type == PLOT_OP_TYPE_DOT) pat = kDottedPattern;
+        else if (pstyle->stroke_type == PLOT_OP_TYPE_DASH) pat = kDashedPattern;
+
+        view->StrokeShape(&shape, pat);
     }
 
 #ifdef __HAIKU__
-    if (transform) {
-        view->PopState();
-    }
+    view->PopState();
 #endif
 
     return NSERROR_OK;

@@ -87,28 +87,23 @@ struct bitmap {
  */
 static inline void nsbeos_xbgr_to_bgra(void *src, void *dst, int width, int height, size_t rowstride)
 {
-    struct xbgr {
-        uint8 r, g, b, a;
-    };
-    struct bgra {
-        uint8 b, g, r, a;
-    };
-    struct xbgr *from = (struct xbgr *)src;
-    struct bgra *to = (struct bgra *)dst;
-
+    uint32_t *from_row = (uint32_t *)src;
+    uint32_t *to_row = (uint32_t *)dst;
     int stride_pixels = rowstride >> 2;
 
     for (int y = 0; y < height; y++) {
+        uint32_t *f = from_row;
+        uint32_t *t = to_row;
         for (int x = 0; x < width; x++) {
-            to[x].b = from[x].b;
-            to[x].g = from[x].g;
-            to[x].r = from[x].r;
-            /* Invert alpha: Wisp 0 is opaque, 255 is transparent.
-               BeOS/AGG 255 is opaque, 0 is transparent. */
-            to[x].a = 255 - from[x].a;
+            uint32_t v = *f++;
+            uint32_t rb = v & 0x00FF00FF;
+            /* Swap R and B: 0x00BB00RR -> 0x00RR00BB */
+            rb = (rb >> 16) | (rb << 16);
+            /* Invert alpha and combine with G and swapped RB */
+            *t++ = (v & 0x0000FF00) | rb | ((v ^ 0xFF000000) & 0xFF000000);
         }
-        from += stride_pixels;
-        to += stride_pixels;
+        from_row += stride_pixels;
+        to_row += stride_pixels;
     }
 }
 
@@ -434,19 +429,21 @@ static nserror bitmap_render(struct bitmap *bitmap, hlcache_handle *content)
     thumbView = new BView(small->Bounds(), "thumbnail", B_FOLLOW_NONE, B_WILL_DRAW);
     small->AddChild(thumbView);
 
-    view->LockLooper();
-    nsbeos_current_gc_set(view);
-    content_scaled_redraw(content, big_width, big_height, &ctx);
-    view->Sync();
-    view->UnlockLooper();
+    if (view->LockLooper()) {
+        nsbeos_current_gc_set(view);
+        content_scaled_redraw(content, big_width, big_height, &ctx);
+        view->Sync();
+        view->UnlockLooper();
+    }
 
     nsbeos_current_gc_set(oldView);
 
-    thumbView->LockLooper();
-    /* Draw scaled with high quality (bilinear filtering via AGG) */
-    thumbView->DrawBitmap(big, big->Bounds(), small->Bounds(), B_FILTER_BITMAP_BILINEAR);
-    thumbView->Sync();
-    thumbView->UnlockLooper();
+    if (thumbView->LockLooper()) {
+        /* Draw scaled with high quality (bilinear filtering via AGG) */
+        thumbView->DrawBitmap(big, big->Bounds(), small->Bounds(), B_FILTER_BITMAP_BILINEAR);
+        thumbView->Sync();
+        thumbView->UnlockLooper();
+    }
 
     small->LockBits();
     thumbnail->LockBits();

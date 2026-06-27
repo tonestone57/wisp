@@ -148,18 +148,20 @@ void NSDownloadWindow::Progress(int size)
     char *buffer = human_friendly_bytesize(progress);
     strcat(buffer, "/");
 
-    bar->LockLooper();
-    bar->Update(size, NULL, buffer);
-    bar->Invalidate();
-    bar->UnlockLooper();
+    if (bar->LockLooper()) {
+        bar->Update(size, NULL, buffer);
+        bar->Invalidate();
+        bar->UnlockLooper();
+    }
 }
 
 
 void NSDownloadWindow::Success()
 {
-    bar->LockLooper();
-    bar->SetBarColor(ui_color(B_SUCCESS_COLOR));
-    bar->UnlockLooper();
+    if (bar->LockLooper()) {
+        bar->SetBarColor(ui_color(B_SUCCESS_COLOR));
+        bar->UnlockLooper();
+    }
 
     success = true;
 }
@@ -167,10 +169,11 @@ void NSDownloadWindow::Success()
 
 void NSDownloadWindow::Failure(const char *error)
 {
-    bar->LockLooper();
-    bar->Update(0, NULL, error);
-    bar->SetBarColor(ui_color(B_FAILURE_COLOR));
-    bar->UnlockLooper();
+    if (bar->LockLooper()) {
+        bar->Update(0, NULL, error);
+        bar->SetBarColor(ui_color(B_FAILURE_COLOR));
+        bar->UnlockLooper();
+    }
 }
 
 

@@ -49,6 +49,7 @@
 #if defined(__HAIKU__)
 #include "WindowStack.h"
 #include <IconUtils.h>
+#include <LayoutBuilder.h>
 #endif
 
 #include <fs_attr.h>
@@ -1692,6 +1693,22 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->tool_bar = new BBox(rect, "Toolbar", B_FOLLOW_LEFT_RIGHT | B_FOLLOW_TOP,
         B_WILL_DRAW | B_FRAME_EVENTS | B_FULL_UPDATE_ON_RESIZE | B_NAVIGABLE_JUMP, B_PLAIN_BORDER);
     g->top_view->AddChild(g->tool_bar);
+
+#ifdef __HAIKU__
+    BLayoutBuilder::Group<>(g->tool_bar, B_HORIZONTAL, 0)
+        .SetInsets(5)
+        .Add(g->back_button)
+        .Add(g->forward_button)
+        .Add(g->stop_button)
+        .Add(g->reload_button)
+        .Add(g->home_button)
+        .Add(g->media_play_button)
+        .Add(g->media_seek_bar, 2)
+        .Add(g->url_bar, 5)
+        .Add(g->search_bar, 2)
+        .Add(g->throbber)
+        .End();
+#endif
     g->tool_bar->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
     g->tool_bar->SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
