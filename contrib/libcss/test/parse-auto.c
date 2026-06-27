@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include <libcss/libcss.h>
 
@@ -89,14 +90,13 @@ typedef struct line_ctx {
 static bool handle_line(const char *data, size_t datalen, void *pw);
 static void css__parse_expected(line_ctx *ctx, const char *data, size_t len);
 static void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen);
+static void dump_string(lwc_string *string, char **ptr);
+static void dump_selector_detail(css_selector_detail *detail, char **ptr);
+static void dump_selector(css_selector *selector, char **ptr);
+static void dump_selector_list(css_selector *list, char **ptr);
 static bool validate_rule_selector(css_rule_selector *s, exp_entry *e);
 static void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum);
 static void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum);
-
-static void dump_selector_list(css_selector *list, char **ptr);
-static void dump_selector(css_selector *selector, char **ptr);
-static void dump_selector_detail(css_selector_detail *detail, char **ptr);
-static void dump_string(lwc_string *string, char **ptr);
 
 static css_error resolve_url(void *pw, const char *base, lwc_string *rel, lwc_string **abs)
 {
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
 
     ctx.buf = malloc(ctx.buflen);
     if (ctx.buf == NULL) {
-        printf("Failed allocating %u bytes\n", (unsigned int)ctx.buflen);
+        printf("Failed allocating %zu bytes\n", ctx.buflen);
         return 1;
     }
 
@@ -354,7 +354,7 @@ static void report_fail(const uint8_t *data, size_t datalen, exp_entry *e)
 {
     uint32_t bcoff;
 
-    printf("    Data: %.*s\n", (int)datalen, data);
+    printf("    Data: %.*s\n", (int)datalen, (const char *)data);
 
     printf("    Expected entry:\n");
     printf("	entry type:%d name:%s\n", e->type, e->name);
@@ -364,12 +364,6 @@ static void report_fail(const uint8_t *data, size_t datalen, exp_entry *e)
         printf("%.2x ", ((uint8_t *)e->bytecode)[bcoff]);
     }
     printf("\n	  string table len:%" PRIuMAX " used %" PRIuMAX "\n", (uintmax_t)e->stlen, (uintmax_t)e->stused);
-    /*
-        struct stentry {
-            size_t off;
-            char *string;
-        } *stringtab;
-    */
 }
 
 void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
@@ -378,7 +372,7 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
     css_stylesheet *sheet;
     css_rule *rule;
     css_error error;
-    size_t e;
+    size_t e_idx;
     static int testnum;
     bool failed;
 
@@ -435,7 +429,7 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
         }
     }
 
-    e = 0;
+    e_idx = 0;
     testnum++;
 
     printf("Test %d: ", testnum);
@@ -445,22 +439,22 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
         assert(0 && "Unexpected number of rules");
     }
 
-    for (rule = sheet->rule_list; rule != NULL; rule = rule->next, e++) {
-        if (rule->type != exp[e].type) {
-            printf("%d: Got type %d. Expected %d\n", testnum, rule->type, exp[e].type);
+    for (rule = sheet->rule_list; rule != NULL; rule = rule->next, e_idx++) {
+        if (rule->type != exp[e_idx].type) {
+            printf("%d: Got type %d. Expected %d\n", testnum, rule->type, exp[e_idx].type);
             assert(0 && "Types differ");
         }
 
         switch (rule->type) {
         case CSS_RULE_SELECTOR:
-            failed = validate_rule_selector((css_rule_selector *)rule, &exp[e]);
+            failed = validate_rule_selector((css_rule_selector *)rule, &exp[e_idx]);
             break;
         case CSS_RULE_CHARSET:
-            validate_rule_charset((css_rule_charset *)rule, &exp[e], testnum);
+            validate_rule_charset((css_rule_charset *)rule, &exp[e_idx], testnum);
             failed = false;
             break;
         case CSS_RULE_IMPORT:
-            validate_rule_import((css_rule_import *)rule, &exp[e], testnum);
+            validate_rule_import((css_rule_import *)rule, &exp[e_idx], testnum);
             failed = false;
             break;
         default:
@@ -470,12 +464,12 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
         }
 
         if (failed) {
-            report_fail(data, len, &exp[e]);
+            report_fail(data, len, &exp[e_idx]);
             assert(0);
         }
     }
 
-    assert(e == explen);
+    assert(e_idx == explen);
 
     css_stylesheet_destroy(sheet);
 
@@ -483,7 +477,7 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
 }
 
 
-bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
+static bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 {
     char name[MAX_RULE_NAME_LEN];
     char *ptr = name;
@@ -517,7 +511,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                "    No bytecode expected but some created\n");
         return true;
     } else if (e->bytecode != NULL && s->style != NULL) {
-        size_t i;
+        size_t i_off;
 
         if ((s->style->used * sizeof(css_code_t)) != e->bcused) {
             printf("FAIL Bytecode lengths differ\n"
@@ -526,11 +520,11 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
             return true;
         }
 
-        for (i = 0; i < e->bcused; i++) {
+        for (i_off = 0; i_off < e->bcused; i_off++) {
             size_t j;
 
             for (j = 0; j < e->stused; j++) {
-                if (e->stringtab[j].off == i)
+                if (e->stringtab[j].off == i_off)
                     break;
             }
 
@@ -539,17 +533,17 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 lwc_string *p;
 
                 p = NULL;
-                css__stylesheet_string_get(s->style->sheet, (s->style->bytecode[i / sizeof(css_code_t)]), &p);
+                css__stylesheet_string_get(s->style->sheet, (s->style->bytecode[i_off / sizeof(css_code_t)]), &p);
 
                 if (p == NULL) {
                     /* ODR/Null fix: gracefully handle NULL string from sheet */
-                    printf("FAIL String pointer is NULL for index %u\n", (unsigned int)s->style->bytecode[i / sizeof(css_code_t)]);
+                    printf("FAIL String pointer is NULL for index %u\n", (unsigned int)s->style->bytecode[i_off / sizeof(css_code_t)]);
                     return true;
                 }
 
                 bool is_token_stream = false;
-                if (i >= 2 * sizeof(css_code_t)) {
-                    css_code_t opv = s->style->bytecode[i / sizeof(css_code_t) - 2];
+                if (i_off >= 2 * sizeof(css_code_t)) {
+                    css_code_t opv = s->style->bytecode[i_off / sizeof(css_code_t) - 2];
                     /* Custom property value is the second string after OPV */
                     if (getOpcode(opv) == CSS_PROP_CUSTOM_PROPERTY) {
                         is_token_stream = true;
@@ -566,18 +560,18 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                         memcpy(&n_tokens, data, sizeof(uint32_t));
                         char *merged = malloc(lwc_string_length(p) + 1);
                         size_t m_off = 0;
-                        const uint8_t *ptr = data + sizeof(uint32_t);
+                        const uint8_t *ptr_data = data + sizeof(uint32_t);
                         const uint8_t *end = data + lwc_string_length(p);
                         for (uint32_t k = 0; k < n_tokens; k++) {
                             css_token tok;
-                            if (ptr + sizeof(css_token) > end) break;
-                            memcpy(&tok, ptr, sizeof(css_token));
-                            ptr += sizeof(css_token);
+                            if (ptr_data + sizeof(css_token) > end) break;
+                            memcpy(&tok, ptr_data, sizeof(css_token));
+                            ptr_data += sizeof(css_token);
                             if (tok.data.len > 0) {
-                                if (ptr + tok.data.len > end) break;
-                                memcpy(merged + m_off, ptr, tok.data.len);
+                                if (ptr_data + tok.data.len > end) break;
+                                memcpy(merged + m_off, ptr_data, tok.data.len);
                                 m_off += tok.data.len;
-                                ptr += tok.data.len;
+                                ptr_data += tok.data.len;
                             }
                         }
                         merged[m_off] = '\0';
@@ -586,35 +580,32 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                                    "    Got string '%s'. Expected '%s'\n",
                                    merged, e->stringtab[j].string);
                             free(merged);
-                        return false;
+                            return true;
                         }
                         free(merged);
+                        i_off += sizeof(css_code_t) - 1;
+                        continue;
                     }
                 }
 
-                if (!is_token_stream && (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
-                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0)) {
-                {
-                char got_str[4096];
-                deserialize_and_dump(p, got_str, sizeof(got_str));
-                if (strcmp(got_str, e->stringtab[j].string) != 0) {
-                    printf("FAIL Strings differ\n"
-                           "    Got string '%s'. "
-                           "Expected '%s'\n",
-                        (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return false;
-                        got_str, e->stringtab[j].string);
-                    return true;
+                if (!is_token_stream) {
+                    char got_str[4096];
+                    deserialize_and_dump(p, got_str, sizeof(got_str));
+                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                        printf("FAIL Strings differ\n"
+                               "    Got string '%s'. Expected '%s'\n",
+                               got_str, e->stringtab[j].string);
+                        return true;
+                    }
                 }
-            }
 
-                i += sizeof(css_code_t) - 1;
-            } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
+                i_off += sizeof(css_code_t) - 1;
+            } else if (((uint8_t *)s->style->bytecode)[i_off] != e->bytecode[i_off]) {
                 printf("FAIL Bytecode differs\n"
                        "    Bytecode differs at %u\n	",
-                    (int)i);
+                    (int)i_off);
                 for (unsigned a = 0; a < e->bcused; a++) {
-                    if (a == i) {
+                    if (a == i_off) {
                         printf("[%.2x] ", ((uint8_t *)s->style->bytecode)[a]);
                     } else {
                         printf("%.2x ", ((uint8_t *)s->style->bytecode)[a]);
@@ -628,7 +619,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
     return false;
 }
 
-void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum)
+static void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum)
 {
     char name[MAX_RULE_NAME_LEN];
     char *ptr = name;
@@ -642,7 +633,7 @@ void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum)
     }
 }
 
-void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum)
+static void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum)
 {
     if (strncmp(lwc_string_data(s->url), e->name, lwc_string_length(s->url)) != 0) {
         printf("%d: Got URL '%.*s'. Expected '%s'\n", testnum, (int)lwc_string_length(s->url), lwc_string_data(s->url),
@@ -653,7 +644,7 @@ void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum)
     css_stylesheet_destroy(s->sheet);
 }
 
-void dump_selector_list(css_selector *list, char **ptr)
+static void dump_selector_list(css_selector *list, char **ptr)
 {
     if (list->combinator != NULL) {
         dump_selector_list(list->combinator, ptr);
@@ -683,7 +674,7 @@ void dump_selector_list(css_selector *list, char **ptr)
     dump_selector(list, ptr);
 }
 
-void dump_selector(css_selector *selector, char **ptr)
+static void dump_selector(css_selector *selector, char **ptr)
 {
     css_selector_detail *d = &selector->data;
 
@@ -697,7 +688,7 @@ void dump_selector(css_selector *selector, char **ptr)
     }
 }
 
-void dump_selector_detail(css_selector_detail *detail, char **ptr)
+static void dump_selector_detail(css_selector_detail *detail, char **ptr)
 {
     if (detail->negate)
         *ptr += sprintf(*ptr, ":not(");
@@ -828,7 +819,7 @@ void dump_selector_detail(css_selector_detail *detail, char **ptr)
         *ptr += sprintf(*ptr, ")");
 }
 
-void dump_string(lwc_string *string, char **ptr)
+static void dump_string(lwc_string *string, char **ptr)
 {
     *ptr += sprintf(*ptr, "%.*s", (int)lwc_string_length(string), lwc_string_data(string));
 }
