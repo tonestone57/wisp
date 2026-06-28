@@ -36,7 +36,7 @@ To keep the core clean, Wisp utilizes an internal rendering layer called **libre
 
 ## 2. Fixed-Tile Redraw Strategy
 
-Wisp is transitioning from a union-based dirty region system (which suffers from "overdraw hell") to a **Fixed-Tile Redraw** strategy.
+Wisp utilizes a **Fixed-Tile Redraw** strategy, replacing the legacy union-based dirty region system (which suffered from "overdraw hell").
 
 ### Why Fixed Tiles?
 1.  **Cache Locality**: i586 and older processors benefit significantly from cache locality. A 256x256 tile represents a tiny, contiguous chunk of memory that is more likely to stay in the CPU's L1/L2 cache. **Cache locality is the surrogate SIMD for older hardware.**
@@ -58,6 +58,6 @@ Wisp is transitioning from a union-based dirty region system (which suffers from
 |---|---|---|
 | **Windows** | Blend2D -> GDI | Finished (Parity with Qt) |
 | **Linux** | Blend2D -> Qt6/GTK3 | Reference implementation |
-| **Haiku** | Blend2D -> libbe (BView) | Native implementation |
+| **Haiku** | Blend2D -> libbe (BView) | Finished (Native implementation) |
 | **macOS** | Blend2D -> Cocoa | Leveraging AArch64 JIT |
 | **i586** | Blend2D (Scalar) | Operational, benefits from tiling |
