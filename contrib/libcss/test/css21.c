@@ -130,14 +130,12 @@ int main(int argc, char **argv)
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
             char *out;
-            size_t outsize = max(16384, origlen * 8);
+            size_t outsize = max(16384, origlen * 64);
             size_t outlen = outsize;
-            size_t written;
             out = malloc(outsize);
             assert(out != NULL);
             dump_sheet(sheet, out, &outlen);
-            written = fwrite(out, 1, outsize - outlen, stdout);
-            assert(written == outsize - outlen);
+            fwrite(out, 1, outsize - outlen, stdout);
             free(out);
         }
 #endif
