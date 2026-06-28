@@ -157,7 +157,7 @@ void js_destroythread(jsthread *thread)
         dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
         dom_node_unref((struct dom_node *)l->target);
         dom_string_unref(l->type);
-        if (!thread->closed) JS_FreeValue(thread->ctx, l->func);
+        JS_FreeValue(thread->ctx, l->func);
         dom_event_listener_unref(l->listener);
         free(l);
         l = next;
@@ -165,18 +165,33 @@ void js_destroythread(jsthread *thread)
     struct qjs_event_map *e = thread->events;
     while (e) {
         struct qjs_event_map *next = e->next;
-        if (!thread->closed) JS_FreeValue(thread->ctx, e->js_evt);
+        JS_FreeValue(thread->ctx, e->js_evt);
         dom_event_unref(e->evt);
         free(e);
         e = next;
     }
+
+    // Break MutationObserver cycles and orphan them
+    while (thread->mutation_observers) {
+        struct WispMutationObserver *mo = (struct WispMutationObserver *)thread->mutation_observers;
+        thread->mutation_observers = mo->next;
+        // Important: set next to NULL to orphan it, but let finalizer handle JSValue and struct freeing
+        mo->next = NULL;
+    }
+
+    // Orphan IntersectionObservers
+    while (thread->intersection_observers) {
+        struct WispIntersectionObserver *io = (struct WispIntersectionObserver *)thread->intersection_observers;
+        thread->intersection_observers = io->next;
+        // io struct will be freed by finalizer later
+    }
+
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
-        if (!thread->closed) {
-            while (JS_ExecutePendingJob(rt, &ctx1) > 0);
-        }
+        while (JS_ExecutePendingJob(rt, &ctx1) > 0);
         qjs_finalise_dom_bridge(thread->ctx);
+        JS_SetContextOpaque(thread->ctx, NULL);
         JS_FreeContext(thread->ctx);
     }
     if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);

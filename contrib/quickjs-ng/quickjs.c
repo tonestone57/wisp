@@ -2303,6 +2303,7 @@ void JS_FreeRuntime(JSRuntime *rt)
     init_list_head(&rt->job_list);
 
     JS_RunGC(rt);
+    JS_RunGC(rt);
 
 #ifdef ENABLE_DUMPS // JS_DUMP_LEAKS
     /* leaking objects */
