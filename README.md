@@ -14,13 +14,15 @@ Current development is focused on completing the CSS Variables implementation, a
 
 ### Core Features Status (June 2026)
 *   **[Finished] Unified Rendering (Blend2D)**: Blend2D is the primary rendering engine across all frontends, ensuring massive code deduplication and industry-leading software rasterization.
+*   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 tile strategy implemented to optimize performance and cache locality.
+*   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and the fixed-tile redraw strategy.
 *   **[Finished] Position: Sticky**: Full support for multi-axis sticky positioning with scroll-container constraints.
 *   **[Finished] Stateful Vector Path API**: Efficient path rendering (MoveTo, LineTo, BezierTo) across all modern frontends.
 *   **[Finished] ISOBMFF & AVIF**: Native support for AVIF, HEIC, and HEIF formats via linked submodules.
-*   **[Finished] QuickJS-ng Integration**: Migration to QuickJS-ng for ES2023+ support via submodule.
+*   **[Finished] QuickJS-ng Integration**: Migration to QuickJS-ng (v0.15.1) for ES2023+ support.
 *   **[Partial] CSS Grid**: Robust 3-phase auto-placement and FR unit distribution; dense packing refinements ongoing.
 *   **[Partial] CSS Flexbox**: Support for flex-grow, shrink, auto-margins, and column-flex two-pass resolution.
-*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Transitioning from union-based invalidation to a **Scale-Aware Fixed-Tile Redraw** strategy.
+*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Refinement of child-clipping in tiled redraw in progress.
 *   **[Partial] CSS Variables**: Parsing and selection of `var()` complete; resolution pass is active with minor regressions.
 
 ## Biggest differences from Netsurf
@@ -31,7 +33,7 @@ Current development is focused on completing the CSS Variables implementation, a
 * Simplified frontend development
 * **Modern CSS Features**: Native support for CSS Grid, Flexbox, `calc()`, and `position: sticky`.
 * **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support. Automated WebIDL binding generation ensures rapid coverage of modern DOM APIs.
-* **Incremental Layout**: High-performance "dirty-bit" based reflow system designed to minimize CPU cycles on dynamic modern pages.
+* **Tiled Incremental Layout**: High-performance "dirty-bit" based reflow system with a **Fixed-Tile Redraw** strategy to minimize CPU cycles and overdraw.
 * **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
 ## Known Issues
@@ -39,7 +41,9 @@ Current development is focused on completing the CSS Variables implementation, a
 * **[Partial] JS Observers**: `MutationObserver` and `IntersectionObserver` have infrastructure stubs but lack deep LibDOM integration.
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
 * **[Incomplete] Percentage Widths**: Missing resolution for IFRAMEs and certain text-indent contexts in the layout engine.
-* **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (under investigation).
+* **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (confirmed by LeakSanitizer).
+* **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
+* **[Bug] Binding Mismatches**: Conflict between manual implementations and generated WebIDL headers in `eventtarget_impl.c` and `xhr_impl.c`.
 
 ## Building and installation
 Wisp can be built:

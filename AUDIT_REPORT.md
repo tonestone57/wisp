@@ -13,8 +13,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 | `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged (Forked for Grid/Calc) |
 | `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged (Forked for SVG/JS) |
 | `libhubbub` | Jan 2026 Sync | Upstream Git | **[Finished]** Moderate Divergence |
-| `libnsbmp` | Jan 2026 Sync | Upstream Git | **[Finished]** Up-to-date |
-| `libnsgif` | Jan 2026 Sync | Upstream Git | **[Finished]** Up-to-date |
+| `libnsbmp` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
+| `libnsgif` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
 | `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
 | `LibreSSL` | Linked System | 4.0.0 | **[Finished]** Compatible |
 
@@ -24,14 +24,17 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Position: Sticky**: Full support for sticky positioning, including multi-axis clamping and scroll-container constraints. Verified in `layout_apply_sticky_clamping`.
 *   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
 *   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI), and Blend2D.
+*   **Unified Rendering (Blend2D)**: Unified rendering backbone across all frontends for pixel-perfect consistency.
+*   **Fixed-Tile Redraw**: Scale-aware 256x256 tile strategy implemented to optimize performance and cache locality.
+*   **Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and fixed-tile redraw strategy.
 *   **Incremental Layout Core**: Dual-pass reflow system using `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags.
 *   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL.
 
 ### 3.2 Partial Implementation [Partial]
 *   **CSS Variables**: Selection and parsing of `var()` and custom properties are complete; resolution pass during cascade is in progress.
-*   **CSS Grid**: Core layout logic implemented in LibCSS fork; 3-phase auto-placement and FR unit distribution are functional. Specific edge cases in dense packing remain.
+*   **CSS Grid**: Core layout logic implemented in LibCSS fork; 3-phase auto-placement and FR unit distribution are functional. Specific edge cases in dense packing (dense flow) remain.
 *   **CSS Flexbox**: Supports flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
-*   **Incremental Reflow**: Functional, but bounding box union logic in `box_mark_dirty` lacks optimization for elements entirely contained within parent dirty regions.
+*   **Incremental Reflow**: Functional, but bounding box union logic in `box_mark_dirty` lacks optimization for elements entirely contained within parent dirty regions. Tiling child-clipping is under refinement.
 *   **CSS Counters**: Initial support for counters; nested counter scope resolution needs implementation in `box_construct.c`.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
@@ -53,9 +56,10 @@ The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`)
 ## 5. Bugs and Technical Debt
 
 ### 5.1 Identified Bugs
-*   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
-*   **[Bug] QuickJS Leaks**: LeakSanitizer identified ~720 bytes leaked during JS runtime teardown.
+*   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code. Other tests (e.g. `urldbtest.c`) also exhibit this collision.
+*   **[Bug] QuickJS Leaks**: LeakSanitizer identified ~720 bytes leaked during JS runtime teardown across 27 allocations.
 *   **[Bug] CSS Variable Regression**: `libcss_parse_auto` fails on certain custom property definitions involving complex fallbacks.
+*   **[Bug] Binding Type Mismatch**: Manual implementation signatures in `eventtarget_impl.c` and `xhr_impl.c` conflict with generated headers.
 
 ### 5.2 Technical Debt
 *   **Box Construction**: `box_construct.c` lacks full support for nested CSS counters and proper tab character expansion (TODOs at lines 420, 1847).

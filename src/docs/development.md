@@ -103,14 +103,14 @@ content quickly.
 # Javascript
 
 Javascript provision is split into four parts:
-- An engine that takes source code and executes it.
-- Interfaces between the program and the web page.
+- An engine (QuickJS-ng) that takes source code and executes it.
+- Interfaces between the program and the web page (WebIDL generated bindings).
 - Browser support to retrieve and manage the source code to be executed.
 - Browser support for the dispatch of events from user interface.
 
 ## Library
 
-JavaScript is provided by integrating the QuickJS-ng (v0.15.1) engine. This provides modern ES2023+ support and efficient memory usage.
+JavaScript is provided by integrating the **QuickJS-ng (v0.15.1)** engine. This provides modern ES2023+ support and efficient memory usage.
 
 ## Interface binding
 

@@ -24,7 +24,7 @@ The `box_flags` in `include/wisp/content/handlers/html/box.h` use three distinct
 *   Redraw is triggered at the end of `layout_document` in `src/content/handlers/html/layout.c` using the accumulated `dirty_rect`.
 
 ## 4. Tiled Redraw Strategy
-Wisp is transitioning from a union-based dirty region system to a **Fixed-Tile Redraw** strategy to eliminate "overdraw hell" and improve performance on cache-constrained hardware (like i586).
+Wisp has successfully transitioned from a union-based dirty region system to a **Fixed-Tile Redraw** strategy to eliminate "overdraw hell" and improve performance on cache-constrained hardware (like i586). This is now the core architectural standard for all modern frontends.
 
 ### Key Architectural Decisions:
 1.  **Platform-Defined Fixed Tile Size**:

@@ -7,11 +7,11 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 
 | Library | Repo Version | Latest Online (June 2026) | Status |
 |---------|--------------|---------------------------|--------|
-| `quickjs-ng` | Vendored | Latest | **[Finished]** Tracking latest |
-| `blend2d` | Vendored | v0.21.2 | **[Finished]** Tracking latest |
-| `libavif` | Vendored | v1.4.2 | **[Finished]** Tracking latest |
-| `libnsbmp` | Vendored | Latest | **[Finished]** Tracking latest |
-| `libnsgif` | Vendored | Latest | **[Finished]** Tracking latest |
+| `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
+| `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
+| `libavif` | v1.4.2 | v1.4.2 | **[Finished]** Up-to-date |
+| `libnsbmp` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
+| `libnsgif` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
 | `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged for Grid/Calc |
 | `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged for SVG/JS |
 | `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
@@ -21,7 +21,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 ### 3.1 Core Layout engine
 *   **Incremental Layout [Partial]**: Utilizes `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags. Correctly skips reflows for stable subtrees.
     *   *Optimization*: Dirty rectangle accumulation in `box_mark_dirty` ensures previous positions are cleared.
-    *   *Fixed-Tile Redraw*: Unified strategy using scale-aware fixed tiles (256x256 for i586/retro, 512x512 for High-DPI). Optimizes cache locality and eliminates overdraw.
+    *   *Fixed-Tile Redraw [Finished]*: Unified strategy using scale-aware fixed tiles (256x256 for i586/retro, 512x512 for High-DPI). Optimizes cache locality and eliminates overdraw.
 *   **CSS Grid [Partial]**: Core layout logic and 3-phase auto-placement implemented.
     *   *Optimization*: Pass 3 uses cached placement data to avoid re-parsing CSS during final stretch.
     *   *Improvement needed*: Dense packing algorithm and complex spanning edge cases require further refinement.
@@ -32,7 +32,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 
 ### 3.2 JavaScript Subsystem (QuickJS-ng)
 *   **Integration [Finished]**: Migration to QuickJS-ng v0.15.1 complete.
-*   **Binding Generator [Finished]**: Automated WebIDL compiler handles boilerplate and generates ~1,500 weak stubs to maintain linker compatibility.
+*   **Binding Generator [Finished]**: Automated WebIDL compiler handles boilerplate and generates weak stubs to maintain linker compatibility.
 *   **Observers [Partial]**: `MutationObserver` and `IntersectionObserver` have manual implementation infrastructure.
     *   *Incomplete*: Deep integration with LibDOM's internal mutation hooks is pending.
 *   **Memory Management [Partial]**: Interaction between QuickJS GC and LibDOM node mapping requires monitoring.
@@ -51,8 +51,9 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **Haiku / BeOS [Finished]**: Native `libbe` frontend (BView) unified with the Blend2D rendering backend and fixed-tile redraw strategy.
 
 ## 4. Bugs and Technical Debt
-*   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol.
+*   **[Bug] ODR Violation**: `journal_test` and `urldbtest` fail due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
 *   **[Bug] LibCSS Regression**: `libcss_parse_auto_custom-properties_dat` failing on complex variable fallbacks.
+*   **[Bug] Binding Conflicts**: Type mismatches in `eventtarget_impl.c` and `xhr_impl.c` prevent compilation when unit tests are enabled.
 *   **[Debt] Box Construction**: Missing support for nested CSS counters and tab character expansion in `box_construct.c`.
 
 ## 5. Future Recommendations and Optimizations
