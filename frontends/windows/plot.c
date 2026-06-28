@@ -27,6 +27,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <windows.h>
 
@@ -834,22 +835,86 @@ static nserror path(const struct redraw_context *ctx, const plot_style_t *pstyle
             i += 2;
             MoveToEx(plot_hdc, x, y, (LPPOINT)NULL);
             break;
-        case PLOTTER_PATH_LINE:
-            x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-            y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
-            i += 2;
-            LineTo(plot_hdc, x, y);
+        case PLOTTER_PATH_LINE: {
+            /* Batch consecutive LINE commands into PolyLineTo */
+            unsigned int count = 1;
+            int next_i = i + 2;
+            while (next_i < (int)n && (int)p[next_i] == PLOTTER_PATH_LINE) {
+                count++;
+                next_i += 3;
+            }
+            if (count > 1) {
+                POINT stack_pts[32];
+                POINT *pts_arr = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count);
+                if (pts_arr) {
+                    for (unsigned int j = 0; j < count; j++) {
+                        pts_arr[j].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                        pts_arr[j].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                        i += 3;
+                    }
+                    PolyLineTo(plot_hdc, pts_arr, count);
+                    if (pts_arr != stack_pts) free(pts_arr);
+                    i--; /* Step back because switch(cmd) will increment i next loop */
+                } else {
+                    x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                    y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                    i += 2;
+                    LineTo(plot_hdc, x, y);
+                }
+            } else {
+                x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                i += 2;
+                LineTo(plot_hdc, x, y);
+            }
             break;
-        case PLOTTER_PATH_BEZIER:
-            pts[0].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-            pts[0].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
-            pts[1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
-            pts[1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
-            pts[2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
-            pts[2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
-            i += 6;
-            PolyBezierTo(plot_hdc, pts, 3);
+        }
+        case PLOTTER_PATH_BEZIER: {
+            /* Batch consecutive BEZIER commands into PolyBezierTo */
+            unsigned int count = 1;
+            int next_i = i + 6;
+            while (next_i < (int)n && (int)p[next_i] == PLOTTER_PATH_BEZIER) {
+                count++;
+                next_i += 7;
+            }
+            if (count > 1) {
+                POINT stack_pts[32 * 3];
+                POINT *pts_arr = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count * 3);
+                if (pts_arr) {
+                    for (unsigned int j = 0; j < count; j++) {
+                        pts_arr[j * 3].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                        pts_arr[j * 3].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                        pts_arr[j * 3 + 1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
+                        pts_arr[j * 3 + 1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
+                        pts_arr[j * 3 + 2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
+                        pts_arr[j * 3 + 2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
+                        i += 7;
+                    }
+                    PolyBezierTo(plot_hdc, pts_arr, count * 3);
+                    if (pts_arr != stack_pts) free(pts_arr);
+                    i--; /* Step back because switch(cmd) will increment i next loop */
+                } else {
+                    pts[0].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                    pts[0].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                    pts[1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
+                    pts[1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
+                    pts[2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
+                    pts[2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
+                    i += 6;
+                    PolyBezierTo(plot_hdc, pts, 3);
+                }
+            } else {
+                pts[0].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                pts[0].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                pts[1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
+                pts[1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
+                pts[2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
+                pts[2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
+                i += 6;
+                PolyBezierTo(plot_hdc, pts, 3);
+            }
             break;
+        }
         case PLOTTER_PATH_CLOSE:
             CloseFigure(plot_hdc);
             break;
