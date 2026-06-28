@@ -71,7 +71,7 @@ const char *test_cookies_out_path = "src/test/data/cookies-out";
 
 const char *wikipedia_url = "http://www.wikipedia.org/";
 
-struct wisp_table *guit;
+extern struct wisp_table *guit;
 
 
 struct test_urls {
@@ -244,7 +244,6 @@ static void urldb_create(void)
     nserror res;
 
     /* mock bitmap interface */
-    extern struct wisp_table *guit;
     guit = &tst_table;
 
     // Before running each test, clear all entries
@@ -261,7 +260,6 @@ static void urldb_create_loaded(void)
     nserror res;
 
     /* mock bitmap interface */
-    extern struct wisp_table *guit;
     guit = &tst_table;
 
     // Before running each test, clear all entries

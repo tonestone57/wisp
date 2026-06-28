@@ -190,7 +190,7 @@ int qjs_init_mutationobserver(JSContext *ctx)
     qjs_init_mutationobserver_gen(ctx);
     JSValue proto = JS_GetClassProto(ctx, qjs_mutationobserver_class_id);
     JSValue ctor = JS_NewCFunction2(ctx, js_mutationobserver_constructor, "MutationObserver", 1, JS_CFUNC_constructor, 0);
-    JS_DefinePropertyValueStr(ctx, JS_GetGlobalObject(ctx), "MutationObserver", ctor, JS_PROP_C_W_E);
+    JSValue global_obj = JS_GetGlobalObject(ctx); JS_DefinePropertyValueStr(ctx, global_obj, "MutationObserver", ctor, JS_PROP_C_W_E); JS_FreeValue(ctx, global_obj);
     JS_FreeValue(ctx, proto);
     return 0;
 }

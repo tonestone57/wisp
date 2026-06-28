@@ -1064,6 +1064,7 @@ Suite *quickjs_suite(void)
     TCase *tc_core;
     TCase *tc_exec;
     TCase *tc_window;
+    TCase *tc_console;
 
     s = suite_create("QuickJS");
 

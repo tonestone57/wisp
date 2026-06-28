@@ -557,56 +557,22 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 }
 
                 if (is_token_stream) {
-                    /* Wisp binary token stream: deserialize for comparison */
-                    const uint8_t *data = (const uint8_t *)lwc_string_data(p);
-                    uint32_t n_tokens;
-                    if (lwc_string_length(p) < sizeof(uint32_t)) {
-                        is_token_stream = false; /* Not a valid stream */
-                    } else {
-                        memcpy(&n_tokens, data, sizeof(uint32_t));
-                        char *merged = malloc(lwc_string_length(p) + 1);
-                        size_t m_off = 0;
-                        const uint8_t *ptr = data + sizeof(uint32_t);
-                        const uint8_t *end = data + lwc_string_length(p);
-                        for (uint32_t k = 0; k < n_tokens; k++) {
-                            css_token tok;
-                            if (ptr + sizeof(css_token) > end) break;
-                            memcpy(&tok, ptr, sizeof(css_token));
-                            ptr += sizeof(css_token);
-                            if (tok.data.len > 0) {
-                                if (ptr + tok.data.len > end) break;
-                                memcpy(merged + m_off, ptr, tok.data.len);
-                                m_off += tok.data.len;
-                                ptr += tok.data.len;
-                            }
-                        }
-                        merged[m_off] = '\0';
-                        if (strcmp(merged, e->stringtab[j].string) != 0) {
-                            printf("FAIL Strings differ\n"
-                                   "    Got string '%s'. Expected '%s'\n",
-                                   merged, e->stringtab[j].string);
-                            free(merged);
-                        return false;
-                        }
-                        free(merged);
+                    char got_str[4096];
+                    deserialize_and_dump(p, got_str, sizeof(got_str));
+                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                        printf("FAIL Strings differ\n"
+                               "    Got string '%s'. "
+                               "Expected '%s'\n",
+                               got_str, e->stringtab[j].string);
+                        return true;
                     }
-                }
-
-                if (!is_token_stream && (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
-                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0)) {
-                {
-                char got_str[4096];
-                deserialize_and_dump(p, got_str, sizeof(got_str));
-                if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
                     printf("FAIL Strings differ\n"
-                           "    Got string '%s'. "
-                           "Expected '%s'\n",
+                           "    Got string '%.*s'. Expected '%s'\n",
                         (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return false;
-                        got_str, e->stringtab[j].string);
                     return true;
                 }
-            }
 
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {

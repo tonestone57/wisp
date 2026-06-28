@@ -81,8 +81,7 @@ void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
     if (heap->rt) {
-        hashmap_t *map = JS_GetRuntimeOpaque(heap->rt);
-        if (map) hashmap_destroy(map);
+        qjs_bridge_cleanup(heap->rt);
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -104,6 +103,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_document(t->ctx);
     qjs_init_window(t->ctx);
 
+    wisp_js_register_all_bindings(t->ctx);
+
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
     t->global_window_priv.node = win_priv;
@@ -116,9 +117,11 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     JS_DefinePropertyValueStr(t->ctx, global_obj, "window", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(t->ctx, global_obj, "self", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
-    if (doc_priv) JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_priv), JS_PROP_C_W_E);
+    if (doc_priv) {
+        JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_priv), JS_PROP_C_W_E);
+        dom_node_ref((dom_node *)doc_priv);
+    }
 
-    wisp_js_register_all_bindings(t->ctx);
     qjs_init_console(t->ctx);
     qjs_init_navigator(t->ctx);
     qjs_init_location(t->ctx);
@@ -126,12 +129,10 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_crypto(t->ctx);
     qjs_init_storage(t->ctx);
     qjs_init_xhr(t->ctx);
+    qjs_init_event(t->ctx);
     qjs_init_mutationobserver(t->ctx);
     qjs_init_intersectionobserver(t->ctx);
     qjs_init_intersectionobserverentry(t->ctx);
-    qjs_init_mutationrecord(t->ctx);
-    qjs_init_domrectreadonly(t->ctx);
-    qjs_init_domrect(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;
@@ -156,7 +157,7 @@ void js_destroythread(jsthread *thread)
         dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
         dom_node_unref((struct dom_node *)l->target);
         dom_string_unref(l->type);
-        JS_FreeValue(thread->ctx, l->func);
+        if (!thread->closed) JS_FreeValue(thread->ctx, l->func);
         dom_event_listener_unref(l->listener);
         free(l);
         l = next;
@@ -164,7 +165,7 @@ void js_destroythread(jsthread *thread)
     struct qjs_event_map *e = thread->events;
     while (e) {
         struct qjs_event_map *next = e->next;
-        JS_FreeValue(thread->ctx, e->js_evt);
+        if (!thread->closed) JS_FreeValue(thread->ctx, e->js_evt);
         dom_event_unref(e->evt);
         free(e);
         e = next;
@@ -172,10 +173,13 @@ void js_destroythread(jsthread *thread)
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
-        while (JS_ExecutePendingJob(rt, &ctx1) > 0);
+        if (!thread->closed) {
+            while (JS_ExecutePendingJob(rt, &ctx1) > 0);
+        }
         qjs_finalise_dom_bridge(thread->ctx);
         JS_FreeContext(thread->ctx);
     }
+    if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);
     free(thread);
 }
 
@@ -187,8 +191,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     memcpy(term_txt, txt, txtlen); term_txt[txtlen] = '\0';
     JSValue result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
     free(term_txt);
-    JSContext *ctx1;
-    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) > 0);
+
     bool success = !JS_IsException(result);
     if (!success) {
         JSValue exc = JS_GetException(thread->ctx);
@@ -197,6 +200,9 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);
     }
+
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) > 0);
     JS_FreeValue(thread->ctx, result);
     return success;
 }
@@ -214,12 +220,7 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         map = map->next;
     }
     if (JS_IsUndefined(js_evt)) {
-        js_evt = JS_NewObject(jsctx);
-        dom_string *type_str = NULL; dom_event_get_type(evt, &type_str);
-        if (type_str) {
-            JS_SetPropertyStr(jsctx, js_evt, "type", JS_NewStringLen(jsctx, (const char *)dom_string_data(type_str), dom_string_byte_length(type_str)));
-            dom_string_unref(type_str);
-        }
+        js_evt = qjs_new_event(jsctx, evt, true);
         struct qjs_event_map *new_map = malloc(sizeof(*new_map));
         if (new_map) {
             dom_event_ref(evt); new_map->evt = evt;

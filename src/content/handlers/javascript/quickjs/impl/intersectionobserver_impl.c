@@ -97,6 +97,6 @@ int qjs_init_intersectionobserver(JSContext *ctx)
     if (!JS_IsRegisteredClass(rt, qjs_intersectionobserver_class_id)) JS_NewClass(rt, qjs_intersectionobserver_class_id, &wisp_intersectionobserver_class);
     qjs_init_intersectionobserver_gen(ctx);
     JSValue ctor = JS_NewCFunction2(ctx, js_intersectionobserver_constructor, "IntersectionObserver", 1, JS_CFUNC_constructor, 0);
-    JS_DefinePropertyValueStr(ctx, JS_GetGlobalObject(ctx), "IntersectionObserver", ctor, JS_PROP_C_W_E);
+    JSValue global_obj = JS_GetGlobalObject(ctx); JS_DefinePropertyValueStr(ctx, global_obj, "IntersectionObserver", ctor, JS_PROP_C_W_E); JS_FreeValue(ctx, global_obj);
     return 0;
 }

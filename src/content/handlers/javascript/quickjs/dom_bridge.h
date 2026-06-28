@@ -20,7 +20,6 @@ extern JSClassID qjs_console_class_id;
 extern JSClassID qjs_location_class_id;
 extern JSClassID qjs_navigator_class_id;
 extern JSClassID qjs_storage_class_id;
-extern JSClassID qjs_xhr_class_id;
 extern JSClassID qjs_mutationobserver_class_id;
 extern JSClassID qjs_intersectionobserver_class_id;
 extern JSClassID qjs_domrect_class_id;
@@ -33,6 +32,7 @@ int qjs_init_text(JSContext *ctx);
 int qjs_init_attr(JSContext *ctx);
 int qjs_init_namednodemap(JSContext *ctx);
 int qjs_init_htmlcollection(JSContext *ctx);
+int qjs_init_event(JSContext *ctx);
 
 /* These are now generated in generated_bindings.h */
 /* We include it here so all components see the consistent generated signatures */
