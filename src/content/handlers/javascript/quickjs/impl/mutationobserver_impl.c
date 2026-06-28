@@ -93,13 +93,38 @@ static void mutation_hook(dom_mutation_hook_category category, struct dom_node *
     }
 }
 
+
+static void mutationobserver_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_mutationobserver_class_id);
+    if (priv && priv->node) {
+        WispMutationObserver *observer = priv->node;
+        JS_MarkValue(rt, observer->callback, mark_func);
+        JS_MarkValue(rt, observer->queue, mark_func);
+        JS_MarkValue(rt, observer->self, mark_func);
+    }
+}
+
 static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_mutationobserver_class_id);
     if (priv) {
         WispMutationObserver *observer = priv->node;
         if (observer) {
-            JS_FreeValueRT(rt, observer->callback); JS_FreeValueRT(rt, observer->queue);
+            struct jsthread *t = JS_GetContextOpaque(priv->ctx);
+            if (t) {
+                WispMutationObserver **curr = &t->mutation_observers;
+                while (*curr) {
+                    if (*curr == observer) {
+                        *curr = observer->next;
+                        break;
+                    }
+                    curr = &((*curr)->next);
+                }
+            }
+            JS_FreeValueRT(rt, observer->callback);
+            JS_FreeValueRT(rt, observer->queue);
+            JS_FreeValueRT(rt, observer->self);
             MutationObserverTarget *ot = observer->targets;
             while (ot) {
                 MutationObserverTarget *next = ot->next;
@@ -111,7 +136,7 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
     }
 }
 
-static JSClassDef wisp_mutationobserver_class = { "MutationObserver", .finalizer = mutationobserver_finalizer };
+static JSClassDef wisp_mutationobserver_class = { "MutationObserver", .finalizer = mutationobserver_finalizer, .gc_mark = mutationobserver_mark };
 
 JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target, JSValue options)
 {
@@ -176,7 +201,7 @@ static JSValue js_mutationobserver_constructor(JSContext *ctx, JSValueConst new_
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
     if (!priv) { JS_FreeValue(ctx, observer->callback); JS_FreeValue(ctx, observer->queue); free(observer); JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
     priv->magic = QJS_DOM_MAGIC; priv->node = observer; priv->is_dom_node = false; priv->ctx = ctx;
-    JS_SetOpaque(obj, priv); observer->self = obj;
+    JS_SetOpaque(obj, priv); observer->self = JS_DupValue(ctx, obj);
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (t) { observer->next = t->mutation_observers; t->mutation_observers = observer; }
     return obj;

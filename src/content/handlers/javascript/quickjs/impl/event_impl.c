@@ -106,6 +106,5 @@ int qjs_init_event(JSContext *ctx)
     JSValue ctor = JS_NewCFunction2(ctx, js_event_constructor, "Event", 1, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "Event", ctor);
-    JS_FreeValue(ctx, proto); JS_FreeValue(ctx, global_obj);
     return 0;
 }

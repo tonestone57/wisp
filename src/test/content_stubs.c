@@ -7,12 +7,13 @@
 #include "utils/nsurl/private.h"
 #include <stdlib.h>
 #include <string.h>
+struct wisp_table *guit;
 
 static struct nsurl *stub_url;
 
 /* Stub guit for tests - layout is NULL so svg.c will use approximation */
 static struct wisp_table stub_gui_table = {0};
-extern struct wisp_table *guit;
+
 
 void content_stubs_init(void)
 {

@@ -28,6 +28,7 @@
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
 #include "quickjs.h"
 #include "utils/hashmap.h"
+extern struct wisp_table *guit;
 
 static dom_document *create_test_document(void)
 {

@@ -15,6 +15,17 @@ static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
     if (priv) {
         WispIntersectionObserver *observer = priv->node;
         if (observer) {
+            struct jsthread *t = JS_GetContextOpaque(priv->ctx);
+            if (t) {
+                WispIntersectionObserver **curr = &t->intersection_observers;
+                while (*curr) {
+                    if (*curr == observer) {
+                        *curr = observer->next;
+                        break;
+                    }
+                    curr = &((*curr)->next);
+                }
+            }
             JS_FreeValueRT(rt, observer->callback); JS_FreeValueRT(rt, observer->queue);
             IntersectionObserverTarget *ot = observer->targets;
             while (ot) {

@@ -329,7 +329,7 @@ static struct gui_utf8_table mock_utf8_table = {
 static struct gui_misc_table mock_misc = {.schedule = mock_schedule};
 /* Define mock_gui matching struct neosurf_table (guit) */
 static struct wisp_table mock_gui = {.misc = &mock_misc, .utf8 = &mock_utf8_table};
-struct wisp_table *guit;
+
 
 /* Helper stubs */
 #undef NSLOG
@@ -377,6 +377,7 @@ size_t utf8_next(const char *s, size_t l, size_t o)
 
 /* Now Include */
 #include "content/handlers/html/box_construct.c"
+struct wisp_table *guit;
 
 static void box_complete_cb(struct html_content *c, bool status)
 {
