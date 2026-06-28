@@ -54,6 +54,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **[Bug] ODR Violation**: `journal_test` and `urldbtest` fail due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
 *   **[Bug] LibCSS Regression**: `libcss_parse_auto_custom-properties_dat` failing on complex variable fallbacks.
 *   **[Bug] Binding Conflicts**: Type mismatches in `eventtarget_impl.c` and `xhr_impl.c` prevent compilation when unit tests are enabled.
+*   **[Bug] Test Runner Compilation**: `contrib/libcss/test/parse-auto.c` fails to compile due to syntax errors, invalid format strings in `printf`, and missing function definitions.
 *   **[Debt] Box Construction**: Missing support for nested CSS counters and tab character expansion in `box_construct.c`.
 
 ## 5. Future Recommendations and Optimizations

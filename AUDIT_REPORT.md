@@ -59,7 +59,8 @@ The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`)
 *   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code. Other tests (e.g. `urldbtest.c`) also exhibit this collision.
 *   **[Bug] QuickJS Leaks**: LeakSanitizer identified ~720 bytes leaked during JS runtime teardown across 27 allocations.
 *   **[Bug] CSS Variable Regression**: `libcss_parse_auto` fails on certain custom property definitions involving complex fallbacks.
-*   **[Bug] Binding Type Mismatch**: Manual implementation signatures in `eventtarget_impl.c` and `xhr_impl.c` conflict with generated headers.
+*   **[Bug] Binding Type Mismatch**: Manual implementation signatures in `eventtarget_impl.c` and `xhr_impl.c` conflict with generated headers (e.g., `dispatchEvent` expecting `void*` but receiving `JSValue`).
+*   **[Bug] Test Runner Syntax Errors**: `contrib/libcss/test/parse-auto.c` contains multiple syntax errors (missing semicolons, invalid format strings) and calls to undefined functions.
 
 ### 5.2 Technical Debt
 *   **Box Construction**: `box_construct.c` lacks full support for nested CSS counters and proper tab character expansion (TODOs at lines 420, 1847).

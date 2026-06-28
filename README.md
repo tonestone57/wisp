@@ -44,6 +44,7 @@ Current development is focused on completing the CSS Variables implementation, a
 * **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (confirmed by LeakSanitizer).
 * **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
 * **[Bug] Binding Mismatches**: Conflict between manual implementations and generated WebIDL headers in `eventtarget_impl.c` and `xhr_impl.c`.
+* **[Bug] Test Runner Errors**: `libcss_parse_auto` fails to compile due to syntax errors and undefined function calls in `parse-auto.c`.
 
 ## Building and installation
 Wisp can be built:
