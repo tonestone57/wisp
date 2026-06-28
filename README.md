@@ -16,6 +16,9 @@ Current development is focused on completing the CSS Variables implementation, a
 *   **[Finished] Unified Rendering (Blend2D)**: Blend2D is the primary rendering engine across all frontends, ensuring massive code deduplication and industry-leading software rasterization.
 *   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 tile strategy implemented to optimize performance and cache locality.
 *   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and the fixed-tile redraw strategy.
+*   **[Finished] IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks.
+*   **[Finished] A/V Master Clock**: Synchronized audio and video tracks in the FFmpeg-based media pipeline.
+*   **[Finished] SIMD-Aligned Arena**: The arena allocator enforces 64-byte alignment for AVX-512 and SIMD optimizations.
 *   **[Finished] Position: Sticky**: Full support for multi-axis sticky positioning with scroll-container constraints.
 *   **[Finished] Stateful Vector Path API**: Efficient path rendering (MoveTo, LineTo, BezierTo) across all modern frontends.
 *   **[Finished] ISOBMFF & AVIF**: Native support for AVIF, HEIC, and HEIF formats via linked submodules.
@@ -38,7 +41,7 @@ Current development is focused on completing the CSS Variables implementation, a
 
 ## Known Issues
 * **[Partial] CSS Variables**: Variable resolution during cascade has known regressions in complex fallback scenarios.
-* **[Partial] JS Observers**: `MutationObserver` and `IntersectionObserver` have infrastructure stubs but lack deep LibDOM integration.
+* **[Partial] MutationObserver**: Integrated via LibDOM mutation hooks, but event categorization needs refinement.
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
 * **[Incomplete] Percentage Widths**: Missing resolution for IFRAMEs and certain text-indent contexts in the layout engine.
 * **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (confirmed by LeakSanitizer).

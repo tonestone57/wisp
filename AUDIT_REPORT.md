@@ -28,6 +28,9 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Fixed-Tile Redraw**: Scale-aware 256x256 tile strategy implemented to optimize performance and cache locality.
 *   **Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and fixed-tile redraw strategy.
 *   **Incremental Layout Core**: Dual-pass reflow system using `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags.
+*   **A/V Master Clock Sync**: Robust synchronization between audio and video tracks in `video.c` using a centralized master clock.
+*   **SIMD-Aligned Arena**: The arena allocator (`src/utils/arena.c`) enforces 64-byte alignment to support AVX-512 and other SIMD optimizations.
+*   **IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks in `layout.c` and `html.c`.
 *   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL.
 
 ### 3.2 Partial Implementation [Partial]
@@ -35,6 +38,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **CSS Grid**: Core layout logic implemented in LibCSS fork; 3-phase auto-placement and FR unit distribution are functional. Specific edge cases in dense packing (dense flow) remain.
 *   **CSS Flexbox**: Supports flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
 *   **Incremental Reflow**: Functional, but bounding box union logic in `box_mark_dirty` lacks optimization for elements entirely contained within parent dirty regions. Tiling child-clipping is under refinement.
+*   **MutationObserver**: Integrated with LibDOM via a native mutation hook system (`dom_document_set_mutation_hook`), though handling of specific "remove" vs "add" events needs refinement.
 *   **CSS Counters**: Initial support for counters; nested counter scope resolution needs implementation in `box_construct.c`.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
@@ -67,8 +71,8 @@ The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`)
 *   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` should be demoted to `NSLOG_LEVEL_DEEPDEBUG`.
 
 ## 6. Future Recommendations and Advice
-1.  **Redraw Optimization**: Move from union-based dirty regions to a tiled redraw strategy to improve performance on large, complex pages.
-2.  **LibDOM Native Observers**: Refactor LibDOM to provide a native internal notification system for mutations, which would allow a performant implementation of `MutationObserver`.
-3.  **SIMD Acceleration**: Leverage the 64-byte aligned arena allocator to implement SIMD-accelerated layout calculations and color space conversions.
-4.  **FFmpeg Pipeline**: Improve synchronization between audio and video tracks in `video.c` by implementing a more robust master-clock system.
-5.  **Binding Coverage**: Prioritize manual implementation of high-value WebIDL bindings like `Element.querySelector` and `Element.querySelectorAll`.
+1.  **Binding Coverage**: Prioritize manual implementation of high-value WebIDL bindings like `Element.querySelector` and `Element.querySelectorAll` (currently missing).
+2.  **Canvas 2D Bridge**: Implement the plotter bridge for the Canvas 2D API (WebIDL stubs exist but logic is pending).
+3.  **Percentage Width Refinement**: Complete resolution for IFRAMEs and text-indent in the layout engine.
+4.  **JS Event Loop Integration**: Tighten integration between the asynchronous fetch pipeline and the QuickJS event loop to reduce latency.
+5.  **SIMD Layout**: Utilize the 64-byte aligned arena to implement SIMD-accelerated layout calculations (e.g., for Grid/Flexbox).

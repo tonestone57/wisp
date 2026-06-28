@@ -22,6 +22,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **Incremental Layout [Partial]**: Utilizes `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags. Correctly skips reflows for stable subtrees.
     *   *Optimization*: Dirty rectangle accumulation in `box_mark_dirty` ensures previous positions are cleared.
     *   *Fixed-Tile Redraw [Finished]*: Unified strategy using scale-aware fixed tiles (256x256 for i586/retro, 512x512 for High-DPI). Optimizes cache locality and eliminates overdraw.
+*   **IntersectionObserver [Finished]**: Fully integrated into the layout engine via post-layout hooks in `layout.c` and `html.c`.
 *   **CSS Grid [Partial]**: Core layout logic and 3-phase auto-placement implemented.
     *   *Optimization*: Pass 3 uses cached placement data to avoid re-parsing CSS during final stretch.
     *   *Improvement needed*: Dense packing algorithm and complex spanning edge cases require further refinement.
@@ -33,8 +34,8 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 ### 3.2 JavaScript Subsystem (QuickJS-ng)
 *   **Integration [Finished]**: Migration to QuickJS-ng v0.15.1 complete.
 *   **Binding Generator [Finished]**: Automated WebIDL compiler handles boilerplate and generates weak stubs to maintain linker compatibility.
-*   **Observers [Partial]**: `MutationObserver` and `IntersectionObserver` have manual implementation infrastructure.
-    *   *Incomplete*: Deep integration with LibDOM's internal mutation hooks is pending.
+*   **Observers [Partial]**: `MutationObserver` has manual implementation infrastructure.
+    *   *Partial*: Integrated with LibDOM via native mutation hooks (`dom_document_set_mutation_hook`), though event refinement is ongoing.
 *   **Memory Management [Partial]**: Interaction between QuickJS GC and LibDOM node mapping requires monitoring.
     *   *Bug*: ~720 bytes leaked across 27 allocations during teardown (LeakSanitizer finding).
 
@@ -42,6 +43,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **ISOBMFF [Finished]**: Native sniffing and brand iteration for AVIF, HEIC, and HEIF.
 *   **FFmpeg [Finished]**: Asynchronous video decoding pipeline functional in `video.c`.
     *   *Optimization*: Software volume scaling and frame synchronization logic implemented.
+    *   *Finished*: A/V Master Clock synchronization between audio and video tracks.
 
 ### 3.4 Frontends
 *   **Windows GDI [Finished]**: Achieved parity with Qt frontend.
@@ -58,7 +60,8 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **[Debt] Box Construction**: Missing support for nested CSS counters and tab character expansion in `box_construct.c`.
 
 ## 5. Future Recommendations and Optimizations
-1.  **LibDOM Native Observers**: Implement a native notification system within LibDOM to allow `MutationObserver` to respond to DOM changes without relying on legacy MutationEvents.
-3.  **SIMD Alignment**: Strictly enforce 64-byte alignment in the arena allocator (`src/utils/arena.c`) to better support AVX-512 operations in layout and rendering.
+1.  **Binding Coverage**: Prioritize manual implementation of high-value WebIDL bindings like `Element.querySelector` and `Element.querySelectorAll`.
+2.  **Canvas 2D API**: Implement the bridge to the plotter engine (WebIDL stubs exist).
+3.  **Percentage Widths**: Resolve missing cases for IFRAMEs and text-indent in `layout.c`.
 4.  **JS Event Loop Integration**: Tighten integration between the asynchronous fetch pipeline and the QuickJS event loop to reduce latency in SPAs.
 5.  **Path Accumulation**: Further optimize the Windows GDI plotter by using `PolyBezier` for contiguous segments.
