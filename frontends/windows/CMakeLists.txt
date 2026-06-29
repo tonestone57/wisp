@@ -26,8 +26,11 @@ set(WISP_WINDOWS_SRCS
 	qpc_safe.c
 	schedule.c
 	windbg.c
-	window.c
+	window.cpp
 	audio.c
+	plot_d2d.cpp
+	font_dwrite.cpp
+	paint_d2d.cpp
 )
 
 
@@ -59,6 +62,12 @@ add_custom_target(windows_messages DEPENDS ${GENERATED_MESSAGES_FILES})
 # Radial gradients use fallback triangle decomposition since GDI lacks native radial support
 option(WISP_WINDOWS_NATIVE_LINEAR_GRADIENT "Use native GDI linear gradient rendering" ON)
 
+# Direct2D rendering pipeline
+option(WISP_WINDOWS_USE_D2D "Use native Direct2D/DirectWrite rendering pipeline" ON)
+if(WISP_WINDOWS_USE_D2D)
+    target_compile_definitions(wisp-windows PRIVATE WISP_WINDOWS_USE_D2D=1)
+endif()
+
 # Resource compilation
 set(WISP_WINDOWS_RC res/resource.rc)
 
@@ -76,7 +85,7 @@ add_dependencies(wisp-windows windows_messages)
 target_include_directories(wisp-windows PRIVATE ${GENERATED_MESSAGES_DIR} ${CMAKE_SOURCE_DIR}/src)
 
 if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-    target_link_libraries(wisp-windows wisp m ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32
+    target_link_libraries(wisp-windows wisp m ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32 d2d1 dwrite windowscodecs oleaut32
         # Static library dependencies (required when linking curl, libxml2, etc. statically)
         bcrypt       # Windows crypto API (used by libxml2)
         nghttp2      # HTTP/2 support
@@ -94,7 +103,7 @@ if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
         lzma         # XZ compression (used by libxml2)
     )
 else()
-    target_link_libraries(wisp-windows wisp m ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32
+    target_link_libraries(wisp-windows wisp m ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32 d2d1 dwrite windowscodecs oleaut32
         # Static library dependencies (required when linking curl, libxml2, etc. statically)
         bcrypt       # Windows crypto API (used by libxml2)
         nghttp2      # HTTP/2 support

@@ -393,6 +393,8 @@ static LRESULT nsws_drawable_keydown(struct gui_window *gw, HWND hwnd, WPARAM wp
 }
 
 
+extern void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd);
+
 /**
  * Handle paint messages.
  */
@@ -401,6 +403,11 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
     struct rect clip;
     PAINTSTRUCT ps;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
+
+    if (gw != NULL && gw->d2d_initialised) {
+        nsws_drawable_paint_d2d(gw, hwnd);
+        return 0;
+    }
 
     BeginPaint(hwnd, &ps);
 
@@ -412,10 +419,6 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
         clip.y0 = ps.rcPaint.top;
         clip.x1 = ps.rcPaint.right;
         clip.y1 = ps.rcPaint.bottom;
-
-        /**
-         * \todo work out why the heck scroll needs scaling
-         */
 
         browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &clip, &ctx);
 

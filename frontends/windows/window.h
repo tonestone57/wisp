@@ -73,6 +73,14 @@ struct gui_window {
 
     bool has_gradients; /**< true if page contains gradients (need full repaint on scroll) */
 
+    void *d2d_factory; /**< ID2D1Factory* */
+    void *d2d_rt; /**< ID2D1HwndRenderTarget* */
+    void *dwrite_factory; /**< IDWriteFactory* */
+    bool d2d_initialised; /**< true if D2D resources are valid */
+
+    void *d2d_transform_stack; /**< std::stack<D2D1_MATRIX_3X2_F>* */
+    void *d2d_stateful_path; /**< std::vector<d2d_path_command>* */
+
     RECT *fullscreen; /**< memorize non-fullscreen area */
     RECT redraw; /**< Area needing redraw. */
     int requestscrollx, requestscrolly; /**< scolling requested. */

@@ -391,6 +391,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     const char *addr;
     nsurl *url;
     extern struct gui_audio_table *win32_audio_table;
+    extern struct gui_layout_table *win_layout_table_dwrite;
     struct wisp_table win32_table = {
         .misc = &win32_misc_table,
         .window = win32_window_table,
@@ -405,6 +406,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
         .layout = win32_layout_table,
         .audio = win32_audio_table,
     };
+
+#ifdef WISP_WINDOWS_USE_D2D
+    win32_table.layout = win_layout_table_dwrite;
+#endif
 
     ret = wisp_register(&win32_table);
     if (ret != NSERROR_OK) {
