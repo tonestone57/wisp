@@ -490,7 +490,7 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
 }
 
 
-bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
+static bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 {
     char name[MAX_RULE_NAME_LEN];
     char *ptr = name;
@@ -576,10 +576,6 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 }
 
                 if (!is_token_stream) {
-                    char got_str[4096];
-                    deserialize_and_dump(p, got_str, sizeof(got_str), false);
-                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
-                } else {
                     if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                         memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
                         printf("FAIL Strings differ\n"

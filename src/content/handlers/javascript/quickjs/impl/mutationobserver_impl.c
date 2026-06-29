@@ -36,7 +36,7 @@ static JSValue mutation_callback_job(JSContext *ctx, int argc, JSValueConst *arg
     return JS_UNDEFINED;
 }
 
-static void mutation_hook(dom_mutation_hook_category category, struct dom_node *node, struct dom_node *related, struct dom_string *prev_value, struct dom_string *new_value, struct dom_string *attr_name, struct dom_string *attr_ns, void *ctx)
+static void mutation_hook(dom_mutation_hook_category category, dom_mutation_type type, struct dom_node *node, struct dom_node *related, struct dom_string *prev_value, struct dom_string *new_value, struct dom_string *attr_name, struct dom_string *attr_ns, void *ctx)
 {
     struct jsthread *t = ctx;
     if (!t) return;
@@ -60,12 +60,15 @@ static void mutation_hook(dom_mutation_hook_category category, struct dom_node *
                 if (category == DOM_MUTATION_HOOK_CHILD_LIST) {
                     record->type = strdup("childList");
                     /* For CHILD_LIST, related is the added/removed node */
-                    /* LibDOM currently doesn't specify if it's add or remove in the hook,
-                       assuming ADD for now as per PR 174's simplistic approach.
-                       In a real engine we'd need more info from LibDOM. */
-                    record->numAddedNodes = 1;
-                    record->addedNodes = malloc(sizeof(struct dom_node *));
-                    record->addedNodes[0] = related; dom_node_ref(related);
+                    if (type == DOM_MUTATION_ADDITION) {
+                        record->numAddedNodes = 1;
+                        record->addedNodes = malloc(sizeof(struct dom_node *));
+                        record->addedNodes[0] = related; dom_node_ref(related);
+                    } else if (type == DOM_MUTATION_REMOVAL) {
+                        record->numRemovedNodes = 1;
+                        record->removedNodes = malloc(sizeof(struct dom_node *));
+                        record->removedNodes[0] = related; dom_node_ref(related);
+                    }
                 } else if (category == DOM_MUTATION_HOOK_ATTRIBUTES) {
                     record->type = strdup("attributes");
                     if (attr_name) record->attributeName = dom_string_to_c(attr_name);

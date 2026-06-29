@@ -176,7 +176,11 @@ void js_destroythread(jsthread *thread)
     while (thread->mutation_observers) {
         struct WispMutationObserver *mo = (struct WispMutationObserver *)thread->mutation_observers;
         thread->mutation_observers = mo->next;
-        // Important: set next to NULL to orphan it, but let finalizer handle JSValue and struct freeing
+        // Break the cycle: mo->self holds a reference to the JS object which holds priv->node=mo.
+        // By freeing mo->self here, we allow the JS object's refcount to drop,
+        // which eventually triggers the finalizer to free the 'mo' struct.
+        JS_FreeValue(thread->ctx, mo->self);
+        mo->self = JS_UNDEFINED;
         mo->next = NULL;
     }
 

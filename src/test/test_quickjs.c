@@ -137,18 +137,21 @@ START_TEST(test_quickjs_mutation_observer_e2e)
         "observer.observe(div, { childList: true, attributes: true });\n"
         "observer.observe(span, { childList: true, characterData: true, subtree: true });\n"
         "div.setAttribute('id', 'test');\n"
-        "div.appendChild(document.createTextNode('hello'));\n"
+        "var text = document.createTextNode('hello');\n"
+        "div.appendChild(text);\n"
+        "div.removeChild(text);\n"
         "span.appendChild(document.createTextNode('world'));\n"
         "span.firstChild.data = 'new world';\n"
         "// At this point records should still be empty because it's a microtask\n"
         "if (records.length !== 0) throw new Error('Not asynchronous');\n"
         "var taken = observer.takeRecords();\n"
-        "// div: attr, childList. span: childList (for 'world'), characterData (for 'new world')\n"
-        "taken.length === 4 && \n"
+        "// div: attr, childList (add), childList (remove). span: childList (add), characterData\n"
+        "taken.length === 5 && \n"
         "taken[0].type === 'attributes' && taken[0].target === div &&\n"
-        "taken[1].type === 'childList' && taken[1].target === div &&\n"
-        "taken[2].type === 'childList' && taken[2].target === span &&\n"
-        "taken[3].type === 'characterData' && taken[3].target === span.firstChild;";
+        "taken[1].type === 'childList' && taken[1].addedNodes.length === 1 && taken[1].addedNodes[0] === text &&\n"
+        "taken[2].type === 'childList' && taken[2].removedNodes.length === 1 && taken[2].removedNodes[0] === text &&\n"
+        "taken[3].type === 'childList' && taken[3].target === span &&\n"
+        "taken[4].type === 'characterData' && taken[4].target === span.firstChild;";
 
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_mutation_observer_e2e");
     ck_assert(result == true);

@@ -152,7 +152,7 @@ dom_exception __dom_dispatch_attr_modified_event(dom_document *doc, dom_event_ta
 
     /* Fire mutation hook if present */
     if (doc->mutation_hook != NULL) {
-        doc->mutation_hook(DOM_MUTATION_HOOK_ATTRIBUTES,
+        doc->mutation_hook(DOM_MUTATION_HOOK_ATTRIBUTES, change,
             (struct dom_node *)et, (struct dom_node *)related,
             prev, new, attr_name, NULL, doc->mutation_hook_pw);
     }
@@ -218,7 +218,7 @@ dom_exception __dom_dispatch_characterdata_modified_event(
 
     /* Fire mutation hook if present */
     if (doc->mutation_hook != NULL) {
-        doc->mutation_hook(DOM_MUTATION_HOOK_CHARACTER_DATA,
+        doc->mutation_hook(DOM_MUTATION_HOOK_CHARACTER_DATA, DOM_MUTATION_MODIFICATION,
             (struct dom_node *)et, NULL,
             prev, new, NULL, NULL, doc->mutation_hook_pw);
     }
