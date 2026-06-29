@@ -82,6 +82,7 @@ void js_destroyheap(jsheap *heap)
     if (!heap) return;
     if (heap->rt) {
         qjs_bridge_cleanup(heap->rt);
+        JS_RunGC(heap->rt);
         JS_FreeRuntime(heap->rt);
     }
     free(heap);

@@ -18,7 +18,7 @@
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-static void deserialize_and_dump(lwc_string *p, char *buf, size_t buf_len) {
+static void deserialize_and_dump(lwc_string *p, char *buf, size_t buf_len, bool force_tokens) {
     const uint8_t *data = (const uint8_t *)lwc_string_data(p);
     size_t len = lwc_string_length(p);
 
@@ -30,7 +30,7 @@ static void deserialize_and_dump(lwc_string *p, char *buf, size_t buf_len) {
     uint32_t n_tokens;
     memcpy(&n_tokens, data, 4);
 
-    if (n_tokens > 1000) { /* Heuristic for non-binary string */
+    if (!force_tokens && n_tokens > 1000) { /* Heuristic for non-binary string */
         snprintf(buf, buf_len, "%.*s", (int)len, (const char *)data);
         return;
     }
@@ -565,7 +565,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 
                 if (is_token_stream) {
                     char got_str[4096];
-                    deserialize_and_dump(p, got_str, sizeof(got_str));
+                    deserialize_and_dump(p, got_str, sizeof(got_str), true);
                     if (strcmp(got_str, e->stringtab[j].string) != 0) {
                         printf("FAIL Strings differ\n"
                                "    Got string '%s'. "
