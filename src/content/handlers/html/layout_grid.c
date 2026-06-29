@@ -852,6 +852,17 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			}
 			/* else row_span defaults to 1 from get_grid_item_placement */
 
+			/* Clamp span to grid bounds */
+			if (col_span > num_cols) {
+				col_span = num_cols;
+			}
+			if (col_span < 1) {
+				col_span = 1;
+			}
+			if (row_span < 1) {
+				row_span = 1;
+			}
+
 			/* Determine item position based on explicit placement or
 			 * auto-flow */
 			/* Note: GRID_PLACEMENT_SPAN means auto-place but with a span,
@@ -861,7 +872,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			} else if (is_dense) {
 				item_col = -1;
 				if (flow_is_column) {
-					for (int scan_col = 0; item_col < 0; scan_col++) {
+					for (int scan_col = 0; item_col < 0 && scan_col < 1000; scan_col++) {
 						for (int scan_row = 0; scan_row <= num_rows - row_span; scan_row++) {
 							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
 								item_col = scan_col; item_row = scan_row; break;
@@ -869,7 +880,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 						}
 					}
 				} else {
-					for (int scan_row = 0; item_col < 0; scan_row++) {
+					for (int scan_row = 0; item_col < 0 && scan_row < occupied_max_rows; scan_row++) {
 						for (int scan_col = 0; scan_col <= num_cols - col_span; scan_col++) {
 							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
 								item_col = scan_col; item_row = scan_row; break;

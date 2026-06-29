@@ -239,7 +239,11 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
                     css__tokens_destroy(rf);
                 } else { css__tokens_destroy(fb); css__tokens_destroy(*dst); return CSS_INVALID; }
                 css__tokens_destroy(fb);
-            } else { css__tokens_destroy(*dst); return CSS_INVALID; }
+            } else {
+                /* Missing variable and no fallback: entire property is invalid per spec */
+                css__tokens_destroy(*dst);
+                return CSS_INVALID;
+            }
             i = end_paren;
         } else {
             css_token cloned = *t;

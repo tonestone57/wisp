@@ -563,19 +563,28 @@ static bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     }
                 }
 
-                if (is_token_stream) {
-                    char got_str[4096];
-                    deserialize_and_dump(p, got_str, sizeof(got_str), true);
-                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
-                        printf("FAIL Strings differ\n"
-                               "    Got string '%s'. "
-                               "Expected '%s'\n",
-                               got_str, e->stringtab[j].string);
-                        return true;
+                bool is_custom_prop_value = false;
+                if (i >= 2 * sizeof(css_code_t)) {
+                    css_code_t opv = s->style->bytecode[i / sizeof(css_code_t) - 2];
+                    if (getOpcode(opv) == CSS_PROP_CUSTOM_PROPERTY) {
+                        is_custom_prop_value = true;
                     }
                 }
 
-                if (!is_token_stream) {
+                if (is_custom_prop_value) {
+                    if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                        memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
+                        /* Fallback to token deserialization if raw comparison fails */
+                        char got_str[4096];
+                        deserialize_and_dump(p, got_str, sizeof(got_str), true);
+                        if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                             printf("FAIL Strings differ\n"
+                                    "    Got string '%.*s' (raw) or '%s' (tokens). Expected '%s'\n",
+                                 (int)lwc_string_length(p), lwc_string_data(p), got_str, e->stringtab[j].string);
+                             return true;
+                        }
+                    }
+                } else {
                     if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
                         memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
                         printf("FAIL Strings differ\n"
