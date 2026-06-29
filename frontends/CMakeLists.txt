@@ -20,6 +20,10 @@ if(WISP_BUILD_MONKEY_FRONTEND)
     add_subdirectory(monkey)
 endif()
 
+if(WISP_BUILD_MACOS_FRONTEND)
+    add_subdirectory(macos)
+endif()
+
 if(HAIKU OR BEOS)
     add_subdirectory(beos)
 endif()

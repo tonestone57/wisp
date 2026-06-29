@@ -54,10 +54,10 @@ static void macos_audio_fini(void) {
     AudioComponentInstanceDispose(outputUnit);
 }
 
-static struct gui_audio_table audio_table = {
+struct gui_audio_table macos_audio_table_data = {
     .init = macos_audio_init,
     .play = macos_audio_play,
     .fini = macos_audio_fini,
 };
 
-struct gui_audio_table *macos_audio_table = &audio_table;
+struct gui_audio_table *macos_audio_table = &macos_audio_table_data;
