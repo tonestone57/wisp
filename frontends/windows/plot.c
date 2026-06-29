@@ -44,6 +44,17 @@
 #include "windows/plot.h"
 #include "windows/window.h"
 
+/**
+ * Check if a transform is identity or NULL.
+ */
+static inline bool is_identity_transform(const float transform[6])
+{
+    if (transform == NULL) return true;
+    return (transform[0] == 1.0f && transform[1] == 0.0f &&
+            transform[2] == 0.0f && transform[3] == 1.0f &&
+            transform[4] == 0.0f && transform[5] == 0.0f);
+}
+
 HDC plot_hdc;
 static __thread struct gdi_path_command *stateful_path = NULL;
 static __thread unsigned int stateful_path_count = 0;
@@ -754,7 +765,6 @@ static nserror path(const struct redraw_context *ctx, const plot_style_t *pstyle
     COLORREF brushcol;
     LOGBRUSH lb;
     int i = 0;
-    POINT pts[3];
     int x, y;
 
     if (plot_hdc == NULL) {
@@ -824,14 +834,20 @@ static nserror path(const struct redraw_context *ctx, const plot_style_t *pstyle
 
     BeginPath(plot_hdc);
 
+    bool is_identity = is_identity_transform(transform);
+
     while (i < (int)n) {
         int cmd = (int)p[i++];
         switch (cmd) {
         default:
             break;
         case PLOTTER_PATH_MOVE:
-            x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-            y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+            if (is_identity) {
+                x = (int)p[i]; y = (int)p[i + 1];
+            } else {
+                x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+            }
             i += 2;
             MoveToEx(plot_hdc, x, y, (LPPOINT)NULL);
             break;
@@ -844,26 +860,38 @@ static nserror path(const struct redraw_context *ctx, const plot_style_t *pstyle
                 next_i += 3;
             }
             if (count > 1) {
-                POINT stack_pts[32];
-                POINT *pts_arr = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count);
+                POINT stack_pts[256];
+                POINT *pts_arr = (count <= 256) ? stack_pts : malloc(sizeof(POINT) * count);
                 if (pts_arr) {
                     for (unsigned int j = 0; j < count; j++) {
-                        pts_arr[j].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-                        pts_arr[j].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                        if (is_identity) {
+                            pts_arr[j].x = (LONG)p[i]; pts_arr[j].y = (LONG)p[i + 1];
+                        } else {
+                            pts_arr[j].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                            pts_arr[j].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                        }
                         i += 3;
                     }
                     PolyLineTo(plot_hdc, pts_arr, count);
                     if (pts_arr != stack_pts) free(pts_arr);
                     i--; /* Step back because switch(cmd) will increment i next loop */
                 } else {
-                    x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-                    y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                    if (is_identity) {
+                        x = (int)p[i]; y = (int)p[i + 1];
+                    } else {
+                        x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                        y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                    }
                     i += 2;
                     LineTo(plot_hdc, x, y);
                 }
             } else {
-                x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-                y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                if (is_identity) {
+                    x = (int)p[i]; y = (int)p[i + 1];
+                } else {
+                    x = (int)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                    y = (int)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                }
                 i += 2;
                 LineTo(plot_hdc, x, y);
             }
@@ -878,39 +906,43 @@ static nserror path(const struct redraw_context *ctx, const plot_style_t *pstyle
                 next_i += 7;
             }
             if (count > 1) {
-                POINT stack_pts[32 * 3];
-                POINT *pts_arr = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count * 3);
+                POINT stack_pts[256 * 3];
+                POINT *pts_arr = (count <= 256) ? stack_pts : malloc(sizeof(POINT) * count * 3);
                 if (pts_arr) {
                     for (unsigned int j = 0; j < count; j++) {
-                        pts_arr[j * 3].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-                        pts_arr[j * 3].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
-                        pts_arr[j * 3 + 1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
-                        pts_arr[j * 3 + 1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
-                        pts_arr[j * 3 + 2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
-                        pts_arr[j * 3 + 2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
+                        if (is_identity) {
+                            pts_arr[j * 3].x = (LONG)p[i]; pts_arr[j * 3].y = (LONG)p[i + 1];
+                            pts_arr[j * 3 + 1].x = (LONG)p[i + 2]; pts_arr[j * 3 + 1].y = (LONG)p[i + 3];
+                            pts_arr[j * 3 + 2].x = (LONG)p[i + 4]; pts_arr[j * 3 + 2].y = (LONG)p[i + 5];
+                        } else {
+                            pts_arr[j * 3].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
+                            pts_arr[j * 3].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
+                            pts_arr[j * 3 + 1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
+                            pts_arr[j * 3 + 1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
+                            pts_arr[j * 3 + 2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
+                            pts_arr[j * 3 + 2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
+                        }
                         i += 7;
                     }
                     PolyBezierTo(plot_hdc, pts_arr, count * 3);
                     if (pts_arr != stack_pts) free(pts_arr);
                     i--; /* Step back because switch(cmd) will increment i next loop */
                 } else {
-                    pts[0].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-                    pts[0].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
-                    pts[1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
-                    pts[1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
-                    pts[2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
-                    pts[2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
-                    i += 6;
+                    POINT pts[3];
+                    for (int j = 0; j < 3; j++) {
+                        float px = p[i++], py = p[i++];
+                        if (is_identity) { pts[j].x = (LONG)px; pts[j].y = (LONG)py; }
+                        else { pts[j].x = (LONG)(transform[0] * px + transform[2] * py + transform[4]); pts[j].y = (LONG)(transform[1] * px + transform[3] * py + transform[5]); }
+                    }
                     PolyBezierTo(plot_hdc, pts, 3);
                 }
             } else {
-                pts[0].x = (LONG)(transform[0] * p[i] + transform[2] * p[i + 1] + transform[4]);
-                pts[0].y = (LONG)(transform[1] * p[i] + transform[3] * p[i + 1] + transform[5]);
-                pts[1].x = (LONG)(transform[0] * p[i + 2] + transform[2] * p[i + 3] + transform[4]);
-                pts[1].y = (LONG)(transform[1] * p[i + 2] + transform[3] * p[i + 3] + transform[5]);
-                pts[2].x = (LONG)(transform[0] * p[i + 4] + transform[2] * p[i + 5] + transform[4]);
-                pts[2].y = (LONG)(transform[1] * p[i + 4] + transform[3] * p[i + 5] + transform[5]);
-                i += 6;
+                POINT pts[3];
+                for (int j = 0; j < 3; j++) {
+                    float px = p[i++], py = p[i++];
+                    if (is_identity) { pts[j].x = (LONG)px; pts[j].y = (LONG)py; }
+                    else { pts[j].x = (LONG)(transform[0] * px + transform[2] * py + transform[4]); pts[j].y = (LONG)(transform[1] * px + transform[3] * py + transform[5]); }
+                }
                 PolyBezierTo(plot_hdc, pts, 3);
             }
             break;
@@ -1202,10 +1234,7 @@ static nserror win_plot_linear_gradient(const struct redraw_context *ctx, const 
     }
 
     /* Use identity transform if none provided (CSS gradients don't provide transform) */
-    static const float identity[6] = {1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f};
-    if (transform == NULL) {
-        transform = identity;
-    }
+    bool is_identity = is_identity_transform(transform);
 
     /* Extract bounding box from path */
     if (path != NULL && path_len >= 3) {
@@ -1218,21 +1247,18 @@ static nserror win_plot_linear_gradient(const struct redraw_context *ctx, const 
                 float px = path[i++];
                 float py = path[i++];
                 /* Apply transform */
-                float tx = transform[0] * px + transform[2] * py + transform[4];
-                float ty = transform[1] * px + transform[3] * py + transform[5];
+                float tx, ty;
+                if (is_identity) { tx = px; ty = py; }
+                else { tx = transform[0] * px + transform[2] * py + transform[4]; ty = transform[1] * px + transform[3] * py + transform[5]; }
                 if (!bbox_init) {
                     minx = maxx = tx;
                     miny = maxy = ty;
                     bbox_init = 1;
                 } else {
-                    if (tx < minx)
-                        minx = tx;
-                    if (tx > maxx)
-                        maxx = tx;
-                    if (ty < miny)
-                        miny = ty;
-                    if (ty > maxy)
-                        maxy = ty;
+                    if (tx < minx) minx = tx;
+                    if (tx > maxx) maxx = tx;
+                    if (ty < miny) miny = ty;
+                    if (ty > maxy) maxy = ty;
                 }
                 break;
             }
@@ -1241,21 +1267,18 @@ static nserror win_plot_linear_gradient(const struct redraw_context *ctx, const 
                 for (int j = 0; j < 3; j++) {
                     float px = path[i++];
                     float py = path[i++];
-                    float tx = transform[0] * px + transform[2] * py + transform[4];
-                    float ty = transform[1] * px + transform[3] * py + transform[5];
+                    float tx, ty;
+                    if (is_identity) { tx = px; ty = py; }
+                    else { tx = transform[0] * px + transform[2] * py + transform[4]; ty = transform[1] * px + transform[3] * py + transform[5]; }
                     if (!bbox_init) {
                         minx = maxx = tx;
                         miny = maxy = ty;
                         bbox_init = 1;
                     } else {
-                        if (tx < minx)
-                            minx = tx;
-                        if (tx > maxx)
-                            maxx = tx;
-                        if (ty < miny)
-                            miny = ty;
-                        if (ty > maxy)
-                            maxy = ty;
+                        if (tx < minx) minx = tx;
+                        if (tx > maxx) maxx = tx;
+                        if (ty < miny) miny = ty;
+                        if (ty > maxy) maxy = ty;
                     }
                 }
                 break;
@@ -1295,28 +1318,96 @@ static nserror win_plot_linear_gradient(const struct redraw_context *ctx, const 
             case PLOTTER_PATH_MOVE: {
                 float px = path[i++];
                 float py = path[i++];
-                float tx = transform[0] * px + transform[2] * py + transform[4];
-                float ty = transform[1] * px + transform[3] * py + transform[5];
-                MoveToEx(plot_hdc, (int)tx, (int)ty, NULL);
+                int tx, ty;
+                if (is_identity) { tx = (int)px; ty = (int)py; }
+                else { tx = (int)(transform[0] * px + transform[2] * py + transform[4]); ty = (int)(transform[1] * px + transform[3] * py + transform[5]); }
+                MoveToEx(plot_hdc, tx, ty, NULL);
                 break;
             }
             case PLOTTER_PATH_LINE: {
-                float px = path[i++];
-                float py = path[i++];
-                float tx = transform[0] * px + transform[2] * py + transform[4];
-                float ty = transform[1] * px + transform[3] * py + transform[5];
-                LineTo(plot_hdc, (int)tx, (int)ty);
+                /* Batch consecutive LINE commands into PolyLineTo */
+                unsigned int count = 1;
+                int next_i = i + 2;
+                while (next_i < (int)path_len && (int)path[next_i] == PLOTTER_PATH_LINE) {
+                    count++;
+                    next_i += 3;
+                }
+                if (count > 1) {
+                    POINT stack_pts[256];
+                    POINT *pts_arr = (count <= 256) ? stack_pts : malloc(sizeof(POINT) * count);
+                    if (pts_arr) {
+                        for (unsigned int j = 0; j < count; j++) {
+                            if (is_identity) { pts_arr[j].x = (LONG)path[i]; pts_arr[j].y = (LONG)path[i+1]; }
+                            else { pts_arr[j].x = (LONG)(transform[0] * path[i] + transform[2] * path[i+1] + transform[4]); pts_arr[j].y = (LONG)(transform[1] * path[i] + transform[3] * path[i+1] + transform[5]); }
+                            i += 3;
+                        }
+                        PolyLineTo(plot_hdc, pts_arr, count);
+                        if (pts_arr != stack_pts) free(pts_arr);
+                        i--;
+                    } else {
+                        float px = path[i++]; float py = path[i++];
+                        int tx, ty;
+                        if (is_identity) { tx = (int)px; ty = (int)py; }
+                        else { tx = (int)(transform[0] * px + transform[2] * py + transform[4]); ty = (int)(transform[1] * px + transform[3] * py + transform[5]); }
+                        LineTo(plot_hdc, tx, ty);
+                    }
+                } else {
+                    float px = path[i++]; float py = path[i++];
+                    int tx, ty;
+                    if (is_identity) { tx = (int)px; ty = (int)py; }
+                    else { tx = (int)(transform[0] * px + transform[2] * py + transform[4]); ty = (int)(transform[1] * px + transform[3] * py + transform[5]); }
+                    LineTo(plot_hdc, tx, ty);
+                }
                 break;
             }
             case PLOTTER_PATH_BEZIER: {
-                POINT pts[3];
-                for (int j = 0; j < 3; j++) {
-                    float px = path[i++];
-                    float py = path[i++];
-                    pts[j].x = (LONG)(transform[0] * px + transform[2] * py + transform[4]);
-                    pts[j].y = (LONG)(transform[1] * px + transform[3] * py + transform[5]);
+                /* Batch consecutive BEZIER commands into PolyBezierTo */
+                unsigned int count = 1;
+                int next_i = i + 6;
+                while (next_i < (int)path_len && (int)path[next_i] == PLOTTER_PATH_BEZIER) {
+                    count++;
+                    next_i += 7;
                 }
-                PolyBezierTo(plot_hdc, pts, 3);
+                if (count > 1) {
+                    POINT stack_pts[256 * 3];
+                    POINT *pts_arr = (count <= 256) ? stack_pts : malloc(sizeof(POINT) * count * 3);
+                    if (pts_arr) {
+                        for (unsigned int j = 0; j < count; j++) {
+                            if (is_identity) {
+                                pts_arr[j * 3].x = (LONG)path[i]; pts_arr[j * 3].y = (LONG)path[i+1];
+                                pts_arr[j * 3 + 1].x = (LONG)path[i+2]; pts_arr[j * 3 + 1].y = (LONG)path[i+3];
+                                pts_arr[j * 3 + 2].x = (LONG)path[i+4]; pts_arr[j * 3 + 2].y = (LONG)path[i+5];
+                            } else {
+                                pts_arr[j * 3].x = (LONG)(transform[0] * path[i] + transform[2] * path[i+1] + transform[4]);
+                                pts_arr[j * 3].y = (LONG)(transform[1] * path[i] + transform[3] * path[i+1] + transform[5]);
+                                pts_arr[j * 3 + 1].x = (LONG)(transform[0] * path[i+2] + transform[2] * path[i+3] + transform[4]);
+                                pts_arr[j * 3 + 1].y = (LONG)(transform[1] * path[i+2] + transform[3] * path[i+3] + transform[5]);
+                                pts_arr[j * 3 + 2].x = (LONG)(transform[0] * path[i+4] + transform[2] * path[i+5] + transform[4]);
+                                pts_arr[j * 3 + 2].y = (LONG)(transform[1] * path[i+4] + transform[3] * path[i+5] + transform[5]);
+                            }
+                            i += 7;
+                        }
+                        PolyBezierTo(plot_hdc, pts_arr, count * 3);
+                        if (pts_arr != stack_pts) free(pts_arr);
+                        i--;
+                    } else {
+                        POINT pts[3];
+                        for (int j = 0; j < 3; j++) {
+                            float px = path[i++], py = path[i++];
+                            if (is_identity) { pts[j].x = (LONG)px; pts[j].y = (LONG)py; }
+                            else { pts[j].x = (LONG)(transform[0] * px + transform[2] * py + transform[4]); pts[j].y = (LONG)(transform[1] * px + transform[3] * py + transform[5]); }
+                        }
+                        PolyBezierTo(plot_hdc, pts, 3);
+                    }
+                } else {
+                    POINT pts[3];
+                    for (int j = 0; j < 3; j++) {
+                        float px = path[i++], py = path[i++];
+                        if (is_identity) { pts[j].x = (LONG)px; pts[j].y = (LONG)py; }
+                        else { pts[j].x = (LONG)(transform[0] * px + transform[2] * py + transform[4]); pts[j].y = (LONG)(transform[1] * px + transform[3] * py + transform[5]); }
+                    }
+                    PolyBezierTo(plot_hdc, pts, 3);
+                }
                 break;
             }
             case PLOTTER_PATH_CLOSE:
@@ -1682,8 +1773,8 @@ static void win_plot_play_stateful_path(HDC hdc)
                 count++;
             }
             if (count > 1) {
-                POINT stack_pts[32];
-                POINT *pts = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count);
+                POINT stack_pts[256];
+                POINT *pts = (count <= 256) ? stack_pts : malloc(sizeof(POINT) * count);
                 if (pts) {
                     for (unsigned int j = 0; j < count; j++) {
                         pts[j].x = (LONG)stateful_path[i + j].x1;
@@ -1707,8 +1798,8 @@ static void win_plot_play_stateful_path(HDC hdc)
                 count++;
             }
             if (count > 1) {
-                POINT stack_pts[32 * 3];
-                POINT *pts = (count <= 32) ? stack_pts : malloc(sizeof(POINT) * count * 3);
+                POINT stack_pts[256 * 3];
+                POINT *pts = (count <= 256) ? stack_pts : malloc(sizeof(POINT) * count * 3);
                 if (pts) {
                     for (unsigned int j = 0; j < count; j++) {
                         pts[j * 3].x = (LONG)stateful_path[i + j].x1;
@@ -1747,18 +1838,19 @@ static nserror win_plot_path_fill(const struct redraw_context *ctx, const plot_s
     if (plot_hdc == NULL) return NSERROR_INVALID;
     if (pstyle->fill_colour == NS_TRANSPARENT) return NSERROR_OK;
 
-    win_plot_play_stateful_path(plot_hdc);
-
     HBRUSH brush = CreateSolidBrush((DWORD)(pstyle->fill_colour & 0x00FFFFFF));
     HGDIOBJ old_brush = SelectObject(plot_hdc, brush);
 
     XFORM old_xform;
     BOOL has_xform = (transform != NULL);
     if (has_xform) {
+        SetGraphicsMode(plot_hdc, GM_ADVANCED);
         GetWorldTransform(plot_hdc, &old_xform);
         XFORM new_xform = {transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]};
         ModifyWorldTransform(plot_hdc, &new_xform, MWT_RIGHTMULTIPLY);
     }
+
+    win_plot_play_stateful_path(plot_hdc);
 
     SetPolyFillMode(plot_hdc, WINDING);
     FillPath(plot_hdc);
@@ -1778,8 +1870,6 @@ static nserror win_plot_path_stroke(const struct redraw_context *ctx, const plot
     if (plot_hdc == NULL) return NSERROR_INVALID;
     if (pstyle->stroke_colour == NS_TRANSPARENT) return NSERROR_OK;
 
-    win_plot_play_stateful_path(plot_hdc);
-
     LOGBRUSH lb = {BS_SOLID, (DWORD)(pstyle->stroke_colour & 0x00FFFFFF), 0};
     HPEN pen = ExtCreatePen(PS_GEOMETRIC | PS_SOLID, plot_style_fixed_to_int(pstyle->stroke_width), &lb, 0, NULL);
     HGDIOBJ old_pen = SelectObject(plot_hdc, pen);
@@ -1787,10 +1877,13 @@ static nserror win_plot_path_stroke(const struct redraw_context *ctx, const plot
     XFORM old_xform;
     BOOL has_xform = (transform != NULL);
     if (has_xform) {
+        SetGraphicsMode(plot_hdc, GM_ADVANCED);
         GetWorldTransform(plot_hdc, &old_xform);
         XFORM new_xform = {transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]};
         ModifyWorldTransform(plot_hdc, &new_xform, MWT_RIGHTMULTIPLY);
     }
+
+    win_plot_play_stateful_path(plot_hdc);
 
     StrokePath(plot_hdc);
 
