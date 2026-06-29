@@ -34,6 +34,8 @@ typedef void (*dom_msg)(uint32_t severity, void *ctx, const char *msg, ...);
 struct dom_node;
 struct dom_string;
 
+typedef enum { DOM_MUTATION_MODIFICATION = 1, DOM_MUTATION_ADDITION = 2, DOM_MUTATION_REMOVAL = 3 } dom_mutation_type;
+
 typedef enum {
     DOM_MUTATION_HOOK_CHILD_LIST,
     DOM_MUTATION_HOOK_ATTRIBUTES,
@@ -42,6 +44,7 @@ typedef enum {
 
 typedef void (*dom_mutation_hook)(
     dom_mutation_hook_category category,
+    dom_mutation_type type,
     struct dom_node *target,
     struct dom_node *related,
     struct dom_string *prev_value,
