@@ -566,24 +566,14 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                                got_str, e->stringtab[j].string);
                         return true;
                     }
-                }
-
-                if (!is_token_stream) {
-                    char got_str[4096];
-                    deserialize_and_dump(p, got_str, sizeof(got_str));
-                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                } else {
+                    if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
+                        memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
                         printf("FAIL Strings differ\n"
-                               "    Got string '%s'. "
-                               "Expected '%s'\n",
-                            got_str, e->stringtab[j].string);
+                               "    Got string '%.*s'. Expected '%s'\n",
+                            (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
                         return true;
                     }
-                } else if (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
-                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0) {
-                    printf("FAIL Strings differ\n"
-                           "    Got string '%.*s'. Expected '%s'\n",
-                        (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return true;
                 }
 
                 i += sizeof(css_code_t) - 1;

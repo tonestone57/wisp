@@ -87,7 +87,16 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
 
 JSValue wisp_eventtarget_addEventListener_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue callback, bool capture) { return JS_UNDEFINED; }
 JSValue wisp_eventtarget_removeEventListener_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue callback, bool capture) { return JS_UNDEFINED; }
-JSValue wisp_eventtarget_dispatchEvent_impl(JSContext *ctx, QJSNodePrivate *priv, void * event) { return JS_FALSE; }
+JSValue wisp_eventtarget_dispatchEvent_impl(JSContext *ctx, QJSNodePrivate *priv, void * event)
+{
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    if (!thread || !priv || !event) return JS_FALSE;
+
+    /* 'event' here is the LibDOM dom_event pointer extracted from the wrapper's private data */
+    bool success = false;
+    dom_event_target_dispatch_event((dom_event_target *)priv->node, (dom_event *)event, &success);
+    return JS_NewBool(ctx, success);
+}
 
 int qjs_init_eventtarget(JSContext *ctx)
 {
