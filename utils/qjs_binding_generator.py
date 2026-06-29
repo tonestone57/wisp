@@ -103,15 +103,16 @@ class QuickJSBindingGenerator:
             self.parser.parse(f.read())
         
         for construct in self.parser.constructs:
-            if isinstance(construct, widlparser.constructs.Interface):
+            if isinstance(construct, (widlparser.constructs.Interface, widlparser.constructs.Mixin)):
                 if construct.name not in self.interfaces:
                     self.interfaces[construct.name] = construct
                 else:
                     # Merge members from partial interface
                     self.interfaces[construct.name].members.extend(construct.members)
 
-                if construct.name not in self.all_interface_names:
-                    self.all_interface_names.append(construct.name)
+                if isinstance(construct, widlparser.constructs.Interface):
+                    if construct.name not in self.all_interface_names:
+                        self.all_interface_names.append(construct.name)
             elif isinstance(construct, widlparser.constructs.Dictionary):
                 self.dictionaries.add(construct.name)
             elif isinstance(construct, widlparser.constructs.ImplementsStatement):
@@ -229,7 +230,6 @@ class QuickJSBindingGenerator:
                 if ctor_str.startswith('Constructor') or 'NamedConstructor' in ctor_str:
                     name = "constructor"
                     if 'NamedConstructor=' in ctor_str:
-                        import re
                         match = re.search(r'NamedConstructor=([A-Za-z0-9_]+)', ctor_str)
                         if match: name = match.group(1)
 
@@ -275,10 +275,16 @@ class QuickJSBindingGenerator:
                 code += f"    bool {arg_name} = (argc > {i}) ? JS_ToBool(ctx, argv[{i}]) : false;\n"
                 impl_args.append(arg_name)
             elif js_type == 'int':
-                code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
+                if 'unsigned' in str(arg['type']):
+                    code += f"    uint32_t {arg_name} = 0; if (argc > {i}) JS_ToUint32(ctx, &{arg_name}, argv[{i}]);\n"
+                else:
+                    code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
             elif js_type == 'int64':
-                code += f"    int64_t {arg_name} = 0; if (argc > {i}) JS_ToInt64(ctx, &{arg_name}, argv[{i}]);\n"
+                if 'unsigned' in str(arg['type']):
+                    code += f"    uint64_t {arg_name} = 0; if (argc > {i}) JS_ToBigUint64(ctx, &{arg_name}, argv[{i}]);\n"
+                else:
+                    code += f"    int64_t {arg_name} = 0; if (argc > {i}) JS_ToInt64(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
             elif js_type == 'float':
                 code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
@@ -339,6 +345,7 @@ class QuickJSBindingGenerator:
                 if not (actual_type in self.all_interface_names and actual_type not in self.dictionaries) and js_type not in ['bool', 'int', 'int64', 'float']:
                     code += f"    JS_FreeValue(ctx, {arg_name});\n"
 
+        code += "    if (JS_IsException(ret)) return ret;\n"
         code += "    return ret;\n"
         return code
 
@@ -372,14 +379,24 @@ class QuickJSBindingGenerator:
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, bool value)"
                 stub_body = "    return JS_UNDEFINED;"
             elif idl_to_js_type(attr['type']) == 'int':
-                code += f"    int32_t value = 0; JS_ToInt32(ctx, &value, val);\n"
-                code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
-                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
+                if 'unsigned' in str(attr['type']):
+                    code += f"    uint32_t value = 0; JS_ToUint32(ctx, &value, val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)"
+                else:
+                    code += f"    int32_t value = 0; JS_ToInt32(ctx, &value, val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
                 stub_body = "    return JS_UNDEFINED;"
             elif idl_to_js_type(attr['type']) == 'int64':
-                code += f"    int64_t value = 0; JS_ToInt64(ctx, &value, val);\n"
-                code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
-                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int64_t value)"
+                if 'unsigned' in str(attr['type']):
+                    code += f"    uint64_t value = 0; JS_ToBigUint64(ctx, &value, val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, uint64_t value)"
+                else:
+                    code += f"    int64_t value = 0; JS_ToInt64(ctx, &value, val);\n"
+                    code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
+                    sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int64_t value)"
                 stub_body = "    return JS_UNDEFINED;"
             else:
                 actual_type = str(attr['type']).strip().rstrip('?')
@@ -482,11 +499,18 @@ class QuickJSBindingGenerator:
         c_code += f"        free(priv);\n"
         c_code += f"    }}\n}}\n\n"
 
+        # Helper to group constructors by name
+        ctors_by_name = {}
+        for ctor in constructors:
+            if ctor['name'] not in ctors_by_name:
+                ctors_by_name[ctor['name']] = []
+            ctors_by_name[ctor['name']].append(ctor)
+
         for ctor in constructors:
             if ctor['name'] == 'constructor':
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
             else:
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
 
             impl_args = []
             for i, arg in enumerate(ctor['args']):
@@ -499,10 +523,16 @@ class QuickJSBindingGenerator:
                     c_code += f"    bool {arg_name} = (argc > {i}) ? JS_ToBool(ctx, argv[{i}]) : false;\n"
                     impl_args.append(arg_name)
                 elif js_type == 'int':
-                    c_code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
+                    if 'unsigned' in str(arg['type']):
+                        c_code += f"    uint32_t {arg_name} = 0; if (argc > {i}) JS_ToUint32(ctx, &{arg_name}, argv[{i}]);\n"
+                    else:
+                        c_code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
                     impl_args.append(arg_name)
                 elif js_type == 'int64':
-                    c_code += f"    int64_t {arg_name} = 0; if (argc > {i}) JS_ToInt64(ctx, &{arg_name}, argv[{i}]);\n"
+                    if 'unsigned' in str(arg['type']):
+                        c_code += f"    uint64_t {arg_name} = 0; if (argc > {i}) JS_ToBigUint64(ctx, &{arg_name}, argv[{i}]);\n"
+                    else:
+                        c_code += f"    int64_t {arg_name} = 0; if (argc > {i}) JS_ToInt64(ctx, &{arg_name}, argv[{i}]);\n"
                     impl_args.append(arg_name)
                 elif js_type == 'float':
                     c_code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
@@ -555,7 +585,32 @@ class QuickJSBindingGenerator:
                      actual_type = str(arg['type']).strip().rstrip('?')
                      if not (actual_type in self.all_interface_names and actual_type not in self.dictionaries):
                         c_code += f"    JS_FreeValue(ctx, {arg_name});\n"
+            c_code += "    if (JS_IsException(ret)) return ret;\n"
             c_code += "    return ret;\n"
+            c_code += f"}}\n\n"
+
+        for ctor_name, group in ctors_by_name.items():
+            if ctor_name == 'constructor':
+                c_code += f"static JSValue js_{lower_name}_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
+            else:
+                c_code += f"static JSValue js_{lower_name}_{ctor_name}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
+
+            if len(group) == 1:
+                ctor = group[0]
+                suffix = "" if ctor_name == 'constructor' else "_ctor"
+                c_code += f"    return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, {'new_target' if ctor_name == 'constructor' else 'this_val'}, argc, argv);\n"
+            else:
+                # Dispatch by argc
+                for i, ctor in enumerate(sorted(group, key=lambda x: len(x['args']), reverse=True)):
+                    if i == 0:
+                        c_code += f"    if (argc >= {len(ctor['args'])}) "
+                    elif i == len(group) - 1:
+                        c_code += f"    else "
+                    else:
+                        c_code += f"    else if (argc >= {len(ctor['args'])}) "
+
+                    suffix = "" if ctor_name == 'constructor' else "_ctor"
+                    c_code += f"return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, {'new_target' if ctor_name == 'constructor' else 'this_val'}, argc, argv);\n"
             c_code += f"}}\n\n"
 
         for op in operations:
@@ -589,10 +644,11 @@ class QuickJSBindingGenerator:
         c_code += f"        JS_SetClassProto(ctx, qjs_{lower_name}_class_id, proto);\n"
         c_code += f"    }} else {{\n        JS_FreeValue(ctx, proto);\n    }}\n"
 
-        for ctor in constructors:
-            if ctor['name'] == 'constructor':
+        for ctor_name, group in ctors_by_name.items():
+            max_args = max(len(c['args']) for c in group)
+            if ctor_name == 'constructor':
                 c_code += f"    {{\n"
-                c_code += f"        JSValue ctor = JS_NewCFunction2(ctx, js_{lower_name}_{ctor['impl_name']}, \"{name}\", {len(ctor['args'])}, JS_CFUNC_constructor, 0);\n"
+                c_code += f"        JSValue ctor = JS_NewCFunction2(ctx, js_{lower_name}_constructor, \"{name}\", {max_args}, JS_CFUNC_constructor, 0);\n"
                 c_code += f"        JS_SetConstructor(ctx, ctor, proto);\n"
                 c_code += f"        JSValue global_obj = JS_GetGlobalObject(ctx);\n"
                 c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{name}\", ctor);\n"
@@ -600,9 +656,9 @@ class QuickJSBindingGenerator:
                 c_code += f"    }}\n"
             else:
                 c_code += f"    {{\n"
-                c_code += f"        JSValue {ctor['impl_name']}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor['impl_name']}_ctor, \"{ctor['name']}\", {len(ctor['args'])}, JS_CFUNC_generic, 0);\n"
+                c_code += f"        JSValue {ctor_name}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor_name}_ctor, \"{ctor_name}\", {max_args}, JS_CFUNC_generic, 0);\n"
                 c_code += f"        JSValue global_obj = JS_GetGlobalObject(ctx);\n"
-                c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{ctor['name']}\", {ctor['impl_name']}_ctor_val);\n"
+                c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{ctor_name}\", {ctor_name}_ctor_val);\n"
                 c_code += f"        JS_FreeValue(ctx, global_obj);\n"
                 c_code += f"    }}\n"
 
