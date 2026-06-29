@@ -211,8 +211,8 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     struct rect full_clip = {
         .x0 = updateRect.left(),
         .y0 = updateRect.top(),
-        .x1 = updateRect.right(),
-        .y1 = updateRect.bottom(),
+        .x1 = updateRect.right() + 1,
+        .y1 = updateRect.bottom() + 1,
     };
     redraw_caret(&full_clip, &ctx);
 

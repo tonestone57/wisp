@@ -529,7 +529,24 @@ static void monkey_window_handle_redraw(int argc, char **argv)
 
     NSLOG(wisp, INFO, "Issue redraw");
     moutf(MOUT_WINDOW, "REDRAW WIN %d START", atoi(argv[2]));
-    browser_window_redraw(gw->bw, gw->scrollx, gw->scrolly, &clip, &ctx);
+
+    int tile_size = browser_get_tile_size();
+
+    /* Tiled redraw loop to match unified strategy */
+    for (int ty = (clip.y0 / tile_size) * tile_size; ty < clip.y1; ty += tile_size) {
+        for (int tx = (clip.x0 / tile_size) * tile_size; tx < clip.x1; tx += tile_size) {
+            struct rect tile_clip;
+            tile_clip.x0 = max(tx, clip.x0);
+            tile_clip.y0 = max(ty, clip.y0);
+            tile_clip.x1 = min(tx + tile_size, clip.x1);
+            tile_clip.y1 = min(ty + tile_size, clip.y1);
+
+            if (tile_clip.x0 < tile_clip.x1 && tile_clip.y0 < tile_clip.y1) {
+                browser_window_redraw(gw->bw, gw->scrollx, gw->scrolly, &tile_clip, &ctx);
+            }
+        }
+    }
+
     moutf(MOUT_WINDOW, "REDRAW WIN %d STOP", atoi(argv[2]));
 }
 

@@ -432,10 +432,16 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
                 if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                     continue;
 
+                /* Set clipping for this tile to ensure GDI doesn't draw outside it */
+                SaveDC(ps.hdc);
+                IntersectClipRect(ps.hdc, tile_clip.x0, tile_clip.y0, tile_clip.x1, tile_clip.y1);
+
                 /**
                  * \todo work out why the heck scroll needs scaling
                  */
                 browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &tile_clip, &ctx);
+
+                RestoreDC(ps.hdc, -1);
             }
         }
 
