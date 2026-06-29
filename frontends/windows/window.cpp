@@ -67,12 +67,8 @@ extern "C" {
 #include <wisp/utils/file.h>
 #include "content/handlers/image/image_cache.h"
 #include "content/llcache.h"
+#include "windows/d2d_types.h"
 }
-
-struct d2d_path_command {
-    int type; // Matches path_command enum
-    float x1, y1, x2, y2, x3, y3;
-};
 
 /**
  * List of all gui windows
@@ -1437,31 +1433,24 @@ win32_window_create(struct browser_window *bw, struct gui_window *existing, gui_
 #ifdef WISP_WINDOWS_USE_D2D
     /* Initialise Direct2D */
     ID2D1Factory *d2d_factory;
-    IDWriteFactory *dwrite_factory;
     HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2d_factory);
     if (SUCCEEDED(hr)) {
-        hr = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown **)&dwrite_factory);
+        extern void win32_dwrite_init(void);
+        win32_dwrite_init();
+
+        ID2D1HwndRenderTarget *d2d_rt;
+        RECT rc;
+        GetClientRect(gw->drawingarea, &rc);
+        hr = d2d_factory->CreateHwndRenderTarget(
+            D2D1::RenderTargetProperties(),
+            D2D1::HwndRenderTargetProperties(gw->drawingarea, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
+            &d2d_rt);
         if (SUCCEEDED(hr)) {
-            ID2D1HwndRenderTarget *d2d_rt;
-            RECT rc;
-            GetClientRect(gw->drawingarea, &rc);
-            hr = d2d_factory->CreateHwndRenderTarget(
-                D2D1::RenderTargetProperties(),
-                D2D1::HwndRenderTargetProperties(gw->drawingarea, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
-                &d2d_rt);
-            if (SUCCEEDED(hr)) {
-                gw->d2d_factory = d2d_factory;
-                gw->d2d_rt = d2d_rt;
-                gw->dwrite_factory = dwrite_factory;
-                gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
-                gw->d2d_stateful_path = new std::vector<d2d_path_command>();
-                gw->d2d_initialised = true;
-                extern IDWriteFactory* g_dwrite_factory;
-                g_dwrite_factory = dwrite_factory;
-            } else {
-                d2d_factory->Release();
-                dwrite_factory->Release();
-            }
+            gw->d2d_factory = d2d_factory;
+            gw->d2d_rt = d2d_rt;
+            gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
+            gw->d2d_stateful_path = new std::vector<d2d_path_command>();
+            gw->d2d_initialised = true;
         } else {
             d2d_factory->Release();
         }
@@ -1510,7 +1499,6 @@ static void win32_window_destroy(struct gui_window *w)
     if (w->d2d_initialised) {
         ((ID2D1Factory *)w->d2d_factory)->Release();
         ((ID2D1HwndRenderTarget *)w->d2d_rt)->Release();
-        ((IDWriteFactory *)w->dwrite_factory)->Release();
         delete (std::stack<D2D1_MATRIX_3X2_F>*)w->d2d_transform_stack;
         delete (std::vector<d2d_path_command>*)w->d2d_stateful_path;
     }

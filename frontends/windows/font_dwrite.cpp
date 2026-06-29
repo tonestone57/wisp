@@ -68,6 +68,11 @@ static IDWriteTextFormat* get_text_format(IDWriteFactory* factory, const plot_fo
     return format;
 }
 
+extern "C" IDWriteTextFormat* win32_dwrite_get_format(const plot_font_style_t* style) {
+    if (!g_dwrite_factory) return NULL;
+    return get_text_format(g_dwrite_factory, style);
+}
+
 static nserror win32_dwrite_width(const plot_font_style_t *style, const char *utf8str, size_t utf8len, int *width) {
     if (utf8len == 0) { *width = 0; return NSERROR_OK; }
     extern IDWriteFactory* g_dwrite_factory;
@@ -137,6 +142,23 @@ static nserror win32_dwrite_split(const plot_font_style_t *style, const char *st
 }
 
 extern "C" IDWriteFactory* g_dwrite_factory = NULL;
+
+extern "C" void win32_dwrite_init(void) {
+    if (!g_dwrite_factory) {
+        DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown **)&g_dwrite_factory);
+    }
+}
+
+extern "C" void win32_dwrite_fini(void) {
+    for (auto const& [key, format] : format_cache) {
+        format->Release();
+    }
+    format_cache.clear();
+    if (g_dwrite_factory) {
+        g_dwrite_factory->Release();
+        g_dwrite_factory = NULL;
+    }
+}
 
 static struct gui_layout_table layout_table_dwrite = {
     win32_dwrite_width,

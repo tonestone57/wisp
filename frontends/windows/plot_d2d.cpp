@@ -14,6 +14,7 @@ extern "C" {
 #include "wisp/utils/log.h"
 #include "windows/window.h"
 #include "windows/bitmap.h"
+#include "windows/d2d_types.h"
 }
 
 /* Multi-window safe state access */
@@ -25,11 +26,6 @@ extern "C" {
 #define STATEFUL_PATH (*((std::vector<d2d_path_command>*)GW->d2d_stateful_path))
 
 static D2D1_RECT_F d2d_clip;
-
-struct d2d_path_command {
-    int type; // Matches path_command enum
-    float x1, y1, x2, y2, x3, y3;
-};
 
 static ID2D1RenderTarget *d2d_rt_override = NULL;
 
@@ -330,47 +326,16 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
     return NSERROR_OK;
 }
 
-static IDWriteTextFormat* get_text_format(IDWriteFactory* factory, const plot_font_style_t* style) {
-    IDWriteTextFormat* format = NULL;
-    const WCHAR *family = L"Segoe UI";
-    std::vector<WCHAR> wfamily;
-
-    if (style->families && style->families[0]) {
-        const char *fam = lwc_string_data(style->families[0]);
-        int wlen = MultiByteToWideChar(CP_UTF8, 0, fam, -1, NULL, 0);
-        wfamily.resize(wlen);
-        MultiByteToWideChar(CP_UTF8, 0, fam, -1, wfamily.data(), wlen);
-        family = wfamily.data();
-    } else {
-        switch (style->family) {
-            case PLOT_FONT_FAMILY_SERIF: family = L"Times New Roman"; break;
-            case PLOT_FONT_FAMILY_MONOSPACE: family = L"Consolas"; break;
-            case PLOT_FONT_FAMILY_CURSIVE: family = L"Segoe Script"; break;
-            case PLOT_FONT_FAMILY_FANTASY: family = L"Impact"; break;
-            default: family = L"Segoe UI"; break;
-        }
-    }
-
-    factory->CreateTextFormat(
-        family, NULL,
-        (DWRITE_FONT_WEIGHT)style->weight,
-        (style->flags & FONTF_ITALIC) ? DWRITE_FONT_STYLE_ITALIC : DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        plot_style_fixed_to_float(style->size),
-        L"en-us", &format);
-    return format;
-}
+extern "C" IDWriteTextFormat* win32_dwrite_get_format(const plot_font_style_t* style);
 
 static nserror text(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length) {
     ID2D1RenderTarget *rt = D2D_RT;
-    if (!rt || !GW) return NSERROR_INVALID;
-    IDWriteFactory *dwrite_factory = (IDWriteFactory *)GW->dwrite_factory;
-    if (!dwrite_factory) return NSERROR_INVALID;
+    if (!rt) return NSERROR_INVALID;
     int wlen = MultiByteToWideChar(CP_UTF8, 0, text, (int)length, NULL, 0);
     std::vector<WCHAR> wstr(wlen + 1);
     MultiByteToWideChar(CP_UTF8, 0, text, (int)length, wstr.data(), wlen);
     wstr[wlen] = 0;
-    IDWriteTextFormat *text_format = get_text_format(dwrite_factory, fstyle);
+    IDWriteTextFormat *text_format = win32_dwrite_get_format(fstyle);
     if (text_format) {
         ID2D1SolidColorBrush *brush;
         if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(fstyle->foreground), &brush))) {
@@ -379,7 +344,7 @@ static nserror text(const struct redraw_context *ctx, const plot_font_style_t *f
             rt->PopAxisAlignedClip();
             brush->Release();
         }
-        text_format->Release();
+        // format is cached and managed by font_dwrite.cpp
     }
     return NSERROR_OK;
 }

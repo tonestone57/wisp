@@ -64,9 +64,6 @@ option(WISP_WINDOWS_NATIVE_LINEAR_GRADIENT "Use native GDI linear gradient rende
 
 # Direct2D rendering pipeline
 option(WISP_WINDOWS_USE_D2D "Use native Direct2D/DirectWrite rendering pipeline" ON)
-if(WISP_WINDOWS_USE_D2D)
-    target_compile_definitions(wisp-windows PRIVATE WISP_WINDOWS_USE_D2D=1)
-endif()
 
 # Resource compilation
 set(WISP_WINDOWS_RC res/resource.rc)
@@ -75,6 +72,10 @@ add_executable(wisp-windows WIN32
 	${WISP_WINDOWS_SRCS}
 	${WISP_WINDOWS_RC}
 )
+
+if(WISP_WINDOWS_USE_D2D)
+    target_compile_definitions(wisp-windows PRIVATE WISP_WINDOWS_USE_D2D=1)
+endif()
 
 # Ensure resource.rc is recompiled when messages change and waits for them to be generated
 set_source_files_properties(${WISP_WINDOWS_RC} PROPERTIES OBJECT_DEPENDS "${GENERATED_MESSAGES_DIR}/en/Messages")

@@ -514,6 +514,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
 
     win_plotters.finalise();
 
+#ifdef WISP_WINDOWS_USE_D2D
+    extern void win32_dwrite_fini(void);
+    win32_dwrite_fini();
+#endif
+
     wisp_exit();
 
     /* finalise options */
