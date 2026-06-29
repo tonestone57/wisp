@@ -161,7 +161,7 @@ static void layout_get_object_dimensions(const css_unit_ctx *unit_len_ctx, struc
 	int eff_ratio_h = has_ratio_only ? ratio_h : intrinsic_height;
 
 	/* DIAG: Log image dimensions before calculation */
-	NSLOG(layout, DEBUG,
+	NSLOG(layout, DEEPDEBUG,
 		"OBJ_DIM box %p: input w=%d h=%d intrinsic=%dx%d ratio=%dx%d has_ratio_only=%d cb_w=%d limits w[%d,%d] h[%d,%d]",
 		box, *width, *height, intrinsic_width, intrinsic_height, ratio_w, ratio_h, has_ratio_only,
 		containing_block_width, min_width.value, max_width, min_height.value, max_height);
@@ -277,7 +277,7 @@ static void layout_get_object_dimensions(const css_unit_ctx *unit_len_ctx, struc
 	}
 
 	/* DIAG: Log final computed dimensions */
-	NSLOG(layout, INFO, "OBJ_DIM_OUT box %p: computed w=%d h=%d (intrinsic was %dx%d, ratio=%dx%d has_ratio_only=%d)",
+	NSLOG(layout, DEEPDEBUG, "OBJ_DIM_OUT box %p: computed w=%d h=%d (intrinsic was %dx%d, ratio=%dx%d has_ratio_only=%d)",
 		box, *width, *height, intrinsic_width, intrinsic_height, eff_ratio_w, eff_ratio_h, has_ratio_only);
 }
 
@@ -598,7 +598,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 
 		assert(lh__box_is_inline_content(b));
 
-		NSLOG(layout, DEBUG, "%p: min %i, max %i", b, min, max);
+		NSLOG(layout, DEEPDEBUG, "%p: min %i, max %i", b, min, max);
 
 		if (b->type == BOX_BR) {
 			b = b->next;
@@ -816,6 +816,8 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				if (box_has_percentage_width(b)) {
 					width = 0;
 				} else {
+					/* Default intrinsic width for IFRAME per HTML spec is 300px,
+					 * but Wisp uses 400px as a legacy default. */
 					width = 400;
 				}
 			}
@@ -847,9 +849,10 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 	}
 
 	if (first_line) {
-		/* todo: handle percentage values properly */
-		/* todo: handle text-indent interaction with floats */
-		int text_indent = layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, 100);
+		/* For min/max calculation, we don't know the containing block width,
+		 * so we resolve percentage text-indent against 0. Fixed values are
+		 * handled correctly by layout_text_indent. */
+		int text_indent = layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, 0);
 		min = (min + text_indent < 0) ? 0 : min + text_indent;
 		max = (max + text_indent < 0) ? 0 : max + text_indent;
 	}
@@ -857,7 +860,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 	*line_min = min;
 	*line_max = max;
 
-	NSLOG(layout, DEBUG, "line_min %i, line_max %i", min, max);
+	NSLOG(layout, DEEPDEBUG, "line_min %i, line_max %i", min, max);
 
 	assert(b != first);
 	assert(0 <= *line_min);
@@ -1025,13 +1028,21 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 			}
 
 			min = max = layout_minmax_object_width(block, content, obj_w, obj_h);
-			NSLOG(layout, DEBUG, "MINMAX_BLOCK object %p: after helper min=%d max=%d", block, min, max);
+			NSLOG(layout, DEEPDEBUG, "MINMAX_BLOCK object %p: after helper min=%d max=%d", block, min, max);
 		}
 
 		block->flags |= HAS_HEIGHT;
 	} else if (block->flags & IFRAME) {
-		/** \todo do we need to know the min/max width of the iframe's
-		 * content? */
+		/* IFRAME: use default intrinsic size if not specified.
+		 * 10.3.2: Replaced elements without intrinsic size use 300px.
+		 * 10.6.2: Replaced elements without intrinsic size use 150px. */
+		if (wtype == CSS_WIDTH_AUTO) {
+			max = 400;
+			min = 0;
+		} else if (wunit != CSS_UNIT_PCT) {
+			int width_px = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, width, wunit));
+			min = max = width_px;
+		}
 		block->flags |= HAS_HEIGHT;
 	} else {
 		/* For horizontal flex containers, get the column-gap for intrinsic sizing.
@@ -1207,11 +1218,22 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 			}
 		}
 	}
-	NSLOG(layout, DEBUG, "MINMAX_BLOCK %p: after constraints min=%d max=%d", block, min, max);
+	NSLOG(layout, DEEPDEBUG, "MINMAX_BLOCK %p: after constraints min=%d max=%d", block, min, max);
 
 	if (htype == CSS_HEIGHT_SET && hunit != CSS_UNIT_PCT && height > INTTOFIX(0)) {
 		block->flags |= MAKE_HEIGHT;
 		block->flags |= HAS_HEIGHT;
+	}
+
+	/* Also set HAS_HEIGHT if min-height is set to a non-percentage value > 0 */
+	{
+		css_fixed min_h_val;
+		css_unit min_h_unit;
+		if (ns_computed_min_height(block->style, &min_h_val, &min_h_unit) == CSS_MIN_HEIGHT_SET &&
+		    min_h_unit != CSS_UNIT_PCT && min_h_val > 0) {
+			block->flags |= MAKE_HEIGHT;
+			block->flags |= HAS_HEIGHT;
+		}
 	}
 
 	/* add margins, border, padding to min, max widths */
@@ -1253,7 +1275,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 		block->min_width.value = (min + extra_fixed) / (1.0 - extra_frac);
 		block->max_width = (max + extra_fixed) / (1.0 - extra_frac);
 	}
-	NSLOG(layout, DEBUG, "MINMAX_BLOCK %p: FINAL stored min=%d max=%d (extra_fixed=%d)", block, block->min_width.value,
+	NSLOG(layout, DEEPDEBUG, "MINMAX_BLOCK %p: FINAL stored min=%d max=%d (extra_fixed=%d)", block, block->min_width.value,
 		block->max_width, extra_fixed);
 
 	/* Detect overflow: if resulting max_width is huge, log debug info */
@@ -1528,7 +1550,7 @@ static struct box *layout_next_margin_block(const css_unit_ctx *unit_len_ctx, st
 			 * the loop compute margins for the next valid participant. */
 			box = box->next;
 			while (box != NULL && box_is_out_of_flow(box)) {
-				NSLOG(layout, DEBUG, "margin collapse: skipping out-of-flow sibling %p type=%d", box, box->type);
+				NSLOG(layout, DEEPDEBUG, "margin collapse: skipping out-of-flow sibling %p type=%d", box, box->type);
 				box = box->next;
 			}
 		}
@@ -1575,7 +1597,7 @@ static void find_sides(struct box *fl, int y0, int y1, int *x0, int *x1, struct 
 {
 	int fy0, fy1, fx0, fx1;
 
-	NSLOG(layout, DEBUG, "y0 %i, y1 %i, x0 %i, x1 %i", y0, y1, *x0, *x1);
+	NSLOG(layout, DEEPDEBUG, "y0 %i, y1 %i, x0 %i, x1 %i", y0, y1, *x0, *x1);
 
 	*left = *right = 0;
 	for (; fl; fl = fl->next_float) {
@@ -1604,7 +1626,7 @@ static void find_sides(struct box *fl, int y0, int y1, int *x0, int *x1, struct 
 		}
 	}
 
-	NSLOG(layout, DEBUG, "x0 %i, x1 %i, left %p, right %p", *x0, *x1, *left, *right);
+	NSLOG(layout, DEEPDEBUG, "x0 %i, x1 %i, left %p, right %p", *x0, *x1, *left, *right);
 }
 
 
@@ -1772,7 +1794,7 @@ static void layout_block_find_dimensions(
 		&min_width, &max_height, &min_height, margin, padding, border);
 
 	/* Debug: Log what layout_find_dimensions computed */
-	NSLOG(layout, DEBUG,
+	NSLOG(layout, DEEPDEBUG,
 		"layout_block_find_dimensions: AFTER layout_find_dimensions box=%p margins=[%d,%d,%d,%d] (AUTO=%d)", box,
 		margin[TOP], margin[RIGHT], margin[BOTTOM], margin[LEFT], AUTO);
 
@@ -1798,7 +1820,7 @@ static void layout_block_find_dimensions(
 		}
 		/* Log for article elements or DIVs with class/id */
 		if ((strcasecmp(tag, "ARTICLE") == 0) || (strcasecmp(tag, "DIV") == 0 && (cls[0] != '\0' || id[0] != '\0'))) {
-			NSLOG(layout, DEBUG,
+			NSLOG(layout, DEEPDEBUG,
 				"layout_block_find_dimensions: tag=%s id=%s class=%s box=%p margins=[%d,%d,%d,%d] padding=[%d,%d,%d,%d]",
 				tag, id, cls, box, margin[TOP], margin[RIGHT], margin[BOTTOM], margin[LEFT], padding[TOP],
 				padding[RIGHT], padding[BOTTOM], padding[LEFT]);
@@ -2062,7 +2084,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 	/* calculate width required by cells */
 	for (i = 0; i != columns; i++) {
 
-		NSLOG(layout, DEBUG, "table %p, column %u: type %s, width %i, min %i, max %i", table, i,
+		NSLOG(layout, DEEPDEBUG, "table %p, column %u: type %s, width %i, min %i, max %i", table, i,
 			((const char *[]){
 				"UNKNOWN",
 				"FIXED",
@@ -2088,11 +2110,11 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 		} else
 			required_width += col[i].min;
 
-		NSLOG(layout, DEBUG, "required_width %i", required_width);
+		NSLOG(layout, DEEPDEBUG, "required_width %i", required_width);
 	}
 	required_width += (columns + 1 - positioned_columns) * border_spacing_h;
 
-	NSLOG(layout, DEBUG, "width %i, min %i, max %i, auto %i, required %i", table_width, table->min_width.value,
+	NSLOG(layout, DEEPDEBUG, "width %i, min %i, max %i, auto %i, required %i", table_width, table->min_width.value,
 		table->max_width, auto_width, required_width);
 
 	if (auto_width < required_width) {
@@ -2440,6 +2462,12 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 		}
 
 		/* max-height */
+		int available_width = (box->parent) ? box->parent->width : 0;
+		if (box->style && css_computed_position(box->style) == CSS_POSITION_ABSOLUTE && container) {
+			available_width = container->width + container->padding[LEFT] + container->padding[RIGHT];
+		}
+
+		/* max-height */
 		if (css_computed_max_height(box->style, &value, &unit) == CSS_MAX_HEIGHT_SET) {
 			if (unit == CSS_UNIT_PCT) {
 				if (containing_block && containing_block->height != AUTO &&
@@ -2449,6 +2477,7 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 					 * specified height. (CSS 2.1
 					 * Section 10.5) */
 					h = FPCT_OF_INT_TOINT(value, containing_block->height);
+					layout_handle_box_sizing(unit_len_ctx, box, available_width, false, &h);
 					if (h < box->height) {
 						box->height = h;
 						updated = true;
@@ -2456,6 +2485,7 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 				}
 			} else {
 				h = FIXTOINT(css_unit_len2device_px(box->style, unit_len_ctx, value, unit));
+				layout_handle_box_sizing(unit_len_ctx, box, available_width, false, &h);
 				if (h < box->height) {
 					box->height = h;
 					updated = true;
@@ -2473,6 +2503,7 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 					 * specified height. (CSS 2.1
 					 * Section 10.5) */
 					h = FPCT_OF_INT_TOINT(value, containing_block->height);
+					layout_handle_box_sizing(unit_len_ctx, box, available_width, false, &h);
 					if (h > box->height) {
 						box->height = h;
 						updated = true;
@@ -2480,6 +2511,7 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 				}
 			} else {
 				h = FIXTOINT(css_unit_len2device_px(box->style, unit_len_ctx, value, unit));
+				layout_handle_box_sizing(unit_len_ctx, box, available_width, false, &h);
 				if (h > box->height) {
 					box->height = h;
 					updated = true;
@@ -2505,7 +2537,7 @@ static bool layout_block_object(struct box *block)
 		block->type == BOX_TABLE || block->type == BOX_TABLE_CELL);
 	assert(block->object);
 
-	NSLOG(layout, DEBUG, "block %p, object %p, width %i", block, hlcache_handle_get_url(block->object), block->width);
+	NSLOG(layout, DEEPDEBUG, "block %p, object %p, width %i", block, hlcache_handle_get_url(block->object), block->width);
 
 	if (content_can_reformat(block->object)) {
 		/* HTML content computes its own height from content flow,
@@ -2624,9 +2656,9 @@ static bool layout_text_box_split(
 	else
 		c2->parent->last = c2;
 
-	NSLOG(layout, DEBUG, "split_box %p len: %" PRIsizet " \"%.*s\"", split_box, split_box->length,
+	NSLOG(layout, DEEPDEBUG, "split_box %p len: %" PRIsizet " \"%.*s\"", split_box, split_box->length,
 		(int)split_box->length, split_box->text);
-	NSLOG(layout, DEBUG, "  new_box %p len: %" PRIsizet " \"%.*s\"", c2, c2->length, (int)c2->length, c2->text);
+	NSLOG(layout, DEEPDEBUG, "  new_box %p len: %" PRIsizet " \"%.*s\"", c2, c2->length, (int)c2->length, c2->text);
 
 	return true;
 }
@@ -2782,11 +2814,11 @@ static bool layout_float(struct box *b, int width, html_content *content)
 			(b->type == BOX_BLOCK &&
 				(css_computed_display(b->style, false) == CSS_DISPLAY_GRID ||
 					css_computed_display(b->style, false) == CSS_DISPLAY_INLINE_GRID))) {
-			NSLOG(layout, INFO, "calling layout_grid for grid %p width %i (type %d)", b, width, b->type);
+			NSLOG(layout, DEEPDEBUG, "calling layout_grid for grid %p width %i (type %d)", b, width, b->type);
 			if (!layout_grid(b, width, content))
 				return false;
 		} else {
-			NSLOG(layout, INFO, "calling layout_flex for flex %p width %i (type %d)", b, width, b->type);
+			NSLOG(layout, DEEPDEBUG, "calling layout_flex for flex %p width %i (type %d)", b, width, b->type);
 			if (!layout_flex(b, width, content))
 				return false;
 		}
@@ -2822,7 +2854,7 @@ static void place_float_below(struct box *c, int width, int cx, int y, struct bo
 
 	yy = y > cont->cached_place_below_level ? y : cont->cached_place_below_level;
 
-	NSLOG(layout, DEBUG, "c %p, width %i, cx %i, y %i, cont %p", c, width, cx, y, cont);
+	NSLOG(layout, DEEPDEBUG, "c %p, width %i, cx %i, y %i, cont %p", c, width, cx, y, cont);
 
 	do {
 		y = yy;
@@ -2921,7 +2953,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 	const struct gui_layout_table *font_func = content->font_func;
 	plot_font_style_t fstyle;
 
-	NSLOG(layout, DEBUG, "first %p, first->text '%.*s', width %i, y %i, cx %i, cy %i", first, (int)first->length,
+	NSLOG(layout, DEEPDEBUG, "first %p, first->text '%.*s', width %i, y %i, cx %i, cy %i", first, (int)first->length,
 		first->text, *width, *y, cx, cy);
 
 	/* find sides at top of line */
@@ -2951,7 +2983,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 	 * body executed at least once
 	 * keep in sync with the loop in layout_minmax_line() */
 
-	NSLOG(layout, DEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
+	NSLOG(layout, DEEPDEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
 
 
 	for (x = 0, b = first; x <= x1 - x0 && b != 0; b = b->next) {
@@ -2960,7 +2992,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 		assert(lh__box_is_inline_content(b));
 
-		NSLOG(layout, DEBUG, "pass 1: b %p, x %i", b, x);
+		NSLOG(layout, DEEPDEBUG, "pass 1: b %p, x %i", b, x);
 
 		if (b->type == BOX_BR)
 			break;
@@ -3184,7 +3216,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 	/* pass 2: place boxes in line: loop body executed at least once */
 
-	NSLOG(layout, DEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
+	NSLOG(layout, DEEPDEBUG, "x0 %i, x1 %i, x1 - x0 %i", x0, x1, x1 - x0);
 
 	/* handle ::first-line style replacement */
 	if (indent && cont != NULL && cont->styles != NULL && cont->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LINE] != NULL) {
@@ -3214,7 +3246,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 	for (x = x_previous = 0, b = first; x <= x1 - x0 && b; b = b->next) {
 
-		NSLOG(layout, DEBUG, "pass 2: b %p, x %i", b, x);
+		NSLOG(layout, DEEPDEBUG, "pass 2: b %p, x %i", b, x);
 
 		if (b->type == BOX_INLINE_BLOCK &&
 			(css_computed_position(b->style) == CSS_POSITION_ABSOLUTE ||
@@ -3260,7 +3292,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			}
 			/* Log TEXT box positioning */
 			if (b->text && b->length > 0) {
-				NSLOG(wisp, INFO, "TEXT_POSITION: '%.*s' x=%d y=%d width=%d (parent=%p parent->y=%d cy=%d)",
+				NSLOG(wisp, DEEPDEBUG, "TEXT_POSITION: '%.*s' x=%d y=%d width=%d (parent=%p parent->y=%d cy=%d)",
 					(int)b->length, b->text, b->x, b->parent ? b->parent->y : -1, b->width, b->parent,
 					b->parent ? b->parent->y : -1, cy);
 			}
@@ -3292,7 +3324,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 		} else {
 			/* float */
-			NSLOG(layout, DEBUG, "float %p", b);
+			NSLOG(layout, DEEPDEBUG, "float %p", b);
 
 			d = b->children;
 			d->float_children = 0;
@@ -3302,7 +3334,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			if (!layout_float(d, *width, content))
 				return false;
 
-			NSLOG(layout, DEBUG, "%p : %d %d", d, d->margin[TOP], d->border[TOP].width);
+			NSLOG(layout, DEEPDEBUG, "%p : %d %d", d, d->margin[TOP], d->border[TOP].width);
 
 			d->x = d->margin[LEFT] + d->border[LEFT].width;
 			d->y = d->margin[TOP] + d->border[TOP].width;
@@ -3406,7 +3438,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			w = split_box->width;
 
 
-		NSLOG(layout, DEBUG,
+		NSLOG(layout, DEEPDEBUG,
 			"splitting: split_box %p \"%.*s\", spilt %" PRIsizet ", w %i, left %p, right %p, inline_count %u",
 			split_box, (int)split_box->length, split_box->text, split, w, left, right, inline_count);
 
@@ -3425,7 +3457,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			}
 			x += space_before + w;
 
-			NSLOG(layout, DEBUG, "forcing");
+			NSLOG(layout, DEEPDEBUG, "forcing");
 
 		} else if ((split == 0 || x1 - x0 < x + space_before + w) && inline_count == 1) {
 			/* first word of first box doesn't fit (strictly exceeds available width),
@@ -3434,11 +3466,11 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			used_height = 0;
 			if (left) {
 
-				NSLOG(layout, DEBUG, "cy %i, left->y %i, left->height %i", cy, left->y, left->height);
+				NSLOG(layout, DEEPDEBUG, "cy %i, left->y %i, left->height %i", cy, left->y, left->height);
 
 				used_height = left->y + left->height - cy + 1;
 
-				NSLOG(layout, DEBUG, "used_height %i", used_height);
+				NSLOG(layout, DEEPDEBUG, "used_height %i", used_height);
 			}
 			if (right && used_height < right->y + right->height - cy + 1)
 				used_height = right->y + right->height - cy + 1;
@@ -3448,20 +3480,20 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 			b = split_box;
 
-			NSLOG(layout, DEBUG, "moving below float");
+			NSLOG(layout, DEEPDEBUG, "moving below float");
 
 		} else if (split == 0 || x1 - x0 < x + space_before + w) {
 			/* first word of box doesn't fit (strictly exceeds width) so leave box
 			 * for next line */
 			b = split_box;
 
-			NSLOG(layout, DEBUG, "leaving for next line");
+			NSLOG(layout, DEEPDEBUG, "leaving for next line");
 
 		} else {
 			/* fit as many words as possible */
 			assert(split != 0);
 
-			NSLOG(layout, DEBUG, "'%.*s' %i %" PRIsizet " %i", (int)split_box->length, split_box->text, x1 - x0, split,
+			NSLOG(layout, DEEPDEBUG, "'%.*s' %i %" PRIsizet " %i", (int)split_box->length, split_box->text, x1 - x0, split,
 				w);
 
 			if (split != split_box->length) {
@@ -3471,7 +3503,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			}
 			x += space_before + w;
 
-			NSLOG(layout, DEBUG, "fitting words");
+			NSLOG(layout, DEEPDEBUG, "fitting words");
 		}
 		move_y = true;
 	}
@@ -3609,7 +3641,7 @@ static bool layout_inline_container(
 
 	assert(inline_container->type == BOX_INLINE_CONTAINER);
 
-	NSLOG(layout, DEBUG, "inline_container %p, width %i, cont %p, cx %i, cy %i", inline_container, width, cont, cx, cy);
+	NSLOG(layout, DEEPDEBUG, "inline_container %p, width %i, cont %p, cx %i, cy %i", inline_container, width, cont, cx, cy);
 
 
 	has_text_children = false;
@@ -3637,7 +3669,7 @@ static bool layout_inline_container(
 
 		fflush(stderr);
 
-		NSLOG(layout, DEBUG, "c %p", c);
+		NSLOG(layout, DEEPDEBUG, "c %p", c);
 
 		/* Use the available width for layout, not inline_container->width which
 		 * may contain a stale min_width value from minmax calculation */
@@ -3654,7 +3686,7 @@ static bool layout_inline_container(
 	if (inline_container->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) layout_add_to_dirty_list(content, inline_container);
 
 	/* Log inline container final dimensions */
-	NSLOG(wisp, INFO, "INLINE_CONTAINER_DONE: ic=%p parent=%p ic_y=%d ic_height=%d (parent_list_marker=%p)",
+	NSLOG(wisp, DEEPDEBUG, "INLINE_CONTAINER_DONE: ic=%p parent=%p ic_y=%d ic_height=%d (parent_list_marker=%p)",
 		inline_container, inline_container->parent, inline_container->y, inline_container->height,
 		inline_container->parent ? inline_container->parent->list_marker : NULL);
 
@@ -3775,7 +3807,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 				}
 			}
 			/* Always log processing, not just when class exists */
-			NSLOG(layout, DEBUG, "processing: tag %s class %s box %p width %i type %d", tag, cls, box, box->width,
+			NSLOG(layout, DEEPDEBUG, "processing: tag %s class %s box %p width %i type %d", tag, cls, box, box->width,
 				box->type);
 
 			if (box->type == BOX_INLINE_GRID || box->type == BOX_INLINE_FLEX) {
@@ -3785,7 +3817,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 			}
 
 			/* Include tag/class in Box metrics for easier debugging */
-			NSLOG(layout, DEBUG, "Box metrics for %p (tag %s class %s): w=%d m=%d,%d,%d,%d p=%d,%d,%d,%d b=%d,%d,%d,%d",
+			NSLOG(layout, DEEPDEBUG, "Box metrics for %p (tag %s class %s): w=%d m=%d,%d,%d,%d p=%d,%d,%d,%d b=%d,%d,%d,%d",
 				box, tag, cls, box->width, box->margin[TOP], box->margin[RIGHT], box->margin[BOTTOM], box->margin[LEFT],
 				box->padding[TOP], box->padding[RIGHT], box->padding[BOTTOM], box->padding[LEFT],
 				box->border[TOP].width, box->border[RIGHT].width, box->border[BOTTOM].width, box->border[LEFT].width);
@@ -3948,11 +3980,11 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 				margin_collapse == box) &&
 			in_margin == true) {
 			/* Margin goes above this box. */
-			NSLOG(wisp, INFO, "MARGIN_COLLAPSE: box=%p type=%d cy_before=%d max_pos_margin=%u max_neg_margin=%u", box,
+			NSLOG(wisp, DEEPDEBUG, "MARGIN_COLLAPSE: box=%p type=%d cy_before=%d max_pos_margin=%u max_neg_margin=%u", box,
 				box->type, cy, max_pos_margin, max_neg_margin);
 			cy += (int)max_pos_margin - (int)max_neg_margin;
 			box->y += (int)max_pos_margin - (int)max_neg_margin;
-			NSLOG(wisp, INFO, "MARGIN_COLLAPSE: box=%p cy_after=%d box->y=%d", box, cy, box->y);
+			NSLOG(wisp, DEEPDEBUG, "MARGIN_COLLAPSE: box=%p cy_after=%d box->y=%d", box, cy, box->y);
 
 			/* Current margin has been applied. */
 			in_margin = false;
@@ -3986,23 +4018,23 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 						cls = dom_string_data(class_attr);
 					}
 				}
-				NSLOG(layout, DEBUG,
+				NSLOG(layout, DEEPDEBUG,
 					"flex pre: tag %s class %s box %p, overflow_x %d, overflow_y %d, wrap %d, parent_w %i, box_w %i",
 					tag, cls, box, overflow_x, overflow_y, css_computed_flex_wrap(box->style),
 					box->parent ? box->parent->width : 0, box->width);
-				NSLOG(layout, DEBUG, "calling layout_flex for flex container %p width %i", box, box->width);
+				NSLOG(layout, DEEPDEBUG, "calling layout_flex for flex container %p width %i", box, box->width);
 				if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX) {
 					if (!layout_flex(box, box->width, content)) {
 						return false;
 					}
 				}
-				NSLOG(layout, DEBUG, "flex post: box %p, w %i, h %i", box, box->width, box->height);
+				NSLOG(layout, DEEPDEBUG, "flex post: box %p, w %i, h %i", box, box->width, box->height);
 				if (class_attr != NULL)
 					dom_string_unref(class_attr);
 				if (name != NULL)
 					dom_string_unref(name);
 			} else if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID) {
-				NSLOG(layout, DEBUG, "calling layout_grid for grid container %p width %i", box, box->width);
+				NSLOG(layout, DEEPDEBUG, "calling layout_grid for grid container %p width %i", box, box->width);
 				if (!layout_grid(box, box->width, content)) {
 					return false;
 				}
@@ -4026,7 +4058,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 			goto advance_to_next_box;
 		}
 
-		NSLOG(layout, DEBUG, "box %p, cx %i, cy %i, width %i", box, cx, cy, box->width);
+		NSLOG(layout, DEEPDEBUG, "box %p, cx %i, cy %i, width %i", box, cx, cy, box->width);
 
 		/* Layout (except tables). */
 		if (box->object) {
@@ -4656,7 +4688,7 @@ static void layout_lists(const html_content *content, struct box *box)
 			marker->x -= 4;
 
 			/* Log marker positioning relative to LI */
-			NSLOG(wisp, INFO,
+			NSLOG(wisp, DEEPDEBUG,
 				"MARKER_LAYOUT: LI=%p marker=%p marker_text='%.*s' marker_xy=(%d,%d) LI_children=%p LI_first_child_y=%d",
 				child, marker, marker->text ? (int)marker->length : 0, marker->text ? marker->text : "", marker->x,
 				marker->y, child->children, child->children ? child->children->y : -999);
@@ -4817,7 +4849,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 			}
 		}
 		uint8_t wtype = css_computed_width(box->style, &wlen, &wunit);
-		NSLOG(layout, INFO,
+		NSLOG(layout, DEEPDEBUG,
 			"abs offsets pre: tag %s class %s top %i left %i right %i width %i wtype %u wlen %ld wunit %u cb.width %i cb.height %i",
 			tag, cls, top, left, right, width, (unsigned)wtype, (long)wlen, (unsigned)wunit, containing_block->width,
 			containing_block->height);
@@ -4840,7 +4872,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 				cls = dom_string_data(class_attr);
 			}
 		}
-		NSLOG(layout, INFO, "abs pre: tag %s class %s box %p", tag, cls, box);
+		NSLOG(layout, DEEPDEBUG, "abs pre: tag %s class %s box %p", tag, cls, box);
 		if (class_attr != NULL)
 			dom_string_unref(class_attr);
 		if (name != NULL)
@@ -4848,7 +4880,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	}
 
 	/* 10.3.7 */
-	NSLOG(layout, DEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", left, margin[LEFT], border[LEFT].width,
+	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", left, margin[LEFT], border[LEFT].width,
 		padding[LEFT], width, padding[RIGHT], border[RIGHT].width, margin[RIGHT], right, containing_block->width);
 
 
@@ -4983,7 +5015,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 		}
 	}
 
-	NSLOG(layout, DEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", left, margin[LEFT], border[LEFT].width,
+	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", left, margin[LEFT], border[LEFT].width,
 		padding[LEFT], width, padding[RIGHT], border[RIGHT].width, margin[RIGHT], right, containing_block->width);
 
 	/* Store the containing block for use by box_coords() and other functions.
@@ -5002,7 +5034,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	box->width = width;
 	box->height = height;
 
-	NSLOG(layout, INFO, "abs box %p: width %i parent %p parent.width %i", box, box->width, containing_block,
+	NSLOG(layout, DEEPDEBUG, "abs box %p: width %i parent %p parent.width %i", box, box->width, containing_block,
 		containing_block->width);
 
 	if (box->type == BOX_BLOCK || box->type == BOX_INLINE_BLOCK || box->object || box->flags & IFRAME) {
@@ -5021,20 +5053,20 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 		/* layout_table also expects the containing block to be
 		 * stored in the float_container field */
 		box->float_container = containing_block;
-		NSLOG(layout, INFO, "calling layout_flex for positioned flex %p width %i", box, width);
+		NSLOG(layout, DEEPDEBUG, "calling layout_flex for positioned flex %p width %i", box, width);
 		if (!layout_flex(box, width, content))
 			return false;
 		box->float_container = NULL;
 	} else if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID) {
 		box->float_container = containing_block;
-		NSLOG(layout, INFO, "calling layout_grid for positioned grid %p width %i", box, width);
+		NSLOG(layout, DEEPDEBUG, "calling layout_grid for positioned grid %p width %i", box, width);
 		if (!layout_grid(box, width, content))
 			return false;
 		box->float_container = NULL;
 	}
 
 	/* 10.6.4 */
-	NSLOG(layout, DEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
+	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
 		padding[TOP], height, padding[BOTTOM], border[BOTTOM].width, margin[BOTTOM], bottom, containing_block->height);
 
 	if (top == AUTO && height == AUTO && bottom == AUTO) {
@@ -5090,7 +5122,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 		}
 	}
 
-	NSLOG(layout, DEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
+	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
 		padding[TOP], height, padding[BOTTOM], border[BOTTOM].width, margin[BOTTOM], bottom, containing_block->height);
 
 	box->y = top + margin[TOP] + border[TOP].width;
@@ -5105,7 +5137,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	box->height = height;
 	layout_apply_minmax_height(&content->unit_len_ctx, box, containing_block);
 
-	NSLOG(layout, DEBUG,
+	NSLOG(layout, DEEPDEBUG,
 		"abs final: box=%p box->x %i box->y %i box->width %i box->height %i (top=%i left=%i cy=%i cx=%i) abs_cb=%p",
 		box, box->x, box->y, box->width, box->height, top, left, cy, cx, box->abs_containing_block);
 
@@ -5164,7 +5196,7 @@ layout_position_absolute(struct box *box, struct box *containing_block, int cx, 
 					cls = dom_string_data(class_attr);
 				}
 			}
-			NSLOG(layout, INFO, "abs call: elem tag %s class %s box %p cb tag %s class %s cb %p cb.width %i", tag, cls,
+			NSLOG(layout, DEEPDEBUG, "abs call: elem tag %s class %s box %p cb tag %s class %s cb %p cb.width %i", tag, cls,
 				c, cb_tag, cb_cls, abs_cb, abs_cb->width);
 			if (class_attr != NULL)
 				dom_string_unref(class_attr);
@@ -5267,7 +5299,7 @@ static void layout_compute_relative_offset(const css_unit_ctx *unit_len_ctx, str
 		bottom = -top;
 	}
 
-	NSLOG(layout, DEBUG, "left %i, right %i, top %i, bottom %i", left, right, top, bottom);
+	NSLOG(layout, DEEPDEBUG, "left %i, right %i, top %i, bottom %i", left, right, top, bottom);
 
 	*x = left;
 	*y = top;
@@ -5849,7 +5881,7 @@ static void layout_log_final_box_heights(const css_unit_ctx *unit_len_ctx, struc
 		if (cls[0] != '\0' && (strstr(cls, "row") != NULL || is_site_nav)) {
 			int total_height = box->height + box->padding[TOP] + box->padding[BOTTOM] + box->border[TOP].width +
 				box->border[BOTTOM].width + lh__non_auto_margin(box, TOP) + lh__non_auto_margin(box, BOTTOM);
-			NSLOG(layout, INFO, "FINAL_HEIGHT tag=%s class=%s box=%p y=%d h=%d total=%d m=(%d,%d) p=(%d,%d) b=(%d,%d)",
+			NSLOG(layout, DEEPDEBUG, "FINAL_HEIGHT tag=%s class=%s box=%p y=%d h=%d total=%d m=(%d,%d) p=(%d,%d) b=(%d,%d)",
 				tag, cls, box, box->y, box->height, total_height, box->margin[TOP], box->margin[BOTTOM],
 				box->padding[TOP], box->padding[BOTTOM], box->border[TOP].width, box->border[BOTTOM].width);
 		}
@@ -5881,7 +5913,7 @@ static void layout_log_final_box_heights(const css_unit_ctx *unit_len_ctx, struc
 				max_hpx = FIXTOINT(css_unit_len2device_px(box->style, unit_len_ctx, max_hval, max_hunit));
 			}
 
-			NSLOG(layout, INFO,
+			NSLOG(layout, DEEPDEBUG,
 				"SITE_NAV style box=%p height_type=%d height_px=%d min_type=%d min_px=%d max_type=%d max_px=%d line_type=%d line_px=%d",
 				box, htype, hpx, min_htype, min_hpx, max_htype, max_hpx, lhtype, lhpx);
 
@@ -5899,7 +5931,7 @@ static void layout_log_final_box_heights(const css_unit_ctx *unit_len_ctx, struc
 						ccls = dom_string_data(cclass_attr);
 					}
 				}
-				NSLOG(layout, INFO, "SITE_NAV_CHILD tag=%s class=%s type=%d y=%d h=%d total=%d", ctag, ccls,
+				NSLOG(layout, DEEPDEBUG, "SITE_NAV_CHILD tag=%s class=%s type=%d y=%d h=%d total=%d", ctag, ccls,
 					child->type, child->y, child->height,
 					child->height + child->padding[TOP] + child->padding[BOTTOM] + child->border[TOP].width +
 						child->border[BOTTOM].width + lh__non_auto_margin(child, TOP) +
@@ -5914,7 +5946,7 @@ static void layout_log_final_box_heights(const css_unit_ctx *unit_len_ctx, struc
 		}
 		if (is_site_nav_child) {
 			NSLOG(
-				layout, INFO, "SITE_NAV_CHILDREN tag=%s class=%s box=%p y=%d h=%d", tag, cls, box, box->y, box->height);
+				layout, DEEPDEBUG, "SITE_NAV_CHILDREN tag=%s class=%s box=%p y=%d h=%d", tag, cls, box, box->y, box->height);
 			for (child = box->children; child; child = child->next) {
 				const char *ctag = "";
 				const char *ccls = "";
@@ -5929,7 +5961,7 @@ static void layout_log_final_box_heights(const css_unit_ctx *unit_len_ctx, struc
 						ccls = dom_string_data(cclass_attr);
 					}
 				}
-				NSLOG(layout, INFO,
+				NSLOG(layout, DEEPDEBUG,
 					"SITE_NAV_GRANDCHILD tag=%s class=%s type=%d y=%d h=%d total=%d m=(%d,%d) p=(%d,%d) b=(%d,%d)",
 					ctag, ccls, child->type, child->y, child->height,
 					child->height + child->padding[TOP] + child->padding[BOTTOM] + child->border[TOP].width +
@@ -5978,14 +6010,14 @@ bool layout_document(html_content *content, int width, int height)
 	struct box *doc = content->layout;
 	const struct gui_layout_table *font_func = content->font_func;
 
-	NSLOG(wisp, DEBUG, "PROFILER: START layout_document %p", content);
+	NSLOG(wisp, DEEPDEBUG, "PROFILER: START layout_document %p", content);
 
-	NSLOG(layout, DEBUG, "Doing layout to %ix%i of %s", width, height, nsurl_access(content_get_url(&content->base)));
+	NSLOG(layout, DEEPDEBUG, "Doing layout to %ix%i of %s", width, height, nsurl_access(content_get_url(&content->base)));
 
 	if (content->had_initial_layout && width == content->last_layout_width && height == content->last_layout_height &&
 		!(doc->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(doc->flags & CHILD_DIRTY)) {
-		NSLOG(layout, DEBUG, "layout_document: SKIPPING full reflow (not dirty and same dimensions)");
-		NSLOG(wisp, DEBUG, "PROFILER: STOP layout_document %p (SKIPPED)", content);
+		NSLOG(layout, DEEPDEBUG, "layout_document: SKIPPING full reflow (not dirty and same dimensions)");
+		NSLOG(wisp, DEEPDEBUG, "PROFILER: STOP layout_document %p (SKIPPED)", content);
 		return true;
 	}
 
@@ -6054,7 +6086,7 @@ bool layout_document(html_content *content, int width, int height)
 	/* Trigger redraw for the accumulated dirty rectangles */
 	for (unsigned int i = 0; i < content->dirty_rect_count; i++) {
 		struct rect *r = &content->dirty_rects[i];
-		NSLOG(layout, INFO, "Redraw request for dirty rect %u/%u: (%d, %d) to (%d, %d)",
+		NSLOG(layout, DEEPDEBUG, "Redraw request for dirty rect %u/%u: (%d, %d) to (%d, %d)",
 			  i + 1, content->dirty_rect_count, r->x0, r->y0, r->x1, r->y1);
 
 		content__request_redraw((struct content *)content,
@@ -6074,7 +6106,7 @@ bool layout_document(html_content *content, int width, int height)
 		content->last_layout_height = height;
 	}
 
-	NSLOG(wisp, DEBUG, "PROFILER: STOP layout_document %p", content);
+	NSLOG(wisp, DEEPDEBUG, "PROFILER: STOP layout_document %p", content);
 
 	return ret;
 }

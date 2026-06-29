@@ -577,6 +577,10 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
             /* Inadmissible */
             *max_height = -1;
         }
+
+        if (*max_height != -1) {
+            layout_handle_box_sizing(unit_len_ctx, box, available_width, false, max_height);
+        }
     }
 
     if (min_height) {
@@ -622,6 +626,10 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
             /* min-height: auto */
             min_height->type = CSS_SIZE_AUTO;
             min_height->value = 0;
+        }
+
+        if (min_height->value != 0) {
+            layout_handle_box_sizing(unit_len_ctx, box, available_width, false, &min_height->value);
         }
     }
 
