@@ -179,15 +179,18 @@ void js_destroythread(jsthread *thread)
         // Break the cycle: mo->self holds a reference to the JS object which holds priv->node=mo.
         // By freeing mo->self here, we allow the JS object's refcount to drop,
         // which eventually triggers the finalizer to free the 'mo' struct.
-        JS_FreeValue(thread->ctx, mo->self);
+        // Important: copy self to local variable before freeing, as freeing might trigger finalizer which frees 'mo'.
+        JSValue self = mo->self;
         mo->self = JS_UNDEFINED;
         mo->next = NULL;
+        JS_FreeValue(thread->ctx, self);
     }
 
     // Orphan IntersectionObservers
     while (thread->intersection_observers) {
         struct WispIntersectionObserver *io = (struct WispIntersectionObserver *)thread->intersection_observers;
         thread->intersection_observers = io->next;
+        io->next = NULL;
         // io struct will be freed by finalizer later
     }
 
