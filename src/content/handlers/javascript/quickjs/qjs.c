@@ -194,6 +194,7 @@ void js_destroythread(jsthread *thread)
         qjs_finalise_dom_bridge(thread->ctx);
         JS_SetContextOpaque(thread->ctx, NULL);
         JS_FreeContext(thread->ctx);
+        JS_RunGC(rt);
     }
     if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);
     free(thread);

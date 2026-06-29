@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "utils/log.h"
+#include "desktop/gui_internal.h"
 
 __attribute__((weak)) bool verbose_log = false;
+__attribute__((weak)) struct wisp_table *guit = NULL;
 
 nserror nslog_init(nslog_ensure_t *ensure, int *pargc, char **argv)
 {

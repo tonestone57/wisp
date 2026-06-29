@@ -9,6 +9,16 @@
 #include "JSIntersectionObserver.gen.h"
 #include "observer_internal.h"
 
+static void intersectionobserver_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_intersectionobserver_class_id);
+    if (priv && priv->node) {
+        WispIntersectionObserver *observer = priv->node;
+        JS_MarkValue(rt, observer->callback, mark_func);
+        JS_MarkValue(rt, observer->queue, mark_func);
+    }
+}
+
 static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_intersectionobserver_class_id);
@@ -38,7 +48,7 @@ static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
     }
 }
 
-static JSClassDef wisp_intersectionobserver_class = { "IntersectionObserver", .finalizer = intersectionobserver_finalizer };
+static JSClassDef wisp_intersectionobserver_class = { "IntersectionObserver", .finalizer = intersectionobserver_finalizer, .gc_mark = intersectionobserver_mark };
 
 JSValue wisp_intersectionobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv, void * target)
 {

@@ -7,7 +7,7 @@
 #include "utils/nsurl/private.h"
 #include <stdlib.h>
 #include <string.h>
-struct wisp_table *guit;
+extern struct wisp_table *guit;
 
 static struct nsurl *stub_url;
 

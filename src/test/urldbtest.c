@@ -41,7 +41,7 @@
 #include "content/urldb.h"
 #include "desktop/cookie_manager.h"
 #include "desktop/gui_internal.h"
-struct wisp_table *guit;
+extern struct wisp_table *guit;
 
 static void test_lwc_iterator(lwc_string *str, void *pw)
 {
