@@ -592,21 +592,17 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     }
                 }
 
-                if (!is_token_stream && (lwc_string_length(p) != strlen(e->stringtab[j].string) ||
-                    memcmp(lwc_string_data(p), e->stringtab[j].string, lwc_string_length(p)) != 0)) {
-                {
-                char got_str[4096];
-                deserialize_and_dump(p, got_str, sizeof(got_str));
-                if (strcmp(got_str, e->stringtab[j].string) != 0) {
-                    printf("FAIL Strings differ\n"
-                           "    Got string '%s'. "
-                           "Expected '%s'\n",
-                        (int)lwc_string_length(p), lwc_string_data(p), e->stringtab[j].string);
-                    return false;
-                        got_str, e->stringtab[j].string);
-                    return true;
+                if (!is_token_stream) {
+                    char got_str[4096];
+                    deserialize_and_dump(p, got_str, sizeof(got_str));
+                    if (strcmp(got_str, e->stringtab[j].string) != 0) {
+                        printf("FAIL Strings differ\n"
+                               "    Got string '%s'. "
+                               "Expected '%s'\n",
+                            got_str, e->stringtab[j].string);
+                        return true;
+                    }
                 }
-            }
 
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
@@ -628,7 +624,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
     return false;
 }
 
-void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum)
+static void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum)
 {
     char name[MAX_RULE_NAME_LEN];
     char *ptr = name;
@@ -642,7 +638,7 @@ void validate_rule_charset(css_rule_charset *s, exp_entry *e, int testnum)
     }
 }
 
-void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum)
+static void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum)
 {
     if (strncmp(lwc_string_data(s->url), e->name, lwc_string_length(s->url)) != 0) {
         printf("%d: Got URL '%.*s'. Expected '%s'\n", testnum, (int)lwc_string_length(s->url), lwc_string_data(s->url),
@@ -653,7 +649,7 @@ void validate_rule_import(css_rule_import *s, exp_entry *e, int testnum)
     css_stylesheet_destroy(s->sheet);
 }
 
-void dump_selector_list(css_selector *list, char **ptr)
+static void dump_selector_list(css_selector *list, char **ptr)
 {
     if (list->combinator != NULL) {
         dump_selector_list(list->combinator, ptr);
@@ -683,7 +679,7 @@ void dump_selector_list(css_selector *list, char **ptr)
     dump_selector(list, ptr);
 }
 
-void dump_selector(css_selector *selector, char **ptr)
+static void dump_selector(css_selector *selector, char **ptr)
 {
     css_selector_detail *d = &selector->data;
 
@@ -697,7 +693,7 @@ void dump_selector(css_selector *selector, char **ptr)
     }
 }
 
-void dump_selector_detail(css_selector_detail *detail, char **ptr)
+static void dump_selector_detail(css_selector_detail *detail, char **ptr)
 {
     if (detail->negate)
         *ptr += sprintf(*ptr, ":not(");
@@ -828,7 +824,7 @@ void dump_selector_detail(css_selector_detail *detail, char **ptr)
         *ptr += sprintf(*ptr, ")");
 }
 
-void dump_string(lwc_string *string, char **ptr)
+static void dump_string(lwc_string *string, char **ptr)
 {
     *ptr += sprintf(*ptr, "%.*s", (int)lwc_string_length(string), lwc_string_data(string));
 }
