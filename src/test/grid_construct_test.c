@@ -377,7 +377,7 @@ size_t utf8_next(const char *s, size_t l, size_t o)
 
 /* Now Include */
 #include "content/handlers/html/box_construct.c"
-struct wisp_table *guit;
+extern struct wisp_table *guit;
 
 static void box_complete_cb(struct html_content *c, bool status)
 {

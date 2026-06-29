@@ -1107,25 +1107,23 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 				if (set != NULL) {
 					for (size_t i = 0; set[i].name != NULL; i++) {
 						bool found = false;
+						/* Check if it was just reset/set on this box first (innermost scope) */
+						for (int32_t j = (int32_t)idx - 1; j >= 0; j--) {
+							bool match = false;
+							if (lwc_string_isequal(box->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
+								box->counters[j].value = set[i].value; found = true; break;
+							}
+						}
 						/* Search for existing counter of same name in ancestors (innermost first) */
 						struct box *cbox = box->parent;
 						while (cbox != NULL && !found) {
-							for (size_t j = 0; j < cbox->n_counters; j++) {
+							for (int32_t j = (int32_t)cbox->n_counters - 1; j >= 0; j--) {
 								bool match = false;
 								if (lwc_string_isequal(cbox->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
 									cbox->counters[j].value = set[i].value; found = true; break;
 								}
 							}
 							cbox = cbox->parent;
-						}
-						/* If not found in ancestors, check if it was just reset on this box */
-						if (!found) {
-							for (uint32_t j = 0; j < idx; j++) {
-								bool match = false;
-								if (lwc_string_isequal(box->counters[j].name, set[i].name, &match) == lwc_error_ok && match) {
-									box->counters[j].value = set[i].value; found = true; break;
-								}
-							}
 						}
 						/* If still not found, instantiate it on this box */
 						if (!found) {
@@ -1137,25 +1135,23 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 				if (inc != NULL) {
 					for (size_t i = 0; inc[i].name != NULL; i++) {
 						bool found = false;
+						/* Check if it was just reset/set on this box first (innermost scope) */
+						for (int32_t j = (int32_t)idx - 1; j >= 0; j--) {
+							bool match = false;
+							if (lwc_string_isequal(box->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
+								box->counters[j].value += inc[i].value; found = true; break;
+							}
+						}
 						/* Search for existing counter of same name in ancestors (innermost first) */
 						struct box *cbox = box->parent;
 						while (cbox != NULL && !found) {
-							for (size_t j = 0; j < cbox->n_counters; j++) {
+							for (int32_t j = (int32_t)cbox->n_counters - 1; j >= 0; j--) {
 								bool match = false;
 								if (lwc_string_isequal(cbox->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
 									cbox->counters[j].value += inc[i].value; found = true; break;
 								}
 							}
 							cbox = cbox->parent;
-						}
-						/* If not found in ancestors, check if it was just reset/set on this box */
-						if (!found) {
-							for (uint32_t j = 0; j < idx; j++) {
-								bool match = false;
-								if (lwc_string_isequal(box->counters[j].name, inc[i].name, &match) == lwc_error_ok && match) {
-									box->counters[j].value += inc[i].value; found = true; break;
-								}
-							}
 						}
 						/* If still not found, instantiate it on this box */
 						if (!found) {
@@ -1952,7 +1948,10 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 			current += len;
 
 			if (current[0] == '\t') {
-				/* Create a box containing just a tab character */
+				/* Create a box containing expanded tab spaces */
+				int32_t tab_size = 8;
+				css_computed_tab_size(props.parent_style, &tab_size);
+
 				box = box_create(ctx->content, NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
 					props.title, NULL, ctx->bctx);
 				if (box == NULL) {
@@ -1961,13 +1960,15 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 				}
 
 				box->type = BOX_TEXT;
-				box->text = talloc_strdup(ctx->bctx, "\t");
+				box->text = arena_alloc(ctx->bctx, tab_size + 1);
 				if (box->text == NULL) {
 					free(text);
 					return false;
 				}
+				memset(box->text, ' ', tab_size);
+				box->text[tab_size] = '\0';
+				box->length = tab_size;
 
-				box->length = 1;
 				box_add_child(props.inline_container, box);
 				current++;
 			} else if (current[0] != '\0') {
