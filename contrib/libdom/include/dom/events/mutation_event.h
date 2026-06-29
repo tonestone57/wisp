@@ -10,11 +10,10 @@
 
 #include <dom/core/exceptions.h>
 #include <dom/core/string.h>
+#include <dom/functypes.h>
 #include <stdbool.h>
 
 struct dom_node;
-
-typedef enum { DOM_MUTATION_MODIFICATION = 1, DOM_MUTATION_ADDITION = 2, DOM_MUTATION_REMOVAL = 3 } dom_mutation_type;
 
 typedef struct dom_mutation_event dom_mutation_event;
 

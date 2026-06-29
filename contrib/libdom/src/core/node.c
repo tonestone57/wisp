@@ -2621,7 +2621,7 @@ dom_exception _dom_node_dispatch_node_change_event(
 
     /* Fire mutation hook if present */
     if (doc->mutation_hook != NULL) {
-        doc->mutation_hook(DOM_MUTATION_HOOK_CHILD_LIST,
+        doc->mutation_hook(DOM_MUTATION_HOOK_CHILD_LIST, change,
             (struct dom_node *)related, (struct dom_node *)node,
             NULL, NULL, NULL, NULL, doc->mutation_hook_pw);
     }

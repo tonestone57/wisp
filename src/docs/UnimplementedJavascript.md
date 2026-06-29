@@ -1511,18 +1511,6 @@ getter | Document::childElementCount(unsigned long);
 getter | Document::onerror(user);
 setter | Document::onerror(user);
 method | XMLDocument::load();
-getter | MutationRecord::type(string);
-getter | MutationRecord::target(user);
-getter | MutationRecord::addedNodes(user);
-getter | MutationRecord::removedNodes(user);
-getter | MutationRecord::previousSibling(user);
-getter | MutationRecord::nextSibling(user);
-getter | MutationRecord::attributeName(string);
-getter | MutationRecord::attributeNamespace(string);
-getter | MutationRecord::oldValue(string);
-method | MutationObserver::observe(); (Partial - stub exists)
-method | MutationObserver::disconnect(); (Partial - stub exists)
-method | MutationObserver::takeRecords(); (Partial - stub exists)
 method | DocumentType::before();
 method | DocumentType::after();
 method | DocumentType::replaceWith();
