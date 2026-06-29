@@ -41,6 +41,7 @@
 #include "content/urldb.h"
 #include "desktop/cookie_manager.h"
 #include "desktop/gui_internal.h"
+struct wisp_table *guit;
 
 static void test_lwc_iterator(lwc_string *str, void *pw)
 {
@@ -71,7 +72,7 @@ const char *test_cookies_out_path = "src/test/data/cookies-out";
 
 const char *wikipedia_url = "http://www.wikipedia.org/";
 
-struct wisp_table *guit;
+
 
 
 struct test_urls {
@@ -244,7 +245,6 @@ static void urldb_create(void)
     nserror res;
 
     /* mock bitmap interface */
-    extern struct wisp_table *guit;
     guit = &tst_table;
 
     // Before running each test, clear all entries
@@ -261,7 +261,6 @@ static void urldb_create_loaded(void)
     nserror res;
 
     /* mock bitmap interface */
-    extern struct wisp_table *guit;
     guit = &tst_table;
 
     // Before running each test, clear all entries

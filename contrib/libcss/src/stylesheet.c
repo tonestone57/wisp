@@ -288,12 +288,13 @@ css_error css_stylesheet_destroy(css_stylesheet *sheet)
         css__stylesheet_style_destroy(sheet->cached_style);
 
     /* destroy string vector */
-    for (index = 0; index < sheet->string_vector_c; index++) {
-        lwc_string_unref(sheet->string_vector[index]);
-    }
-
-    if (sheet->string_vector != NULL)
+    if (sheet->string_vector != NULL) {
+        for (index = 0; index < sheet->string_vector_c; index++) {
+            lwc_string_unref(sheet->string_vector[index]);
+        }
         free(sheet->string_vector);
+        sheet->string_vector = NULL;
+    }
 
     css__propstrings_unref();
 

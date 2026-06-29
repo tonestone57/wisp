@@ -220,14 +220,16 @@ class QuickJSBindingGenerator:
                 code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
             else:
-                actual_type = str(arg['type']).strip()
+                # Differentiate between another IDL interface and other types (any, dictionary)
+                actual_type = str(arg['type']).strip().rstrip('?')
+                if actual_type.startswith('unrestricted '):
+                    actual_type = actual_type.replace('unrestricted ', '').strip()
+
                 if actual_type in self.all_interface_names and actual_type not in self.dictionaries:
-                    # Interface
                     code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(ctx, argv[{i}]) : NULL;\n"
                     code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
                     impl_args.append(arg_name)
                 else:
-                    # Dictionary or 'any' or other types passed as JSValue
                     code += f"    JSValue {arg_name} = (argc > {i}) ? JS_DupValue(ctx, argv[{i}]) : JS_UNDEFINED;\n"
                     impl_args.append(arg_name)
 
@@ -242,7 +244,10 @@ class QuickJSBindingGenerator:
                 if js_type == 'float':
                     c_type = "double"
             else:
-                actual_type = str(arg['type']).strip()
+                actual_type = str(arg['type']).strip().rstrip('?')
+                if actual_type.startswith('unrestricted '):
+                    actual_type = actual_type.replace('unrestricted ', '').strip()
+
                 if actual_type in self.all_interface_names and actual_type not in self.dictionaries:
                     c_type = "void *"
                 else:
@@ -263,9 +268,11 @@ class QuickJSBindingGenerator:
             js_type = idl_to_js_type(arg['type'])
             if js_type == 'string':
                 code += f"    if ({arg_name}) JS_FreeCString(ctx, {arg_name});\n"
-            elif js_type == 'value':
-                actual_type = str(arg['type']).strip()
-                if actual_type not in self.all_interface_names or actual_type in self.dictionaries:
+            else:
+                actual_type = str(arg['type']).strip().rstrip('?')
+                if actual_type.startswith('unrestricted '):
+                    actual_type = actual_type.replace('unrestricted ', '').strip()
+                if not (actual_type in self.all_interface_names and actual_type not in self.dictionaries) and js_type not in ['bool', 'int', 'float']:
                     code += f"    JS_FreeValue(ctx, {arg_name});\n"
 
         code += "    return ret;\n"
@@ -306,17 +313,21 @@ class QuickJSBindingGenerator:
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
                 stub_body = "    return JS_UNDEFINED;"
             else:
-                actual_type = str(attr['type']).strip()
+                actual_type = str(attr['type']).strip().rstrip('?')
+                if actual_type.startswith('unrestricted '):
+                    actual_type = actual_type.replace('unrestricted ', '').strip()
+
                 if actual_type in self.all_interface_names and actual_type not in self.dictionaries:
                     code += f"    QJSNodePrivate *val_priv = qjs_get_dom_priv(ctx, val);\n"
                     code += f"    JSValue ret = {impl_func}(ctx, priv, val_priv ? val_priv->node : NULL);\n"
                     sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, void * value)"
+                    stub_body = "    return JS_UNDEFINED;"
                 else:
                     code += f"    JSValue val_dup = JS_DupValue(ctx, val);\n"
                     code += f"    JSValue ret = {impl_func}(ctx, priv, val_dup);\n"
                     code += f"    JS_FreeValue(ctx, val_dup);\n"
                     sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, JSValue value)"
-                stub_body = "    return JS_UNDEFINED;"
+                    stub_body = "    return JS_UNDEFINED;"
 
             code += "    return ret;\n"
         else:
@@ -430,8 +441,8 @@ class QuickJSBindingGenerator:
         c_code += f"}}\n\n"
 
         c_code += f"__attribute__((weak)) JSValue qjs_new_{lower_name}(JSContext *ctx, void *node, bool is_dom_node)\n{{\n"
-        c_code += f"    JSValue obj = JS_NewObjectClass(ctx, qjs_{lower_name}_class_id);\n"
-        c_code += f"    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));\n    if (!priv) return JS_ThrowOutOfMemory(ctx);\n"
+        c_code += f"    JSValue obj = JS_NewObjectClass(ctx, qjs_{lower_name}_class_id); if (JS_IsException(obj)) return obj;\n"
+        c_code += f"    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));\n    if (!priv) {{ JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }}\n"
         c_code += f"    priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->is_dom_node = is_dom_node; priv->ctx = ctx;\n    if (is_dom_node && node) dom_node_ref((dom_node *)node);\n"
         c_code += f"    JS_SetOpaque(obj, priv); return obj;\n}}\n"
 

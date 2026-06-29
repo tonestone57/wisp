@@ -11,6 +11,7 @@
 #include <wisp/misc.h>
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/utils/file.h>
+extern struct wisp_table *guit;
 
 /* Mock schedule functions */
 nserror schedule(int t, void (*callback)(void *p), void *p) { return NSERROR_OK; }
@@ -24,9 +25,6 @@ struct wisp_table guit_test = {
     .misc = &misc_table,
     .file = NULL,    /* initialized in main */
 };
-/* ODR fix: guit is defined in the library, we just assign our test table to it */
-extern struct wisp_table *guit;
-
 int main(int argc, char **argv)
 {
     guit = &guit_test;
