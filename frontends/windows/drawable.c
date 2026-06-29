@@ -30,6 +30,7 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include "wisp/browser.h"
 #include "wisp/browser_window.h"
 #include "wisp/keypress.h"
 #include "wisp/plotters.h"
@@ -398,7 +399,6 @@ static LRESULT nsws_drawable_keydown(struct gui_window *gw, HWND hwnd, WPARAM wp
  */
 static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
 {
-    struct rect clip;
     PAINTSTRUCT ps;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
 
@@ -408,16 +408,36 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
         plot_hdc = ps.hdc;
         plot_gw = gw;
 
-        clip.x0 = ps.rcPaint.left;
-        clip.y0 = ps.rcPaint.top;
-        clip.x1 = ps.rcPaint.right;
-        clip.y1 = ps.rcPaint.bottom;
+        /* Fixed-Tile Redraw Implementation */
+        int tile_size = browser_get_tile_size();
+        int rect_left = ps.rcPaint.left;
+        int rect_top = ps.rcPaint.top;
+        int rect_right = ps.rcPaint.right;
+        int rect_bottom = ps.rcPaint.bottom;
 
-        /**
-         * \todo work out why the heck scroll needs scaling
-         */
+        int x_start = rect_left - (rect_left % tile_size);
+        int y_start = rect_top - (rect_top % tile_size);
 
-        browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &clip, &ctx);
+        for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
+            int t_y0 = max(ty, rect_top);
+            int t_y1 = min(ty + tile_size, rect_bottom);
+
+            for (int tx = x_start; tx < rect_right; tx += tile_size) {
+                struct rect tile_clip;
+                tile_clip.x0 = max(tx, rect_left);
+                tile_clip.y0 = t_y0;
+                tile_clip.x1 = min(tx + tile_size, rect_right);
+                tile_clip.y1 = t_y1;
+
+                if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
+                    continue;
+
+                /**
+                 * \todo work out why the heck scroll needs scaling
+                 */
+                browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &tile_clip, &ctx);
+            }
+        }
 
         plot_gw = NULL;
     }
