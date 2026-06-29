@@ -14,7 +14,10 @@ extern struct gui_audio_table *macos_audio_table;
 extern struct gui_bitmap_table *macos_bitmap_table;
 extern struct gui_layout_table *macos_layout_table;
 
+static WispApp *macos_app_delegate = nil;
+
 static void macos_task_queue_wake(void) {
+    [macos_app_delegate wake];
 }
 
 static struct gui_misc_table macos_misc_table = {
@@ -25,8 +28,8 @@ static struct gui_misc_table macos_misc_table = {
 int main(int argc, char *argv[]) {
     @autoreleasepool {
         NSApplication *app = [NSApplication sharedApplication];
-        WispApp *delegate = [[WispApp alloc] init];
-        [app setDelegate:delegate];
+        macos_app_delegate = [[WispApp alloc] init];
+        [app setDelegate:macos_app_delegate];
 
         struct wisp_table macos_table = {
             .misc = &macos_misc_table,

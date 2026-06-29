@@ -54,8 +54,23 @@ extern struct gui_plot_table *macos_plot_table;
 - (void)keyDown:(NSEvent *)event {
     NSString *chars = [event charactersIgnoringModifiers];
     if ([chars length] > 0) {
-        uint32_t key = [chars characterAtIndex:0];
-        browser_window_key_press(_bw, key);
+        unichar key = [chars characterAtIndex:0];
+        uint32_t ns_key = key;
+
+        switch (key) {
+            case NSUpArrowFunctionKey: ns_key = NS_KEY_UP; break;
+            case NSDownArrowFunctionKey: ns_key = NS_KEY_DOWN; break;
+            case NSLeftArrowFunctionKey: ns_key = NS_KEY_LEFT; break;
+            case NSRightArrowFunctionKey: ns_key = NS_KEY_RIGHT; break;
+            case 0x7F: ns_key = NS_KEY_DELETE_LEFT; break;
+            case NSDeleteFunctionKey: ns_key = NS_KEY_DELETE_RIGHT; break;
+            case NSTabCharacter: ns_key = NS_KEY_TAB; break;
+            case NSCarriageReturnCharacter:
+            case NSNewlineCharacter: ns_key = NS_KEY_CR; break;
+            case 0x1B: ns_key = NS_KEY_ESCAPE; break;
+        }
+
+        browser_window_key_press(_bw, ns_key);
     }
 }
 

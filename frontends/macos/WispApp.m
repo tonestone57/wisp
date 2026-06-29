@@ -24,8 +24,14 @@
 - (void)runStep {
     int next = schedule_run();
     if (next < 0) next = 100;
-    if (next < 10) next = 10;
+    if (next < 5) next = 5;
     [self scheduleNextStep:next];
+}
+
+- (void)wake {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self runStep];
+    });
 }
 
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender {

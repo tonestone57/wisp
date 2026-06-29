@@ -2,4 +2,5 @@
 
 @interface WispApp : NSObject <NSApplicationDelegate>
 - (void)runStep;
+- (void)wake;
 @end
