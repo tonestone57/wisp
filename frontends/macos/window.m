@@ -4,7 +4,7 @@
 #include <wisp/browser_window.h>
 
 struct gui_window {
-    WispWindow *win;
+    WispWindow *__strong win;
     struct browser_window *bw;
 };
 
@@ -21,6 +21,7 @@ static struct gui_window *macos_window_create(struct browser_window *bw, struct 
 
 static void macos_window_destroy(struct gui_window *gw) {
     [gw->win close];
+    gw->win = nil; /* ARC will handle release */
     free(gw);
 }
 

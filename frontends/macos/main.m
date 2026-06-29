@@ -11,12 +11,10 @@
 extern struct gui_window_table *macos_window_table;
 extern struct gui_fetch_table *macos_fetch_table;
 extern struct gui_audio_table *macos_audio_table;
-/* Forward declarations for other tables we'll implement */
 extern struct gui_bitmap_table *macos_bitmap_table;
 extern struct gui_layout_table *macos_layout_table;
 
 static void macos_task_queue_wake(void) {
-    /* Cocoa event loop will pick up steps via the timer in WispApp */
 }
 
 static struct gui_misc_table macos_misc_table = {
@@ -43,15 +41,23 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        /* Basic options initialization */
+        /* Initialize options */
         nsoption_init(NULL, &nsoptions, &nsoptions_default);
+        nsoption_commandline(&argc, argv, nsoptions);
 
         if (wisp_init(NULL) != NSERROR_OK) {
             return 1;
         }
 
+        const char *addr = "https://www.google.com";
+        if (argc > 1) {
+            addr = argv[1];
+        } else if (nsoption_charp(homepage_url)) {
+            addr = nsoption_charp(homepage_url);
+        }
+
         nsurl *url;
-        if (nsurl_create("https://www.google.com", &url) == NSERROR_OK) {
+        if (nsurl_create(addr, &url) == NSERROR_OK) {
             browser_window_create(BW_CREATE_HISTORY, url, NULL, NULL, NULL);
             nsurl_unref(url);
         }

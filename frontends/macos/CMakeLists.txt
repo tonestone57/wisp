@@ -20,6 +20,8 @@ target_include_directories(wisp-macos PRIVATE
     ${CMAKE_SOURCE_DIR}/frontends
 )
 
+target_compile_options(wisp-macos PRIVATE -fobjc-arc)
+
 target_link_libraries(wisp-macos
     PRIVATE
     wisp

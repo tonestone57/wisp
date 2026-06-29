@@ -30,33 +30,50 @@ static nserror macos_font_position(const plot_font_style_t *fstyle, const char *
 
         NSFont *font = [NSFont systemFontOfSize:fstyle->size / 1000.0];
         NSDictionary *attrs = @{NSFontAttributeName: font};
+        NSAttributedString *attrStr = [[NSAttributedString alloc] initWithString:nsStr attributes:attrs];
+        CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)attrStr);
 
-        size_t best_offset = 0;
-        int best_x = 0;
+        CFIndex index = CTLineGetStringIndexForPosition(line, CGPointMake(x, 0));
+        CGFloat secondaryOffset;
+        CGFloat offset = CTLineGetOffsetForStringIndex(line, index, &secondaryOffset);
 
-        /* Simple linear search for position. In a full implementation,
-         * we'd use Core Text's CTRunGetPositions or similar.
-         */
-        for (size_t i = 0; i <= length; i++) {
-            NSString *sub = [[NSString alloc] initWithBytes:string length:i encoding:NSUTF8StringEncoding];
-            if (!sub) continue;
-            NSSize size = [sub sizeWithAttributes:attrs];
-            if (size.width > x) {
-                break;
-            }
-            best_offset = i;
-            best_x = (int)size.width;
-        }
+        /* NetSurf expects byte offset, index is UTF-16 code unit offset */
+        NSRange range = NSMakeRange(0, index);
+        NSString *sub = [nsStr substringWithRange:range];
+        *char_offset = [sub lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+        *actual_x = (int)offset;
 
-        *char_offset = best_offset;
-        *actual_x = best_x;
+        CFRelease(line);
     }
     return NSERROR_OK;
 }
 
 static nserror macos_font_split(const plot_font_style_t *fstyle, const char *string, size_t length, int x, size_t *char_offset, int *actual_x) {
-    /* For now, split is similar to position but usually used for word wrapping */
-    return macos_font_position(fstyle, string, length, x, char_offset, actual_x);
+    @autoreleasepool {
+        NSString *nsStr = [[NSString alloc] initWithBytes:string length:length encoding:NSUTF8StringEncoding];
+        if (!nsStr) {
+            *char_offset = 0;
+            *actual_x = 0;
+            return NSERROR_OK;
+        }
+
+        NSFont *font = [NSFont systemFontOfSize:fstyle->size / 1000.0];
+        NSDictionary *attrs = @{NSFontAttributeName: font};
+        NSAttributedString *attrStr = [[NSAttributedString alloc] initWithString:nsStr attributes:attrs];
+        CTTypesetterRef typesetter = CTTypesetterCreateWithAttributedString((__bridge CFAttributedStringRef)attrStr);
+
+        CFIndex count = CTTypesetterSuggestLineBreak(typesetter, 0, x);
+        CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)[attrStr attributedSubstringFromRange:NSMakeRange(0, count)]);
+
+        NSRange range = NSMakeRange(0, count);
+        NSString *sub = [nsStr substringWithRange:range];
+        *char_offset = [sub lengthOfBytesUsingEncoding:NSUTF8StringEncoding];
+        *actual_x = (int)CTLineGetTypographicBounds(line, NULL, NULL, NULL);
+
+        CFRelease(line);
+        CFRelease(typesetter);
+    }
+    return NSERROR_OK;
 }
 
 static struct gui_layout_table layout_table = {

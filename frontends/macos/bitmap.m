@@ -3,7 +3,7 @@
 #include <wisp/utils/log.h>
 
 struct gui_bitmap {
-    NSBitmapImageRep *rep;
+    NSBitmapImageRep *__strong rep;
     bool opaque;
 };
 
@@ -26,7 +26,7 @@ static void *macos_bitmap_create(int width, int height, unsigned int state) {
 
 static void macos_bitmap_destroy(void *bitmap) {
     struct gui_bitmap *bm = bitmap;
-    [bm->rep release];
+    bm->rep = nil; /* ARC will handle release */
     free(bm);
 }
 
