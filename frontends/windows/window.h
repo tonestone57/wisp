@@ -80,6 +80,7 @@ struct gui_window {
 
     void *d2d_transform_stack; /**< std::stack<D2D1_MATRIX_3X2_F>* */
     void *d2d_stateful_path; /**< std::vector<d2d_path_command>* */
+    float d2d_clip_x0, d2d_clip_y0, d2d_clip_x1, d2d_clip_y1;
 
     RECT *fullscreen; /**< memorize non-fullscreen area */
     RECT redraw; /**< Area needing redraw. */
