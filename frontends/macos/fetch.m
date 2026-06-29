@@ -1,4 +1,4 @@
-#import <Foundation/Foundation.h>
+#import "gui.h"
 #include <wisp/fetch.h>
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -20,9 +20,6 @@ static const char *macos_fetch_filetype(const char *unix_path)
     return "text/html";
 }
 
-/* Use a simple static dictionary to cache resource data to ensure it remains valid
- * for the lifetime of the application, avoiding dangling pointers.
- */
 static NSMutableDictionary<NSString *, NSData *> *resourceCache = nil;
 
 static nserror macos_get_resource_data(const char *path, const uint8_t **data_out, size_t *data_len_out)
@@ -49,7 +46,6 @@ static nserror macos_get_resource_data(const char *path, const uint8_t **data_ou
         NSData *data = [NSData dataWithContentsOfFile:resourcePath];
         if (!data) return NSERROR_NOT_FOUND;
 
-        /* Cache the data to keep it alive for the browser engine */
         resourceCache[nsPath] = data;
 
         *data_out = [data bytes];
@@ -57,6 +53,11 @@ static nserror macos_get_resource_data(const char *path, const uint8_t **data_ou
     }
 
     return NSERROR_OK;
+}
+
+void macos_fetch_cleanup(void) {
+    [resourceCache removeAllObjects];
+    resourceCache = nil;
 }
 
 static struct gui_fetch_table fetch_table = {

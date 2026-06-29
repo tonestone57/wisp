@@ -1,6 +1,5 @@
 #import "WispApp.h"
 #include "macos/schedule.h"
-#include <wisp/wisp.h>
 
 @implementation WispApp {
     NSTimer *_timer;
@@ -39,7 +38,7 @@
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
-    wisp_exit();
+    /* Cleanup is handled in main.m after [app run] returns */
 }
 
 @end

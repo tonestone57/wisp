@@ -1,18 +1,10 @@
-#import <Cocoa/Cocoa.h>
-#import "WispApp.h"
-#import "WispWindow.h"
+#import "gui.h"
 #include <wisp/wisp.h>
-#include <wisp/browser_window.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/nsoption.h>
 #include "macos/schedule.h"
-
-extern struct gui_window_table *macos_window_table;
-extern struct gui_fetch_table *macos_fetch_table;
-extern struct gui_audio_table *macos_audio_table;
-extern struct gui_bitmap_table *macos_bitmap_table;
-extern struct gui_layout_table *macos_layout_table;
+#import "WispApp.h"
 
 static WispApp *macos_app_delegate = nil;
 
@@ -44,7 +36,6 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
-        /* Initialize options */
         nsoption_init(NULL, &nsoptions, &nsoptions_default);
         nsoption_commandline(&argc, argv, nsoptions);
 
@@ -66,6 +57,9 @@ int main(int argc, char *argv[]) {
         }
 
         [app run];
+
+        macos_fetch_cleanup();
+        wisp_exit();
     }
     return 0;
 }

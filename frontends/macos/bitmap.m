@@ -1,11 +1,6 @@
-#import <Cocoa/Cocoa.h>
+#import "gui.h"
 #include <wisp/bitmap.h>
 #include <wisp/utils/log.h>
-
-struct gui_bitmap {
-    NSBitmapImageRep *__strong rep;
-    bool opaque;
-};
 
 static void *macos_bitmap_create(int width, int height, unsigned int state) {
     struct gui_bitmap *bitmap = calloc(1, sizeof(struct gui_bitmap));
@@ -26,7 +21,7 @@ static void *macos_bitmap_create(int width, int height, unsigned int state) {
 
 static void macos_bitmap_destroy(void *bitmap) {
     struct gui_bitmap *bm = bitmap;
-    bm->rep = nil; /* ARC will handle release */
+    bm->rep = nil;
     free(bm);
 }
 

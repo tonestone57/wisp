@@ -4,7 +4,8 @@
 #include <wisp/keypress.h>
 #include <wisp/plotters.h>
 
-extern void macos_plot_set_context(CGContextRef ctx);
+extern void macos_plot_push_context(CGContextRef ctx);
+extern void macos_plot_pop_context(void);
 extern struct gui_plot_table *macos_plot_table;
 
 @implementation WispView
@@ -27,7 +28,7 @@ extern struct gui_plot_table *macos_plot_table;
 
 - (void)drawRect:(NSRect)dirtyRect {
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
-    macos_plot_set_context(ctx);
+    macos_plot_push_context(ctx);
 
     struct rect wisp_rect = {
         .x0 = (int)NSMinX(dirtyRect),
@@ -38,7 +39,7 @@ extern struct gui_plot_table *macos_plot_table;
 
     browser_window_redraw(_bw, &wisp_rect, macos_plot_table);
 
-    macos_plot_set_context(NULL);
+    macos_plot_pop_context();
 }
 
 - (void)mouseDown:(NSEvent *)event {
@@ -57,6 +58,10 @@ extern struct gui_plot_table *macos_plot_table;
         unichar key = [chars characterAtIndex:0];
         uint32_t ns_key = key;
 
+        /* Basic modifier mapping */
+        NSEventModifierFlags modifiers = [event modifierFlags];
+        bool shift = (modifiers & NSEventModifierFlagShift) != 0;
+
         switch (key) {
             case NSUpArrowFunctionKey: ns_key = NS_KEY_UP; break;
             case NSDownArrowFunctionKey: ns_key = NS_KEY_DOWN; break;
@@ -64,7 +69,7 @@ extern struct gui_plot_table *macos_plot_table;
             case NSRightArrowFunctionKey: ns_key = NS_KEY_RIGHT; break;
             case 0x7F: ns_key = NS_KEY_DELETE_LEFT; break;
             case NSDeleteFunctionKey: ns_key = NS_KEY_DELETE_RIGHT; break;
-            case NSTabCharacter: ns_key = NS_KEY_TAB; break;
+            case NSTabCharacter: ns_key = shift ? NS_KEY_SHIFT_TAB : NS_KEY_TAB; break;
             case NSCarriageReturnCharacter:
             case NSNewlineCharacter: ns_key = NS_KEY_CR; break;
             case 0x1B: ns_key = NS_KEY_ESCAPE; break;

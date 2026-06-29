@@ -1,12 +1,5 @@
-#import <Cocoa/Cocoa.h>
-#import "WispWindow.h"
-#include <wisp/window.h>
-#include <wisp/browser_window.h>
-
-struct gui_window {
-    WispWindow *__strong win;
-    struct browser_window *bw;
-};
+#import "gui.h"
+#include <wisp/mouse.h>
 
 static struct gui_window *macos_window_create(struct browser_window *bw, struct gui_window *existing, gui_window_create_flags flags) {
     struct gui_window *gw = calloc(1, sizeof(struct gui_window));
@@ -21,7 +14,7 @@ static struct gui_window *macos_window_create(struct browser_window *bw, struct 
 
 static void macos_window_destroy(struct gui_window *gw) {
     [gw->win close];
-    gw->win = nil; /* ARC will handle release */
+    gw->win = nil;
     free(gw);
 }
 
@@ -64,6 +57,40 @@ static void macos_window_set_title(struct gui_window *gw, const char *title) {
     [gw->win setTitle:[NSString stringWithUTF8String:title]];
 }
 
+static void macos_window_set_status(struct gui_window *gw, const char *status) {
+    if (status) {
+        NSLog(@"Status: %s", status);
+    }
+}
+
+static void macos_window_set_pointer(struct gui_window *gw, enum gui_pointer_shape shape) {
+    NSCursor *cursor;
+    switch (shape) {
+        case GUI_POINTER_CARET:
+        case GUI_POINTER_MENU:
+        case GUI_POINTER_PROGRESS:
+        case GUI_POINTER_DEFAULT: cursor = [NSCursor arrowCursor]; break;
+        case GUI_POINTER_POINT:   cursor = [NSCursor pointingHandCursor]; break;
+        case GUI_POINTER_TEXT:    cursor = [NSCursor IBeamCursor]; break;
+        case GUI_POINTER_MOVE:    cursor = [NSCursor openHandCursor]; break;
+        default:                  cursor = [NSCursor arrowCursor]; break;
+    }
+    [cursor set];
+}
+
+static void macos_window_set_icon(struct gui_window *gw, struct hlcache_handle *icon) {
+    if (!icon) return;
+    struct bitmap *bitmap = hlcache_handle_get_bitmap(icon);
+    if (!bitmap) return;
+
+    struct gui_bitmap *bm = (struct gui_bitmap *)bitmap;
+    if (bm && bm->rep) {
+        NSImage *image = [[NSImage alloc] initWithSize:bm->rep.size];
+        [image addRepresentation:bm->rep];
+        [NSApp setApplicationIconImage:image];
+    }
+}
+
 static struct gui_window_table window_table = {
     .create = macos_window_create,
     .destroy = macos_window_destroy,
@@ -74,6 +101,9 @@ static struct gui_window_table window_table = {
     .get_scrollbar_width = macos_window_get_scrollbar_width,
     .event = macos_window_event,
     .set_title = macos_window_set_title,
+    .set_status = macos_window_set_status,
+    .set_pointer = macos_window_set_pointer,
+    .set_icon = macos_window_set_icon,
 };
 
 struct gui_window_table *macos_window_table = &window_table;
