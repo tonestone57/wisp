@@ -25,9 +25,6 @@ struct wisp_table guit_test = {
     .misc = &misc_table,
     .file = NULL,    /* initialized in main */
 };
-/* ODR fix: guit is defined in the library, we just assign our test table to it */
-extern
-
 int main(int argc, char **argv)
 {
     guit = &guit_test;
