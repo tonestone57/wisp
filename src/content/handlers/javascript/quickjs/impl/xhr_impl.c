@@ -42,6 +42,8 @@ JSValue wisp_xmlhttprequest_withCredentials_set_impl(JSContext *ctx, QJSNodePriv
 JSValue wisp_xmlhttprequest_upload_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_xmlhttprequest_responseURL_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 
+JSClassID qjs_xhr_class_id;
+
 int qjs_init_xhr(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
@@ -50,12 +52,10 @@ int qjs_init_xhr(JSContext *ctx)
     qjs_init_xmlhttprequest_gen(ctx);
 
     JSValue global_obj = JS_GetGlobalObject(ctx);
-    JSValue proto = JS_GetClassProto(ctx, qjs_xhr_class_id);
+    JSValue proto = JS_GetClassProto(ctx, qjs_xmlhttprequest_class_id);
     JSValue ctor = JS_NewCFunction2(ctx, js_xhr_constructor, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "XMLHttpRequest", ctor);
-
-    JS_FreeValue(ctx, proto);
     JS_FreeValue(ctx, global_obj);
     return 0;
 }

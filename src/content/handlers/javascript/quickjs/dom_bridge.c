@@ -118,20 +118,15 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
-static bool bridge_cleanup_iter(void *key, void *value, void *pw)
-{
-    JSRuntime *rt = pw;
-    JSValue *val = value;
-    JS_FreeValueRT(rt, *val);
-    return true;
-}
-
 void qjs_bridge_cleanup(JSRuntime *rt)
 {
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (map) {
+        /* Clear the opaque pointer first so finalizers don't try to access it */
         JS_SetRuntimeOpaque(rt, NULL);
-        hashmap_iterate(map, bridge_cleanup_iter, rt);
+
+        /* Entries are weak-like; managed by finalizers.
+           Explicitly freeing here causes Use-After-Free during JS_FreeRuntime */
         hashmap_destroy(map);
     }
 }

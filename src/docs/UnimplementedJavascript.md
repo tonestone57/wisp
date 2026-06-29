@@ -1545,5 +1545,5 @@ method | EventListener::handleEvent();
 method | CustomEvent::initCustomEvent();
 getter | CustomEvent::detail(any);
 
- 1539 unimplemented bindings
+ Approximately 1,500 unimplemented bindings (stubbed)
 
