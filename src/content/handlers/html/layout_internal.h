@@ -460,7 +460,8 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
                 }
 
                 if (containing_block && containing_block->height != AUTO &&
-                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET)) {
+                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET ||
+                        (containing_block->flags & HAS_HEIGHT))) {
                     /* Box is absolutely positioned or its
                      * containing block has a valid
                      * specified height.
@@ -563,7 +564,8 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
                 }
 
                 if (containing_block && containing_block->height != AUTO &&
-                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET)) {
+                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET ||
+                        (containing_block->flags & HAS_HEIGHT))) {
                     *max_height = FPCT_OF_INT_TOINT(value, containing_block->height);
                 } else if ((!box->parent || !box->parent->parent) && viewport_height >= 0) {
                     *max_height = FPCT_OF_INT_TOINT(value, viewport_height);
@@ -612,7 +614,8 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
                 }
 
                 if (containing_block && containing_block->height != AUTO &&
-                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET)) {
+                    (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || cbhtype == CSS_HEIGHT_SET ||
+                        (containing_block->flags & HAS_HEIGHT))) {
                     min_height->value = FPCT_OF_INT_TOINT(value, containing_block->height);
                 } else if ((!box->parent || !box->parent->parent) && viewport_height >= 0) {
                     min_height->value = FPCT_OF_INT_TOINT(value, viewport_height);

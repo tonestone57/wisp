@@ -1042,6 +1042,10 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 		} else if (wunit != CSS_UNIT_PCT) {
 			int width_px = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, width, wunit));
 			min = max = width_px;
+		} else {
+			/* Percentage width: min = 0, max = default intrinsic (400px) */
+			min = 0;
+			max = 400;
 		}
 		block->flags |= HAS_HEIGHT;
 	} else {
@@ -1833,10 +1837,29 @@ static void layout_block_find_dimensions(
 			dom_string_unref(name);
 	}
 
-	if (box->object && !(box->flags & REPLACE_DIM) && content_get_type(box->object) != CONTENT_HTML) {
+	if ((box->object || (box->flags & IFRAME)) && !(box->flags & REPLACE_DIM) &&
+		(box->object == NULL || content_get_type(box->object) != CONTENT_HTML)) {
 		/* block-level replaced element, see 10.3.4 and 10.6.2 */
-		layout_get_object_dimensions(
-			unit_len_ctx, box, &width, &height, min_width, max_width, min_height, max_height, available_width);
+		if (box->flags & IFRAME) {
+			/* IFRAMEs have a default size of 300x150 (Wisp uses 400x150) */
+			if (width == AUTO)
+				width = 400;
+			if (height == AUTO)
+				height = 150;
+
+			/* Apply min/max constraints */
+			if (min_width.type == CSS_SIZE_SET && min_width.value > width)
+				width = min_width.value;
+			if (max_width >= 0 && width > max_width)
+				width = max_width;
+			if (min_height.type == CSS_SIZE_SET && min_height.value > height)
+				height = min_height.value;
+			if (max_height >= 0 && height > max_height)
+				height = max_height;
+		} else {
+			layout_get_object_dimensions(
+				unit_len_ctx, box, &width, &height, min_width, max_width, min_height, max_height, available_width);
+		}
 	}
 
 	box->width = layout_solve_width(box, available_width, width, lm, rm, max_width, min_width.value);
@@ -2964,7 +2987,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 	x1 -= cx;
 
 	if (indent)
-		x0 += layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, *width);
+		x0 += layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, first->parent->parent->width);
 
 	if (x1 < x0)
 		x1 = x0;
@@ -3157,9 +3180,10 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			layout_get_object_dimensions(&content->unit_len_ctx, b, &b->width, &b->height, min_width, max_width,
 				min_height, max_height, *width /* containing block / available line width */);
 		} else if (b->flags & IFRAME) {
-			/* IFRAMEs with AUTO dimensions use 300x150 default per HTML5 §4.8.2 */
+			/* IFRAMEs with AUTO dimensions use 300x150 default per HTML5 §4.8.2.
+			 * Wisp uses 400x150 for consistency with block-level IFRAMEs. */
 			if (b->width == AUTO)
-				b->width = 300;
+				b->width = 400;
 			if (b->height == AUTO)
 				b->height = 150;
 
@@ -3207,7 +3231,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 	x1 -= cx;
 
 	if (indent)
-		x0 += layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, *width);
+		x0 += layout_text_indent(&content->unit_len_ctx, first->parent->parent->style, first->parent->parent->width);
 
 	if (x1 < x0)
 		x1 = x0;
