@@ -33,24 +33,31 @@ def safe_name(name):
 # Map WebIDL basic types to C types
 TYPE_MAP = {
     'DOMString': 'const char *',
+    'USVString': 'const char *',
+    'ByteString': 'const char *',
     'boolean': 'bool',
     'unsigned short': 'uint16_t',
     'unsigned long': 'uint32_t',
+    'unsigned long long': 'uint64_t',
     'short': 'int16_t',
     'long': 'int32_t',
+    'long long': 'int64_t',
     'double': 'double',
     'float': 'float',
     'any': 'JSValue',
+    'DOMTimeStamp': 'uint64_t',
 }
 
 def idl_to_js_type(idl_type):
     t = str(idl_type).strip().rstrip('?')
-    if t == 'DOMString':
+    if t in ['DOMString', 'USVString', 'ByteString']:
         return 'string'
     if t == 'boolean':
         return 'bool'
     if t in ['unsigned short', 'unsigned long', 'short', 'long']:
         return 'int'
+    if t in ['unsigned long long', 'long long', 'DOMTimeStamp']:
+        return 'int64'
     if t in ['double', 'float'] or 'double' in t or 'float' in t:
         return 'float'
     return 'value'
@@ -59,7 +66,16 @@ def normalize_primitive_type(idl_type):
     type_str = str(idl_type).strip()
     if type_str.startswith('unrestricted '):
         type_str = type_str.replace('unrestricted ', '').strip()
-    type_mapping = {'double': 'double', 'float': 'float', 'long': 'int32_t', 'unsigned long': 'uint32_t', 'boolean': 'bool'}
+    type_mapping = {
+        'double': 'double',
+        'float': 'float',
+        'long': 'int32_t',
+        'unsigned long': 'uint32_t',
+        'long long': 'int64_t',
+        'unsigned long long': 'uint64_t',
+        'boolean': 'bool',
+        'DOMTimeStamp': 'uint64_t'
+    }
     return type_mapping.get(type_str, None)
 
 def get_actual_type(arg):
@@ -102,12 +118,24 @@ class QuickJSBindingGenerator:
                 if construct.name not in self.mixins:
                     self.mixins[construct.name] = []
                 self.mixins[construct.name].append(construct.implements)
+            elif isinstance(construct, widlparser.constructs.IncludesStatement):
+                if construct.name not in self.mixins:
+                    self.mixins[construct.name] = []
+                self.mixins[construct.name].append(construct.includes)
 
     def _get_inheritance(self, interface_name):
         interface = self.interfaces.get(interface_name)
         if not interface or not interface.inheritance:
             return None
         return str(interface.inheritance).strip().lstrip(':').strip()
+
+    def _is_event_type(self, interface_name):
+        if interface_name == 'Event':
+            return True
+        parent = self._get_inheritance(interface_name)
+        if parent:
+            return self._is_event_type(parent)
+        return False
 
     def _get_members(self, interface):
         name = interface.name
@@ -193,7 +221,40 @@ class QuickJSBindingGenerator:
         attributes = sorted([m for m in members_by_name.values() if m['kind'] == 'attribute'], key=lambda x: x['name'])
         operations = sorted([m for m in members_by_name.values() if m['kind'] == 'operation'], key=lambda x: x['name'])
         constants = sorted([m for m in members_by_name.values() if m['kind'] == 'const'], key=lambda x: x['name'])
-        return attributes, operations, constants
+
+        constructors = []
+        if hasattr(interface, 'constructors'):
+            for idx, ctor in enumerate(interface.constructors):
+                ctor_str = str(ctor)
+                if ctor_str.startswith('Constructor') or 'NamedConstructor' in ctor_str:
+                    name = "constructor"
+                    if 'NamedConstructor=' in ctor_str:
+                        import re
+                        match = re.search(r'NamedConstructor=([A-Za-z0-9_]+)', ctor_str)
+                        if match: name = match.group(1)
+
+                    # Handle overloaded constructors by appending index if more than one
+                    if name == "constructor" and len([c for c in interface.constructors if str(c).startswith('Constructor')]) > 1:
+                        impl_name = f"{name}_{idx}"
+                    elif 'NamedConstructor' in ctor_str and len([c for c in interface.constructors if 'NamedConstructor' in str(c)]) > 1:
+                        impl_name = f"{name}_{idx}"
+                    else:
+                        impl_name = name
+
+                    args = []
+                    ctor_args = []
+                    if hasattr(ctor, 'attribute') and hasattr(ctor.attribute, '_arguments') and ctor.attribute._arguments:
+                        ctor_args = ctor.attribute._arguments
+
+                    for arg in ctor_args:
+                        actual_type = get_actual_type(arg)
+                        if actual_type.startswith('unrestricted '):
+                            actual_type = actual_type.replace('unrestricted ', '').strip()
+                        args.append({'name': arg.name, 'type': actual_type, 'optional': arg.optional})
+
+                    constructors.append({'name': name, 'impl_name': impl_name, 'args': args})
+
+        return attributes, operations, constants, constructors
 
     def generate_marshaller_body(self, interface_name, op):
         lower_name = interface_name.lower()
@@ -215,6 +276,9 @@ class QuickJSBindingGenerator:
                 impl_args.append(arg_name)
             elif js_type == 'int':
                 code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
+                impl_args.append(arg_name)
+            elif js_type == 'int64':
+                code += f"    int64_t {arg_name} = 0; if (argc > {i}) JS_ToInt64(ctx, &{arg_name}, argv[{i}]);\n"
                 impl_args.append(arg_name)
             elif js_type == 'float':
                 code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
@@ -272,7 +336,7 @@ class QuickJSBindingGenerator:
                 actual_type = str(arg['type']).strip().rstrip('?')
                 if actual_type.startswith('unrestricted '):
                     actual_type = actual_type.replace('unrestricted ', '').strip()
-                if not (actual_type in self.all_interface_names and actual_type not in self.dictionaries) and js_type not in ['bool', 'int', 'float']:
+                if not (actual_type in self.all_interface_names and actual_type not in self.dictionaries) and js_type not in ['bool', 'int', 'int64', 'float']:
                     code += f"    JS_FreeValue(ctx, {arg_name});\n"
 
         code += "    return ret;\n"
@@ -312,6 +376,11 @@ class QuickJSBindingGenerator:
                 code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
                 sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int32_t value)"
                 stub_body = "    return JS_UNDEFINED;"
+            elif idl_to_js_type(attr['type']) == 'int64':
+                code += f"    int64_t value = 0; JS_ToInt64(ctx, &value, val);\n"
+                code += f"    JSValue ret = {impl_func}(ctx, priv, value);\n"
+                sig = f"JSValue {impl_func}(JSContext *ctx, QJSNodePrivate *priv, int64_t value)"
+                stub_body = "    return JS_UNDEFINED;"
             else:
                 actual_type = str(attr['type']).strip().rstrip('?')
                 if actual_type.startswith('unrestricted '):
@@ -346,7 +415,7 @@ class QuickJSBindingGenerator:
         name = interface.name
         lower_name = name.lower()
         parent_name = self._get_inheritance(interface_name)
-        attributes, operations, constants = self._get_members(interface)
+        attributes, operations, constants, constructors = self._get_members(interface)
         
         self.current_impl_signatures = []
         self.current_weak_stubs = []
@@ -372,6 +441,11 @@ class QuickJSBindingGenerator:
 
         # Marshaller declarations
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val);\n"
+        for ctor in constructors:
+            if ctor['name'] == 'constructor':
+                c_code += f"static JSValue js_{lower_name}_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
+            else:
+                c_code += f"static JSValue js_{lower_name}_{ctor['name']}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
         for op in operations:
             c_code += f"static JSValue js_{lower_name}_{op['name']}(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
         for attr in attributes:
@@ -394,15 +468,95 @@ class QuickJSBindingGenerator:
         
         c_code += f"static JSClassDef js_{lower_name}_class = {{\n    \"{name}\",\n    .finalizer = js_{lower_name}_finalizer,\n}};\n\n"
 
+        is_event = self._is_event_type(name)
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val)\n{{\n"
         c_code += f"    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_{lower_name}_class_id);\n"
         c_code += f"    if (priv) {{\n"
-        c_code += f"        if (priv->magic == QJS_DOM_MAGIC) {{\n"
-        c_code += f"            if (priv->is_dom_node && priv->node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
-        c_code += f"            if (priv->is_dom_node && priv->node) dom_node_unref((dom_node *)priv->node);\n"
+        c_code += f"        if (priv->magic == QJS_DOM_MAGIC && priv->node) {{\n"
+        if is_event:
+            c_code += f"            dom_event_unref((dom_event *)priv->node);\n"
+        else:
+            c_code += f"            if (priv->is_dom_node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
+            c_code += f"            if (priv->is_dom_node) dom_node_unref((dom_node *)priv->node);\n"
         c_code += f"        }}\n"
         c_code += f"        free(priv);\n"
         c_code += f"    }}\n}}\n\n"
+
+        for ctor in constructors:
+            if ctor['name'] == 'constructor':
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
+            else:
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
+
+            impl_args = []
+            for i, arg in enumerate(ctor['args']):
+                js_type = idl_to_js_type(arg['type'])
+                arg_name = safe_name(arg['name'])
+                if js_type == 'string':
+                    c_code += f"    const char *{arg_name} = (argc > {i}) ? JS_ToCString(ctx, argv[{i}]) : NULL;\n"
+                    impl_args.append(arg_name)
+                elif js_type == 'bool':
+                    c_code += f"    bool {arg_name} = (argc > {i}) ? JS_ToBool(ctx, argv[{i}]) : false;\n"
+                    impl_args.append(arg_name)
+                elif js_type == 'int':
+                    c_code += f"    int32_t {arg_name} = 0; if (argc > {i}) JS_ToInt32(ctx, &{arg_name}, argv[{i}]);\n"
+                    impl_args.append(arg_name)
+                elif js_type == 'int64':
+                    c_code += f"    int64_t {arg_name} = 0; if (argc > {i}) JS_ToInt64(ctx, &{arg_name}, argv[{i}]);\n"
+                    impl_args.append(arg_name)
+                elif js_type == 'float':
+                    c_code += f"    double {arg_name} = 0; if (argc > {i}) JS_ToFloat64(ctx, &{arg_name}, argv[{i}]);\n"
+                    impl_args.append(arg_name)
+                else:
+                    actual_type = str(arg['type']).strip().rstrip('?')
+                    if actual_type.startswith('unrestricted '):
+                        actual_type = actual_type.replace('unrestricted ', '').strip()
+
+                    if actual_type in self.all_interface_names and actual_type not in self.dictionaries:
+                        c_code += f"    QJSNodePrivate *{arg_name}_priv = (argc > {i}) ? qjs_get_dom_priv(ctx, argv[{i}]) : NULL;\n"
+                        c_code += f"    void *{arg_name} = {arg_name}_priv ? {arg_name}_priv->node : NULL;\n"
+                        impl_args.append(arg_name)
+                    else:
+                        c_code += f"    JSValue {arg_name} = (argc > {i}) ? JS_DupValue(ctx, argv[{i}]) : JS_UNDEFINED;\n"
+                        impl_args.append(arg_name)
+
+            impl_func = f"wisp_{lower_name}_{ctor['impl_name']}_impl"
+            sig_args = ["JSContext *ctx"]
+            for arg in ctor['args']:
+                js_type = idl_to_js_type(arg['type'])
+                arg_name = safe_name(arg['name'])
+                if js_type in ['string', 'bool', 'int', 'float']:
+                    c_type = TYPE_MAP.get(arg['type'], "JSValue")
+                    if js_type == 'float': c_type = "double"
+                else:
+                    actual_type = str(arg['type']).strip().rstrip('?')
+                    if actual_type.startswith('unrestricted '):
+                         actual_type = actual_type.replace('unrestricted ', '').strip()
+                    if actual_type in self.all_interface_names and actual_type not in self.dictionaries:
+                        c_type = "void *"
+                    else:
+                        c_type = "JSValue"
+                sig_args.append(f"{c_type} {arg_name}")
+
+            sig = f"JSValue {impl_func}({', '.join(sig_args)})"
+            self.current_impl_signatures.append(sig)
+            self.current_weak_stubs.append(f"__attribute__((weak)) {sig} {{\n"
+                                f"    NSLOG(wisp, WARNING, \"Unimplemented WebIDL constructor: {name}.{ctor['impl_name']}\");\n"
+                                f"    return JS_UNDEFINED;\n}}")
+
+            call_args = ["ctx"] + impl_args
+            c_code += f"    JSValue ret = {impl_func}({', '.join(call_args)});\n"
+            for i, arg in enumerate(ctor['args']):
+                arg_name = safe_name(arg['name'])
+                js_type = idl_to_js_type(arg['type'])
+                if js_type == 'string':
+                    c_code += f"    if ({arg_name}) JS_FreeCString(ctx, {arg_name});\n"
+                elif js_type not in ['bool', 'int', 'int64', 'float']:
+                     actual_type = str(arg['type']).strip().rstrip('?')
+                     if not (actual_type in self.all_interface_names and actual_type not in self.dictionaries):
+                        c_code += f"    JS_FreeValue(ctx, {arg_name});\n"
+            c_code += "    return ret;\n"
+            c_code += f"}}\n\n"
 
         for op in operations:
             c_code += f"static JSValue js_{lower_name}_{op['name']}(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
@@ -434,6 +588,24 @@ class QuickJSBindingGenerator:
         c_code += f"        JS_SetPropertyFunctionList(ctx, proto, js_{lower_name}_proto_funcs, sizeof(js_{lower_name}_proto_funcs) / sizeof(js_{lower_name}_proto_funcs[0]));\n"
         c_code += f"        JS_SetClassProto(ctx, qjs_{lower_name}_class_id, proto);\n"
         c_code += f"    }} else {{\n        JS_FreeValue(ctx, proto);\n    }}\n"
+
+        for ctor in constructors:
+            if ctor['name'] == 'constructor':
+                c_code += f"    {{\n"
+                c_code += f"        JSValue ctor = JS_NewCFunction2(ctx, js_{lower_name}_{ctor['impl_name']}, \"{name}\", {len(ctor['args'])}, JS_CFUNC_constructor, 0);\n"
+                c_code += f"        JS_SetConstructor(ctx, ctor, proto);\n"
+                c_code += f"        JSValue global_obj = JS_GetGlobalObject(ctx);\n"
+                c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{name}\", ctor);\n"
+                c_code += f"        JS_FreeValue(ctx, global_obj);\n"
+                c_code += f"    }}\n"
+            else:
+                c_code += f"    {{\n"
+                c_code += f"        JSValue {ctor['impl_name']}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor['impl_name']}_ctor, \"{ctor['name']}\", {len(ctor['args'])}, JS_CFUNC_generic, 0);\n"
+                c_code += f"        JSValue global_obj = JS_GetGlobalObject(ctx);\n"
+                c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{ctor['name']}\", {ctor['impl_name']}_ctor_val);\n"
+                c_code += f"        JS_FreeValue(ctx, global_obj);\n"
+                c_code += f"    }}\n"
+
         c_code += f"    return 0;\n}}\n\n"
 
         c_code += f"__attribute__((weak)) int qjs_init_{lower_name}(JSContext *ctx)\n{{\n"
@@ -443,7 +615,11 @@ class QuickJSBindingGenerator:
         c_code += f"__attribute__((weak)) JSValue qjs_new_{lower_name}(JSContext *ctx, void *node, bool is_dom_node)\n{{\n"
         c_code += f"    JSValue obj = JS_NewObjectClass(ctx, qjs_{lower_name}_class_id); if (JS_IsException(obj)) return obj;\n"
         c_code += f"    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));\n    if (!priv) {{ JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }}\n"
-        c_code += f"    priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->is_dom_node = is_dom_node; priv->ctx = ctx;\n    if (is_dom_node && node) dom_node_ref((dom_node *)node);\n"
+        c_code += f"    priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->is_dom_node = is_dom_node; priv->ctx = ctx;\n"
+        if is_event:
+            c_code += f"    if (node) dom_event_ref((dom_event *)node);\n"
+        else:
+            c_code += f"    if (is_dom_node && node) dom_node_ref((dom_node *)node);\n"
         c_code += f"    JS_SetOpaque(obj, priv); return obj;\n}}\n"
 
         # Implementation signatures in header
