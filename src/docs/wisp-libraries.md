@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-  Wisp project libraries required                               1 July 2012
+  Wisp project libraries required                               15 June 2026
 --------------------------------------------------------------------------------
 
   To build Wisp, you need the libraries required by the core, and any extra
@@ -9,20 +9,26 @@
   Wisp Core
 ==============
 
-  Required:
+  Wisp utilizes several specialized libraries. Most are vendored or tracked as Git submodules in the `contrib/` directory.
 
-      $ git clone git://git.netsurf-browser.org/buildsystem
-      $ git clone git://git.netsurf-browser.org/libwapcaplet
-      $ git clone git://git.netsurf-browser.org/libparserutils
-      $ git clone git://git.netsurf-browser.org/libhubbub
-      $ git clone git://git.netsurf-browser.org/libcss
-      $ git clone git://git.netsurf-browser.org/libdom
-      $ git clone git://git.netsurf-browser.org/libnsbmp
-      $ git clone git://git.netsurf-browser.org/libnsgif
+  Primary Dependencies:
+  - **QuickJS-ng (v0.15.1)**: Modern ES2023+ JavaScript engine.
+  - **Blend2D (v0.21.2)**: Unified 2D vector rendering engine.
+  - **libavif (v1.4.2)**: Native AVIF and HEIC image support.
+  - **FFmpeg**: Media pipeline and video decoding.
+  - **LibreSSL**: TLS and cryptography.
+
+  Core Subsystem Libraries:
+  - **LibWapcaplet**: String internment.
+  - **LibParserUtils**: Parser building utility functions.
+  - **Hubbub**: HTML5 compliant HTML parser.
+  - **LibCSS**: CSS parser and selection engine (Diverged for Grid/Calc/Variables).
+  - **LibDOM**: W3C DOM implementation (Diverged for Mutation Hooks/JS).
+  - **LibNSGIF**: GIF format image decoder.
+  - **LibNSBMP**: BMP and ICO format image decoder.
 
   Optional:
-
-      $ git clone git://git.netsurf-browser.org/libsvgtiny
+  - **Libsvgtiny**: Lightweight SVG implementation.
 
 
   RISC OS front end

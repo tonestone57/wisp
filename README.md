@@ -27,6 +27,8 @@ Current development is focused on completing the CSS Variables implementation, a
 *   **[Partial] CSS Flexbox**: Support for flex-grow, shrink, auto-margins, and column-flex two-pass resolution.
 *   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Refinement of child-clipping in tiled redraw in progress.
 *   **[Partial] CSS Variables**: Parsing and selection of `var()` complete; resolution pass is active with minor regressions.
+*   **[Finished] Nested CSS Counters**: Full support for nested counter scoping and inheritance in `box_construct.c`.
+*   **[Finished] Tab-Size Support**: Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
@@ -45,9 +47,6 @@ Current development is focused on completing the CSS Variables implementation, a
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
 * **[Incomplete] Percentage Widths**: Missing resolution for IFRAMEs and certain text-indent contexts in the layout engine.
 * **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (confirmed by LeakSanitizer).
-* **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
-* **[Bug] Binding Mismatches**: Conflict between manual implementations and generated WebIDL headers in `eventtarget_impl.c` and `xhr_impl.c`.
-* **[Bug] Test Runner Errors**: `libcss_parse_auto` fails to compile due to syntax errors and undefined function calls in `parse-auto.c`.
 
 ## Building and installation
 Wisp can be built:

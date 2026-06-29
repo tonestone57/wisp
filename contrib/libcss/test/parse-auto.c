@@ -577,7 +577,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 
                 if (!is_token_stream) {
                     char got_str[4096];
-                    deserialize_and_dump(p, got_str, sizeof(got_str));
+                    deserialize_and_dump(p, got_str, sizeof(got_str), false);
                     if (strcmp(got_str, e->stringtab[j].string) != 0) {
                         printf("FAIL Strings differ\n"
                                "    Got string '%s'. "
