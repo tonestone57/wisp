@@ -179,9 +179,11 @@ void js_destroythread(jsthread *thread)
         // Break the cycle: mo->self holds a reference to the JS object which holds priv->node=mo.
         // By freeing mo->self here, we allow the JS object's refcount to drop,
         // which eventually triggers the finalizer to free the 'mo' struct.
-        JS_FreeValue(thread->ctx, mo->self);
+        // We must not access 'mo' after JS_FreeValue as it might have been freed by the finalizer.
+        JSValue self = mo->self;
         mo->self = JS_UNDEFINED;
         mo->next = NULL;
+        JS_FreeValue(thread->ctx, self);
     }
 
     // Orphan IntersectionObservers
