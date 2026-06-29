@@ -367,17 +367,6 @@ void box_mark_dirty(struct box *box)
 		return;
 	}
 
-	/* Check if any ancestor is already marked as DIRTY_INTRINSIC.
-	 * If so, this subtree will be reflowed anyway, so we can avoid
-	 * redundant flag propagation and dirty list accumulation. */
-	struct box *a = box->parent;
-	while (a != NULL) {
-		if (a->flags & DIRTY_INTRINSIC) {
-			return;
-		}
-		a = a->parent;
-	}
-
 	if (box->flags & DIRTY_INTRINSIC) {
 		/* Already dirty, no need to propagate */
 		return;

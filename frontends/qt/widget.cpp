@@ -29,6 +29,7 @@ extern "C" {
 #include "utils/log.h"
 #include "utils/nsoption.h"
 
+#include "wisp/browser.h"
 #include "wisp/content.h"
 #include "wisp/keypress.h"
 #include "wisp/plotters.h"
@@ -171,17 +172,49 @@ void NS_Widget::paintEvent(QPaintEvent *event)
         .plot = &nsqt_plotters,
         .priv = painter,
     };
-    /* netsurf render clip region coordinates */
-    struct rect clip = {
-        .x0 = event->rect().left(),
-        .y0 = event->rect().top(),
-        .x1 = event->rect().left() + event->rect().width(),
-        .y1 = event->rect().top() + event->rect().height(),
+
+    /* Fixed-Tile Redraw Implementation */
+    int tile_size = browser_get_tile_size();
+    QRect updateRect = event->rect();
+    int rect_left = updateRect.left();
+    int rect_top = updateRect.top();
+    int rect_right = updateRect.right() + 1;
+    int rect_bottom = updateRect.bottom() + 1;
+
+    int x_start = rect_left - (rect_left % tile_size);
+    int y_start = rect_top - (rect_top % tile_size);
+
+    for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
+        int t_y0 = std::max(ty, rect_top);
+        int t_y1 = std::min(ty + tile_size, rect_bottom);
+
+        for (int tx = x_start; tx < rect_right; tx += tile_size) {
+            struct rect tile_clip;
+            tile_clip.x0 = std::max(tx, rect_left);
+            tile_clip.y0 = t_y0;
+            tile_clip.x1 = std::min(tx + tile_size, rect_right);
+            tile_clip.y1 = t_y1;
+
+            if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
+                continue;
+
+            painter->save();
+            painter->setClipRect(tile_clip.x0, tile_clip.y0,
+                                 tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
+
+            browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &tile_clip, &ctx);
+
+            painter->restore();
+        }
+    }
+
+    struct rect full_clip = {
+        .x0 = updateRect.left(),
+        .y0 = updateRect.top(),
+        .x1 = updateRect.right(),
+        .y1 = updateRect.bottom(),
     };
-
-    browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &clip, &ctx);
-
-    redraw_caret(&clip, &ctx);
+    redraw_caret(&full_clip, &ctx);
 
     delete painter;
 }
