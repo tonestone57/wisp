@@ -27,6 +27,7 @@
 #include "utils/nsurl.h"
 #include "utils/ring.h"
 #include "utils/utils.h"
+#include "wisp/browser.h"
 #include "wisp/browser_window.h"
 #include "wisp/mouse.h"
 #include "wisp/plotters.h"
@@ -35,6 +36,13 @@
 #include "monkey/browser.h"
 #include "monkey/output.h"
 #include "monkey/plot.h"
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
 
 static uint32_t win_ctr = 0;
 
@@ -536,10 +544,10 @@ static void monkey_window_handle_redraw(int argc, char **argv)
     for (int ty = (clip.y0 / tile_size) * tile_size; ty < clip.y1; ty += tile_size) {
         for (int tx = (clip.x0 / tile_size) * tile_size; tx < clip.x1; tx += tile_size) {
             struct rect tile_clip;
-            tile_clip.x0 = max(tx, clip.x0);
-            tile_clip.y0 = max(ty, clip.y0);
-            tile_clip.x1 = min(tx + tile_size, clip.x1);
-            tile_clip.y1 = min(ty + tile_size, clip.y1);
+            tile_clip.x0 = MAX(tx, clip.x0);
+            tile_clip.y0 = MAX(ty, clip.y0);
+            tile_clip.x1 = MIN(tx + tile_size, clip.x1);
+            tile_clip.y1 = MIN(ty + tile_size, clip.y1);
 
             if (tile_clip.x0 < tile_clip.x1 && tile_clip.y0 < tile_clip.y1) {
                 browser_window_redraw(gw->bw, gw->scrollx, gw->scrolly, &tile_clip, &ctx);
