@@ -146,6 +146,7 @@ void js_destroythread(jsthread *thread)
 {
     if (!thread) return;
     struct qjs_timer *tim = thread->timers;
+    thread->timers = NULL;
     while (tim) {
         struct qjs_timer *next = tim->next;
         JS_FreeValue(thread->ctx, tim->func);
@@ -153,6 +154,7 @@ void js_destroythread(jsthread *thread)
         tim = next;
     }
     struct qjs_event_listener_ctx *l = thread->listeners;
+    thread->listeners = NULL;
     while (l) {
         struct qjs_event_listener_ctx *next = l->next;
         dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
@@ -164,11 +166,14 @@ void js_destroythread(jsthread *thread)
         l = next;
     }
     struct qjs_event_map *e = thread->events;
+    thread->events = NULL;
     while (e) {
         struct qjs_event_map *next = e->next;
-        JS_FreeValue(thread->ctx, e->js_evt);
-        dom_event_unref(e->evt);
+        JSValue js_evt = e->js_evt;
+        dom_event *evt = e->evt;
         free(e);
+        JS_FreeValue(thread->ctx, js_evt);
+        dom_event_unref(evt);
         e = next;
     }
 
@@ -179,16 +184,20 @@ void js_destroythread(jsthread *thread)
         // Break the cycle: mo->self holds a reference to the JS object which holds priv->node=mo.
         // By freeing mo->self here, we allow the JS object's refcount to drop,
         // which eventually triggers the finalizer to free the 'mo' struct.
-        JS_FreeValue(thread->ctx, mo->self);
+        JSValue self = mo->self;
         mo->self = JS_UNDEFINED;
         mo->next = NULL;
+        JS_FreeValue(thread->ctx, self);
     }
 
-    // Orphan IntersectionObservers
+    // Break IntersectionObserver cycles and orphan them
     while (thread->intersection_observers) {
         struct WispIntersectionObserver *io = (struct WispIntersectionObserver *)thread->intersection_observers;
         thread->intersection_observers = io->next;
-        // io struct will be freed by finalizer later
+        JSValue self = io->self;
+        io->self = JS_UNDEFINED;
+        io->next = NULL;
+        JS_FreeValue(thread->ctx, self);
     }
 
     if (thread->ctx) {
@@ -312,17 +321,18 @@ bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *documen
 
 void js_handle_new_element(jsthread *thread, struct dom_element *node) {}
 
-void js_event_cleanup(jsthread *thread, struct dom_event *evt)
+bool js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
-    if (!thread || !evt) return;
+    if (!thread || !evt) return false;
     struct qjs_event_map **prev = &thread->events, *curr = thread->events;
     while (curr) {
         if (curr->evt == evt) {
             *prev = curr->next; JS_FreeValue(thread->ctx, curr->js_evt);
-            dom_event_unref(evt); free(curr); return;
+            dom_event_unref(evt); free(curr); return true;
         }
         prev = &curr->next; curr = curr->next;
     }
+    return false;
 }
 
 JSValue qjs_new_intersectionobserverentry_manual(JSContext *ctx, WispIntersectionObserverEntry *entry);

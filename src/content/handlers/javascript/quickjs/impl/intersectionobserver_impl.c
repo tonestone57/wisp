@@ -16,6 +16,7 @@ static void intersectionobserver_mark(JSRuntime *rt, JSValueConst val, JS_MarkFu
         WispIntersectionObserver *observer = priv->node;
         JS_MarkValue(rt, observer->callback, mark_func);
         JS_MarkValue(rt, observer->queue, mark_func);
+        JS_MarkValue(rt, observer->self, mark_func);
     }
 }
 
@@ -36,7 +37,9 @@ static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
                     curr = &((*curr)->next);
                 }
             }
-            JS_FreeValueRT(rt, observer->callback); JS_FreeValueRT(rt, observer->queue);
+            JS_FreeValueRT(rt, observer->callback);
+            JS_FreeValueRT(rt, observer->queue);
+            JS_FreeValueRT(rt, observer->self);
             IntersectionObserverTarget *ot = observer->targets;
             while (ot) {
                 IntersectionObserverTarget *next = ot->next;
@@ -105,7 +108,7 @@ static JSValue js_intersectionobserver_constructor(JSContext *ctx, JSValueConst 
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
     if (!priv) { JS_FreeValue(ctx, observer->callback); JS_FreeValue(ctx, observer->queue); free(observer); JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
     priv->magic = QJS_DOM_MAGIC; priv->node = observer; priv->is_dom_node = false; priv->ctx = ctx;
-    JS_SetOpaque(obj, priv);
+    JS_SetOpaque(obj, priv); observer->self = JS_DupValue(ctx, obj);
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (t) { observer->next = t->intersection_observers; t->intersection_observers = observer; }
     return obj;
