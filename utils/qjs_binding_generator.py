@@ -443,9 +443,9 @@ class QuickJSBindingGenerator:
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val);\n"
         for ctor in constructors:
             if ctor['name'] == 'constructor':
-                c_code += f"static JSValue js_{lower_name}_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
             else:
-                c_code += f"static JSValue js_{lower_name}_{ctor['name']}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
         for op in operations:
             c_code += f"static JSValue js_{lower_name}_{op['name']}(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
         for attr in attributes:
