@@ -2,7 +2,7 @@
 *.pyc
 __pycache__/
 build/
-build/
+test_cache/
 build/
 /build/
 contrib/libavif/*

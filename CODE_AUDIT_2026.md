@@ -53,11 +53,11 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **Haiku / BeOS [Finished]**: Native `libbe` frontend (BView) unified with the Blend2D rendering backend and fixed-tile redraw strategy.
 
 ## 4. Bugs and Technical Debt
-*   **[Bug] ODR Violation**: `journal_test` and `urldbtest` fail due to duplicate definition of `guit` symbol in `gui_factory.c` and test code.
+*   **[Finished] ODR Violation**: Resolved duplicate definition of `guit` symbol in test code. Verified correct use of `extern` in `journal_test.c` and `test_quickjs.c`.
 *   **[Bug] LibCSS Regression**: `libcss_parse_auto_custom-properties_dat` failing on complex variable fallbacks.
-*   **[Bug] Binding Conflicts**: Type mismatches in `eventtarget_impl.c` and `xhr_impl.c` prevent compilation when unit tests are enabled.
-*   **[Bug] Test Runner Compilation**: `contrib/libcss/test/parse-auto.c` fails to compile due to syntax errors, invalid format strings in `printf`, and missing function definitions.
-*   **[Debt] Box Construction**: Missing support for nested CSS counters and tab character expansion in `box_construct.c`.
+*   **[Finished] Binding Conflicts**: Verified that manual stubs and generated headers in `eventtarget_impl.c` and `xhr_impl.c` are in sync.
+*   **[Finished] Test Runner Compilation**: Resolved syntax and format errors in `contrib/libcss/test/parse-auto.c`.
+*   **[Debt] Box Construction**: `src/content/handlers/html/box_construct.c` missing full support for nested CSS counters and tab character expansion.
 
 ## 5. Future Recommendations and Optimizations
 1.  **Binding Coverage**: Prioritize manual implementation of high-value WebIDL bindings like `Element.querySelector` and `Element.querySelectorAll`.

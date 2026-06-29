@@ -14,6 +14,10 @@
 #include <parserutils/utils/buffer.h>
 #include "parse/properties/utils.h"
 
+#ifndef min
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
 static void deserialize_and_dump(lwc_string *p, char *buf, size_t buf_len) {
     const uint8_t *data = (const uint8_t *)lwc_string_data(p);
     size_t len = lwc_string_length(p);
@@ -150,7 +154,7 @@ int main(int argc, char **argv)
 
     ctx.buf = malloc(ctx.buflen);
     if (ctx.buf == NULL) {
-        printf("Failed allocating %u bytes\n", (unsigned int)ctx.buflen);
+        printf("Failed allocating %zu bytes\n", ctx.buflen);
         return 1;
     }
 
@@ -176,7 +180,10 @@ int main(int argc, char **argv)
 
     lwc_iterate_strings(printing_lwc_iterator, NULL);
 
-    assert(fail_because_lwc_leaked == false);
+    if (fail_because_lwc_leaked) {
+        printf("FAIL: LWC leaked strings\n");
+        return 1;
+    }
 
     printf("PASS\n");
 
@@ -521,8 +528,8 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 
         if ((s->style->used * sizeof(css_code_t)) != e->bcused) {
             printf("FAIL Bytecode lengths differ\n"
-                   "    Got length %" PRIuMAX ", Expected %" PRIuMAX "\n",
-                (uintmax_t)(s->style->used * sizeof(css_code_t)), (uintmax_t)e->bcused);
+                   "    Got length %zu, Expected %zu\n",
+                (s->style->used * sizeof(css_code_t)), e->bcused);
             return true;
         }
 
@@ -543,7 +550,7 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
 
                 if (p == NULL) {
                     /* ODR/Null fix: gracefully handle NULL string from sheet */
-                    printf("FAIL String pointer is NULL for index %u\n", (unsigned int)s->style->bytecode[i / sizeof(css_code_t)]);
+                    printf("FAIL String pointer is NULL for index %zu\n", (size_t)s->style->bytecode[i / sizeof(css_code_t)]);
                     return true;
                 }
 
@@ -577,9 +584,9 @@ bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                 i += sizeof(css_code_t) - 1;
             } else if (((uint8_t *)s->style->bytecode)[i] != e->bytecode[i]) {
                 printf("FAIL Bytecode differs\n"
-                       "    Bytecode differs at %u\n	",
-                    (int)i);
-                for (unsigned a = 0; a < e->bcused; a++) {
+                       "    Bytecode differs at %zu\n	",
+                    i);
+                for (size_t a = 0; a < e->bcused; a++) {
                     if (a == i) {
                         printf("[%.2x] ", ((uint8_t *)s->style->bytecode)[a]);
                     } else {
