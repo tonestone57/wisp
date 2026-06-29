@@ -60,14 +60,14 @@ The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`)
 ## 5. Bugs and Technical Debt
 
 ### 5.1 Identified Bugs
-*   **[Bug] ODR Violation**: `journal_test` fails due to duplicate definition of `guit` symbol in `gui_factory.c` and test code. Other tests (e.g. `urldbtest.c`) also exhibit this collision.
-*   **[Bug] QuickJS Leaks**: LeakSanitizer identified ~720 bytes leaked during JS runtime teardown across 27 allocations.
+*   **[Finished] ODR Violation**: Resolved duplicate definition of `guit` symbol in test code. Tests linking against `libwisp` (`journal_test.c`, `test_quickjs.c`) now correctly use `extern`, while standalone mock tests retain local definitions.
+*   **[Bug] QuickJS Leaks**: LeakSanitizer identified ~720 bytes leaked during JS runtime teardown across 27 allocations. The `qjs_bridge_cleanup` strategy avoids explicit `JS_FreeValueRT` during map destruction to prevent Use-After-Free, but this may contribute to the reported leaks if finalizers are not triggered for all bridge entries.
 *   **[Bug] CSS Variable Regression**: `libcss_parse_auto` fails on certain custom property definitions involving complex fallbacks.
-*   **[Bug] Binding Type Mismatch**: Manual implementation signatures in `eventtarget_impl.c` and `xhr_impl.c` conflict with generated headers (e.g., `dispatchEvent` expecting `void*` but receiving `JSValue`).
-*   **[Bug] Test Runner Syntax Errors**: `contrib/libcss/test/parse-auto.c` contains multiple syntax errors (missing semicolons, invalid format strings) and calls to undefined functions.
+*   **[Finished] Binding Type Mismatch**: Verified that manual implementation signatures in `eventtarget_impl.c` and `xhr_impl.c` match the current output of the WebIDL binding generator.
+*   **[Finished] Test Runner Syntax Errors**: Resolved syntax errors and format mismatches in `contrib/libcss/test/parse-auto.c` (added `min` macro, fixed `%zu` format strings).
 
 ### 5.2 Technical Debt
-*   **Box Construction**: `box_construct.c` lacks full support for nested CSS counters and proper tab character expansion (TODOs at lines 420, 1847).
+*   **Box Construction**: `src/content/handlers/html/box_construct.c` lacks full support for nested CSS counters and proper tab character expansion. Tab handling currently creates a text box with a raw `\t` character rather than calculating tab-stop offsets.
 *   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` should be demoted to `NSLOG_LEVEL_DEEPDEBUG`.
 
 ## 6. Future Recommendations and Advice

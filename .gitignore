@@ -2,9 +2,7 @@
 *.pyc
 __pycache__/
 build/
-build/
-build/
-/build/
+test_cache/
 contrib/libavif/*
 !contrib/libavif/CMakeLists.txt
 !contrib/libavif/include
