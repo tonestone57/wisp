@@ -4,7 +4,7 @@ This document describes the automated WebIDL binding system used in the Wisp bro
 
 ## Architecture
 
-Wisp uses a custom WebIDL compiler (`utils/qjs_binding_generator.py`) to generate QuickJS-ng C bindings. This approach minimizes manual boilerplate and ensures consistent memory management and type safety.
+Wisp uses a custom WebIDL compiler (`utils/qjs_binding_generator.py`) to generate QuickJS-ng (v0.15.1) C bindings. This approach minimizes manual boilerplate and ensures consistent memory management and type safety.
 
 The system is divided into two layers:
 1.  **Generated Marshalling Layer**: Automatically handles the QuickJS stack, converting JS types to C types, and vice versa.

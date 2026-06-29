@@ -16,19 +16,24 @@ programs contain more than one suite.
 
 # Execution
 
-The test programs are executed by using the standard "test" target
-from the top level make invocation. The "coverage" target additionally
-generates code coverage reports allowing visibility on how much of a
-code module is being exercised.
+Wisp uses **CMake** to manage its test suite. To enable unit tests, ensure the `-DWISP_ENABLE_TESTS=ON` flag is passed to CMake during configuration.
 
-The check library must be installed to run the tests and the CI system
-automatically executes all enabled tests and generates coverage
-reports for each commit.
+The test programs can be executed by using the `test` target (or `ctest`) from the build directory:
+
+```bash
+mkdir build && cd build
+cmake -DWISP_ENABLE_TESTS=ON ..
+make
+make test
+```
+
+The "coverage" target additionally generates code coverage reports allowing visibility on how much of a code module is being exercised.
+
+The check library must be installed to run the tests and the CI system automatically executes all enabled tests and generates coverage reports for each commit.
 
 # Adding tests
 
-The test/Makefile defines each indiviadual test program that should be
-built and executed in the TESTS variable.
+When using CMake, new tests are added to the `src/test/CMakeLists.txt` file using the `add_wisp_test` macro.
 
 The test program source files are defined in a xxx_SRCS variable and
 the make rules will then ensure the target program is built and

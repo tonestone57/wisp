@@ -24,10 +24,14 @@
   Manual building
 ================================
 
-  To build Wisp on a BeOS, provided you have the relevant
+  Wisp on Haiku uses **CMake** as its primary build system. While legacy Makefiles may exist in submodules, the top-level build is handled via CMake.
+
+  To build Wisp on Haiku, provided you have the relevant
   build dependencies installed, simply run:
 
-      $ make
+      $ mkdir build && cd build
+      $ cmake ..
+      $ make -j$(nproc)
 
   If that produces errors, you probably don't have some of Wisp's build
   dependencies installed. See "Obtaining Wisp's dependencies" below. You

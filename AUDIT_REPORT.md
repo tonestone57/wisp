@@ -32,6 +32,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **SIMD-Aligned Arena**: The arena allocator (`src/utils/arena.c`) enforces 64-byte alignment to support AVX-512 and other SIMD optimizations.
 *   **IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks in `layout.c` and `html.c`.
 *   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL.
+*   **Nested CSS Counters**: [Finished] Full support for nested counter scoping and inheritance in `box_construct.c`.
+*   **Tab-Size Support**: [Finished] Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
 
 ### 3.2 Partial Implementation [Partial]
 *   **CSS Variables**: Selection and parsing of `var()` and custom properties are complete; resolution pass during cascade is in progress.
@@ -39,10 +41,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **CSS Flexbox**: Supports flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
 *   **Incremental Reflow**: Functional, but bounding box union logic in `box_mark_dirty` lacks optimization for elements entirely contained within parent dirty regions. Tiling child-clipping is under refinement.
 *   **MutationObserver**: Integrated with LibDOM via a native mutation hook system (`dom_document_set_mutation_hook`), though handling of specific "remove" vs "add" events needs refinement.
-*   **CSS Counters**: Initial support for counters; nested counter scope resolution needs implementation in `box_construct.c`.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
-*   **MutationObserver / IntersectionObserver**: Infrastructure stubs exist; deep integration with LibDOM mutation hooks is required for full functionality.
 *   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing.
 *   **Percentage Widths**: Missing resolution for IFRAMEs, text-indent, and certain max-height constraints in `layout.c`.
 
@@ -67,7 +67,6 @@ The project uses an automated WebIDL compiler (`utils/qjs_binding_generator.py`)
 *   **[Finished] Test Runner Syntax Errors**: Resolved syntax errors and format mismatches in `contrib/libcss/test/parse-auto.c` (added `min` macro, fixed `%zu` format strings).
 
 ### 5.2 Technical Debt
-*   **Box Construction**: `src/content/handlers/html/box_construct.c` lacks full support for nested CSS counters and proper tab character expansion. Tab handling currently creates a text box with a raw `\t` character rather than calculating tab-stop offsets.
 *   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` should be demoted to `NSLOG_LEVEL_DEEPDEBUG`.
 
 ## 6. Future Recommendations and Advice

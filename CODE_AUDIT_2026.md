@@ -57,7 +57,7 @@ This audit evaluates the current state of the Wisp browser engine as of June 202
 *   **[Bug] LibCSS Regression**: `libcss_parse_auto_custom-properties_dat` failing on complex variable fallbacks.
 *   **[Finished] Binding Conflicts**: Verified that manual stubs and generated headers in `eventtarget_impl.c` and `xhr_impl.c` are in sync.
 *   **[Finished] Test Runner Compilation**: Resolved syntax and format errors in `contrib/libcss/test/parse-auto.c`.
-*   **[Debt] Box Construction**: `src/content/handlers/html/box_construct.c` missing full support for nested CSS counters and tab character expansion.
+*   **[Finished] Box Construction**: `src/content/handlers/html/box_construct.c` now supports nested CSS counters and tab character expansion with proper tab-stop calculation.
 
 ## 5. Future Recommendations and Optimizations
 1.  **Binding Coverage**: Prioritize manual implementation of high-value WebIDL bindings like `Element.querySelector` and `Element.querySelectorAll`.
