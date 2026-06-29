@@ -160,7 +160,7 @@ void js_handle_new_element(jsthread *thread, struct dom_element *node);
  * it may need to perform before the DOM finishes and the event may end up
  * freed.
  */
-void js_event_cleanup(jsthread *thread, struct dom_event *evt);
+bool js_event_cleanup(jsthread *thread, struct dom_event *evt);
 
 /**
  * Handle intersection checks after layout.

@@ -14,7 +14,10 @@ static void js_event_finalizer(JSRuntime *rt, JSValue val)
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_event_class_id);
     if (priv) {
         if (priv->magic == QJS_DOM_MAGIC && priv->node) {
-            dom_event_unref((dom_event *)priv->node);
+            struct jsthread *t = JS_GetContextOpaque(priv->ctx);
+            if (!t || !js_event_cleanup(t, (struct dom_event *)priv->node)) {
+                dom_event_unref((dom_event *)priv->node);
+            }
         }
         free(priv);
     }
