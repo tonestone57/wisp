@@ -39,6 +39,7 @@ extern "C" {
 #include "utils/nsurl.h"
 #include "utils/utf8.h"
 #include "utils/utils.h"
+#include "wisp/browser.h"
 #include "wisp/browser_window.h"
 #include "wisp/clipboard.h"
 #include "wisp/content_type.h"

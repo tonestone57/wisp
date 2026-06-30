@@ -30,6 +30,7 @@
 #include <windows.h>
 #include <windowsx.h>
 
+#include "wisp/browser.h"
 #include "wisp/browser_window.h"
 #include "wisp/keypress.h"
 #include "wisp/plotters.h"

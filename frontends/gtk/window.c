@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wisp/browser.h>
 #include <wisp/browser_window.h>
 #include <wisp/content.h>
 #include <wisp/desktop/searchweb.h>

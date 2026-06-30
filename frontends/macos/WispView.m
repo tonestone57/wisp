@@ -1,5 +1,6 @@
 #import "WispView.h"
 #import "gui.h"
+#include <wisp/browser.h>
 
 @implementation WispView
 

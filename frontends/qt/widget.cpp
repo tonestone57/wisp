@@ -29,6 +29,7 @@ extern "C" {
 #include "utils/log.h"
 #include "utils/nsoption.h"
 
+#include "wisp/browser.h"
 #include "wisp/content.h"
 #include "wisp/keypress.h"
 #include "wisp/plotters.h"
