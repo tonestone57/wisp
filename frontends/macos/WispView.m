@@ -1,12 +1,5 @@
 #import "WispView.h"
-#include <wisp/browser_window.h>
-#include <wisp/mouse.h>
-#include <wisp/keypress.h>
-#include <wisp/plotters.h>
-
-extern void macos_plot_push_context(CGContextRef ctx);
-extern void macos_plot_pop_context(void);
-extern struct gui_plot_table *macos_plot_table;
+#import "gui.h"
 
 @implementation WispView
 

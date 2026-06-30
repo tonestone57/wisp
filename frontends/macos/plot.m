@@ -2,7 +2,7 @@
 #include <wisp/plot_style.h>
 #include <wisp/bitmap.h>
 
-#define MAX_CTX_STACK 8
+#define MAX_CTX_STACK 16
 static CGContextRef ctx_stack[MAX_CTX_STACK];
 static int ctx_stack_ptr = 0;
 
@@ -127,11 +127,15 @@ struct gui_plot_table *macos_plot_table = &plot_table;
 void macos_plot_push_context(CGContextRef ctx) {
     if (ctx_stack_ptr < MAX_CTX_STACK) {
         ctx_stack[ctx_stack_ptr++] = ctx;
+    } else {
+        NSLOG(wisp, ERROR, "MacOS Plot Context Stack Overflow");
     }
 }
 
 void macos_plot_pop_context(void) {
     if (ctx_stack_ptr > 0) {
         ctx_stack_ptr--;
+    } else {
+        NSLOG(wisp, ERROR, "MacOS Plot Context Stack Underflow");
     }
 }
