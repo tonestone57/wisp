@@ -767,14 +767,14 @@ class QuickJSBindingGenerator:
         c_code += f"    if (qjs_{lower_name}_class_id == 0) JS_NewClassID(rt, &qjs_{lower_name}_class_id);\n"
         c_code += f"    if (!JS_IsRegisteredClass(rt, qjs_{lower_name}_class_id)) JS_NewClass(rt, qjs_{lower_name}_class_id, &js_{lower_name}_class);\n"
         c_code += f"    JSValue proto = JS_GetClassProto(ctx, qjs_{lower_name}_class_id);\n"
-        c_code += f"    if (JS_IsNull(proto) || JS_IsUndefined(proto)) {{\n"
+        c_code += f"    if (JS_IsUndefined(proto)) {{\n"
         c_code += f"        proto = JS_NewObject(ctx);\n"
         if parent_name:
             c_code += f"        JSValue parent_proto = JS_GetClassProto(ctx, qjs_{parent_name.lower()}_class_id);\n"
             c_code += f"        JS_SetPrototype(ctx, proto, parent_proto);\n"
             c_code += f"        JS_FreeValue(ctx, parent_proto);\n"
         c_code += f"        JS_SetPropertyFunctionList(ctx, proto, js_{lower_name}_proto_funcs, sizeof(js_{lower_name}_proto_funcs) / sizeof(js_{lower_name}_proto_funcs[0]));\n"
-        c_code += f"        JS_SetClassProto(ctx, qjs_{lower_name}_class_id, proto);\n"
+        c_code += f"        JS_SetClassProto(ctx, qjs_{lower_name}_class_id, JS_DupValue(ctx, proto));\n"
 
         for ctor_name, group in ctors_by_name.items():
             max_args = max(len(c['args']) for c in group)
@@ -794,7 +794,7 @@ class QuickJSBindingGenerator:
                 c_code += f"            JS_FreeValue(ctx, global_obj);\n"
                 c_code += f"        }}\n"
 
-        c_code += f"    }} else {{\n        JS_FreeValue(ctx, proto);\n    }}\n"
+        c_code += f"    }}\n    JS_FreeValue(ctx, proto);\n"
         c_code += f"    return 0;\n}}\n\n"
 
         c_code += f"__attribute__((weak)) int qjs_init_{lower_name}(JSContext *ctx)\n{{\n"

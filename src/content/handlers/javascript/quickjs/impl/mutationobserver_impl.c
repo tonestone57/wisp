@@ -127,7 +127,7 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
             }
             JS_FreeValueRT(rt, observer->callback);
             JS_FreeValueRT(rt, observer->queue);
-            JS_FreeValueRT(rt, observer->self);
+            if (!JS_IsUndefined(observer->self)) JS_FreeValueRT(rt, observer->self);
             MutationObserverTarget *ot = observer->targets;
             while (ot) {
                 MutationObserverTarget *next = ot->next;
