@@ -99,12 +99,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     JS_SetContextOpaque(t->ctx, t);
 
     qjs_init_dom_bridge(t->ctx);
-    qjs_init_eventtarget(t->ctx);
-    qjs_init_node(t->ctx);
-    qjs_init_element(t->ctx);
-    qjs_init_document(t->ctx);
-    qjs_init_window(t->ctx);
 
+    /* core initialization - registration handles dependencies */
     wisp_js_register_all_bindings(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
@@ -125,16 +121,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     }
 
     qjs_init_console(t->ctx);
-    qjs_init_navigator(t->ctx);
-    qjs_init_location(t->ctx);
     qjs_init_timers(t->ctx);
     qjs_init_crypto(t->ctx);
-    qjs_init_storage(t->ctx);
-    qjs_init_xhr(t->ctx);
-    qjs_init_event(t->ctx);
-    qjs_init_mutationobserver(t->ctx);
-    qjs_init_intersectionobserver(t->ctx);
-    qjs_init_intersectionobserverentry(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;
@@ -185,7 +173,7 @@ void js_destroythread(jsthread *thread)
         // Break the cycle: mo->self holds a reference to the JS object which holds priv->node=mo.
         // By freeing mo->self here, we allow the JS object's refcount to drop,
         // which eventually triggers the finalizer to free the 'mo' struct.
-        // Important: copy self to local variable before freeing, as freeing might trigger finalizer which frees 'mo'.
+        // We must not access 'mo' after JS_FreeValue as it might have been freed by the finalizer.
         JSValue self = mo->self;
         mo->self = JS_UNDEFINED;
         mo->next = NULL;

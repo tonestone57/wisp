@@ -204,7 +204,9 @@ static JSValue js_mutationobserver_constructor(JSContext *ctx, JSValueConst new_
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
     if (!priv) { JS_FreeValue(ctx, observer->callback); JS_FreeValue(ctx, observer->queue); free(observer); JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
     priv->magic = QJS_DOM_MAGIC; priv->node = observer; priv->is_dom_node = false; priv->ctx = ctx;
-    JS_SetOpaque(obj, priv); observer->self = JS_DupValue(ctx, obj);
+    JS_SetOpaque(obj, priv);
+    observer->self = JS_DupValue(ctx, obj);
+    observer->magic = QJS_DOM_MAGIC;
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (t) { observer->next = t->mutation_observers; t->mutation_observers = observer; }
     return obj;
