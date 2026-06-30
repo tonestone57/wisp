@@ -23,6 +23,7 @@ typedef struct WispMutationObserver {
     JSContext *ctx;
     JSValue self;
     bool queued;
+    uint32_t magic;
 } WispMutationObserver;
 
 typedef struct WispMutationRecord {

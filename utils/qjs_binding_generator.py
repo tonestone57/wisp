@@ -9,7 +9,6 @@ import os
 import sys
 import argparse
 import re
-from datetime import datetime
 
 try:
     import widlparser
@@ -521,7 +520,7 @@ class QuickJSBindingGenerator:
             c_code += f"#include \"JS{parent_name}.gen.h\"\n"
         c_code += "\n"
 
-        c_code += f"JSClassID qjs_{lower_name}_class_id;\n\n"
+        c_code += f"__attribute__((weak)) JSClassID qjs_{lower_name}_class_id;\n\n"
 
         # Marshaller declarations
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val);\n"
