@@ -1,4 +1,4 @@
-#import "gui.h"
+#import <Foundation/Foundation.h>
 #include <wisp/fetch.h>
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -21,16 +21,25 @@ static const char *macos_fetch_filetype(const char *unix_path)
 }
 
 static NSMutableDictionary<NSString *, NSData *> *resourceCache = nil;
+static NSObject *cacheLock = nil;
 
 static nserror macos_get_resource_data(const char *path, const uint8_t **data_out, size_t *data_len_out)
 {
-    @autoreleasepool {
-        if (!resourceCache) {
-            resourceCache = [[NSMutableDictionary alloc] init];
-        }
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        cacheLock = [[NSObject alloc] init];
+    });
 
+    @autoreleasepool {
         NSString *nsPath = [NSString stringWithUTF8String:path];
-        NSData *cachedData = resourceCache[nsPath];
+        NSData *cachedData = nil;
+
+        @synchronized(cacheLock) {
+            if (!resourceCache) {
+                resourceCache = [[NSMutableDictionary alloc] init];
+            }
+            cachedData = resourceCache[nsPath];
+        }
 
         if (cachedData) {
             *data_out = [cachedData bytes];
@@ -46,7 +55,9 @@ static nserror macos_get_resource_data(const char *path, const uint8_t **data_ou
         NSData *data = [NSData dataWithContentsOfFile:resourcePath];
         if (!data) return NSERROR_NOT_FOUND;
 
-        resourceCache[nsPath] = data;
+        @synchronized(cacheLock) {
+            resourceCache[nsPath] = data;
+        }
 
         *data_out = [data bytes];
         *data_len_out = [data length];
@@ -56,8 +67,10 @@ static nserror macos_get_resource_data(const char *path, const uint8_t **data_ou
 }
 
 void macos_fetch_cleanup(void) {
-    [resourceCache removeAllObjects];
-    resourceCache = nil;
+    @synchronized(cacheLock) {
+        [resourceCache removeAllObjects];
+        resourceCache = nil;
+    }
 }
 
 static struct gui_fetch_table fetch_table = {

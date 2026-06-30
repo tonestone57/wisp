@@ -26,6 +26,11 @@ extern struct gui_plot_table *macos_plot_table;
     return YES;
 }
 
+- (void)viewDidEndLiveResize {
+    [super viewDidEndLiveResize];
+    browser_window_reformat(_bw, NO, (int)self.bounds.size.width, (int)self.bounds.size.height);
+}
+
 - (void)drawRect:(NSRect)dirtyRect {
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
     macos_plot_push_context(ctx);
@@ -58,7 +63,6 @@ extern struct gui_plot_table *macos_plot_table;
         unichar key = [chars characterAtIndex:0];
         uint32_t ns_key = key;
 
-        /* Basic modifier mapping */
         NSEventModifierFlags modifiers = [event modifierFlags];
         bool shift = (modifiers & NSEventModifierFlagShift) != 0;
 

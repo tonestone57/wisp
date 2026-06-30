@@ -17,11 +17,28 @@ static struct gui_misc_table macos_misc_table = {
     .task_queue_wake = macos_task_queue_wake,
 };
 
+static void setup_menu(void) {
+    NSMenu *mainMenu = [[NSMenu alloc] init];
+    NSMenuItem *appMenuItem = [[NSMenuItem alloc] init];
+    [mainMenu addItem:appMenuItem];
+    [NSApp setMainMenu:mainMenu];
+
+    NSMenu *appMenu = [[NSMenu alloc] init];
+    NSString *appName = @"Wisp";
+    NSMenuItem *quitMenuItem = [[NSMenuItem alloc] initWithTitle:[@"Quit " stringByAppendingString:appName]
+                                                         action:@selector(terminate:)
+                                                  keyEquivalent:@"q"];
+    [appMenu addItem:quitMenuItem];
+    [appMenuItem setSubmenu:appMenu];
+}
+
 int main(int argc, char *argv[]) {
     @autoreleasepool {
         NSApplication *app = [NSApplication sharedApplication];
         macos_app_delegate = [[WispApp alloc] init];
         [app setDelegate:macos_app_delegate];
+
+        setup_menu();
 
         struct wisp_table macos_table = {
             .misc = &macos_misc_table,
