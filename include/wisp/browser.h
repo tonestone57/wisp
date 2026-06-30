@@ -41,4 +41,11 @@ nserror browser_set_dpi(int dpi);
  */
 int browser_get_dpi(void);
 
+/**
+ * Get the fixed tile size for redraws.
+ *
+ * \return The tile size (e.g., 256 or 512).
+ */
+int browser_get_tile_size(void);
+
 #endif

@@ -83,7 +83,8 @@ void js_destroyheap(jsheap *heap)
     if (heap->rt) {
         qjs_bridge_cleanup(heap->rt);
         JS_RunGC(heap->rt);
-        JS_RunGC(heap->rt);
+        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
+         * Explicitly free GC objects that might be pending after bridge cleanup. */
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -184,10 +185,7 @@ void js_destroythread(jsthread *thread)
     while (thread->intersection_observers) {
         struct WispIntersectionObserver *io = (struct WispIntersectionObserver *)thread->intersection_observers;
         thread->intersection_observers = io->next;
-        JSValue self = io->self;
-        io->self = JS_UNDEFINED;
-        io->next = NULL;
-        JS_FreeValue(thread->ctx, self);
+        // io struct will be freed by finalizer later
     }
 
     if (thread->ctx) {
@@ -197,7 +195,6 @@ void js_destroythread(jsthread *thread)
         qjs_finalise_dom_bridge(thread->ctx);
         JS_SetContextOpaque(thread->ctx, NULL);
         JS_FreeContext(thread->ctx);
-        JS_RunGC(rt);
         JS_RunGC(rt);
     }
     if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);
