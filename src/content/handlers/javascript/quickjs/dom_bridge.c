@@ -118,58 +118,22 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
-typedef struct {
-    JSRuntime *rt;
-    bridge_key_t *keys;
-    size_t count;
-    size_t capacity;
-} bridge_full_cleanup_t;
-
-static bool bridge_full_cleanup_cb(void *key, void *val, void *pw)
-{
-    bridge_full_cleanup_t *cleanup = pw;
-    if (cleanup->count == cleanup->capacity) {
-        cleanup->capacity = cleanup->capacity ? cleanup->capacity * 2 : 64;
-        bridge_key_t *new_keys = realloc(cleanup->keys, cleanup->capacity * sizeof(bridge_key_t));
-        if (!new_keys) return true;
-        cleanup->keys = new_keys;
-    }
-    cleanup->keys[cleanup->count++] = *(bridge_key_t *)key;
-    dom_node_ref(((bridge_key_t *)key)->node);
-    return false;
-}
-
 void qjs_bridge_cleanup(JSRuntime *rt)
 {
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (map) {
-        bridge_full_cleanup_t cleanup = { .rt = rt, .keys = NULL, .count = 0, .capacity = 0 };
-        hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
-
-        /* Set opaque to NULL BEFORE freeing values.
-         * This prevents re-entrant calls from finalizers to qjs_bridge_remove_node
-         * from accessing the map while we're destroying it. */
+        /* Clear the opaque pointer first so finalizers don't try to access it */
         JS_SetRuntimeOpaque(rt, NULL);
 
-        for (size_t i = 0; i < cleanup.count; i++) {
-            JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
-            if (val) {
-                /* Explicitly free the JSValue reference held by the map.
-                 * This allows QuickJS to collect the object before runtime destruction. */
-                JS_FreeValueRT(rt, *val);
-            }
-            hashmap_remove(map, &cleanup.keys[i]);
-            dom_node_unref(cleanup.keys[i].node);
-        }
-        free(cleanup.keys);
-
+        /* Entries are weak-like; managed by finalizers.
+           Explicitly freeing here causes Use-After-Free during JS_FreeRuntime */
         hashmap_destroy(map);
     }
 }
 
 typedef struct {
     JSContext *ctx;
-    struct dom_node **nodes;
+    bridge_key_t *keys;
     size_t count;
     size_t capacity;
 } bridge_cleanup_t;
@@ -181,12 +145,11 @@ static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
     if (k->ctx == cleanup->ctx) {
         if (cleanup->count == cleanup->capacity) {
             cleanup->capacity = cleanup->capacity ? cleanup->capacity * 2 : 16;
-            struct dom_node **new_nodes = realloc(cleanup->nodes, cleanup->capacity * sizeof(struct dom_node *));
-            if (!new_nodes) return true; /* Stop iteration on OOM */
-            cleanup->nodes = new_nodes;
+            bridge_key_t *new_keys = realloc(cleanup->keys, cleanup->capacity * sizeof(bridge_key_t));
+            if (!new_keys) return true; /* Stop iteration on OOM */
+            cleanup->keys = new_keys;
         }
-        cleanup->nodes[cleanup->count++] = k->node;
-        dom_node_ref(k->node);
+        cleanup->keys[cleanup->count++] = *k;
     }
     return false;
 }
@@ -197,27 +160,11 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (!map) return;
 
-    bridge_cleanup_t cleanup = { .ctx = ctx, .nodes = NULL, .count = 0, .capacity = 0 };
+    bridge_cleanup_t cleanup = { .ctx = ctx, .keys = NULL, .count = 0, .capacity = 0 };
     hashmap_iterate(map, bridge_cleanup_ctx_cb, &cleanup);
 
-    /* TEMPORARILY set opaque to NULL during context cleanup.
-     * Re-entrant calls from finalizers to qjs_bridge_remove_node
-     * will see NULL and skip map modification. */
-    JS_SetRuntimeOpaque(rt, NULL);
-
     for (size_t i = 0; i < cleanup.count; i++) {
-        bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
-        JSValue *val = hashmap_lookup(map, &key);
-        if (val) {
-            /* Explicitly free the JSValue reference for this context. */
-            JS_FreeValue(ctx, *val);
-            /* Remove it from the map manually since we disabled qjs_bridge_remove_node. */
-            hashmap_remove(map, &key);
-        }
-        dom_node_unref(cleanup.nodes[i]);
+        hashmap_remove(map, &cleanup.keys[i]);
     }
-    free(cleanup.nodes);
-
-    /* Restore map for other contexts sharing the same runtime. */
-    JS_SetRuntimeOpaque(rt, map);
+    free(cleanup.keys);
 }
