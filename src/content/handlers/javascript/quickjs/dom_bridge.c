@@ -118,27 +118,6 @@ int qjs_init_dom_bridge(JSContext *ctx)
     return 0;
 }
 
-typedef struct {
-    JSRuntime *rt;
-    bridge_key_t *keys;
-    size_t count;
-    size_t capacity;
-} bridge_full_cleanup_t;
-
-static bool bridge_full_cleanup_cb(void *key, void *val, void *pw)
-{
-    bridge_full_cleanup_t *cleanup = pw;
-    if (cleanup->count == cleanup->capacity) {
-        cleanup->capacity = cleanup->capacity ? cleanup->capacity * 2 : 64;
-        bridge_key_t *new_keys = realloc(cleanup->keys, cleanup->capacity * sizeof(bridge_key_t));
-        if (!new_keys) return true;
-        cleanup->keys = new_keys;
-    }
-    cleanup->keys[cleanup->count++] = *(bridge_key_t *)key;
-    dom_node_ref(((bridge_key_t *)key)->node);
-    return false;
-}
-
 void qjs_bridge_cleanup(JSRuntime *rt)
 {
     hashmap_t *map = JS_GetRuntimeOpaque(rt);

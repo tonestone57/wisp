@@ -200,8 +200,6 @@ void js_destroythread(jsthread *thread)
         qjs_finalise_dom_bridge(thread->ctx);
         JS_SetContextOpaque(thread->ctx, NULL);
         JS_FreeContext(thread->ctx);
-        /* Drain microtasks and run GC to ensure observer objects are finalized
-         * while the JSRuntime is still alive. */
         JS_RunGC(rt);
     }
     if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);

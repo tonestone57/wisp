@@ -248,7 +248,7 @@ void box_unlink_and_free(struct box *box)
 	struct box *next = box->next;
 	struct box *prev = box->prev;
 
-	/* Optimization: mark the box dirty before removal to ensure its
+	/* mark the box dirty before removal to ensure its
 	 * current position is added to the document's dirty rectangle list. */
 	box_mark_dirty(box);
 
@@ -371,8 +371,6 @@ void box_mark_dirty(struct box *box)
 		return;
 	}
 
-	/* Optimization: skip redundant propagation if an ancestor is already
-	 * flagged for reflow. */
 	if (box->flags & DIRTY_INTRINSIC) {
 		/* Already dirty, no need to propagate */
 		return;
@@ -404,8 +402,8 @@ void box_mark_dirty(struct box *box)
 	struct box *parent = box->parent;
 	while (parent != NULL) {
 		if (parent->flags & (DIRTY_INTRINSIC | CHILD_DIRTY)) {
-			/* Ancestor already marked for reflow or knows about dirty child,
-			 * stop propagating. */
+			/* Optimization: skip redundant propagation if an ancestor is already
+			 * flagged for reflow. */
 			break;
 		}
 		parent->flags |= CHILD_DIRTY;

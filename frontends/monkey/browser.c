@@ -145,7 +145,23 @@ static void gui_window_start_throbber(struct gui_window *g)
     moutf(MOUT_WINDOW, "START_THROBBER WIN %u", g->win_num);
 }
 
-static void gui_window_set_scroll(struct gui_window *gw, const struct rect *rect)
+static void gui_window_stop_throbber(struct gui_window *g)
+{
+    moutf(MOUT_WINDOW, "STOP_THROBBER WIN %u", g->win_num);
+}
+
+
+/**
+ * Set the scroll position of a monkey browser window.
+ *
+ * Scrolls the viewport to ensure the specified rectangle of the
+ *   content is shown.
+ *
+ * \param gw gui window to scroll
+ * \param rect The rectangle to ensure is shown.
+ * \return NSERROR_OK on success or apropriate error code.
+ */
+static nserror gui_window_set_scroll(struct gui_window *gw, const struct rect *rect)
 {
     gw->scrollx = rect->x0;
     gw->scrolly = rect->y0;
@@ -154,11 +170,14 @@ static void gui_window_set_scroll(struct gui_window *gw, const struct rect *rect
     return NSERROR_OK;
 }
 
-static void gui_window_stop_throbber(struct gui_window *g)
-{
-    moutf(MOUT_WINDOW, "STOP_THROBBER WIN %u", g->win_num);
-}
 
+/**
+ * Invalidates an area of a monkey browser window
+ *
+ * \param gw gui_window
+ * \param rect area to redraw or NULL for the entire window area
+ * \return NSERROR_OK on success or appropriate error code
+ */
 static nserror monkey_window_invalidate_area(struct gui_window *gw, const struct rect *rect)
 {
     if (rect != NULL) {

@@ -30,7 +30,6 @@
 #include <windows.h>
 #include <windowsx.h>
 
-#include "wisp/browser.h"
 #include "wisp/browser_window.h"
 #include "wisp/keypress.h"
 #include "wisp/plotters.h"
@@ -399,6 +398,7 @@ static LRESULT nsws_drawable_keydown(struct gui_window *gw, HWND hwnd, WPARAM wp
  */
 static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
 {
+    struct rect clip;
     PAINTSTRUCT ps;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
 

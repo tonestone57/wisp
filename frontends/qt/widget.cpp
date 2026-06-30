@@ -29,7 +29,6 @@ extern "C" {
 #include "utils/log.h"
 #include "utils/nsoption.h"
 
-#include "wisp/browser.h"
 #include "wisp/content.h"
 #include "wisp/keypress.h"
 #include "wisp/plotters.h"
@@ -172,7 +171,6 @@ void NS_Widget::paintEvent(QPaintEvent *event)
         .plot = &nsqt_plotters,
         .priv = painter,
     };
-
     /* Fixed-Tile Redraw Implementation */
     int tile_size = browser_get_tile_size();
     QRect updateRect = event->rect();
