@@ -28,6 +28,8 @@
 #include <inttypes.h>
 #include <string.h>
 #include <windows.h>
+#include <d2d1.h>
+#include <map>
 
 #include "wisp/bitmap.h"
 #include "wisp/content.h"
@@ -37,6 +39,8 @@
 #include "wisp/utils/errors.h"
 #include "windows/bitmap.h"
 #include "windows/plot.h"
+
+extern "C" {
 
 /**
  * Create a bitmap.
@@ -95,6 +99,8 @@ static void *win32_bitmap_create(int width, int height, enum gui_bitmap_flags fl
         bitmap->opaque = false;
     }
 
+    bitmap->d2d_bmp_map = new std::map<ID2D1RenderTarget*, ID2D1Bitmap*>();
+
     NSLOG(wisp, INFO, "bitmap %p", bitmap);
 
     return bitmap;
@@ -148,7 +154,7 @@ static size_t bitmap_get_rowstride(void *bitmap)
  */
 void win32_bitmap_destroy(void *bitmap)
 {
-    struct bitmap *bm = bitmap;
+    struct bitmap *bm = (struct bitmap *)bitmap;
 
     if (bitmap == NULL) {
         NSLOG(wisp, INFO, "NULL bitmap!");
@@ -158,6 +164,13 @@ void win32_bitmap_destroy(void *bitmap)
     win32_bitmap_flush_scaled(bm);
     DeleteObject(bm->windib);
     free(bm->pbmi);
+    if (bm->d2d_bmp_map) {
+        auto *map = (std::map<ID2D1RenderTarget*, ID2D1Bitmap*>*)bm->d2d_bmp_map;
+        for (auto const& [rt, d2d_bmp] : *map) {
+            d2d_bmp->Release();
+        }
+        delete map;
+    }
     free(bm);
 }
 
@@ -169,10 +182,18 @@ void win32_bitmap_destroy(void *bitmap)
  */
 static void bitmap_modified(void *bitmap)
 {
-    if (bitmap == NULL) {
+    struct bitmap *bm = (struct bitmap *)bitmap;
+    if (bm == NULL) {
         return;
     }
-    win32_bitmap_flush_scaled(bitmap);
+    win32_bitmap_flush_scaled(bm);
+    if (bm->d2d_bmp_map) {
+        auto *map = (std::map<ID2D1RenderTarget*, ID2D1Bitmap*>*)bm->d2d_bmp_map;
+        for (auto const& [rt, d2d_bmp] : *map) {
+            d2d_bmp->Release();
+        }
+        map->clear();
+    }
 }
 
 /**
@@ -417,3 +438,5 @@ static struct gui_bitmap_table bitmap_table = {
 };
 
 struct gui_bitmap_table *win32_bitmap_table = &bitmap_table;
+
+}

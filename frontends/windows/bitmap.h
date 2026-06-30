@@ -20,6 +20,10 @@
 #ifndef _WISP_WINDOWS_BITMAP_H_
 #define _WISP_WINDOWS_BITMAP_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern struct gui_bitmap_table *win32_bitmap_table;
 
 struct bitmap {
@@ -35,6 +39,8 @@ struct bitmap {
     uint8_t *scaled_pixdata;
     int scaled_width;
     int scaled_height;
+
+    void *d2d_bmp_map; /**< std::map<ID2D1RenderTarget*, ID2D1Bitmap*>* */
 };
 
 struct bitmap *bitmap_scale(struct bitmap *prescale, int width, int height);
@@ -43,5 +49,9 @@ void win32_bitmap_destroy(void *bitmap);
 
 nserror win32_bitmap_ensure_scaled(struct bitmap *bitmap, int width, int height);
 void win32_bitmap_flush_scaled(struct bitmap *bitmap);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

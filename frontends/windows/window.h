@@ -19,6 +19,10 @@
 #ifndef WISP_WINDOWS_WINDOW_H_
 #define WISP_WINDOWS_WINDOW_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef WISP_HOMEPAGE
 #define WISP_HOMEPAGE "about:welcome"
 #endif
@@ -72,6 +76,15 @@ struct gui_window {
     int scrolly; /**< current scroll location */
 
     bool has_gradients; /**< true if page contains gradients (need full repaint on scroll) */
+
+    void *d2d_factory; /**< ID2D1Factory* */
+    void *d2d_rt; /**< ID2D1HwndRenderTarget* */
+    void *dwrite_factory; /**< IDWriteFactory* */
+    bool d2d_initialised; /**< true if D2D resources are valid */
+
+    void *d2d_transform_stack; /**< std::stack<D2D1_MATRIX_3X2_F>* */
+    void *d2d_stateful_path; /**< std::vector<d2d_path_command>* */
+    float d2d_clip_x0, d2d_clip_y0, d2d_clip_x1, d2d_clip_y1;
 
     RECT *fullscreen; /**< memorize non-fullscreen area */
     RECT redraw; /**< Area needing redraw. */
@@ -129,5 +142,8 @@ HWND gui_window_main_window(struct gui_window *gw);
  */
 struct nsws_localhistory *gui_window_localhistory(struct gui_window *);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _NETSURF_WINDOWS_WINDOW_H_ */

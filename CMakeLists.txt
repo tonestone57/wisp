@@ -21,6 +21,8 @@ add_definitions(-DWITH_OPENSSL -DWITH_BMP -DWITH_GIF -D_XOPEN_SOURCE=700 -D_DEFA
 			-DWISP_VERSION_MAJOR=${WISP_MAJOR_VERSION} -DWISP_VERSION_MINOR=${WISP_MINOR_VERSION})
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Strict warnings: Removed suppressions to fail on all warnings
 # add_compile_options(-Wno-unused-parameter -Wno-deprecated-declarations -Wno-unused-but-set-variable)
 # add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wno-strict-prototypes>)

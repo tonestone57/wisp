@@ -28,7 +28,12 @@
 #include <windows.h>
 #include <windowsx.h>
 #include <commctrl.h>
+#include <d2d1.h>
+#include <dwrite.h>
+#include <vector>
+#include <stack>
 
+extern "C" {
 #include "wisp/browser_window.h"
 #include "wisp/content/content.h"
 #include "wisp/desktop/browser_history.h"
@@ -62,6 +67,10 @@
 #include <wisp/utils/file.h>
 #include "content/handlers/image/image_cache.h"
 #include "content/llcache.h"
+#include "windows/d2d_types.h"
+}
+
+extern "C" {
 
 /**
  * List of all gui windows
@@ -1204,6 +1213,10 @@ static LRESULT nsws_window_resize(struct gui_window *gw, HWND hwnd, WPARAM wpara
 
     if (gw->drawingarea != NULL) {
         MoveWindow(gw->drawingarea, 0, rtool.bottom, gw->width, gw->height, true);
+        if (gw->d2d_initialised) {
+            ID2D1HwndRenderTarget *rt = (ID2D1HwndRenderTarget *)gw->d2d_rt;
+            rt->Resize(D2D1::SizeU(gw->width, gw->height));
+        }
     }
     nsws_window_update_forward_back(gw);
 
@@ -1419,8 +1432,13 @@ win32_window_create(struct browser_window *bw, struct gui_window *existing, gui_
     gw->statusbar = nsws_window_create_statusbar(hinst, gw->main, gw);
     gw->drawingarea = nsws_window_create_drawable(hinst, gw->main, gw);
 
-    NSLOG(wisp, INFO, "new window: main:%p toolbar:%p statusbar %p drawingarea %p", gw->main, gw->toolbar,
-        gw->statusbar, gw->drawingarea);
+#ifdef WISP_WINDOWS_USE_D2D
+    extern HRESULT nsws_window_init_d2d(struct gui_window *gw);
+    nsws_window_init_d2d(gw);
+#endif
+
+    NSLOG(wisp, INFO, "new window: main:%p toolbar:%p statusbar %p drawingarea %p d2d:%d", gw->main, gw->toolbar,
+        gw->statusbar, gw->drawingarea, gw->d2d_initialised);
 
     font_hwnd = gw->drawingarea;
     open_windows++;
@@ -1456,6 +1474,14 @@ static void win32_window_destroy(struct gui_window *w)
     DestroyAcceleratorTable(w->acceltable);
 
     destroy_page_info_bitmaps(w);
+
+#ifdef WISP_WINDOWS_USE_D2D
+    if (w->d2d_initialised) {
+        ((ID2D1HwndRenderTarget *)w->d2d_rt)->Release();
+        delete (std::stack<D2D1_MATRIX_3X2_F>*)w->d2d_transform_stack;
+        delete (std::vector<d2d_path_command>*)w->d2d_stateful_path;
+    }
+#endif
 
     free(w);
     w = NULL;
@@ -2010,4 +2036,58 @@ HWND gui_window_main_window(struct gui_window *w)
     if (w == NULL)
         return NULL;
     return w->main;
+}
+
+#ifdef WISP_WINDOWS_USE_D2D
+static ID2D1Factory *g_d2d_factory = NULL;
+
+extern "C" void nsws_d2d_fini(void) {
+    if (g_d2d_factory) {
+        g_d2d_factory->Release();
+        g_d2d_factory = NULL;
+    }
+}
+
+HRESULT nsws_window_init_d2d(struct gui_window *gw)
+{
+    if (!g_d2d_factory) {
+        HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_d2d_factory);
+        if (FAILED(hr)) return hr;
+        extern void win32_dwrite_init(void);
+        win32_dwrite_init();
+    }
+    gw->d2d_factory = g_d2d_factory;
+
+    ID2D1HwndRenderTarget *d2d_rt;
+    RECT rc;
+    GetClientRect(gw->drawingarea, &rc);
+    HRESULT hr = g_d2d_factory->CreateHwndRenderTarget(
+        D2D1::RenderTargetProperties(),
+        D2D1::HwndRenderTargetProperties(gw->drawingarea, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
+        &d2d_rt);
+    if (SUCCEEDED(hr)) {
+        gw->d2d_rt = d2d_rt;
+        if (!gw->d2d_transform_stack) gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
+        if (!gw->d2d_stateful_path) gw->d2d_stateful_path = new std::vector<d2d_path_command>();
+        gw->d2d_initialised = true;
+    }
+    return hr;
+}
+
+void nsws_d2d_recreate_resources(struct gui_window *gw)
+{
+    NSLOG(wisp, INFO, "Recreating D2D resources for window %p (device loss)", gw);
+    if (gw->d2d_rt) {
+        ((ID2D1HwndRenderTarget *)gw->d2d_rt)->Release();
+        gw->d2d_rt = NULL;
+    }
+    gw->d2d_initialised = false;
+
+    /* Clear cached bitmaps as they are bound to the old render target */
+    image_cache_purge_bitmaps();
+
+    nsws_window_init_d2d(gw);
+}
+#endif
+
 }
