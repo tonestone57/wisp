@@ -775,26 +775,26 @@ class QuickJSBindingGenerator:
             c_code += f"        JS_FreeValue(ctx, parent_proto);\n"
         c_code += f"        JS_SetPropertyFunctionList(ctx, proto, js_{lower_name}_proto_funcs, sizeof(js_{lower_name}_proto_funcs) / sizeof(js_{lower_name}_proto_funcs[0]));\n"
         c_code += f"        JS_SetClassProto(ctx, qjs_{lower_name}_class_id, proto);\n"
-        c_code += f"    }} else {{\n        JS_FreeValue(ctx, proto);\n    }}\n"
 
         for ctor_name, group in ctors_by_name.items():
             max_args = max(len(c['args']) for c in group)
             if ctor_name == 'constructor':
-                c_code += f"    {{\n"
-                c_code += f"        JSValue ctor = JS_NewCFunction2(ctx, js_{lower_name}_constructor, \"{name}\", {max_args}, JS_CFUNC_constructor, 0);\n"
-                c_code += f"        JS_SetConstructor(ctx, ctor, proto);\n"
-                c_code += f"        JSValue global_obj = JS_GetGlobalObject(ctx);\n"
-                c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{name}\", ctor);\n"
-                c_code += f"        JS_FreeValue(ctx, global_obj);\n"
-                c_code += f"    }}\n"
+                c_code += f"        {{\n"
+                c_code += f"            JSValue ctor = JS_NewCFunction2(ctx, js_{lower_name}_constructor, \"{name}\", {max_args}, JS_CFUNC_constructor, 0);\n"
+                c_code += f"            JS_SetConstructor(ctx, ctor, proto);\n"
+                c_code += f"            JSValue global_obj = JS_GetGlobalObject(ctx);\n"
+                c_code += f"            JS_SetPropertyStr(ctx, global_obj, \"{name}\", ctor);\n"
+                c_code += f"            JS_FreeValue(ctx, global_obj);\n"
+                c_code += f"        }}\n"
             else:
-                c_code += f"    {{\n"
-                c_code += f"        JSValue {ctor_name}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor_name}_ctor, \"{ctor_name}\", {max_args}, JS_CFUNC_generic, 0);\n"
-                c_code += f"        JSValue global_obj = JS_GetGlobalObject(ctx);\n"
-                c_code += f"        JS_SetPropertyStr(ctx, global_obj, \"{ctor_name}\", {ctor_name}_ctor_val);\n"
-                c_code += f"        JS_FreeValue(ctx, global_obj);\n"
-                c_code += f"    }}\n"
+                c_code += f"        {{\n"
+                c_code += f"            JSValue {ctor_name}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor_name}_ctor, \"{ctor_name}\", {max_args}, JS_CFUNC_generic, 0);\n"
+                c_code += f"            JSValue global_obj = JS_GetGlobalObject(ctx);\n"
+                c_code += f"            JS_SetPropertyStr(ctx, global_obj, \"{ctor_name}\", {ctor_name}_ctor_val);\n"
+                c_code += f"            JS_FreeValue(ctx, global_obj);\n"
+                c_code += f"        }}\n"
 
+        c_code += f"    }} else {{\n        JS_FreeValue(ctx, proto);\n    }}\n"
         c_code += f"    return 0;\n}}\n\n"
 
         c_code += f"__attribute__((weak)) int qjs_init_{lower_name}(JSContext *ctx)\n{{\n"

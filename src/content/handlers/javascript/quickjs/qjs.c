@@ -98,13 +98,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     JS_SetContextOpaque(t->ctx, t);
 
     qjs_init_dom_bridge(t->ctx);
-    wisp_js_register_all_bindings(t->ctx);
 
-    qjs_init_eventtarget(t->ctx);
-    qjs_init_node(t->ctx);
-    qjs_init_element(t->ctx);
-    qjs_init_document(t->ctx);
-    qjs_init_window(t->ctx);
+    /* core initialization - registration handles dependencies */
+    wisp_js_register_all_bindings(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
@@ -124,16 +120,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     }
 
     qjs_init_console(t->ctx);
-    qjs_init_navigator(t->ctx);
-    qjs_init_location(t->ctx);
     qjs_init_timers(t->ctx);
     qjs_init_crypto(t->ctx);
-    qjs_init_storage(t->ctx);
-    qjs_init_xhr(t->ctx);
-    qjs_init_event(t->ctx);
-    qjs_init_mutationobserver(t->ctx);
-    qjs_init_intersectionobserver(t->ctx);
-    qjs_init_intersectionobserverentry(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;
