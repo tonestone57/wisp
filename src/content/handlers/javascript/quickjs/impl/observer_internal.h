@@ -51,6 +51,8 @@ typedef struct WispIntersectionObserver {
     struct IntersectionObserverTarget *targets;
     JSValue queue;
     JSContext *ctx;
+    JSValue self;
+    uint32_t magic;
 } WispIntersectionObserver;
 
 typedef struct WispIntersectionObserverEntry {

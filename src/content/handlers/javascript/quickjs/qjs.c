@@ -98,13 +98,13 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     JS_SetContextOpaque(t->ctx, t);
 
     qjs_init_dom_bridge(t->ctx);
+    wisp_js_register_all_bindings(t->ctx);
+
     qjs_init_eventtarget(t->ctx);
     qjs_init_node(t->ctx);
     qjs_init_element(t->ctx);
     qjs_init_document(t->ctx);
     qjs_init_window(t->ctx);
-
-    wisp_js_register_all_bindings(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
@@ -191,6 +191,10 @@ void js_destroythread(jsthread *thread)
         struct WispIntersectionObserver *io = (struct WispIntersectionObserver *)thread->intersection_observers;
         thread->intersection_observers = io->next;
         // io struct will be freed by finalizer later
+        JSValue self = io->self;
+        io->self = JS_UNDEFINED;
+        io->next = NULL;
+        JS_FreeValue(thread->ctx, self);
     }
 
     if (thread->ctx) {
