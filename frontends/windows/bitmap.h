@@ -40,7 +40,7 @@ struct bitmap {
     int scaled_width;
     int scaled_height;
 
-    void *d2d_bmp; /**< ID2D1Bitmap* */
+    void *d2d_bmp_map; /**< std::map<ID2D1RenderTarget*, ID2D1Bitmap*>* */
 };
 
 struct bitmap *bitmap_scale(struct bitmap *prescale, int width, int height);

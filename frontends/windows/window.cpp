@@ -70,6 +70,8 @@ extern "C" {
 #include "windows/d2d_types.h"
 }
 
+extern "C" {
+
 /**
  * List of all gui windows
  */
@@ -1475,7 +1477,6 @@ static void win32_window_destroy(struct gui_window *w)
 
 #ifdef WISP_WINDOWS_USE_D2D
     if (w->d2d_initialised) {
-        ((ID2D1Factory *)w->d2d_factory)->Release();
         ((ID2D1HwndRenderTarget *)w->d2d_rt)->Release();
         delete (std::stack<D2D1_MATRIX_3X2_F>*)w->d2d_transform_stack;
         delete (std::vector<d2d_path_command>*)w->d2d_stateful_path;
@@ -2038,21 +2039,29 @@ HWND gui_window_main_window(struct gui_window *w)
 }
 
 #ifdef WISP_WINDOWS_USE_D2D
+static ID2D1Factory *g_d2d_factory = NULL;
+
+extern "C" void nsws_d2d_fini(void) {
+    if (g_d2d_factory) {
+        g_d2d_factory->Release();
+        g_d2d_factory = NULL;
+    }
+}
+
 HRESULT nsws_window_init_d2d(struct gui_window *gw)
 {
-    ID2D1Factory *d2d_factory = (ID2D1Factory *)gw->d2d_factory;
-    if (!d2d_factory) {
-        HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2d_factory);
+    if (!g_d2d_factory) {
+        HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &g_d2d_factory);
         if (FAILED(hr)) return hr;
-        gw->d2d_factory = d2d_factory;
         extern void win32_dwrite_init(void);
         win32_dwrite_init();
     }
+    gw->d2d_factory = g_d2d_factory;
 
     ID2D1HwndRenderTarget *d2d_rt;
     RECT rc;
     GetClientRect(gw->drawingarea, &rc);
-    HRESULT hr = d2d_factory->CreateHwndRenderTarget(
+    HRESULT hr = g_d2d_factory->CreateHwndRenderTarget(
         D2D1::RenderTargetProperties(),
         D2D1::HwndRenderTargetProperties(gw->drawingarea, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
         &d2d_rt);
@@ -2080,3 +2089,5 @@ void nsws_d2d_recreate_resources(struct gui_window *gw)
     nsws_window_init_d2d(gw);
 }
 #endif
+
+}

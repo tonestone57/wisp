@@ -29,6 +29,7 @@
 #include <string.h>
 #include <windows.h>
 #include <d2d1.h>
+#include <map>
 
 #include "wisp/bitmap.h"
 #include "wisp/content.h"
@@ -38,6 +39,8 @@
 #include "wisp/utils/errors.h"
 #include "windows/bitmap.h"
 #include "windows/plot.h"
+
+extern "C" {
 
 /**
  * Create a bitmap.
@@ -95,6 +98,8 @@ static void *win32_bitmap_create(int width, int height, enum gui_bitmap_flags fl
     } else {
         bitmap->opaque = false;
     }
+
+    bitmap->d2d_bmp_map = new std::map<ID2D1RenderTarget*, ID2D1Bitmap*>();
 
     NSLOG(wisp, INFO, "bitmap %p", bitmap);
 
@@ -159,8 +164,12 @@ void win32_bitmap_destroy(void *bitmap)
     win32_bitmap_flush_scaled(bm);
     DeleteObject(bm->windib);
     free(bm->pbmi);
-    if (bm->d2d_bmp) {
-        ((ID2D1Bitmap *)bm->d2d_bmp)->Release();
+    if (bm->d2d_bmp_map) {
+        auto *map = (std::map<ID2D1RenderTarget*, ID2D1Bitmap*>*)bm->d2d_bmp_map;
+        for (auto const& [rt, d2d_bmp] : *map) {
+            d2d_bmp->Release();
+        }
+        delete map;
     }
     free(bm);
 }
@@ -178,9 +187,12 @@ static void bitmap_modified(void *bitmap)
         return;
     }
     win32_bitmap_flush_scaled(bm);
-    if (bm->d2d_bmp) {
-        ((ID2D1Bitmap *)bm->d2d_bmp)->Release();
-        bm->d2d_bmp = NULL;
+    if (bm->d2d_bmp_map) {
+        auto *map = (std::map<ID2D1RenderTarget*, ID2D1Bitmap*>*)bm->d2d_bmp_map;
+        for (auto const& [rt, d2d_bmp] : *map) {
+            d2d_bmp->Release();
+        }
+        map->clear();
     }
 }
 
@@ -426,3 +438,5 @@ static struct gui_bitmap_table bitmap_table = {
 };
 
 struct gui_bitmap_table *win32_bitmap_table = &bitmap_table;
+
+}

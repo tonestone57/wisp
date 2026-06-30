@@ -10,6 +10,7 @@
 #include <cctype>
 
 extern "C" {
+#include <libwapcaplet/libwapcaplet.h>
 #include "wisp/layout.h"
 #include "wisp/plot_style.h"
 #include "wisp/utils/errors.h"

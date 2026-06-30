@@ -9,6 +9,7 @@
 #include <wincodec.h>
 #include <vector>
 #include <stack>
+#include <map>
 
 extern "C" {
 #include "wisp/plotters.h"
@@ -125,7 +126,6 @@ static nserror polygon(const struct redraw_context *ctx, const plot_style_t *sty
         }
         geometry->Release();
     }
-    factory->Release();
     return NSERROR_OK;
 }
 
@@ -172,7 +172,6 @@ static ID2D1PathGeometry* create_geometry_from_raw(ID2D1RenderTarget *rt, const 
             sink->Release();
         }
     }
-    factory->Release();
     return geometry;
 }
 
@@ -214,7 +213,6 @@ static ID2D1PathGeometry* create_geometry_from_commands(ID2D1RenderTarget *rt, c
             sink->Release();
         }
     }
-    factory->Release();
     return geometry;
 }
 
@@ -306,7 +304,6 @@ static nserror arc(const struct redraw_context *ctx, const plot_style_t *style, 
         }
         geometry->Release();
     }
-    factory->Release();
     return NSERROR_OK;
 }
 
@@ -314,13 +311,20 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
     ID2D1RenderTarget *rt = D2D_RT;
     if (!rt || !bitmap) return NSERROR_INVALID;
 
-    ID2D1Bitmap *d2d_bmp = (ID2D1Bitmap *)bitmap->d2d_bmp;
-    if (!d2d_bmp) {
-        D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-        if (FAILED(rt->CreateBitmap(D2D1::SizeU(bitmap->width, bitmap->height), bitmap->pixdata, bitmap->width * 4, &props, &d2d_bmp))) {
-            return NSERROR_INVALID;
+    ID2D1Bitmap *d2d_bmp = NULL;
+    auto *map = (std::map<ID2D1RenderTarget*, ID2D1Bitmap*>*)bitmap->d2d_bmp_map;
+    if (map) {
+        auto it = map->find(rt);
+        if (it != map->end()) {
+            d2d_bmp = it->second;
+        } else {
+            D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+            if (SUCCEEDED(rt->CreateBitmap(D2D1::SizeU(bitmap->width, bitmap->height), bitmap->pixdata, bitmap->width * 4, &props, &d2d_bmp))) {
+                (*map)[rt] = d2d_bmp;
+            } else {
+                return NSERROR_INVALID;
+            }
         }
-        bitmap->d2d_bmp = (void *)d2d_bmp;
     }
 
     D2D1_RECT_F dest_rect = D2D1::RectF((float)x, (float)y, (float)x + width, (float)y + height);

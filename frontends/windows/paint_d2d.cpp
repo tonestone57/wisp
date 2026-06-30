@@ -43,8 +43,9 @@ extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
         extern void nsws_d2d_recreate_resources(struct gui_window *gw);
         nsws_d2d_recreate_resources(gw);
         InvalidateRect(hwnd, NULL, FALSE);
+    } else {
+        ValidateRect(hwnd, NULL);
     }
-    ValidateRect(hwnd, NULL);
 }
 
 #endif

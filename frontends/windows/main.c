@@ -515,6 +515,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     win_plotters.finalise();
 
 #ifdef WISP_WINDOWS_USE_D2D
+    extern void nsws_d2d_fini(void);
+    nsws_d2d_fini();
     extern void win32_dwrite_fini(void);
     win32_dwrite_fini();
 #endif
