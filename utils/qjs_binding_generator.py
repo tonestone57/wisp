@@ -118,13 +118,15 @@ class QuickJSBindingGenerator:
             elif isinstance(construct, widlparser.constructs.Dictionary):
                 self.dictionaries.add(construct.name)
             elif isinstance(construct, widlparser.constructs.ImplementsStatement):
-                if construct.name not in self.mixins:
-                    self.mixins[construct.name] = []
-                self.mixins[construct.name].append(construct.implements)
+                target = str(construct.name).strip()
+                if target not in self.mixins:
+                    self.mixins[target] = []
+                self.mixins[target].append(str(construct.implements).strip())
             elif isinstance(construct, widlparser.constructs.IncludesStatement):
-                if construct.name not in self.mixins:
-                    self.mixins[construct.name] = []
-                self.mixins[construct.name].append(construct.includes)
+                target = str(construct.name).strip()
+                if target not in self.mixins:
+                    self.mixins[target] = []
+                self.mixins[target].append(str(construct.includes).strip())
 
     def _get_inheritance(self, interface_name):
         interface = self.interfaces.get(interface_name)
@@ -148,11 +150,24 @@ class QuickJSBindingGenerator:
         name = interface.name
         members_by_name = {} # name -> member_info
 
+        processed_mixins = set()
         to_process = [interface]
+
+        mixins_to_check = []
         if name in self.mixins:
-            for mixin_name in self.mixins[name]:
-                mixin = self.interfaces.get(mixin_name)
-                if mixin: to_process.append(mixin)
+            mixins_to_check.extend(self.mixins[name])
+
+        while mixins_to_check:
+            mixin_name = mixins_to_check.pop(0)
+            if mixin_name in processed_mixins:
+                continue
+            processed_mixins.add(mixin_name)
+
+            mixin = self.interfaces.get(mixin_name)
+            if mixin:
+                to_process.append(mixin)
+                if mixin_name in self.mixins:
+                    mixins_to_check.extend(self.mixins[mixin_name])
 
         for current in to_process:
             for member in current.members:
@@ -684,7 +699,7 @@ class QuickJSBindingGenerator:
                 def ctor_sort_key(c):
                     # Higher argc first.
                     # Then count number of specific checks (not 'true')
-                    specific_checks = sum(1 for a in c['args'] if self._get_type_check(0, a['type']) != "true")
+                    specific_checks = sum(1 for idx, a in enumerate(c['args']) if self._get_type_check(idx, a['type']) != "true")
                     return (-len(c['args']), -specific_checks)
 
                 sorted_group = sorted(group, key=ctor_sort_key)
@@ -695,15 +710,12 @@ class QuickJSBindingGenerator:
                         if check != "true":
                             checks.append(check)
 
-                    if i == 0:
-                        c_code += f"    if ({' && '.join(checks)}) "
-                    elif i == len(group) - 1:
-                        c_code += f"    else "
-                    else:
-                        c_code += f"    else if ({' && '.join(checks)}) "
+                    c_code += f"    {'else ' if i > 0 else ''}if ({' && '.join(checks)}) "
 
                     suffix = "" if ctor_name == 'constructor' else "_ctor"
                     c_code += f"return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, {'new_target' if ctor_name == 'constructor' else 'this_val'}, argc, argv);\n"
+
+                c_code += f"    else return JS_ThrowTypeError(ctx, \"No matching constructor for {name}\");\n"
             c_code += f"}}\n\n"
 
         for op in flat_ops:
@@ -722,7 +734,7 @@ class QuickJSBindingGenerator:
                 def op_sort_key(o):
                     # Higher argc first.
                     # Then count number of specific checks (not 'true')
-                    specific_checks = sum(1 for a in o['args'] if self._get_type_check(0, a['type']) != "true")
+                    specific_checks = sum(1 for idx, a in enumerate(o['args']) if self._get_type_check(idx, a['type']) != "true")
                     return (-len(o['args']), -specific_checks)
 
                 sorted_overloads = sorted(overloads, key=op_sort_key)
@@ -733,13 +745,10 @@ class QuickJSBindingGenerator:
                         if check != "true":
                             checks.append(check)
 
-                    if i == 0:
-                        c_code += f"    if ({' && '.join(checks)}) "
-                    elif i == len(overloads) - 1:
-                        c_code += f"    else "
-                    else:
-                        c_code += f"    else if ({' && '.join(checks)}) "
+                    c_code += f"    {'else ' if i > 0 else ''}if ({' && '.join(checks)}) "
                     c_code += f"return js_{lower_name}_{op['impl_name']}_marshaller(ctx, this_val, argc, argv);\n"
+
+                c_code += f"    else return JS_ThrowTypeError(ctx, \"No matching overload for {name}.{op_name}\");\n"
             c_code += f"}}\n\n"
 
         for attr in attributes:
