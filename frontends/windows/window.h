@@ -19,6 +19,10 @@
 #ifndef WISP_WINDOWS_WINDOW_H_
 #define WISP_WINDOWS_WINDOW_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef WISP_HOMEPAGE
 #define WISP_HOMEPAGE "about:welcome"
 #endif
@@ -138,5 +142,8 @@ HWND gui_window_main_window(struct gui_window *gw);
  */
 struct nsws_localhistory *gui_window_localhistory(struct gui_window *);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _NETSURF_WINDOWS_WINDOW_H_ */

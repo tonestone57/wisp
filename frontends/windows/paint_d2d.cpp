@@ -38,7 +38,12 @@ extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
 
     browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &clip, &ctx);
 
-    rt->EndDraw();
+    HRESULT hr = rt->EndDraw();
+    if (hr == D2DERR_RECREATE_TARGET) {
+        extern void nsws_d2d_recreate_resources(struct gui_window *gw);
+        nsws_d2d_recreate_resources(gw);
+        InvalidateRect(hwnd, NULL, FALSE);
+    }
     ValidateRect(hwnd, NULL);
 }
 

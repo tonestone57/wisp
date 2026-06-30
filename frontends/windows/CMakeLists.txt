@@ -5,7 +5,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 set(WISP_WINDOWS_SRCS
 	about.c
-	bitmap.c
+	bitmap.cpp
 	clipboard.c
 	cookies.c
 	corewindow.c

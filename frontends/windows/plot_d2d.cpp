@@ -31,8 +31,6 @@ extern "C" {
 
 #define D2D_CLIP (GW ? D2D1::RectF(GW->d2d_clip_x0, GW->d2d_clip_y0, GW->d2d_clip_x1, GW->d2d_clip_y1) : d2d_clip_override)
 static D2D1_RECT_F d2d_clip_override;
-
-
 static ID2D1RenderTarget *d2d_rt_override = NULL;
 
 /**
@@ -315,27 +313,33 @@ static nserror arc(const struct redraw_context *ctx, const plot_style_t *style, 
 static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, int x, int y, int width, int height, colour bg, bitmap_flags_t flags) {
     ID2D1RenderTarget *rt = D2D_RT;
     if (!rt || !bitmap) return NSERROR_INVALID;
-    ID2D1Bitmap *d2d_bmp = NULL;
-    D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-    if (SUCCEEDED(rt->CreateBitmap(D2D1::SizeU(bitmap->width, bitmap->height), bitmap->pixdata, bitmap->width * 4, &props, &d2d_bmp))) {
-        D2D1_RECT_F dest_rect = D2D1::RectF((float)x, (float)y, (float)x + width, (float)y + height);
 
-        rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
-        if (flags & (BITMAPF_REPEAT_X | BITMAPF_REPEAT_Y)) {
-            ID2D1BitmapBrush *brush;
-            if (SUCCEEDED(rt->CreateBitmapBrush(d2d_bmp, &brush))) {
-                brush->SetExtendModeX((flags & BITMAPF_REPEAT_X) ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP);
-                brush->SetExtendModeY((flags & BITMAPF_REPEAT_Y) ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP);
-                brush->SetTransform(D2D1::Matrix3x2F::Translation((float)x, (float)y));
-                rt->FillRectangle(D2D_CLIP, brush);
-                brush->Release();
-            }
-        } else {
-            rt->DrawBitmap(d2d_bmp, dest_rect);
+    ID2D1Bitmap *d2d_bmp = (ID2D1Bitmap *)bitmap->d2d_bmp;
+    if (!d2d_bmp) {
+        D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        if (FAILED(rt->CreateBitmap(D2D1::SizeU(bitmap->width, bitmap->height), bitmap->pixdata, bitmap->width * 4, &props, &d2d_bmp))) {
+            return NSERROR_INVALID;
         }
-        rt->PopAxisAlignedClip();
-        d2d_bmp->Release();
+        bitmap->d2d_bmp = (void *)d2d_bmp;
     }
+
+    D2D1_RECT_F dest_rect = D2D1::RectF((float)x, (float)y, (float)x + width, (float)y + height);
+
+    rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
+    if (flags & (BITMAPF_REPEAT_X | BITMAPF_REPEAT_Y)) {
+        ID2D1BitmapBrush *brush;
+        if (SUCCEEDED(rt->CreateBitmapBrush(d2d_bmp, &brush))) {
+            brush->SetExtendModeX((flags & BITMAPF_REPEAT_X) ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP);
+            brush->SetExtendModeY((flags & BITMAPF_REPEAT_Y) ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP);
+            brush->SetTransform(D2D1::Matrix3x2F::Translation((float)x, (float)y));
+            rt->FillRectangle(D2D_CLIP, brush);
+            brush->Release();
+        }
+    } else {
+        rt->DrawBitmap(d2d_bmp, dest_rect);
+    }
+    rt->PopAxisAlignedClip();
+
     return NSERROR_OK;
 }
 

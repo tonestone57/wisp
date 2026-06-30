@@ -28,6 +28,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <windows.h>
+#include <d2d1.h>
 
 #include "wisp/bitmap.h"
 #include "wisp/content.h"
@@ -148,7 +149,7 @@ static size_t bitmap_get_rowstride(void *bitmap)
  */
 void win32_bitmap_destroy(void *bitmap)
 {
-    struct bitmap *bm = bitmap;
+    struct bitmap *bm = (struct bitmap *)bitmap;
 
     if (bitmap == NULL) {
         NSLOG(wisp, INFO, "NULL bitmap!");
@@ -158,6 +159,9 @@ void win32_bitmap_destroy(void *bitmap)
     win32_bitmap_flush_scaled(bm);
     DeleteObject(bm->windib);
     free(bm->pbmi);
+    if (bm->d2d_bmp) {
+        ((ID2D1Bitmap *)bm->d2d_bmp)->Release();
+    }
     free(bm);
 }
 
@@ -169,10 +173,15 @@ void win32_bitmap_destroy(void *bitmap)
  */
 static void bitmap_modified(void *bitmap)
 {
-    if (bitmap == NULL) {
+    struct bitmap *bm = (struct bitmap *)bitmap;
+    if (bm == NULL) {
         return;
     }
-    win32_bitmap_flush_scaled(bitmap);
+    win32_bitmap_flush_scaled(bm);
+    if (bm->d2d_bmp) {
+        ((ID2D1Bitmap *)bm->d2d_bmp)->Release();
+        bm->d2d_bmp = NULL;
+    }
 }
 
 /**

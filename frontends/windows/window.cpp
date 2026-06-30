@@ -1431,30 +1431,8 @@ win32_window_create(struct browser_window *bw, struct gui_window *existing, gui_
     gw->drawingarea = nsws_window_create_drawable(hinst, gw->main, gw);
 
 #ifdef WISP_WINDOWS_USE_D2D
-    /* Initialise Direct2D */
-    ID2D1Factory *d2d_factory;
-    HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2d_factory);
-    if (SUCCEEDED(hr)) {
-        extern void win32_dwrite_init(void);
-        win32_dwrite_init();
-
-        ID2D1HwndRenderTarget *d2d_rt;
-        RECT rc;
-        GetClientRect(gw->drawingarea, &rc);
-        hr = d2d_factory->CreateHwndRenderTarget(
-            D2D1::RenderTargetProperties(),
-            D2D1::HwndRenderTargetProperties(gw->drawingarea, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
-            &d2d_rt);
-        if (SUCCEEDED(hr)) {
-            gw->d2d_factory = d2d_factory;
-            gw->d2d_rt = d2d_rt;
-            gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
-            gw->d2d_stateful_path = new std::vector<d2d_path_command>();
-            gw->d2d_initialised = true;
-        } else {
-            d2d_factory->Release();
-        }
-    }
+    extern HRESULT nsws_window_init_d2d(struct gui_window *gw);
+    nsws_window_init_d2d(gw);
 #endif
 
     NSLOG(wisp, INFO, "new window: main:%p toolbar:%p statusbar %p drawingarea %p d2d:%d", gw->main, gw->toolbar,
@@ -2058,3 +2036,47 @@ HWND gui_window_main_window(struct gui_window *w)
         return NULL;
     return w->main;
 }
+
+#ifdef WISP_WINDOWS_USE_D2D
+HRESULT nsws_window_init_d2d(struct gui_window *gw)
+{
+    ID2D1Factory *d2d_factory = (ID2D1Factory *)gw->d2d_factory;
+    if (!d2d_factory) {
+        HRESULT hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, &d2d_factory);
+        if (FAILED(hr)) return hr;
+        gw->d2d_factory = d2d_factory;
+        extern void win32_dwrite_init(void);
+        win32_dwrite_init();
+    }
+
+    ID2D1HwndRenderTarget *d2d_rt;
+    RECT rc;
+    GetClientRect(gw->drawingarea, &rc);
+    HRESULT hr = d2d_factory->CreateHwndRenderTarget(
+        D2D1::RenderTargetProperties(),
+        D2D1::HwndRenderTargetProperties(gw->drawingarea, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)),
+        &d2d_rt);
+    if (SUCCEEDED(hr)) {
+        gw->d2d_rt = d2d_rt;
+        if (!gw->d2d_transform_stack) gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
+        if (!gw->d2d_stateful_path) gw->d2d_stateful_path = new std::vector<d2d_path_command>();
+        gw->d2d_initialised = true;
+    }
+    return hr;
+}
+
+void nsws_d2d_recreate_resources(struct gui_window *gw)
+{
+    NSLOG(wisp, INFO, "Recreating D2D resources for window %p (device loss)", gw);
+    if (gw->d2d_rt) {
+        ((ID2D1HwndRenderTarget *)gw->d2d_rt)->Release();
+        gw->d2d_rt = NULL;
+    }
+    gw->d2d_initialised = false;
+
+    /* Clear cached bitmaps as they are bound to the old render target */
+    image_cache_purge_bitmaps();
+
+    nsws_window_init_d2d(gw);
+}
+#endif
