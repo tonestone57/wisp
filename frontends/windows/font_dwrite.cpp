@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <cctype>
 
 extern "C" {
 #include "wisp/layout.h"
@@ -129,13 +130,21 @@ static nserror win32_dwrite_position(const plot_font_style_t *style, const char 
 
 static nserror win32_dwrite_split(const plot_font_style_t *style, const char *string, size_t length, int x, size_t *offset, int *actual_x) {
     nserror res = win32_dwrite_position(style, string, length, x, offset, actual_x);
-    if (res != NSERROR_OK || *offset == length) return res;
+    if (res != NSERROR_OK || *offset == length || *offset == 0) return res;
 
     size_t c_off = *offset;
-    while ((*offset > 0) && (string[*offset] != ' ')) (*offset)--;
-    if (*offset == 0) {
+
+    /* Look for the last space before or at the hit position */
+    while ((*offset > 0) && !isspace((unsigned char)string[*offset])) {
+        (*offset)--;
+    }
+
+    /* If no space found before the hit, search forward to the next space or end of string */
+    if (*offset == 0 && !isspace((unsigned char)string[0])) {
         *offset = c_off;
-        while ((*offset < length) && (string[*offset] != ' ')) (*offset)++;
+        while ((*offset < length) && !isspace((unsigned char)string[*offset])) {
+            (*offset)++;
+        }
     }
 
     return win32_dwrite_width(style, string, *offset, actual_x);

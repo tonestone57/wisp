@@ -25,7 +25,9 @@ extern "C" {
 #define HAS_PATH (GW && GW->d2d_stateful_path)
 #define STATEFUL_PATH (*((std::vector<d2d_path_command>*)GW->d2d_stateful_path))
 
-static D2D1_RECT_F d2d_clip;
+#define D2D_CLIP (GW ? D2D1::RectF(GW->d2d_clip_x0, GW->d2d_clip_y0, GW->d2d_clip_x1, GW->d2d_clip_y1) : d2d_clip_override)
+static D2D1_RECT_F d2d_clip_override;
+
 
 static ID2D1RenderTarget *d2d_rt_override = NULL;
 
@@ -43,7 +45,14 @@ static D2D1_COLOR_F d2d_color(colour c, float opacity = 1.0f) {
 }
 
 static nserror clip(const struct redraw_context *ctx, const struct rect *clip) {
-    d2d_clip = D2D1::RectF((float)clip->x0, (float)clip->y0, (float)clip->x1 + 1, (float)clip->y1 + 1);
+    if (GW) {
+        GW->d2d_clip_x0 = (float)clip->x0;
+        GW->d2d_clip_y0 = (float)clip->y0;
+        GW->d2d_clip_x1 = (float)clip->x1 + 1;
+        GW->d2d_clip_y1 = (float)clip->y1 + 1;
+    } else {
+        d2d_clip_override = D2D1::RectF((float)clip->x0, (float)clip->y0, (float)clip->x1 + 1, (float)clip->y1 + 1);
+    }
     return NSERROR_OK;
 }
 
@@ -52,7 +61,7 @@ static nserror rectangle(const struct redraw_context *ctx, const plot_style_t *s
     if (!rt) return NSERROR_INVALID;
     D2D1_RECT_F d2d_rect = D2D1::RectF((float)rect->x0, (float)rect->y0, (float)rect->x1 + 1, (float)rect->y1 + 1);
 
-    rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+    rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
     if (style->fill_type != PLOT_OP_TYPE_NONE) {
         ID2D1SolidColorBrush *brush;
         if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(style->fill_colour, style->fill_opacity), &brush))) {
@@ -75,7 +84,7 @@ static nserror line(const struct redraw_context *ctx, const plot_style_t *style,
     ID2D1RenderTarget *rt = D2D_RT;
     if (!rt) return NSERROR_INVALID;
 
-    rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+    rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
     ID2D1SolidColorBrush *brush;
     if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(style->stroke_colour, style->stroke_opacity), &brush))) {
         rt->DrawLine(D2D1::Point2F((float)line->x0, (float)line->y0), D2D1::Point2F((float)line->x1, (float)line->y1), brush, plot_style_fixed_to_float(style->stroke_width));
@@ -102,7 +111,7 @@ static nserror polygon(const struct redraw_context *ctx, const plot_style_t *sty
             sink->Close();
             sink->Release();
 
-            rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+            rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
             if (style->fill_type != PLOT_OP_TYPE_NONE) {
                 ID2D1SolidColorBrush *brush;
                 if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(style->fill_colour, style->fill_opacity), &brush))) {
@@ -219,7 +228,7 @@ static nserror path(const struct redraw_context *ctx, const plot_style_t *pstyle
             rt->SetTransform(d2d_transform * old_transform);
         }
 
-        rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+        rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
         if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
             ID2D1SolidColorBrush *brush;
             if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(pstyle->fill_colour, pstyle->fill_opacity), &brush))) {
@@ -247,7 +256,7 @@ static nserror disc(const struct redraw_context *ctx, const plot_style_t *style,
     if (!rt) return NSERROR_INVALID;
     D2D1_ELLIPSE ellipse = D2D1::Ellipse(D2D1::Point2F((float)x, (float)y), (float)radius, (float)radius);
 
-    rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+    rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
     if (style->fill_type != PLOT_OP_TYPE_NONE) {
         ID2D1SolidColorBrush *brush;
         if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(style->fill_colour, style->fill_opacity), &brush))) {
@@ -285,7 +294,7 @@ static nserror arc(const struct redraw_context *ctx, const plot_style_t *style, 
             sink->Close();
             sink->Release();
 
-            rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+            rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
             ID2D1SolidColorBrush *brush;
             if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(style->stroke_colour, style->stroke_opacity), &brush))) {
                 rt->DrawGeometry(geometry, brush, plot_style_fixed_to_float(style->stroke_width));
@@ -307,14 +316,14 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
     if (SUCCEEDED(rt->CreateBitmap(D2D1::SizeU(bitmap->width, bitmap->height), bitmap->pixdata, bitmap->width * 4, &props, &d2d_bmp))) {
         D2D1_RECT_F dest_rect = D2D1::RectF((float)x, (float)y, (float)x + width, (float)y + height);
 
-        rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+        rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
         if (flags & (BITMAPF_REPEAT_X | BITMAPF_REPEAT_Y)) {
             ID2D1BitmapBrush *brush;
             if (SUCCEEDED(rt->CreateBitmapBrush(d2d_bmp, &brush))) {
                 brush->SetExtendModeX((flags & BITMAPF_REPEAT_X) ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP);
                 brush->SetExtendModeY((flags & BITMAPF_REPEAT_Y) ? D2D1_EXTEND_MODE_WRAP : D2D1_EXTEND_MODE_CLAMP);
                 brush->SetTransform(D2D1::Matrix3x2F::Translation((float)x, (float)y));
-                rt->FillRectangle(d2d_clip, brush);
+                rt->FillRectangle(D2D_CLIP, brush);
                 brush->Release();
             }
         } else {
@@ -339,7 +348,7 @@ static nserror text(const struct redraw_context *ctx, const plot_font_style_t *f
     if (text_format) {
         ID2D1SolidColorBrush *brush;
         if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(fstyle->foreground), &brush))) {
-            rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+            rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
             rt->DrawText(wstr.data(), wlen, text_format, D2D1::RectF((float)x, (float)y - plot_style_fixed_to_float(fstyle->size), (float)x + 10000.0f, (float)y + 1000.0f), brush);
             rt->PopAxisAlignedClip();
             brush->Release();
@@ -381,7 +390,7 @@ static nserror linear_gradient(const struct redraw_context *ctx, const float *pa
         if (SUCCEEDED(rt->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(x0, y0), D2D1::Point2F(x1, y1)), stop_collection, &brush))) {
             ID2D1PathGeometry *geometry = (path_data && path_len > 0) ? create_geometry_from_raw(rt, path_data, path_len) : NULL;
 
-            rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+            rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
             if (geometry) {
                 D2D1_MATRIX_3X2_F old_transform;
                 rt->GetTransform(&old_transform);
@@ -393,7 +402,7 @@ static nserror linear_gradient(const struct redraw_context *ctx, const float *pa
                 rt->SetTransform(old_transform);
                 geometry->Release();
             } else {
-                rt->FillRectangle(d2d_clip, brush);
+                rt->FillRectangle(D2D_CLIP, brush);
             }
             rt->PopAxisAlignedClip();
             brush->Release();
@@ -421,7 +430,7 @@ static nserror path_fill(const struct redraw_context *ctx, const plot_style_t *p
             rt->SetTransform(d2d_transform * old_transform);
         }
 
-        rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+        rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
         ID2D1SolidColorBrush *brush;
         if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(pstyle->fill_colour, pstyle->fill_opacity), &brush))) {
             rt->FillGeometry(geometry, brush);
@@ -447,7 +456,7 @@ static nserror path_stroke(const struct redraw_context *ctx, const plot_style_t 
             rt->SetTransform(d2d_transform * old_transform);
         }
 
-        rt->PushAxisAlignedClip(d2d_clip, D2D1_ANTIALIAS_MODE_ALIASED);
+        rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
         ID2D1SolidColorBrush *brush;
         if (SUCCEEDED(rt->CreateSolidColorBrush(d2d_color(pstyle->stroke_colour, pstyle->stroke_opacity), &brush))) {
             rt->DrawGeometry(geometry, brush, plot_style_fixed_to_float(pstyle->stroke_width));
