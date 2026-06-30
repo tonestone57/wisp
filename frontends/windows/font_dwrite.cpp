@@ -1,3 +1,7 @@
+#include "wisp/utils/config.h"
+
+#ifdef WISP_WINDOWS_USE_D2D
+
 #include <windows.h>
 #include <dwrite.h>
 #include <vector>
@@ -178,3 +182,5 @@ static struct gui_layout_table layout_table_dwrite = {
 };
 
 extern "C" struct gui_layout_table *win_layout_table_dwrite = &layout_table_dwrite;
+
+#endif

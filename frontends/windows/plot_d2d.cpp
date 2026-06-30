@@ -1,3 +1,7 @@
+#include "wisp/utils/config.h"
+
+#ifdef WISP_WINDOWS_USE_D2D
+
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <d2d1.h>
@@ -501,3 +505,5 @@ extern "C" const struct plotter_table win_plotters_d2d = {
     NULL, // radial_gradient
     true, // option_knockout
 };
+
+#endif

@@ -1,3 +1,7 @@
+#include "wisp/utils/config.h"
+
+#ifdef WISP_WINDOWS_USE_D2D
+
 #include <d2d1.h>
 #include <dwrite.h>
 
@@ -37,3 +41,5 @@ extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
     rt->EndDraw();
     ValidateRect(hwnd, NULL);
 }
+
+#endif

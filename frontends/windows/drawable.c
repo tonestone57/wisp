@@ -393,7 +393,9 @@ static LRESULT nsws_drawable_keydown(struct gui_window *gw, HWND hwnd, WPARAM wp
 }
 
 
+#ifdef WISP_WINDOWS_USE_D2D
 extern void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd);
+#endif
 
 /**
  * Handle paint messages.
@@ -404,10 +406,12 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
     PAINTSTRUCT ps;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
 
+#ifdef WISP_WINDOWS_USE_D2D
     if (gw != NULL && gw->d2d_initialised) {
         nsws_drawable_paint_d2d(gw, hwnd);
         return 0;
     }
+#endif
 
     BeginPaint(hwnd, &ps);
 
