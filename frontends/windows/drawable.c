@@ -419,14 +419,14 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
         int y_start = rect_top - (rect_top % tile_size);
 
         for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
-            int t_y0 = max(ty, rect_top);
-            int t_y1 = min(ty + tile_size, rect_bottom);
+            int t_y0 = (ty > rect_top) ? ty : rect_top;
+            int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
 
             for (int tx = x_start; tx < rect_right; tx += tile_size) {
                 struct rect tile_clip;
-                tile_clip.x0 = max(tx, rect_left);
+                tile_clip.x0 = (tx > rect_left) ? tx : rect_left;
                 tile_clip.y0 = t_y0;
-                tile_clip.x1 = min(tx + tile_size, rect_right);
+                tile_clip.x1 = (tx + tile_size < rect_right) ? tx + tile_size : rect_right;
                 tile_clip.y1 = t_y1;
 
                 if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
