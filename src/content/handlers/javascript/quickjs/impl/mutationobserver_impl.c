@@ -181,9 +181,9 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 
     ot->next = observer->targets; observer->targets = ot;
     struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (!t->mutation_callback_registered) {
+    if (t->mutation_callback_registered_doc != t->doc_priv) {
         dom_document_add_mutation_callback((struct dom_document *)t->doc_priv, mutation_callback, t);
-        t->mutation_callback_registered = true;
+        t->mutation_callback_registered_doc = t->doc_priv;
     }
     return JS_UNDEFINED;
 }
