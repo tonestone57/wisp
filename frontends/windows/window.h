@@ -81,6 +81,7 @@ struct gui_window {
     void *d2d_rt; /**< ID2D1HwndRenderTarget* */
     void *dwrite_factory; /**< IDWriteFactory* */
     bool d2d_initialised; /**< true if D2D resources are valid */
+    bool d2d_clip_pushed; /**< true if a clip rect is currently pushed to RT */
 
     void *d2d_transform_stack; /**< std::stack<D2D1_MATRIX_3X2_F>* */
     void *d2d_stateful_path; /**< std::vector<d2d_path_command>* */
