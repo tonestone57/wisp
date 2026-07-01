@@ -9,9 +9,9 @@ Wisp is a lightweight, high-performance web engine forked from NetSurf. Its prim
 Wisp utilizes a "best-of-breed" plotting architecture to ensure performance and consistency across platforms.
 
 ### Current Backends
-*   **Blend2D (Unified Backbone)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It ensures pixel-perfect consistency across Linux, Windows, and macOS.
-*   **Direct2D & DirectWrite (Windows)**: A native hardware-accelerated pipeline for Windows 7+, providing GPU-accelerated drawing and superior typography.
-*   **BView / AGG (Haiku/BeOS)**: A native backend leveraging Haiku's `app_server` for logical drawing and subpixel anti-aliasing.
+*   **Direct2D & DirectWrite (Windows 7+ / 10 / 11)**: A hardware-accelerated pipeline providing GPU drawing and native typography.
+*   **Blend2D (Unified Backbone & Fallback)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It serves as the primary rasterizer for Linux and macOS, and the mandatory fallback for **Windows XP/Vista**, ensuring modern CSS compatibility on legacy hardware via GDI/GDI+ blitting.
+*   **BView / AGG (Haiku/BeOS)**: A native backend leveraging Haiku's `app_server` for subpixel anti-aliasing and native OS integration.
 *   **Core Graphics / Core Text (macOS)**: Native Cocoa-based rendering for the macOS frontend.
 *   **Cairo / QPainter**: Standard fallbacks for the GTK and Qt frontends.
 
@@ -31,8 +31,8 @@ Wisp's architecture is uniquely positioned to take advantage of multi-core proce
 ### Platform-Specific Benefits
 | Platform | Benefit |
 | :--- | :--- |
-| **Haiku / BeOS** | **Maximum Scaling**: Leverages Haiku's naturally thread-safe `BView` looper to render multiple tiles simultaneously. |
-| **Windows** | **GPU Latency Reduction**: Direct2D Command Lists can be recorded in parallel and submitted to the GPU in a single batch. |
+| **Haiku / BeOS** | **Isolated Offscreen Paint**: Workers rasterize tiles safely into thread-confined raw memory regions, bypassing the single-threaded `BWindow` looper limit before a final main-thread synchronized blit. |
+| **Windows** | **Command List Parallelism**: Background worker threads concurrently record independent `ID2D1CommandList` blocks via deferred contexts, minimizing GPU pipeline stalls and avoiding D2D factory serialization. |
 | **Linux (GTK/Qt)** | **Bypass Single-Core Limits**: Offloads CPU-intensive SIMD rasterization (Blend2D) away from the main event loop. |
 | **macOS** | **UI Responsiveness**: Ensures heavy "Core Text" layout tasks don't block the Cocoa event loop. |
 
@@ -64,11 +64,11 @@ While functional, the Haiku frontend has several paths for significant advanceme
 
 ### Performance
 *   **GPU Compositing**: Move the final "tile blitting" and scrolling pass to the **GPU (OpenGL/Vulkan)** to reduce CPU overhead and provide smoother 60FPS scrolling.
-*   **JS JIT**: Enable JIT-compilation in the QuickJS-ng engine for faster execution of compute-heavy JavaScript.
+*   **Script Optimization**: Prioritize bytecode execution and interpreter loop enhancements for QuickJS-ng. For high-performance JS requirements exceeding interpreter capabilities, evaluate engines with native JIT tiers such as **Hermes** or **V8 (Lite mode)**.
 
 ### Stability
 *   **Process Isolation**: Moving the JavaScript engine and network stack into separate OS processes (multi-process architecture). This ensures that a single malicious or buggy script cannot crash the entire browser window.
-*   **Memory Auditing**: Continuous resolution of memory leaks during runtime teardown (Current focus: QuickJS/DOM bridge cycles).
+*   **Ownership Proxy Model**: Transition to a strict proxy model for the JS/DOM bridge where JS wrappers point to a tracked reference map rather than extending C node lifecycles directly, mitigating complex reference cycles.
 
 ### Security
 *   **Content Security Policy (CSP)**: Implement full CSP header support to mitigate Cross-Site Scripting (XSS) at the engine level.
