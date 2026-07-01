@@ -993,8 +993,8 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
 		{
 			css_fixed value;
 			css_unit unit;
-			enum css_min_height_e min_h_type = ns_computed_min_height(b->style, &value, &unit);
-			enum css_min_width_e min_w_type = ns_computed_min_width(b->style, &value, &unit);
+			enum css_min_height_e min_h_type = css_computed_min_height(b->style, &value, &unit);
+			enum css_min_width_e min_w_type = css_computed_min_width(b->style, &value, &unit);
 
 			if (horizontal) {
 				/* Horizontal flex: min-width affects main axis.

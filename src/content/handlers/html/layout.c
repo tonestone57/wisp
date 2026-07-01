@@ -1233,7 +1233,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 	{
 		css_fixed min_h_val;
 		css_unit min_h_unit;
-		if (ns_computed_min_height(block->style, &min_h_val, &min_h_unit) == CSS_MIN_HEIGHT_SET &&
+		if (css_computed_min_height(block->style, &min_h_val, &min_h_unit) == CSS_MIN_HEIGHT_SET &&
 		    min_h_unit != CSS_UNIT_PCT && min_h_val > 0) {
 			block->flags |= MAKE_HEIGHT;
 			block->flags |= HAS_HEIGHT;
@@ -2452,28 +2452,7 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 	bool updated = false;
 
 	/* Find containing block for percentage heights */
-	if (box->style != NULL && css_computed_position(box->style) == CSS_POSITION_ABSOLUTE) {
-		/* Box is absolutely positioned */
-		assert(container);
-		containing_block = container;
-	} else if (box->parent && (box->parent->type == BOX_FLOAT_LEFT || box->parent->type == BOX_FLOAT_RIGHT)) {
-		/* Box is child of a float wrapper - walk up to find containing block with style.
-		 * Skip BOX_INLINE_CONTAINER and BOX_FLOAT_* which have NULL styles by design. */
-		struct box *cb = box->parent;
-		while (cb != NULL &&
-			(cb->style == NULL || cb->type == BOX_INLINE_CONTAINER || cb->type == BOX_FLOAT_LEFT ||
-				cb->type == BOX_FLOAT_RIGHT)) {
-			cb = cb->parent;
-		}
-		containing_block = cb;
-	} else if (box->parent && box->parent->type != BOX_INLINE_CONTAINER) {
-		/* Box is a block level element */
-		containing_block = box->parent;
-	} else if (box->parent && box->parent->type == BOX_INLINE_CONTAINER) {
-		/* Box is an inline block */
-		assert(box->parent->parent);
-		containing_block = box->parent->parent;
-	}
+	containing_block = lh__get_containing_block_for_pct(box);
 
 	if (box->style) {
 		enum css_height_e htype = CSS_HEIGHT_AUTO;
@@ -2486,15 +2465,16 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 
 		/* max-height */
 		int available_width = (box->parent) ? box->parent->width : 0;
-		if (box->style && css_computed_position(box->style) == CSS_POSITION_ABSOLUTE && container) {
-			available_width = container->width + container->padding[LEFT] + container->padding[RIGHT];
+		if (box->style && css_computed_position(box->style) == CSS_POSITION_ABSOLUTE && containing_block) {
+			available_width = containing_block->width + containing_block->padding[LEFT] + containing_block->padding[RIGHT];
 		}
 
 		/* max-height */
 		if (css_computed_max_height(box->style, &value, &unit) == CSS_MAX_HEIGHT_SET) {
 			if (unit == CSS_UNIT_PCT) {
 				if (containing_block && containing_block->height != AUTO &&
-					(css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || htype == CSS_HEIGHT_SET)) {
+					(css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || htype == CSS_HEIGHT_SET ||
+						(containing_block->flags & HAS_HEIGHT))) {
 					/* Box is absolutely positioned or its
 					 * containing block has a valid
 					 * specified height. (CSS 2.1
@@ -2517,10 +2497,11 @@ static bool layout_apply_minmax_height(const css_unit_ctx *unit_len_ctx, struct 
 		}
 
 		/* min-height */
-		if (ns_computed_min_height(box->style, &value, &unit) == CSS_MIN_HEIGHT_SET) {
+		if (css_computed_min_height(box->style, &value, &unit) == CSS_MIN_HEIGHT_SET) {
 			if (unit == CSS_UNIT_PCT) {
 				if (containing_block && containing_block->height != AUTO &&
-					(css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || htype == CSS_HEIGHT_SET)) {
+					(css_computed_position(box->style) == CSS_POSITION_ABSOLUTE || htype == CSS_HEIGHT_SET ||
+						(containing_block->flags & HAS_HEIGHT))) {
 					/* Box is absolutely positioned or its
 					 * containing block has a valid
 					 * specified height. (CSS 2.1
@@ -5919,7 +5900,7 @@ static void layout_log_final_box_heights(const css_unit_ctx *unit_len_ctx, struc
 			css_fixed lhval = 0;
 			css_unit lhunit = CSS_UNIT_PX;
 			enum css_height_e htype = css_computed_height(box->style, &hval, &hunit);
-			enum css_min_height_e min_htype = ns_computed_min_height(box->style, &min_hval, &min_hunit);
+			enum css_min_height_e min_htype = css_computed_min_height(box->style, &min_hval, &min_hunit);
 			enum css_max_height_e max_htype = css_computed_max_height(box->style, &max_hval, &max_hunit);
 			enum css_line_height_e lhtype = css_computed_line_height(box->style, &lhval, &lhunit);
 			int hpx = -1;
