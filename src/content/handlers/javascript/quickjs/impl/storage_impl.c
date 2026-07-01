@@ -40,14 +40,17 @@ JSValue wisp_storage_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 int qjs_init_storage(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
-    JSValue check = JS_GetPropertyStr(ctx, global_obj, "localStorage");
-    if (JS_IsObject(check)) {
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_storage_init");
+    if (JS_ToBool(ctx, check)) {
         JS_FreeValue(ctx, check);
         JS_FreeValue(ctx, global_obj);
         return 0;
     }
     JS_FreeValue(ctx, check);
 
+    /* Initialize the class and prototype using the generated function */
     qjs_init_storage_gen(ctx);
     JSValue localStorage = qjs_new_storage(ctx, NULL, false);
     JS_DefinePropertyValueStr(ctx, global_obj, "localStorage", localStorage, JS_PROP_C_W_E);
@@ -55,6 +58,9 @@ int qjs_init_storage(JSContext *ctx)
     JSValue sessionStorage = qjs_new_storage(ctx, NULL, false);
     JS_DefinePropertyValueStr(ctx, global_obj, "sessionStorage", sessionStorage, JS_PROP_C_W_E);
 
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_storage_init", JS_TRUE, 0);
     JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

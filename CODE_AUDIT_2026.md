@@ -44,9 +44,9 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **CSS Flexbox**: Full support for flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
 *   **MutationObserver**: Fully integrated with LibDOM via a native mutation hook system and optimized JS callback queue.
 *   **Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
+*   **Incremental Reflow Optimization**: Fully functional with scale-aware fixed-tile redraw and optimized disjoint dirty region tracking (up to 16 disjoint rects).
 
 ### 3.2 Partial Implementation [Partial]
-*   **Incremental Reflow Optimization**: Functional, but bounding box union logic in `box_mark_dirty` is being refined for elements entirely contained within parent dirty regions.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
 *   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing.

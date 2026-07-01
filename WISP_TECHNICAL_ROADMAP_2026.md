@@ -90,14 +90,16 @@ The following tasks are identified as high-priority for the next development cyc
 ### Graphics & Rendering
 *   **[Incomplete] Canvas 2D Plotter Bridge**: Connect the WebIDL stubs for the Canvas 2D API to the underlying plotter engine (Direct2D/Blend2D).
 *   **[Planned] GPU-Accelerated Compositing**: Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure 60FPS performance on high-resolution displays.
+*   **[Planned] Parallel Tile Redraw**: Parallelize the Fixed-Tile Redraw strategy across multiple CPU cores by dispatching dirty tiles to the `wisp_subsystem` worker pool.
 
 ### Performance & Stability
-*   **[Bug] QuickJS Leak Resolution**: Investigate and resolve the ~720-byte heap leak identified during runtime teardown in `qjs.c`.
+*   **[Bug] QuickJS Leak Resolution**: Investigate and resolve the remaining heap leaks (~720 bytes) identified during runtime teardown in `qjs.c`.
 *   **[Planned] Multi-process Architecture**: Isolate the QuickJS-ng engine and the network stack into separate OS processes to improve security and fault tolerance.
 
 ### UI & Features
 *   **[Planned] Unified C-based UI Library**: Implement a cross-platform, lightweight UI component library for consistent browser chrome across all frontends.
 *   **[Planned] Web Worker Parity**: Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
+*   **[Planned] Native Haiku Widget Parity**: Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend for theme parity and accessibility.
 
 ### Security
 *   **[Planned] Content Security Policy (CSP)**: Implement a full CSP enforcement engine within the layout and script handlers.
