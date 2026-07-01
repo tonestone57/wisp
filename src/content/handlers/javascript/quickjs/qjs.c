@@ -100,15 +100,16 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->heap = heap; t->win_priv = win_priv; t->doc_priv = doc_priv;
     JS_SetContextOpaque(t->ctx, t);
 
+    /* core initialization - registration handles dependencies.
+     * Must be called before manual refinements to ensure correct prototype chain. */
+    wisp_js_register_all_bindings(t->ctx);
+
     qjs_init_dom_bridge(t->ctx);
     qjs_init_eventtarget(t->ctx);
     qjs_init_node(t->ctx);
     qjs_init_element(t->ctx);
     qjs_init_document(t->ctx);
     qjs_init_window(t->ctx);
-
-    /* core initialization - registration handles dependencies */
-    wisp_js_register_all_bindings(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
