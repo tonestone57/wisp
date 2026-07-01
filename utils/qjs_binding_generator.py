@@ -766,8 +766,11 @@ class QuickJSBindingGenerator:
 
                 sorted_overloads = sorted(overloads, key=op_sort_key)
                 for i, op in enumerate(sorted_overloads):
-                    checks = [f"argc >= {len(op['args'])}"]
+                    # For variadic, minimum argc is the number of args before the variadic one
+                    min_argc = len([a for a in op['args'] if not a.get('variadic')])
+                    checks = [f"argc >= {min_argc}"]
                     for idx, arg in enumerate(op['args']):
+                        if arg.get('variadic'): continue
                         check = self._get_type_check(idx, arg['type'])
                         if check != "true":
                             checks.append(check)
