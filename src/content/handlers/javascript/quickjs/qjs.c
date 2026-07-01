@@ -106,10 +106,17 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     qjs_init_dom_bridge(t->ctx);
     qjs_init_eventtarget(t->ctx);
+    qjs_init_event(t->ctx);
     qjs_init_node(t->ctx);
     qjs_init_element(t->ctx);
     qjs_init_document(t->ctx);
     qjs_init_window(t->ctx);
+    qjs_init_navigator(t->ctx);
+    qjs_init_location(t->ctx);
+    qjs_init_storage(t->ctx);
+    qjs_init_xhr(t->ctx);
+    qjs_init_mutationobserver(t->ctx);
+    qjs_init_intersectionobserver(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
@@ -210,6 +217,8 @@ void js_destroythread(jsthread *thread)
         qjs_finalise_dom_bridge(thread->ctx);
         JS_SetContextOpaque(thread->ctx, NULL);
         JS_FreeContext(thread->ctx);
+
+        /* Final GC passes to ensure all orphaned objects (including MutationObservers) are collected. */
         JS_RunGC(rt);
         JS_RunGC(rt);
     }
