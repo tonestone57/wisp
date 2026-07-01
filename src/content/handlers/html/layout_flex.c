@@ -1767,6 +1767,34 @@ static bool layout_flex__collect_items_into_lines(struct flex_ctx *ctx)
 }
 
 /**
+ * Get the baseline of a box.
+ *
+ * \param[in] b  Box to get baseline of
+ * \return baseline offset from top padding edge in pixels
+ */
+static int layout_flex__get_baseline(struct box *b)
+{
+	if (b->type == BOX_TEXT) {
+		/* Heuristic for text baseline if not explicitly available */
+		return (b->height * 4) / 5;
+	}
+
+	if (b->children) {
+		struct box *child = b->children;
+		/* Find first non-float child */
+		while (child && (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT)) {
+			child = child->next;
+		}
+		if (child) {
+			return child->y + layout_flex__get_baseline(child);
+		}
+	}
+
+	/* Default to bottom of content box */
+	return b->height;
+}
+
+/**
  * Align items on a line.
  *
  * \param[in] ctx    Flex layout context
@@ -1777,6 +1805,20 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 {
 	enum box_side cross_start = ctx->horizontal ? TOP : LEFT;
 	size_t item_count = line->first + line->count;
+	int max_baseline = 0;
+
+	if (ctx->horizontal) {
+		/* Pre-calculate maximum baseline offset for the line */
+		for (size_t j = line->first; j < item_count; j++) {
+			struct flex_item_data *it = &ctx->item.data[j];
+			if (lh__box_align_self(ctx->flex, it->box) == CSS_ALIGN_SELF_BASELINE) {
+				int baseline = layout_flex__get_baseline(it->box) +
+					lh__non_auto_margin(it->box, cross_start) + it->box->border[cross_start].width;
+				if (baseline > max_baseline)
+					max_baseline = baseline;
+			}
+		}
+	}
 
 	for (size_t i = line->first; i < item_count; i++) {
 		struct flex_item_data *item = &ctx->item.data[i];
@@ -1875,18 +1917,6 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 				break;
 			}
 
-			/* Find maximum baseline offset for the line */
-			int max_baseline = 0;
-			for (size_t j = line->first; j < item_count; j++) {
-				struct flex_item_data *it = &ctx->item.data[j];
-				if (lh__box_align_self(ctx->flex, it->box) == CSS_ALIGN_SELF_BASELINE) {
-					int baseline = layout_flex__get_baseline(it->box) +
-						lh__non_auto_margin(it->box, cross_start) + it->box->border[cross_start].width;
-					if (baseline > max_baseline)
-						max_baseline = baseline;
-				}
-			}
-
 			int item_baseline = layout_flex__get_baseline(b) +
 				lh__non_auto_margin(b, cross_start) + b->border[cross_start].width;
 
@@ -1897,34 +1927,6 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 		}
 		}
 	}
-}
-
-/**
- * Get the baseline of a box.
- *
- * \param[in] b  Box to get baseline of
- * \return baseline offset from top padding edge in pixels
- */
-static int layout_flex__get_baseline(struct box *b)
-{
-	if (b->type == BOX_TEXT) {
-		/* Heuristic for text baseline if not explicitly available */
-		return (b->height * 4) / 5;
-	}
-
-	if (b->children) {
-		struct box *child = b->children;
-		/* Find first non-float child */
-		while (child && (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT)) {
-			child = child->next;
-		}
-		if (child) {
-			return child->y + layout_flex__get_baseline(child);
-		}
-	}
-
-	/* Default to bottom of content box */
-	return b->height;
 }
 
 /**
