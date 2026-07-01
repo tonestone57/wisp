@@ -89,13 +89,16 @@ struct grid_item_cache {
  * \param row_start Row start placement value
  * \return The placement phase for this item
  */
-static bool grid_item_fits(bool *occupied, int occupied_max_rows, int num_cols, int row, int col, int row_span, int col_span)
+static bool grid_item_fits(bool *occupied, int occupied_rows, int occupied_cols, int row, int col, int row_span, int col_span)
 {
-	if (col < 0 || col + col_span > num_cols || row < 0) return false;
+	if (col < 0 || row < 0) return false;
 	for (int dr = 0; dr < row_span; dr++) {
 		for (int dc = 0; dc < col_span; dc++) {
-			int r = row + dr; int c = col + dc;
-			if (r < occupied_max_rows && occupied[r * num_cols + c]) return false;
+			int r = row + dr;
+			int c = col + dc;
+			if (r < occupied_rows && c < occupied_cols) {
+				if (occupied[r * occupied_cols + c]) return false;
+			}
 		}
 	}
 	return true;
@@ -115,35 +118,96 @@ static grid_placement_phase_t get_placement_phase(int col_start, int row_start)
 }
 
 /**
- * Ensure row_heights array has capacity for at least required_row + 1 elements.
+ * Ensure an integer array has capacity for at least required_index + 1 elements.
  * Grows the array by doubling capacity as needed.
  *
- * \param row_heights      Pointer to the row_heights array pointer
+ * \param array            Pointer to the array pointer
  * \param capacity         Pointer to current capacity
- * \param required_row     The row index that must be accessible
+ * \param required_index   The index that must be accessible
  * \return true on success, false on allocation failure
  */
-static bool ensure_row_capacity(int **row_heights, int *capacity, int required_row)
+static bool ensure_array_capacity(int **array, int *capacity, int required_index)
 {
-	if (required_row < *capacity) {
+	if (*array != NULL && required_index < *capacity) {
 		return true; /* Already have capacity */
 	}
 
 	int new_cap = *capacity;
-	while (new_cap <= required_row) {
+	if (new_cap <= 0) new_cap = 4;
+	while (new_cap <= required_index) {
 		new_cap *= 2;
 	}
 
-	int *new_rows = realloc(*row_heights, new_cap * sizeof(int));
-	if (!new_rows) {
+	int *new_array = realloc(*array, new_cap * sizeof(int));
+	if (!new_array) {
 		return false;
 	}
 
 	/* Zero-initialize the new elements */
-	memset(new_rows + *capacity, 0, (new_cap - *capacity) * sizeof(int));
+	memset(new_array + *capacity, 0, (new_cap - *capacity) * sizeof(int));
 
-	*row_heights = new_rows;
+	*array = new_array;
 	*capacity = new_cap;
+	return true;
+}
+
+/**
+ * Ensure row_heights array has capacity for at least required_row + 1 elements.
+ */
+static bool ensure_row_capacity(int **row_heights, int *capacity, int required_row)
+{
+	return ensure_array_capacity(row_heights, capacity, required_row);
+}
+
+/**
+ * Ensure column widths array has capacity for at least required_col + 1 elements.
+ */
+static bool ensure_col_capacity(int **col_widths, int *capacity, int required_col)
+{
+	return ensure_array_capacity(col_widths, capacity, required_col);
+}
+
+/**
+ * Ensure occupied bitmap has capacity for required rows and columns.
+ *
+ * \param occupied          Pointer to occupied bitmap pointer
+ * \param current_rows      Current number of rows in bitmap
+ * \param current_cols      Current number of columns in bitmap
+ * \param required_rows     Required number of rows
+ * \param required_cols     Required number of columns
+ * \return true on success, false on allocation failure
+ */
+static bool ensure_occupied_capacity(bool **occupied, int *current_rows, int *current_cols, int required_rows, int required_cols)
+{
+	if (*occupied != NULL && required_rows <= *current_rows && required_cols <= *current_cols) {
+		return true;
+	}
+
+	int new_rows = *current_rows;
+	int new_cols = *current_cols;
+
+	if (new_rows <= 0) new_rows = 8;
+	if (new_cols <= 0) new_cols = 8;
+
+	while (new_rows < required_rows) new_rows *= 2;
+	while (new_cols < required_cols) new_cols *= 2;
+
+	bool *new_occupied = calloc(new_rows * new_cols, sizeof(bool));
+	if (!new_occupied) {
+		return false;
+	}
+
+	/* Copy old data if it exists */
+	if (*occupied) {
+		for (int r = 0; r < *current_rows; r++) {
+			memcpy(new_occupied + (r * new_cols), (*occupied) + (r * *current_cols), *current_cols * sizeof(bool));
+		}
+		free(*occupied);
+	}
+
+	*occupied = new_occupied;
+	*current_rows = new_rows;
+	*current_cols = new_cols;
 	return true;
 }
 
@@ -560,7 +624,7 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 	int i;
 	int used_width = 0;
 	int fr_tracks = 0;
-	int fr_total = 0;
+	float fr_total = 0;
 
 	/* Get column gap */
 	if (css_computed_column_gap(style, &gap_len, &gap_unit) == CSS_COLUMN_GAP_SET) {
@@ -590,14 +654,14 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 				CSS_UNIT_FR, CSS_UNIT_PX);
 			if (t->unit == CSS_UNIT_FR) {
 				fr_tracks++;
-				fr_total += FIXTOINT(t->value);
-				NSLOG(layout, DEEPDEBUG, "Track %d is FR: val %d", i, FIXTOINT(t->value));
+				fr_total += FIXTOFLT(t->value);
+				NSLOG(layout, DEEPDEBUG, "Track %d is FR: val %f", i, FIXTOFLT(t->value));
 				col_widths[i] = 0; /* Will be assigned later */
 			} else if (t->unit == CSS_UNIT_MIN_CONTENT || t->unit == CSS_UNIT_MAX_CONTENT) {
 				/* Treat min/max-content as auto/1fr for now to
 				 * ensure visibility */
 				fr_tracks++;
-				fr_total += 1;
+				fr_total += 1.0f;
 				NSLOG(layout, DEEPDEBUG, "Track %d is Content (fallback to 1fr)", i);
 				col_widths[i] = 0;
 			} else if (t->unit == CSS_UNIT_MINMAX) {
@@ -621,7 +685,7 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 					/* Max is FR or Content -> Treat as 1fr
 					 */
 					fr_tracks++;
-					fr_total += 1;
+					fr_total += 1.0f;
 					NSLOG(layout, DEEPDEBUG, "Track %d is MINMAX(..., dynamic) -> fallback to 1fr", i);
 					col_widths[i] = 0;
 				}
@@ -652,20 +716,53 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 		remaining_width = 0;
 
 	if (fr_tracks > 0 && fr_total > 0) {
-		NSLOG(layout, DEEPDEBUG, "Distributing FR: Remaining %d, FR Total %d", remaining_width, fr_total);
-		int px_per_fr = remaining_width / fr_total;
-		int remainder = remaining_width % fr_total;
-		NSLOG(layout, DEEPDEBUG, "PX per FR: %d (remainder %d)", px_per_fr, remainder);
+		NSLOG(layout, DEEPDEBUG, "Distributing FR: Remaining %d, FR Total %f", remaining_width, fr_total);
+		/* Spec §11.7: Find the size of a single fr unit.
+		 * If the sum of flex factors is less than 1, the fr size is (remaining / 1).
+		 * Otherwise it's (remaining / total_fr).
+		 */
+		float px_per_fr = (fr_total < 1.0f) ? (float)remaining_width : (float)remaining_width / fr_total;
+		int distributed = 0;
+
 		for (i = 0; i < num_cols; i++) {
-			bool is_fr = false; int fr_val = 0;
+			float fr_val = 0;
+			bool is_fr = false;
 			if (n_tracks > 0) {
 				css_computed_grid_track *t = &tracks[i % n_tracks];
-				if (t->unit == CSS_UNIT_FR) { is_fr = true; fr_val = FIXTOINT(t->value); }
-				else if (t->unit == CSS_UNIT_MIN_CONTENT || t->unit == CSS_UNIT_MAX_CONTENT) { is_fr = true; fr_val = 1; }
-			} else { is_fr = true; fr_val = 1; }
+				if (t->unit == CSS_UNIT_FR) {
+					is_fr = true;
+					fr_val = (float)FIXTOINT(t->value);
+				} else if (t->unit == CSS_UNIT_MIN_CONTENT || t->unit == CSS_UNIT_MAX_CONTENT) {
+					is_fr = true;
+					fr_val = 1.0f;
+				}
+			} else {
+				is_fr = true;
+				fr_val = 1.0f;
+			}
+
 			if (is_fr) {
-				col_widths[i] = px_per_fr * fr_val;
-				if (remainder > 0) { col_widths[i]++; remainder--; }
+				col_widths[i] = (int)(px_per_fr * fr_val);
+				distributed += col_widths[i];
+			}
+		}
+
+		/* Handle rounding remainders by adding to the last FR track.
+		 * Per spec, only distribute the full remainder if fr_total >= 1.
+		 */
+		if (fr_total >= 1.0f && distributed < remaining_width) {
+			int remainder = remaining_width - distributed;
+			for (i = num_cols - 1; i >= 0 && remainder > 0; i--) {
+				bool is_fr = false;
+				if (n_tracks > 0) {
+					css_computed_grid_track *t = &tracks[i % n_tracks];
+					if (t->unit == CSS_UNIT_FR || t->unit == CSS_UNIT_MIN_CONTENT || t->unit == CSS_UNIT_MAX_CONTENT) is_fr = true;
+				} else is_fr = true;
+
+				if (is_fr) {
+					col_widths[i] += remainder;
+					remainder = 0;
+				}
 			}
 		}
 	}
@@ -688,11 +785,10 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: grid=%p avail_w=%d num_cols=%d children=%p", grid, available_width, num_cols,
 		grid->children);
 
-	int *col_widths; /* Array allocated locally */
+	int *col_widths = NULL;
+	int col_widths_capacity = num_cols > 0 ? num_cols : 4;
 
-	/* Just use stack for small col counts or VLA/malloc */
-	/* VLA is risky for stack size. Malloc is safer. */
-	col_widths = malloc(sizeof(int) * num_cols);
+	col_widths = calloc(col_widths_capacity, sizeof(int));
 	if (!col_widths)
 		return false;
 
@@ -711,8 +807,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 		NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: col[%d] width=%d", i, col_widths[i]);
 	}
 
-	int row_height = 0;
 	int max_row = 0; /* Track highest row used */
+	int max_col = num_cols; /* Current number of columns */
 
 	/* Dynamic row heights array - starts at 100, grows as needed */
 	int row_heights_capacity = 100;
@@ -768,18 +864,18 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	 */
 	bool is_dense = (auto_flow == CSS_GRID_AUTO_FLOW_ROW_DENSE || auto_flow == CSS_GRID_AUTO_FLOW_COLUMN_DENSE);
 	bool *occupied = NULL;
-	int occupied_max_rows = row_heights_capacity; /* Use same capacity */
+	int occupied_rows = row_heights_capacity;
+	int occupied_cols = max_col > 0 ? max_col : 8;
 
 	/* Always allocate occupied grid for 3-phase placement */
-	occupied = calloc(occupied_max_rows * num_cols, sizeof(bool));
-	if (!occupied) {
+	if (!ensure_occupied_capacity(&occupied, &occupied_rows, &occupied_cols, occupied_rows, occupied_cols)) {
 		free(row_first_item_done);
 		free(row_heights);
 		free(col_widths);
 		return false;
 	}
 	NSLOG(layout, DEEPDEBUG,
-		"GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", num_cols, occupied_max_rows, is_dense);
+		"GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", occupied_cols, occupied_rows, is_dense);
 
 	/* Count children for item cache allocation */
 	int item_count = 0;
@@ -853,8 +949,11 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			/* else row_span defaults to 1 from get_grid_item_placement */
 
 			/* Clamp span to grid bounds */
-			if (col_span > num_cols) {
+			if (!flow_is_column && col_span > num_cols) {
 				col_span = num_cols;
+			}
+			if (flow_is_column && row_span > num_rows) {
+				row_span = num_rows;
 			}
 			if (col_span < 1) {
 				col_span = 1;
@@ -865,75 +964,59 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
 			/* Determine item position based on explicit placement or
 			 * auto-flow */
-			/* Note: GRID_PLACEMENT_SPAN means auto-place but with a span,
-			 * not an explicit column/row position. Only SET provides position. */
-			if (col_start != GRID_PLACEMENT_AUTO && col_start != GRID_PLACEMENT_SPAN) {
-				item_col = col_start;
-			} else if (is_dense) {
-				item_col = -1;
-				if (flow_is_column) {
-					for (int scan_col = 0; item_col < 0 && scan_col < 1000; scan_col++) {
-						for (int scan_row = 0; scan_row <= num_rows - row_span; scan_row++) {
-							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
-								item_col = scan_col; item_row = scan_row; break;
-							}
-						}
-					}
-				} else {
-					for (int scan_row = 0; item_col < 0 && scan_row < occupied_max_rows; scan_row++) {
-						for (int scan_col = 0; scan_col <= num_cols - col_span; scan_col++) {
-							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
-								item_col = scan_col; item_row = scan_row; break;
-							}
-						}
-					}
-				}
-			} else {
-				item_col = -1;
-				if (flow_is_column) {
-					item_col = auto_col; item_row = auto_row;
-					for (int scan_row = auto_row; scan_row <= num_rows - row_span; scan_row++) {
-						if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, auto_col, row_span, col_span)) {
-							item_row = scan_row; goto found;
-						}
-					}
-					for (int scan_col = auto_col + 1; item_col < 0; scan_col++) {
-						for (int scan_row = 0; scan_row <= num_rows - row_span; scan_row++) {
-							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
-								item_col = scan_col; item_row = scan_row; break;
-							}
-						}
-					}
-				} else {
-					item_row = auto_row;
-					for (int scan_col = auto_col; scan_col <= num_cols - col_span; scan_col++) {
-						if (grid_item_fits(occupied, occupied_max_rows, num_cols, auto_row, scan_col, row_span, col_span)) {
-							item_col = scan_col; goto found;
-						}
-					}
-					for (int scan_row = auto_row + 1; item_col < 0; scan_row++) {
-						for (int scan_col = 0; scan_col <= num_cols - col_span; scan_col++) {
-							if (grid_item_fits(occupied, occupied_max_rows, num_cols, scan_row, scan_col, row_span, col_span)) {
-								item_col = scan_col; item_row = scan_row; break;
-							}
-						}
-					}
-				}
-			found:
-				if (item_col < 0) { item_col = auto_col; item_row = auto_row; }
-			}
+			item_col = -1;
+			item_row = -1;
 
-			if (row_start != GRID_PLACEMENT_AUTO && row_start != GRID_PLACEMENT_SPAN) {
+			if (col_start != GRID_PLACEMENT_AUTO && col_start != GRID_PLACEMENT_SPAN &&
+				row_start != GRID_PLACEMENT_AUTO && row_start != GRID_PLACEMENT_SPAN) {
+				/* Phase 1: Definite both axes */
+				item_col = col_start;
 				item_row = row_start;
 			} else if (col_start != GRID_PLACEMENT_AUTO && col_start != GRID_PLACEMENT_SPAN) {
-				/* Phase 2: definite column, auto row - find first free row in this column */
-				item_row = 0;
-				for (int scan_row = 0; scan_row < occupied_max_rows; scan_row++) {
-					int idx = scan_row * num_cols + item_col;
-					if (idx < occupied_max_rows * num_cols && !occupied[idx]) {
-						item_row = scan_row;
-						break;
+				/* Phase 2: Definite column, auto row */
+				item_col = col_start;
+				item_row = is_dense ? 0 : auto_row;
+				while (!grid_item_fits(occupied, occupied_rows, occupied_cols, item_row, item_col, row_span, col_span)) {
+					item_row++;
+				}
+			} else if (row_start != GRID_PLACEMENT_AUTO && row_start != GRID_PLACEMENT_SPAN) {
+				/* Phase 2: Definite row, auto column */
+				item_row = row_start;
+				item_col = is_dense ? 0 : auto_col;
+				while (!grid_item_fits(occupied, occupied_rows, occupied_cols, item_row, item_col, row_span, col_span)) {
+					item_col++;
+				}
+			} else {
+				/* Phase 3: Fully auto items */
+				if (is_dense) {
+					item_row = 0;
+					item_col = 0;
+				} else {
+					item_row = auto_row;
+					item_col = auto_col;
+				}
+
+				bool found = false;
+				while (!found) {
+					if (grid_item_fits(occupied, occupied_rows, occupied_cols, item_row, item_col, row_span, col_span)) {
+						found = true;
+					} else {
+						if (flow_is_column) {
+							item_row++;
+							if (item_row + row_span > num_rows) {
+								item_row = 0;
+								item_col++;
+							}
+						} else {
+							item_col++;
+							if (item_col + col_span > num_cols) {
+								item_col = 0;
+								item_row++;
+							}
+						}
 					}
+					/* Safety break for extremely large grids - but spec says it should keep going */
+					if (item_row > 10000 || item_col > 10000) break;
 				}
 			}
 			/* Note: for fully auto-placed items, item_row is already set by the scan above */
@@ -958,9 +1041,24 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				row_span = row_end - item_row;
 			}
 
-			/* Clamp span to grid bounds */
-			if (item_col + col_span > num_cols) {
-				col_span = num_cols - item_col;
+			/* Ensure column widths array has capacity for spanned columns */
+			if (item_col + col_span > max_col) {
+				int old_max_col = max_col;
+				if (!ensure_col_capacity(&col_widths, &col_widths_capacity, item_col + col_span - 1)) {
+					free(item_cache);
+					free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
+				max_col = item_col + col_span;
+				/* For implicit columns, we don't have CSS tracks, so they default to 0 width (auto)
+				 * but they will be resolved in a second pass or treated as auto-sized.
+				 * For now, we'll give them 0 and they will grow if they have content.
+				 * Actually, layout_grid_compute_tracks already ran. Implicit columns
+				 * added here will have 0 width initially.
+				 */
 			}
 
 			/* Calculate child width (sum of spanned columns + gaps) */
@@ -1060,20 +1158,14 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 					row_first_item_done = new_rfd;
 
 					/* Also grow occupied grid */
-					if (occupied != NULL) {
-						bool *new_occ = realloc(occupied, row_heights_capacity * num_cols * sizeof(bool));
-						if (!new_occ) {
-							if (item_cache) free(item_cache);
-							free(occupied);
-							if (row_first_item_done) free(row_first_item_done);
-							if (row_heights) free(row_heights);
-							if (col_widths) free(col_widths);
-							return false;
-						}
-						memset(new_occ + old_capacity * num_cols, 0, (row_heights_capacity - old_capacity) * num_cols * sizeof(bool));
-						occupied = new_occ;
+					if (!ensure_occupied_capacity(&occupied, &occupied_rows, &occupied_cols, row_heights_capacity, occupied_cols)) {
+						if (item_cache) free(item_cache);
+						free(occupied);
+						if (row_first_item_done) free(row_first_item_done);
+						if (row_heights) free(row_heights);
+						if (col_widths) free(col_widths);
+						return false;
 					}
-					occupied_max_rows = row_heights_capacity;
 				}
 
 				if (height_per_row > row_heights[r]) {
@@ -1132,7 +1224,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			}
 
 			/* Apply alignment */
-			int content_height = child->height; /* Height from layout */
+			int current_item_total_height = child->height + child->padding[TOP] + child->padding[BOTTOM] +
+				child->border[TOP].width + child->border[BOTTOM].width;
 			int align_offset = 0;
 
 			switch (align) {
@@ -1154,19 +1247,20 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				break;
 			case CSS_ALIGN_ITEMS_FLEX_END:
 				/* Align to end (bottom) */
-				align_offset = spanned_height - content_height;
+				align_offset = spanned_height - current_item_total_height;
 				if (align_offset < 0)
 					align_offset = 0;
 				break;
 			case CSS_ALIGN_ITEMS_CENTER:
 				/* Center vertically */
-				align_offset = (spanned_height - content_height) / 2;
+				align_offset = (spanned_height - current_item_total_height) / 2;
 				if (align_offset < 0)
 					align_offset = 0;
 				break;
 			default:
 				/* Unknown - default to stretch */
-				child->height = spanned_height;
+				child->height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
+					child->border[TOP].width - child->border[BOTTOM].width;
 				align_offset = 0;
 				break;
 			}
@@ -1212,14 +1306,20 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
 			/* Mark cells as occupied for 3-phase placement tracking */
 			if (occupied != NULL) {
+				if (!ensure_occupied_capacity(&occupied, &occupied_rows, &occupied_cols, item_row + row_span, item_col + col_span)) {
+					free(item_cache);
+					free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
 				for (int dr = 0; dr < row_span; dr++) {
 					for (int dc = 0; dc < col_span; dc++) {
 						int occ_row = item_row + dr;
 						int occ_col = item_col + dc;
-						if (occ_row < occupied_max_rows && occ_col < num_cols) {
-							int idx = occ_row * num_cols + occ_col;
-							occupied[idx] = true;
-						}
+						int idx = occ_row * occupied_cols + occ_col;
+						occupied[idx] = true;
 					}
 				}
 			}
@@ -1235,37 +1335,38 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			bool col_auto = (col_start == GRID_PLACEMENT_AUTO || col_start == GRID_PLACEMENT_SPAN);
 			bool row_auto = (row_start == GRID_PLACEMENT_AUTO || row_start == GRID_PLACEMENT_SPAN);
 
-			/* Phase 2: definite column, auto row - advance cursor past item */
-			if (!col_auto && row_auto) {
-				if (!flow_is_column) {
-					/* Row mode: advance column past the placed item's column-end */
-					auto_col = item_col + col_span;
-					if (auto_col >= num_cols) {
-						auto_col = 0;
-						auto_row++;
+			if (is_dense) {
+				/* Dense: cursor reset is handled at start of placement */
+				auto_col = 0;
+				auto_row = 0;
+			} else {
+				if (col_auto && row_auto) {
+					/* Phase 3: fully auto */
+					if (flow_is_column) {
+						auto_row = item_row + row_span;
+						auto_col = item_col;
+					} else {
+						auto_col = item_col + col_span;
+						auto_row = item_row;
 					}
-				}
-				/* Column mode: definite column means advance row */
-				/* (But this is unusual - definite column in column flow) */
-			}
-
-			/* Phase 3: fully auto items */
-			if (col_auto && row_auto) {
-				if (is_dense) {
-					/* CSS Grid spec §8.5: For dense packing, search cursor is reset to (0,0) for each item */
-					auto_row = 0;
-					auto_col = 0;
-				} else if (flow_is_column) {
-					/* Column mode: advance row past the placed item's span */
+				} else if (!col_auto && row_auto && !flow_is_column) {
+					/* Phase 2: definite column, auto row, row flow */
+					auto_col = item_col + col_span;
+					auto_row = item_row;
+				} else if (col_auto && !row_auto && flow_is_column) {
+					/* Phase 2: definite row, auto column, column flow */
 					auto_row = item_row + row_span;
+					auto_col = item_col;
+				}
+
+				/* Wrap cursor if it exceeds grid bounds */
+				if (flow_is_column) {
 					if (auto_row >= num_rows) {
 						auto_row = 0;
 						auto_col++;
 					}
 				} else {
-					/* Row mode (default): advance column past the placed item's span */
-					auto_col = item_col + col_span;
-					if (auto_col >= num_cols) {
+					if (auto_col >= max_col) {
 						auto_col = 0;
 						auto_row++;
 					}
@@ -1305,21 +1406,31 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			/* Store original height to detect if we need re-layout */
 			int original_height = child->height;
 
-			/* Apply stretch */
+			/* Apply alignment in pass 3 */
+			int current_total_h = child->height + child->padding[TOP] + child->padding[BOTTOM] +
+				child->border[TOP].width + child->border[BOTTOM].width;
+			int pass3_align_offset = 0;
+
 			if (align == CSS_ALIGN_ITEMS_STRETCH) {
 				int stretch_height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
 					child->border[TOP].width - child->border[BOTTOM].width;
 				if (stretch_height < 0)
 					stretch_height = 0;
 				child->height = stretch_height;
+				pass3_align_offset = 0;
+			} else if (align == CSS_ALIGN_ITEMS_FLEX_END) {
+				pass3_align_offset = spanned_height - current_total_h;
+			} else if (align == CSS_ALIGN_ITEMS_CENTER) {
+				pass3_align_offset = (spanned_height - current_total_h) / 2;
 			}
+			if (pass3_align_offset < 0) pass3_align_offset = 0;
 
-			/* Recalculate y position with final row_heights */
+			/* Recalculate y position with final row_heights and alignment offset */
 			int final_y = grid->padding[TOP];
 			for (int r = 0; r < item_row; r++) {
 				final_y += row_heights[r] + gap_px;
 			}
-			child->y = final_y;
+			child->y = final_y + pass3_align_offset;
 
 			NSLOG(layout, DEEPDEBUG, "Grid pass 3: item at row=%d height=%d->%d y=%d (cached)", item_row, original_height,
 				child->height, child->y);
@@ -1369,13 +1480,13 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			int total_width = 0;
 
 			/* Sum up columns */
-			for (int i = 0; i < num_cols; i++) {
+			for (int i = 0; i < max_col; i++) {
 				total_width += col_widths[i];
 			}
 
 			/* Add gaps */
-			if (num_cols > 1) {
-				total_width += (num_cols - 1) * gap_px;
+			if (max_col > 1) {
+				total_width += (max_col - 1) * gap_px;
 			}
 
 			/* Add borders and padding */

@@ -147,8 +147,12 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
 
         for (size_t i = 0; i < cleanup.count; i++) {
-            /* Entries must be removed from map before unref to avoid re-entrant UAF.
-             * GC will handle JSValue cleanup; we only unref the DOM node. */
+            /* Look up and free JSValue before removing from map to avoid leaks.
+             * QuickJS-ng requires rt-aware free during runtime destruction. */
+            JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
+            if (val) JS_FreeValueRT(rt, *val);
+
+            /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             hashmap_remove(map, &cleanup.keys[i]);
             dom_node_unref(cleanup.keys[i].node);
         }
@@ -192,8 +196,11 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
 
     for (size_t i = 0; i < cleanup.count; i++) {
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
-        /* Entries must be removed from map before unref to avoid re-entrant UAF.
-         * GC will handle JSValue cleanup; we only unref the DOM node. */
+        /* Look up and free JSValue before removing from map to avoid leaks. */
+        JSValue *val = hashmap_lookup(map, &key);
+        if (val) JS_FreeValue(ctx, *val);
+
+        /* Entries must be removed from map before unref to avoid re-entrant UAF. */
         hashmap_remove(map, &key);
         dom_node_unref(cleanup.nodes[i]);
     }

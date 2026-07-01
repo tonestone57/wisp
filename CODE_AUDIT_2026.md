@@ -42,7 +42,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 
 ### 3.2 Partial Implementation [Partial]
 *   **CSS Variables**: Selection and parsing of `var()` and custom properties are complete; resolution pass during cascade is in progress with some regressions in complex fallback scenarios.
-*   **CSS Grid**: Core layout logic implemented in LibCSS fork; 3-phase auto-placement and FR unit distribution are functional. Dense packing refinements are ongoing.
+*   **CSS Grid**: Core layout logic implemented in LibCSS fork; 3-phase auto-placement and FR unit distribution are functional. Dense packing and implicit track support are fully implemented.
 *   **CSS Flexbox**: Supports flex-grow, shrink, auto-margins, and two-pass resolution for column flex with indefinite heights.
 *   **Incremental Reflow Optimization**: Functional, but bounding box union logic in `box_mark_dirty` is being refined for elements entirely contained within parent dirty regions.
 *   **MutationObserver**: Integrated with LibDOM via a native mutation hook system, though event refinement is ongoing.
