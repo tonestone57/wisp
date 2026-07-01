@@ -392,7 +392,6 @@ method | Navigator::isContentHandlerRegistered();
 method | Navigator::unregisterProtocolHandler();
 method | Navigator::unregisterContentHandler();
 method | Navigator::yieldForStorageUpdates();
-getter | Navigator::language(string);
 getter | Navigator::languages(string);
 getter | Navigator::onLine(boolean);
 getter | Navigator::plugins(user);

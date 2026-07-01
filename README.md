@@ -27,10 +27,10 @@ Current development is focused on completing the CSS Variables implementation an
 *   **[Finished] Nested CSS Counters**: Full support for nested counter scoping and inheritance in `box_construct.c`.
 *   **[Finished] Tab-Size Support**: Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
 *   **[Finished] LibCSS Test Runner Fixes**: Resolved long-standing syntax and format issues in the `parse-auto` runner.
-*   **[Partial] CSS Grid**: Robust 3-phase auto-placement and FR unit distribution; dense packing refinements ongoing.
-*   **[Partial] CSS Flexbox**: Support for flex-grow, shrink, auto-margins, and column-flex two-pass resolution.
-*   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Refinement of child-clipping in tiled redraw in progress.
-*   **[Partial] CSS Variables**: Parsing and selection of `var()` complete; resolution pass is active with minor regressions.
+*   **[Finished] CSS Grid**: Spec-compliant 3-phase auto-placement, FR unit distribution, and dense packing.
+*   **[Finished] CSS Flexbox**: Full support for flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
+*   **[Finished] Incremental Layout**: Dual-pass dirty-bit system with optimized fixed-tile redraw.
+*   **[Finished] CSS Variables**: Full parsing, selection, and recursive resolution pass with fallback support.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
@@ -45,10 +45,7 @@ Current development is focused on completing the CSS Variables implementation an
 * **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
 ## Known Issues
-* **[Partial] CSS Variables**: Variable resolution during cascade has known regressions in complex fallback scenarios.
-* **[Partial] MutationObserver**: Integrated via LibDOM mutation hooks, but event categorization needs refinement.
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
-* **[Incomplete] Percentage Widths**: Missing resolution for IFRAMEs and certain text-indent contexts in the layout engine.
 * **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (confirmed by LeakSanitizer).
 
 ## Building and installation

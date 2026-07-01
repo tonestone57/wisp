@@ -46,6 +46,10 @@ All major rendering features identified in the previous audits have been impleme
 - **Details**: Core window (`window.cpp`) and bitmap (`bitmap.cpp`) management migrated to C++ to safely handle COM objects and Direct2D resources.
 - **Reference**: `frontends/windows/window.cpp`, `frontends/windows/bitmap.cpp`.
 
+### 9. Native Radial Gradients
+- **Status**: Completed.
+- **Details**: Direct2D path uses `ID2D1RadialGradientBrush` for hardware-accelerated radial gradients. Integration enabled via `DEFAULT_NATIVE_RADIAL=ON`.
+- **Reference**: `frontends/windows/plot_d2d.cpp`.
+
 ## Future Considerations
 - **Hardware Acceleration Tuning**: Further optimization of Direct2D device-loss recovery scenarios.
-- **Radial Gradients**: Native Direct2D implementation for radial gradients is complete; GDI still uses core fallback.

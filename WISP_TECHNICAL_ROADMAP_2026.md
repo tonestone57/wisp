@@ -81,3 +81,24 @@ The following stability and compatibility fixes have been integrated:
 1.  **Web API Initialization**: Corrected `js_newthread` to ensure `navigator`, `location`, `storage`, and `XMLHttpRequest` are fully initialized with correct private data before script execution.
 2.  **Bridge Stability**: Fixed a critical `JS_FreeRuntime` assertion failure by ensuring the DOM bridge explicitly frees JSValue references and clears the runtime opaque pointer during cleanup.
 3.  **Initialization Ordering**: Reordered the JS startup sequence to ensure core bindings are registered before the bridge attempts to wrap LibDOM nodes.
+
+---
+
+## 8. Remaining Tasks & Priority Backlog
+The following tasks are identified as high-priority for the next development cycle:
+
+### Graphics & Rendering
+*   **[Incomplete] Canvas 2D Plotter Bridge**: Connect the WebIDL stubs for the Canvas 2D API to the underlying plotter engine (Direct2D/Blend2D).
+*   **[Planned] GPU-Accelerated Compositing**: Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure 60FPS performance on high-resolution displays.
+
+### Performance & Stability
+*   **[Bug] QuickJS Leak Resolution**: Investigate and resolve the ~720-byte heap leak identified during runtime teardown in `qjs.c`.
+*   **[Planned] Multi-process Architecture**: Isolate the QuickJS-ng engine and the network stack into separate OS processes to improve security and fault tolerance.
+
+### UI & Features
+*   **[Planned] Unified C-based UI Library**: Implement a cross-platform, lightweight UI component library for consistent browser chrome across all frontends.
+*   **[Planned] Web Worker Parity**: Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
+
+### Security
+*   **[Planned] Content Security Policy (CSP)**: Implement a full CSP enforcement engine within the layout and script handlers.
+*   **[Planned] OS-Level Sandboxing**: Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD) for rigorous process isolation.
