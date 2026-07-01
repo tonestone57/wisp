@@ -62,6 +62,7 @@ struct jsthread {
 
     struct WispMutationObserver *mutation_observers;
     struct WispIntersectionObserver *intersection_observers;
+    bool mutation_callback_registered;
 };
 
 static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val) {

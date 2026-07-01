@@ -6,6 +6,7 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include <dom/core/mutation_observer.h>
 #include "JSMutationObserver.gen.h"
 #include "observer_internal.h"
 
@@ -36,49 +37,56 @@ static JSValue mutation_callback_job(JSContext *ctx, int argc, JSValueConst *arg
     return JS_UNDEFINED;
 }
 
-static void mutation_hook(dom_mutation_hook_category category, dom_mutation_type type, struct dom_node *node, struct dom_node *related, struct dom_string *prev_value, struct dom_string *new_value, struct dom_string *attr_name, struct dom_string *attr_ns, void *ctx)
+static void mutation_callback(const struct dom_mutation_notification *notification, void *pw)
 {
-    struct jsthread *t = ctx;
+    struct jsthread *t = pw;
     if (!t) return;
     WispMutationObserver *observer = (WispMutationObserver *)t->mutation_observers;
     while (observer) {
         MutationObserverTarget *ot = observer->targets;
         while (ot) {
-            bool matches_target = (ot->node == node);
+            bool matches_target = (ot->node == notification->target);
             if (!matches_target && ot->subtree) {
-                dom_node_contains(ot->node, node, &matches_target);
+                dom_node_contains(ot->node, notification->target, &matches_target);
             }
 
             bool interested = false;
             if (matches_target) {
-                if (category == DOM_MUTATION_HOOK_CHILD_LIST && ot->childList) interested = true;
-                else if (category == DOM_MUTATION_HOOK_ATTRIBUTES && ot->attributes) interested = true;
-                else if (category == DOM_MUTATION_HOOK_CHARACTER_DATA && ot->characterData) interested = true;
+                if (notification->type == DOM_MUTATION_NOTIFICATION_CHILD_LIST && ot->childList) interested = true;
+                else if (notification->type == DOM_MUTATION_NOTIFICATION_ATTRIBUTES && ot->attributes) interested = true;
+                else if (notification->type == DOM_MUTATION_NOTIFICATION_CHARACTER_DATA && ot->characterData) interested = true;
             }
             if (interested) {
                 WispMutationRecord *record = calloc(1, sizeof(WispMutationRecord));
-                if (category == DOM_MUTATION_HOOK_CHILD_LIST) {
+                if (notification->type == DOM_MUTATION_NOTIFICATION_CHILD_LIST) {
                     record->type = strdup("childList");
-                    /* For CHILD_LIST, related is the added/removed node */
-                    if (type == DOM_MUTATION_ADDITION) {
+                    if (notification->added_node) {
                         record->numAddedNodes = 1;
                         record->addedNodes = malloc(sizeof(struct dom_node *));
-                        record->addedNodes[0] = related; dom_node_ref(related);
-                    } else if (type == DOM_MUTATION_REMOVAL) {
+                        record->addedNodes[0] = notification->added_node; dom_node_ref(notification->added_node);
+                    } else if (notification->removed_node) {
                         record->numRemovedNodes = 1;
                         record->removedNodes = malloc(sizeof(struct dom_node *));
-                        record->removedNodes[0] = related; dom_node_ref(related);
+                        record->removedNodes[0] = notification->removed_node; dom_node_ref(notification->removed_node);
                     }
-                } else if (category == DOM_MUTATION_HOOK_ATTRIBUTES) {
+                    if (notification->previous_sibling) {
+                        record->previousSibling = notification->previous_sibling;
+                        dom_node_ref(notification->previous_sibling);
+                    }
+                    if (notification->next_sibling) {
+                        record->nextSibling = notification->next_sibling;
+                        dom_node_ref(notification->next_sibling);
+                    }
+                } else if (notification->type == DOM_MUTATION_NOTIFICATION_ATTRIBUTES) {
                     record->type = strdup("attributes");
-                    if (attr_name) record->attributeName = dom_string_to_c(attr_name);
-                    if (attr_ns) record->attributeNamespace = dom_string_to_c(attr_ns);
-                    if (ot->attributeOldValue && prev_value) record->oldValue = dom_string_to_c(prev_value);
-                } else if (category == DOM_MUTATION_HOOK_CHARACTER_DATA) {
+                    if (notification->attr_name) record->attributeName = dom_string_to_c(notification->attr_name);
+                    if (notification->attr_namespace) record->attributeNamespace = dom_string_to_c(notification->attr_namespace);
+                    if (ot->attributeOldValue && notification->old_value) record->oldValue = dom_string_to_c(notification->old_value);
+                } else if (notification->type == DOM_MUTATION_NOTIFICATION_CHARACTER_DATA) {
                     record->type = strdup("characterData");
-                    if (ot->characterDataOldValue && prev_value) record->oldValue = dom_string_to_c(prev_value);
+                    if (ot->characterDataOldValue && notification->old_value) record->oldValue = dom_string_to_c(notification->old_value);
                 }
-                record->target = node; dom_node_ref(node);
+                record->target = notification->target; dom_node_ref(notification->target);
                 if (JS_IsUndefined(observer->queue)) observer->queue = JS_NewArray(observer->ctx);
                 uint32_t len = 0; JSValue js_len = JS_GetPropertyStr(observer->ctx, observer->queue, "length");
                 JS_ToUint32(observer->ctx, &len, js_len); JS_FreeValue(observer->ctx, js_len);
@@ -162,14 +170,21 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
         val = JS_GetPropertyStr(ctx, options, "characterDataOldValue");
         ot->characterDataOldValue = JS_ToBool(ctx, val); JS_FreeValue(ctx, val);
     } else {
-        /* Default options if none provided? Spec says it should throw if no options
-           but for now let's be lenient or match previous behavior if any.
-           Actually, the PR ignored them, so let's at least expect something. */
+        free(ot); dom_node_unref(target);
+        return JS_ThrowTypeError(ctx, "MutationObserver.observe: options must be an object");
+    }
+
+    if (!ot->childList && !ot->attributes && !ot->characterData) {
+        free(ot); dom_node_unref(target);
+        return JS_ThrowTypeError(ctx, "MutationObserver.observe: at least one of childList, attributes, or characterData must be true");
     }
 
     ot->next = observer->targets; observer->targets = ot;
     struct jsthread *t = JS_GetContextOpaque(ctx);
-    dom_document_set_mutation_hook((struct dom_document *)t->doc_priv, mutation_hook, t);
+    if (!t->mutation_callback_registered) {
+        dom_document_add_mutation_callback((struct dom_document *)t->doc_priv, mutation_callback, t);
+        t->mutation_callback_registered = true;
+    }
     return JS_UNDEFINED;
 }
 
