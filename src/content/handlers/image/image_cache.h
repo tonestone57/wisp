@@ -68,6 +68,7 @@ nserror image_cache_init(const struct image_cache_parameters *image_cache_parame
 nserror image_cache_fini(void);
 
 void image_cache_purge_bitmaps(void);
+void image_cache_invalidate_bitmaps(void);
 
 /** adds an image content to be cached.
  *
