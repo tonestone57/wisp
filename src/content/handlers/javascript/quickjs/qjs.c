@@ -100,8 +100,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->heap = heap; t->win_priv = win_priv; t->doc_priv = doc_priv;
     JS_SetContextOpaque(t->ctx, t);
 
-    /* core initialization - registration handles dependencies.
-     * Must be called before manual refinements to ensure correct prototype chain. */
+    /* core initialization - registration handles dependencies */
     wisp_js_register_all_bindings(t->ctx);
 
     qjs_init_dom_bridge(t->ctx);
@@ -131,6 +130,10 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_console(t->ctx);
     qjs_init_timers(t->ctx);
     qjs_init_crypto(t->ctx);
+    qjs_init_navigator(t->ctx);
+    qjs_init_location(t->ctx);
+    qjs_init_storage(t->ctx);
+    qjs_init_xhr(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;
