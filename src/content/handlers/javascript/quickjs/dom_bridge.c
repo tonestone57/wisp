@@ -91,7 +91,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSValue *val_ptr = hashmap_insert(map, &key);
     if (val_ptr) {
-        *val_ptr = wrapper; /* Map stores a strong reference */
+        /* Map stores a strong reference. We must increment the refcount
+         * because qjs_new_* returned a reference that we are now returning
+         * to the caller, and the map needs its own reference. */
+        *val_ptr = JS_DupValue(ctx, wrapper);
     }
 
     return wrapper;
@@ -143,11 +146,6 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         bridge_full_cleanup_t cleanup = { .rt = rt, .keys = NULL, .count = 0, .capacity = 0 };
         hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
 
-        /* Set opaque to NULL BEFORE freeing values.
-         * This prevents re-entrant calls from finalizers to qjs_bridge_remove_node
-         * from accessing the map while we're destroying it. */
-        JS_SetRuntimeOpaque(rt, NULL);
-
         for (size_t i = 0; i < cleanup.count; i++) {
             /* Entries must be removed from map before unref to avoid re-entrant UAF.
              * GC will handle JSValue cleanup; we only unref the DOM node. */
@@ -192,11 +190,6 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
     bridge_cleanup_t cleanup = { .ctx = ctx, .nodes = NULL, .count = 0, .capacity = 0 };
     hashmap_iterate(map, bridge_cleanup_ctx_cb, &cleanup);
 
-    /* TEMPORARILY set opaque to NULL during context cleanup.
-     * Re-entrant calls from finalizers to qjs_bridge_remove_node
-     * will see NULL and skip map modification. */
-    JS_SetRuntimeOpaque(rt, NULL);
-
     for (size_t i = 0; i < cleanup.count; i++) {
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
         /* Entries must be removed from map before unref to avoid re-entrant UAF.
@@ -205,7 +198,4 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
-
-    /* Restore map for other contexts sharing the same runtime. */
-    JS_SetRuntimeOpaque(rt, map);
 }
