@@ -1860,14 +1860,71 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 				lh__non_auto_margin(b, cross_start) + b->border[cross_start].width;
 			break;
 
-		case CSS_ALIGN_SELF_BASELINE:
-			/* Fall through. */
 		case CSS_ALIGN_SELF_CENTER:
 			*box_pos_cross = ctx->flex->padding[cross_start] + line->pos + cross_free_space / 2 +
 				lh__non_auto_margin(b, cross_start) + b->border[cross_start].width;
 			break;
+
+		case CSS_ALIGN_SELF_BASELINE:
+		{
+			/* Baseline alignment is only well-defined for row flex.
+			 * For column flex, we fallback to flex-start. */
+			if (!ctx->horizontal) {
+				*box_pos_cross = ctx->flex->padding[cross_start] + line->pos +
+					lh__non_auto_margin(b, cross_start) + b->border[cross_start].width;
+				break;
+			}
+
+			/* Find maximum baseline offset for the line */
+			int max_baseline = 0;
+			for (size_t j = line->first; j < item_count; j++) {
+				struct flex_item_data *it = &ctx->item.data[j];
+				if (lh__box_align_self(ctx->flex, it->box) == CSS_ALIGN_SELF_BASELINE) {
+					int baseline = layout_flex__get_baseline(it->box) +
+						lh__non_auto_margin(it->box, cross_start) + it->box->border[cross_start].width;
+					if (baseline > max_baseline)
+						max_baseline = baseline;
+				}
+			}
+
+			int item_baseline = layout_flex__get_baseline(b) +
+				lh__non_auto_margin(b, cross_start) + b->border[cross_start].width;
+
+			*box_pos_cross = ctx->flex->padding[cross_start] + line->pos +
+				(max_baseline - item_baseline) + lh__non_auto_margin(b, cross_start) +
+				b->border[cross_start].width;
+			break;
+		}
 		}
 	}
+}
+
+/**
+ * Get the baseline of a box.
+ *
+ * \param[in] b  Box to get baseline of
+ * \return baseline offset from top padding edge in pixels
+ */
+static int layout_flex__get_baseline(struct box *b)
+{
+	if (b->type == BOX_TEXT) {
+		/* Heuristic for text baseline if not explicitly available */
+		return (b->height * 4) / 5;
+	}
+
+	if (b->children) {
+		struct box *child = b->children;
+		/* Find first non-float child */
+		while (child && (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT)) {
+			child = child->next;
+		}
+		if (child) {
+			return child->y + layout_flex__get_baseline(child);
+		}
+	}
+
+	/* Default to bottom of content box */
+	return b->height;
 }
 
 /**
@@ -1881,34 +1938,104 @@ static void layout_flex__place_lines(struct flex_ctx *ctx)
 	int line_pos = reversed ? ctx->cross_size : 0;
 	int post_multiplier = reversed ? 0 : 1;
 	int pre_multiplier = reversed ? -1 : 0;
-	int extra_remainder = 0;
-	int extra = 0;
+	int jc_gap_pre = 0;
+	int jc_gap_between = 0;
+	int jc_gap_between_rem = 0;
+	int jc_gap_pre_extra = 0;
+	int extra_per_line = 0;
+	int extra_per_line_rem = 0;
 
 	if (ctx->available_cross != AUTO && ctx->available_cross > ctx->cross_size && ctx->line.count > 0) {
-		extra = ctx->available_cross - ctx->cross_size;
+		int free_cross = ctx->available_cross - ctx->cross_size;
+		uint8_t ac = css_computed_align_content(ctx->flex->style);
 
-		extra_remainder = extra % ctx->line.count;
-		extra /= ctx->line.count;
+		/* If nowrap, align-content has no effect except 'stretch' (which is default)
+		 * but in multi-line it distributes space between lines. */
+		if (ctx->wrap == CSS_FLEX_WRAP_NOWRAP) {
+			ac = CSS_ALIGN_CONTENT_STRETCH;
+		}
+
+		switch (ac) {
+		case CSS_ALIGN_CONTENT_STRETCH:
+			extra_per_line = free_cross / ctx->line.count;
+			extra_per_line_rem = free_cross % ctx->line.count;
+			break;
+		case CSS_ALIGN_CONTENT_FLEX_START:
+			break;
+		case CSS_ALIGN_CONTENT_FLEX_END:
+			jc_gap_pre = free_cross;
+			break;
+		case CSS_ALIGN_CONTENT_CENTER:
+			jc_gap_pre = free_cross / 2;
+			jc_gap_pre_extra = free_cross % 2;
+			break;
+		case CSS_ALIGN_CONTENT_SPACE_BETWEEN:
+			if (ctx->line.count > 1) {
+				int gaps = (int)(ctx->line.count - 1);
+				jc_gap_between = free_cross / gaps;
+				jc_gap_between_rem = free_cross % gaps;
+			}
+			break;
+		case CSS_ALIGN_CONTENT_SPACE_AROUND:
+			if (ctx->line.count > 0) {
+				int denom = (int)ctx->line.count;
+				int base_between = free_cross / denom;
+				int remainder = free_cross % denom;
+				jc_gap_between = base_between;
+				jc_gap_pre = base_between / 2;
+				jc_gap_pre_extra = base_between % 2;
+				jc_gap_between_rem = remainder;
+			}
+			break;
+		case CSS_ALIGN_CONTENT_SPACE_EVENLY: {
+			int gaps = (int)(ctx->line.count + 1);
+			jc_gap_between = free_cross / gaps;
+			jc_gap_pre = jc_gap_between;
+			jc_gap_between_rem = free_cross % gaps;
+			if (jc_gap_between_rem > 0) {
+				jc_gap_pre_extra = 1;
+				jc_gap_between_rem--;
+			}
+		} break;
+		}
+	}
+
+	if (!reversed) {
+		line_pos += jc_gap_pre + jc_gap_pre_extra;
+	} else {
+		line_pos = ctx->available_cross != AUTO ? ctx->available_cross : ctx->cross_size;
+		line_pos -= jc_gap_pre + jc_gap_pre_extra;
 	}
 
 	for (size_t i = 0; i < ctx->line.count; i++) {
 		struct flex_line_data *line = &ctx->line.data[i];
-		int line_extra = (extra_remainder > 0) ? 1 : 0;
+		int line_extra = 0;
 
-		line_pos += pre_multiplier * line->cross_size;
+		if (extra_per_line_rem > 0) {
+			line_extra = 1;
+			extra_per_line_rem--;
+		}
+
+		line_pos += pre_multiplier * (line->cross_size + extra_per_line + line_extra);
 		line->pos = line_pos;
-		line_pos += post_multiplier * line->cross_size + extra + line_extra;
+		line_pos += post_multiplier * (line->cross_size + extra_per_line + line_extra);
+
+		/* Add jc_gap_between for align-content space-between/around/evenly */
+		if (i < ctx->line.count - 1) {
+			int extra_between = 0;
+			if (jc_gap_between_rem > 0) {
+				extra_between = 1;
+				jc_gap_between_rem--;
+			}
+			line_pos += (!reversed ? 1 : -1) * (jc_gap_between + extra_between);
+		}
 
 		/* Add cross_gap between lines (not after the last line) */
 		if (i < ctx->line.count - 1 && ctx->cross_gap > 0) {
 			line_pos += (!reversed ? 1 : -1) * ctx->cross_gap;
 		}
 
-		layout_flex__place_line_items_cross(ctx, line, extra + line_extra);
-
-		if (extra_remainder > 0) {
-			extra_remainder--;
-		}
+		layout_flex__place_line_items_cross(ctx, line, extra_per_line + line_extra);
 	}
 }
 

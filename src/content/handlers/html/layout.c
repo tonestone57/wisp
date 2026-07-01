@@ -1049,13 +1049,19 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 		}
 		block->flags |= HAS_HEIGHT;
 	} else {
-		/* For horizontal flex containers, get the column-gap for intrinsic sizing.
+		/* For flex containers, get the main axis gap for intrinsic sizing.
 		 * Per CSS spec, gaps contribute to the intrinsic main size. */
-		if (lh__box_is_flex_container(block) && lh__flex_main_is_horizontal(block) && block->style != NULL) {
+		if (lh__box_is_flex_container(block) && block->style != NULL) {
 			css_fixed gap_len = 0;
 			css_unit gap_unit = CSS_UNIT_PX;
-			if (css_computed_column_gap(block->style, &gap_len, &gap_unit) == CSS_COLUMN_GAP_SET) {
-				flex_gap = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, gap_len, gap_unit));
+			if (lh__flex_main_is_horizontal(block)) {
+				if (css_computed_column_gap(block->style, &gap_len, &gap_unit) == CSS_COLUMN_GAP_SET) {
+					flex_gap = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, gap_len, gap_unit));
+				}
+			} else {
+				if (css_computed_row_gap(block->style, &gap_len, &gap_unit) == CSS_ROW_GAP_SET) {
+					flex_gap = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, gap_len, gap_unit));
+				}
 			}
 		}
 
@@ -1114,16 +1120,36 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 				continue;
 			}
 
-			if (lh__box_is_flex_container(block) && lh__flex_main_is_horizontal(block)) {
-				if (block->style != NULL && css_computed_flex_wrap(block->style) == CSS_FLEX_WRAP_NOWRAP) {
-					min += child->min_width.value;
-				} else {
-					if (min < child->min_width.value)
-						min = child->min_width.value;
-				}
-				max += child->max_width;
-				flex_item_count++;
+			if (lh__box_is_flex_container(block)) {
+				bool is_horizontal = lh__flex_main_is_horizontal(block);
+				int item_min = child->min_width.value;
+				int item_max = child->max_width;
 
+				if (is_horizontal) {
+					/* For row flex items, preferred size (flex-basis) affects intrinsic width.
+					 * Spec §9.9.3: intrinsic contribution = max(content, preferred). */
+					if (child->style != NULL) {
+						int basis_px = 0;
+						/* Reference size -1 means percentage basis will be treated as auto/content here */
+						if (css_computed_flex_basis_px(child->style, &content->unit_len_ctx, -1, &basis_px) == CSS_FLEX_BASIS_SET) {
+							if (item_min < basis_px) item_min = basis_px;
+							if (item_max < basis_px) item_max = basis_px;
+						}
+					}
+
+					if (block->style != NULL && css_computed_flex_wrap(block->style) == CSS_FLEX_WRAP_NOWRAP) {
+						min += item_min;
+					} else {
+						if (min < item_min) min = item_min;
+					}
+					max += item_max;
+				} else {
+					/* Column flex: intrinsic width is the max of item's widths (cross axis).
+					 * flex-basis does not apply to the cross axis. */
+					if (min < item_min) min = item_min;
+					if (max < item_max) max = item_max;
+				}
+				flex_item_count++;
 			} else {
 				if (min < child->min_width.value)
 					min = child->min_width.value;
@@ -1136,16 +1162,21 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 		}
 	}
 
-	/* Add gap contribution for horizontal flex containers.
+	/* Add gap contribution for flex containers.
 	 * Per CSS spec, intrinsic main size includes gaps between items.
 	 * For n items, there are (n-1) gaps. */
-	if (flex_item_count > 1 && flex_gap > 0) {
+	if (lh__box_is_flex_container(block) && flex_item_count > 1 && flex_gap > 0) {
 		int total_gap = (flex_item_count - 1) * flex_gap;
-		/* For nowrap flex, min is sum of items so add gaps to min too */
-		if (block->style != NULL && css_computed_flex_wrap(block->style) == CSS_FLEX_WRAP_NOWRAP) {
-			min += total_gap;
+		if (lh__flex_main_is_horizontal(block)) {
+			/* For nowrap row flex, min is sum of items so add gaps to min too */
+			if (block->style != NULL && css_computed_flex_wrap(block->style) == CSS_FLEX_WRAP_NOWRAP) {
+				min += total_gap;
+			}
+			max += total_gap;
+		} else {
+			/* For column flex, main axis is vertical.
+			 * Vertical gaps don't affect intrinsic width (min/max). */
 		}
-		max += total_gap;
 	}
 
 	if (max < min) {
