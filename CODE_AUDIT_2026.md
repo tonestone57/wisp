@@ -37,6 +37,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Tab-Size Support**: Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
 *   **ODR Violation Resolution**: Resolved duplicate definition of `guit` symbol in test code.
 *   **Test Runner Fixes**: Resolved syntax and format errors in `contrib/libcss/test/parse-auto.c`.
+*   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` have been demoted to `DEEPDEBUG` to improve performance and log accuracy.
+*   **QuickJS Bridge Stability**: Fixed re-entrancy and memory management in the QuickJS-to-LibDOM bridge by utilizing a weak-reference model and safe cleanup loops.
 
 ### 3.2 Partial Implementation [Partial]
 *   **CSS Variables**: Selection and parsing of `var()` and custom properties are complete; resolution pass during cascade is in progress with some regressions in complex fallback scenarios.
@@ -44,10 +46,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **CSS Flexbox**: Supports flex-grow, shrink, auto-margins, and two-pass resolution for column flex with indefinite heights.
 *   **Incremental Reflow Optimization**: Functional, but bounding box union logic in `box_mark_dirty` is being refined for elements entirely contained within parent dirty regions.
 *   **MutationObserver**: Integrated with LibDOM via a native mutation hook system, though event refinement is ongoing.
+*   **Percentage Widths**: Basic resolution for IFRAMEs and text-indent exists in `layout.c`, but comprehensive support for nested percentage constraints and certain max-height scenarios is still being refined.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
 *   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing.
-*   **Percentage Widths**: Missing resolution for IFRAMEs and certain text-indent contexts in `layout.c`.
 
 ## 4. Subsystem Deep-Dive
 
@@ -78,10 +80,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **[Finished] ODR Violation**: `guit` symbol duplication resolved using weak definitions and `extern` correctly.
 
 ### 5.2 Technical Debt
-*   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` should be demoted.
+*   **NSLOG Verbosity**: Completed demotion of traces in core layout modules.
 
 ## 6. Future Recommendations
 1.  **Binding Coverage**: Prioritize manual implementation of `Element.querySelector` and `Element.querySelectorAll`.
 2.  **Canvas 2D Bridge**: Implement the plotter bridge for the Canvas 2D API.
-3.  **Percentage Width Refinement**: Complete resolution for IFRAMEs and text-indent.
+3.  **Percentage Width Refinement**: Complete comprehensive resolution for all nested percentage scenarios.
 4.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations.

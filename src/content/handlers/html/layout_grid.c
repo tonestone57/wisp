@@ -778,8 +778,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 		free(col_widths);
 		return false;
 	}
-	NSLOG(
-		layout, DEEPDEBUG, "GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", num_cols, occupied_max_rows, is_dense);
+	NSLOG(layout, DEEPDEBUG,
+		"GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", num_cols, occupied_max_rows, is_dense);
 
 	/* Count children for item cache allocation */
 	int item_count = 0;
