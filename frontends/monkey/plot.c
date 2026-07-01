@@ -167,7 +167,7 @@ static nserror monkey_plot_path(const struct redraw_context *ctx, const plot_sty
  * Start a new path.
  */
 
-static nserror monkey_plot_finalise(void)
+static nserror monkey_plot_finalise(const struct redraw_context *ctx)
 {
     return NSERROR_OK;
 }

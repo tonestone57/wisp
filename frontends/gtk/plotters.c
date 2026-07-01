@@ -621,7 +621,7 @@ static nserror nsgtk_plot_pop_transform(const struct redraw_context *ctx)
  * Start a new path.
  */
 
-static nserror nsgtk_plot_finalise(void)
+static nserror nsgtk_plot_finalise(const struct redraw_context *ctx)
 {
     return NSERROR_OK;
 }

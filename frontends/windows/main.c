@@ -512,7 +512,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
     urldb_save_cookies(nsoption_charp(cookie_jar));
     urldb_save(nsoption_charp(url_file));
 
-    win_plotters.finalise();
+    win_plotters.finalise(NULL);
 
 #ifdef WISP_WINDOWS_USE_D2D
     extern void nsws_d2d_fini(void);

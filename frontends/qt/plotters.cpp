@@ -763,7 +763,7 @@ static nserror nsqt_plot_radial_gradient(const struct redraw_context *ctx, const
  * Start a new path.
  */
 
-static nserror nsqt_plot_finalise(void)
+static nserror nsqt_plot_finalise(const struct redraw_context *ctx)
 {
     if (current_path) {
         delete current_path;

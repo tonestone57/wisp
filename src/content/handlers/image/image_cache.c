@@ -941,3 +941,20 @@ content_type image_cache_content_type(void)
 {
     return CONTENT_IMAGE;
 }
+
+void image_cache_invalidate_bitmaps(void)
+{
+    struct image_cache_entry_s *centry;
+    if (image_cache == NULL) {
+        return;
+    }
+    centry = image_cache->entries;
+    while (centry != NULL) {
+        pthread_mutex_lock(&centry->lock);
+        if (!centry->decoding && centry->bitmap != NULL) {
+            guit->bitmap->modified(centry->bitmap);
+        }
+        pthread_mutex_unlock(&centry->lock);
+        centry = centry->next;
+    }
+}

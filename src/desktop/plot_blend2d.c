@@ -79,7 +79,7 @@ static nserror blend2d_plot_clip(const struct redraw_context *ctx, const struct 
     return NSERROR_OK;
 }
 
-static nserror blend2d_plot_finalise(void)
+static nserror blend2d_plot_finalise(const struct redraw_context *ctx)
 {
     if (current_path_inited) {
         bl_path_destroy(&current_path);

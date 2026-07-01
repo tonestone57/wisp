@@ -1704,7 +1704,7 @@ static void win_plot_stateful_add_command(enum path_command type, float x1, floa
  * Start a new path.
  */
 
-static nserror win_plot_finalise(void)
+static nserror win_plot_finalise(const struct redraw_context *ctx)
 {
     if (stateful_path) {
         free(stateful_path);

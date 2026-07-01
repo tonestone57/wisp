@@ -1111,7 +1111,7 @@ static void nsgtk_finalise(void)
     nserror res;
 
     NSLOG(wisp, INFO, "Quitting GUI");
-    nsgtk_plotters.finalise();
+    nsgtk_plotters.finalise(NULL);
 
     /* Ensure all scaffoldings are destroyed before we go into exit */
     nsgtk_download_destroy();

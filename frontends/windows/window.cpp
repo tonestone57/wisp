@@ -1091,7 +1091,7 @@ nsws_window_command(HWND hwnd, struct gui_window *gw, int notification_code, int
         NSLOG(wisp, INFO, "Clear Cache: start");
         llcache_clean(true);
         NSLOG(wisp, INFO, "Clear Cache: llcache purged");
-        image_cache_purge_bitmaps();
+        image_cache_invalidate_bitmaps();
         NSLOG(wisp, INFO, "Clear Cache: image cache bitmaps purged");
         {
             const char *path = nsoption_charp(disc_cache_path);
@@ -2082,9 +2082,10 @@ void nsws_d2d_recreate_resources(struct gui_window *gw)
         gw->d2d_rt = NULL;
     }
     gw->d2d_initialised = false;
+    gw->d2d_clip_pushed = false;
 
     /* Clear cached bitmaps as they are bound to the old render target */
-    image_cache_purge_bitmaps();
+    image_cache_invalidate_bitmaps();
 
     nsws_window_init_d2d(gw);
 }

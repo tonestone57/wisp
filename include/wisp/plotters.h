@@ -231,7 +231,7 @@ struct plotter_table {
      *
      * \return NSERROR_OK on success else error code.
      */
-    nserror (*finalise)(void);
+    nserror (*finalise)(const struct redraw_context *ctx);
 
     /**
      * Start a new path.

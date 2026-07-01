@@ -491,7 +491,7 @@ NS_Application::~NS_Application()
     }
 
     /* finalise plotter */
-    nsqt_plotters.finalise();
+    nsqt_plotters.finalise(NULL);
 
     /* common finalisation */
     wisp_exit();

@@ -446,7 +446,7 @@ static nserror nsbeos_plot_text(const struct redraw_context *ctx, const struct p
     return NSERROR_OK;
 }
 
-static nserror nsbeos_plot_finalise(void)
+static nserror nsbeos_plot_finalise(const struct redraw_context *ctx)
 {
     if (stateful_shape) {
         delete stateful_shape;

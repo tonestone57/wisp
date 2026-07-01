@@ -184,7 +184,7 @@ endif()
 
 # Radial gradients: separate option since Windows GDI lacks radial support
 if(WIN32)
-    set(DEFAULT_NATIVE_RADIAL OFF)
+    set(DEFAULT_NATIVE_RADIAL ON)
 else()
     set(DEFAULT_NATIVE_RADIAL ON)
 endif()

@@ -147,16 +147,10 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
 
         for (size_t i = 0; i < cleanup.count; i++) {
-            JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
-            if (val) {
-                JSValue v = *val;
-                /* Remove it from the map BEFORE freeing to prevent re-entrant use-after-free
-                 * if JS_FreeValueRT triggers a finalizer that calls qjs_bridge_remove_node. */
-                hashmap_remove(map, &cleanup.keys[i]);
-                JS_FreeValueRT(rt, v);
-                /* unref only if we were the ones to remove it from the map */
-                dom_node_unref(cleanup.keys[i].node);
-            }
+            /* Entries must be removed from map before unref to avoid re-entrant UAF.
+             * GC will handle JSValue cleanup; we only unref the DOM node. */
+            hashmap_remove(map, &cleanup.keys[i]);
+            dom_node_unref(cleanup.keys[i].node);
         }
         free(cleanup.keys);
         hashmap_destroy(map);
@@ -198,16 +192,10 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
 
     for (size_t i = 0; i < cleanup.count; i++) {
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
-        JSValue *val = hashmap_lookup(map, &key);
-        if (val) {
-            JSValue v = *val;
-            /* Remove it from the map BEFORE freeing to prevent re-entrant use-after-free
-             * if JS_FreeValue triggers a finalizer that calls qjs_bridge_remove_node. */
-            hashmap_remove(map, &key);
-            JS_FreeValue(ctx, v);
-            /* unref only if we were the ones to remove it from the map */
-            dom_node_unref(cleanup.nodes[i]);
-        }
+        /* Entries must be removed from map before unref to avoid re-entrant UAF.
+         * GC will handle JSValue cleanup; we only unref the DOM node. */
+        hashmap_remove(map, &key);
+        dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
 }
