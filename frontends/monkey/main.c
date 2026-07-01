@@ -537,7 +537,7 @@ int main(int argc, char **argv)
     moutf(MOUT_GENERIC, "CLOSING_DOWN");
     monkey_kill_browser_windows();
 
-    if (monkey_plotters->finalise) monkey_plotters->finalise();
+    if (monkey_plotters->finalise) monkey_plotters->finalise(NULL);
     wisp_exit();
     moutf(MOUT_GENERIC, "FINISHED");
 

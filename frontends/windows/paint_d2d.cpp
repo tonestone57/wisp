@@ -12,7 +12,6 @@ extern "C" {
 }
 
 extern "C" const struct plotter_table win_plotters_d2d;
-extern "C" void nsws_d2d_set_rt(ID2D1RenderTarget *rt, struct gui_window *gw);
 
 extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
     ID2D1HwndRenderTarget *rt = (ID2D1HwndRenderTarget *)gw->d2d_rt;
@@ -22,7 +21,6 @@ extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
     rt->BeginDraw();
     rt->Clear(D2D1::ColorF(D2D1::ColorF::White));
 
-    nsws_d2d_set_rt(rt, gw);
     struct redraw_context ctx = {
         .interactive = true,
         .background_images = true,
@@ -38,7 +36,7 @@ extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
 
     browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &clip, &ctx);
 
-    if (ctx.plot->finalise) ctx.plot->finalise();
+    if (ctx.plot->finalise) ctx.plot->finalise(&ctx);
 
     HRESULT hr = rt->EndDraw();
     if (hr == D2DERR_RECREATE_TARGET) {

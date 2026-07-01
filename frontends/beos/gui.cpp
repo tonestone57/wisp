@@ -874,7 +874,7 @@ int main(int argc, char **argv)
         nsbeos_gui_poll();
     }
 
-    nsbeos_plotters.finalise();
+    nsbeos_plotters.finalise(NULL);
     wisp_exit();
 
     nsoption_finalise(nsoptions, nsoptions_default);

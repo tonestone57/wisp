@@ -22,19 +22,15 @@ extern "C" {
 #include "windows/d2d_types.h"
 }
 
-/* Multi-window safe state access */
+/* Multi-window safe state access via redraw_context->priv */
 #define GW ((struct gui_window *)ctx->priv)
-#define D2D_RT (GW ? (ID2D1RenderTarget *)GW->d2d_rt : d2d_rt_override)
+#define D2D_RT (GW ? (ID2D1RenderTarget *)GW->d2d_rt : NULL)
 #define HAS_STACK (GW && GW->d2d_transform_stack)
 #define TRANSFORM_STACK (*((std::stack<D2D1_MATRIX_3X2_F>*)GW->d2d_transform_stack))
 #define HAS_PATH (GW && GW->d2d_stateful_path)
 #define STATEFUL_PATH (*((std::vector<d2d_path_command>*)GW->d2d_stateful_path))
 
-#define D2D_CLIP (GW ? D2D1::RectF(GW->d2d_clip_x0, GW->d2d_clip_y0, GW->d2d_clip_x1, GW->d2d_clip_y1) : d2d_clip_override)
-static D2D1_RECT_F d2d_clip_override;
-static ID2D1RenderTarget *d2d_rt_override = NULL;
-static struct gui_window *d2d_gw_override = NULL;
-static bool d2d_clip_override_pushed = false;
+#define D2D_CLIP (GW ? D2D1::RectF(GW->d2d_clip_x0, GW->d2d_clip_y0, GW->d2d_clip_x1, GW->d2d_clip_y1) : D2D1::RectF(0,0,0,0))
 
 /**
  * Convert Wisp colour (XBGR) and opacity to D2D1_COLOR_F
@@ -51,29 +47,18 @@ static D2D1_COLOR_F d2d_color(colour c, float opacity = 1.0f) {
 
 static nserror clip(const struct redraw_context *ctx, const struct rect *clip) {
     ID2D1RenderTarget *rt = D2D_RT;
-    if (!rt) return NSERROR_INVALID;
+    if (!rt || !GW) return NSERROR_INVALID;
 
-    if (GW) {
-        if (GW->d2d_clip_pushed) {
-            rt->PopAxisAlignedClip();
-            GW->d2d_clip_pushed = false;
-        }
-        GW->d2d_clip_x0 = (float)clip->x0;
-        GW->d2d_clip_y0 = (float)clip->y0;
-        GW->d2d_clip_x1 = (float)clip->x1 + 1;
-        GW->d2d_clip_y1 = (float)clip->y1 + 1;
-        rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
-        GW->d2d_clip_pushed = true;
-    } else {
-        /* Non-window contexts (e.g. thumbnails) use global overrides.
-         * These are single-primitive contexts and don't benefit from persistent clipping. */
-        if (d2d_clip_override_pushed) {
-            rt->PopAxisAlignedClip();
-        }
-        d2d_clip_override = D2D1::RectF((float)clip->x0, (float)clip->y0, (float)clip->x1 + 1, (float)clip->y1 + 1);
-        rt->PushAxisAlignedClip(d2d_clip_override, D2D1_ANTIALIAS_MODE_ALIASED);
-        d2d_clip_override_pushed = true;
+    if (GW->d2d_clip_pushed) {
+        rt->PopAxisAlignedClip();
+        GW->d2d_clip_pushed = false;
     }
+    GW->d2d_clip_x0 = (float)clip->x0;
+    GW->d2d_clip_y0 = (float)clip->y0;
+    GW->d2d_clip_x1 = (float)clip->x1 + 1;
+    GW->d2d_clip_y1 = (float)clip->y1 + 1;
+    rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
+    GW->d2d_clip_pushed = true;
     return NSERROR_OK;
 }
 
@@ -513,29 +498,17 @@ static nserror path_stroke(const struct redraw_context *ctx, const plot_style_t 
     return NSERROR_OK;
 }
 
-extern "C" void nsws_d2d_set_rt(ID2D1RenderTarget *rt, struct gui_window *gw) {
-    d2d_rt_override = rt;
-    d2d_gw_override = gw;
-}
-
-static nserror finalise(void) {
-    ID2D1RenderTarget *rt = d2d_rt_override;
-    struct gui_window *gw = d2d_gw_override;
-    if (rt) {
-        if (gw) {
-            if (gw->d2d_clip_pushed) {
-                rt->PopAxisAlignedClip();
-                gw->d2d_clip_pushed = false;
-            }
-        } else {
-            /* Clean up override-based clip from non-window contexts */
-            if (d2d_clip_override_pushed) {
-                rt->PopAxisAlignedClip();
-                d2d_clip_override_pushed = false;
-            }
-        }
+static nserror finalise(const struct redraw_context *ctx) {
+    ID2D1RenderTarget *rt = D2D_RT;
+    if (GW && rt && GW->d2d_clip_pushed) {
+        rt->PopAxisAlignedClip();
+        GW->d2d_clip_pushed = false;
     }
     return NSERROR_OK;
+}
+
+extern "C" void nsws_d2d_set_rt(ID2D1RenderTarget *rt, struct gui_window *gw) {
+    /* Deprecated legacy pattern removed: uses context instead */
 }
 
 extern "C" const struct plotter_table win_plotters_d2d = {
