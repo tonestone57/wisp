@@ -1,203 +1,64 @@
---------------------------------------------------------------------------------
-  Build Instructions for Windows Wisp                      13 February 2010
---------------------------------------------------------------------------------
+# Building Wisp for Windows
 
-  This document provides instructions for building the Windows version
-  of Wisp and provides guidance on obtaining Wisp's build
-  dependencies.
+This document provides instructions for building the Windows version of Wisp using the modern CMake-based build system.
 
-  Windows Wisp has been tested on Wine and Vista.
+## Prerequisites
 
+Wisp for Windows is built using the **MinGW-w64** toolchain, typically via **MSYS2**.
 
-  Building and executing Wisp
-================================
+### 1. Install MSYS2
+Download and install MSYS2 from [msys2.org](https://www.msys2.org/).
 
-  The windows wisp port uses the MinGW (Minimal GNU on Windows)
-  system as its build infrastructure. This allows the normal wisp
-  build process to be used.
+### 2. Install Build Tools and Dependencies
+Open the **MSYS2 MinGW64** terminal and install the required packages:
 
-  The method outlined here to create executables cross compiles
-  windows executable from a Linux OS host.
+```bash
+pacman -S mingw-w64-x86_64-gcc \
+          mingw-w64-x86_64-cmake \
+          mingw-w64-x86_64-ninja \
+          mingw-w64-x86_64-pkg-config \
+          mingw-w64-x86_64-gperf \
+          mingw-w64-x86_64-python3 \
+          mingw-w64-x86_64-libxml2 \
+          mingw-w64-x86_64-curl \
+          mingw-w64-x86_64-openssl \
+          mingw-w64-x86_64-libpng \
+          mingw-w64-x86_64-libjpeg-turbo \
+          mingw-w64-x86_64-libwebp \
+          mingw-w64-x86_64-ffmpeg
+```
 
-  First of all, you should examine the contents of Makefile.defaults
-  and enable and disable relevant features as you see fit by creating
-  a Makefile.config file.  Some of these options can be automatically
-  detected and used, and where this is the case they are set to such.
-  Others cannot be automatically detected from the Makefile, so you
-  will either need to install the dependencies, or set them to NO.
-  
-  You should then obtain Wisp's dependencies, keeping in mind which
-  options you have enabled in the configuration file.  See the next
-  section for specifics.
-  
-  Once done, to build windows Wisp on a UNIX-like platform, simply run:
+## Building
 
-      $ export MINGW_PREFIX=i586-mingw32msvc-
-      $ export MINGW_INSTALL_ENV=/usr/i586-mingw32msvc/
-      $ make TARGET=windows
+### 1. Configure
+Create a build directory and run CMake. Wisp defaults to the Direct2D rendering pipeline on Windows.
 
-  If that produces errors, you probably don't have some of Wisp's
-  build dependencies installed. See "Obtaining Wisp's dependencies"
-  below. Or turn off the complaining features in a Makefile.config
-  file. You may need to "make clean" before attempting to build after
-  installing the dependencies.
+```bash
+mkdir build
+cd build
+cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release
+```
 
-  You will need the libgnurx-0.dll from /usr/i586-mingw32msvc/bin/
-  copied next to the exe and the windows/res directory available, also
-  next to the executable.
+### 2. Compile
+```bash
+ninja
+```
 
-  Run Wisp by executing it:
+The resulting executable `wisp.exe` will be located in the build directory.
 
-      $ wine Wisp.exe
+## Build Options
 
-  The staticaly linked binary which is generated may be several
-  megabytes in size, this can be reduced by stripping the binary.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `WISP_WINDOWS_USE_D2D` | Use native Direct2D/DirectWrite rendering pipeline | `ON` |
+| `NEOSURF_ENABLE_TESTS` | Build unit tests | `OFF` |
 
-      $ i586-mingw32msvc-strip Wisp.exe 
+If `WISP_WINDOWS_USE_D2D` is set to `OFF`, Wisp will fall back to the legacy GDI plotter.
 
+## Troubleshooting
 
-  Obtaining Wisp's build dependencies
-========================================
+### C++17 Requirement
+The Windows frontend requires a C++17 compliant compiler for Direct2D and modern STL support. Ensure your GCC version is 8.0 or higher.
 
-  Package installation
-----------------------
-
-  Debian-based OS:
-
-  The mingw cross compilation tools are required. These can be
-  installed as pakages on Debian/Ubuntu systems:
-
-      $ sudo apt-get install mingw32 mingw32-binutils mingw32-runtime
-
-  These provide a suitable set of compilers and headers including the win32 API.
-
-  The includes and associated libraries are installed in
-  /usr/i586-mingw32msvc/ Which is where the build system will include
-  files from by default. The packages at time of writing only target
-  32bit windows builds.
-
-  Other:
-
-  For other OS the apropriate packages and environment must be installed.
-
-  pkg-config
-------------
-
-  A pkg-config wrapper script is required to make things easier
-
-cat > /usr/i586-mingw32msvc/bin/pkg-config <<EOF
-#!/bin/bash
-export PKG_CONFIG_LIBDIR=/usr/i586-mingw32msvc/lib/pkgconfig
-/usr/bin/pkg-config $*
-EOF
-
-
-  Base libraries
-----------------
-
-  Unlike other OS the base libraries and their dependancies need to be
-  built and installed.
-
-  The instructions given here assume you will be installing on a
-  Debian derived OS using the mingw32 packages. The libraries should
-  be unpacked and built from a suitable temporary directory.
-
-  zlib:
-  
-      $ apt-get source zlib1g
-      $ cd zlib-1.2.3.3.dfsg
-      $ CC=i586-mingw32msvc-gcc AR=i586-mingw32msvc-ar RANLIB=i586-mingw32msvc-ranlib CFLAGS="-DNO_FSEEKO" ./configure --prefix=/usr/i586-mingw32msvc/
-      $ make
-      $ sudo make install
-
-  libiconv:
-
-      $ wget http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.13.1.tar.gz
-      $ tar -zxf libiconv-1.13.1.tar.gz
-      $ cd libiconv-1.13.1
-      $ ./configure --prefix=/usr/i586-mingw32msvc/ --host=i586-mingw32msvc --disable-shared
-      $ make
-      $ sudo make install
-
-  regex:
-
-      $ wget http://kent.dl.sourceforge.net/project/mingw/Other/UserContributed/regex/mingw-regex-2.5.1/mingw-libgnurx-2.5.1-src.tar.gz
-      $ tar -zxf mingw-libgnurx-2.5.1-src.tar.gz
-      $ cd mingw-libgnurx-2.5.1
-      $ ./configure --prefix=/usr/i586-mingw32msvc/ --host=i586-mingw32msvc
-      $ make
-      $ sudo make install
-
-  openssl:
-
-      $ wget http://www.openssl.org/source/openssl-1.0.0a.tar.gz
-      $ tar -zxf openssl-1.0.0a.tar.gz
-      $ cd openssl-1.0.0a
-      $ PATH=/usr/i586-mingw32msvc/bin/:$PATH ./Configure no-shared disable-capieng --prefix=/usr/i586-mingw32msvc/ mingw
-      $ PATH=/usr/i586-mingw32msvc/bin/:$PATH make CC=i586-mingw32msvc-gcc RANLIB=i586-mingw32msvc-ranlib
-      $ sudo make install
-
-  libcurl:
-
-      $ wget http://curl.haxx.se/download/curl-7.26.0.tar.gz
-      $ tar -zxf curl-7.26.0.tar.gz
-      $ cd curl-7.26.0
-      $ LDFLAGS=-mwindows ./configure --prefix=/usr/i586-mingw32msvc/ --host=i586-mingw32msvc --disable-shared --disable-ldap --without-random
-      $ make
-      $ sudo make install
-
-  libpng:
-
-      $ wget http://kent.dl.sourceforge.net/project/libpng/libpng14/1.4.12/libpng-1.4.12.tar.gz
-      $ tar -zxf libpng-1.4.12.tar.gz
-      $ cd libpng-1.4.12
-      $ ./configure --prefix=/usr/i586-mingw32msvc/ --host=i586-mingw32msvc
-      $ make
-      $ sudo make install
-
-  libjpeg:
-
-      $ wget http://www.ijg.org/files/jpegsrc.v8d.tar.gz
-      $ tar -zxf jpegsrc.v8d.tar.gz
-      $ cd jpeg-8d
-      $ ./configure --prefix=/usr/i586-mingw32msvc/ --host=i586-mingw32msvc --disable-shared
-      $ make
-      $ sudo make install
-
-  The Wisp project's libraries
----------------------------------
-
-  The Wisp project has developed several libraries which are required by
-  the browser. These are:
-
-  LibParserUtils  --  Parser building utility functions
-  LibWapcaplet    --  String internment
-  Hubbub          --  HTML5 compliant HTML parser
-  LibCSS          --  CSS parser and selection engine
-  LibNSGIF        --  GIF format image decoder
-  LibNSBMP        --  BMP and ICO format image decoder
-  LibROSprite     --  RISC OS Sprite format image decoder
-
-  To fetch each of these libraries, run the appropriate commands from the
-  Docs/LIBRARIES file.
-
-  To build and install these libraries.
-
-  Ensure the MINGW_INSTALL_ENV variable is correctly set.
-
-      $ export MINGW_INSTALL_ENV=/usr/i586-mingw32msvc/
-
- Then simply enter each of their directories and run:
-  
-      $ make TARGET=windows PREFIX=/usr/i586-mingw32msvc/
-      $ sudo make TARGET=windows PREFIX=/usr/i586-mingw32msvc/ install
-
-  Resources
------------
-
-  The windows resources may be rebuilt. Currently there is 1 object
-  file included in the Git distribution of Wisp that could be
-  manually compiled
-
-      $ cd windows/res
-      $ i586-mingw32msvc-windres resource.rc -O coff -o resource.o
+### Missing DLLs
+When running `wisp.exe` outside the MSYS2 environment, you may need to copy required DLLs (e.g., `libcurl.dll`, `zlib1.dll`) from your MinGW64 `bin` directory to the same folder as the executable.
