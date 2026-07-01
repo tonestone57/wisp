@@ -185,6 +185,34 @@ static inline bool lh__box_is_absolute(const struct box *b)
         css_computed_position(b->style) == CSS_POSITION_FIXED;
 }
 
+/** Layout helper: Find containing block for percentage-based dimensions. */
+static inline struct box *lh__get_containing_block_for_pct(const struct box *box)
+{
+    if (box->parent == NULL) {
+        return NULL;
+    }
+
+    if (lh__box_is_absolute(box)) {
+        return box->float_container;
+    }
+
+    if (box->parent->type == BOX_FLOAT_LEFT || box->parent->type == BOX_FLOAT_RIGHT) {
+        struct box *cb = box->parent;
+        while (cb != NULL &&
+               (cb->style == NULL || cb->type == BOX_INLINE_CONTAINER ||
+                cb->type == BOX_FLOAT_LEFT || cb->type == BOX_FLOAT_RIGHT)) {
+            cb = cb->parent;
+        }
+        return cb;
+    }
+
+    if (box->parent->type == BOX_INLINE_CONTAINER) {
+        return box->parent->parent;
+    }
+
+    return box->parent;
+}
+
 static inline bool lh__flex_main_is_horizontal(const struct box *flex)
 {
     const css_computed_style *style = flex->style;
@@ -426,36 +454,13 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
 
         if (htype == CSS_HEIGHT_SET) {
             if (unit == CSS_UNIT_PCT) {
-                enum css_height_e cbhtype;
+                enum css_height_e cbhtype = CSS_HEIGHT_AUTO;
 
-                if (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE && box->parent) {
-                    /* Box is absolutely positioned */
-                    assert(box->float_container);
-                    containing_block = box->float_container;
-                } else if (box->parent &&
-                    (box->parent->type == BOX_FLOAT_LEFT || box->parent->type == BOX_FLOAT_RIGHT)) {
-                    /* Box is child of a float wrapper - walk up to find containing block with style.
-                     * Skip BOX_INLINE_CONTAINER and BOX_FLOAT_* which have NULL styles by design. */
-                    struct box *cb = box->parent;
-                    while (cb != NULL &&
-                        (cb->style == NULL || cb->type == BOX_INLINE_CONTAINER || cb->type == BOX_FLOAT_LEFT ||
-                            cb->type == BOX_FLOAT_RIGHT)) {
-                        cb = cb->parent;
-                    }
-                    containing_block = cb;
-                } else if (box->parent && box->parent->type != BOX_INLINE_CONTAINER) {
-                    /* Box is a block level element */
-                    containing_block = box->parent;
-                } else if (box->parent && box->parent->type == BOX_INLINE_CONTAINER) {
-                    /* Box is an inline block */
-                    assert(box->parent->parent);
-                    containing_block = box->parent->parent;
-                }
+                containing_block = lh__get_containing_block_for_pct(box);
 
                 if (containing_block) {
                     css_fixed f = 0;
                     css_unit u = CSS_UNIT_PX;
-
                     cbhtype = css_computed_height(containing_block->style, &f, &u);
                 }
 
@@ -472,7 +477,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
                      * (HTML or BODY) */
                     *height = FPCT_OF_INT_TOINT(value, viewport_height);
                 } else {
-                    /* precentage height not permissible
+                    /* percentage height not permissible
                      * treat height as auto */
                     *height = AUTO;
                 }
@@ -516,7 +521,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         css_fixed value = 0;
         css_unit unit = CSS_UNIT_PX;
 
-        type = ns_computed_min_width(style, &value, &unit);
+        type = css_computed_min_width(style, &value, &unit);
 
         if (type == CSS_MIN_WIDTH_SET) {
             min_width->type = CSS_SIZE_SET;
@@ -547,14 +552,8 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
             if (unit == CSS_UNIT_PCT) {
                 enum css_height_e cbhtype = CSS_HEIGHT_AUTO;
 
-                if (containing_block == NULL && box->parent) {
-                    if (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE) {
-                        containing_block = box->float_container;
-                    } else if (box->parent->type != BOX_INLINE_CONTAINER) {
-                        containing_block = box->parent;
-                    } else if (box->parent->parent) {
-                        containing_block = box->parent->parent;
-                    }
+                if (containing_block == NULL) {
+                    containing_block = lh__get_containing_block_for_pct(box);
                 }
 
                 if (containing_block) {
@@ -590,21 +589,15 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         css_fixed value = 0;
         css_unit unit = CSS_UNIT_PX;
 
-        type = ns_computed_min_height(style, &value, &unit);
+        type = css_computed_min_height(style, &value, &unit);
 
         if (type == CSS_MIN_HEIGHT_SET) {
             min_height->type = CSS_SIZE_SET;
             if (unit == CSS_UNIT_PCT) {
                 enum css_height_e cbhtype = CSS_HEIGHT_AUTO;
 
-                if (containing_block == NULL && box->parent) {
-                    if (css_computed_position(box->style) == CSS_POSITION_ABSOLUTE) {
-                        containing_block = box->float_container;
-                    } else if (box->parent->type != BOX_INLINE_CONTAINER) {
-                        containing_block = box->parent;
-                    } else if (box->parent->parent) {
-                        containing_block = box->parent->parent;
-                    }
+                if (containing_block == NULL) {
+                    containing_block = lh__get_containing_block_for_pct(box);
                 }
 
                 if (containing_block) {
