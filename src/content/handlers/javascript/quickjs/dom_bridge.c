@@ -91,10 +91,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSValue *val_ptr = hashmap_insert(map, &key);
     if (val_ptr) {
-        /* Map stores a weak reference. We DO NOT increment the refcount
-         * here. The bridge exists to return the SAME wrapper object for
-         * the same LibDOM node if it's still alive in JS. */
-        *val_ptr = wrapper;
+        /* Map stores a strong reference. We must increment the refcount
+         * because qjs_new_* returned a reference that we are now returning
+         * to the caller, and the map needs its own reference. */
+        *val_ptr = JS_DupValue(ctx, wrapper);
     }
 
     return wrapper;
@@ -147,10 +147,16 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
 
         for (size_t i = 0; i < cleanup.count; i++) {
-            /* Remove it from the map BEFORE unreferencing the node.
-             * The bridge uses weak JS references, so we don't call JS_FreeValue here. */
-            hashmap_remove(map, &cleanup.keys[i]);
-            dom_node_unref(cleanup.keys[i].node);
+            JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
+            if (val) {
+                JSValue v = *val;
+                /* Remove it from the map BEFORE freeing to prevent re-entrant use-after-free
+                 * if JS_FreeValueRT triggers a finalizer that calls qjs_bridge_remove_node. */
+                hashmap_remove(map, &cleanup.keys[i]);
+                JS_FreeValueRT(rt, v);
+                /* unref only if we were the ones to remove it from the map */
+                dom_node_unref(cleanup.keys[i].node);
+            }
         }
         free(cleanup.keys);
         hashmap_destroy(map);
@@ -192,10 +198,16 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
 
     for (size_t i = 0; i < cleanup.count; i++) {
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
-        /* Remove it from the map BEFORE unreferencing the node.
-         * The bridge uses weak JS references, so we don't call JS_FreeValue here. */
-        hashmap_remove(map, &key);
-        dom_node_unref(cleanup.nodes[i]);
+        JSValue *val = hashmap_lookup(map, &key);
+        if (val) {
+            JSValue v = *val;
+            /* Remove it from the map BEFORE freeing to prevent re-entrant use-after-free
+             * if JS_FreeValue triggers a finalizer that calls qjs_bridge_remove_node. */
+            hashmap_remove(map, &key);
+            JS_FreeValue(ctx, v);
+            /* unref only if we were the ones to remove it from the map */
+            dom_node_unref(cleanup.nodes[i]);
+        }
     }
     free(cleanup.nodes);
 }
