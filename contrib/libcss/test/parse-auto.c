@@ -387,7 +387,7 @@ void run_test(const uint8_t *data, size_t len, exp_entry *exp, size_t explen)
     css_error error;
     size_t e;
     static int testnum;
-    bool failed;
+    bool failed = false;
 
     params.params_version = CSS_STYLESHEET_PARAMS_VERSION_1;
     params.level = CSS_LEVEL_21;
@@ -552,15 +552,6 @@ static bool validate_rule_selector(css_rule_selector *s, exp_entry *e)
                     /* ODR/Null fix: gracefully handle NULL string from sheet */
                     printf("FAIL String pointer is NULL for index %zu\n", (size_t)s->style->bytecode[i / sizeof(css_code_t)]);
                     return true;
-                }
-
-                bool is_token_stream = false;
-                if (i >= 2 * sizeof(css_code_t)) {
-                    css_code_t opv = s->style->bytecode[i / sizeof(css_code_t) - 2];
-                    /* Custom property value is the second string after OPV */
-                    if (getOpcode(opv) == CSS_PROP_CUSTOM_PROPERTY) {
-                        is_token_stream = true;
-                    }
                 }
 
                 bool is_custom_prop_value = false;
