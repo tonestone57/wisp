@@ -20,7 +20,25 @@ Wisp utilizes a **Fixed-Tile Redraw** strategy (256px or 512px tiles) to optimiz
 
 ---
 
-## 3. JavaScript Threading Model
+## 3. Parallel Tile Redraw (PTR) Strategy
+Wisp's architecture is uniquely positioned to take advantage of multi-core processors through parallelization of the tiling loop.
+
+### Cross-OS Parallelization Strategy
+1.  **Work Stealing**: Instead of the UI thread painting every tile sequentially, the browser core pushes "Dirty Tile Tasks" to the `wisp_subsystem` worker pool (spawning up to 7 background threads).
+2.  **Thread-Local Backends**: Each worker thread utilizes a thread-local instance of the rendering backend (Blend2D or Direct2D), allowing simultaneous rasterization of different tiles without mutex locking.
+3.  **Asynchronous Compositing**: Once all workers finish their assigned tiles, the main thread performs a single atomic blit to the screen.
+
+### Platform-Specific Benefits
+| Platform | Benefit |
+| :--- | :--- |
+| **Haiku / BeOS** | **Maximum Scaling**: Leverages Haiku's naturally thread-safe `BView` looper to render multiple tiles simultaneously. |
+| **Windows** | **GPU Latency Reduction**: Direct2D Command Lists can be recorded in parallel and submitted to the GPU in a single batch. |
+| **Linux (GTK/Qt)** | **Bypass Single-Core Limits**: Offloads CPU-intensive SIMD rasterization (Blend2D) away from the main event loop. |
+| **macOS** | **UI Responsiveness**: Ensures heavy "Core Text" layout tasks don't block the Cocoa event loop. |
+
+---
+
+## 4. JavaScript Threading Model
 Wisp implements a **hybrid threading model** to balance safety with performance.
 
 ### Single-Threaded DOM Access
@@ -34,7 +52,7 @@ The browser includes a dedicated worker pool subsystem (`src/content/handlers/ja
 
 ---
 
-## 4. Platform-Specific Roadmap: Haiku/BeOS
+## 5. Platform-Specific Roadmap: Haiku/BeOS
 While functional, the Haiku frontend has several paths for significant advancement:
 *   **Native Widget Migration**: Replacing custom-drawn interactive elements with native `BControl` widgets (e.g., `BTextControl`). This allows Wisp to automatically adopt Haiku system themes and accessibility features.
 *   **Parallel Tile Rendering**: Leveraging Haiku’s thread-safe `BView` looper to render the fixed-tile grid in parallel across multiple CPU cores.
@@ -42,7 +60,7 @@ While functional, the Haiku frontend has several paths for significant advanceme
 
 ---
 
-## 5. Global Performance, Stability, and Security Goals
+## 6. Global Performance, Stability, and Security Goals
 
 ### Performance
 *   **GPU Compositing**: Move the final "tile blitting" and scrolling pass to the **GPU (OpenGL/Vulkan)** to reduce CPU overhead and provide smoother 60FPS scrolling.
@@ -58,7 +76,7 @@ While functional, the Haiku frontend has several paths for significant advanceme
 
 ---
 
-## 6. Recent Technical Improvements (June 2026 Update)
+## 7. Recent Technical Improvements (June 2026 Update)
 The following stability and compatibility fixes have been integrated:
 1.  **Web API Initialization**: Corrected `js_newthread` to ensure `navigator`, `location`, `storage`, and `XMLHttpRequest` are fully initialized with correct private data before script execution.
 2.  **Bridge Stability**: Fixed a critical `JS_FreeRuntime` assertion failure by ensuring the DOM bridge explicitly frees JSValue references and clears the runtime opaque pointer during cleanup.
