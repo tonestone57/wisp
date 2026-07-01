@@ -203,6 +203,8 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
             }
 
             parserutils_vector *resolved = var_name ? css__variables_ctx_get(state->var_ctx, var_name) : NULL;
+            bool resolved_ok = false;
+
             if (resolved) {
                 parserutils_vector *nr;
                 lwc_string *new_stack[33];
@@ -218,31 +220,36 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
                         parserutils_vector_append(*dst, &rcloned);
                     }
                     css__tokens_destroy(nr);
-                } else { css__tokens_destroy(*dst); return CSS_INVALID; }
-            } else if (comma_pos >= 0) {
-                parserutils_vector *fb; parserutils_vector_create(sizeof(css_token), 8, &fb);
-                for (int32_t j = comma_pos + 1; j < end_paren; j++) {
-                    const css_token *ft = parserutils_vector_peek(src, j); css_token fcloned = *ft;
-                    if (fcloned.idata) lwc_string_ref(fcloned.idata);
-                    if (fcloned.data.data) { fcloned.data.data = malloc(fcloned.data.len); if (fcloned.data.data) memcpy((void *)fcloned.data.data, ft->data.data, fcloned.data.len); }
-                    parserutils_vector_append(fb, &fcloned);
+                    resolved_ok = true;
                 }
-                parserutils_vector *rf;
-                if (css__resolve_var_tokens_recursive(state, fb, &rf, stack, depth) == CSS_OK) {
-                    size_t rf_len; parserutils_vector_get_length(rf, &rf_len);
-                    for (uint32_t j = 0; j < (uint32_t)rf_len; j++) {
-                        const css_token *rt = parserutils_vector_peek(rf, j); css_token rcloned = *rt;
-                        if (rcloned.idata) lwc_string_ref(rcloned.idata);
-                        if (rcloned.data.data) { rcloned.data.data = malloc(rcloned.data.len); if (rcloned.data.data) memcpy((void *)rcloned.data.data, rt->data.data, rcloned.data.len); }
-                        parserutils_vector_append(*dst, &rcloned);
+            }
+
+            if (!resolved_ok) {
+                if (comma_pos >= 0) {
+                    parserutils_vector *fb; parserutils_vector_create(sizeof(css_token), 8, &fb);
+                    for (int32_t j = comma_pos + 1; j < end_paren; j++) {
+                        const css_token *ft = parserutils_vector_peek(src, j); css_token fcloned = *ft;
+                        if (fcloned.idata) lwc_string_ref(fcloned.idata);
+                        if (fcloned.data.data) { fcloned.data.data = malloc(fcloned.data.len); if (fcloned.data.data) memcpy((void *)fcloned.data.data, ft->data.data, fcloned.data.len); }
+                        parserutils_vector_append(fb, &fcloned);
                     }
-                    css__tokens_destroy(rf);
-                } else { css__tokens_destroy(fb); css__tokens_destroy(*dst); return CSS_INVALID; }
-                css__tokens_destroy(fb);
-            } else {
-                /* Missing variable and no fallback: entire property is invalid per spec */
-                css__tokens_destroy(*dst);
-                return CSS_INVALID;
+                    parserutils_vector *rf;
+                    if (css__resolve_var_tokens_recursive(state, fb, &rf, stack, depth) == CSS_OK) {
+                        size_t rf_len; parserutils_vector_get_length(rf, &rf_len);
+                        for (uint32_t j = 0; j < (uint32_t)rf_len; j++) {
+                            const css_token *rt = parserutils_vector_peek(rf, j); css_token rcloned = *rt;
+                            if (rcloned.idata) lwc_string_ref(rcloned.idata);
+                            if (rcloned.data.data) { rcloned.data.data = malloc(rcloned.data.len); if (rcloned.data.data) memcpy((void *)rcloned.data.data, rt->data.data, rcloned.data.len); }
+                            parserutils_vector_append(*dst, &rcloned);
+                        }
+                        css__tokens_destroy(rf);
+                    } else { css__tokens_destroy(fb); css__tokens_destroy(*dst); return CSS_INVALID; }
+                    css__tokens_destroy(fb);
+                } else {
+                    /* Missing variable and no fallback: entire property is invalid per spec */
+                    css__tokens_destroy(*dst);
+                    return CSS_INVALID;
+                }
             }
             i = end_paren;
         } else {
@@ -1553,6 +1560,7 @@ css_error css_select_style(css_select_ctx *ctx, void *node, const css_unit_ctx *
     css_deferred_prop *dp = state.deferred.head;
     while (dp) {
         parserutils_vector *tokens, *resolved;
+        bool resolved_ok = false;
         if (deserialize_tokens(dp->serialized, &tokens) == CSS_OK) {
             if (css__resolve_var_tokens(&state, tokens, &resolved) == CSS_OK) {
                 css_style *resolved_style = NULL;
@@ -1563,11 +1571,21 @@ css_error css_select_style(css_select_ctx *ctx, void *node, const css_unit_ctx *
                     advance_bytecode(resolved_style, sizeof(uint32_t));
                     prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
                     css__stylesheet_style_destroy(resolved_style);
+                    resolved_ok = true;
                 }
                 css__tokens_destroy(resolved);
             }
             css__tokens_destroy(tokens);
         }
+
+        if (!resolved_ok) {
+            /* If resolution fails, property computes to its initial value (or inherits if applicable)
+             * per CSS Variables spec "Invalid at computed-value time" */
+            state.current_pseudo = dp->pseudo;
+            state.computed = state.results->styles[dp->pseudo];
+            prop_dispatch[dp->opcode].initial(&state);
+        }
+
         dp = dp->next;
     }
 
