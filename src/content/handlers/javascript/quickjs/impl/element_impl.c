@@ -12,6 +12,7 @@
 JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
@@ -28,6 +29,7 @@ JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!qualifiedName || !value) return JS_ThrowTypeError(ctx, "Argument is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
@@ -41,6 +43,7 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_element_remove_attribute((dom_element *)priv->node, name_dom);
@@ -51,6 +54,7 @@ JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, 
 JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_FALSE;
+    if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     bool result = false;

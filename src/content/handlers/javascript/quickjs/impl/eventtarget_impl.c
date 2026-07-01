@@ -29,6 +29,7 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     if (argc < 2) return JS_UNDEFINED;
 
     const char *type = JS_ToCString(ctx, argv[0]);
+    if (!type) return JS_EXCEPTION;
     dom_string *type_dom = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
 
@@ -47,6 +48,7 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
     if (argc < 2) return JS_UNDEFINED;
 
     const char *type = JS_ToCString(ctx, argv[0]);
+    if (!type) return JS_EXCEPTION;
     dom_string *type_dom = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
 

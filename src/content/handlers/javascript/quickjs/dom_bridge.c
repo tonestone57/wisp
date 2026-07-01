@@ -105,6 +105,10 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (map) {
         bridge_key_t key = { ctx, node };
+        JSValue *existing = hashmap_lookup(map, &key);
+        if (existing) {
+            JS_FreeValueRT(rt, *existing);
+        }
         hashmap_remove(map, &key);
     }
 }

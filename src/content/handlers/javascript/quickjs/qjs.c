@@ -82,6 +82,7 @@ void js_destroyheap(jsheap *heap)
     if (!heap) return;
     if (heap->rt) {
         qjs_bridge_cleanup(heap->rt);
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
         /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
