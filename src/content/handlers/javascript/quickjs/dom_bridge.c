@@ -149,11 +149,8 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         JS_SetRuntimeOpaque(rt, NULL);
 
         for (size_t i = 0; i < cleanup.count; i++) {
-            JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
-            if (val) {
-                /* Explicitly free the JSValue reference held by the map. */
-                JS_FreeValueRT(rt, *val);
-            }
+            /* Entries must be removed from map before unref to avoid re-entrant UAF.
+             * GC will handle JSValue cleanup; we only unref the DOM node. */
             hashmap_remove(map, &cleanup.keys[i]);
             dom_node_unref(cleanup.keys[i].node);
         }
@@ -202,13 +199,9 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
 
     for (size_t i = 0; i < cleanup.count; i++) {
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
-        JSValue *val = hashmap_lookup(map, &key);
-        if (val) {
-            /* Explicitly free the JSValue reference for this context. */
-            JS_FreeValue(ctx, *val);
-            /* Remove it from the map manually since we disabled qjs_bridge_remove_node. */
-            hashmap_remove(map, &key);
-        }
+        /* Entries must be removed from map before unref to avoid re-entrant UAF.
+         * GC will handle JSValue cleanup; we only unref the DOM node. */
+        hashmap_remove(map, &key);
         dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
