@@ -39,6 +39,7 @@ extern "C" {
 #include "utils/nsurl.h"
 #include "utils/utf8.h"
 #include "utils/utils.h"
+#include "wisp/browser.h"
 #include "wisp/browser_window.h"
 #include "wisp/clipboard.h"
 #include "wisp/content_type.h"
@@ -573,8 +574,6 @@ void nsbeos_dispatch_event(BMessage *message)
     delete message;
 }
 
-#define TILE_SIZE 256
-
 void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 {
     BRect updateRect;
@@ -599,24 +598,25 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (view->Window())
         view->Window()->BeginViewTransaction();
 
-    /* Fixed-Tile Redraw Implementation (256x256 tiles) */
+    /* Fixed-Tile Redraw Implementation */
+    int tile_size = browser_get_tile_size();
     int rect_left = (int)updateRect.left;
     int rect_top = (int)updateRect.top;
     int rect_right = (int)updateRect.right + 1;
     int rect_bottom = (int)updateRect.bottom + 1;
 
-    int x_start = rect_left & ~(TILE_SIZE - 1);
-    int y_start = rect_top & ~(TILE_SIZE - 1);
+    int x_start = rect_left - (rect_left % tile_size);
+    int y_start = rect_top - (rect_top % tile_size);
 
-    for (int ty = y_start; ty < rect_bottom; ty += TILE_SIZE) {
-        int t_y0 = MAX(ty, rect_top);
-        int t_y1 = MIN(ty + TILE_SIZE, rect_bottom);
+    for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
+        int t_y0 = (ty > rect_top) ? ty : rect_top;
+        int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
 
-        for (int tx = x_start; tx < rect_right; tx += TILE_SIZE) {
+        for (int tx = x_start; tx < rect_right; tx += tile_size) {
             struct rect tile_clip;
-            tile_clip.x0 = MAX(tx, rect_left);
+            tile_clip.x0 = (tx > rect_left) ? tx : rect_left;
             tile_clip.y0 = t_y0;
-            tile_clip.x1 = MIN(tx + TILE_SIZE, rect_right);
+            tile_clip.x1 = (tx + tile_size < rect_right) ? tx + tile_size : rect_right;
             tile_clip.y1 = t_y1;
 
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)

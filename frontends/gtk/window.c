@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wisp/browser.h>
 #include <wisp/browser_window.h>
 #include <wisp/content.h>
 #include <wisp/desktop/searchweb.h>
@@ -157,7 +158,6 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
 {
     struct gui_window *gw = data;
     struct gui_window *z;
-    struct rect clip;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &nsgtk_plotters};
 
     double x1;
@@ -180,12 +180,40 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
 
     cairo_clip_extents(cr, &x1, &y1, &x2, &y2);
 
-    clip.x0 = x1;
-    clip.y0 = y1;
-    clip.x1 = x2;
-    clip.y1 = y2;
+    /* Fixed-Tile Redraw Implementation */
+    int tile_size = browser_get_tile_size();
+    int rect_left = (int)x1;
+    int rect_top = (int)y1;
+    int rect_right = (int)x2;
+    int rect_bottom = (int)y2;
 
-    browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll), &clip, &ctx);
+    int x_start = rect_left - (rect_left % tile_size);
+    int y_start = rect_top - (rect_top % tile_size);
+
+    for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
+        int t_y0 = (ty > rect_top) ? ty : rect_top;
+        int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
+
+        for (int tx = x_start; tx < rect_right; tx += tile_size) {
+            struct rect tile_clip;
+            tile_clip.x0 = (tx > rect_left) ? tx : rect_left;
+            tile_clip.y0 = t_y0;
+            tile_clip.x1 = (tx + tile_size < rect_right) ? tx + tile_size : rect_right;
+            tile_clip.y1 = t_y1;
+
+            if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
+                continue;
+
+            cairo_save(cr);
+            cairo_rectangle(cr, tile_clip.x0, tile_clip.y0,
+                            tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
+            cairo_clip(cr);
+
+            browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll), &tile_clip, &ctx);
+
+            cairo_restore(cr);
+        }
+    }
 
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);
@@ -200,7 +228,6 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, GdkEventExpose *event
 {
     struct gui_window *gw = data;
     struct gui_window *z;
-    struct rect clip;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &nsgtk_plotters};
 
     assert(gw);
@@ -213,12 +240,40 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, GdkEventExpose *event
 
     current_cr = gdk_cairo_create(nsgtk_layout_get_bin_window(gw->layout));
 
-    clip.x0 = event->area.x;
-    clip.y0 = event->area.y;
-    clip.x1 = event->area.x + event->area.width;
-    clip.y1 = event->area.y + event->area.height;
+    /* Fixed-Tile Redraw Implementation */
+    int tile_size = browser_get_tile_size();
+    int rect_left = event->area.x;
+    int rect_top = event->area.y;
+    int rect_right = event->area.x + event->area.width;
+    int rect_bottom = event->area.y + event->area.height;
 
-    browser_window_redraw(gw->bw, 0, 0, &clip, &ctx);
+    int x_start = rect_left - (rect_left % tile_size);
+    int y_start = rect_top - (rect_top % tile_size);
+
+    for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
+        int t_y0 = (ty > rect_top) ? ty : rect_top;
+        int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
+
+        for (int tx = x_start; tx < rect_right; tx += tile_size) {
+            struct rect tile_clip;
+            tile_clip.x0 = (tx > rect_left) ? tx : rect_left;
+            tile_clip.y0 = t_y0;
+            tile_clip.x1 = (tx + tile_size < rect_right) ? tx + tile_size : rect_right;
+            tile_clip.y1 = t_y1;
+
+            if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
+                continue;
+
+            cairo_save(current_cr);
+            cairo_rectangle(current_cr, tile_clip.x0, tile_clip.y0,
+                            tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
+            cairo_clip(current_cr);
+
+            browser_window_redraw(gw->bw, 0, 0, &tile_clip, &ctx);
+
+            cairo_restore(current_cr);
+        }
+    }
 
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);

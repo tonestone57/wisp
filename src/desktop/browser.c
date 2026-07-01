@@ -46,3 +46,13 @@ int browser_get_dpi(void)
 {
     return FIXTOINT(nscss_screen_dpi);
 }
+
+/* exported interface documented in netsurf/browser.h */
+int browser_get_tile_size(void)
+{
+    /* Scale-aware fixed tiles (256x256 for i586/retro, 512x512 for High-DPI). */
+    if (browser_get_dpi() > 144) {
+        return 512;
+    }
+    return 256;
+}

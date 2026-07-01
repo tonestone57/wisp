@@ -1787,8 +1787,8 @@ static void layout_block_find_dimensions(
 
 	int prev_width = box->width;
 
-	if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width && !(box->flags & DIRTY_INTRINSIC) &&
-		!(box->flags & CHILD_DIRTY)) {
+	if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width &&
+		!(box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(box->flags & CHILD_DIRTY)) {
 		return;
 	}
 
