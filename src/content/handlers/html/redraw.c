@@ -784,7 +784,7 @@ static bool html_redraw_linear_gradient(
     free(stops);
     return true;
 
-#else /* !NEOSURF_USE_NATIVE_GRADIENTS */
+#else /* !WISP_USE_NATIVE_GRADIENTS */
     /* Fallback: strip-based rendering */
     NSLOG(plot, DEBUG, "Linear gradient: Using FALLBACK strip-based rendering");
     bool is_vertical = (gradient->direction == CSS_GRADIENT_TO_BOTTOM || gradient->direction == CSS_GRADIENT_TO_TOP);
@@ -854,7 +854,7 @@ static bool html_redraw_linear_gradient(
     }
 
     return true;
-#endif /* NEOSURF_USE_NATIVE_GRADIENTS */
+#endif /* WISP_USE_NATIVE_GRADIENTS */
 }
 
 /**
@@ -924,7 +924,7 @@ static bool html_redraw_radial_gradient(
         }
         /* Native failed, fall through to disc rendering */
     }
-#endif /* NEOSURF_USE_NATIVE_RADIAL_GRADIENTS */
+#endif /* WISP_USE_NATIVE_RADIAL_GRADIENTS */
 
     /* Fallback: Draw gradient using concentric ellipses from outside to inside */
     int max_dim = (width > height) ? width : height;

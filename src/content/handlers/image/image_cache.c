@@ -338,40 +338,6 @@ static void image_cache__clean(struct image_cache_s *icache)
     }
 }
 
-void image_cache_purge_bitmaps(void)
-{
-    struct image_cache_entry_s *centry;
-    if (image_cache == NULL) {
-        return;
-    }
-    centry = image_cache->entries;
-    while (centry != NULL) {
-        pthread_mutex_lock(&centry->lock);
-        if (!centry->decoding) {
-            image_cache__free_bitmap(centry);
-        }
-        pthread_mutex_unlock(&centry->lock);
-        centry = centry->next;
-    }
-}
-
-void image_cache_invalidate_bitmaps(void)
-{
-    struct image_cache_entry_s *centry;
-    if (image_cache == NULL) {
-        return;
-    }
-    centry = image_cache->entries;
-    while (centry != NULL) {
-        pthread_mutex_lock(&centry->lock);
-        if (!centry->decoding && centry->bitmap != NULL) {
-            guit->bitmap->modified(centry->bitmap);
-        }
-        pthread_mutex_unlock(&centry->lock);
-        centry = centry->next;
-    }
-}
-
 /**
  * Cache background scheduled callback.
  *
@@ -624,6 +590,23 @@ nserror image_cache_fini(void)
     free(image_cache);
 
     return NSERROR_OK;
+}
+
+void image_cache_purge_bitmaps(void)
+{
+    struct image_cache_entry_s *centry;
+    if (image_cache == NULL) {
+        return;
+    }
+    centry = image_cache->entries;
+    while (centry != NULL) {
+        pthread_mutex_lock(&centry->lock);
+        if (!centry->decoding) {
+            image_cache__free_bitmap(centry);
+        }
+        pthread_mutex_unlock(&centry->lock);
+        centry = centry->next;
+    }
 }
 
 /* exported interface documented in image_cache.h */
@@ -957,4 +940,21 @@ bool image_cache_is_opaque(struct content *c)
 content_type image_cache_content_type(void)
 {
     return CONTENT_IMAGE;
+}
+
+void image_cache_invalidate_bitmaps(void)
+{
+    struct image_cache_entry_s *centry;
+    if (image_cache == NULL) {
+        return;
+    }
+    centry = image_cache->entries;
+    while (centry != NULL) {
+        pthread_mutex_lock(&centry->lock);
+        if (!centry->decoding && centry->bitmap != NULL) {
+            guit->bitmap->modified(centry->bitmap);
+        }
+        pthread_mutex_unlock(&centry->lock);
+        centry = centry->next;
+    }
 }

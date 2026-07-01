@@ -20,6 +20,7 @@ extern "C" void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd) {
     RECT rc;
 
     rt->BeginDraw();
+    rt->Clear(D2D1::ColorF(D2D1::ColorF::White));
 
     nsws_d2d_set_rt(rt, gw);
     struct redraw_context ctx = {

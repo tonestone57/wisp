@@ -34,6 +34,7 @@ extern "C" {
 static D2D1_RECT_F d2d_clip_override;
 static ID2D1RenderTarget *d2d_rt_override = NULL;
 static struct gui_window *d2d_gw_override = NULL;
+static bool d2d_clip_override_pushed = false;
 
 /**
  * Convert Wisp colour (XBGR) and opacity to D2D1_COLOR_F
@@ -64,7 +65,14 @@ static nserror clip(const struct redraw_context *ctx, const struct rect *clip) {
         rt->PushAxisAlignedClip(D2D_CLIP, D2D1_ANTIALIAS_MODE_ALIASED);
         GW->d2d_clip_pushed = true;
     } else {
+        /* Non-window contexts (e.g. thumbnails) use global overrides.
+         * These are single-primitive contexts and don't benefit from persistent clipping. */
+        if (d2d_clip_override_pushed) {
+            rt->PopAxisAlignedClip();
+        }
         d2d_clip_override = D2D1::RectF((float)clip->x0, (float)clip->y0, (float)clip->x1 + 1, (float)clip->y1 + 1);
+        rt->PushAxisAlignedClip(d2d_clip_override, D2D1_ANTIALIAS_MODE_ALIASED);
+        d2d_clip_override_pushed = true;
     }
     return NSERROR_OK;
 }
@@ -396,19 +404,21 @@ static nserror linear_gradient(const struct redraw_context *ctx, const float *pa
         if (SUCCEEDED(rt->CreateLinearGradientBrush(D2D1::LinearGradientBrushProperties(D2D1::Point2F(x0, y0), D2D1::Point2F(x1, y1)), stop_collection, &brush))) {
             ID2D1PathGeometry *geometry = (path_data && path_len > 0) ? create_geometry_from_raw(rt, path_data, path_len) : NULL;
 
+            D2D1_MATRIX_3X2_F old_transform;
+            rt->GetTransform(&old_transform);
+            if (transform) {
+                D2D1_MATRIX_3X2_F d2d_transform = D2D1::Matrix3x2F(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+                rt->SetTransform(d2d_transform * old_transform);
+            }
+
             if (geometry) {
-                D2D1_MATRIX_3X2_F old_transform;
-                rt->GetTransform(&old_transform);
-                if (transform) {
-                    D2D1_MATRIX_3X2_F d2d_transform = D2D1::Matrix3x2F(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-                    rt->SetTransform(d2d_transform * old_transform);
-                }
                 rt->FillGeometry(geometry, brush);
-                rt->SetTransform(old_transform);
                 geometry->Release();
             } else {
                 rt->FillRectangle(D2D_CLIP, brush);
             }
+
+            if (transform) rt->SetTransform(old_transform);
             brush->Release();
         }
         stop_collection->Release();
@@ -427,19 +437,21 @@ static nserror radial_gradient(const struct redraw_context *ctx, const float *pa
         if (SUCCEEDED(rt->CreateRadialGradientBrush(D2D1::RadialGradientBrushProperties(D2D1::Point2F(cx, cy), D2D1::Point2F(0, 0), rx, ry), stop_collection, &brush))) {
             ID2D1PathGeometry *geometry = (path_data && path_len > 0) ? create_geometry_from_raw(rt, path_data, path_len) : NULL;
 
+            D2D1_MATRIX_3X2_F old_transform;
+            rt->GetTransform(&old_transform);
+            if (transform) {
+                D2D1_MATRIX_3X2_F d2d_transform = D2D1::Matrix3x2F(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+                rt->SetTransform(d2d_transform * old_transform);
+            }
+
             if (geometry) {
-                D2D1_MATRIX_3X2_F old_transform;
-                rt->GetTransform(&old_transform);
-                if (transform) {
-                    D2D1_MATRIX_3X2_F d2d_transform = D2D1::Matrix3x2F(transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
-                    rt->SetTransform(d2d_transform * old_transform);
-                }
                 rt->FillGeometry(geometry, brush);
-                rt->SetTransform(old_transform);
                 geometry->Release();
             } else {
-                rt->FillEllipse(D2D1::Ellipse(D2D1::Point2F(cx, cy), rx, ry), brush);
+                rt->FillRectangle(D2D_CLIP, brush);
             }
+
+            if (transform) rt->SetTransform(old_transform);
             brush->Release();
         }
         stop_collection->Release();
@@ -509,9 +521,19 @@ extern "C" void nsws_d2d_set_rt(ID2D1RenderTarget *rt, struct gui_window *gw) {
 static nserror finalise(void) {
     ID2D1RenderTarget *rt = d2d_rt_override;
     struct gui_window *gw = d2d_gw_override;
-    if (gw && rt && gw->d2d_clip_pushed) {
-        rt->PopAxisAlignedClip();
-        gw->d2d_clip_pushed = false;
+    if (rt) {
+        if (gw) {
+            if (gw->d2d_clip_pushed) {
+                rt->PopAxisAlignedClip();
+                gw->d2d_clip_pushed = false;
+            }
+        } else {
+            /* Clean up override-based clip from non-window contexts */
+            if (d2d_clip_override_pushed) {
+                rt->PopAxisAlignedClip();
+                d2d_clip_override_pushed = false;
+            }
+        }
     }
     return NSERROR_OK;
 }

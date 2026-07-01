@@ -1041,13 +1041,13 @@ svgtiny_code svgtiny_gradient_add_path(float *p, unsigned int n, struct svgtiny_
 
     return svgtiny_OK;
 
-#else /* !NEOSURF_USE_NATIVE_GRADIENTS */
+#else /* !WISP_USE_NATIVE_GRADIENTS */
     /*
      * TRIANGLE FALLBACK PATH: Generate triangle/line shapes.
      * No native plotter needed - shapes are rendered directly.
      */
     return svgtiny_gradient_add_path_triangles(p, n, state, has_fill_gradient, has_stroke_gradient);
-#endif /* NEOSURF_USE_NATIVE_GRADIENTS */
+#endif /* WISP_USE_NATIVE_GRADIENTS */
 }
 
 
@@ -1141,4 +1141,4 @@ static svgtiny_code svgtiny_gradient_add_path_triangles(
 
     return res;
 }
-#endif /* !NEOSURF_USE_NATIVE_GRADIENTS */
+#endif /* !WISP_USE_NATIVE_GRADIENTS */
