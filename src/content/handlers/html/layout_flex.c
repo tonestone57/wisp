@@ -1625,8 +1625,8 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 						}
 					}
 					b->height = content_bottom;
-					NSLOG(
-						flex, DEEPDEBUG, "ITEM[%zu]: computed height %d from children per CSS spec §9.4.7", i, b->height);
+					NSLOG(flex, DEEPDEBUG,
+						"ITEM[%zu]: computed height %d from children per CSS spec §9.4.7", i, b->height);
 				}
 			}
 		}
@@ -1660,8 +1660,8 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 			int box_size_cross = lh__box_size_cross(ctx->horizontal, b);
 
 			main_pos += post_multiplier * (extra_total + box_size_main + lh__delta_outer_main(ctx->flex, b));
-			NSLOG(
-				flex, DEEPDEBUG, "ITEM[%zu]: after post_mult main_pos=%d (post_mult=%d)", i, main_pos, post_multiplier);
+			NSLOG(flex, DEEPDEBUG,
+				"ITEM[%zu]: after post_mult main_pos=%d (post_mult=%d)", i, main_pos, post_multiplier);
 
 			/* DIAG: Log detailed child contribution for column flex debugging */
 			if (!ctx->horizontal) {
@@ -1696,8 +1696,8 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 
 			/* Add CSS gap property spacing between items (not after the last item) */
 			if (i < item_count - 1 && ctx->main_gap > 0) {
-				NSLOG(
-					flex, DEEPDEBUG, "ITEM[%zu]: ADDING CSS GAP main_pos_before=%d gap=%d", i, main_pos, ctx->main_gap);
+				NSLOG(flex, DEEPDEBUG,
+					"ITEM[%zu]: ADDING CSS GAP main_pos_before=%d gap=%d", i, main_pos, ctx->main_gap);
 				main_pos += (!ctx->main_reversed ? 1 : -1) * ctx->main_gap;
 				NSLOG(flex, DEEPDEBUG, "ITEM[%zu]: ADDING CSS GAP main_pos_after=%d", i, main_pos);
 			}

@@ -15,7 +15,7 @@ The system is divided into two layers:
 - `src/content/handlers/javascript/WebIDL/`: Source `.idl` files.
 - `utils/qjs_binding_generator.py`: The binding compiler.
 - `build/quickjs/`: (Generated) Marshaller code (`JSNode.gen.c`, `JSNode.gen.h`, etc.).
-- `src/content/handlers/javascript/quickjs/impl/`: Manual implementations (`node_impl.c`, `element_impl.c`, etc.).
+- `src/content/handlers/javascript/quickjs/impl/`: Manual implementations (`node_impl.c`, `mutationobserver_impl.c`, etc.).
 
 ## Adding or Modifying Bindings
 

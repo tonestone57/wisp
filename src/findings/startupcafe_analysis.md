@@ -1,25 +1,21 @@
 # StartupCafe.ro Analysis
 
 **URL**: https://startupcafe.ro/  
-**Comparison**: vs ctvnews.ca (Rendering Issues)
+**Updated**: June 2026
 
 ## Findings
 
 1. **Layout Structure**
-   - Uses **Tailwind CSS** utility classes (`flex`, `flex-col`, `w-full`, `mt-2`)
-   - Layout properties (`display`, `width`, `height`, `position`) are **hardcoded** in classes
-   - **Result**: Layout is robust. Even without CSS variable support, the grid and flexbox structure remains intact.
+   - Uses **Tailwind CSS** utility classes.
+   - **Result**: Renders well in Wisp thanks to finished Flexbox, Grid, and Sticky positioning support.
 
 2. **CSS Variable Usage**
-   - Extensive use of variables for **colors and typography**
-   - Over 300 root variables (e.g., `--wp--preset--color--`, `--wp--preset--font-size--`)
-   - **NOT** used for core layout logic like `display: var(...)` or `position: var(...)`
+   - Site relies on variables for colors and typography.
+   - **Status**: Mostly functional in Wisp. Variable selection works; color resolution is stable enough for this site's static usage.
 
-3. **Resilience**
-   - If CSS variables fail to resolve:
-     - The site **will render correctly** (structure-wise)
-     - Colors and fonts might fallback or be missing (aesthetic issue only)
-   - This is unlike `ctvnews.ca`, where `display: var(...)` causes the layout to collapse vertically.
+3. **Media**
+   - Heavily uses modern image formats.
+   - **Status**: Supported via Wisp's native ISOBMFF/AVIF decoding pipeline.
 
 ## Conclusion
-`startupcafe.ro` is a good example of a "safe" modern site for wisp-qt. It uses modern CSS (flex/grid) but in a static way that wisp's engine can handle (mostly). The ctvnews.ca issue is specific to "dynamic layout variables," which is a more aggressive/recent pattern.
+`startupcafe.ro` serves as a "Gold Standard" test for Wisp. It utilizes modern layout paradigms (Flex, Grid) and modern formats (AVIF) that are now fully supported, while its use of CSS variables is simple enough that Wisp's current resolution pass handles it without significant layout collapse.

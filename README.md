@@ -10,25 +10,27 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ![GNU.org](img/wisp_gnu.png?raw=true "GNU.org")
 
 ## Development
-Current development is focused on completing the CSS Variables implementation, and refining the Incremental Layout engine. The project has unified its rendering backbone around **Blend2D** for pixel-perfect consistency across all platforms and is transitioning to a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
+Current development is focused on completing the CSS Variables implementation and refining the Incremental Layout engine. The project has unified its rendering backbone around **Blend2D** for pixel-perfect consistency and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
 ### Core Features Status (June 2026)
 *   **[Finished] Unified Rendering (Blend2D)**: Blend2D is the primary rendering engine across all frontends, ensuring massive code deduplication and industry-leading software rasterization.
-*   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 tile strategy implemented to optimize performance and cache locality.
+*   **[Finished] Native Direct2D & DirectWrite (Windows)**: Hardware-accelerated rendering pipeline for modern Windows systems, integrated with the core.
+*   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 or 512x512 tile strategy implemented to optimize performance and cache locality.
 *   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and the fixed-tile redraw strategy.
 *   **[Finished] IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks.
 *   **[Finished] A/V Master Clock**: Synchronized audio and video tracks in the FFmpeg-based media pipeline.
 *   **[Finished] SIMD-Aligned Arena**: The arena allocator enforces 64-byte alignment for AVX-512 and SIMD optimizations.
 *   **[Finished] Position: Sticky**: Full support for multi-axis sticky positioning with scroll-container constraints.
-*   **[Finished] Stateful Vector Path API**: Efficient path rendering (MoveTo, LineTo, BezierTo) across all modern frontends.
+*   **[Finished] Stateful Vector Path API**: Efficient path rendering (MoveTo, LineTo, BezierTo) across all modern frontends (GDI, Direct2D, Cairo, Blend2D).
 *   **[Finished] ISOBMFF & AVIF**: Native support for AVIF, HEIC, and HEIF formats via linked submodules.
 *   **[Finished] QuickJS-ng Integration**: Migration to QuickJS-ng (v0.15.1) for ES2023+ support.
+*   **[Finished] Nested CSS Counters**: Full support for nested counter scoping and inheritance in `box_construct.c`.
+*   **[Finished] Tab-Size Support**: Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
+*   **[Finished] LibCSS Test Runner Fixes**: Resolved long-standing syntax and format issues in the `parse-auto` runner.
 *   **[Partial] CSS Grid**: Robust 3-phase auto-placement and FR unit distribution; dense packing refinements ongoing.
 *   **[Partial] CSS Flexbox**: Support for flex-grow, shrink, auto-margins, and column-flex two-pass resolution.
 *   **[Partial] Incremental Layout**: Dual-pass dirty-bit system active. Refinement of child-clipping in tiled redraw in progress.
 *   **[Partial] CSS Variables**: Parsing and selection of `var()` complete; resolution pass is active with minor regressions.
-*   **[Finished] Nested CSS Counters**: Full support for nested counter scoping and inheritance in `box_construct.c`.
-*   **[Finished] Tab-Size Support**: Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
@@ -38,6 +40,7 @@ Current development is focused on completing the CSS Variables implementation, a
 * Simplified frontend development
 * **Modern CSS Features**: Native support for CSS Grid, Flexbox, `calc()`, and `position: sticky`.
 * **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support. Automated WebIDL binding generation ensures rapid coverage of modern DOM APIs.
+* **Windows Frontend Migration**: Core window and bitmap management migrated to C++ to leverage COM and modern STL containers.
 * **Tiled Incremental Layout**: High-performance "dirty-bit" based reflow system with a **Fixed-Tile Redraw** strategy to minimize CPU cycles and overdraw.
 * **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 

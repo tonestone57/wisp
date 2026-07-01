@@ -91,7 +91,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSValue *val_ptr = hashmap_insert(map, &key);
     if (val_ptr) {
-        *val_ptr = wrapper; /* Map stores a strong reference */
+        /* Map stores a strong reference. We must increment the refcount
+         * because qjs_new_* returned a reference that we are now returning
+         * to the caller, and the map needs its own reference. */
+        *val_ptr = JS_DupValue(ctx, wrapper);
     }
 
     return wrapper;
@@ -143,19 +146,17 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         bridge_full_cleanup_t cleanup = { .rt = rt, .keys = NULL, .count = 0, .capacity = 0 };
         hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
 
-        /* Set opaque to NULL BEFORE freeing values.
-         * This prevents re-entrant calls from finalizers to qjs_bridge_remove_node
-         * from accessing the map while we're destroying it. */
-        JS_SetRuntimeOpaque(rt, NULL);
-
         for (size_t i = 0; i < cleanup.count; i++) {
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
-                /* Explicitly free the JSValue reference held by the map. */
-                JS_FreeValueRT(rt, *val);
+                JSValue v = *val;
+                /* Remove it from the map BEFORE freeing to prevent re-entrant use-after-free
+                 * if JS_FreeValueRT triggers a finalizer that calls qjs_bridge_remove_node. */
+                hashmap_remove(map, &cleanup.keys[i]);
+                JS_FreeValueRT(rt, v);
+                /* unref only if we were the ones to remove it from the map */
+                dom_node_unref(cleanup.keys[i].node);
             }
-            hashmap_remove(map, &cleanup.keys[i]);
-            dom_node_unref(cleanup.keys[i].node);
         }
         free(cleanup.keys);
         hashmap_destroy(map);
@@ -195,24 +196,18 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
     bridge_cleanup_t cleanup = { .ctx = ctx, .nodes = NULL, .count = 0, .capacity = 0 };
     hashmap_iterate(map, bridge_cleanup_ctx_cb, &cleanup);
 
-    /* TEMPORARILY set opaque to NULL during context cleanup.
-     * Re-entrant calls from finalizers to qjs_bridge_remove_node
-     * will see NULL and skip map modification. */
-    JS_SetRuntimeOpaque(rt, NULL);
-
     for (size_t i = 0; i < cleanup.count; i++) {
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
-            /* Explicitly free the JSValue reference for this context. */
-            JS_FreeValue(ctx, *val);
-            /* Remove it from the map manually since we disabled qjs_bridge_remove_node. */
+            JSValue v = *val;
+            /* Remove it from the map BEFORE freeing to prevent re-entrant use-after-free
+             * if JS_FreeValue triggers a finalizer that calls qjs_bridge_remove_node. */
             hashmap_remove(map, &key);
+            JS_FreeValue(ctx, v);
+            /* unref only if we were the ones to remove it from the map */
+            dom_node_unref(cleanup.nodes[i]);
         }
-        dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
-
-    /* Restore map for other contexts sharing the same runtime. */
-    JS_SetRuntimeOpaque(rt, map);
 }
