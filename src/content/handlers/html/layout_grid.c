@@ -128,7 +128,7 @@ static grid_placement_phase_t get_placement_phase(int col_start, int row_start)
  */
 static bool ensure_array_capacity(int **array, int *capacity, int required_index)
 {
-	if (required_index < *capacity) {
+	if (*array != NULL && required_index < *capacity) {
 		return true; /* Already have capacity */
 	}
 
@@ -179,7 +179,7 @@ static bool ensure_col_capacity(int **col_widths, int *capacity, int required_co
  */
 static bool ensure_occupied_capacity(bool **occupied, int *current_rows, int *current_cols, int required_rows, int required_cols)
 {
-	if (required_rows <= *current_rows && required_cols <= *current_cols) {
+	if (*occupied != NULL && required_rows <= *current_rows && required_cols <= *current_cols) {
 		return true;
 	}
 
@@ -949,8 +949,11 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			/* else row_span defaults to 1 from get_grid_item_placement */
 
 			/* Clamp span to grid bounds */
-			if (col_span > num_cols) {
+			if (!flow_is_column && col_span > num_cols) {
 				col_span = num_cols;
+			}
+			if (flow_is_column && row_span > num_rows) {
+				row_span = num_rows;
 			}
 			if (col_span < 1) {
 				col_span = 1;
