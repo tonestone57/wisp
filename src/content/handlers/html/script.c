@@ -44,6 +44,7 @@
 
 #include <wisp/content/handlers/html/html.h>
 #include <wisp/content/handlers/html/private.h>
+#include <wisp/content/csp.h>
 
 #include <nsutils/time.h>
 
