@@ -509,6 +509,7 @@ START_TEST(test_quickjs_console_log)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_console_cleanup(ctx);
     JS_FreeContext(ctx);
     qjs_bridge_cleanup(rt);
     JS_RunGC(rt);
@@ -536,6 +537,7 @@ START_TEST(test_quickjs_console_error)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_console_cleanup(ctx);
     JS_FreeContext(ctx);
     qjs_bridge_cleanup(rt);
     JS_RunGC(rt);
@@ -563,6 +565,7 @@ START_TEST(test_quickjs_console_warn)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_console_cleanup(ctx);
     JS_FreeContext(ctx);
     qjs_bridge_cleanup(rt);
     JS_RunGC(rt);
@@ -590,6 +593,7 @@ START_TEST(test_quickjs_console_multiple_args)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_console_cleanup(ctx);
     JS_FreeContext(ctx);
     qjs_bridge_cleanup(rt);
     JS_RunGC(rt);
@@ -619,6 +623,7 @@ START_TEST(test_quickjs_console_group)
     ck_assert(!JS_IsException(result));
 
     JS_FreeValue(ctx, result);
+    qjs_console_cleanup(ctx);
     JS_FreeContext(ctx);
     qjs_bridge_cleanup(rt);
     JS_RunGC(rt);
