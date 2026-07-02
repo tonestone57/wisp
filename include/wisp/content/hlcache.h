@@ -33,10 +33,13 @@
 /** High-level cache handle */
 typedef struct hlcache_handle hlcache_handle;
 
+struct csp;
+
 /** Context for retrieving a child object */
 typedef struct hlcache_child_context {
     const char *charset; /**< Charset of parent */
     bool quirks; /**< Whether parent is quirky */
+    struct csp *csp; /**< Content Security Policy of parent */
 } hlcache_child_context;
 
 /** High-level cache event */

@@ -53,6 +53,7 @@
 #include "utils/arena.h"
 #include "utils/talloc.h"
 #include "content/content_factory.h"
+#include <wisp/content/csp.h>
 #include "content/handlers/javascript/js.h"
 #include "content/textsearch.h"
 #include "desktop/scrollbar.h"
@@ -607,6 +608,7 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->forms = NULL;
 	c->imagemaps = NULL;
 	c->svg_symbols = NULL;
+	c->csp = NULL;
 	c->bw = NULL;
 	c->frameset = NULL;
 	c->iframe = NULL;
@@ -695,6 +697,12 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	}
 
 	NSLOG(wisp, DEBUG, "<<< html_create_html_data SUCCESS, parser=%p for content %p", c->parser, c);
+
+	/* Extract and parse Content-Security-Policy header */
+	const char *csp_header = llcache_handle_get_header(c->base.llcache, "Content-Security-Policy");
+	if (csp_header != NULL) {
+		csp_parse(csp_header, c->base_url, &c->csp);
+	}
 
 	err = dom_node_set_user_data(c->document, corestring_dom___ns_key_html_content_data, c,
 		html_document_user_data_handler, (void *)&old_node_data);
@@ -1629,6 +1637,11 @@ static void html_destroy(struct content *c)
 	if (html->select_ctx != NULL) {
 		css_select_ctx_destroy(html->select_ctx);
 		html->select_ctx = NULL;
+	}
+
+	if (html->csp != NULL) {
+		csp_destroy(html->csp);
+		html->csp = NULL;
 	}
 
 	if (html->universal != NULL) {

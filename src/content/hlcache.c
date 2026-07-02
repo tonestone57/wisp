@@ -37,6 +37,7 @@
 
 #include <wisp/content/hlcache.h>
 #include <wisp/content/llcache.h>
+#include <wisp/content/csp.h>
 #include "content/mimesniff.h"
 // Note, this is *ONLY* so that we can abort cleanly during shutdown of the
 // cache
@@ -610,7 +611,6 @@ void hlcache_finalise(void)
     NSLOG(wisp, INFO, "%" PRIu32 " contents remaining:", num_contents);
     for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
         hlcache_handle entry_handle = {entry, NULL, NULL};
-
         if (entry->content != NULL) {
             NSLOG(wisp, INFO, "	%p : %s (%" PRIu32 " users)", entry,
                 nsurl_access(hlcache_handle_get_url(&entry_handle)), content_count_users(entry->content));
@@ -665,12 +665,26 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 
     assert(cb != NULL);
 
+    /* Check against Content Security Policy */
+    if (child != NULL && child->csp != NULL) {
+        csp_directive dir = CSP_DEFAULT_SRC;
+
+        if (accepted_types == CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
+        else if (accepted_types == CONTENT_IMAGE) dir = CSP_IMG_SRC;
+        else if (accepted_types == CONTENT_CSS) dir = CSP_STYLE_SRC;
+        else if (accepted_types == CONTENT_HTML) dir = CSP_FRAME_SRC;
+
+        if (!csp_check_url(child->csp, dir, url)) {
+            *result = NULL;
+            return NSERROR_CSP_BLOCKED;
+        }
+    }
+
     /* Optimization: Check if content is already in hlcache */
     if (post == NULL && (flags & LLCACHE_RETRIEVE_FORCE_FETCH) == 0) {
         hlcache_entry *entry;
         for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
             hlcache_handle entry_handle = {entry, NULL, NULL};
-
             if (entry->content == NULL)
                 continue;
 
@@ -766,7 +780,6 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     new_ctx->accepted_types = accepted_types;
                     new_ctx->handle->cb = cb;
                     new_ctx->handle->pw = pw;
-
                     /* Share the low-level cache handle */
                     if (llcache_handle_clone(ictx->llcache, &new_ctx->llcache) != NSERROR_OK) {
                         free(new_ctx->handle);
@@ -1032,7 +1045,6 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     /* Check for existing content with the same URL (dedup) */
     for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
         hlcache_handle entry_handle = {entry, NULL, NULL};
-
         if (entry->content == NULL)
             continue;
 
@@ -1115,8 +1127,6 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     ctx->accepted_types = accepted_types;
     ctx->handle->cb = cb;
     ctx->handle->pw = pw;
-
-
     /* Create synthetic llcache entry with the raw data */
     error = llcache_handle_retrieve_buffer(url, data, len, mime_type, hlcache_llcache_callback, ctx, &ctx->llcache);
     nsurl_unref(url);

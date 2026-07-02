@@ -105,6 +105,8 @@ union html_focus_owner {
 
 #include <pthread.h>
 
+struct csp;
+
 /**
  * Data specific to CONTENT_HTML.
  */
@@ -112,6 +114,7 @@ typedef struct html_content {
     struct content base;
 
     pthread_mutex_t doc_mutex; /**< Protects dom_document mutation */
+    struct csp *csp; /**< Content Security Policy */
     dom_hubbub_parser *parser; /**< Parser object handle */
     bool parse_completed; /**< Whether the parse has been completed */
     bool conversion_begun; /**< Whether or not the conversion has begun */

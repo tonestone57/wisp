@@ -107,6 +107,20 @@ add_wisp_test(urlescape
   ${CMAKE_SOURCE_DIR}/src/test/urlescape.c
 )
 
+add_wisp_test(csp_test
+  ${CMAKE_SOURCE_DIR}/src/content/csp.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/test/test_csp.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsurl/parse.c
+  ${CMAKE_SOURCE_DIR}/src/utils/idna.c
+  ${CMAKE_SOURCE_DIR}/src/utils/punycode.c
+  ${CMAKE_SOURCE_DIR}/src/utils/utils.c
+  ${CMAKE_SOURCE_DIR}/src/utils/messages.c
+  ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
+  ${CMAKE_SOURCE_DIR}/src/utils/corestrings.c
+)
+
 # ============================================================================
 # Utility Tests
 # ============================================================================
