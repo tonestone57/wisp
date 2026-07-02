@@ -114,3 +114,46 @@ The following tasks are identified as high-priority for the next development cyc
     *   *Benefit*: Provides a critical layer of defense against Cross-Site Scripting (XSS) and data injection attacks.
 *   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD).
     *   *Benefit*: Rigorously isolates the browser from sensitive user data, providing maximum protection against zero-day exploits.
+
+---
+
+## 9. Architectural Refinement: Optimal Worker Pool Size
+The structural layout of the Wisp architecture shows a clever adaptation of NetSurf’s ultra-light base. Bridging modern CSS layout rules with high-performance software rasterization like Blend2D is a great approach for low-spec hardware. However, the threading and graphics pipeline model requires refinement.
+
+### The Core Problem with a Unified Fixed Pool
+Hardcoding or capping the background worker pool at **7 threads** introduces performance issues:
+1.  **Low-End Hardware Thrashing**: Spawning 7 threads on a legacy dual-core (e.g., Core 2 Duo) causes severe context-switching overhead and cache thrashing.
+2.  **High-End Hardware Starvation**: On modern 8-core or 16-core machines, capping at 7 leaves performance on the table.
+3.  **Resource Contention**: Since the `wisp_subsystem` handles both Parallel Tile Redraw (PTR) and background JavaScript tasks, a heavy script can stall rendering, causing UI stutter.
+
+### Recommended Sizing Architecture
+Decouple the pools into a dedicated Rasterization Pool and a separate JS Worker Pool, scaling dynamically based on logical core count (N).
+
+| Pool Type | Target System Power | Optimal Formula | Behavior |
+|---|---|---|---|
+| **Rasterization Pool** | Single-Core (N=1) | 0 (Synchronous) | Avoids threading overhead completely. |
+| | Multi-Core (N > 1) | P = N - 1 | Leaves 1 core for the Main UI thread and OS event loops. |
+| **JavaScript Worker Pool** | All Systems | P = min(4, N) | Bounded to ensure scripts never starve rasterization. |
+
+---
+
+## 10. High-Impact Structural Improvements
+
+### A. Tile Memory Recycling (Fixed-Buffer Pool)
+Dynamic allocation/freeing of tile backing stores triggers **heap fragmentation**, especially on legacy OS allocators.
+*   **The Fix**: Implement a thread-safe **Ring Buffer or Lookaside List** of fixed-size tile memory buffers. Worker threads checkout buffers, rasterize, and return them after the main thread executes the atomic blit.
+
+### B. Viewport-Prioritized Tile Scheduling
+A simple FIFO task queue can hurt perceived performance during heavy reflows if tiles at the bottom of the page are rendered before visible ones.
+*   **The Fix**: Implement a **Spatially Weighted Task Queue**. Assign every dirty tile task a priority multiplier based on its geometric distance from the viewport frustum.
+
+### C. Direct Render Passes for Haiku (BDirectWindow)
+Copying large memory blocks back to the main UI thread creates a bottleneck on older Haiku rigs.
+*   **The Fix**: Migrate the final compositor step to a `BDirectWindow`. This grants the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops.
+
+### D. IPC & Sandboxing Abstraction Layer
+Building a sandboxing model across modern and legacy architectures (Haiku, XP) requires a clean separation.
+*   **The Fix**: Isolate multi-process messaging behind a platform-agnostic IPC interface wrapper using native primitives:
+    *   **Windows XP/7**: Named Pipes with restricted SIDs.
+    *   **Linux / macOS**: Unix Domain Sockets (`socketpair`).
+    *   **Haiku**: Native OS `BMessage` ports.
