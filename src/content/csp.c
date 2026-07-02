@@ -69,13 +69,23 @@ static csp_source *parse_source(char *token) {
                 src->host = strndup(host_start, port_start - host_start);
                 src->port = atoi(port_start + 1);
             } else {
-                src->host = strdup(host_start);
+                char *slash = strchr(host_start, '/');
+                if (slash) {
+                    src->host = strndup(host_start, slash - host_start);
+                } else {
+                    src->host = strdup(host_start);
+                }
             }
         } else {
             src->scheme = strndup(token, colon - token);
         }
     } else {
-        src->host = strdup(token);
+        char *slash = strchr(token, '/');
+        if (slash) {
+            src->host = strndup(token, slash - token);
+        } else {
+            src->host = strdup(token);
+        }
     }
     return src;
 }

@@ -670,10 +670,10 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     if (child != NULL && child->csp != NULL) {
         csp_directive dir = CSP_DEFAULT_SRC;
 
-        if (accepted_types & CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
-        else if (accepted_types & CONTENT_IMAGE) dir = CSP_IMG_SRC;
-        else if (accepted_types & CONTENT_CSS) dir = CSP_STYLE_SRC;
-        else if (accepted_types & CONTENT_HTML) dir = CSP_FRAME_SRC;
+        if (accepted_types == CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
+        else if (accepted_types == CONTENT_IMAGE) dir = CSP_IMG_SRC;
+        else if (accepted_types == CONTENT_CSS) dir = CSP_STYLE_SRC;
+        else if (accepted_types == CONTENT_HTML) dir = CSP_FRAME_SRC;
 
         if (!csp_check_url(child->csp, dir, url)) {
             *result = NULL;
