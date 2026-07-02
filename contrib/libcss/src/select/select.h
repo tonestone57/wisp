@@ -26,6 +26,7 @@ typedef struct reject_item {
 
 typedef struct prop_state {
     uint32_t specificity; /* Specificity of property in result */
+    uint32_t rule_id;     /* Unique ID of winning rule encounter */
     unsigned int set : 1, /* Whether property is set in result */
         origin : 2, /* Origin of property in result */
         important : 1; /* Importance of property in result */
@@ -36,6 +37,9 @@ typedef struct css_deferred_prop {
     opcode_t opcode;
     uint8_t flags;
     css_pseudo_element pseudo;
+    uint32_t specificity;
+    uint32_t rule_id;
+    css_origin origin;
     lwc_string *serialized;
     struct css_deferred_prop *next;
 } css_deferred_prop;
@@ -110,6 +114,9 @@ typedef struct css_select_state {
     css_var_context *var_ctx;  /* Working variable context during selection */
 
     css_deferred_prop_list deferred;
+
+    uint32_t rule_count;       /* Counter for rules encountered */
+    uint32_t current_rule_id;  /* ID of rule currently being processed */
 
     prop_state props[CSS_N_PROPERTIES][CSS_PSEUDO_ELEMENT_COUNT];
 } css_select_state;

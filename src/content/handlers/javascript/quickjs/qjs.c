@@ -87,7 +87,9 @@ void js_destroyheap(jsheap *heap)
         JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
-        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix. */
+        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
+         * Explicitly free GC objects that might be pending after bridge cleanup. */
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -121,6 +123,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_xhr(t->ctx);
     qjs_init_mutationobserver(t->ctx);
     qjs_init_intersectionobserver(t->ctx);
+    qjs_init_console(t->ctx);
+    qjs_init_timers(t->ctx);
+    qjs_init_crypto(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
@@ -188,7 +193,7 @@ void js_destroythread(jsthread *thread)
         e = next;
     }
 
-    // Break MutationObserver cycles and orphan them
+    /* Break MutationObserver cycles and orphan them */
     struct WispMutationObserver *mo_list = (struct WispMutationObserver *)thread->mutation_observers;
     thread->mutation_observers = NULL;
     while (mo_list) {
@@ -200,7 +205,7 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, self);
     }
 
-    // Break IntersectionObserver cycles and orphan them
+    /* Break IntersectionObserver cycles and orphan them */
     struct WispIntersectionObserver *io_list = (struct WispIntersectionObserver *)thread->intersection_observers;
     thread->intersection_observers = NULL;
     while (io_list) {

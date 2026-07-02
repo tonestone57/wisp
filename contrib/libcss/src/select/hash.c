@@ -50,13 +50,13 @@ static css_error _insert_into_chain(css_selector_hash *ctx, hash_entry *head, co
 static css_error _remove_from_chain(css_selector_hash *ctx, hash_entry *head, const css_selector *selector);
 
 static css_error _iterate_elements(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next);
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next);
 static css_error _iterate_classes(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next);
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next);
 static css_error _iterate_ids(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next);
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next);
 static css_error _iterate_universal(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next);
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next);
 
 
 /* Get case insensitive hash value for a name.
@@ -304,7 +304,7 @@ css_error css__selector_hash_remove(css_selector_hash *hash, const css_selector 
  *
  * If nothing matches, CSS_OK will be returned and **matched == NULL
  */
-css_error css__selector_hash_find(css_selector_hash *hash, const struct css_hash_selection_requirments *req,
+css_error css__selector_hash_find(css_selector_hash *hash, const struct css_hash_selection_requirements *req,
     css_selector_hash_iterator *iterator, const css_selector ***matched)
 {
     uint32_t index, mask;
@@ -366,7 +366,7 @@ css_error css__selector_hash_find(css_selector_hash *hash, const struct css_hash
  *
  * If nothing matches, CSS_OK will be returned and **matched == NULL
  */
-css_error css__selector_hash_find_by_class(css_selector_hash *hash, const struct css_hash_selection_requirments *req,
+css_error css__selector_hash_find_by_class(css_selector_hash *hash, const struct css_hash_selection_requirements *req,
     css_selector_hash_iterator *iterator, const css_selector ***matched)
 {
     uint32_t index, mask;
@@ -433,7 +433,7 @@ css_error css__selector_hash_find_by_class(css_selector_hash *hash, const struct
  *
  * If nothing matches, CSS_OK will be returned and **matched == NULL
  */
-css_error css__selector_hash_find_by_id(css_selector_hash *hash, const struct css_hash_selection_requirments *req,
+css_error css__selector_hash_find_by_id(css_selector_hash *hash, const struct css_hash_selection_requirements *req,
     css_selector_hash_iterator *iterator, const css_selector ***matched)
 {
     uint32_t index, mask;
@@ -499,7 +499,7 @@ css_error css__selector_hash_find_by_id(css_selector_hash *hash, const struct cs
  *
  * If nothing matches, CSS_OK will be returned and **matched == NULL
  */
-css_error css__selector_hash_find_universal(css_selector_hash *hash, const struct css_hash_selection_requirments *req,
+css_error css__selector_hash_find_universal(css_selector_hash *hash, const struct css_hash_selection_requirements *req,
     css_selector_hash_iterator *iterator, const css_selector ***matched)
 {
     hash_entry *head;
@@ -822,7 +822,7 @@ css_error _remove_from_chain(css_selector_hash *ctx, hash_entry *head, const css
  * If nothing further matches, CSS_OK will be returned and **next == NULL
  */
 css_error _iterate_elements(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next)
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next)
 {
     const hash_entry *head = (const hash_entry *)current;
     bool match = false;
@@ -868,7 +868,7 @@ css_error _iterate_elements(
  * If nothing further matches, CSS_OK will be returned and **next == NULL
  */
 css_error _iterate_classes(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next)
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next)
 {
     const hash_entry *head = (const hash_entry *)current;
     bool match = false;
@@ -919,7 +919,7 @@ css_error _iterate_classes(
  * If nothing further matches, CSS_OK will be returned and **next == NULL
  */
 css_error
-_iterate_ids(const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next)
+_iterate_ids(const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next)
 {
     const hash_entry *head = (const hash_entry *)current;
     bool match = false;
@@ -970,7 +970,7 @@ _iterate_ids(const struct css_hash_selection_requirments *req, const css_selecto
  * If nothing further matches, CSS_OK will be returned and **next == NULL
  */
 css_error _iterate_universal(
-    const struct css_hash_selection_requirments *req, const css_selector **current, const css_selector ***next)
+    const struct css_hash_selection_requirements *req, const css_selector **current, const css_selector ***next)
 {
     const hash_entry *head = (const hash_entry *)current;
     head = head->next;

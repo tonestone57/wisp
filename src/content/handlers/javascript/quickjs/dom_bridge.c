@@ -1,7 +1,9 @@
 #include "dom_bridge.h"
 
+#include <strings.h>
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include <wisp/utils/corestrings.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -95,6 +97,7 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
          * because qjs_new_* returned a reference that we are now returning
          * to the caller, and the map needs its own reference. */
         *val_ptr = JS_DupValue(ctx, wrapper);
+        dom_node_ref(node);
     }
 
     return wrapper;
@@ -105,11 +108,12 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (map) {
         bridge_key_t key = { ctx, node };
-        JSValue *existing = hashmap_lookup(map, &key);
-        if (existing) {
-            JS_FreeValueRT(rt, *existing);
+        JSValue *val = hashmap_lookup(map, &key);
+        if (val) {
+            JS_FreeValueRT(rt, *val);
         }
         hashmap_remove(map, &key);
+        dom_node_unref(node);
     }
 }
 
@@ -189,6 +193,274 @@ static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
     return false;
 }
 
+typedef enum {
+    QJS_COMBINATOR_NONE,
+    QJS_COMBINATOR_DESCENDANT,      /* ' ' */
+    QJS_COMBINATOR_CHILD,           /* '>' */
+    QJS_COMBINATOR_ADJACENT_SIBLING, /* '+' */
+    QJS_COMBINATOR_GENERAL_SIBLING  /* '~' */
+} qjs_combinator_t;
+
+typedef struct {
+    char *tag;
+    char *id;
+    char **classes;
+    uint32_t class_count;
+    bool universal;
+} qjs_compound_selector_t;
+
+typedef struct {
+    qjs_compound_selector_t compound;
+    qjs_combinator_t next_combinator; /* Combinator connecting this to the next component (to its right) */
+} qjs_selector_component_t;
+
+typedef struct {
+    qjs_selector_component_t *components;
+    uint32_t component_count;
+} qjs_selector_group_t;
+
+typedef struct {
+    qjs_selector_group_t *groups;
+    uint32_t group_count;
+} qjs_selector_root_t;
+
+static void qjs_selector_root_free(qjs_selector_root_t *root)
+{
+    if (!root) return;
+    for (uint32_t i = 0; i < root->group_count; i++) {
+        qjs_selector_group_t *group = &root->groups[i];
+        for (uint32_t j = 0; j < group->component_count; j++) {
+            qjs_selector_component_t *comp = &group->components[j];
+            free(comp->compound.tag);
+            free(comp->compound.id);
+            for (uint32_t k = 0; k < comp->compound.class_count; k++) {
+                free(comp->compound.classes[k]);
+            }
+            free(comp->compound.classes);
+        }
+        free(group->components);
+    }
+    free(root->groups);
+    free(root);
+}
+
+static const char *qjs_selector_skip_ws(const char *s)
+{
+    while (*s && (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r')) s++;
+    return s;
+}
+
+static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
+{
+    qjs_selector_root_t *root = calloc(1, sizeof(qjs_selector_root_t));
+    if (!root) return NULL;
+
+    const char *p = selector_str;
+    while (*p) {
+        p = qjs_selector_skip_ws(p);
+        if (!*p) break;
+
+        const char *comma = strchr(p, ',');
+        size_t group_len = comma ? (size_t)(comma - p) : strlen(p);
+        char *group_str = strndup(p, group_len);
+
+        root->groups = realloc(root->groups, (root->group_count + 1) * sizeof(qjs_selector_group_t));
+        qjs_selector_group_t *group = &root->groups[root->group_count++];
+        memset(group, 0, sizeof(*group));
+
+        const char *gp = group_str;
+        while (*gp) {
+            gp = qjs_selector_skip_ws(gp);
+            if (!*gp) break;
+
+            group->components = realloc(group->components, (group->component_count + 1) * sizeof(qjs_selector_component_t));
+            qjs_selector_component_t *comp = &group->components[group->component_count++];
+            memset(comp, 0, sizeof(*comp));
+
+            /* Find end of compound selector and the next combinator */
+            const char *cp = gp;
+            while (*cp && !strchr(" \t\n\r>+~", *cp)) cp++;
+
+            size_t comp_len = (size_t)(cp - gp);
+            char *comp_str = strndup(gp, comp_len);
+
+            /* Parse compound selector part */
+            const char *csp = comp_str;
+            if (*csp == '*') { comp->compound.universal = true; csp++; }
+            while (*csp) {
+                if (*csp == '#') {
+                    const char *id_start = ++csp;
+                    while (*csp && !strchr("#.", *csp)) csp++;
+                    if (comp->compound.id) free(comp->compound.id);
+                    comp->compound.id = strndup(id_start, (size_t)(csp - id_start));
+                } else if (*csp == '.') {
+                    const char *class_start = ++csp;
+                    while (*csp && !strchr("#.", *csp)) csp++;
+                    comp->compound.classes = realloc(comp->compound.classes, (comp->compound.class_count + 1) * sizeof(char *));
+                    comp->compound.classes[comp->compound.class_count++] = strndup(class_start, (size_t)(csp - class_start));
+                } else {
+                    const char *tag_start = csp;
+                    while (*csp && !strchr("#.", *csp)) csp++;
+                    if (comp->compound.tag) free(comp->compound.tag);
+                    comp->compound.tag = strndup(tag_start, (size_t)(csp - tag_start));
+                }
+            }
+            free(comp_str);
+
+            gp = qjs_selector_skip_ws(cp);
+            if (*gp == '>') { comp->next_combinator = QJS_COMBINATOR_CHILD; gp++; }
+            else if (*gp == '+') { comp->next_combinator = QJS_COMBINATOR_ADJACENT_SIBLING; gp++; }
+            else if (*gp == '~') { comp->next_combinator = QJS_COMBINATOR_GENERAL_SIBLING; gp++; }
+            else if (*gp) { comp->next_combinator = QJS_COMBINATOR_DESCENDANT; }
+            else { comp->next_combinator = QJS_COMBINATOR_NONE; }
+        }
+        free(group_str);
+        if (comma) p = comma + 1; else break;
+    }
+    return root;
+}
+
+static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compound_selector_t *comp)
+{
+    dom_node_type type;
+    dom_node_get_node_type(node, &type);
+    if (type != DOM_ELEMENT_NODE) return false;
+
+    if (comp->universal) {
+        /* Matches any element */
+    } else if (comp->tag) {
+        dom_string *tag = NULL;
+        dom_element_get_tag_name((dom_element *)node, &tag);
+        if (tag) {
+            dom_string *target = NULL;
+            dom_string_create((const uint8_t *)comp->tag, strlen(comp->tag), &target);
+            bool match = target ? dom_string_caseless_isequal(tag, target) : false;
+            if (target) dom_string_unref(target);
+            dom_string_unref(tag);
+            if (!match) return false;
+        } else return false;
+    }
+
+    if (comp->id) {
+        dom_string *id = NULL;
+        dom_element_get_attribute((dom_element *)node, corestring_dom_id, &id);
+        if (id) {
+            dom_string *target = NULL;
+            dom_string_create((const uint8_t *)comp->id, strlen(comp->id), &target);
+            bool match = target ? dom_string_isequal(id, target) : false;
+            if (target) dom_string_unref(target);
+            dom_string_unref(id);
+            if (!match) return false;
+        } else return false;
+    }
+
+    for (uint32_t i = 0; i < comp->class_count; i++) {
+        dom_string *cls = NULL;
+        dom_element_get_attribute((dom_element *)node, corestring_dom_class, &cls);
+        if (cls) {
+            const char *data = dom_string_data(cls);
+            size_t len = dom_string_byte_length(cls);
+            const char *target = comp->classes[i];
+            size_t target_len = strlen(target);
+            bool found = false;
+            if (len >= target_len) {
+                for (size_t j = 0; j <= len - target_len; j++) {
+                    if ((j == 0 || data[j - 1] == ' ') && (j + target_len == len || data[j + target_len] == ' ')) {
+                        if (strncmp(data + j, target, target_len) == 0) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            dom_string_unref(cls);
+            if (!found) return false;
+        } else return false;
+    }
+
+    return true;
+}
+
+static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector_group_t *group)
+{
+    if (group->component_count == 0) return false;
+
+    /* Start matching from the last component (the rightmost one) */
+    int comp_idx = group->component_count - 1;
+    if (!qjs_compound_selector_matches(node, &group->components[comp_idx].compound)) return false;
+
+    struct dom_node *curr = dom_node_ref(node);
+    while (comp_idx > 0) {
+        qjs_combinator_t comb = group->components[comp_idx - 1].next_combinator;
+        comp_idx--;
+        const qjs_compound_selector_t *target = &group->components[comp_idx].compound;
+
+        if (comb == QJS_COMBINATOR_CHILD) {
+            struct dom_node *parent = NULL;
+            dom_node_get_parent_node(curr, &parent);
+            dom_node_unref(curr);
+            if (!parent || !qjs_compound_selector_matches(parent, target)) {
+                if (parent) dom_node_unref(parent);
+                return false;
+            }
+            curr = parent;
+        } else if (comb == QJS_COMBINATOR_DESCENDANT) {
+            struct dom_node *parent = NULL;
+            bool found = false;
+            while (true) {
+                dom_node_get_parent_node(curr, &parent);
+                dom_node_unref(curr);
+                if (!parent) break;
+                if (qjs_compound_selector_matches(parent, target)) {
+                    curr = parent;
+                    found = true;
+                    break;
+                }
+                curr = parent;
+            }
+            if (!found) return false;
+        } else if (comb == QJS_COMBINATOR_ADJACENT_SIBLING) {
+            struct dom_node *prev = NULL;
+            dom_node_get_previous_sibling(curr, &prev);
+            while (prev) {
+                dom_node_type type;
+                dom_node_get_node_type(prev, &type);
+                if (type == DOM_ELEMENT_NODE) break;
+                struct dom_node *tmp = NULL;
+                dom_node_get_previous_sibling(prev, &tmp);
+                dom_node_unref(prev);
+                prev = tmp;
+            }
+            dom_node_unref(curr);
+            if (!prev || !qjs_compound_selector_matches(prev, target)) {
+                if (prev) dom_node_unref(prev);
+                return false;
+            }
+            curr = prev;
+        } else if (comb == QJS_COMBINATOR_GENERAL_SIBLING) {
+            struct dom_node *prev = NULL;
+            bool found = false;
+            while (true) {
+                struct dom_node *tmp = NULL;
+                dom_node_get_previous_sibling(curr, &tmp);
+                dom_node_unref(curr);
+                curr = tmp;
+                if (!curr) break;
+                dom_node_type type;
+                dom_node_get_node_type(curr, &type);
+                if (type == DOM_ELEMENT_NODE && qjs_compound_selector_matches(curr, target)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+    }
+
+    dom_node_unref(curr);
+    return true;
+}
+
 void qjs_finalise_dom_bridge(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
@@ -209,4 +481,71 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
+}
+
+JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all)
+{
+    qjs_selector_root_t *parsed = qjs_selector_parse(selector);
+    if (!parsed) return all ? JS_NewArray(ctx) : JS_NULL;
+
+    JSValue result = all ? JS_NewArray(ctx) : JS_NULL;
+    uint32_t count = 0;
+
+    struct dom_node *curr = NULL;
+    dom_node_get_first_child(root, &curr);
+    while (curr) {
+        bool match = false;
+        for (uint32_t i = 0; i < parsed->group_count; i++) {
+            if (qjs_selector_group_matches(curr, &parsed->groups[i])) {
+                match = true;
+                break;
+            }
+        }
+
+        if (match) {
+            if (!all) {
+                JSValue val = qjs_wrap_node(ctx, curr);
+                dom_node_unref(curr);
+                qjs_selector_root_free(parsed);
+                return val;
+            }
+            JS_SetPropertyUint32(ctx, result, count++, qjs_wrap_node(ctx, curr));
+        }
+
+        struct dom_node *next = NULL;
+        dom_node_get_first_child(curr, &next);
+        if (next) {
+            dom_node_unref(curr);
+            curr = next;
+            continue;
+        }
+
+        dom_node_get_next_sibling(curr, &next);
+        if (next) {
+            dom_node_unref(curr);
+            curr = next;
+            continue;
+        }
+
+        while (curr) {
+            struct dom_node *parent = NULL;
+            dom_node_get_parent_node(curr, &parent);
+            dom_node_unref(curr);
+            if (parent == NULL || parent == root) {
+                if (parent) dom_node_unref(parent);
+                curr = NULL;
+                break;
+            }
+            dom_node_get_next_sibling(parent, &next);
+            if (next) {
+                dom_node_unref(parent);
+                curr = next;
+                break;
+            }
+            curr = parent;
+        }
+    }
+
+    qjs_selector_root_free(parsed);
+    return result;
 }
