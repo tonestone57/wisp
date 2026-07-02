@@ -84,6 +84,7 @@ void js_destroyheap(jsheap *heap)
         /* Prevent re-entrant finalizers from accessing the bridge during teardown */
         JS_SetRuntimeOpaque(heap->rt, NULL);
         qjs_bridge_cleanup(heap->rt);
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
         /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix. */

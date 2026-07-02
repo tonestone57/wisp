@@ -41,6 +41,7 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
 {
     if (argc < 1) return JS_ThrowTypeError(ctx, "Event type required");
     const char *type = JS_ToCString(ctx, argv[0]);
+    if (!type) return JS_EXCEPTION;
     dom_string *type_dom = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
     dom_event *evt = NULL;

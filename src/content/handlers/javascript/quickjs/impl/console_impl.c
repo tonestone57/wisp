@@ -85,3 +85,17 @@ int qjs_init_console(JSContext *ctx)
 
     return 0;
 }
+
+void qjs_console_cleanup(JSContext *ctx)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue console = JS_GetPropertyStr(ctx, global_obj, "console");
+    if (JS_IsObject(console)) {
+        /* In browser environments, console usually stays until context dies.
+         * For unit tests that create/destroy context manually, we might need
+         * to explicitly null the global property to drop the reference. */
+        JS_SetPropertyStr(ctx, global_obj, "console", JS_UNDEFINED);
+    }
+    JS_FreeValue(ctx, console);
+    JS_FreeValue(ctx, global_obj);
+}
