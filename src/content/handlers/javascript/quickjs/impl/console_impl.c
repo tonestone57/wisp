@@ -46,35 +46,12 @@ JSValue wisp_console_trace_impl(JSContext *ctx, QJSNodePrivate *priv)
     return wisp_console_log_internal(ctx, "trace() called", JS_UNDEFINED, "TRACE");
 }
 
-JSValue wisp_console_group_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_console_groupCollapsed_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_console_groupEnd_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_console_time_impl(JSContext *ctx, QJSNodePrivate *priv, const char * timerName)
-{
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_console_timeEnd_impl(JSContext *ctx, QJSNodePrivate *priv, const char * timerName)
-{
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_console_dir_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue object)
-{
-    return JS_UNDEFINED;
-}
+JSValue wisp_console_group_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_console_groupCollapsed_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_console_groupEnd_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_console_time_impl(JSContext *ctx, QJSNodePrivate *priv, const char * timerName) { return JS_UNDEFINED; }
+JSValue wisp_console_timeEnd_impl(JSContext *ctx, QJSNodePrivate *priv, const char * timerName) { return JS_UNDEFINED; }
+JSValue wisp_console_dir_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue object) { return JS_UNDEFINED; }
 
 int qjs_init_console(JSContext *ctx)
 {
@@ -91,6 +68,7 @@ int qjs_init_console(JSContext *ctx)
 
     JSValue console = qjs_new_console(ctx, NULL, false);
     if (JS_IsException(console)) {
+        NSLOG(wisp, ERROR, "Failed to create console object");
         JS_FreeValue(ctx, global_obj);
         return -1;
     }

@@ -64,7 +64,7 @@ void hashmap_destroy(hashmap_t *hashmap)
                 entry = next;
             }
         }
-        free(hashmap->buckets);
+        if (hashmap->buckets) if (hashmap->buckets) free(hashmap->buckets);
     }
     free(hashmap);
 }

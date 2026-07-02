@@ -15,12 +15,16 @@
 #include <pthread.h>
 #endif
 
+/* Forward declarations for worker initialization */
+int qjs_init_console(JSContext *ctx);
+int qjs_init_crypto(JSContext *ctx);
+
 /* Global pools */
 WispPool raster_pool = {0};
 WispPool js_pool = {0};
 
 /* Internal helper to start a worker thread in a pool.
- * Caller must ensure worker->running is set correctly. */
+ * Caller must ensure worker->running is set to true before calling. */
 static void start_worker_in_pool(WispPool *pool, int i) {
     pool->workers[i].worker_id = i;
     pool->workers[i].pool = pool;
@@ -28,6 +32,9 @@ static void start_worker_in_pool(WispPool *pool, int i) {
     if (pool->is_js) {
         pool->workers[i].rt = JS_NewRuntime();
         pool->workers[i].ctx = JS_NewContext(pool->workers[i].rt);
+        /* Basic globals for worker tasks */
+        qjs_init_console(pool->workers[i].ctx);
+        qjs_init_crypto(pool->workers[i].ctx);
     } else {
         pool->workers[i].rt = NULL;
         pool->workers[i].ctx = NULL;
@@ -41,11 +48,13 @@ static void start_worker_in_pool(WispPool *pool, int i) {
 
 #ifdef _WIN32
     EnterCriticalSection(&pool->lock);
-    pool->active_workers++;
-    LeaveCriticalSection(&pool->lock);
 #else
     pthread_mutex_lock(&pool->lock);
+#endif
     pool->active_workers++;
+#ifdef _WIN32
+    LeaveCriticalSection(&pool->lock);
+#else
     pthread_mutex_unlock(&pool->lock);
 #endif
 }
@@ -67,7 +76,7 @@ static void init_pool(WispPool *pool, int worker_count, int queue_size, bool is_
 
     if (worker_count > 0) {
         pool->workers = calloc(worker_count, sizeof(WispWorker));
-        /* The first worker is explicitly claimed and started */
+        /* The first worker is always started to handle initial tasks */
         pool->workers[0].running = true;
         start_worker_in_pool(pool, 0);
     }
@@ -189,8 +198,10 @@ void* wisp_worker_routine(void *arg) {
                     pool->active_workers--;
                     if (worker->ctx) JS_FreeContext(worker->ctx);
                     if (worker->rt) { JS_RunGC(worker->rt); JS_FreeRuntime(worker->rt); }
-                    worker->ctx = NULL; worker->rt = NULL; worker->thread = NULL;
+                    worker->ctx = NULL; worker->rt = NULL;
+                    HANDLE h = worker->thread; worker->thread = NULL;
                     LeaveCriticalSection(&pool->lock);
+                    if (h) CloseHandle(h);
                     return NULL;
                 }
             }

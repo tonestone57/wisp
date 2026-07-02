@@ -34,82 +34,47 @@ int qjs_init_window(JSContext *ctx)
     return 0;
 }
 
-JSValue wisp_window_window_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_GetGlobalObject(ctx);
-}
-
-JSValue wisp_window_self_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_GetGlobalObject(ctx);
-}
-
-JSValue wisp_window_document_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
+JSValue wisp_window_window_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_GetGlobalObject(ctx); }
+JSValue wisp_window_self_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_GetGlobalObject(ctx); }
+JSValue wisp_window_document_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (t && t->doc_priv) {
-        return qjs_wrap_node(ctx, (dom_node *)t->doc_priv);
-    }
-    return JS_NULL;
+    return (t && t->doc_priv) ? qjs_wrap_node(ctx, (dom_node *)t->doc_priv) : JS_NULL;
 }
-
-JSValue wisp_window_navigator_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
+JSValue wisp_window_navigator_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue nav = JS_GetPropertyStr(ctx, global, "navigator");
-    JS_FreeValue(ctx, global);
-    return nav;
+    JS_FreeValue(ctx, global); return nav;
 }
-
-JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
+JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue loc = JS_GetPropertyStr(ctx, global, "location");
-    JS_FreeValue(ctx, global);
-    return loc;
+    JS_FreeValue(ctx, global); return loc;
 }
-
-JSValue wisp_window_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
+JSValue wisp_window_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue store = JS_GetPropertyStr(ctx, global, "localStorage");
-    JS_FreeValue(ctx, global);
-    return store;
+    JS_FreeValue(ctx, global); return store;
 }
-
-JSValue wisp_window_sessionStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
+JSValue wisp_window_sessionStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue store = JS_GetPropertyStr(ctx, global, "sessionStorage");
-    JS_FreeValue(ctx, global);
-    return store;
+    JS_FreeValue(ctx, global); return store;
 }
-
-JSValue wisp_window_console_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
+JSValue wisp_window_console_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue console = JS_GetPropertyStr(ctx, global, "console");
-    JS_FreeValue(ctx, global);
-    return console;
+    JS_FreeValue(ctx, global); return console;
+}
+JSValue wisp_window_alert_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message) {
+    NSLOG(wisp, INFO, "Window.alert: %s", message ? message : ""); return JS_UNDEFINED;
 }
 
-JSValue wisp_window_alert_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message)
-{
-    NSLOG(wisp, INFO, "Window.alert: %s", message ? message : "");
-    return JS_UNDEFINED;
+/* Redefine weakly defined marshaller entry points to avoid build errors if needed,
+ * but the binding generator usually handles this. Let's keep it simple. */
+JSValue wisp_window_alert_0_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_window_alert_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message) {
+    NSLOG(wisp, INFO, "Window.alert: %s", message ? message : ""); return JS_UNDEFINED;
 }
-
-JSValue wisp_window_alert_0_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_window_alert_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message)
-{
-    NSLOG(wisp, INFO, "Window.alert: %s", message ? message : "");
-    return JS_UNDEFINED;
-}
-
 JSValue wisp_window___getter___0_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) { return JS_UNDEFINED; }
 JSValue wisp_window___getter___1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) { return JS_UNDEFINED; }
 JSValue wisp_window_atob_impl(JSContext *ctx, QJSNodePrivate *priv, const char * atob) { return JS_UNDEFINED; }
