@@ -35,7 +35,11 @@ int qjs_init_window(JSContext *ctx)
     JS_FreeValue(ctx, proto);
 
     /* Mark as initialized */
-    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_window_init", JS_TRUE, 0);
+    if (JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_window_init", JS_TRUE, 0) < 0) {
+        NSLOG(wisp, ERROR, "Failed to define __wisp_window_init property");
+        JS_FreeValue(ctx, global_obj);
+        return -1;
+    }
     JS_FreeValue(ctx, global_obj);
 
     return 0;

@@ -147,6 +147,10 @@ static bool bridge_full_cleanup_cb(void *key, void *val, void *pw) {
     return false;
 }
 
+/**
+ * Fully clean up the DOM bridge for a runtime.
+ * This is called during heap destruction.
+ */
 void qjs_bridge_cleanup(JSRuntime *rt)
 {
     hashmap_t *map = JS_GetRuntimeOpaque(rt);

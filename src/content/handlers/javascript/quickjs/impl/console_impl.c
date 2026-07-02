@@ -77,10 +77,18 @@ int qjs_init_console(JSContext *ctx)
         JS_FreeValue(ctx, global_obj);
         return -1;
     }
-    JS_DefinePropertyValueStr(ctx, global_obj, "console", console, JS_PROP_C_W_E);
+    if (JS_DefinePropertyValueStr(ctx, global_obj, "console", console, JS_PROP_C_W_E) < 0) {
+        NSLOG(wisp, ERROR, "Failed to define console property");
+        JS_FreeValue(ctx, global_obj);
+        return -1;
+    }
 
     /* Mark as initialized */
-    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_console_init", JS_TRUE, 0);
+    if (JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_console_init", JS_TRUE, 0) < 0) {
+        NSLOG(wisp, ERROR, "Failed to define __wisp_console_init property");
+        JS_FreeValue(ctx, global_obj);
+        return -1;
+    }
     JS_FreeValue(ctx, global_obj);
 
     return 0;
