@@ -41,6 +41,7 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
 {
     if (argc < 1) return JS_ThrowTypeError(ctx, "Event type required");
     const char *type = JS_ToCString(ctx, argv[0]);
+    if (!type) return JS_EXCEPTION;
     dom_string *type_dom = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
     dom_event *evt = NULL;
@@ -100,14 +101,32 @@ JSValue wisp_event_timeStamp_get_impl(JSContext *ctx, QJSNodePrivate *priv) { ui
 
 int qjs_init_event(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_event_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_event_class_id == 0) JS_NewClassID(rt, &qjs_event_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_event_class_id)) JS_NewClass(rt, qjs_event_class_id, &wisp_event_class);
+
+    /* Initialize the class and prototype using the generated function */
     qjs_init_event_gen(ctx);
-    JSValue global_obj = JS_GetGlobalObject(ctx);
+
     JSValue proto = JS_GetClassProto(ctx, qjs_event_class_id);
     JSValue ctor = JS_NewCFunction2(ctx, js_event_constructor, "Event", 1, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "Event", ctor);
+
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_event_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

@@ -71,4 +71,20 @@ JSValue wisp_attr_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const
 JSValue wisp_attr_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_attr_value_get_impl(ctx, priv); }
 JSValue wisp_attr_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_attr_value_set_impl(ctx, priv, value); }
 
-int qjs_init_attr(JSContext *ctx) { return qjs_init_attr_gen(ctx); }
+int qjs_init_attr(JSContext *ctx)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_attr_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    qjs_init_attr_gen(ctx);
+
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_attr_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+    return 0;
+}

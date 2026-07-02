@@ -12,6 +12,7 @@
 JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
@@ -28,6 +29,7 @@ JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!qualifiedName || !value) return JS_ThrowTypeError(ctx, "Argument is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
@@ -41,6 +43,7 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_element_remove_attribute((dom_element *)priv->node, name_dom);
@@ -51,6 +54,7 @@ JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, 
 JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_FALSE;
+    if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     bool result = false;
@@ -96,11 +100,29 @@ JSValue wisp_element_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 int qjs_init_element(JSContext *ctx) {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_element_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    /* Initialize the class and prototype using the generated function */
     qjs_init_element_gen(ctx);
+
     JSValue proto = JS_GetClassProto(ctx, qjs_element_class_id);
     JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
     if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
     JS_FreeValue(ctx, node_proto);
     JS_FreeValue(ctx, proto);
+
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_element_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

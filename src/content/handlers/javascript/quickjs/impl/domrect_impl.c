@@ -79,22 +79,46 @@ JSValue wisp_domrect_height_set_impl(JSContext *ctx, QJSNodePrivate *priv, doubl
 
 int qjs_init_domrect(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_domrect_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_domrect_class_id == 0) JS_NewClassID(rt, &qjs_domrect_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_domrect_class_id)) {
         JS_NewClass(rt, qjs_domrect_class_id, &wisp_domrect_class);
     }
     qjs_init_domrect_gen(ctx);
+
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_domrect_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
     return 0;
 }
 
 int qjs_init_domrectreadonly(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_domrectreadonly_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_domrectreadonly_class_id == 0) JS_NewClassID(rt, &qjs_domrectreadonly_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_domrectreadonly_class_id)) {
         JS_NewClass(rt, qjs_domrectreadonly_class_id, &wisp_domrectreadonly_class);
     }
     qjs_init_domrectreadonly_gen(ctx);
+
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_domrectreadonly_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
     return 0;
 }

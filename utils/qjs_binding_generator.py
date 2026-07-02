@@ -165,7 +165,8 @@ class QuickJSBindingGenerator:
 
             mixin = self.interfaces.get(mixin_name)
             if mixin:
-                to_process.append(mixin)
+                if mixin not in to_process:
+                    to_process.append(mixin)
                 if mixin_name in self.mixins:
                     mixins_to_check.extend(self.mixins[mixin_name])
 
@@ -210,7 +211,12 @@ class QuickJSBindingGenerator:
                         actual_type = get_actual_type(arg)
                         if actual_type.startswith('unrestricted '):
                             actual_type = actual_type.replace('unrestricted ', '').strip()
-                        args.append({'name': arg.name, 'type': actual_type, 'optional': arg.optional})
+                        variadic = False
+                        if hasattr(arg, 'variadic'):
+                            variadic = arg.variadic
+                        elif '...' in str(arg):
+                            variadic = True
+                        args.append({'name': arg.name, 'type': actual_type, 'optional': arg.optional, 'variadic': variadic})
 
                     # Group by name to handle overloads
                     if member.name not in members_by_name:
@@ -341,9 +347,26 @@ class QuickJSBindingGenerator:
         for i, arg in enumerate(op['args']):
             js_type = idl_to_js_type(arg['type'])
             arg_name = safe_name(arg['name'])
-            if js_type == 'string':
+            if arg.get('variadic'):
+                code += f"    JSValue {arg_name} = JS_NewArray(ctx);\n"
+                code += f"    for (int j = {i}; j < argc; j++) JS_SetPropertyUint32(ctx, {arg_name}, j - {i}, JS_DupValue(ctx, argv[j]));\n"
+                impl_args.append(arg_name)
+            elif js_type == 'string':
                 code += f"    const char *{arg_name} = (argc > {i}) ? JS_ToCString(ctx, argv[{i}]) : NULL;\n"
-                code += f"    if (argc > {i} && !{arg_name}) return JS_EXCEPTION;\n"
+                code += f"    if (argc > {i} && !{arg_name}) {{\n"
+                for prev_idx, prev_arg in enumerate(op['args'][:i]):
+                    prev_name = safe_name(prev_arg['name'])
+                    prev_js_type = idl_to_js_type(prev_arg['type'])
+                    if prev_arg.get('variadic'):
+                         code += f"        JS_FreeValue(ctx, {prev_name});\n"
+                    elif prev_js_type == 'string':
+                        code += f"        if ({prev_name}) JS_FreeCString(ctx, {prev_name});\n"
+                    elif prev_js_type not in ['bool', 'int', 'int64', 'float']:
+                         actual_type = str(prev_arg['type']).strip().rstrip('?')
+                         if actual_type not in self.all_interface_names or actual_type in self.dictionaries:
+                            code += f"        JS_FreeValue(ctx, {prev_name});\n"
+                code += f"        return JS_EXCEPTION;\n"
+                code += f"    }}\n"
                 impl_args.append(arg_name)
             elif js_type == 'bool':
                 code += f"    bool {arg_name} = (argc > {i}) ? JS_ToBool(ctx, argv[{i}]) : false;\n"
@@ -383,7 +406,9 @@ class QuickJSBindingGenerator:
         for arg in op['args']:
             js_type = idl_to_js_type(arg['type'])
             arg_name = safe_name(arg['name'])
-            if js_type in ['string', 'bool', 'int', 'float']:
+            if arg.get('variadic'):
+                c_type = "JSValue"
+            elif js_type in ['string', 'bool', 'int', 'float']:
                 c_type = TYPE_MAP.get(arg['type'], "JSValue")
                 if js_type == 'float':
                     c_type = "double"
@@ -415,7 +440,9 @@ class QuickJSBindingGenerator:
         for i, arg in enumerate(op['args']):
             arg_name = safe_name(arg['name'])
             js_type = idl_to_js_type(arg['type'])
-            if js_type == 'string':
+            if arg.get('variadic'):
+                code += f"    JS_FreeValue(ctx, {arg_name});\n"
+            elif js_type == 'string':
                 code += f"    if ({arg_name}) JS_FreeCString(ctx, {arg_name});\n"
             else:
                 actual_type = str(arg['type']).strip().rstrip('?')
@@ -739,8 +766,11 @@ class QuickJSBindingGenerator:
 
                 sorted_overloads = sorted(overloads, key=op_sort_key)
                 for i, op in enumerate(sorted_overloads):
-                    checks = [f"argc >= {len(op['args'])}"]
+                    # For variadic, minimum argc is the number of args before the variadic one
+                    min_argc = len([a for a in op['args'] if not a.get('variadic')])
+                    checks = [f"argc >= {min_argc}"]
                     for idx, arg in enumerate(op['args']):
+                        if arg.get('variadic'): continue
                         check = self._get_type_check(idx, arg['type'])
                         if check != "true":
                             checks.append(check)

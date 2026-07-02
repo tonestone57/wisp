@@ -118,11 +118,30 @@ static JSValue js_intersectionobserver_constructor(JSContext *ctx, JSValueConst 
 
 int qjs_init_intersectionobserver(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_intersectionobserver_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_intersectionobserver_class_id == 0) JS_NewClassID(rt, &qjs_intersectionobserver_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_intersectionobserver_class_id)) JS_NewClass(rt, qjs_intersectionobserver_class_id, &wisp_intersectionobserver_class);
+
+    /* Initialize the class and prototype using the generated function */
     qjs_init_intersectionobserver_gen(ctx);
+
     JSValue ctor = JS_NewCFunction2(ctx, js_intersectionobserver_constructor, "IntersectionObserver", 1, JS_CFUNC_constructor, 0);
-    JSValue global_obj = JS_GetGlobalObject(ctx); JS_DefinePropertyValueStr(ctx, global_obj, "IntersectionObserver", ctor, JS_PROP_C_W_E); JS_FreeValue(ctx, global_obj);
+    JS_DefinePropertyValueStr(ctx, global_obj, "IntersectionObserver", ctor, JS_PROP_C_W_E);
+
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_intersectionobserver_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

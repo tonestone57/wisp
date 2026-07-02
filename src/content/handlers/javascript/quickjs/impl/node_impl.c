@@ -298,11 +298,29 @@ JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, con
 }
 
 int qjs_init_node(JSContext *ctx) {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_node_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    /* Initialize the class and prototype using the generated function */
     qjs_init_node_gen(ctx);
+
     JSValue proto = JS_GetClassProto(ctx, qjs_node_class_id);
     JSValue et_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
     if (JS_IsObject(proto) && JS_IsObject(et_proto)) JS_SetPrototype(ctx, proto, et_proto);
     JS_FreeValue(ctx, et_proto);
     JS_FreeValue(ctx, proto);
+
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_node_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

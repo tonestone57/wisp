@@ -20,6 +20,7 @@ extern JSClassID qjs_console_class_id;
 extern JSClassID qjs_location_class_id;
 extern JSClassID qjs_navigator_class_id;
 extern JSClassID qjs_storage_class_id;
+extern JSClassID qjs_xmlhttprequest_class_id;
 extern JSClassID qjs_mutationobserver_class_id;
 extern JSClassID qjs_intersectionobserver_class_id;
 extern JSClassID qjs_domrect_class_id;
@@ -58,6 +59,7 @@ void qjs_bridge_cleanup(JSRuntime *rt);
 
 /* Other component initializers */
 int qjs_init_console(JSContext *ctx);
+void qjs_console_cleanup(JSContext *ctx);
 int qjs_init_window(JSContext *ctx);
 int qjs_init_timers(JSContext *ctx);
 int qjs_init_navigator(JSContext *ctx);

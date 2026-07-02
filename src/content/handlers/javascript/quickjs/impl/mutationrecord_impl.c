@@ -60,8 +60,22 @@ JSValue wisp_mutationrecord_oldValue_get_impl(JSContext *ctx, QJSNodePrivate *pr
 
 int qjs_init_mutationrecord(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_mutationrecord_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_mutationrecord_class_id == 0) JS_NewClassID(rt, &qjs_mutationrecord_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_mutationrecord_class_id)) JS_NewClass(rt, qjs_mutationrecord_class_id, &wisp_mutationrecord_class);
-    qjs_init_mutationrecord_gen(ctx); return 0;
+
+    qjs_init_mutationrecord_gen(ctx);
+
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_mutationrecord_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+    return 0;
 }
