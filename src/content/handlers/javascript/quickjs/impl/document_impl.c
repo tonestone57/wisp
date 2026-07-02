@@ -96,11 +96,29 @@ JSValue wisp_document_cookie_get_impl(JSContext *ctx, QJSNodePrivate *priv) { re
 JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 
 int qjs_init_document(JSContext *ctx) {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_document_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    /* Initialize the class and prototype using the generated function */
     qjs_init_document_gen(ctx);
+
     JSValue proto = JS_GetClassProto(ctx, qjs_document_class_id);
     JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
     if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
     JS_FreeValue(ctx, node_proto);
     JS_FreeValue(ctx, proto);
+
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_document_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

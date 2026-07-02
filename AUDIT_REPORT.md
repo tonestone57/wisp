@@ -28,7 +28,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Fixed-Tile Redraw**: Scale-aware 256x256 (standard) or 512x512 (High-DPI) tile strategy implemented to optimize performance and cache locality.
 *   **Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and fixed-tile redraw strategy.
 *   **Native Direct2D & DirectWrite (Windows)**: High-performance C++ based hardware-accelerated rendering pipeline for modern Windows systems.
-*   **Incremental Layout Core**: Dual-pass reflow system using `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags.
+*   **Incremental Layout Core**: Dual-strategy using a dirty-bit reflow system and scale-aware fixed-tile redraw for maximum efficiency.
 *   **A/V Master Clock Sync**: Robust synchronization between audio and video tracks in `video.c` using a centralized master clock.
 *   **SIMD-Aligned Arena**: The arena allocator (`src/utils/arena.c`) enforces 64-byte alignment to support AVX-512 and other SIMD optimizations.
 *   **IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks in `layout.c` and `html.c`.
@@ -39,14 +39,14 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Test Runner Fixes**: Resolved syntax and format errors in `contrib/libcss/test/parse-auto.c`.
 *   **NSLOG Verbosity**: High-verbosity layout traces in `layout_flex.c` and `layout_grid.c` have been demoted to `DEEPDEBUG` to improve performance and log accuracy.
 *   **QuickJS Bridge Stability**: Fixed re-entrancy and memory management in the QuickJS-to-LibDOM bridge by utilizing a weak-reference model and safe cleanup loops.
+*   **CSS Variables**: Full parsing, selection, and recursive resolution pass with fallback support.
+*   **CSS Grid**: Spec-compliant 3-phase auto-placement, FR unit distribution, and dense packing.
+*   **CSS Flexbox**: Full support for flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
+*   **MutationObserver**: Fully integrated with LibDOM via a native mutation hook system and optimized JS callback queue.
+*   **Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
+*   **Incremental Reflow Optimization**: Fully functional with scale-aware fixed-tile redraw and optimized disjoint dirty region tracking (up to 16 disjoint rects). This dual-strategy provides maximum efficiency on both legacy and modern hardware.
 
 ### 3.2 Partial Implementation [Partial]
-*   **CSS Variables**: Selection and parsing of `var()` and custom properties are complete; resolution pass during cascade is in progress with some regressions in complex fallback scenarios.
-*   **CSS Grid**: Core layout logic implemented in LibCSS fork; 3-phase auto-placement and FR unit distribution are functional. Dense packing and implicit track support are fully implemented.
-*   **CSS Flexbox**: Supports flex-grow, shrink, auto-margins, and two-pass resolution for column flex with indefinite heights.
-*   **Incremental Reflow Optimization**: Functional, but bounding box union logic in `box_mark_dirty` is being refined for elements entirely contained within parent dirty regions.
-*   **MutationObserver**: Integrated with LibDOM via a native mutation hook system, though event refinement is ongoing.
-*   **Percentage Widths**: Basic resolution for IFRAMEs and text-indent exists in `layout.c`, but comprehensive support for nested percentage constraints and certain max-height scenarios is still being refined.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
 *   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing.

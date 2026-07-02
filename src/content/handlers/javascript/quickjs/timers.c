@@ -153,11 +153,22 @@ int qjs_init_timers(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
 
+    /* Check if already initialized */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_timers_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
     JS_SetPropertyStr(ctx, global_obj, "setTimeout", JS_NewCFunction(ctx, js_setTimeout, "setTimeout", 2));
     JS_SetPropertyStr(ctx, global_obj, "clearTimeout", JS_NewCFunction(ctx, js_clearTimeout, "clearTimeout", 1));
     JS_SetPropertyStr(ctx, global_obj, "setInterval", JS_NewCFunction(ctx, js_setInterval, "setInterval", 2));
     JS_SetPropertyStr(ctx, global_obj, "clearInterval", JS_NewCFunction(ctx, js_clearTimeout, "clearInterval", 1));
 
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_timers_init", JS_TRUE, 0);
     JS_FreeValue(ctx, global_obj);
     return 0;
 }

@@ -81,3 +81,79 @@ The following stability and compatibility fixes have been integrated:
 1.  **Web API Initialization**: Corrected `js_newthread` to ensure `navigator`, `location`, `storage`, and `XMLHttpRequest` are fully initialized with correct private data before script execution.
 2.  **Bridge Stability**: Fixed a critical `JS_FreeRuntime` assertion failure by ensuring the DOM bridge explicitly frees JSValue references and clears the runtime opaque pointer during cleanup.
 3.  **Initialization Ordering**: Reordered the JS startup sequence to ensure core bindings are registered before the bridge attempts to wrap LibDOM nodes.
+
+---
+
+## 8. Remaining Tasks & Priority Backlog
+The following tasks are identified as high-priority for the next development cycle:
+
+### Graphics & Rendering
+*   **[Incomplete] Canvas 2D Plotter Bridge** (Complexity: **Medium** | Benefit: **High**): Connect the WebIDL stubs for the Canvas 2D API to the underlying plotter engine (Direct2D/Blend2D).
+    *   *Benefit*: Enables high-performance interactive graphics, charts, and games, reaching parity with modern web standards.
+*   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan).
+    *   *Benefit*: Offloads expensive pixel transfers from the CPU, ensuring buttery-smooth 60FPS scrolling and lower power consumption on modern hardware.
+*   **[Planned] Parallel Tile Redraw** (Complexity: **Medium** | Benefit: **Medium**): Parallelize the Fixed-Tile Redraw strategy across multiple CPU cores via the `wisp_subsystem` worker pool.
+    *   *Benefit*: Dramatically reduces latency on complex pages by utilizing all available CPU cores for concurrent tile rasterization.
+
+### Performance & Stability
+*   **[Bug] QuickJS Leak Resolution** (Complexity: **Low** | Benefit: **Low**): Investigate and resolve the remaining heap leaks (~720 bytes) identified during runtime teardown in `qjs.c`.
+    *   *Benefit*: Ensures a "perfect" leak-free baseline for embedding Wisp as a library in other applications.
+*   **[Planned] Multi-process Architecture** (Complexity: **High** | Benefit: **High**): Isolate the JavaScript engine and network stack into separate OS processes.
+    *   *Benefit*: Improves system-wide stability by ensuring a crash in a script or network component does not affect the main browser process.
+
+### UI & Features
+*   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): Implement a cross-platform, lightweight UI component library for consistent 'browser chrome' (tabs, address bar).
+    *   *Benefit*: Simplifies maintenance and ensures a professional, consistent user experience across Linux, Windows, Haiku, and macOS.
+*   **[Planned] Web Worker Parity** (Complexity: **Medium** | Benefit: **Medium**): Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
+    *   *Benefit*: Unlocks the ability to run heavy computations (like image processing) in the background without freezing the UI.
+*   **[Planned] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend.
+    *   *Benefit*: Provides perfect system theme integration and accessibility support for Haiku users.
+
+### Security
+*   **[Planned] Content Security Policy (CSP)** (Complexity: **Medium** | Benefit: **High**): Implement a full CSP enforcement engine.
+    *   *Benefit*: Provides a critical layer of defense against Cross-Site Scripting (XSS) and data injection attacks.
+*   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD).
+    *   *Benefit*: Rigorously isolates the browser from sensitive user data, providing maximum protection against zero-day exploits.
+
+---
+
+## 9. Architectural Refinement: Optimal Worker Pool Size
+The structural layout of the Wisp architecture shows a clever adaptation of NetSurf’s ultra-light base. Bridging modern CSS layout rules with high-performance software rasterization like Blend2D is a great approach for low-spec hardware. However, the threading and graphics pipeline model requires refinement.
+
+### The Core Problem with a Unified Fixed Pool
+Hardcoding or capping the background worker pool at **7 threads** introduces performance issues:
+1.  **Low-End Hardware Thrashing**: Spawning 7 threads on a legacy dual-core (e.g., Core 2 Duo) causes severe context-switching overhead and cache thrashing.
+2.  **High-End Hardware Starvation**: On modern 8-core or 16-core machines, capping at 7 leaves performance on the table.
+3.  **Resource Contention**: Since the `wisp_subsystem` handles both Parallel Tile Redraw (PTR) and background JavaScript tasks, a heavy script can stall rendering, causing UI stutter.
+
+### Recommended Sizing Architecture
+Decouple the pools into a dedicated Rasterization Pool and a separate JS Worker Pool, scaling dynamically based on logical core count (N).
+
+| Pool Type | Target System Power | Optimal Formula | Behavior |
+|---|---|---|---|
+| **Rasterization Pool** | Single-Core (N=1) | 0 (Synchronous) | Avoids threading overhead completely. |
+| | Multi-Core (N > 1) | P = N - 1 | Leaves 1 core for the Main UI thread and OS event loops. |
+| **JavaScript Worker Pool** | All Systems | P = min(4, N) | Bounded to ensure scripts never starve rasterization. |
+
+---
+
+## 10. High-Impact Structural Improvements
+
+### A. Tile Memory Recycling (Fixed-Buffer Pool)
+Dynamic allocation/freeing of tile backing stores triggers **heap fragmentation**, especially on legacy OS allocators.
+*   **The Fix**: Implement a thread-safe **Ring Buffer or Lookaside List** of fixed-size tile memory buffers. Worker threads checkout buffers, rasterize, and return them after the main thread executes the atomic blit.
+
+### B. Viewport-Prioritized Tile Scheduling
+A simple FIFO task queue can hurt perceived performance during heavy reflows if tiles at the bottom of the page are rendered before visible ones.
+*   **The Fix**: Implement a **Spatially Weighted Task Queue**. Assign every dirty tile task a priority multiplier based on its geometric distance from the viewport frustum.
+
+### C. Direct Render Passes for Haiku (BDirectWindow)
+Copying large memory blocks back to the main UI thread creates a bottleneck on older Haiku rigs.
+*   **The Fix**: Migrate the final compositor step to a `BDirectWindow`. This grants the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops.
+
+### D. IPC & Sandboxing Abstraction Layer
+Building a sandboxing model across modern and legacy architectures (Haiku, XP) requires a clean separation.
+*   **The Fix**: Isolate multi-process messaging behind a platform-agnostic IPC interface wrapper using native primitives:
+    *   **Windows XP/7**: Named Pipes with restricted SIDs.
+    *   **Linux / macOS**: Unix Domain Sockets (`socketpair`).
+    *   **Haiku**: Native OS `BMessage` ports.

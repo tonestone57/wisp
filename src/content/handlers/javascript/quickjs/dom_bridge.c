@@ -161,6 +161,7 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         }
         free(cleanup.keys);
         hashmap_destroy(map);
+        JS_SetRuntimeOpaque(rt, NULL);
     }
 }
 

@@ -6,7 +6,7 @@
 
 interface Console {
   void debug(DOMString msg, any... subst);
-  void dir(JSValue object);
+  void dir(JSObject object);
   void error(DOMString msg, any... subst);
   void group();
   void groupCollapsed();

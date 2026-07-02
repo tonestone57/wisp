@@ -17,9 +17,9 @@ The CTV News header fails to render correctly because **CSS Variables (`var()`) 
 | Feature | Status | Implementation Details |
 |---------|--------|------------------------|
 | `display: flex` | ✅ Finished | Full support with two-pass resolution. |
-| `display: grid` | 🟡 Partial | 3-phase auto-placement implemented; dense packing in progress. |
+| `display: grid` | ✅ Finished | 3-phase auto-placement and dense packing implemented. |
 | `position: sticky`| ✅ Finished | Full support for viewports and scrollable ancestors. |
-| CSS Variables | 🟡 Partial | Parsing and selection finished; resolution in progress. |
+| CSS Variables | ✅ Finished | Resolution pass with fallback and cycle detection. |
 | AVIF Images | ✅ Finished | Native ISOBMFF sniffing and decoding via libavif. |
 | Fixed-Tile Redraw | ✅ Finished | 256x256 or 512x512 tiles for optimal performance. |
 
@@ -27,9 +27,9 @@ The CTV News header fails to render correctly because **CSS Variables (`var()`) 
 
 ## Root Causes & Status Updates
 
-### 1. CSS Variables (Partial)
+### 1. CSS Variables (Finished)
 - Parsing of `--name` and `var()` is complete.
-- **Status**: Resolution pass is active but has regressions in complex fallback scenarios. This remains the primary blocker for perfect ctvnews.ca rendering.
+- **Status**: Resolution pass is fully functional with fallback and inheritance support.
 
 ### 2. `position: sticky` (Finished)
 - **Status**: Fully implemented. Handled in `layout_apply_sticky_clamping` with multi-axis support.
@@ -47,4 +47,4 @@ The CTV News header fails to render correctly because **CSS Variables (`var()`) 
 1. **Short term**: [Finished] Implement `position: sticky` handling.
 2. **Short term**: [Finished] Add AVIF image support.
 3. **Medium term**: [Finished] Reduce log verbosity for flex/grid traces.
-4. **Long term**: [Partial] Complete CSS Variable resolution pass.
+4. **Long term**: [Finished] Complete CSS Variable resolution pass.

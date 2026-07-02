@@ -30,17 +30,24 @@ JSValue wisp_navigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 int qjs_init_navigator(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
-    JSValue check = JS_GetPropertyStr(ctx, global_obj, "navigator");
-    if (JS_IsObject(check)) {
+
+    /* Check if already initialized on this global object */
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_navigator_init");
+    if (JS_ToBool(ctx, check)) {
         JS_FreeValue(ctx, check);
         JS_FreeValue(ctx, global_obj);
         return 0;
     }
     JS_FreeValue(ctx, check);
 
+    /* Initialize the class and prototype using the generated function */
     qjs_init_navigator_gen(ctx);
     JSValue navigator = qjs_new_navigator(ctx, NULL, false);
     JS_DefinePropertyValueStr(ctx, global_obj, "navigator", navigator, JS_PROP_C_W_E);
+
+    /* Mark as initialized */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_navigator_init", JS_TRUE, 0);
     JS_FreeValue(ctx, global_obj);
+
     return 0;
 }

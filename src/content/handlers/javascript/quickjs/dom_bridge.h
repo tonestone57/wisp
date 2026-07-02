@@ -20,6 +20,7 @@ extern JSClassID qjs_console_class_id;
 extern JSClassID qjs_location_class_id;
 extern JSClassID qjs_navigator_class_id;
 extern JSClassID qjs_storage_class_id;
+extern JSClassID qjs_xmlhttprequest_class_id;
 extern JSClassID qjs_mutationobserver_class_id;
 extern JSClassID qjs_intersectionobserver_class_id;
 extern JSClassID qjs_domrect_class_id;

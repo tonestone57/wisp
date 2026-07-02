@@ -81,12 +81,13 @@ void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
     if (heap->rt) {
+        /* Prevent re-entrant finalizers from accessing the bridge during teardown */
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         qjs_bridge_cleanup(heap->rt);
         JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
-        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
-         * Explicitly free GC objects that might be pending after bridge cleanup. */
+        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix. */
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -111,6 +112,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_element(t->ctx);
     qjs_init_document(t->ctx);
     qjs_init_window(t->ctx);
+    qjs_init_console(t->ctx);
+    qjs_init_timers(t->ctx);
+    qjs_init_crypto(t->ctx);
     qjs_init_navigator(t->ctx);
     qjs_init_location(t->ctx);
     qjs_init_storage(t->ctx);
@@ -134,14 +138,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_priv), JS_PROP_C_W_E);
         dom_node_ref((dom_node *)doc_priv);
     }
-
-    qjs_init_console(t->ctx);
-    qjs_init_timers(t->ctx);
-    qjs_init_crypto(t->ctx);
-    qjs_init_navigator(t->ctx);
-    qjs_init_location(t->ctx);
-    qjs_init_storage(t->ctx);
-    qjs_init_xhr(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;
