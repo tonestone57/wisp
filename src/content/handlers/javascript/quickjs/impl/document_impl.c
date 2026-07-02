@@ -95,6 +95,18 @@ JSValue wisp_document_writeln_impl(JSContext *ctx, QJSNodePrivate *priv, const c
 JSValue wisp_document_cookie_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 
+JSValue wisp_document_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, false);
+}
+
+JSValue wisp_document_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
+}
+
 int qjs_init_document(JSContext *ctx) {
     qjs_init_document_gen(ctx);
     JSValue proto = JS_GetClassProto(ctx, qjs_document_class_id);

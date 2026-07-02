@@ -86,6 +86,7 @@ void js_destroyheap(jsheap *heap)
         JS_RunGC(heap->rt);
         /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
          * Explicitly free GC objects that might be pending after bridge cleanup. */
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_FreeRuntime(heap->rt);
     }
     free(heap);

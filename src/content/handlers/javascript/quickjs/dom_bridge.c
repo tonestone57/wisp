@@ -2,6 +2,7 @@
 
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include <wisp/utils/corestrings.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -95,6 +96,7 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
          * because qjs_new_* returned a reference that we are now returning
          * to the caller, and the map needs its own reference. */
         *val_ptr = JS_DupValue(ctx, wrapper);
+        dom_node_ref(node);
     }
 
     return wrapper;
@@ -105,7 +107,12 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (map) {
         bridge_key_t key = { ctx, node };
+        JSValue *val = hashmap_lookup(map, &key);
+        if (val) {
+            JS_FreeValueRT(rt, *val);
+        }
         hashmap_remove(map, &key);
+        dom_node_unref(node);
     }
 }
 
@@ -204,4 +211,118 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
+}
+
+static bool qjs_dom_match_node(struct dom_node *node, const char *selector)
+{
+    dom_node_type type;
+    dom_node_get_node_type(node, &type);
+    if (type != DOM_ELEMENT_NODE) return false;
+
+    if (selector[0] == '#') {
+        dom_string *id = NULL;
+        dom_element_get_attribute((dom_element *)node, corestring_dom_id, &id);
+        if (id) {
+            bool match = false;
+            dom_string *target = NULL;
+            dom_string_create((const uint8_t *)selector + 1, strlen(selector + 1), &target);
+            if (target) {
+                match = dom_string_isequal(id, target);
+                dom_string_unref(target);
+            }
+            dom_string_unref(id);
+            return match;
+        }
+    } else if (selector[0] == '.') {
+        dom_string *cls = NULL;
+        dom_element_get_attribute((dom_element *)node, corestring_dom_class, &cls);
+        if (cls) {
+            const char *data = dom_string_data(cls);
+            size_t len = dom_string_byte_length(cls);
+            const char *target = selector + 1;
+            size_t target_len = strlen(target);
+            bool found = false;
+            for (size_t i = 0; i <= len - target_len; i++) {
+                if ((i == 0 || data[i - 1] == ' ') && (i + target_len == len || data[i + target_len] == ' ')) {
+                    if (strncmp(data + i, target, target_len) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            dom_string_unref(cls);
+            return found;
+        }
+    } else if (strcmp(selector, "*") == 0) {
+        return true;
+    } else {
+        dom_string *tag = NULL;
+        dom_element_get_tag_name((dom_element *)node, &tag);
+        if (tag) {
+            bool match = false;
+            dom_string *target = NULL;
+            dom_string_create((const uint8_t *)selector, strlen(selector), &target);
+            if (target) {
+                match = dom_string_caseless_isequal(tag, target);
+                dom_string_unref(target);
+            }
+            dom_string_unref(tag);
+            return match;
+        }
+    }
+    return false;
+}
+
+JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all)
+{
+    JSValue result = all ? JS_NewArray(ctx) : JS_NULL;
+    uint32_t count = 0;
+
+    struct dom_node *curr = NULL;
+    dom_node_get_first_child(root, &curr);
+    while (curr) {
+        if (qjs_dom_match_node(curr, selector)) {
+            if (!all) {
+                JSValue val = qjs_wrap_node(ctx, curr);
+                dom_node_unref(curr);
+                return val;
+            }
+            JS_SetPropertyUint32(ctx, result, count++, qjs_wrap_node(ctx, curr));
+        }
+
+        struct dom_node *next = NULL;
+        dom_node_get_first_child(curr, &next);
+        if (next) {
+            dom_node_unref(curr);
+            curr = next;
+            continue;
+        }
+
+        dom_node_get_next_sibling(curr, &next);
+        if (next) {
+            dom_node_unref(curr);
+            curr = next;
+            continue;
+        }
+
+        while (curr) {
+            struct dom_node *parent = NULL;
+            dom_node_get_parent_node(curr, &parent);
+            dom_node_unref(curr);
+            if (parent == NULL || parent == root) {
+                if (parent) dom_node_unref(parent);
+                curr = NULL;
+                break;
+            }
+            dom_node_get_next_sibling(parent, &next);
+            if (next) {
+                dom_node_unref(parent);
+                curr = next;
+                break;
+            }
+            curr = parent;
+        }
+    }
+
+    return result;
 }

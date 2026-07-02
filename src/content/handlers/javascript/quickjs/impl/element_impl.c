@@ -83,6 +83,18 @@ JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv) { 
 JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewObject(ctx); }
 
+JSValue wisp_element_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, false);
+}
+
+JSValue wisp_element_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
+}
+
 int qjs_init_element(JSContext *ctx) {
     qjs_init_element_gen(ctx);
     JSValue proto = JS_GetClassProto(ctx, qjs_element_class_id);
