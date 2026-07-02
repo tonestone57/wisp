@@ -81,10 +81,9 @@ void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
     if (heap->rt) {
-        /* Prevent re-entrant finalizers from accessing the bridge during teardown */
-        JS_SetRuntimeOpaque(heap->rt, NULL);
+        /* Clean up the DOM bridge first while the runtime opaque is still valid.
+         * qjs_bridge_cleanup will set the opaque to NULL when finished. */
         qjs_bridge_cleanup(heap->rt);
-        JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
         /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix. */
@@ -105,22 +104,25 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     /* core initialization - registration handles dependencies */
     wisp_js_register_all_bindings(t->ctx);
 
-    qjs_init_dom_bridge(t->ctx);
-    qjs_init_eventtarget(t->ctx);
-    qjs_init_event(t->ctx);
-    qjs_init_node(t->ctx);
-    qjs_init_element(t->ctx);
-    qjs_init_document(t->ctx);
-    qjs_init_window(t->ctx);
-    qjs_init_console(t->ctx);
-    qjs_init_timers(t->ctx);
-    qjs_init_crypto(t->ctx);
-    qjs_init_navigator(t->ctx);
-    qjs_init_location(t->ctx);
-    qjs_init_storage(t->ctx);
-    qjs_init_xhr(t->ctx);
-    qjs_init_mutationobserver(t->ctx);
-    qjs_init_intersectionobserver(t->ctx);
+    if (qjs_init_dom_bridge(t->ctx) != 0 ||
+        qjs_init_eventtarget(t->ctx) != 0 ||
+        qjs_init_event(t->ctx) != 0 ||
+        qjs_init_node(t->ctx) != 0 ||
+        qjs_init_element(t->ctx) != 0 ||
+        qjs_init_document(t->ctx) != 0 ||
+        qjs_init_window(t->ctx) != 0 ||
+        qjs_init_console(t->ctx) != 0 ||
+        qjs_init_timers(t->ctx) != 0 ||
+        qjs_init_crypto(t->ctx) != 0 ||
+        qjs_init_navigator(t->ctx) != 0 ||
+        qjs_init_location(t->ctx) != 0 ||
+        qjs_init_storage(t->ctx) != 0 ||
+        qjs_init_xhr(t->ctx) != 0 ||
+        qjs_init_mutationobserver(t->ctx) != 0 ||
+        qjs_init_intersectionobserver(t->ctx) != 0) {
+        js_destroythread(t);
+        return NSERROR_NOMEM;
+    }
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;

@@ -119,6 +119,10 @@ int qjs_init_dom_bridge(JSContext *ctx)
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (!map) {
         map = hashmap_create(&bridge_map_params);
+        if (!map) {
+            NSLOG(wisp, ERROR, "Failed to create DOM bridge hashmap");
+            return -1;
+        }
         JS_SetRuntimeOpaque(rt, map);
     }
     return 0;
