@@ -88,19 +88,29 @@ The following stability and compatibility fixes have been integrated:
 The following tasks are identified as high-priority for the next development cycle:
 
 ### Graphics & Rendering
-*   **[Incomplete] Canvas 2D Plotter Bridge**: Connect the WebIDL stubs for the Canvas 2D API to the underlying plotter engine (Direct2D/Blend2D).
-*   **[Planned] GPU-Accelerated Compositing**: Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure 60FPS performance on high-resolution displays.
-*   **[Planned] Parallel Tile Redraw**: Parallelize the Fixed-Tile Redraw strategy across multiple CPU cores by dispatching dirty tiles to the `wisp_subsystem` worker pool.
+*   **[Incomplete] Canvas 2D Plotter Bridge** (Complexity: **Medium** | Benefit: **High**): Connect the WebIDL stubs for the Canvas 2D API to the underlying plotter engine (Direct2D/Blend2D).
+    *   *Benefit*: Enables high-performance interactive graphics, charts, and games, reaching parity with modern web standards.
+*   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan).
+    *   *Benefit*: Offloads expensive pixel transfers from the CPU, ensuring buttery-smooth 60FPS scrolling and lower power consumption on modern hardware.
+*   **[Planned] Parallel Tile Redraw** (Complexity: **Medium** | Benefit: **Medium**): Parallelize the Fixed-Tile Redraw strategy across multiple CPU cores via the `wisp_subsystem` worker pool.
+    *   *Benefit*: Dramatically reduces latency on complex pages by utilizing all available CPU cores for concurrent tile rasterization.
 
 ### Performance & Stability
-*   **[Bug] QuickJS Leak Resolution**: Investigate and resolve the remaining heap leaks (~720 bytes) identified during runtime teardown in `qjs.c`.
-*   **[Planned] Multi-process Architecture**: Isolate the QuickJS-ng engine and the network stack into separate OS processes to improve security and fault tolerance.
+*   **[Bug] QuickJS Leak Resolution** (Complexity: **Low** | Benefit: **Low**): Investigate and resolve the remaining heap leaks (~720 bytes) identified during runtime teardown in `qjs.c`.
+    *   *Benefit*: Ensures a "perfect" leak-free baseline for embedding Wisp as a library in other applications.
+*   **[Planned] Multi-process Architecture** (Complexity: **High** | Benefit: **High**): Isolate the JavaScript engine and network stack into separate OS processes.
+    *   *Benefit*: Improves system-wide stability by ensuring a crash in a script or network component does not affect the main browser process.
 
 ### UI & Features
-*   **[Planned] Unified C-based UI Library**: Implement a cross-platform, lightweight UI component library for consistent browser chrome across all frontends.
-*   **[Planned] Web Worker Parity**: Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
-*   **[Planned] Native Haiku Widget Parity**: Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend for theme parity and accessibility.
+*   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): Implement a cross-platform, lightweight UI component library for consistent 'browser chrome' (tabs, address bar).
+    *   *Benefit*: Simplifies maintenance and ensures a professional, consistent user experience across Linux, Windows, Haiku, and macOS.
+*   **[Planned] Web Worker Parity** (Complexity: **Medium** | Benefit: **Medium**): Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
+    *   *Benefit*: Unlocks the ability to run heavy computations (like image processing) in the background without freezing the UI.
+*   **[Planned] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend.
+    *   *Benefit*: Provides perfect system theme integration and accessibility support for Haiku users.
 
 ### Security
-*   **[Planned] Content Security Policy (CSP)**: Implement a full CSP enforcement engine within the layout and script handlers.
-*   **[Planned] OS-Level Sandboxing**: Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD) for rigorous process isolation.
+*   **[Planned] Content Security Policy (CSP)** (Complexity: **Medium** | Benefit: **High**): Implement a full CSP enforcement engine.
+    *   *Benefit*: Provides a critical layer of defense against Cross-Site Scripting (XSS) and data injection attacks.
+*   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD).
+    *   *Benefit*: Rigorously isolates the browser from sensitive user data, providing maximum protection against zero-day exploits.

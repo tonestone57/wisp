@@ -11,7 +11,7 @@
 
 2. **CSS Variable Usage**
    - Site relies on variables for colors and typography.
-   - **Status**: Mostly functional in Wisp. Variable selection works; color resolution is stable enough for this site's static usage.
+   - **Status**: Fully functional in Wisp. Variable resolution pass supports Tailwind-style property inheritance.
 
 3. **Media**
    - Heavily uses modern image formats.

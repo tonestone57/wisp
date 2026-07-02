@@ -8,6 +8,8 @@
 #include "utils/libdom.h"
 #include "JSXMLHttpRequest.gen.h"
 
+JSClassID qjs_xmlhttprequest_class_id;
+
 static JSValue js_xhr_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
 {
     return qjs_new_xmlhttprequest(ctx, NULL, false);
@@ -46,8 +48,6 @@ JSValue wisp_xmlhttprequest_withCredentials_set_impl(JSContext *ctx, QJSNodePriv
 JSValue wisp_xmlhttprequest_upload_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_xmlhttprequest_responseURL_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 
-JSClassID qjs_xhr_class_id;
-
 int qjs_init_xhr(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
@@ -62,7 +62,7 @@ int qjs_init_xhr(JSContext *ctx)
     JS_FreeValue(ctx, check);
 
     JSRuntime *rt = JS_GetRuntime(ctx);
-    if (qjs_xhr_class_id == 0) JS_NewClassID(rt, &qjs_xhr_class_id);
+    if (qjs_xmlhttprequest_class_id == 0) JS_NewClassID(rt, &qjs_xmlhttprequest_class_id);
 
     /* Initialize the class and prototype using the generated function */
     qjs_init_xmlhttprequest_gen(ctx);

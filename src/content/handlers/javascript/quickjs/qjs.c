@@ -81,11 +81,12 @@ void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
     if (heap->rt) {
+        /* Prevent re-entrant finalizers from accessing the bridge during teardown */
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         qjs_bridge_cleanup(heap->rt);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
-        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
-         * Explicitly free GC objects that might be pending after bridge cleanup. */
+        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix. */
         JS_FreeRuntime(heap->rt);
     }
     free(heap);

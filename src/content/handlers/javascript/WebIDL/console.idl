@@ -5,18 +5,18 @@
 // Yay for non-standard standards
 
 interface Console {
-  void debug(DOMString msg, Substitition... subst);
+  void debug(DOMString msg, any... subst);
   void dir(JSObject object);
-  void error(DOMString msg, Substitition... subst);
+  void error(DOMString msg, any... subst);
   void group();
   void groupCollapsed();
   void groupEnd();
-  void info(DOMString msg, Substitition... subst);
-  void log(DOMString msg, Substitition... subst);
+  void info(DOMString msg, any... subst);
+  void log(DOMString msg, any... subst);
   void time(DOMString timerName);
   void timeEnd(DOMString timerName);
   void trace();
-  void warn(DOMString msg, Substitition... subst);
+  void warn(DOMString msg, any... subst);
 };
 
 partial interface Window {

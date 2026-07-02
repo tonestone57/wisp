@@ -29,8 +29,10 @@ Current development is focused on completing the CSS Variables implementation an
 *   **[Finished] LibCSS Test Runner Fixes**: Resolved long-standing syntax and format issues in the `parse-auto` runner.
 *   **[Finished] CSS Grid**: Spec-compliant 3-phase auto-placement, FR unit distribution, and dense packing.
 *   **[Finished] CSS Flexbox**: Full support for flex-grow, shrink, auto-margins, and two-pass resolution for column flex.
-*   **[Finished] Incremental Layout**: Dual-pass dirty-bit system with optimized fixed-tile redraw.
+*   **[Finished] Incremental Layout**: Dual-strategy using a dirty-bit reflow system and scale-aware fixed-tile redraw for maximum efficiency.
 *   **[Finished] CSS Variables**: Full parsing, selection, and recursive resolution pass with fallback support.
+*   **[Finished] MutationObserver**: Native integration with LibDOM and optimized QuickJS callback delivery.
+*   **[Finished] Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
