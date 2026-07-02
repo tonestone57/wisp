@@ -111,9 +111,9 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
             JS_FreeValueRT(rt, *val);
+            hashmap_remove(map, &key);
+            dom_node_unref(node);
         }
-        hashmap_remove(map, &key);
-        dom_node_unref(node);
     }
 }
 
@@ -167,9 +167,9 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
                 JS_FreeValueRT(rt, *val);
+                hashmap_remove(map, &cleanup.keys[i]);
+                dom_node_unref(cleanup.keys[i].node);
             }
-            hashmap_remove(map, &cleanup.keys[i]);
-            dom_node_unref(cleanup.keys[i].node);
         }
         free(cleanup.keys);
         hashmap_destroy(map);
@@ -196,7 +196,6 @@ static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
             cleanup->nodes = new_nodes;
         }
         cleanup->nodes[cleanup->count++] = k->node;
-        dom_node_ref(k->node);
     }
     return false;
 }
@@ -484,9 +483,9 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
             JS_FreeValue(ctx, *val);
+            hashmap_remove(map, &key);
+            dom_node_unref(cleanup.nodes[i]);
         }
-        hashmap_remove(map, &key);
-        dom_node_unref(cleanup.nodes[i]);
     }
     free(cleanup.nodes);
 }
