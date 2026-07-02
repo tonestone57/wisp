@@ -117,6 +117,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_xhr(t->ctx);
     qjs_init_mutationobserver(t->ctx);
     qjs_init_intersectionobserver(t->ctx);
+    qjs_init_console(t->ctx);
+    qjs_init_timers(t->ctx);
+    qjs_init_crypto(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;
@@ -134,10 +137,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_priv), JS_PROP_C_W_E);
         dom_node_ref((dom_node *)doc_priv);
     }
-
-    qjs_init_console(t->ctx);
-    qjs_init_timers(t->ctx);
-    qjs_init_crypto(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;

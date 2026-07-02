@@ -415,7 +415,7 @@ static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector
                     found = true;
                     break;
                 }
-                curr = dom_node_ref(parent);
+                curr = parent;
             }
             if (!found) return false;
         } else if (comb == QJS_COMBINATOR_ADJACENT_SIBLING) {
