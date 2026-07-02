@@ -65,11 +65,11 @@ static csp_source *parse_source(char *token) {
             src->scheme = strndup(token, colon - token);
             char *host_start = colon + 3;
             char *port_start = strchr(host_start, ':');
-            if (port_start) {
+            char *slash = strchr(host_start, '/');
+            if (port_start && (!slash || port_start < slash)) {
                 src->host = strndup(host_start, port_start - host_start);
                 src->port = atoi(port_start + 1);
             } else {
-                char *slash = strchr(host_start, '/');
                 if (slash) {
                     src->host = strndup(host_start, slash - host_start);
                 } else {
@@ -77,7 +77,16 @@ static csp_source *parse_source(char *token) {
                 }
             }
         } else {
-            src->scheme = strndup(token, colon - token);
+            /* If colon is not followed by //, it might be host:port or scheme:
+             * CSP sources like "https:" end with a colon.
+             * A host:port source like "example.com:8080" has digits after colon.
+             */
+            if (colon[1] >= '0' && colon[1] <= '9') {
+                src->host = strndup(token, colon - token);
+                src->port = atoi(colon + 1);
+            } else {
+                src->scheme = strndup(token, colon - token);
+            }
         }
     } else {
         char *slash = strchr(token, '/');

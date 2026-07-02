@@ -611,7 +611,6 @@ void hlcache_finalise(void)
     NSLOG(wisp, INFO, "%" PRIu32 " contents remaining:", num_contents);
     for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
         hlcache_handle entry_handle = {entry, NULL, NULL};
-
         if (entry->content != NULL) {
             NSLOG(wisp, INFO, "	%p : %s (%" PRIu32 " users)", entry,
                 nsurl_access(hlcache_handle_get_url(&entry_handle)), content_count_users(entry->content));
@@ -686,7 +685,6 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         hlcache_entry *entry;
         for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
             hlcache_handle entry_handle = {entry, NULL, NULL};
-
             if (entry->content == NULL)
                 continue;
 
@@ -782,7 +780,6 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     new_ctx->accepted_types = accepted_types;
                     new_ctx->handle->cb = cb;
                     new_ctx->handle->pw = pw;
-
                     /* Share the low-level cache handle */
                     if (llcache_handle_clone(ictx->llcache, &new_ctx->llcache) != NSERROR_OK) {
                         free(new_ctx->handle);
@@ -838,7 +835,6 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 
     ctx->handle->cb = cb;
     ctx->handle->pw = pw;
-
 
     NSLOG(wisp, DEBUG, "FETCH: cache MISS (new fetch) '%s'", nsurl_access(url));
     error = llcache_handle_retrieve(url, flags, referer, post, hlcache_llcache_callback, ctx, &ctx->llcache);
@@ -1049,7 +1045,6 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     /* Check for existing content with the same URL (dedup) */
     for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
         hlcache_handle entry_handle = {entry, NULL, NULL};
-
         if (entry->content == NULL)
             continue;
 
@@ -1132,8 +1127,6 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     ctx->accepted_types = accepted_types;
     ctx->handle->cb = cb;
     ctx->handle->pw = pw;
-
-
     /* Create synthetic llcache entry with the raw data */
     error = llcache_handle_retrieve_buffer(url, data, len, mime_type, hlcache_llcache_callback, ctx, &ctx->llcache);
     nsurl_unref(url);

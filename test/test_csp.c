@@ -33,6 +33,21 @@ void test_csp() {
     assert(csp_check_url(csp, CSP_IMG_SRC, url_self) == false);
     csp_destroy(csp);
 
+    // Test 4: host:port without scheme
+    nsurl *url_port;
+    assert(nsurl_create("https://example.com:8080/script.js", &url_port) == NSERROR_OK);
+    assert(csp_parse("script-src example.com:8080", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_port) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == false);
+    csp_destroy(csp);
+
+    // Test 5: scheme: without host
+    assert(csp_parse("script-src https:", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_port) == true);
+    csp_destroy(csp);
+    nsurl_unref(url_port);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);
