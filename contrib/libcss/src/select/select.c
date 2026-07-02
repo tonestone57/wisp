@@ -840,7 +840,7 @@ static css_error css__set_node_data(void *node, css_select_state *state, css_sel
 }
 
 
-/** The releationship of a share candidate node to the selection node. */
+/** The relationship of a share candidate node to the selection node. */
 enum share_candidate_type {
     CANDIDATE_SIBLING,
     CANDIDATE_COUSIN,
@@ -1103,16 +1103,16 @@ static void css_select__finalise_selection_state(css_select_state *state)
     if (state->var_ctx != NULL) {
         css__variables_ctx_destroy(state->var_ctx);
         state->var_ctx = NULL;
+    }
 
-    css_deferred_prop *p = state->deferred.head;
-    while (p) {
-        css_deferred_prop *next = p->next;
-        lwc_string_unref(p->serialized);
-        free(p);
-        p = next;
+    css_deferred_prop *dp = state->deferred.head;
+    while (dp) {
+        css_deferred_prop *next = dp->next;
+        lwc_string_unref(dp->serialized);
+        free(dp);
+        dp = next;
     }
     state->deferred.head = state->deferred.tail = NULL;
-    }
 
     if (state->classes != NULL) {
         for (uint32_t i = 0; i < state->n_classes; i++) {
@@ -1120,7 +1120,6 @@ static void css_select__finalise_selection_state(css_select_state *state)
         }
     }
 
-    // TODO can these be null ?
     if (state->id != NULL)
         lwc_string_unref(state->id);
     if (state->element.ns != NULL)
@@ -2064,10 +2063,10 @@ css_error match_selectors_in_sheet(css_select_ctx *ctx, const css_stylesheet *sh
     const css_selector **univ_selectors = &empty_selector;
     css_selector_hash_iterator univ_iterator;
     css_select_rule_source src = {CSS_SELECT_RULE_SRC_ELEMENT, 0};
-    struct css_hash_selection_requirments req;
+    struct css_hash_selection_requirements req;
     css_error error;
 
-    /* Set up general selector chain requirments */
+    /* Set up general selector chain requirements */
     req.media = state->media;
     req.unit_ctx = state->unit_ctx;
     req.node_bloom = state->node_data->bloom;
@@ -2796,7 +2795,11 @@ css_error cascade_style(const css_style *style, css_select_state *state)
             css__stylesheet_string_get(s.sheet, value_idx, &value_str);
 
             if (name_str != NULL && value_str != NULL && state->var_ctx != NULL) {
-                 { parserutils_vector *tokens; if (deserialize_tokens(value_str, &tokens) == CSS_OK) { css__variables_ctx_set(state->var_ctx, name_str, tokens); css__tokens_destroy(tokens); } }
+                parserutils_vector *tokens;
+                if (deserialize_tokens(value_str, &tokens) == CSS_OK) {
+                    css__variables_ctx_set(state->var_ctx, name_str, tokens);
+                    css__tokens_destroy(tokens);
+                }
             }
             continue;
         }

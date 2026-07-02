@@ -3798,7 +3798,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 		return true;
 	}
 
-	/* special case if the block contains an radio button or checkbox */
+	/* special case if the block contains a radio button or checkbox */
 	if (block->gadget && (block->gadget->type == GADGET_RADIO || block->gadget->type == GADGET_CHECKBOX)) {
 		/* form checkbox or radio button
 		 * if width or height is AUTO, set it to 1em */

@@ -138,10 +138,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     qjs_init_console(t->ctx);
     qjs_init_timers(t->ctx);
     qjs_init_crypto(t->ctx);
-    qjs_init_navigator(t->ctx);
-    qjs_init_location(t->ctx);
-    qjs_init_storage(t->ctx);
-    qjs_init_xhr(t->ctx);
 
     JS_FreeValue(t->ctx, global_obj);
     *thread = t;
@@ -192,7 +188,7 @@ void js_destroythread(jsthread *thread)
         e = next;
     }
 
-    // Break MutationObserver cycles and orphan them
+    /* Break MutationObserver cycles and orphan them */
     struct WispMutationObserver *mo_list = (struct WispMutationObserver *)thread->mutation_observers;
     thread->mutation_observers = NULL;
     while (mo_list) {
@@ -204,7 +200,7 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, self);
     }
 
-    // Break IntersectionObserver cycles and orphan them
+    /* Break IntersectionObserver cycles and orphan them */
     struct WispIntersectionObserver *io_list = (struct WispIntersectionObserver *)thread->intersection_observers;
     thread->intersection_observers = NULL;
     while (io_list) {
