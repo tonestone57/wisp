@@ -100,7 +100,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     if (!t) return NSERROR_NOMEM;
     t->ctx = JS_NewContext(heap->rt);
     if (!t->ctx) { free(t); return NSERROR_NOMEM; }
-    t->heap = heap; t->win_priv = win_priv; t->doc_priv = doc_priv;
+    t->heap = heap; t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
 
     /* core initialization - registration handles dependencies */
@@ -141,6 +141,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     if (doc_priv) {
         JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_priv), JS_PROP_C_W_E);
         dom_node_ref((dom_node *)doc_priv);
+        t->doc_priv = doc_priv;
     }
 
     JS_FreeValue(t->ctx, global_obj);
