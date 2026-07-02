@@ -86,7 +86,9 @@ void js_destroyheap(jsheap *heap)
         qjs_bridge_cleanup(heap->rt);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
-        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix. */
+        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
+         * Explicitly free GC objects that might be pending after bridge cleanup. */
+        JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
@@ -190,7 +192,7 @@ void js_destroythread(jsthread *thread)
         e = next;
     }
 
-    // Break MutationObserver cycles and orphan them
+    /* Break MutationObserver cycles and orphan them */
     struct WispMutationObserver *mo_list = (struct WispMutationObserver *)thread->mutation_observers;
     thread->mutation_observers = NULL;
     while (mo_list) {
@@ -202,7 +204,7 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, self);
     }
 
-    // Break IntersectionObserver cycles and orphan them
+    /* Break IntersectionObserver cycles and orphan them */
     struct WispIntersectionObserver *io_list = (struct WispIntersectionObserver *)thread->intersection_observers;
     thread->intersection_observers = NULL;
     while (io_list) {

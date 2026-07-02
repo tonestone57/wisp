@@ -149,6 +149,9 @@ static css_error css__select_add_deferred_prop(css_select_state *state, opcode_t
     p->opcode = opcode;
     p->flags = flags;
     p->pseudo = state->current_pseudo;
+    p->specificity = state->current_specificity;
+    p->rule_id = state->current_rule_id;
+    p->origin = state->current_origin;
     p->serialized = lwc_string_ref(serialized);
     p->next = NULL;
     if (state->deferred.tail) state->deferred.tail->next = p;
@@ -837,7 +840,7 @@ static css_error css__set_node_data(void *node, css_select_state *state, css_sel
 }
 
 
-/** The releationship of a share candidate node to the selection node. */
+/** The relationship of a share candidate node to the selection node. */
 enum share_candidate_type {
     CANDIDATE_SIBLING,
     CANDIDATE_COUSIN,
@@ -1100,16 +1103,16 @@ static void css_select__finalise_selection_state(css_select_state *state)
     if (state->var_ctx != NULL) {
         css__variables_ctx_destroy(state->var_ctx);
         state->var_ctx = NULL;
+    }
 
-    css_deferred_prop *p = state->deferred.head;
-    while (p) {
-        css_deferred_prop *next = p->next;
-        lwc_string_unref(p->serialized);
-        free(p);
-        p = next;
+    css_deferred_prop *dp = state->deferred.head;
+    while (dp) {
+        css_deferred_prop *next = dp->next;
+        lwc_string_unref(dp->serialized);
+        free(dp);
+        dp = next;
     }
     state->deferred.head = state->deferred.tail = NULL;
-    }
 
     if (state->classes != NULL) {
         for (uint32_t i = 0; i < state->n_classes; i++) {
@@ -1117,7 +1120,6 @@ static void css_select__finalise_selection_state(css_select_state *state)
         }
     }
 
-    // TODO can these be null ?
     if (state->id != NULL)
         lwc_string_unref(state->id);
     if (state->element.ns != NULL)
@@ -1467,6 +1469,9 @@ css_error css_select_style(css_select_ctx *ctx, void *node, const css_unit_ctx *
             /* Inline style applies to base element only */
             state.current_pseudo = CSS_PSEUDO_ELEMENT_NONE;
             state.computed = state.results->styles[CSS_PSEUDO_ELEMENT_NONE];
+            state.current_specificity = 0;
+            state.current_rule_id = state.rule_count++;
+            state.current_origin = CSS_ORIGIN_AUTHOR;
 
             error = cascade_style(sel->style, &state);
             if (error != CSS_OK)
@@ -1559,31 +1564,44 @@ css_error css_select_style(css_select_ctx *ctx, void *node, const css_unit_ctx *
     /* Resolve deferred properties (CSS Variables) */
     css_deferred_prop *dp = state.deferred.head;
     while (dp) {
-        parserutils_vector *tokens, *resolved;
-        bool resolved_ok = false;
-        if (deserialize_tokens(dp->serialized, &tokens) == CSS_OK) {
-            if (css__resolve_var_tokens(&state, tokens, &resolved) == CSS_OK) {
-                css_style *resolved_style = NULL;
-                if (css__stylesheet_parse_tokens((css_stylesheet *)state.sheet, dp->opcode, resolved, &resolved_style) == CSS_OK) {
-                    state.current_pseudo = dp->pseudo;
-                    state.computed = state.results->styles[dp->pseudo];
-                    uint32_t opv = *resolved_style->bytecode;
-                    advance_bytecode(resolved_style, sizeof(uint32_t));
-                    prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
-                    css__stylesheet_style_destroy(resolved_style);
-                    resolved_ok = true;
-                }
-                css__tokens_destroy(resolved);
-            }
-            css__tokens_destroy(tokens);
-        }
+        /* Only resolve if this rule still outranks the current value.
+         * This handles cases where a later non-variable rule or a
+         * more specific variable rule has already won. */
+        prop_state *current = &state.props[dp->opcode][dp->pseudo];
+        if (current->rule_id == dp->rule_id) {
+            parserutils_vector *tokens, *resolved;
+            bool resolved_ok = false;
+            if (deserialize_tokens(dp->serialized, &tokens) == CSS_OK) {
+                if (css__resolve_var_tokens(&state, tokens, &resolved) == CSS_OK) {
+                    css_style *resolved_style = NULL;
+                    if (css__stylesheet_parse_tokens((css_stylesheet *)state.sheet, dp->opcode, resolved, &resolved_style) == CSS_OK) {
+                        state.current_pseudo = dp->pseudo;
+                        state.computed = state.results->styles[dp->pseudo];
+                        state.current_specificity = dp->specificity;
+                        state.current_rule_id = dp->rule_id;
+                        state.current_origin = dp->origin;
 
-        if (!resolved_ok) {
-            /* If resolution fails, property computes to its initial value (or inherits if applicable)
-             * per CSS Variables spec "Invalid at computed-value time" */
-            state.current_pseudo = dp->pseudo;
-            state.computed = state.results->styles[dp->pseudo];
-            prop_dispatch[dp->opcode].initial(&state);
+                        uint32_t opv = *resolved_style->bytecode;
+                        advance_bytecode(resolved_style, sizeof(uint32_t));
+                        /* Reset rule_id to -1 so cascade always updates state,
+                         * since we already checked that this IS the winning rule. */
+                        state.props[dp->opcode][dp->pseudo].rule_id = (uint32_t)-1;
+                        prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
+                        css__stylesheet_style_destroy(resolved_style);
+                        resolved_ok = true;
+                    }
+                    css__tokens_destroy(resolved);
+                }
+                css__tokens_destroy(tokens);
+            }
+
+            if (!resolved_ok) {
+                /* If resolution fails, property computes to its initial value (or inherits if applicable)
+                 * per CSS Variables spec "Invalid at computed-value time" */
+                state.current_pseudo = dp->pseudo;
+                state.computed = state.results->styles[dp->pseudo];
+                prop_dispatch[dp->opcode].initial(&state);
+            }
         }
 
         dp = dp->next;
@@ -1761,6 +1779,7 @@ css_error set_hint(css_select_state *state, css_hint *hint)
     /* Keep selection state in sync with reality */
     existing->set = 1;
     existing->specificity = 0;
+    existing->rule_id = state->rule_count++;
     existing->origin = CSS_ORIGIN_AUTHOR;
     existing->important = 0;
     existing->explicit_default = (hint->status == 0) ? FLAG_VALUE_INHERIT : FLAG_VALUE__NONE;
@@ -1780,6 +1799,7 @@ css_error set_initial(css_select_state *state, uint32_t prop, css_pseudo_element
      */
     if (state->props[prop][pseudo].explicit_default == FLAG_VALUE_INITIAL || prop_dispatch[prop].inherited == false ||
         (pseudo == CSS_PSEUDO_ELEMENT_NONE && parent == NULL)) {
+        state->props[prop][pseudo].rule_id = state->rule_count++;
         error = prop_dispatch[prop].initial(state);
         if (error != CSS_OK)
             return error;
@@ -2043,10 +2063,10 @@ css_error match_selectors_in_sheet(css_select_ctx *ctx, const css_stylesheet *sh
     const css_selector **univ_selectors = &empty_selector;
     css_selector_hash_iterator univ_iterator;
     css_select_rule_source src = {CSS_SELECT_RULE_SRC_ELEMENT, 0};
-    struct css_hash_selection_requirments req;
+    struct css_hash_selection_requirements req;
     css_error error;
 
-    /* Set up general selector chain requirments */
+    /* Set up general selector chain requirements */
     req.media = state->media;
     req.unit_ctx = state->unit_ctx;
     req.node_bloom = state->node_data->bloom;
@@ -2231,6 +2251,7 @@ css_error match_selector_chain(css_select_ctx *ctx, const css_selector *selector
 
     /* If we got here, then the entire selector chain matched, so cascade */
     state->current_specificity = selector->specificity;
+    state->current_rule_id = state->rule_count++;
 
     /* Ensure that the appropriate computed style exists */
     if (state->results->styles[pseudo] == NULL) {
@@ -2774,9 +2795,14 @@ css_error cascade_style(const css_style *style, css_select_state *state)
             css__stylesheet_string_get(s.sheet, value_idx, &value_str);
 
             if (name_str != NULL && value_str != NULL && state->var_ctx != NULL) {
-                 { parserutils_vector *tokens; if (deserialize_tokens(value_str, &tokens) == CSS_OK) { css__variables_ctx_set(state->var_ctx, name_str, tokens); css__tokens_destroy(tokens); } }
+                parserutils_vector *tokens;
+                if (deserialize_tokens(value_str, &tokens) == CSS_OK) {
+                    css__variables_ctx_set(state->var_ctx, name_str, tokens);
+                    css__tokens_destroy(tokens);
+                }
             }
             continue;
+        }
 
         if (isVariable(opv)) {
             uint32_t val_idx = *s.bytecode;
@@ -2786,10 +2812,10 @@ css_error cascade_style(const css_style *style, css_select_state *state)
             css__select_add_deferred_prop(state, op, getFlags(opv), serialized);
             continue;
         }
-        }
 
-        /* DEBUG: Log opcode to trace out-of-bounds access */
-        // fprintf(stderr, "DEBUG cascade: opcode=%d (0x%03x), CSS_N_PROPERTIES=%d\n", op, op, CSS_N_PROPERTIES);
+        /* DEBUG: Log opcode to trace out-of-bounds access
+        fprintf(stderr, "DEBUG cascade: opcode=%d (0x%03x), CSS_N_PROPERTIES=%d\n", op, op, CSS_N_PROPERTIES);
+        */
         if (op >= CSS_N_PROPERTIES) {
             fprintf(stderr, "ERROR: Invalid opcode %d >= CSS_N_PROPERTIES %d!\n", op, CSS_N_PROPERTIES);
         }
@@ -2886,14 +2912,16 @@ bool css__outranks_existing(uint16_t op, bool important, css_select_state *state
         }
     }
 
-    if (outranks) {
+    if (outranks || existing->rule_id == (uint32_t)-1) {
         /* The new property is about to replace the old one.
          * Update our state to reflect this. */
         existing->set = 1;
         existing->specificity = state->current_specificity;
+        existing->rule_id = state->current_rule_id;
         existing->origin = state->current_origin;
         existing->important = important;
         existing->explicit_default = explicit_default;
+        outranks = true;
     }
 
     return outranks;

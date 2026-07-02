@@ -1873,10 +1873,19 @@ static void layout_block_find_dimensions(
 		/* block-level replaced element, see 10.3.4 and 10.6.2 */
 		if (box->flags & IFRAME) {
 			/* IFRAMEs have a default size of 300x150 (Wisp uses 400x150) */
-			if (width == AUTO)
-				width = 400;
-			if (height == AUTO)
+			if (width == AUTO) {
+				if (box_has_percentage_width(box)) {
+					css_fixed value = 0;
+					css_unit unit = CSS_UNIT_PX;
+					css_computed_width(box->style, &value, &unit);
+					width = FPCT_OF_INT_TOINT(value, available_width);
+				} else {
+					width = 400;
+				}
+			}
+			if (height == AUTO) {
 				height = 150;
+			}
 
 			/* Apply min/max constraints */
 			if (min_width.type == CSS_SIZE_SET && min_width.value > width)
@@ -3194,10 +3203,19 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 		} else if (b->flags & IFRAME) {
 			/* IFRAMEs with AUTO dimensions use 300x150 default per HTML5 §4.8.2.
 			 * Wisp uses 400x150 for consistency with block-level IFRAMEs. */
-			if (b->width == AUTO)
-				b->width = 400;
-			if (b->height == AUTO)
+			if (b->width == AUTO) {
+				if (box_has_percentage_width(b)) {
+					css_fixed value = 0;
+					css_unit unit = CSS_UNIT_PX;
+					css_computed_width(b->style, &value, &unit);
+					b->width = FPCT_OF_INT_TOINT(value, *width);
+				} else {
+					b->width = 400;
+				}
+			}
+			if (b->height == AUTO) {
 				b->height = 150;
+			}
 
 			/* We reformat the iframe browser window to new
 			 * dimensions in pass 2 */
@@ -3780,7 +3798,7 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 		return true;
 	}
 
-	/* special case if the block contains an radio button or checkbox */
+	/* special case if the block contains a radio button or checkbox */
 	if (block->gadget && (block->gadget->type == GADGET_RADIO || block->gadget->type == GADGET_CHECKBOX)) {
 		/* form checkbox or radio button
 		 * if width or height is AUTO, set it to 1em */
