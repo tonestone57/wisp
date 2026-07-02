@@ -53,7 +53,7 @@
 #include "utils/arena.h"
 #include "utils/talloc.h"
 #include "content/content_factory.h"
-#include "include/wisp/content/csp.h"
+#include <wisp/content/csp.h>
 #include "content/handlers/javascript/js.h"
 #include "content/textsearch.h"
 #include "desktop/scrollbar.h"

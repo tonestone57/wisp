@@ -666,6 +666,21 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 
     assert(cb != NULL);
 
+    /* Check against Content Security Policy */
+    if (child != NULL && child->csp != NULL) {
+        csp_directive dir = CSP_DEFAULT_SRC;
+
+        if (accepted_types & CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
+        else if (accepted_types & CONTENT_IMAGE) dir = CSP_IMG_SRC;
+        else if (accepted_types & CONTENT_CSS) dir = CSP_STYLE_SRC;
+        else if (accepted_types & CONTENT_HTML) dir = CSP_FRAME_SRC;
+
+        if (!csp_check_url(child->csp, dir, url)) {
+            *result = NULL;
+            return NSERROR_CSP_BLOCKED;
+        }
+    }
+
     /* Optimization: Check if content is already in hlcache */
     if (post == NULL && (flags & LLCACHE_RETRIEVE_FORCE_FETCH) == 0) {
         hlcache_entry *entry;
@@ -824,22 +839,6 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     ctx->handle->cb = cb;
     ctx->handle->pw = pw;
 
-    /* Check against Content Security Policy */
-    if (child != NULL && child->csp != NULL) {
-        csp_directive dir = CSP_DEFAULT_SRC;
-
-        if (accepted_types & CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
-        else if (accepted_types & CONTENT_IMAGE) dir = CSP_IMG_SRC;
-        else if (accepted_types & CONTENT_CSS) dir = CSP_STYLE_SRC;
-        else if (accepted_types & CONTENT_HTML) dir = CSP_FRAME_SRC;
-
-        if (!csp_check_url(child->csp, dir, url)) {
-            free((char *)ctx->child.charset);
-            free(ctx->handle);
-            free(ctx);
-            return NSERROR_CSP_BLOCKED;
-        }
-    }
 
     NSLOG(wisp, DEBUG, "FETCH: cache MISS (new fetch) '%s'", nsurl_access(url));
     error = llcache_handle_retrieve(url, flags, referer, post, hlcache_llcache_callback, ctx, &ctx->llcache);

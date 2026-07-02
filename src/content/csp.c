@@ -2,7 +2,7 @@
 #include <string.h>
 #include <strings.h>
 #include <wisp/utils/log.h>
-#include "include/wisp/content/csp.h"
+#include <wisp/content/csp.h>
 
 typedef struct csp_source {
     char *scheme;
@@ -135,6 +135,7 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
 
     if (src->scheme) {
         lwc_string *url_scheme = nsurl_get_component(url, NSURL_SCHEME);
+        if (!url_scheme) return false;
         bool match = (strcasecmp(src->scheme, lwc_string_data(url_scheme)) == 0);
         lwc_string_unref(url_scheme);
         if (!match) return false;
@@ -142,6 +143,7 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
 
     if (src->host) {
         lwc_string *url_host = nsurl_get_component(url, NSURL_HOST);
+        if (!url_host) return false;
         bool match = (strcasecmp(src->host, lwc_string_data(url_host)) == 0);
         lwc_string_unref(url_host);
         if (!match) return false;

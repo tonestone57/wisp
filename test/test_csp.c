@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
-#include "include/wisp/content/csp.h"
+#include <wisp/content/csp.h>
 #include <wisp/utils/nsurl.h>
 
 void test_csp() {
