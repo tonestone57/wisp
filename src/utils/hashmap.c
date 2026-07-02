@@ -6,14 +6,6 @@
  * NetSurf is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; version 2 of the License.
- *
- * NetSurf is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <stdlib.h>
@@ -91,17 +83,23 @@ void hashmap_destroy(hashmap_t *hashmap)
     uint32_t bucket;
     hashmap_entry_t *entry;
 
-    for (bucket = 0; bucket < hashmap->bucket_count; bucket++) {
-        for (entry = hashmap->buckets[bucket]; entry != NULL;) {
-            hashmap_entry_t *next = entry->next;
-            hashmap->params->value_destroy(entry->value);
-            hashmap->params->key_destroy(entry->key);
-            free(entry);
-            entry = next;
-        }
+    if (hashmap == NULL) {
+        return;
     }
 
-    if (hashmap->buckets != NULL) if (hashmap->buckets != NULL) free(hashmap->buckets);
+    if (hashmap->buckets != NULL) {
+        for (bucket = 0; bucket < hashmap->bucket_count; bucket++) {
+            for (entry = hashmap->buckets[bucket]; entry != NULL;) {
+                hashmap_entry_t *next = entry->next;
+                hashmap->params->value_destroy(entry->value);
+                hashmap->params->key_destroy(entry->key);
+                free(entry);
+                entry = next;
+            }
+        }
+        free(hashmap->buckets);
+    }
+
     free(hashmap);
 }
 

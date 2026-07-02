@@ -91,6 +91,24 @@ void qjs_finalise_dom_bridge(JSContext *ctx);
 void *qjs_get_window_priv(JSContext *ctx);
 void *qjs_get_document_priv(JSContext *ctx);
 
+/* Manual initialization functions */
+int qjs_init_console(JSContext *ctx);
+int qjs_init_crypto(JSContext *ctx);
+int qjs_init_dom_bridge(JSContext *ctx);
+int qjs_init_eventtarget(JSContext *ctx);
+int qjs_init_event(JSContext *ctx);
+int qjs_init_node(JSContext *ctx);
+int qjs_init_element(JSContext *ctx);
+int qjs_init_document(JSContext *ctx);
+int qjs_init_window(JSContext *ctx);
+int qjs_init_navigator(JSContext *ctx);
+int qjs_init_location(JSContext *ctx);
+int qjs_init_storage(JSContext *ctx);
+int qjs_init_xhr(JSContext *ctx);
+int qjs_init_mutationobserver(JSContext *ctx);
+int qjs_init_intersectionobserver(JSContext *ctx);
+int qjs_init_timers(JSContext *ctx);
+
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);
 

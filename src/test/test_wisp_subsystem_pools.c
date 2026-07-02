@@ -1,9 +1,16 @@
 #include <check.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include <wisp/utils/errors.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#define SLEEP_MS(ms) Sleep(ms)
+#else
+#include <unistd.h>
+#define SLEEP_MS(ms) usleep((ms) * 1000)
+#endif
 
 static int raster_task_count = 0;
 static void test_raster_task(void *arg) {
@@ -27,7 +34,7 @@ START_TEST(test_wisp_subsystem_pools_dispatch)
         wisp_dispatch_raster(test_raster_task, NULL);
     }
     /* Allow some time for workers to process */
-    usleep(100000);
+    SLEEP_MS(100);
     ck_assert_int_ge(raster_task_count, 1);
     shutdown_wisp_subsystem();
 }
