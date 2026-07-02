@@ -242,12 +242,14 @@ static bool qjs_dom_match_node(struct dom_node *node, const char *selector)
             const char *target = selector + 1;
             size_t target_len = strlen(target);
             bool found = false;
-            for (size_t i = 0; i <= len - target_len; i++) {
-                if ((i == 0 || data[i - 1] == ' ') && (i + target_len == len || data[i + target_len] == ' ')) {
-                    if (strncmp(data + i, target, target_len) == 0) {
+            if (len >= target_len) {
+                for (size_t i = 0; i <= len - target_len; i++) {
+                    if ((i == 0 || data[i - 1] == ' ') && (i + target_len == len || data[i + target_len] == ' ')) {
+                        if (strncmp(data + i, target, target_len) == 0) {
                         found = true;
                         break;
                     }
+                }
                 }
             }
             dom_string_unref(cls);
