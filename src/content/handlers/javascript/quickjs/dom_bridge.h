@@ -74,4 +74,6 @@ int qjs_init_domrect(JSContext *ctx);
 int qjs_init_domrectreadonly(JSContext *ctx);
 int qjs_init_unimplemented(JSContext *ctx);
 
+JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all);
+
 #endif /* WISP_QUICKJS_DOM_BRIDGE_H */
