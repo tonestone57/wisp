@@ -165,6 +165,7 @@ static nserror html_stylesheet_from_domnode(html_content *c, dom_node *node, hlc
 
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
+    child.csp = c->csp;
 
     exc = dom_node_get_text_content(node, &style);
     if ((exc != DOM_NO_ERR) || (style == NULL)) {
@@ -237,6 +238,12 @@ static struct html_stylesheet *html_create_style_element(html_content *c, dom_no
     }
     if (media_str == NULL) {
         media_str = strdup("all");
+    }
+
+    if (!csp_check_inline(c->csp, CSP_STYLE_SRC)) {
+        NSLOG(wisp, INFO, "CSP BLOCKED inline style");
+        free(media_str);
+        return NULL;
     }
 
     /* Extend array */
@@ -470,6 +477,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
 
     child.charset = htmlc->encoding;
     child.quirks = htmlc->base.quirks;
+    child.csp = htmlc->csp;
 
     CONTENT_ACTIVE_INC(htmlc, "linked CSS fetch start");
     PERF("CSS FETCH START '%s' (active=%d)", nsurl_access(joined), htmlc->base.active);
@@ -563,6 +571,7 @@ nserror html_css_quirks_stylesheets(html_content *c)
     if (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL) {
         child.charset = c->encoding;
         child.quirks = c->base.quirks;
+        child.csp = c->csp;
 
         CONTENT_ACTIVE_INC(c, "quirks CSS fetch start");
         ns_error = hlcache_handle_retrieve(html_quirks_stylesheet_url, 0, content_get_url(&c->base), NULL,
@@ -606,6 +615,7 @@ nserror html_css_new_stylesheets(html_content *c)
 
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
+    child.csp = c->csp;
 
     CONTENT_ACTIVE_INC(c, "default.css fetch start");
     ns_error = hlcache_handle_retrieve(html_default_stylesheet_url, 0, content_get_url(&c->base), NULL,

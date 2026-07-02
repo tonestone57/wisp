@@ -96,6 +96,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/quickjs_bindings.cmake)
 add_library(wisp ${WISP_LIB_TYPE}
 	content/content.c
 	content/content_factory.c
+	content/csp.c
 	content/fetch.c
 	content/hlcache.c
 	content/llcache.c

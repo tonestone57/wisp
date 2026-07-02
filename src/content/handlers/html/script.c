@@ -511,6 +511,7 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
     /* set up child fetch encoding and quirks */
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
+    child.csp = c->csp;
 
     /* Increment active fetch count BEFORE hlcache_handle_retrieve.
      * This is critical because the callback can be called synchronously
@@ -602,6 +603,11 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
 
     script_handler = select_script_handler(ctype);
     lwc_string_unref(lwcmimetype);
+
+    if (!csp_check_inline(c->csp, CSP_SCRIPT_SRC)) {
+        NSLOG(wisp, INFO, "CSP BLOCKED inline script");
+        return DOM_HUBBUB_OK;
+    }
 
     NSLOG(wisp, INFO, "exec_inline_script: script_handler=%p, jsthread=%p", script_handler, c->jsthread);
 

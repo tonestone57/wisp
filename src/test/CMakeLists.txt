@@ -107,6 +107,12 @@ add_wisp_test(urlescape
   ${CMAKE_SOURCE_DIR}/src/test/urlescape.c
 )
 
+add_wisp_test(csp_test
+  ${CMAKE_SOURCE_DIR}/src/content/csp.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/test/test_csp.c
+)
+
 # ============================================================================
 # Utility Tests
 # ============================================================================
