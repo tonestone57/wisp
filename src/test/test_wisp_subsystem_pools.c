@@ -79,8 +79,7 @@ int main(void)
 
     srunner_run_all(sr, CK_VERBOSE);
     number_failed = srunner_ntests_failed(sr);
-    sr = NULL; // srunner_free is handled in some check versions, but let's be safe
-    // srunner_free(sr);
+    srunner_free(sr);
 
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

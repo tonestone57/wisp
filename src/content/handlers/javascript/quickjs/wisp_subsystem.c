@@ -86,9 +86,7 @@ static void init_pool(WispPool *pool, int worker_count, int queue_size, bool is_
 }
 
 static void shutdown_pool(WispPool *pool) {
-    if (pool->workers == NULL && pool->worker_count == 0) {
-        // No workers, but still need to free tasks if any and destroy locks
-    } else {
+    if (pool->worker_count > 0 && pool->workers != NULL) {
         // 1. Signal workers to stop
 #ifdef _WIN32
         EnterCriticalSection(&pool->lock);
@@ -124,13 +122,18 @@ static void shutdown_pool(WispPool *pool) {
 #endif
             if (pool->workers[i].ctx != NULL) {
                 JS_FreeContext(pool->workers[i].ctx);
+                pool->workers[i].ctx = NULL;
             }
             if (pool->workers[i].rt != NULL) {
                 JS_FreeRuntime(pool->workers[i].rt);
+                pool->workers[i].rt = NULL;
             }
         }
         free(pool->workers);
         pool->workers = NULL;
+        pool->worker_count = 0;
+        pool->active_workers = 0;
+        pool->busy_workers = 0;
     }
 
     // 3. Free remaining queue tasks
@@ -154,8 +157,7 @@ static void shutdown_pool(WispPool *pool) {
 }
 
 void init_wisp_subsystem(int queue_size) {
-    static bool initialised = false;
-    if (initialised) return;
+    if (raster_pool.worker_count > 0 || js_pool.worker_count > 0) return;
 
     // Determine logical core count (N)
     long n_cores;
@@ -177,8 +179,6 @@ void init_wisp_subsystem(int queue_size) {
 
     init_pool(&raster_pool, p_raster, queue_size, false);
     init_pool(&js_pool, p_js, queue_size, true);
-
-    initialised = true;
 }
 
 void shutdown_wisp_subsystem(void) {
@@ -312,13 +312,7 @@ void* wisp_worker_routine(void *arg) {
 static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(void*), void *arg) {
     if (pool->worker_count == 0) {
         // Synchronous execution for single-core or disabled pools
-        if (func) {
-            func(arg);
-        } else if (script && js_pool.active_workers > 0) {
-            // If it's a JS task but JS pool has no workers (unlikely given min(4, N))
-            // we should probably execute it on the first worker's context if we had one,
-            // but here we just fall back to standard behavior.
-        }
+        if (func) func(arg);
         if (script) free(script);
         return;
     }
