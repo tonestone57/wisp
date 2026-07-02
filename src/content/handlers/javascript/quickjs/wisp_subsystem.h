@@ -52,7 +52,6 @@ struct WispPool {
     bool is_js;
 };
 
-// Decoupled pools
 extern WispPool raster_pool;
 extern WispPool js_pool;
 
@@ -62,4 +61,4 @@ void* wisp_worker_routine(void *arg);
 void wisp_dispatch_raster(void (*func)(void*), void *arg);
 void wisp_dispatch_js(char *script, void (*func)(void*), void *arg);
 
-#endif // WISP_SUBSYSTEM_H
+#endif

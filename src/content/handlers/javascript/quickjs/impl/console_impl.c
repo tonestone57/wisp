@@ -13,6 +13,7 @@ static JSValue wisp_console_log_internal(JSContext *ctx, const char *msg, JSValu
     if (msg) {
         NSLOG(wisp, INFO, "Console [%s]: %s", level, msg);
     }
+
     return JS_UNDEFINED;
 }
 
@@ -64,8 +65,10 @@ int qjs_init_console(JSContext *ctx)
     }
     JS_FreeValue(ctx, check);
 
+    /* Initialize the class and prototype using the generated function */
     qjs_init_console_gen(ctx);
 
+    /* Add the "console" property to the global object. */
     JSValue console = qjs_new_console(ctx, NULL, false);
     if (JS_IsException(console)) {
         NSLOG(wisp, ERROR, "Failed to create console object");
