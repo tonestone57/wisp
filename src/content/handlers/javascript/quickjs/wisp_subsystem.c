@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
 #include "wisp/utils/log.h"
 #include "wisp/utils/utils.h"
 
@@ -60,6 +61,10 @@ static WispPool* init_pool(int worker_count, int queue_size) {
 
     if (worker_count > 0) {
         pool->workers = calloc(worker_count, sizeof(WispWorker));
+        if (!pool->workers) {
+            free(pool);
+            return NULL;
+        }
 #ifndef _WIN32
         pthread_t null_thread;
         memset(&null_thread, 0, sizeof(pthread_t));
@@ -225,7 +230,7 @@ void* wisp_worker_routine(void *arg) {
             ts.tv_sec += 5;
 
             int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
-            if (wait_res != 0) {
+            if (wait_res == ETIMEDOUT) {
                 if (pool->head == NULL && pool->active_workers > 1) {
                     worker->running = false;
                     pool->active_workers--;
@@ -240,6 +245,9 @@ void* wisp_worker_routine(void *arg) {
                     pthread_detach(pthread_self());
                     return NULL;
                 }
+            } else if (wait_res != 0) {
+                // Other error, just continue or break loop
+                break;
             }
         }
 
