@@ -1,6 +1,11 @@
 #include <check.h>
 #include <stdlib.h>
+#ifndef _WIN32
 #include <unistd.h>
+#else
+#include <windows.h>
+#define usleep(us) Sleep((us)/1000)
+#endif
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/utils/log.h"
 
@@ -22,8 +27,15 @@ START_TEST(test_subsystem_init_shutdown)
     ck_assert_ptr_nonnull(raster_pool);
     ck_assert_ptr_nonnull(js_pool);
 
-    // Check sizes based on logical cores (assuming >= 1)
-    long n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+    // Sizing verification
+    long n_cores;
+#ifdef _WIN32
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    n_cores = sysinfo.dwNumberOfProcessors;
+#else
+    n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
     int expected_raster = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int expected_js = (n_cores > 4) ? 4 : (int)n_cores;
 

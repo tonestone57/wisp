@@ -203,7 +203,7 @@ void* wisp_worker_routine(void *arg) {
         while (pool->head == NULL && worker->running && !pool->stop) {
             BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000); // 5 sec TTL
             if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
-                if (pool->head == NULL && pool->active_workers > 1) {
+                if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
                     worker->running = false;
                     pool->active_workers--;
                     JS_FreeContext(worker->ctx);
@@ -237,7 +237,7 @@ void* wisp_worker_routine(void *arg) {
 
             int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
             if (wait_res == ETIMEDOUT) {
-                if (pool->head == NULL && pool->active_workers > 1) {
+                if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
                     worker->running = false;
                     pool->active_workers--;
                     JS_FreeContext(worker->ctx);
@@ -269,6 +269,10 @@ void* wisp_worker_routine(void *arg) {
 #endif
 
         if (has_task && task) {
+            if (task->script) {
+                JSValue val = JS_Eval(worker->ctx, task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
+                JS_FreeValue(worker->ctx, val);
+            }
             if (task->function) task->function(task->arg);
             if (task->script) free(task->script);
             free(task);
@@ -296,6 +300,11 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
     new_task->script = script ? strdup(script) : NULL;
     new_task->function = func;
     new_task->arg = arg;
+
+    if (script && !new_task->script) {
+        free(new_task);
+        return;
+    }
 
 #ifdef _WIN32
     EnterCriticalSection(&pool->lock);
@@ -367,6 +376,11 @@ void wisp_dispatch_raster(char *script, void (*func)(void*), void *arg) {
         wisp_dispatch_internal(raster_pool, script, func, arg);
     } else {
         // Synchronous execution for single-core or if pool initialization failed
+        if (script) {
+            // Note: In synchronous fallback we don't have a dedicated QuickJS thread/context easily available here
+            // This fallback is primarily for the parallel rasterizer which uses C callbacks (func)
+            NSLOG(wisp, WARNING, "Synchronous raster fallback: JS script execution not supported without dedicated thread context.");
+        }
         if (func) func(arg);
         // Fallback doesn't strdup script, so we don't free it either (as it belongs to the caller)
     }
