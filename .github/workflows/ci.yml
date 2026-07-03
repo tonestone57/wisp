@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install dependencies
       run: sudo apt-get update && sudo apt-get install -y gperf python3 python3-pip pkg-config libpng-dev libjpeg-dev libwebp-dev libavif-dev libssl-dev cmake check libqt6core5compat6-dev qt6-base-dev qt6-tools-dev-tools libutf8proc-dev libsqlite3-dev libpsl-dev libxml2-dev libcurl4-openssl-dev libavformat-dev libavcodec-dev libswscale-dev libswresample-dev libavutil-dev libpulse-dev libdav1d-dev libaom-dev libyuv-dev
