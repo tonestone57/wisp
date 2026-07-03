@@ -62,6 +62,12 @@ static WispPool* init_pool(int worker_count, int queue_size) {
     if (worker_count > 0) {
         pool->workers = calloc(worker_count, sizeof(WispWorker));
         if (!pool->workers) {
+#ifdef _WIN32
+            DeleteCriticalSection(&pool->lock);
+#else
+            pthread_mutex_destroy(&pool->lock);
+            pthread_cond_destroy(&pool->cond);
+#endif
             free(pool);
             return NULL;
         }
@@ -306,7 +312,7 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
         int worker_to_start = -1;
         if (pool->busy_workers == pool->active_workers && pool->active_workers < pool->worker_count) {
             for (int i=0; i<pool->worker_count; i++) {
-                if (!pool->workers[i].running) {
+                if (!pool->workers[i].running && pool->workers[i].thread == NULL) {
                     worker_to_start = i;
                     pool->workers[i].running = true;
                     break;
