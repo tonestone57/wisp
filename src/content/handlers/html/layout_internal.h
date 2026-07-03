@@ -188,29 +188,41 @@ static inline bool lh__box_is_absolute(const struct box *b)
 /** Layout helper: Find containing block for percentage-based dimensions. */
 static inline struct box *lh__get_containing_block_for_pct(const struct box *box)
 {
+    struct box *cb;
+
     if (box->parent == NULL) {
         return NULL;
     }
 
     if (lh__box_is_absolute(box)) {
-        return box->float_container;
-    }
+        if (box->float_container != NULL) {
+            return box->float_container;
+        }
 
-    if (box->parent->type == BOX_FLOAT_LEFT || box->parent->type == BOX_FLOAT_RIGHT) {
-        struct box *cb = box->parent;
-        while (cb != NULL &&
-               (cb->style == NULL || cb->type == BOX_INLINE_CONTAINER ||
-                cb->type == BOX_FLOAT_LEFT || cb->type == BOX_FLOAT_RIGHT)) {
-            cb = cb->parent;
+        /* Fallback: find positioned ancestor */
+        cb = box->parent;
+        if (css_computed_position(box->style) == CSS_POSITION_FIXED) {
+            while (cb->parent != NULL) {
+                cb = cb->parent;
+            }
+        } else {
+            while (cb != NULL && (cb->style == NULL ||
+                   (css_computed_position(cb->style) == CSS_POSITION_STATIC &&
+                    cb->parent != NULL))) {
+                cb = cb->parent;
+            }
         }
         return cb;
     }
 
-    if (box->parent->type == BOX_INLINE_CONTAINER) {
-        return box->parent->parent;
+    /* Static/Relative: nearest block-container ancestor (CSS 2.1 §10.1) */
+    cb = box->parent;
+    while (cb != NULL && (cb->type == BOX_INLINE_CONTAINER ||
+           (cb->style == NULL && cb->parent != NULL))) {
+        cb = cb->parent;
     }
 
-    return box->parent;
+    return cb;
 }
 
 static inline bool lh__flex_main_is_horizontal(const struct box *flex)
@@ -436,10 +448,21 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
 {
     struct box *containing_block = NULL;
     unsigned int i;
+    int cb_width = available_width;
+
+    /* If available_width is indeterminate, try to find a definite width
+     * from the containing block for percentage resolution. */
+    if (cb_width == AUTO || cb_width == UNKNOWN_WIDTH) {
+        containing_block = lh__get_containing_block_for_pct(box);
+        if (containing_block && containing_block->width != AUTO &&
+            containing_block->width != UNKNOWN_WIDTH) {
+            cb_width = containing_block->width;
+        }
+    }
 
     if (width) {
-        if (css_computed_width_px(style, unit_len_ctx, available_width, width) == CSS_WIDTH_SET) {
-            layout_handle_box_sizing(unit_len_ctx, box, available_width, true, width);
+        if (css_computed_width_px(style, unit_len_ctx, cb_width, width) == CSS_WIDTH_SET) {
+            layout_handle_box_sizing(unit_len_ctx, box, cb_width, true, width);
         } else {
             *width = AUTO;
         }
@@ -489,7 +512,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         }
 
         if (*height != AUTO) {
-            layout_handle_box_sizing(unit_len_ctx, box, available_width, false, height);
+            layout_handle_box_sizing(unit_len_ctx, box, cb_width, false, height);
         }
     }
 
@@ -502,7 +525,11 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
 
         if (type == CSS_MAX_WIDTH_SET) {
             if (unit == CSS_UNIT_PCT) {
-                *max_width = FPCT_OF_INT_TOINT(value, available_width);
+                if (cb_width != AUTO && cb_width != UNKNOWN_WIDTH) {
+                    *max_width = FPCT_OF_INT_TOINT(value, cb_width);
+                } else {
+                    *max_width = -1;
+                }
             } else {
                 *max_width = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }
@@ -512,7 +539,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         }
 
         if (*max_width != -1) {
-            layout_handle_box_sizing(unit_len_ctx, box, available_width, true, max_width);
+            layout_handle_box_sizing(unit_len_ctx, box, cb_width, true, max_width);
         }
     }
 
@@ -526,7 +553,11 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         if (type == CSS_MIN_WIDTH_SET) {
             min_width->type = CSS_SIZE_SET;
             if (unit == CSS_UNIT_PCT) {
-                min_width->value = FPCT_OF_INT_TOINT(value, available_width);
+                if (cb_width != AUTO && cb_width != UNKNOWN_WIDTH) {
+                    min_width->value = FPCT_OF_INT_TOINT(value, cb_width);
+                } else {
+                    min_width->value = 0;
+                }
             } else {
                 min_width->value = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }
@@ -537,7 +568,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         }
 
         if (min_width->value != 0) {
-            layout_handle_box_sizing(unit_len_ctx, box, available_width, true, &min_width->value);
+            layout_handle_box_sizing(unit_len_ctx, box, cb_width, true, &min_width->value);
         }
     }
 
@@ -580,7 +611,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         }
 
         if (*max_height != -1) {
-            layout_handle_box_sizing(unit_len_ctx, box, available_width, false, max_height);
+            layout_handle_box_sizing(unit_len_ctx, box, cb_width, false, max_height);
         }
     }
 
@@ -625,7 +656,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
         }
 
         if (min_height->value != 0) {
-            layout_handle_box_sizing(unit_len_ctx, box, available_width, false, &min_height->value);
+            layout_handle_box_sizing(unit_len_ctx, box, cb_width, false, &min_height->value);
         }
     }
 
@@ -639,7 +670,11 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
 
             if (type == CSS_MARGIN_SET) {
                 if (unit == CSS_UNIT_PCT) {
-                    margin[i] = FPCT_OF_INT_TOINT(value, available_width);
+                    if (cb_width != AUTO && cb_width != UNKNOWN_WIDTH) {
+                        margin[i] = FPCT_OF_INT_TOINT(value, cb_width);
+                    } else {
+                        margin[i] = 0;
+                    }
                 } else {
                     margin[i] = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
                 }
@@ -655,7 +690,11 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
             padding_funcs[i](style, &value, &unit);
 
             if (unit == CSS_UNIT_PCT) {
-                padding[i] = FPCT_OF_INT_TOINT(value, available_width);
+                if (cb_width != AUTO && cb_width != UNKNOWN_WIDTH) {
+                    padding[i] = FPCT_OF_INT_TOINT(value, cb_width);
+                } else {
+                    padding[i] = 0;
+                }
             } else {
                 padding[i] = FIXTOINT(css_unit_len2device_px(style, unit_len_ctx, value, unit));
             }
