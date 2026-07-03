@@ -408,9 +408,16 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
 
 #ifdef WISP_WINDOWS_USE_D2D
-    if (gw != NULL && gw->d2d_initialised) {
-        nsws_drawable_paint_d2d(gw, hwnd);
-        return 0;
+    if (gw != NULL) {
+        if (!gw->d2d_initialised && gw->d2d_factory != NULL) {
+            /* Try to re-initialise if previously lost */
+            nsws_window_init_d2d(gw);
+        }
+
+        if (gw->d2d_initialised) {
+            nsws_drawable_paint_d2d(gw, hwnd);
+            return 0;
+        }
     }
 #endif
 

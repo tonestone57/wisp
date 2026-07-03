@@ -143,6 +143,18 @@ HWND gui_window_main_window(struct gui_window *gw);
  */
 struct nsws_localhistory *gui_window_localhistory(struct gui_window *);
 
+#ifdef WISP_WINDOWS_USE_D2D
+/**
+ * Initialise Direct2D for a window.
+ */
+HRESULT nsws_window_init_d2d(struct gui_window *gw);
+
+/**
+ * Recreate Direct2D resources for a window (device loss).
+ */
+void nsws_d2d_recreate_resources(struct gui_window *gw);
+#endif
+
 #ifdef __cplusplus
 }
 #endif
