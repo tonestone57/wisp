@@ -70,6 +70,13 @@ int qjs_init_console(JSContext *ctx)
     /* Initialize the class and prototype using the generated function */
     qjs_init_console_gen(ctx);
 
+    JSValue proto = JS_GetClassProto(ctx, qjs_console_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_console_class_id, JS_DupValue(ctx, proto));
+    }
+    JS_FreeValue(ctx, proto);
+
     /* Add the "console" property to the global object. */
     JSValue console = qjs_new_console(ctx, NULL, false);
     if (JS_IsException(console)) {

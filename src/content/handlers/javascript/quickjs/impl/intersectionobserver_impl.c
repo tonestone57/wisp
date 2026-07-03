@@ -136,7 +136,15 @@ int qjs_init_intersectionobserver(JSContext *ctx)
     /* Initialize the class and prototype using the generated function */
     qjs_init_intersectionobserver_gen(ctx);
 
+    JSValue proto = JS_GetClassProto(ctx, qjs_intersectionobserver_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_intersectionobserver_class_id, JS_DupValue(ctx, proto));
+    }
+
     JSValue ctor = JS_NewCFunction2(ctx, js_intersectionobserver_constructor, "IntersectionObserver", 1, JS_CFUNC_constructor, 0);
+    JS_SetConstructor(ctx, ctor, proto);
+    JS_FreeValue(ctx, proto);
     JS_DefinePropertyValueStr(ctx, global_obj, "IntersectionObserver", ctor, JS_PROP_C_W_E);
 
     /* Mark as initialized */
