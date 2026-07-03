@@ -91,17 +91,23 @@ void hashmap_destroy(hashmap_t *hashmap)
     uint32_t bucket;
     hashmap_entry_t *entry;
 
-    for (bucket = 0; bucket < hashmap->bucket_count; bucket++) {
-        for (entry = hashmap->buckets[bucket]; entry != NULL;) {
-            hashmap_entry_t *next = entry->next;
-            hashmap->params->value_destroy(entry->value);
-            hashmap->params->key_destroy(entry->key);
-            free(entry);
-            entry = next;
-        }
+    if (hashmap == NULL) {
+        return;
     }
 
-    free(hashmap->buckets);
+    if (hashmap->buckets != NULL) {
+        for (bucket = 0; bucket < hashmap->bucket_count; bucket++) {
+            for (entry = hashmap->buckets[bucket]; entry != NULL;) {
+                hashmap_entry_t *next = entry->next;
+                hashmap->params->value_destroy(entry->value);
+                hashmap->params->key_destroy(entry->key);
+                free(entry);
+                entry = next;
+            }
+        }
+        free(hashmap->buckets);
+    }
+
     free(hashmap);
 }
 

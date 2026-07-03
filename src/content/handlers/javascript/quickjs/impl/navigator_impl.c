@@ -30,37 +30,19 @@ JSValue wisp_navigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 int qjs_init_navigator(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
-
-    /* Check if already initialized on this global object */
     JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_navigator_init");
-    if (JS_ToBool(ctx, check)) {
-        JS_FreeValue(ctx, check);
+    bool already_init = JS_ToBool(ctx, check);
+    JS_FreeValue(ctx, check);
+
+    if (already_init) {
         JS_FreeValue(ctx, global_obj);
         return 0;
     }
-    JS_FreeValue(ctx, check);
 
-    /* Initialize the class and prototype using the generated function */
     qjs_init_navigator_gen(ctx);
     JSValue navigator = qjs_new_navigator(ctx, NULL, false);
-    if (JS_IsException(navigator)) {
-        NSLOG(wisp, ERROR, "Failed to create navigator object");
-        JS_FreeValue(ctx, global_obj);
-        return -1;
-    }
-    if (JS_DefinePropertyValueStr(ctx, global_obj, "navigator", navigator, JS_PROP_C_W_E) < 0) {
-        NSLOG(wisp, ERROR, "Failed to define navigator property");
-        JS_FreeValue(ctx, global_obj);
-        return -1;
-    }
-
-    /* Mark as initialized */
-    if (JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_navigator_init", JS_TRUE, 0) < 0) {
-        NSLOG(wisp, ERROR, "Failed to define __wisp_navigator_init property");
-        JS_FreeValue(ctx, global_obj);
-        return -1;
-    }
+    JS_DefinePropertyValueStr(ctx, global_obj, "navigator", navigator, JS_PROP_C_W_E);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_navigator_init", JS_TRUE);
     JS_FreeValue(ctx, global_obj);
-
     return 0;
 }

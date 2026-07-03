@@ -19,9 +19,9 @@
 #include "utils/hashmap.h"
 #include "content/handlers/javascript/js.h"
 #include "qjs_internal.h"
-#include "wisp_subsystem.h"
 #include "crypto.h"
 #include "dom_bridge.h"
+#include "wisp_subsystem.h"
 #include <nsutils/time.h>
 #include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/box.h>
@@ -46,6 +46,7 @@ void *qjs_get_document_priv(JSContext *ctx)
 
 void js_initialise(void)
 {
+    init_wisp_subsystem(64);
 }
 
 static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
@@ -61,6 +62,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 
 void js_finalise(void)
 {
+    shutdown_wisp_subsystem();
 }
 
 nserror js_newheap(int timeout, jsheap **heap)

@@ -13,7 +13,6 @@ static JSValue wisp_console_log_internal(JSContext *ctx, const char *msg, JSValu
     if (msg) {
         NSLOG(wisp, INFO, "Console [%s]: %s", level, msg);
     }
-
     return JS_UNDEFINED;
 }
 
@@ -57,40 +56,26 @@ JSValue wisp_console_dir_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue obje
 int qjs_init_console(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
-
-    /* Check if already initialized on this global object */
     JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_console_init");
-    if (JS_ToBool(ctx, check)) {
-        JS_FreeValue(ctx, check);
+    bool already_init = JS_ToBool(ctx, check);
+    JS_FreeValue(ctx, check);
+
+    if (already_init) {
         JS_FreeValue(ctx, global_obj);
         return 0;
     }
-    JS_FreeValue(ctx, check);
 
-    /* Initialize the class and prototype using the generated function */
     qjs_init_console_gen(ctx);
 
-    /* Add the "console" property to the global object. */
     JSValue console = qjs_new_console(ctx, NULL, false);
     if (JS_IsException(console)) {
         NSLOG(wisp, ERROR, "Failed to create console object");
         JS_FreeValue(ctx, global_obj);
         return -1;
     }
-    if (JS_DefinePropertyValueStr(ctx, global_obj, "console", console, JS_PROP_C_W_E) < 0) {
-        NSLOG(wisp, ERROR, "Failed to define console property");
-        JS_FreeValue(ctx, global_obj);
-        return -1;
-    }
-
-    /* Mark as initialized */
-    if (JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_console_init", JS_TRUE, 0) < 0) {
-        NSLOG(wisp, ERROR, "Failed to define __wisp_console_init property");
-        JS_FreeValue(ctx, global_obj);
-        return -1;
-    }
+    JS_DefinePropertyValueStr(ctx, global_obj, "console", console, JS_PROP_C_W_E);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_console_init", JS_TRUE);
     JS_FreeValue(ctx, global_obj);
-
     return 0;
 }
 
@@ -99,9 +84,6 @@ void qjs_console_cleanup(JSContext *ctx)
     JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue console = JS_GetPropertyStr(ctx, global_obj, "console");
     if (JS_IsObject(console)) {
-        /* In browser environments, console usually stays until context dies.
-         * For unit tests that create/destroy context manually, we might need
-         * to explicitly null the global property to drop the reference. */
         JS_SetPropertyStr(ctx, global_obj, "console", JS_UNDEFINED);
     }
     JS_FreeValue(ctx, console);
