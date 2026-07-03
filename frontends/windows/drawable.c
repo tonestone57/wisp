@@ -409,7 +409,7 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
 
 #ifdef WISP_WINDOWS_USE_D2D
     if (gw != NULL) {
-        if (!gw->d2d_initialised && gw->d2d_factory != NULL) {
+        if (!gw->d2d_initialised && gw->d2d_enabled) {
             /* Try to re-initialise if previously lost */
             nsws_window_init_d2d(gw);
         }

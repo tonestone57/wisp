@@ -2073,6 +2073,7 @@ HRESULT nsws_window_init_d2d(struct gui_window *gw)
         if (!gw->d2d_transform_stack) gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
         if (!gw->d2d_stateful_path) gw->d2d_stateful_path = new std::vector<d2d_path_command>();
         gw->d2d_initialised = true;
+        gw->d2d_enabled = true;
     }
     return hr;
 }
@@ -2099,6 +2100,7 @@ void nsws_d2d_recreate_resources(struct gui_window *gw)
             ((ID2D1HwndRenderTarget *)w->d2d_rt)->Release();
             w->d2d_rt = NULL;
         }
+        w->d2d_factory = NULL; /* Prevent dangling pointer */
         w->d2d_initialised = false;
         w->d2d_clip_pushed = false;
     }

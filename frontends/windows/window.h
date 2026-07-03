@@ -80,6 +80,7 @@ struct gui_window {
     void *d2d_factory; /**< ID2D1Factory* */
     void *d2d_rt; /**< ID2D1HwndRenderTarget* */
     void *dwrite_factory; /**< IDWriteFactory* */
+    bool d2d_enabled; /**< true if D2D is enabled for this window */
     bool d2d_initialised; /**< true if D2D resources are valid */
     bool d2d_clip_pushed; /**< true if a clip rect is currently pushed to RT */
 
