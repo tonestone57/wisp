@@ -1704,27 +1704,33 @@ layout_solve_width(struct box *box, int available_width, int width, int lm, int 
 			margin_right = rm;
 		}
 
-		width = available_width -
-			(margin_left + box->border[LEFT].width + box->padding[LEFT] + box->padding[RIGHT] +
-				box->border[RIGHT].width + margin_right);
-		width = width < 0 ? 0 : width;
+		if (available_width == UNKNOWN_WIDTH) {
+			width = UNKNOWN_WIDTH;
+		} else {
+			width = available_width -
+				(margin_left + box->border[LEFT].width + box->padding[LEFT] + box->padding[RIGHT] +
+					box->border[RIGHT].width + margin_right);
+			width = width < 0 ? 0 : width;
+		}
 		auto_width = true;
 	}
 
-	if (max_width >= 0 && width > max_width) {
-		/* max-width is admissable and width exceeds max-width */
-		width = max_width;
-		auto_width = false;
-	}
+	if (width != UNKNOWN_WIDTH) {
+		if (max_width >= 0 && width > max_width) {
+			/* max-width is admissable and width exceeds max-width */
+			width = max_width;
+			auto_width = false;
+		}
 
-	if (min_width > 0 && width < min_width) {
-		/* min-width is admissable and width is less than max-width */
-		width = min_width;
-		auto_width = false;
+		if (min_width > 0 && width < min_width) {
+			/* min-width is admissable and width is less than max-width */
+			width = min_width;
+			auto_width = false;
+		}
 	}
 
 	/* Width was auto, and unconstrained by min/max width, so we're done */
-	if (auto_width) {
+	if (auto_width && width != UNKNOWN_WIDTH) {
 		/* any other 'auto' become 0 or the minimum required values */
 		if (box->margin[LEFT] == AUTO) {
 			box->margin[LEFT] = lm;
@@ -1737,6 +1743,10 @@ layout_solve_width(struct box *box, int available_width, int width, int lm, int 
 
 	/* Width was not auto, or was constrained by min/max width
 	 * Need to compute left/right margins */
+
+	if (available_width == UNKNOWN_WIDTH || width == UNKNOWN_WIDTH) {
+		return width;
+	}
 
 	/* HTML alignment (only applies to over-constrained boxes) */
 	if (box->margin[LEFT] != AUTO && box->margin[RIGHT] != AUTO && box->parent != NULL && box->parent->style != NULL) {
@@ -1872,16 +1882,10 @@ static void layout_block_find_dimensions(
 		(box->object == NULL || content_get_type(box->object) != CONTENT_HTML)) {
 		/* block-level replaced element, see 10.3.4 and 10.6.2 */
 		if (box->flags & IFRAME) {
-			/* IFRAMEs have a default size of 300x150 (Wisp uses 400x150) */
+			/* IFRAMEs have a default size of 300x150 (Wisp uses 400x150).
+			 * Percentages are now handled centrally by layout_find_dimensions. */
 			if (width == AUTO) {
-				if (box_has_percentage_width(box)) {
-					css_fixed value = 0;
-					css_unit unit = CSS_UNIT_PX;
-					css_computed_width(box->style, &value, &unit);
-					width = FPCT_OF_INT_TOINT(value, available_width);
-				} else {
-					width = 400;
-				}
+				width = 400;
 			}
 			if (height == AUTO) {
 				height = 150;
