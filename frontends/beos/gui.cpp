@@ -67,10 +67,12 @@ extern "C" {
 #include "wisp/search.h"
 #include "wisp/url_db.h"
 #include "content/fetch.h"
+extern struct gui_ipc_sandbox_table *nsbeos_ipc_sandbox_table;
 }
 
 #include "beos/gui.h"
 #include "beos/gui_options.h"
+#include "wisp/desktop/ipc_sandbox.h"
 #include "beos/bitmap.h"
 #include "beos/download.h"
 #include "beos/fetch_rsrc.h"
@@ -80,6 +82,7 @@ extern "C" {
 #include "beos/schedule.h"
 #include "beos/throbber.h"
 #include "beos/window.h"
+#include "content/fetchers/broker.h"
 
 #define USE_RESOURCES 1
 
@@ -804,6 +807,17 @@ int main(int argc, char **argv)
 {
     nserror ret;
     BPath options;
+    bool is_content_process = false;
+    int ui_pid = 0;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--content-process") == 0) {
+            is_content_process = true;
+        } else if (strncmp(argv[i], "--ui-pid=", 9) == 0) {
+            ui_pid = atoi(argv[i] + 9);
+        }
+    }
+
     extern struct gui_audio_table *beos_audio_table;
     struct wisp_table beos_table = {
         .misc = &beos_misc_table,
@@ -813,8 +827,18 @@ int main(int argc, char **argv)
         .fetch = &beos_fetch_table,
         .bitmap = beos_bitmap_table,
         .layout = beos_layout_table,
-        .audio = beos_audio_table
+        .audio = beos_audio_table,
+        .ipc_sandbox = nsbeos_ipc_sandbox_table
     };
+
+    if (is_content_process) {
+        NSLOG(wisp, INFO, "Initializing Content Process...");
+        // Content process specific initialization
+        beos_table.ipc_sandbox->is_content_process = true;
+        beos_table.ipc_sandbox->ui_process_pid = ui_pid;
+        beos_table.ipc_sandbox->drop_privileges();
+        beos_table.ipc_sandbox->isolate_sockets();
+    }
 
     ret = wisp_register(&beos_table);
     if (ret != NSERROR_OK) {

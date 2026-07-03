@@ -49,6 +49,9 @@ extern "C" {
 #include "beos/font.h"
 #include "beos/gui.h"
 #include "beos/plotters.h"
+#include "wisp/desktop/ipc_sandbox.h"
+#include "wisp/desktop/ipc_messages.h"
+#include <OS.h>
 
 /*static*/ BView *current_view;
 
@@ -685,6 +688,19 @@ static nserror nsbeos_plot_flush(const struct redraw_context *ctx)
 {
     BView *view = nsbeos_current_gc();
     if (view != NULL) view->Sync();
+
+    /* In content process, notify the UI process that a frame is ready */
+    if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
+        // Use a unique name based on the process ID for the frame buffer area
+        char area_name[64];
+        snprintf(area_name, sizeof(area_name), "wisp_fb_%d", (int)getpid());
+
+        area_id area = find_area(area_name);
+        if (area >= B_OK) {
+            guit->ipc_sandbox->post_ipc_message(guit->ipc_sandbox->ui_process_pid, WISP_MSG_FRAME_READY, 0, area_name, strlen(area_name) + 1);
+        }
+    }
+
     return NSERROR_OK;
 }
 

@@ -41,6 +41,7 @@
 #include <time.h>
 
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/desktop/ipc_sandbox.h>
 #include <wisp/misc.h>
 #include <wisp/utils/config.h>
 #include <wisp/utils/corestrings.h>
@@ -53,6 +54,7 @@
 #include <wisp/content/fetch.h>
 #include "content/fetchers.h"
 #include "content/fetchers/about/about.h"
+#include "content/fetchers/broker.h"
 #include "content/fetchers/curl.h"
 #include "content/fetchers/data.h"
 #include "content/fetchers/file/file.h"
@@ -256,12 +258,19 @@ nserror fetcher_init(void)
 {
     nserror ret;
 
+    if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
+        ret = fetch_broker_register();
+        if (ret != NSERROR_OK) {
+            return ret;
+        }
+    } else {
 #ifdef WITH_CURL
-    ret = fetch_curl_register();
-    if (ret != NSERROR_OK) {
-        return ret;
-    }
+        ret = fetch_curl_register();
+        if (ret != NSERROR_OK) {
+            return ret;
+        }
 #endif
+    }
 
     ret = fetch_data_register();
     if (ret != NSERROR_OK) {

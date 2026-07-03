@@ -57,6 +57,9 @@ extern "C" {
 #include "beos/plotters.h"
 #include "beos/scaffolding.h"
 #include "beos/window.h"
+#include "wisp/desktop/ipc_messages.h"
+#include "wisp/desktop/ipc_sandbox.h"
+#include "wisp/fetch.h"
 
 
 class NSBrowserFrameView;
@@ -65,6 +68,9 @@ struct gui_window {
     nsbeos_scaffolding *scaffold;
     bool toplevel;
     struct browser_window *bw;
+
+    void *fb_addr;
+    char fb_name[64];
 
     struct {
         int pressed_x;
@@ -314,6 +320,15 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
     g->careth = 0;
     g->pending_resizes = 0;
+    g->fb_addr = NULL;
+    g->fb_name[0] = '\0';
+
+    if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
+        // Content Process: Create the shared memory area for rendering
+        // In a real implementation, dimensions would be dynamic.
+        snprintf(g->fb_name, sizeof(g->fb_name), "wisp_fb_%d", (int)getpid());
+        guit->ipc_sandbox->shared_memory_transport(g->fb_name, 2048 * 2048 * 4, true, &g->fb_addr);
+    }
 
     if (window_list)
         window_list->prev = g;
@@ -541,9 +556,106 @@ void nsbeos_dispatch_event(BMessage *message)
         if (gui && view)
             nsbeos_window_moved_event(view, gui, message);
         break;
+    case WISP_MSG_FETCH_HEADER:
+    case WISP_MSG_FETCH_DATA:
+    case WISP_MSG_FETCH_FINISHED:
+    case WISP_MSG_FETCH_ERROR:
+    {
+        int32 fetch_id;
+        if (message->FindInt32("handle", &fetch_id) == B_OK) {
+            const void *payload;
+            ssize_t size;
+            switch (message->what) {
+            case WISP_MSG_FETCH_HEADER:
+                if (message->FindData("payload", B_RAW_TYPE, &payload, &size) == B_OK)
+                    fetch_broker_deliver_header(fetch_id, (const uint8_t *)payload, size);
+                break;
+            case WISP_MSG_FETCH_DATA:
+                if (message->FindData("payload", B_RAW_TYPE, &payload, &size) == B_OK)
+                    fetch_broker_deliver_data(fetch_id, (const uint8_t *)payload, size);
+                break;
+            case WISP_MSG_FETCH_FINISHED:
+                fetch_broker_deliver_done(fetch_id);
+                break;
+            case WISP_MSG_FETCH_ERROR:
+                fetch_broker_deliver_error(fetch_id);
+                break;
+            }
+        }
+        break;
+    }
     case B_UI_SETTINGS_CHANGED:
         nsbeos_update_system_ui_colors();
         break;
+    case WISP_MSG_FETCH_REQUEST:
+    {
+        const char *url_str;
+        ssize_t size;
+        int32 sender_pid;
+        int32 fetch_id;
+        if (message->FindData("payload", B_RAW_TYPE, (const void **)&url_str, &size) == B_OK &&
+            message->FindInt32("sender_pid", &sender_pid) == B_OK &&
+            message->FindInt32("handle", &fetch_id) == B_OK) {
+
+            NSLOG(wisp, INFO, "Broker: UI Process relaying fetch request for %s (fetch_id: %d)", url_str, fetch_id);
+
+            struct relay_ctx {
+                int pid;
+                int id;
+            } *ctx = (struct relay_ctx *)malloc(sizeof(*ctx));
+            ctx->pid = sender_pid;
+            ctx->id = fetch_id;
+
+            nsurl *url;
+            if (nsurl_create(url_str, &url) == NSERROR_OK) {
+                fetch_start(url, NULL, [](const fetch_msg *msg, void *p) {
+                    struct relay_ctx *c = (struct relay_ctx *)p;
+                    switch (msg->type) {
+                    case FETCH_HEADER:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_HEADER, c->id, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+                        break;
+                    case FETCH_DATA:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_DATA, c->id, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+                        break;
+                    case FETCH_FINISHED:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_FINISHED, c->id, NULL, 0);
+                        free(c);
+                        break;
+                    case FETCH_ERROR:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_ERROR, c->id, NULL, 0);
+                        free(c);
+                        break;
+                    default: break;
+                    }
+                }, ctx, false, NULL, true, false, NULL, NULL);
+                nsurl_unref(url);
+            } else {
+                free(ctx);
+            }
+        }
+        break;
+    }
+    case WISP_MSG_FRAME_READY:
+    {
+        const char *area_name;
+        ssize_t size;
+        int32 sender_pid;
+        if (message->FindData("payload", B_RAW_TYPE, (const void **)&area_name, &size) == B_OK &&
+            message->FindInt32("sender_pid", &sender_pid) == B_OK) {
+
+            // Map sender_pid to the correct gui_window
+            // In a real implementation, we would store the pid in gui_window during spawning
+            if (gui && view) {
+                NSLOG(wisp, INFO, "UI Process: Frame ready received from PID %d for area %s", sender_pid, area_name);
+                strncpy(gui->fb_name, area_name, sizeof(gui->fb_name));
+                if (!gui->fb_addr) {
+                    guit->ipc_sandbox->shared_memory_transport(area_name, 0, false, &gui->fb_addr);
+                }
+                view->Invalidate();
+            }
+        }
+        break;
+    }
     case 'nsLO':
     {
         nsurl *url;
@@ -580,6 +692,15 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
 
     assert(g);
+
+    if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && g->fb_addr) {
+        // Multi-process blitting: Draw directly from shared memory
+        BRect bounds = view->Bounds();
+        BBitmap fb_bitmap(bounds, B_RGB32);
+        fb_bitmap.SetBits(g->fb_addr, (int32)(bounds.Width() * bounds.Height() * 4), 0, B_RGB32);
+        view->DrawBitmap(&fb_bitmap, bounds);
+        return;
+    }
     assert(g->bw);
 
     if (g->pending_resizes > 1)

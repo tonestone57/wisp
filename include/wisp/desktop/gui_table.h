@@ -40,6 +40,7 @@ struct gui_llcache_table;
 struct gui_bitmap_table;
 struct gui_layout_table;
 struct gui_audio_table;
+struct gui_ipc_sandbox_table;
 
 /**
  * NetSurf operation function table
@@ -169,6 +170,13 @@ struct wisp_table {
      * Provides audio output capabilities.
      */
     struct gui_audio_table *audio;
+
+    /**
+     * IPC and Sandboxing table.
+     *
+     * Provides multi-process and isolation capabilities.
+     */
+    struct gui_ipc_sandbox_table *ipc_sandbox;
 };
 
 #endif

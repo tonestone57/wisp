@@ -108,6 +108,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/fetchers/data.c
 	content/fetchers/resource.c
 	content/fetchers/curl.c
+	content/fetchers/broker.c
 	content/fetchers/about/about.c
 	content/fetchers/about/choices.c
 	content/fetchers/about/testament.c
