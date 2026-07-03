@@ -472,7 +472,9 @@ START_TEST(test_quickjs_console_init)
     ck_assert_ptr_nonnull(ctx);
 
     /* Initialize console binding */
-    ret = qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+    ret = qjs_init_dom_bridge(ctx);
+    wisp_js_register_all_bindings(ctx);
+    qjs_init_console(ctx);
     ck_assert_int_eq(ret, 0);
 
     /* Verify console object exists */
@@ -500,7 +502,9 @@ START_TEST(test_quickjs_console_log)
 
     rt = JS_NewRuntime();
     ctx = JS_NewContext(rt);
-    qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+    qjs_init_dom_bridge(ctx);
+    wisp_js_register_all_bindings(ctx);
+    qjs_init_console(ctx);
 
     /* Execute console.log - should not throw */
     const char *code = "console.log('Hello from QuickJS!');";
@@ -528,7 +532,9 @@ START_TEST(test_quickjs_console_error)
 
     rt = JS_NewRuntime();
     ctx = JS_NewContext(rt);
-    qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+    qjs_init_dom_bridge(ctx);
+    wisp_js_register_all_bindings(ctx);
+    qjs_init_console(ctx);
 
     /* Execute console.error - should not throw */
     const char *code = "console.error('Test error message');";
@@ -556,7 +562,9 @@ START_TEST(test_quickjs_console_warn)
 
     rt = JS_NewRuntime();
     ctx = JS_NewContext(rt);
-    qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+    qjs_init_dom_bridge(ctx);
+    wisp_js_register_all_bindings(ctx);
+    qjs_init_console(ctx);
 
     /* Execute console.warn - should not throw */
     const char *code = "console.warn('Test warning');";
@@ -584,7 +592,9 @@ START_TEST(test_quickjs_console_multiple_args)
 
     rt = JS_NewRuntime();
     ctx = JS_NewContext(rt);
-    qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+    qjs_init_dom_bridge(ctx);
+    wisp_js_register_all_bindings(ctx);
+    qjs_init_console(ctx);
 
     /* Execute console.log with multiple arguments */
     const char *code = "console.log('Value:', 42, 'Name:', 'test');";
@@ -612,7 +622,9 @@ START_TEST(test_quickjs_console_group)
 
     rt = JS_NewRuntime();
     ctx = JS_NewContext(rt);
-    qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+    qjs_init_dom_bridge(ctx);
+    wisp_js_register_all_bindings(ctx);
+    qjs_init_console(ctx);
 
     /* Execute grouping */
     const char *code = "console.group();\n"

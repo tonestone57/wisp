@@ -68,7 +68,11 @@ static void init_pool(WispPool *pool, int worker_count, int queue_size, bool is_
     InitializeConditionVariable(&pool->cond);
 #else
     pthread_mutex_init(&pool->lock, NULL);
-    pthread_cond_init(&pool->cond, NULL);
+    pthread_condattr_t attr;
+    pthread_condattr_init(&attr);
+    pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+    pthread_cond_init(&pool->cond, &attr);
+    pthread_condattr_destroy(&attr);
 #endif
 
     if (worker_count > 0) {
@@ -106,17 +110,25 @@ static void shutdown_pool(WispPool *pool)
 
     for (int i = 0; i < pool->worker_count; i++) {
 #ifdef _WIN32
-        if (pool->workers[i].thread) {
-            WaitForSingleObject(pool->workers[i].thread, INFINITE);
-            CloseHandle(pool->workers[i].thread);
-            pool->workers[i].thread = NULL;
+        HANDLE h = NULL;
+        EnterCriticalSection(&pool->lock);
+        h = pool->workers[i].thread;
+        pool->workers[i].thread = NULL;
+        LeaveCriticalSection(&pool->lock);
+        if (h) {
+            WaitForSingleObject(h, INFINITE);
+            CloseHandle(h);
         }
 #else
+        pthread_t t;
         pthread_t null_thread;
         memset(&null_thread, 0, sizeof(pthread_t));
-        if (memcmp(&pool->workers[i].thread, &null_thread, sizeof(pthread_t)) != 0) {
-            pthread_join(pool->workers[i].thread, NULL);
-            pool->workers[i].thread = null_thread;
+        pthread_mutex_lock(&pool->lock);
+        t = pool->workers[i].thread;
+        pool->workers[i].thread = null_thread;
+        pthread_mutex_unlock(&pool->lock);
+        if (memcmp(&t, &null_thread, sizeof(pthread_t)) != 0) {
+            pthread_join(t, NULL);
         }
 #endif
         if (pool->workers[i].ctx != NULL) {
@@ -240,7 +252,7 @@ void* wisp_worker_routine(void *arg)
         pthread_mutex_lock(&pool->lock);
         while (pool->head == NULL && worker->running && !pool->stop) {
             struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
+            clock_gettime(CLOCK_MONOTONIC, &ts);
             ts.tv_sec += 5;
             int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
             if (wait_res != 0) {
@@ -256,11 +268,12 @@ void* wisp_worker_routine(void *arg)
                     }
                     worker->ctx = NULL;
                     worker->rt = NULL;
+                    pthread_t t = worker->thread;
                     pthread_t null_thread;
                     memset(&null_thread, 0, sizeof(pthread_t));
                     worker->thread = null_thread;
                     pthread_mutex_unlock(&pool->lock);
-                    pthread_detach(pthread_self());
+                    pthread_detach(t);
                     return NULL;
                 }
             }

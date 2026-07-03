@@ -105,15 +105,14 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->heap = heap; t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
 
-    /* core initialization - registration handles dependencies */
-    wisp_js_register_all_bindings(t->ctx);
+    /* DOM bridge must be initialized first */
+    if (qjs_init_dom_bridge(t->ctx) != 0) {
+        js_destroythread(t);
+        return NSERROR_NOMEM;
+    }
 
-    if (qjs_init_dom_bridge(t->ctx) != 0 ||
-        qjs_init_eventtarget(t->ctx) != 0 ||
-        qjs_init_event(t->ctx) != 0 ||
-        qjs_init_node(t->ctx) != 0 ||
-        qjs_init_element(t->ctx) != 0 ||
-        qjs_init_document(t->ctx) != 0 ||
+    /* Manual refinements - these will call their generated counterparts */
+    if (qjs_init_eventtarget(t->ctx) != 0 ||
         qjs_init_window(t->ctx) != 0 ||
         qjs_init_console(t->ctx) != 0 ||
         qjs_init_timers(t->ctx) != 0 ||
@@ -127,6 +126,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         js_destroythread(t);
         return NSERROR_NOMEM;
     }
+
+    /* core initialization - registration handles anything remaining */
+    wisp_js_register_all_bindings(t->ctx);
 
     JSValue global_obj = JS_GetGlobalObject(t->ctx);
     t->global_window_priv.magic = QJS_DOM_MAGIC;

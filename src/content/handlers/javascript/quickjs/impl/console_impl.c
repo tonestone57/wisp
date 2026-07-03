@@ -13,6 +13,22 @@ static JSValue wisp_console_log_internal(JSContext *ctx, const char *msg, JSValu
     if (msg) {
         NSLOG(wisp, INFO, "Console [%s]: %s", level, msg);
     }
+
+    uint32_t len = 0;
+    JSValue js_len = JS_GetPropertyStr(ctx, subst, "length");
+    JS_ToUint32(ctx, &len, js_len);
+    JS_FreeValue(ctx, js_len);
+
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue val = JS_GetPropertyUint32(ctx, subst, i);
+        const char *str = JS_ToCString(ctx, val);
+        if (str) {
+            NSLOG(wisp, INFO, "  arg[%u]: %s", i, str);
+            JS_FreeCString(ctx, str);
+        }
+        JS_FreeValue(ctx, val);
+    }
+
     return JS_UNDEFINED;
 }
 
