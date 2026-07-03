@@ -172,8 +172,17 @@ class QuickJSBindingGenerator:
 
         for current in to_process:
             for member in current.members:
-                m = getattr(member, 'member', None)
-                if not m or not hasattr(member, 'name') or not member.name: continue
+                # Handle how widlparser exposes the underlying production
+                m = member
+                if hasattr(member, 'member'):
+                    m = member.member
+
+                if not hasattr(member, 'name') or not member.name:
+                    if not isinstance(m, widlparser.productions.Stringifier):
+                        continue
+                    member_name = "toString"
+                else:
+                    member_name = member.name
 
                 custom = False
                 if hasattr(m, 'extended_attributes') and m.extended_attributes:
@@ -183,7 +192,7 @@ class QuickJSBindingGenerator:
                             break
 
                 if isinstance(m, widlparser.productions.Attribute):
-                    if member.name not in members_by_name:
+                    if member_name not in members_by_name:
                         # Extract type from m.attribute.type for more accurate results
                         if hasattr(m, 'attribute') and hasattr(m.attribute, 'type'):
                             idl_type_val = str(m.attribute.type).strip()
@@ -193,9 +202,9 @@ class QuickJSBindingGenerator:
                         if idl_type_val.startswith('unrestricted '):
                             idl_type_val = idl_type_val.replace('unrestricted ', '').strip()
 
-                        members_by_name[member.name] = {
+                        members_by_name[member_name] = {
                             'kind': 'attribute',
-                            'name': member.name,
+                            'name': member_name,
                             'readonly': m.readonly if hasattr(m, 'readonly') else ('readonly' in str(m)),
                             'type': idl_type_val,
                             'custom': custom
@@ -219,45 +228,45 @@ class QuickJSBindingGenerator:
                         args.append({'name': arg.name, 'type': actual_type, 'optional': arg.optional, 'variadic': variadic})
 
                     # Group by name to handle overloads
-                    if member.name not in members_by_name:
-                         members_by_name[member.name] = {
+                    if member_name not in members_by_name:
+                         members_by_name[member_name] = {
                             'kind': 'operation',
-                            'name': member.name,
+                            'name': member_name,
                             'overloads': []
                         }
 
-                    if members_by_name[member.name]['kind'] == 'operation':
-                        impl_name = f"{member.name}_{len(members_by_name[member.name]['overloads'])}"
-                        members_by_name[member.name]['overloads'].append({
-                            'name': member.name,
+                    if members_by_name[member_name]['kind'] == 'operation':
+                        impl_name = f"{member_name}_{len(members_by_name[member_name]['overloads'])}"
+                        members_by_name[member_name]['overloads'].append({
+                            'name': member_name,
                             'impl_name': impl_name,
                             'args': args,
                             'custom': custom,
-                            'return_type': str(m.return_type).strip()
+                            'return_type': str(m.return_type).strip() if hasattr(m, 'return_type') else "void"
                         })
                 elif isinstance(m, widlparser.productions.Stringifier):
-                    name = member.name if (member.name and member.name != "__stringifier__") else "toString"
-                    if name not in members_by_name:
-                         members_by_name[name] = {
+                    member_name = member.name if (hasattr(member, 'name') and member.name and member.name != "__stringifier__") else "toString"
+                    if member_name not in members_by_name:
+                         members_by_name[member_name] = {
                             'kind': 'operation',
-                            'name': name,
+                            'name': member_name,
                             'overloads': []
                         }
 
-                    if members_by_name[name]['kind'] == 'operation':
-                        impl_name = f"{name}_{len(members_by_name[name]['overloads'])}"
-                        members_by_name[name]['overloads'].append({
-                            'name': name,
+                    if members_by_name[member_name]['kind'] == 'operation':
+                        impl_name = f"{member_name}_{len(members_by_name[member_name]['overloads'])}"
+                        members_by_name[member_name]['overloads'].append({
+                            'name': member_name,
                             'impl_name': impl_name,
                             'args': [],
                             'custom': False,
                             'return_type': 'DOMString'
                         })
                 elif isinstance(m, widlparser.constructs.Const):
-                     if member.name not in members_by_name:
-                        members_by_name[member.name] = {
+                     if member_name not in members_by_name:
+                        members_by_name[member_name] = {
                             'kind': 'const',
-                            'name': member.name,
+                            'name': member_name,
                             'value': str(m.value).strip(),
                             'type': str(m.type).strip()
                         }

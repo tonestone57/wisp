@@ -780,8 +780,8 @@ START_TEST(test_quickjs_navigator)
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
 
-    /* Test UserAgent */
-    const char *code1 = "typeof navigator === 'object' && navigator.userAgent.length > 0";
+    /* Test UserAgent - explicitly check our Wisp navigator (which has language property) */
+    const char *code1 = "typeof navigator === 'object' && 'language' in navigator && navigator.userAgent.length > 0";
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_userAgent");
     ck_assert(result == true);
 
