@@ -293,6 +293,11 @@ add_wisp_test(transform_clip_test
 # JavaScript Tests
 # ============================================================================
 
+add_wisp_test(test_wisp_subsystem_pools
+  ${CMAKE_SOURCE_DIR}/src/test/test_wisp_subsystem_pools.c
+)
+target_link_libraries(test_wisp_subsystem_pools PRIVATE nsutils wisp)
+
 add_wisp_test(test_quickjs
   ${CMAKE_SOURCE_DIR}/src/test/test_quickjs.c
 )

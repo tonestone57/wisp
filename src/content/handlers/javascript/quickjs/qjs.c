@@ -46,6 +46,7 @@ void *qjs_get_document_priv(JSContext *ctx)
 
 void js_initialise(void)
 {
+    init_wisp_subsystem(64);
 }
 
 static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
@@ -61,6 +62,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 
 void js_finalise(void)
 {
+    shutdown_wisp_subsystem();
 }
 
 nserror js_newheap(int timeout, jsheap **heap)

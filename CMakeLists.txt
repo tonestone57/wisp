@@ -41,7 +41,7 @@ endif()
 # Check for required programs
 find_program(GPERF gperf)
 if(${GPERF} STREQUAL GPERF-NOTFOUND)
-	message(FATAL_ERROR "Missing `gperf` utility. Please refer to your distribution package manager for obtaining this.")
+	message(WARNING "Missing `gperf` utility. Please refer to your distribution package manager for obtaining this.")
 endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 find_package(Threads REQUIRED)

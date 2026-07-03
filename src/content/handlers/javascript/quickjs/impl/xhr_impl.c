@@ -51,30 +51,25 @@ JSValue wisp_xmlhttprequest_responseURL_get_impl(JSContext *ctx, QJSNodePrivate 
 int qjs_init_xhr(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
-
-    /* Check if already initialized on this global object */
     JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_xhr_init");
-    if (JS_ToBool(ctx, check)) {
-        JS_FreeValue(ctx, check);
+    bool already_init = JS_ToBool(ctx, check);
+    JS_FreeValue(ctx, check);
+
+    if (already_init) {
         JS_FreeValue(ctx, global_obj);
         return 0;
     }
-    JS_FreeValue(ctx, check);
 
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_xmlhttprequest_class_id == 0) JS_NewClassID(rt, &qjs_xmlhttprequest_class_id);
 
-    /* Initialize the class and prototype using the generated function */
     qjs_init_xmlhttprequest_gen(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_xmlhttprequest_class_id);
     JSValue ctor = JS_NewCFunction2(ctx, js_xhr_constructor, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "XMLHttpRequest", ctor);
-
-    /* Mark as initialized */
-    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_xhr_init", JS_TRUE, 0);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_xhr_init", JS_TRUE);
     JS_FreeValue(ctx, global_obj);
-
     return 0;
 }
