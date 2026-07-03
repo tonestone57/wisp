@@ -34,7 +34,7 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
 
     struct jsthread *thread = JS_GetContextOpaque(ctx);
-    js_dom_event_add_listener(thread, (dom_document *)priv->node, (dom_node *)priv->node, type_dom, argv[1]);
+    js_dom_event_add_listener(thread, (dom_document *)thread->doc_priv, (dom_node *)priv->node, type_dom, argv[1]);
 
     dom_string_unref(type_dom);
     JS_FreeCString(ctx, type);
@@ -53,7 +53,7 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
 
     struct jsthread *thread = JS_GetContextOpaque(ctx);
-    js_dom_event_remove_listener(thread, (dom_document *)priv->node, (dom_node *)priv->node, type_dom, argv[1]);
+    js_dom_event_remove_listener(thread, (dom_document *)thread->doc_priv, (dom_node *)priv->node, type_dom, argv[1]);
 
     dom_string_unref(type_dom);
     JS_FreeCString(ctx, type);
@@ -114,11 +114,13 @@ int qjs_init_eventtarget(JSContext *ctx)
 
     qjs_init_eventtarget_gen(ctx);
     JSValue proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
-    if (JS_IsObject(proto)) {
-        JS_DefinePropertyValueStr(ctx, proto, "addEventListener", JS_NewCFunction(ctx, js_eventtarget_addEventListener_manual, "addEventListener", 3), JS_PROP_C_W_E);
-        JS_DefinePropertyValueStr(ctx, proto, "removeEventListener", JS_NewCFunction(ctx, js_eventtarget_removeEventListener_manual, "removeEventListener", 3), JS_PROP_C_W_E);
-        JS_DefinePropertyValueStr(ctx, proto, "dispatchEvent", JS_NewCFunction(ctx, js_eventtarget_dispatchEvent_manual, "dispatchEvent", 1), JS_PROP_C_W_E);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_eventtarget_class_id, JS_DupValue(ctx, proto));
     }
+    JS_DefinePropertyValueStr(ctx, proto, "addEventListener", JS_NewCFunction(ctx, js_eventtarget_addEventListener_manual, "addEventListener", 3), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, proto, "removeEventListener", JS_NewCFunction(ctx, js_eventtarget_removeEventListener_manual, "removeEventListener", 3), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, proto, "dispatchEvent", JS_NewCFunction(ctx, js_eventtarget_dispatchEvent_manual, "dispatchEvent", 1), JS_PROP_C_W_E);
     JS_FreeValue(ctx, proto);
 
     JS_DefinePropertyValueStr(ctx, global_obj, init_key, JS_TRUE, 0);

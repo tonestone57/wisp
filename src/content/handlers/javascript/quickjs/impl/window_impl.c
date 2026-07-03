@@ -25,6 +25,10 @@ int qjs_init_window(JSContext *ctx)
     qjs_init_window_gen(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_window_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_window_class_id, JS_DupValue(ctx, proto));
+    }
 
     /* Link Window to EventTarget */
     JSValue et_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);

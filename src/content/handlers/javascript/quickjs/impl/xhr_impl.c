@@ -68,9 +68,14 @@ int qjs_init_xhr(JSContext *ctx)
     qjs_init_xmlhttprequest_gen(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_xmlhttprequest_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_xmlhttprequest_class_id, JS_DupValue(ctx, proto));
+    }
     JSValue ctor = JS_NewCFunction2(ctx, js_xhr_constructor, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "XMLHttpRequest", ctor);
+    JS_FreeValue(ctx, proto);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_xhr_init", JS_TRUE, 0);

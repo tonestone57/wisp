@@ -120,9 +120,14 @@ int qjs_init_event(JSContext *ctx)
     qjs_init_event_gen(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_event_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_event_class_id, JS_DupValue(ctx, proto));
+    }
     JSValue ctor = JS_NewCFunction2(ctx, js_event_constructor, "Event", 1, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "Event", ctor);
+    JS_FreeValue(ctx, proto);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_event_init", JS_TRUE, 0);

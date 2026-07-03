@@ -123,6 +123,10 @@ int qjs_init_document(JSContext *ctx) {
     qjs_init_document_gen(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_document_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_document_class_id, JS_DupValue(ctx, proto));
+    }
     JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
     if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
     JS_FreeValue(ctx, node_proto);

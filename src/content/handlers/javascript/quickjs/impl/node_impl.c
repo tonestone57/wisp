@@ -313,6 +313,10 @@ int qjs_init_node(JSContext *ctx) {
     qjs_init_node_gen(ctx);
 
     JSValue proto = JS_GetClassProto(ctx, qjs_node_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_node_class_id, JS_DupValue(ctx, proto));
+    }
     JSValue et_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
     if (JS_IsObject(proto) && JS_IsObject(et_proto)) JS_SetPrototype(ctx, proto, et_proto);
     JS_FreeValue(ctx, et_proto);

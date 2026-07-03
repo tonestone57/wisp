@@ -2600,7 +2600,7 @@ cleanup:
         dom_node_unref(targets[ntargets]);
     }
     if (targets != NULL) {
-        DOM_FREE(targets);
+        free(targets);
     }
 
     if (dei != NULL && dei->actions != NULL) {

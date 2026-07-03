@@ -98,6 +98,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
          * to the caller, and the map needs its own reference. */
         *val_ptr = JS_DupValue(ctx, wrapper);
         dom_node_ref(node);
+    } else {
+        /* Failed to insert into map, but we still have the wrapper.
+         * This shouldn't normally happen unless OOM. */
+        NSLOG(wisp, WARNING, "Failed to insert node wrapper into bridge map");
     }
 
     return wrapper;
@@ -110,8 +114,9 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         bridge_key_t key = { ctx, node };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
-            JS_FreeValueRT(rt, *val);
+            JSValue wrapper = *val;
             hashmap_remove(map, &key);
+            JS_FreeValueRT(rt, wrapper);
             dom_node_unref(node);
         }
     }
@@ -166,8 +171,9 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
-                JS_FreeValueRT(rt, *val);
+                JSValue wrapper = *val;
                 hashmap_remove(map, &cleanup.keys[i]);
+                JS_FreeValueRT(rt, wrapper);
                 dom_node_unref(cleanup.keys[i].node);
             }
         }
@@ -482,8 +488,9 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         /* Entries must be removed from map before unref to avoid re-entrant UAF. */
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
-            JS_FreeValue(ctx, *val);
+            JSValue wrapper = *val;
             hashmap_remove(map, &key);
+            JS_FreeValue(ctx, wrapper);
             dom_node_unref(cleanup.nodes[i]);
         }
     }

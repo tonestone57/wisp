@@ -52,6 +52,14 @@ int qjs_init_storage(JSContext *ctx)
 
     /* Initialize the class and prototype using the generated function */
     qjs_init_storage_gen(ctx);
+
+    JSValue proto = JS_GetClassProto(ctx, qjs_storage_class_id);
+    if (!JS_IsObject(proto)) {
+        proto = JS_NewObject(ctx);
+        JS_SetClassProto(ctx, qjs_storage_class_id, JS_DupValue(ctx, proto));
+    }
+    JS_FreeValue(ctx, proto);
+
     JSValue localStorage = qjs_new_storage(ctx, NULL, false);
     JS_DefinePropertyValueStr(ctx, global_obj, "localStorage", localStorage, JS_PROP_C_W_E);
 
