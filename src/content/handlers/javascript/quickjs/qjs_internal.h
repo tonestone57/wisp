@@ -107,6 +107,7 @@ int qjs_init_storage(JSContext *ctx);
 int qjs_init_xhr(JSContext *ctx);
 int qjs_init_mutationobserver(JSContext *ctx);
 int qjs_init_intersectionobserver(JSContext *ctx);
+int qjs_init_intersectionobserverentry(JSContext *ctx);
 int qjs_init_timers(JSContext *ctx);
 
 /* From generated code */

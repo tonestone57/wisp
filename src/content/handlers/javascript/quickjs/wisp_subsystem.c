@@ -1,5 +1,4 @@
 #include "wisp_subsystem.h"
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -11,6 +10,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #else
+#include <unistd.h>
 #include <sys/sysinfo.h>
 #include <sys/time.h>
 #include <pthread.h>
