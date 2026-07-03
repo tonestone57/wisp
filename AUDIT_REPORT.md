@@ -45,11 +45,14 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **MutationObserver**: Fully integrated with LibDOM via a native mutation hook system and optimized JS callback queue.
 *   **Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
 *   **Incremental Reflow Optimization**: Fully functional with scale-aware fixed-tile redraw and optimized disjoint dirty region tracking (up to 16 disjoint rects). This dual-strategy provides maximum efficiency on both legacy and modern hardware.
+*   **DOM Selectors**: `querySelector` and `querySelectorAll` are implemented in `dom_bridge.c` using a right-to-left matching strategy and support complex combinators and selector groups.
+*   **Content Security Policy (CSP)**: Full CSP header enforcement (default-src, script-src, img-src, style-src, font-src, object-src, frame-src, connect-src) implemented in `csp.c` and enforced at cache and layout levels.
+*   **Direct2D Device Loss Recovery**: Robust handling of hardware acceleration loss via `nsws_d2d_recreate_resources`, including global factory recreation and image cache invalidation to ensure stability on modern Windows systems.
 
 ### 3.2 Partial Implementation [Partial]
 
 ### 3.3 Not Implemented / Planned [Incomplete]
-*   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing.
+*   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing. (Complexity: **Medium** | Benefit: **High**)
 
 ## 4. Subsystem Deep-Dive
 
@@ -83,7 +86,6 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **NSLOG Verbosity**: Completed demotion of traces in core layout modules.
 
 ## 6. Future Recommendations
-1.  **Binding Coverage**: Prioritize manual implementation of `Element.querySelector` and `Element.querySelectorAll`.
-2.  **Canvas 2D Bridge**: Implement the plotter bridge for the Canvas 2D API.
-3.  **Percentage Width Refinement**: Complete comprehensive resolution for all nested percentage scenarios.
-4.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations.
+1.  **Canvas 2D Bridge**: Implement the plotter bridge for the Canvas 2D API. (Complexity: **Medium** | Benefit: **High**)
+2.  **Percentage Width Refinement**: Complete comprehensive resolution for all nested percentage scenarios. (Complexity: **Medium** | Benefit: **Medium**)
+3.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations. (Complexity: **High** | Benefit: **Medium**)
