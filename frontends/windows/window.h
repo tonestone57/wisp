@@ -80,6 +80,7 @@ struct gui_window {
     void *d2d_factory; /**< ID2D1Factory* */
     void *d2d_rt; /**< ID2D1HwndRenderTarget* */
     void *dwrite_factory; /**< IDWriteFactory* */
+    bool d2d_enabled; /**< true if D2D is enabled for this window */
     bool d2d_initialised; /**< true if D2D resources are valid */
     bool d2d_clip_pushed; /**< true if a clip rect is currently pushed to RT */
 
@@ -142,6 +143,18 @@ HWND gui_window_main_window(struct gui_window *gw);
  * Get the localhistory win32 window handle from a gui window
  */
 struct nsws_localhistory *gui_window_localhistory(struct gui_window *);
+
+#ifdef WISP_WINDOWS_USE_D2D
+/**
+ * Initialise Direct2D for a window.
+ */
+HRESULT nsws_window_init_d2d(struct gui_window *gw);
+
+/**
+ * Recreate Direct2D resources for a window (device loss).
+ */
+void nsws_d2d_recreate_resources(struct gui_window *gw);
+#endif
 
 #ifdef __cplusplus
 }

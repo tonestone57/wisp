@@ -1215,7 +1215,10 @@ static LRESULT nsws_window_resize(struct gui_window *gw, HWND hwnd, WPARAM wpara
         MoveWindow(gw->drawingarea, 0, rtool.bottom, gw->width, gw->height, true);
         if (gw->d2d_initialised) {
             ID2D1HwndRenderTarget *rt = (ID2D1HwndRenderTarget *)gw->d2d_rt;
-            rt->Resize(D2D1::SizeU(gw->width, gw->height));
+            HRESULT hr = rt->Resize(D2D1::SizeU(gw->width, gw->height));
+            if (hr == D2DERR_RECREATE_TARGET) {
+                nsws_d2d_recreate_resources(gw);
+            }
         }
     }
     nsws_window_update_forward_back(gw);
@@ -2070,24 +2073,45 @@ HRESULT nsws_window_init_d2d(struct gui_window *gw)
         if (!gw->d2d_transform_stack) gw->d2d_transform_stack = new std::stack<D2D1_MATRIX_3X2_F>();
         if (!gw->d2d_stateful_path) gw->d2d_stateful_path = new std::vector<d2d_path_command>();
         gw->d2d_initialised = true;
+        gw->d2d_enabled = true;
     }
     return hr;
 }
 
 void nsws_d2d_recreate_resources(struct gui_window *gw)
 {
-    NSLOG(wisp, INFO, "Recreating D2D resources for window %p (device loss)", gw);
-    if (gw->d2d_rt) {
-        ((ID2D1HwndRenderTarget *)gw->d2d_rt)->Release();
-        gw->d2d_rt = NULL;
-    }
-    gw->d2d_initialised = false;
-    gw->d2d_clip_pushed = false;
+    static bool recreating = false;
+    struct gui_window *w;
 
-    /* Clear cached bitmaps as they are bound to the old render target */
+    if (recreating) return;
+    recreating = true;
+
+    NSLOG(wisp, INFO, "Global D2D resource recreation (device loss triggered by %p)", gw);
+
+    /* Release the factory so it's recreated in init_d2d */
+    if (g_d2d_factory) {
+        g_d2d_factory->Release();
+        g_d2d_factory = NULL;
+    }
+
+    /* Iterate through all windows and release their render targets */
+    for (w = window_list; w != NULL; w = w->next) {
+        if (w->d2d_rt) {
+            ((ID2D1HwndRenderTarget *)w->d2d_rt)->Release();
+            w->d2d_rt = NULL;
+        }
+        w->d2d_factory = NULL; /* Prevent dangling pointer */
+        w->d2d_initialised = false;
+        w->d2d_clip_pushed = false;
+    }
+
+    /* Clear cached bitmaps as they are bound to the old render targets */
     image_cache_invalidate_bitmaps();
 
+    /* Re-initialize for the requesting window (this will recreate the factory) */
     nsws_window_init_d2d(gw);
+
+    recreating = false;
 }
 #endif
 
