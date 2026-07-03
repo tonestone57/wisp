@@ -52,4 +52,4 @@ All major rendering features identified in the previous audits have been impleme
 - **Reference**: `frontends/windows/plot_d2d.cpp`.
 
 ## Future Considerations
-- **Hardware Acceleration Tuning**: Further optimization of Direct2D device-loss recovery scenarios.
+- **Hardware Acceleration Tuning**: Completed. Direct2D device-loss recovery is fully implemented via global factory recreation and cache invalidation.

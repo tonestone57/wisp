@@ -103,11 +103,17 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->heap = heap; t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
 
-    /* core initialization - registration handles dependencies */
+    /* Bridge must be initialized first */
+    if (qjs_init_dom_bridge(t->ctx) != 0) {
+        js_destroythread(t);
+        return NSERROR_NOMEM;
+    }
+
+    /* Core registration handles skeleton creation and prototype inheritance */
     wisp_js_register_all_bindings(t->ctx);
 
-    if (qjs_init_dom_bridge(t->ctx) != 0 ||
-        qjs_init_eventtarget(t->ctx) != 0 ||
+    /* Manual refinements to prototypes must come after registration */
+    if (qjs_init_eventtarget(t->ctx) != 0 ||
         qjs_init_event(t->ctx) != 0 ||
         qjs_init_node(t->ctx) != 0 ||
         qjs_init_element(t->ctx) != 0 ||

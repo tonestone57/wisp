@@ -110,7 +110,7 @@ The following tasks are identified as high-priority for the next development cyc
     *   *Benefit*: Provides perfect system theme integration and accessibility support for Haiku users.
 
 ### Security
-*   **[Planned] Content Security Policy (CSP)** (Complexity: **Medium** | Benefit: **High**): Implement a full CSP enforcement engine.
+*   **[Finished] Content Security Policy (CSP)** (Complexity: **Medium** | Benefit: **High**): Full CSP header enforcement (default-src, script-src, img-src, style-src, font-src, object-src, frame-src, connect-src).
     *   *Benefit*: Provides a critical layer of defense against Cross-Site Scripting (XSS) and data injection attacks.
 *   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD).
     *   *Benefit*: Rigorously isolates the browser from sensitive user data, providing maximum protection against zero-day exploits.

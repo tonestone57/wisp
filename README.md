@@ -33,6 +33,8 @@ Current development is focused on completing the CSS Variables implementation an
 *   **[Finished] CSS Variables**: Full parsing, selection, and recursive resolution pass with fallback support.
 *   **[Finished] MutationObserver**: Native integration with LibDOM and optimized QuickJS callback delivery.
 *   **[Finished] Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
+*   **[Finished] DOM Selectors**: `querySelector` and `querySelectorAll` support with complex combinators and selector groups.
+*   **[Finished] Content Security Policy (CSP)**: Robust enforcement of modern security headers at both network and engine levels.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
