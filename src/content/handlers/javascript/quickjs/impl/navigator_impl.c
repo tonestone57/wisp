@@ -31,12 +31,13 @@ int qjs_init_navigator(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_navigator_init");
-    if (JS_ToBool(ctx, check)) {
-        JS_FreeValue(ctx, check);
+    bool already_init = JS_ToBool(ctx, check);
+    JS_FreeValue(ctx, check);
+
+    if (already_init) {
         JS_FreeValue(ctx, global_obj);
         return 0;
     }
-    JS_FreeValue(ctx, check);
 
     qjs_init_navigator_gen(ctx);
     JSValue navigator = qjs_new_navigator(ctx, NULL, false);

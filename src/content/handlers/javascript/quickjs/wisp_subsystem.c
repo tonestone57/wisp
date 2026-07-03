@@ -109,23 +109,28 @@ static void shutdown_pool(WispPool *pool)
         if (pool->workers[i].thread) {
             WaitForSingleObject(pool->workers[i].thread, INFINITE);
             CloseHandle(pool->workers[i].thread);
+            pool->workers[i].thread = NULL;
         }
 #else
         pthread_t null_thread;
         memset(&null_thread, 0, sizeof(pthread_t));
         if (memcmp(&pool->workers[i].thread, &null_thread, sizeof(pthread_t)) != 0) {
             pthread_join(pool->workers[i].thread, NULL);
+            pool->workers[i].thread = null_thread;
         }
 #endif
-        if (pool->workers[i].ctx) {
+        if (pool->workers[i].ctx != NULL) {
             JS_FreeContext(pool->workers[i].ctx);
+            pool->workers[i].ctx = NULL;
         }
-        if (pool->workers[i].rt) {
+        if (pool->workers[i].rt != NULL) {
             JS_RunGC(pool->workers[i].rt);
             JS_FreeRuntime(pool->workers[i].rt);
+            pool->workers[i].rt = NULL;
         }
     }
     free(pool->workers);
+    pool->workers = NULL;
 
     js_task_t *task = pool->head;
     while (task) {
@@ -136,6 +141,9 @@ static void shutdown_pool(WispPool *pool)
         free(task);
         task = next;
     }
+    pool->head = NULL;
+    pool->tail = NULL;
+    pool->count = 0;
 
 #ifdef _WIN32
     DeleteCriticalSection(&pool->lock);
@@ -155,7 +163,7 @@ void init_wisp_subsystem(int queue_size)
         return;
     }
 
-    long n_cores;
+    long n_cores = 1;
 #ifdef _WIN32
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
@@ -193,7 +201,8 @@ void* wisp_worker_routine(void *arg)
 #ifdef _WIN32
         EnterCriticalSection(&pool->lock);
         while (pool->head == NULL && worker->running && !pool->stop) {
-            if (!SleepConditionVariableCS(&pool->cond, &pool->lock, 5000) && GetLastError() == ERROR_TIMEOUT) {
+            BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000);
+            if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
                 if (pool->head == NULL && pool->active_workers > 1) {
                     worker->running = false;
                     pool->active_workers--;
@@ -216,10 +225,10 @@ void* wisp_worker_routine(void *arg)
                 }
             }
         }
-        if (pool->head && worker->running) {
+        if (pool->head != NULL && worker->running) {
             task = pool->head;
             pool->head = task->next;
-            if (!pool->head) {
+            if (pool->head == NULL) {
                 pool->tail = NULL;
             }
             pool->count--;
@@ -233,7 +242,8 @@ void* wisp_worker_routine(void *arg)
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_sec += 5;
-            if (pthread_cond_timedwait(&pool->cond, &pool->lock, &ts) != 0) {
+            int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
+            if (wait_res != 0) {
                 if (pool->head == NULL && pool->active_workers > 1) {
                     worker->running = false;
                     pool->active_workers--;
@@ -255,10 +265,10 @@ void* wisp_worker_routine(void *arg)
                 }
             }
         }
-        if (pool->head && worker->running) {
+        if (pool->head != NULL && worker->running) {
             task = pool->head;
             pool->head = task->next;
-            if (!pool->head) {
+            if (pool->head == NULL) {
                 pool->tail = NULL;
             }
             pool->count--;
@@ -331,7 +341,7 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
 #ifdef _WIN32
     EnterCriticalSection(&pool->lock);
     if (!pool->stop && pool->count < pool->capacity) {
-        if (!pool->tail) {
+        if (pool->tail == NULL) {
             pool->head = new_task;
             pool->tail = new_task;
         } else {
@@ -366,7 +376,7 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
 #else
     pthread_mutex_lock(&pool->lock);
     if (!pool->stop && pool->count < pool->capacity) {
-        if (!pool->tail) {
+        if (pool->tail == NULL) {
             pool->head = new_task;
             pool->tail = new_task;
         } else {
@@ -403,5 +413,12 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
 #endif
 }
 
-void wisp_dispatch_raster(void (*func)(void*), void *arg) { wisp_dispatch_internal(&raster_pool, NULL, func, arg); }
-void wisp_dispatch_js(char *script, void (*func)(void*), void *arg) { wisp_dispatch_internal(&js_pool, script, func, arg); }
+void wisp_dispatch_raster(void (*func)(void*), void *arg)
+{
+    wisp_dispatch_internal(&raster_pool, NULL, func, arg);
+}
+
+void wisp_dispatch_js(char *script, void (*func)(void*), void *arg)
+{
+    wisp_dispatch_internal(&js_pool, script, func, arg);
+}

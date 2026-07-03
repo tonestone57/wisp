@@ -50,16 +50,26 @@ JSClassID qjs_xhr_class_id;
 
 int qjs_init_xhr(JSContext *ctx)
 {
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_xhr_init");
+    bool already_init = JS_ToBool(ctx, check);
+    JS_FreeValue(ctx, check);
+
+    if (already_init) {
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_xhr_class_id == 0) JS_NewClassID(rt, &qjs_xhr_class_id);
 
     qjs_init_xmlhttprequest_gen(ctx);
 
-    JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue proto = JS_GetClassProto(ctx, qjs_xmlhttprequest_class_id);
     JSValue ctor = JS_NewCFunction2(ctx, js_xhr_constructor, "XMLHttpRequest", 0, JS_CFUNC_constructor, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "XMLHttpRequest", ctor);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_xhr_init", JS_TRUE);
     JS_FreeValue(ctx, global_obj);
     return 0;
 }
