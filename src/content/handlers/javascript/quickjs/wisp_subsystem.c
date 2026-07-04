@@ -4,7 +4,6 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
-#include <stdatomic.h>
 #include "wisp/utils/log.h"
 #include "wisp/utils/utils.h"
 
