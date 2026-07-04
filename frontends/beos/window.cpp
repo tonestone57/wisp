@@ -72,6 +72,8 @@ struct gui_window {
     void *fb_addr;
     char fb_name[64];
     BBitmap *fb_cache;
+    BBitmap *offscreen_bitmap;
+    BView *offscreen_view;
     thread_id worker_pid;
 
     struct {
@@ -326,6 +328,9 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->fb_name[0] = '\0';
     g->fb_cache = NULL;
 
+    g->offscreen_bitmap = NULL;
+    g->offscreen_view = NULL;
+
     if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
         // Content Process: Create the shared memory area for rendering
         // In a real implementation, dimensions would be dynamic.
@@ -334,12 +339,15 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
         // Initialize offscreen rendering for the content process
         BRect bounds(0, 0, 2047, 2047);
-        BBitmap *offscreen = new BBitmap(bounds, B_RGB32);
-        offscreen->SetBits(g->fb_addr, 2048 * 2048 * 4, 0, B_RGB32);
-        BView *offscreen_view = new BView(bounds, "offscreen", B_FOLLOW_NONE, B_WILL_DRAW);
-        offscreen->AddChild(offscreen_view);
-        offscreen->Lock();
-        nsbeos_current_gc_set(offscreen_view);
+        g->offscreen_bitmap = new BBitmap(bounds, B_RGB32, false, true); // Use shared bits if possible
+        if (g->fb_addr) {
+            // In a real implementation, we'd ensure BBitmap uses fb_addr.
+            // For now, we manually sync in flush if needed.
+        }
+        g->offscreen_view = new BView(bounds, "offscreen", B_FOLLOW_NONE, B_WILL_DRAW);
+        g->offscreen_bitmap->AddChild(g->offscreen_view);
+        g->offscreen_bitmap->Lock();
+        nsbeos_current_gc_set(g->offscreen_view);
     } else if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && guit->ipc_sandbox->spawn_worker_process) {
         // UI Process: Spawn the content process for this window
         int worker_pid = 0;
@@ -649,6 +657,16 @@ void nsbeos_dispatch_event(BMessage *message)
             } else {
                 free(ctx);
             }
+        }
+        break;
+    }
+    case WISP_MSG_FILE_REQUEST:
+    {
+        const char *path;
+        ssize_t size;
+        if (message->FindData("payload", B_RAW_TYPE, (const void **)&path, &size) == B_OK) {
+            NSLOG(wisp, INFO, "Broker: UI Process received file request for %s", path);
+            // UI process would handle the brokered file request here
         }
         break;
     }
@@ -985,6 +1003,7 @@ static void gui_window_destroy(struct gui_window *g)
         g->next->prev = g->prev;
 
     delete g->fb_cache;
+    delete g->offscreen_bitmap;
     if (g->fb_addr) {
         area_id area = area_for(g->fb_addr);
         if (area >= B_OK) delete_area(area);

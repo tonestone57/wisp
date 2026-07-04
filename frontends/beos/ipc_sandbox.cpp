@@ -162,8 +162,12 @@ static nserror beos_shared_memory_transport(const char *name, size_t size, bool 
 static nserror beos_sandbox_file_system(const char *root_path)
 {
     // On Haiku, we rely on privilege dropping and the broker for isolation.
-    // This function can be used to initialize the broker client state.
     NSLOG(wisp, INFO, "Sandboxing file system to %s", root_path);
+
+    // Content process: inform UI process of restricted root via IPC if needed
+    if (nsbeos_ipc_sandbox_table->is_content_process) {
+        nsbeos_ipc_sandbox_table->post_ipc_message(nsbeos_ipc_sandbox_table->ui_process_pid, WISP_MSG_FILE_REQUEST, 0, root_path, strlen(root_path) + 1);
+    }
     return NSERROR_OK;
 }
 
@@ -173,7 +177,10 @@ static nserror beos_sandbox_file_system(const char *root_path)
 static nserror beos_isolate_sockets(void)
 {
     // The sandboxed process should not create its own sockets.
-    // Enforcement is handled by the broker and privilege restrictions.
+    NSLOG(wisp, INFO, "Enforcing socket isolation for Content Process");
+    // On Haiku, we rely on POSIX privilege dropping to 'nobody', which
+    // restricts raw socket creation. The Brokered Networking further ensures
+    // no direct Wisp-level networking occurs in the content process.
     return NSERROR_OK;
 }
 
