@@ -37,9 +37,10 @@ struct gui_ipc_sandbox_table {
      *
      * @param type The type of process (e.g., "content")
      * @param argv Null-terminated array of arguments.
+     * @param pid_out Pointer to store the PID of the spawned process.
      * @return NSERROR_OK on success.
      */
-    nserror (*spawn_worker_process)(const char *type, char **argv);
+    nserror (*spawn_worker_process)(const char *type, char **argv, int *pid_out);
 
     /**
      * Post a message to another process.

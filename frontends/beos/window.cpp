@@ -72,6 +72,7 @@ struct gui_window {
     void *fb_addr;
     char fb_name[64];
     BBitmap *fb_cache;
+    thread_id worker_pid;
 
     struct {
         int pressed_x;
@@ -330,6 +331,20 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
         // In a real implementation, dimensions would be dynamic.
         snprintf(g->fb_name, sizeof(g->fb_name), "wisp_fb_%d", (int)getpid());
         guit->ipc_sandbox->shared_memory_transport(g->fb_name, 2048 * 2048 * 4, true, &g->fb_addr);
+
+        // Initialize offscreen rendering for the content process
+        BRect bounds(0, 0, 2047, 2047);
+        BBitmap *offscreen = new BBitmap(bounds, B_RGB32);
+        offscreen->SetBits(g->fb_addr, 2048 * 2048 * 4, 0, B_RGB32);
+        BView *offscreen_view = new BView(bounds, "offscreen", B_FOLLOW_NONE, B_WILL_DRAW);
+        offscreen->AddChild(offscreen_view);
+        offscreen->Lock();
+        nsbeos_current_gc_set(offscreen_view);
+    } else if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && guit->ipc_sandbox->spawn_worker_process) {
+        // UI Process: Spawn the content process for this window
+        int worker_pid = 0;
+        guit->ipc_sandbox->spawn_worker_process("content", NULL, &worker_pid);
+        g->worker_pid = (thread_id)worker_pid;
     }
 
     if (window_list)
@@ -645,10 +660,26 @@ void nsbeos_dispatch_event(BMessage *message)
         if (message->FindData("payload", B_RAW_TYPE, (const void **)&area_name, &size) == B_OK &&
             message->FindInt32("sender_pid", &sender_pid) == B_OK) {
 
-            // Map sender_pid to the correct gui_window
-            // In a real implementation, we would store the pid in gui_window during spawning
-            if (gui && view) {
+            struct gui_window *target = NULL;
+            for (struct gui_window *z = window_list; z; z = z->next) {
+                if (z->worker_pid == (thread_id)sender_pid) {
+                    target = z;
+                    break;
+                }
+            }
+
+            if (target) {
                 NSLOG(wisp, INFO, "UI Process: Frame ready received from PID %d for area %s", sender_pid, area_name);
+                strncpy(target->fb_name, area_name, sizeof(target->fb_name));
+                if (!target->fb_addr) {
+                    guit->ipc_sandbox->shared_memory_transport(area_name, 0, false, &target->fb_addr);
+                }
+                if (target->view && target->view->LockLooper()) {
+                    target->view->Invalidate();
+                    target->view->UnlockLooper();
+                }
+            } else if (gui && view) {
+                // Fallback to context-provided gui/view if pid mapping fails
                 strncpy(gui->fb_name, area_name, sizeof(gui->fb_name));
                 if (!gui->fb_addr) {
                     guit->ipc_sandbox->shared_memory_transport(area_name, 0, false, &gui->fb_addr);
@@ -698,12 +729,19 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && g->fb_addr) {
         // Multi-process blitting: Draw directly from shared memory
         BRect bounds = view->Bounds();
-        if (!g->fb_cache || g->fb_cache->Bounds() != bounds) {
+        // Bounds checking: ensure window doesn't exceed 2048x2048 shared area
+        float w = bounds.IntegerWidth() + 1;
+        float h = bounds.IntegerHeight() + 1;
+        if (w > 2048) w = 2048;
+        if (h > 2048) h = 2048;
+        BRect draw_bounds(0, 0, w - 1, h - 1);
+
+        if (!g->fb_cache || g->fb_cache->Bounds() != draw_bounds) {
             delete g->fb_cache;
-            g->fb_cache = new BBitmap(bounds, B_RGB32);
+            g->fb_cache = new BBitmap(draw_bounds, B_RGB32);
         }
-        g->fb_cache->SetBits(g->fb_addr, (int32)((bounds.IntegerWidth() + 1) * (bounds.IntegerHeight() + 1) * 4), 0, B_RGB32);
-        view->DrawBitmap(g->fb_cache, bounds);
+        g->fb_cache->SetBits(g->fb_addr, (int32)(w * h * 4), 0, B_RGB32);
+        view->DrawBitmap(g->fb_cache, draw_bounds);
         return;
     }
     assert(g->bw);
@@ -947,6 +985,10 @@ static void gui_window_destroy(struct gui_window *g)
         g->next->prev = g->prev;
 
     delete g->fb_cache;
+    if (g->fb_addr) {
+        area_id area = area_for(g->fb_addr);
+        if (area >= B_OK) delete_area(area);
+    }
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
 

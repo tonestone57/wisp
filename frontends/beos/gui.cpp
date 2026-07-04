@@ -838,6 +838,11 @@ int main(int argc, char **argv)
         beos_table.ipc_sandbox->ui_process_pid = ui_pid;
         beos_table.ipc_sandbox->drop_privileges();
         beos_table.ipc_sandbox->isolate_sockets();
+
+        // Ensure Content Process has a looper for IPC
+        if (!be_app) {
+            new NSBrowserApplication;
+        }
     }
 
     ret = wisp_register(&beos_table);

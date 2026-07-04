@@ -31,7 +31,7 @@ extern "C" {
  * Haiku implementation of SpawnWorkerProcess.
  * Uses load_image to spawn a new process with the current executable.
  */
-static nserror beos_spawn_worker_process(const char *type, char **argv)
+static nserror beos_spawn_worker_process(const char *type, char **argv, int *pid_out)
 {
     char app_path[B_PATH_NAME_LENGTH];
     image_info info;
@@ -82,6 +82,8 @@ static nserror beos_spawn_worker_process(const char *type, char **argv)
 
     resume_thread(thread);
     NSLOG(wisp, INFO, "Spawned %s process (PID: %d)", type, thread);
+
+    if (pid_out) *pid_out = (int)thread;
 
     return NSERROR_OK;
 }
