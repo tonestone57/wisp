@@ -273,6 +273,9 @@ void* wisp_worker_routine(void *arg) {
             if (task->script) {
                 JSValue val = JS_Eval(worker->ctx, task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
                 JS_FreeValue(worker->ctx, val);
+
+                JSContext *ctx1;
+                while (JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1) > 0);
             }
             if (task->function) task->function(task->arg);
             if (task->script) free(task->script);
