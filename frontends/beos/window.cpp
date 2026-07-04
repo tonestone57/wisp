@@ -1308,11 +1308,16 @@ nserror gui_window_draw_gadget(
         return NSERROR_NOT_IMPLEMENTED;
 
     BView *widget = NULL;
-    std::map<struct form_control *, BView *>::iterator it = g->widgets.find(control);
 
-    if (it != g->widgets.end()) {
-        widget = it->second;
-    } else {
+    if (g->view->LockLooper()) {
+        std::map<struct form_control *, BView *>::iterator it = g->widgets.find(control);
+        if (it != g->widgets.end()) {
+            widget = it->second;
+        }
+        g->view->UnlockLooper();
+    }
+
+    if (widget == NULL) {
         BRect frame(x, y, x + width - 1, y + height - 1);
         BString label("");
         if (control->value && (control->type == GADGET_SUBMIT || control->type == GADGET_RESET ||
