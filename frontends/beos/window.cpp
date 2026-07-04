@@ -71,6 +71,7 @@ struct gui_window {
 
     void *fb_addr;
     char fb_name[64];
+    BBitmap *fb_cache;
 
     struct {
         int pressed_x;
@@ -322,6 +323,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->pending_resizes = 0;
     g->fb_addr = NULL;
     g->fb_name[0] = '\0';
+    g->fb_cache = NULL;
 
     if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
         // Content Process: Create the shared memory area for rendering
@@ -696,9 +698,12 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && g->fb_addr) {
         // Multi-process blitting: Draw directly from shared memory
         BRect bounds = view->Bounds();
-        BBitmap fb_bitmap(bounds, B_RGB32);
-        fb_bitmap.SetBits(g->fb_addr, (int32)(bounds.Width() * bounds.Height() * 4), 0, B_RGB32);
-        view->DrawBitmap(&fb_bitmap, bounds);
+        if (!g->fb_cache || g->fb_cache->Bounds() != bounds) {
+            delete g->fb_cache;
+            g->fb_cache = new BBitmap(bounds, B_RGB32);
+        }
+        g->fb_cache->SetBits(g->fb_addr, (int32)((bounds.IntegerWidth() + 1) * (bounds.IntegerHeight() + 1) * 4), 0, B_RGB32);
+        view->DrawBitmap(g->fb_cache, bounds);
         return;
     }
     assert(g->bw);
@@ -941,6 +946,7 @@ static void gui_window_destroy(struct gui_window *g)
     if (g->next)
         g->next->prev = g->prev;
 
+    delete g->fb_cache;
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
 
