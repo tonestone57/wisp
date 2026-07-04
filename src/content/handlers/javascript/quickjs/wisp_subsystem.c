@@ -4,8 +4,6 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
-#include <stdbool.h>
-#include <stdatomic.h>
 #include "wisp/utils/log.h"
 #include "wisp/utils/utils.h"
 
@@ -257,7 +255,6 @@ void* wisp_worker_routine(void *arg) {
                     return NULL;
                 }
             } else if (wait_res != 0) {
-                // Other error, just continue or break loop
                 break;
             }
         }
@@ -299,17 +296,11 @@ void* wisp_worker_routine(void *arg) {
     return NULL;
 }
 
-static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(void*), void *arg) {
-    if (!pool) {
-        if (script) free(script);
-        return;
-    }
+static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*func)(void*), void *arg) {
+    if (!pool) return false;
 
     js_task_t *new_task = malloc(sizeof(js_task_t));
-    if (!new_task) {
-        if (script) free(script);
-        return;
-    }
+    if (!new_task) return false;
     new_task->next = NULL;
     new_task->script = script ? strdup(script) : NULL;
     new_task->function = func;
@@ -317,14 +308,7 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
 
     if (script && !new_task->script) {
         free(new_task);
-        // The original script pointer belongs to caller in the new strdup model,
-        // but here we are in the internal helper.
-        // Actually, to avoid confusion, let's stick to:
-        // DISPATCHERS (raster/js) take a script pointer.
-        // If async, they strdup it.
-        // Internal helper receives the strdup'd pointer or NULL.
-        // Wait, no. If I strdup in the dispatcher, internal helper receives the copy.
-        // Let's re-verify the contract.
+        return false;
     }
 
 #ifdef _WIN32
@@ -352,10 +336,12 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
         WakeConditionVariable(&pool->cond);
         LeaveCriticalSection(&pool->lock);
         if (worker_to_start != -1) start_worker(pool, worker_to_start);
+        return true;
     } else {
         LeaveCriticalSection(&pool->lock);
         if (new_task->script) free(new_task->script);
         free(new_task);
+        return false;
     }
 #else
     pthread_mutex_lock(&pool->lock);
@@ -384,19 +370,19 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
         pthread_cond_signal(&pool->cond);
         pthread_mutex_unlock(&pool->lock);
         if (worker_to_start != -1) start_worker(pool, worker_to_start);
+        return true;
     } else {
         pthread_mutex_unlock(&pool->lock);
         if (new_task->script) free(new_task->script);
         free(new_task);
+        return false;
     }
 #endif
 }
 
-void wisp_dispatch_raster(char *script, void (*func)(void*), void *arg) {
+void wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg) {
     if (raster_pool && raster_pool->worker_count > 0) {
-        char *copy = script ? strdup(script) : NULL;
-        if (script && !copy) return;
-        wisp_dispatch_internal(raster_pool, copy, func, arg);
+        wisp_dispatch_internal(raster_pool, script, func, arg);
     } else {
         if (script) {
             NSLOG(wisp, WARNING, "Synchronous raster fallback: JS script execution not supported without dedicated thread context.");
@@ -405,12 +391,11 @@ void wisp_dispatch_raster(char *script, void (*func)(void*), void *arg) {
     }
 }
 
-void wisp_dispatch_js(char *script, void (*func)(void*), void *arg) {
-    char *copy = script ? strdup(script) : NULL;
-    if (script && !copy) return;
-    wisp_dispatch_internal(js_pool, copy, func, arg);
+void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg) {
+    wisp_dispatch_internal(js_pool, script, func, arg);
 }
 
 void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
     wisp_dispatch_js(script, func, arg);
+    if (script) free(script);
 }

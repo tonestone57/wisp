@@ -60,8 +60,8 @@ void init_wisp_subsystem(int queue_size);
 void shutdown_wisp_subsystem(void);
 
 /* Task dispatching */
-void wisp_dispatch_raster(char *script, void (*func)(void*), void *arg);
-void wisp_dispatch_js(char *script, void (*func)(void*), void *arg);
+void wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg);
+void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg);
 /* Deprecated/Compatibility wrapper */
 void wisp_dispatch(char *script, void (*func)(void*), void *arg);
 
