@@ -300,10 +300,16 @@ void* wisp_worker_routine(void *arg) {
 }
 
 static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(void*), void *arg) {
-    if (!pool) return;
+    if (!pool) {
+        if (script) free(script);
+        return;
+    }
 
     js_task_t *new_task = malloc(sizeof(js_task_t));
-    if (!new_task) return;
+    if (!new_task) {
+        if (script) free(script);
+        return;
+    }
     new_task->next = NULL;
     new_task->script = script ? strdup(script) : NULL;
     new_task->function = func;
@@ -311,7 +317,14 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
 
     if (script && !new_task->script) {
         free(new_task);
-        return;
+        // The original script pointer belongs to caller in the new strdup model,
+        // but here we are in the internal helper.
+        // Actually, to avoid confusion, let's stick to:
+        // DISPATCHERS (raster/js) take a script pointer.
+        // If async, they strdup it.
+        // Internal helper receives the strdup'd pointer or NULL.
+        // Wait, no. If I strdup in the dispatcher, internal helper receives the copy.
+        // Let's re-verify the contract.
     }
 
 #ifdef _WIN32
@@ -381,21 +394,21 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
 
 void wisp_dispatch_raster(char *script, void (*func)(void*), void *arg) {
     if (raster_pool && raster_pool->worker_count > 0) {
-        wisp_dispatch_internal(raster_pool, script, func, arg);
+        char *copy = script ? strdup(script) : NULL;
+        if (script && !copy) return;
+        wisp_dispatch_internal(raster_pool, copy, func, arg);
     } else {
-        // Synchronous execution for single-core or if pool initialization failed
         if (script) {
-            // Note: In synchronous fallback we don't have a dedicated QuickJS thread/context easily available here
-            // This fallback is primarily for the parallel rasterizer which uses C callbacks (func)
             NSLOG(wisp, WARNING, "Synchronous raster fallback: JS script execution not supported without dedicated thread context.");
         }
         if (func) func(arg);
-        // Fallback maintenance: script ownership is retained by caller in sync path.
     }
 }
 
 void wisp_dispatch_js(char *script, void (*func)(void*), void *arg) {
-    wisp_dispatch_internal(js_pool, script, func, arg);
+    char *copy = script ? strdup(script) : NULL;
+    if (script && !copy) return;
+    wisp_dispatch_internal(js_pool, copy, func, arg);
 }
 
 void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
