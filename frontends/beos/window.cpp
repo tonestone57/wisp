@@ -42,8 +42,10 @@
 #include <stdlib.h>
 
 #include <map>
+#include <new>
 
 extern "C" {
+#include <dom/html/html_input_element.h>
 #include "utils/log.h"
 #include "utils/nsoption.h"
 #include "utils/nsurl.h"
@@ -229,6 +231,8 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
         Window()->DetachCurrentMessage();
         nsbeos_pipe_message_top(message, NULL, fGuiWindow->scaffold);
         break;
+    case 'slct':
+    case 'fsel':
     case 'gdgt':
     case 'gmod':
         Window()->DetachCurrentMessage();
@@ -319,7 +323,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 {
     struct gui_window *g;
 
-    g = new struct gui_window();
+    g = new (std::nothrow) struct gui_window();
     if (!g) {
         beos_warn_user("NoMemory", 0);
         return 0;
@@ -405,6 +409,15 @@ void nsbeos_dispatch_event(BMessage *message)
     }
 
     switch (message->what) {
+    case 'slct': {
+        struct form_control *control;
+        int32 index;
+        if (gui != NULL && message->FindPointer("control", (void **)&control) == B_OK &&
+            message->FindInt32("index", &index) == B_OK) {
+            form_select_process_selection(control, (int)index);
+        }
+        break;
+    }
     case 'fsel': {
         entry_ref ref;
         struct form_control *gadget;
@@ -429,7 +442,8 @@ void nsbeos_dispatch_event(BMessage *message)
                 }
                 break;
             case GADGET_CHECKBOX: {
-                BCheckBox *cb = dynamic_cast<BCheckBox *>(gui->widgets[control]);
+                std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                BCheckBox *cb = (it != gui->widgets.end()) ? dynamic_cast<BCheckBox *>(it->second) : NULL;
                 if (cb) {
                     control->selected = (cb->Value() == B_CONTROL_ON);
                     dom_html_input_element_set_checked((dom_html_input_element *)control->node, control->selected);
@@ -437,7 +451,8 @@ void nsbeos_dispatch_event(BMessage *message)
                 break;
             }
             case GADGET_RADIO: {
-                BRadioButton *rb = dynamic_cast<BRadioButton *>(gui->widgets[control]);
+                std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                BRadioButton *rb = (it != gui->widgets.end()) ? dynamic_cast<BRadioButton *>(it->second) : NULL;
                 if (rb && rb->Value() == B_CONTROL_ON && control->selected == false) {
                     form_radio_set(control);
                 }
@@ -445,7 +460,8 @@ void nsbeos_dispatch_event(BMessage *message)
             }
             case GADGET_TEXTBOX:
             case GADGET_PASSWORD: {
-                BTextControl *tc = dynamic_cast<BTextControl *>(gui->widgets[control]);
+                std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
                 if (tc) {
                     form_gadget_update_value(control, strdup(tc->Text()));
                 }
@@ -1245,6 +1261,8 @@ static void gui_window_create_form_select_menu(struct gui_window *g, struct form
     while ((option = form_select_get_option(control, i)) != NULL) {
         BMessage *msg = new BMessage('slct');
         msg->AddInt32("index", i);
+        msg->AddPointer("control", control);
+        msg->AddPointer("gui_window", g);
         BMenuItem *item = new BMenuItem(option->text, msg);
         if (option->selected) {
             item->SetMarked(true);
@@ -1260,14 +1278,8 @@ static void gui_window_create_form_select_menu(struct gui_window *g, struct form
     BPoint screen_pos = g->view->ConvertToScreen(BPoint(g->last_x, g->last_y));
     g->view->UnlockLooper();
 
-    BMenuItem *selected = menu->Go(screen_pos);
-    if (selected) {
-        int32 index;
-        if (selected->Message()->FindInt32("index", &index) == B_OK) {
-            form_select_process_selection(control, (int)index);
-        }
-    }
-    delete menu;
+    menu->SetTargetForItems(g->view);
+    menu->Go(screen_pos, true, false, true);
 }
 
 
@@ -1317,11 +1329,11 @@ nserror gui_window_draw_gadget(
             widget = new BButton(frame, "wisp_button", label.String(), msg);
             break;
         case GADGET_CHECKBOX:
-            widget = new BCheckBox(frame, "wisp_checkbox", label.String(), msg);
+            widget = new BCheckBox(frame, "wisp_checkbox", "", msg);
             ((BCheckBox *)widget)->SetValue(control->selected ? B_CONTROL_ON : B_CONTROL_OFF);
             break;
         case GADGET_RADIO:
-            widget = new BRadioButton(frame, "wisp_radio", label.String(), msg);
+            widget = new BRadioButton(frame, "wisp_radio", "", msg);
             ((BRadioButton *)widget)->SetValue(control->selected ? B_CONTROL_ON : B_CONTROL_OFF);
             break;
         case GADGET_TEXTBOX:
