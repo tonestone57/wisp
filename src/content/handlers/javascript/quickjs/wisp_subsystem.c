@@ -305,14 +305,9 @@ static void wisp_dispatch_internal(WispPool *pool, char *script, void (*func)(vo
     js_task_t *new_task = malloc(sizeof(js_task_t));
     if (!new_task) return;
     new_task->next = NULL;
-    new_task->script = script ? strdup(script) : NULL;
+    new_task->script = script; // Transfer of ownership as per original contract
     new_task->function = func;
     new_task->arg = arg;
-
-    if (script && !new_task->script) {
-        free(new_task);
-        return;
-    }
 
 #ifdef _WIN32
     EnterCriticalSection(&pool->lock);
@@ -390,7 +385,9 @@ void wisp_dispatch_raster(char *script, void (*func)(void*), void *arg) {
             NSLOG(wisp, WARNING, "Synchronous raster fallback: JS script execution not supported without dedicated thread context.");
         }
         if (func) func(arg);
-        // Fallback doesn't strdup script, so we don't free it either (as it belongs to the caller)
+        // Original behavior: subsystem frees script if it takes it.
+        // In synchronous fallback, we free it immediately since we're done.
+        if (script) free(script);
     }
 }
 
