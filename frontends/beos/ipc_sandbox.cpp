@@ -57,7 +57,7 @@ static nserror beos_spawn_worker_process(const char *type, char **argv)
         while (argv[argc]) argc++;
     }
 
-    const char **new_argv = (const char **)malloc((argc + 3) * sizeof(char *));
+    const char **new_argv = (const char **)malloc((argc + 4) * sizeof(char *));
     new_argv[0] = app_path;
     char type_arg[64];
     snprintf(type_arg, sizeof(type_arg), "--%s-process", type);
@@ -129,14 +129,24 @@ static nserror beos_shared_memory_transport(const char *name, size_t size, bool 
             return NSERROR_NOMEM;
         }
     } else {
-        area_id source_area = find_area(name);
-        if (source_area < B_OK) {
-            return NSERROR_NOT_FOUND;
-        }
-        area_id area = clone_area(name, addr, B_ANY_ADDRESS, B_READ_AREA | B_WRITE_AREA, source_area);
-        if (area < B_OK) {
-            NSLOG(wisp, ERROR, "clone_area failed: %s", strerror(area));
-            return NSERROR_NOMEM;
+        // If name starts with "id:", it's an area_id passed as hex
+        if (strncmp(name, "id:", 3) == 0) {
+            area_id source_area = (area_id)strtol(name + 3, NULL, 16);
+            area_id area = clone_area("wisp_cloned_fb", addr, B_ANY_ADDRESS, B_READ_AREA | B_WRITE_AREA, source_area);
+            if (area < B_OK) {
+                NSLOG(wisp, ERROR, "clone_area by ID failed: %s", strerror(area));
+                return NSERROR_NOMEM;
+            }
+        } else {
+            area_id source_area = find_area(name);
+            if (source_area < B_OK) {
+                return NSERROR_NOT_FOUND;
+            }
+            area_id area = clone_area(name, addr, B_ANY_ADDRESS, B_READ_AREA | B_WRITE_AREA, source_area);
+            if (area < B_OK) {
+                NSLOG(wisp, ERROR, "clone_area failed: %s", strerror(area));
+                return NSERROR_NOMEM;
+            }
         }
     }
 

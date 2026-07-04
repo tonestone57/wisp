@@ -89,6 +89,16 @@ static void fetch_broker_abort(void *vf)
 static void fetch_broker_free(void *vf)
 {
     struct broker_fetch_info *f = vf;
+
+    /* Remove from active list */
+    if (active_fetches == f) {
+        active_fetches = f->next;
+    } else {
+        struct broker_fetch_info *curr = active_fetches;
+        while (curr && curr->next != f) curr = curr->next;
+        if (curr) curr->next = f->next;
+    }
+
     nsurl_unref(f->url);
     free(f);
 }

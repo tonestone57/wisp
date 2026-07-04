@@ -697,7 +697,10 @@ static nserror nsbeos_plot_flush(const struct redraw_context *ctx)
 
         area_id area = find_area(area_name);
         if (area >= B_OK) {
-            guit->ipc_sandbox->post_ipc_message(guit->ipc_sandbox->ui_process_pid, WISP_MSG_FRAME_READY, 0, area_name, strlen(area_name) + 1);
+            // Pass the area_id encoded in the name for reliable cross-process cloning
+            char id_payload[128];
+            snprintf(id_payload, sizeof(id_payload), "id:%lx", (long)area);
+            guit->ipc_sandbox->post_ipc_message(guit->ipc_sandbox->ui_process_pid, WISP_MSG_FRAME_READY, 0, id_payload, strlen(id_payload) + 1);
         }
     }
 
