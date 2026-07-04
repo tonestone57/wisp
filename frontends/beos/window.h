@@ -73,6 +73,8 @@ struct beos_scaffolding *nsbeos_get_scaffold(struct gui_window *g);
 
 struct browser_window *nsbeos_get_browser_for_gui(struct gui_window *g);
 
+nserror gui_window_draw_gadget(const struct redraw_context *ctx, int x, int y, int width, int height, struct form_control *control);
+
 int nsbeos_gui_window_update_targets(struct gui_window *g);
 
 void nsbeos_window_destroy_browser(struct gui_window *g);

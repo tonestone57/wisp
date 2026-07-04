@@ -229,6 +229,11 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
         Window()->DetachCurrentMessage();
         nsbeos_pipe_message_top(message, NULL, fGuiWindow->scaffold);
         break;
+    case 'gdgt':
+    case 'gmod':
+        Window()->DetachCurrentMessage();
+        nsbeos_pipe_message(message, this, fGuiWindow);
+        break;
     default:
         BView::MessageReceived(message);
     }
@@ -314,7 +319,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 {
     struct gui_window *g;
 
-    g = new struct gui_window;
+    g = new struct gui_window();
     if (!g) {
         beos_warn_user("NoMemory", 0);
         return 0;
@@ -403,39 +408,46 @@ void nsbeos_dispatch_event(BMessage *message)
     case 'fsel': {
         entry_ref ref;
         struct form_control *gadget;
-        if (message->FindRef("refs", &ref) == B_OK &&
+        if (gui != NULL && message->FindRef("refs", &ref) == B_OK &&
             message->FindPointer("gadget", (void **)&gadget) == B_OK) {
             BPath path(&ref);
             browser_window_set_gadget_filename(gui->bw, gadget, path.Path());
         }
         break;
     }
+    case 'gmod':
     case 'gdgt': {
         struct form_control *control;
         if (message->FindPointer("control", (void **)&control) == B_OK) {
+            if (gui == NULL) break;
             switch (control->type) {
             case GADGET_SUBMIT:
             case GADGET_RESET:
             case GADGET_BUTTON:
-                form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
+                if (message->what == 'gdgt') {
+                    form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
+                }
                 break;
             case GADGET_CHECKBOX: {
-                int32 val;
-                if (message->FindInt32("be:value", &val) == B_OK) {
-                    control->selected = (val == B_CONTROL_ON);
+                BCheckBox *cb = dynamic_cast<BCheckBox *>(gui->widgets[control]);
+                if (cb) {
+                    control->selected = (cb->Value() == B_CONTROL_ON);
+                    dom_html_input_element_set_checked((dom_html_input_element *)control->node, control->selected);
                 }
                 break;
             }
-            case GADGET_RADIO:
-                if (control->selected == false) {
+            case GADGET_RADIO: {
+                BRadioButton *rb = dynamic_cast<BRadioButton *>(gui->widgets[control]);
+                if (rb && rb->Value() == B_CONTROL_ON && control->selected == false) {
                     form_radio_set(control);
                 }
                 break;
+            }
             case GADGET_TEXTBOX:
             case GADGET_PASSWORD: {
-                const char *text;
-                if (message->FindString("_text", &text) == B_OK) {
-                    form_gadget_update_value(control, strdup(text));
+                BTextControl *tc = dynamic_cast<BTextControl *>(gui->widgets[control]);
+                if (tc) {
+                    form_gadget_update_value(control, strdup(tc->Text()));
                 }
                 break;
             }
@@ -882,6 +894,8 @@ static void gui_window_destroy(struct gui_window *g)
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
 
+    gui_window_cleanup_widgets(g);
+
     if (g->view != NULL && g->view->LockLooper()) {
         BLooper *looper = g->view->Looper();
         if (g->toplevel) {
@@ -895,7 +909,6 @@ static void gui_window_destroy(struct gui_window *g)
         }
     }
 
-    gui_window_cleanup_widgets(g);
     delete g;
 }
 
@@ -1272,7 +1285,7 @@ static void gui_window_file_gadget_open(struct gui_window *g, struct hlcache_han
 }
 
 
-static nserror gui_window_draw_gadget(
+nserror gui_window_draw_gadget(
     const struct redraw_context *ctx, int x, int y, int width, int height, struct form_control *control)
 {
     struct gui_window *g = (struct gui_window *)ctx->priv;
@@ -1316,6 +1329,12 @@ static nserror gui_window_draw_gadget(
             widget = new BTextControl(frame, "wisp_text", "", control->value ? control->value : "", msg);
             if (control->type == GADGET_PASSWORD) {
                 ((BTextControl *)widget)->TextView()->HideTyping(true);
+            }
+            {
+                BMessage *mod = new BMessage('gmod');
+                mod->AddPointer("control", control);
+                mod->AddPointer("gui_window", g);
+                ((BTextControl *)widget)->SetModificationMessage(mod);
             }
             break;
         default:
