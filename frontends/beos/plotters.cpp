@@ -49,6 +49,8 @@ extern "C" {
 #include "beos/font.h"
 #include "beos/gui.h"
 #include "beos/plotters.h"
+#include "beos/window.h"
+#include "wisp/desktop/gui_internal.h"
 #include "wisp/desktop/ipc_sandbox.h"
 #include "wisp/desktop/ipc_messages.h"
 #include <OS.h>
@@ -694,7 +696,6 @@ static nserror nsbeos_plot_flush(const struct redraw_context *ctx)
         if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
             // We use a global helper to find the active window and copy its bits
             // In a production app, we would use direct rendering to shared memory if possible.
-            extern void nsbeos_sync_offscreen_to_shared(void);
             nsbeos_sync_offscreen_to_shared();
         }
     }

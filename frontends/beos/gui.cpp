@@ -836,8 +836,12 @@ int main(int argc, char **argv)
         // Content process specific initialization
         beos_table.ipc_sandbox->is_content_process = true;
         beos_table.ipc_sandbox->ui_process_pid = ui_pid;
-        beos_table.ipc_sandbox->drop_privileges();
-        beos_table.ipc_sandbox->isolate_sockets();
+        if (beos_table.ipc_sandbox->drop_privileges() != NSERROR_OK) {
+            die("Content Process failed to drop privileges. Terminating for safety.");
+        }
+        if (beos_table.ipc_sandbox->isolate_sockets() != NSERROR_OK) {
+            die("Content Process failed to isolate sockets. Terminating for safety.");
+        }
 
         // Ensure Content Process has a looper for IPC
         if (!be_app) {

@@ -11,6 +11,10 @@
 #ifndef _WISP_CONTENT_FETCHERS_BROKER_H_
 #define _WISP_CONTENT_FETCHERS_BROKER_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include "utils/errors.h"
@@ -41,5 +45,9 @@ void fetch_broker_deliver_done(int fetch_id);
  * Signal fetch error from broker.
  */
 void fetch_broker_deliver_error(int fetch_id);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

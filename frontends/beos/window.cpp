@@ -24,6 +24,7 @@
 #include <Clipboard.h>
 #include <Cursor.h>
 #include <InterfaceDefs.h>
+#include <Locker.h>
 #include <Message.h>
 #include <ScrollBar.h>
 #include <String.h>
@@ -57,6 +58,8 @@ extern "C" {
 #include "beos/plotters.h"
 #include "beos/scaffolding.h"
 #include "beos/window.h"
+#include "content/fetchers/broker.h"
+#include "wisp/desktop/gui_internal.h"
 #include "wisp/desktop/ipc_messages.h"
 #include "wisp/desktop/ipc_sandbox.h"
 #include "wisp/fetch.h"
@@ -98,6 +101,7 @@ struct gui_window {
 static const rgb_color kWhiteColor = {255, 255, 255, 255};
 
 static struct gui_window *window_list = 0;
+static BLocker window_list_lock("window_list_lock");
 
 static BString current_selection;
 static BList current_selection_textruns;
@@ -355,11 +359,13 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
         g->worker_pid = (thread_id)worker_pid;
     }
 
+    window_list_lock.Lock();
     if (window_list)
         window_list->prev = g;
     g->next = window_list;
     g->prev = NULL;
     window_list = g;
+    window_list_lock.Unlock();
 
     if (flags & GW_CREATE_TAB && existing) {
         g->scaffold = existing->scaffold;
@@ -386,6 +392,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
 void nsbeos_dispatch_event(BMessage *message)
 {
+    window_list_lock.Lock();
     struct gui_window *gui = NULL;
     NSBrowserFrameView *view = NULL;
     struct beos_scaffolding *scaffold = NULL;
@@ -410,20 +417,24 @@ void nsbeos_dispatch_event(BMessage *message)
 
     if (gui && gui != z) {
         NSLOG(wisp, INFO, "discarding event for destroyed gui_window");
+        window_list_lock.Unlock();
         delete message;
         return;
     }
     if (scaffold && (!y || scaffold != y->scaffold)) {
         NSLOG(wisp, INFO, "discarding event for destroyed scaffolding");
+        window_list_lock.Unlock();
         delete message;
         return;
     }
 
     if (scaffold) {
         nsbeos_scaffolding_dispatch_event(scaffold, message);
+        window_list_lock.Unlock();
         delete message;
         return;
     }
+    window_list_lock.Unlock();
 
     switch (message->what) {
     case B_QUIT_REQUESTED:
@@ -678,6 +689,7 @@ void nsbeos_dispatch_event(BMessage *message)
         if (message->FindData("payload", B_RAW_TYPE, (const void **)&area_name, &size) == B_OK &&
             message->FindInt32("sender_pid", &sender_pid) == B_OK) {
 
+            window_list_lock.Lock();
             struct gui_window *target = NULL;
             for (struct gui_window *z = window_list; z; z = z->next) {
                 if (z->worker_pid == (thread_id)sender_pid) {
@@ -696,6 +708,7 @@ void nsbeos_dispatch_event(BMessage *message)
                     target->view->Invalidate();
                     target->view->UnlockLooper();
                 }
+                window_list_lock.Unlock();
             } else if (gui && view) {
                 // Fallback to context-provided gui/view if pid mapping fails
                 strncpy(gui->fb_name, area_name, sizeof(gui->fb_name));
@@ -703,6 +716,9 @@ void nsbeos_dispatch_event(BMessage *message)
                     guit->ipc_sandbox->shared_memory_transport(area_name, 0, false, &gui->fb_addr);
                 }
                 view->Invalidate();
+                window_list_lock.Unlock();
+            } else {
+                window_list_lock.Unlock();
             }
         }
         break;
@@ -988,6 +1004,7 @@ void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event)
 
 void nsbeos_sync_offscreen_to_shared(void)
 {
+    window_list_lock.Lock();
     for (struct gui_window *g = window_list; g; g = g->next) {
         if (g->offscreen_bitmap && g->fb_addr) {
             // Copy bits from offscreen bitmap to shared memory
@@ -995,13 +1012,16 @@ void nsbeos_sync_offscreen_to_shared(void)
             memcpy(g->fb_addr, g->offscreen_bitmap->Bits(), (int32)(2048 * 2048 * 4));
         }
     }
+    window_list_lock.Unlock();
 }
 
 void nsbeos_reflow_all_windows(void)
 {
+    window_list_lock.Lock();
     for (struct gui_window *g = window_list; g; g = g->next) {
         browser_window_schedule_reformat(g->bw);
     }
+    window_list_lock.Unlock();
 }
 
 
@@ -1015,6 +1035,7 @@ static void gui_window_destroy(struct gui_window *g)
     if (!g)
         return;
 
+    window_list_lock.Lock();
     if (g->prev)
         g->prev->next = g->next;
     else
@@ -1022,6 +1043,7 @@ static void gui_window_destroy(struct gui_window *g)
 
     if (g->next)
         g->next->prev = g->prev;
+    window_list_lock.Unlock();
 
     delete g->fb_cache;
     delete g->offscreen_bitmap;

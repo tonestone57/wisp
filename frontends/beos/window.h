@@ -79,4 +79,6 @@ void nsbeos_window_destroy_browser(struct gui_window *g);
 
 struct browser_window *nsbeos_get_browser_window(struct gui_window *g);
 
+extern "C" void nsbeos_sync_offscreen_to_shared(void);
+
 #endif /* NETSURF_BEOS_WINDOW_H */
