@@ -57,9 +57,20 @@ extern "C" {
 #include "beos/plotters.h"
 #include "beos/scaffolding.h"
 #include "beos/window.h"
+#include "desktop/tile_pool.h"
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
+#include <blend2d/blend2d.h>
 
 
 class NSBrowserFrameView;
+
+struct tile_render_task {
+    struct gui_window *g;
+    NSBrowserFrameView *view;
+    struct rect tile_clip;
+    void *buffer;
+    int tile_size;
+};
 
 struct gui_window {
     nsbeos_scaffolding *scaffold;
@@ -93,6 +104,8 @@ static BString current_selection;
 static BList current_selection_textruns;
 
 static void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message);
+static void nsbeos_tile_raster_worker(void *arg);
+static void nsbeos_tile_raster_complete(void *arg);
 static void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event);
@@ -577,7 +590,6 @@ void nsbeos_dispatch_event(BMessage *message)
 void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 {
     BRect updateRect;
-    struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
 
     assert(g);
     assert(g->bw);
@@ -591,14 +603,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (browser_window_has_content(g->bw) == false)
         return;
 
-    if (!view->LockLooper())
-        return;
-    nsbeos_current_gc_set(view);
-
-    if (view->Window())
-        view->Window()->BeginViewTransaction();
-
-    /* Fixed-Tile Redraw Implementation */
+    /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();
     int rect_left = (int)updateRect.left;
     int rect_top = (int)updateRect.top;
@@ -622,26 +627,92 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            /* Push tile clip and redraw */
-            BRegion region;
-            region.Set(BRect(tile_clip.x0, tile_clip.y0, tile_clip.x1 - 1, tile_clip.y1 - 1));
-            view->PushState();
-            view->ConstrainClippingRegion(&region);
-
-            browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
-
-            view->PopState();
+            /* Checkout buffer and dispatch raster task */
+            void *buf = tile_pool_checkout();
+            if (buf) {
+                struct tile_render_task *task = (struct tile_render_task *)malloc(sizeof(*task));
+                task->g = g;
+                task->view = view;
+                task->tile_clip = tile_clip;
+                task->buffer = buf;
+                task->tile_size = tile_size;
+                wisp_dispatch_raster(NULL, nsbeos_tile_raster_worker, task);
+            } else {
+                /* Synchronous fallback if pool/dispatch fails */
+                struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
+                if (view->LockLooper()) {
+                    nsbeos_current_gc_set(view);
+                    browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
+                    nsbeos_current_gc_set(NULL);
+                    view->UnlockLooper();
+                }
+            }
         }
     }
 
-    if (g->careth != 0)
-        nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+    if (g->careth != 0) {
+        if (view->LockLooper()) {
+            nsbeos_current_gc_set(view);
+            nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+            nsbeos_current_gc_set(NULL);
+            view->UnlockLooper();
+        }
+    }
+}
 
-    if (view->Window())
-        view->Window()->EndViewTransaction();
+static void nsbeos_tile_raster_worker(void *arg)
+{
+    struct tile_render_task *task = (struct tile_render_task *)arg;
+    BLContextCore bl_ctx;
+    BLImageCore img;
 
-    nsbeos_current_gc_set(NULL);
-    view->UnlockLooper();
+    /* Initialize Blend2D image from pooled buffer */
+    bl_image_init_as_from_data(&img, task->tile_size, task->tile_size, BL_FORMAT_PRGB32, task->buffer, (intptr_t)task->tile_size * 4, BL_DATA_ACCESS_RW, NULL, NULL);
+    bl_context_init_as(&bl_ctx, &img, NULL);
+
+    /* Clear buffer to white initially */
+    bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+    bl_context_fill_all(&bl_ctx);
+
+    struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
+
+    /* Adjust drawing coordinates so (0,0) is the top-left of the tile */
+    BLMatrix2D m;
+    bl_matrix2d_set_identity(&m);
+    double tl_data[2] = {-(double)(task->tile_clip.x0 & ~(task->tile_size - 1)), -(double)(task->tile_clip.y0 & ~(task->tile_size - 1))};
+    bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
+    bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
+
+    /* Render content into tile buffer */
+    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+
+    bl_context_end(&bl_ctx);
+    bl_image_destroy(&img);
+
+    /* Dispatch completion callback to main thread */
+    task_queue_post(nsbeos_tile_raster_complete, task);
+}
+
+static void nsbeos_tile_raster_complete(void *arg)
+{
+    struct tile_render_task *task = (struct tile_render_task *)arg;
+    NSBrowserFrameView *view = task->view;
+
+    if (view->LockLooper()) {
+        /* Atomic Blit: Construct BBitmap from pooled buffer and draw to view */
+        BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
+        BBitmap b(frame, 0, B_RGBA32);
+        b.ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32);
+
+        int tx = task->tile_clip.x0 & ~(task->tile_size - 1);
+        int ty = task->tile_clip.y0 & ~(task->tile_size - 1);
+
+        view->DrawBitmap(&b, BPoint(tx, ty));
+        view->UnlockLooper();
+    }
+
+    tile_pool_return(task->buffer);
+    free(task);
 }
 
 void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)

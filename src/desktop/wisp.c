@@ -58,6 +58,7 @@
 #include <wisp/misc.h>
 #include <wisp/wisp.h>
 #include "desktop/system_colour.h"
+#include "desktop/tile_pool.h"
 
 
 /** \todo QUERY - Remove this import later */
@@ -115,6 +116,11 @@ nserror wisp_init(const char *store_path)
 
     if (!task_queue_init()) {
         NSLOG(wisp, ERROR, "Failed to initialize task queue");
+        return NSERROR_INIT_FAILED;
+    }
+
+    if (!tile_pool_init(16)) {
+        NSLOG(wisp, ERROR, "Failed to initialize tile memory pool");
         return NSERROR_INIT_FAILED;
     }
     struct hlcache_parameters hlcache_parameters = {.bg_clean_time = HL_CACHE_CLEAN_TIME,
@@ -289,6 +295,7 @@ nserror wisp_init(const char *store_path)
 void wisp_exit(void)
 {
     hlcache_stop();
+    tile_pool_fini();
 
     NSLOG(wisp, INFO, "Closing GUI");
 

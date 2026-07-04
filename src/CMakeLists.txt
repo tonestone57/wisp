@@ -226,6 +226,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	desktop/gui_factory.c
 	desktop/save_pdf.c
 	desktop/bitmap.c
+	desktop/tile_pool.c
 	${BLEND2D_SRC}
 	utils/bloom.c
 	utils/corestrings.c
