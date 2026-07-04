@@ -53,6 +53,7 @@ START_TEST(test_subsystem_init_shutdown)
     if (n_cores <= 0) n_cores = 1;
     int expected_raster = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int expected_js = (n_cores > 4) ? 4 : (int)n_cores;
+    if (expected_js < 1) expected_js = 1;
 
     ck_assert_int_eq(raster_pool->worker_count, expected_raster);
     ck_assert_int_eq(js_pool->worker_count, expected_js);

@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <stdbool.h>
+#include <stdatomic.h>
 #include "wisp/utils/log.h"
 #include "wisp/utils/utils.h"
 
@@ -178,6 +180,7 @@ void init_wisp_subsystem(int queue_size) {
 
     int raster_workers = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int js_workers = (n_cores > 4) ? 4 : (int)n_cores;
+    if (js_workers < 1) js_workers = 1;
 
     raster_pool = init_pool(raster_workers, queue_size);
     js_pool = init_pool(js_workers, queue_size);
