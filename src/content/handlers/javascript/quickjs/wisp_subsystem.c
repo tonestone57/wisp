@@ -174,6 +174,8 @@ void init_wisp_subsystem(int queue_size) {
     n_cores = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 
+    if (n_cores <= 0) n_cores = 1;
+
     int raster_workers = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int js_workers = (n_cores > 4) ? 4 : (int)n_cores;
 

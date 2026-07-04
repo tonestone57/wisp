@@ -1,11 +1,25 @@
 #include <check.h>
 #include <stdlib.h>
+
 #ifndef _WIN32
 #include <unistd.h>
+#include <pthread.h>
+#define ns_mutex_t pthread_mutex_t
+#define ns_mutex_init(m) pthread_mutex_init(m, NULL)
+#define ns_mutex_lock(m) pthread_mutex_lock(m)
+#define ns_mutex_unlock(m) pthread_mutex_unlock(m)
+#define ns_mutex_destroy(m) pthread_mutex_destroy(m)
+#define ns_usleep(us) usleep(us)
 #else
 #include <windows.h>
-#define usleep(us) Sleep((us)/1000)
+#define ns_mutex_t CRITICAL_SECTION
+#define ns_mutex_init(m) InitializeCriticalSection(m)
+#define ns_mutex_lock(m) EnterCriticalSection(m)
+#define ns_mutex_unlock(m) LeaveCriticalSection(m)
+#define ns_mutex_destroy(m) DeleteCriticalSection(m)
+#define ns_usleep(us) Sleep((us)/1000)
 #endif
+
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/utils/log.h"
 
@@ -13,12 +27,12 @@
 void nslog_log(enum nslog_level level, const char *file, const char *func, int ln, const char *format, ...) {}
 
 static int task_executed_count = 0;
-static pthread_mutex_t count_lock = PTHREAD_MUTEX_INITIALIZER;
+static ns_mutex_t count_lock;
 
 static void test_task(void *arg) {
-    pthread_mutex_lock(&count_lock);
+    ns_mutex_lock(&count_lock);
     task_executed_count++;
-    pthread_mutex_unlock(&count_lock);
+    ns_mutex_unlock(&count_lock);
 }
 
 START_TEST(test_subsystem_init_shutdown)
@@ -36,6 +50,7 @@ START_TEST(test_subsystem_init_shutdown)
 #else
     n_cores = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
+    if (n_cores <= 0) n_cores = 1;
     int expected_raster = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int expected_js = (n_cores > 4) ? 4 : (int)n_cores;
 
@@ -64,13 +79,13 @@ START_TEST(test_subsystem_dispatch)
     // Wait for tasks to complete
     int retries = 0;
     while (retries < 50) {
-        pthread_mutex_lock(&count_lock);
+        ns_mutex_lock(&count_lock);
         if (task_executed_count == 3) {
-            pthread_mutex_unlock(&count_lock);
+            ns_mutex_unlock(&count_lock);
             break;
         }
-        pthread_mutex_unlock(&count_lock);
-        usleep(100000);
+        ns_mutex_unlock(&count_lock);
+        ns_usleep(100000);
         retries++;
     }
 
@@ -98,9 +113,11 @@ int main(void)
     Suite *s = subsystem_suite();
     SRunner *sr = srunner_create(s);
 
+    ns_mutex_init(&count_lock);
     srunner_run_all(sr, CK_VERBOSE);
     number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);
+    ns_mutex_destroy(&count_lock);
 
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
