@@ -12,6 +12,7 @@ set(WISP_BEOS_SRCS
     font.cpp
     gui.cpp
     gui_options.cpp
+    ipc_sandbox.cpp
     login.cpp
     plotters.cpp
     scaffolding.cpp

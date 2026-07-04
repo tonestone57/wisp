@@ -24,6 +24,7 @@
 #include <Clipboard.h>
 #include <Cursor.h>
 #include <InterfaceDefs.h>
+#include <Locker.h>
 #include <Message.h>
 #include <ScrollBar.h>
 #include <String.h>
@@ -57,6 +58,11 @@ extern "C" {
 #include "beos/plotters.h"
 #include "beos/scaffolding.h"
 #include "beos/window.h"
+#include "content/fetchers/broker.h"
+#include "wisp/desktop/gui_internal.h"
+#include "wisp/desktop/ipc_messages.h"
+#include "wisp/desktop/ipc_sandbox.h"
+#include "wisp/fetch.h"
 
 
 class NSBrowserFrameView;
@@ -65,6 +71,13 @@ struct gui_window {
     nsbeos_scaffolding *scaffold;
     bool toplevel;
     struct browser_window *bw;
+
+    void *fb_addr;
+    char fb_name[64];
+    BBitmap *fb_cache;
+    BBitmap *offscreen_bitmap;
+    BView *offscreen_view;
+    thread_id worker_pid;
 
     struct {
         int pressed_x;
@@ -88,6 +101,7 @@ struct gui_window {
 static const rgb_color kWhiteColor = {255, 255, 255, 255};
 
 static struct gui_window *window_list = 0;
+static BLocker window_list_lock("window_list_lock");
 
 static BString current_selection;
 static BList current_selection_textruns;
@@ -314,12 +328,40 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
     g->careth = 0;
     g->pending_resizes = 0;
+    g->fb_addr = NULL;
+    g->fb_name[0] = '\0';
+    g->fb_cache = NULL;
 
+    g->offscreen_bitmap = NULL;
+    g->offscreen_view = NULL;
+
+    if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
+        // Content Process: Create the shared memory area for rendering
+        snprintf(g->fb_name, sizeof(g->fb_name), "wisp_fb_%d", (int)getpid());
+        guit->ipc_sandbox->shared_memory_transport(g->fb_name, 2048 * 2048 * 4, true, &g->fb_addr);
+
+        // Initialize offscreen rendering for the content process
+        BRect bounds(0, 0, 2047, 2047);
+        // Zero-Copy Optimization: Wrap the shared memory directly in a BBitmap
+        g->offscreen_bitmap = new BBitmap(bounds, 0, B_RGB32, 2048 * 4, g->fb_addr);
+        g->offscreen_view = new BView(bounds, "offscreen", B_FOLLOW_NONE, B_WILL_DRAW);
+        g->offscreen_bitmap->AddChild(g->offscreen_view);
+        g->offscreen_bitmap->Lock();
+        nsbeos_current_gc_set(g->offscreen_view);
+    } else if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && guit->ipc_sandbox->spawn_worker_process) {
+        // UI Process: Spawn the content process for this window
+        int worker_pid = 0;
+        guit->ipc_sandbox->spawn_worker_process("content", NULL, &worker_pid);
+        g->worker_pid = (thread_id)worker_pid;
+    }
+
+    window_list_lock.Lock();
     if (window_list)
         window_list->prev = g;
     g->next = window_list;
     g->prev = NULL;
     window_list = g;
+    window_list_lock.Unlock();
 
     if (flags & GW_CREATE_TAB && existing) {
         g->scaffold = existing->scaffold;
@@ -346,6 +388,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
 void nsbeos_dispatch_event(BMessage *message)
 {
+    window_list_lock.Lock();
     struct gui_window *gui = NULL;
     NSBrowserFrameView *view = NULL;
     struct beos_scaffolding *scaffold = NULL;
@@ -370,20 +413,24 @@ void nsbeos_dispatch_event(BMessage *message)
 
     if (gui && gui != z) {
         NSLOG(wisp, INFO, "discarding event for destroyed gui_window");
+        window_list_lock.Unlock();
         delete message;
         return;
     }
     if (scaffold && (!y || scaffold != y->scaffold)) {
         NSLOG(wisp, INFO, "discarding event for destroyed scaffolding");
+        window_list_lock.Unlock();
         delete message;
         return;
     }
 
     if (scaffold) {
         nsbeos_scaffolding_dispatch_event(scaffold, message);
+        window_list_lock.Unlock();
         delete message;
         return;
     }
+    window_list_lock.Unlock();
 
     switch (message->what) {
     case B_QUIT_REQUESTED:
@@ -541,9 +588,137 @@ void nsbeos_dispatch_event(BMessage *message)
         if (gui && view)
             nsbeos_window_moved_event(view, gui, message);
         break;
+    case WISP_MSG_FETCH_HEADER:
+    case WISP_MSG_FETCH_DATA:
+    case WISP_MSG_FETCH_FINISHED:
+    case WISP_MSG_FETCH_ERROR:
+    {
+        int32 fetch_id;
+        if (message->FindInt32("handle", &fetch_id) == B_OK) {
+            const void *payload;
+            ssize_t size;
+            switch (message->what) {
+            case WISP_MSG_FETCH_HEADER:
+                if (message->FindData("payload", B_RAW_TYPE, &payload, &size) == B_OK)
+                    fetch_broker_deliver_header(fetch_id, (const uint8_t *)payload, size);
+                break;
+            case WISP_MSG_FETCH_DATA:
+                if (message->FindData("payload", B_RAW_TYPE, &payload, &size) == B_OK)
+                    fetch_broker_deliver_data(fetch_id, (const uint8_t *)payload, size);
+                break;
+            case WISP_MSG_FETCH_FINISHED:
+                fetch_broker_deliver_done(fetch_id);
+                break;
+            case WISP_MSG_FETCH_ERROR:
+                fetch_broker_deliver_error(fetch_id);
+                break;
+            }
+        }
+        break;
+    }
     case B_UI_SETTINGS_CHANGED:
         nsbeos_update_system_ui_colors();
         break;
+    case WISP_MSG_FETCH_REQUEST:
+    {
+        const char *url_str;
+        ssize_t size;
+        int32 sender_pid;
+        int32 fetch_id;
+        if (message->FindData("payload", B_RAW_TYPE, (const void **)&url_str, &size) == B_OK &&
+            message->FindInt32("sender_pid", &sender_pid) == B_OK &&
+            message->FindInt32("handle", &fetch_id) == B_OK) {
+
+            NSLOG(wisp, INFO, "Broker: UI Process relaying fetch request for %s (fetch_id: %d)", url_str, fetch_id);
+
+            struct relay_ctx {
+                int pid;
+                int id;
+            } *ctx = (struct relay_ctx *)malloc(sizeof(*ctx));
+            ctx->pid = sender_pid;
+            ctx->id = fetch_id;
+
+            nsurl *url;
+            if (nsurl_create(url_str, &url) == NSERROR_OK) {
+                fetch_start(url, NULL, [](const fetch_msg *msg, void *p) {
+                    struct relay_ctx *c = (struct relay_ctx *)p;
+                    switch (msg->type) {
+                    case FETCH_HEADER:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_HEADER, c->id, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+                        break;
+                    case FETCH_DATA:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_DATA, c->id, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+                        break;
+                    case FETCH_FINISHED:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_FINISHED, c->id, NULL, 0);
+                        free(c);
+                        break;
+                    case FETCH_ERROR:
+                        guit->ipc_sandbox->post_ipc_message(c->pid, WISP_MSG_FETCH_ERROR, c->id, NULL, 0);
+                        free(c);
+                        break;
+                    default: break;
+                    }
+                }, ctx, false, NULL, true, false, NULL, NULL);
+                nsurl_unref(url);
+            } else {
+                free(ctx);
+            }
+        }
+        break;
+    }
+    case WISP_MSG_FILE_REQUEST:
+    {
+        const char *path;
+        ssize_t size;
+        if (message->FindData("payload", B_RAW_TYPE, (const void **)&path, &size) == B_OK) {
+            NSLOG(wisp, INFO, "Broker: UI Process received file request for %s", path);
+            // UI process would handle the brokered file request here
+        }
+        break;
+    }
+    case WISP_MSG_FRAME_READY:
+    {
+        const char *area_name;
+        ssize_t size;
+        int32 sender_pid;
+        if (message->FindData("payload", B_RAW_TYPE, (const void **)&area_name, &size) == B_OK &&
+            message->FindInt32("sender_pid", &sender_pid) == B_OK) {
+
+            window_list_lock.Lock();
+            struct gui_window *target = NULL;
+            for (struct gui_window *z = window_list; z; z = z->next) {
+                if (z->worker_pid == (thread_id)sender_pid) {
+                    target = z;
+                    break;
+                }
+            }
+
+            if (target) {
+                NSLOG(wisp, INFO, "UI Process: Frame ready received from PID %d for area %s", sender_pid, area_name);
+                strncpy(target->fb_name, area_name, sizeof(target->fb_name));
+                if (!target->fb_addr) {
+                    guit->ipc_sandbox->shared_memory_transport(area_name, 0, false, &target->fb_addr);
+                }
+                if (target->view && target->view->LockLooper()) {
+                    target->view->Invalidate();
+                    target->view->UnlockLooper();
+                }
+                window_list_lock.Unlock();
+            } else if (gui && view) {
+                // Fallback to context-provided gui/view if pid mapping fails
+                strncpy(gui->fb_name, area_name, sizeof(gui->fb_name));
+                if (!gui->fb_addr) {
+                    guit->ipc_sandbox->shared_memory_transport(area_name, 0, false, &gui->fb_addr);
+                }
+                view->Invalidate();
+                window_list_lock.Unlock();
+            } else {
+                window_list_lock.Unlock();
+            }
+        }
+        break;
+    }
     case 'nsLO':
     {
         nsurl *url;
@@ -580,6 +755,25 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
 
     assert(g);
+
+    if (guit->ipc_sandbox && !guit->ipc_sandbox->is_content_process && g->fb_addr) {
+        // Multi-process blitting: Draw directly from shared memory
+        BRect bounds = view->Bounds();
+        int32 w = (int32)bounds.IntegerWidth() + 1;
+        int32 h = (int32)bounds.IntegerHeight() + 1;
+        if (w > 2048) w = 2048;
+        if (h > 2048) h = 2048;
+        BRect draw_bounds(0, 0, w - 1, h - 1);
+
+        // Zero-Copy Optimization: Wrap the cloned shared memory in a BBitmap
+        if (!g->fb_cache || g->fb_cache->Bounds() != draw_bounds) {
+            delete g->fb_cache;
+            g->fb_cache = new BBitmap(draw_bounds, 0, B_RGB32, 2048 * 4, g->fb_addr);
+        }
+
+        view->DrawBitmap(g->fb_cache, draw_bounds);
+        return;
+    }
     assert(g->bw);
 
     if (g->pending_resizes > 1)
@@ -794,11 +988,18 @@ void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event)
 }
 
 
+void nsbeos_sync_offscreen_to_shared(void)
+{
+    // With zero-copy BBitmap wrapping, no memcpy is required here.
+}
+
 void nsbeos_reflow_all_windows(void)
 {
+    window_list_lock.Lock();
     for (struct gui_window *g = window_list; g; g = g->next) {
         browser_window_schedule_reformat(g->bw);
     }
+    window_list_lock.Unlock();
 }
 
 
@@ -812,6 +1013,7 @@ static void gui_window_destroy(struct gui_window *g)
     if (!g)
         return;
 
+    window_list_lock.Lock();
     if (g->prev)
         g->prev->next = g->next;
     else
@@ -819,7 +1021,14 @@ static void gui_window_destroy(struct gui_window *g)
 
     if (g->next)
         g->next->prev = g->prev;
+    window_list_lock.Unlock();
 
+    delete g->fb_cache;
+    delete g->offscreen_bitmap;
+    if (g->fb_addr) {
+        area_id area = area_for(g->fb_addr);
+        if (area >= B_OK) delete_area(area);
+    }
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
 

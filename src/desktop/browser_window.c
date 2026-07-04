@@ -58,6 +58,7 @@
 #include <wisp/desktop/download.h>
 #include <wisp/desktop/global_history.h>
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/desktop/ipc_sandbox.h>
 #include <wisp/desktop/hotlist.h>
 #include <wisp/desktop/textinput.h>
 #include "desktop/browser_private.h"

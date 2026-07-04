@@ -49,6 +49,11 @@ extern "C" {
 #include "beos/font.h"
 #include "beos/gui.h"
 #include "beos/plotters.h"
+#include "beos/window.h"
+#include "wisp/desktop/gui_internal.h"
+#include "wisp/desktop/ipc_sandbox.h"
+#include "wisp/desktop/ipc_messages.h"
+#include <OS.h>
 
 /*static*/ BView *current_view;
 
@@ -684,7 +689,32 @@ static nserror nsbeos_plot_group_end(const struct redraw_context *ctx)
 static nserror nsbeos_plot_flush(const struct redraw_context *ctx)
 {
     BView *view = nsbeos_current_gc();
-    if (view != NULL) view->Sync();
+    if (view != NULL) {
+        view->Sync();
+
+        // Sync offscreen bits to shared memory in content process
+        if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
+            // We use a global helper to find the active window and copy its bits
+            // In a production app, we would use direct rendering to shared memory if possible.
+            nsbeos_sync_offscreen_to_shared();
+        }
+    }
+
+    /* In content process, notify the UI process that a frame is ready */
+    if (guit->ipc_sandbox && guit->ipc_sandbox->is_content_process) {
+        // Use a unique name based on the process ID for the frame buffer area
+        char area_name[64];
+        snprintf(area_name, sizeof(area_name), "wisp_fb_%d", (int)getpid());
+
+        area_id area = find_area(area_name);
+        if (area >= B_OK) {
+            // Pass the area_id encoded in the name for reliable cross-process cloning
+            char id_payload[128];
+            snprintf(id_payload, sizeof(id_payload), "id:%lx", (long)area);
+            guit->ipc_sandbox->post_ipc_message(guit->ipc_sandbox->ui_process_pid, WISP_MSG_FRAME_READY, 0, id_payload, strlen(id_payload) + 1);
+        }
+    }
+
     return NSERROR_OK;
 }
 

@@ -53,6 +53,7 @@
 
 #include <wisp/browser_window.h>
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/desktop/ipc_sandbox.h>
 #include <wisp/desktop/page-info.h>
 #include <wisp/desktop/searchweb.h>
 #include <wisp/misc.h>
@@ -260,6 +261,10 @@ nserror wisp_init(const char *store_path)
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "ns_system_colour_init failed (%s)", messages_get_errorcode(ret));
         return ret;
+    }
+
+    if (guit->ipc_sandbox && guit->ipc_sandbox->spawn_worker_process) {
+        NSLOG(wisp, INFO, "Multi-process architecture enabled via IPC Sandbox");
     }
 
     js_initialise();
