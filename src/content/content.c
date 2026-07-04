@@ -345,9 +345,9 @@ static void content_actually_destroy(struct content *c)
     NSLOG(wisp, INFO, "content %p %s", c, nsurl_access_log(llcache_handle_get_url(c->llcache)));
     assert(c->locked == false);
 
-    if (c->active_bg_tasks > 0) {
-        c->pending_deletion = true;
-        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c, c->active_bg_tasks);
+    if (atomic_load(&c->active_bg_tasks) > 0) {
+        c->pending_delete = true;
+        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c, atomic_load(&c->active_bg_tasks));
         return;
     }
 
@@ -1440,6 +1440,24 @@ bool content_is_selectable(struct hlcache_handle *h)
         return false;
     type = content_get_type(h);
     return (type == CONTENT_HTML || type == CONTENT_TEXTPLAIN);
+}
+
+/* exported interface documented in include/wisp/content.h */
+void content_inc_bg_tasks(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        atomic_fetch_add(&c->active_bg_tasks, 1);
+    }
+}
+
+/* exported interface documented in include/wisp/content.h */
+void content_dec_bg_tasks(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        atomic_fetch_sub(&c->active_bg_tasks, 1);
+    }
 }
 
 /* exported interface documented in include/wisp/content.h */

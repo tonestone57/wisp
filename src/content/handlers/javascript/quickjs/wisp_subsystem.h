@@ -15,6 +15,7 @@ typedef struct js_task_t {
     char *script;
     void (*function)(void*);
     void *arg;
+    float priority;
 } js_task_t;
 
 struct WispPool;
@@ -60,8 +61,8 @@ void init_wisp_subsystem(int queue_size);
 void shutdown_wisp_subsystem(void);
 
 /* Task dispatching */
-void wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg);
-void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg);
+void wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg, float priority);
+void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
 /* Deprecated/Compatibility wrapper */
 void wisp_dispatch(char *script, void (*func)(void*), void *arg);
 

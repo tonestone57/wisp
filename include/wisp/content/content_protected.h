@@ -27,6 +27,7 @@
 #ifndef WISP_CONTENT_CONTENT_PROTECTED_H_
 #define WISP_CONTENT_CONTENT_PROTECTED_H_
 
+#include <stdatomic.h>
 #include <libwapcaplet/libwapcaplet.h>
 #include <stdio.h>
 
@@ -284,6 +285,12 @@ struct content {
      * Number of child fetches or conversions currently in progress.
      */
     unsigned int active;
+
+    /**
+     * Number of active background tasks (e.g. parallel rendering)
+     */
+    atomic_int active_bg_tasks;
+
     /**
      * List of users.
      */
@@ -319,16 +326,6 @@ struct content {
         struct textsearch_context *context;
     } textsearch;
 
-    /**
-     * Refcount for background parser tasks.
-     * Prevents content_destroy from freeing the structure until 0.
-     */
-    int active_bg_tasks;
-
-    /**
-     * Set to true if content_destroy was called but deferred due to active background tasks.
-     */
-    bool pending_deletion;
 };
 
 extern const char *const content_type_name[];

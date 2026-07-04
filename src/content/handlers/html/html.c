@@ -887,11 +887,11 @@ static void html_parse_complete_cb(void *arg)
 	}
 
 	html->base.active--;
-	html->base.active_bg_tasks--;
+	atomic_fetch_sub(&html->base.active_bg_tasks, 1);
 
 	html_parse_task_free(task);
 
-	if (html->base.pending_deletion && html->base.active_bg_tasks == 0) {
+	if (html->base.pending_delete && atomic_load(&html->base.active_bg_tasks) == 0) {
 		content_destroy(&html->base);
 		return;
 	}
@@ -962,7 +962,7 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
 	task->parse_error = NSERROR_OK;
 
 	html->base.active++; /* Retain content fetch status until task completes */
-	html->base.active_bg_tasks++;
+	atomic_fetch_add(&html->base.active_bg_tasks, 1);
 
 	if (!thread_pool_add_task(html_parser_pool, html_parse_worker, task)) {
 		html->base.active--;

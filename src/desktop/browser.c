@@ -23,6 +23,7 @@
  */
 
 #include "wisp/browser.h"
+#include <math.h>
 #include <wisp/content/handlers/css/utils.h>
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -55,4 +56,35 @@ int browser_get_tile_size(void)
         return 512;
     }
     return 256;
+}
+
+/* exported interface documented in netsurf/browser.h */
+float browser_calculate_tile_priority(int tile_x, int tile_y, int viewport_x, int viewport_y, int viewport_width,
+    int viewport_height)
+{
+    int dx = 0;
+    int dy = 0;
+    int tile_size = browser_get_tile_size();
+    int tile_cx = tile_x + tile_size / 2;
+    int tile_cy = tile_y + tile_size / 2;
+
+    /* Viewport bounds */
+    int v_left = viewport_x;
+    int v_right = viewport_x + viewport_width;
+    int v_top = viewport_y;
+    int v_bottom = viewport_y + viewport_height;
+
+    /* Distance from tile center to viewport rectangle */
+    if (tile_cx < v_left) dx = v_left - tile_cx;
+    else if (tile_cx > v_right) dx = tile_cx - v_right;
+
+    if (tile_cy < v_top) dy = v_top - tile_cy;
+    else if (tile_cy > v_bottom) dy = tile_cy - v_bottom;
+
+    float fdx = (float)dx;
+    float fdy = (float)dy;
+    float distance = sqrtf(fdx * fdx + fdy * fdy);
+
+    /* Priority is inverse of distance: 1.0 for visible/near tiles, approaching 0 for distant ones. */
+    return 1.0f / (1.0f + distance);
 }

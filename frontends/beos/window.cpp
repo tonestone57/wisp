@@ -58,8 +58,39 @@ extern "C" {
 #include "beos/scaffolding.h"
 #include "beos/window.h"
 
+extern "C" {
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
+#include "wisp/content.h"
+}
 
 class NSBrowserFrameView;
+
+struct beos_tile_task_t {
+    struct gui_window *g;
+    struct rect tile_clip;
+    NSBrowserFrameView *view;
+};
+
+extern "C" void beos_tile_redraw_worker(void *arg)
+{
+    struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
+    struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
+
+    if (task->view->LockLooper()) {
+        nsbeos_current_gc_set(task->view);
+        browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+        nsbeos_current_gc_set(NULL);
+        task->view->UnlockLooper();
+    }
+
+    /* Update active task count for content lifecycle management */
+    struct hlcache_handle *h = browser_window_get_content(task->g->bw);
+    if (h != NULL) {
+        content_dec_bg_tasks(h);
+    }
+
+    free(task);
+}
 
 struct gui_window {
     nsbeos_scaffolding *scaffold;
@@ -608,6 +639,12 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     int x_start = rect_left - (rect_left % tile_size);
     int y_start = rect_top - (rect_top % tile_size);
 
+    BRect view_bounds = view->Bounds();
+    int v_x = (int)view_bounds.left;
+    int v_y = (int)view_bounds.top;
+    int v_w = (int)view_bounds.Width() + 1;
+    int v_h = (int)view_bounds.Height() + 1;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = (ty > rect_top) ? ty : rect_top;
         int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -622,15 +659,27 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            /* Push tile clip and redraw */
-            BRegion region;
-            region.Set(BRect(tile_clip.x0, tile_clip.y0, tile_clip.x1 - 1, tile_clip.y1 - 1));
-            view->PushState();
-            view->ConstrainClippingRegion(&region);
+            /* Calculate priority based on distance to viewport frustum */
+            float priority = browser_calculate_tile_priority(tx, ty, v_x, v_y, v_w, v_h);
 
-            browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
+            /* Dispatch tile task to prioritized raster pool.
+             * Note: In asynchronous mode, the backend should blit into an offscreen area.
+             * For this reference implementation, we use wisp_dispatch_raster which
+             * fallbacks to synchronous execution on single-core systems. */
+            struct beos_tile_task_t *task = (struct beos_tile_task_t *)malloc(sizeof(struct beos_tile_task_t));
+            if (task) {
+                task->g = g;
+                task->tile_clip = tile_clip;
+                task->view = (NSBrowserFrameView *)view;
 
-            view->PopState();
+                /* Increment active background tasks to prevent content destruction while rendering */
+                struct hlcache_handle *h = browser_window_get_content(g->bw);
+                if (h != NULL) {
+                    content_inc_bg_tasks(h);
+                }
+
+                wisp_dispatch_raster(NULL, beos_tile_redraw_worker, task, priority);
+            }
         }
     }
 
