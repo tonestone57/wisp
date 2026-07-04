@@ -529,14 +529,15 @@ extern "C" const struct plotter_table win_plotters_d2d = {
     path_stroke,
     bitmap,
     text,
-    NULL, // group_start
-    NULL, // group_end
-    NULL, // flush
+    NULL, /* group_start */
+    NULL, /* group_end */
+    NULL, /* flush */
     push_transform,
     pop_transform,
     linear_gradient,
     radial_gradient,
-    true, // option_knockout
+    NULL, /* draw_gadget */
+    true, /* option_knockout */
 };
 
 #endif

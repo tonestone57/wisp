@@ -31,6 +31,7 @@
 #include "wisp/plot_style.h"
 
 struct bitmap;
+struct form_control;
 struct rect;
 struct plotter_table;
 
@@ -440,6 +441,22 @@ struct plotter_table {
     nserror (*radial_gradient)(const struct redraw_context *ctx, const float *path, unsigned int path_len,
         const float transform[6], float cx, float cy, float rx, float ry, const struct gradient_stop *stops,
         unsigned int stop_count);
+
+    /**
+     * Draw a native form gadget.
+     *
+     * This hook allows frontends to replace custom-drawn form controls with
+     * native OS widgets.
+     *
+     * \param ctx The current redraw context.
+     * \param x, y The position of the gadget.
+     * \param width, height The dimensions of the gadget.
+     * \param control The form control to draw.
+     * \return NSERROR_OK if the gadget was drawn, or NSERROR_NOT_IMPLEMENTED
+     *         to use the core's custom drawing logic.
+     */
+    nserror (*draw_gadget)(const struct redraw_context *ctx, int x, int y, int width, int height,
+        struct form_control *control);
 
     /* flags */
     /**

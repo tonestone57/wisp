@@ -1920,5 +1920,6 @@ const struct plotter_table win_plotters = {
 #ifdef WISP_WINDOWS_NATIVE_LINEAR_GRADIENT
     .linear_gradient = win_plot_linear_gradient,
 #endif
+    .draw_gadget = NULL,
     .option_knockout = true,
 };

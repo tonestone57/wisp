@@ -303,6 +303,7 @@ static const struct plotter_table plotters = {
     .path_stroke = monkey_plot_path_stroke,
     .bitmap = monkey_plot_bitmap,
     .text = monkey_plot_text,
+    .draw_gadget = NULL,
     .option_knockout = true,
 };
 

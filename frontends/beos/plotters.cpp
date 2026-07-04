@@ -716,5 +716,6 @@ const struct plotter_table nsbeos_plotters = {
     .pop_transform = nsbeos_plot_pop_transform,
     .linear_gradient = nsbeos_plot_linear_gradient,
     .radial_gradient = nsbeos_plot_radial_gradient,
+    .draw_gadget = gui_window_draw_gadget,
     .option_knockout = true
 };

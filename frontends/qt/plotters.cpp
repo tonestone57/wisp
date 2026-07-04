@@ -879,5 +879,6 @@ const struct plotter_table nsqt_plotters = {
     .pop_transform = nsqt_pop_transform,
     .linear_gradient = nsqt_plot_linear_gradient,
     .radial_gradient = nsqt_plot_radial_gradient,
+    .draw_gadget = NULL,
     .option_knockout = true
 };
