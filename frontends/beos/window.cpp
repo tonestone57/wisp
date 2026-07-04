@@ -605,6 +605,12 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 
     /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();
+
+    /* Safety check: ensure tile size doesn't exceed pooled buffer capacity */
+    if (tile_size > 512) {
+        NSLOG(wisp, WARNING, "Tile size %d exceeds pool capacity, clamping to 512", tile_size);
+        tile_size = 512;
+    }
     int rect_left = (int)updateRect.left;
     int rect_top = (int)updateRect.top;
     int rect_right = (int)updateRect.right + 1;
@@ -699,15 +705,20 @@ static void nsbeos_tile_raster_complete(void *arg)
     NSBrowserFrameView *view = task->view;
 
     if (view->LockLooper()) {
-        /* Atomic Blit: Construct BBitmap from pooled buffer and draw to view */
+        /* Atomic Blit: Construct BBitmap from pooled buffer and draw to view.
+         * Using heap-allocation for BBitmap and explicit ImportBits check for robustness. */
         BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
-        BBitmap b(frame, 0, B_RGBA32);
-        b.ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32);
+        BBitmap *b = new BBitmap(frame, 0, B_RGBA32);
 
-        int tx = task->tile_clip.x0 & ~(task->tile_size - 1);
-        int ty = task->tile_clip.y0 & ~(task->tile_size - 1);
+        if (b->InitCheck() == B_OK) {
+            if (b->ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32) == B_OK) {
+                int tx = task->tile_clip.x0 & ~(task->tile_size - 1);
+                int ty = task->tile_clip.y0 & ~(task->tile_size - 1);
+                view->DrawBitmap(b, BPoint(tx, ty));
+            }
+        }
 
-        view->DrawBitmap(&b, BPoint(tx, ty));
+        delete b;
         view->UnlockLooper();
     }
 
