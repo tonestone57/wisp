@@ -748,8 +748,8 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
         // Multi-process blitting: Draw directly from shared memory
         BRect bounds = view->Bounds();
         // Bounds checking: ensure window doesn't exceed 2048x2048 shared area
-        float w = bounds.IntegerWidth() + 1;
-        float h = bounds.IntegerHeight() + 1;
+        int32 w = (int32)bounds.IntegerWidth() + 1;
+        int32 h = (int32)bounds.IntegerHeight() + 1;
         if (w > 2048) w = 2048;
         if (h > 2048) h = 2048;
         BRect draw_bounds(0, 0, w - 1, h - 1);
@@ -758,7 +758,17 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             delete g->fb_cache;
             g->fb_cache = new BBitmap(draw_bounds, B_RGB32);
         }
-        g->fb_cache->SetBits(g->fb_addr, (int32)(w * h * 4), 0, B_RGB32);
+
+        // Correct for 2048px stride of the shared memory source buffer
+        uint8 *src = (uint8 *)g->fb_addr;
+        uint8 *dst = (uint8 *)g->fb_cache->Bits();
+        int32 src_stride = 2048 * 4;
+        int32 dst_stride = w * 4;
+
+        for (int32 y = 0; y < h; y++) {
+            memcpy(dst + (y * dst_stride), src + (y * src_stride), dst_stride);
+        }
+
         view->DrawBitmap(g->fb_cache, draw_bounds);
         return;
     }
@@ -975,6 +985,17 @@ void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event)
     view->UnlockLooper();
 }
 
+
+void nsbeos_sync_offscreen_to_shared(void)
+{
+    for (struct gui_window *g = window_list; g; g = g->next) {
+        if (g->offscreen_bitmap && g->fb_addr) {
+            // Copy bits from offscreen bitmap to shared memory
+            // This ensures the UI process receives the latest rendered frame
+            memcpy(g->fb_addr, g->offscreen_bitmap->Bits(), (int32)(2048 * 2048 * 4));
+        }
+    }
+}
 
 void nsbeos_reflow_all_windows(void)
 {

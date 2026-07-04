@@ -58,6 +58,7 @@ static nserror beos_spawn_worker_process(const char *type, char **argv, int *pid
     }
 
     const char **new_argv = (const char **)malloc((argc + 4) * sizeof(char *));
+    if (!new_argv) return NSERROR_NOMEM;
     new_argv[0] = app_path;
     char type_arg[64];
     snprintf(type_arg, sizeof(type_arg), "--%s-process", type);
