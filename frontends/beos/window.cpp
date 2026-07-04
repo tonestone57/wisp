@@ -682,10 +682,13 @@ static void nsbeos_tile_raster_worker(void *arg)
 
     struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
 
-    /* Adjust drawing coordinates so (0,0) is the top-left of the tile */
+    /* Adjust drawing coordinates so (0,0) is the top-left of the tile.
+     * We calculate the tile's top-left origin by aligning with the tile grid. */
     BLMatrix2D m;
     bl_matrix2d_set_identity(&m);
-    double tl_data[2] = {-(double)(task->tile_clip.x0 & ~(task->tile_size - 1)), -(double)(task->tile_clip.y0 & ~(task->tile_size - 1))};
+    int tile_x0 = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+    int tile_y0 = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+    double tl_data[2] = {-(double)tile_x0, -(double)tile_y0};
     bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
     bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
 
@@ -712,8 +715,8 @@ static void nsbeos_tile_raster_complete(void *arg)
 
         if (b->InitCheck() == B_OK) {
             if (b->ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32) == B_OK) {
-                int tx = task->tile_clip.x0 & ~(task->tile_size - 1);
-                int ty = task->tile_clip.y0 & ~(task->tile_size - 1);
+                int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+                int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
                 view->DrawBitmap(b, BPoint(tx, ty));
             }
         }
