@@ -49,6 +49,7 @@ extern "C" {
 #include "beos/font.h"
 #include "beos/gui.h"
 #include "beos/plotters.h"
+#include "beos/window.h"
 
 /*static*/ BView *current_view;
 

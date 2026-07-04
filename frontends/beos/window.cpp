@@ -463,7 +463,10 @@ void nsbeos_dispatch_event(BMessage *message)
                 std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                 BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
                 if (tc) {
-                    form_gadget_update_value(control, strdup(tc->Text()));
+                    char *val = strdup(tc->Text());
+                    if (val) {
+                        form_gadget_update_value(control, val);
+                    }
                 }
                 break;
             }
@@ -1366,8 +1369,12 @@ nserror gui_window_draw_gadget(
 
     if (widget) {
         if (g->view->LockLooper()) {
-            widget->MoveTo(x, y);
-            widget->ResizeTo(width - 1, height - 1);
+            if (widget->Frame().left != x || widget->Frame().top != y) {
+                widget->MoveTo(x, y);
+            }
+            if (widget->Bounds().Width() != (width - 1) || widget->Bounds().Height() != (height - 1)) {
+                widget->ResizeTo(width - 1, height - 1);
+            }
             g->view->UnlockLooper();
         }
     }
