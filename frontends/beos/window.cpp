@@ -914,7 +914,7 @@ static void gui_window_destroy(struct gui_window *g)
 
 static void gui_window_cleanup_widgets(struct gui_window *g)
 {
-    if (!g->view->LockLooper())
+    if (g->view == NULL || !g->view->LockLooper())
         return;
 
     for (std::map<struct form_control *, BView *>::iterator it = g->widgets.begin(); it != g->widgets.end(); ++it) {
