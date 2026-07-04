@@ -27,7 +27,6 @@
 #ifndef WISP_CONTENT_CONTENT_PROTECTED_H_
 #define WISP_CONTENT_CONTENT_PROTECTED_H_
 
-#include <stdatomic.h>
 #include <libwapcaplet/libwapcaplet.h>
 #include <stdio.h>
 
@@ -289,7 +288,7 @@ struct content {
     /**
      * Number of active background tasks (e.g. parallel rendering)
      */
-    atomic_int active_bg_tasks;
+    int active_bg_tasks;
 
     /**
      * List of users.

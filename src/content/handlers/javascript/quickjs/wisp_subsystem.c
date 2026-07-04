@@ -93,7 +93,7 @@ static void shutdown_pool(WispPool *pool) {
     EnterCriticalSection(&pool->lock);
     pool->stop = true;
     for (int i = 0; i < pool->worker_count; i++) {
-        pool->workers[i].running = false;
+        __atomic_store_n(&pool->workers[i].running, false, __ATOMIC_RELAXED);
     }
     WakeAllConditionVariable(&pool->cond);
     LeaveCriticalSection(&pool->lock);
@@ -101,7 +101,7 @@ static void shutdown_pool(WispPool *pool) {
     pthread_mutex_lock(&pool->lock);
     pool->stop = true;
     for (int i = 0; i < pool->worker_count; i++) {
-        pool->workers[i].running = false;
+        __atomic_store_n(&pool->workers[i].running, false, __ATOMIC_RELAXED);
     }
     pthread_cond_broadcast(&pool->cond);
     pthread_mutex_unlock(&pool->lock);
@@ -197,17 +197,17 @@ void* wisp_worker_routine(void *arg) {
     WispWorker *worker = (WispWorker *)arg;
     WispPool *pool = worker->pool;
 
-    while (worker->running) {
+    while (__atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
         js_task_t *task = NULL;
         bool has_task = false;
 
 #ifdef _WIN32
         EnterCriticalSection(&pool->lock);
-        while (pool->head == NULL && worker->running && !pool->stop) {
+        while (pool->head == NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
             BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000); // 5 sec TTL
             if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
                 if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
-                    worker->running = false;
+                    __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
                     pool->active_workers--;
                     JS_FreeContext(worker->ctx);
                     JS_FreeRuntime(worker->rt);
@@ -222,7 +222,7 @@ void* wisp_worker_routine(void *arg) {
             }
         }
 
-        if (pool->head != NULL && worker->running) {
+        if (pool->head != NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
             task = pool->head;
             pool->head = task->next;
             if (pool->head == NULL) pool->tail = NULL;
@@ -233,7 +233,7 @@ void* wisp_worker_routine(void *arg) {
         LeaveCriticalSection(&pool->lock);
 #else
         pthread_mutex_lock(&pool->lock);
-        while (pool->head == NULL && worker->running && !pool->stop) {
+        while (pool->head == NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
             ts.tv_sec += 5;
@@ -241,7 +241,7 @@ void* wisp_worker_routine(void *arg) {
             int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
             if (wait_res == ETIMEDOUT) {
                 if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
-                    worker->running = false;
+                    __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
                     pool->active_workers--;
                     JS_FreeContext(worker->ctx);
                     JS_FreeRuntime(worker->rt);
@@ -259,7 +259,7 @@ void* wisp_worker_routine(void *arg) {
             }
         }
 
-        if (pool->head != NULL && worker->running) {
+        if (pool->head != NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
             task = pool->head;
             pool->head = task->next;
             if (pool->head == NULL) pool->tail = NULL;

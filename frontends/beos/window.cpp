@@ -58,10 +58,8 @@ extern "C" {
 #include "beos/scaffolding.h"
 #include "beos/window.h"
 
-extern "C" {
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
-}
 
 class NSBrowserFrameView;
 

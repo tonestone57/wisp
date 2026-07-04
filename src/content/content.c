@@ -345,9 +345,9 @@ static void content_actually_destroy(struct content *c)
     NSLOG(wisp, INFO, "content %p %s", c, nsurl_access_log(llcache_handle_get_url(c->llcache)));
     assert(c->locked == false);
 
-    if (atomic_load(&c->active_bg_tasks) > 0) {
+    if (__atomic_load_n(&c->active_bg_tasks, __ATOMIC_SEQ_CST) > 0) {
         c->pending_delete = true;
-        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c, atomic_load(&c->active_bg_tasks));
+        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c, __atomic_load_n(&c->active_bg_tasks, __ATOMIC_SEQ_CST));
         return;
     }
 
@@ -1447,7 +1447,7 @@ void content_inc_bg_tasks(struct hlcache_handle *h)
 {
     struct content *c = hlcache_handle_get_content(h);
     if (c != NULL) {
-        atomic_fetch_add(&c->active_bg_tasks, 1);
+        __atomic_add_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST);
     }
 }
 
@@ -1456,7 +1456,7 @@ void content_dec_bg_tasks(struct hlcache_handle *h)
 {
     struct content *c = hlcache_handle_get_content(h);
     if (c != NULL) {
-        atomic_fetch_sub(&c->active_bg_tasks, 1);
+        __atomic_sub_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST);
     }
 }
 

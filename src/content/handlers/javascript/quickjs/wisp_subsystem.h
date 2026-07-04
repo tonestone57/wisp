@@ -1,8 +1,11 @@
 #ifndef WISP_SUBSYSTEM_H
 #define WISP_SUBSYSTEM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include "quickjs.h"
 
@@ -27,7 +30,7 @@ typedef struct {
     pthread_t thread;
 #endif
     int worker_id;
-    atomic_bool running;
+    bool running;
     JSRuntime *rt;
     JSContext *ctx;
     struct WispPool *pool;
@@ -68,5 +71,9 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg);
 
 /* Internal worker routine */
 void* wisp_worker_routine(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // WISP_SUBSYSTEM_H

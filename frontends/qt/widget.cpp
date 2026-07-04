@@ -41,10 +41,8 @@ extern "C" {
 #include "qt/plotters.h"
 #include "qt/widget.cls.h"
 
-extern "C" {
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
-}
 
 #define CARET_WIDTH 1
 
