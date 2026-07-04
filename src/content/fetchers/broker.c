@@ -74,8 +74,9 @@ static bool fetch_broker_start(void *vf)
 
     if (guit->ipc_sandbox) {
         const char *url_str = nsurl_access(f->url);
-        // Simplified relay: we pass the URL.
-        // Full implementation would serialize headers and postdata here.
+        // In a production implementation, we would serialize the full fetch_request
+        // including headers and postdata into the BMessage here.
+        // For this architectural integration, the relay structure is established.
         guit->ipc_sandbox->post_ipc_message(guit->ipc_sandbox->ui_process_pid, WISP_MSG_FETCH_REQUEST, (uint32_t)f->fetch_id, url_str, strlen(url_str) + 1);
     }
 
