@@ -45,6 +45,7 @@
 #include <new>
 
 extern "C" {
+#include <dom/html/html_form_element.h>
 #include <dom/html/html_input_element.h>
 #include "utils/log.h"
 #include "utils/nsoption.h"
@@ -95,6 +96,7 @@ struct gui_window {
     BRect pendingRedraw;
 
     std::map<struct form_control *, BView *> widgets;
+    BFilePanel *wndOpenFile;
 
     struct gui_window *next, *prev;
 };
@@ -337,6 +339,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
     g->careth = 0;
     g->pending_resizes = 0;
+    g->wndOpenFile = NULL;
 
     if (window_list)
         window_list->prev = g;
@@ -433,45 +436,54 @@ void nsbeos_dispatch_event(BMessage *message)
         struct form_control *control;
         if (message->FindPointer("control", (void **)&control) == B_OK) {
             if (gui == NULL) break;
-            switch (control->type) {
-            case GADGET_SUBMIT:
-            case GADGET_RESET:
-            case GADGET_BUTTON:
-                if (message->what == 'gdgt') {
-                    form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
-                }
-                break;
-            case GADGET_CHECKBOX: {
-                std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
-                BCheckBox *cb = (it != gui->widgets.end()) ? dynamic_cast<BCheckBox *>(it->second) : NULL;
-                if (cb) {
-                    control->selected = (cb->Value() == B_CONTROL_ON);
-                    dom_html_input_element_set_checked((dom_html_input_element *)control->node, control->selected);
-                }
-                break;
-            }
-            case GADGET_RADIO: {
-                std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
-                BRadioButton *rb = (it != gui->widgets.end()) ? dynamic_cast<BRadioButton *>(it->second) : NULL;
-                if (rb && rb->Value() == B_CONTROL_ON && control->selected == false) {
-                    form_radio_set(control);
-                }
-                break;
-            }
-            case GADGET_TEXTBOX:
-            case GADGET_PASSWORD: {
-                std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
-                BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
-                if (tc) {
-                    char *val = strdup(tc->Text());
-                    if (val) {
-                        form_gadget_update_value(control, val);
+
+            if (gui->view && gui->view->LockLooper()) {
+                switch (control->type) {
+                case GADGET_SUBMIT:
+                    if (message->what == 'gdgt') {
+                        form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
                     }
+                    break;
+                case GADGET_RESET:
+                    if (message->what == 'gdgt' && control->form && control->form->node) {
+                        dom_html_form_element_reset((dom_html_form_element *)control->form->node);
+                    }
+                    break;
+                case GADGET_BUTTON:
+                    break;
+                case GADGET_CHECKBOX: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BCheckBox *cb = (it != gui->widgets.end()) ? dynamic_cast<BCheckBox *>(it->second) : NULL;
+                    if (cb) {
+                        control->selected = (cb->Value() == B_CONTROL_ON);
+                        dom_html_input_element_set_checked((dom_html_input_element *)control->node, control->selected);
+                    }
+                    break;
                 }
-                break;
-            }
-            default:
-                break;
+                case GADGET_RADIO: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BRadioButton *rb = (it != gui->widgets.end()) ? dynamic_cast<BRadioButton *>(it->second) : NULL;
+                    if (rb && rb->Value() == B_CONTROL_ON && control->selected == false) {
+                        form_radio_set(control);
+                    }
+                    break;
+                }
+                case GADGET_TEXTBOX:
+                case GADGET_PASSWORD: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
+                    if (tc) {
+                        char *val = strdup(tc->Text());
+                        if (val) {
+                            form_gadget_update_value(control, val);
+                        }
+                    }
+                    break;
+                }
+                default:
+                    break;
+                }
+                gui->view->UnlockLooper();
             }
         }
         break;
@@ -915,6 +927,8 @@ static void gui_window_destroy(struct gui_window *g)
 
     gui_window_cleanup_widgets(g);
 
+    delete g->wndOpenFile;
+
     if (g->view != NULL && g->view->LockLooper()) {
         BLooper *looper = g->view->Looper();
         if (g->toplevel) {
@@ -1288,19 +1302,19 @@ static void gui_window_create_form_select_menu(struct gui_window *g, struct form
 
 static void gui_window_file_gadget_open(struct gui_window *g, struct hlcache_handle *hl, struct form_control *gadget)
 {
-    if (wndOpenFile == NULL) {
-        wndOpenFile = new BFilePanel(B_OPEN_PANEL, NULL, NULL, B_FILE_NODE, false);
+    if (g->wndOpenFile == NULL) {
+        g->wndOpenFile = new BFilePanel(B_OPEN_PANEL, NULL, NULL, B_FILE_NODE, false);
     }
     BMessage msg('fsel');
     msg.AddPointer("gui_window", g);
     msg.AddPointer("gadget", gadget);
-    wndOpenFile->SetMessage(&msg);
-    wndOpenFile->SetTarget(BMessenger(g->view));
-    wndOpenFile->Show();
+    g->wndOpenFile->SetMessage(&msg);
+    g->wndOpenFile->SetTarget(BMessenger(g->view));
+    g->wndOpenFile->Show();
 }
 
 
-nserror gui_window_draw_gadget(
+extern "C" nserror gui_window_draw_gadget(
     const struct redraw_context *ctx, int x, int y, int width, int height, struct form_control *control)
 {
     struct gui_window *g = (struct gui_window *)ctx->priv;
@@ -1366,9 +1380,12 @@ nserror gui_window_draw_gadget(
             if (g->view->LockLooper()) {
                 g->view->AddChild(widget);
                 widget->SetTarget(g->view);
+                g->widgets[control] = widget;
                 g->view->UnlockLooper();
+            } else {
+                delete widget;
+                return NSERROR_NOMEM;
             }
-            g->widgets[control] = widget;
         }
     }
 

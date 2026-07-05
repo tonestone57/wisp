@@ -60,7 +60,6 @@ extern BWindow *wndAbout;
 
 extern BWindow *wndTooltip;
 
-extern BFilePanel *wndOpenFile;
 
 void nsbeos_pipe_message(BMessage *message, BView *_this, struct gui_window *gui);
 void nsbeos_pipe_message_top(BMessage *message, BWindow *_this, struct beos_scaffolding *scaffold);
