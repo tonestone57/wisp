@@ -27,5 +27,16 @@ if(WISP_USE_BLEND2D)
     set(BLEND2D_STATIC ON CACHE BOOL "" FORCE)
     set(BLEND2D_NO_INSTALL ON CACHE BOOL "" FORCE)
     set(ASMJIT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/asmjit" CACHE PATH "" FORCE)
+
+    # Patch Blend2D for ASAN compliance before adding subdirectory
+    execute_process(
+        COMMAND ${PYTHON3} "${CMAKE_CURRENT_SOURCE_DIR}/patch_blend2d.py"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        RESULT_VARIABLE PATCH_RESULT
+    )
+    if(NOT PATCH_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to patch Blend2D for ASAN compliance")
+    endif()
+
     add_subdirectory(blend2d EXCLUDE_FROM_ALL)
 endif()

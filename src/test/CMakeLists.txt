@@ -326,6 +326,9 @@ target_include_directories(font_face_test PRIVATE
 )
 target_link_libraries(font_face_test wisp)
 add_test(NAME font_face_test COMMAND font_face_test)
+set_tests_properties(font_face_test PROPERTIES
+  ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=yes;ASAN_OPTIONS=check_initialization_order=1:strict_init_order=1:strict_string_checks=1:detect_stack_use_after_return=1:detect_leaks=1"
+)
 
 # Margin collapse test — two-unit build to avoid enum collisions
 # between Wisp headers (box.h) and libcss internal headers (opcodes.h)
@@ -392,4 +395,7 @@ add_wisp_test(journal_test
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(journal_test PRIVATE wisp)
+set_tests_properties(journal_test PROPERTIES
+  ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=yes;ASAN_OPTIONS=check_initialization_order=1:strict_init_order=1:strict_string_checks=1:detect_stack_use_after_return=1:detect_leaks=1"
+)
 endif()
