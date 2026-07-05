@@ -1,4 +1,6 @@
+#ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
+#endif
 /*
  * Copyright 2003 Phil Mellor <monkeyson@users.sourceforge.net>
  * Copyright 2007 James Bursa <bursa@users.sourceforge.net>
@@ -120,7 +122,9 @@ nserror wisp_init(const char *store_path)
         return NSERROR_INIT_FAILED;
     }
 
+#ifdef WITH_BLEND2D
     bl_runtime_init();
+#endif
     if (!tile_pool_init(16)) {
         NSLOG(wisp, ERROR, "Failed to initialize tile memory pool");
         return NSERROR_INIT_FAILED;
@@ -300,7 +304,9 @@ void wisp_exit(void)
     tile_pool_fini();
 
     NSLOG(wisp, INFO, "Closing GUI");
+#ifdef WITH_BLEND2D
     bl_runtime_shutdown();
+#endif
 
 
 
