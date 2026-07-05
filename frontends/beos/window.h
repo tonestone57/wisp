@@ -76,6 +76,7 @@ struct browser_window *nsbeos_get_browser_for_gui(struct gui_window *g);
 int nsbeos_gui_window_update_targets(struct gui_window *g);
 
 void nsbeos_window_destroy_browser(struct gui_window *g);
+void nsbeos_window_finalise(void);
 
 struct browser_window *nsbeos_get_browser_window(struct gui_window *g);
 
