@@ -72,6 +72,42 @@ nserror nsw32_add_dialog(HWND hwndDlg)
     return NSERROR_OK;
 }
 
+enum win_os_version nsw32_get_os_version(void)
+{
+    static enum win_os_version version = WIN_OS_UNKNOWN;
+    if (version != WIN_OS_UNKNOWN) return version;
+
+    OSVERSIONINFOEXW osvi;
+    ZeroMemory(&osvi, sizeof(OSVERSIONINFOEXW));
+    osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXW);
+
+    /* GetVersionEx is deprecated but sufficient for our needs here,
+     * or we could use the replacement VerifyVersionInfo if needed.
+     * Note: For Windows 8.1 and 10, GetVersionEx returns 6.2 unless
+     * the app is manifested for those versions. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    if (!GetVersionExW((OSVERSIONINFOW *)&osvi)) {
+        version = WIN_OS_7_8; /* Assume something modern-ish on failure */
+        return version;
+    }
+#pragma GCC diagnostic pop
+
+    if (osvi.dwMajorVersion >= 10) {
+        version = WIN_OS_10_PLUS;
+    } else if (osvi.dwMajorVersion >= 6) {
+        if (osvi.dwMinorVersion >= 1 || osvi.dwMajorVersion > 6) {
+            version = WIN_OS_7_8;
+        } else {
+            version = WIN_OS_XP_VISTA;
+        }
+    } else {
+        version = WIN_OS_XP_VISTA;
+    }
+
+    return version;
+}
+
 /* exported interface documented in gui.h */
 nserror nsw32_del_dialog(HWND hwndDlg)
 {

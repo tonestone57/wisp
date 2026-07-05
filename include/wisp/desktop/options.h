@@ -298,3 +298,6 @@ NSOPTION_STRING(verbose_filter, WISP_BUILTIN_VERBOSE_FILTER)
 
 /* page colour selection */
 NSOPTION_UINT(colour_selection, 0)
+
+/** Rendering backend (0=Auto, 1=Native, 2=Blend2D) */
+NSOPTION_INTEGER(render_backend, 0)

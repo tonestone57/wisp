@@ -1,6 +1,13 @@
 #import "WispView.h"
 #import "gui.h"
 #include <wisp/browser.h>
+#include <wisp/utils/nsoption.h>
+
+#ifdef WITH_BLEND2D
+#include <blend2d.h>
+#include <wisp/desktop/plot_blend2d.h>
+extern const struct plotter_table blend2d_plotters;
+#endif
 
 @implementation WispView
 
@@ -27,6 +34,57 @@
 
 - (void)drawRect:(NSRect)dirtyRect {
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+
+#ifdef WITH_BLEND2D
+    int backend = nsoption_int(render_backend);
+    if (backend == 2 || backend == 0) {
+        int w = (int)self.bounds.size.width;
+        int h = (int)self.bounds.size.height;
+        if (w <= 0 || h <= 0) return;
+
+        BLImageCore img;
+        bl_image_init_as(&img, w, h, BL_FORMAT_PRGB32);
+        BLContextCore bl_ctx;
+        bl_context_init_as(&bl_ctx, &img, NULL);
+        bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+        bl_context_fill_all(&bl_ctx);
+
+        struct blend2d_context bl_wrap = {
+            .bl_ctx = &bl_ctx,
+            .native_text_handler = macos_plot_table->text,
+            .native_priv = ctx
+        };
+
+        struct redraw_context redraw_ctx = {
+            .interactive = true,
+            .background_images = true,
+            .plot = &blend2d_plotters,
+            .priv = &bl_wrap
+        };
+
+        struct rect clip = { (int)NSMinX(dirtyRect), (int)NSMinY(dirtyRect), (int)NSMaxX(dirtyRect), (int)NSMaxY(dirtyRect) };
+        browser_window_redraw(_bw, 0, 0, &clip, &redraw_ctx);
+        if (redraw_ctx.plot->finalise) redraw_ctx.plot->finalise(&redraw_ctx);
+        bl_context_end(&bl_ctx);
+
+        BLImageData img_data;
+        bl_image_get_data(&img, &img_data);
+
+        CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+        CGContextRef bitmapCtx = CGBitmapContextCreate(img_data.pixelData, w, h, 8, img_data.stride, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGImageRef image = CGBitmapContextCreateImage(bitmapCtx);
+
+        CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), image);
+
+        CGImageRelease(image);
+        CGContextRelease(bitmapCtx);
+        CGColorSpaceRelease(colorSpace);
+        bl_context_destroy(&bl_ctx);
+        bl_image_destroy(&img);
+        return;
+    }
+#endif
+
     macos_plot_push_context(ctx);
 
     /* Fixed-Tile Redraw Implementation */
