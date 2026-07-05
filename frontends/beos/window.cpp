@@ -705,9 +705,14 @@ static void nsbeos_tile_raster_worker(void *arg)
 static void nsbeos_tile_raster_complete(void *arg)
 {
     struct tile_render_task *task = (struct tile_render_task *)arg;
+    struct gui_window *g = task->g;
     NSBrowserFrameView *view = task->view;
 
-    if (view->LockLooper()) {
+    /* Safety Check: Verify window still exists in the global list */
+    struct gui_window *z;
+    for (z = window_list; z && z != g; z = z->next);
+
+    if (z != NULL && view->LockLooper()) {
         /* Atomic Blit: Construct BBitmap from pooled buffer and draw to view.
          * Using heap-allocation for BBitmap and explicit ImportBits check for robustness. */
         BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
