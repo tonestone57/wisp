@@ -2,6 +2,20 @@
 #import "gui.h"
 #include <wisp/browser.h>
 
+typedef struct {
+    struct rect tile_clip;
+    float priority;
+} macos_tile_task_t;
+
+static int macos_tile_task_compare(const void *a, const void *b)
+{
+    const macos_tile_task_t *ta = (const macos_tile_task_t *)a;
+    const macos_tile_task_t *tb = (const macos_tile_task_t *)b;
+    if (ta->priority > tb->priority) return -1;
+    if (ta->priority < tb->priority) return 1;
+    return 0;
+}
+
 @implementation WispView
 
 - (instancetype)initWithFrame:(NSRect)frameRect browserWindow:(struct browser_window *)bw {
@@ -46,6 +60,16 @@
         .priv = ctx
     };
 
+    int v_x = 0; /* scrolled offset already applied in macOS view */
+    int v_y = 0;
+    int v_w = (int)self.bounds.size.width;
+    int v_h = (int)self.bounds.size.height;
+
+    /* Collect all tiles in the update region */
+    int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
+    macos_tile_task_t *tasks = (macos_tile_task_t *)malloc(sizeof(macos_tile_task_t) * max_tiles);
+    int task_count = 0;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = (ty > rect_top) ? ty : rect_top;
         int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -60,16 +84,29 @@
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            CGContextSaveGState(ctx);
-            CGRect cg_rect = CGRectMake(tile_clip.x0, tile_clip.y0,
-                                        tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
-            CGContextClipToRect(ctx, cg_rect);
-
-            browser_window_redraw(_bw, 0, 0, &tile_clip, &redraw_ctx);
-
-            CGContextRestoreGState(ctx);
+            tasks[task_count].tile_clip = tile_clip;
+            tasks[task_count].priority = browser_calculate_tile_priority(tx, ty, v_x, v_y, v_w, v_h);
+            task_count++;
         }
     }
+
+    /* Sort tiles by priority to ensure visible/near ones are drawn first */
+    qsort(tasks, task_count, sizeof(macos_tile_task_t), macos_tile_task_compare);
+
+    /* Execute prioritized redraw loop */
+    for (int i = 0; i < task_count; i++) {
+        CGContextSaveGState(ctx);
+        CGRect cg_rect = CGRectMake(tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+                                    tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
+                                    tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
+        CGContextClipToRect(ctx, cg_rect);
+
+        browser_window_redraw(_bw, 0, 0, &tasks[i].tile_clip, &redraw_ctx);
+
+        CGContextRestoreGState(ctx);
+    }
+
+    free(tasks);
 
     macos_plot_pop_context();
 }

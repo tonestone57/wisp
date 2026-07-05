@@ -348,6 +348,14 @@ static void content_actually_destroy(struct content *c)
     struct content_rfc5988_link *link;
 
     assert(c);
+
+    /* Race condition guard: ensure we only destroy once.
+     * This can happen if destruction is scheduled multiple times
+     * from different threads (user removal vs background task completion). */
+    if (c->llcache == NULL) {
+        return;
+    }
+
     NSLOG(wisp, INFO, "content %p %s", c, nsurl_access_log(llcache_handle_get_url(c->llcache)));
     assert(c->locked == false);
 
