@@ -1,5 +1,4 @@
 #include <blend2d/blend2d.h>
-#include <blend2d/blend2d.h>
 /*
  * Copyright 2003 Phil Mellor <monkeyson@users.sourceforge.net>
  * Copyright 2007 James Bursa <bursa@users.sourceforge.net>
