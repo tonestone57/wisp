@@ -45,6 +45,20 @@
 
 static const wchar_t *windowclassname_drawable = L"nswsdrawablewindow";
 
+struct win32_tile_task_t {
+    struct rect tile_clip;
+    float priority;
+};
+
+static int win32_tile_task_compare(const void *a, const void *b)
+{
+    const struct win32_tile_task_t *ta = (const struct win32_tile_task_t *)a;
+    const struct win32_tile_task_t *tb = (const struct win32_tile_task_t *)b;
+    if (ta->priority > tb->priority) return -1;
+    if (ta->priority < tb->priority) return 1;
+    return 0;
+}
+
 /**
  * Handle wheel scroll messages.
  */
@@ -437,6 +451,16 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
         int x_start = rect_left - (rect_left % tile_size);
         int y_start = rect_top - (rect_top % tile_size);
 
+        int v_x = gw->scrollx;
+        int v_y = gw->scrolly;
+        int v_w = gw->width;
+        int v_h = gw->height;
+
+        /* Collect all tiles in the update region */
+        int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
+        struct win32_tile_task_t *tasks = (struct win32_tile_task_t *)malloc(sizeof(struct win32_tile_task_t) * max_tiles);
+        int task_count = 0;
+
         for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
             int t_y0 = (ty > rect_top) ? ty : rect_top;
             int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -451,18 +475,27 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
                 if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                     continue;
 
-                /* Set clipping for this tile to ensure GDI doesn't draw outside it */
-                SaveDC(ps.hdc);
-                IntersectClipRect(ps.hdc, tile_clip.x0, tile_clip.y0, tile_clip.x1, tile_clip.y1);
-
-                /**
-                 * \todo work out why the heck scroll needs scaling
-                 */
-                browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &tile_clip, &ctx);
-
-                RestoreDC(ps.hdc, -1);
+                tasks[task_count].tile_clip = tile_clip;
+                tasks[task_count].priority = browser_calculate_tile_priority(tx + gw->scrollx, ty + gw->scrolly, v_x, v_y, v_w, v_h);
+                task_count++;
             }
         }
+
+        /* Sort tiles by priority to ensure visible/near ones are drawn first */
+        qsort(tasks, task_count, sizeof(struct win32_tile_task_t), win32_tile_task_compare);
+
+        /* Execute prioritized redraw loop */
+        for (int i = 0; i < task_count; i++) {
+            /* Set clipping for this tile to ensure GDI doesn't draw outside it */
+            SaveDC(ps.hdc);
+            IntersectClipRect(ps.hdc, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0, tasks[i].tile_clip.x1, tasks[i].tile_clip.y1);
+
+            browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &tasks[i].tile_clip, &ctx);
+
+            RestoreDC(ps.hdc, -1);
+        }
+
+        free(tasks);
 
         plot_gw = NULL;
     }

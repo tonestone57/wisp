@@ -977,8 +977,80 @@ nserror hlcache_handle_replace_callback(hlcache_handle *handle, hlcache_handle_c
 
 nserror hlcache_handle_clone(hlcache_handle *handle, hlcache_handle **result)
 {
-    *result = NULL;
-    return NSERROR_CLONE_FAILED;
+    hlcache_handle *nh;
+
+    assert(handle != NULL);
+
+    nh = calloc(1, sizeof(hlcache_handle));
+    if (nh == NULL) {
+        return NSERROR_NOMEM;
+    }
+
+    nh->entry = handle->entry;
+    nh->cb = handle->cb;
+    nh->pw = handle->pw;
+
+    if (nh->entry != NULL) {
+        /* Handle is already associated with content */
+        if (content_add_user(nh->entry->content, hlcache_content_callback, nh) == false) {
+            free(nh);
+            return NSERROR_NOMEM;
+        }
+    } else {
+        /* Handle is in the retrieval ring */
+        bool found = false;
+        RING_ITERATE_START(struct hlcache_retrieval_ctx, hlcache->retrieval_ctx_ring, ictx)
+        {
+            if (ictx->handle == handle) {
+                hlcache_retrieval_ctx *nctx = calloc(1, sizeof(hlcache_retrieval_ctx));
+                if (nctx == NULL) {
+                    free(nh);
+                    return NSERROR_NOMEM;
+                }
+
+                nctx->handle = nh;
+                nctx->flags = ictx->flags;
+                nctx->accepted_types = ictx->accepted_types;
+                if (ictx->child.charset != NULL) {
+                    nctx->child.charset = strdup(ictx->child.charset);
+                    if (nctx->child.charset == NULL) {
+                        free(nctx);
+                        free(nh);
+                        return NSERROR_NOMEM;
+                    }
+                }
+                nctx->child.quirks = ictx->child.quirks;
+
+                if (llcache_handle_clone(ictx->llcache, &nctx->llcache) != NSERROR_OK) {
+                    free((char *)nctx->child.charset);
+                    free(nctx);
+                    free(nh);
+                    return NSERROR_NOMEM;
+                }
+
+                if (llcache_handle_change_callback(nctx->llcache, hlcache_llcache_callback, nctx) != NSERROR_OK) {
+                    llcache_handle_release(nctx->llcache);
+                    free((char *)nctx->child.charset);
+                    free(nctx);
+                    free(nh);
+                    return NSERROR_NOMEM;
+                }
+
+                RING_INSERT(hlcache->retrieval_ctx_ring, nctx);
+                found = true;
+                RING_ITERATE_STOP(hlcache->retrieval_ctx_ring, ictx);
+            }
+        }
+        RING_ITERATE_END(hlcache->retrieval_ctx_ring, ictx);
+
+        if (!found) {
+            free(nh);
+            return NSERROR_BAD_PARAMETER;
+        }
+    }
+
+    *result = nh;
+    return NSERROR_OK;
 }
 
 /* See hlcache.h for documentation */

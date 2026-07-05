@@ -37,11 +37,15 @@
 
 #include <wisp/content/content_protected.h>
 #include <wisp/content/hlcache.h>
+#include <wisp/desktop/gui_table.h>
+#include <wisp/misc.h>
 #include "content/content_debug.h"
 #include "content/textsearch.h"
 #include "content/urldb.h"
 
 #define URL_FMT_SPC "%.140s"
+
+extern struct wisp_table *guit;
 
 const char *const content_status_name[] = {"LOADING", "READY", "DONE", "ERROR"};
 
@@ -199,6 +203,7 @@ nserror content__init(struct content *c, const content_handler *handler, lwc_str
     }
 
     c->llcache = llcache;
+    c->pending_delete = false;
     c->mime_type = lwc_string_ref(imime_type);
     c->handler = handler;
     c->status = CONTENT_STATUS_LOADING;
@@ -212,6 +217,7 @@ nserror content__init(struct content *c, const content_handler *handler, lwc_str
     c->size = 0;
     c->title = NULL;
     c->active = 0;
+    c->active_bg_tasks = 0;
     user_sentinel->callback = NULL;
     user_sentinel->pw = NULL;
     user_sentinel->next = NULL;
@@ -342,12 +348,21 @@ static void content_actually_destroy(struct content *c)
     struct content_rfc5988_link *link;
 
     assert(c);
+
+    /* Race condition guard: ensure we only destroy once.
+     * This can happen if destruction is scheduled multiple times
+     * from different threads (user removal vs background task completion). */
+    if (c->llcache == NULL) {
+        return;
+    }
+
     NSLOG(wisp, INFO, "content %p %s", c, nsurl_access_log(llcache_handle_get_url(c->llcache)));
     assert(c->locked == false);
 
-    if (c->active_bg_tasks > 0) {
-        c->pending_deletion = true;
-        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c, c->active_bg_tasks);
+    if (__atomic_load_n(&c->active_bg_tasks, __ATOMIC_SEQ_CST) > 0) {
+        c->pending_delete = true;
+        NSLOG(wisp, INFO, "content %p deletion deferred due to %d active tasks", c,
+            __atomic_load_n(&c->active_bg_tasks, __ATOMIC_SEQ_CST));
         return;
     }
 
@@ -679,8 +694,15 @@ void content_remove_user(struct content *c,
     free(next);
 
     if (c->pending_delete && content_count_users(c) == 0) {
-        NSLOG(wisp, INFO, "content %p deferred destruction completing", c);
-        content_actually_destroy(c);
+        if (__atomic_load_n(&c->active_bg_tasks, __ATOMIC_SEQ_CST) == 0) {
+            if (guit && guit->misc && guit->misc->schedule) {
+                NSLOG(wisp, INFO, "content %p deferred destruction completing (scheduling)", c);
+                guit->misc->schedule(0, (void (*)(void *))content_actually_destroy, c);
+            } else {
+                NSLOG(wisp, INFO, "content %p deferred destruction completing (immediate)", c);
+                content_actually_destroy(c);
+            }
+        }
     }
 }
 
@@ -1367,6 +1389,7 @@ nserror content__clone(const struct content *c, struct content *nc)
 
     llcache_handle_change_callback(nc->llcache, content_llcache_callback, nc);
 
+    nc->pending_delete = false;
     nc->mime_type = lwc_string_ref(c->mime_type);
     nc->handler = c->handler;
 
@@ -1403,6 +1426,7 @@ nserror content__clone(const struct content *c, struct content *nc)
     }
 
     nc->active = c->active;
+    nc->active_bg_tasks = 0;
 
     nc->user_list = calloc(1, sizeof(struct content_user));
     if (nc->user_list == NULL) {
@@ -1440,6 +1464,34 @@ bool content_is_selectable(struct hlcache_handle *h)
         return false;
     type = content_get_type(h);
     return (type == CONTENT_HTML || type == CONTENT_TEXTPLAIN);
+}
+
+/* exported interface documented in include/wisp/content.h */
+void content_inc_bg_tasks(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        __atomic_add_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST);
+    }
+}
+
+/* exported interface documented in include/wisp/content.h */
+void content_dec_bg_tasks(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        if (__atomic_sub_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST) == 0 && c->pending_delete) {
+            if (content_count_users(c) == 0) {
+                if (guit && guit->misc && guit->misc->schedule) {
+                    NSLOG(wisp, INFO, "content %p deferred destruction completing (scheduling)", c);
+                    guit->misc->schedule(0, (void (*)(void *))content_actually_destroy, c);
+                } else {
+                    NSLOG(wisp, INFO, "content %p deferred destruction completing (immediate)", c);
+                    content_actually_destroy(c);
+                }
+            }
+        }
+    }
 }
 
 /* exported interface documented in include/wisp/content.h */

@@ -48,4 +48,18 @@ int browser_get_dpi(void);
  */
 int browser_get_tile_size(void);
 
+/**
+ * Calculate the priority of a tile based on its distance from the viewport.
+ *
+ * \param tile_x Tile left coordinate.
+ * \param tile_y Tile top coordinate.
+ * \param viewport_x Viewport left coordinate.
+ * \param viewport_y Viewport top coordinate.
+ * \param viewport_width Viewport width.
+ * \param viewport_height Viewport height.
+ * \return A priority value between 0.0 and 1.0.
+ */
+float browser_calculate_tile_priority(int tile_x, int tile_y, int viewport_x, int viewport_y, int viewport_width,
+    int viewport_height);
+
 #endif

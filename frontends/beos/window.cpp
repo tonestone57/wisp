@@ -73,18 +73,118 @@ extern "C" {
 #include "beos/window.h"
 #include "desktop/tile_pool.h"
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
+#include "wisp/content.h"
 #include <blend2d/blend2d.h>
-
 
 class NSBrowserFrameView;
 
-struct tile_render_task {
+struct beos_tile_task_t {
     struct gui_window *g;
-    NSBrowserFrameView *view;
+    struct hlcache_handle *h;
     struct rect tile_clip;
+    NSBrowserFrameView *view;
     void *buffer;
     int tile_size;
 };
+
+static void nsbeos_tile_raster_complete(void *arg);
+
+extern "C" void beos_tile_redraw_worker(void *arg)
+{
+    struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
+    BLContextCore bl_ctx;
+    BLImageCore img;
+
+    /* Initialize Blend2D image from pooled buffer */
+    bl_image_init_as_from_data(&img, task->tile_size, task->tile_size, BL_FORMAT_PRGB32, task->buffer, (intptr_t)task->tile_size * 4, BL_DATA_ACCESS_RW, NULL, NULL);
+    bl_context_init_as(&bl_ctx, &img, NULL);
+
+    /* Clear buffer to white initially */
+    bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+    bl_context_fill_all(&bl_ctx);
+
+    struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
+
+    /* Adjust drawing coordinates so (0,0) is the top-left of the tile.
+     * We calculate the tile's top-left origin by aligning with the tile grid. */
+    BLMatrix2D m;
+    bl_matrix2d_set_identity(&m);
+    int tile_x0 = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+    int tile_y0 = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+    double tl_data[2] = {-(double)tile_x0, -(double)tile_y0};
+    bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
+    bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
+
+    /* Render content into tile buffer */
+    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+
+    bl_context_end(&bl_ctx);
+    bl_image_destroy(&img);
+
+    /* Dispatch completion callback to main thread */
+    if (!task_queue_post(nsbeos_tile_raster_complete, task)) {
+        content_dec_bg_tasks(task->h);
+        hlcache_handle_release(task->h);
+        tile_pool_return(task->buffer);
+        free(task);
+    }
+}
+
+static void nsbeos_tile_raster_complete(void *arg)
+{
+    struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
+    struct gui_window *g = task->g;
+    NSBrowserFrameView *view = task->view;
+
+    /* Safety Check: Verify window still exists in the global list */
+    if (nsbeos_gui_window_exists(g) && view->LockLooper()) {
+        /* Atomic Blit: Reuse a global BBitmap to prevent area/heap fragmentation. */
+        if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != task->tile_size)) {
+            delete nsbeos_blit_bitmap;
+            nsbeos_blit_bitmap = NULL;
+        }
+        if (nsbeos_blit_bitmap == NULL) {
+            BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
+            nsbeos_blit_bitmap = new BBitmap(frame, 0, B_RGBA32);
+        }
+
+        BBitmap *b = nsbeos_blit_bitmap;
+
+        if (b && b->InitCheck() == B_OK) {
+            view->Sync();
+            if (b->ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32) == B_OK) {
+                int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+                int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+
+                /* Only blit the part of the tile that is actually within the clip.
+                 * This prevents overpainting adjacent tiles with the clear color. */
+                BRect srcRect(task->tile_clip.x0 - tx, task->tile_clip.y0 - ty,
+                              task->tile_clip.x1 - tx - 1, task->tile_clip.y1 - ty - 1);
+                BRect dstRect(task->tile_clip.x0, task->tile_clip.y0,
+                              task->tile_clip.x1 - 1, task->tile_clip.y1 - 1);
+                view->DrawBitmap(b, srcRect, dstRect);
+
+                /* Caret Persistence: Redraw caret if it was overpainted by this tile */
+                if (g->careth != 0) {
+                    BRect caretRect(g->caretx, g->carety, g->caretx, g->carety + g->careth);
+                    if (caretRect.Intersects(dstRect)) {
+                        nsbeos_current_gc_set(view);
+                        nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+                        nsbeos_current_gc_set(NULL);
+                    }
+                }
+            }
+        }
+
+        view->UnlockLooper();
+    }
+
+    /* Update active task count for content lifecycle management */
+    content_dec_bg_tasks(task->h);
+    hlcache_handle_release(task->h);
+    tile_pool_return(task->buffer);
+    free(task);
+}
 
 struct gui_window {
     nsbeos_scaffolding *scaffold;
@@ -122,8 +222,6 @@ static BString current_selection;
 static BList current_selection_textruns;
 
 static void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message);
-static void nsbeos_tile_raster_worker(void *arg);
-static void nsbeos_tile_raster_complete(void *arg);
 static void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event);
@@ -711,6 +809,12 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     int x_start = rect_left - (rect_left % tile_size);
     int y_start = rect_top - (rect_top % tile_size);
 
+    BRect view_bounds = view->Bounds();
+    int v_x = (int)view_bounds.left;
+    int v_y = (int)view_bounds.top;
+    int v_w = (int)view_bounds.Width() + 1;
+    int v_h = (int)view_bounds.Height() + 1;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = (ty > rect_top) ? ty : rect_top;
         int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -725,20 +829,36 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
+            /* Calculate priority based on distance to viewport frustum */
+            float priority = browser_calculate_tile_priority(tx, ty, v_x, v_y, v_w, v_h);
+
             /* Checkout buffer and dispatch raster task */
             void *buf = tile_pool_checkout();
             bool dispatched = false;
             if (buf) {
-                struct tile_render_task *task = (struct tile_render_task *)malloc(sizeof(*task));
-                if (task) {
-                    task->g = g;
-                    task->view = view;
-                    task->tile_clip = tile_clip;
-                    task->buffer = buf;
-                    task->tile_size = tile_size;
-                    dispatched = wisp_dispatch_raster(NULL, nsbeos_tile_raster_worker, task);
-                    if (!dispatched) {
-                        free(task);
+                struct hlcache_handle *h = browser_window_get_content(g->bw);
+                if (h != NULL) {
+                    struct beos_tile_task_t *task = (struct beos_tile_task_t *)malloc(sizeof(struct beos_tile_task_t));
+                    if (task) {
+                        task->g = g;
+                        task->tile_clip = tile_clip;
+                        task->view = (NSBrowserFrameView *)view;
+                        task->buffer = buf;
+                        task->tile_size = tile_size;
+
+                        /* Clone handle to ensure it remains valid during background task */
+                        if (hlcache_handle_clone(h, &task->h) == NSERROR_OK) {
+                            /* Increment active background tasks to prevent content destruction while rendering */
+                            content_inc_bg_tasks(task->h);
+                            dispatched = wisp_dispatch_raster(NULL, beos_tile_redraw_worker, task, priority);
+                            if (!dispatched) {
+                                content_dec_bg_tasks(task->h);
+                                hlcache_handle_release(task->h);
+                                free(task);
+                            }
+                        } else {
+                            free(task);
+                        }
                     }
                 }
             }
@@ -767,98 +887,6 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             view->UnlockLooper();
         }
     }
-}
-
-static void nsbeos_tile_raster_worker(void *arg)
-{
-    struct tile_render_task *task = (struct tile_render_task *)arg;
-    BLContextCore bl_ctx;
-    BLImageCore img;
-
-    /* Initialize Blend2D image from pooled buffer */
-    bl_image_init_as_from_data(&img, task->tile_size, task->tile_size, BL_FORMAT_PRGB32, task->buffer, (intptr_t)task->tile_size * 4, BL_DATA_ACCESS_RW, NULL, NULL);
-    bl_context_init_as(&bl_ctx, &img, NULL);
-
-    /* Clear buffer to white initially */
-    bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
-    bl_context_fill_all(&bl_ctx);
-
-    struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
-
-    /* Adjust drawing coordinates so (0,0) is the top-left of the tile.
-     * We calculate the tile's top-left origin by aligning with the tile grid. */
-    BLMatrix2D m;
-    bl_matrix2d_set_identity(&m);
-    int tile_x0 = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
-    int tile_y0 = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
-    double tl_data[2] = {-(double)tile_x0, -(double)tile_y0};
-    bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
-    bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
-
-    /* Render content into tile buffer */
-    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
-
-    bl_context_end(&bl_ctx);
-    bl_image_destroy(&img);
-
-    /* Dispatch completion callback to main thread */
-    if (!task_queue_post(nsbeos_tile_raster_complete, task)) {
-        tile_pool_return(task->buffer);
-        free(task);
-    }
-}
-
-static void nsbeos_tile_raster_complete(void *arg)
-{
-    struct tile_render_task *task = (struct tile_render_task *)arg;
-    struct gui_window *g = task->g;
-    NSBrowserFrameView *view = task->view;
-
-    /* Safety Check: Verify window still exists in the global list */
-    if (nsbeos_gui_window_exists(g) && view->LockLooper()) {
-        /* Atomic Blit: Reuse a global BBitmap to prevent area/heap fragmentation. */
-        if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != task->tile_size)) {
-            delete nsbeos_blit_bitmap;
-            nsbeos_blit_bitmap = NULL;
-        }
-        if (nsbeos_blit_bitmap == NULL) {
-            BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
-            nsbeos_blit_bitmap = new BBitmap(frame, 0, B_RGBA32);
-        }
-
-        BBitmap *b = nsbeos_blit_bitmap;
-
-        if (b && b->InitCheck() == B_OK) {
-            view->Sync();
-            if (b->ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32) == B_OK) {
-                int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
-                int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
-
-                /* Only blit the part of the tile that is actually within the clip.
-                 * This prevents overpainting adjacent tiles with the clear color. */
-                BRect srcRect(task->tile_clip.x0 - tx, task->tile_clip.y0 - ty,
-                              task->tile_clip.x1 - tx - 1, task->tile_clip.y1 - ty - 1);
-                BRect dstRect(task->tile_clip.x0, task->tile_clip.y0,
-                              task->tile_clip.x1 - 1, task->tile_clip.y1 - 1);
-                view->DrawBitmap(b, srcRect, dstRect);
-
-                /* Caret Persistence: Redraw caret if it was overpainted by this tile */
-                if (g->careth != 0) {
-                    BRect caretRect(g->caretx, g->carety, g->caretx, g->carety + g->careth);
-                    if (caretRect.Intersects(dstRect)) {
-                        nsbeos_current_gc_set(view);
-                        nsbeos_plot_caret(g->caretx, g->carety, g->careth);
-                        nsbeos_current_gc_set(NULL);
-                    }
-                }
-            }
-        }
-
-        view->UnlockLooper();
-    }
-
-    tile_pool_return(task->buffer);
-    free(task);
 }
 
 void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)

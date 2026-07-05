@@ -152,6 +152,20 @@ static void nsgtk_select_menu_clicked(GtkCheckMenuItem *checkmenuitem, gpointer 
     form_select_process_selection(select_menu_control, (intptr_t)user_data);
 }
 
+struct nsgtk_tile_task_t {
+    struct rect tile_clip;
+    float priority;
+};
+
+static int nsgtk_tile_task_compare(const void *a, const void *b)
+{
+    const struct nsgtk_tile_task_t *ta = (const struct nsgtk_tile_task_t *)a;
+    const struct nsgtk_tile_task_t *tb = (const struct nsgtk_tile_task_t *)b;
+    if (ta->priority > tb->priority) return -1;
+    if (ta->priority < tb->priority) return 1;
+    return 0;
+}
+
 #if GTK_CHECK_VERSION(3, 0, 0)
 
 static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -190,6 +204,16 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     int x_start = rect_left - (rect_left % tile_size);
     int y_start = rect_top - (rect_top % tile_size);
 
+    int v_x = (int)gtk_adjustment_get_value(hscroll);
+    int v_y = (int)gtk_adjustment_get_value(vscroll);
+    int v_w = gtk_widget_get_allocated_width(widget);
+    int v_h = gtk_widget_get_allocated_height(widget);
+
+    /* Collect all tiles in the update region */
+    int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
+    struct nsgtk_tile_task_t *tasks = (struct nsgtk_tile_task_t *)malloc(sizeof(struct nsgtk_tile_task_t) * max_tiles);
+    int task_count = 0;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = (ty > rect_top) ? ty : rect_top;
         int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -204,16 +228,30 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            cairo_save(cr);
-            cairo_rectangle(cr, tile_clip.x0, tile_clip.y0,
-                            tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
-            cairo_clip(cr);
-
-            browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll), &tile_clip, &ctx);
-
-            cairo_restore(cr);
+            tasks[task_count].tile_clip = tile_clip;
+            tasks[task_count].priority = browser_calculate_tile_priority(tx + v_x, ty + v_y, v_x, v_y, v_w, v_h);
+            task_count++;
         }
     }
+
+    /* Sort tiles by priority to ensure visible/near ones are drawn first */
+    qsort(tasks, task_count, sizeof(struct nsgtk_tile_task_t), nsgtk_tile_task_compare);
+
+    /* Execute prioritized redraw loop */
+    for (int i = 0; i < task_count; i++) {
+        cairo_save(cr);
+        cairo_rectangle(cr, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+                        tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
+                        tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
+        cairo_clip(cr);
+
+        browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll),
+                              &tasks[i].tile_clip, &ctx);
+
+        cairo_restore(cr);
+    }
+
+    free(tasks);
 
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);
@@ -250,6 +288,16 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, GdkEventExpose *event
     int x_start = rect_left - (rect_left % tile_size);
     int y_start = rect_top - (rect_top % tile_size);
 
+    int v_x = 0; /* scrolled offset already applied in GDK2 backend */
+    int v_y = 0;
+    int v_w = event->area.width;
+    int v_h = event->area.height;
+
+    /* Collect all tiles in the update region */
+    int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
+    struct nsgtk_tile_task_t *tasks = (struct nsgtk_tile_task_t *)malloc(sizeof(struct nsgtk_tile_task_t) * max_tiles);
+    int task_count = 0;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = (ty > rect_top) ? ty : rect_top;
         int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -264,16 +312,29 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, GdkEventExpose *event
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            cairo_save(current_cr);
-            cairo_rectangle(current_cr, tile_clip.x0, tile_clip.y0,
-                            tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
-            cairo_clip(current_cr);
-
-            browser_window_redraw(gw->bw, 0, 0, &tile_clip, &ctx);
-
-            cairo_restore(current_cr);
+            tasks[task_count].tile_clip = tile_clip;
+            tasks[task_count].priority = browser_calculate_tile_priority(tx, ty, v_x, v_y, v_w, v_h);
+            task_count++;
         }
     }
+
+    /* Sort tiles by priority to ensure visible/near ones are drawn first */
+    qsort(tasks, task_count, sizeof(struct nsgtk_tile_task_t), nsgtk_tile_task_compare);
+
+    /* Execute prioritized redraw loop */
+    for (int i = 0; i < task_count; i++) {
+        cairo_save(current_cr);
+        cairo_rectangle(current_cr, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+                        tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
+                        tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
+        cairo_clip(current_cr);
+
+        browser_window_redraw(gw->bw, 0, 0, &tasks[i].tile_clip, &ctx);
+
+        cairo_restore(current_cr);
+    }
+
+    free(tasks);
 
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);

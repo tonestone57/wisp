@@ -51,7 +51,7 @@ extern "C" {
 #include "beos/plotters.h"
 #include "beos/window.h"
 
-/*static*/ BView *current_view;
+__thread BView *current_view;
 
 static __thread BShape *stateful_shape = NULL;
 
