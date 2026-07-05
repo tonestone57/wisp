@@ -212,7 +212,7 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
         BLImageData img_data;
         bl_image_get_data(&img, &img_data);
         bl_surface = cairo_image_surface_create_for_data(
-            img_data.pixelData, CAIRO_FORMAT_ARGB32, width, height, img_data.stride);
+            img_data.pixel_data, CAIRO_FORMAT_ARGB32, width, height, img_data.stride);
         bl_cr = cairo_create(bl_surface);
 
         bl_wrap.bl_ctx = &bl_ctx;

@@ -182,7 +182,7 @@ void NS_Widget::paintEvent(QPaintEvent *event)
 
         BLImageData img_data;
         bl_image_get_data(&img, &img_data);
-        QImage qimg((uchar*)img_data.pixelData, w, h, (int)img_data.stride, QImage::Format_ARGB32_Premultiplied);
+        QImage qimg((uchar*)img_data.pixel_data, w, h, (int)img_data.stride, QImage::Format_ARGB32_Premultiplied);
 
         /* Native text rendering must draw into the same buffer as Blend2D */
         QPainter buffer_painter(&qimg);

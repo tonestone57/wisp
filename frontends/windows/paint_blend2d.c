@@ -38,8 +38,8 @@ void nsws_drawable_paint_blend2d(struct gui_window *gw, HWND hwnd)
     bmi.bmiHeader.biBitCount = 32;
     bmi.bmiHeader.biCompression = BI_RGB;
 
-    void* pixelData = NULL;
-    HBITMAP hbm = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, &pixelData, NULL, 0);
+    void* pixel_data = NULL;
+    HBITMAP hbm = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, &pixel_data, NULL, 0);
     if (!hbm) {
         EndPaint(hwnd, &ps);
         return;
@@ -49,7 +49,7 @@ void nsws_drawable_paint_blend2d(struct gui_window *gw, HWND hwnd)
     HGDIOBJ oldHbm = SelectObject(memHdc, hbm);
 
     BLImageCore img;
-    bl_image_init_as_from_data(&img, width, height, BL_FORMAT_PRGB32, pixelData, width * 4, NULL, NULL);
+    bl_image_init_as_from_data(&img, width, height, BL_FORMAT_PRGB32, pixel_data, width * 4, NULL, NULL);
 
     BLContextCore ctx_bl;
     bl_context_init_as(&ctx_bl, &img, NULL);

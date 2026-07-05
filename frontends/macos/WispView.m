@@ -66,7 +66,7 @@ extern const struct plotter_table blend2d_plotters;
         bl_image_get_data(&img, &img_data);
 
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-        CGContextRef bitmapCtx = CGBitmapContextCreate(img_data.pixelData, w, h, 8, img_data.stride, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
+        CGContextRef bitmapCtx = CGBitmapContextCreate(img_data.pixel_data, w, h, 8, img_data.stride, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
 
         /* Native text rendering must draw into the same buffer as Blend2D */
         bl_wrap.native_priv = bitmapCtx;
