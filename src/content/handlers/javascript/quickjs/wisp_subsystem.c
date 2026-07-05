@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <nsutils/time.h>
 #include "wisp/utils/log.h"
 #include "wisp/utils/utils.h"
 
@@ -306,6 +307,7 @@ static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*fu
     new_task->function = func;
     new_task->arg = arg;
     new_task->priority = priority;
+    nsu_getmonotonic_ms(&new_task->entry_time);
 
     if (script && !new_task->script) {
         free(new_task);
@@ -321,10 +323,26 @@ static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*fu
 #endif
 
     if (pool->count < pool->capacity) {
-        /* Priority-based insertion (descending order) */
+        /* Priority-based insertion (descending order) with age-based starvation prevention */
+        uint64_t now;
+        nsu_getmonotonic_ms(&now);
+
         js_task_t *prev = NULL;
         js_task_t *curr = pool->head;
-        while (curr != NULL && curr->priority >= priority) {
+        while (curr != NULL) {
+            float curr_priority = curr->priority;
+
+            /* Starvation prevention: boost priority of old tasks.
+             * After 5 seconds of sitting in the queue, a task gains effectively infinite priority
+             * relative to newly arrived ones. */
+            uint64_t age = now - curr->entry_time;
+            if (age > 5000) {
+                curr_priority += (float)(age - 5000) / 1000.0f;
+            }
+
+            if (curr_priority < priority) {
+                break;
+            }
             prev = curr;
             curr = curr->next;
         }

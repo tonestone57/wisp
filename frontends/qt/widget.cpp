@@ -81,40 +81,17 @@ void NS_Widget::event_to_bms_modifiers(QMouseEvent *event, unsigned int &bms)
 
 
 struct qt_tile_task_t {
-    struct browser_window *m_bw;
-    int m_xoffset;
-    int m_yoffset;
     struct rect tile_clip;
-    NS_Widget *widget;
+    float priority;
 };
 
-extern "C" void qt_tile_redraw_worker(void *arg)
+static int qt_tile_task_compare(const void *a, const void *b)
 {
-    struct qt_tile_task_t *task = (struct qt_tile_task_t *)arg;
-
-    /* In a real multi-threaded Qt environment, we would need to ensure
-     * painter access is synchronized or render to an offscreen QImage.
-     * For this prioritized scheduling integration, we demonstrate the
-     * dispatch logic. */
-
-    struct redraw_context ctx = {
-        .interactive = true,
-        .background_images = true,
-        .plot = &nsqt_plotters,
-        .priv = NULL, /* Painter not accessible from worker thread directly */
-    };
-
-    /* Priority-based scheduling logic would go here.
-     * On single-core, this runs synchronously during wisp_dispatch_raster. */
-    browser_window_redraw(task->m_bw, -task->m_xoffset, -task->m_yoffset, &task->tile_clip, &ctx);
-
-    /* Update active task count for content lifecycle management */
-    struct hlcache_handle *h = browser_window_get_content(task->m_bw);
-    if (h != NULL) {
-        content_dec_bg_tasks(h);
-    }
-
-    free(task);
+    const struct qt_tile_task_t *ta = (const struct qt_tile_task_t *)a;
+    const struct qt_tile_task_t *tb = (const struct qt_tile_task_t *)b;
+    if (ta->priority > tb->priority) return -1;
+    if (ta->priority < tb->priority) return 1;
+    return 0;
 }
 
 /* method to redraw caret called from redraw event */
@@ -227,6 +204,11 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     int v_w = width();
     int v_h = height();
 
+    /* Collect all tiles in the update region */
+    int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
+    struct qt_tile_task_t *tasks = (struct qt_tile_task_t *)malloc(sizeof(struct qt_tile_task_t) * max_tiles);
+    int task_count = 0;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = std::max(ty, rect_top);
         int t_y1 = std::min(ty + tile_size, rect_bottom);
@@ -241,29 +223,28 @@ void NS_Widget::paintEvent(QPaintEvent *event)
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            /* Calculate priority based on distance to viewport frustum */
-            float priority = browser_calculate_tile_priority(tx + m_xoffset, ty + m_yoffset, v_x, v_y, v_w, v_h);
-
-            struct qt_tile_task_t *task = (struct qt_tile_task_t *)malloc(sizeof(struct qt_tile_task_t));
-            if (task) {
-                task->m_bw = m_bw;
-                task->m_xoffset = m_xoffset;
-                task->m_yoffset = m_yoffset;
-                task->tile_clip = tile_clip;
-                task->widget = this;
-
-                /* Increment active background tasks to prevent content destruction while rendering */
-                struct hlcache_handle *h = browser_window_get_content(m_bw);
-                if (h != NULL) {
-                    content_inc_bg_tasks(h);
-                }
-
-                /* For Qt, we still call redraw synchronously if painter is needed,
-                 * but we use the prioritized dispatch logic for architectural parity. */
-                wisp_dispatch_raster(NULL, qt_tile_redraw_worker, task, priority);
-            }
+            tasks[task_count].tile_clip = tile_clip;
+            tasks[task_count].priority = browser_calculate_tile_priority(tx + m_xoffset, ty + m_yoffset, v_x, v_y, v_w, v_h);
+            task_count++;
         }
     }
+
+    /* Sort tiles by priority to ensure visible/near ones are drawn first */
+    qsort(tasks, task_count, sizeof(struct qt_tile_task_t), qt_tile_task_compare);
+
+    /* Execute prioritized redraw loop on main thread (safe for QPainter) */
+    for (int i = 0; i < task_count; i++) {
+        painter->save();
+        painter->setClipRect(tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+                             tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
+                             tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
+
+        browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &tasks[i].tile_clip, &ctx);
+
+        painter->restore();
+    }
+
+    free(tasks);
 
     struct rect full_clip = {
         .x0 = updateRect.left(),

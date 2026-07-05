@@ -19,6 +19,7 @@ typedef struct js_task_t {
     void (*function)(void*);
     void *arg;
     float priority;
+    uint64_t entry_time;
 } js_task_t;
 
 struct WispPool;
