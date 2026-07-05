@@ -202,6 +202,7 @@ endif()
 option(WISP_USE_BLEND2D "Use Blend2D for high-performance 2D rendering" ${DEFAULT_USE_BLEND2D})
 
 if(WISP_USE_BLEND2D)
+    add_definitions(-DBL_NO_AUTO_INIT)
     add_definitions(-DWITH_BLEND2D)
 endif()
 
