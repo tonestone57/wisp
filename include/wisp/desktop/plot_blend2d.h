@@ -1,7 +1,7 @@
 #ifndef WISP_DESKTOP_PLOT_BLEND2D_H_
 #define WISP_DESKTOP_PLOT_BLEND2D_H_
 
-#include <blend2d.h>
+#include <blend2d/blend2d.h>
 #include "wisp/plotters.h"
 
 /**
