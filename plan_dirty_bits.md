@@ -3,12 +3,12 @@
 Wisp implements an incremental layout engine to avoid redundant full-page reflows. To solve the problem of unnecessary sub-tree reflows when container dimensions change, we utilize a **Dual-Pass Dirty Bit Strategy**.
 
 ## 1. Dual-Pass Dirty Bits
-The `box_flags` in `include/wisp/content/handlers/html/box.h` use three distinct bits for tracking changes:
+The `box_flags` in `include/wisp/content/handlers/html/box.h` use three distinct bits for tracking changes (Bits 14-16):
 
-1.  **DIRTY_INTRINSIC (Bit 14)**: Indicates that the element’s internal contents, text, or styles have changed. This requires a recalculation of intrinsic traits (like min/max widths).
-2.  **CHILD_DIRTY (Bit 15)**: Indicates that a descendant in the box tree is dirty and requires a pass.
-3.  **DIRTY_LAYOUT (Bit 16)**: Indicates that the element's bounds or layout environment changed (e.g., parent size changed), but its children's intrinsic traits (min/max) remain intact.
-4.  **DIRTY (Bit 14 | Bit 16)**: A convenience alias for any type of layout invalidation.
+1.  **DIRTY_INTRINSIC**: Indicates that the element’s internal contents, text, or styles have changed. This requires a recalculation of intrinsic traits (like min/max widths).
+2.  **CHILD_DIRTY**: Indicates that a descendant in the box tree is dirty and requires a pass.
+3.  **DIRTY_LAYOUT**: Indicates that the element's bounds or layout environment changed (e.g., parent size changed), but its children's intrinsic traits (min/max) remain intact.
+4.  **DIRTY**: A convenience alias combining `DIRTY_INTRINSIC` and `DIRTY_LAYOUT` for any type of layout invalidation.
 
 ## 2. Propagation and Execution Rules
 *   **DOM/Style Mutation**: When a DOM node or style changes, the `DIRTY_INTRINSIC` bit is set on the associated box via `box_mark_dirty`, and `CHILD_DIRTY` is propagated up to the root.
@@ -18,7 +18,7 @@ The `box_flags` in `include/wisp/content/handlers/html/box.h` use three distinct
 *   **Width Tracking**: `layout_block_find_dimensions` tracks `last_available_width` in each `struct box` to skip dimension calculations for clean subtrees.
 
 ## 3. Implementation Status
-*   Core `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags are implemented in `box.h`.
+*   Core `DIRTY_INTRINSIC`, `CHILD_DIRTY`, and `DIRTY_LAYOUT` flags are implemented in `box.h` (Bits 14, 15, and 16 respectively).
 *   `box_mark_dirty` in `box_manipulate.c` handles upward propagation and `dirty_rect` unioning.
 *   `layout_document` and `layout_block_context` utilize these flags to skip reflows.
 *   Redraw is triggered at the end of `layout_document` using the accumulated `dirty_rect`.
