@@ -120,6 +120,7 @@ static struct gui_plot_table plot_table = {
     .polygon = macos_plot_polygon,
     .text = macos_plot_text,
     .bitmap = macos_plot_bitmap,
+    .draw_gadget = NULL,
 };
 
 struct gui_plot_table *macos_plot_table = &plot_table;

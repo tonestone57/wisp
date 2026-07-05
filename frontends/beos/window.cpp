@@ -473,6 +473,7 @@ void nsbeos_dispatch_event(BMessage *message)
                     std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                     BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
                     if (tc) {
+                        /* form_gadget_update_value takes ownership. */
                         char *val = strdup(tc->Text());
                         if (val) {
                             form_gadget_update_value(control, val);
