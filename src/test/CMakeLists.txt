@@ -326,6 +326,9 @@ target_include_directories(font_face_test PRIVATE
 )
 target_link_libraries(font_face_test wisp)
 add_test(NAME font_face_test COMMAND font_face_test)
+set_tests_properties(font_face_test PROPERTIES
+  ENVIRONMENT "ASAN_OPTIONS=check_initialization_order=0:strict_init_order=0"
+)
 
 # Margin collapse test — two-unit build to avoid enum collisions
 # between Wisp headers (box.h) and libcss internal headers (opcodes.h)
