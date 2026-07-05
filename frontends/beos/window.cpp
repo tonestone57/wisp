@@ -635,15 +635,26 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 
             /* Checkout buffer and dispatch raster task */
             void *buf = tile_pool_checkout();
+            bool dispatched = false;
             if (buf) {
                 struct tile_render_task *task = (struct tile_render_task *)malloc(sizeof(*task));
-                task->g = g;
-                task->view = view;
-                task->tile_clip = tile_clip;
-                task->buffer = buf;
-                task->tile_size = tile_size;
-                wisp_dispatch_raster(NULL, nsbeos_tile_raster_worker, task);
-            } else {
+                if (task) {
+                    task->g = g;
+                    task->view = view;
+                    task->tile_clip = tile_clip;
+                    task->buffer = buf;
+                    task->tile_size = tile_size;
+                    dispatched = wisp_dispatch_raster(NULL, nsbeos_tile_raster_worker, task);
+                    if (!dispatched) {
+                        free(task);
+                    }
+                }
+            }
+
+            if (!dispatched) {
+                if (buf) {
+                    tile_pool_return(buf);
+                }
                 /* Synchronous fallback if pool/dispatch fails */
                 struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
                 if (view->LockLooper()) {
