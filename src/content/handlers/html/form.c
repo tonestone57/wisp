@@ -1858,7 +1858,7 @@ form_submit(nsurl *page_url, struct browser_window *target, struct form *form, s
 
 
 /* exported interface documented in html/form_internal.h */
-void form_gadget_update_value(struct form_control *control, char *value)
+void form_gadget_update_value(struct form_control *control, const char *value)
 {
     switch (control->type) {
     case GADGET_HIDDEN:
@@ -1869,7 +1869,7 @@ void form_gadget_update_value(struct form_control *control, char *value)
         if (control->value != NULL) {
             free(control->value);
         }
-        control->value = value;
+        control->value = strdup(value);
         if (control->node != NULL) {
             dom_exception err;
             dom_string *str;

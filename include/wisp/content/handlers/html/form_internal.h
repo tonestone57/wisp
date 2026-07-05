@@ -333,7 +333,7 @@ nserror form_submit(
 /**
  * Update gadget value.
  */
-void form_gadget_update_value(struct form_control *control, char *value);
+void form_gadget_update_value(struct form_control *control, const char *value);
 
 
 /**

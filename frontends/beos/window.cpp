@@ -334,12 +334,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     NSLOG(wisp, INFO, "Creating gui window %p for browser window %p", g, bw);
 
     g->bw = bw;
-    g->mouse.state = 0;
     g->current_pointer = GUI_POINTER_DEFAULT;
-
-    g->careth = 0;
-    g->pending_resizes = 0;
-    g->wndOpenFile = NULL;
 
     if (window_list)
         window_list->prev = g;
@@ -473,11 +468,7 @@ void nsbeos_dispatch_event(BMessage *message)
                     std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                     BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
                     if (tc) {
-                        /* form_gadget_update_value takes ownership. */
-                        char *val = strdup(tc->Text());
-                        if (val) {
-                            form_gadget_update_value(control, val);
-                        }
+                        form_gadget_update_value(control, tc->Text());
                     }
                     break;
                 }
@@ -1297,7 +1288,10 @@ static void gui_window_create_form_select_menu(struct gui_window *g, struct form
     g->view->UnlockLooper();
 
     menu->SetTargetForItems(g->view);
-    menu->Go(screen_pos, true, false, true);
+    /* Go(..., false) makes the menu synchronous, allowing us to delete it immediately after.
+     * The parameters are (where, deliversMessage, openAnyway, asynchronous). */
+    menu->Go(screen_pos, true, false, false);
+    delete menu;
 }
 
 
@@ -1398,6 +1392,40 @@ extern "C" nserror gui_window_draw_gadget(
             if (widget->Bounds().Width() != (width - 1) || widget->Bounds().Height() != (height - 1)) {
                 widget->ResizeTo(width - 1, height - 1);
             }
+
+            /* Sync state from core to native widget */
+            switch (control->type) {
+            case GADGET_CHECKBOX: {
+                BCheckBox *cb = dynamic_cast<BCheckBox *>(widget);
+                int32 val = control->selected ? B_CONTROL_ON : B_CONTROL_OFF;
+                if (cb && cb->Value() != val) {
+                    cb->SetValue(val);
+                }
+                break;
+            }
+            case GADGET_RADIO: {
+                BRadioButton *rb = dynamic_cast<BRadioButton *>(widget);
+                int32 val = control->selected ? B_CONTROL_ON : B_CONTROL_OFF;
+                if (rb && rb->Value() != val) {
+                    rb->SetValue(val);
+                }
+                break;
+            }
+            case GADGET_TEXTBOX:
+            case GADGET_PASSWORD: {
+                BTextControl *tc = dynamic_cast<BTextControl *>(widget);
+                if (tc) {
+                    const char *core_val = control->value ? control->value : "";
+                    if (strcmp(tc->Text(), core_val) != 0) {
+                        tc->SetText(core_val);
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+            }
+
             g->view->UnlockLooper();
         }
     }
