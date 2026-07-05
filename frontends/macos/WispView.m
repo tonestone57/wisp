@@ -4,7 +4,7 @@
 #include <wisp/utils/nsoption.h>
 
 #ifdef WITH_BLEND2D
-#include <blend2d.h>
+#include <blend2d/blend2d.h>
 #include <wisp/desktop/plot_blend2d.h>
 extern const struct plotter_table blend2d_plotters;
 #endif
@@ -62,18 +62,21 @@ extern const struct plotter_table blend2d_plotters;
             .priv = &bl_wrap
         };
 
-        struct rect clip = { (int)NSMinX(dirtyRect), (int)NSMinY(dirtyRect), (int)NSMaxX(dirtyRect), (int)NSMaxY(dirtyRect) };
-        browser_window_redraw(_bw, 0, 0, &clip, &redraw_ctx);
-        if (redraw_ctx.plot->finalise) redraw_ctx.plot->finalise(&redraw_ctx);
-        bl_context_end(&bl_ctx);
-
         BLImageData img_data;
         bl_image_get_data(&img, &img_data);
 
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
         CGContextRef bitmapCtx = CGBitmapContextCreate(img_data.pixelData, w, h, 8, img_data.stride, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Little);
-        CGImageRef image = CGBitmapContextCreateImage(bitmapCtx);
 
+        /* Native text rendering must draw into the same buffer as Blend2D */
+        bl_wrap.native_priv = bitmapCtx;
+
+        struct rect clip = { (int)NSMinX(dirtyRect), (int)NSMinY(dirtyRect), (int)NSMaxX(dirtyRect), (int)NSMaxY(dirtyRect) };
+        browser_window_redraw(_bw, 0, 0, &clip, &redraw_ctx);
+        if (redraw_ctx.plot->finalise) redraw_ctx.plot->finalise(&redraw_ctx);
+        bl_context_end(&bl_ctx);
+
+        CGImageRef image = CGBitmapContextCreateImage(bitmapCtx);
         CGContextDrawImage(ctx, CGRectMake(0, 0, w, h), image);
 
         CGImageRelease(image);

@@ -302,6 +302,10 @@ include_directories(
 	"${CMAKE_SOURCE_DIR}/include"
 	"${CMAKE_SOURCE_DIR}/include/wisp"
 )
+
+if(WISP_USE_BLEND2D)
+    include_directories("${CMAKE_SOURCE_DIR}/contrib/blend2d")
+endif()
 set(WISP_LIB_TYPE SHARED)
 if(WIN32 OR WISP_ENABLE_GPROF OR WISP_ENABLE_FINSTRUMENT)
     set(WISP_LIB_TYPE STATIC)

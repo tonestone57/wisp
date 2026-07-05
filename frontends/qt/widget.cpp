@@ -25,7 +25,7 @@
 #include <QPainter>
 
 #ifdef WITH_BLEND2D
-#include <blend2d.h>
+#include <blend2d/blend2d.h>
 #include <wisp/desktop/plot_blend2d.h>
 #endif
 
@@ -180,10 +180,17 @@ void NS_Widget::paintEvent(QPaintEvent *event)
         bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
         bl_context_fill_all(&bl_ctx);
 
+        BLImageData img_data;
+        bl_image_get_data(&img, &img_data);
+        QImage qimg((uchar*)img_data.pixelData, w, h, (int)img_data.stride, QImage::Format_ARGB32_Premultiplied);
+
+        /* Native text rendering must draw into the same buffer as Blend2D */
+        QPainter buffer_painter(&qimg);
+
         struct blend2d_context bl_wrap = {
             .bl_ctx = &bl_ctx,
             .native_text_handler = nsqt_plotters.text,
-            .native_priv = &qp
+            .native_priv = &buffer_painter
         };
 
         struct redraw_context ctx = {
@@ -200,9 +207,7 @@ void NS_Widget::paintEvent(QPaintEvent *event)
         if (ctx.plot->finalise) ctx.plot->finalise(&ctx);
         bl_context_end(&bl_ctx);
 
-        BLImageData img_data;
-        bl_image_get_data(&img, &img_data);
-        QImage qimg((uchar*)img_data.pixelData, w, h, (int)img_data.stride, QImage::Format_ARGB32_Premultiplied);
+        buffer_painter.end();
         qp.drawImage(0, 0, qimg);
 
         bl_context_destroy(&bl_ctx);
