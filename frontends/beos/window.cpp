@@ -99,6 +99,7 @@ struct gui_window {
 static const rgb_color kWhiteColor = {255, 255, 255, 255};
 
 static struct gui_window *window_list = 0;
+static BBitmap *nsbeos_blit_bitmap = NULL;
 
 static BString current_selection;
 static BList current_selection_textruns;
@@ -710,7 +711,10 @@ static void nsbeos_tile_raster_worker(void *arg)
     bl_image_destroy(&img);
 
     /* Dispatch completion callback to main thread */
-    task_queue_post(nsbeos_tile_raster_complete, task);
+    if (!task_queue_post(nsbeos_tile_raster_complete, task)) {
+        tile_pool_return(task->buffer);
+        free(task);
+    }
 }
 
 static void nsbeos_tile_raster_complete(void *arg)
@@ -724,20 +728,44 @@ static void nsbeos_tile_raster_complete(void *arg)
     for (z = window_list; z && z != g; z = z->next);
 
     if (z != NULL && view->LockLooper()) {
-        /* Atomic Blit: Construct BBitmap from pooled buffer and draw to view.
-         * Using heap-allocation for BBitmap and explicit ImportBits check for robustness. */
-        BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
-        BBitmap *b = new BBitmap(frame, 0, B_RGBA32);
+        /* Atomic Blit: Reuse a global BBitmap to prevent area/heap fragmentation. */
+        if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != task->tile_size)) {
+            delete nsbeos_blit_bitmap;
+            nsbeos_blit_bitmap = NULL;
+        }
+        if (nsbeos_blit_bitmap == NULL) {
+            BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
+            nsbeos_blit_bitmap = new BBitmap(frame, 0, B_RGBA32);
+        }
 
-        if (b->InitCheck() == B_OK) {
+        BBitmap *b = nsbeos_blit_bitmap;
+
+        if (b && b->InitCheck() == B_OK) {
+            view->Sync();
             if (b->ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32) == B_OK) {
                 int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
                 int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
-                view->DrawBitmap(b, BPoint(tx, ty));
+
+                /* Only blit the part of the tile that is actually within the clip.
+                 * This prevents overpainting adjacent tiles with the clear color. */
+                BRect srcRect(task->tile_clip.x0 - tx, task->tile_clip.y0 - ty,
+                              task->tile_clip.x1 - tx - 1, task->tile_clip.y1 - ty - 1);
+                BRect dstRect(task->tile_clip.x0, task->tile_clip.y0,
+                              task->tile_clip.x1 - 1, task->tile_clip.y1 - 1);
+                view->DrawBitmap(b, srcRect, dstRect);
+
+                /* Caret Persistence: Redraw caret if it was overpainted by this tile */
+                if (g->careth != 0) {
+                    BRect caretRect(g->caretx, g->carety, g->caretx, g->carety + g->careth);
+                    if (caretRect.Intersects(dstRect)) {
+                        nsbeos_current_gc_set(view);
+                        nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+                        nsbeos_current_gc_set(NULL);
+                    }
+                }
             }
         }
 
-        delete b;
         view->UnlockLooper();
     }
 
@@ -906,6 +934,12 @@ void nsbeos_reflow_all_windows(void)
 void nsbeos_window_destroy_browser(struct gui_window *g)
 {
     browser_window_destroy(g->bw);
+}
+
+void nsbeos_window_finalise(void)
+{
+    delete nsbeos_blit_bitmap;
+    nsbeos_blit_bitmap = NULL;
 }
 
 static void gui_window_destroy(struct gui_window *g)
