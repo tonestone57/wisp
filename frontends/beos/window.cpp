@@ -65,6 +65,7 @@ class NSBrowserFrameView;
 
 struct beos_tile_task_t {
     struct gui_window *g;
+    struct hlcache_handle *h;
     struct rect tile_clip;
     NSBrowserFrameView *view;
 };
@@ -74,18 +75,19 @@ extern "C" void beos_tile_redraw_worker(void *arg)
     struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
     struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
 
+    /* Verify if the window still has the same content */
     if (task->view->LockLooper()) {
-        nsbeos_current_gc_set(task->view);
-        browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
-        nsbeos_current_gc_set(NULL);
+        if (browser_window_get_content(task->g->bw) == task->h) {
+            nsbeos_current_gc_set(task->view);
+            browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+            nsbeos_current_gc_set(NULL);
+        }
         task->view->UnlockLooper();
     }
 
     /* Update active task count for content lifecycle management */
-    struct hlcache_handle *h = browser_window_get_content(task->g->bw);
-    if (h != NULL) {
-        content_dec_bg_tasks(h);
-    }
+    content_dec_bg_tasks(task->h);
+    hlcache_handle_release(task->h);
 
     free(task);
 }
@@ -664,19 +666,23 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
              * Note: In asynchronous mode, the backend should blit into an offscreen area.
              * For this reference implementation, we use wisp_dispatch_raster which
              * fallbacks to synchronous execution on single-core systems. */
-            struct beos_tile_task_t *task = (struct beos_tile_task_t *)malloc(sizeof(struct beos_tile_task_t));
-            if (task) {
-                task->g = g;
-                task->tile_clip = tile_clip;
-                task->view = (NSBrowserFrameView *)view;
+            struct hlcache_handle *h = browser_window_get_content(g->bw);
+            if (h != NULL) {
+                struct beos_tile_task_t *task = (struct beos_tile_task_t *)malloc(sizeof(struct beos_tile_task_t));
+                if (task) {
+                    task->g = g;
+                    task->tile_clip = tile_clip;
+                    task->view = (NSBrowserFrameView *)view;
 
-                /* Increment active background tasks to prevent content destruction while rendering */
-                struct hlcache_handle *h = browser_window_get_content(g->bw);
-                if (h != NULL) {
-                    content_inc_bg_tasks(h);
+                    /* Clone handle to ensure it remains valid during background task */
+                    if (hlcache_handle_clone(h, &task->h) == NSERROR_OK) {
+                        /* Increment active background tasks to prevent content destruction while rendering */
+                        content_inc_bg_tasks(task->h);
+                        wisp_dispatch_raster(NULL, beos_tile_redraw_worker, task, priority);
+                    } else {
+                        free(task);
+                    }
                 }
-
-                wisp_dispatch_raster(NULL, beos_tile_redraw_worker, task, priority);
             }
         }
     }
