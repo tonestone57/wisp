@@ -17,8 +17,22 @@ typedef struct js_task_t {
     void *arg;
 } js_task_t;
 
+struct WispPool;
+
 typedef struct {
-    js_task_t *tasks;
+#ifdef _WIN32
+    HANDLE thread;
+#else
+    pthread_t thread;
+#endif
+    int worker_id;
+    atomic_bool running;
+    JSRuntime *rt;
+    JSContext *ctx;
+    struct WispPool *pool;
+} WispWorker;
+
+typedef struct WispPool {
     js_task_t *head;
     js_task_t *tail;
     int count;
@@ -31,28 +45,27 @@ typedef struct {
     pthread_mutex_t lock;
     pthread_cond_t cond;
 #endif
-} WispQueue;
+    WispWorker *workers;
+    int worker_count;
+    int active_workers;
+    int busy_workers;
+} WispPool;
 
-typedef struct {
-#ifdef _WIN32
-    HANDLE thread;
-#else
-    pthread_t thread;
-#endif
-    int worker_id;
-    atomic_bool running;
-    JSRuntime *rt;
-    JSContext *ctx;
-} WispWorker;
+/* Global pools */
+extern WispPool *raster_pool;
+extern WispPool *js_pool;
 
-// The globals expected by qjs.c
-extern WispWorker *wisp_worker_pool;
-extern WispQueue wisp_queue;
-extern int wisp_worker_count;
-
+/* Subsystem management */
 void init_wisp_subsystem(int queue_size);
 void shutdown_wisp_subsystem(void);
-void* wisp_worker_routine(void *arg);
+
+/* Task dispatching */
+bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg);
+void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg);
+/* Deprecated/Compatibility wrapper */
 void wisp_dispatch(char *script, void (*func)(void*), void *arg);
+
+/* Internal worker routine */
+void* wisp_worker_routine(void *arg);
 
 #endif // WISP_SUBSYSTEM_H

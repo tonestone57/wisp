@@ -57,6 +57,7 @@ extern "C" {
 #include "utils/url.h"
 #include "utils/utf8.h"
 #include "utils/utils.h"
+#include "utils/task_queue.h"
 #include "wisp/browser_window.h"
 #include "wisp/clipboard.h"
 #include "wisp/content.h"
@@ -640,6 +641,7 @@ void nsbeos_gui_poll(void)
             nsbeos_dispatch_event(message);
         }
     }
+    task_queue_execute_pending();
 }
 
 
@@ -874,6 +876,7 @@ int main(int argc, char **argv)
     }
 
     nsbeos_plotters.finalise(NULL);
+    nsbeos_window_finalise();
     wisp_exit();
 
     nsoption_finalise(nsoptions, nsoptions_default);

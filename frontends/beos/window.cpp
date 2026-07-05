@@ -71,9 +71,20 @@ extern "C" {
 #include "beos/plotters.h"
 #include "beos/scaffolding.h"
 #include "beos/window.h"
+#include "desktop/tile_pool.h"
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
+#include <blend2d/blend2d.h>
 
 
 class NSBrowserFrameView;
+
+struct tile_render_task {
+    struct gui_window *g;
+    NSBrowserFrameView *view;
+    struct rect tile_clip;
+    void *buffer;
+    int tile_size;
+};
 
 struct gui_window {
     nsbeos_scaffolding *scaffold;
@@ -105,11 +116,14 @@ struct gui_window {
 static const rgb_color kWhiteColor = {255, 255, 255, 255};
 
 static struct gui_window *window_list = 0;
+static BBitmap *nsbeos_blit_bitmap = NULL;
 
 static BString current_selection;
 static BList current_selection_textruns;
 
 static void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message);
+static void nsbeos_tile_raster_worker(void *arg);
+static void nsbeos_tile_raster_complete(void *arg);
 static void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event);
@@ -381,19 +395,15 @@ void nsbeos_dispatch_event(BMessage *message)
     if (message->FindPointer("scaffolding", (void **)&scaffold) < B_OK)
         scaffold = NULL;
 
-    struct gui_window *z;
-    for (z = window_list; z && gui && z != gui; z = z->next)
-        continue;
-
-    struct gui_window *y;
-    for (y = window_list; y && scaffold && y->scaffold != scaffold; y = y->next)
-        continue;
-
-    if (gui && gui != z) {
+    if (gui && !nsbeos_gui_window_exists(gui)) {
         NSLOG(wisp, INFO, "discarding event for destroyed gui_window");
         delete message;
         return;
     }
+
+    struct gui_window *y;
+    for (y = window_list; y && scaffold && y->scaffold != scaffold; y = y->next)
+        continue;
     if (scaffold && (!y || scaffold != y->scaffold)) {
         NSLOG(wisp, INFO, "discarding event for destroyed scaffolding");
         delete message;
@@ -685,15 +695,14 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (browser_window_has_content(g->bw) == false)
         return;
 
-    if (!view->LockLooper())
-        return;
-    nsbeos_current_gc_set(view);
-
-    if (view->Window())
-        view->Window()->BeginViewTransaction();
-
-    /* Fixed-Tile Redraw Implementation */
+    /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();
+
+    /* Safety check: ensure tile size doesn't exceed pooled buffer capacity */
+    if (tile_size > 512) {
+        NSLOG(wisp, WARNING, "Tile size %d exceeds pool capacity, clamping to 512", tile_size);
+        tile_size = 512;
+    }
     int rect_left = (int)updateRect.left;
     int rect_top = (int)updateRect.top;
     int rect_right = (int)updateRect.right + 1;
@@ -716,26 +725,140 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            /* Push tile clip and redraw */
-            BRegion region;
-            region.Set(BRect(tile_clip.x0, tile_clip.y0, tile_clip.x1 - 1, tile_clip.y1 - 1));
-            view->PushState();
-            view->ConstrainClippingRegion(&region);
+            /* Checkout buffer and dispatch raster task */
+            void *buf = tile_pool_checkout();
+            bool dispatched = false;
+            if (buf) {
+                struct tile_render_task *task = (struct tile_render_task *)malloc(sizeof(*task));
+                if (task) {
+                    task->g = g;
+                    task->view = view;
+                    task->tile_clip = tile_clip;
+                    task->buffer = buf;
+                    task->tile_size = tile_size;
+                    dispatched = wisp_dispatch_raster(NULL, nsbeos_tile_raster_worker, task);
+                    if (!dispatched) {
+                        free(task);
+                    }
+                }
+            }
 
-            browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
-
-            view->PopState();
+            if (!dispatched) {
+                if (buf) {
+                    tile_pool_return(buf);
+                }
+                /* Synchronous fallback if pool/dispatch fails */
+                struct redraw_context ctx = {true, true, &nsbeos_plotters, NULL};
+                if (view->LockLooper()) {
+                    nsbeos_current_gc_set(view);
+                    browser_window_redraw(g->bw, 0, 0, &tile_clip, &ctx);
+                    nsbeos_current_gc_set(NULL);
+                    view->UnlockLooper();
+                }
+            }
         }
     }
 
-    if (g->careth != 0)
-        nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+    if (g->careth != 0) {
+        if (view->LockLooper()) {
+            nsbeos_current_gc_set(view);
+            nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+            nsbeos_current_gc_set(NULL);
+            view->UnlockLooper();
+        }
+    }
+}
 
-    if (view->Window())
-        view->Window()->EndViewTransaction();
+static void nsbeos_tile_raster_worker(void *arg)
+{
+    struct tile_render_task *task = (struct tile_render_task *)arg;
+    BLContextCore bl_ctx;
+    BLImageCore img;
 
-    nsbeos_current_gc_set(NULL);
-    view->UnlockLooper();
+    /* Initialize Blend2D image from pooled buffer */
+    bl_image_init_as_from_data(&img, task->tile_size, task->tile_size, BL_FORMAT_PRGB32, task->buffer, (intptr_t)task->tile_size * 4, BL_DATA_ACCESS_RW, NULL, NULL);
+    bl_context_init_as(&bl_ctx, &img, NULL);
+
+    /* Clear buffer to white initially */
+    bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+    bl_context_fill_all(&bl_ctx);
+
+    struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
+
+    /* Adjust drawing coordinates so (0,0) is the top-left of the tile.
+     * We calculate the tile's top-left origin by aligning with the tile grid. */
+    BLMatrix2D m;
+    bl_matrix2d_set_identity(&m);
+    int tile_x0 = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+    int tile_y0 = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+    double tl_data[2] = {-(double)tile_x0, -(double)tile_y0};
+    bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
+    bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
+
+    /* Render content into tile buffer */
+    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+
+    bl_context_end(&bl_ctx);
+    bl_image_destroy(&img);
+
+    /* Dispatch completion callback to main thread */
+    if (!task_queue_post(nsbeos_tile_raster_complete, task)) {
+        tile_pool_return(task->buffer);
+        free(task);
+    }
+}
+
+static void nsbeos_tile_raster_complete(void *arg)
+{
+    struct tile_render_task *task = (struct tile_render_task *)arg;
+    struct gui_window *g = task->g;
+    NSBrowserFrameView *view = task->view;
+
+    /* Safety Check: Verify window still exists in the global list */
+    if (nsbeos_gui_window_exists(g) && view->LockLooper()) {
+        /* Atomic Blit: Reuse a global BBitmap to prevent area/heap fragmentation. */
+        if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != task->tile_size)) {
+            delete nsbeos_blit_bitmap;
+            nsbeos_blit_bitmap = NULL;
+        }
+        if (nsbeos_blit_bitmap == NULL) {
+            BRect frame(0, 0, task->tile_size - 1, task->tile_size - 1);
+            nsbeos_blit_bitmap = new BBitmap(frame, 0, B_RGBA32);
+        }
+
+        BBitmap *b = nsbeos_blit_bitmap;
+
+        if (b && b->InitCheck() == B_OK) {
+            view->Sync();
+            if (b->ImportBits(task->buffer, task->tile_size * task->tile_size * 4, task->tile_size * 4, 0, B_RGBA32) == B_OK) {
+                int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+                int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+
+                /* Only blit the part of the tile that is actually within the clip.
+                 * This prevents overpainting adjacent tiles with the clear color. */
+                BRect srcRect(task->tile_clip.x0 - tx, task->tile_clip.y0 - ty,
+                              task->tile_clip.x1 - tx - 1, task->tile_clip.y1 - ty - 1);
+                BRect dstRect(task->tile_clip.x0, task->tile_clip.y0,
+                              task->tile_clip.x1 - 1, task->tile_clip.y1 - 1);
+                view->DrawBitmap(b, srcRect, dstRect);
+
+                /* Caret Persistence: Redraw caret if it was overpainted by this tile */
+                if (g->careth != 0) {
+                    BRect caretRect(g->caretx, g->carety, g->caretx, g->carety + g->careth);
+                    if (caretRect.Intersects(dstRect)) {
+                        nsbeos_current_gc_set(view);
+                        nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+                        nsbeos_current_gc_set(NULL);
+                    }
+                }
+            }
+        }
+
+        view->UnlockLooper();
+    }
+
+    tile_pool_return(task->buffer);
+    free(task);
 }
 
 void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *event)
@@ -901,6 +1024,12 @@ void nsbeos_window_destroy_browser(struct gui_window *g)
     browser_window_destroy(g->bw);
 }
 
+void nsbeos_window_finalise(void)
+{
+    delete nsbeos_blit_bitmap;
+    nsbeos_blit_bitmap = NULL;
+}
+
 static void gui_window_destroy(struct gui_window *g)
 {
     if (!g)
@@ -965,6 +1094,20 @@ void nsbeos_redraw_caret(struct gui_window *g)
     g->view->Invalidate(BRect(g->caretx, g->carety, g->caretx, g->carety + g->careth));
     nsbeos_current_gc_set(NULL);
     g->view->UnlockLooper();
+}
+
+/**
+ * Check if a gui_window exists in the global list.
+ *
+ * \param g  The window to check.
+ * \return true if it exists, false otherwise.
+ */
+static bool nsbeos_gui_window_exists(struct gui_window *g)
+{
+    struct gui_window *z;
+    for (z = window_list; z && z != g; z = z->next)
+        continue;
+    return (z != NULL);
 }
 
 static nserror beos_window_invalidate_area(struct gui_window *g, const struct rect *rect)

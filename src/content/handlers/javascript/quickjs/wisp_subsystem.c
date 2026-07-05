@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <errno.h>
 #include "wisp/utils/log.h"
 #include "wisp/utils/utils.h"
-
 
 #ifdef _WIN32
 #else
@@ -13,43 +13,158 @@
 #include <sys/time.h>
 #endif
 
-WispWorker *wisp_worker_pool = NULL;
-WispQueue wisp_queue;
-int wisp_worker_count = 0;
+WispPool *raster_pool = NULL;
+WispPool *js_pool = NULL;
 
-int active_workers = 0;
-int busy_workers = 0;
-
-static void start_worker(int i) {
-    wisp_worker_pool[i].worker_id = i;
-    wisp_worker_pool[i].rt = JS_NewRuntime();
-    wisp_worker_pool[i].ctx = JS_NewContext(wisp_worker_pool[i].rt);
+static void start_worker(WispPool *pool, int i) {
+    pool->workers[i].worker_id = i;
+    pool->workers[i].rt = JS_NewRuntime();
+    pool->workers[i].ctx = JS_NewContext(pool->workers[i].rt);
+    pool->workers[i].pool = pool;
 
 #ifdef _WIN32
-    wisp_worker_pool[i].thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)wisp_worker_routine, &wisp_worker_pool[i], 0, NULL);
+    pool->workers[i].thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)wisp_worker_routine, &pool->workers[i], 0, NULL);
 #else
-    pthread_create(&wisp_worker_pool[i].thread, NULL, wisp_worker_routine, &wisp_worker_pool[i]);
+    pthread_create(&pool->workers[i].thread, NULL, wisp_worker_routine, &pool->workers[i]);
 #endif
 
 #ifdef _WIN32
-    EnterCriticalSection(&wisp_queue.lock);
+    EnterCriticalSection(&pool->lock);
 #else
-    pthread_mutex_lock(&wisp_queue.lock);
+    pthread_mutex_lock(&pool->lock);
 #endif
-    active_workers++;
+    pool->active_workers++;
 #ifdef _WIN32
-    LeaveCriticalSection(&wisp_queue.lock);
+    LeaveCriticalSection(&pool->lock);
 #else
-    pthread_mutex_unlock(&wisp_queue.lock);
+    pthread_mutex_unlock(&pool->lock);
 #endif
 }
 
-void init_wisp_subsystem(int queue_size) {
-    if (wisp_worker_pool != NULL) {
-        return; // Already initialized
+static WispPool* init_pool(int worker_count, int queue_size) {
+    if (worker_count < 0) worker_count = 0;
+
+    WispPool *pool = calloc(1, sizeof(WispPool));
+    if (!pool) return NULL;
+
+    pool->worker_count = worker_count;
+    pool->capacity = queue_size;
+    pool->stop = false;
+
+#ifdef _WIN32
+    InitializeCriticalSection(&pool->lock);
+    InitializeConditionVariable(&pool->cond);
+#else
+    pthread_mutex_init(&pool->lock, NULL);
+    pthread_cond_init(&pool->cond, NULL);
+#endif
+
+    if (worker_count > 0) {
+        pool->workers = calloc(worker_count, sizeof(WispWorker));
+        if (!pool->workers) {
+#ifdef _WIN32
+            DeleteCriticalSection(&pool->lock);
+#else
+            pthread_mutex_destroy(&pool->lock);
+            pthread_cond_destroy(&pool->cond);
+#endif
+            free(pool);
+            return NULL;
+        }
+#ifndef _WIN32
+        pthread_t null_thread;
+        memset(&null_thread, 0, sizeof(pthread_t));
+        for (int i=0; i<worker_count; i++) {
+            pool->workers[i].thread = null_thread;
+        }
+#endif
+        // Spawn the first thread as a seed if pool is not empty
+        pool->workers[0].running = true;
+        start_worker(pool, 0);
     }
 
-    // 1. Determine dynamic worker max count
+    return pool;
+}
+
+static void shutdown_pool(WispPool *pool) {
+    if (!pool) return;
+
+#ifdef _WIN32
+    EnterCriticalSection(&pool->lock);
+    pool->stop = true;
+    for (int i = 0; i < pool->worker_count; i++) {
+        pool->workers[i].running = false;
+    }
+    WakeAllConditionVariable(&pool->cond);
+    LeaveCriticalSection(&pool->lock);
+#else
+    pthread_mutex_lock(&pool->lock);
+    pool->stop = true;
+    for (int i = 0; i < pool->worker_count; i++) {
+        pool->workers[i].running = false;
+    }
+    pthread_cond_broadcast(&pool->cond);
+    pthread_mutex_unlock(&pool->lock);
+#endif
+
+    for (int i = 0; i < pool->worker_count; i++) {
+#ifdef _WIN32
+        HANDLE h;
+        EnterCriticalSection(&pool->lock);
+        h = pool->workers[i].thread;
+        pool->workers[i].thread = NULL;
+        LeaveCriticalSection(&pool->lock);
+
+        if (h) {
+            WaitForSingleObject(h, INFINITE);
+            CloseHandle(h);
+        }
+#else
+        pthread_t t;
+        pthread_t null_thread;
+        memset(&null_thread, 0, sizeof(pthread_t));
+
+        pthread_mutex_lock(&pool->lock);
+        t = pool->workers[i].thread;
+        pool->workers[i].thread = null_thread;
+        pthread_mutex_unlock(&pool->lock);
+
+        if (memcmp(&t, &null_thread, sizeof(pthread_t)) != 0) {
+            pthread_join(t, NULL);
+        }
+#endif
+        if (pool->workers[i].ctx != NULL) {
+            JS_FreeContext(pool->workers[i].ctx);
+            pool->workers[i].ctx = NULL;
+        }
+        if (pool->workers[i].rt != NULL) {
+            JS_FreeRuntime(pool->workers[i].rt);
+            pool->workers[i].rt = NULL;
+        }
+    }
+
+    js_task_t *task = pool->head;
+    while (task) {
+        js_task_t *next = task->next;
+        if (task->script) free(task->script);
+        free(task);
+        task = next;
+    }
+
+#ifdef _WIN32
+    DeleteCriticalSection(&pool->lock);
+#else
+    pthread_mutex_destroy(&pool->lock);
+    pthread_cond_destroy(&pool->cond);
+#endif
+
+    if (pool->workers) free(pool->workers);
+    free(pool);
+}
+
+void init_wisp_subsystem(int queue_size) {
+    if (raster_pool != NULL || js_pool != NULL) return;
+
     long n_cores;
 #ifdef _WIN32
     SYSTEM_INFO sysinfo;
@@ -59,302 +174,229 @@ void init_wisp_subsystem(int queue_size) {
     n_cores = sysconf(_SC_NPROCESSORS_ONLN);
 #endif
 
-    // Clamp: min 1, max 7
-    wisp_worker_count = clamp((int)(n_cores - 1), 1, 7);
+    if (n_cores <= 0) n_cores = 1;
 
-    // 2. Allocate the worker pool for max workers (not all spawned yet)
-    wisp_worker_pool = calloc(wisp_worker_count, sizeof(WispWorker));
+    int raster_workers = (n_cores > 1) ? (int)(n_cores - 1) : 0;
+    int js_workers = (n_cores > 4) ? 4 : (int)n_cores;
+    if (js_workers < 1) js_workers = 1;
 
-#ifndef _WIN32
-    pthread_t null_thread;
-    memset(&null_thread, 0, sizeof(pthread_t));
-    for (int i=0; i<wisp_worker_count; i++) {
-        wisp_worker_pool[i].thread = null_thread;
-    }
-#endif
+    raster_pool = init_pool(raster_workers, queue_size);
+    js_pool = init_pool(js_workers, queue_size);
 
-    // 3. Initialize the Queue
-    wisp_queue.capacity = queue_size;
-    wisp_queue.head = NULL;
-    wisp_queue.tail = NULL;
-    wisp_queue.count = 0;
-    wisp_queue.stop = false;
-
-#ifdef _WIN32
-    InitializeCriticalSection(&wisp_queue.lock);
-    InitializeConditionVariable(&wisp_queue.cond);
-#else
-    pthread_mutex_init(&wisp_queue.lock, NULL);
-    pthread_cond_init(&wisp_queue.cond, NULL);
-#endif
-
-    // 4. Spawn the seed thread
-    wisp_worker_pool[0].running = true;
-    start_worker(0);
+    NSLOG(wisp, INFO, "Wisp Subsystem Initialized: Raster Pool (%d), JS Pool (%d)", raster_workers, js_workers);
 }
 
 void shutdown_wisp_subsystem(void) {
-    if (wisp_worker_pool == NULL) return;
-
-    // 1. Signal workers to stop
-#ifdef _WIN32
-    EnterCriticalSection(&wisp_queue.lock);
-    wisp_queue.stop = true;
-    for (int i = 0; i < wisp_worker_count; i++) {
-        wisp_worker_pool[i].running = false;
-    }
-    WakeAllConditionVariable(&wisp_queue.cond);
-    LeaveCriticalSection(&wisp_queue.lock);
-#else
-    pthread_mutex_lock(&wisp_queue.lock);
-    wisp_queue.stop = true;
-    for (int i = 0; i < wisp_worker_count; i++) {
-        wisp_worker_pool[i].running = false;
-    }
-    pthread_cond_broadcast(&wisp_queue.cond);
-    pthread_mutex_unlock(&wisp_queue.lock);
-#endif
-
-    // 2. Join threads and free contexts
-    for (int i = 0; i < wisp_worker_count; i++) {
-#ifdef _WIN32
-        if (wisp_worker_pool[i].thread) {
-            WaitForSingleObject(wisp_worker_pool[i].thread, INFINITE);
-            CloseHandle(wisp_worker_pool[i].thread);
-        }
-#else
-        pthread_t null_thread;
-        memset(&null_thread, 0, sizeof(pthread_t));
-        if (memcmp(&wisp_worker_pool[i].thread, &null_thread, sizeof(pthread_t)) != 0) {
-            pthread_join(wisp_worker_pool[i].thread, NULL);
-        }
-#endif
-        if (wisp_worker_pool[i].ctx != NULL) {
-            JS_FreeContext(wisp_worker_pool[i].ctx);
-        }
-        if (wisp_worker_pool[i].rt != NULL) {
-            JS_FreeRuntime(wisp_worker_pool[i].rt);
-        }
-    }
-
-    // 3. Free queue tasks
-    js_task_t *task = wisp_queue.head;
-    while (task) {
-        js_task_t *next = task->next;
-        if (task->script) free(task->script);
-        free(task);
-        task = next;
-    }
-    wisp_queue.head = NULL;
-    wisp_queue.tail = NULL;
-    wisp_queue.count = 0;
-
-#ifdef _WIN32
-    DeleteCriticalSection(&wisp_queue.lock);
-#else
-    pthread_mutex_destroy(&wisp_queue.lock);
-    pthread_cond_destroy(&wisp_queue.cond);
-#endif
-
-    free(wisp_worker_pool);
-    wisp_worker_pool = NULL;
-    active_workers = 0;
-    busy_workers = 0;
+    shutdown_pool(raster_pool);
+    shutdown_pool(js_pool);
+    raster_pool = NULL;
+    js_pool = NULL;
 }
 
 void* wisp_worker_routine(void *arg) {
     WispWorker *worker = (WispWorker *)arg;
+    WispPool *pool = worker->pool;
 
     while (worker->running) {
         js_task_t *task = NULL;
         bool has_task = false;
 
 #ifdef _WIN32
-        EnterCriticalSection(&wisp_queue.lock);
-        while (wisp_queue.head == NULL && worker->running && !wisp_queue.stop) {
-            BOOL wait_res = SleepConditionVariableCS(&wisp_queue.cond, &wisp_queue.lock, 5000); // 5 sec TTL
+        EnterCriticalSection(&pool->lock);
+        while (pool->head == NULL && worker->running && !pool->stop) {
+            BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000); // 5 sec TTL
             if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
-                if (wisp_queue.head == NULL && active_workers > 1) {
-                    // Time to live expired, scale down
+                if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
                     worker->running = false;
-                    active_workers--;
-
-                    // Free context while holding lock to avoid races with shutdown
+                    pool->active_workers--;
                     JS_FreeContext(worker->ctx);
                     JS_FreeRuntime(worker->rt);
                     worker->ctx = NULL;
                     worker->rt = NULL;
+                    HANDLE h = worker->thread;
                     worker->thread = NULL;
-
-                    LeaveCriticalSection(&wisp_queue.lock);
+                    LeaveCriticalSection(&pool->lock);
+                    if (h) CloseHandle(h);
                     return NULL;
                 }
             }
         }
 
-        if (wisp_queue.head != NULL && worker->running) {
-            task = wisp_queue.head;
-            wisp_queue.head = task->next;
-            if (wisp_queue.head == NULL) {
-                wisp_queue.tail = NULL;
-            }
-            wisp_queue.count--;
+        if (pool->head != NULL && worker->running) {
+            task = pool->head;
+            pool->head = task->next;
+            if (pool->head == NULL) pool->tail = NULL;
+            pool->count--;
             has_task = true;
-            busy_workers++;
+            pool->busy_workers++;
         }
-        LeaveCriticalSection(&wisp_queue.lock);
+        LeaveCriticalSection(&pool->lock);
 #else
-        pthread_mutex_lock(&wisp_queue.lock);
-        while (wisp_queue.head == NULL && worker->running && !wisp_queue.stop) {
+        pthread_mutex_lock(&pool->lock);
+        while (pool->head == NULL && worker->running && !pool->stop) {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += 5; // 5 sec TTL
+            ts.tv_sec += 5;
 
-            int wait_res = pthread_cond_timedwait(&wisp_queue.cond, &wisp_queue.lock, &ts);
-            if (wait_res != 0) { // Timeout or error
-                if (wisp_queue.head == NULL && active_workers > 1) {
-                    // Time to live expired, scale down
+            int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
+            if (wait_res == ETIMEDOUT) {
+                if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
                     worker->running = false;
-                    active_workers--;
-
-                    // Free context while holding lock to avoid races with shutdown
+                    pool->active_workers--;
                     JS_FreeContext(worker->ctx);
                     JS_FreeRuntime(worker->rt);
                     worker->ctx = NULL;
                     worker->rt = NULL;
-
                     pthread_t null_thread;
                     memset(&null_thread, 0, sizeof(pthread_t));
                     worker->thread = null_thread;
-
-                    pthread_mutex_unlock(&wisp_queue.lock);
-
-                    // Detach so resources are freed immediately upon exit
+                    pthread_mutex_unlock(&pool->lock);
                     pthread_detach(pthread_self());
-
                     return NULL;
                 }
+            } else if (wait_res != 0) {
+                break;
             }
         }
 
-        if (wisp_queue.head != NULL && worker->running) {
-            task = wisp_queue.head;
-            wisp_queue.head = task->next;
-            if (wisp_queue.head == NULL) {
-                wisp_queue.tail = NULL;
-            }
-            wisp_queue.count--;
+        if (pool->head != NULL && worker->running) {
+            task = pool->head;
+            pool->head = task->next;
+            if (pool->head == NULL) pool->tail = NULL;
+            pool->count--;
             has_task = true;
-            busy_workers++;
+            pool->busy_workers++;
         }
-        pthread_mutex_unlock(&wisp_queue.lock);
+        pthread_mutex_unlock(&pool->lock);
 #endif
 
         if (has_task && task) {
-            if (task->function) {
-                task->function(task->arg);
+            if (task->script) {
+                JSValue val = JS_Eval(worker->ctx, task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
+                JS_FreeValue(worker->ctx, val);
+
+                JSContext *ctx1;
+                while (JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1) > 0);
             }
+            if (task->function) task->function(task->arg);
             if (task->script) free(task->script);
             free(task);
 
 #ifdef _WIN32
-            EnterCriticalSection(&wisp_queue.lock);
-            busy_workers--;
-            LeaveCriticalSection(&wisp_queue.lock);
+            EnterCriticalSection(&pool->lock);
+            pool->busy_workers--;
+            LeaveCriticalSection(&pool->lock);
 #else
-            pthread_mutex_lock(&wisp_queue.lock);
-            busy_workers--;
-            pthread_mutex_unlock(&wisp_queue.lock);
+            pthread_mutex_lock(&pool->lock);
+            pool->busy_workers--;
+            pthread_mutex_unlock(&pool->lock);
 #endif
         }
     }
-
     return NULL;
 }
 
-void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
+static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*func)(void*), void *arg) {
+    if (!pool) return false;
+
     js_task_t *new_task = malloc(sizeof(js_task_t));
-    if (!new_task) return;
+    if (!new_task) return false;
     new_task->next = NULL;
-    new_task->script = script;
+    new_task->script = script ? strdup(script) : NULL;
     new_task->function = func;
     new_task->arg = arg;
 
-#ifdef _WIN32
-    EnterCriticalSection(&wisp_queue.lock);
-    if (wisp_queue.count < wisp_queue.capacity) {
-        if (wisp_queue.tail == NULL) {
-            wisp_queue.head = new_task;
-            wisp_queue.tail = new_task;
-        } else {
-            wisp_queue.tail->next = new_task;
-            wisp_queue.tail = new_task;
-        }
-        wisp_queue.count++;
+    if (script && !new_task->script) {
+        free(new_task);
+        return false;
+    }
 
-        // Scale up if all workers are busy and we haven't reached max
+#ifdef _WIN32
+    EnterCriticalSection(&pool->lock);
+    if (pool->count < pool->capacity) {
+        if (pool->tail == NULL) {
+            pool->head = new_task;
+            pool->tail = new_task;
+        } else {
+            pool->tail->next = new_task;
+            pool->tail = new_task;
+        }
+        pool->count++;
+
         int worker_to_start = -1;
-        if (busy_workers == active_workers && active_workers < wisp_worker_count) {
-            for (int i=0; i<wisp_worker_count; i++) {
-                if (!wisp_worker_pool[i].running) {
+        if (pool->busy_workers == pool->active_workers && pool->active_workers < pool->worker_count) {
+            for (int i=0; i<pool->worker_count; i++) {
+                if (!pool->workers[i].running && pool->workers[i].thread == NULL) {
                     worker_to_start = i;
-                    wisp_worker_pool[i].running = true; // Mark as running so another thread doesn't pick it up
+                    pool->workers[i].running = true;
                     break;
                 }
             }
         }
-
-        WakeConditionVariable(&wisp_queue.cond);
-        LeaveCriticalSection(&wisp_queue.lock);
-
-        if (worker_to_start != -1) {
-            start_worker(worker_to_start);
-        }
+        WakeConditionVariable(&pool->cond);
+        LeaveCriticalSection(&pool->lock);
+        if (worker_to_start != -1) start_worker(pool, worker_to_start);
+        return true;
     } else {
-        LeaveCriticalSection(&wisp_queue.lock);
-        if (new_task->script) {
-            free(new_task->script);
-        }
-        free(new_task); // Queue full
+        LeaveCriticalSection(&pool->lock);
+        if (new_task->script) free(new_task->script);
+        free(new_task);
+        return false;
     }
 #else
-    pthread_mutex_lock(&wisp_queue.lock);
-    if (wisp_queue.count < wisp_queue.capacity) {
-        if (wisp_queue.tail == NULL) {
-            wisp_queue.head = new_task;
-            wisp_queue.tail = new_task;
+    pthread_mutex_lock(&pool->lock);
+    if (pool->count < pool->capacity) {
+        if (pool->tail == NULL) {
+            pool->head = new_task;
+            pool->tail = new_task;
         } else {
-            wisp_queue.tail->next = new_task;
-            wisp_queue.tail = new_task;
+            pool->tail->next = new_task;
+            pool->tail = new_task;
         }
-        wisp_queue.count++;
+        pool->count++;
 
-        // Scale up if all workers are busy and we haven't reached max
         int worker_to_start = -1;
-        if (busy_workers == active_workers && active_workers < wisp_worker_count) {
+        if (pool->busy_workers == pool->active_workers && pool->active_workers < pool->worker_count) {
             pthread_t null_thread;
             memset(&null_thread, 0, sizeof(pthread_t));
-            for (int i=0; i<wisp_worker_count; i++) {
-                if (!wisp_worker_pool[i].running && memcmp(&wisp_worker_pool[i].thread, &null_thread, sizeof(pthread_t)) == 0) {
+            for (int i=0; i<pool->worker_count; i++) {
+                if (!pool->workers[i].running && memcmp(&pool->workers[i].thread, &null_thread, sizeof(pthread_t)) == 0) {
                     worker_to_start = i;
-                    wisp_worker_pool[i].running = true; // Mark as running so another thread doesn't pick it up
+                    pool->workers[i].running = true;
                     break;
                 }
             }
         }
-
-        pthread_cond_signal(&wisp_queue.cond);
-        pthread_mutex_unlock(&wisp_queue.lock);
-
-        if (worker_to_start != -1) {
-            start_worker(worker_to_start);
-        }
+        pthread_cond_signal(&pool->cond);
+        pthread_mutex_unlock(&pool->lock);
+        if (worker_to_start != -1) start_worker(pool, worker_to_start);
+        return true;
     } else {
-        pthread_mutex_unlock(&wisp_queue.lock);
-        if (new_task->script) {
-            free(new_task->script);
-        }
-        free(new_task); // Queue full
+        pthread_mutex_unlock(&pool->lock);
+        if (new_task->script) free(new_task->script);
+        free(new_task);
+        return false;
     }
 #endif
+}
+
+bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg) {
+    if (raster_pool && raster_pool->worker_count > 0) {
+        return wisp_dispatch_internal(raster_pool, script, func, arg);
+    } else {
+        if (script) {
+            NSLOG(wisp, WARNING, "Synchronous raster fallback: JS script execution not supported without dedicated thread context.");
+        }
+        if (func) func(arg);
+        return true;
+    }
+}
+
+void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg) {
+    wisp_dispatch_internal(js_pool, script, func, arg);
+}
+
+void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
+    wisp_dispatch_js(script, func, arg);
+    if (script) free(script);
 }

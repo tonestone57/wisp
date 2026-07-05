@@ -84,6 +84,7 @@ nserror gui_window_draw_gadget(const struct redraw_context *ctx, int x, int y, i
 int nsbeos_gui_window_update_targets(struct gui_window *g);
 
 void nsbeos_window_destroy_browser(struct gui_window *g);
+void nsbeos_window_finalise(void);
 
 struct browser_window *nsbeos_get_browser_window(struct gui_window *g);
 
