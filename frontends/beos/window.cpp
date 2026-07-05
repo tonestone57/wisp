@@ -111,6 +111,7 @@ static void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *e
 static void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_redraw_caret(struct gui_window *g);
+static bool nsbeos_gui_window_exists(struct gui_window *g);
 
 
 NSBrowserFrameView::NSBrowserFrameView(BRect frame, struct gui_window *gui)
@@ -374,19 +375,15 @@ void nsbeos_dispatch_event(BMessage *message)
     if (message->FindPointer("scaffolding", (void **)&scaffold) < B_OK)
         scaffold = NULL;
 
-    struct gui_window *z;
-    for (z = window_list; z && gui && z != gui; z = z->next)
-        continue;
-
-    struct gui_window *y;
-    for (y = window_list; y && scaffold && y->scaffold != scaffold; y = y->next)
-        continue;
-
-    if (gui && gui != z) {
+    if (gui && !nsbeos_gui_window_exists(gui)) {
         NSLOG(wisp, INFO, "discarding event for destroyed gui_window");
         delete message;
         return;
     }
+
+    struct gui_window *y;
+    for (y = window_list; y && scaffold && y->scaffold != scaffold; y = y->next)
+        continue;
     if (scaffold && (!y || scaffold != y->scaffold)) {
         NSLOG(wisp, INFO, "discarding event for destroyed scaffolding");
         delete message;
@@ -724,10 +721,7 @@ static void nsbeos_tile_raster_complete(void *arg)
     NSBrowserFrameView *view = task->view;
 
     /* Safety Check: Verify window still exists in the global list */
-    struct gui_window *z;
-    for (z = window_list; z && z != g; z = z->next);
-
-    if (z != NULL && view->LockLooper()) {
+    if (nsbeos_gui_window_exists(g) && view->LockLooper()) {
         /* Atomic Blit: Reuse a global BBitmap to prevent area/heap fragmentation. */
         if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != task->tile_size)) {
             delete nsbeos_blit_bitmap;
@@ -991,6 +985,20 @@ void nsbeos_redraw_caret(struct gui_window *g)
     g->view->Invalidate(BRect(g->caretx, g->carety, g->caretx, g->carety + g->careth));
     nsbeos_current_gc_set(NULL);
     g->view->UnlockLooper();
+}
+
+/**
+ * Check if a gui_window exists in the global list.
+ *
+ * \param g  The window to check.
+ * \return true if it exists, false otherwise.
+ */
+static bool nsbeos_gui_window_exists(struct gui_window *g)
+{
+    struct gui_window *z;
+    for (z = window_list; z && z != g; z = z->next)
+        continue;
+    return (z != NULL);
 }
 
 static nserror beos_window_invalidate_area(struct gui_window *g, const struct rect *rect)

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
-#include "wisp/utils/log.h"
+#include <wisp/utils/log.h>
 
 #define TILE_BUFFER_SIZE (512 * 512 * 4) // 1MB
 
