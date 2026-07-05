@@ -2879,6 +2879,10 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
         /* Offset is passed to browser window redraw unscaled */
         browser_window_redraw(box->iframe, x + padding_left, y + padding_top, &r, ctx);
 
+    } else if (box->gadget && ctx->plot->draw_gadget != NULL &&
+        ctx->plot->draw_gadget(ctx, x + padding_left, y + padding_top, width, height, box->gadget) == NSERROR_OK) {
+        /* Gadget handled by frontend */
+
     } else if (box->gadget && box->gadget->type == GADGET_CHECKBOX) {
         if (!html_redraw_checkbox(x + padding_left, y + padding_top, width, height, box->gadget->selected, ctx)) {
             {

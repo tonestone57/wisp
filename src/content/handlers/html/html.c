@@ -1997,6 +1997,7 @@ static void html__set_file_gadget_filename(struct content *c, struct form_contro
 	}
 
 	form_gadget_update_value(gadget, utf8_fn);
+	free(utf8_fn);
 
 	/* corestring_dom___ns_key_file_name_node_data */
 	if (dom_node_set_user_data((dom_node *)file_box->gadget->node, corestring_dom___ns_key_file_name_node_data,

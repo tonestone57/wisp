@@ -95,7 +95,6 @@ struct gui_window *search_current_window = 0;
 BWindow *wndAbout;
 BWindow *wndWarning;
 BWindow *wndTooltip;
-BFilePanel *wndOpenFile;
 
 static thread_id sBAppThreadID;
 

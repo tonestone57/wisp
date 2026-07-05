@@ -730,5 +730,6 @@ const struct plotter_table nsgtk_plotters = {
     .text = nsgtk_plot_text,
     .push_transform = nsgtk_plot_push_transform,
     .pop_transform = nsgtk_plot_pop_transform,
+    .draw_gadget = NULL,
     .option_knockout = true
 };

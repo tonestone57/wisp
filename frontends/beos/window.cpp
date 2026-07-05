@@ -21,19 +21,32 @@
 #define __STDBOOL_H__ 1
 #include <AppDefs.h>
 #include <BeBuild.h>
+#include <Button.h>
+#include <CheckBox.h>
 #include <Clipboard.h>
 #include <Cursor.h>
 #include <InterfaceDefs.h>
 #include <Message.h>
+#include <FilePanel.h>
+#include <MenuItem.h>
+#include <Path.h>
+#include <PopUpMenu.h>
+#include <RadioButton.h>
 #include <ScrollBar.h>
 #include <String.h>
+#include <TextControl.h>
 #include <TextView.h>
 #include <View.h>
 #include <Window.h>
 #include <assert.h>
 #include <stdlib.h>
 
+#include <map>
+#include <new>
+
 extern "C" {
+#include <dom/html/html_form_element.h>
+#include <dom/html/html_input_element.h>
 #include "utils/log.h"
 #include "utils/nsoption.h"
 #include "utils/nsurl.h"
@@ -43,6 +56,7 @@ extern "C" {
 #include "wisp/browser_window.h"
 #include "wisp/clipboard.h"
 #include "wisp/content_type.h"
+#include "wisp/form.h"
 #include "wisp/inttypes.h"
 #include "wisp/keypress.h"
 #include "wisp/mouse.h"
@@ -92,6 +106,9 @@ struct gui_window {
     int32 pending_resizes;
     BRect pendingRedraw;
 
+    std::map<struct form_control *, BView *> widgets;
+    BFilePanel *wndOpenFile;
+
     struct gui_window *next, *prev;
 };
 
@@ -111,7 +128,7 @@ static void nsbeos_window_keypress_event(BView *view, gui_window *g, BMessage *e
 static void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *event);
 static void nsbeos_redraw_caret(struct gui_window *g);
-static bool nsbeos_gui_window_exists(struct gui_window *g);
+static void gui_window_cleanup_widgets(struct gui_window *g);
 
 
 NSBrowserFrameView::NSBrowserFrameView(BRect frame, struct gui_window *gui)
@@ -230,6 +247,13 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
         Window()->DetachCurrentMessage();
         nsbeos_pipe_message_top(message, NULL, fGuiWindow->scaffold);
         break;
+    case 'slct':
+    case 'fsel':
+    case 'gdgt':
+    case 'gmod':
+        Window()->DetachCurrentMessage();
+        nsbeos_pipe_message(message, this, fGuiWindow);
+        break;
     default:
         BView::MessageReceived(message);
     }
@@ -315,7 +339,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 {
     struct gui_window *g;
 
-    g = (struct gui_window *)malloc(sizeof(*g));
+    g = new (std::nothrow) struct gui_window();
     if (!g) {
         beos_warn_user("NoMemory", 0);
         return 0;
@@ -324,11 +348,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     NSLOG(wisp, INFO, "Creating gui window %p for browser window %p", g, bw);
 
     g->bw = bw;
-    g->mouse.state = 0;
     g->current_pointer = GUI_POINTER_DEFAULT;
-
-    g->careth = 0;
-    g->pending_resizes = 0;
 
     if (window_list)
         window_list->prev = g;
@@ -397,6 +417,79 @@ void nsbeos_dispatch_event(BMessage *message)
     }
 
     switch (message->what) {
+    case 'slct': {
+        struct form_control *control;
+        int32 index;
+        if (gui != NULL && message->FindPointer("control", (void **)&control) == B_OK &&
+            message->FindInt32("index", &index) == B_OK) {
+            form_select_process_selection(control, (int)index);
+        }
+        break;
+    }
+    case 'fsel': {
+        entry_ref ref;
+        struct form_control *gadget;
+        if (gui != NULL && message->FindRef("refs", &ref) == B_OK &&
+            message->FindPointer("gadget", (void **)&gadget) == B_OK) {
+            BPath path(&ref);
+            browser_window_set_gadget_filename(gui->bw, gadget, path.Path());
+        }
+        break;
+    }
+    case 'gmod':
+    case 'gdgt': {
+        struct form_control *control;
+        if (message->FindPointer("control", (void **)&control) == B_OK) {
+            if (gui == NULL) break;
+
+            if (gui->view && gui->view->LockLooper()) {
+                switch (control->type) {
+                case GADGET_SUBMIT:
+                    if (message->what == 'gdgt') {
+                        form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
+                    }
+                    break;
+                case GADGET_RESET:
+                    if (message->what == 'gdgt' && control->form && control->form->node) {
+                        dom_html_form_element_reset((dom_html_form_element *)control->form->node);
+                    }
+                    break;
+                case GADGET_BUTTON:
+                    break;
+                case GADGET_CHECKBOX: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BCheckBox *cb = (it != gui->widgets.end()) ? dynamic_cast<BCheckBox *>(it->second) : NULL;
+                    if (cb) {
+                        control->selected = (cb->Value() == B_CONTROL_ON);
+                        dom_html_input_element_set_checked((dom_html_input_element *)control->node, control->selected);
+                    }
+                    break;
+                }
+                case GADGET_RADIO: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BRadioButton *rb = (it != gui->widgets.end()) ? dynamic_cast<BRadioButton *>(it->second) : NULL;
+                    if (rb && rb->Value() == B_CONTROL_ON && control->selected == false) {
+                        form_radio_set(control);
+                    }
+                    break;
+                }
+                case GADGET_TEXTBOX:
+                case GADGET_PASSWORD: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
+                    if (tc) {
+                        form_gadget_update_value(control, tc->Text());
+                    }
+                    break;
+                }
+                default:
+                    break;
+                }
+                gui->view->UnlockLooper();
+            }
+        }
+        break;
+    }
     case B_QUIT_REQUESTED:
         nsbeos_done = true;
         break;
@@ -588,6 +681,7 @@ void nsbeos_dispatch_event(BMessage *message)
 void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 {
     BRect updateRect;
+    struct redraw_context ctx = {true, true, &nsbeos_plotters, g};
 
     assert(g);
     assert(g->bw);
@@ -952,23 +1046,38 @@ static void gui_window_destroy(struct gui_window *g)
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
 
-    if (g->view == NULL)
-        return;
-    if (!g->view->LockLooper())
-        return;
+    gui_window_cleanup_widgets(g);
 
-    BLooper *looper = g->view->Looper();
-    if (g->toplevel) {
-        g->view->RemoveSelf();
-        delete g->view;
-        nsbeos_scaffolding_destroy(g->scaffold);
-    } else {
-        g->view->RemoveSelf();
-        delete g->view;
-        looper->Unlock();
+    delete g->wndOpenFile;
+
+    if (g->view != NULL && g->view->LockLooper()) {
+        BLooper *looper = g->view->Looper();
+        if (g->toplevel) {
+            g->view->RemoveSelf();
+            delete g->view;
+            nsbeos_scaffolding_destroy(g->scaffold);
+        } else {
+            g->view->RemoveSelf();
+            delete g->view;
+            looper->Unlock();
+        }
     }
 
-    free(g);
+    delete g;
+}
+
+static void gui_window_cleanup_widgets(struct gui_window *g)
+{
+    if (g->view == NULL || !g->view->LockLooper())
+        return;
+
+    for (std::map<struct form_control *, BView *>::iterator it = g->widgets.begin(); it != g->widgets.end(); ++it) {
+        it->second->RemoveSelf();
+        delete it->second;
+    }
+    g->widgets.clear();
+
+    g->view->UnlockLooper();
 }
 
 void nsbeos_redraw_caret(struct gui_window *g)
@@ -1295,6 +1404,179 @@ static nserror gui_window_get_scrollbar_width(struct gui_window *g, int *width)
     return NSERROR_OK;
 }
 
+static void gui_window_create_form_select_menu(struct gui_window *g, struct form_control *control)
+{
+    BPopUpMenu *menu = new BPopUpMenu("select_menu", false, false);
+    struct form_option *option;
+    int i = 0;
+
+    while ((option = form_select_get_option(control, i)) != NULL) {
+        BMessage *msg = new BMessage('slct');
+        msg->AddInt32("index", i);
+        msg->AddPointer("control", control);
+        msg->AddPointer("gui_window", g);
+        BMenuItem *item = new BMenuItem(option->text, msg);
+        if (option->selected) {
+            item->SetMarked(true);
+        }
+        menu->AddItem(item);
+        i++;
+    }
+
+    if (!g->view->LockLooper()) {
+        delete menu;
+        return;
+    }
+    BPoint screen_pos = g->view->ConvertToScreen(BPoint(g->last_x, g->last_y));
+    g->view->UnlockLooper();
+
+    menu->SetTargetForItems(g->view);
+    /* Go(..., false) makes the menu synchronous, allowing us to delete it immediately after.
+     * The parameters are (where, deliversMessage, openAnyway, asynchronous). */
+    menu->Go(screen_pos, true, false, false);
+    delete menu;
+}
+
+
+static void gui_window_file_gadget_open(struct gui_window *g, struct hlcache_handle *hl, struct form_control *gadget)
+{
+    if (g->wndOpenFile == NULL) {
+        g->wndOpenFile = new BFilePanel(B_OPEN_PANEL, NULL, NULL, B_FILE_NODE, false);
+    }
+    BMessage msg('fsel');
+    msg.AddPointer("gui_window", g);
+    msg.AddPointer("gadget", gadget);
+    g->wndOpenFile->SetMessage(&msg);
+    g->wndOpenFile->SetTarget(BMessenger(g->view));
+    g->wndOpenFile->Show();
+}
+
+
+extern "C" nserror gui_window_draw_gadget(
+    const struct redraw_context *ctx, int x, int y, int width, int height, struct form_control *control)
+{
+    struct gui_window *g = (struct gui_window *)ctx->priv;
+    if (!g || !g->view)
+        return NSERROR_NOT_IMPLEMENTED;
+
+    BView *widget = NULL;
+
+    if (g->view->LockLooper()) {
+        std::map<struct form_control *, BView *>::iterator it = g->widgets.find(control);
+        if (it != g->widgets.end()) {
+            widget = it->second;
+        }
+        g->view->UnlockLooper();
+    }
+
+    if (widget == NULL) {
+        BRect frame(x, y, x + width - 1, y + height - 1);
+        BString label("");
+        if (control->value && (control->type == GADGET_SUBMIT || control->type == GADGET_RESET ||
+                                  control->type == GADGET_BUTTON || control->type == GADGET_CHECKBOX ||
+                                  control->type == GADGET_RADIO)) {
+            label = control->value;
+        }
+
+        BMessage *msg = new BMessage('gdgt');
+        msg->AddPointer("control", control);
+        msg->AddPointer("gui_window", g);
+
+        switch (control->type) {
+        case GADGET_SUBMIT:
+        case GADGET_RESET:
+        case GADGET_BUTTON:
+            widget = new BButton(frame, "wisp_button", label.String(), msg);
+            break;
+        case GADGET_CHECKBOX:
+            widget = new BCheckBox(frame, "wisp_checkbox", "", msg);
+            ((BCheckBox *)widget)->SetValue(control->selected ? B_CONTROL_ON : B_CONTROL_OFF);
+            break;
+        case GADGET_RADIO:
+            widget = new BRadioButton(frame, "wisp_radio", "", msg);
+            ((BRadioButton *)widget)->SetValue(control->selected ? B_CONTROL_ON : B_CONTROL_OFF);
+            break;
+        case GADGET_TEXTBOX:
+        case GADGET_PASSWORD:
+            widget = new BTextControl(frame, "wisp_text", "", control->value ? control->value : "", msg);
+            if (control->type == GADGET_PASSWORD) {
+                ((BTextControl *)widget)->TextView()->HideTyping(true);
+            }
+            {
+                BMessage *mod = new BMessage('gmod');
+                mod->AddPointer("control", control);
+                mod->AddPointer("gui_window", g);
+                ((BTextControl *)widget)->SetModificationMessage(mod);
+            }
+            break;
+        default:
+            delete msg;
+            return NSERROR_NOT_IMPLEMENTED;
+        }
+
+        if (widget) {
+            if (g->view->LockLooper()) {
+                g->view->AddChild(widget);
+                widget->SetTarget(g->view);
+                g->widgets[control] = widget;
+                g->view->UnlockLooper();
+            } else {
+                delete widget;
+                return NSERROR_NOMEM;
+            }
+        }
+    }
+
+    if (widget) {
+        if (g->view->LockLooper()) {
+            if (widget->Frame().left != x || widget->Frame().top != y) {
+                widget->MoveTo(x, y);
+            }
+            if (widget->Bounds().Width() != (width - 1) || widget->Bounds().Height() != (height - 1)) {
+                widget->ResizeTo(width - 1, height - 1);
+            }
+
+            /* Sync state from core to native widget */
+            switch (control->type) {
+            case GADGET_CHECKBOX: {
+                BCheckBox *cb = dynamic_cast<BCheckBox *>(widget);
+                int32 val = control->selected ? B_CONTROL_ON : B_CONTROL_OFF;
+                if (cb && cb->Value() != val) {
+                    cb->SetValue(val);
+                }
+                break;
+            }
+            case GADGET_RADIO: {
+                BRadioButton *rb = dynamic_cast<BRadioButton *>(widget);
+                int32 val = control->selected ? B_CONTROL_ON : B_CONTROL_OFF;
+                if (rb && rb->Value() != val) {
+                    rb->SetValue(val);
+                }
+                break;
+            }
+            case GADGET_TEXTBOX:
+            case GADGET_PASSWORD: {
+                BTextControl *tc = dynamic_cast<BTextControl *>(widget);
+                if (tc) {
+                    const char *core_val = control->value ? control->value : "";
+                    if (strcmp(tc->Text(), core_val) != 0) {
+                        tc->SetText(core_val);
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+            }
+
+            g->view->UnlockLooper();
+        }
+    }
+
+    return NSERROR_OK;
+}
+
+
 static nserror gui_window_event(struct gui_window *gw, enum gui_window_event event)
 {
     switch (event) {
@@ -1305,6 +1587,7 @@ static nserror gui_window_event(struct gui_window *gw, enum gui_window_event eve
         gui_window_remove_caret(gw);
         break;
     case GW_EVENT_NEW_CONTENT:
+        gui_window_cleanup_widgets(gw);
         gui_window_new_content(gw);
         break;
     case GW_EVENT_START_SELECTION:
@@ -1341,8 +1624,8 @@ static struct gui_window_table window_table = {
     .place_caret = gui_window_place_caret,
     .drag_start = NULL,
     .save_link = NULL,
-    .create_form_select_menu = NULL,
-    .file_gadget_open = NULL,
+    .create_form_select_menu = gui_window_create_form_select_menu,
+    .file_gadget_open = gui_window_file_gadget_open,
     .drag_save_object = NULL,
     .drag_save_selection = NULL,
     .console_log = NULL
