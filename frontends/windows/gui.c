@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <windows.h>
+#include <versionhelpers.h>
 
 #include "wisp/browser_window.h"
 #include "wisp/utils/corestrings.h"
@@ -70,6 +71,22 @@ nserror nsw32_add_dialog(HWND hwndDlg)
     dlglist = nentry;
 
     return NSERROR_OK;
+}
+
+enum win_os_version nsw32_get_os_version(void)
+{
+    static enum win_os_version version = WIN_OS_UNKNOWN;
+    if (version != WIN_OS_UNKNOWN) return version;
+
+    if (IsWindows10OrGreater()) {
+        version = WIN_OS_10_PLUS;
+    } else if (IsWindows7OrGreater()) {
+        version = WIN_OS_7_8;
+    } else {
+        version = WIN_OS_XP_VISTA;
+    }
+
+    return version;
 }
 
 /* exported interface documented in gui.h */

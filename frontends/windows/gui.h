@@ -83,5 +83,20 @@ nserror nsw32_add_dialog(HWND hwndDlg);
  */
 nserror nsw32_del_dialog(HWND hwndDlg);
 
+/**
+ * Windows OS version
+ */
+enum win_os_version {
+    WIN_OS_UNKNOWN,
+    WIN_OS_XP_VISTA,
+    WIN_OS_7_8,
+    WIN_OS_10_PLUS
+};
+
+/**
+ * Get the Windows OS version
+ */
+enum win_os_version nsw32_get_os_version(void);
+
 
 #endif

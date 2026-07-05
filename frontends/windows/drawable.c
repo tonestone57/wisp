@@ -411,6 +411,9 @@ static LRESULT nsws_drawable_keydown(struct gui_window *gw, HWND hwnd, WPARAM wp
 #ifdef WISP_WINDOWS_USE_D2D
 extern void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd);
 #endif
+#ifdef WITH_BLEND2D
+extern void nsws_drawable_paint_blend2d(struct gui_window *gw, HWND hwnd);
+#endif
 
 /**
  * Handle paint messages.
@@ -421,19 +424,41 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
     PAINTSTRUCT ps;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
 
-#ifdef WISP_WINDOWS_USE_D2D
     if (gw != NULL) {
-        if (!gw->d2d_initialised && gw->d2d_enabled) {
-            /* Try to re-initialise if previously lost */
-            nsws_window_init_d2d(gw);
+        enum win_os_version os_ver = nsw32_get_os_version();
+        int backend = nsoption_int(render_backend);
+
+        /* Explicit Blend2D choice or Auto-selection for Legacy Windows */
+        if (backend == 2 /* Blend2D */ || (backend == 0 /* Auto */ && os_ver == WIN_OS_XP_VISTA)) {
+#ifdef WITH_BLEND2D
+            nsws_drawable_paint_blend2d(gw, hwnd);
+            return 0;
+#endif
         }
 
-        if (gw->d2d_initialised) {
-            nsws_drawable_paint_d2d(gw, hwnd);
+        /* Try Direct2D if Native or Auto (and not already handled) */
+        if (backend == 1 /* Native */ || backend == 0 /* Auto */) {
+#ifdef WISP_WINDOWS_USE_D2D
+            if (!gw->d2d_initialised && gw->d2d_enabled) {
+                /* Try to re-initialise if previously lost */
+                nsws_window_init_d2d(gw);
+            }
+
+            if (gw->d2d_initialised) {
+                nsws_drawable_paint_d2d(gw, hwnd);
+                return 0;
+            }
+#endif
+        }
+
+        /* Fallback to Blend2D if Direct2D failed/unavailable in Auto mode */
+        if (backend == 0 /* Auto */) {
+#ifdef WITH_BLEND2D
+            nsws_drawable_paint_blend2d(gw, hwnd);
             return 0;
+#endif
         }
     }
-#endif
 
     BeginPaint(hwnd, &ps);
 

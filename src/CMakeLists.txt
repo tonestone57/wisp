@@ -306,6 +306,10 @@ target_include_directories(wisp PRIVATE
     ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
 )
 
+if(WISP_USE_BLEND2D)
+    target_include_directories(wisp PRIVATE "${CMAKE_SOURCE_DIR}/contrib/blend2d")
+endif()
+
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)
 

@@ -152,6 +152,10 @@ static void nsgtk_select_menu_clicked(GtkCheckMenuItem *checkmenuitem, gpointer 
     form_select_process_selection(select_menu_control, (intptr_t)user_data);
 }
 
+#ifdef WITH_BLEND2D
+#include <wisp/desktop/plot_blend2d.h>
+#endif
+
 struct nsgtk_tile_task_t {
     struct rect tile_clip;
     float priority;
@@ -174,6 +178,18 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     struct gui_window *z;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &nsgtk_plotters};
 
+#ifdef WITH_BLEND2D
+    int backend = nsoption_int(render_backend);
+    BLImageCore img;
+    BLContextCore bl_ctx;
+    bool using_blend2d = false;
+
+    if (backend == 2 || backend == 0) {
+        using_blend2d = true;
+        ctx.plot = &blend2d_plotters;
+    }
+#endif
+
     double x1;
     double y1;
     double x2;
@@ -193,6 +209,33 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     GtkAdjustment *hscroll = nsgtk_layout_get_hadjustment(gw->layout);
 
     cairo_clip_extents(cr, &x1, &y1, &x2, &y2);
+
+#ifdef WITH_BLEND2D
+    struct blend2d_context bl_wrap;
+    cairo_surface_t *bl_surface = NULL;
+    cairo_t *bl_cr = NULL;
+
+    if (using_blend2d) {
+        int width = gtk_widget_get_allocated_width(widget);
+        int height = gtk_widget_get_allocated_height(widget);
+        bl_image_init_as(&img, width, height, BL_FORMAT_PRGB32);
+        bl_context_init_as(&bl_ctx, &img, NULL);
+        bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+        bl_context_fill_all(&bl_ctx);
+
+        BLImageData img_data;
+        bl_image_get_data(&img, &img_data);
+        bl_surface = cairo_image_surface_create_for_data(
+            img_data.pixel_data, CAIRO_FORMAT_ARGB32, width, height, img_data.stride);
+        bl_cr = cairo_create(bl_surface);
+
+        bl_wrap.bl_ctx = &bl_ctx;
+        bl_wrap.native_text_handler = nsgtk_plotters.text;
+        bl_wrap.native_priv = bl_cr;
+
+        ctx.priv = &bl_wrap;
+    }
+#endif
 
     /* Fixed-Tile Redraw Implementation */
     int tile_size = browser_get_tile_size();
@@ -252,6 +295,21 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     }
 
     free(tasks);
+
+#ifdef WITH_BLEND2D
+    if (using_blend2d) {
+        if (ctx.plot->finalise) ctx.plot->finalise(&ctx);
+        bl_context_end(&bl_ctx);
+
+        cairo_set_source_surface(cr, bl_surface, 0, 0);
+        cairo_paint(cr);
+
+        cairo_destroy(bl_cr);
+        cairo_surface_destroy(bl_surface);
+        bl_context_destroy(&bl_ctx);
+        bl_image_destroy(&img);
+    }
+#endif
 
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);

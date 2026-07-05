@@ -24,6 +24,11 @@
 #include <QPaintEvent>
 #include <QPainter>
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include <wisp/desktop/plot_blend2d.h>
+#endif
+
 extern "C" {
 #include "utils/errors.h"
 #include "utils/log.h"
@@ -176,6 +181,62 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     if (m_bw == nullptr) {
         return;
     }
+
+#ifdef WITH_BLEND2D
+    int backend = nsoption_int(render_backend);
+    if (backend == 2 || backend == 0) {
+        QPainter qp(this);
+        int w = width();
+        int h = height();
+        if (w <= 0 || h <= 0) return;
+
+        BLImageCore img;
+        bl_image_init_as(&img, w, h, BL_FORMAT_PRGB32);
+        BLContextCore bl_ctx;
+        bl_context_init_as(&bl_ctx, &img, NULL);
+        bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+        bl_context_fill_all(&bl_ctx);
+
+        BLImageData img_data;
+        bl_image_get_data(&img, &img_data);
+        QImage qimg((uchar*)img_data.pixel_data, w, h, (int)img_data.stride, QImage::Format_ARGB32_Premultiplied);
+
+        /* Native text rendering must draw into the same buffer as Blend2D */
+        QPainter buffer_painter(&qimg);
+
+        struct blend2d_context bl_wrap = {
+            .bl_ctx = &bl_ctx,
+            .native_text_handler = nsqt_plotters.text,
+            .native_priv = &buffer_painter
+        };
+
+        struct redraw_context ctx = {
+            .interactive = true,
+            .background_images = true,
+            .plot = &blend2d_plotters,
+            .priv = &bl_wrap,
+        };
+
+        QRect updateRect = event->rect();
+        struct rect clip = { updateRect.left(), updateRect.top(), updateRect.right() + 1, updateRect.bottom() + 1 };
+
+        browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &clip, &ctx);
+        if (ctx.plot->finalise) ctx.plot->finalise(&ctx);
+        bl_context_end(&bl_ctx);
+
+        buffer_painter.end();
+        qp.drawImage(0, 0, qimg);
+
+        bl_context_destroy(&bl_ctx);
+        bl_image_destroy(&img);
+
+        /* Caret still needs to be drawn natively as it uses RasterOp_NotDestination */
+        struct redraw_context caret_ctx = { .priv = &qp };
+        redraw_caret(&clip, &caret_ctx);
+        return;
+    }
+#endif
+
     QPainter *painter = new QPainter(this);
 
     /* Enable antialiasing for smoother edges on diagonal lines and curves */

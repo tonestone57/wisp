@@ -31,6 +31,7 @@ set(WISP_WINDOWS_SRCS
 	plot_d2d.cpp
 	font_dwrite.cpp
 	paint_d2d.cpp
+	paint_blend2d.c
 )
 
 
