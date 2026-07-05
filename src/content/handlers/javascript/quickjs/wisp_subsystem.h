@@ -7,6 +7,7 @@ extern "C" {
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include "quickjs.h"
 
 #ifdef _WIN32

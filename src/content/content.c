@@ -199,6 +199,7 @@ nserror content__init(struct content *c, const content_handler *handler, lwc_str
     }
 
     c->llcache = llcache;
+    c->pending_delete = false;
     c->mime_type = lwc_string_ref(imime_type);
     c->handler = handler;
     c->status = CONTENT_STATUS_LOADING;
@@ -212,6 +213,7 @@ nserror content__init(struct content *c, const content_handler *handler, lwc_str
     c->size = 0;
     c->title = NULL;
     c->active = 0;
+    c->active_bg_tasks = 0;
     user_sentinel->callback = NULL;
     user_sentinel->pw = NULL;
     user_sentinel->next = NULL;
@@ -679,8 +681,10 @@ void content_remove_user(struct content *c,
     free(next);
 
     if (c->pending_delete && content_count_users(c) == 0) {
-        NSLOG(wisp, INFO, "content %p deferred destruction completing", c);
-        content_actually_destroy(c);
+        if (__atomic_load_n(&c->active_bg_tasks, __ATOMIC_SEQ_CST) == 0) {
+            NSLOG(wisp, INFO, "content %p deferred destruction completing", c);
+            content_actually_destroy(c);
+        }
     }
 }
 
@@ -1367,6 +1371,7 @@ nserror content__clone(const struct content *c, struct content *nc)
 
     llcache_handle_change_callback(nc->llcache, content_llcache_callback, nc);
 
+    nc->pending_delete = false;
     nc->mime_type = lwc_string_ref(c->mime_type);
     nc->handler = c->handler;
 
@@ -1403,6 +1408,7 @@ nserror content__clone(const struct content *c, struct content *nc)
     }
 
     nc->active = c->active;
+    nc->active_bg_tasks = 0;
 
     nc->user_list = calloc(1, sizeof(struct content_user));
     if (nc->user_list == NULL) {
@@ -1456,7 +1462,11 @@ void content_dec_bg_tasks(struct hlcache_handle *h)
 {
     struct content *c = hlcache_handle_get_content(h);
     if (c != NULL) {
-        __atomic_sub_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST);
+        if (__atomic_sub_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST) == 0 && c->pending_delete) {
+            if (content_count_users(c) == 0) {
+                content_actually_destroy(c);
+            }
+        }
     }
 }
 

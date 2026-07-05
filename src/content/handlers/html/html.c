@@ -887,11 +887,9 @@ static void html_parse_complete_cb(void *arg)
 	}
 
 	html->base.active--;
-	__atomic_sub_fetch(&html->base.active_bg_tasks, 1, __ATOMIC_SEQ_CST);
-
 	html_parse_task_free(task);
 
-	if (html->base.pending_delete && __atomic_load_n(&html->base.active_bg_tasks, __ATOMIC_SEQ_CST) == 0) {
+	if (__atomic_sub_fetch(&html->base.active_bg_tasks, 1, __ATOMIC_SEQ_CST) == 0 && html->base.pending_delete) {
 		content_destroy(&html->base);
 		return;
 	}
@@ -966,7 +964,7 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
 
 	if (!thread_pool_add_task(html_parser_pool, html_parse_worker, task)) {
 		html->base.active--;
-		html->base.active_bg_tasks--;
+		__atomic_sub_fetch(&html->base.active_bg_tasks, 1, __ATOMIC_SEQ_CST);
 		html_parse_task_free(task);
 		return false;
 	}
