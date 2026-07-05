@@ -1,9 +1,13 @@
 #ifndef WISP_SUBSYSTEM_H
 #define WISP_SUBSYSTEM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <pthread.h>
-#include <stdatomic.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include "quickjs.h"
 
 #ifdef _WIN32
@@ -15,6 +19,8 @@ typedef struct js_task_t {
     char *script;
     void (*function)(void*);
     void *arg;
+    float priority;
+    uint64_t entry_time;
 } js_task_t;
 
 struct WispPool;
@@ -26,7 +32,7 @@ typedef struct {
     pthread_t thread;
 #endif
     int worker_id;
-    atomic_bool running;
+    bool running;
     JSRuntime *rt;
     JSContext *ctx;
     struct WispPool *pool;
@@ -60,12 +66,16 @@ void init_wisp_subsystem(int queue_size);
 void shutdown_wisp_subsystem(void);
 
 /* Task dispatching */
-bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg);
-void wisp_dispatch_js(const char *script, void (*func)(void*), void *arg);
+bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg, float priority);
+bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
 /* Deprecated/Compatibility wrapper */
 void wisp_dispatch(char *script, void (*func)(void*), void *arg);
 
 /* Internal worker routine */
 void* wisp_worker_routine(void *arg);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // WISP_SUBSYSTEM_H

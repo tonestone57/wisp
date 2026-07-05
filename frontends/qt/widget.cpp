@@ -40,6 +40,8 @@ extern "C" {
 #include "qt/misc.h"
 #include "qt/plotters.h"
 #include "qt/widget.cls.h"
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
+#include "wisp/content.h"
 
 
 #define CARET_WIDTH 1
@@ -56,6 +58,21 @@ NS_Widget::NS_Widget(QWidget *parent, NS_Actions *actions, struct browser_window
 {
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
+}
+
+
+struct qt_tile_task_t {
+    struct rect tile_clip;
+    float priority;
+};
+
+static int qt_tile_task_compare(const void *a, const void *b)
+{
+    const struct qt_tile_task_t *ta = (const struct qt_tile_task_t *)a;
+    const struct qt_tile_task_t *tb = (const struct qt_tile_task_t *)b;
+    if (ta->priority > tb->priority) return -1;
+    if (ta->priority < tb->priority) return 1;
+    return 0;
 }
 
 
@@ -183,6 +200,16 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     int x_start = rect_left - (rect_left % tile_size);
     int y_start = rect_top - (rect_top % tile_size);
 
+    int v_x = m_xoffset;
+    int v_y = m_yoffset;
+    int v_w = width();
+    int v_h = height();
+
+    /* Collect all tiles in the update region */
+    int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
+    struct qt_tile_task_t *tasks = (struct qt_tile_task_t *)malloc(sizeof(struct qt_tile_task_t) * max_tiles);
+    int task_count = 0;
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = std::max(ty, rect_top);
         int t_y1 = std::min(ty + tile_size, rect_bottom);
@@ -197,15 +224,28 @@ void NS_Widget::paintEvent(QPaintEvent *event)
             if (tile_clip.x0 >= tile_clip.x1 || tile_clip.y0 >= tile_clip.y1)
                 continue;
 
-            painter->save();
-            painter->setClipRect(tile_clip.x0, tile_clip.y0,
-                                 tile_clip.x1 - tile_clip.x0, tile_clip.y1 - tile_clip.y0);
-
-            browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &tile_clip, &ctx);
-
-            painter->restore();
+            tasks[task_count].tile_clip = tile_clip;
+            tasks[task_count].priority = browser_calculate_tile_priority(tx + m_xoffset, ty + m_yoffset, v_x, v_y, v_w, v_h);
+            task_count++;
         }
     }
+
+    /* Sort tiles by priority to ensure visible/near ones are drawn first */
+    qsort(tasks, task_count, sizeof(struct qt_tile_task_t), qt_tile_task_compare);
+
+    /* Execute prioritized redraw loop on main thread (safe for QPainter) */
+    for (int i = 0; i < task_count; i++) {
+        painter->save();
+        painter->setClipRect(tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+                             tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
+                             tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
+
+        browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &tasks[i].tile_clip, &ctx);
+
+        painter->restore();
+    }
+
+    free(tasks);
 
     struct rect full_clip = {
         .x0 = updateRect.left(),

@@ -228,4 +228,18 @@ bool content_is_selectable(struct hlcache_handle *h);
  */
 bool content_is_searchable(struct hlcache_handle *h);
 
+/**
+ * Increment the background task count for a content object.
+ *
+ * \param h The content handle.
+ */
+void content_inc_bg_tasks(struct hlcache_handle *h);
+
+/**
+ * Decrement the background task count for a content object.
+ *
+ * \param h The content handle.
+ */
+void content_dec_bg_tasks(struct hlcache_handle *h);
+
 #endif

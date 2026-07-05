@@ -22,9 +22,16 @@
 
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/utils/log.h"
+#include "wisp/browser.h"
+#include "wisp/content.h"
 
 // Mock for nslog_log used by NSLOG macro
 void nslog_log(enum nslog_level level, const char *file, const char *func, int ln, const char *format, ...) {}
+
+struct hlcache_handle { int dummy; };
+struct content *hlcache_handle_get_content(struct hlcache_handle *h) { return (struct content *)h; }
+void content_inc_bg_tasks(struct hlcache_handle *h) {}
+void content_dec_bg_tasks(struct hlcache_handle *h) {}
 
 static int task_executed_count = 0;
 static ns_mutex_t count_lock;
@@ -71,11 +78,11 @@ START_TEST(test_subsystem_dispatch)
     task_executed_count = 0;
 
     // Dispatch to JS pool
-    wisp_dispatch_js(NULL, test_task, NULL);
-    wisp_dispatch_js(NULL, test_task, NULL);
+    ck_assert(wisp_dispatch_js(NULL, test_task, NULL, 0.0f));
+    ck_assert(wisp_dispatch_js(NULL, test_task, NULL, 0.0f));
 
     // Dispatch to Raster pool
-    wisp_dispatch_raster(NULL, test_task, NULL);
+    ck_assert(wisp_dispatch_raster(NULL, test_task, NULL, 0.0f));
 
     // Wait for tasks to complete
     int retries = 0;
@@ -96,6 +103,98 @@ START_TEST(test_subsystem_dispatch)
 }
 END_TEST
 
+START_TEST(test_browser_tile_priority)
+{
+    float p;
+    int tile_size = browser_get_tile_size();
+
+    /* 1. Visible tile (center is inside viewport) */
+    /* Viewport: (0,0) to (1000, 1000) */
+    /* Tile: (100, 100). Center: (100+tile_size/2, 100+tile_size/2) -> (228, 228) if 256 */
+    p = browser_calculate_tile_priority(100, 100, 0, 0, 1000, 1000);
+    ck_assert_float_eq(p, 1.0f);
+
+    /* 2. Distant tile */
+    /* Viewport: (0,0) to (100, 100) */
+    /* Tile: (1000, 1000). Center: (1128, 1128) if 256.
+     * dx = 1128 - 100 = 1028. dy = 1028. dist = sqrt(1028^2 + 1028^2) approx 1453. */
+    p = browser_calculate_tile_priority(1000, 1000, 0, 0, 100, 100);
+    ck_assert_msg(p < 0.1f, "Priority for distant tile should be low (got %f)", p);
+    ck_assert_msg(p > 0.0f, "Priority should be positive");
+
+    /* 3. Edge case: 0x0 viewport */
+    p = browser_calculate_tile_priority(0, 0, 0, 0, 0, 0);
+    /* Tile center (128, 128). dx=128, dy=128. dist = 181. p = 1/182 approx 0.005 */
+    ck_assert_msg(p < 1.0f, "Priority for 0x0 viewport should not be 1.0 (got %f)", p);
+    ck_assert_msg(p > 0.0f, "Priority should be positive");
+
+    /* 4. Large coordinates */
+    p = browser_calculate_tile_priority(1000000, 1000000, 0, 0, 100, 100);
+    ck_assert_msg(p < 0.001f, "Priority for extremely distant tile should be very low (got %f)", p);
+}
+END_TEST
+
+static int priority_results[4];
+static int priority_idx = 0;
+static ns_mutex_t priority_lock;
+static ns_mutex_t block_lock;
+
+static void blocker_task(void *arg) {
+    ns_mutex_lock(&block_lock);
+    ns_mutex_unlock(&block_lock);
+}
+
+static void priority_task(void *arg) {
+    int val = (int)(intptr_t)arg;
+    ns_mutex_lock(&priority_lock);
+    priority_results[priority_idx++] = val;
+    ns_mutex_unlock(&priority_lock);
+}
+
+START_TEST(test_subsystem_priority)
+{
+    /* Initialize with 1 worker in JS pool for predictability */
+    init_wisp_subsystem(10);
+
+    ns_mutex_lock(&block_lock);
+    priority_idx = 0;
+
+    /* 1. Dispatch a blocker task to occupy the worker */
+    ck_assert(wisp_dispatch_js(NULL, blocker_task, NULL, 1.0f));
+
+    /* 2. Dispatch tasks with different priorities.
+     * They will be queued because the worker is blocked. */
+    ck_assert(wisp_dispatch_js(NULL, priority_task, (void*)(intptr_t)1, 0.1f)); /* Low */
+    ck_assert(wisp_dispatch_js(NULL, priority_task, (void*)(intptr_t)3, 0.9f)); /* High */
+    ck_assert(wisp_dispatch_js(NULL, priority_task, (void*)(intptr_t)2, 0.5f)); /* Mid */
+
+    /* 3. Unblock the worker */
+    ns_mutex_unlock(&block_lock);
+
+    /* Wait for tasks to complete */
+    int retries = 0;
+    while (retries < 50) {
+        ns_mutex_lock(&priority_lock);
+        if (priority_idx == 3) {
+            ns_mutex_unlock(&priority_lock);
+            break;
+        }
+        ns_mutex_unlock(&priority_lock);
+        ns_usleep(100000);
+        retries++;
+    }
+
+    ck_assert_int_eq(priority_idx, 3);
+
+    /* Order MUST be 3 (0.9), 2 (0.5), 1 (0.1) due to priority-based insertion */
+    ck_assert_int_eq(priority_results[0], 3);
+    ck_assert_int_eq(priority_results[1], 2);
+    ck_assert_int_eq(priority_results[2], 1);
+
+    shutdown_wisp_subsystem();
+}
+END_TEST
+
 Suite *subsystem_suite(void)
 {
     Suite *s = suite_create("WispSubsystem");
@@ -103,6 +202,8 @@ Suite *subsystem_suite(void)
 
     tcase_add_test(tc_core, test_subsystem_init_shutdown);
     tcase_add_test(tc_core, test_subsystem_dispatch);
+    tcase_add_test(tc_core, test_subsystem_priority);
+    tcase_add_test(tc_core, test_browser_tile_priority);
 
     suite_add_tcase(s, tc_core);
     return s;
@@ -115,9 +216,13 @@ int main(void)
     SRunner *sr = srunner_create(s);
 
     ns_mutex_init(&count_lock);
+    ns_mutex_init(&priority_lock);
+    ns_mutex_init(&block_lock);
     srunner_run_all(sr, CK_VERBOSE);
     number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);
+    ns_mutex_destroy(&block_lock);
+    ns_mutex_destroy(&priority_lock);
     ns_mutex_destroy(&count_lock);
 
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;

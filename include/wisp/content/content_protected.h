@@ -207,8 +207,6 @@ struct content {
      */
     struct llcache_handle *llcache;
 
-    bool pending_delete;
-
     /**
      * Original MIME type of data
      */
@@ -320,15 +318,14 @@ struct content {
     } textsearch;
 
     /**
-     * Refcount for background parser tasks.
-     * Prevents content_destroy from freeing the structure until 0.
+     * Number of active background tasks (e.g. parallel rendering)
      */
     int active_bg_tasks;
 
     /**
      * Set to true if content_destroy was called but deferred due to active background tasks.
      */
-    bool pending_deletion;
+    bool pending_delete;
 };
 
 extern const char *const content_type_name[];

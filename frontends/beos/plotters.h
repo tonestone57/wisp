@@ -34,7 +34,7 @@ extern const struct plotter_table blend2d_plotters;
 
 #include <View.h>
 
-extern BView *current_view;
+extern __thread BView *current_view;
 
 extern BView *nsbeos_current_gc(void);
 extern BView *nsbeos_current_gc_lock(void);
