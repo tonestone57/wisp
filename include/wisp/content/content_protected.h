@@ -207,8 +207,6 @@ struct content {
      */
     struct llcache_handle *llcache;
 
-    bool pending_delete;
-
     /**
      * Original MIME type of data
      */
@@ -286,11 +284,6 @@ struct content {
     unsigned int active;
 
     /**
-     * Number of active background tasks (e.g. parallel rendering)
-     */
-    int active_bg_tasks;
-
-    /**
      * List of users.
      */
     struct content_user *user_list;
@@ -324,6 +317,16 @@ struct content {
         char *string;
         struct textsearch_context *context;
     } textsearch;
+
+    /**
+     * Number of active background tasks (e.g. parallel rendering)
+     */
+    int active_bg_tasks;
+
+    /**
+     * Set to true if content_destroy was called but deferred due to active background tasks.
+     */
+    bool pending_delete;
 
 };
 
