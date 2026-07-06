@@ -485,10 +485,13 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
                 bl_image_init_as_from_data(&img, gw->width, gw->height, BL_FORMAT_PRGB32, pixels, gw->width * 4, BL_DATA_ACCESS_RW, NULL, NULL);
                 bl_context_init_as(&bl_ctx, &img, NULL);
 
+                HDC memdc = CreateCompatibleDC(ps.hdc);
+                HGDIOBJ oldbm = SelectObject(memdc, hbm);
+
                 struct blend2d_context b2d_ctx = {
                     .bl_ctx = &bl_ctx,
-                    .native_ctx = ps.hdc,
-                    .native_text_handler = NULL /* Use Blend2D text on XP, or implement GDI handler if needed */
+                    .native_ctx = memdc,
+                    .native_text_handler = NULL
                 };
 
                 ctx.plot = &blend2d_plotters;
@@ -502,12 +505,21 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
                 };
                 browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &clip, &ctx);
 
+                if (gw->careth != 0) {
+                    /* Native caret rendering interop */
+                    HPEN pen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+                    HGDIOBJ oldpen = SelectObject(memdc, pen);
+                    MoveToEx(memdc, gw->caretx - gw->scrollx, gw->carety - gw->scrolly, NULL);
+                    LineTo(memdc, gw->caretx - gw->scrollx, gw->carety - gw->scrolly + gw->careth);
+                    SelectObject(memdc, oldpen);
+                    DeleteObject(pen);
+                }
+
                 bl_context_end(&bl_ctx);
                 bl_context_destroy(&bl_ctx);
 
-                HDC memdc = CreateCompatibleDC(ps.hdc);
-                HGDIOBJ oldbm = SelectObject(memdc, hbm);
                 BitBlt(ps.hdc, 0, 0, gw->width, gw->height, memdc, 0, 0, SRCCOPY);
+
                 SelectObject(memdc, oldbm);
                 DeleteDC(memdc);
                 DeleteObject(hbm);

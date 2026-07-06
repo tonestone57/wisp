@@ -73,9 +73,13 @@ static int macos_tile_task_compare(const void *a, const void *b)
 
             extern nserror macos_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 
+            /* Create a temporary CGContext that shares the same memory as Blend2D */
+            CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+            CGContextRef bitmapCtx = CGBitmapContextCreate(data, width, height, 8, bytesPerRow, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+
             struct blend2d_context b2d_ctx = {
                 .bl_ctx = &bl_ctx,
-                .native_ctx = ctx,
+                .native_ctx = bitmapCtx,
                 .native_text_handler = macos_plot_text_ns
             };
 
@@ -93,10 +97,9 @@ static int macos_tile_task_compare(const void *a, const void *b)
             bl_context_destroy(&bl_ctx);
             bl_image_destroy(&bl_img);
 
-            CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-            CGContextRef bitmapCtx = CGBitmapContextCreate(data, width, height, 8, bytesPerRow, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
             CGImageRef image = CGBitmapContextCreateImage(bitmapCtx);
 
+            /* Since it's flipped, we might need to handle orientation, but for now blit as is */
             CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
 
             CGImageRelease(image);
@@ -104,6 +107,8 @@ static int macos_tile_task_compare(const void *a, const void *b)
             CGColorSpaceRelease(colorSpace);
             free(data);
             return;
+        }
+    }
         }
     }
 #endif
