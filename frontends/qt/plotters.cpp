@@ -52,6 +52,11 @@ extern "C" {
 #include "qt/plotters.h"
 #include "qt/window.h"
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+#endif
+
 static __thread QPainterPath *current_path = nullptr;
 
 /**
@@ -468,12 +473,14 @@ static nserror nsqt_plot_text(const struct redraw_context *ctx, const struct plo
 /**
  * Native typography handler for Blend2D on Qt.
  */
+#ifdef WITH_BLEND2D
 extern "C" nserror nsqt_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length)
 {
     struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
     QPainter *painter = (QPainter *)b2d_ctx->native_ctx;
     return nsqt_layout_plot(painter, fstyle, x, y, text, length);
 }
+#endif
 
 
 /**

@@ -44,6 +44,11 @@
 #include "windows/plot.h"
 #include "windows/window.h"
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+#endif
+
 /**
  * Check if a transform is identity or NULL.
  */
@@ -1194,6 +1199,7 @@ static nserror text(const struct redraw_context *ctx, const struct plot_font_sty
 /**
  * Native typography handler for Blend2D on Windows.
  */
+#ifdef WITH_BLEND2D
 nserror win32_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length)
 {
     struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
@@ -1207,6 +1213,7 @@ nserror win32_plot_text_ns(const struct redraw_context *ctx, const plot_font_sty
 
     return res;
 }
+#endif
 
 
 #ifdef WISP_WINDOWS_NATIVE_LINEAR_GRADIENT

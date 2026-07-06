@@ -39,6 +39,11 @@
 #include "gtk/plotters.h"
 #include "gtk/scaffolding.h"
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+#endif
+
 cairo_t *current_cr;
 
 static GdkRectangle cliprect;
@@ -598,6 +603,7 @@ static nserror nsgtk_plot_text(const struct redraw_context *ctx, const struct pl
 /**
  * Native typography handler for Blend2D.
  */
+#ifdef WITH_BLEND2D
 nserror nsgtk_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length)
 {
     struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
@@ -613,6 +619,7 @@ nserror nsgtk_plot_text_ns(const struct redraw_context *ctx, const plot_font_sty
     cairo_destroy(cr);
     return res;
 }
+#endif
 
 
 /**
