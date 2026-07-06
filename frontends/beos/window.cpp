@@ -799,6 +799,21 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     if (browser_window_has_content(g->bw) == false)
         return;
 
+    int backend = nsoption_int(render_backend);
+    bool use_blend2d = (backend == OPTION_RENDER_BACKEND_BLEND2D);
+    /* For Haiku, OPTION_RENDER_BACKEND_AUTO remains Native */
+
+    if (!use_blend2d) {
+        if (view->LockLooper()) {
+            struct rect clip = {(int)updateRect.left, (int)updateRect.top, (int)updateRect.right + 1, (int)updateRect.bottom + 1};
+            nsbeos_current_gc_set(view);
+            browser_window_redraw(g->bw, 0, 0, &clip, &ctx);
+            nsbeos_current_gc_set(NULL);
+            view->UnlockLooper();
+        }
+        return;
+    }
+
     /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();
 

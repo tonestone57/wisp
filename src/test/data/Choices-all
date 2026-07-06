@@ -89,8 +89,8 @@ sys_colour_SelectedItemText:ffffff
 sys_colour_VisitedText:551a8b
 log_filter:level:WARNING
 verbose_filter:level:DEBUG
-render_backend:0
 colour_selection:0
+render_backend:0
 downloads_clear:0
 request_overwrite:1
 downloads_directory:/home/vince

@@ -195,18 +195,20 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
 
         /* Create a surface for Blend2D to render into */
         cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, alloc.width, alloc.height);
-        unsigned char *data = cairo_image_surface_get_data(surface);
+        unsigned char *pixel_data = cairo_image_surface_get_data(surface);
         int stride = cairo_image_surface_get_stride(surface);
 
         BLContextCore bl_ctx;
         BLImageCore bl_img;
-        bl_image_init_as_from_data(&bl_img, alloc.width, alloc.height, BL_FORMAT_PRGB32, data, stride, BL_DATA_ACCESS_RW, NULL, NULL);
+        bl_image_init_as_from_data(&bl_img, alloc.width, alloc.height, BL_FORMAT_PRGB32, pixel_data, stride, BL_DATA_ACCESS_RW, NULL, NULL);
         bl_context_init_as(&bl_ctx, &bl_img, NULL);
+
+        extern nserror nsgtk_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 
         struct blend2d_context b2d_ctx = {
             .bl_ctx = &bl_ctx,
-            .native_ctx = cr,
-            .native_text_handler = NULL
+            .native_ctx = surface,
+            .native_text_handler = nsgtk_plot_text_ns
         };
 
         struct redraw_context bl_ctx_ns = {

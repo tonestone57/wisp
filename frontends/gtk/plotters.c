@@ -595,6 +595,25 @@ static nserror nsgtk_plot_text(const struct redraw_context *ctx, const struct pl
     return nsfont_paint(x, y, text, length, fstyle);
 }
 
+/**
+ * Native typography handler for Blend2D.
+ */
+nserror nsgtk_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length)
+{
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    cairo_surface_t *surface = (cairo_surface_t *)b2d_ctx->native_ctx;
+    cairo_t *cr = cairo_create(surface);
+    cairo_t *old_cr = current_cr;
+    nserror res;
+
+    current_cr = cr;
+    res = nsfont_paint(x, y, text, length, fstyle);
+    current_cr = old_cr;
+
+    cairo_destroy(cr);
+    return res;
+}
+
 
 /**
  * Push a transformation matrix onto the transform stack.

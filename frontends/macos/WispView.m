@@ -109,8 +109,6 @@ static int macos_tile_task_compare(const void *a, const void *b)
             return;
         }
     }
-        }
-    }
 #endif
 
     macos_plot_push_context(ctx);

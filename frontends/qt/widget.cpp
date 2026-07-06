@@ -216,10 +216,12 @@ void NS_Widget::paintEvent(QPaintEvent *event)
         bl_image_init_as_from_data(&bl_img, img.width(), img.height(), BL_FORMAT_PRGB32, img.bits(), img.bytesPerLine(), BL_DATA_ACCESS_RW, NULL, NULL);
         bl_context_init_as(&bl_ctx, &bl_img, NULL);
 
+        extern "C" nserror nsqt_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
+
         struct blend2d_context b2d_ctx = {
             .bl_ctx = &bl_ctx,
             .native_ctx = painter,
-            .native_text_handler = NULL /* Use Blend2D text */
+            .native_text_handler = nsqt_plot_text_ns
         };
 
         struct redraw_context bl_ctx_ns = {

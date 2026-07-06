@@ -465,6 +465,16 @@ static nserror nsqt_plot_text(const struct redraw_context *ctx, const struct plo
     return nsqt_layout_plot((QPainter *)ctx->priv, fstyle, x, y, text, length);
 }
 
+/**
+ * Native typography handler for Blend2D on Qt.
+ */
+extern "C" nserror nsqt_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length)
+{
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    QPainter *painter = (QPainter *)b2d_ctx->native_ctx;
+    return nsqt_layout_plot(painter, fstyle, x, y, text, length);
+}
+
 
 /**
  * Push a transformation matrix onto the transform stack.
