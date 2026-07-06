@@ -52,16 +52,71 @@ Current development is focused on completing the CSS Variables implementation an
 ## Known Issues
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
 
-## Building and installation
-Wisp can be built:
-* On Windows (for the Windows frontend) using MSYS2 and the MinGW-w64 toolchain.
-* On Linux (for the Qt frontend) using CMake and ninja or make.
+## Building and Installation
 
-Wisp intends to be portable, keeping a lean C99 codebase and minimal dependencies.
+Wisp uses the CMake build system. It is designed to be portable across modern desktop operating systems.
 
-At build-time, Wisp requires the following programs:
-* python3
-* cmake
-* any CMake-compatible build utility (typically make or ninja)
-* gperf
-* pkg-config or pkgconf
+### Build Requirements
+
+To build Wisp, you will need:
+
+*   **Compiler**: A C99 and C++17 compliant compiler (GCC 9+, Clang 10+, or MSVC 2019+).
+*   **Build Tools**:
+    *   Python 3.x
+    *   CMake 3.20+
+    *   gperf
+    *   pkg-config or pkgconf
+*   **Python Modules**:
+    *   `widlparser` (required for JavaScript binding generation): `pip install widlparser`
+*   **Required Libraries**:
+    *   libxml2
+    *   libcurl
+    *   OpenSSL or LibreSSL
+    *   libjpeg, libpng, libwebp
+    *   FFmpeg (libavformat, libavcodec, libavutil, libswscale, libswresample)
+    *   libpsl
+    *   libutf8proc
+    *   zlib
+
+### Platform-Specific Instructions
+
+#### Linux (Qt Frontend)
+Install dependencies via your package manager (e.g., `apt`, `pacman`, `dnf`) and then run:
+```bash
+cmake -B build -GNinja -DWISP_BUILD_QT_FRONTEND=ON
+cmake --build build
+```
+
+#### Windows (MSVC or MinGW-w64 via MSYS2)
+For MSYS2/MinGW:
+```bash
+cmake -B build -GNinja -DWISP_BUILD_WINDOWS_FRONTEND=ON
+cmake --build build
+```
+
+#### macOS (Cocoa Frontend)
+```bash
+cmake -B build -GNinja -DWISP_BUILD_MACOS_FRONTEND=ON
+cmake --build build
+```
+
+#### Haiku / BeOS
+Wisp automatically detects Haiku and builds the native BeOS frontend:
+```bash
+cmake -B build -GNinja
+cmake --build build
+```
+
+### Rendering Backends
+
+#### Blend2D
+Wisp includes a high-performance Blend2D backend for software rasterization. To enable it, use:
+```bash
+cmake -B build -DWISP_USE_BLEND2D=ON
+```
+
+#### AsmJit (JIT Support)
+By default, Blend2D uses AsmJit (supports x86, x86_64, and AArch64) for JIT-compiled SIMD pipelines. If you need to build without JIT (e.g., for architectures not supported by AsmJit), you can disable it:
+```bash
+cmake -B build -DWISP_USE_BLEND2D=ON -DBLEND2D_NO_JIT=ON
+```
