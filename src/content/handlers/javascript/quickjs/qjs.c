@@ -23,10 +23,15 @@
 #include "crypto.h"
 #include "dom_bridge.h"
 #include <nsutils/time.h>
+#include <wisp/misc.h>
 #include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/box.h>
 #include <math.h>
 #include "impl/observer_internal.h"
+#include <wisp/desktop/gui_table.h>
+
+extern struct wisp_table *guit;
+void qjs_timer_callback(void *p);
 
 #ifdef _WIN32
 #include <windows.h>
@@ -171,6 +176,11 @@ void js_destroythread(jsthread *thread)
     thread->timers = NULL;
     while (tim) {
         struct qjs_timer *next = tim->next;
+        if (!tim->cancelled && guit && guit->misc && guit->misc->schedule) {
+            /* Unscheduling uses -1 as the signal to the scheduler to drop the task.
+             * Note: qjs_timer_callback checks tim->cancelled to perform cleanup if fired. */
+            guit->misc->schedule(-1, qjs_timer_callback, tim);
+        }
         JS_FreeValue(thread->ctx, tim->func);
         free(tim);
         tim = next;

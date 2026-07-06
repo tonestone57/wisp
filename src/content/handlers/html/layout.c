@@ -641,7 +641,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				min = b->min_width.value;
 			/* Log if adding a huge max_width that will cause overflow */
 			if (b->max_width > 1000000000) {
-				NSLOG(layout, WARNING,
+				NSLOG(layout, DEEPDEBUG,
 					"OVERFLOW_TRACE: line accumulator adding inline %p type=%d max_width=%d (current max=%d)", b,
 					b->type, b->max_width, max);
 			}
@@ -1315,7 +1315,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 
 	/* Detect overflow: if resulting max_width is huge, log debug info */
 	if (block->max_width > 1000000000) {
-		NSLOG(layout, WARNING,
+		NSLOG(layout, DEEPDEBUG,
 			"OVERFLOW_TRACE: block %p type=%d max_width=%d (min=%d max=%d extra_fixed=%d extra_frac=%f)", block,
 			block->type, block->max_width, min, max, extra_fixed, extra_frac);
 	}

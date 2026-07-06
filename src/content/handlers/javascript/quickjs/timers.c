@@ -18,7 +18,7 @@ extern struct wisp_table *guit;
 
 static int next_timer_id = 1;
 
-static void qjs_timer_callback(void *p)
+void qjs_timer_callback(void *p)
 {
     struct qjs_timer *timer = p;
     JSContext *ctx = timer->ctx;
