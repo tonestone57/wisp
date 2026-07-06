@@ -93,10 +93,9 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSValue *val_ptr = hashmap_insert(map, &key);
     if (val_ptr) {
-        /* Map stores a strong reference. We must increment the refcount
-         * because qjs_new_* returned a reference that we are now returning
-         * to the caller, and the map needs its own reference. */
-        *val_ptr = JS_DupValue(ctx, wrapper);
+        /* Map stores a WEAK reference. We don't increment the refcount
+         * because the JS object's finalizer will remove it from the map. */
+        *val_ptr = wrapper;
         dom_node_ref(node);
     } else {
         /* Failed to insert into map, but we still have the wrapper.
@@ -114,9 +113,7 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         bridge_key_t key = { ctx, node };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
-            JSValue wrapper = *val;
             hashmap_remove(map, &key);
-            JS_FreeValueRT(rt, wrapper);
             dom_node_unref(node);
         }
     }
@@ -171,9 +168,7 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
-                JSValue wrapper = *val;
                 hashmap_remove(map, &cleanup.keys[i]);
-                JS_FreeValueRT(rt, wrapper);
                 dom_node_unref(cleanup.keys[i].node);
             }
         }
@@ -488,9 +483,7 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         /* Entries must be removed from map before unref to avoid re-entrant UAF. */
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
-            JSValue wrapper = *val;
             hashmap_remove(map, &key);
-            JS_FreeValue(ctx, wrapper);
             dom_node_unref(cleanup.nodes[i]);
         }
     }

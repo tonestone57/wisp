@@ -9,35 +9,55 @@
 #include "JSMutationRecord.gen.h"
 #include "observer_internal.h"
 
+static void free_mutation_record(WispMutationRecord *record);
+
 static void mutationrecord_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_mutationrecord_class_id);
     if (priv) {
-        WispMutationRecord *record = priv->node;
-        if (record) {
-            free(record->type); if (record->target) dom_node_unref(record->target);
-            for (int i = 0; i < record->numAddedNodes; i++) dom_node_unref(record->addedNodes[i]);
-            free(record->addedNodes);
-            for (int i = 0; i < record->numRemovedNodes; i++) dom_node_unref(record->removedNodes[i]);
-            free(record->removedNodes);
-            if (record->previousSibling) dom_node_unref(record->previousSibling);
-            if (record->nextSibling) dom_node_unref(record->nextSibling);
-            free(record->attributeName); free(record->attributeNamespace); free(record->oldValue);
-            free(record);
-        }
+        free_mutation_record(priv->node);
         free(priv);
     }
 }
 
 static JSClassDef wisp_mutationrecord_class = { "MutationRecord", .finalizer = mutationrecord_finalizer };
 
+static void free_mutation_record(WispMutationRecord *record)
+{
+    if (!record) return;
+    free(record->type);
+    if (record->target) dom_node_unref(record->target);
+    for (int i = 0; i < record->numAddedNodes; i++) dom_node_unref(record->addedNodes[i]);
+    free(record->addedNodes);
+    for (int i = 0; i < record->numRemovedNodes; i++) dom_node_unref(record->removedNodes[i]);
+    free(record->removedNodes);
+    if (record->previousSibling) dom_node_unref(record->previousSibling);
+    if (record->nextSibling) dom_node_unref(record->nextSibling);
+    free(record->attributeName);
+    free(record->attributeNamespace);
+    free(record->oldValue);
+    free(record);
+}
+
 JSValue qjs_new_mutationrecord_manual(JSContext *ctx, WispMutationRecord *record)
 {
     JSValue obj = JS_NewObjectClass(ctx, qjs_mutationrecord_class_id);
+    if (JS_IsException(obj)) {
+        free_mutation_record(record);
+        return obj;
+    }
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
-    if (!priv) return JS_ThrowOutOfMemory(ctx);
-    priv->magic = QJS_DOM_MAGIC; priv->node = record; priv->is_dom_node = false; priv->ctx = ctx;
-    JS_SetOpaque(obj, priv); return obj;
+    if (!priv) {
+        JS_FreeValue(ctx, obj);
+        free_mutation_record(record);
+        return JS_ThrowOutOfMemory(ctx);
+    }
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = record;
+    priv->is_dom_node = false;
+    priv->ctx = ctx;
+    JS_SetOpaque(obj, priv);
+    return obj;
 }
 
 JSValue wisp_mutationrecord_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ((WispMutationRecord*)priv->node)->type); }

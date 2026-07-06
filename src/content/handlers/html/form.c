@@ -1869,8 +1869,8 @@ void form_gadget_update_value(struct form_control *control, const char *value)
         if (control->value != NULL) {
             free(control->value);
         }
-        control->value = strdup(value);
-        if (control->node != NULL) {
+        control->value = value ? strdup(value) : NULL;
+        if (control->node != NULL && value != NULL) {
             dom_exception err;
             dom_string *str;
             err = dom_string_create((uint8_t *)value, strlen(value), &str);
@@ -1955,11 +1955,13 @@ void form_gadget_sync_with_dom(struct form_control *control)
         goto out;
     }
 
-    if (!dom_string_isequal(control->node_value, value)) {
+    if (value != NULL && !dom_string_isequal(control->node_value, value)) {
         /* The DOM has changed */
         if (!changed_dom) {
             /* And it wasn't us */
-            char *value_s = strndup(dom_string_data(value), dom_string_byte_length(value));
+            const char *data = dom_string_data(value);
+            size_t len = dom_string_byte_length(value);
+            char *value_s = data ? strndup(data, len) : strdup("");
             char *dup = NULL;
             if (value_s == NULL) {
                 goto out;
@@ -1976,6 +1978,9 @@ void form_gadget_sync_with_dom(struct form_control *control)
             if (control->type != GADGET_HIDDEN && control->data.text.ta != NULL) {
                 textarea_set_text(control->data.text.ta, value_s);
             }
+        }
+        if (control->node_value != NULL) {
+            dom_string_unref(control->node_value);
         }
         control->node_value = value;
         value = NULL;

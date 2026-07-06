@@ -116,6 +116,7 @@ int qjs_init_element(JSContext *ctx) {
 
     JSValue proto = JS_GetClassProto(ctx, qjs_element_class_id);
     if (!JS_IsObject(proto)) {
+        JS_FreeValue(ctx, proto);
         proto = JS_NewObject(ctx);
         JS_SetClassProto(ctx, qjs_element_class_id, JS_DupValue(ctx, proto));
     }

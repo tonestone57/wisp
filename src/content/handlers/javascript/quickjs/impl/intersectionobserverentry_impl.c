@@ -27,10 +27,24 @@ JSValue qjs_new_intersectionobserverentry_manual(JSContext *ctx, WispIntersectio
     if (!entry) return JS_ThrowOutOfMemory(ctx);
     memcpy(entry, entry_data, sizeof(WispIntersectionObserverEntry));
     JSValue obj = JS_NewObjectClass(ctx, qjs_intersectionobserverentry_class_id);
+    if (JS_IsException(obj)) {
+        if (entry->target) dom_node_unref(entry->target);
+        free(entry);
+        return obj;
+    }
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
-    if (!priv) { free(entry); return JS_ThrowOutOfMemory(ctx); }
-    priv->magic = QJS_DOM_MAGIC; priv->node = entry; priv->is_dom_node = false; priv->ctx = ctx;
-    JS_SetOpaque(obj, priv); return obj;
+    if (!priv) {
+        JS_FreeValue(ctx, obj);
+        if (entry->target) dom_node_unref(entry->target);
+        free(entry);
+        return JS_ThrowOutOfMemory(ctx);
+    }
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = entry;
+    priv->is_dom_node = false;
+    priv->ctx = ctx;
+    JS_SetOpaque(obj, priv);
+    return obj;
 }
 
 JSValue wisp_intersectionobserverentry_time_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, ((WispIntersectionObserverEntry*)priv->node)->time); }

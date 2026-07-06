@@ -21,12 +21,28 @@ static int next_timer_id = 1;
 static void qjs_timer_callback(void *p)
 {
     struct qjs_timer *timer = p;
+    JSContext *ctx = timer->ctx;
+
     if (timer->cancelled) {
-        /* Timer was cancelled, but callback already scheduled */
+        /* Timer was cancelled, but callback already scheduled.
+         * Remove from active list and free. */
+        struct jsthread *t = JS_GetContextOpaque(ctx);
+        if (t) {
+            struct qjs_timer **prev = &t->timers;
+            struct qjs_timer *curr = t->timers;
+            while (curr) {
+                if (curr == timer) {
+                    *prev = curr->next;
+                    break;
+                }
+                prev = &curr->next;
+                curr = curr->next;
+            }
+        }
+        JS_FreeValue(ctx, timer->func);
+        free(timer);
         return;
     }
-
-    JSContext *ctx = timer->ctx;
 
     JSValue ret = JS_Call(ctx, timer->func, JS_UNDEFINED, 0, NULL);
     if (JS_IsException(ret)) {
