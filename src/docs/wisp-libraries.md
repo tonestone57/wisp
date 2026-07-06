@@ -15,8 +15,8 @@
   - **QuickJS-ng (v0.15.1)**: Modern ES2023+ JavaScript engine.
   - **Blend2D (v0.21.2)**: Unified 2D vector rendering engine.
   - **libavif (v1.4.2)**: Native AVIF and HEIC image support.
-  - **FFmpeg**: Media pipeline and video decoding.
-  - **LibreSSL**: TLS and cryptography.
+  - **FFmpeg (v8.1)**: Media pipeline and video decoding.
+  - **LibreSSL (v4.3.2)**: TLS and cryptography.
 
   Core Subsystem Libraries:
   - **LibWapcaplet**: String internment.
@@ -24,8 +24,8 @@
   - **Hubbub**: HTML5 compliant HTML parser.
   - **LibCSS**: CSS parser and selection engine (Diverged for Grid/Calc/Variables).
   - **LibDOM**: W3C DOM implementation (Diverged for Mutation Hooks/JS).
-  - **LibNSGIF**: GIF format image decoder.
-  - **LibNSBMP**: BMP and ICO format image decoder.
+  - **LibNSGIF (v1.0.0)**: GIF format image decoder.
+  - **LibNSBMP (v0.1.7)**: BMP and ICO format image decoder.
 
   Optional:
   - **Libsvgtiny**: Lightweight SVG implementation.

@@ -13,10 +13,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 | `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged (Forked for Grid/Calc) |
 | `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged (Forked for SVG/JS) |
 | `libhubbub` | Jan 2026 Sync | Upstream Git | **[Finished]** Moderate Divergence |
-| `libnsbmp` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
-| `libnsgif` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
-| `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
-| `LibreSSL` | Linked System | 4.0.0 | **[Finished]** Compatible |
+| `libnsbmp` | 0.1.7 | 0.1.7 | **[Finished]** Up-to-date |
+| `libnsgif` | 1.0.0 | 1.0.0 | **[Finished]** Up-to-date |
+| `FFmpeg` | Linked System | 8.1 | **[Finished]** Compatible |
+| `LibreSSL` | Linked System | 4.3.2 | **[Finished]** Compatible |
 
 ## 3. Feature Status Categorization
 
@@ -32,7 +32,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **A/V Master Clock Sync**: Robust synchronization between audio and video tracks in `video.c` using a centralized master clock.
 *   **SIMD-Aligned Arena**: The arena allocator (`src/utils/arena.c`) enforces 64-byte alignment to support AVX-512 and other SIMD optimizations.
 *   **IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks in `layout.c` and `html.c`.
-*   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL.
+*   **Web Crypto (Basic)**: Bridged `crypto.getRandomValues` and `crypto.subtle.digest` to LibreSSL 4.3.2.
 *   **Nested CSS Counters**: Full support for nested counter scoping and inheritance in `box_construct.c`.
 *   **Tab-Size Support**: Implementation of `tab-size` property with proper tab-stop calculation in the layout engine.
 *   **ODR Violation Resolution**: Resolved duplicate definition of `guit` symbol in test code.
