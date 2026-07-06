@@ -26,6 +26,7 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "wisp/desktop/plot_blend2d.h"
 #include "wisp/plotters.h"
 #include "wisp/bitmap.h"
 #include "wisp/desktop/gui_internal.h"
@@ -73,7 +74,8 @@ static void blend2d_set_gradient_stops(BLGradientCore *gr, const struct gradient
 
 static nserror blend2d_plot_clip(const struct redraw_context *ctx, const struct rect *clip)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLRectI bl_rect = { clip->x0, clip->y0, clip->x1 - clip->x0, clip->y1 - clip->y0 };
     bl_context_clip_to_rect_i(bl_ctx, &bl_rect);
     return NSERROR_OK;
@@ -96,7 +98,8 @@ static nserror blend2d_plot_path_close(const struct redraw_context *ctx);
 
 static nserror blend2d_plot_arc(const struct redraw_context *ctx, const plot_style_t *pstyle, int x, int y, int radius, int angle1, int angle2)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLPathCore path;
     bl_path_init(&path);
 
@@ -122,7 +125,8 @@ static nserror blend2d_plot_arc(const struct redraw_context *ctx, const plot_sty
 
 static nserror blend2d_plot_disc(const struct redraw_context *ctx, const plot_style_t *pstyle, int x, int y, int radius)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLEllipse bl_ellipse = { (double)x, (double)y, (double)radius, (double)radius };
 
     if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
@@ -141,7 +145,8 @@ static nserror blend2d_plot_disc(const struct redraw_context *ctx, const plot_st
 
 static nserror blend2d_plot_line(const struct redraw_context *ctx, const plot_style_t *pstyle, const struct rect *line)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLLine bl_line = { (double)line->x0, (double)line->y0, (double)line->x1, (double)line->y1 };
 
     blend2d_set_colour(bl_ctx, pstyle->stroke_colour, pstyle->stroke_opacity, false);
@@ -153,7 +158,8 @@ static nserror blend2d_plot_line(const struct redraw_context *ctx, const plot_st
 
 static nserror blend2d_plot_rectangle(const struct redraw_context *ctx, const plot_style_t *pstyle, const struct rect *rectangle)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLRect bl_rect = { (double)rectangle->x0, (double)rectangle->y0, (double)(rectangle->x1 - rectangle->x0), (double)(rectangle->y1 - rectangle->y0) };
 
     if (pstyle->fill_type != PLOT_OP_TYPE_NONE) {
@@ -172,7 +178,8 @@ static nserror blend2d_plot_rectangle(const struct redraw_context *ctx, const pl
 
 static nserror blend2d_plot_polygon(const struct redraw_context *ctx, const plot_style_t *pstyle, const int *p, unsigned int n)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLPoint *pts = malloc(sizeof(BLPoint) * n);
     if (!pts) return NSERROR_NOMEM;
 
@@ -262,7 +269,8 @@ static nserror blend2d_plot_path_close(const struct redraw_context *ctx)
 
 static nserror blend2d_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     static const BLPoint bl_origin = {0, 0};
 
     bl_context_save(bl_ctx, NULL);
@@ -280,7 +288,8 @@ static nserror blend2d_plot_path_fill(const struct redraw_context *ctx, const pl
 
 static nserror blend2d_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     static const BLPoint bl_origin = {0, 0};
 
     bl_context_save(bl_ctx, NULL);
@@ -299,7 +308,8 @@ static nserror blend2d_plot_path_stroke(const struct redraw_context *ctx, const 
 
 static nserror blend2d_plot_bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, int x, int y, int width, int height, colour bg, bitmap_flags_t flags)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     void *pixel_data = guit->bitmap->get_buffer(bitmap);
     int w = guit->bitmap->get_width(bitmap);
     int h = guit->bitmap->get_height(bitmap);
@@ -321,14 +331,17 @@ static nserror blend2d_plot_bitmap(const struct redraw_context *ctx, struct bitm
 
 static nserror blend2d_plot_text(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length)
 {
-    /* Text rendering in Blend2D requires font management.
-     * This would likely bridge to Wisp's existing font system or use Blend2D fonts. */
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    if (b2d_ctx->native_text_handler) {
+        return b2d_ctx->native_text_handler(ctx, fstyle, x, y, text, length);
+    }
     return NSERROR_NOT_IMPLEMENTED;
 }
 
 static nserror blend2d_push_transform(const struct redraw_context *ctx, const float transform[6])
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     bl_context_save(bl_ctx, NULL);
     BLMatrix2D m = { (double)transform[0], (double)transform[1], (double)transform[2], (double)transform[3], (double)transform[4], (double)transform[5] };
     bl_context_apply_transform_op(bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
@@ -337,7 +350,8 @@ static nserror blend2d_push_transform(const struct redraw_context *ctx, const fl
 
 static nserror blend2d_pop_transform(const struct redraw_context *ctx)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     bl_context_restore(bl_ctx, NULL);
     return NSERROR_OK;
 }
@@ -346,7 +360,8 @@ static nserror blend2d_plot_linear_gradient(const struct redraw_context *ctx, co
     const float transform[6], float x0, float y0, float x1, float y1, const struct gradient_stop *stops,
     unsigned int stop_count)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLGradientCore gr;
     BLLinearGradientValues values = { (double)x0, (double)y0, (double)x1, (double)y1 };
     static const BLPoint bl_origin = {0, 0};
@@ -397,7 +412,8 @@ static nserror blend2d_plot_radial_gradient(const struct redraw_context *ctx, co
     const float transform[6], float cx, float cy, float rx, float ry, const struct gradient_stop *stops,
     unsigned int stop_count)
 {
-    BLContextCore *bl_ctx = (BLContextCore *)ctx->priv;
+    struct blend2d_context *b2d_ctx = (struct blend2d_context *)ctx->priv;
+    BLContextCore *bl_ctx = b2d_ctx->bl_ctx;
     BLGradientCore gr;
     /* Blend2D radial is centered at (x1, y1) with focal point at (x0, y0). We use cx, cy for both. */
     BLRadialGradientValues values = { (double)cx, (double)cy, (double)cx, (double)cy, (double)rx };

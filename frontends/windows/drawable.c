@@ -523,6 +523,13 @@ static LRESULT nsws_drawable_keydown(struct gui_window *gw, HWND hwnd, WPARAM wp
 extern void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd);
 #endif
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+
+nserror win32_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
+#endif
+
 /**
  * Handle paint messages.
  */
@@ -531,16 +538,108 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
     struct rect clip;
     PAINTSTRUCT ps;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &win_plotters};
+    int backend = nsoption_int(render_backend);
 
 #ifdef WISP_WINDOWS_USE_D2D
     if (gw != NULL) {
-        if (!gw->d2d_initialised && gw->d2d_enabled) {
-            /* Try to re-initialise if previously lost */
-            nsws_window_init_d2d(gw);
+        bool use_d2d = false;
+        if (backend == OPTION_RENDER_BACKEND_NATIVE) {
+            use_d2d = true;
+        } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
+            nsw32_os_version os = nsw32_get_os_version();
+            if (os != WIN_OS_XP_VISTA) {
+                use_d2d = true;
+            }
         }
 
-        if (gw->d2d_initialised) {
-            nsws_drawable_paint_d2d(gw, hwnd);
+        if (use_d2d) {
+            if (!gw->d2d_initialised && gw->d2d_enabled) {
+                /* Try to re-initialise if previously lost */
+                nsws_window_init_d2d(gw);
+            }
+
+            if (gw->d2d_initialised) {
+                nsws_drawable_paint_d2d(gw, hwnd);
+                return 0;
+            }
+        }
+    }
+#endif
+
+#ifdef WITH_BLEND2D
+    if (gw != NULL) {
+        bool use_blend2d = false;
+        if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
+            use_blend2d = true;
+        } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
+            nsw32_os_version os = nsw32_get_os_version();
+            if (os == WIN_OS_XP_VISTA) {
+                use_blend2d = true;
+            }
+        }
+
+        if (use_blend2d) {
+            BeginPaint(hwnd, &ps);
+
+            /* Create a DIB section for Blend2D to render into */
+            BITMAPINFO bmi = {0};
+            bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+            bmi.bmiHeader.biWidth = gw->width;
+            bmi.bmiHeader.biHeight = -gw->height; /* top-down */
+            bmi.bmiHeader.biPlanes = 1;
+            bmi.bmiHeader.biBitCount = 32;
+            bmi.bmiHeader.biCompression = BI_RGB;
+
+            void *pixels;
+            HBITMAP hbm = CreateDIBSection(ps.hdc, &bmi, DIB_RGB_COLORS, &pixels, NULL, 0);
+            if (hbm) {
+                BLContextCore bl_ctx;
+                BLImageCore img;
+                bl_image_init_as_from_data(&img, gw->width, gw->height, BL_FORMAT_PRGB32, pixels, gw->width * 4, BL_DATA_ACCESS_RW, NULL, NULL);
+                bl_context_init_as(&bl_ctx, &img, NULL);
+
+                HDC memdc = CreateCompatibleDC(ps.hdc);
+                HGDIOBJ oldbm = SelectObject(memdc, hbm);
+
+                struct blend2d_context b2d_ctx = {
+                    .bl_ctx = &bl_ctx,
+                    .native_ctx = memdc,
+                    .native_text_handler = win32_plot_text_ns
+                };
+
+                ctx.plot = &blend2d_plotters;
+                ctx.priv = &b2d_ctx;
+
+                struct rect clip = {
+                    .x0 = ps.rcPaint.left,
+                    .y0 = ps.rcPaint.top,
+                    .x1 = ps.rcPaint.right,
+                    .y1 = ps.rcPaint.bottom
+                };
+                browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &clip, &ctx);
+
+                if (gw->careth != 0) {
+                    /* Native caret rendering interop */
+                    HPEN pen = CreatePen(PS_SOLID, 1, RGB(0, 0, 0));
+                    HGDIOBJ oldpen = SelectObject(memdc, pen);
+                    MoveToEx(memdc, gw->caretx - gw->scrollx, gw->carety - gw->scrolly, NULL);
+                    LineTo(memdc, gw->caretx - gw->scrollx, gw->carety - gw->scrolly + gw->careth);
+                    SelectObject(memdc, oldpen);
+                    DeleteObject(pen);
+                }
+
+                bl_context_end(&bl_ctx);
+                bl_context_destroy(&bl_ctx);
+
+                BitBlt(ps.hdc, 0, 0, gw->width, gw->height, memdc, 0, 0, SRCCOPY);
+
+                SelectObject(memdc, oldbm);
+                DeleteDC(memdc);
+                DeleteObject(hbm);
+                bl_image_destroy(&img);
+            }
+
+            EndPaint(hwnd, &ps);
             return 0;
         }
     }

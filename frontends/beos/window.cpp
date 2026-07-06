@@ -104,7 +104,13 @@ extern "C" void beos_tile_redraw_worker(void *arg)
     bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
     bl_context_fill_all(&bl_ctx);
 
-    struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
+    struct blend2d_context b2d_ctx = {
+        .bl_ctx = &bl_ctx,
+        .native_ctx = NULL,
+        .native_text_handler = NULL
+    };
+
+    struct redraw_context ctx = {true, true, &blend2d_plotters, &b2d_ctx};
 
     /* Adjust drawing coordinates so (0,0) is the top-left of the tile.
      * We calculate the tile's top-left origin by aligning with the tile grid. */
@@ -795,6 +801,21 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 
     if (browser_window_has_content(g->bw) == false)
         return;
+
+    int backend = nsoption_int(render_backend);
+    bool use_blend2d = (backend == OPTION_RENDER_BACKEND_BLEND2D);
+    /* For Haiku, OPTION_RENDER_BACKEND_AUTO remains Native */
+
+    if (!use_blend2d) {
+        if (view->LockLooper()) {
+            struct rect clip = {(int)updateRect.left, (int)updateRect.top, (int)updateRect.right + 1, (int)updateRect.bottom + 1};
+            nsbeos_current_gc_set(view);
+            browser_window_redraw(g->bw, 0, 0, &clip, &ctx);
+            nsbeos_current_gc_set(NULL);
+            view->UnlockLooper();
+        }
+        return;
+    }
 
     /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();

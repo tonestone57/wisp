@@ -60,6 +60,10 @@
 #include "desktop/system_colour.h"
 #include "desktop/tile_pool.h"
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#endif
+
 
 /** \todo QUERY - Remove this import later */
 #include "desktop/browser_private.h"
@@ -145,6 +149,14 @@ nserror wisp_init(const char *store_path)
 #endif
 
     NSLOG(wisp, INFO, "wisp_init: start");
+
+#ifdef WITH_BLEND2D
+    if (bl_runtime_init() != BL_SUCCESS) {
+        NSLOG(wisp, ERROR, "Failed to initialize Blend2D runtime");
+        return NSERROR_INIT_FAILED;
+    }
+#endif
+
     /* corestrings init */
     NSLOG(wisp, INFO, "init corestrings");
     ret = corestrings_init();
@@ -295,6 +307,11 @@ nserror wisp_init(const char *store_path)
 void wisp_exit(void)
 {
     hlcache_stop();
+
+#ifdef WITH_BLEND2D
+    bl_runtime_shutdown();
+#endif
+
     tile_pool_fini();
 
     NSLOG(wisp, INFO, "Closing GUI");

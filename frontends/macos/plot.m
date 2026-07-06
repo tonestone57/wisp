@@ -1,6 +1,7 @@
 #import "gui.h"
 #include <wisp/plot_style.h>
 #include <wisp/bitmap.h>
+#include "wisp/desktop/plot_blend2d.h"
 
 #define MAX_CTX_STACK 16
 static CGContextRef ctx_stack[MAX_CTX_STACK];
@@ -85,8 +86,15 @@ static nserror macos_plot_polygon(const int *p, unsigned int n, const plot_style
     return NSERROR_OK;
 }
 
-static nserror macos_plot_text(const struct rect *clip, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length) {
-    if (!current_ctx()) return NSERROR_OK;
+nserror macos_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length) {
+    CGContextRef cg_ctx = NULL;
+    if (ctx->priv && ((struct blend2d_context *)ctx->priv)->native_ctx) {
+        cg_ctx = (CGContextRef)((struct blend2d_context *)ctx->priv)->native_ctx;
+    } else {
+        cg_ctx = current_ctx();
+    }
+    if (!cg_ctx) return NSERROR_OK;
+
     @autoreleasepool {
         NSString *nsStr = [[NSString alloc] initWithBytes:text length:length encoding:NSUTF8StringEncoding];
         if (!nsStr) return NSERROR_OK;
