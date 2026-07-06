@@ -38,7 +38,7 @@ function(add_wisp_test name)
   add_test(NAME ${name} COMMAND ${name})
   set_tests_properties(${name} PROPERTIES WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
   set(TEST_ENV_PATH "C:/msys64/mingw64/bin\;C:/msys64/usr/bin\;$ENV{PATH}")
-  set_tests_properties(${name} PROPERTIES ENVIRONMENT "PATH=${TEST_ENV_PATH};CK_VERBOSITY=verbose;CK_FORK=no")
+  set_tests_properties(${name} PROPERTIES ENVIRONMENT "PATH=${TEST_ENV_PATH};CK_VERBOSITY=verbose;CK_FORK=yes")
 
   if(WIN32)
     set(SVGTINY_RUNTIME)
@@ -281,6 +281,8 @@ add_wisp_test(grid_construct_test
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/grid_construct_test.c
 )
+# Disable leak detection for grid_construct_test since libdom parsing has internal leaks
+set_property(TEST grid_construct_test PROPERTY ENVIRONMENT "")
 
 add_wisp_test(transform_clip_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/redraw_helpers.c

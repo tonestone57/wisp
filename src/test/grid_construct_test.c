@@ -555,7 +555,7 @@ START_TEST(test_grid_construction)
     ck_assert_int_eq(child->type, BOX_BLOCK);
     ck_assert_ptr_eq(child->parent, grid);
 
-        /* Cleanup */
+            /* Cleanup */
     box_free_tree(root);
     dom_node_unref(grid_el);
     dom_node_unref(root_el);
