@@ -24,11 +24,11 @@ pkg_check_modules(LIBCURL REQUIRED libcurl)
 include_directories(${LIBCURL_INCLUDE_DIRS})
 add_definitions(-DWITH_CURL)
 
-pkg_check_modules(LIBAVFORMAT REQUIRED libavformat)
-pkg_check_modules(LIBAVCODEC REQUIRED libavcodec)
-pkg_check_modules(LIBSWSCALE REQUIRED libswscale)
-pkg_check_modules(LIBSWRESAMPLE REQUIRED libswresample)
-pkg_check_modules(LIBAVUTIL REQUIRED libavutil)
+pkg_check_modules(LIBAVFORMAT REQUIRED libavformat>=62.12)
+pkg_check_modules(LIBAVCODEC REQUIRED libavcodec>=62.28)
+pkg_check_modules(LIBSWSCALE REQUIRED libswscale>=9.5)
+pkg_check_modules(LIBSWRESAMPLE REQUIRED libswresample>=6.3)
+pkg_check_modules(LIBAVUTIL REQUIRED libavutil>=60.26)
 
 include_directories(
     ${LIBAVFORMAT_INCLUDE_DIRS}
@@ -62,7 +62,7 @@ endif()
 pkg_check_modules(ZLIB REQUIRED zlib)
 include_directories(${ZLIB_INCLUDE_DIRS})
 
-pkg_check_modules(LIBSSL REQUIRED libssl)
+pkg_check_modules(LIBSSL REQUIRED libssl>=4.3.2)
 include_directories(${LIBSSL_INCLUDE_DIRS})
 
 pkg_check_modules(LIBXML2 libxml-2.0)

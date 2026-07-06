@@ -1,7 +1,12 @@
+set(LIBNSBMP_VERSION "0.1.7")
+
 add_library(nsbmp ${WISP_LIB_TYPE}
 	src/libnsbmp.c
 )
-set_target_properties(nsbmp PROPERTIES SOVERSION ${WISP_ABI})
+set_target_properties(nsbmp PROPERTIES
+    VERSION ${LIBNSBMP_VERSION}
+    SOVERSION ${WISP_ABI}
+)
 
 if(NOT WIN32)
 install(TARGETS nsbmp

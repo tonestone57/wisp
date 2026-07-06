@@ -1,8 +1,13 @@
+set(LIBNSGIF_VERSION "1.0.0")
+
 add_library(nsgif ${WISP_LIB_TYPE}
 	src/gif.c
 	src/lzw.c
 )
-set_target_properties(nsgif PROPERTIES SOVERSION ${WISP_ABI})
+set_target_properties(nsgif PROPERTIES
+    VERSION ${LIBNSGIF_VERSION}
+    SOVERSION ${WISP_ABI}
+)
 
 if(NOT WIN32)
 install(TARGETS nsgif
