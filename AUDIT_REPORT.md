@@ -48,6 +48,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **DOM Selectors**: `querySelector` and `querySelectorAll` are implemented in `dom_bridge.c` using a right-to-left matching strategy and support complex combinators and selector groups.
 *   **Content Security Policy (CSP)**: Full CSP header enforcement (default-src, script-src, img-src, style-src, font-src, object-src, frame-src, connect-src) implemented in `csp.c` and enforced at cache and layout levels.
 *   **Direct2D Device Loss Recovery**: Robust handling of hardware acceleration loss via `nsws_d2d_recreate_resources`, including global factory recreation and image cache invalidation to ensure stability on modern Windows systems.
+*   **Tile Memory Recycling**: Thread-safe lookaside list of fixed-size 1MB tile buffers implemented in `src/desktop/tile_pool.c` to mitigate heap fragmentation.
 
 ### 3.2 Partial Implementation [Partial]
 *   **BeOS Native Widgets**: Initial integration of native `BControl` widgets in the Haiku frontend for common form elements.

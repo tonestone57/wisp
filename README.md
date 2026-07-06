@@ -35,6 +35,7 @@ Current development is focused on completing the CSS Variables implementation an
 *   **[Finished] Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
 *   **[Finished] DOM Selectors**: `querySelector` and `querySelectorAll` support with complex combinators and selector groups.
 *   **[Finished] Content Security Policy (CSP)**: Enforcement of modern security headers (default-src, script-src, img-src, etc.) at both network and engine levels.
+*   **[Finished] Tile Memory Recycling**: Thread-safe lookaside list of fixed-size 1MB tile buffers implemented to mitigate heap fragmentation.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems

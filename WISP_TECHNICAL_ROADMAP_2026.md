@@ -139,9 +139,9 @@ The subsystem decouples tasks into a dedicated Rasterization Pool and a separate
 
 ## 10. High-Impact Structural Improvements
 
-### A. Tile Memory Recycling (Fixed-Buffer Pool)
+### A. [Finished] Tile Memory Recycling (Fixed-Buffer Pool)
 Dynamic allocation/freeing of tile backing stores triggers **heap fragmentation**, especially on legacy OS allocators.
-*   **The Fix**: Implement a thread-safe **Ring Buffer or Lookaside List** of fixed-size tile memory buffers. Worker threads checkout buffers, rasterize, and return them after the main thread executes the atomic blit.
+*   **The Fix**: Implemented a thread-safe **Lookaside List** of fixed-size 1MB tile memory buffers in `src/desktop/tile_pool.c`. Worker threads checkout buffers, rasterize, and return them after the main thread executes the atomic blit.
 
 ### B. Viewport-Prioritized Tile Scheduling
 *   **[Finished] Viewport-Prioritized Tile Scheduling**: A simple FIFO task queue can hurt perceived performance during heavy reflows if tiles at the bottom of the page are rendered before visible ones.
