@@ -40,6 +40,11 @@ bool tile_pool_init(size_t pool_size) {
         global_pool = NULL;
         return false;
     }
+    if (!global_pool->buffers) {
+        free(global_pool);
+        global_pool = NULL;
+        return false;
+    }
 
     ns_mutex_init(&global_pool->lock);
     global_pool->capacity = pool_size;
@@ -47,6 +52,17 @@ bool tile_pool_init(size_t pool_size) {
 
     for (size_t i = 0; i < pool_size; i++) {
         global_pool->buffers[i] = malloc(TILE_BUFFER_SIZE);
+        if (!global_pool->buffers[i]) {
+            // Cleanup on failure
+            for (size_t j = 0; j < i; j++) {
+                free(global_pool->buffers[j]);
+            }
+            free(global_pool->buffers);
+            ns_mutex_destroy(&global_pool->lock);
+            free(global_pool);
+            global_pool = NULL;
+            return false;
+        }
         if (!global_pool->buffers[i]) {
             // Cleanup on failure
             for (size_t j = 0; j < i; j++) {
@@ -92,6 +108,7 @@ void *tile_pool_checkout(void) {
     if (!buffer) {
         // Fallback to heap if pool is empty
         buffer = malloc(TILE_BUFFER_SIZE);
+        if (!buffer) return NULL;
         NSLOG(wisp, DEBUG, "Tile pool empty, allocated temporary buffer");
     }
 

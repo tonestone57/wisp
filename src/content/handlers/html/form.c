@@ -1927,9 +1927,7 @@ void form_gadget_sync_with_dom(struct form_control *control)
         if (exc != DOM_NO_ERR) {
             goto out;
         }
-        if (control->node_value != NULL) {
-            dom_string_unref(control->node_value);
-        }
+        dom_string_unref(control->node_value);
         control->node_value = value;
         value = NULL;
         if (control->type == GADGET_TEXTAREA) {
@@ -1979,9 +1977,7 @@ void form_gadget_sync_with_dom(struct form_control *control)
                 textarea_set_text(control->data.text.ta, value_s);
             }
         }
-        if (control->node_value != NULL) {
-            dom_string_unref(control->node_value);
-        }
+        dom_string_unref(control->node_value);
         control->node_value = dom_string_ref(value);
     }
 

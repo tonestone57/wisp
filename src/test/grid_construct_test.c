@@ -452,7 +452,7 @@ START_TEST(test_grid_construction)
         ck_assert_msg(0, "Failed to allocate box_construct_ctx");
     }
     ctx->content = &htmlc;
-    ctx->n = (dom_node *)root_el; /* Start construction at Root element (HTML) */
+    ctx->n = dom_node_ref(root_el); /* Start construction at Root element (HTML) */
     ctx->root_box = NULL;
     ctx->cb = box_complete_cb;
     ctx->bctx = arena_create(8192);
@@ -555,7 +555,7 @@ START_TEST(test_grid_construction)
     ck_assert_int_eq(child->type, BOX_BLOCK);
     ck_assert_ptr_eq(child->parent, grid);
 
-    /* Cleanup */
+        /* Cleanup */
     box_free_tree(root);
     dom_node_unref(grid_el);
     dom_node_unref(root_el);
@@ -565,6 +565,8 @@ START_TEST(test_grid_construction)
         htmlc.bctx = NULL;
     }
     dom_node_unref(doc);
+
+    /* ctx was already freed by convert_xml_to_box on completion */
 
     unlink("/tmp/ns_test_grid.html");
 }
