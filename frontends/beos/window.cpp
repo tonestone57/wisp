@@ -103,13 +103,13 @@ extern "C" void beos_tile_redraw_worker(void *arg)
     bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
     bl_context_fill_all(&bl_ctx);
 
-        struct blend2d_context b2d_ctx = {
-            .bl_ctx = &bl_ctx,
-            .native_ctx = NULL,
-            .native_text_handler = NULL
-        };
+    struct blend2d_context b2d_ctx = {
+        .bl_ctx = &bl_ctx,
+        .native_ctx = NULL,
+        .native_text_handler = NULL
+    };
 
-        struct redraw_context ctx = {true, true, &blend2d_plotters, &b2d_ctx};
+    struct redraw_context ctx = {true, true, &blend2d_plotters, &b2d_ctx};
 
     /* Adjust drawing coordinates so (0,0) is the top-left of the tile.
      * We calculate the tile's top-left origin by aligning with the tile grid. */
