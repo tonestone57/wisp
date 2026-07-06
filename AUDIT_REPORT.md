@@ -1,11 +1,11 @@
-# Wisp Code Audit Report - August 2026
+# Wisp Code Audit Report - July 2026
 
 ## 1. Executive Summary
 This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project supports high-performance rendering via Blend2D while providing a native Direct2D/DirectWrite path for Windows and standard fallbacks for other frontends.
 
 ## 2. Library Versions Audit
 
-| Library | Repo Version | Latest Online (August 2026) | Status |
+| Library | Repo Version | Latest Online (July 2026) | Status |
 |---------|--------------|---------------------------|--------|
 | `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
 | `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |

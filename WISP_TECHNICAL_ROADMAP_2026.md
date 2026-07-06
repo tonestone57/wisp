@@ -1,4 +1,4 @@
-# Wisp Browser Technical Roadmap & Architectural Summary (August 2026)
+# Wisp Browser Technical Roadmap & Architectural Summary (July 2026)
 
 ## 1. Executive Summary
 Wisp is a lightweight, high-performance web engine forked from NetSurf. Its primary mission is to bridge the gap between "retro" software efficiency and the modern web by implementing high-priority standards (CSS Grid, Flexbox, ES2023+) while maintaining a minimal footprint suitable for both modern and legacy operating systems (Haiku, Windows XP/7, Linux, macOS).
@@ -76,7 +76,7 @@ While functional, the Haiku frontend has several paths for significant advanceme
 
 ---
 
-## 7. Recent Technical Improvements (August 2026 Update)
+## 7. Recent Technical Improvements (July 2026 Update)
 The following stability and compatibility fixes have been integrated:
 1.  **Web API Initialization**: Corrected `js_newthread` to ensure `navigator`, `location`, `storage`, and `XMLHttpRequest` are fully initialized with correct private data before script execution.
 2.  **Bridge Stability**: Fixed a critical `JS_FreeRuntime` assertion failure by ensuring the DOM bridge explicitly frees JSValue references and clears the runtime opaque pointer during cleanup.
@@ -106,7 +106,7 @@ The following tasks are identified as high-priority for the next development cyc
     *   *Benefit*: Simplifies maintenance and ensures a professional, consistent user experience across Linux, Windows, Haiku, and macOS.
 *   **[Planned] Web Worker Parity** (Complexity: **Medium** | Benefit: **Medium**): Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
     *   *Benefit*: Unlocks the ability to run heavy computations (like image processing) in the background without freezing the UI.
-*   **[Partial] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend via a persistent widget map in `gui_window`.
+*   **[Partial] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Integration of native `BControl` elements (BButton, BCheckBox, BTextControl, BRadioButton) into the BeOS/Haiku frontend via a persistent widget map in `gui_window`.
     *   *Benefit*: Provides perfect system theme integration and accessibility support for Haiku users.
 
 ### Security
