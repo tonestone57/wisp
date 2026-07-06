@@ -798,6 +798,7 @@ class QuickJSBindingGenerator:
         c_code += f"    if (!JS_IsRegisteredClass(rt, qjs_{lower_name}_class_id)) JS_NewClass(rt, qjs_{lower_name}_class_id, &js_{lower_name}_class);\n"
         c_code += f"    JSValue proto = JS_GetClassProto(ctx, qjs_{lower_name}_class_id);\n"
         c_code += f"    if (!JS_IsObject(proto)) {{\n"
+        c_code += f"        JS_FreeValue(ctx, proto);\n"
         c_code += f"        proto = JS_NewObject(ctx);\n"
         if parent_name:
             c_code += f"        JSValue parent_proto = JS_GetClassProto(ctx, qjs_{parent_name.lower()}_class_id);\n"
