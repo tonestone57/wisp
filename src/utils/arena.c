@@ -5,10 +5,10 @@
 #define _DEFAULT_SOURCE
 #endif
 
-#include "arena.h"
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "arena.h"
 
 static inline size_t arena_align_up(size_t val, size_t align)
 {
