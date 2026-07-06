@@ -29,6 +29,7 @@ extern "C" {
 struct plotter_table;
 
 extern const struct plotter_table nsbeos_plotters;
+extern const struct plotter_table blend2d_plotters;
 }
 
 #include <View.h>

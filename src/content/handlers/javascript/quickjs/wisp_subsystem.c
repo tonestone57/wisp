@@ -380,14 +380,15 @@ static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*fu
 #endif
 }
 
-void wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg) {
+bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg) {
     if (raster_pool && raster_pool->worker_count > 0) {
-        wisp_dispatch_internal(raster_pool, script, func, arg);
+        return wisp_dispatch_internal(raster_pool, script, func, arg);
     } else {
         if (script) {
             NSLOG(wisp, WARNING, "Synchronous raster fallback: JS script execution not supported without dedicated thread context.");
         }
         if (func) func(arg);
+        return true;
     }
 }
 
