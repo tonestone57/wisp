@@ -49,6 +49,9 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Content Security Policy (CSP)**: Full CSP header enforcement (default-src, script-src, img-src, style-src, font-src, object-src, frame-src, connect-src) implemented in `csp.c` and enforced at cache and layout levels.
 *   **Direct2D Device Loss Recovery**: Robust handling of hardware acceleration loss via `nsws_d2d_recreate_resources`, including global factory recreation and image cache invalidation to ensure stability on modern Windows systems.
 *   **Tile Memory Recycling**: Thread-safe lookaside list of fixed-size 1MB tile buffers implemented in `src/desktop/tile_pool.c` to mitigate heap fragmentation.
+*   **Hardened CSP Parsing**: Replaced unsafe `atoi` calls with `strtol` and added port range validation in `src/content/csp.c`.
+*   **Stable Layout Fallbacks**: Replaced browser-crashing `abort()` and `assert(0)` calls in `src/content/handlers/html/layout.c` with error logging and safe geometric clamping.
+*   **Overflow-Safe Arena**: Enhanced `ALIGN_UP` macro in `src/utils/arena.c` to handle integer overflows.
 
 ### 3.2 Partial Implementation [Partial]
 *   **BeOS Native Widgets**: Integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton) in the Haiku frontend via a persistent widget map.

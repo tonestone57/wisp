@@ -68,7 +68,11 @@ static csp_source *parse_source(char *token) {
             char *slash = strchr(host_start, '/');
             if (port_start && (!slash || port_start < slash)) {
                 src->host = strndup(host_start, port_start - host_start);
-                src->port = atoi(port_start + 1);
+                char *endptr;
+                long port = strtol(port_start + 1, &endptr, 10);
+                if (endptr != port_start + 1 && port >= 0 && port <= 65535) {
+                    src->port = (int)port;
+                }
             } else {
                 if (slash) {
                     src->host = strndup(host_start, slash - host_start);
@@ -83,7 +87,11 @@ static csp_source *parse_source(char *token) {
              */
             if (colon[1] >= '0' && colon[1] <= '9') {
                 src->host = strndup(token, colon - token);
-                src->port = atoi(colon + 1);
+                char *endptr;
+                long port = strtol(colon + 1, &endptr, 10);
+                if (endptr != colon + 1 && port >= 0 && port <= 65535) {
+                    src->port = (int)port;
+                }
             } else {
                 src->scheme = strndup(token, colon - token);
             }
@@ -170,8 +178,15 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
 
     if (src->port != 0) {
         lwc_string *url_port_str = nsurl_get_component(url, NSURL_PORT);
-        int url_port = url_port_str ? atoi(lwc_string_data(url_port_str)) : 0;
-        if (url_port_str) lwc_string_unref(url_port_str);
+        int url_port = 0;
+        if (url_port_str) {
+            char *endptr;
+            long port = strtol(lwc_string_data(url_port_str), &endptr, 10);
+            if (endptr != lwc_string_data(url_port_str)) {
+                url_port = (int)port;
+            }
+            lwc_string_unref(url_port_str);
+        }
         if (src->port != url_port) return false;
     }
 
