@@ -13,10 +13,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 | `libcss` | Jan 2026 Fork | 0.9.2 (Upstream) | **[Partial]** Diverged (Forked for Grid/Calc) |
 | `libdom` | Jan 2026 Fork | Upstream Git | **[Partial]** Diverged (Forked for SVG/JS) |
 | `libhubbub` | Jan 2026 Sync | Upstream Git | **[Finished]** Moderate Divergence |
-| `libnsbmp` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
-| `libnsgif` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
-| `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
-| `LibreSSL` | Linked System | 4.0.0 | **[Finished]** Compatible |
+| `libnsbmp` | v0.1.7 | v0.1.7 | **[Finished]** Up-to-date |
+| `libnsgif` | v1.0.0 | v1.0.0 | **[Finished]** Up-to-date |
+| `FFmpeg` | Linked System | 8.1 | **[Finished]** Compatible ([Release 8.1](https://github.com/FFmpeg/FFmpeg/tree/release/8.1)) |
+| `LibreSSL` | Linked System | 4.3.2 | **[Finished]** Compatible |
 
 ## 3. Feature Status Categorization
 

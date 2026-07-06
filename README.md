@@ -47,7 +47,7 @@ Current development is focused on completing the CSS Variables implementation an
 * **Integrated JS Engine**: Uses QuickJS-ng (v0.15.1) for modern ES2023+ JavaScript support. Automated WebIDL binding generation ensures rapid coverage of modern DOM APIs.
 * **Windows Frontend Migration**: Core window and bitmap management migrated to C++ to leverage COM and modern STL containers.
 * **Tiled Incremental Layout**: High-performance "dirty-bit" based reflow system with a **Fixed-Tile Redraw** strategy to minimize CPU cycles and overdraw.
-* **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
+* **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg v8.1 based media pipeline.
 
 ## Known Issues
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
