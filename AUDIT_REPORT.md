@@ -15,8 +15,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 | `libhubbub` | Jan 2026 Sync | Upstream Git | **[Finished]** Moderate Divergence |
 | `libnsbmp` | 0.1.7 | 0.1.7 | **[Finished]** Up-to-date |
 | `libnsgif` | 1.0.0 | 1.0.0 | **[Finished]** Up-to-date |
-| `FFmpeg` | Linked System | 8.1 | **[Finished]** Compatible |
-| `LibreSSL` | Linked System | 4.3.2 | **[Finished]** Compatible |
+| `FFmpeg` | [8.1](https://github.com/FFmpeg/FFmpeg/tree/release/8.1) | 8.1 | **[Finished]** Compatible |
+| `LibreSSL` | 4.3.2 | 4.3.2 | **[Finished]** Compatible |
 
 ## 3. Feature Status Categorization
 
