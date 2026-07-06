@@ -116,7 +116,7 @@ cmake -B build -DWISP_USE_BLEND2D=ON
 ```
 
 #### AsmJit (JIT Support)
-By default, Blend2D uses AsmJit for JIT-compiled SIMD pipelines. If you need to build without JIT (e.g., for architectures not supported by AsmJit), you can disable it:
+By default, Blend2D uses AsmJit (supports x86, x86_64, and AArch64) for JIT-compiled SIMD pipelines. If you need to build without JIT (e.g., for architectures not supported by AsmJit), you can disable it:
 ```bash
 cmake -B build -DWISP_USE_BLEND2D=ON -DBLEND2D_NO_JIT=ON
 ```
