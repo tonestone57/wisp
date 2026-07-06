@@ -30,10 +30,20 @@ static JSValue mutation_callback_job(JSContext *ctx, int argc, JSValueConst *arg
     if (!priv) return JS_UNDEFINED;
     WispMutationObserver *observer = priv->node;
     if (JS_IsUndefined(observer->queue)) return JS_UNDEFINED;
-    JSValue args[2]; args[0] = observer->queue; args[1] = argv[0];
+
+    /* Swap queue before callback to handle nested mutations correctly */
+    JSValue queue = observer->queue;
+    observer->queue = JS_NewArray(ctx);
+    observer->queued = false;
+
+    JSValue args[2];
+    args[0] = queue;
+    args[1] = argv[0];
+
     JSValue ret = JS_Call(ctx, observer->callback, JS_UNDEFINED, 2, args);
-    JS_FreeValue(ctx, ret); JS_FreeValue(ctx, observer->queue);
-    observer->queue = JS_NewArray(ctx); observer->queued = false;
+    JS_FreeValue(ctx, ret);
+    JS_FreeValue(ctx, queue);
+
     return JS_UNDEFINED;
 }
 
@@ -249,6 +259,7 @@ int qjs_init_mutationobserver(JSContext *ctx)
 
     JSValue proto = JS_GetClassProto(ctx, qjs_mutationobserver_class_id);
     if (!JS_IsObject(proto)) {
+        JS_FreeValue(ctx, proto);
         proto = JS_NewObject(ctx);
         JS_SetClassProto(ctx, qjs_mutationobserver_class_id, JS_DupValue(ctx, proto));
     }

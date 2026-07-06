@@ -138,6 +138,7 @@ int qjs_init_intersectionobserver(JSContext *ctx)
 
     JSValue proto = JS_GetClassProto(ctx, qjs_intersectionobserver_class_id);
     if (!JS_IsObject(proto)) {
+        JS_FreeValue(ctx, proto);
         proto = JS_NewObject(ctx);
         JS_SetClassProto(ctx, qjs_intersectionobserver_class_id, JS_DupValue(ctx, proto));
     }
