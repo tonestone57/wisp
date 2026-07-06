@@ -1,16 +1,29 @@
 #include "tile_pool.h"
 #include <stdlib.h>
-#include <pthread.h>
 #include <string.h>
 #include <wisp/utils/log.h>
 
-#define TILE_BUFFER_SIZE (512 * 512 * 4) // 1MB
+#ifdef _WIN32
+#include <windows.h>
+#define ns_mutex_t CRITICAL_SECTION
+#define ns_mutex_init(m) InitializeCriticalSection(m)
+#define ns_mutex_lock(m) EnterCriticalSection(m)
+#define ns_mutex_unlock(m) LeaveCriticalSection(m)
+#define ns_mutex_destroy(m) DeleteCriticalSection(m)
+#else
+#include <pthread.h>
+#define ns_mutex_t pthread_mutex_t
+#define ns_mutex_init(m) pthread_mutex_init(m, NULL)
+#define ns_mutex_lock(m) pthread_mutex_lock(m)
+#define ns_mutex_unlock(m) pthread_mutex_unlock(m)
+#define ns_mutex_destroy(m) pthread_mutex_destroy(m)
+#endif
 
 struct tile_pool {
     void **buffers;
     size_t capacity;
     size_t count;
-    pthread_mutex_t lock;
+    ns_mutex_t lock;
 };
 
 static struct tile_pool *global_pool = NULL;
@@ -28,7 +41,7 @@ bool tile_pool_init(size_t pool_size) {
         return false;
     }
 
-    pthread_mutex_init(&global_pool->lock, NULL);
+    ns_mutex_init(&global_pool->lock);
     global_pool->capacity = pool_size;
     global_pool->count = 0;
 
@@ -40,7 +53,7 @@ bool tile_pool_init(size_t pool_size) {
                 free(global_pool->buffers[j]);
             }
             free(global_pool->buffers);
-            pthread_mutex_destroy(&global_pool->lock);
+            ns_mutex_destroy(&global_pool->lock);
             free(global_pool);
             global_pool = NULL;
             return false;
@@ -55,13 +68,13 @@ bool tile_pool_init(size_t pool_size) {
 void tile_pool_fini(void) {
     if (!global_pool) return;
 
-    pthread_mutex_lock(&global_pool->lock);
+    ns_mutex_lock(&global_pool->lock);
     for (size_t i = 0; i < global_pool->count; i++) {
         free(global_pool->buffers[i]);
     }
     free(global_pool->buffers);
-    pthread_mutex_unlock(&global_pool->lock);
-    pthread_mutex_destroy(&global_pool->lock);
+    ns_mutex_unlock(&global_pool->lock);
+    ns_mutex_destroy(&global_pool->lock);
     free(global_pool);
     global_pool = NULL;
 }
@@ -70,11 +83,11 @@ void *tile_pool_checkout(void) {
     if (!global_pool) return NULL;
 
     void *buffer = NULL;
-    pthread_mutex_lock(&global_pool->lock);
+    ns_mutex_lock(&global_pool->lock);
     if (global_pool->count > 0) {
         buffer = global_pool->buffers[--global_pool->count];
     }
-    pthread_mutex_unlock(&global_pool->lock);
+    ns_mutex_unlock(&global_pool->lock);
 
     if (!buffer) {
         // Fallback to heap if pool is empty
@@ -91,12 +104,12 @@ void tile_pool_return(void *buffer) {
         return;
     }
 
-    pthread_mutex_lock(&global_pool->lock);
+    ns_mutex_lock(&global_pool->lock);
     if (global_pool->count < global_pool->capacity) {
         global_pool->buffers[global_pool->count++] = buffer;
-        pthread_mutex_unlock(&global_pool->lock);
+        ns_mutex_unlock(&global_pool->lock);
     } else {
-        pthread_mutex_unlock(&global_pool->lock);
+        ns_mutex_unlock(&global_pool->lock);
         free(buffer);
     }
 }
