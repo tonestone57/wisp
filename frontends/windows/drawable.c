@@ -415,6 +415,8 @@ extern void nsws_drawable_paint_d2d(struct gui_window *gw, HWND hwnd);
 #ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
 #include "wisp/desktop/plot_blend2d.h"
+
+nserror win32_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 #endif
 
 /**
@@ -487,8 +489,6 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
 
                 HDC memdc = CreateCompatibleDC(ps.hdc);
                 HGDIOBJ oldbm = SelectObject(memdc, hbm);
-
-                extern nserror win32_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 
                 struct blend2d_context b2d_ctx = {
                     .bl_ctx = &bl_ctx,

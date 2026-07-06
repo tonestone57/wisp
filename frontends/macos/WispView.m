@@ -6,6 +6,8 @@
 #ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
 #include "wisp/desktop/plot_blend2d.h"
+
+extern nserror macos_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 #endif
 
 typedef struct {
@@ -28,8 +30,18 @@ static int macos_tile_task_compare(const void *a, const void *b)
     self = [super initWithFrame:frameRect];
     if (self) {
         _bw = bw;
+        _blend2d_data = NULL;
+        _blend2d_width = 0;
+        _blend2d_height = 0;
     }
     return self;
+}
+
+- (void)dealloc {
+    if (_blend2d_data) {
+        free(_blend2d_data);
+    }
+    [super dealloc];
 }
 
 - (BOOL)acceptsFirstResponder {
@@ -63,19 +75,24 @@ static int macos_tile_task_compare(const void *a, const void *b)
         int width = (int)self.bounds.size.width;
         int height = (int)self.bounds.size.height;
         size_t bytesPerRow = width * 4;
-        void *data = malloc(height * bytesPerRow);
-        if (data) {
-            memset(data, 0, height * bytesPerRow);
+
+        if (!_blend2d_data || _blend2d_width != width || _blend2d_height != height) {
+            if (_blend2d_data) free(_blend2d_data);
+            _blend2d_data = malloc(height * bytesPerRow);
+            _blend2d_width = width;
+            _blend2d_height = height;
+        }
+
+        if (_blend2d_data) {
+            memset(_blend2d_data, 0, height * bytesPerRow);
             BLContextCore bl_ctx;
             BLImageCore bl_img;
-            bl_image_init_as_from_data(&bl_img, width, height, BL_FORMAT_PRGB32, data, bytesPerRow, BL_DATA_ACCESS_RW, NULL, NULL);
+            bl_image_init_as_from_data(&bl_img, width, height, BL_FORMAT_PRGB32, _blend2d_data, bytesPerRow, BL_DATA_ACCESS_RW, NULL, NULL);
             bl_context_init_as(&bl_ctx, &bl_img, NULL);
-
-            extern nserror macos_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 
             /* Create a temporary CGContext that shares the same memory as Blend2D */
             CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-            CGContextRef bitmapCtx = CGBitmapContextCreate(data, width, height, 8, bytesPerRow, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+            CGContextRef bitmapCtx = CGBitmapContextCreate(_blend2d_data, width, height, 8, bytesPerRow, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
 
             struct blend2d_context b2d_ctx = {
                 .bl_ctx = &bl_ctx,
@@ -105,7 +122,6 @@ static int macos_tile_task_compare(const void *a, const void *b)
             CGImageRelease(image);
             CGContextRelease(bitmapCtx);
             CGColorSpaceRelease(colorSpace);
-            free(data);
             return;
         }
     }
