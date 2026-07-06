@@ -10,10 +10,10 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ![GNU.org](img/wisp_gnu.png?raw=true "GNU.org")
 
 ## Development
-Current development is focused on completing the CSS Variables implementation and refining the Incremental Layout engine. The project has unified its rendering backbone around **Blend2D** for pixel-perfect consistency and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
+Current development is focused on completing the CSS Variables implementation and refining the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
-### Core Features Status (June 2026)
-*   **[Finished] Unified Rendering (Blend2D)**: Blend2D is the primary rendering engine across all frontends, ensuring massive code deduplication and industry-leading software rasterization.
+### Core Features Status (August 2026)
+*   **[Finished] Blend2D Integration**: Blend2D is available as a high-performance rendering engine across frontends, ensuring pixel-perfect software rasterization and SIMD optimization.
 *   **[Finished] Native Direct2D & DirectWrite (Windows)**: Hardware-accelerated rendering pipeline for modern Windows systems, integrated with the core.
 *   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 or 512x512 tile strategy implemented to optimize performance and cache locality.
 *   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and the fixed-tile redraw strategy.
@@ -34,7 +34,7 @@ Current development is focused on completing the CSS Variables implementation an
 *   **[Finished] MutationObserver**: Native integration with LibDOM and optimized QuickJS callback delivery.
 *   **[Finished] Percentage Widths**: Comprehensive resolution for nested percentage constraints and definite-height containing blocks.
 *   **[Finished] DOM Selectors**: `querySelector` and `querySelectorAll` support with complex combinators and selector groups.
-*   **[Finished] Content Security Policy (CSP)**: Robust enforcement of modern security headers at both network and engine levels.
+*   **[Finished] Content Security Policy (CSP)**: Enforcement of modern security headers (default-src, script-src, img-src, etc.) at both network and engine levels.
 
 ## Biggest differences from Netsurf
 * Removed compatibility for super old and/or obscure libraries/software/operating systems
