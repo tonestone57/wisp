@@ -24,6 +24,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "wisp/utils/config.h"
 
@@ -36,19 +37,126 @@
 #include "wisp/plotters.h"
 #include "wisp/utils/errors.h"
 #include "wisp/utils/log.h"
+#include "wisp/utils/task_queue.h"
 
 #include "windows/drawable.h"
 #include "windows/local_history.h"
 #include "windows/plot.h"
 #include "windows/windbg.h"
 #include "windows/window.h"
+#include "desktop/tile_pool.h"
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
+#include "wisp/content.h"
+#include <blend2d/blend2d.h>
 
 static const wchar_t *windowclassname_drawable = L"nswsdrawablewindow";
 
 struct win32_tile_task_t {
+    struct gui_window *g;
+    struct hlcache_handle *h;
     struct rect tile_clip;
+    HWND hwnd;
+    void *buffer;
+    int tile_size;
     float priority;
 };
+
+static void win32_tile_raster_complete(void *arg);
+
+extern const struct plotter_table blend2d_plotters;
+
+/**
+ * Worker thread function for tile rasterization using Blend2D.
+ */
+static void win32_tile_redraw_worker(void *arg)
+{
+    struct win32_tile_task_t *task = (struct win32_tile_task_t *)arg;
+    BLContextCore bl_ctx;
+    BLImageCore img;
+
+    /* Initialize Blend2D image from pooled buffer */
+    bl_image_init_as_from_data(&img, task->tile_size, task->tile_size, BL_FORMAT_PRGB32, task->buffer, (intptr_t)task->tile_size * 4, BL_DATA_ACCESS_RW, NULL, NULL);
+    bl_context_init_as(&bl_ctx, &img, NULL);
+
+    /* Clear buffer to white initially */
+    bl_context_set_fill_style_rgba32(&bl_ctx, 0xFFFFFFFF);
+    bl_context_fill_all(&bl_ctx);
+
+    struct redraw_context ctx = {true, true, &blend2d_plotters, &bl_ctx};
+
+    /* Adjust drawing coordinates so (0,0) is the top-left of the tile. */
+    BLMatrix2D m;
+    bl_matrix2d_set_identity(&m);
+    int tile_x0 = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+    int tile_y0 = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+    double tl_data[2] = {-(double)tile_x0, -(double)tile_y0};
+    bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
+    bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
+
+    /* Render content into tile buffer */
+    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+
+    bl_context_end(&bl_ctx);
+    bl_image_destroy(&img);
+
+    /* Dispatch completion callback to main thread */
+    if (!task_queue_post(win32_tile_raster_complete, task)) {
+        content_dec_bg_tasks(task->h);
+        hlcache_handle_release(task->h);
+        tile_pool_return(task->buffer);
+        free(task);
+    }
+}
+
+/**
+ * Completion callback for tile rasterization.
+ * Executes on the main UI thread.
+ */
+static void win32_tile_raster_complete(void *arg)
+{
+    struct win32_tile_task_t *task = (struct win32_tile_task_t *)arg;
+
+    /* Safety Check: Verify window still exists and is valid */
+    if (IsWindow(task->hwnd)) {
+        HDC hdc = GetDC(task->hwnd);
+        if (hdc) {
+            BITMAPINFO bmi;
+            memset(&bmi, 0, sizeof(bmi));
+            bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+            bmi.bmiHeader.biWidth = task->tile_size;
+            bmi.bmiHeader.biHeight = -task->tile_size; /* Top-down */
+            bmi.bmiHeader.biPlanes = 1;
+            bmi.bmiHeader.biBitCount = 32;
+            bmi.bmiHeader.biCompression = BI_RGB;
+
+            /* Pattern origin for this tile in window coordinates */
+            int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+            int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+
+            /* Atomic Blit: Transfer pixels from pooled buffer to screen.
+             * For top-down DIBs (negative biHeight), ySrc is distance from top. */
+            SetDIBitsToDevice(hdc,
+                task->tile_clip.x0, task->tile_clip.y0,
+                task->tile_clip.x1 - task->tile_clip.x0,
+                task->tile_clip.y1 - task->tile_clip.y0,
+                task->tile_clip.x0 - tx,
+                task->tile_clip.y0 - ty,
+                0,
+                task->tile_size,
+                task->buffer,
+                &bmi,
+                DIB_RGB_COLORS);
+
+            ReleaseDC(task->hwnd, hdc);
+        }
+    }
+
+    /* Update active task count for content lifecycle management */
+    content_dec_bg_tasks(task->h);
+    hlcache_handle_release(task->h);
+    tile_pool_return(task->buffer);
+    free(task);
+}
 
 static int win32_tile_task_compare(const void *a, const void *b)
 {
@@ -484,15 +592,50 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
         /* Sort tiles by priority to ensure visible/near ones are drawn first */
         qsort(tasks, task_count, sizeof(struct win32_tile_task_t), win32_tile_task_compare);
 
-        /* Execute prioritized redraw loop */
+        /* Execute prioritized redraw loop with Tile Pool integration and worker offloading */
         for (int i = 0; i < task_count; i++) {
-            /* Set clipping for this tile to ensure GDI doesn't draw outside it */
-            SaveDC(ps.hdc);
-            IntersectClipRect(ps.hdc, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0, tasks[i].tile_clip.x1, tasks[i].tile_clip.y1);
+            void *buf = tile_pool_checkout();
+            bool dispatched = false;
 
-            browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &tasks[i].tile_clip, &ctx);
+            if (buf) {
+                struct hlcache_handle *h = browser_window_get_content(gw->bw);
+                if (h != NULL) {
+                    struct win32_tile_task_t *task = (struct win32_tile_task_t *)malloc(sizeof(struct win32_tile_task_t));
+                    if (task) {
+                        task->g = gw;
+                        task->tile_clip = tasks[i].tile_clip;
+                        task->hwnd = hwnd;
+                        task->buffer = buf;
+                        task->tile_size = tile_size;
+                        task->priority = tasks[i].priority;
 
-            RestoreDC(ps.hdc, -1);
+                        /* Clone handle to ensure it remains valid during background task */
+                        if (hlcache_handle_clone(h, &task->h) == NSERROR_OK) {
+                            /* Increment active background tasks to prevent content destruction while rendering */
+                            content_inc_bg_tasks(task->h);
+                            dispatched = wisp_dispatch_raster(NULL, win32_tile_redraw_worker, task, task->priority);
+                            if (!dispatched) {
+                                content_dec_bg_tasks(task->h);
+                                hlcache_handle_release(task->h);
+                                free(task);
+                            }
+                        } else {
+                            free(task);
+                        }
+                    }
+                }
+            }
+
+            if (!dispatched) {
+                if (buf) {
+                    tile_pool_return(buf);
+                }
+                /* Synchronous fallback if pool/dispatch fails */
+                SaveDC(ps.hdc);
+                IntersectClipRect(ps.hdc, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0, tasks[i].tile_clip.x1, tasks[i].tile_clip.y1);
+                browser_window_redraw(gw->bw, -gw->scrollx, -gw->scrolly, &tasks[i].tile_clip, &ctx);
+                RestoreDC(ps.hdc, -1);
+            }
         }
 
         free(tasks);
