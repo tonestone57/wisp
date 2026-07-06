@@ -1,4 +1,4 @@
-# Wisp Browser Technical Roadmap & Architectural Summary (June 2026)
+# Wisp Browser Technical Roadmap & Architectural Summary (August 2026)
 
 ## 1. Executive Summary
 Wisp is a lightweight, high-performance web engine forked from NetSurf. Its primary mission is to bridge the gap between "retro" software efficiency and the modern web by implementing high-priority standards (CSS Grid, Flexbox, ES2023+) while maintaining a minimal footprint suitable for both modern and legacy operating systems (Haiku, Windows XP/7, Linux, macOS).
@@ -45,7 +45,7 @@ Wisp implements a **hybrid threading model** to balance safety with performance.
 To ensure safe interaction with the underlying C-based DOM (`libdom`), which is not thread-safe, all scripts that manipulate page elements run on the **Main UI Thread**. This prevents race conditions and memory corruption without the overhead of complex locking mechanisms.
 
 ### Background Worker Pool (`wisp_subsystem`)
-The browser includes a dedicated worker pool subsystem (`src/content/handlers/javascript/quickjs/wisp_subsystem.c`) that can spawn up to **7 background threads**. This infrastructure allows Wisp to:
+The browser includes a dedicated worker pool subsystem (`src/content/handlers/javascript/quickjs/wisp_subsystem.c`) that scales based on the available CPU cores. This infrastructure allows Wisp to:
 *   Offload computationally expensive tasks (cryptography, large data parsing, image decoding).
 *   Keep the UI thread responsive during heavy site execution.
 *   Provide a foundation for a future full `Web Workers` implementation.
@@ -92,7 +92,7 @@ The following tasks are identified as high-priority for the next development cyc
     *   *Benefit*: Enables high-performance interactive graphics, charts, and games, reaching parity with modern web standards.
 *   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan).
     *   *Benefit*: Offloads expensive pixel transfers from the CPU, ensuring buttery-smooth 60FPS scrolling and lower power consumption on modern hardware.
-*   **[Planned] Parallel Tile Redraw** (Complexity: **Medium** | Benefit: **Medium**): Parallelize the Fixed-Tile Redraw strategy across multiple CPU cores via the `wisp_subsystem` worker pool.
+*   **[Finished] Parallel Tile Redraw** (Complexity: **Medium** | Benefit: **Medium**): Parallelize the Fixed-Tile Redraw strategy across multiple CPU cores via the `wisp_subsystem` worker pool.
     *   *Benefit*: Dramatically reduces latency on complex pages by utilizing all available CPU cores for concurrent tile rasterization.
 
 ### Performance & Stability
@@ -106,7 +106,7 @@ The following tasks are identified as high-priority for the next development cyc
     *   *Benefit*: Simplifies maintenance and ensures a professional, consistent user experience across Linux, Windows, Haiku, and macOS.
 *   **[Planned] Web Worker Parity** (Complexity: **Medium** | Benefit: **Medium**): Extend the `wisp_subsystem` worker pool to support a full, spec-compliant `Web Workers` API.
     *   *Benefit*: Unlocks the ability to run heavy computations (like image processing) in the background without freezing the UI.
-*   **[Planned] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend.
+*   **[Partial] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Integrate native `BControl` elements (buttons, inputs) into the BeOS/Haiku frontend via a persistent widget map in `gui_window`.
     *   *Benefit*: Provides perfect system theme integration and accessibility support for Haiku users.
 
 ### Security
@@ -126,10 +126,10 @@ Hardcoding or capping the background worker pool at **7 threads** introduces per
 2.  **High-End Hardware Starvation**: On modern 8-core or 16-core machines, capping at 7 leaves performance on the table.
 3.  **Resource Contention**: Since the `wisp_subsystem` handles both Parallel Tile Redraw (PTR) and background JavaScript tasks, a heavy script can stall rendering, causing UI stutter.
 
-### Recommended Sizing Architecture
-Decouple the pools into a dedicated Rasterization Pool and a separate JS Worker Pool, scaling dynamically based on logical core count (N).
+### Implemented Sizing Architecture
+The subsystem decouples tasks into a dedicated Rasterization Pool and a separate JS Worker Pool, scaling dynamically based on logical core count (N).
 
-| Pool Type | Target System Power | Optimal Formula | Behavior |
+| Pool Type | Target System Power | Implemented Formula | Behavior |
 |---|---|---|---|
 | **Rasterization Pool** | Single-Core (N=1) | 0 (Synchronous) | Avoids threading overhead completely. |
 | | Multi-Core (N > 1) | P = N - 1 | Leaves 1 core for the Main UI thread and OS event loops. |
@@ -139,13 +139,13 @@ Decouple the pools into a dedicated Rasterization Pool and a separate JS Worker 
 
 ## 10. High-Impact Structural Improvements
 
-### A. Tile Memory Recycling (Fixed-Buffer Pool)
+### A. [Finished] Tile Memory Recycling (Fixed-Buffer Pool)
 Dynamic allocation/freeing of tile backing stores triggers **heap fragmentation**, especially on legacy OS allocators.
-*   **The Fix**: Implement a thread-safe **Ring Buffer or Lookaside List** of fixed-size tile memory buffers. Worker threads checkout buffers, rasterize, and return them after the main thread executes the atomic blit.
+*   **The Fix**: Implemented a thread-safe **Lookaside List** of fixed-size 1MB tile memory buffers in `src/desktop/tile_pool.c`. Worker threads checkout buffers, rasterize, and return them after the main thread executes the atomic blit.
 
 ### B. Viewport-Prioritized Tile Scheduling
-A simple FIFO task queue can hurt perceived performance during heavy reflows if tiles at the bottom of the page are rendered before visible ones.
-*   **The Fix**: Implement a **Spatially Weighted Task Queue**. Assign every dirty tile task a priority multiplier based on its geometric distance from the viewport frustum.
+*   **[Finished] Viewport-Prioritized Tile Scheduling**: A simple FIFO task queue can hurt perceived performance during heavy reflows if tiles at the bottom of the page are rendered before visible ones.
+*   **The Fix**: Implemented a **Spatially Weighted Task Queue**. Every dirty tile task is assigned a priority multiplier calculated via `browser_calculate_tile_priority` based on its geometric distance from the viewport frustum.
 
 ### C. Direct Render Passes for Haiku (BDirectWindow)
 Copying large memory blocks back to the main UI thread creates a bottleneck on older Haiku rigs.

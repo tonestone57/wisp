@@ -1,7 +1,7 @@
-# Wisp Code Audit Report - June 2026
+# Wisp Code Audit Report - August 2026
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and unified rendering. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project has successfully unified its rendering backbone around Blend2D while providing a high-performance native Direct2D/DirectWrite path for Windows.
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project supports high-performance rendering via Blend2D while providing a native Direct2D/DirectWrite path for Windows and standard fallbacks for other frontends.
 
 ## 2. Library Versions Audit
 
@@ -24,8 +24,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Position: Sticky**: Full support for sticky positioning, including multi-axis clamping and scroll-container constraints. Verified in `layout_apply_sticky_clamping`.
 *   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
 *   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI/Direct2D), and Blend2D.
-*   **Unified Rendering (Blend2D)**: Unified rendering backbone across all frontends for pixel-perfect consistency.
-*   **Fixed-Tile Redraw**: Scale-aware 256x256 (standard) or 512x512 (High-DPI) tile strategy implemented to optimize performance and cache locality.
+*   **Blend2D Integration**: High-performance software 2D engine available as a plotter backend for pixel-perfect consistency.
+*   **Fixed-Tile Redraw**: Scale-aware 256x256 (standard) or 512x512 (High-DPI) tile strategy implemented in the core to optimize performance and cache locality.
 *   **Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and fixed-tile redraw strategy.
 *   **Native Direct2D & DirectWrite (Windows)**: High-performance C++ based hardware-accelerated rendering pipeline for modern Windows systems.
 *   **Incremental Layout Core**: Dual-strategy using a dirty-bit reflow system and scale-aware fixed-tile redraw for maximum efficiency.
@@ -48,11 +48,14 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **DOM Selectors**: `querySelector` and `querySelectorAll` are implemented in `dom_bridge.c` using a right-to-left matching strategy and support complex combinators and selector groups.
 *   **Content Security Policy (CSP)**: Full CSP header enforcement (default-src, script-src, img-src, style-src, font-src, object-src, frame-src, connect-src) implemented in `csp.c` and enforced at cache and layout levels.
 *   **Direct2D Device Loss Recovery**: Robust handling of hardware acceleration loss via `nsws_d2d_recreate_resources`, including global factory recreation and image cache invalidation to ensure stability on modern Windows systems.
+*   **Tile Memory Recycling**: Thread-safe lookaside list of fixed-size 1MB tile buffers implemented in `src/desktop/tile_pool.c` to mitigate heap fragmentation.
 
 ### 3.2 Partial Implementation [Partial]
+*   **BeOS Native Widgets**: Initial integration of native `BControl` widgets in the Haiku frontend for common form elements.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
 *   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing. (Complexity: **Medium** | Benefit: **High**)
+*   **Multi-Process Isolation**: IPC and sandboxing architecture (Brokered Networking, Content/UI process separation) is planned but not yet implemented.
 
 ## 4. Subsystem Deep-Dive
 
