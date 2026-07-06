@@ -15,10 +15,12 @@ JSValue qjs_new_mutationrecord_manual(JSContext *ctx, WispMutationRecord *record
 static char *dom_string_to_c(struct dom_string *s)
 {
     if (!s) return NULL;
+    const char *data = dom_string_data(s);
     size_t len = dom_string_byte_length(s);
+    if (!data) return strdup("");
     char *res = malloc(len + 1);
     if (res) {
-        memcpy(res, dom_string_data(s), len);
+        memcpy(res, data, len);
         res[len] = '\0';
     }
     return res;

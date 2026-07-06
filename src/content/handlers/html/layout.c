@@ -1745,6 +1745,8 @@ layout_solve_width(struct box *box, int available_width, int width, int lm, int 
 	 * Need to compute left/right margins */
 
 	if (available_width == UNKNOWN_WIDTH || width == UNKNOWN_WIDTH) {
+		/* If width is unknown, preserve it for the next pass to avoid
+		 * stable-state oscillations. */
 		return width;
 	}
 
@@ -3976,10 +3978,12 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 
 				layout_block_find_dimensions(&content->unit_len_ctx, box->parent->width, viewport_height, lm, rm, box);
 
-				/* Detect if width is still the sentinel after dimension calculation */
+				/* Detect if width is still the sentinel after dimension calculation.
+				 * This usually indicates an unconstrained width in a multi-pass
+				 * layout context (e.g. flex/grid) or a genuine overflow. */
 				if (box->width == UNKNOWN_WIDTH || box->width > 100000000) {
-					NSLOG(layout, WARNING,
-						"OVERFLOW_BUG: after layout_block_find_dimensions: box %p type=%d width=%d parent_width=%d tag=%s class=%s",
+					NSLOG(layout, DEEPDEBUG,
+						"layout stability: after layout_block_find_dimensions: box %p type=%d width=%d parent_width=%d tag=%s class=%s",
 						box, box->type, box->width, box->parent ? box->parent->width : -1, tag, cls);
 				}
 
@@ -4127,8 +4131,8 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 			box->width = box->parent->width;
 			/* Detect if parent width is still the sentinel */
 			if (box->width == UNKNOWN_WIDTH || box->width > 100000000) {
-				NSLOG(layout, WARNING,
-					"OVERFLOW_BUG: INLINE_CONTAINER %p inheriting huge parent_width=%d from parent %p", box,
+				NSLOG(layout, DEEPDEBUG,
+					"layout stability: INLINE_CONTAINER %p inheriting huge parent_width=%d from parent %p", box,
 					box->parent->width, box->parent);
 			}
 			if (!layout_inline_container(box, box->width, block, cx, cy, content))

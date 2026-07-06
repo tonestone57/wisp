@@ -1959,7 +1959,9 @@ void form_gadget_sync_with_dom(struct form_control *control)
         /* The DOM has changed */
         if (!changed_dom) {
             /* And it wasn't us */
-            char *value_s = strndup(dom_string_data(value), dom_string_byte_length(value));
+            const char *data = dom_string_data(value);
+            size_t len = dom_string_byte_length(value);
+            char *value_s = data ? strndup(data, len) : strdup("");
             char *dup = NULL;
             if (value_s == NULL) {
                 goto out;
