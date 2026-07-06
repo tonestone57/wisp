@@ -198,6 +198,7 @@ void box_free(struct box *box)
         css_select_results_destroy(box->styles);
     }
     /* box->text is allocated from the arena, so do not free it */
+    if (box->node) dom_node_unref(box->node);
     free(box);
 }
 
@@ -555,7 +556,7 @@ START_TEST(test_grid_construction)
     ck_assert_int_eq(child->type, BOX_BLOCK);
     ck_assert_ptr_eq(child->parent, grid);
 
-            /* Cleanup */
+                /* Cleanup */
     box_free_tree(root);
     dom_node_unref(grid_el);
     dom_node_unref(root_el);
@@ -565,8 +566,6 @@ START_TEST(test_grid_construction)
         htmlc.bctx = NULL;
     }
     dom_node_unref(doc);
-
-    /* ctx was already freed by convert_xml_to_box on completion */
 
     unlink("/tmp/ns_test_grid.html");
 }
