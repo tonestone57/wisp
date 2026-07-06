@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-  Wisp project libraries required                               15 June 2026
+  Wisp project libraries required                             15 July 2026
 --------------------------------------------------------------------------------
 
   To build Wisp, you need the libraries required by the core, and any extra
