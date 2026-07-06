@@ -85,6 +85,7 @@ struct beos_tile_task_t {
     NSBrowserFrameView *view;
     void *buffer;
     int tile_size;
+    int scrollx, scrolly;
 };
 
 static void nsbeos_tile_raster_complete(void *arg);
@@ -115,8 +116,10 @@ extern "C" void beos_tile_redraw_worker(void *arg)
     bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
     bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
 
-    /* Render content into tile buffer */
-    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+    /* Render content into tile buffer.
+     * We pass -task->scrollx, -task->scrolly to ensure content is rendered
+     * at the correct position within the view-space tile clip. */
+    browser_window_redraw(task->g->bw, -task->scrollx, -task->scrolly, &task->tile_clip, &ctx);
 
     bl_context_end(&bl_ctx);
     bl_image_destroy(&img);
@@ -797,9 +800,9 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     int tile_size = browser_get_tile_size();
 
     /* Safety check: ensure tile size doesn't exceed pooled buffer capacity */
-    if (tile_size > 512) {
-        NSLOG(wisp, WARNING, "Tile size %d exceeds pool capacity, clamping to 512", tile_size);
-        tile_size = 512;
+    if (tile_size > TILE_WIDTH) {
+        NSLOG(wisp, WARNING, "Tile size %d exceeds pool capacity, clamping to %d", tile_size, TILE_WIDTH);
+        tile_size = TILE_WIDTH;
     }
     int rect_left = (int)updateRect.left;
     int rect_top = (int)updateRect.top;
@@ -840,11 +843,17 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
                 if (h != NULL) {
                     struct beos_tile_task_t *task = (struct beos_tile_task_t *)malloc(sizeof(struct beos_tile_task_t));
                     if (task) {
+                        int sx = 0, sy = 0;
+                        if (view->ScrollBar(B_HORIZONTAL)) sx = (int)view->ScrollBar(B_HORIZONTAL)->Value();
+                        if (view->ScrollBar(B_VERTICAL)) sy = (int)view->ScrollBar(B_VERTICAL)->Value();
+
                         task->g = g;
                         task->tile_clip = tile_clip;
                         task->view = (NSBrowserFrameView *)view;
                         task->buffer = buf;
                         task->tile_size = tile_size;
+                        task->scrollx = sx;
+                        task->scrolly = sy;
 
                         /* Clone handle to ensure it remains valid during background task */
                         if (hlcache_handle_clone(h, &task->h) == NSERROR_OK) {

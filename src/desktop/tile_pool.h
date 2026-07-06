@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#define TILE_WIDTH 512
+#define TILE_HEIGHT 512
+#define TILE_BUFFER_SIZE (TILE_WIDTH * TILE_HEIGHT * 4) // 1MB
+
 /**
  * Initialize the tile memory pool.
  *

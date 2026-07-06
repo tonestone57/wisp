@@ -58,6 +58,7 @@ struct win32_tile_task_t {
     HWND hwnd;
     void *buffer;
     int tile_size;
+    int scrollx, scrolly;
     float priority;
 };
 
@@ -93,8 +94,10 @@ static void win32_tile_redraw_worker(void *arg)
     bl_matrix2d_apply_op(&m, BL_TRANSFORM_OP_TRANSLATE, tl_data);
     bl_context_apply_transform_op(&bl_ctx, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
 
-    /* Render content into tile buffer */
-    browser_window_redraw(task->g->bw, 0, 0, &task->tile_clip, &ctx);
+    /* Render content into tile buffer.
+     * We pass -task->scrollx, -task->scrolly to ensure content is rendered
+     * at the correct position within the document-space tile clip. */
+    browser_window_redraw(task->g->bw, -task->scrollx, -task->scrolly, &task->tile_clip, &ctx);
 
     bl_context_end(&bl_ctx);
     bl_image_destroy(&img);
@@ -551,6 +554,13 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
 
         /* Fixed-Tile Redraw Implementation */
         int tile_size = browser_get_tile_size();
+
+        /* Safety check: ensure tile size doesn't exceed pooled buffer capacity */
+        if (tile_size > TILE_WIDTH) {
+            NSLOG(wisp, WARNING, "Tile size %d exceeds pool capacity, clamping to %d", tile_size, TILE_WIDTH);
+            tile_size = TILE_WIDTH;
+        }
+
         int rect_left = ps.rcPaint.left;
         int rect_top = ps.rcPaint.top;
         int rect_right = ps.rcPaint.right;
@@ -607,6 +617,8 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
                         task->hwnd = hwnd;
                         task->buffer = buf;
                         task->tile_size = tile_size;
+                        task->scrollx = gw->scrollx;
+                        task->scrolly = gw->scrolly;
                         task->priority = tasks[i].priority;
 
                         /* Clone handle to ensure it remains valid during background task */

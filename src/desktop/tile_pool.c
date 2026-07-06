@@ -19,8 +19,6 @@
 #define ns_mutex_destroy(m) pthread_mutex_destroy(m)
 #endif
 
-#define TILE_BUFFER_SIZE (512 * 512 * 4) // 1MB
-
 struct tile_pool {
     void **buffers;
     size_t capacity;
