@@ -1,7 +1,7 @@
 # StartupCafe.ro Analysis
 
 **URL**: https://startupcafe.ro/  
-**Updated**: June 2026
+**Updated**: August 2026
 
 ## Findings
 

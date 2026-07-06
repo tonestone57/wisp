@@ -76,7 +76,7 @@ While functional, the Haiku frontend has several paths for significant advanceme
 
 ---
 
-## 7. Recent Technical Improvements (June 2026 Update)
+## 7. Recent Technical Improvements (August 2026 Update)
 The following stability and compatibility fixes have been integrated:
 1.  **Web API Initialization**: Corrected `js_newthread` to ensure `navigator`, `location`, `storage`, and `XMLHttpRequest` are fully initialized with correct private data before script execution.
 2.  **Bridge Stability**: Fixed a critical `JS_FreeRuntime` assertion failure by ensuring the DOM bridge explicitly frees JSValue references and clears the runtime opaque pointer during cleanup.
@@ -96,7 +96,7 @@ The following tasks are identified as high-priority for the next development cyc
     *   *Benefit*: Dramatically reduces latency on complex pages by utilizing all available CPU cores for concurrent tile rasterization.
 
 ### Performance & Stability
-*   **[Bug] QuickJS Leak Resolution** (Complexity: **Low** | Benefit: **Low**): Investigate and resolve the remaining heap leaks (~720 bytes) identified during runtime teardown in `qjs.c`.
+*   **[Finished] QuickJS Leak Resolution** (Complexity: **Low** | Benefit: **Low**): Resolved the remaining heap leaks identified during runtime teardown.
     *   *Benefit*: Ensures a "perfect" leak-free baseline for embedding Wisp as a library in other applications.
 *   **[Planned] Multi-process Architecture** (Complexity: **High** | Benefit: **High**): Isolate the JavaScript engine and network stack into separate OS processes.
     *   *Benefit*: Improves system-wide stability by ensuring a crash in a script or network component does not affect the main browser process.

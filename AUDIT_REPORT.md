@@ -5,7 +5,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 
 ## 2. Library Versions Audit
 
-| Library | Repo Version | Latest Online (June 2026) | Status |
+| Library | Repo Version | Latest Online (August 2026) | Status |
 |---------|--------------|---------------------------|--------|
 | `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
 | `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
@@ -51,7 +51,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Tile Memory Recycling**: Thread-safe lookaside list of fixed-size 1MB tile buffers implemented in `src/desktop/tile_pool.c` to mitigate heap fragmentation.
 
 ### 3.2 Partial Implementation [Partial]
-*   **BeOS Native Widgets**: Initial integration of native `BControl` widgets in the Haiku frontend for common form elements.
+*   **BeOS Native Widgets**: Integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton) in the Haiku frontend via a persistent widget map.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
 *   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing. (Complexity: **Medium** | Benefit: **High**)
@@ -80,8 +80,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 ## 5. Bugs and Technical Debt
 
 ### 5.1 Identified Bugs
-*   **[Bug] QuickJS Leaks**: ~720 bytes leaked across 27 allocations during teardown (LeakSanitizer finding).
-*   **[Bug] CSS Variable Regression**: `libcss_parse_auto` fails on certain custom property definitions involving complex fallbacks.
+*   **[Finished] QuickJS Leaks**: Verified that JS runtime teardown is leak-free via LeakSanitizer.
+*   **[Finished] CSS Variable Regression**: Resolved parsing failures for custom property definitions involving complex fallbacks.
 *   **[Finished] Binding Type Mismatch**: Verified that manual implementation signatures match the WebIDL generator output.
 *   **[Finished] ODR Violation**: `guit` symbol duplication resolved using weak definitions and `extern` correctly.
 
@@ -90,5 +90,4 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 
 ## 6. Future Recommendations
 1.  **Canvas 2D Bridge**: Implement the plotter bridge for the Canvas 2D API. (Complexity: **Medium** | Benefit: **High**)
-2.  **Percentage Width Refinement**: Complete comprehensive resolution for all nested percentage scenarios. (Complexity: **Medium** | Benefit: **Medium**)
-3.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations. (Complexity: **High** | Benefit: **Medium**)
+2.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations. (Complexity: **High** | Benefit: **Medium**)

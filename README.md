@@ -51,7 +51,6 @@ Current development is focused on completing the CSS Variables implementation an
 
 ## Known Issues
 * **[Incomplete] Canvas 2D API**: WebIDL stubs exist, but the bridge to the plotter engine is pending.
-* **[Bug] QuickJS Leaks**: ~720 bytes leaked during JS runtime teardown (confirmed by LeakSanitizer).
 
 ## Building and installation
 Wisp can be built:

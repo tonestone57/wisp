@@ -1,6 +1,6 @@
 # CTV News Rendering Analysis
 
-**Date**: 2026-02-07 (Updated June 2026)
+**Date**: 2026-02-07 (Updated August 2026)
 **URL**: https://www.ctvnews.ca/  
 **Issue**: Header and page renders incorrectly, takes a long time
 
@@ -12,7 +12,7 @@ The CTV News header fails to render correctly because **CSS Variables (`var()`) 
 
 ---
 
-## wisp Feature Support Matrix (June 2026)
+## wisp Feature Support Matrix (August 2026)
 
 | Feature | Status | Implementation Details |
 |---------|--------|------------------------|

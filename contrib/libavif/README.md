@@ -175,7 +175,7 @@ resources on libavif, such as the Release Checklist.
 
 The libavif library is written in C99. Most of the tests are written in C++14.
 
-## Wisp Integration (June 2026)
+## Wisp Integration (August 2026)
 Wisp utilizes **libavif v1.4.2** as its primary decoder for AVIF and ISOBMFF-based image formats. It is integrated into the core mimesniffing logic to support AVIF, HEIC, and HEIF brands.
 
 ### Formatting
