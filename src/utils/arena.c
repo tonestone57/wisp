@@ -42,7 +42,7 @@ struct arena *arena_create(size_t chunk_size) {
     if (chunk_size == 0) chunk_size = 64 * 1024;
     /* chunk_size must be 64-byte aligned for data alignment (AVX-512) */
     chunk_size = ALIGN_UP(chunk_size, 64);
-    if (chunk_size == (SIZE_MAX & ~63UL)) return NULL;
+    if (chunk_size == (SIZE_MAX & ~(size_t)63)) return NULL;
 
     struct arena *a = aligned_alloc(64, ALIGN_UP(sizeof(struct arena), 64));
     if (!a) return NULL;
