@@ -440,8 +440,8 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
 
 	for (i = 0; i != table->columns; i++) {
 		if (col[i].max < col[i].min) {
-			box_dump(stderr, table, 0, true);
-			assert(0);
+			NSLOG(layout, WARNING, "Table column %u max < min. Correcting.", i);
+			col[i].max = col[i].min;
 		}
 		table_min += col[i].min;
 		table_max += col[i].max;
@@ -1180,8 +1180,8 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 	}
 
 	if (max < min) {
-		box_dump(stderr, block, 0, true);
-		assert(0);
+		NSLOG(layout, WARNING, "Block %p max width %d < min width %d. Correcting.", block, max, min);
+		max = min;
 	}
 
 	/* Apply CSS width / min-width / max-width constraints.
@@ -2454,7 +2454,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 					layout_move_children(c, 0, spare_height);
 					break;
 				case CSS_VERTICAL_ALIGN_INHERIT:
-					assert(0);
+					NSLOG(layout, ERROR, "CSS_VERTICAL_ALIGN_INHERIT found in layout");
 					break;
 				}
 			}
@@ -5658,24 +5658,23 @@ static void layout_get_box_bbox(
 			depth++;
 		}
 		fflush(stderr);
-		abort();
+		/* Don't abort in production browser; use a safe fallback and log. */
+		NSLOG(layout, ERROR, "CRITICAL: Layout overflow detected for box %p, width %d. Using fallback.", (void *)box, box->width);
+		box->width = 1000000;
 	}
 
 	/* Check padding and border for INT_MAX values */
 	if (box->padding[LEFT] >= 100000000) {
-		fprintf(stderr, "CRITICAL: Box %p has huge padding[LEFT] %d\n", (void *)box, box->padding[LEFT]);
-		fflush(stderr);
-		abort();
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge padding[LEFT] %d. Clamping.", (void *)box, box->padding[LEFT]);
+		box->padding[LEFT] = 1000000;
 	}
 	if (box->padding[RIGHT] >= 100000000) {
-		fprintf(stderr, "CRITICAL: Box %p has huge padding[RIGHT] %d\n", (void *)box, box->padding[RIGHT]);
-		fflush(stderr);
-		abort();
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge padding[RIGHT] %d. Clamping.", (void *)box, box->padding[RIGHT]);
+		box->padding[RIGHT] = 1000000;
 	}
 	if (box->border[RIGHT].width >= 100000000) {
-		fprintf(stderr, "CRITICAL: Box %p has huge border[RIGHT] %d\n", (void *)box, box->border[RIGHT].width);
-		fflush(stderr);
-		abort();
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge border[RIGHT] %d. Clamping.", (void *)box, box->border[RIGHT].width);
+		box->border[RIGHT].width = 1000000;
 	}
 
 	*desc_x0 = -box->border[LEFT].width;

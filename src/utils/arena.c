@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ALIGN_UP(val, align) (((val) + ((align) - 1)) & ~((align) - 1))
+#define ALIGN_UP(val, align) ((((val) + ((align) - 1)) < (val)) ? (SIZE_MAX & ~((align) - 1)) : (((val) + ((align) - 1)) & ~((align) - 1)))
 
 typedef struct arena_destructor {
     void (*fn)(void *);
@@ -35,6 +35,8 @@ struct arena *arena_create(size_t chunk_size) {
     if (chunk_size == 0) chunk_size = 64 * 1024;
     /* chunk_size must be 64-byte aligned for data alignment (AVX-512) */
     chunk_size = ALIGN_UP(chunk_size, 64);
+    if (chunk_size == SIZE_MAX) return NULL;
+
     struct arena *a = aligned_alloc(64, ALIGN_UP(sizeof(struct arena), 64));
     if (!a) return NULL;
     a->head = NULL;

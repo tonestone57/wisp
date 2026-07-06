@@ -81,6 +81,10 @@ The following stability and compatibility fixes have been integrated:
 1.  **Web API Initialization**: Corrected `js_newthread` to ensure `navigator`, `location`, `storage`, and `XMLHttpRequest` are fully initialized with correct private data before script execution.
 2.  **Bridge Stability**: Fixed a critical `JS_FreeRuntime` assertion failure by ensuring the DOM bridge explicitly frees JSValue references and clears the runtime opaque pointer during cleanup.
 3.  **Initialization Ordering**: Reordered the JS startup sequence to ensure core bindings are registered before the bridge attempts to wrap LibDOM nodes.
+4.  **Security & Stability Hardening**:
+    - Replaced unsafe `atoi` calls in CSP parsing with `strtol` and added port validation (0-65535).
+    - Eliminated browser-crashing `abort()` and `assert(0)` calls in the core layout engine, replacing them with safe fallbacks and geometric clamping to handle malformed content gracefully.
+    - Hardened the SIMD-aligned arena allocator against integer overflows in the `ALIGN_UP` macro.
 
 ---
 
