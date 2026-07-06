@@ -43,6 +43,11 @@ extern "C" {
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+#endif
+
 
 #define CARET_WIDTH 1
 
@@ -189,6 +194,62 @@ void NS_Widget::paintEvent(QPaintEvent *event)
         .plot = &nsqt_plotters,
         .priv = painter,
     };
+
+    int backend = nsoption_int(render_backend);
+
+#ifdef WITH_BLEND2D
+    bool use_blend2d = false;
+    if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
+        use_blend2d = true;
+    } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
+        /* On Linux, we lean heavily on Blend2D for page content */
+        use_blend2d = true;
+    }
+
+    if (use_blend2d) {
+        /* Render into a QImage using Blend2D */
+        QImage img(width(), height(), QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::transparent);
+
+        BLContextCore bl_ctx;
+        BLImageCore bl_img;
+        bl_image_init_as_from_data(&bl_img, img.width(), img.height(), BL_FORMAT_PRGB32, img.bits(), img.bytesPerLine(), BL_DATA_ACCESS_RW, NULL, NULL);
+        bl_context_init_as(&bl_ctx, &bl_img, NULL);
+
+        struct blend2d_context b2d_ctx = {
+            .bl_ctx = &bl_ctx,
+            .native_ctx = painter,
+            .native_text_handler = NULL /* Use Blend2D text */
+        };
+
+        struct redraw_context bl_ctx_ns = {
+            .interactive = true,
+            .background_images = true,
+            .plot = &blend2d_plotters,
+            .priv = &b2d_ctx,
+        };
+
+        struct rect full_clip = {0, 0, width(), height()};
+        browser_window_redraw(m_bw, -m_xoffset, -m_yoffset, &full_clip, &bl_ctx_ns);
+
+        bl_context_end(&bl_ctx);
+        bl_context_destroy(&bl_ctx);
+        bl_image_destroy(&bl_img);
+
+        painter->drawImage(0, 0, img);
+
+        struct rect caret_clip = {
+            .x0 = event->rect().left(),
+            .y0 = event->rect().top(),
+            .x1 = event->rect().right() + 1,
+            .y1 = event->rect().bottom() + 1,
+        };
+        redraw_caret(&caret_clip, &ctx);
+
+        delete painter;
+        return;
+    }
+#endif
     /* Fixed-Tile Redraw Implementation */
     int tile_size = browser_get_tile_size();
     QRect updateRect = event->rect();

@@ -67,6 +67,11 @@
 #include "gtk/warn.h"
 #include "gtk/window.h"
 
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+#endif
+
 /**
  * time (in ms) between throbber animation frame updates
  */
@@ -173,6 +178,65 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     struct gui_window *gw = data;
     struct gui_window *z;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = &nsgtk_plotters};
+    int backend = nsoption_int(render_backend);
+
+#ifdef WITH_BLEND2D
+    bool use_blend2d = false;
+    if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
+        use_blend2d = true;
+    } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
+        /* On Linux, avoid Cairo for page content, use Blend2D */
+        use_blend2d = true;
+    }
+
+    if (use_blend2d) {
+        GtkAllocation alloc;
+        gtk_widget_get_allocation(widget, &alloc);
+
+        /* Create a surface for Blend2D to render into */
+        cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, alloc.width, alloc.height);
+        unsigned char *data = cairo_image_surface_get_data(surface);
+        int stride = cairo_image_surface_get_stride(surface);
+
+        BLContextCore bl_ctx;
+        BLImageCore bl_img;
+        bl_image_init_as_from_data(&bl_img, alloc.width, alloc.height, BL_FORMAT_PRGB32, data, stride, BL_DATA_ACCESS_RW, NULL, NULL);
+        bl_context_init_as(&bl_ctx, &bl_img, NULL);
+
+        struct blend2d_context b2d_ctx = {
+            .bl_ctx = &bl_ctx,
+            .native_ctx = cr,
+            .native_text_handler = NULL
+        };
+
+        struct redraw_context bl_ctx_ns = {
+            .interactive = true,
+            .background_images = true,
+            .plot = &blend2d_plotters,
+            .priv = &b2d_ctx,
+        };
+
+        GtkAdjustment *vscroll = nsgtk_layout_get_vadjustment(gw->layout);
+        GtkAdjustment *hscroll = nsgtk_layout_get_hadjustment(gw->layout);
+
+        struct rect full_clip = {0, 0, alloc.width, alloc.height};
+        browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll),
+                              &full_clip, &bl_ctx_ns);
+
+        bl_context_end(&bl_ctx);
+        bl_context_destroy(&bl_ctx);
+        bl_image_destroy(&bl_img);
+
+        cairo_set_source_surface(cr, surface, 0, 0);
+        cairo_paint(cr);
+        cairo_surface_destroy(surface);
+
+        if (gw->careth != 0) {
+            nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);
+        }
+        return FALSE;
+    }
+#endif
 
     double x1;
     double y1;

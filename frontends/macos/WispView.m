@@ -1,6 +1,12 @@
 #import "WispView.h"
 #import "gui.h"
 #include <wisp/browser.h>
+#include <wisp/utils/nsoption.h>
+
+#ifdef WITH_BLEND2D
+#include <blend2d/blend2d.h>
+#include "wisp/desktop/plot_blend2d.h"
+#endif
 
 typedef struct {
     struct rect tile_clip;
@@ -41,6 +47,67 @@ static int macos_tile_task_compare(const void *a, const void *b)
 
 - (void)drawRect:(NSRect)dirtyRect {
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+    int backend = nsoption_int(render_backend);
+
+#ifdef WITH_BLEND2D
+    bool use_blend2d = false;
+    if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
+        use_blend2d = true;
+    } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
+        /* On macOS, Blend2D is often faster than Core Graphics for complex paths */
+        use_blend2d = true;
+    }
+
+    if (use_blend2d) {
+        /* Render into a Bitmap Context using Blend2D */
+        int width = (int)self.bounds.size.width;
+        int height = (int)self.bounds.size.height;
+        size_t bytesPerRow = width * 4;
+        void *data = malloc(height * bytesPerRow);
+        if (data) {
+            memset(data, 0, height * bytesPerRow);
+            BLContextCore bl_ctx;
+            BLImageCore bl_img;
+            bl_image_init_as_from_data(&bl_img, width, height, BL_FORMAT_PRGB32, data, bytesPerRow, BL_DATA_ACCESS_RW, NULL, NULL);
+            bl_context_init_as(&bl_ctx, &bl_img, NULL);
+
+            extern nserror macos_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
+
+            struct blend2d_context b2d_ctx = {
+                .bl_ctx = &bl_ctx,
+                .native_ctx = ctx,
+                .native_text_handler = macos_plot_text_ns
+            };
+
+            struct redraw_context bl_ctx_ns = {
+                .interactive = true,
+                .background_images = true,
+                .plot = &blend2d_plotters,
+                .priv = &b2d_ctx,
+            };
+
+            struct rect full_clip = {0, 0, width, height};
+            browser_window_redraw(_bw, 0, 0, &full_clip, &bl_ctx_ns);
+
+            bl_context_end(&bl_ctx);
+            bl_context_destroy(&bl_ctx);
+            bl_image_destroy(&bl_img);
+
+            CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+            CGContextRef bitmapCtx = CGBitmapContextCreate(data, width, height, 8, bytesPerRow, colorSpace, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
+            CGImageRef image = CGBitmapContextCreateImage(bitmapCtx);
+
+            CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), image);
+
+            CGImageRelease(image);
+            CGContextRelease(bitmapCtx);
+            CGColorSpaceRelease(colorSpace);
+            free(data);
+            return;
+        }
+    }
+#endif
+
     macos_plot_push_context(ctx);
 
     /* Fixed-Tile Redraw Implementation */

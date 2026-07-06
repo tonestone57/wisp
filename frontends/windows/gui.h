@@ -34,6 +34,17 @@ extern HINSTANCE hinst;
  */
 extern char *G_config_path;
 
+typedef enum {
+    WIN_OS_XP_VISTA,
+    WIN_OS_7_8,
+    WIN_OS_10_PLUS
+} nsw32_os_version;
+
+/**
+ * Get the Windows OS version
+ */
+nsw32_os_version nsw32_get_os_version(void);
+
 
 /* bounding box */
 typedef struct bbox_s {
