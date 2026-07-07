@@ -598,10 +598,8 @@ void nsbeos_dispatch_event(BMessage *message)
     switch (message->what) {
     case 'slct': {
         struct form_control *control;
-        struct gui_window *g;
         int32 index;
-        if (message->FindPointer("control", (void **)&control) == B_OK &&
-            message->FindPointer("gui_window", (void **)&g) == B_OK &&
+        if (gui != NULL && message->FindPointer("control", (void **)&control) == B_OK &&
             message->FindInt32("index", &index) == B_OK) {
             form_select_process_selection(control, (int)index);
         }
@@ -609,10 +607,8 @@ void nsbeos_dispatch_event(BMessage *message)
     }
     case 'fbrw': {
         struct form_control *control;
-        struct gui_window *g;
-        if (message->FindPointer("control", (void **)&control) == B_OK &&
-            message->FindPointer("gui_window", (void **)&g) == B_OK) {
-            gui_window_file_gadget_open(g, NULL, control);
+        if (gui != NULL && message->FindPointer("control", (void **)&control) == B_OK) {
+            gui_window_file_gadget_open(gui, NULL, control);
         }
         break;
     }
@@ -1660,19 +1656,22 @@ extern "C" nserror gui_window_draw_gadget(
             }
             break;
         case GADGET_TEXTAREA: {
-            /* Create scroller within the provided frame. BScrollView will adjust its frame
-             * to accommodate its scrollbars and borders if they are outside, but here we
-             * give it the exact frame and B_WILL_DRAW handles child clipping. */
-            BRect scrollerRect = frame;
-            /* The target view of BScrollView should have its origin at (0,0) relative to its parent (the scroller) */
-            BRect tvRect = scrollerRect.OffsetToCopy(0, 0);
-            /* Adjust for scrollbars and borders so text doesn't hide under them */
-            BRect textRect = tvRect.InsetByCopy(2, 2);
+            /* Create scroller within the provided frame.
+             * BScrollView takes ownership of the target view. */
+            BRect tvRect = frame;
+            /* Allow room for scrollbars and borders */
+            tvRect.right -= B_V_SCROLL_BAR_WIDTH + 2;
+            tvRect.bottom -= B_H_SCROLL_BAR_HEIGHT + 2;
+
+            /* NSTextView should be relative to its own frame for textRect */
+            BRect textRect = tvRect.OffsetToCopy(0, 0).InsetByCopy(2, 2);
             NSTextView *tv = new NSTextView(tvRect, "wisp_textarea", textRect,
                                             B_FOLLOW_ALL, B_WILL_DRAW, control, g, g->view);
             tv->SetText(control->value ? control->value : "");
             widget = new BScrollView("wisp_textarea_scroller", tv, B_FOLLOW_NONE, 0, true, true);
-            /* BScrollView now occupies the 'frame' rect and manages 'tv' internally. */
+            /* Ensure the scroller fits perfectly within the allocated frame */
+            widget->ResizeTo(frame.Width(), frame.Height());
+            widget->MoveTo(frame.left, frame.top);
             delete msg;
             break;
         }
