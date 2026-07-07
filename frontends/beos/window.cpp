@@ -116,7 +116,7 @@ public:
         SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 
         BRect r = Bounds();
-        float btnWidth = 80;
+        float btnWidth = StringWidth("Browse...") + 20;
         BRect btnRect = r;
         btnRect.left = btnRect.right - btnWidth;
 
