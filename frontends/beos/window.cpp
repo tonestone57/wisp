@@ -25,6 +25,7 @@
 #include <CheckBox.h>
 #include <Clipboard.h>
 #include <Cursor.h>
+#include <DirectWindow.h>
 #include <InterfaceDefs.h>
 #include <Message.h>
 #include <FilePanel.h>
@@ -161,6 +162,75 @@ struct beos_tile_task_t {
 
 static void nsbeos_tile_raster_complete(void *arg);
 
+static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView *view, void *buffer, int tile_size, const struct rect *tile_clip)
+{
+    if (!window->fDirectActive || !window->fDirectInfo)
+        return false;
+
+    bool success = false;
+    if (window->LockDirect()) {
+        direct_buffer_info *info = window->fDirectInfo;
+        if ((info->buffer_state & B_DIRECT_MODE_MASK) == B_DIRECT_STOP) {
+            window->UnlockDirect();
+            return false;
+        }
+
+        /* Calculate view offset relative to screen by adding window origin */
+        BPoint view_origin = view->ConvertToWindow(BPoint(0, 0));
+        int vx = (int)view_origin.x + info->window_bounds.left;
+        int vy = (int)view_origin.y + info->window_bounds.top;
+
+        /* Source tile coordinate in the raster buffer (relative to tile origin) */
+        int tx = tile_clip->x0 - (tile_clip->x0 % tile_size);
+        int ty = tile_clip->y0 - (tile_clip->y0 % tile_size);
+
+        /* Absolute destination coordinates on screen */
+        int dx0 = vx + tile_clip->x0;
+        int dy0 = vy + tile_clip->y0;
+        int dx1 = vx + tile_clip->x1;
+        int dy1 = vy + tile_clip->y1;
+
+        uint8 *bits = (uint8 *)info->bits;
+        int32 bpr = info->bytes_per_row;
+        int32 bpp = info->bits_per_pixel / 8;
+
+        /* Skip if bpp is unexpected (Blend2D uses 4bpp/PRGB32) */
+        if (bpp != 4) {
+            window->UnlockDirect();
+            return false;
+        }
+
+        /* Iterate through clipping rects provided by app_server */
+        for (uint32 i = 0; i < info->clip_list_count; i++) {
+            clipping_rect r = info->clip_list[i];
+
+            /* Intersect tile destination with clipping rect */
+            int ix0 = (dx0 > r.left) ? dx0 : r.left;
+            int iy0 = (dy0 > r.top) ? dy0 : r.top;
+            int ix1 = (dx1 < r.right + 1) ? dx1 : r.right + 1;
+            int iy1 = (dy1 < r.bottom + 1) ? dy1 : r.bottom + 1;
+
+            if (ix0 >= ix1 || iy0 >= iy1)
+                continue;
+
+            /* Blit line by line */
+            for (int y = iy0; y < iy1; y++) {
+                uint8 *dst = bits + (y * bpr) + (ix0 * bpp);
+                /* src offset must be relative to tile buffer start:
+                 * (y - vy - ty) is the vertical offset within the tile buffer
+                 * (ix0 - vx - tx) is the horizontal pixel offset within the tile buffer
+                 */
+                uint8 *src = (uint8 *)buffer + ((y - vy - ty) * tile_size * bpp) + ((ix0 - vx - tx) * bpp);
+                memcpy(dst, src, (ix1 - ix0) * bpp);
+            }
+        }
+
+        success = true;
+        window->UnlockDirect();
+    }
+    return success;
+}
+
 extern "C" void beos_tile_redraw_worker(void *arg)
 {
     struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
@@ -215,9 +285,17 @@ static void nsbeos_tile_raster_complete(void *arg)
     struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
     struct gui_window *g = task->g;
     NSBrowserFrameView *view = task->view;
+    bool blitted = false;
 
     /* Safety Check: Verify window still exists in the global list */
-    if (nsbeos_gui_window_exists(g) && view->LockLooper()) {
+    if (nsbeos_gui_window_exists(g)) {
+        NSBrowserWindow *window = dynamic_cast<NSBrowserWindow *>(view->Window());
+        if (window) {
+            blitted = nsbeos_tile_direct_blit(window, view, task->buffer, task->tile_size, &task->tile_clip);
+        }
+    }
+
+    if (!blitted && nsbeos_gui_window_exists(g) && view->LockLooper()) {
         /* Atomic Blit: Reuse a global BBitmap to prevent area/heap fragmentation. */
         if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != task->tile_size)) {
             delete nsbeos_blit_bitmap;

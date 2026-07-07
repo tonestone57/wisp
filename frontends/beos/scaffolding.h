@@ -22,6 +22,7 @@
 
 #include <NetPositive.h>
 #include <View.h>
+#include <DirectWindow.h>
 #include <Window.h>
 
 extern "C" {
@@ -55,11 +56,13 @@ private:
     struct beos_scaffolding *fScaffolding;
 };
 
-class NSBrowserWindow : public BWindow
+class NSBrowserWindow : public BDirectWindow
 {
 public:
     NSBrowserWindow(BRect frame, struct beos_scaffolding *scaf);
     virtual ~NSBrowserWindow();
+
+    virtual void DirectConnected(direct_buffer_info *info);
 
     virtual void DispatchMessage(BMessage *message, BHandler *handler);
     virtual void MessageReceived(BMessage *message);
@@ -72,6 +75,9 @@ public:
     };
 
     static BWindow *activeWindow;
+
+    direct_buffer_info *fDirectInfo;
+    bool fDirectActive;
 
 private:
     struct beos_scaffolding *fScaffolding;
