@@ -29,8 +29,23 @@
 #include <math.h>
 #include "impl/observer_internal.h"
 #include <wisp/desktop/gui_table.h>
+#include <wisp/utils/ipc.h>
 
 extern struct wisp_table *guit;
+static wisp_ipc_handle *ipc_js = NULL;
+
+static void ensure_js_process(void) {
+    if (!ipc_js) {
+        char ipc_name[64];
+        snprintf(ipc_name, sizeof(ipc_name), "/tmp/wisp-js-ipc-%d", getpid());
+        wisp_ipc_handle *server = wisp_ipc_create_server(ipc_name);
+        if (server) {
+            wisp_ipc_spawn("./wisp-js", ipc_name);
+            ipc_js = wisp_ipc_accept(server);
+            wisp_ipc_destroy(server);
+        }
+    }
+}
 void qjs_timer_callback(void *p);
 
 #ifdef _WIN32
@@ -250,26 +265,41 @@ void js_destroythread(jsthread *thread)
 
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
 {
-    if (!thread || !thread->ctx || thread->closed) return false;
-    char *term_txt = malloc(txtlen + 1);
-    if (!term_txt) return false;
-    memcpy(term_txt, txt, txtlen); term_txt[txtlen] = '\0';
-    JSValue result = JS_Eval(thread->ctx, term_txt, txtlen, name ? name : "<script>", JS_EVAL_TYPE_GLOBAL);
-    free(term_txt);
+    ensure_js_process();
+    if (!ipc_js) return false;
 
-    bool success = !JS_IsException(result);
-    if (!success) {
-        JSValue exc = JS_GetException(thread->ctx);
-        const char *exc_str = JS_ToCString(thread->ctx, exc);
-        if (exc_str) fprintf(stderr, "JS Error [%s]: %s\n", name ? name : "<script>", exc_str);
-        JS_FreeCString(thread->ctx, exc_str);
-        JS_FreeValue(thread->ctx, exc);
+    /* Use thread pointer as a unique context ID for the remote process */
+    uint32_t ctx_id = (uint32_t)(uintptr_t)thread;
+
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_JS_EXEC;
+    msg.length = 4 + txtlen;
+    msg.data = malloc(msg.length);
+    if (!msg.data) return false;
+    memcpy(msg.data, &ctx_id, 4);
+    memcpy(msg.data + 4, txt, txtlen);
+
+    if (wisp_ipc_send(ipc_js, &msg) != NSERROR_OK) {
+        free(msg.data);
+        return false;
     }
+    free(msg.data);
 
-    JSContext *ctx1;
-    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) > 0);
-    JS_FreeValue(thread->ctx, result);
-    return success;
+    /* Implement timeout for recv to avoid UI hang */
+    wisp_ipc_msg response;
+    wisp_ipc_set_blocking(ipc_js, false);
+    int retries = 500; // 5 seconds
+    while (retries-- > 0) {
+        if (wisp_ipc_recv(ipc_js, &response) == NSERROR_OK) {
+            wisp_ipc_set_blocking(ipc_js, true);
+            bool success = (response.length > 0 || response.data != NULL);
+            wisp_ipc_msg_free(&response);
+            return success;
+        }
+        usleep(10000);
+    }
+    wisp_ipc_set_blocking(ipc_js, true);
+    return false;
 }
 
 static void qjs_event_handler(struct dom_event *evt, void *pw)
