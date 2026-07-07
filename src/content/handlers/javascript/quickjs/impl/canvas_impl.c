@@ -689,24 +689,24 @@ JSValue wisp_canvasrenderingcontext2d_addHitRegion_impl(JSContext *ctx, QJSNodeP
 JSValue wisp_canvasrenderingcontext2d_clearHitRegions_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_commit_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, double sw, double sh) { return JS_NULL; }
-JSValue wisp_canvasrenderingcontext2d_createImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata) { return JS_NULL; }
+JSValue wisp_canvasrenderingcontext2d_createImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata) { return JS_NULL; }
 JSValue wisp_canvasrenderingcontext2d_currentTransform_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_canvasrenderingcontext2d_currentTransform_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue element) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue element) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_fillText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, JSValue maxWidth) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * element) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, void * element) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_fillText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, double maxWidth) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodePrivate *priv, double sx, double sy, double sw, double sh) { return JS_NULL; }
 JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "source-over"); }
 JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingEnabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_TRUE; }
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingEnabled_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingQuality_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "low"); }
-JSValue wisp_canvasrenderingcontext2d_imageSmoothingQuality_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_imageSmoothingQuality_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_isPointInStroke_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) { return JS_FALSE; }
 JSValue wisp_canvasrenderingcontext2d_isPointInStroke_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, double x, double y) { return JS_FALSE; }
 JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text) { return JS_NULL; }
-JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata, double dx, double dy) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_removeHitRegion_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_resetClip_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_scrollPathIntoView_0_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
@@ -714,12 +714,12 @@ JSValue wisp_canvasrenderingcontext2d_scrollPathIntoView_1_impl(JSContext *ctx, 
 JSValue wisp_canvasrenderingcontext2d_shadowBlur_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, 0.0); }
 JSValue wisp_canvasrenderingcontext2d_shadowBlur_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_shadowColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "rgba(0,0,0,0)"); }
-JSValue wisp_canvasrenderingcontext2d_shadowColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_shadowColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetX_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, 0.0); }
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetX_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetY_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, 0.0); }
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetY_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, JSValue maxWidth) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, double maxWidth) { return JS_UNDEFINED; }
 
 int qjs_init_canvas(JSContext *ctx)
 {
