@@ -630,7 +630,7 @@ void NSBaseView::AllAttached()
 
 
 NSBrowserWindow::NSBrowserWindow(BRect frame, struct beos_scaffolding *scaf)
-    : BWindow(frame, "Wisp", B_DOCUMENT_WINDOW, 0), fScaffolding(scaf)
+    : BDirectWindow(frame, "Wisp", B_DOCUMENT_WINDOW, 0), fScaffolding(scaf), fDirectInfo(NULL), fDirectActive(false)
 {
 }
 
@@ -639,6 +639,29 @@ NSBrowserWindow::~NSBrowserWindow()
 {
     if (activeWindow == this)
         activeWindow = NULL;
+    free(fDirectInfo);
+}
+
+
+void NSBrowserWindow::DirectConnected(direct_buffer_info *info)
+{
+    if (!fDirectInfo) {
+        fDirectInfo = (direct_buffer_info *)malloc(DIRECT_BUFFER_INFO_AREA_SIZE);
+    }
+
+    if (fDirectInfo) {
+        memcpy(fDirectInfo, info, DIRECT_BUFFER_INFO_AREA_SIZE);
+    }
+
+    switch (info->buffer_state & B_DIRECT_MODE_MASK) {
+    case B_DIRECT_START:
+    case B_DIRECT_MODIFY:
+        fDirectActive = true;
+        break;
+    case B_DIRECT_STOP:
+        fDirectActive = false;
+        break;
+    }
 }
 
 
