@@ -57,7 +57,7 @@ static bool mimesniff__has_binary_octets(const uint8_t *data, size_t len)
 	return data != end;
 }
 
-static bool mimesniff__is_video_brand(const uint8_t *brand)
+static bool mimesniff__is_video_brand(const uint8_t *brand, bool major)
 {
 	/* Known video brands:
 	 * mp4X: MPEG-4 Part 14
@@ -67,13 +67,24 @@ static bool mimesniff__is_video_brand(const uint8_t *brand)
 	 * vp09: VP9 Video
 	 * dash: Dynamic Adaptive Streaming over HTTP
 	 */
-	if ((brand[0] == 'm' && brand[1] == 'p' && brand[2] == '4') ||
-		(brand[0] == 'i' && brand[1] == 's' && brand[2] == 'o' && (brand[3] == 'm' || brand[3] == '2')) ||
-		(brand[0] == 'a' && brand[1] == 'v' && brand[2] == 'c' && brand[3] == '1') ||
-		(brand[0] == 'a' && brand[1] == 'v' && brand[2] == '0' && brand[3] == '1') ||
-		(brand[0] == 'v' && brand[1] == 'p' && brand[2] == '0' && brand[3] == '9') ||
-		(brand[0] == 'd' && brand[1] == 'a' && brand[2] == 's' && brand[3] == 'h')) {
+
+	/* 'mp4' (3 bytes) is always considered a video brand, even as compatible. */
+	if (brand[0] == 'm' && brand[1] == 'p' && brand[2] == '4') {
 		return true;
+	}
+
+	/* Other brands are only identified as video if they are the Major Brand.
+	 * This prevents audio-only files (which may have these as compatible brands
+	 * for generic ISOBMFF compliance) from being misidentified as video/mp4.
+	 */
+	if (major) {
+		if ((brand[0] == 'i' && brand[1] == 's' && brand[2] == 'o' && (brand[3] == 'm' || brand[3] == '2')) ||
+			(brand[0] == 'a' && brand[1] == 'v' && brand[2] == 'c' && brand[3] == '1') ||
+			(brand[0] == 'a' && brand[1] == 'v' && brand[2] == '0' && brand[3] == '1') ||
+			(brand[0] == 'v' && brand[1] == 'p' && brand[2] == '0' && brand[3] == '9') ||
+			(brand[0] == 'd' && brand[1] == 'a' && brand[2] == 's' && brand[3] == 'h')) {
+			return true;
+		}
 	}
 
 	return false;
@@ -83,30 +94,6 @@ static nserror mimesniff__match_mp4(const uint8_t *data, size_t len, lwc_string 
 {
 	uint32_t box_size, i;
 
-	/* ISO/IEC 14496-12:2008 $4.3 says (effectively):
-	 *
-	 * struct ftyp_box {
-	 *   uint32_t size; (in octets, including size+type words)
-	 *   uint32_t type; (== 'ftyp')
-	 *   uint32_t major_brand;
-	 *   uint32_t minor_version;
-	 *   uint32_t compatible_brands[];
-	 * }
-	 *
-	 * Note 1: A size of 0 implies that the length of the box is designated
-	 * by the remaining input data (and thus may only occur in the last
-	 * box in the input). We'll reject this below, as it's pointless
-	 * sniffing input that contains no boxes other than 'ftyp'.
-	 *
-	 * Note 2: A size of 1 implies an additional uint64_t field after
-	 * the type which contains the extended box size. We'll reject this,
-	 * too, as it implies a minimum of (2^32 - 24) / 4 compatible brands,
-	 * which is decidely unlikely.
-	 */
-
-	/* 12 reflects the minimum number of octets needed to sniff useful
-	 * information out of an 'ftyp' box (i.e. the size, type,
-	 * and major_brand words). */
 	if (len < 12)
 		return NSERROR_NOT_FOUND;
 
@@ -122,17 +109,17 @@ static nserror mimesniff__match_mp4(const uint8_t *data, size_t len, lwc_string 
 		return NSERROR_NOT_FOUND;
 
 	/* Check if major brand is a known video brand */
-	if (mimesniff__is_video_brand(data + 8)) {
+	if (mimesniff__is_video_brand(data + 8, true)) {
 		*effective_type = lwc_string_ref(corestring_lwc_video_mp4);
 		return NSERROR_OK;
 	}
 
-	/* Search each compatible brand in the box for "mp4" (3-byte match)
-	 * We restrict this to just "mp4" to avoid misidentifying audio-only
-	 * files that carry "isom" or "iso2" as compatible brands.
+	/* Search each compatible brand in the box for known video brands.
+	 * We use major=false here to be strict and only match 'mp4' prefix
+	 * to avoid regressions with audio-only ISOBMFF files.
 	 */
 	for (i = 16; i <= box_size - 4; i += 4) {
-		if (data[i] == 'm' && data[i + 1] == 'p' && data[i + 2] == '4') {
+		if (mimesniff__is_video_brand(data + i, false)) {
 			*effective_type = lwc_string_ref(corestring_lwc_video_mp4);
 			return NSERROR_OK;
 		}
@@ -162,7 +149,7 @@ static nserror mimesniff__match_unknown_ws(const uint8_t *data, size_t len, lwc_
 		{NULL, 0, false, NULL}};
 #undef SIG
 	const uint8_t *end = data + len;
-	const struct map_s *it;
+	const struct map_s * it;
 
 	/* Skip leading whitespace */
 	while (data != end) {
@@ -340,23 +327,28 @@ static nserror mimesniff__match_isobmff_image(const uint8_t *data, size_t len, l
 static nserror
 mimesniff__match_video(const uint8_t *data, size_t len, lwc_string **effective_type)
 {
-	/* mp4 / isobmff - use strict consolidated logic to ensure box size and
-	 * brand checks are correctly enforced according to existing tests.
-	 */
-	if (mimesniff__match_mp4(data, len, effective_type) == NSERROR_OK) {
-		return NSERROR_OK;
+	/* mp4 / isobmff - check Major Brand liberally to match existing tests */
+	if (len >= 12 &&
+	    data[4] == 'f' && data[5] == 't' && data[6] == 'y' && data[7] == 'p') {
+		/* We use 'major=true' here because <video> sniffing is usually
+		 * intentional and we want to catch common ISOBMFF brands.
+		 */
+		if (mimesniff__is_video_brand(data + 8, true)) {
+			*effective_type = lwc_string_ref(corestring_lwc_video_mp4);
+			return NSERROR_OK;
+		}
 	}
 
 	/* webm / matroska */
 	if (len >= 4 &&
-		data[0] == 0x1a && data[1] == 0x45 && data[2] == 0xdf && data[3] == 0xa3) {
+	    data[0] == 0x1a && data[1] == 0x45 && data[2] == 0xdf && data[3] == 0xa3) {
 		*effective_type = lwc_string_ref(corestring_lwc_video_webm);
 		return NSERROR_OK;
 	}
 
 	/* ogg */
 	if (len >= 4 &&
-		data[0] == 'O' && data[1] == 'g' && data[2] == 'g' && data[3] == 'S') {
+	    data[0] == 'O' && data[1] == 'g' && data[2] == 'g' && data[3] == 'S') {
 		*effective_type = lwc_string_ref(corestring_lwc_video_ogg);
 		return NSERROR_OK;
 	}
