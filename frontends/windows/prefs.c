@@ -30,6 +30,7 @@
 #include "wisp/utils/log.h"
 #include "wisp/utils/messages.h"
 #include "wisp/utils/nsoption.h"
+#include "wisp/utils/utils.h"
 
 #include "windows/gui.h"
 #include "windows/prefs.h"
@@ -447,8 +448,10 @@ static INT_PTR CALLBACK options_connections_dialog_handler(HWND hwnd, UINT msg, 
             len = SendMessage(sub, WM_GETTEXTLENGTH, 0, 0);
             temp = malloc(len + 1);
             if (temp != NULL) {
+                int val;
                 SendMessage(sub, WM_GETTEXT, (WPARAM)(len + 1), (LPARAM)temp);
-                nsoption_set_int(http_proxy_port, atoi(temp));
+                if (ns_strtoint(temp, 10, &val) == NSERROR_OK)
+                    nsoption_set_int(http_proxy_port, val);
                 free(temp);
             }
 
@@ -475,8 +478,10 @@ static INT_PTR CALLBACK options_connections_dialog_handler(HWND hwnd, UINT msg, 
             len = SendMessage(sub, WM_GETTEXTLENGTH, 0, 0);
             temp = malloc(len + 1);
             if (temp != NULL) {
+                int val;
                 SendMessage(sub, WM_GETTEXT, (WPARAM)(len + 1), (LPARAM)temp);
-                nsoption_set_int(max_fetchers, atoi(temp));
+                if (ns_strtoint(temp, 10, &val) == NSERROR_OK)
+                    nsoption_set_int(max_fetchers, val);
                 free(temp);
             }
 
@@ -484,8 +489,10 @@ static INT_PTR CALLBACK options_connections_dialog_handler(HWND hwnd, UINT msg, 
             len = SendMessage(sub, WM_GETTEXTLENGTH, 0, 0);
             temp = malloc(len + 1);
             if (temp != NULL) {
+                int val;
                 SendMessage(sub, WM_GETTEXT, (WPARAM)(len + 1), (LPARAM)temp);
-                nsoption_set_int(max_fetchers_per_host, atoi(temp));
+                if (ns_strtoint(temp, 10, &val) == NSERROR_OK)
+                    nsoption_set_int(max_fetchers_per_host, val);
                 free(temp);
             }
 
@@ -493,8 +500,10 @@ static INT_PTR CALLBACK options_connections_dialog_handler(HWND hwnd, UINT msg, 
             len = SendMessage(sub, WM_GETTEXTLENGTH, 0, 0);
             temp = malloc(len + 1);
             if (temp != NULL) {
+                int val;
                 SendMessage(sub, WM_GETTEXT, (WPARAM)(len + 1), (LPARAM)temp);
-                nsoption_set_int(max_cached_fetch_handles, atoi(temp));
+                if (ns_strtoint(temp, 10, &val) == NSERROR_OK)
+                    nsoption_set_int(max_cached_fetch_handles, val);
                 free(temp);
             }
             break;

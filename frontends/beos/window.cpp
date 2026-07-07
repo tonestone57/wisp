@@ -859,7 +859,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             /* Checkout buffer and dispatch raster task */
             void *buf = tile_pool_checkout();
             bool dispatched = false;
-            if (buf) {
+            if (buf != NULL) {
                 struct hlcache_handle *h = browser_window_get_content(g->bw);
                 if (h != NULL) {
                     struct beos_tile_task_t *task = (struct beos_tile_task_t *)malloc(sizeof(struct beos_tile_task_t));

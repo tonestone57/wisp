@@ -134,6 +134,9 @@ add_wisp_test(messages
 
 add_wisp_test(nsoption
   ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
+  ${CMAKE_SOURCE_DIR}/src/utils/utils.c
+  ${CMAKE_SOURCE_DIR}/src/utils/messages.c
+  ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/nsoption.c
 )

@@ -1341,7 +1341,8 @@ static struct path_data *urldb_find_url(nsurl *url)
     /* Get port */
     port = nsurl_get_component(url, NSURL_PORT);
     if (port != NULL) {
-        port_int = atoi(lwc_string_data(port));
+        if (ns_strtouint(lwc_string_data(port), 10, &port_int) != NSERROR_OK)
+            port_int = 0;
         lwc_string_unref(port);
     } else {
         port_int = 0;
@@ -1669,19 +1670,23 @@ static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v,
                 return false;
         }
     } else if (strcasecmp(n, "Max-Age") == 0) {
-        int temp = atoi(v);
-        if (temp == 0)
-            /* Special case - 0 means delete */
-            c->expires = 0;
-        else
-            c->expires = time(NULL) + temp;
+        int temp;
+        if (ns_strtoint(v, 10, &temp) == NSERROR_OK) {
+            if (temp == 0)
+                /* Special case - 0 means delete */
+                c->expires = 0;
+            else
+                c->expires = time(NULL) + temp;
+        }
     } else if (!c->path && strcasecmp(n, "Path") == 0) {
         c->path_from_set = true;
         c->path = strdup(v);
         if (!c->path)
             return false;
     } else if (strcasecmp(n, "Version") == 0) {
-        c->version = atoi(v);
+        int temp;
+        if (ns_strtoint(v, 10, &temp) == NSERROR_OK)
+            c->version = (enum cookie_version)temp;
     } else if (strcasecmp(n, "Expires") == 0) {
         char *datenoday;
         time_t expires;
@@ -2776,7 +2781,12 @@ nserror urldb_load(const char *filename)
         return NSERROR_NEED_DATA;
     }
 
-    version = atoi(s);
+    if (ns_strtoint(s, 10, &version) != NSERROR_OK) {
+        NSLOG(wisp, INFO, "Invalid URL file version format.");
+        fclose(fp);
+        return NSERROR_INVALID;
+    }
+
     if (version < MIN_URL_FILE_VERSION) {
         NSLOG(wisp, INFO, "Unsupported URL file version.");
         fclose(fp);
@@ -2800,7 +2810,8 @@ nserror urldb_load(const char *filename)
         if (length == 0) {
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
                 break;
-            urls = atoi(s);
+            if (ns_strtoint(s, 10, &urls) != NSERROR_OK)
+                break;
             /* Eight fields/url */
             for (i = 0; i < (8 * urls); i++) {
                 if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
@@ -2837,7 +2848,8 @@ nserror urldb_load(const char *filename)
         /* read number of URLs */
         if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
             break;
-        urls = atoi(s);
+        if (ns_strtoint(s, 10, &urls) != NSERROR_OK)
+            break;
 
         /* no URLs => try next host */
         if (urls == 0) {
@@ -2866,7 +2878,8 @@ nserror urldb_load(const char *filename)
                 break;
             length = strlen(ports) - 1;
             ports[length] = '\0';
-            port = atoi(ports);
+            if (ns_strtouint(ports, 10, &port) != NSERROR_OK)
+                port = 0;
 
             if (!strcasecmp(host, "localhost") && !strcasecmp(scheme, "file"))
                 is_file = true;
@@ -2996,8 +3009,10 @@ nserror urldb_load(const char *filename)
 
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
                 break;
-            if (p)
-                p->urld.visits = (unsigned int)atoi(s);
+            if (p) {
+                if (ns_strtouint(s, 10, &p->urld.visits) != NSERROR_OK)
+                    p->urld.visits = 0;
+            }
 
             /* entry last use time */
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp)) {
@@ -3009,8 +3024,11 @@ nserror urldb_load(const char *filename)
 
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
                 break;
-            if (p)
-                p->urld.type = (content_type)atoi(s);
+            if (p) {
+                int type_temp;
+                if (ns_strtoint(s, 10, &type_temp) == NSERROR_OK)
+                    p->urld.type = (content_type)type_temp;
+            }
 
             if (!fgets(s, MAXIMUM_URL_LENGTH, fp))
                 break;
@@ -3135,7 +3153,8 @@ bool urldb_add_url(nsurl *url)
 
     port = nsurl_get_component(url, NSURL_PORT);
     if (port != NULL) {
-        port_int = atoi(lwc_string_data(port));
+        if (ns_strtouint(lwc_string_data(port), 10, &port_int) != NSERROR_OK)
+            port_int = 0;
         lwc_string_unref(port);
     } else {
         port_int = 0;
@@ -4239,7 +4258,8 @@ void urldb_load_cookies(const char *filename)
         if (strncasecmp(s, "Version:", 8) == 0) {
             FIND_T;
             SKIP_T;
-            loaded_cookie_file_version = atoi(p);
+            if (ns_strtoint(p, 10, &loaded_cookie_file_version) != NSERROR_OK)
+                loaded_cookie_file_version = 0;
 
             if (loaded_cookie_file_version < MIN_COOKIE_FILE_VERSION) {
                 NSLOG(wisp, INFO, "Unsupported Cookie file version");
@@ -4256,38 +4276,46 @@ void urldb_load_cookies(const char *filename)
 
         /* Parse input */
         FIND_T;
-        version = atoi(s);
+        if (ns_strtoint(s, 10, &version) != NSERROR_OK) version = 0;
         SKIP_T;
         domain = p;
         FIND_T;
         SKIP_T;
-        domain_specified = atoi(p);
+        if (ns_strtoint(p, 10, &domain_specified) != NSERROR_OK) domain_specified = 0;
         FIND_T;
         SKIP_T;
         path = p;
         FIND_T;
         SKIP_T;
-        path_specified = atoi(p);
+        if (ns_strtoint(p, 10, &path_specified) != NSERROR_OK) path_specified = 0;
         FIND_T;
         SKIP_T;
-        secure = atoi(p);
+        if (ns_strtoint(p, 10, &secure) != NSERROR_OK) secure = 0;
         FIND_T;
         if (loaded_cookie_file_version > 101) {
             /* Introduced in version 1.02 */
             SKIP_T;
-            http_only = atoi(p);
+            if (ns_strtoint(p, 10, &http_only) != NSERROR_OK) http_only = 0;
             FIND_T;
         } else {
             http_only = 0;
         }
         SKIP_T;
-        expires = (time_t)atoi(p);
+        {
+            unsigned long long exp_tmp;
+            if (ns_strtoull(p, 10, &exp_tmp) == NSERROR_OK) expires = (time_t)exp_tmp;
+            else expires = 0;
+        }
         FIND_T;
         SKIP_T;
-        last_used = (time_t)atoi(p);
+        {
+            unsigned long long last_tmp;
+            if (ns_strtoull(p, 10, &last_tmp) == NSERROR_OK) last_used = (time_t)last_tmp;
+            else last_used = 0;
+        }
         FIND_T;
         SKIP_T;
-        no_destroy = atoi(p);
+        if (ns_strtoint(p, 10, &no_destroy) != NSERROR_OK) no_destroy = 0;
         FIND_T;
         SKIP_T;
         name = p;
@@ -4298,7 +4326,7 @@ void urldb_load_cookies(const char *filename)
         if (loaded_cookie_file_version > 100) {
             /* Introduced in version 1.01 */
             SKIP_T;
-            value_quoted = atoi(p);
+            if (ns_strtoint(p, 10, &value_quoted) != NSERROR_OK) value_quoted = 0;
             FIND_T;
         } else {
             value_quoted = 0;

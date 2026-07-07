@@ -47,7 +47,7 @@ int main(int argc, char **argv)
         .hysteresis = 128 * 1024
     };
 
-    if (system("rm -rf test_cache")) {}
+    wisp_recursive_rm("test_cache");
     mkdir("test_cache", 0755);
 
     ret = guit->llcache->initialise(&params);

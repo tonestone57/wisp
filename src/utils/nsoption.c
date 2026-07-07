@@ -102,7 +102,8 @@ static bool strtooption(const char *value, struct nsoption_s *option)
         break;
 
     case OPTION_INTEGER:
-        option->value.i = atoi(value);
+        if (ns_strtoint(value, 10, &option->value.i) != NSERROR_OK)
+            option->value.i = 0;
         break;
 
     case OPTION_UINT:

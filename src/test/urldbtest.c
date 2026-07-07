@@ -175,6 +175,7 @@ static nsurl *make_url(const char *url)
 }
 
 
+bool verbose_log = true;
 static bool test_urldb_set_cookie(const char *header, const char *url, const char *referer)
 {
     nsurl *r = NULL;

@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <wisp/ns_inttypes.h>
+#include <wisp/utils/errors.h>
 
 #ifndef NOF_ELEMENTS
 #define NOF_ELEMENTS(array) (sizeof(array) / sizeof(*(array)))
@@ -130,6 +131,36 @@ void stable_sort(void *base, size_t nmemb, size_t size, int (*compar)(const void
  * Check if a directory exists.
  */
 bool is_dir(const char *path);
+
+/**
+ * Convert string to integer safely.
+ *
+ * \param s      String to convert
+ * \param base   Base to use
+ * \param result Pointer to store result
+ * \return NSERROR_OK on success, or error code
+ */
+nserror ns_strtoint(const char *s, int base, int *result);
+
+/**
+ * Convert string to unsigned integer safely.
+ *
+ * \param s      String to convert
+ * \param base   Base to use
+ * \param result Pointer to store result
+ * \return NSERROR_OK on success, or error code
+ */
+nserror ns_strtouint(const char *s, int base, unsigned int *result);
+
+/**
+ * Convert string to long long safely.
+ */
+nserror ns_strtoll(const char *s, int base, long long *result);
+
+/**
+ * Convert string to unsigned long long safely.
+ */
+nserror ns_strtoull(const char *s, int base, unsigned long long *result);
 
 /**
  * switch fall through

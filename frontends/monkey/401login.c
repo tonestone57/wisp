@@ -24,6 +24,7 @@
 #include "utils/nsurl.h"
 #include "utils/ring.h"
 
+#include "utils/utils.h"
 #include "monkey/401login.h"
 #include "monkey/output.h"
 
@@ -114,13 +115,15 @@ static void free_login_context(struct monkey401 *m401_ctx)
 static void monkey_login_handle_go(int argc, char **argv)
 {
     struct monkey401 *m401_ctx;
+    unsigned int num;
 
     if (argc != 3) {
         moutf(MOUT_ERROR, "LOGIN GO ARGS BAD");
         return;
     }
 
-    m401_ctx = monkey_find_login_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &num) != NSERROR_OK) num = (uint32_t)-1;
+    m401_ctx = monkey_find_login_by_num(num);
     if (m401_ctx == NULL) {
         moutf(MOUT_ERROR, "LOGIN NUM BAD");
         return;
@@ -134,13 +137,15 @@ static void monkey_login_handle_go(int argc, char **argv)
 static void monkey_login_handle_destroy(int argc, char **argv)
 {
     struct monkey401 *m401_ctx;
+    unsigned int num;
 
     if (argc != 3) {
         moutf(MOUT_ERROR, "LOGIN DESTROY ARGS BAD");
         return;
     }
 
-    m401_ctx = monkey_find_login_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &num) != NSERROR_OK) num = (uint32_t)-1;
+    m401_ctx = monkey_find_login_by_num(num);
     if (m401_ctx == NULL) {
         moutf(MOUT_ERROR, "LOGIN NUM BAD");
         return;
@@ -152,13 +157,15 @@ static void monkey_login_handle_destroy(int argc, char **argv)
 static void monkey_login_handle_username(int argc, char **argv)
 {
     struct monkey401 *m401_ctx;
+    unsigned int num;
 
     if (argc != 4) {
         moutf(MOUT_ERROR, "LOGIN USERNAME ARGS BAD");
         return;
     }
 
-    m401_ctx = monkey_find_login_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &num) != NSERROR_OK) num = (uint32_t)-1;
+    m401_ctx = monkey_find_login_by_num(num);
     if (m401_ctx == NULL) {
         moutf(MOUT_ERROR, "LOGIN NUM BAD");
         return;
@@ -174,13 +181,15 @@ static void monkey_login_handle_username(int argc, char **argv)
 static void monkey_login_handle_password(int argc, char **argv)
 {
     struct monkey401 *m401_ctx;
+    unsigned int num;
 
     if (argc != 4) {
         moutf(MOUT_ERROR, "LOGIN PASSWORD ARGS BAD");
         return;
     }
 
-    m401_ctx = monkey_find_login_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &num) != NSERROR_OK) num = (uint32_t)-1;
+    m401_ctx = monkey_find_login_by_num(num);
     if (m401_ctx == NULL) {
         moutf(MOUT_ERROR, "LOGIN NUM BAD");
         return;

@@ -407,7 +407,8 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
 
 			err = dom_element_get_attribute(c, corestring_dom_frameborder, &s);
 			if (err == DOM_NO_ERR && s != NULL) {
-				i = atoi(dom_string_data(s));
+				if (ns_strtoint(dom_string_data(s), 10, &i) != NSERROR_OK)
+					i = 0;
 				frame->border = (i != 0);
 				dom_string_unref(s);
 			}
@@ -423,13 +424,15 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
 
 			err = dom_element_get_attribute(c, corestring_dom_marginwidth, &s);
 			if (err == DOM_NO_ERR && s != NULL) {
-				frame->margin_width = atoi(dom_string_data(s));
+				if (ns_strtoint(dom_string_data(s), 10, &frame->margin_width) != NSERROR_OK)
+					frame->margin_width = 0;
 				dom_string_unref(s);
 			}
 
 			err = dom_element_get_attribute(c, corestring_dom_marginheight, &s);
 			if (err == DOM_NO_ERR && s != NULL) {
-				frame->margin_height = atoi(dom_string_data(s));
+				if (ns_strtoint(dom_string_data(s), 10, &frame->margin_height) != NSERROR_OK)
+					frame->margin_height = 0;
 				dom_string_unref(s);
 			}
 
@@ -1027,7 +1030,8 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
 
 	err = dom_element_get_attribute(n, corestring_dom_frameborder, &s);
 	if (err == DOM_NO_ERR && s != NULL) {
-		i = atoi(dom_string_data(s));
+		if (ns_strtoint(dom_string_data(s), 10, &i) != NSERROR_OK)
+			i = 0;
 		iframe->border = (i != 0);
 		dom_string_unref(s);
 	}
@@ -1053,13 +1057,15 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
 
 	err = dom_element_get_attribute(n, corestring_dom_marginwidth, &s);
 	if (err == DOM_NO_ERR && s != NULL) {
-		iframe->margin_width = atoi(dom_string_data(s));
+		if (ns_strtoint(dom_string_data(s), 10, &iframe->margin_width) != NSERROR_OK)
+			iframe->margin_width = 0;
 		dom_string_unref(s);
 	}
 
 	err = dom_element_get_attribute(n, corestring_dom_marginheight, &s);
 	if (err == DOM_NO_ERR && s != NULL) {
-		iframe->margin_height = atoi(dom_string_data(s));
+		if (ns_strtoint(dom_string_data(s), 10, &iframe->margin_height) != NSERROR_OK)
+			iframe->margin_height = 0;
 		dom_string_unref(s);
 	}
 

@@ -310,7 +310,8 @@ bool filename_flush_directory(const char *folder, int depth)
         /* check we are a file numbered '00' -> '63' */
         if (del == false && (entry->d_name[0] >= '0') && (entry->d_name[0] <= '6') && (entry->d_name[1] >= '0') &&
             (entry->d_name[1] <= '9') && (entry->d_name[2] == '\0')) {
-            number = atoi(entry->d_name);
+            if (ns_strtoint(entry->d_name, 10, &number) != NSERROR_OK)
+                number = -1;
 
             if (number >= 0 && number <= 63) {
                 if (depth == 3) {

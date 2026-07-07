@@ -92,7 +92,11 @@ void *tile_pool_checkout(void) {
     if (!buffer) {
         // Fallback to heap if pool is empty
         buffer = malloc(TILE_BUFFER_SIZE);
-        NSLOG(wisp, DEBUG, "Tile pool empty, allocated temporary buffer");
+        if (buffer) {
+            NSLOG(wisp, DEBUG, "Tile pool empty, allocated temporary buffer");
+        } else {
+            NSLOG(wisp, ERROR, "Failed to allocate fallback tile buffer (OOM)");
+        }
     }
 
     return buffer;

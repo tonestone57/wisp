@@ -616,7 +616,8 @@ static nserror llcache_fetch_header_cache_control(llcache_object *object, char *
         if (strcasecmp(name, "Age") == 0) {
             /* extract Age header */
             if ('0' <= *value && *value <= '9') {
-                object->cache.age = atoi(value);
+                if (ns_strtoint(value, 10, &object->cache.age) != NSERROR_OK)
+                    object->cache.age = INVALID_AGE;
             }
         }
         break;
