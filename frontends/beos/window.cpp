@@ -1657,21 +1657,18 @@ extern "C" nserror gui_window_draw_gadget(
             break;
         case GADGET_TEXTAREA: {
             /* Create scroller within the provided frame.
-             * BScrollView takes ownership of the target view. */
-            BRect tvRect = frame;
-            /* Allow room for scrollbars and borders */
-            tvRect.right -= B_V_SCROLL_BAR_WIDTH + 2;
-            tvRect.bottom -= B_H_SCROLL_BAR_HEIGHT + 2;
+             * BScrollView will expand to include its scrollbars/borders.
+             * We shrink the target view accordingly so the final scroller fits 'frame'. */
+            BRect tvRect(0, 0, frame.Width() - B_V_SCROLL_BAR_WIDTH, frame.Height() - B_H_SCROLL_BAR_HEIGHT);
 
-            /* NSTextView should be relative to its own frame for textRect */
-            BRect textRect = tvRect.OffsetToCopy(0, 0).InsetByCopy(2, 2);
-            NSTextView *tv = new NSTextView(tvRect, "wisp_textarea", textRect,
+            NSTextView *tv = new NSTextView(tvRect, "wisp_textarea", tvRect.InsetByCopy(2, 2),
                                             B_FOLLOW_ALL, B_WILL_DRAW, control, g, g->view);
             tv->SetText(control->value ? control->value : "");
             widget = new BScrollView("wisp_textarea_scroller", tv, B_FOLLOW_NONE, 0, true, true);
-            /* Ensure the scroller fits perfectly within the allocated frame */
-            widget->ResizeTo(frame.Width(), frame.Height());
+
+            /* Position and size the BScrollView to exactly match the intended frame */
             widget->MoveTo(frame.left, frame.top);
+            widget->ResizeTo(frame.Width(), frame.Height());
             delete msg;
             break;
         }
