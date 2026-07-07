@@ -197,6 +197,9 @@ void box_free(struct box *box)
     if (box->styles) {
         css_select_results_destroy(box->styles);
     }
+    if (box->node) {
+        dom_node_unref(box->node);
+    }
     /* box->text is allocated from the arena, so do not free it */
     free(box);
 }
@@ -514,9 +517,7 @@ START_TEST(test_grid_construction)
     */
     /* Loop until finished */
     while (htmlc.conversion_begun) {
-        fprintf(stderr, "DEBUG: Calling convert for ctx->n=%p\n", ctx->n);
         convert_xml_to_box(ctx);
-        fprintf(stderr, "DEBUG: Returned from convert\n");
     }
     ck_assert_msg(!htmlc.aborted, "Box construction failed");
 
@@ -558,13 +559,21 @@ START_TEST(test_grid_construction)
     /* Cleanup */
     box_free_tree(root);
     dom_node_unref(grid_el);
-    dom_node_unref(root_el);
+
+    dom_node_unref(doc);
 
     if (htmlc.bctx) {
         arena_destroy(htmlc.bctx);
         htmlc.bctx = NULL;
     }
-    dom_node_unref(doc);
+
+    dom_string_unref(corestring_dom_id);
+    dom_string_unref(corestring_dom_class);
+    dom_string_unref(corestring_dom_title);
+    dom_string_unref(corestring_dom_style);
+    dom_string_unref(corestring_dom_colspan);
+    dom_string_unref(corestring_dom_rowspan);
+    dom_string_unref(corestring_dom___ns_key_box_node_data);
 
     unlink("/tmp/ns_test_grid.html");
 }
