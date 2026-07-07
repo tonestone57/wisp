@@ -23,11 +23,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <unistd.h>
 
+#include <wisp/utils/ascii.h>
 #include <wisp/utils/inet.h>
 #include <wisp/utils/messages.h>
 #include <wisp/utils/string.h>
@@ -122,6 +126,64 @@ bool is_dir(const char *path)
     }
 
     return S_ISDIR(s.st_mode) ? true : false;
+}
+
+
+/* exported interface documented in utils/utils.h */
+nserror ns_strtoint(const char *s, int base, int *result)
+{
+    char *endptr;
+    long val;
+
+    if (!s || !result)
+        return NSERROR_BAD_PARAMETER;
+
+    errno = 0;
+    val = strtol(s, &endptr, base);
+
+    if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) || (errno != 0 && val == 0)) {
+        return NSERROR_INVALID;
+    }
+
+    if (endptr == s || (*endptr != '\0' && !ascii_is_space(*endptr))) {
+        return NSERROR_INVALID;
+    }
+
+    if (val > INT_MAX || val < INT_MIN) {
+        return NSERROR_INVALID;
+    }
+
+    *result = (int)val;
+    return NSERROR_OK;
+}
+
+
+/* exported interface documented in utils/utils.h */
+nserror ns_strtouint(const char *s, int base, unsigned int *result)
+{
+    char *endptr;
+    unsigned long val;
+
+    if (!s || !result)
+        return NSERROR_BAD_PARAMETER;
+
+    errno = 0;
+    val = strtoul(s, &endptr, base);
+
+    if ((errno == ERANGE && val == ULONG_MAX) || (errno != 0 && val == 0)) {
+        return NSERROR_INVALID;
+    }
+
+    if (endptr == s || (*endptr != '\0' && !ascii_is_space(*endptr))) {
+        return NSERROR_INVALID;
+    }
+
+    if (val > UINT_MAX) {
+        return NSERROR_INVALID;
+    }
+
+    *result = (unsigned int)val;
+    return NSERROR_OK;
 }
 
 
@@ -669,3 +731,52 @@ void regfree(regex_t *preg)
 }
 
 #endif
+
+/* exported interface documented in utils/utils.h */
+nserror ns_strtoll(const char *s, int base, long long *result)
+{
+    char *endptr;
+    long long val;
+
+    if (!s || !result)
+        return NSERROR_BAD_PARAMETER;
+
+    errno = 0;
+    val = strtoll(s, &endptr, base);
+
+    if ((errno == ERANGE && (val == LLONG_MAX || val == LLONG_MIN)) || (errno != 0 && val == 0)) {
+        return NSERROR_INVALID;
+    }
+
+    if (endptr == s || (*endptr != '\0' && !ascii_is_space(*endptr))) {
+        return NSERROR_INVALID;
+    }
+
+    *result = val;
+    return NSERROR_OK;
+}
+
+
+/* exported interface documented in utils/utils.h */
+nserror ns_strtoull(const char *s, int base, unsigned long long *result)
+{
+    char *endptr;
+    unsigned long long val;
+
+    if (!s || !result)
+        return NSERROR_BAD_PARAMETER;
+
+    errno = 0;
+    val = strtoull(s, &endptr, base);
+
+    if ((errno == ERANGE && val == ULLONG_MAX) || (errno != 0 && val == 0)) {
+        return NSERROR_INVALID;
+    }
+
+    if (endptr == s || (*endptr != '\0' && !ascii_is_space(*endptr))) {
+        return NSERROR_INVALID;
+    }
+
+    *result = val;
+    return NSERROR_OK;
+}

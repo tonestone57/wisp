@@ -37,6 +37,7 @@
 
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/private.h>
+#include <wisp/utils/utils.h>
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/imagemap.h"
 
@@ -373,18 +374,20 @@ static bool imagemap_addtolist(
         case IMAGEMAP_RECT:
             /* (left, top, right, bottom) */
             while (val != NULL && num <= 4) {
+                int temp;
+                if (ns_strtoint(val, 10, &temp) != NSERROR_OK) temp = 0;
                 switch (num) {
                 case 1:
-                    new_map->bounds.rect.x0 = atoi(val);
+                    new_map->bounds.rect.x0 = temp;
                     break;
                 case 2:
-                    new_map->bounds.rect.y0 = atoi(val);
+                    new_map->bounds.rect.y0 = temp;
                     break;
                 case 3:
-                    new_map->bounds.rect.x1 = atoi(val);
+                    new_map->bounds.rect.x1 = temp;
                     break;
                 case 4:
-                    new_map->bounds.rect.y1 = atoi(val);
+                    new_map->bounds.rect.y1 = temp;
                     break;
                 }
 
@@ -395,15 +398,17 @@ static bool imagemap_addtolist(
         case IMAGEMAP_CIRCLE:
             /* (x, y, radius ) */
             while (val != NULL && num <= 3) {
+                int temp;
+                if (ns_strtoint(val, 10, &temp) != NSERROR_OK) temp = 0;
                 switch (num) {
                 case 1:
-                    new_map->bounds.circle.x = atoi(val);
+                    new_map->bounds.circle.x = temp;
                     break;
                 case 2:
-                    new_map->bounds.circle.y = atoi(val);
+                    new_map->bounds.circle.y = temp;
                     break;
                 case 3:
-                    new_map->bounds.circle.r = atoi(val);
+                    new_map->bounds.circle.r = temp;
                     break;
                 }
 
@@ -430,16 +435,16 @@ static bool imagemap_addtolist(
                 }
 
                 while (val != NULL) {
-                    x = atoi(val);
+                    if (ns_strtoint(val, 10, &x) != NSERROR_OK) x = 0;
 
                     val = strtok(NULL, ",");
                     if (val == NULL)
                         break;
 
-                    y = atoi(val);
+                    if (ns_strtoint(val, 10, &y) != NSERROR_OK) y = 0;
 
-                    new_map->bounds.poly.xcoords[num - 1] = x;
-                    new_map->bounds.poly.ycoords[num - 1] = y;
+                    new_map->bounds.poly.xcoords[num - 1] = (float)x;
+                    new_map->bounds.poly.ycoords[num - 1] = (float)y;
 
                     num++;
                     val = strtok(NULL, ",");

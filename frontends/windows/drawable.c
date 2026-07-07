@@ -706,7 +706,7 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
             void *buf = tile_pool_checkout();
             bool dispatched = false;
 
-            if (buf) {
+            if (buf != NULL) {
                 struct hlcache_handle *h = browser_window_get_content(gw->bw);
                 if (h != NULL) {
                     struct win32_tile_task_t *task = (struct win32_tile_task_t *)malloc(sizeof(struct win32_tile_task_t));

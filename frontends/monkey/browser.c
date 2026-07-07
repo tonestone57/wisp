@@ -434,7 +434,12 @@ static void monkey_window_handle_new(int argc, char **argv)
 static void monkey_window_handle_destroy(int argc, char **argv)
 {
     struct gui_window *gw;
-    uint32_t nr = atoi((argc > 2) ? argv[2] : "-1");
+    unsigned int nr;
+
+    if (argc < 3) return;
+
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
 
     gw = monkey_find_window_by_num(nr);
 
@@ -451,13 +456,17 @@ static void monkey_window_handle_go(int argc, char **argv)
     nsurl *url;
     nsurl *ref_url = NULL;
     nserror error;
+    unsigned int nr;
 
     if (argc < 4 || argc > 5) {
         moutf(MOUT_ERROR, "WINDOW GO ARGS BAD");
         return;
     }
 
-    gw = monkey_find_window_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
+
+    gw = monkey_find_window_by_num(nr);
 
     if (gw == NULL) {
         moutf(MOUT_ERROR, "WINDOW NUM BAD");
@@ -490,12 +499,17 @@ static void monkey_window_handle_go(int argc, char **argv)
 static void monkey_window_handle_stop(int argc, char **argv)
 {
     struct gui_window *gw;
+    unsigned int nr;
+
     if (argc != 3) {
         moutf(MOUT_ERROR, "WINDOW STOP ARGS BAD\n");
         return;
     }
 
-    gw = monkey_find_window_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
+
+    gw = monkey_find_window_by_num(nr);
 
     if (gw == NULL) {
         moutf(MOUT_ERROR, "WINDOW NUM BAD");
@@ -510,13 +524,17 @@ static void monkey_window_handle_redraw(int argc, char **argv)
     struct gui_window *gw;
     struct rect clip;
     struct redraw_context ctx = {.interactive = true, .background_images = true, .plot = monkey_plotters};
+    unsigned int nr;
 
     if (argc != 3 && argc != 7) {
         moutf(MOUT_ERROR, "WINDOW REDRAW ARGS BAD");
         return;
     }
 
-    gw = monkey_find_window_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
+
+    gw = monkey_find_window_by_num(nr);
 
     if (gw == NULL) {
         moutf(MOUT_ERROR, "WINDOW NUM BAD");
@@ -529,14 +547,14 @@ static void monkey_window_handle_redraw(int argc, char **argv)
     clip.y1 = gw->height;
 
     if (argc == 7) {
-        clip.x0 = atoi(argv[3]);
-        clip.y0 = atoi(argv[4]);
-        clip.x1 = atoi(argv[5]);
-        clip.y1 = atoi(argv[6]);
+        if (ns_strtoint(argv[3], 10, &clip.x0) != NSERROR_OK) clip.x0 = 0;
+        if (ns_strtoint(argv[4], 10, &clip.y0) != NSERROR_OK) clip.y0 = 0;
+        if (ns_strtoint(argv[5], 10, &clip.x1) != NSERROR_OK) clip.x1 = 0;
+        if (ns_strtoint(argv[6], 10, &clip.y1) != NSERROR_OK) clip.y1 = 0;
     }
 
     NSLOG(wisp, INFO, "Issue redraw");
-    moutf(MOUT_WINDOW, "REDRAW WIN %d START", atoi(argv[2]));
+    moutf(MOUT_WINDOW, "REDRAW WIN %u START", nr);
 
     int tile_size = browser_get_tile_size();
 
@@ -555,18 +573,23 @@ static void monkey_window_handle_redraw(int argc, char **argv)
         }
     }
 
-    moutf(MOUT_WINDOW, "REDRAW WIN %d STOP", atoi(argv[2]));
+    moutf(MOUT_WINDOW, "REDRAW WIN %u STOP", nr);
 }
 
 static void monkey_window_handle_reload(int argc, char **argv)
 {
     struct gui_window *gw;
+    unsigned int nr;
+
     if (argc != 3 && argc != 4) {
         moutf(MOUT_ERROR, "WINDOW RELOAD ARGS BAD\n");
         return;
     }
 
-    gw = monkey_find_window_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
+
+    gw = monkey_find_window_by_num(nr);
 
     if (gw == NULL) {
         moutf(MOUT_ERROR, "WINDOW NUM BAD");
@@ -578,12 +601,17 @@ static void monkey_window_handle_reload(int argc, char **argv)
 static void monkey_window_handle_exec(int argc, char **argv)
 {
     struct gui_window *gw;
+    unsigned int nr;
+
     if (argc < 5) {
         moutf(MOUT_ERROR, "WINDOW EXEC ARGS BAD\n");
         return;
     }
 
-    gw = monkey_find_window_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
+
+    gw = monkey_find_window_by_num(nr);
 
     if (gw == NULL) {
         moutf(MOUT_ERROR, "WINDOW NUM BAD");
@@ -595,7 +623,7 @@ static void monkey_window_handle_exec(int argc, char **argv)
         }
         char *cmd = calloc(total, 1);
         if (cmd == NULL) {
-            moutf(MOUT_ERROR, "JS WIN %d RET ENOMEM", atoi(argv[2]));
+            moutf(MOUT_ERROR, "JS WIN %u RET ENOMEM", nr);
             return;
         }
         size_t offset = 0;
@@ -610,7 +638,7 @@ static void monkey_window_handle_exec(int argc, char **argv)
         cmd[offset] = '\0';
         /* Now execute the JS */
 
-        moutf(MOUT_WINDOW, "JS WIN %d RET %s", atoi(argv[2]),
+        moutf(MOUT_WINDOW, "JS WIN %u RET %s", nr,
             browser_window_exec(gw->bw, cmd, total - 1) ? "TRUE" : "FALSE");
 
         free(cmd);
@@ -625,17 +653,23 @@ static void monkey_window_handle_click(int argc, char **argv)
     /*  0      1     2    3       4  5        6  7        8       9 10    11
      */
     struct gui_window *gw;
+    unsigned int nr;
+
     if (argc != 12) {
         moutf(MOUT_ERROR, "WINDOW CLICK ARGS BAD\n");
     }
 
-    gw = monkey_find_window_by_num(atoi(argv[2]));
+    if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
+        nr = (uint32_t)-1;
+
+    gw = monkey_find_window_by_num(nr);
 
     if (gw == NULL) {
         moutf(MOUT_ERROR, "WINDOW NUM BAD");
     } else {
-        int x = atoi(argv[5]);
-        int y = atoi(argv[7]);
+        int x, y;
+        if (ns_strtoint(argv[5], 10, &x) != NSERROR_OK) x = 0;
+        if (ns_strtoint(argv[7], 10, &y) != NSERROR_OK) y = 0;
         browser_mouse_state mouse;
         const char *button = argv[9];
         const char *kind = argv[11];
