@@ -6,6 +6,7 @@
 #include <wisp/utils/ipc.h>
 #include <wisp/utils/log.h>
 #include <wisp/fetch.h>
+#include <wisp/content/fetch.h>
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/messages.h>

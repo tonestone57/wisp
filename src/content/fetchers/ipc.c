@@ -4,6 +4,8 @@
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/corestrings.h>
 #include "content/fetchers.h"
+#include <wisp/content/fetch.h>
+#include <wisp/desktop/gui_internal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -83,11 +85,6 @@ static bool fetch_ipc_start(void *vf) {
     return true;
 }
 
-static void fetch_ipc_stop(void *vf) {
-    struct ipc_fetch_info *f = vf;
-    f->finished = true;
-}
-
 static void fetch_ipc_abort(void *vf) {
     struct ipc_fetch_info *f = vf;
     f->finished = true;
@@ -164,7 +161,6 @@ nserror fetch_ipc_register(void) {
         .acceptable = fetch_ipc_can_fetch,
         .setup = fetch_ipc_setup,
         .start = fetch_ipc_start,
-        .stop = fetch_ipc_stop,
         .abort = fetch_ipc_abort,
         .free = fetch_ipc_free,
         .poll = fetch_ipc_poll,
