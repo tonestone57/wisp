@@ -1659,7 +1659,7 @@ extern "C" nserror gui_window_draw_gadget(
             /* Create scroller within the provided frame.
              * BScrollView will expand to include its scrollbars/borders.
              * We shrink the target view accordingly so the final scroller fits 'frame'. */
-            BRect tvRect(0, 0, frame.Width() - B_V_SCROLL_BAR_WIDTH, frame.Height() - B_H_SCROLL_BAR_HEIGHT);
+            BRect tvRect(0, 0, frame.Width() - B_V_SCROLL_BAR_WIDTH - 2, frame.Height() - B_H_SCROLL_BAR_HEIGHT - 2);
 
             NSTextView *tv = new NSTextView(tvRect, "wisp_textarea", tvRect.InsetByCopy(2, 2),
                                             B_FOLLOW_ALL, B_WILL_DRAW, control, g, g->view);
