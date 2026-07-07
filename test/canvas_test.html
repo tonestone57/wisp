@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Canvas 2D Bridge Refined Test</title>
+<style>
+  canvas { border: 1px solid black; margin: 10px; }
+</style>
+</head>
+<body>
+  <h1>Canvas 2D Bridge Refined Test</h1>
+  <canvas id="canvas1" width="200" height="200"></canvas>
+  <canvas id="canvas2" width="200" height="200"></canvas>
+  <script>
+    function test() {
+      var c1 = document.getElementById('canvas1');
+      var ctx1 = c1.getContext('2d');
+
+      // Test transformations (Cumulative)
+      ctx1.fillStyle = 'red';
+      ctx1.translate(50, 50);
+      ctx1.rotate(Math.PI / 4);
+      ctx1.fillRect(-25, -25, 50, 50); // Centered at (50,50) rotated
+
+      ctx1.save();
+      ctx1.translate(50, 0); // Relative to current 50,50 rotated
+      ctx1.fillStyle = 'blue';
+      ctx1.fillRect(-20, -20, 40, 40);
+      ctx1.restore();
+
+      // Test arc
+      var c2 = document.getElementById('canvas2');
+      var ctx2 = c2.getContext('2d');
+      ctx2.beginPath();
+      ctx2.arc(100, 100, 50, 0, Math.PI * 2);
+      ctx2.fillStyle = 'green';
+      ctx2.fill();
+      ctx2.lineWidth = 3;
+      ctx2.strokeStyle = 'black';
+      ctx2.stroke();
+
+      // Test drawImage (Copy c1 to c2)
+      ctx2.drawImage(c1, 0, 0, 100, 100, 0, 0, 50, 50);
+    }
+    test();
+  </script>
+</body>
+</html>

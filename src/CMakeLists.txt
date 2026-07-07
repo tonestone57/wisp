@@ -195,6 +195,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/impl/intersectionobserverentry_impl.c
 	content/handlers/javascript/quickjs/impl/domrect_impl.c
 	content/handlers/javascript/quickjs/impl/location_impl.c
+	content/handlers/javascript/quickjs/impl/canvas_impl.c
 	content/handlers/javascript/quickjs/crypto.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
