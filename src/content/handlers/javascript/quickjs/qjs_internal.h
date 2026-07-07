@@ -88,6 +88,7 @@ static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val)
 }
 
 void qjs_finalise_dom_bridge(JSContext *ctx);
+int qjs_init_canvas(JSContext *ctx);
 void *qjs_get_window_priv(JSContext *ctx);
 void *qjs_get_document_priv(JSContext *ctx);
 
