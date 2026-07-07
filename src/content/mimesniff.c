@@ -334,10 +334,13 @@ mimesniff__match_video(const uint8_t *data, size_t len, lwc_string **effective_t
 	/* mp4 / isobmff - check Major Brand liberally to match existing tests */
 	if (len >= 12 &&
 	    data[4] == 'f' && data[5] == 't' && data[6] == 'y' && data[7] == 'p') {
+		uint32_t box_size = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) |
+				   ((uint32_t)data[2] << 8) | (uint32_t)data[3];
+
 		/* For <video> tag sniffing, we are more liberal with brands
-		 * but still require a valid Major Brand at minimum.
+		 * but still require a plausible box size and a valid Major Brand.
 		 */
-		if (mimesniff__is_video_brand(data + 8, true)) {
+		if (box_size >= 12 && box_size % 4 == 0 && mimesniff__is_video_brand(data + 8, true)) {
 			*effective_type = lwc_string_ref(corestring_lwc_video_mp4);
 			return NSERROR_OK;
 		}
