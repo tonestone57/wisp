@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>

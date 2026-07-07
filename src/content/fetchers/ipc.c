@@ -6,6 +6,8 @@
 #include "content/fetchers.h"
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <time.h>
 
 static wisp_ipc_handle *ipc_network = NULL;
 static uint32_t next_fetch_id = 1;
