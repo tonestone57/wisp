@@ -1656,12 +1656,13 @@ extern "C" nserror gui_window_draw_gadget(
             }
             break;
         case GADGET_TEXTAREA: {
-            BRect textRect = frame;
-            textRect.OffsetTo(0, 0);
-            textRect.InsetBy(2, 2);
-            NSTextView *tv = new NSTextView(frame, "wisp_textarea", textRect, B_FOLLOW_NONE, B_WILL_DRAW, control, g, g->view);
+            /* Create scroller within the provided frame, allowing space for its borders/bars */
+            BRect scrollerRect = frame;
+            NSTextView *tv = new NSTextView(scrollerRect, "wisp_textarea", scrollerRect.OffsetToCopy(0, 0).InsetByCopy(2, 2),
+                                            B_FOLLOW_ALL, B_WILL_DRAW, control, g, g->view);
             tv->SetText(control->value ? control->value : "");
             widget = new BScrollView("wisp_textarea_scroller", tv, B_FOLLOW_NONE, 0, true, true);
+            /* BScrollView's frame is now scrollerRect, and it manages the tv's size internally. */
             delete msg;
             break;
         }
