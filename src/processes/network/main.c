@@ -5,8 +5,8 @@
 #include <sys/select.h>
 #include <wisp/utils/ipc.h>
 #include <wisp/utils/log.h>
-#include <wisp/fetch.h>
 #include <wisp/content/fetch.h>
+#include "content/fetchers.h"
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/messages.h>
@@ -18,7 +18,7 @@ struct wisp_table *guit;
 
 static wisp_ipc_handle *ipc_main;
 
-static void fetch_callback(const fetch_msg *msg, void *p) {
+static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     wisp_ipc_msg imsg;
     uint32_t fetch_id = (uint32_t)(uintptr_t)p;
 
@@ -76,16 +76,11 @@ int main(int argc, char **argv) {
     wisp_ipc_set_blocking(ipc_main, false);
 
     corestrings_init();
-    messages_init(NULL);
-    nsoption_init(NULL, NULL);
+    nsoption_init(NULL, NULL, NULL);
     fetcher_init();
     fetch_curl_register();
 
     while (1) {
-        fd_set read_fds;
-        FD_ZERO(&read_fds);
-        /* In this simplified impl, we don't know the internal curl fds easily,
-           so we still poll curl and use a short timeout for select on IPC. */
         struct timeval tv = {0, 10000}; // 10ms
 
         wisp_ipc_msg msg;
@@ -105,8 +100,11 @@ int main(int argc, char **argv) {
                             url_str[url_len] = '\0';
                             nsurl *url;
                             nsurl_create(url_str, &url);
-                            fetch_start(url, (msg.data[8 + url_len] != 0), (msg.data[8 + url_len + 1] != 0),
-                                        NULL, NULL, fetch_callback, (void*)(uintptr_t)fetch_id);
+                            bool only_2xx = (msg.data[8 + url_len] != 0);
+                            bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
+                            struct fetch *f_out;
+                            fetch_start(url, NULL, network_process_fetch_callback, (void*)(uintptr_t)fetch_id,
+                                        only_2xx, NULL, true, downgrade_tls, NULL, &f_out);
                             nsurl_unref(url);
                             free(url_str);
                         }
