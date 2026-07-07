@@ -440,8 +440,8 @@ nserror libdom_parse_file(const char *filename, const char *encoding, dom_docume
 
         error = dom_hubbub_parser_parse_chunk(parser, buf, read);
         if (error != DOM_HUBBUB_OK) {
-            dom_node_unref(document);
             dom_hubbub_parser_destroy(parser);
+            dom_node_unref(document);
             fclose(fp);
             return NSERROR_DOM;
         }
@@ -449,8 +449,8 @@ nserror libdom_parse_file(const char *filename, const char *encoding, dom_docume
 
     error = dom_hubbub_parser_completed(parser);
     if (error != DOM_HUBBUB_OK) {
-        dom_node_unref(document);
         dom_hubbub_parser_destroy(parser);
+        dom_node_unref(document);
         fclose(fp);
         return libdom_hubbub_error_to_nserror(error);
     }

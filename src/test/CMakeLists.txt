@@ -284,9 +284,6 @@ add_wisp_test(grid_construct_test
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/grid_construct_test.c
 )
-# Disable leak detection for grid_construct_test since libdom parsing has internal leaks
-set_property(TEST grid_construct_test PROPERTY ENVIRONMENT "ASAN_OPTIONS=detect_leaks=0")
-
 add_wisp_test(transform_clip_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/redraw_helpers.c
   ${CMAKE_SOURCE_DIR}/src/test/transform_clip_test.c
@@ -355,7 +352,7 @@ target_include_directories(layout_margin_collapse_test PRIVATE
 target_link_libraries(layout_margin_collapse_test wisp ${CHECK_LIBRARIES})
 add_test(NAME layout_margin_collapse_test COMMAND layout_margin_collapse_test)
 set_tests_properties(layout_margin_collapse_test PROPERTIES
-  ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=no;ASAN_OPTIONS=detect_leaks=0"
+  ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=no"
 )
 
 # ============================================================================
