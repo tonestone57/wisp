@@ -94,14 +94,19 @@ static nserror mimesniff__match_mp4(const uint8_t *data, size_t len, lwc_string 
 {
 	uint32_t box_size, i;
 
+	/* 12 reflects the minimum number of octets needed to sniff useful
+	 * information out of an 'ftyp' box (i.e. the size, type,
+	 * and major_brand words). */
 	if (len < 12)
 		return NSERROR_NOT_FOUND;
 
 	/* Box size is big-endian */
 	box_size = ((uint32_t)data[0] << 24) | ((uint32_t)data[1] << 16) | ((uint32_t)data[2] << 8) | (uint32_t)data[3];
 
-	/* Require that we can read the entire box, and reject bad box sizes */
-	if (len < box_size || box_size % 4 != 0)
+	/* Require that we can read the entire box, and reject bad box sizes.
+	 * Also reject box_size < 12 to prevent underflow in the compatible brands loop.
+	 */
+	if (len < box_size || box_size % 4 != 0 || box_size < 12)
 		return NSERROR_NOT_FOUND;
 
 	/* Ensure this is an 'ftyp' box */
@@ -115,8 +120,7 @@ static nserror mimesniff__match_mp4(const uint8_t *data, size_t len, lwc_string 
 	}
 
 	/* Search each compatible brand in the box for known video brands.
-	 * We use major=false here to be strict and only match 'mp4' prefix
-	 * to avoid regressions with audio-only ISOBMFF files.
+	 * Major brand is at 8, minor version at 12, compatible brands start at 16.
 	 */
 	for (i = 16; i <= box_size - 4; i += 4) {
 		if (mimesniff__is_video_brand(data + i, false)) {
@@ -149,7 +153,7 @@ static nserror mimesniff__match_unknown_ws(const uint8_t *data, size_t len, lwc_
 		{NULL, 0, false, NULL}};
 #undef SIG
 	const uint8_t *end = data + len;
-	const struct map_s * it;
+	const struct map_s *it;
 
 	/* Skip leading whitespace */
 	while (data != end) {
@@ -330,8 +334,8 @@ mimesniff__match_video(const uint8_t *data, size_t len, lwc_string **effective_t
 	/* mp4 / isobmff - check Major Brand liberally to match existing tests */
 	if (len >= 12 &&
 	    data[4] == 'f' && data[5] == 't' && data[6] == 'y' && data[7] == 'p') {
-		/* We use 'major=true' here because <video> sniffing is usually
-		 * intentional and we want to catch common ISOBMFF brands.
+		/* For <video> tag sniffing, we are more liberal with brands
+		 * but still require a valid Major Brand at minimum.
 		 */
 		if (mimesniff__is_video_brand(data + 8, true)) {
 			*effective_type = lwc_string_ref(corestring_lwc_video_mp4);
