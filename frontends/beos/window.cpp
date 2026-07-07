@@ -31,8 +31,10 @@
 #include <MenuItem.h>
 #include <Path.h>
 #include <PopUpMenu.h>
+#include <MenuField.h>
 #include <RadioButton.h>
 #include <ScrollBar.h>
+#include <ScrollView.h>
 #include <String.h>
 #include <TextControl.h>
 #include <TextView.h>
@@ -77,6 +79,75 @@ extern "C" {
 #include <blend2d/blend2d.h>
 
 class NSBrowserFrameView;
+
+class NSTextView : public BTextView {
+public:
+    NSTextView(BRect frame, const char *name, BRect textRect, uint32 resizeMask, uint32 flags, struct form_control *control, struct gui_window *g, BHandler *target)
+        : BTextView(frame, name, textRect, resizeMask, flags), fControl(control), fGui(g), fTarget(target) {}
+
+    virtual void InsertText(const char *text, int32 length, int32 offset, const text_run_array *runs) {
+        BTextView::InsertText(text, length, offset, runs);
+        Notify();
+    }
+
+    virtual void DeleteText(int32 fromOffset, int32 toOffset) {
+        BTextView::DeleteText(fromOffset, toOffset);
+        Notify();
+    }
+
+private:
+    void Notify() {
+        BMessage msg('gmod');
+        msg.AddPointer("control", fControl);
+        msg.AddPointer("gui_window", fGui);
+        if (Window() && fTarget) {
+            Window()->PostMessage(&msg, fTarget);
+        }
+    }
+    struct form_control *fControl;
+    struct gui_window *fGui;
+    BHandler *fTarget;
+};
+
+class NSFileWidget : public BView {
+public:
+    NSFileWidget(BRect frame, struct form_control *control, struct gui_window *g)
+        : BView(frame, "NSFileWidget", B_FOLLOW_NONE, B_WILL_DRAW), fControl(control), fGui(g) {
+        SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+
+        BRect r = Bounds();
+        float btnWidth = 80;
+        BRect btnRect = r;
+        btnRect.left = btnRect.right - btnWidth;
+
+        BRect textRect = r;
+        textRect.right = btnRect.left - 5;
+
+        fText = new BTextControl(textRect, "file_path", "", "", NULL, B_FOLLOW_LEFT_RIGHT | B_FOLLOW_VCENTER);
+        fText->SetEnabled(false);
+        AddChild(fText);
+
+        BMessage *msg = new BMessage('fbrw');
+        msg->AddPointer("control", fControl);
+        msg->AddPointer("gui_window", fGui);
+        fBrowse = new BButton(btnRect, "browse", "Browse...", msg, B_FOLLOW_RIGHT | B_FOLLOW_VCENTER);
+        AddChild(fBrowse);
+    }
+
+    void SetTarget(BHandler *handler) {
+        fBrowse->SetTarget(handler);
+    }
+
+    void SetText(const char *text) {
+        fText->SetText(text);
+    }
+
+private:
+    BTextControl *fText;
+    BButton *fBrowse;
+    struct form_control *fControl;
+    struct gui_window *fGui;
+};
 
 struct beos_tile_task_t {
     struct gui_window *g;
@@ -356,6 +427,7 @@ void NSBrowserFrameView::MessageReceived(BMessage *message)
         break;
     case 'slct':
     case 'fsel':
+    case 'fbrw':
     case 'gdgt':
     case 'gmod':
         Window()->DetachCurrentMessage();
@@ -533,6 +605,13 @@ void nsbeos_dispatch_event(BMessage *message)
         }
         break;
     }
+    case 'fbrw': {
+        struct form_control *control;
+        if (gui != NULL && message->FindPointer("control", (void **)&control) == B_OK) {
+            gui_window_file_gadget_open(gui, NULL, control);
+        }
+        break;
+    }
     case 'fsel': {
         entry_ref ref;
         struct form_control *gadget;
@@ -569,6 +648,15 @@ void nsbeos_dispatch_event(BMessage *message)
                     if (cb) {
                         control->selected = (cb->Value() == B_CONTROL_ON);
                         dom_html_input_element_set_checked((dom_html_input_element *)control->node, control->selected);
+                    }
+                    break;
+                }
+                case GADGET_TEXTAREA: {
+                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    BScrollView *sv = (it != gui->widgets.end()) ? dynamic_cast<BScrollView *>(it->second) : NULL;
+                    NSTextView *tv = sv ? dynamic_cast<NSTextView *>(sv->Target()) : NULL;
+                    if (tv) {
+                        form_gadget_update_value(control, tv->Text());
                     }
                     break;
                 }
@@ -1567,6 +1655,39 @@ extern "C" nserror gui_window_draw_gadget(
                 ((BTextControl *)widget)->SetModificationMessage(mod);
             }
             break;
+        case GADGET_TEXTAREA: {
+            BRect textRect = frame;
+            textRect.OffsetTo(0, 0);
+            textRect.InsetBy(2, 2);
+            NSTextView *tv = new NSTextView(frame, "wisp_textarea", textRect, B_FOLLOW_NONE, B_WILL_DRAW, control, g, g->view);
+            tv->SetText(control->value ? control->value : "");
+            widget = new BScrollView("wisp_textarea_scroller", tv, B_FOLLOW_NONE, 0, true, true);
+            delete msg;
+            break;
+        }
+        case GADGET_SELECT: {
+            BPopUpMenu *menu = new BPopUpMenu("wisp_select_menu");
+            struct form_option *option;
+            int i = 0;
+            while ((option = form_select_get_option(control, i)) != NULL) {
+                BMessage *m = new BMessage('slct');
+                m->AddInt32("index", i);
+                m->AddPointer("control", control);
+                m->AddPointer("gui_window", g);
+                BMenuItem *item = new BMenuItem(option->text, m);
+                if (option->selected) item->SetMarked(true);
+                menu->AddItem(item);
+                i++;
+            }
+            widget = new BMenuField(frame, "wisp_select", NULL, menu);
+            delete msg;
+            break;
+        }
+        case GADGET_FILE: {
+            widget = new NSFileWidget(frame, control, g);
+            delete msg;
+            break;
+        }
         default:
             delete msg;
             return NSERROR_NOT_IMPLEMENTED;
@@ -1575,7 +1696,14 @@ extern "C" nserror gui_window_draw_gadget(
         if (widget) {
             if (g->view->LockLooper()) {
                 g->view->AddChild(widget);
-                widget->SetTarget(g->view);
+                BControl *c = dynamic_cast<BControl *>(widget);
+                if (c) c->SetTarget(g->view);
+
+                if (control->type == GADGET_SELECT) {
+                    ((BMenuField *)widget)->Menu()->SetTargetForItems(g->view);
+                } else if (control->type == GADGET_FILE) {
+                    ((NSFileWidget *)widget)->SetTarget(g->view);
+                }
                 g->widgets[control] = widget;
                 g->view->UnlockLooper();
             } else {
@@ -1620,6 +1748,40 @@ extern "C" nserror gui_window_draw_gadget(
                     if (strcmp(tc->Text(), core_val) != 0) {
                         tc->SetText(core_val);
                     }
+                }
+                break;
+            }
+            case GADGET_TEXTAREA: {
+                BScrollView *sv = dynamic_cast<BScrollView *>(widget);
+                NSTextView *tv = sv ? dynamic_cast<NSTextView *>(sv->Target()) : NULL;
+                if (tv) {
+                    const char *core_val = control->value ? control->value : "";
+                    if (strcmp(tv->Text(), core_val) != 0) {
+                        tv->SetText(core_val);
+                    }
+                }
+                break;
+            }
+            case GADGET_SELECT: {
+                BMenuField *mf = dynamic_cast<BMenuField *>(widget);
+                if (mf && mf->Menu()) {
+                    BMenu *menu = mf->Menu();
+                    struct form_option *option;
+                    int i = 0;
+                    while ((option = form_select_get_option(control, i)) != NULL) {
+                        BMenuItem *item = menu->ItemAt(i);
+                        if (item && item->IsMarked() != option->selected) {
+                            item->SetMarked(option->selected);
+                        }
+                        i++;
+                    }
+                }
+                break;
+            }
+            case GADGET_FILE: {
+                NSFileWidget *fw = dynamic_cast<NSFileWidget *>(widget);
+                if (fw) {
+                    fw->SetText(control->value ? control->value : "");
                 }
                 break;
             }
