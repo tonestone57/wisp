@@ -23,6 +23,51 @@ typedef struct js_task_t {
     uint64_t entry_time;
 } js_task_t;
 
+typedef enum {
+    WISP_MSG_TYPE_DATA,  /* Standard postMessage payload */
+    WISP_MSG_TYPE_ERROR  /* Unhandled exception details */
+} WispMsgType;
+
+typedef struct WispMessage {
+    struct WispMessage *next;
+    WispMsgType type;
+    uint8_t *data;
+    size_t size;
+    /* Error details (only used if type == WISP_MSG_TYPE_ERROR) */
+    char *error_message;
+    char *filename;
+    int line_number;
+    int col_number;
+} WispMessage;
+
+typedef struct WispMessageQueue {
+    WispMessage *head;
+    WispMessage *tail;
+#ifdef _WIN32
+    CRITICAL_SECTION lock;
+    CONDITION_VARIABLE cond;
+#else
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+#endif
+} WispMessageQueue;
+
+typedef struct WispWorkerHandle {
+#ifdef _WIN32
+    HANDLE thread;
+#else
+    pthread_t thread;
+#endif
+    volatile bool running;
+    volatile bool terminated;
+    volatile bool main_thread_notified;
+    WispMessageQueue to_worker;
+    WispMessageQueue from_worker;
+    char *script_url;
+    void *worker_priv; /* Pointer to QJSWorkerPrivate (main thread side) */
+    void *worker_js_thread; /* Pointer to worker's jsthread */
+} WispWorkerHandle;
+
 struct WispPool;
 
 typedef struct {
@@ -65,6 +110,8 @@ extern WispPool *js_pool;
 void init_wisp_subsystem(int queue_size);
 void shutdown_wisp_subsystem(void);
 
+WispWorkerHandle* wisp_subsystem_spawn_worker(const char *script_url);
+
 /* Task dispatching */
 bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg, float priority);
 bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
@@ -73,6 +120,12 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg);
 
 /* Internal worker routine */
 void* wisp_worker_routine(void *arg);
+
+/* Web Worker support */
+void wisp_message_queue_init(WispMessageQueue *q);
+void wisp_message_queue_deinit(WispMessageQueue *q);
+void wisp_message_queue_push(WispMessageQueue *q, WispMessage *msg);
+WispMessage* wisp_message_queue_pop(WispMessageQueue *q, int timeout_ms);
 
 #ifdef __cplusplus
 }

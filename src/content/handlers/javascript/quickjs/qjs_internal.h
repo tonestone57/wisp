@@ -55,6 +55,8 @@ struct jsthread {
     void *win_priv;
     void *doc_priv;
     QJSNodePrivate global_window_priv;
+    void *worker_handle; /* WispWorkerHandle* if this is a worker thread */
+    bool is_worker;
     bool closed;
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;

@@ -315,6 +315,16 @@ target_include_directories(test_wisp_subsystem_pools PRIVATE
 )
 target_link_libraries(test_wisp_subsystem_pools PRIVATE qjs wisp)
 
+add_wisp_test(test_web_workers
+  ${CMAKE_SOURCE_DIR}/src/test/test_web_workers.c
+)
+target_include_directories(test_web_workers PRIVATE
+  ${CMAKE_SOURCE_DIR}/contrib/quickjs-ng
+  ${CMAKE_BINARY_DIR}/quickjs
+  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
+)
+target_link_libraries(test_web_workers PRIVATE qjs wisp)
+
 # ============================================================================
 # Font-face Tests (simple test linked to neosurf lib)
 # ============================================================================

@@ -160,6 +160,41 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     return NSERROR_OK;
 }
 
+extern int qjs_init_dedicatedworkerglobalscope(JSContext *ctx);
+
+nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
+{
+    jsthread *t = calloc(1, sizeof(*t));
+    if (!t) return NSERROR_NOMEM;
+
+    JSRuntime *rt = JS_NewRuntime();
+    if (!rt) { free(t); return NSERROR_NOMEM; }
+
+    t->ctx = JS_NewContext(rt);
+    if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }
+
+    t->is_worker = true;
+    t->worker_handle = h;
+    JS_SetContextOpaque(t->ctx, t);
+    JS_SetRuntimeOpaque(rt, t);
+
+    /* DedicatedWorkerGlobalScope doesn't need the full DOM bridge,
+     * but it needs basic infrastructure. */
+    wisp_js_register_all_bindings(t->ctx);
+
+    qjs_init_dedicatedworkerglobalscope(t->ctx);
+    qjs_init_console(t->ctx);
+    qjs_init_crypto(t->ctx);
+
+    /* Self-reference in worker global */
+    JSValue global = JS_GetGlobalObject(t->ctx);
+    JS_DefinePropertyValueStr(t->ctx, global, "self", JS_DupValue(t->ctx, global), JS_PROP_C_W_E);
+    JS_FreeValue(t->ctx, global);
+
+    *thread_out = t;
+    return NSERROR_OK;
+}
+
 nserror js_closethread(jsthread *thread) { if (thread) thread->closed = true; return NSERROR_OK; }
 
 void js_destroythread(jsthread *thread)
