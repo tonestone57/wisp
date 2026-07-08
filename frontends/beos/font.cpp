@@ -35,7 +35,7 @@ extern "C" {
 #include "utils/nsoption.h"
 #include "utils/nsurl.h"
 #include "utils/utils.h"
-#include "wisp/inttypes.h"
+#include "wisp/ns_inttypes.h"
 #include "wisp/layout.h"
 }
 

@@ -128,7 +128,10 @@ if(WISP_BUILD_WINDOWS_FRONTEND)
         # Windows XP target (32-bit, no SSE)
         add_definitions(-DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -D_WIN32_WINDOWS=0x0501 -D_WIN32_IE=0x0600)
         # Disable SSE for compatibility with older CPUs without SSE support
-        add_compile_options(-march=i686 -mno-sse -mno-sse2 -mtune=generic)
+        add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-march=i686>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-mno-sse>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-mno-sse2>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-mtune=generic>)
         message(STATUS "Targeting Windows XP (32-bit, no SSE)")
     else()
         # Vista+ target (default)
@@ -161,13 +164,15 @@ option(WISP_ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
 option(WISP_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (UBSan)" OFF)
 
 if(WISP_ENABLE_ASAN)
-    add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=address>
+                        $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
     add_link_options(-fsanitize=address)
     set(QJS_ENABLE_ASAN ON CACHE BOOL "" FORCE)
 endif()
 
 if(WISP_ENABLE_UBSAN)
-    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=undefined>
+                        $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
     add_link_options(-fsanitize=undefined)
     set(QJS_ENABLE_UBSAN ON CACHE BOOL "" FORCE)
 endif()
@@ -219,9 +224,10 @@ endif()
 
 if(WISP_WERROR)
 	if(MSVC)
-		add_compile_options(/WX)
+		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:/WX>)
 	else()
-		add_compile_options(-Werror -Werror=attribute-warning)
+		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror=attribute-warning>)
 	endif()
 endif()
 
@@ -266,14 +272,17 @@ endif()
 option(WISP_ENABLE_LTO "Enable Link Time Optimization" ${DEFAULT_WISP_ENABLE_LTO})
 
 if(WISP_ENABLE_LTO)
-    add_compile_options(-flto -ffunction-sections -fdata-sections)
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-flto>
+                        $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-ffunction-sections>
+                        $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fdata-sections>)
     add_link_options(-flto -Wl,--gc-sections)
     message(STATUS "Enabled Link Time Optimization (LTO)")
 endif()
 
 if(CMAKE_BUILD_TYPE MATCHES Debug AND NOT WISP_ENABLE_GPROF)
     if((WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang") OR UNIX)
-        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+        add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=address,undefined>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
         add_link_options(-fsanitize=address,undefined)
     endif()
 endif()

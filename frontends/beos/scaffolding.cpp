@@ -65,7 +65,7 @@ extern "C" {
 #include "wisp/content.h"
 #include "wisp/content_type.h"
 #include "wisp/form.h"
-#include "wisp/inttypes.h"
+#include "wisp/ns_inttypes.h"
 #include "wisp/keypress.h"
 #include "wisp/wisp.h"
 #include "wisp/plotters.h"

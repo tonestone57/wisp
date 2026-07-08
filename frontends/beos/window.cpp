@@ -60,7 +60,7 @@ extern "C" {
 #include "wisp/clipboard.h"
 #include "wisp/content_type.h"
 #include "wisp/form.h"
-#include "wisp/inttypes.h"
+#include "wisp/ns_inttypes.h"
 #include "wisp/keypress.h"
 #include "wisp/mouse.h"
 #include "wisp/plotters.h"
