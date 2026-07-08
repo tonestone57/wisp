@@ -73,6 +73,7 @@ extern "C" {
 #include "desktop/search.h"
 #include "desktop/searchweb.h"
 #include "desktop/version.h"
+#include "wisp/content/hlcache.h"
 #include "content/handlers/image/video.h"
 #include "wisp/content/hlcache.h"
 }

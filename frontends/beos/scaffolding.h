@@ -20,7 +20,24 @@
 #ifndef WISP_BEOS_SCAFFOLDING_H
 #define WISP_BEOS_SCAFFOLDING_H 1
 
-#include <be/NetPositive.h>
+#ifdef __HAIKU__
+/* NetPositive message constants for Haiku compatibility */
+#define B_NETPOSITIVE_OPEN_URL 'Neg0'
+#define B_NETPOSITIVE_BACK     'Neg1'
+#define B_NETPOSITIVE_FORWARD  'Neg2'
+#define B_NETPOSITIVE_HOME     'Neg3'
+#define B_NETPOSITIVE_RELOAD   'Neg4'
+#define B_NETPOSITIVE_STOP     'Neg5'
+#define B_NETPOSITIVE_DOWN     'Neg6'
+#define B_NETPOSITIVE_UP       'Neg7'
+#ifndef DIRECT_BUFFER_INFO_AREA_SIZE
+#define DIRECT_BUFFER_INFO_AREA_SIZE 4096
+#endif
+#else
+/* On BeOS, NetPositive headers are available */
+#include <NetPositive.h>
+#endif
+
 #include <View.h>
 #include <DirectWindow.h>
 #include <Window.h>
@@ -30,9 +47,12 @@ struct hlcache_handle;
 struct nsurl;
 }
 
+#ifndef NS_MEDIA_PLAY
 #define NS_MEDIA_PLAY 'nsMP'
+#endif
+#ifndef NS_MEDIA_SEEK
 #define NS_MEDIA_SEEK 'nsMS'
-#define DIRECT_BUFFER_INFO_AREA_SIZE 4096
+#endif
 
 typedef struct beos_scaffolding nsbeos_scaffolding;
 

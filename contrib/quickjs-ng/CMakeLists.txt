@@ -249,7 +249,7 @@ endif()
 # QuickJS library
 #
 
-xoption(QJS_BUILD_LIBC "Build standard library modules as part of the library" OFF)
+xoption(QJS_BUILD_LIBC "Build standard library modules as part of the library" ON)
 macro(add_qjs_libc_if_needed target)
     if(NOT QJS_BUILD_LIBC)
         target_link_libraries(${target} PRIVATE qjs-libc)
