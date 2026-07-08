@@ -42,7 +42,7 @@ extern "C" {
 #include "utils/nsoption.h"
 #include "utils/ring.h"
 #include "utils/utils.h"
-#include "wisp/inttypes.h"
+#include "wisp/ns_inttypes.h"
 #include "content/fetch.h"
 #include "content/fetchers.h"
 }

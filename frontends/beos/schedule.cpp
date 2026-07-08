@@ -26,7 +26,7 @@ extern "C" {
 #include "utils/errors.h"
 #include "wisp/browser_window.h"
 #include "wisp/content_type.h"
-#include "wisp/inttypes.h"
+#include "wisp/ns_inttypes.h"
 #include "beos/schedule.h"
 
 #include "utils/log.h"
