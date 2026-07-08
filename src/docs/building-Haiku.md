@@ -114,9 +114,7 @@
 ------
 
   Wisp uses cURL to fetch files from the network. 
-  There is a patch against the official version on HaikuPorts.
-
-  TODO
+  It is available via `pkgman install curl_devel`.
 
 
   libpng

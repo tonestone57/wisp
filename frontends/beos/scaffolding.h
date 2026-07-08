@@ -84,7 +84,6 @@ private:
 };
 
 
-// XXX: clean up
 typedef enum {
 
     /* no/unknown actions */

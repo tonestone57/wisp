@@ -79,14 +79,9 @@ LoginAlert::LoginAlert(nserror (*callback)(const char *username, const char *pas
     fRealm = realm;
 
     SetFeel(B_MODAL_SUBSET_WINDOW_FEEL);
-    /*
-    // XXX: can't do that anymore
-    nsbeos_scaffolding *s = nsbeos_get_scaffold(bw->window);
-    if (s) {
-        NSBrowserWindow *w = nsbeos_get_bwindow_for_scaffolding(s);
-        if (w)
-            AddToSubset(w);
-    }*/
+    if (NSBrowserWindow::activeWindow) {
+        AddToSubset(NSBrowserWindow::activeWindow);
+    }
 
     // make space for controls
     ResizeBy(0, 2 * TC_H);

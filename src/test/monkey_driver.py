@@ -171,21 +171,35 @@ def conds_met(ctx, conds):
         elif 'window' in cond.keys():
             status = cond['status']
             window = cond['window']
-            assert status == "complete" or status == "loading"  # TODO: Add more status support?
-            if window == "*all*":
-                # all windows must be complete, or any still loading
-                throbbing = False
-                for win in ctx['windows'].items():
-                    if win[1].throbbing:
-                        throbbing = True
-                # throbbing and want loading => true
-                # not throbbing and want complete => true
-                if (status == "loading") == throbbing:
-                    return True
+            if status == "complete" or status == "loading":
+                if window == "*all*":
+                    # all windows must be complete, or any still loading
+                    throbbing = False
+                    for win in ctx['windows'].items():
+                        if win[1].throbbing:
+                            throbbing = True
+                    # throbbing and want loading => true
+                    # not throbbing and want complete => true
+                    if (status == "loading") == throbbing:
+                        return True
+                else:
+                    win = ctx['windows'][window]
+                    if win.throbbing == (status == "loading"):
+                        return True
             else:
-                win = ctx['windows'][window]
-                if win.throbbing == (status == "loading"):
-                    return True
+                # Support for checking actual status text
+                if window == "*all*":
+                    all_match = True
+                    for _, win in ctx['windows'].items():
+                        if win.status != status:
+                            all_match = False
+                            break
+                    if all_match:
+                        return True
+                else:
+                    win = ctx['windows'][window]
+                    if win.status == status:
+                        return True
         else:
             raise AssertionError("Unknown condition: {}".format(repr(cond)))
 

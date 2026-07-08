@@ -212,6 +212,13 @@ bool CookieWindow::QuitRequested()
 {
     if (!IsHidden())
         Hide();
+
+    // Empty the domain list when closing
+    for (int i = fDomains->FullListCountItems() - 1; i >= 1; i--) {
+        delete fDomains->FullListItemAt(i);
+    }
+    fDomains->MakeEmpty();
+
     cookieJar.clear();
     return false;
 }
@@ -219,11 +226,8 @@ bool CookieWindow::QuitRequested()
 
 void CookieWindow::_BuildDomainList()
 {
-    // Empty the domain list
-    for (int i = fDomains->FullListCountItems() - 1; i >= 1; i--) {
-        delete fDomains->FullListItemAt(i);
-    }
-    fDomains->MakeEmpty();
+    if (fDomains->FullListCountItems() > 0)
+        return;
 
     // BOutlineListView does not handle parent = NULL in many methods, so
     // let's make sure everything always has a parent.

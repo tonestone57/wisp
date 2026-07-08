@@ -5,9 +5,9 @@
 # Where to install the wisp binary
 WISP_BEOS_BIN := /boot/apps/wisp/
 
-# TODO:HAIKU -- not sure if ~/.wisp applies in beos
-# Where to search for Wisp's resources after looking in ~/.wisp and
-# $WISPRES.  It must have a trailing /
+# Where to search for Wisp's resources. Standard Haiku apps use
+# ~/config/settings/wisp, but we still support WISPRES.
+# It must have a trailing /
 WISP_BEOS_RESOURCES := /boot/apps/wisp/res/
 
 # Enable Wisp's use of libsvgtiny for displaying SVGs
