@@ -7,6 +7,7 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include "utils/corestrings.h"
 #include "JSElement.gen.h"
 
 JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
@@ -69,7 +70,64 @@ JSValue wisp_element_className_get_impl(JSContext *ctx, QJSNodePrivate *priv) { 
 JSValue wisp_element_className_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_element_setAttribute_impl(ctx, priv, "class", value); }
 
 JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    dom_node *element = (dom_node *)priv->node;
+    dom_document *doc = NULL;
+    dom_exception exc = dom_node_get_owner_document(element, &doc);
+    if (exc != DOM_NO_ERR || !doc) return JS_ThrowInternalError(ctx, "Failed to get owner document");
+
+    /* 1. Clear existing children */
+    dom_node *child = NULL;
+    while (dom_node_get_first_child(element, &child) == DOM_NO_ERR && child != NULL) {
+        dom_node *removed = NULL;
+        dom_node_remove_child(element, child, &removed);
+        if (removed) dom_node_unref(removed);
+        dom_node_unref(child);
+        child = NULL;
+    }
+
+    /* 2. Parse new HTML string using Hubbub fragment parser */
+    dom_hubbub_parser_params params;
+    memset(&params, 0, sizeof(params));
+    params.enc = "UTF-8";
+    params.idname = corestring_dom_id;
+
+    dom_hubbub_parser *parser = NULL;
+    dom_document_fragment *fragment = NULL;
+    dom_hubbub_error err = dom_hubbub_fragment_parser_create(&params, doc, &parser, &fragment);
+    if (err != DOM_HUBBUB_OK) {
+        dom_node_unref((dom_node *)doc);
+        return JS_ThrowInternalError(ctx, "Failed to create Hubbub fragment parser");
+    }
+
+    err = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)value, strlen(value));
+    if (err == DOM_HUBBUB_OK) {
+        err = dom_hubbub_parser_completed(parser);
+    }
+
+    if (err == DOM_HUBBUB_OK && fragment != NULL) {
+        /* 3. Append children from fragment to element */
+        dom_node *f_child = NULL;
+        while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
+            dom_node *result = NULL;
+            /* dom_node_append_child on a fragment moves nodes from the fragment to the element */
+            dom_node_append_child(element, f_child, &result);
+            if (result) dom_node_unref(result);
+            dom_node_unref(f_child);
+            f_child = NULL;
+        }
+    }
+
+    if (fragment) dom_node_unref((dom_node *)fragment);
+    dom_hubbub_parser_destroy(parser);
+    dom_node_unref((dom_node *)doc);
+
+    if (err != DOM_HUBBUB_OK) return JS_ThrowInternalError(ctx, "Hubbub parsing failed");
+
+    return JS_UNDEFINED;
+}
 JSValue wisp_element_tagName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
