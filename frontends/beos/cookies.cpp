@@ -219,7 +219,7 @@ bool CookieWindow::QuitRequested()
 
 void CookieWindow::_BuildDomainList()
 {
-    // Empty the domain list (TODO should we do this when hiding instead?)
+    // Empty the domain list
     for (int i = fDomains->FullListCountItems() - 1; i >= 1; i--) {
         delete fDomains->FullListItemAt(i);
     }
@@ -230,7 +230,7 @@ void CookieWindow::_BuildDomainList()
     DomainItem *rootItem = new DomainItem("", true);
     fDomains->AddItem(rootItem);
 
-    // Populate the domain list - TODO USE STL VECTOR
+    // Populate the domain list
 
 
     for (std::vector<struct cookie_data *>::iterator it = cookieJar.begin(); it != cookieJar.end(); ++it) {
@@ -366,11 +366,29 @@ static bool nsbeos_cookie_parser(const struct cookie_data *data)
 
 void CookieWindow::_DeleteCookies()
 {
-    // TODO shall we handle multiple selection here?
     CookieRow *row = (CookieRow *)fCookies->CurrentSelection();
     if (row == NULL) {
-        // TODO see if a domain is selected in the domain list, and
+        // see if a domain is selected in the domain list, and
         // delete all cookies for that domain
+        int32 selection = fDomains->CurrentSelection();
+        if (selection < 0)
+            return;
+
+        BStringItem *item = (BStringItem *)fDomains->ItemAt(selection);
+        if (item == NULL)
+            return;
+
+        BString domain = item->Text();
+
+        for (std::vector<struct cookie_data *>::iterator it = cookieJar.begin(); it != cookieJar.end(); ) {
+            if ((*it)->domain == domain) {
+                urldb_delete_cookie((*it)->domain, (*it)->path, (*it)->name);
+                it = cookieJar.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        _ShowCookiesForDomain(domain);
         return;
     }
 

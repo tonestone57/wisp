@@ -34,9 +34,12 @@ extern "C" {
 
 #include <private/interface/AboutWindow.h>
 #include <Application.h>
+#include <Catalog.h>
 #include <Invoker.h>
 #include <String.h>
 
+#undef B_TRANSLATION_CONTEXT
+#define B_TRANSLATION_CONTEXT "About"
 
 /**
  * Creates the about alert
@@ -44,14 +47,13 @@ extern "C" {
 void nsbeos_about(struct gui_window *gui)
 {
     BString text;
-    text << "Wisp  : " << user_agent_string() << "\n";
-    text << "Version  : " << wisp_version << "\n";
-    text << "Build ID : " << WT_REVID << "\n";
-    text << "Date     : " << WT_COMPILEDATE << "\n";
-    text << "cURL     : " << LIBCURL_VERSION << "\n";
+    text << B_TRANSLATE("Wisp  : ") << user_agent_string() << "\n";
+    text << B_TRANSLATE("Version  : ") << wisp_version << "\n";
+    text << B_TRANSLATE("Build ID : ") << WT_REVID << "\n";
+    text << B_TRANSLATE("Date     : ") << WT_COMPILEDATE << "\n";
+    text << B_TRANSLATE("cURL     : ") << LIBCURL_VERSION << "\n";
 
-    BAboutWindow *alert = new BAboutWindow("About Wisp", "application/x-vnd.Wisp");
+    BAboutWindow *alert = new BAboutWindow(B_TRANSLATE("About Wisp"), "application/x-vnd.Wisp");
     alert->AddExtraInfo(text);
     alert->Show();
-    // TODO: i18n-ize
 }

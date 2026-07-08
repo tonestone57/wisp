@@ -326,7 +326,7 @@ GtkStateFlags nsgtk_widget_get_state_flags(GtkWidget *widget)
 #if GTK_CHECK_VERSION(2, 18, 0)
     return gtk_widget_get_state(widget);
 #else
-    return 0; /* FIXME */
+    return GTK_WIDGET_STATE(widget);
 #endif
 #endif
 }
@@ -376,8 +376,7 @@ void nsgdk_cursor_unref(GdkCursor *cursor)
 void nsgtk_widget_modify_font(GtkWidget *widget, PangoFontDescription *font_desc)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
-    /* FIXME */
-    return;
+    gtk_widget_override_font(widget, font_desc);
 #else
     gtk_widget_modify_font(widget, font_desc);
 #endif
