@@ -20,7 +20,7 @@
 #ifndef WISP_BEOS_SCAFFOLDING_H
 #define WISP_BEOS_SCAFFOLDING_H 1
 
-#include <NetPositive.h>
+#include <be/NetPositive.h>
 #include <View.h>
 #include <DirectWindow.h>
 #include <Window.h>
@@ -29,6 +29,10 @@ extern "C" {
 struct hlcache_handle;
 struct nsurl;
 }
+
+#define NS_MEDIA_PLAY 'nsMP'
+#define NS_MEDIA_SEEK 'nsMS'
+#define DIRECT_BUFFER_INFO_AREA_SIZE 4096
 
 typedef struct beos_scaffolding nsbeos_scaffolding;
 

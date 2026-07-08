@@ -28,6 +28,7 @@
 
 extern "C" {
 
+#include "wisp/plotters.h"
 struct plotter_table;
 
 extern const struct plotter_table nsbeos_plotters;
