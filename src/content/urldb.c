@@ -2907,23 +2907,36 @@ nserror urldb_load(const char *filename)
                 lwc_string *path_lwc = NULL;
                 lwc_string *query_lwc = NULL;
 
-                lwc_intern_string(scheme, strlen(scheme), &scheme_lwc);
+                if (lwc_intern_string(scheme, strlen(scheme), &scheme_lwc) != lwc_error_ok) {
+                    goto no_memory_intern;
+                }
                 if (!is_file) {
-                    lwc_intern_string(host, strlen(host), &host_lwc);
+                    if (lwc_intern_string(host, strlen(host), &host_lwc) != lwc_error_ok) {
+                        goto no_memory_intern;
+                    }
                 }
                 if (port) {
-                    lwc_intern_string(ports, strlen(ports), &port_lwc);
+                    if (lwc_intern_string(ports, strlen(ports), &port_lwc) != lwc_error_ok) {
+                        goto no_memory_intern;
+                    }
                 }
-                lwc_intern_string(s, strlen(s), &path_lwc);
+                if (lwc_intern_string(s, strlen(s), &path_lwc) != lwc_error_ok) {
+                    goto no_memory_intern;
+                }
                 if (query[0] != '\0') {
-                    lwc_intern_string(query, strlen(query), &query_lwc);
+                    if (lwc_intern_string(query, strlen(query), &query_lwc) != lwc_error_ok) {
+                        goto no_memory_intern;
+                    }
                 }
                 if (fragment[0] != '\0') {
-                    lwc_intern_string(fragment, strlen(fragment), &fragment_lwc);
+                    if (lwc_intern_string(fragment, strlen(fragment), &fragment_lwc) != lwc_error_ok) {
+                        goto no_memory_intern;
+                    }
                 }
 
                 if (nsurl_create_from_components_str(scheme_lwc, host_lwc, port_lwc, path_lwc, query_lwc, fragment_lwc, &nsurl) != NSERROR_OK) {
                     NSLOG(wisp, INFO, "Failed inserting URL from components");
+                no_memory_intern:
                     if (scheme_lwc) lwc_string_unref(scheme_lwc);
                     if (host_lwc) lwc_string_unref(host_lwc);
                     if (port_lwc) lwc_string_unref(port_lwc);

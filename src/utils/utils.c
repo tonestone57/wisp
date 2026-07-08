@@ -46,7 +46,7 @@ char *squash_whitespace(const char *s)
 
     /* assert(s != NULL); */
     if (s == NULL)
-        abort();
+        return NULL;
 
     c = malloc(strlen(s) + 1);
     if (c != NULL) {
