@@ -77,7 +77,9 @@ extern "C" {
 #include "desktop/tile_pool.h"
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
+#ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
+#endif
 
 class NSBrowserFrameView;
 
@@ -344,31 +346,7 @@ static void nsbeos_tile_raster_complete(void *arg)
     free(task);
 }
 
-struct gui_window {
-    nsbeos_scaffolding *scaffold;
-    bool toplevel;
-    struct browser_window *bw;
 
-    struct {
-        int pressed_x;
-        int pressed_y;
-        int state;
-    } mouse;
-
-    int caretx, carety, careth;
-    gui_pointer_shape current_pointer;
-    int last_x, last_y;
-
-    NSBrowserFrameView *view;
-
-    int32 pending_resizes;
-    BRect pendingRedraw;
-
-    std::map<struct form_control *, BView *> widgets;
-    BFilePanel *wndOpenFile;
-
-    struct gui_window *next, *prev;
-};
 
 
 static const rgb_color kWhiteColor = {255, 255, 255, 255};

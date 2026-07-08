@@ -74,6 +74,7 @@ extern "C" {
 #include "desktop/searchweb.h"
 #include "desktop/version.h"
 #include "content/handlers/image/video.h"
+#include "wisp/content/hlcache.h"
 }
 
 #include "beos/about.h"
@@ -406,7 +407,7 @@ void NSBaseView::MessageReceived(BMessage *message)
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
             if (c) {
                 if (nsvideo_is_paused(c)) nsvideo_play(c);
                 else nsvideo_pause(c);
@@ -415,7 +416,7 @@ void NSBaseView::MessageReceived(BMessage *message)
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
             int32 val = 0;
             if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
         }
@@ -671,7 +672,7 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
             if (c) {
                 if (nsvideo_is_paused(c)) nsvideo_play(c);
                 else nsvideo_pause(c);
@@ -680,7 +681,7 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
             int32 val = 0;
             if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
         }
@@ -699,7 +700,7 @@ void NSBrowserWindow::MessageReceived(BMessage *message)
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
             if (c) {
                 if (nsvideo_is_paused(c)) nsvideo_play(c);
                 else nsvideo_pause(c);
@@ -708,7 +709,7 @@ void NSBrowserWindow::MessageReceived(BMessage *message)
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(fScaffolding->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
             int32 val = 0;
             if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
         }
@@ -824,7 +825,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(scaffold->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(scaffold->top_level->bw));
             if (c) {
                 if (nsvideo_is_paused(c)) nsvideo_play(c);
                 else nsvideo_pause(c);
@@ -833,7 +834,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(scaffold->top_level->bw->current_content);
+            struct content *c = hlcache_handle_get_content(browser_window_get_content(scaffold->top_level->bw));
             int32 val = 0;
             if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
         }
@@ -990,7 +991,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         nsurl *url;
         nserror error;
 
-        const char *addr = "about:welcome";
+        static const char *addr = WISP_HOMEPAGE;
 
         if (nsoption_charp(homepage_url) != NULL) {
             addr = nsoption_charp(homepage_url);
@@ -1157,7 +1158,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         break;
     case BROWSER_OBJECT_RELOAD:
         if (scaffold->current_menu_object != NULL) {
-            content_invalidate_reuse_data(scaffold->current_menu_object);
+            content_invalidate_reuse_data(hlcache_handle_get_content(scaffold->current_menu_object));
             browser_window_reload(bw, false);
             scaffold->current_menu_object = NULL;
         }

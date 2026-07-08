@@ -19,16 +19,43 @@
 #ifndef WISP_BEOS_WINDOW_H
 #define WISP_BEOS_WINDOW_H 1
 
-#include <NetPositive.h>
+#include <be/NetPositive.h>
+#include <FilePanel.h>
+#include <map>
 #include <View.h>
 #include <Window.h>
 
 extern struct gui_window_table *beos_window_table;
 extern struct gui_clipboard_table *beos_clipboard_table;
 
-struct gui_window;
 struct browser_window;
 struct beos_scaffolding;
+
+struct gui_window {
+    struct beos_scaffolding *scaffold;
+    bool toplevel;
+    struct browser_window *bw;
+
+    struct {
+        int pressed_x;
+        int pressed_y;
+        int state;
+    } mouse;
+
+    int caretx, carety, careth;
+    enum gui_pointer_shape current_pointer;
+    int last_x, last_y;
+
+    class NSBrowserFrameView *view;
+
+    int32 pending_resizes;
+    BRect pendingRedraw;
+
+    std::map<struct form_control *, BView *> widgets;
+    BFilePanel *wndOpenFile;
+
+    struct gui_window *next, *prev;
+};
 
 class NSBrowserFrameView : public BView
 {
