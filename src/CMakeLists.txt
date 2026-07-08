@@ -232,6 +232,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	desktop/save_pdf.c
 	desktop/bitmap.c
 	desktop/tile_pool.c
+	content/fetchers/ipc.c
 	${BLEND2D_SRC}
 	utils/bloom.c
 	utils/corestrings.c
@@ -257,6 +258,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/utils.c
 	utils/thread_pool.c
 	utils/task_queue.c
+	utils/ipc.c
 	utils/http/generics.c
 	utils/http/primitives.c
 	utils/http/parameter.c
@@ -310,6 +312,28 @@ target_include_directories(wisp PRIVATE
     ${CMAKE_BINARY_DIR}
     ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
 )
+
+# Multi-process executables
+add_executable(wisp-network
+    processes/network/main.c
+    utils/ipc.c
+    utils/log.c
+    utils/nsoption.c
+    utils/messages.c
+    utils/corestrings.c
+    utils/utils.c
+    utils/utf8.c
+    utils/hashtable.c
+)
+target_link_libraries(wisp-network wisp ${WISP_COMMON_LIBS})
+
+add_executable(wisp-js
+    processes/js/main.c
+    utils/ipc.c
+    utils/log.c
+    utils/utils.c
+)
+target_link_libraries(wisp-js wisp ${WISP_COMMON_LIBS})
 
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)

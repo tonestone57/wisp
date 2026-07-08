@@ -172,6 +172,11 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
 void fetch_abort(struct fetch *f);
 
 /**
+ * Poll all fetchers.
+ */
+void fetch_poll_all(void);
+
+/**
  * Fetch request structure for modern Fetch API parity
  */
 struct fetch_request {

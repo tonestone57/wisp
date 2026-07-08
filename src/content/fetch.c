@@ -141,6 +141,19 @@ static int get_fetcher_for_scheme(lwc_string *scheme)
 }
 
 /**
+ * Poll all fetchers to make progress.
+ */
+void fetch_poll_all(void)
+{
+    int fetcherd;
+    for (fetcherd = 0; fetcherd < MAX_FETCHERS; fetcherd++) {
+        if (fetchers[fetcherd].refcount > 0) {
+            fetchers[fetcherd].ops.poll(fetchers[fetcherd].scheme);
+        }
+    }
+}
+
+/**
  * Dispatch a single job
  */
 static bool fetch_dispatch_job(struct fetch *fetch)
