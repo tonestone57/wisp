@@ -990,7 +990,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         nsurl *url;
         nserror error;
 
-        static const char *addr = WISP_HOMEPAGE;
+        const char *addr = "about:welcome";
 
         if (nsoption_charp(homepage_url) != NULL) {
             addr = nsoption_charp(homepage_url);
