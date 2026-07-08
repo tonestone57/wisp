@@ -26,7 +26,7 @@ extern "C" {
 #include "wisp/clipboard.h"
 #include "curl/curlver.h"
 #include "desktop/version.h"
-#include "testament.h"
+#include "content/fetchers/about/atestament.h"
 }
 #include "beos/about.h"
 #include "beos/scaffolding.h"

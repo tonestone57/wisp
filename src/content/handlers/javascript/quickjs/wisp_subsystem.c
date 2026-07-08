@@ -16,6 +16,9 @@
 #include "wisp/content/hlcache.h"
 
 #ifdef _WIN32
+#elif defined(__HAIKU__)
+#include <OS.h>
+#include <sys/time.h>
 #else
 #include <sys/sysinfo.h>
 #include <sys/time.h>
@@ -265,6 +268,10 @@ void init_wisp_subsystem(int queue_size) {
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
     n_cores = sysinfo.dwNumberOfProcessors;
+#elif defined(__HAIKU__)
+    system_info info;
+    get_system_info(&info);
+    n_cores = info.cpu_count;
 #else
     n_cores = sysconf(_SC_NPROCESSORS_ONLN);
 #endif

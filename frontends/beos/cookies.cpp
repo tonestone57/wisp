@@ -37,7 +37,6 @@ extern "C" {
 #include <Catalog.h>
 #include <GroupLayoutBuilder.h>
 #include <InterfaceKit.h>
-#include <NetworkCookieJar.h>
 #include <OutlineListView.h>
 #include <ScrollView.h>
 #include <String.h>
