@@ -18,6 +18,12 @@
 
 #include "utils/css_utils.h"
 
+/* Preprocessor macros on some platforms (e.g. Haiku) collide with LibCSS identifiers. */
+#if defined(__HAIKU__)
+#undef OVERFLOW
+#undef UNDERFLOW
+#endif
+
 enum {
     /* ═══════════════════════════════════════════════════════════════════
      * AUTO-GENERATED property names (from property_generator.py)
