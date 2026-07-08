@@ -81,6 +81,7 @@ extern "C" {
 #include "beos/schedule.h"
 #include "beos/throbber.h"
 #include "beos/window.h"
+#include "beos/plotters.h"
 
 #define USE_RESOURCES 1
 
@@ -480,7 +481,7 @@ static void gui_init(int argc, char **argv)
         return;
     if (!replicated) {
         sBAppThreadID = spawn_thread(
-            bapp_thread, "BApplication(Wisp)", B_NORMAL_PRIORITY, (void *)find_thread(NULL));
+            bapp_thread, "BApplication(Wisp)", B_NORMAL_PRIORITY, (void *)(intptr_t)find_thread(NULL));
         if (sBAppThreadID < B_OK)
             return;
         if (resume_thread(sBAppThreadID) < B_OK)
@@ -570,7 +571,7 @@ static void gui_init(int argc, char **argv)
     } else if (nsoption_charp(homepage_url) != NULL) {
         addr = nsoption_charp(homepage_url);
     } else {
-        addr = WISP_HOMEPAGE;
+        addr = "about:welcome";
     }
 
     error = nsurl_create(addr, &url);
@@ -790,7 +791,7 @@ void die(const char *const error)
 
 
 static struct gui_fetch_table beos_fetch_table = {
-    .fetch_filetype = fetch_filetype,
+    .filetype = fetch_filetype,
     .get_resource_url = gui_get_resource_url
 };
 
