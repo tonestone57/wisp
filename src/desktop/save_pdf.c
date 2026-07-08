@@ -795,8 +795,10 @@ void pdfw_gs_init()
  */
 void pdfw_gs_save(HPDF_Page page)
 {
-    if (pdfw_gs_level == PDFW_MAX_GSTATES)
-        abort();
+    if (pdfw_gs_level == PDFW_MAX_GSTATES - 1) {
+        NSLOG(wisp, WARNING, "PDF gstate stack overflow");
+        return;
+    }
     pdfw_gs[pdfw_gs_level + 1] = pdfw_gs[pdfw_gs_level];
     ++pdfw_gs_level;
     HPDF_Page_GSave(page);
@@ -809,8 +811,10 @@ void pdfw_gs_save(HPDF_Page page)
  */
 void pdfw_gs_restore(HPDF_Page page)
 {
-    if (pdfw_gs_level == 0)
-        abort();
+    if (pdfw_gs_level == 0) {
+        NSLOG(wisp, WARNING, "PDF gstate stack underflow");
+        return;
+    }
     --pdfw_gs_level;
     HPDF_Page_GRestore(page);
 }
