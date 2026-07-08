@@ -612,7 +612,37 @@ JSValue wisp_canvasrenderingcontext2d_rect_impl(JSContext *ctx, QJSNodePrivate *
     }
     return JS_UNDEFINED;
 }
-JSValue wisp_canvasrenderingcontext2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radiusX, double radiusY, double rotation, double startAngle, double endAngle, bool anticlockwise) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radiusX, double radiusY, double rotation, double startAngle, double endAngle, bool anticlockwise)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+#ifdef WITH_BLEND2D
+    double sweep = endAngle - startAngle;
+    double two_pi = 2.0 * M_PI;
+
+    if (!anticlockwise) {
+        if (sweep >= two_pi) sweep = two_pi;
+        else {
+            sweep = fmod(sweep, two_pi);
+            if (sweep < 0) sweep += two_pi;
+        }
+    } else {
+        if (sweep <= -two_pi) sweep = -two_pi;
+        else {
+            sweep = fmod(sweep, two_pi);
+            if (sweep > 0) sweep -= two_pi;
+        }
+    }
+
+    BLMatrix2D m;
+    blMatrix2DSetTranslation(&m, x, y);
+    blMatrix2DApplyRotation(&m, rotation);
+    blMatrix2DApplyScale(&m, radiusX, radiusY);
+
+    bl_path_add_geometry(&cpriv->current_path, BL_GEOMETRY_TYPE_ARC, &((BLArc){0, 0, 1, 1, startAngle, sweep}), &m, BL_GEOMETRY_DIRECTION_CW);
+#endif
+    return JS_UNDEFINED;
+}
 
 JSValue wisp_canvasrenderingcontext2d_arcTo_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radius)
 {
@@ -679,8 +709,26 @@ JSValue wisp_canvasrenderingcontext2d_arcTo_0_impl(JSContext *ctx, QJSNodePrivat
 }
 
 JSValue wisp_canvasrenderingcontext2d_arcTo_1_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radiusX, double radiusY, double rotation) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_clip_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue fillRule) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_clip_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue fillRule) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_clip_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue fillRule)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv) {
+#ifdef WITH_BLEND2D
+        bl_context_clip_path_d(&cpriv->bl_ctx_obj, &cpriv->current_path);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_clip_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue fillRule)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && path) {
+#ifdef WITH_BLEND2D
+        bl_context_clip_path_d(&cpriv->bl_ctx_obj, (BLPathCore *)path);
+#endif
+    }
+    return JS_UNDEFINED;
+}
 JSValue wisp_canvasrenderingcontext2d_isPointInPath_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, JSValue fillRule) { return JS_FALSE; }
 JSValue wisp_canvasrenderingcontext2d_isPointInPath_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, double x, double y, JSValue fillRule) { return JS_FALSE; }
 
@@ -694,8 +742,61 @@ JSValue wisp_canvasrenderingcontext2d_currentTransform_get_impl(JSContext *ctx, 
 JSValue wisp_canvasrenderingcontext2d_currentTransform_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * element) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, void * element) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_fillText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, double maxWidth) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodePrivate *priv, double sx, double sy, double sw, double sh) { return JS_NULL; }
+JSValue wisp_canvasrenderingcontext2d_fillText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, double maxWidth)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+    NSLOG(wisp, INFO, "Canvas.fillText: %s at (%f, %f)", text, x, y);
+    /* Basic stub: just draw a small rectangle where the text would be */
+    wisp_canvasrenderingcontext2d_fillRect_impl(ctx, priv, x, y, (double)strlen(text) * 8.0, 12.0);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodePrivate *priv, double sx, double sy, double sw, double sh)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_NULL;
+
+    int w = (int)sw;
+    int h = (int)sh;
+    if (w <= 0 || h <= 0) return JS_ThrowRangeError(ctx, "Invalid dimensions");
+
+    JSValue obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, obj, "width", JS_NewInt32(ctx, w));
+    JS_SetPropertyStr(ctx, obj, "height", JS_NewInt32(ctx, h));
+
+    size_t size = (size_t)w * h * 4;
+    uint8_t *data = malloc(size);
+    if (!data) return JS_ThrowOutOfMemory(ctx);
+
+    uint8_t *src_buf = guit->bitmap->get_buffer(cpriv->bitmap);
+    int src_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
+    int src_w = guit->bitmap->get_width(cpriv->bitmap);
+    int src_h = guit->bitmap->get_height(cpriv->bitmap);
+
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int cur_x = (int)sx + x;
+            int cur_y = (int)sy + y;
+            if (cur_x >= 0 && cur_x < src_w && cur_y >= 0 && cur_y < src_h) {
+                uint32_t *pixel = (uint32_t *)(src_buf + cur_y * src_stride + cur_x * 4);
+                uint32_t rgba = *pixel;
+                /* Assuming 0xAARRGGBB in memory */
+                data[(y * w + x) * 4 + 0] = (rgba >> 16) & 0xFF;
+                data[(y * w + x) * 4 + 1] = (rgba >> 8) & 0xFF;
+                data[(y * w + x) * 4 + 2] = rgba & 0xFF;
+                data[(y * w + x) * 4 + 3] = (rgba >> 24) & 0xFF;
+            } else {
+                memset(data + (y * w + x) * 4, 0, 4);
+            }
+        }
+    }
+
+    JSValue array = JS_NewUint8ClampedArray(ctx, data, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
+    JS_SetPropertyStr(ctx, obj, "data", array);
+
+    return obj;
+}
 JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "source-over"); }
 JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingEnabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_TRUE; }
@@ -704,11 +805,70 @@ JSValue wisp_canvasrenderingcontext2d_imageSmoothingQuality_get_impl(JSContext *
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingQuality_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_isPointInStroke_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) { return JS_FALSE; }
 JSValue wisp_canvasrenderingcontext2d_isPointInStroke_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, double x, double y) { return JS_FALSE; }
-JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text) { return JS_NULL; }
-JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text)
+{
+    JSValue obj = JS_NewObject(ctx);
+    double width = (double)strlen(text) * 10.0;
+    JS_SetPropertyStr(ctx, obj, "width", JS_NewFloat64(ctx, width));
+    return obj;
+}
+
+JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata, double dx, double dy)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+
+    JSValue width_val = JS_GetPropertyStr(ctx, imagedata, "width");
+    JSValue height_val = JS_GetPropertyStr(ctx, imagedata, "height");
+    JSValue data_val = JS_GetPropertyStr(ctx, imagedata, "data");
+
+    int w, h;
+    JS_ToInt32(ctx, &w, width_val);
+    JS_ToInt32(ctx, &h, height_val);
+
+    size_t offset, byte_length, bytes_per_element;
+    JSValue buffer = JS_GetTypedArrayBuffer(ctx, data_val, &offset, &byte_length, &bytes_per_element);
+    uint8_t *data = JS_GetArrayBuffer(ctx, buffer) + offset;
+
+    uint8_t *dst_buf = guit->bitmap->get_buffer(cpriv->bitmap);
+    int dst_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
+    int dst_w = guit->bitmap->get_width(cpriv->bitmap);
+    int dst_h = guit->bitmap->get_height(cpriv->bitmap);
+
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            int cur_x = (int)dx + x;
+            int cur_y = (int)dy + y;
+            if (cur_x >= 0 && cur_x < dst_w && cur_y >= 0 && cur_y < dst_h) {
+                uint32_t *pixel = (uint32_t *)(dst_buf + cur_y * dst_stride + cur_x * 4);
+                uint8_t r = data[(y * w + x) * 4 + 0];
+                uint8_t g = data[(y * w + x) * 4 + 1];
+                uint8_t b = data[(y * w + x) * 4 + 2];
+                uint8_t a = data[(y * w + x) * 4 + 3];
+                *pixel = (a << 24) | (r << 16) | (g << 8) | b;
+            }
+        }
+    }
+
+    JS_FreeValue(ctx, width_val);
+    JS_FreeValue(ctx, height_val);
+    JS_FreeValue(ctx, data_val);
+    JS_FreeValue(ctx, buffer);
+
+    return JS_UNDEFINED;
+}
 JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_removeHitRegion_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_resetClip_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_resetClip_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv) {
+#ifdef WITH_BLEND2D
+        bl_context_restore_clip(&cpriv->bl_ctx_obj);
+#endif
+    }
+    return JS_UNDEFINED;
+}
 JSValue wisp_canvasrenderingcontext2d_scrollPathIntoView_0_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_scrollPathIntoView_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_shadowBlur_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, 0.0); }

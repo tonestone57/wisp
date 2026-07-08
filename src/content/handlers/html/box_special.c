@@ -1988,10 +1988,30 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
 					dom_string *tag_name;
 					dom_node_get_node_name(c, &tag_name);
 					if (dom_string_caseless_lwc_isequal(tag_name, corestring_lwc_source)) {
-						err = dom_element_get_attribute(c, corestring_dom_src, &s);
-						if (err == DOM_NO_ERR && s != NULL) {
-							box_extract_link(content, s, content->base_url, &url);
-							dom_string_unref(s);
+						dom_string *type_attr;
+						bool supported = true;
+
+						/* Check if the type is supported */
+						err = dom_element_get_attribute(c, corestring_dom_type, &type_attr);
+						if (err == DOM_NO_ERR && type_attr != NULL) {
+							lwc_string *itype;
+							lwc_error lerr;
+							lerr = dom_string_intern(type_attr, &itype);
+							if (lerr == lwc_error_ok) {
+								if (content_factory_type_from_mime_type(itype) == CONTENT_NONE) {
+									supported = false;
+								}
+								lwc_string_unref(itype);
+							}
+							dom_string_unref(type_attr);
+						}
+
+						if (supported) {
+							err = dom_element_get_attribute(c, corestring_dom_src, &s);
+							if (err == DOM_NO_ERR && s != NULL) {
+								box_extract_link(content, s, content->base_url, &url);
+								dom_string_unref(s);
+							}
 						}
 					}
 					dom_string_unref(tag_name);

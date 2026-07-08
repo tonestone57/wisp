@@ -470,7 +470,7 @@ const char *messages_get_sslcode(ssl_cert_err code)
      * forget to add messages for new error codes.  As such, we should
      * never get here.
      */
-    assert(0);
+    NSLOG(wisp, WARNING, "Unhandled SSL certificate error code: %d", code);
     return messages_get_ctx("Unknown", messages_hash);
 }
 
