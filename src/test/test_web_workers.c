@@ -8,6 +8,7 @@
 #include "qjs_internal.h"
 #include "wisp/desktop/gui_table.h"
 #include "wisp/misc.h"
+#include "utils/corestrings.h"
 
 /* Mock NetSurf structures for test */
 nserror mock_schedule(int delay, void (*cb)(void *p), void *p) {
@@ -18,7 +19,7 @@ nserror mock_schedule(int delay, void (*cb)(void *p), void *p) {
 
 struct gui_misc_table mock_misc = { .schedule = mock_schedule };
 struct wisp_table mock_guit_data = { .misc = &mock_misc };
-struct wisp_table *guit = &mock_guit_data;
+extern struct wisp_table *guit;
 
 /* Helper to run a JS script */
 static void run_js(JSContext *ctx, const char *script) {
@@ -34,6 +35,8 @@ static void run_js(JSContext *ctx, const char *script) {
 }
 
 int main(int argc, char **argv) {
+    guit = &mock_guit_data;
+    corestrings_init();
     init_wisp_subsystem(64);
 
     jsheap *heap;

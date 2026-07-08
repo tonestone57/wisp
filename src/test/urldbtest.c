@@ -41,7 +41,6 @@
 #include "content/urldb.h"
 #include "desktop/cookie_manager.h"
 #include "desktop/gui_internal.h"
-extern struct wisp_table *guit;
 
 static void test_lwc_iterator(lwc_string *str, void *pw)
 {
@@ -176,6 +175,7 @@ static nsurl *make_url(const char *url)
 
 
 bool verbose_log = true;
+struct wisp_table *guit = NULL;
 static bool test_urldb_set_cookie(const char *header, const char *url, const char *referer)
 {
     nsurl *r = NULL;
