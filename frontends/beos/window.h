@@ -19,11 +19,14 @@
 #ifndef WISP_BEOS_WINDOW_H
 #define WISP_BEOS_WINDOW_H 1
 
-#include <be/NetPositive.h>
-#include <FilePanel.h>
-#include <map>
+#ifndef __HAIKU__
+#include <NetPositive.h>
+#endif
+
 #include <View.h>
 #include <Window.h>
+#include <FilePanel.h>
+#include <map>
 
 extern struct gui_window_table *beos_window_table;
 extern struct gui_clipboard_table *beos_clipboard_table;
@@ -94,7 +97,7 @@ void nsbeos_reflow_all_windows(void);
  * Get containing scaffold of a beos gui window
  *
  * \param g gui window to find scaffold of.
- * \return The containing scaffold.
+ * eturn The containing scaffold.
  */
 struct beos_scaffolding *nsbeos_get_scaffold(struct gui_window *g);
 

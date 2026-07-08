@@ -78,7 +78,9 @@ extern "C" {
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
 #ifdef WITH_BLEND2D
+#ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
+#endif
 #endif
 
 class NSBrowserFrameView;

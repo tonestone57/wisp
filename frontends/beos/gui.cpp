@@ -82,6 +82,7 @@ extern "C" {
 #include "beos/throbber.h"
 #include "beos/window.h"
 #include "beos/plotters.h"
+#include "beos/plotters.h"
 
 #define USE_RESOURCES 1
 
