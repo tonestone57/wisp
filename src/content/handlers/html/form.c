@@ -180,7 +180,7 @@ static nserror fetch_data_list_add_sname(
     }
 
     /* key name */
-    keysize = snprintf(fetch_data->name, 0, "%s%s", name, ksfx);
+    keysize = snprintf(NULL, 0, "%s%s", name, ksfx);
     fetch_data->name = malloc(keysize + 1); /* allow for null */
     if (fetch_data->name == NULL) {
         free(fetch_data);

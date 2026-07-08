@@ -267,44 +267,53 @@ bool haru_nsfont_apply_style(
     bool bold = false;
     bool styled = false;
 
+    const char *family;
+    const char *weight = "";
+    const char *style = "";
+    const char *sep = "";
+
     /* Style handling: mapping to the 14 standard PDF fonts */
     switch (fstyle->family) {
     case PLOT_FONT_FAMILY_SERIF:
-        strcpy(font_name, "Times");
+        family = "Times";
         roman = true;
         break;
     case PLOT_FONT_FAMILY_MONOSPACE:
-        strcpy(font_name, "Courier");
+        family = "Courier";
         break;
     case PLOT_FONT_FAMILY_SANS_SERIF:
-        strcpy(font_name, "Helvetica");
+        family = "Helvetica";
         break;
     case PLOT_FONT_FAMILY_CURSIVE:
     case PLOT_FONT_FAMILY_FANTASY:
     default:
-        strcpy(font_name, "Times");
+        family = "Times";
         roman = true;
         break;
     }
 
     if (fstyle->weight == 700) {
-        strcat(font_name, "-Bold");
+        weight = "Bold";
+        sep = "-";
         bold = true;
     }
 
     if ((fstyle->flags & FONTF_ITALIC) || (fstyle->flags & FONTF_OBLIQUE)) {
-        if (!bold)
-            strcat(font_name, "-");
+        sep = "-";
         if (roman)
-            strcat(font_name, "Italic");
+            style = "Italic";
         else
-            strcat(font_name, "Oblique");
+            style = "Oblique";
 
         styled = true;
     }
 
-    if (roman && !styled && !bold)
-        strcat(font_name, "-Roman");
+    if (roman && !styled && !bold) {
+        sep = "-";
+        style = "Roman";
+    }
+
+    snprintf(font_name, sizeof(font_name), "%s%s%s%s", family, sep, weight, style);
 
 #ifdef FONT_HARU_DEBUG
     NSLOG(wisp, INFO, "Setting font: %s", font_name);

@@ -46,7 +46,7 @@ char *squash_whitespace(const char *s)
 
     /* assert(s != NULL); */
     if (s == NULL)
-        abort();
+        return NULL;
 
     c = malloc(strlen(s) + 1);
     if (c != NULL) {
@@ -541,11 +541,16 @@ __attribute__((used)) char *strchrnul(const char *s, int c_in)
 
 int uname(struct utsname *buf)
 {
-    strcpy(buf->sysname, "windows");
-    strcpy(buf->nodename, "nodename");
-    strcpy(buf->release, "release");
-    strcpy(buf->version, "version");
-    strcpy(buf->machine, "pc");
+    strncpy(buf->sysname, "windows", sizeof(buf->sysname) - 1);
+    buf->sysname[sizeof(buf->sysname) - 1] = '\0';
+    strncpy(buf->nodename, "nodename", sizeof(buf->nodename) - 1);
+    buf->nodename[sizeof(buf->nodename) - 1] = '\0';
+    strncpy(buf->release, "release", sizeof(buf->release) - 1);
+    buf->release[sizeof(buf->release) - 1] = '\0';
+    strncpy(buf->version, "version", sizeof(buf->version) - 1);
+    buf->version[sizeof(buf->version) - 1] = '\0';
+    strncpy(buf->machine, "pc", sizeof(buf->machine) - 1);
+    buf->machine[sizeof(buf->machine) - 1] = '\0';
 
     return 0;
 }
@@ -561,7 +566,8 @@ char *realpath(const char *path, char *resolved_path)
         ret = strdup(path);
     } else {
         ret = resolved_path;
-        strcpy(resolved_path, path);
+        strncpy(resolved_path, path, PATH_MAX - 1);
+        resolved_path[PATH_MAX - 1] = '\0';
     }
     return ret;
 }
