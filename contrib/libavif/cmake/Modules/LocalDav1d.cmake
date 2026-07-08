@@ -120,6 +120,7 @@ if(EXISTS "${LIB_FILENAME}")
     target_include_directories(
         dav1d::dav1d INTERFACE "${AVIF_DAV1D_BUILD_DIR}" "${AVIF_DAV1D_BUILD_DIR}/include"
                                "${AVIF_DAV1D_BUILD_DIR}/include/dav1d" "${AVIF_SOURCE_DIR}/ext/dav1d/include"
+                               "${AVIF_SOURCE_DIR}/ext/dav1d"
     )
 else()
     message(STATUS "libavif(AVIF_CODEC_DAV1D=LOCAL): compiled library not found at ${LIB_FILENAME}; using ExternalProject")
