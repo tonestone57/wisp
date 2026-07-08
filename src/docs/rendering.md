@@ -65,6 +65,6 @@ Wisp utilizes a **Fixed-Tile Redraw** strategy, replacing the legacy union-based
 |---|---|---|
 | **Windows** | Blend2D or Direct2D | Finished (Dual-path supported) |
 | **Linux** | Blend2D -> Qt6/GTK3 | Reference implementation |
-| **Haiku** | Blend2D -> libbe (BView) | Finished (Native implementation) |
+| **Haiku** | Blend2D -> BDirectWindow | Finished (Native BDirectWindow implementation) |
 | **macOS** | Blend2D -> Cocoa | Leveraging AArch64 JIT |
 | **i586** | Blend2D (Scalar) | Operational, benefits from tiling |

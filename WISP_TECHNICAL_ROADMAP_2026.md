@@ -1,7 +1,7 @@
-# Wisp Browser Technical Roadmap & Architectural Summary (December 2026)
+# Wisp Browser Technical Roadmap & Architectural Summary (July 2026)
 
 ## 1. Executive Summary
-Wisp is a lightweight, high-performance web engine forked from NetSurf. As of late 2026, Wisp has successfully bridged the gap between "retro" software efficiency and the modern web. The core engine is now stable, featuring a fully spec-compliant implementation of CSS Grid, Flexbox, and modern JavaScript (ES2023+ via QuickJS-ng). Wisp maintains a minimal footprint suitable for both modern and legacy operating systems including Haiku, Windows XP/7/10/11, Linux, and macOS. All major 2026 architectural goals, including Multi-Process Isolation and the Canvas 2D plotter bridge, have been achieved.
+Wisp is a lightweight, high-performance web engine forked from NetSurf. As of July 2026, Wisp has successfully bridged the gap between "retro" software efficiency and the modern web. The core engine is now stable, featuring a fully spec-compliant implementation of CSS Grid, Flexbox, and modern JavaScript (ES2023+ via QuickJS-ng). Wisp maintains a minimal footprint suitable for both modern and legacy operating systems including Haiku, Windows XP/7/10/11, Linux, and macOS. All major 2026 architectural goals, including Multi-Process Isolation and the Canvas 2D plotter bridge, have been achieved.
 
 ---
 
@@ -72,6 +72,8 @@ The following stability and security measures have been integrated:
 *   **Canvas 2D Plotter Bridge**: Successfully bridged WebIDL stubs for the Canvas 2D API to the underlying Direct2D and Blend2D plotter backends.
 *   **Multi-process Isolation**: JavaScript engine and network stack isolated into separate OS processes via a platform-agnostic IPC layer.
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
+*   **BDirectWindow Migration (Haiku)**: Granted the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency.
+*   **Native Haiku Widget Parity**: Completed integration of native `BControl` elements into the BeOS/Haiku frontend widget map, including selects, text areas, and file pickers.
 
 ---
 
@@ -81,7 +83,6 @@ These tasks are high-priority for the 2027 development cycle:
 ### Graphics & Performance
 *   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
 *   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware.
-*   **[Planned] BDirectWindow Migration (Haiku)** (Complexity: **Medium** | Benefit: **Medium**): Grant the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency.
 
 ### Architecture & Security
 *   **[Planned] Site Isolation** (Complexity: **High** | Benefit: **High**): Extend the multi-process model to support per-origin process isolation.
@@ -89,7 +90,6 @@ These tasks are high-priority for the 2027 development cycle:
 
 ### UI & Features
 *   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): A lightweight, cross-platform UI library for consistent 'browser chrome' (tabs, address bar).
-*   **[Partial] Native Haiku Widget Parity** (Complexity: **Low** | Benefit: **Medium**): Further integration of native `BControl` elements into the BeOS/Haiku frontend widget map.
 
 ---
 

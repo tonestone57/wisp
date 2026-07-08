@@ -1,11 +1,11 @@
-# Wisp Code Audit Report - December 2026
+# Wisp Code Audit Report - July 2026
 
 ## 1. Executive Summary
 This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project supports high-performance rendering via Blend2D while providing a native Direct2D/DirectWrite path for Windows. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
 
 ## 2. Library Versions Audit
 
-| Library | Repo Version | Latest Online (Dec 2026) | Status |
+| Library | Repo Version | Latest Online (July 2026) | Status |
 |---------|--------------|---------------------------|--------|
 | `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
 | `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
@@ -55,9 +55,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Canvas 2D Bridge**: Fully implemented plotter bridge for the Canvas 2D API, supporting transformations, paths, and image drawing across Blend2D and Direct2D.
 *   **Multi-Process Isolation**: Architecture complete with brokered networking and JS execution in separate processes via a platform-agnostic IPC layer.
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
+*   **BDirectWindow Migration (Haiku)**: Migrated the Haiku frontend to inherit from `BDirectWindow`, providing low-latency direct framebuffer access for Blend2D-rendered tiles.
+*   **BeOS Native Widgets**: Full integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton, BMenuField, BScrollView, BFilePanel) in the Haiku frontend via a persistent widget map.
 
 ### 3.2 Partial Implementation [Partial]
-*   **BeOS Native Widgets**: Integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton) in the Haiku frontend via a persistent widget map.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
 *   **WebGPU API**: Preliminary research phase for a hardware-accelerated compute/render bridge. (Complexity: **High** | Benefit: **Medium**)

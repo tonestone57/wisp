@@ -12,11 +12,11 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ## Development
 Current development is focused on completing the CSS Variables implementation and refining the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
-### Core Features Status (December 2026)
+### Core Features Status (July 2026)
 *   **[Finished] Blend2D Integration**: Blend2D is available as a high-performance rendering engine across frontends, ensuring pixel-perfect software rasterization and SIMD optimization.
 *   **[Finished] Native Direct2D & DirectWrite (Windows)**: Hardware-accelerated rendering pipeline for modern Windows systems, integrated with the core.
 *   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 or 512x512 tile strategy implemented to optimize performance and cache locality.
-*   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and the fixed-tile redraw strategy.
+*   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D, fixed-tile redraw strategy, BDirectWindow for low-latency blitting, and native widget parity.
 *   **[Finished] IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks.
 *   **[Finished] A/V Master Clock**: Synchronized audio and video tracks in the FFmpeg-based media pipeline.
 *   **[Finished] SIMD-Aligned Arena**: The arena allocator enforces 64-byte alignment for AVX-512 and SIMD optimizations.

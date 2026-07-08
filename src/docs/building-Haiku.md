@@ -18,7 +18,7 @@
   hacking to be built this way.
 
   **Note on Haiku Status (July 2026):**
-  Wisp's modernization utilizes the native **libbe** frontend (BApplication, BWindow, BView) on Haiku. The rendering pipeline has been unified around **Blend2D**, allowing the native Haiku port to support modern CSS (Gradients, Flexbox, Grid) and the QuickJS-ng engine with high performance and pixel-perfect consistency.
+  Wisp's modernization utilizes the native **BDirectWindow** frontend on Haiku. The rendering pipeline has been unified around **Blend2D** with low-latency blitting, allowing the native Haiku port to support modern CSS (Gradients, Flexbox, Grid) and the QuickJS-ng engine with high performance and pixel-perfect consistency.
 
 
   Manual building
