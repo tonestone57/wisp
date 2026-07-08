@@ -1,11 +1,11 @@
-# Wisp Code Audit Report - July 2026
+# Wisp Code Audit Report - December 2026
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project supports high-performance rendering via Blend2D while providing a native Direct2D/DirectWrite path for Windows and standard fallbacks for other frontends.
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project supports high-performance rendering via Blend2D while providing a native Direct2D/DirectWrite path for Windows. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
 
 ## 2. Library Versions Audit
 
-| Library | Repo Version | Latest Online (July 2026) | Status |
+| Library | Repo Version | Latest Online (Dec 2026) | Status |
 |---------|--------------|---------------------------|--------|
 | `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
 | `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
@@ -15,8 +15,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 | `libhubbub` | Jan 2026 Sync | Upstream Git | **[Finished]** Moderate Divergence |
 | `libnsbmp` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
 | `libnsgif` | Jan 2026 Sync | Latest | **[Finished]** Up-to-date |
-| `FFmpeg` | Linked System | 7.x | **[Finished]** Compatible |
-| `LibreSSL` | Linked System | 4.0.0 | **[Finished]** Compatible |
+| `FFmpeg` | Linked System | 8.1 | **[Finished]** Up-to-date |
+| `LibreSSL` | Linked System | 4.3.2 | **[Finished]** Up-to-date |
 
 ## 3. Feature Status Categorization
 
@@ -52,13 +52,15 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Hardened CSP Parsing**: Replaced unsafe `atoi` calls with `strtol` and added port range validation in `src/content/csp.c`.
 *   **Stable Layout Fallbacks**: Replaced browser-crashing `abort()` and `assert(0)` calls in `src/content/handlers/html/layout.c` with error logging and safe geometric clamping.
 *   **Overflow-Safe Arena**: Enhanced `ALIGN_UP` macro in `src/utils/arena.c` to handle integer overflows.
+*   **Canvas 2D Bridge**: Fully implemented plotter bridge for the Canvas 2D API, supporting transformations, paths, and image drawing across Blend2D and Direct2D.
+*   **Multi-Process Isolation**: Architecture complete with brokered networking and JS execution in separate processes via a platform-agnostic IPC layer.
+*   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
 
 ### 3.2 Partial Implementation [Partial]
 *   **BeOS Native Widgets**: Integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton) in the Haiku frontend via a persistent widget map.
 
 ### 3.3 Not Implemented / Planned [Incomplete]
-*   **Canvas 2D API**: WebIDL stubs exist, but implementation bridging to the plotter engine is missing. (Complexity: **Medium** | Benefit: **High**)
-*   **Multi-Process Isolation**: IPC and sandboxing architecture (Brokered Networking, Content/UI process separation) is planned but not yet implemented.
+*   **WebGPU API**: Preliminary research phase for a hardware-accelerated compute/render bridge. (Complexity: **High** | Benefit: **Medium**)
 
 ## 4. Subsystem Deep-Dive
 
@@ -92,5 +94,5 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **NSLOG Verbosity**: Completed demotion of traces in core layout modules.
 
 ## 6. Future Recommendations
-1.  **Canvas 2D Bridge**: Implement the plotter bridge for the Canvas 2D API. (Complexity: **Medium** | Benefit: **High**)
+1.  **WebGPU Evaluation**: Investigate bridging WebGPU to native APIs (D3D12/Vulkan). (Complexity: **High** | Benefit: **Medium**)
 2.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations. (Complexity: **High** | Benefit: **Medium**)
