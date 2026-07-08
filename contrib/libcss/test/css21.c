@@ -40,6 +40,8 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    memset(&params, 0, sizeof(params));
+
     params.params_version = CSS_STYLESHEET_PARAMS_VERSION_1;
     params.level = CSS_LEVEL_21;
     params.charset = "UTF-8";
