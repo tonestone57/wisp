@@ -24,7 +24,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Position: Sticky**: Full support for sticky positioning, including multi-axis clamping and scroll-container constraints. Verified in `layout_apply_sticky_clamping`.
 *   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
 *   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI/Direct2D), and Blend2D.
-*   **Blend2D Integration**: High-performance software 2D engine available as a plotter backend for pixel-perfect consistency.
+*   **Blend2D Integration**: High-performance software 2D engine available as an optional plotter backend for pixel-perfect consistency.
 *   **Fixed-Tile Redraw**: Scale-aware 256x256 (standard) or 512x512 (High-DPI) tile strategy implemented in the core to optimize performance and cache locality.
 *   **Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and fixed-tile redraw strategy.
 *   **Native Direct2D & DirectWrite (Windows)**: High-performance C++ based hardware-accelerated rendering pipeline for modern Windows systems.
@@ -53,7 +53,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Stable Layout Fallbacks**: Replaced browser-crashing `abort()` and `assert(0)` calls in `src/content/handlers/html/layout.c` with error logging and safe geometric clamping.
 *   **Overflow-Safe Arena**: Enhanced `ALIGN_UP` macro in `src/utils/arena.c` to handle integer overflows.
 *   **Canvas 2D Bridge**: Fully implemented plotter bridge for the Canvas 2D API, supporting transformations, paths, and image drawing across Blend2D and Direct2D.
-*   **Multi-Process Isolation**: Architecture complete with brokered networking and JS execution in separate processes via a platform-agnostic IPC layer.
+*   **Multi-Process Isolation**: JavaScript execution and networking isolated into separate processes via a platform-agnostic IPC layer. Layout and parsing isolation planned.
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
 *   **BDirectWindow Migration (Haiku)**: Migrated the Haiku frontend to inherit from `BDirectWindow`, providing low-latency direct framebuffer access for Blend2D-rendered tiles.
 *   **BeOS Native Widgets**: Full integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton, BMenuField, BScrollView, BFilePanel) in the Haiku frontend via a persistent widget map.
