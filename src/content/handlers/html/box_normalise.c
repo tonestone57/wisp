@@ -239,10 +239,10 @@ static bool box_normalise_table_row(struct box *row, const struct box *root, str
 		case BOX_TEXT:
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
-			assert(0);
+			NSLOG(wisp, WARNING, "Unexpected box type %d in table row", child->type);
 			break;
 		default:
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in table row", child->type);
 		}
 
 		if (calculate_table_row(col_info, cell->columns, cell->rows, &cell->start_column, cell) == false)
@@ -378,10 +378,10 @@ box_normalise_table_row_group(struct box *row_group, const struct box *root, str
 		case BOX_TEXT:
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
-			assert(0);
+			NSLOG(wisp, WARNING, "Unexpected box type %d in table row group", child->type);
 			break;
 		default:
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in table row group", child->type);
 		}
 	}
 

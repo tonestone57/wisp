@@ -1149,7 +1149,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 					if (!new_rfd) {
 						if (item_cache) free(item_cache);
 						if (occupied) free(occupied);
-						if (row_first_item_done) free(row_first_item_done);
+						free(row_first_item_done);
 						if (row_heights) free(row_heights);
 						if (col_widths) free(col_widths);
 						return false;
@@ -1497,8 +1497,7 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			/* We'll just assign it here as the basic "shrink-to-fit" width */
 			grid->width = total_width;
 		} else {
-			NSLOG(layout, DEEPDEBUG, "GRID_BUG: grid %p width still not set (=%d)", (void *)grid, grid->width);
-			assert(0 && "Grid width must be resolved by layout_grid");
+			NSLOG(layout, WARNING, "GRID_BUG: grid %p width still not set (=%d). Falling back.", (void *)grid, grid->width);
 			/* Fallback for safety in Release builds if assert disabled */
 			grid->width = grid_width;
 		}

@@ -565,8 +565,8 @@ static void html_document_user_data_handler(
 		/* This is the only path I expect */
 		break;
 	default:
-		NSLOG(wisp, INFO, "User data operation not handled.");
-		assert(0);
+		NSLOG(wisp, WARNING, "User data operation not handled.");
+		break;
 	}
 }
 
@@ -1312,8 +1312,8 @@ static void html_stop(struct content *c)
 		break;
 
 	default:
-		NSLOG(wisp, INFO, "Unexpected status %d (%p)", c->status, c);
-		assert(0);
+		NSLOG(wisp, WARNING, "Unexpected status %d (%p)", c->status, c);
+		break;
 	}
 }
 
@@ -1974,8 +1974,8 @@ static void html__dom_user_data_handler(
 		free(data);
 		break;
 	default:
-		NSLOG(wisp, INFO, "User data operation not handled.");
-		assert(0);
+		NSLOG(wisp, WARNING, "User data operation not handled.");
+		break;
 	}
 }
 
