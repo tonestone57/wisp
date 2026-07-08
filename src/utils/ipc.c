@@ -81,7 +81,12 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    addr.sin_port = atoi(name); // Port passed as string
+    int port;
+    if (ns_strtoint(name, 10, &port) != NSERROR_OK) {
+        free(h);
+        return NULL;
+    }
+    addr.sin_port = htons(port); // Port passed as string
     if (connect(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         free(h);
         return NULL;

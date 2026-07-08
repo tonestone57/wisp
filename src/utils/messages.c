@@ -232,16 +232,23 @@ char *messages_get_buff(const char *key, ...)
     }
 
     va_start(ap, key);
-    buff_len = vsnprintf(buff, buff_len, msg_fmt, ap);
-    va_end(ap);
+
+    va_list aq;
+    va_copy(aq, ap);
+    buff_len = vsnprintf(NULL, 0, msg_fmt, aq);
+    va_end(aq);
+
+    if (buff_len < 0) {
+        va_end(ap);
+        return NULL;
+    }
 
     buff = malloc(buff_len + 1);
 
     if (buff != NULL) {
-        va_start(ap, key);
         vsnprintf(buff, buff_len + 1, msg_fmt, ap);
-        va_end(ap);
     }
+    va_end(ap);
 
     return buff;
 }

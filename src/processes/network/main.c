@@ -58,7 +58,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            strcpy((char*)imsg.data + 4, msg->data.error);
+            memcpy((char*)imsg.data + 4, msg->data.error, imsg.length - 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
