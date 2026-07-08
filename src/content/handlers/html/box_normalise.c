@@ -240,9 +240,10 @@ static bool box_normalise_table_row(struct box *row, const struct box *root, str
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
 			NSLOG(wisp, WARNING, "Unexpected box type %d in table row", child->type);
-			break;
+			continue;
 		default:
 			NSLOG(wisp, WARNING, "Unhandled box type %d in table row", child->type);
+			continue;
 		}
 
 		if (calculate_table_row(col_info, cell->columns, cell->rows, &cell->start_column, cell) == false)
@@ -689,11 +690,11 @@ static bool box_normalise_table(struct box *table, const struct box *root, html_
 		case BOX_TEXT:
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
-			assert(0);
-			break;
+			NSLOG(wisp, WARNING, "Unexpected box type %d in table normalization", child->type);
+			continue;
 		default:
-			fprintf(stderr, "%i\n", child->type);
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in table normalization", child->type);
+			continue;
 		}
 	}
 
@@ -880,8 +881,8 @@ static bool box_normalise_flex(struct box *flex_container, const struct box *roo
 		case BOX_TEXT:
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
-			assert(0);
-			break;
+			NSLOG(wisp, WARNING, "Unexpected box type %d in flex item", child->type);
+			continue;
 		case BOX_TABLE_ROW_GROUP:
 		case BOX_TABLE_ROW:
 		case BOX_TABLE_CELL:
@@ -934,7 +935,8 @@ static bool box_normalise_flex(struct box *flex_container, const struct box *roo
 				return false;
 			break;
 		default:
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in flex normalization", child->type);
+			continue;
 		}
 	}
 
@@ -1044,8 +1046,8 @@ static bool box_normalise_grid(struct box *grid_container, const struct box *roo
 		case BOX_TEXT:
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
-			assert(0);
-			break;
+			NSLOG(wisp, WARNING, "Unexpected box type %d in grid item", child->type);
+			continue;
 		case BOX_INLINE_BLOCK:
 			/* Blockify */
 			child->type = BOX_BLOCK;
@@ -1127,7 +1129,8 @@ static bool box_normalise_grid(struct box *grid_container, const struct box *roo
 				return false;
 			break;
 		default:
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in grid normalization", child->type);
+			continue;
 		}
 	}
 
@@ -1247,7 +1250,7 @@ static bool box_normalise_inline_container(struct box *cont, const struct box *r
 					return false;
 				break;
 			default:
-				assert(0);
+				NSLOG(wisp, WARNING, "Unhandled float type %d", child->children->type);
 			}
 
 			if (child->children == NULL) {
@@ -1273,7 +1276,7 @@ static bool box_normalise_inline_container(struct box *cont, const struct box *r
 		case BOX_TABLE_ROW:
 		case BOX_TABLE_CELL:
 		default:
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in inline container", child->type);
 		}
 	}
 
@@ -1352,8 +1355,8 @@ bool box_normalise_block(struct box *block, const struct box *root, html_content
 		case BOX_TEXT:
 			/* should have been wrapped in inline
 			   container by convert_xml_to_box() */
-			assert(0);
-			break;
+			NSLOG(wisp, WARNING, "Unexpected box type %d in block layout", child->type);
+			continue;
 		case BOX_TABLE_ROW_GROUP:
 		case BOX_TABLE_ROW:
 		case BOX_TABLE_CELL:
@@ -1405,7 +1408,8 @@ bool box_normalise_block(struct box *block, const struct box *root, html_content
 				return false;
 			break;
 		default:
-			assert(0);
+			NSLOG(wisp, WARNING, "Unhandled box type %d in block layout", child->type);
+			continue;
 		}
 	}
 

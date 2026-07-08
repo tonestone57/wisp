@@ -2803,8 +2803,11 @@ nserror urldb_load(const char *filename)
         int hsts_include_sub_domains = 0;
 
         /* get the hostname */
-        length = strlen(host) - 1;
-        host[length] = '\0';
+        length = strlen(host);
+        if (length > 0) {
+            length--;
+            host[length] = '\0';
+        }
 
         /* skip data that has ended up with a host of '' */
         if (length == 0) {
@@ -2947,10 +2950,12 @@ nserror urldb_load(const char *filename)
                     return NSERROR_NOMEM;
                 }
 
+                if (scheme_lwc) lwc_string_unref(scheme_lwc);
                 if (host_lwc) lwc_string_unref(host_lwc);
                 if (port_lwc) lwc_string_unref(port_lwc);
                 if (path_lwc) lwc_string_unref(path_lwc);
                 if (query_lwc) lwc_string_unref(query_lwc);
+                if (fragment_lwc) lwc_string_unref(fragment_lwc);
 
                 /* Create path_query for urldb_add_path */
                 size_t pq_len = strlen(s) + (query[0] != '\0' ? strlen(query) + 1 : 0) + 1;

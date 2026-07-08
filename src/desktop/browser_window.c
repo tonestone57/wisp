@@ -2613,8 +2613,7 @@ void browser_window_set_position(struct browser_window *bw, int x, int y)
         bw->x = x;
         bw->y = y;
     } else {
-        NSLOG(wisp, INFO, "Asked to set position of front end window.");
-        assert(0);
+        NSLOG(wisp, WARNING, "Asked to set position of front end window.");
     }
 }
 
@@ -3710,8 +3709,7 @@ void browser_window_set_dimensions(struct browser_window *bw, int width, int hei
         bw->width = width;
         bw->height = height;
     } else {
-        NSLOG(wisp, INFO, "Asked to set dimensions of front end window.");
-        assert(0);
+        NSLOG(wisp, WARNING, "Asked to set dimensions of front end window.");
     }
 }
 

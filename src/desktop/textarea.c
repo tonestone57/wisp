@@ -2159,7 +2159,8 @@ void textarea_redraw(struct textarea *ta, int x, int y, colour bg, float scale, 
                     fstyle = ta->sel_fstyle;
 
                 } else {
-                    assert(0);
+                    NSLOG(wisp, WARNING, "Inconsistent selection state in textarea redraw");
+                    break;
                 }
                 fstyle.size = fsize;
 
