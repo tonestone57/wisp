@@ -1074,10 +1074,8 @@ nsws_window_command(HWND hwnd, struct gui_window *gw, int notification_code, int
     case IDM_VIEW_TOGGLE_DEBUG_RENDERING:
         if (gw->bw != NULL) {
             browser_window_debug(gw->bw, CONTENT_DEBUG_REDRAW);
-            /* TODO: This should only redraw, not reformat.
-             * (Layout doesn't change, so reformat is a waste of
-             * time) */
-            browser_window_schedule_reformat(gw->bw);
+            /* Redraw instead of reformat since layout doesn't change */
+            win32_window_invalidate_area(gw, NULL);
         }
         break;
 

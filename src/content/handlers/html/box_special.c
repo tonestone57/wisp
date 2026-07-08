@@ -1976,6 +1976,37 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
 			box_extract_link(content, s, content->base_url, &url);
 			dom_string_unref(s);
 		}
+
+		if (url == NULL) {
+			/* No src attribute, look for <source> children */
+			dom_node *c;
+			err = dom_node_get_first_child(node, &c);
+			while (err == DOM_NO_ERR && c != NULL) {
+				dom_node_type type;
+				dom_node_get_node_type(c, &type);
+				if (type == DOM_ELEMENT_NODE) {
+					dom_string *tag_name;
+					dom_node_get_node_name(c, &tag_name);
+					if (dom_string_caseless_lwc_isequal(tag_name, corestring_lwc_source)) {
+						err = dom_element_get_attribute(c, corestring_dom_src, &s);
+						if (err == DOM_NO_ERR && s != NULL) {
+							box_extract_link(content, s, content->base_url, &url);
+							dom_string_unref(s);
+						}
+					}
+					dom_string_unref(tag_name);
+				}
+				if (url != NULL) {
+					dom_node_unref(c);
+					break;
+				}
+				dom_node *next;
+				err = dom_node_get_next_sibling(c, &next);
+				dom_node_unref(c);
+				c = next;
+			}
+		}
+
 		if (url != NULL) {
 			box->flags |= IS_REPLACED;
 			res = html_fetch_object(content, url, box, CONTENT_ANY, false);

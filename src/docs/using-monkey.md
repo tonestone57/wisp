@@ -474,4 +474,18 @@ Responses
     The core asked Monkey to plot a bitmap at the given
     coordinates, scaled to the given width/height.
 
-> TODO: Check if other things are implemented and add them to the docs
+*   `TITLE WIN` _%n%_ `STR` _%text%_
+
+    Update the window title.
+
+*   `SET_STATUS WIN` _%n%_ `STR` _%text%_
+
+    Update the window status bar text.
+
+*   `START_THROBBER WIN` _%n%_ / `STOP_THROBBER WIN` _%n%_
+
+    Manage the window's activity indicator.
+
+*   `CONSOLE_LOG WIN` _%n%_ `SOURCE` _%text%_ `LEVEL` _%n%_ `STR` _%text%_
+
+    Log a message to the browser console.

@@ -55,7 +55,7 @@ extern "C" {
 struct fetch_rsrc_context {
     struct fetch *parent_fetch;
     char *name;
-    char *url;
+    nsurl *url;
     char *mimetype;
     char *data;
     size_t datalen;
@@ -96,14 +96,7 @@ static void *fetch_rsrc_setup(struct fetch *parent_fetch, nsurl *url, bool only_
         return NULL;
 
     ctx->parent_fetch = parent_fetch;
-    /* TODO: keep as nsurl to avoid copy */
-    ctx->url = (char *)malloc(nsurl_length(url) + 1);
-
-    if (ctx->url == NULL) {
-        free(ctx);
-        return NULL;
-    }
-    memcpy(ctx->url, nsurl_access(url), nsurl_length(url) + 1);
+    ctx->url = nsurl_ref(url);
 
     RING_INSERT(ring, ctx);
 
@@ -120,7 +113,8 @@ static void fetch_rsrc_free(void *ctx)
     struct fetch_rsrc_context *c = (struct fetch_rsrc_context *)ctx;
 
     free(c->name);
-    free(c->url);
+    if (c->url != NULL)
+        nsurl_unref(c->url);
     free(c->data);
     free(c->mimetype);
     RING_REMOVE(ring, c);
@@ -148,6 +142,7 @@ static void fetch_rsrc_send_callback(const fetch_msg *msg, struct fetch_rsrc_con
 static bool fetch_rsrc_process(struct fetch_rsrc_context *c)
 {
     fetch_msg msg;
+    const char *url_access;
     char *params;
     // char *at = NULL;
     char *slash;
@@ -160,9 +155,10 @@ static bool fetch_rsrc_process(struct fetch_rsrc_context *c)
      *   rsrc://[TYPE][@NUM]/name[,mime]
      */
 
-    NSLOG(wisp, INFO, "*** Processing %s", c->url);
+    url_access = nsurl_access(c->url);
+    NSLOG(wisp, INFO, "*** Processing %s", url_access);
 
-    if (strlen(c->url) < 7) {
+    if (strlen(url_access) < 7) {
         /* 7 is the minimum possible length (rsrc://) */
         msg.type = FETCH_ERROR;
         msg.data.error = "Malformed rsrc: URL";
@@ -171,7 +167,7 @@ static bool fetch_rsrc_process(struct fetch_rsrc_context *c)
     }
 
     /* skip the rsrc: part */
-    params = c->url + sizeof("rsrc://") - 1;
+    params = (char *)url_access + sizeof("rsrc://") - 1;
 
     /* find the slash */
     if ((slash = strchr(params, '/')) == NULL) {

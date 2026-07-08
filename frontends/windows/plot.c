@@ -1063,9 +1063,13 @@ static nserror bitmap(const struct redraw_context *ctx, struct bitmap *bitmap, i
      */
     if ((width == 1) && (height == 1)) {
         if (bitmap->opaque) {
-            /** TODO: Currently using top left pixel. Maybe centre
-             *        pixel or average value would be better. */
-            return plot_block((*(COLORREF *)bitmap->pixdata) & 0xffffff, plot_clip.left, plot_clip.top, plot_clip.right,
+            /* Using the center pixel for a better representation than the top-left one */
+            uint32_t *pix = (uint32_t *)bitmap->pixdata;
+            int center_x = bitmap->width / 2;
+            int center_y = bitmap->height / 2;
+            COLORREF center_col = pix[center_y * bitmap->width + center_x];
+
+            return plot_block(center_col & 0xffffff, plot_clip.left, plot_clip.top, plot_clip.right,
                 plot_clip.bottom);
         }
     }
