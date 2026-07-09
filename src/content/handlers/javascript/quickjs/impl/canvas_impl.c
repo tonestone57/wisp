@@ -756,7 +756,8 @@ JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJS
         free(data);
         return buffer;
     }
-    JSValue array = JS_NewTypedArray(ctx, 1, &buffer, JS_TYPED_ARRAY_UINT8C);
+    JSValue args[3] = { buffer, JS_NewInt32(ctx, 0), JS_NewInt32(ctx, w * h) };
+    JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
     JS_FreeValue(ctx, buffer);
     if (JS_IsException(array)) return array;
 
@@ -825,7 +826,8 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         free(data);
         return buffer;
     }
-    JSValue array = JS_NewTypedArray(ctx, 1, &buffer, JS_TYPED_ARRAY_UINT8C);
+    JSValue args[3] = { buffer, JS_NewInt32(ctx, 0), JS_NewInt32(ctx, w * h) };
+    JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
     JS_FreeValue(ctx, buffer);
     if (JS_IsException(array)) return array;
 

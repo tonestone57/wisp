@@ -75,7 +75,7 @@ static JSValue create_imagedata_object(JSContext *ctx, uint32_t w, uint32_t h, J
     }
     idpriv->width = w;
     idpriv->height = h;
-    idpriv->data = data; // Takes ownership
+    idpriv->data = data; // Ownership transferred
 
     JSValue obj = JS_NewObjectClass(ctx, qjs_imagedata_class_id);
     if (JS_IsException(obj)) {
@@ -112,7 +112,8 @@ JSValue wisp_imagedata_constructor_0_impl(JSContext *ctx, uint32_t sw, uint32_t 
         free(buf);
         return array_buf;
     }
-    JSValue data = JS_NewTypedArray(ctx, 1, &array_buf, JS_TYPED_ARRAY_UINT8C);
+    JSValue args[3] = { array_buf, JS_NewInt32(ctx, 0), JS_NewInt32(ctx, sw * sh) };
+    JSValue data = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
     JS_FreeValue(ctx, array_buf);
     if (JS_IsException(data)) return data;
 
