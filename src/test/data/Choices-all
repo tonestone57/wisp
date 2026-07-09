@@ -91,6 +91,9 @@ log_filter:level:WARNING
 verbose_filter:level:DEBUG
 colour_selection:0
 render_backend:0
+enable_http3:1
+force_http3:0
+altsvc_cache_path:
 downloads_clear:0
 request_overwrite:1
 downloads_directory:/home/vince
