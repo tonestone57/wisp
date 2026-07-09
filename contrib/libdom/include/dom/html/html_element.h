@@ -96,9 +96,15 @@ static inline dom_exception dom_html_element_set_class_name(struct dom_html_elem
 #define dom_html_element_set_class_name(e, class_name)                                                                 \
     dom_html_element_set_class_name((dom_html_element *)(e), (class_name))
 
+extern const struct dom_html_element_vtable _dom_html_element_vtable;
+
 static inline dom_exception
 dom_html_element_get_tag_type(const struct dom_html_element *element, dom_html_element_type *type)
 {
+    if (element == NULL || ((const dom_node *)element)->vtable != &_dom_html_element_vtable) {
+        *type = DOM_HTML_ELEMENT_TYPE__UNKNOWN;
+        return DOM_NO_ERR;
+    }
     return ((dom_html_element_vtable *)((dom_node *)element)->vtable)->dom_html_element_get_tag_type(element, type);
 }
 #define dom_html_element_get_tag_type(e, type) dom_html_element_get_tag_type((const dom_html_element *)(e), (type))
