@@ -148,7 +148,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         qjs_init_navigator(t->ctx) != 0 ||
         qjs_init_location(t->ctx) != 0 ||
         qjs_init_storage(t->ctx) != 0 ||
-        qjs_init_xhr(t->ctx) != 0 ||
+        qjs_init_xmlhttprequest(t->ctx) != 0 ||
         qjs_init_mutationobserver(t->ctx) != 0 ||
         qjs_init_intersectionobserver(t->ctx) != 0 ||
         qjs_init_canvas(t->ctx) != 0) {

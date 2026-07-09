@@ -247,10 +247,21 @@ JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, cons
     WispXHR *xhr = priv ? priv->node : NULL;
     if (!xhr) return JS_UNDEFINED;
 
-    free(xhr->method);
-    xhr->method = strdup(method);
+    char *new_method = strdup(method);
+    if (!new_method) return JS_ThrowOutOfMemory(ctx);
+
+    nsurl *new_url = NULL;
+    nserror err = nsurl_create(url, &new_url);
+    if (err != NSERROR_OK) {
+        free(new_method);
+        return JS_ThrowInternalError(ctx, "Invalid URL: %s", url);
+    }
+
+    if (xhr->method) free(xhr->method);
+    xhr->method = new_method;
+
     if (xhr->url) nsurl_unref(xhr->url);
-    nsurl_create(url, &xhr->url);
+    xhr->url = new_url;
 
     xhr_set_ready_state(xhr, 1); /* OPENED */
     return JS_UNDEFINED;
@@ -368,7 +379,7 @@ JSValue wisp_xmlhttprequest_responseURL_get_impl(JSContext *ctx, QJSNodePrivate 
     return JS_NewString(ctx, nsurl_access(xhr->url));
 }
 
-int qjs_init_xhr(JSContext *ctx)
+int qjs_init_xmlhttprequest(JSContext *ctx)
 {
     JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_xhr_init");

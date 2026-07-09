@@ -67,7 +67,7 @@ int qjs_init_location(JSContext *ctx);
 JSValue qjs_new_location(JSContext *ctx, void *node, bool is_dom_node);
 int qjs_init_storage(JSContext *ctx);
 int qjs_init_eventtarget(JSContext *ctx);
-int qjs_init_xhr(JSContext *ctx);
+int qjs_init_xmlhttprequest(JSContext *ctx);
 int qjs_init_mutationobserver(JSContext *ctx);
 int qjs_init_intersectionobserver(JSContext *ctx);
 int qjs_init_domrect(JSContext *ctx);

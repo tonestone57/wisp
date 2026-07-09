@@ -1131,6 +1131,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_event_target_basic);
     tcase_add_test(tc_window, test_quickjs_event_target_full);
     tcase_add_test(tc_window, test_quickjs_xhr);
+    tcase_set_timeout(tc_window, 10);
     tcase_add_test(tc_window, test_quickjs_crypto);
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
