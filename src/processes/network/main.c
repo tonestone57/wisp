@@ -12,6 +12,7 @@
 #include <wisp/utils/messages.h>
 #include "content/fetchers/curl.h"
 #include <libwapcaplet/libwapcaplet.h>
+#include <wisp/utils/nsurl.h>
 #include <wisp/desktop/gui_table.h>
 
 struct wisp_table *guit;
@@ -106,6 +107,46 @@ int main(int argc, char **argv) {
                             fetch_start(url, NULL, network_process_fetch_callback, (void*)(uintptr_t)fetch_id,
                                         only_2xx, NULL, true, downgrade_tls, NULL, &f_out);
                             nsurl_unref(url);
+                            free(url_str);
+                        }
+                    }
+                }
+            } else if (msg.type == WISP_IPC_MSG_DNS_PREFETCH_REQUEST) {
+                uint32_t url_len;
+                if (msg.length >= 4) {
+                    memcpy(&url_len, msg.data, 4);
+                    if (msg.length >= 4 + url_len) {
+                        char *url_str = malloc(url_len + 1);
+                        if (url_str) {
+                            memcpy(url_str, msg.data + 4, url_len);
+                            url_str[url_len] = '\0';
+                            nsurl *url;
+                            if (nsurl_create(url_str, &url) == NSERROR_OK) {
+                                lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+                                if (host_lwc) {
+                                    fetch_curl_dns_prefetch(lwc_string_data(host_lwc));
+                                    lwc_string_unref(host_lwc);
+                                }
+                                nsurl_unref(url);
+                            }
+                            free(url_str);
+                        }
+                    }
+                }
+            } else if (msg.type == WISP_IPC_MSG_PRECONNECT_REQUEST) {
+                uint32_t url_len;
+                if (msg.length >= 4) {
+                    memcpy(&url_len, msg.data, 4);
+                    if (msg.length >= 4 + url_len) {
+                        char *url_str = malloc(url_len + 1);
+                        if (url_str) {
+                            memcpy(url_str, msg.data + 4, url_len);
+                            url_str[url_len] = '\0';
+                            nsurl *url;
+                            if (nsurl_create(url_str, &url) == NSERROR_OK) {
+                                fetch_curl_preconnect(url_str);
+                                nsurl_unref(url);
+                            }
                             free(url_str);
                         }
                     }

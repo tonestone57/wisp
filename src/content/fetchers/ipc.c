@@ -170,3 +170,22 @@ nserror fetch_ipc_register(void) {
     fetcher_add(lwc_string_ref(corestring_lwc_https), &fetcher_ops);
     return NSERROR_OK;
 }
+
+void fetch_ipc_early_request(nsurl *url, bool preconnect) {
+    if (!url) return;
+    if (!ipc_network && !fetch_ipc_initialise(NULL)) return;
+
+    wisp_ipc_msg msg;
+    msg.type = preconnect ? WISP_IPC_MSG_PRECONNECT_REQUEST : WISP_IPC_MSG_DNS_PREFETCH_REQUEST;
+    const char *url_access = nsurl_access(url);
+    if (!url_access) return;
+    uint32_t url_len = strlen(url_access);
+    msg.length = 4 + url_len;
+    msg.data = malloc(msg.length);
+    if (msg.data) {
+        memcpy(msg.data, &url_len, 4);
+        memcpy(msg.data + 4, url_access, url_len);
+        wisp_ipc_send(ipc_network, &msg);
+        free(msg.data);
+    }
+}
