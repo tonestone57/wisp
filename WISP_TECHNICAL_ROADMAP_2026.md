@@ -82,7 +82,7 @@ These tasks are high-priority for the 2027 development cycle:
 
 ### Graphics & Performance
 *   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
-*   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware.
+*   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware. This compositor dynamically pivots back to the high-performance Blend2D/GDI pipelines on non-DX11 or legacy hardware to maintain perfect backward compatibility.
 *   **[Planned] CSS Variable Caching & Fast-Path Evaluation** (Complexity: **Medium** | Benefit: **High**): Implement style-context hashing/caching of custom property values. If inherited style contexts have unchanged CSS custom properties, skip the recursive resolution pass entirely for that subtree to accelerate modern CSS layouts (e.g., Tailwind CSS pages).
 *   **[Planned] SIMD-Accelerated UTF-8 processing** (Complexity: **Medium** | Benefit: **Medium**): Integrate SIMD vectorization (AVX2/NEON) into `libutf8proc` wrappers to accelerate both fast-path ASCII/UTF-8 validation and full-path text normalization, case-mapping, and encoding conversions globally. All SIMD pipelines utilize runtime feature detection (e.g., CPUID-based dynamic dispatching) with robust scalar fallbacks, ensuring 100% compatibility with older pre-AVX2, legacy, and retro CPUs.
 
@@ -103,3 +103,49 @@ These tasks are high-priority for the 2027 development cycle:
 *   **Optional JIT Compilation Tier Options**: Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
 *   **Shared-Memory GPU-Shared Textures**: In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
 *   **WebAssembly (WASM) Interpretation**: Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
+
+---
+
+## 9. Next-Generation Roadmap Proposals (2027 Development Cycle)
+
+To take Wisp to the next level for its 2027 development cycle, several highly specialized architectural additions will address the hidden "tax" of supporting such a vast timeline of hardware and software.
+
+### A. Compatibility & Performance: User-Space TLS & Network Fallbacks
+Because Wisp aims to run natively on Windows XP/7 alongside modern OSes, relying on the host operating system's network stack creates a massive compatibility bottleneck.
+*   **The Problem**: Windows XP and Vista's native crypto stacks (Schannel) do not support TLS 1.2 or TLS 1.3, making the modern web completely inaccessible without a proxy handling the decryption.
+*   **The Fix (Statically-Linked User-Space Crypto Stack)**: Force the `wisp-network` process to completely bypass host OS network APIs. Statically link a lightweight, ultra-fast modern crypto library like **mbedTLS** or **BearSSL** directly into the network process.
+*   **The Benefit**: Wisp achieves 100% independent HTTPS capability. A user on Windows XP or an older Haiku nightly build can connect directly to modern, strictly secured websites without requiring a middleman proxy or OS-level registry hacks.
+
+### B. Speed: QuickJS Bytecode Ahead-of-Time (AOT) Caching
+QuickJS-ng is wonderfully lightweight, but it lacks a heavy JIT compiler. On older, low-frequency CPUs (like an Intel Atom or a Pentium 4 running XP), parsing massive modern JavaScript bundles on every page load causes noticeable CPU stutter.
+*   **The Improvement**: Implement a **Bytecode Cache Store** for the JavaScript process. QuickJS natively supports serializing parsed scripts into binary bytecode. When a user visits a site, Wisp will parse the JS *once*, execute it, and dump the compiled bytecode to a local cache database.
+*   **The Mechanism**: On subsequent visits, Wisp skips the lexing, parsing, and tokenization phases entirely, streaming the raw bytecode directly into the `JSContext`.
+
+### C. Stability & Memory: LZ4 Compressed Tile Lookaside Lists
+While the fixed-buffer pool (`tile_pool.c`) effectively stops heap fragmentation, raw 32-bit uncompressed bitmaps consume vast amounts of RAM.
+*   **The Problem**: A single 512x512px tile at 32-bit color depth requires 1MB of memory. A high-resolution screen can generate dozens of these tiles. On a legacy system or a low-spec embedded board with only 512MB–1GB of total system RAM, Wisp will quickly trigger Out-Of-Memory (OOM) faults.
+*   **The Fix (ZRAM-Style Tile Compression)**: Integrate an ultra-fast compression pass for non-visible tiles. When the Viewport-Prioritized Scheduler determines a tile has scrolled significantly out of the active frustum, instead of freeing it or keeping it raw, pass it to an in-memory **LZ4 compression wrapper**.
+*   **The Math**: LZ4 can compress predictable UI/bitmap data at gigabytes per second with a typical 4:1 compression ratio, instantly shrinking a 1MB tile down to ~250KB in microseconds. When the user scrolls back, it decompresses nearly instantaneously.
+
+### D. Security: Asymmetric OS Sandboxing
+Leaving legacy OS users entirely unsandboxed is highly dangerous, but legacy environments do not support modern sandboxing mechanisms like AppContainers.
+*   **The Fix (Stratified Execution Sandboxes)**: Implement an explicit architectural fallback matrix based on runtime OS detection:
+
+| Target OS | Primary Sandbox Mechanism | Security Profile |
+|---|---|---|
+| **Windows 8.1 / 10 / 11** | AppContainer Isolation Profile | **Maximum** (Restricted Low Integrity) |
+| **Windows XP / 7** | Token De-elevation (`CreateRestrictedToken`) + Job Objects | **Moderate** (Blocks Admin/Registry writes, auto-kills processes on close) |
+| **Linux** | Landlock + seccomp-bpf | **Maximum** (Restricted filesystem view and syscall surface) |
+| **Haiku** | Thread-Confined Memory Domains | **Basic** (Isolated address spaces) |
+
+> **Note on Legacy Windows Security**: By creating a restricted token, stripping away SIDs, and placing the JS/Network processes into a Win32 JobObject with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, you prevent a compromised process from writing to the system directories or surviving a browser crash, even on Windows XP.
+
+### E. Architectural Trade-offs Matrix
+Implementing these additions alongside your current 2027 backlog balances out the engineering effort:
+
+| Improvement | Complexity | Target Area | Key Beneficiary |
+|---|---|---|---|
+| **User-Space TLS Stack** | Medium | Compatibility | Legacy Windows / Alternative OS |
+| **QuickJS Bytecode Cache** | Low | Speed | Low-spec / Retro CPUs |
+| **LZ4 Compressed Tiles** | Medium | Stability / Memory | Low-RAM Hardware Environments |
+| **Asymmetric Sandboxing** | High | Security | Windows XP / 7 Legacy Users |
