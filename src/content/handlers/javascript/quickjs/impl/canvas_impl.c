@@ -824,19 +824,18 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         }
     }
 
-    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
-    if (JS_IsException(buffer)) {
+    JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    if (JS_IsException(array_buffer)) {
         free(data);
-        return buffer;
+        return array_buffer;
     }
-    JSValue args[3];
-    args[0] = buffer;
-    args[1] = JS_NewInt32(ctx, 0);
-    args[2] = JS_NewInt32(ctx, w * h * 4);
-    JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
-    JS_FreeValue(ctx, args[1]);
-    JS_FreeValue(ctx, args[2]);
-    JS_FreeValue(ctx, buffer);
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue clamped_array_ctor = JS_GetPropertyStr(ctx, global, "Uint8ClampedArray");
+    JSValue array = JS_CallConstructor(ctx, clamped_array_ctor, 1, &array_buffer);
+    JS_FreeValue(ctx, global);
+    JS_FreeValue(ctx, clamped_array_ctor);
+    JS_FreeValue(ctx, array_buffer);
+
     if (JS_IsException(array)) return array;
 
     JSValue ret = wisp_imagedata_constructor_1_impl(ctx, array, w, h);
@@ -859,12 +858,15 @@ JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePr
     return obj;
 }
 
-JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy)
+JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata_val, double dx, double dy)
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
-    if (!cpriv || !imagedata) return JS_UNDEFINED;
+    if (!cpriv) return JS_UNDEFINED;
 
-    ImageDataPrivate *idpriv = (ImageDataPrivate *)imagedata;
+    QJSNodePrivate *img_priv = qjs_get_dom_priv(ctx, imagedata_val);
+    if (!img_priv || !img_priv->node) return JS_UNDEFINED;
+
+    ImageDataPrivate *idpriv = (ImageDataPrivate *)img_priv->node;
     int w = idpriv->width;
     int h = idpriv->height;
 
@@ -904,7 +906,7 @@ JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNod
 
     return JS_UNDEFINED;
 }
-JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata_val, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_removeHitRegion_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_resetClip_impl(JSContext *ctx, QJSNodePrivate *priv)
 {

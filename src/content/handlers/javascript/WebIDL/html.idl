@@ -1210,8 +1210,8 @@ interface CanvasRenderingContext2D {
   ImageData createImageData(double sw, double sh);
   ImageData createImageData(ImageData imagedata);
   ImageData getImageData(double sx, double sy, double sw, double sh);
-  void putImageData(ImageData imagedata, double dx, double dy);
-  void putImageData(ImageData imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight);
+  void putImageData(any imagedata, double dx, double dy);
+  void putImageData(any imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight);
 };
 CanvasRenderingContext2D implements CanvasDrawingStyles;
 CanvasRenderingContext2D implements CanvasPathMethods;
