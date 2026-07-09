@@ -84,7 +84,7 @@ These tasks are high-priority for the 2027 development cycle:
 *   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
 *   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware.
 *   **[Planned] CSS Variable Caching & Fast-Path Evaluation** (Complexity: **Medium** | Benefit: **High**): Implement style-context hashing/caching of custom property values. If inherited style contexts have unchanged CSS custom properties, skip the recursive resolution pass entirely for that subtree to accelerate modern CSS layouts (e.g., Tailwind CSS pages).
-*   **[Planned] SIMD-Accelerated UTF-8 processing** (Complexity: **Medium** | Benefit: **Medium**): Integrate SIMD vectorization (AVX2/NEON) into `libutf8proc` wrappers for fast-path ASCII and UTF-8 verification, speeding up HTML parsing, text layout, and IPC string extraction.
+*   **[Planned] SIMD-Accelerated UTF-8 processing** (Complexity: **Medium** | Benefit: **Medium**): Integrate SIMD vectorization (AVX2/NEON) into `libutf8proc` wrappers to accelerate both fast-path ASCII/UTF-8 validation and full-path text normalization, case-mapping, and encoding conversions. This speeds up HTML parsing, text layout, and multi-process IPC string transfers globally.
 
 ### Architecture & Security
 *   **[Planned] Site Isolation** (Complexity: **High** | Benefit: **High**): Extend the multi-process model to support per-origin process isolation.
