@@ -94,7 +94,8 @@ These tasks are high-priority for the 2027 development cycle:
 ---
 
 ## 8. Future Horizons (2027-2028)
-*   **Shared-Process Memory Optimization**: Implementing shared-memory textures for multi-process rendering to minimize IPC overhead.
-*   **JIT Engine Evaluation**: Evaluate adding an optional JIT tier for high-performance requirements (e.g., Hermes or V8 Lite) while maintaining QuickJS-ng as the lightweight default.
-*   **WebAssembly (WASM) Exploration**: Investigating the integration of a lightweight WASM interpreter to expand modern web application compatibility.
-*   **QUIC & HTTP/3 Support**: Integrating modern transport protocols into the `wisp-network` process.
+*   **Zero-Copy IPC Architecture via Shared Memory**: Optimize the multi-process boundaries so that rasterized Blend2D tile bitmaps are passed from rendering/layout worker processes using POSIX/Windows shared-memory handles (`shm_open` or native file mappings), completely bypassing serialization over IPC channels.
+*   **HTTP/3 QUIC Connection Caching and 0-RTT Session Resumption**: Optimize the transport layers in `wisp-network` to leverage dynamic 0-RTT handshakes and cache transport states to minimize connection setup latency on repeated requests.
+*   **Optional JIT Compilation Tier Options**: Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
+*   **Shared-Memory GPU-Shared Textures**: In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
+*   **WebAssembly (WASM) Interpretation**: Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.

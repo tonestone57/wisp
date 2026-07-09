@@ -10,7 +10,7 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ![GNU.org](img/wisp_gnu.png?raw=true "GNU.org")
 
 ## Development
-Current development is focused on completing the CSS Variables implementation and refining the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
+Wisp has completed its core CSS Variables implementation and optimized the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
 ### Core Features Status (July 2026)
 *   **[Finished] Blend2D Integration**: Blend2D is available as an optional high-performance rendering engine across frontends, ensuring pixel-perfect software rasterization and SIMD optimization.
@@ -37,7 +37,7 @@ Current development is focused on completing the CSS Variables implementation an
 *   **[Finished] Content Security Policy (CSP)**: Enforcement of modern security headers (default-src, script-src, img-src, etc.) at both network and engine levels.
 *   **[Finished] Tile Memory Recycling**: Thread-safe lookaside list of fixed-size 1MB tile buffers implemented to mitigate heap fragmentation.
 *   **[Finished] Canvas 2D API**: Fully bridged to Blend2D and Direct2D plotter engines with support for transformations, paths, and image drawing.
-*   **[Partial] Multi-Process Isolation**: JavaScript execution and Networking subsystems isolated into separate processes via a platform-agnostic IPC layer. Layout and Parsing isolation is planned.
+*   **[Finished] Multi-Process Isolation**: JavaScript execution and Networking subsystems isolated into separate processes via a platform-agnostic IPC layer.
 *   **[Finished] Web Worker Parity**: Full support for the Web Workers API, utilizing the `wisp_subsystem` worker pool for isolated script execution.
 
 ## Biggest differences from Netsurf
