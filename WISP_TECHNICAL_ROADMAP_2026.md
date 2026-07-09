@@ -103,6 +103,11 @@ These tasks are high-priority for the 2027 development cycle:
 *   **Optional JIT Compilation Tier Options**: Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
 *   **Shared-Memory GPU-Shared Textures**: In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
 *   **WebAssembly (WASM) Interpretation**: Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
+*   **Wisp Protocol / WebSocket Payload Masking**: Upstream WebSocket client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. Implement SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2 / `veorq_u8` on NEON) to mask up to 32 bytes per clock cycle, eliminating upstream proxy network bottleneck.
+*   **Structural JSON Parsing for QuickJS-ng**: Leverage a two-stage SIMD pre-parser (similar to `simdjson`) using AVX2/NEON vector comparisons to scan raw incoming JSON strings 16/32 bytes at a time, generating structural token masks and fast bitwise jumps (`popcnt` or trailing zero counts) to completely skip raw data blocks and whitespaces.
+*   **CSS Lexical and Layout Whitespace Skipping**: Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
+*   **Multi-Process Shared Memory Color Space & Alpha Blending**: Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
+*   **CSP Nonce & Security Validation**: Speed up incoming request packet header verification (nonce checks, origin blocklists) by utilizing SIMD string comparison primitives rather than sequential `strcmp` loops.
 
 ---
 
@@ -149,3 +154,13 @@ Implementing these additions alongside your current 2027 backlog balances out th
 | **QuickJS Bytecode Cache** | Low | Speed | Low-spec / Retro CPUs |
 | **LZ4 Compressed Tiles** | Medium | Stability / Memory | Low-RAM Hardware Environments |
 | **Asymmetric Sandboxing** | High | Security | Windows XP / 7 Legacy Users |
+
+### F. Strategic Optimization Impact (Vectorized Bottlenecks)
+
+By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers:
+
+| Expansion Target | Vector Width (AVX2 / NEON) | Primary Benefit Area | Architectural Impact |
+|---|---|---|---|
+| **WebSocket Masking** | 32 Bytes / 16 Bytes | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
+| **SIMD JSON Parser** | 32 Bytes / 16 Bytes | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
+| **CSS Tokenizer** | 32 Bytes / 16 Bytes | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
