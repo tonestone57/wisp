@@ -23,6 +23,8 @@
 #include <wisp/desktop/gui_table.h>
 #include "utils/libdom.h"
 
+static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(ptr); }
+
 /* Forward declarations for generated headers */
 #include "JSHTMLCanvasElement.gen.h"
 #include "JSCanvasRenderingContext2D.gen.h"
@@ -127,11 +129,6 @@ static void canvas_bitmap_handler(dom_node_operation operation, dom_string *key,
     if (operation == 3 /* DOM_NODE_DELETED */) {
         if (bitmap && guit->bitmap) guit->bitmap->destroy(bitmap);
     }
-}
-
-static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr)
-{
-    free(ptr);
 }
 
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
@@ -756,8 +753,14 @@ JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJS
         free(data);
         return buffer;
     }
-    JSValue args[3] = { buffer, JS_NewInt32(ctx, 0), JS_NewInt32(ctx, w * h) };
+
+    JSValue args[3];
+    args[0] = buffer;
+    args[1] = JS_NewInt32(ctx, 0);
+    args[2] = JS_NewInt32(ctx, w * h * 4);
     JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
+    JS_FreeValue(ctx, args[1]);
+    JS_FreeValue(ctx, args[2]);
     JS_FreeValue(ctx, buffer);
     if (JS_IsException(array)) return array;
 
@@ -826,8 +829,13 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         free(data);
         return buffer;
     }
-    JSValue args[3] = { buffer, JS_NewInt32(ctx, 0), JS_NewInt32(ctx, w * h) };
+    JSValue args[3];
+    args[0] = buffer;
+    args[1] = JS_NewInt32(ctx, 0);
+    args[2] = JS_NewInt32(ctx, w * h * 4);
     JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
+    JS_FreeValue(ctx, args[1]);
+    JS_FreeValue(ctx, args[2]);
     JS_FreeValue(ctx, buffer);
     if (JS_IsException(array)) return array;
 
@@ -862,8 +870,15 @@ JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNod
 
     size_t offset, byte_length, bytes_per_element;
     JSValue buffer = JS_GetTypedArrayBuffer(ctx, idpriv->data, &offset, &byte_length, &bytes_per_element);
+    if (JS_IsException(buffer)) return JS_UNDEFINED;
+
     size_t psize;
-    uint8_t *data = JS_GetArrayBuffer(ctx, &psize, buffer) + offset;
+    uint8_t *data = JS_GetArrayBuffer(ctx, &psize, buffer);
+    if (!data) {
+        JS_FreeValue(ctx, buffer);
+        return JS_UNDEFINED;
+    }
+    data += offset;
 
     uint8_t *dst_buf = guit->bitmap->get_buffer(cpriv->bitmap);
     int dst_stride = guit->bitmap->get_rowstride(cpriv->bitmap);

@@ -112,9 +112,16 @@ JSValue wisp_imagedata_constructor_0_impl(JSContext *ctx, uint32_t sw, uint32_t 
         free(buf);
         return array_buf;
     }
-    JSValue args[3] = { array_buf, JS_NewInt32(ctx, 0), JS_NewInt32(ctx, sw * sh) };
+
+    JSValue args[3];
+    args[0] = array_buf;
+    args[1] = JS_NewInt32(ctx, 0);
+    args[2] = JS_NewInt32(ctx, sw * sh * 4);
     JSValue data = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
+    JS_FreeValue(ctx, args[1]);
+    JS_FreeValue(ctx, args[2]);
     JS_FreeValue(ctx, array_buf);
+
     if (JS_IsException(data)) return data;
 
     return create_imagedata_object(ctx, sw, sh, data);
