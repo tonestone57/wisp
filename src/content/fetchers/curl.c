@@ -40,6 +40,15 @@
 #include <time.h>
 #include <pthread.h>
 
+#ifdef HAVE_POSIX_INET_HEADERS
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#else
+#include <ws2tcpip.h>
+#endif
+#include <wisp/utils/thread_pool.h>
+
 #include <libwapcaplet/libwapcaplet.h>
 #include <nsutils/time.h>
 
@@ -286,6 +295,8 @@ CURLM *fetch_curl_multi;
 static CURLSH *fetch_curl_share = NULL;
 static pthread_mutex_t curl_share_mutexes[CURL_LOCK_DATA_LAST];
 
+static thread_pool_t *network_thread_pool = NULL;
+
 static void fetch_curl_share_lock(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr)
 {
     (void)handle;
@@ -363,6 +374,11 @@ static void fetch_curl_finalise(lwc_string *scheme)
             for (int i = 0; i < CURL_LOCK_DATA_LAST; i++) {
                 pthread_mutex_destroy(&curl_share_mutexes[i]);
             }
+        }
+
+        if (network_thread_pool) {
+            thread_pool_destroy(network_thread_pool);
+            network_thread_pool = NULL;
         }
 
         curl_global_cleanup();
@@ -2055,6 +2071,10 @@ nserror fetch_curl_register(void)
         curl_share_setopt(fetch_curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
     }
 
+    if (!network_thread_pool) {
+        network_thread_pool = thread_pool_create(4);
+    }
+
 #if LIBCURL_VERSION_NUM >= 0x071e00
     /* built against 7.30.0 or later: configure caching */
     {
@@ -2219,4 +2239,94 @@ curl_multi_setopt_failed:
     NSLOG(wisp, INFO, "curl_multi_setopt failed.");
     return NSERROR_INIT_FAILED;
 #endif
+}
+
+typedef struct {
+    char *host;
+} dns_prefetch_arg_t;
+
+static void dns_prefetch_worker(void *arg) {
+    dns_prefetch_arg_t *dp_arg = (dns_prefetch_arg_t *)arg;
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+
+    /* Perform the DNS resolution to populate system/OS cache */
+    int err = getaddrinfo(dp_arg->host, NULL, &hints, &res);
+    if (err == 0) {
+        freeaddrinfo(res);
+    }
+    free(dp_arg->host);
+    free(dp_arg);
+}
+
+void fetch_curl_dns_prefetch(const char *host) {
+    if (!network_thread_pool || !host) return;
+
+    dns_prefetch_arg_t *arg = malloc(sizeof(*arg));
+    if (arg) {
+        arg->host = strdup(host);
+        if (arg->host) {
+            if (!thread_pool_add_task(network_thread_pool, dns_prefetch_worker, arg)) {
+                free(arg->host);
+                free(arg);
+            }
+        } else {
+            free(arg);
+        }
+    }
+}
+
+typedef struct {
+    char *url_str;
+} preconnect_arg_t;
+
+static void preconnect_worker(void *arg) {
+    preconnect_arg_t *pc_arg = (preconnect_arg_t *)arg;
+    CURL *curl = curl_easy_init();
+    if (curl) {
+        curl_easy_setopt(curl, CURLOPT_URL, pc_arg->url_str);
+        /* Only connect, do not send/receive request data */
+        curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 1L);
+        /* Share DNS/connection/SSL cache */
+        if (fetch_curl_share) {
+            curl_easy_setopt(curl, CURLOPT_SHARE, fetch_curl_share);
+        }
+        /* Set reasonable timeouts so preconnect doesn't hang forever */
+        curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+        /* Set CA path/bundle if they are configured */
+        if (nsoption_charp(ca_bundle)) {
+            curl_easy_setopt(curl, CURLOPT_CAINFO, nsoption_charp(ca_bundle));
+        }
+        if (nsoption_charp(ca_path)) {
+            curl_easy_setopt(curl, CURLOPT_CAPATH, nsoption_charp(ca_path));
+        }
+
+        /* Perform the connection */
+        curl_easy_perform(curl);
+        curl_easy_cleanup(curl);
+    }
+    free(pc_arg->url_str);
+    free(pc_arg);
+}
+
+void fetch_curl_preconnect(const char *url_str) {
+    if (!network_thread_pool || !url_str) return;
+
+    preconnect_arg_t *arg = malloc(sizeof(*arg));
+    if (arg) {
+        arg->url_str = strdup(url_str);
+        if (arg->url_str) {
+            if (!thread_pool_add_task(network_thread_pool, preconnect_worker, arg)) {
+                free(arg->url_str);
+                free(arg);
+            }
+        } else {
+            free(arg);
+        }
+    }
 }

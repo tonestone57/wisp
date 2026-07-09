@@ -35,4 +35,8 @@ nserror fetch_curl_register(void);
 /** Global cURL multi handle. */
 extern CURLM *fetch_curl_multi;
 
+/** Early connection pre-connect and DNS prefetching routines */
+void fetch_curl_dns_prefetch(const char *host);
+void fetch_curl_preconnect(const char *url_str);
+
 #endif

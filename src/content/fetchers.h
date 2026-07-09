@@ -126,5 +126,10 @@ nserror fetcher_init(void);
  */
 void fetcher_quit(void);
 
+/**
+ * Send an early preconnect or dns-prefetch request to the network process via IPC.
+ */
+void fetch_ipc_early_request(struct nsurl *url, bool preconnect);
+
 
 #endif

@@ -143,6 +143,8 @@ CORESTRING_LWC_STRING(_top);
 CORESTRING_LWC_STRING(443);
 
 /* unusual lwc strings */
+CORESTRING_LWC_VALUE(dns_prefetch, "dns-prefetch");
+CORESTRING_LWC_VALUE(preconnect, "preconnect");
 CORESTRING_LWC_VALUE(shortcut_icon, "shortcut icon");
 CORESTRING_LWC_VALUE(slash_, "/");
 CORESTRING_LWC_VALUE(max_age, "max-age");

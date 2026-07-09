@@ -264,13 +264,18 @@ static void fetcher_poll(void *unused)
  * Public API								      *
  ******************************************************************************/
 
+nserror fetch_ipc_register(void);
+
 /* exported interface documented in content/fetch.h */
 nserror fetcher_init(void)
 {
     nserror ret;
 
 #ifdef WITH_CURL
-    ret = fetch_curl_register();
+    /* For multi-process isolation, the main process registers the IPC fetcher.
+     * The network process (wisp-network) will explicitly override this by calling
+     * fetch_curl_register() directly in main(). */
+    ret = fetch_ipc_register();
     if (ret != NSERROR_OK) {
         return ret;
     }

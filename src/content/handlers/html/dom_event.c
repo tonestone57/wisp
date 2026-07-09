@@ -33,6 +33,7 @@
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/string.h>
 #include "content/handlers/javascript/js.h"
+#include "content/fetchers.h"
 
 #include <wisp/bitmap.h>
 
@@ -188,6 +189,21 @@ static bool html_process_inserted_link(html_content *c, dom_node *node)
     if (error != NSERROR_OK) {
         lwc_string_unref(link.rel);
         return false;
+    }
+
+    /* Check for early connection pre-connect and DNS prefetching relations */
+    bool is_dns_prefetch = false;
+    bool is_preconnect = false;
+
+    if (lwc_string_caseless_isequal(link.rel, corestring_lwc_dns_prefetch, &is_dns_prefetch) != lwc_error_ok) {
+        is_dns_prefetch = false;
+    }
+    if (lwc_string_caseless_isequal(link.rel, corestring_lwc_preconnect, &is_preconnect) != lwc_error_ok) {
+        is_preconnect = false;
+    }
+
+    if (is_dns_prefetch || is_preconnect) {
+        fetch_ipc_early_request(link.href, is_preconnect);
     }
 
     /* look for optional properties -- we don't care if internment fails */
