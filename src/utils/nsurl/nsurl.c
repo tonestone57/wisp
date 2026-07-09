@@ -218,7 +218,8 @@ lwc_string *nsurl_get_component(const nsurl *url, nsurl_component part)
 /* exported interface, documented in nsurl.h */
 enum nsurl_scheme_type nsurl_get_scheme_type(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL)
+        return NSURL_SCHEME_OTHER;
 
     return url->components.scheme_type;
 }
@@ -301,7 +302,8 @@ const char *nsurl_access(const nsurl *url)
 /* exported interface, documented in nsurl.h */
 const char *nsurl_access_log(const nsurl *url)
 {
-    assert(url != NULL);
+    if (url == NULL)
+        return NULL;
 
     if (url->components.scheme_type == NSURL_SCHEME_DATA) {
         return "[data url]";
@@ -325,7 +327,8 @@ nserror nsurl_get_utf8(const nsurl *url, char **url_s, size_t *url_l)
     char *url_out; /* url string */
     char *url_cur; /* url cursor */
 
-    assert(url != NULL);
+    if (url == NULL || url_s == NULL || url_l == NULL)
+        return NSERROR_BAD_PARAMETER;
 
     if (url->components.host == NULL) {
         return nsurl_get(url, NSURL_WITH_FRAGMENT, url_s, url_l);
@@ -651,8 +654,8 @@ nserror nsurl_replace_scheme(const nsurl *url, lwc_string *scheme, nsurl **new_u
     size_t len;
     bool match;
 
-    assert(url != NULL);
-    assert(scheme != NULL);
+    if (url == NULL || scheme == NULL || new_url == NULL)
+        return NSERROR_BAD_PARAMETER;
 
     /* Get the length of the new scheme */
     scheme_len = lwc_string_length(scheme);
