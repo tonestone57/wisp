@@ -367,7 +367,7 @@ add_executable(qjsc
 add_qjs_libc_if_needed(qjsc)
 add_static_if_needed(qjsc)
 target_compile_definitions(qjsc PRIVATE ${qjs_defines})
-target_link_libraries(qjsc PRIVATE qjs-libc qjs)
+target_link_libraries(qjsc PRIVATE qjs)
 
 
 # QuickJS CLI
@@ -386,7 +386,7 @@ set_target_properties(qjs_exe PROPERTIES
     COMPILE_PDB_NAME "qjs_cli"
 )
 target_compile_definitions(qjs_exe PRIVATE ${qjs_defines})
-target_link_libraries(qjs_exe PRIVATE qjs-libc qjs)
+target_link_libraries(qjs_exe PRIVATE qjs)
 if (NOT WIN32)
     set_target_properties(qjs_exe PROPERTIES ENABLE_EXPORTS TRUE)
 endif()

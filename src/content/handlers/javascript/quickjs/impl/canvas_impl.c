@@ -23,6 +23,8 @@
 #include <wisp/desktop/gui_table.h>
 #include "utils/libdom.h"
 
+static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(ptr); }
+
 /* Forward declarations for generated headers */
 #include "JSHTMLCanvasElement.gen.h"
 #include "JSCanvasRenderingContext2D.gen.h"
@@ -736,8 +738,43 @@ JSValue wisp_canvasrenderingcontext2d_isPointInPath_1_impl(JSContext *ctx, QJSNo
 JSValue wisp_canvasrenderingcontext2d_addHitRegion_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue options) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_clearHitRegions_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_commit_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, double sw, double sh) { return JS_NULL; }
-JSValue wisp_canvasrenderingcontext2d_createImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata) { return JS_NULL; }
+JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, double sw, double sh)
+{
+    int w = (int)sw;
+    int h = (int)sh;
+    if (w <= 0 || h <= 0) return JS_ThrowRangeError(ctx, "Invalid dimensions");
+
+    size_t size = (size_t)w * h * 4;
+    uint8_t *data = calloc(1, size);
+    if (!data) return JS_ThrowOutOfMemory(ctx);
+
+    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    if (JS_IsException(buffer)) {
+        free(data);
+        return buffer;
+    }
+
+    JSValue args[3];
+    args[0] = buffer;
+    args[1] = JS_NewInt32(ctx, 0);
+    args[2] = JS_NewInt32(ctx, w * h * 4);
+    JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
+    JS_FreeValue(ctx, args[1]);
+    JS_FreeValue(ctx, args[2]);
+    JS_FreeValue(ctx, buffer);
+    if (JS_IsException(array)) return array;
+
+    JSValue ret = wisp_imagedata_constructor_1_impl(ctx, array, w, h);
+    JS_FreeValue(ctx, array);
+    return ret;
+}
+
+JSValue wisp_canvasrenderingcontext2d_createImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata)
+{
+    if (!imagedata) return JS_NULL;
+    ImageDataPrivate *src = (ImageDataPrivate *)imagedata;
+    return wisp_canvasrenderingcontext2d_createImageData_0_impl(ctx, priv, src->width, src->height);
+}
 JSValue wisp_canvasrenderingcontext2d_currentTransform_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_canvasrenderingcontext2d_currentTransform_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_drawFocusIfNeeded_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * element) { return JS_UNDEFINED; }
@@ -761,10 +798,6 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
     int h = (int)sh;
     if (w <= 0 || h <= 0) return JS_ThrowRangeError(ctx, "Invalid dimensions");
 
-    JSValue obj = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, obj, "width", JS_NewInt32(ctx, w));
-    JS_SetPropertyStr(ctx, obj, "height", JS_NewInt32(ctx, h));
-
     size_t size = (size_t)w * h * 4;
     uint8_t *data = malloc(size);
     if (!data) return JS_ThrowOutOfMemory(ctx);
@@ -781,7 +814,6 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
             if (cur_x >= 0 && cur_x < src_w && cur_y >= 0 && cur_y < src_h) {
                 uint32_t *pixel = (uint32_t *)(src_buf + cur_y * src_stride + cur_x * 4);
                 uint32_t rgba = *pixel;
-                /* Assuming 0xAARRGGBB in memory */
                 data[(y * w + x) * 4 + 0] = (rgba >> 16) & 0xFF;
                 data[(y * w + x) * 4 + 1] = (rgba >> 8) & 0xFF;
                 data[(y * w + x) * 4 + 2] = rgba & 0xFF;
@@ -792,10 +824,24 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         }
     }
 
-    JSValue array = JS_NewUint8ClampedArray(ctx, data, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
-    JS_SetPropertyStr(ctx, obj, "data", array);
+    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    if (JS_IsException(buffer)) {
+        free(data);
+        return buffer;
+    }
+    JSValue args[3];
+    args[0] = buffer;
+    args[1] = JS_NewInt32(ctx, 0);
+    args[2] = JS_NewInt32(ctx, w * h * 4);
+    JSValue array = JS_NewTypedArray(ctx, 3, args, JS_TYPED_ARRAY_UINT8C);
+    JS_FreeValue(ctx, args[1]);
+    JS_FreeValue(ctx, args[2]);
+    JS_FreeValue(ctx, buffer);
+    if (JS_IsException(array)) return array;
 
-    return obj;
+    JSValue ret = wisp_imagedata_constructor_1_impl(ctx, array, w, h);
+    JS_FreeValue(ctx, array);
+    return ret;
 }
 JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "source-over"); }
 JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
@@ -813,22 +859,26 @@ JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePr
     return obj;
 }
 
-JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata, double dx, double dy)
+JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy)
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
-    if (!cpriv) return JS_UNDEFINED;
+    if (!cpriv || !imagedata) return JS_UNDEFINED;
 
-    JSValue width_val = JS_GetPropertyStr(ctx, imagedata, "width");
-    JSValue height_val = JS_GetPropertyStr(ctx, imagedata, "height");
-    JSValue data_val = JS_GetPropertyStr(ctx, imagedata, "data");
-
-    int w, h;
-    JS_ToInt32(ctx, &w, width_val);
-    JS_ToInt32(ctx, &h, height_val);
+    ImageDataPrivate *idpriv = (ImageDataPrivate *)imagedata;
+    int w = idpriv->width;
+    int h = idpriv->height;
 
     size_t offset, byte_length, bytes_per_element;
-    JSValue buffer = JS_GetTypedArrayBuffer(ctx, data_val, &offset, &byte_length, &bytes_per_element);
-    uint8_t *data = JS_GetArrayBuffer(ctx, buffer) + offset;
+    JSValue buffer = JS_GetTypedArrayBuffer(ctx, idpriv->data, &offset, &byte_length, &bytes_per_element);
+    if (JS_IsException(buffer)) return JS_UNDEFINED;
+
+    size_t psize;
+    uint8_t *data = JS_GetArrayBuffer(ctx, &psize, buffer);
+    if (!data) {
+        JS_FreeValue(ctx, buffer);
+        return JS_UNDEFINED;
+    }
+    data += offset;
 
     uint8_t *dst_buf = guit->bitmap->get_buffer(cpriv->bitmap);
     int dst_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
@@ -850,9 +900,6 @@ JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNod
         }
     }
 
-    JS_FreeValue(ctx, width_val);
-    JS_FreeValue(ctx, height_val);
-    JS_FreeValue(ctx, data_val);
     JS_FreeValue(ctx, buffer);
 
     return JS_UNDEFINED;

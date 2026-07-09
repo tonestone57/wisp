@@ -150,6 +150,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         qjs_init_xhr(t->ctx) != 0 ||
         qjs_init_mutationobserver(t->ctx) != 0 ||
         qjs_init_intersectionobserver(t->ctx) != 0 ||
+        qjs_init_imagedata(t->ctx) != 0 ||
         qjs_init_canvas(t->ctx) != 0) {
         js_destroythread(t);
         return NSERROR_NOMEM;
