@@ -932,6 +932,7 @@ START_TEST(test_quickjs_xhr)
     nserror err;
     bool result;
 
+    corestrings_init();
     js_initialise();
 
     err = js_newheap(5, &heap);
