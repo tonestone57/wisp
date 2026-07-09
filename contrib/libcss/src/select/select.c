@@ -264,7 +264,25 @@ static css_error css__resolve_var_tokens_recursive(css_select_state *state, pars
     } return CSS_OK;
 }
 static css_error css__resolve_var_tokens(css_select_state *state, parserutils_vector *src, parserutils_vector **dst)
-{ return css__resolve_var_tokens_recursive(state, src, dst, NULL, 0); }
+{
+    if (state == NULL || state->var_ctx == NULL) {
+        return css__resolve_var_tokens_recursive(state, src, dst, NULL, 0);
+    }
+
+    uint32_t src_hash = css__tokens_vector_hash(src);
+    parserutils_vector *cached = css__variables_ctx_get_resolved(state->var_ctx, src_hash);
+    if (cached != NULL) {
+        if (css__tokens_clone(cached, dst) == PARSERUTILS_OK) {
+            return CSS_OK;
+        }
+    }
+
+    css_error err = css__resolve_var_tokens_recursive(state, src, dst, NULL, 0);
+    if (err == CSS_OK) {
+        css__variables_ctx_set_resolved(state->var_ctx, src_hash, *dst);
+    }
+    return err;
+}
 
 static css_error select_font_faces_from_sheet(
     const css_stylesheet *sheet, css_origin origin, css_select_font_faces_state *state, const css_select_strings *str);
