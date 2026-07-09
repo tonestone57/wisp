@@ -15,6 +15,12 @@ typedef struct QJSNodePrivate {
     bool is_dom_node;       /* True if node is dom_node* (needs unref) */
 } QJSNodePrivate;
 
+typedef struct ImageDataPrivate {
+    uint32_t width;
+    uint32_t height;
+    JSValue data; /* Uint8ClampedArray */
+} ImageDataPrivate;
+
 #define QJS_DOM_MAGIC 0x57495350
 
 struct jsheap {
