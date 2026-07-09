@@ -266,6 +266,30 @@ START_TEST(test_quickjs_trusted_types)
     result = js_exec(thread, (const uint8_t *)code9, strlen(code9), "test_tt_policy_allowlist");
     ck_assert(result == true);
 
+    /* Test 10: Built-in DOM-based auto-sanitization of HTML, Script and URL sinks */
+    const char *code10 =
+        "__trustedTypesSetRequiredForTesting(true);\n"
+        "// Save and clear user-defined default policy to force built-in fallback\n"
+        "var savedDefault = trustedTypes.defaultPolicy;\n"
+        "trustedTypes.defaultPolicy = null;\n"
+        "var div = document.createElement('div');\n"
+        "// HTML auto-sanitization: strip script tags but allow text, strip on* handlers\n"
+        "div.innerHTML = '<p>hello</p><script>alert(1)</script>';\n"
+        "var htmlClean = div.innerHTML === '<p>hello</p>';\n"
+        "var div2 = document.createElement('div');\n"
+        "div2.innerHTML = '<a href=\"javascript:alert(1)\" onclick=\"evil()\">click</a>';\n"
+        "var htmlClean2 = div2.innerHTML.includes('click') && !div2.innerHTML.includes('javascript') && !div2.innerHTML.includes('onclick');\n"
+        "// Script URL auto-sanitization\n"
+        "var scriptEl = document.createElement('script');\n"
+        "scriptEl.src = 'javascript:alert(1)';\n"
+        "var urlClean = scriptEl.src === 'about:blank';\n"
+        "// Restore default policy\n"
+        "trustedTypes.defaultPolicy = savedDefault;\n"
+        "__trustedTypesSetRequiredForTesting(false);\n"
+        "htmlClean && htmlClean2 && urlClean;";
+    result = js_exec(thread, (const uint8_t *)code10, strlen(code10), "test_tt_builtin_sanitization");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);

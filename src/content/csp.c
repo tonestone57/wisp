@@ -11,6 +11,7 @@ typedef struct csp_source {
     bool is_self;
     bool is_none;
     bool is_unsafe_inline;
+    char *nonce;
     struct csp_source *next;
 } csp_source;
 
@@ -39,6 +40,7 @@ static void free_sources(csp_source *source) {
         csp_source *next = source->next;
         free(source->scheme);
         free(source->host);
+        free(source->nonce);
         free(source);
         source = next;
     }
@@ -69,6 +71,15 @@ static csp_source *parse_source(char *token) {
         src->is_none = true;
     } else if (strcasecmp(token, "'unsafe-inline'") == 0) {
         src->is_unsafe_inline = true;
+    } else if (strncasecmp(token, "'nonce-", 7) == 0) {
+        size_t len = strlen(token);
+        if (len > 8 && token[len - 1] == '\'') {
+            src->nonce = strndup(token + 7, len - 8);
+        } else {
+            src->nonce = strdup(token + 7);
+        }
+    } else if (strncasecmp(token, "nonce-", 6) == 0) {
+        src->nonce = strdup(token + 6);
     } else if (strchr(token, ':')) {
         char *colon = strchr(token, ':');
         if (colon[1] == '/' && colon[2] == '/') {
@@ -254,9 +265,41 @@ bool csp_check_inline(struct csp *csp, csp_directive directive) {
     }
     if (!src) return true;
 
+    /* Check if a nonce is present in this source chain.
+     * If a nonce is defined, 'unsafe-inline' is ignored/ignored-fallback per CSP spec.
+     */
+    csp_source *curr = src;
+    while (curr) {
+        if (curr->nonce != NULL) {
+            return false;
+        }
+        curr = curr->next;
+    }
+
+    curr = src;
+    while (curr) {
+        if (curr->is_unsafe_inline) return true;
+        if (curr->is_none) return false;
+        curr = curr->next;
+    }
+
+    return false;
+}
+
+bool csp_check_nonce(struct csp *csp, csp_directive directive, const char *nonce) {
+    if (!csp) return true;
+    if (!nonce) return false;
+
+    csp_source *src = csp->directives[directive];
+    if (!src && directive != CSP_DEFAULT_SRC) {
+        src = csp->directives[CSP_DEFAULT_SRC];
+    }
+    if (!src) return true;
+
     while (src) {
-        if (src->is_unsafe_inline) return true;
-        if (src->is_none) return false;
+        if (src->nonce && strcmp(src->nonce, nonce) == 0) {
+            return true;
+        }
         src = src->next;
     }
 

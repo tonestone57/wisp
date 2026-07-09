@@ -70,4 +70,9 @@ bool csp_require_trusted_types_for_script(const struct csp *csp);
  */
 bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_name);
 
+/**
+ * Check if a script execution with a specific nonce is allowed.
+ */
+bool csp_check_nonce(struct csp *csp, csp_directive directive, const char *nonce);
+
 #endif

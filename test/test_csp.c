@@ -62,6 +62,13 @@ void test_csp() {
     assert(csp_trusted_types_policy_allowed(csp, "anything") == true);
     csp_destroy(csp);
 
+    // Test 8: Nonce parsing, checking and unsafe-inline bypass
+    assert(csp_parse("script-src 'unsafe-inline' 'nonce-xyz123'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_nonce(csp, CSP_SCRIPT_SRC, "xyz123") == true);
+    assert(csp_check_nonce(csp, CSP_SCRIPT_SRC, "wrong_nonce") == false);
+    assert(csp_check_inline(csp, CSP_SCRIPT_SRC) == false); // 'unsafe-inline' must be ignored when a nonce is present
+    csp_destroy(csp);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);

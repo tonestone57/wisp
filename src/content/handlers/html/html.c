@@ -704,6 +704,21 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 		csp_parse(csp_header, c->base_url, &c->csp);
 	}
 
+	/* Extract and parse COOP and COEP headers */
+	const char *coop_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Opener-Policy");
+	if (coop_header != NULL) {
+		c->coop = strdup(coop_header);
+	} else {
+		c->coop = NULL;
+	}
+
+	const char *coep_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Embedder-Policy");
+	if (coep_header != NULL) {
+		c->coep = strdup(coep_header);
+	} else {
+		c->coep = NULL;
+	}
+
 	err = dom_node_set_user_data(c->document, corestring_dom___ns_key_html_content_data, c,
 		html_document_user_data_handler, (void *)&old_node_data);
 	if (err != DOM_NO_ERR) {
@@ -1640,6 +1655,16 @@ static void html_destroy(struct content *c)
 	if (html->csp != NULL) {
 		csp_destroy(html->csp);
 		html->csp = NULL;
+	}
+
+	if (html->coop != NULL) {
+		free(html->coop);
+		html->coop = NULL;
+	}
+
+	if (html->coep != NULL) {
+		free(html->coep);
+		html->coep = NULL;
 	}
 
 	if (html->universal != NULL) {

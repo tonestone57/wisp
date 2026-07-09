@@ -320,3 +320,9 @@ NSOPTION_BOOL(enable_quic_0rtt, true)
 
 /** Maximum QUIC/HTTP/3 cached connections */
 NSOPTION_INTEGER(quic_connection_cache_size, 16)
+
+/** Enable Cross-Origin Opener Policy (COOP) Spectre mitigation */
+NSOPTION_BOOL(enable_coop, true)
+
+/** Enable Cross-Origin Embedder Policy (COEP) Spectre mitigation */
+NSOPTION_BOOL(enable_coep, true)

@@ -28,6 +28,8 @@
 #include <wisp/misc.h>
 #include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/box.h>
+#include <wisp/content/handlers/html/private.h>
+#include <wisp/utils/nsoption.h>
 #include <math.h>
 #include "impl/observer_internal.h"
 #include <wisp/desktop/gui_table.h>
@@ -112,6 +114,14 @@ static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *or
     if (scheme) lwc_string_unref(scheme);
     if (host) lwc_string_unref(host);
     if (port) lwc_string_unref(port);
+
+    /* Enforce COOP isolation if option is enabled and same-origin COOP is declared */
+    if (nsoption_bool(enable_coop)) {
+        struct html_content *htmlc = (struct html_content *)doc_priv;
+        if (htmlc->coop && (strcasecmp(htmlc->coop, "same-origin") == 0)) {
+            strncat(origin_buf, "-coop-isolated", buf_len - strlen(origin_buf) - 1);
+        }
+    }
 }
 
 static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {

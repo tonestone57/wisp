@@ -167,6 +167,8 @@ static nserror html_stylesheet_from_domnode(html_content *c, dom_node *node, hlc
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
+    child.coep = c->coep;
+    child.parent_url = c->base_url;
 
     exc = dom_node_get_text_content(node, &style);
     if ((exc != DOM_NO_ERR) || (style == NULL)) {
@@ -479,6 +481,8 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     child.charset = htmlc->encoding;
     child.quirks = htmlc->base.quirks;
     child.csp = htmlc->csp;
+    child.coep = htmlc->coep;
+    child.parent_url = htmlc->base_url;
 
     CONTENT_ACTIVE_INC(htmlc, "linked CSS fetch start");
     PERF("CSS FETCH START '%s' (active=%d)", nsurl_access(joined), htmlc->base.active);
@@ -573,6 +577,8 @@ nserror html_css_quirks_stylesheets(html_content *c)
         child.charset = c->encoding;
         child.quirks = c->base.quirks;
         child.csp = c->csp;
+        child.coep = c->coep;
+        child.parent_url = c->base_url;
 
         CONTENT_ACTIVE_INC(c, "quirks CSS fetch start");
         ns_error = hlcache_handle_retrieve(html_quirks_stylesheet_url, 0, content_get_url(&c->base), NULL,
@@ -617,6 +623,8 @@ nserror html_css_new_stylesheets(html_content *c)
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
+    child.coep = c->coep;
+    child.parent_url = c->base_url;
 
     CONTENT_ACTIVE_INC(c, "default.css fetch start");
     ns_error = hlcache_handle_retrieve(html_default_stylesheet_url, 0, content_get_url(&c->base), NULL,
