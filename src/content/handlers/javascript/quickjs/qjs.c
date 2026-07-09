@@ -31,22 +31,249 @@
 #include "impl/observer_internal.h"
 #include <wisp/desktop/gui_table.h>
 #include <wisp/utils/ipc.h>
+#include <wisp/utils/nsurl.h>
+
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <signal.h>
 
 extern struct wisp_table *guit;
-static wisp_ipc_handle *ipc_js = NULL;
 
-static void ensure_js_process(void) {
-    if (!ipc_js) {
-        if (access("./wisp-js", X_OK) != 0) return;
-        char ipc_name[64];
-        snprintf(ipc_name, sizeof(ipc_name), "/tmp/wisp-js-ipc-%d", getpid());
-        wisp_ipc_handle *server = wisp_ipc_create_server(ipc_name);
-        if (server) {
-            wisp_ipc_spawn("./wisp-js", ipc_name);
-            ipc_js = wisp_ipc_accept(server);
-            wisp_ipc_destroy(server);
-        }
+struct origin_js_process {
+    char origin[256];
+    wisp_ipc_handle *ipc_handle;
+    pid_t pid;
+    char ipc_dir[256];
+    unsigned int ref_count;
+    struct origin_js_process *next;
+};
+
+static struct origin_js_process *js_processes = NULL;
+static pthread_mutex_t js_processes_mutex = PTHREAD_MUTEX_INITIALIZER;
+static uint32_t js_process_counter = 0;
+static uint32_t null_origin_counter = 0;
+
+struct content;
+struct nsurl *content_get_url(struct content *c);
+
+static bool create_secure_ipc_path(char *ipc_path_buf, size_t path_len, char *dir_buf, size_t dir_len) {
+    char template[] = "/tmp/wisp-js-XXXXXX";
+    char *dir_name = mkdtemp(template);
+    if (!dir_name) {
+        return false;
     }
+    strncpy(dir_buf, dir_name, dir_len - 1);
+    dir_buf[dir_len - 1] = '\0';
+
+    snprintf(ipc_path_buf, path_len, "%s/ipc", dir_name);
+    return true;
+}
+
+static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *origin_buf, size_t buf_len) {
+    if (!doc_priv || win_priv == doc_priv) {
+        pthread_mutex_lock(&js_processes_mutex);
+        uint32_t val = ++null_origin_counter;
+        pthread_mutex_unlock(&js_processes_mutex);
+        snprintf(origin_buf, buf_len, "null-origin-%u", val);
+        return;
+    }
+
+    struct nsurl *url = content_get_url((struct content *)doc_priv);
+    if (!url) {
+        pthread_mutex_lock(&js_processes_mutex);
+        uint32_t val = ++null_origin_counter;
+        pthread_mutex_unlock(&js_processes_mutex);
+        snprintf(origin_buf, buf_len, "null-origin-%u", val);
+        return;
+    }
+
+    lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
+    lwc_string *host = nsurl_get_component(url, NSURL_HOST);
+    lwc_string *port = nsurl_get_component(url, NSURL_PORT);
+
+    if (scheme && host) {
+        if (port) {
+            snprintf(origin_buf, buf_len, "%s://%s:%s",
+                     lwc_string_data(scheme), lwc_string_data(host), lwc_string_data(port));
+        } else {
+            snprintf(origin_buf, buf_len, "%s://%s",
+                     lwc_string_data(scheme), lwc_string_data(host));
+        }
+    } else {
+        pthread_mutex_lock(&js_processes_mutex);
+        uint32_t val = ++null_origin_counter;
+        pthread_mutex_unlock(&js_processes_mutex);
+        snprintf(origin_buf, buf_len, "null-origin-%u", val);
+    }
+
+    if (scheme) lwc_string_unref(scheme);
+    if (host) lwc_string_unref(host);
+    if (port) lwc_string_unref(port);
+}
+
+static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
+    if (!origin) return NULL;
+    pthread_mutex_lock(&js_processes_mutex);
+    struct origin_js_process *curr = js_processes;
+    while (curr) {
+        if (strcmp(curr->origin, origin) == 0) {
+            curr->ref_count++;
+            wisp_ipc_handle *h = curr->ipc_handle;
+            pthread_mutex_unlock(&js_processes_mutex);
+            return h;
+        }
+        curr = curr->next;
+    }
+
+    if (access("./wisp-js", X_OK) != 0) {
+        pthread_mutex_unlock(&js_processes_mutex);
+        return NULL;
+    }
+
+    char ipc_path[256];
+    char ipc_dir[256];
+    if (!create_secure_ipc_path(ipc_path, sizeof(ipc_path), ipc_dir, sizeof(ipc_dir))) {
+        pthread_mutex_unlock(&js_processes_mutex);
+        return NULL;
+    }
+
+    wisp_ipc_handle *server = wisp_ipc_create_server(ipc_path);
+    if (!server) {
+        rmdir(ipc_dir);
+        pthread_mutex_unlock(&js_processes_mutex);
+        return NULL;
+    }
+
+    pid_t pid = wisp_ipc_spawn("./wisp-js", ipc_path);
+    if (pid < 0) {
+        wisp_ipc_destroy(server);
+        unlink(ipc_path);
+        rmdir(ipc_dir);
+        pthread_mutex_unlock(&js_processes_mutex);
+        return NULL;
+    }
+
+    wisp_ipc_handle *client = wisp_ipc_accept(server);
+    wisp_ipc_destroy(server);
+
+    if (!client) {
+        unlink(ipc_path);
+        rmdir(ipc_dir);
+        kill(pid, SIGKILL);
+        waitpid(pid, NULL, 0);
+        pthread_mutex_unlock(&js_processes_mutex);
+        return NULL;
+    }
+
+    struct origin_js_process *node = malloc(sizeof(*node));
+    if (!node) {
+        wisp_ipc_destroy(client);
+        unlink(ipc_path);
+        rmdir(ipc_dir);
+        kill(pid, SIGKILL);
+        waitpid(pid, NULL, 0);
+        pthread_mutex_unlock(&js_processes_mutex);
+        return NULL;
+    }
+
+    strncpy(node->origin, origin, sizeof(node->origin) - 1);
+    node->origin[sizeof(node->origin) - 1] = '\0';
+    node->ipc_handle = client;
+    node->pid = pid;
+    strncpy(node->ipc_dir, ipc_dir, sizeof(node->ipc_dir) - 1);
+    node->ipc_dir[sizeof(node->ipc_dir) - 1] = '\0';
+    node->ref_count = 1;
+    node->next = js_processes;
+    js_processes = node;
+
+    pthread_mutex_unlock(&js_processes_mutex);
+    return client;
+}
+
+static void release_js_process_for_origin(const char *origin) {
+    if (!origin) return;
+    pthread_mutex_lock(&js_processes_mutex);
+    struct origin_js_process **prev = &js_processes;
+    struct origin_js_process *curr = js_processes;
+    while (curr) {
+        if (strcmp(curr->origin, origin) == 0) {
+            curr->ref_count--;
+            if (curr->ref_count == 0) {
+                *prev = curr->next;
+                wisp_ipc_destroy(curr->ipc_handle);
+
+                char ipc_path[512];
+                snprintf(ipc_path, sizeof(ipc_path), "%s/ipc", curr->ipc_dir);
+                unlink(ipc_path);
+                rmdir(curr->ipc_dir);
+
+                kill(curr->pid, SIGTERM);
+                int status;
+                int retries = 50;
+                while (retries-- > 0) {
+                    if (waitpid(curr->pid, &status, WNOHANG) > 0) {
+                        break;
+                    }
+                    usleep(10000);
+                }
+                if (retries <= 0) {
+                    kill(curr->pid, SIGKILL);
+                    waitpid(curr->pid, NULL, 0);
+                }
+
+                free(curr);
+            }
+            break;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
+    pthread_mutex_unlock(&js_processes_mutex);
+}
+
+static wisp_ipc_handle *get_js_process_handle(const char *origin) {
+    if (!origin) return NULL;
+    pthread_mutex_lock(&js_processes_mutex);
+    struct origin_js_process *curr = js_processes;
+    while (curr) {
+        if (strcmp(curr->origin, origin) == 0) {
+            wisp_ipc_handle *h = curr->ipc_handle;
+            pthread_mutex_unlock(&js_processes_mutex);
+            return h;
+        }
+        curr = curr->next;
+    }
+    pthread_mutex_unlock(&js_processes_mutex);
+    return NULL;
+}
+
+static void handle_process_crash(const char *origin) {
+    if (!origin) return;
+    pthread_mutex_lock(&js_processes_mutex);
+    struct origin_js_process **prev = &js_processes;
+    struct origin_js_process *curr = js_processes;
+    while (curr) {
+        if (strcmp(curr->origin, origin) == 0) {
+            *prev = curr->next;
+            wisp_ipc_destroy(curr->ipc_handle);
+
+            char ipc_path[512];
+            snprintf(ipc_path, sizeof(ipc_path), "%s/ipc", curr->ipc_dir);
+            unlink(ipc_path);
+            rmdir(curr->ipc_dir);
+
+            kill(curr->pid, SIGKILL);
+            waitpid(curr->pid, NULL, 0);
+
+            free(curr);
+            break;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
+    pthread_mutex_unlock(&js_processes_mutex);
 }
 void qjs_timer_callback(void *p);
 
@@ -83,6 +310,22 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 
 void js_finalise(void)
 {
+    pthread_mutex_lock(&js_processes_mutex);
+    struct origin_js_process *curr = js_processes;
+    while (curr) {
+        struct origin_js_process *next = curr->next;
+        wisp_ipc_destroy(curr->ipc_handle);
+        char ipc_path[512];
+        snprintf(ipc_path, sizeof(ipc_path), "%s/ipc", curr->ipc_dir);
+        unlink(ipc_path);
+        rmdir(curr->ipc_dir);
+        kill(curr->pid, SIGKILL);
+        waitpid(curr->pid, NULL, 0);
+        free(curr);
+        curr = next;
+    }
+    js_processes = NULL;
+    pthread_mutex_unlock(&js_processes_mutex);
 }
 
 nserror js_newheap(int timeout, jsheap **heap)
@@ -124,6 +367,11 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     if (!t->ctx) { free(t); return NSERROR_NOMEM; }
     t->heap = heap; t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
+
+    char origin_buf[256];
+    resolve_origin_from_content(win_priv, doc_priv, origin_buf, sizeof(origin_buf));
+    t->origin = strdup(origin_buf);
+    ensure_js_process_for_origin(t->origin);
 
     /* Bridge must be initialized first */
     if (qjs_init_dom_bridge(t->ctx) != 0) {
@@ -195,6 +443,15 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     t->is_worker = true;
     t->worker_handle = h;
     JS_SetContextOpaque(t->ctx, t);
+
+    char origin_buf[256];
+    pthread_mutex_lock(&js_processes_mutex);
+    uint32_t val = ++null_origin_counter;
+    pthread_mutex_unlock(&js_processes_mutex);
+    snprintf(origin_buf, sizeof(origin_buf), "null-worker-%u", val);
+    t->origin = strdup(origin_buf);
+    ensure_js_process_for_origin(t->origin);
+
     JS_SetRuntimeOpaque(rt, t);
 
     /* DedicatedWorkerGlobalScope doesn't need the full DOM bridge,
@@ -298,13 +555,18 @@ void js_destroythread(jsthread *thread)
         JS_RunGC(rt);
     }
     if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);
+    if (thread->origin) {
+        release_js_process_for_origin(thread->origin);
+        free(thread->origin);
+    }
     free(thread);
 }
 
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
 {
     if (!thread || thread->closed) return false;
-    ensure_js_process();
+
+    wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {
         /* Use thread pointer as a unique context ID for the remote process */
         uint32_t ctx_id = (uint32_t)(uintptr_t)thread;
@@ -324,17 +586,25 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 wisp_ipc_set_blocking(ipc_js, false);
                 int retries = 500; // 5 seconds
                 while (retries-- > 0) {
-                    if (wisp_ipc_recv(ipc_js, &response) == NSERROR_OK) {
+                    nserror recv_err = wisp_ipc_recv(ipc_js, &response);
+                    if (recv_err == NSERROR_OK) {
                         wisp_ipc_set_blocking(ipc_js, true);
                         bool success = (response.length > 0 || response.data != NULL);
                         wisp_ipc_msg_free(&response);
                         return success;
+                    } else if (recv_err != NSERROR_NOT_FOUND) {
+                        /* Socket error or EOF -> crash detected! */
+                        NSLOG(wisp, ERROR, "JS process crashed during recv for origin %s", thread->origin);
+                        handle_process_crash(thread->origin);
+                        break;
                     }
                     usleep(10000);
                 }
                 wisp_ipc_set_blocking(ipc_js, true);
             } else {
                 free(msg.data);
+                NSLOG(wisp, ERROR, "JS process write failed for origin %s (likely crashed)", thread->origin);
+                handle_process_crash(thread->origin);
             }
         }
         /* Fallback to in-process if IPC fails or times out */

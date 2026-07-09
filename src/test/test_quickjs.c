@@ -26,6 +26,7 @@
 
 /* Include QuickJS directly for console binding tests */
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
+#include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include "quickjs.h"
 #include "utils/hashmap.h"
 extern struct wisp_table *guit;
@@ -1133,6 +1134,41 @@ START_TEST(test_quickjs_observers)
 }
 END_TEST
 
+START_TEST(test_quickjs_site_isolation)
+{
+    jsheap *heap = NULL;
+    jsthread *thread1 = NULL;
+    jsthread *thread2 = NULL;
+    nserror err;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc1 = create_test_document();
+    err = js_newthread(heap, (void*)doc1, doc1, &thread1);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc2 = create_test_document();
+    err = js_newthread(heap, (void*)doc2, doc2, &thread2);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    ck_assert_ptr_nonnull(thread1->origin);
+    ck_assert_ptr_nonnull(thread2->origin);
+    ck_assert_str_ne(thread1->origin, thread2->origin);
+
+    js_closethread(thread1);
+    js_closethread(thread2);
+    js_destroythread(thread1);
+    js_destroythread(thread2);
+    js_destroyheap(heap);
+    if (doc1) dom_node_unref((dom_node *)doc1);
+    if (doc2) dom_node_unref((dom_node *)doc2);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -1149,6 +1185,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_core, test_quickjs_heap_create_destroy);
     tcase_add_test(tc_core, test_quickjs_thread_create_destroy);
     tcase_add_test(tc_core, test_quickjs_multiple_threads);
+    tcase_add_test(tc_core, test_quickjs_site_isolation);
     suite_add_tcase(s, tc_core);
 
     /* Execution test case */
