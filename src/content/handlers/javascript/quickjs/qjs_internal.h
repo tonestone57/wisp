@@ -60,6 +60,7 @@ struct jsthread {
     struct jsheap *heap;
     void *win_priv;
     void *doc_priv;
+    char *origin;
     QJSNodePrivate global_window_priv;
     void *worker_handle; /* WispWorkerHandle* if this is a worker thread */
     bool is_worker;
