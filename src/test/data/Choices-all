@@ -94,6 +94,8 @@ render_backend:0
 enable_http3:1
 force_http3:0
 altsvc_cache_path:
+enable_quic_0rtt:1
+quic_connection_cache_size:16
 downloads_clear:0
 request_overwrite:1
 downloads_directory:/home/vince

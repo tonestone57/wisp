@@ -314,3 +314,9 @@ NSOPTION_BOOL(force_http3, false)
 
 /** Alt-Svc cache filename */
 NSOPTION_STRING(altsvc_cache_path, NULL)
+
+/** Enable QUIC 0-RTT dynamic session resumption */
+NSOPTION_BOOL(enable_quic_0rtt, true)
+
+/** Maximum QUIC/HTTP/3 cached connections */
+NSOPTION_INTEGER(quic_connection_cache_size, 16)
