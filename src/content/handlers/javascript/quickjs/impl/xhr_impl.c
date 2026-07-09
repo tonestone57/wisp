@@ -18,24 +18,6 @@
 
 JSClassID qjs_xmlhttprequest_class_id;
 
-typedef struct WispXHR {
-    JSContext *ctx;
-    JSValue self;
-    int readyState;
-    int status;
-    char *statusText;
-    char *method;
-    nsurl *url;
-    bool async;
-    struct fetch *fetch_handle;
-    uint8_t *response_buf;
-    size_t response_len;
-    size_t response_alloc;
-    char *response_headers;
-    struct fetch_multipart_data *out_headers;
-    dom_document *response_xml;
-} WispXHR;
-
 static void xhr_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_xmlhttprequest_class_id);
@@ -51,6 +33,17 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
     if (priv) {
         WispXHR *xhr = priv->node;
         if (xhr) {
+            struct jsthread *t = JS_GetRuntimeOpaque(rt);
+            if (t) {
+                WispXHR **curr = &t->xmlhttprequests;
+                while (*curr) {
+                    if (*curr == xhr) {
+                        *curr = xhr->next;
+                        break;
+                    }
+                    curr = &((*curr)->next);
+                }
+            }
             if (xhr->fetch_handle) {
                 fetch_change_callback(xhr->fetch_handle, NULL, NULL);
                 fetch_abort(xhr->fetch_handle);
@@ -63,7 +56,7 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
             free(xhr->response_headers);
             fetch_multipart_data_destroy(xhr->out_headers);
             if (xhr->response_xml) dom_node_unref((dom_node *)xhr->response_xml);
-            JS_FreeValueRT(rt, xhr->self);
+            if (!JS_IsUndefined(xhr->self)) JS_FreeValueRT(rt, xhr->self);
             free(xhr);
         }
         free(priv);
@@ -205,6 +198,7 @@ static JSValue js_xhr_constructor(JSContext *ctx, JSValueConst new_target, int a
     if (!xhr) return JS_ThrowOutOfMemory(ctx);
     xhr->ctx = ctx;
     xhr->async = true;
+    xhr->self = JS_UNDEFINED;
 
     JSValue obj = qjs_new_xmlhttprequest(ctx, xhr, false);
     if (JS_IsException(obj)) {
@@ -212,6 +206,25 @@ static JSValue js_xhr_constructor(JSContext *ctx, JSValueConst new_target, int a
         return obj;
     }
     xhr->self = JS_DupValue(ctx, obj);
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t) {
+        xhr->next = t->xmlhttprequests;
+        t->xmlhttprequests = xhr;
+    }
+
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) {
+        JS_FreeValue(ctx, xhr->self);
+        free(xhr);
+        JS_FreeValue(ctx, obj);
+        return JS_ThrowOutOfMemory(ctx);
+    }
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = xhr;
+    priv->is_dom_node = false;
+    priv->ctx = ctx;
+    JS_SetOpaque(obj, priv);
+
     return obj;
 }
 

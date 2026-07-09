@@ -276,6 +276,18 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, self);
     }
 
+    /* Break XMLHttpRequest cycles and orphan them */
+    struct WispXHR *xhr_list = thread->xmlhttprequests;
+    thread->xmlhttprequests = NULL;
+    while (xhr_list) {
+        struct WispXHR *xhr = xhr_list;
+        xhr_list = xhr->next;
+        JSValue self = xhr->self;
+        xhr->self = JS_UNDEFINED;
+        xhr->next = NULL;
+        JS_FreeValue(thread->ctx, self);
+    }
+
     /* Break IntersectionObserver cycles and orphan them */
     struct WispIntersectionObserver *io_list = (struct WispIntersectionObserver *)thread->intersection_observers;
     thread->intersection_observers = NULL;

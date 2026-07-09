@@ -7,6 +7,12 @@
 #include "utils/libdom.h"
 #include "content/handlers/javascript/js.h"
 
+/* Forward declarations */
+struct nsurl;
+struct fetch;
+struct fetch_multipart_data;
+struct dom_document;
+
 /* Private data for JS DOM objects */
 typedef struct QJSNodePrivate {
     uint32_t magic;         /* Magic number for type safety */
@@ -16,6 +22,25 @@ typedef struct QJSNodePrivate {
 } QJSNodePrivate;
 
 #define QJS_DOM_MAGIC 0x57495350
+
+typedef struct WispXHR {
+    JSContext *ctx;
+    JSValue self;
+    int readyState;
+    int status;
+    char *statusText;
+    char *method;
+    struct nsurl *url;
+    bool async;
+    struct fetch *fetch_handle;
+    uint8_t *response_buf;
+    size_t response_len;
+    size_t response_alloc;
+    char *response_headers;
+    struct fetch_multipart_data *out_headers;
+    struct dom_document *response_xml;
+    struct WispXHR *next;
+} WispXHR;
 
 struct jsheap {
     JSRuntime *rt;
@@ -64,6 +89,7 @@ struct jsthread {
 
     struct WispMutationObserver *mutation_observers;
     struct WispIntersectionObserver *intersection_observers;
+    struct WispXHR *xmlhttprequests;
     void *mutation_callback_registered_doc;
 };
 
