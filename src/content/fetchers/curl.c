@@ -1237,6 +1237,47 @@ static CURLcode fetch_curl_set_options(struct curl_fetch_info *f)
 #endif
     }
 
+    /* Dynamic HTTP/3 / QUIC configuration */
+#ifdef CURL_HTTP_VERSION_3
+    if (nsoption_bool(enable_http3)) {
+        curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
+        if (vinfo->features & CURL_VERSION_HTTP3) {
+#ifdef CURL_HTTP_VERSION_3ONLY
+            if (nsoption_bool(force_http3)) {
+                SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3ONLY);
+            } else {
+                SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
+            }
+#else
+            SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
+#endif
+        } else {
+            SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
+        }
+    } else {
+        SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
+    }
+#endif
+
+#ifdef CURLOPT_ALTSVC
+    if (nsoption_bool(enable_http3)) {
+        curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
+        if (vinfo->features & CURL_VERSION_HTTP3) {
+            long altsvc_ctrl = CURLALTSVC_H1 | CURLALTSVC_H2 | CURLALTSVC_H3;
+            SETOPT(CURLOPT_ALTSVC_CTRL, altsvc_ctrl);
+            const char *altsvc_path = nsoption_charp(altsvc_cache_path);
+            if (!altsvc_path) {
+                altsvc_path = "";
+            }
+            SETOPT(CURLOPT_ALTSVC, (char *)altsvc_path);
+        } else {
+            SETOPT(CURLOPT_ALTSVC_CTRL, 0L);
+        }
+    } else {
+        SETOPT(CURLOPT_ALTSVC_CTRL, 0L);
+    }
+#endif
+
     return CURLE_OK;
 }
 

@@ -146,6 +146,16 @@ add_wisp_test(nsoption
   ${CMAKE_SOURCE_DIR}/src/test/nsoption.c
 )
 
+add_wisp_test(http3_test
+  ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
+  ${CMAKE_SOURCE_DIR}/src/utils/utils.c
+  ${CMAKE_SOURCE_DIR}/src/utils/messages.c
+  ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
+  ${CMAKE_SOURCE_DIR}/src/test/http3_test.c
+)
+
 add_wisp_test(bloom
   ${CMAKE_SOURCE_DIR}/src/utils/bloom.c
   ${CMAKE_SOURCE_DIR}/src/test/bloom.c
