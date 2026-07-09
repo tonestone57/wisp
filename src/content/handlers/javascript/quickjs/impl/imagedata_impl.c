@@ -10,6 +10,11 @@
 
 JSClassID qjs_imagedata_class_id;
 
+static void imagedata_free_buffer(JSRuntime *rt, void *opaque, void *ptr)
+{
+    free(ptr);
+}
+
 static void imagedata_finalizer(JSRuntime *rt, JSValue val)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_imagedata_class_id);
@@ -70,12 +75,18 @@ static JSValue create_imagedata_object(JSContext *ctx, uint32_t w, uint32_t h, J
     }
     idpriv->width = w;
     idpriv->height = h;
-    idpriv->data = data;
+    idpriv->data = data; // Takes ownership
 
     JSValue obj = JS_NewObjectClass(ctx, qjs_imagedata_class_id);
+    if (JS_IsException(obj)) {
+        JS_FreeValue(ctx, idpriv->data);
+        free(idpriv);
+        return obj;
+    }
+
     QJSNodePrivate *qpriv = calloc(1, sizeof(*qpriv));
     if (!qpriv) {
-        JS_FreeValue(ctx, data);
+        JS_FreeValue(ctx, idpriv->data);
         free(idpriv);
         JS_FreeValue(ctx, obj);
         return JS_ThrowOutOfMemory(ctx);
@@ -95,15 +106,22 @@ JSValue wisp_imagedata_constructor_0_impl(JSContext *ctx, uint32_t sw, uint32_t 
     size_t size = (size_t)sw * sh * 4;
     uint8_t *buf = calloc(1, size);
     if (!buf) return JS_ThrowOutOfMemory(ctx);
-    JSValue array_buf = JS_NewArrayBuffer(ctx, buf, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
+
+    JSValue array_buf = JS_NewArrayBuffer(ctx, buf, size, imagedata_free_buffer, NULL, false);
+    if (JS_IsException(array_buf)) {
+        free(buf);
+        return array_buf;
+    }
     JSValue data = JS_NewTypedArray(ctx, 1, &array_buf, JS_TYPED_ARRAY_UINT8C);
     JS_FreeValue(ctx, array_buf);
+    if (JS_IsException(data)) return data;
+
     return create_imagedata_object(ctx, sw, sh, data);
 }
 
 JSValue wisp_imagedata_constructor_1_impl(JSContext *ctx, JSValue data, uint32_t sw, uint32_t sh)
 {
-    return create_imagedata_object(ctx, sw, sh, data);
+    return create_imagedata_object(ctx, sw, sh, JS_DupValue(ctx, data));
 }
 
 int qjs_init_imagedata(JSContext *ctx)

@@ -25,6 +25,7 @@ extern JSClassID qjs_mutationobserver_class_id;
 extern JSClassID qjs_intersectionobserver_class_id;
 extern JSClassID qjs_domrect_class_id;
 extern JSClassID qjs_domrectreadonly_class_id;
+extern JSClassID qjs_imagedata_class_id;
 
 int qjs_init_node(JSContext *ctx);
 int qjs_init_element(JSContext *ctx);
@@ -72,6 +73,7 @@ int qjs_init_mutationobserver(JSContext *ctx);
 int qjs_init_intersectionobserver(JSContext *ctx);
 int qjs_init_domrect(JSContext *ctx);
 int qjs_init_domrectreadonly(JSContext *ctx);
+int qjs_init_imagedata(JSContext *ctx);
 int qjs_init_unimplemented(JSContext *ctx);
 
 JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all);

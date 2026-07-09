@@ -129,6 +129,11 @@ static void canvas_bitmap_handler(dom_node_operation operation, dom_string *key,
     }
 }
 
+static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr)
+{
+    free(ptr);
+}
+
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
     if (!priv || !priv->node) return JS_NULL;
@@ -746,9 +751,14 @@ JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJS
     uint8_t *data = calloc(1, size);
     if (!data) return JS_ThrowOutOfMemory(ctx);
 
-    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
+    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    if (JS_IsException(buffer)) {
+        free(data);
+        return buffer;
+    }
     JSValue array = JS_NewTypedArray(ctx, 1, &buffer, JS_TYPED_ARRAY_UINT8C);
     JS_FreeValue(ctx, buffer);
+    if (JS_IsException(array)) return array;
 
     JSValue ret = wisp_imagedata_constructor_1_impl(ctx, array, w, h);
     JS_FreeValue(ctx, array);
@@ -810,9 +820,14 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         }
     }
 
-    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
+    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    if (JS_IsException(buffer)) {
+        free(data);
+        return buffer;
+    }
     JSValue array = JS_NewTypedArray(ctx, 1, &buffer, JS_TYPED_ARRAY_UINT8C);
     JS_FreeValue(ctx, buffer);
+    if (JS_IsException(array)) return array;
 
     JSValue ret = wisp_imagedata_constructor_1_impl(ctx, array, w, h);
     JS_FreeValue(ctx, array);

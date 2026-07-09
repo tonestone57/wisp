@@ -55,6 +55,36 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_canvas_imagedata)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *script = "if (typeof ImageData === 'undefined') throw 'ImageData missing';\n"
+                         "let id = new ImageData(10, 10);\n"
+                         "if (id.width !== 10) throw 'width fail';\n"
+                         "if (id.height !== 10) throw 'height fail';\n"
+                         "if (!(id.data instanceof Uint8ClampedArray)) throw 'data fail';\n";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_canvas_imagedata");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 /**
  * Test EventTarget full functionality.
  */
@@ -1126,6 +1156,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_observers);
+    tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */
