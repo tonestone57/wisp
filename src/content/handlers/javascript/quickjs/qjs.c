@@ -20,6 +20,7 @@
 #include "utils/hashmap.h"
 #include "content/handlers/javascript/js.h"
 #include "qjs_internal.h"
+#include "JSEvent.gen.h"
 #include "wisp_subsystem.h"
 #include "crypto.h"
 #include "dom_bridge.h"
@@ -395,7 +396,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         qjs_init_navigator(t->ctx) != 0 ||
         qjs_init_location(t->ctx) != 0 ||
         qjs_init_storage(t->ctx) != 0 ||
-        qjs_init_xhr(t->ctx) != 0 ||
+        qjs_init_xmlhttprequest(t->ctx) != 0 ||
         qjs_init_mutationobserver(t->ctx) != 0 ||
         qjs_init_intersectionobserver(t->ctx) != 0 ||
         qjs_init_imagedata(t->ctx) != 0 ||
@@ -519,6 +520,18 @@ void js_destroythread(jsthread *thread)
         dom_event_unref(e->evt);
         free(e);
         e = next;
+    }
+
+    /* Break XMLHttpRequest cycles and orphan them */
+    struct WispXHR *xhr_list = thread->xmlhttprequests;
+    thread->xmlhttprequests = NULL;
+    while (xhr_list) {
+        struct WispXHR *xhr = xhr_list;
+        xhr_list = xhr->next;
+        JSValue self = xhr->self;
+        xhr->self = JS_UNDEFINED;
+        xhr->next = NULL;
+        JS_FreeValue(thread->ctx, self);
     }
 
     /* Break MutationObserver cycles and orphan them */
