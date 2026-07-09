@@ -25,7 +25,11 @@ set(TEST_COMMON_INCLUDES
 
 # Function to add a NeoSurf test executable
 function(add_wisp_test name)
-  add_executable(${name} ${ARGN})
+  set(TEST_SRCS ${ARGN})
+  if (";${TEST_SRCS};" MATCHES "idna\\.c" OR ";${TEST_SRCS};" MATCHES "utf8\\.c")
+    list(APPEND TEST_SRCS "${CMAKE_SOURCE_DIR}/src/utils/utf8proc_wrapper.c")
+  endif()
+  add_executable(${name} ${TEST_SRCS})
   target_include_directories(${name} PRIVATE ${TEST_COMMON_INCLUDES})
   target_compile_definitions(${name} PRIVATE
     nsgtk
@@ -436,4 +440,10 @@ add_wisp_test(journal_test
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(journal_test PRIVATE wisp)
+
+add_wisp_test(test_utf8proc_simd
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8proc_simd.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_utf8proc_simd PRIVATE wisp)
 endif()
