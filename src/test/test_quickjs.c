@@ -1098,6 +1098,33 @@ START_TEST(test_quickjs_observers)
     result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_intersection_observer");
     ck_assert(result == true);
 
+    /* Test IntersectionObserver full spec options, getters, threshold validation, and sorting */
+    const char *code3 =
+        "var options = {\n"
+        "  root: document.body,\n"
+        "  rootMargin: '10px 20px 30px 40px',\n"
+        "  threshold: [0.5, 0.0, 1.0, 0.25]\n"
+        "};\n"
+        "var observer = new IntersectionObserver(function(entries) {}, options);\n"
+        "var rootOk = observer.root === document.body;\n"
+        "var marginOk = observer.rootMargin === '10px 20px 30px 40px';\n"
+        "var th = observer.thresholds;\n"
+        "var thresholdOk = th.length === 4 && th[0] === 0 && th[1] === 0.25 && th[2] === 0.5 && th[3] === 1.0;\n"
+        "rootOk && marginOk && thresholdOk;";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_intersection_observer_options");
+    ck_assert(result == true);
+
+    /* Test threshold validation throwing RangeError */
+    const char *code4 =
+        "try {\n"
+        "  new IntersectionObserver(() => {}, { threshold: [0.5, 1.5] });\n"
+        "  false;\n"
+        "} catch (e) {\n"
+        "  e instanceof RangeError;\n"
+        "}";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_intersection_observer_range_error");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);

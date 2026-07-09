@@ -45,6 +45,9 @@ static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
                 IntersectionObserverTarget *next = ot->next;
                 dom_node_unref(ot->node); free(ot); ot = next;
             }
+            if (observer->root) dom_node_unref(observer->root);
+            free(observer->root_margin);
+            free(observer->thresholds);
             free(observer);
         }
         free(priv);
@@ -58,6 +61,8 @@ JSValue wisp_intersectionobserver_observe_impl(JSContext *ctx, QJSNodePrivate *p
     WispIntersectionObserver *observer = priv->node;
     IntersectionObserverTarget *ot = calloc(1, sizeof(IntersectionObserverTarget));
     ot->node = target; dom_node_ref(target);
+    ot->lastRatio = -1.0;
+    ot->wasIntersecting = false;
     ot->next = observer->targets; observer->targets = ot;
     return JS_UNDEFINED;
 }
@@ -96,17 +101,155 @@ JSValue wisp_intersectionobserver_takeRecords_impl(JSContext *ctx, QJSNodePrivat
     return queue;
 }
 
-static JSValue js_intersectionobserver_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
+JSValue wisp_intersectionobserver_root_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (argc < 1 || !JS_IsFunction(ctx, argv[0])) return JS_ThrowTypeError(ctx, "Callback required");
+    WispIntersectionObserver *observer = priv->node;
+    if (observer->root) {
+        return qjs_wrap_node(ctx, observer->root);
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_intersectionobserver_rootMargin_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    WispIntersectionObserver *observer = priv->node;
+    if (observer->root_margin) {
+        return JS_NewString(ctx, observer->root_margin);
+    }
+    return JS_NewString(ctx, "0px");
+}
+
+JSValue wisp_intersectionobserver_thresholds_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    WispIntersectionObserver *observer = priv->node;
+    JSValue arr = JS_NewArray(ctx);
+    if (JS_IsException(arr)) return arr;
+    for (int i = 0; i < observer->num_thresholds; i++) {
+        JS_SetPropertyUint32(ctx, arr, i, JS_NewFloat64(ctx, observer->thresholds[i]));
+    }
+    return arr;
+}
+
+JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callback, JSValue options)
+{
+    if (!JS_IsFunction(ctx, callback)) return JS_ThrowTypeError(ctx, "Callback required");
+
+    struct dom_node *root_node = NULL;
+    char *root_margin_str = NULL;
+    double *thresholds = NULL;
+    int num_thresholds = 0;
+
+    if (JS_IsObject(options)) {
+        JSValue js_root = JS_GetPropertyStr(ctx, options, "root");
+        if (!JS_IsUndefined(js_root) && !JS_IsNull(js_root)) {
+            QJSNodePrivate *root_priv = qjs_get_dom_priv(ctx, js_root);
+            if (root_priv) {
+                root_node = root_priv->node;
+            }
+        }
+        JS_FreeValue(ctx, js_root);
+
+        JSValue js_margin = JS_GetPropertyStr(ctx, options, "rootMargin");
+        if (JS_IsString(js_margin)) {
+            const char *margin_cstr = JS_ToCString(ctx, js_margin);
+            if (margin_cstr) {
+                root_margin_str = strdup(margin_cstr);
+                JS_FreeCString(ctx, margin_cstr);
+            }
+        }
+        JS_FreeValue(ctx, js_margin);
+
+        JSValue js_threshold = JS_GetPropertyStr(ctx, options, "threshold");
+        if (JS_IsArray(js_threshold)) {
+            JSValue js_len = JS_GetPropertyStr(ctx, js_threshold, "length");
+            uint32_t len = 0;
+            JS_ToUint32(ctx, &len, js_len);
+            JS_FreeValue(ctx, js_len);
+            if (len > 0) {
+                thresholds = calloc(len, sizeof(double));
+                num_thresholds = len;
+                for (uint32_t i = 0; i < len; i++) {
+                    JSValue val = JS_GetPropertyUint32(ctx, js_threshold, i);
+                    double d = 0.0;
+                    JS_ToFloat64(ctx, &d, val);
+                    JS_FreeValue(ctx, val);
+                    if (d < 0.0 || d > 1.0) {
+                        free(thresholds);
+                        free(root_margin_str);
+                        JS_FreeValue(ctx, js_threshold);
+                        return JS_ThrowRangeError(ctx, "Threshold bounds must be between 0 and 1");
+                    }
+                    thresholds[i] = d;
+                }
+                // Sort thresholds in ascending order according to spec
+                for (int i = 0; i < num_thresholds - 1; i++) {
+                    for (int j = i + 1; j < num_thresholds; j++) {
+                        if (thresholds[i] > thresholds[j]) {
+                            double temp = thresholds[i];
+                            thresholds[i] = thresholds[j];
+                            thresholds[j] = temp;
+                        }
+                    }
+                }
+            }
+        } else if (!JS_IsUndefined(js_threshold) && !JS_IsNull(js_threshold)) {
+            double d = 0.0;
+            JS_ToFloat64(ctx, &d, js_threshold);
+            if (d < 0.0 || d > 1.0) {
+                free(root_margin_str);
+                JS_FreeValue(ctx, js_threshold);
+                return JS_ThrowRangeError(ctx, "Threshold bounds must be between 0 and 1");
+            }
+            thresholds = malloc(sizeof(double));
+            thresholds[0] = d;
+            num_thresholds = 1;
+        }
+        JS_FreeValue(ctx, js_threshold);
+    }
+
+    if (!root_margin_str) root_margin_str = strdup("0px");
+    if (!thresholds) {
+        thresholds = calloc(1, sizeof(double));
+        thresholds[0] = 0.0;
+        num_thresholds = 1;
+    }
+
     WispIntersectionObserver *observer = calloc(1, sizeof(WispIntersectionObserver));
-    if (!observer) return JS_ThrowOutOfMemory(ctx);
-    observer->callback = JS_DupValue(ctx, argv[0]);
-    observer->ctx = ctx; observer->queue = JS_NewArray(ctx);
+    if (!observer) {
+        free(root_margin_str);
+        free(thresholds);
+        return JS_ThrowOutOfMemory(ctx);
+    }
+    observer->callback = JS_DupValue(ctx, callback);
+    observer->ctx = ctx;
+    observer->queue = JS_NewArray(ctx);
+    observer->root = root_node;
+    if (root_node) dom_node_ref(root_node);
+    observer->root_margin = root_margin_str;
+    observer->thresholds = thresholds;
+    observer->num_thresholds = num_thresholds;
+
     JSValue obj = JS_NewObjectClass(ctx, qjs_intersectionobserver_class_id);
-    if (JS_IsException(obj)) { JS_FreeValue(ctx, observer->callback); JS_FreeValue(ctx, observer->queue); free(observer); return obj; }
+    if (JS_IsException(obj)) {
+        if (root_node) dom_node_unref(root_node);
+        free(root_margin_str);
+        free(thresholds);
+        JS_FreeValue(ctx, observer->callback);
+        JS_FreeValue(ctx, observer->queue);
+        free(observer);
+        return obj;
+    }
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
-    if (!priv) { JS_FreeValue(ctx, observer->callback); JS_FreeValue(ctx, observer->queue); free(observer); JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    if (!priv) {
+        if (root_node) dom_node_unref(root_node);
+        free(root_margin_str);
+        free(thresholds);
+        JS_FreeValue(ctx, observer->callback);
+        JS_FreeValue(ctx, observer->queue);
+        free(observer);
+        JS_FreeValue(ctx, obj);
+        return JS_ThrowOutOfMemory(ctx);
+    }
     priv->magic = QJS_DOM_MAGIC; priv->node = observer; priv->is_dom_node = false; priv->ctx = ctx;
     JS_SetOpaque(obj, priv);
     observer->self = JS_DupValue(ctx, obj);
@@ -135,18 +278,6 @@ int qjs_init_intersectionobserver(JSContext *ctx)
 
     /* Initialize the class and prototype using the generated function */
     qjs_init_intersectionobserver_gen(ctx);
-
-    JSValue proto = JS_GetClassProto(ctx, qjs_intersectionobserver_class_id);
-    if (!JS_IsObject(proto)) {
-        JS_FreeValue(ctx, proto);
-        proto = JS_NewObject(ctx);
-        JS_SetClassProto(ctx, qjs_intersectionobserver_class_id, JS_DupValue(ctx, proto));
-    }
-
-    JSValue ctor = JS_NewCFunction2(ctx, js_intersectionobserver_constructor, "IntersectionObserver", 1, JS_CFUNC_constructor, 0);
-    JS_SetConstructor(ctx, ctor, proto);
-    JS_FreeValue(ctx, proto);
-    JS_DefinePropertyValueStr(ctx, global_obj, "IntersectionObserver", ctor, JS_PROP_C_W_E);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_intersectionobserver_init", JS_TRUE, 0);
