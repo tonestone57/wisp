@@ -38,6 +38,7 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <pthread.h>
 
 #include <libwapcaplet/libwapcaplet.h>
 #include <nsutils/time.h>
@@ -281,6 +282,29 @@ struct cache_handle {
 /** Global cURL multi handle. */
 CURLM *fetch_curl_multi;
 
+/** Global cURL share handle for QUIC/HTTP/3 connection caching & 0-RTT session resumption */
+static CURLSH *fetch_curl_share = NULL;
+static pthread_mutex_t curl_share_mutexes[CURL_LOCK_DATA_LAST];
+
+static void fetch_curl_share_lock(CURL *handle, curl_lock_data data, curl_lock_access access, void *userptr)
+{
+    (void)handle;
+    (void)access;
+    (void)userptr;
+    if (data < CURL_LOCK_DATA_LAST) {
+        pthread_mutex_lock(&curl_share_mutexes[data]);
+    }
+}
+
+static void fetch_curl_share_unlock(CURL *handle, curl_lock_data data, void *userptr)
+{
+    (void)handle;
+    (void)userptr;
+    if (data < CURL_LOCK_DATA_LAST) {
+        pthread_mutex_unlock(&curl_share_mutexes[data]);
+    }
+}
+
 /** Curl handle with default options set; not used for transfers. */
 static CURL *fetch_blank_curl;
 
@@ -332,6 +356,14 @@ static void fetch_curl_finalise(lwc_string *scheme)
         codem = curl_multi_cleanup(fetch_curl_multi);
         if (codem != CURLM_OK)
             NSLOG(wisp, INFO, "curl_multi_cleanup failed: ignoring");
+
+        if (fetch_curl_share) {
+            curl_share_cleanup(fetch_curl_share);
+            fetch_curl_share = NULL;
+            for (int i = 0; i < CURL_LOCK_DATA_LAST; i++) {
+                pthread_mutex_destroy(&curl_share_mutexes[i]);
+            }
+        }
 
         curl_global_cleanup();
 
@@ -1217,6 +1249,14 @@ static CURLcode fetch_curl_set_options(struct curl_fetch_info *f)
     /* Force-enable SSL session ID caching, as some distros are odd. */
     SETOPT(CURLOPT_SSL_SESSIONID_CACHE, 1L);
 
+#ifdef CURLOPT_SSL_EARLYDATA
+    if (nsoption_bool(enable_quic_0rtt)) {
+        SETOPT(CURLOPT_SSL_EARLYDATA, 1L);
+    } else {
+        SETOPT(CURLOPT_SSL_EARLYDATA, 0L);
+    }
+#endif
+
     if (urldb_get_cert_permissions(f->url)) {
         /* Disable certificate verification */
         SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);
@@ -1568,6 +1608,17 @@ static void fetch_curl_done(CURL *curl_handle, CURLcode result)
     abort_fetch = f->abort;
     PERF("CURL DONE '%s' result=%d", nsurl_access(f->url), result);
     NSLOG(wisp, INFO, "done %s", nsurl_access(f->url));
+
+    {
+        double namelookup_time = 0;
+        double connect_time = 0;
+        double appconnect_time = 0;
+        curl_easy_getinfo(curl_handle, CURLINFO_NAMELOOKUP_TIME, &namelookup_time);
+        curl_easy_getinfo(curl_handle, CURLINFO_CONNECT_TIME, &connect_time);
+        curl_easy_getinfo(curl_handle, CURLINFO_APPCONNECT_TIME, &appconnect_time);
+        NSLOG(wisp, INFO, "Fetch transport timing: Namelookup: %.4f s, Connect: %.4f s, AppConnect (TLS/QUIC): %.4f s",
+              namelookup_time, connect_time, appconnect_time);
+    }
 
     if (f->profiled_response_started) {
         NSLOG(wisp, DEBUG, "PROFILER: STOP Fetch download %p", f);
@@ -1992,11 +2043,23 @@ nserror fetch_curl_register(void)
         return NSERROR_INIT_FAILED;
     }
 
+    fetch_curl_share = curl_share_init();
+    if (fetch_curl_share) {
+        for (int i = 0; i < CURL_LOCK_DATA_LAST; i++) {
+            pthread_mutex_init(&curl_share_mutexes[i], NULL);
+        }
+        curl_share_setopt(fetch_curl_share, CURLSHOPT_LOCKFUNC, fetch_curl_share_lock);
+        curl_share_setopt(fetch_curl_share, CURLSHOPT_UNLOCKFUNC, fetch_curl_share_unlock);
+        curl_share_setopt(fetch_curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+        curl_share_setopt(fetch_curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_DNS);
+        curl_share_setopt(fetch_curl_share, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+    }
+
 #if LIBCURL_VERSION_NUM >= 0x071e00
     /* built against 7.30.0 or later: configure caching */
     {
         CURLMcode mcode;
-        int maxconnects = nsoption_int(max_fetchers) + nsoption_int(max_cached_fetch_handles);
+        int maxconnects = nsoption_int(max_fetchers) + nsoption_int(max_cached_fetch_handles) + nsoption_int(quic_connection_cache_size);
 
 #undef SETOPT
 #define SETOPT(option, value)                                                                                          \
@@ -2062,6 +2125,9 @@ nserror fetch_curl_register(void)
 #endif
 
     SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
+    if (fetch_curl_share) {
+        SETOPT(CURLOPT_SHARE, fetch_curl_share);
+    }
     SETOPT(CURLOPT_HEADERFUNCTION, fetch_curl_header);
     SETOPT(NSCURLOPT_PROGRESS_FUNCTION, fetch_curl_progress);
     SETOPT(CURLOPT_NOPROGRESS, 0L);

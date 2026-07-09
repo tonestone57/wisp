@@ -45,6 +45,8 @@ START_TEST(test_http3_options_defaults)
     ck_assert_int_eq(nsoption_bool(enable_http3), true);
     ck_assert_int_eq(nsoption_bool(force_http3), false);
     ck_assert_ptr_eq(nsoption_charp(altsvc_cache_path), NULL);
+    ck_assert_int_eq(nsoption_bool(enable_quic_0rtt), true);
+    ck_assert_int_eq(nsoption_int(quic_connection_cache_size), 16);
 
     nsoption_finalise(NULL, NULL);
 }
@@ -59,10 +61,14 @@ START_TEST(test_http3_options_modify)
     nsoption_set_bool(enable_http3, false);
     nsoption_set_bool(force_http3, true);
     nsoption_set_charp(altsvc_cache_path, strdup("/tmp/test_altsvc.txt"));
+    nsoption_set_bool(enable_quic_0rtt, false);
+    nsoption_set_int(quic_connection_cache_size, 32);
 
     ck_assert_int_eq(nsoption_bool(enable_http3), false);
     ck_assert_int_eq(nsoption_bool(force_http3), true);
     ck_assert_str_eq(nsoption_charp(altsvc_cache_path), "/tmp/test_altsvc.txt");
+    ck_assert_int_eq(nsoption_bool(enable_quic_0rtt), false);
+    ck_assert_int_eq(nsoption_int(quic_connection_cache_size), 32);
 
     nsoption_finalise(NULL, NULL);
 }
