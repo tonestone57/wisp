@@ -107,12 +107,43 @@ int main(void)
     assert(empty_clone->count == 0);
     printf("Test 9 (clone NULL): PASS\n");
 
-    /* Test 10: Destroy (should not crash/leak) */
+    /* Test 10: Caching & Hashing Tests */
+    uint32_t hash_orig = ctx->hash;
+    assert(hash_orig != 0);
+
+    /* Test that identical cloned context has same hash */
+    css_var_context *clone2 = NULL;
+    assert(css__variables_ctx_clone(ctx, &clone2) == CSS_OK);
+    assert(clone2->hash == hash_orig);
+
+    /* Test caching a resolved value */
+    uint32_t val_hash = css__tokens_vector_hash(val1);
+    assert(val_hash != 0);
+    assert(css__variables_ctx_get_resolved(ctx, val_hash) == NULL);
+
+    assert(css__variables_ctx_set_resolved(ctx, val_hash, val2) == CSS_OK);
+    parserutils_vector *cached_resolved = css__variables_ctx_get_resolved(ctx, val_hash);
+    assert(cached_resolved != NULL);
+
+    /* Test cache clone */
+    css_var_context *clone3 = NULL;
+    assert(css__variables_ctx_clone(ctx, &clone3) == CSS_OK);
+    assert(css__variables_ctx_get_resolved(clone3, val_hash) != NULL);
+
+    /* Test cache clearing on set */
+    assert(css__variables_ctx_set(ctx, name1, val2) == CSS_OK);
+    assert(css__variables_ctx_get_resolved(ctx, val_hash) == NULL);
+
+    css__variables_ctx_destroy(clone2);
+    css__variables_ctx_destroy(clone3);
+    printf("Test 10 (caching+hashing): PASS\n");
+
+    /* Test 11: Destroy (should not crash/leak) */
     css__variables_ctx_destroy(ctx);
     css__variables_ctx_destroy(clone);
     css__variables_ctx_destroy(empty_clone);
     css__variables_ctx_destroy(NULL);  /* safe no-op */
-    printf("Test 10 (destroy): PASS\n");
+    printf("Test 11 (destroy): PASS\n");
 
     /* Clean up vectors */
     css__tokens_destroy(val1);
