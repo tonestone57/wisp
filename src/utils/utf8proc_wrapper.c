@@ -485,6 +485,8 @@ utf8proc_ssize_t wisp_utf8proc_normalize_utf32(
     utf8proc_int32_t *buffer, utf8proc_ssize_t length, utf8proc_option_t options)
 {
     if (length < 0) return UTF8PROC_ERROR_INVALIDOPTS;
+    if (length == 0) return 0;
+    if (buffer == NULL) return UTF8PROC_ERROR_INVALIDOPTS;
 
     bool is_ascii = true;
     for (utf8proc_ssize_t i = 0; i < length; i++) {
@@ -508,6 +510,8 @@ utf8proc_ssize_t wisp_utf8proc_reencode(
     utf8proc_int32_t *buffer, utf8proc_ssize_t length, utf8proc_option_t options)
 {
     if (length < 0) return UTF8PROC_ERROR_INVALIDOPTS;
+    if (length == 0) return 0;
+    if (buffer == NULL) return UTF8PROC_ERROR_INVALIDOPTS;
 
     bool is_ascii = true;
     for (utf8proc_ssize_t i = 0; i < length; i++) {
