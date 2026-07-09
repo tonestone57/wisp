@@ -162,6 +162,7 @@ struct beos_tile_task_t {
     void *buffer;
     int tile_size;
     int scrollx, scrolly;
+    float priority;
 };
 
 static void nsbeos_tile_raster_complete(void *arg);
@@ -344,7 +345,12 @@ static void nsbeos_tile_raster_complete(void *arg)
     /* Update active task count for content lifecycle management */
     content_dec_bg_tasks(task->h);
     hlcache_handle_release(task->h);
-    tile_pool_return(task->buffer);
+
+    /* Save rendered buffer to cache instead of immediately returning it to pool */
+    int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+    int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+    tile_pool_put_cached(task->g, tx, ty, task->tile_size, task->buffer, task->priority);
+
     free(task);
 }
 
@@ -985,6 +991,9 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
     int v_w = (int)view_bounds.Width() + 1;
     int v_h = (int)view_bounds.Height() + 1;
 
+    /* Compress non-visible tiles or evict distant tiles before rendering */
+    tile_pool_manage_cache(g, v_x, v_y, v_w, v_h);
+
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {
         int t_y0 = (ty > rect_top) ? ty : rect_top;
         int t_y1 = (ty + tile_size < rect_bottom) ? ty + tile_size : rect_bottom;
@@ -1001,6 +1010,56 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
 
             /* Calculate priority based on distance to viewport frustum */
             float priority = browser_calculate_tile_priority(tx, ty, v_x, v_y, v_w, v_h);
+
+            /* Check if the tile is already in the cache (either raw or compressed) */
+            bool from_cache = false;
+            void *cached_buf = tile_pool_get_cached(g, tx, ty, tile_size, &from_cache);
+            if (from_cache && cached_buf != NULL) {
+                bool blitted = false;
+                if (nsbeos_gui_window_exists(g)) {
+                    NSBrowserWindow *window = dynamic_cast<NSBrowserWindow *>(view->Window());
+                    if (window) {
+                        blitted = nsbeos_tile_direct_blit(window, view, cached_buf, tile_size, &tile_clip);
+                    }
+                }
+
+                if (!blitted && nsbeos_gui_window_exists(g) && view->LockLooper()) {
+                    if (nsbeos_blit_bitmap != NULL && (nsbeos_blit_bitmap->Bounds().Width() + 1 != tile_size)) {
+                        delete nsbeos_blit_bitmap;
+                        nsbeos_blit_bitmap = NULL;
+                    }
+                    if (nsbeos_blit_bitmap == NULL) {
+                        BRect frame(0, 0, tile_size - 1, tile_size - 1);
+                        nsbeos_blit_bitmap = new BBitmap(frame, 0, B_RGBA32);
+                    }
+
+                    BBitmap *b = nsbeos_blit_bitmap;
+                    if (b && b->InitCheck() == B_OK) {
+                        view->Sync();
+                        if (b->ImportBits(cached_buf, tile_size * tile_size * 4, tile_size * 4, 0, B_RGBA32) == B_OK) {
+                            BRect srcRect(tile_clip.x0 - tx, tile_clip.y0 - ty,
+                                          tile_clip.x1 - tx - 1, tile_clip.y1 - ty - 1);
+                            BRect dstRect(tile_clip.x0, tile_clip.y0,
+                                          tile_clip.x1 - 1, tile_clip.y1 - 1);
+                            view->DrawBitmap(b, srcRect, dstRect);
+
+                            if (g->careth != 0) {
+                                BRect caretRect(g->caretx, g->carety, g->caretx, g->carety + g->careth);
+                                if (caretRect.Intersects(dstRect)) {
+                                    nsbeos_current_gc_set(view);
+                                    nsbeos_plot_caret(g->caretx, g->carety, g->careth);
+                                    nsbeos_current_gc_set(NULL);
+                                }
+                            }
+                        }
+                    }
+                    view->UnlockLooper();
+                }
+
+                /* Keep it in cache and update priority */
+                tile_pool_put_cached(g, tx, ty, tile_size, cached_buf, priority);
+                continue;
+            }
 
             /* Checkout buffer and dispatch raster task */
             void *buf = tile_pool_checkout();
@@ -1021,6 +1080,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
                         task->tile_size = tile_size;
                         task->scrollx = sx;
                         task->scrolly = sy;
+                        task->priority = priority;
 
                         /* Clone handle to ensure it remains valid during background task */
                         if (hlcache_handle_clone(h, &task->h) == NSERROR_OK) {

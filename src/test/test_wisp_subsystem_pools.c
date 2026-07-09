@@ -24,6 +24,7 @@
 #include "wisp/utils/log.h"
 #include "wisp/browser.h"
 #include "wisp/content.h"
+#include "desktop/tile_pool.h"
 
 // Mock for nslog_log used by NSLOG macro
 void nslog_log(enum nslog_level level, const char *file, const char *func, int ln, const char *format, ...) {}
@@ -195,6 +196,68 @@ START_TEST(test_subsystem_priority)
 }
 END_TEST
 
+START_TEST(test_tile_pool_compressed_cache)
+{
+    // Initialize pool
+    bool init_ok = tile_pool_init(4);
+    ck_assert_int_eq(init_ok, true);
+
+    void *buf = tile_pool_checkout();
+    ck_assert_ptr_nonnull(buf);
+
+    // Write patterns to verify decompression integrity later
+    uint8_t *pixel_data = (uint8_t *)buf;
+    for (int i = 0; i < 512 * 512 * 4; i++) {
+        pixel_data[i] = (uint8_t)(i % 256);
+    }
+
+    void *owner = (void*)0x1234;
+
+    // Cache the tile
+    tile_pool_put_cached(owner, 100, 100, 512, buf, 1.0f);
+
+    // Retrieve and verify (should be same buffer, RAW)
+    bool from_cache = false;
+    void *ret = tile_pool_get_cached(owner, 100, 100, 512, &from_cache);
+    ck_assert_int_eq(from_cache, true);
+    ck_assert_ptr_eq(ret, buf);
+
+    // Verify pattern contents
+    for (int i = 0; i < 1000; i++) {
+        ck_assert_int_eq(((uint8_t *)ret)[i], (uint8_t)(i % 256));
+    }
+
+    // Scroll significantly out of frustum (distance = 28px, priority = 0.034, which is in [0.01, 0.2])
+    // Viewport: (200, 100) of size 100x100
+    tile_pool_manage_cache(owner, 200, 100, 100, 100);
+
+    // Retrieve again: should decompress and return a valid buffer
+    from_cache = false;
+    void *decompressed_ret = tile_pool_get_cached(owner, 100, 100, 512, &from_cache);
+    ck_assert_int_eq(from_cache, true);
+    ck_assert_ptr_nonnull(decompressed_ret);
+
+    // Verify integrity of decompressed data
+    for (int i = 0; i < 512 * 512 * 4; i++) {
+        ck_assert_int_eq(((uint8_t *)decompressed_ret)[i], (uint8_t)(i % 256));
+    }
+
+    // Put it back in the cache
+    tile_pool_put_cached(owner, 100, 100, 512, decompressed_ret, 1.0f);
+
+    // Scroll extremely far out of frustum (distance > 2000px, priority < 0.01)
+    tile_pool_manage_cache(owner, 2000, 2000, 100, 100);
+
+    // Retrieve should now fail (evicted)
+    from_cache = false;
+    void *evicted_ret = tile_pool_get_cached(owner, 100, 100, 512, &from_cache);
+    ck_assert_int_eq(from_cache, false);
+    ck_assert_ptr_null(evicted_ret);
+
+    tile_pool_fini();
+}
+END_TEST
+
 Suite *subsystem_suite(void)
 {
     Suite *s = suite_create("WispSubsystem");
@@ -204,6 +267,7 @@ Suite *subsystem_suite(void)
     tcase_add_test(tc_core, test_subsystem_dispatch);
     tcase_add_test(tc_core, test_subsystem_priority);
     tcase_add_test(tc_core, test_browser_tile_priority);
+    tcase_add_test(tc_core, test_tile_pool_compressed_cache);
 
     suite_add_tcase(s, tc_core);
     return s;
