@@ -305,3 +305,12 @@ NSOPTION_UINT(colour_selection, 0)
 
 /** rendering backend selection (0=Auto, 1=Native, 2=Blend2D) */
 NSOPTION_INTEGER(render_backend, OPTION_RENDER_BACKEND_AUTO)
+
+/** Enable HTTP/3 support (if available) */
+NSOPTION_BOOL(enable_http3, true)
+
+/** Force HTTP/3 support strictly */
+NSOPTION_BOOL(force_http3, false)
+
+/** Alt-Svc cache filename */
+NSOPTION_STRING(altsvc_cache_path, NULL)
