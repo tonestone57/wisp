@@ -48,6 +48,20 @@ void test_csp() {
     csp_destroy(csp);
     nsurl_unref(url_port);
 
+    // Test 6: require-trusted-types-for and trusted-types directives
+    assert(csp_parse("require-trusted-types-for 'script'; trusted-types default policy1", base_url, &csp) == NSERROR_OK);
+    assert(csp_require_trusted_types_for_script(csp) == true);
+    assert(csp_trusted_types_policy_allowed(csp, "default") == true);
+    assert(csp_trusted_types_policy_allowed(csp, "policy1") == true);
+    assert(csp_trusted_types_policy_allowed(csp, "policy2") == false);
+    csp_destroy(csp);
+
+    // Test 7: trusted-types wildcard *
+    assert(csp_parse("require-trusted-types-for 'script'; trusted-types *", base_url, &csp) == NSERROR_OK);
+    assert(csp_require_trusted_types_for_script(csp) == true);
+    assert(csp_trusted_types_policy_allowed(csp, "anything") == true);
+    csp_destroy(csp);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);

@@ -17,6 +17,10 @@ typedef struct csp_source {
 struct csp {
     csp_source *directives[CSP_DIRECTIVE_COUNT];
     nsurl *base_url;
+    bool require_trusted_types_for_script;
+    bool has_trusted_types_directive;
+    char **allowed_policies;
+    int allowed_policies_count;
 };
 
 static const char *directive_names[] = {
@@ -44,6 +48,12 @@ void csp_destroy(struct csp *csp) {
     if (!csp) return;
     for (int i = 0; i < CSP_DIRECTIVE_COUNT; i++) {
         free_sources(csp->directives[i]);
+    }
+    if (csp->allowed_policies) {
+        for (int i = 0; i < csp->allowed_policies_count; i++) {
+            free(csp->allowed_policies[i]);
+        }
+        free(csp->allowed_policies);
     }
     if (csp->base_url) nsurl_unref(csp->base_url);
     free(csp);
@@ -143,6 +153,30 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
                     }
                     token = strtok_r(NULL, " ", &saveptr2);
                 }
+            } else {
+                if (strcasecmp(token, "require-trusted-types-for") == 0) {
+                    token = strtok_r(NULL, " ", &saveptr2);
+                    while (token) {
+                        if (strcasecmp(token, "'script'") == 0) {
+                            csp->require_trusted_types_for_script = true;
+                        }
+                        token = strtok_r(NULL, " ", &saveptr2);
+                    }
+                } else if (strcasecmp(token, "trusted-types") == 0) {
+                    csp->has_trusted_types_directive = true;
+                    token = strtok_r(NULL, " ", &saveptr2);
+                    while (token) {
+                        char **new_policies = realloc(csp->allowed_policies, (csp->allowed_policies_count + 1) * sizeof(char *));
+                        if (new_policies) {
+                            csp->allowed_policies = new_policies;
+                            csp->allowed_policies[csp->allowed_policies_count] = strdup(token);
+                            if (csp->allowed_policies[csp->allowed_policies_count]) {
+                                csp->allowed_policies_count++;
+                            }
+                        }
+                        token = strtok_r(NULL, " ", &saveptr2);
+                    }
+                }
             }
         }
         directive_str = strtok_r(NULL, ";", &saveptr1);
@@ -226,5 +260,22 @@ bool csp_check_inline(struct csp *csp, csp_directive directive) {
         src = src->next;
     }
 
+    return false;
+}
+
+bool csp_require_trusted_types_for_script(const struct csp *csp) {
+    if (!csp) return false;
+    return csp->require_trusted_types_for_script;
+}
+
+bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_name) {
+    if (!csp) return true;
+    if (!csp->has_trusted_types_directive) return true;
+    for (int i = 0; i < csp->allowed_policies_count; i++) {
+        if (strcmp(csp->allowed_policies[i], "*") == 0 ||
+            strcmp(csp->allowed_policies[i], policy_name) == 0) {
+            return true;
+        }
+    }
     return false;
 }

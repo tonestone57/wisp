@@ -113,6 +113,164 @@ START_TEST(test_quickjs_event_target_full)
 }
 END_TEST
 
+START_TEST(test_quickjs_trusted_types)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test 1: trustedTypes exists and contains classes/methods */
+    const char *code1 =
+        "typeof trustedTypes === 'object' && "
+        "typeof TrustedHTML === 'function' && "
+        "typeof TrustedScript === 'function' && "
+        "typeof TrustedScriptURL === 'function';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_tt_exists");
+    ck_assert(result == true);
+
+    /* Test 2: Create a policy and generate Trusted Types */
+    const char *code2 =
+        "var policy = trustedTypes.createPolicy('my-policy', {\n"
+        "  createHTML: (s) => s + ' [safe]',\n"
+        "  createScript: (s) => s + ' // safe'\n"
+        "});\n"
+        "var html = policy.createHTML('<div>hello</div>');\n"
+        "var script = policy.createScript('console.log(1)');\n"
+        "trustedTypes.isHTML(html) === true && "
+        "html.toString() === '<div>hello</div> [safe]' && "
+        "trustedTypes.isScript(script) === true && "
+        "script.toString() === 'console.log(1) // safe';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_tt_create_policy");
+    ck_assert(result == true);
+
+    /* Test 3: Sinks accept raw strings when TT is not required/enforced */
+    const char *code3 =
+        "var threwTypeError = false;\n"
+        "try {\n"
+        "  var div = document.createElement('div');\n"
+        "  div.innerHTML = '<span>not enforced yet</span>';\n"
+        "} catch (e) {\n"
+        "  if (e instanceof TypeError && e.message.includes('requires TrustedHTML')) threwTypeError = true;\n"
+        "}\n"
+        "threwTypeError === false;";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_tt_not_required");
+    ck_assert(result == true);
+
+    /* Test 4: Default policy configuration and fallback works */
+    const char *code4 =
+        "try {\n"
+        "  var defPolicy = trustedTypes.createPolicy('default', {\n"
+        "    createHTML: (s) => s + ' [default]'\n"
+        "  });\n"
+        "  if (trustedTypes.defaultPolicy !== defPolicy) {\n"
+        "    throw new Error('defaultPolicy mismatch: ' + trustedTypes.defaultPolicy + ' vs ' + defPolicy);\n"
+        "  }\n"
+        "  true;\n"
+        "} catch (e) {\n"
+        "  throw new Error('Error in default_policy test: ' + e.message + '\\n' + e.stack);\n"
+        "}";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_tt_default_policy");
+    ck_assert(result == true);
+
+    /* Test 5: Sinks throw TypeError when Trusted Types are required and a raw string is assigned (with defaultPolicy fallback disabled) */
+    const char *code5 =
+        "__trustedTypesSetRequiredForTesting(true);\n"
+        "// Temporarily clear defaultPolicy to test raw string rejection\n"
+        "var savedDefault = trustedTypes.defaultPolicy;\n"
+        "trustedTypes.defaultPolicy = null;\n"
+        "var threw = false;\n"
+        "try {\n"
+        "  var div = document.createElement('div');\n"
+        "  div.innerHTML = 'unsafe string';\n"
+        "} catch (e) {\n"
+        "  if (e instanceof TypeError && e.message.includes('requires TrustedHTML')) threw = true;\n"
+        "}\n"
+        "trustedTypes.defaultPolicy = savedDefault;\n"
+        "__trustedTypesSetRequiredForTesting(false);\n"
+        "threw === true;";
+    result = js_exec(thread, (const uint8_t *)code5, strlen(code5), "test_tt_throws");
+    ck_assert(result == true);
+
+    /* Test 6: Default policy conversion applies when Trusted Types are required and a raw string is assigned */
+    const char *code6 =
+        "__trustedTypesSetRequiredForTesting(true);\n"
+        "var div = document.createElement('div');\n"
+        "var threwTypeError = false;\n"
+        "try {\n"
+        "  div.innerHTML = 'test-string';\n"
+        "} catch (e) {\n"
+        "  if (e instanceof TypeError && e.message.includes('requires TrustedHTML')) threwTypeError = true;\n"
+        "}\n"
+        "__trustedTypesSetRequiredForTesting(false);\n"
+        "threwTypeError === false;";
+    result = js_exec(thread, (const uint8_t *)code6, strlen(code6), "test_tt_default_conversion");
+    ck_assert(result == true);
+
+    /* Test 7: Sinks allow explicitly wrapped Trusted Types even when required */
+    const char *code7 =
+        "__trustedTypesSetRequiredForTesting(true);\n"
+        "var div = document.createElement('div');\n"
+        "var p = trustedTypes.createPolicy('p', { createHTML: s => s });\n"
+        "var threwTypeError = false;\n"
+        "try {\n"
+        "  div.innerHTML = p.createHTML('safe trusted html');\n"
+        "} catch (e) {\n"
+        "  if (e instanceof TypeError && e.message.includes('requires TrustedHTML')) threwTypeError = true;\n"
+        "}\n"
+        "__trustedTypesSetRequiredForTesting(false);\n"
+        "threwTypeError === false;";
+    result = js_exec(thread, (const uint8_t *)code7, strlen(code7), "test_tt_allow_trusted");
+    ck_assert(result == true);
+
+    /* Test 8: Script sinks (like eval) throw TypeError when raw strings are used under required mode */
+    const char *code8 =
+        "__trustedTypesSetRequiredForTesting(true);\n"
+        "var savedDefault = trustedTypes.defaultPolicy;\n"
+        "trustedTypes.defaultPolicy = null;\n"
+        "var threw = false;\n"
+        "try {\n"
+        "  eval('1 + 1');\n"
+        "} catch (e) {\n"
+        "  if (e instanceof TypeError && e.message.includes('requires TrustedScript')) threw = true;\n"
+        "}\n"
+        "trustedTypes.defaultPolicy = savedDefault;\n"
+        "__trustedTypesSetRequiredForTesting(false);\n"
+        "threw === true;";
+    result = js_exec(thread, (const uint8_t *)code8, strlen(code8), "test_tt_eval_throws");
+    ck_assert(result == true);
+
+    /* Test 9: Policy creation checking is enforced based on allowed policies set */
+    const char *code9 =
+        "__trustedTypesSetAllowedPoliciesForTesting(['policy-a', 'policy-b']);\n"
+        "var threw = false;\n"
+        "try {\n"
+        "  trustedTypes.createPolicy('policy-c', {});\n"
+        "} catch (e) {\n"
+        "  if (e instanceof TypeError) threw = true;\n"
+        "}\n"
+        "__trustedTypesSetAllowedPoliciesForTesting(null);\n"
+        "threw === true;";
+    result = js_exec(thread, (const uint8_t *)code9, strlen(code9), "test_tt_policy_allowlist");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_mutation_observer_e2e)
 {
     jsheap *heap = NULL;
@@ -1187,6 +1345,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_observers);
+    tcase_add_test(tc_window, test_quickjs_trusted_types);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */

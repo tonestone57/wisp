@@ -60,4 +60,14 @@ bool csp_check_inline(struct csp *csp, csp_directive directive);
  */
 void csp_destroy(struct csp *csp);
 
+/**
+ * Check if Trusted Types are required for script-based sinks.
+ */
+bool csp_require_trusted_types_for_script(const struct csp *csp);
+
+/**
+ * Check if a specific Trusted Type policy name is allowed.
+ */
+bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_name);
+
 #endif
