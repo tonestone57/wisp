@@ -207,11 +207,14 @@ static hubbub_error create_element(void *parser, const hubbub_tag *tag, void **r
     }
 
     /* Now do some special per-element-type handling */
-    dom_html_element_type tag_type;
-    err = dom_html_element_get_tag_type(element, &tag_type);
-    if (err != DOM_NO_ERR) {
-        dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx, "Can't get tag type out of element");
-        goto clean1;
+    dom_html_element_type tag_type = DOM_HTML_ELEMENT_TYPE__COUNT;
+    extern const struct dom_html_element_vtable _dom_html_element_vtable;
+    if (((dom_node *)element)->vtable == (const void *)&_dom_html_element_vtable) {
+        err = dom_html_element_get_tag_type(element, &tag_type);
+        if (err != DOM_NO_ERR) {
+            dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx, "Can't get tag type out of element");
+            goto clean1;
+        }
     }
 
     switch (tag_type) {
