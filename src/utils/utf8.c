@@ -35,15 +35,11 @@
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/ns_inttypes.h>
 #include "wisp/utf8.h"
-#include "wisp/utils/utf8proc_wrapper.h"
 
 
 /* exported interface documented in utils/utf8.h */
 uint32_t utf8_to_ucs4(const char *s_in, size_t l)
 {
-    if (l > 0 && (unsigned char)s_in[0] < 0x80) {
-        return (unsigned char)s_in[0];
-    }
     uint32_t ucs4;
     size_t len;
     parserutils_error perror;
@@ -58,10 +54,6 @@ uint32_t utf8_to_ucs4(const char *s_in, size_t l)
 /* exported interface documented in utils/utf8.h */
 size_t utf8_from_ucs4(uint32_t c, char *s)
 {
-    if (c < 0x80) {
-        s[0] = (char)c;
-        return 1;
-    }
     uint8_t *in = (uint8_t *)s;
     size_t len = 6;
     parserutils_error perror;
@@ -86,9 +78,6 @@ size_t utf8_length(const char *s)
 /* exported interface documented in utils/utf8.h */
 size_t utf8_bounded_length(const char *s, size_t l)
 {
-    if (wisp_is_ascii(s, l)) {
-        return l;
-    }
     size_t len;
     parserutils_error perror;
 
@@ -102,9 +91,6 @@ size_t utf8_bounded_length(const char *s, size_t l)
 /* exported interface documented in utils/utf8.h */
 size_t utf8_bounded_byte_length(const char *s, size_t l, size_t c)
 {
-    if (wisp_is_ascii(s, l)) {
-        return (c < l) ? c : l;
-    }
     size_t len = 0;
 
     while (len < l && c-- > 0)
@@ -116,9 +102,6 @@ size_t utf8_bounded_byte_length(const char *s, size_t l, size_t c)
 /* exported interface documented in utils/utf8.h */
 size_t utf8_char_byte_length(const char *s)
 {
-    if ((unsigned char)s[0] < 0x80) {
-        return 1;
-    }
     size_t len;
     parserutils_error perror;
 
