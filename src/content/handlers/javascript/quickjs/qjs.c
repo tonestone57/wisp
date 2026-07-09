@@ -21,7 +21,6 @@
 #include "content/handlers/javascript/js.h"
 #include "qjs_internal.h"
 #include "JSEvent.gen.h"
-#include "JSEvent.gen.h"
 #include "wisp_subsystem.h"
 #include "crypto.h"
 #include "dom_bridge.h"

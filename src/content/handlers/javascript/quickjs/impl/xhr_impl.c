@@ -33,7 +33,7 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
     if (priv) {
         WispXHR *xhr = priv->node;
         if (xhr) {
-            struct jsthread *t = JS_GetRuntimeOpaque(rt);
+            struct jsthread *t = JS_GetContextOpaque(xhr->ctx);
             if (t) {
                 WispXHR **curr = &t->xmlhttprequests;
                 while (*curr) {
@@ -200,30 +200,19 @@ static JSValue js_xhr_constructor(JSContext *ctx, JSValueConst new_target, int a
     xhr->async = true;
     xhr->self = JS_UNDEFINED;
 
+    /* Use the generated wrapper which handles opaquing */
     JSValue obj = qjs_new_xmlhttprequest(ctx, xhr, false);
     if (JS_IsException(obj)) {
         free(xhr);
         return obj;
     }
     xhr->self = JS_DupValue(ctx, obj);
+
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (t) {
         xhr->next = t->xmlhttprequests;
         t->xmlhttprequests = xhr;
     }
-
-    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
-    if (!priv) {
-        JS_FreeValue(ctx, xhr->self);
-        free(xhr);
-        JS_FreeValue(ctx, obj);
-        return JS_ThrowOutOfMemory(ctx);
-    }
-    priv->magic = QJS_DOM_MAGIC;
-    priv->node = xhr;
-    priv->is_dom_node = false;
-    priv->ctx = ctx;
-    JS_SetOpaque(obj, priv);
 
     return obj;
 }
