@@ -2039,17 +2039,27 @@ nserror fetch_curl_register(void)
         SETOPT(CURLOPT_VERBOSE, 1L);
     }
 
-    /* Enable HTTP/3 if available, falling back to HTTP/2 with TLS */
-#ifndef CURL_HTTP_VERSION_3
-#define CURL_HTTP_VERSION_3 30L
-#endif
-    code = curl_easy_setopt(fetch_blank_curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
-    if (code != CURLE_OK) {
-        NSLOG(wisp, INFO, "HTTP/3 not supported by libcurl, falling back to HTTP/2");
-        SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2TLS);
-    } else {
-        NSLOG(wisp, INFO, "HTTP/3 enabled in libcurl");
+    /* Enable HTTP/3 if available */
+#ifdef CURL_HTTP_VERSION_3
+    {
+        curl_version_info_data *vinfo = curl_version_info(CURLVERSION_NOW);
+        if (vinfo->features & CURL_VERSION_HTTP3) {
+            code = curl_easy_setopt(fetch_blank_curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_3);
+            if (code == CURLE_OK) {
+                NSLOG(wisp, INFO, "HTTP/3 enabled in libcurl");
+            } else {
+                NSLOG(wisp, INFO, "HTTP/3 not supported by libcurl, falling back to default");
+                SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
+            }
+        } else {
+            NSLOG(wisp, INFO, "HTTP/3 not supported by libcurl, falling back to default");
+            SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
+        }
     }
+#else
+    NSLOG(wisp, INFO, "HTTP/3 not supported by libcurl, falling back to default");
+    SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
+#endif
 
     SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
     SETOPT(CURLOPT_HEADERFUNCTION, fetch_curl_header);
