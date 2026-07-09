@@ -463,31 +463,73 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
     WispIntersectionObserver *obs = thread->intersection_observers;
     while (obs) {
         bool changed = false; IntersectionObserverTarget *ot = obs->targets;
+
+        int rx0 = 0, ry0 = 0, rx1 = viewport_width, ry1 = viewport_height;
+        if (obs->root) {
+            struct box *root_box = box_find_by_node(layout, obs->root);
+            if (root_box) {
+                box_coords(root_box, &rx0, &ry0);
+                rx1 = rx0 + root_box->width + root_box->padding[LEFT] + root_box->padding[RIGHT];
+                ry1 = ry0 + root_box->height + root_box->padding[TOP] + root_box->padding[BOTTOM];
+            }
+        }
+
         while (ot) {
             struct box *target_box = box_find_by_node(layout, ot->node);
             if (target_box) {
                 int tx, ty; box_coords(target_box, &tx, &ty);
                 int tw = target_box->width + target_box->padding[LEFT] + target_box->padding[RIGHT];
                 int th = target_box->height + target_box->padding[TOP] + target_box->padding[BOTTOM];
-                int ix0 = tx > 0 ? tx : 0, iy0 = ty > 0 ? ty : 0;
-                int ix1 = (tx + tw) < viewport_width ? (tx + tw) : viewport_width;
-                int iy1 = (ty + th) < viewport_height ? (ty + th) : viewport_height;
+
+                int ix0 = tx > rx0 ? tx : rx0;
+                int iy0 = ty > ry0 ? ty : ry0;
+                int ix1 = (tx + tw) < rx1 ? (tx + tw) : rx1;
+                int iy1 = (ty + th) < ry1 ? (ty + th) : ry1;
+
                 bool isIntersecting = (ix1 > ix0) && (iy1 > iy0);
-                if (isIntersecting != ot->wasIntersecting) {
+                double currentRatio = 0.0;
+                if (isIntersecting && tw > 0 && th > 0) {
+                    currentRatio = (double)((ix1 - ix0) * (iy1 - iy0)) / (double)(tw * th);
+                }
+
+                // Threshold cross detection logic
+                bool trigger = false;
+                if (ot->lastRatio == -1.0) {
+                    // First observation
+                    trigger = true;
+                } else {
+                    // Compare lastRatio and currentRatio against all thresholds
+                    for (int i = 0; i < obs->num_thresholds; i++) {
+                        double th_val = obs->thresholds[i];
+                        if ((ot->lastRatio < th_val && currentRatio >= th_val) ||
+                            (ot->lastRatio >= th_val && currentRatio < th_val) ||
+                            (ot->lastRatio == th_val && currentRatio != th_val) ||
+                            (currentRatio == th_val && ot->lastRatio != th_val)) {
+                            trigger = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (trigger) {
                     WispIntersectionObserverEntry entry; memset(&entry, 0, sizeof(entry));
                     entry.time = (double)now_ms; entry.target = ot->node; dom_node_ref(ot->node);
                     entry.isIntersecting = isIntersecting; entry.targetX = tx; entry.targetY = ty;
                     entry.targetWidth = tw; entry.targetHeight = th;
-                    entry.rootWidth = viewport_width; entry.rootHeight = viewport_height;
+                    entry.rootWidth = rx1 - rx0; entry.rootHeight = ry1 - ry0;
                     if (isIntersecting) {
                         entry.intersectX = ix0; entry.intersectY = iy0;
                         entry.intersectWidth = ix1 - ix0; entry.intersectHeight = iy1 - iy0;
-                        entry.intersectionRatio = (double)(entry.intersectWidth * entry.intersectHeight) / (tw * th);
+                        entry.intersectionRatio = currentRatio;
+                    } else {
+                        entry.intersectionRatio = 0.0;
                     }
                     uint32_t len = 0; JSValue js_len = JS_GetPropertyStr(obs->ctx, obs->queue, "length");
                     JS_ToUint32(obs->ctx, &len, js_len); JS_FreeValue(obs->ctx, js_len);
                     JS_SetPropertyUint32(obs->ctx, obs->queue, len, qjs_new_intersectionobserverentry_manual(obs->ctx, &entry));
-                    ot->wasIntersecting = isIntersecting; changed = true;
+                    ot->wasIntersecting = isIntersecting;
+                    ot->lastRatio = currentRatio;
+                    changed = true;
                 }
             }
             ot = ot->next;

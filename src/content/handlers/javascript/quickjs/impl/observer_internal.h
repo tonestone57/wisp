@@ -44,6 +44,7 @@ typedef struct IntersectionObserverTarget {
     struct IntersectionObserverTarget *next;
     struct dom_node *node;
     bool wasIntersecting;
+    double lastRatio;
 } IntersectionObserverTarget;
 
 typedef struct WispIntersectionObserver {
@@ -53,6 +54,10 @@ typedef struct WispIntersectionObserver {
     JSValue queue;
     JSContext *ctx;
     JSValue self;
+    struct dom_node *root;
+    char *root_margin;
+    double *thresholds;
+    int num_thresholds;
     uint32_t magic;
 } WispIntersectionObserver;
 
