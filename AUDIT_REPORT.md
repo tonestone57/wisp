@@ -57,6 +57,8 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
 *   **BDirectWindow Migration (Haiku)**: Migrated the Haiku frontend to inherit from `BDirectWindow`, providing low-latency direct framebuffer access for Blend2D-rendered tiles.
 *   **BeOS Native Widgets**: Full integration of native `BControl` widgets (BButton, BCheckBox, BTextControl, BRadioButton, BMenuField, BScrollView, BFilePanel) in the Haiku frontend via a persistent widget map.
+*   **Parallel Tile Redraw (PTR)**: Parallelized tiling loop via work stealing using `wisp_subsystem` worker pool threads.
+*   **QUIC & HTTP/3 Transport Support**: Supported QUIC and HTTP/3 protocol negotiation and Alt-Svc connection caching safely integrated in the libcurl networking process.
 
 ### 3.2 Partial Implementation [Partial]
 
