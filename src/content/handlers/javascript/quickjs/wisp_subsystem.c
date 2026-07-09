@@ -353,7 +353,7 @@ void* wisp_worker_routine(void *arg) {
 #endif
         if (has_task && task) {
             if (task->script) {
-                JSValue val = JS_Eval(worker->ctx, task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
+                JSValue val = js_eval_with_aot_cache(worker->ctx, (const uint8_t *)task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
                 JS_FreeValue(worker->ctx, val);
                 JSContext *ctx1;
                 while (JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1) > 0);
@@ -509,7 +509,7 @@ void* wisp_web_worker_routine(void *arg) {
     pthread_mutex_unlock(&req.mutex);
 
     if (req.success && req.out_buffer) {
-        JSValue res = JS_Eval(t->ctx, (const char *)req.out_buffer, req.out_len, h->script_url, JS_EVAL_TYPE_GLOBAL);
+        JSValue res = js_eval_with_aot_cache(t->ctx, req.out_buffer, req.out_len, h->script_url, JS_EVAL_TYPE_GLOBAL);
         if (JS_IsException(res)) {
             JSValue exc = JS_GetException(t->ctx);
             JSValue stack = JS_GetPropertyStr(t->ctx, exc, "stack");

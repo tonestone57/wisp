@@ -7,6 +7,8 @@
 #include <wisp/utils/corestrings.h>
 #include "quickjs.h"
 
+extern JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
+
 static wisp_ipc_handle *ipc_main;
 static JSRuntime *rt;
 
@@ -59,7 +61,7 @@ int main(int argc, char **argv) {
                     memcpy(script, msg.data + 4, script_len);
                     script[script_len] = '\0';
 
-                    JSValue val = JS_Eval(ctx, script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
+                    JSValue val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
 
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;
