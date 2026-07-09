@@ -157,7 +157,14 @@ static void win32_tile_raster_complete(void *arg)
     /* Update active task count for content lifecycle management */
     content_dec_bg_tasks(task->h);
     hlcache_handle_release(task->h);
-    tile_pool_return(task->buffer);
+
+    /* Save rendered buffer to cache instead of immediately returning it to pool */
+    int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+    int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+    int doc_x = tx + task->g->scrollx;
+    int doc_y = ty + task->g->scrolly;
+    tile_pool_put_cached(task->g, doc_x, doc_y, task->tile_size, task->buffer, task->priority);
+
     free(task);
 }
 
@@ -698,12 +705,57 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
             }
         }
 
+        /* Clean up or compress scrolled out cache entries before rendering */
+        tile_pool_manage_cache(gw, v_x, v_y, v_w, v_h);
+
         /* Sort tiles by priority to ensure visible/near ones are drawn first */
         qsort(tasks, task_count, sizeof(struct win32_tile_task_t), win32_tile_task_compare);
 
         /* Execute prioritized redraw loop with Tile Pool integration and worker offloading */
         for (int i = 0; i < task_count; i++) {
-            void *buf = tile_pool_checkout();
+            int tx = tasks[i].tile_clip.x0 - (tasks[i].tile_clip.x0 % tile_size);
+            int ty = tasks[i].tile_clip.y0 - (tasks[i].tile_clip.y0 % tile_size);
+            int doc_x = tx + gw->scrollx;
+            int doc_y = ty + gw->scrolly;
+
+            bool from_cache = false;
+            void *buf = tile_pool_get_cached(gw, doc_x, doc_y, tile_size, &from_cache);
+
+            if (from_cache && buf != NULL) {
+                /* Cache Hit: blit directly from cached uncompressed buffer */
+                HDC hdc = GetDC(hwnd);
+                if (hdc) {
+                    BITMAPINFO bmi;
+                    memset(&bmi, 0, sizeof(bmi));
+                    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+                    bmi.bmiHeader.biWidth = tile_size;
+                    bmi.bmiHeader.biHeight = -tile_size; /* Top-down */
+                    bmi.bmiHeader.biPlanes = 1;
+                    bmi.bmiHeader.biBitCount = 32;
+                    bmi.bmiHeader.biCompression = BI_RGB;
+
+                    SetDIBitsToDevice(hdc,
+                        tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+                        tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
+                        tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0,
+                        tasks[i].tile_clip.x0 - tx,
+                        tasks[i].tile_clip.y0 - ty,
+                        0,
+                        tile_size,
+                        buf,
+                        &bmi,
+                        DIB_RGB_COLORS);
+
+                    ReleaseDC(hwnd, hdc);
+                }
+                /* Put back to keep in cache and update priority */
+                tile_pool_put_cached(gw, doc_x, doc_y, tile_size, buf, tasks[i].priority);
+                continue;
+            }
+
+            if (buf == NULL) {
+                buf = tile_pool_checkout();
+            }
             bool dispatched = false;
 
             if (buf != NULL) {
