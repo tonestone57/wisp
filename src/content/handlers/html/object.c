@@ -629,6 +629,8 @@ static bool html_replace_object(struct content_html_object *object, nsurl *url)
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
+    child.coep = c->coep;
+    child.parent_url = c->base_url;
 
     if (object->content != NULL) {
         /* remove existing object */
@@ -817,6 +819,8 @@ bool html_fetch_object(html_content *c, nsurl *url, struct box *box, content_typ
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
+    child.coep = c->coep;
+    child.parent_url = c->base_url;
 
     object = calloc(1, sizeof(struct content_html_object));
     if (object == NULL) {
@@ -880,6 +884,8 @@ bool html_fetch_object_buffer(html_content *c, const uint8_t *data, size_t len, 
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
+    child.coep = c->coep;
+    child.parent_url = c->base_url;
 
     object = calloc(1, sizeof(struct content_html_object));
     if (object == NULL)
