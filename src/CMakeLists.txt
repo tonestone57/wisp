@@ -257,6 +257,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/thread_pool.c
 	utils/useragent.c
 	utils/utf8.c
+	utils/utf8proc_wrapper.c
 	utils/utils.c
 	utils/thread_pool.c
 	utils/task_queue.c

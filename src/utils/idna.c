@@ -158,6 +158,7 @@ static nserror idna__ace_to_ucs4(const char *ace_label, size_t ace_len, int32_t 
 
 #ifdef WITH_UTF8PROC
 #include <utf8proc.h>
+#include "wisp/utils/utf8proc_wrapper.h"
 
 int32_t idna_contexto[] = {
     /* CONTEXTO codepoints which have a rule defined */
@@ -321,14 +322,16 @@ static nserror idna__utf8_to_ucs4(const char *utf8_label, size_t len, int32_t **
         return NSERROR_NOMEM;
     }
 
-    nfc_size = utf8proc_decompose(
+    nfc_size = wisp_utf8proc_decompose(
         (const uint8_t *)utf8_label, len, nfc_label, len * 4, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
     if (nfc_size < 0) {
+        free(nfc_label);
         return NSERROR_NOMEM;
     }
 
-    nfc_size = utf8proc_normalize_utf32(nfc_label, nfc_size, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
+    nfc_size = wisp_utf8proc_normalize_utf32(nfc_label, nfc_size, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
     if (nfc_size < 0) {
+        free(nfc_label);
         return NSERROR_NOMEM;
     }
 
@@ -361,8 +364,9 @@ static nserror idna__ucs4_to_utf8(const int32_t *ucs4_label, size_t ucs4_len, ch
     }
     memcpy(nfc_label, ucs4_label, ucs4_len * 4);
 
-    nfc_size = utf8proc_reencode(nfc_label, ucs4_len, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
+    nfc_size = wisp_utf8proc_reencode(nfc_label, ucs4_len, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
     if (nfc_size < 0) {
+        free(nfc_label);
         return NSERROR_NOMEM;
     }
 
@@ -471,7 +475,7 @@ static bool idna__verify(const char *label, size_t len)
     }
 
     /* Perform NFC normalisation */
-    ucs4_len = utf8proc_normalize_utf32(ucs4, u_ucs4_len, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
+    ucs4_len = wisp_utf8proc_normalize_utf32(ucs4, u_ucs4_len, UTF8PROC_STABLE | UTF8PROC_COMPOSE);
     if (ucs4_len < 0) {
         free(ucs4);
         return false;
