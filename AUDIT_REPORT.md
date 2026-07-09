@@ -99,3 +99,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 ## 6. Future Recommendations
 1.  **WebGPU Evaluation**: Investigate bridging WebGPU to native APIs (D3D12/Vulkan). (Complexity: **High** | Benefit: **Medium**)
 2.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations. (Complexity: **High** | Benefit: **Medium**)
+3.  **CSS Variable Caching & Fast-Path Evaluation**: Hash style contexts of custom property values to skip recursive resolution pass when inherited properties are unchanged, accelerating layout on variables-heavy pages. (Complexity: **Medium** | Benefit: **High**)
+4.  **SIMD-Accelerated UTF-8 processing**: Wrap `libutf8proc` routines with SIMD (AVX2/NEON) vectorization to speed up DOM building, layout, and multi-process IPC transfers. (Complexity: **Medium** | Benefit: **Medium**)
+5.  **Link Pre-connect & DNS Prefetching Pipeline**: Parse `<link rel="dns-prefetch">` and `<link rel="preconnect">` in the main thread and forward early async connection commands to `wisp-network` process to eliminate connection setup latency. (Complexity: **Medium** | Benefit: **High**)
+6.  **CSP Level 3 Trusted Types**: Integrate Trusted Types inside the CSP engine to enforce typed objects for script execution/injection, eliminating DOM-based XSS entirely. (Complexity: **Medium** | Benefit: **High**)

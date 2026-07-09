@@ -83,10 +83,14 @@ These tasks are high-priority for the 2027 development cycle:
 ### Graphics & Performance
 *   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
 *   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware.
+*   **[Planned] CSS Variable Caching & Fast-Path Evaluation** (Complexity: **Medium** | Benefit: **High**): Implement style-context hashing/caching of custom property values. If inherited style contexts have unchanged CSS custom properties, skip the recursive resolution pass entirely for that subtree to accelerate modern CSS layouts (e.g., Tailwind CSS pages).
+*   **[Planned] SIMD-Accelerated UTF-8 processing** (Complexity: **Medium** | Benefit: **Medium**): Integrate SIMD vectorization (AVX2/NEON) into `libutf8proc` wrappers for fast-path ASCII and UTF-8 verification, speeding up HTML parsing, text layout, and IPC string extraction.
 
 ### Architecture & Security
 *   **[Planned] Site Isolation** (Complexity: **High** | Benefit: **High**): Extend the multi-process model to support per-origin process isolation.
 *   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD) for maximum protection.
+*   **[Planned] Link Pre-connect & DNS Prefetching Pipeline** (Complexity: **Medium** | Benefit: **High**): Parse `<link rel="dns-prefetch">` and `<link rel="preconnect">` in the main thread and issue early async DNS/socket setup requests to `wisp-network` to bypass connection latency prior to fetching resources.
+*   **[Planned] CSP Level 3 Trusted Types** (Complexity: **Medium** | Benefit: **High**): Integrate CSP Trusted Types to restrict script execution and string-based injection (e.g., `innerHTML`), completely blocking DOM-based XSS vulnerabilities.
 
 ### UI & Features
 *   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): A lightweight, cross-platform UI library for consistent 'browser chrome' (tabs, address bar).
