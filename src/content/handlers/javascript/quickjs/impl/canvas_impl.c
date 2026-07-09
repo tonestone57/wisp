@@ -792,7 +792,14 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         }
     }
 
-    JSValue array = JS_NewUint8ClampedArray(ctx, data, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
+    JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, (JSFreeArrayBufferDataFunc *)free, NULL, false);
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue clamped_array_ctor = JS_GetPropertyStr(ctx, global, "Uint8ClampedArray");
+    JSValue array = JS_CallConstructor(ctx, clamped_array_ctor, 1, &array_buffer);
+    JS_FreeValue(ctx, global);
+    JS_FreeValue(ctx, clamped_array_ctor);
+    JS_FreeValue(ctx, array_buffer);
+
     JS_SetPropertyStr(ctx, obj, "data", array);
 
     return obj;
@@ -826,9 +833,9 @@ JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNod
     JS_ToInt32(ctx, &w, width_val);
     JS_ToInt32(ctx, &h, height_val);
 
-    size_t offset, byte_length, bytes_per_element;
+    size_t offset, byte_length, bytes_per_element, psize;
     JSValue buffer = JS_GetTypedArrayBuffer(ctx, data_val, &offset, &byte_length, &bytes_per_element);
-    uint8_t *data = JS_GetArrayBuffer(ctx, buffer) + offset;
+    uint8_t *data = JS_GetArrayBuffer(ctx, &psize, buffer) + offset;
 
     uint8_t *dst_buf = guit->bitmap->get_buffer(cpriv->bitmap);
     int dst_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
@@ -857,7 +864,7 @@ JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNod
 
     return JS_UNDEFINED;
 }
-JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_removeHitRegion_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_resetClip_impl(JSContext *ctx, QJSNodePrivate *priv)
 {

@@ -8,9 +8,13 @@
 #include <wisp/utils/log.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/messages.h>
+#include <wisp/utils/corestrings.h>
 #include "utils/libdom.h"
 #include "JSXMLHttpRequest.gen.h"
 #include <wisp/content/fetch.h>
+#include <dom/dom.h>
+#include <libdom/bindings/hubbub/parser.h>
+#include "JSEvent.gen.h"
 
 JSClassID qjs_xmlhttprequest_class_id;
 
@@ -26,8 +30,10 @@ typedef struct WispXHR {
     struct fetch *fetch_handle;
     uint8_t *response_buf;
     size_t response_len;
+    size_t response_alloc;
     char *response_headers;
     struct fetch_multipart_data *out_headers;
+    dom_document *response_xml;
 } WispXHR;
 
 static void xhr_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
@@ -45,13 +51,18 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
     if (priv) {
         WispXHR *xhr = priv->node;
         if (xhr) {
-            if (xhr->fetch_handle) fetch_abort(xhr->fetch_handle);
+            if (xhr->fetch_handle) {
+                fetch_change_callback(xhr->fetch_handle, NULL, NULL);
+                fetch_abort(xhr->fetch_handle);
+                fetch_free(xhr->fetch_handle);
+            }
             free(xhr->statusText);
             free(xhr->method);
             if (xhr->url) nsurl_unref(xhr->url);
             free(xhr->response_buf);
             free(xhr->response_headers);
             fetch_multipart_data_destroy(xhr->out_headers);
+            if (xhr->response_xml) dom_node_unref((dom_node *)xhr->response_xml);
             JS_FreeValueRT(rt, xhr->self);
             free(xhr);
         }
@@ -73,35 +84,118 @@ static void xhr_trigger_event(WispXHR *xhr, const char *name)
 
 static void xhr_set_ready_state(WispXHR *xhr, int state)
 {
-    xhr->readyState = state;
-    xhr_trigger_event(xhr, "onreadystatechange");
+    if (xhr->readyState != state) {
+        xhr->readyState = state;
+        xhr_trigger_event(xhr, "onreadystatechange");
+    }
 }
 
-static void xhr_pipeline_cb(const struct fetch_response *res, void *p)
+static void xhr_parse_response_xml(WispXHR *xhr)
+{
+    if (xhr->response_xml) {
+        dom_node_unref((dom_node *)xhr->response_xml);
+        xhr->response_xml = NULL;
+    }
+
+    if (!xhr->response_buf || xhr->response_len == 0) return;
+
+    dom_hubbub_parser_params parse_params;
+    memset(&parse_params, 0, sizeof(parse_params));
+    parse_params.enc = "UTF-8";
+    parse_params.fix_enc = true;
+    parse_params.idname = corestring_dom_id;
+
+    dom_hubbub_parser *parser;
+    dom_document *doc;
+    dom_hubbub_error err = dom_hubbub_parser_create(&parse_params, &parser, &doc);
+    if (err == DOM_HUBBUB_OK) {
+        dom_hubbub_parser_parse_chunk(parser, xhr->response_buf, xhr->response_len);
+        dom_hubbub_parser_completed(parser);
+        dom_hubbub_parser_destroy(parser);
+        xhr->response_xml = doc;
+    }
+}
+
+static void xhr_callback(const struct fetch_msg *msg, void *p)
 {
     WispXHR *xhr = p;
     if (!xhr) return;
 
-    xhr->status = (int)res->http_code;
-    if (res->header_buf) {
-        free(xhr->response_headers);
-        xhr->response_headers = malloc(res->header_len + 1);
-        if (xhr->response_headers) {
-            memcpy(xhr->response_headers, res->header_buf, res->header_len);
-            xhr->response_headers[res->header_len] = '\0';
+    switch (msg->type) {
+    case FETCH_HEADER: {
+        size_t existing_len = xhr->response_headers ? strlen(xhr->response_headers) : 0;
+        size_t new_len = existing_len + msg->data.header_or_data.len;
+        char *new_headers = realloc(xhr->response_headers, new_len + 1);
+        if (new_headers) {
+            memcpy(new_headers + existing_len, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            new_headers[new_len] = '\0';
+            xhr->response_headers = new_headers;
         }
+
+        /* Try to extract status code and text if we haven't yet */
+        if (xhr->readyState < 2) {
+            xhr->status = (int)fetch_http_code(xhr->fetch_handle);
+            if (xhr->status != 0) {
+                /* Try to find status text in headers */
+                if (xhr->response_headers && !xhr->statusText) {
+                    char *line_end = strchr(xhr->response_headers, '\r');
+                    if (!line_end) line_end = strchr(xhr->response_headers, '\n');
+                    if (line_end) {
+                        char *status_line = strndup(xhr->response_headers, line_end - xhr->response_headers);
+                        if (status_line) {
+                            /* Format is usually "HTTP/1.1 200 OK" */
+                            char *p = strchr(status_line, ' ');
+                            if (p) {
+                                p++;
+                                p = strchr(p, ' ');
+                                if (p) {
+                                    p++;
+                                    free(xhr->statusText);
+                                    xhr->statusText = strdup(p);
+                                }
+                            }
+                            free(status_line);
+                        }
+                    }
+                }
+                xhr_set_ready_state(xhr, 2); /* HEADERS_RECEIVED */
+            }
+        }
+        break;
     }
 
-    if (res->data_buf && res->data_len > 0) {
-        void *new_buf = realloc(xhr->response_buf, xhr->response_len + res->data_len);
-        if (new_buf) {
-            xhr->response_buf = new_buf;
-            memcpy(xhr->response_buf + xhr->response_len, res->data_buf, res->data_len);
-            xhr->response_len += res->data_len;
+    case FETCH_DATA: {
+        if (msg->data.header_or_data.len > 0) {
+            size_t required = xhr->response_len + msg->data.header_or_data.len;
+            if (required > xhr->response_alloc) {
+                size_t new_alloc = xhr->response_alloc ? xhr->response_alloc * 2 : 1024;
+                while (new_alloc < required) new_alloc *= 2;
+                void *new_buf = realloc(xhr->response_buf, new_alloc);
+                if (new_buf) {
+                    xhr->response_buf = new_buf;
+                    xhr->response_alloc = new_alloc;
+                } else {
+                    return;
+                }
+            }
+            memcpy(xhr->response_buf + xhr->response_len, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            xhr->response_len += msg->data.header_or_data.len;
             xhr_set_ready_state(xhr, 3); /* LOADING */
         }
-    } else {
+        break;
+    }
+
+    case FETCH_FINISHED:
+        xhr->status = (int)fetch_http_code(xhr->fetch_handle);
         xhr_set_ready_state(xhr, 4); /* DONE */
+        break;
+
+    case FETCH_ERROR:
+        xhr_set_ready_state(xhr, 4); /* DONE, but with error */
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -165,16 +259,40 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
     WispXHR *xhr = priv ? priv->node : NULL;
     if (!xhr || !xhr->url) return JS_UNDEFINED;
 
-    struct fetch_request req;
-    memset(&req, 0, sizeof(req));
-    req.url = xhr->url;
-    req.method = xhr->method;
+    struct fetch_postdata post;
+    memset(&post, 0, sizeof(post));
+    if (xhr->out_headers) {
+        post.type = FETCH_POSTDATA_MULTIPART;
+        post.data.multipart = xhr->out_headers;
+    } else {
+        post.type = FETCH_POSTDATA_NONE;
+    }
 
-    nserror err = fetch_pipeline_start(&req, xhr_pipeline_cb, xhr, &xhr->fetch_handle);
+    /* Convert out_headers linked list to the format fetch_start expects (array of strings) */
+    int header_count = 0;
+    struct fetch_multipart_data *h = xhr->out_headers;
+    while (h) {
+        header_count++;
+        h = h->next;
+    }
+
+    const char **headers = calloc((header_count * 2) + 1, sizeof(char *));
+    if (headers) {
+        h = xhr->out_headers;
+        for (int i = 0; i < header_count; i++) {
+            headers[i * 2] = h->name;
+            headers[i * 2 + 1] = h->value;
+            h = h->next;
+        }
+        headers[header_count * 2] = NULL;
+    }
+
+    nserror err = fetch_start(xhr->url, NULL, xhr_callback, xhr, false, &post, false, false, headers, &xhr->fetch_handle);
     if (err != NSERROR_OK) {
         NSLOG(wisp, ERROR, "XHR fetch failed to start: %s", messages_get_errorcode(err));
     }
 
+    free(headers);
     return JS_UNDEFINED;
 }
 
@@ -214,7 +332,9 @@ JSValue wisp_xmlhttprequest_getAllResponseHeaders_impl(JSContext *ctx, QJSNodePr
 JSValue wisp_xmlhttprequest_abort_impl(JSContext *ctx, QJSNodePrivate *priv) {
     WispXHR *xhr = priv ? priv->node : NULL;
     if (xhr && xhr->fetch_handle) {
+        fetch_change_callback(xhr->fetch_handle, NULL, NULL);
         fetch_abort(xhr->fetch_handle);
+        fetch_free(xhr->fetch_handle);
         xhr->fetch_handle = NULL;
     }
     return JS_UNDEFINED;
@@ -222,7 +342,18 @@ JSValue wisp_xmlhttprequest_abort_impl(JSContext *ctx, QJSNodePrivate *priv) {
 JSValue wisp_xmlhttprequest_overrideMimeType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * mime) { return JS_UNDEFINED; }
 JSValue wisp_xmlhttprequest_responseType_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
 JSValue wisp_xmlhttprequest_responseType_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
-JSValue wisp_xmlhttprequest_responseXML_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
+
+JSValue wisp_xmlhttprequest_responseXML_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    WispXHR *xhr = priv ? priv->node : NULL;
+    if (!xhr || xhr->readyState != 4 || !xhr->response_buf) return JS_NULL;
+
+    if (!xhr->response_xml) {
+        xhr_parse_response_xml(xhr);
+    }
+
+    return xhr->response_xml ? qjs_wrap_node(ctx, (dom_node *)xhr->response_xml) : JS_NULL;
+}
+
 JSValue wisp_xmlhttprequest_response_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_xmlhttprequest_responseText_get_impl(ctx, priv); }
 JSValue wisp_xmlhttprequest_timeout_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewInt32(ctx, 0); }
 JSValue wisp_xmlhttprequest_timeout_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value) { return JS_UNDEFINED; }

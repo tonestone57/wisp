@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include "content/handlers/javascript/js.h"
+#include <wisp/utils/corestrings.h>
 #include <dom/core/implementation.h>
 #include <dom/core/document.h>
 #include <dom/core/node.h>
@@ -66,6 +67,7 @@ START_TEST(test_quickjs_event_target_full)
     bool result;
 
     js_initialise();
+    corestrings_init();
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
@@ -943,15 +945,21 @@ START_TEST(test_quickjs_xhr)
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
 
-    /* Test XMLHttpRequest constructor exists */
-    const char *code1 = "typeof XMLHttpRequest === 'function'";
-    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_xhr_ctor");
+    /* Test XMLHttpRequest constructor and basic state */
+    const char *code1 =
+        "var xhr = new XMLHttpRequest();\n"
+        "var states = [];\n"
+        "xhr.onreadystatechange = function() { states.push(xhr.readyState); };\n"
+        "xhr.open('GET', 'about:blank');\n"
+        "xhr.readyState === 1 && states.length === 1 && states[0] === 1;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_xhr_basic");
     ck_assert(result == true);
 
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
     if (doc) dom_node_unref((dom_node *)doc);
+    corestrings_fini();
     js_finalise();
 }
 END_TEST
