@@ -6,12 +6,19 @@ Wisp is a lightweight, high-performance web engine forked from NetSurf. As of Ju
 ---
 
 ## 2. Graphics Architecture
-Wisp utilizes a "best-of-breed" plotting architecture to ensure performance and consistency across all supported platforms.
+Wisp utilizes a prioritized native-first plotting architecture, utilizing platform-native renderers as the primary backends and **Blend2D** as an optional alternative choice and a unified high-performance software fallback backend.
 
 ### Primary Backends
-*   **Direct2D & DirectWrite (Windows 7+)**: A hardware-accelerated pipeline providing high-performance GPU drawing and crisp native typography. Features robust device-loss recovery.
-*   **Blend2D (Unified Backbone & Fallback)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It is the primary rasterizer for Linux and macOS, and the mandatory fallback for **Windows XP/Vista**, ensuring modern CSS compatibility on legacy hardware.
-*   **Native Typography Interop**: Wisp uses platform-specific handlers (`win32_plot_text_ns`, `macos_plot_text_ns`, etc.) to ensure that even when using Blend2D for content rasterization, text remains crisp and adheres to system-level subpixel rendering settings.
+*   **BeOS / Haiku**: Native `BView` rendering.
+*   **Linux (GTK / Qt)**: Cairo (GTK) or QPainter (Qt).
+*   **macOS**: Cocoa native plotter.
+*   **Windows**: Direct2D & DirectWrite (Windows 7+) or GDI (legacy Windows XP/Vista).
+
+### Fallback & Alternative Backend
+*   **Blend2D (Unified Software Fallback)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It serves as an optional alternative backend and the unified software fallback across all supported platforms, ensuring modern rendering features are fully supported when native pipelines are bypassed or unavailable.
+
+### Typography Interop
+*   **Native Typography**: Wisp uses platform-specific handlers (`win32_plot_text_ns`, `macos_plot_text_ns`, etc.) to ensure text remains crisp, adhering to system-level subpixel rendering settings across all plotting configurations.
 
 ### Rendering Strategy
 Wisp has fully transitioned to a **Fixed-Tile Redraw** strategy (256px or 512px tiles). This system optimizes cache locality, eliminates overdraw, and provides the necessary isolation for the Parallel Tile Redraw architecture.
@@ -23,8 +30,8 @@ Wisp's architecture is uniquely positioned to take advantage of multi-core proce
 
 ### Cross-OS Implementation
 1.  **Work Stealing**: The browser core pushes "Dirty Tile Tasks" to the `wisp_subsystem` worker pool, which scales based on the system's logical core count.
-2.  **Thread-Local Backends**: Each worker thread utilizes a thread-local instance of the rendering backend (Blend2D or Direct2D), allowing simultaneous rasterization of different tiles without mutex locking.
-3.  **Asynchronous Compositing**: Once all workers finish their assigned tiles, the main thread performs a single atomic blit (e.g., via `SetDIBitsToDevice` on Windows or `BView` blit on Haiku) to the screen.
+2.  **Thread-Local Backends**: Each worker thread utilizes a thread-local instance of the active rendering backend (such as platform-native backends or fallback Blend2D), allowing simultaneous rasterization of different tiles without mutex locking.
+3.  **Asynchronous Compositing**: Once all workers finish their assigned tiles, the main thread performs a single atomic blit (e.g., via `SetDIBitsToDevice` on Windows or native `BView` blit on Haiku) to the screen.
 
 ### Platform Performance
 *   **Haiku / BeOS**: Workers rasterize tiles safely into thread-confined raw memory regions, bypassing the single-threaded `BWindow` looper limit.
@@ -72,7 +79,7 @@ The following stability and security measures have been integrated:
 *   **Canvas 2D Plotter Bridge**: Successfully bridged WebIDL stubs for the Canvas 2D API to the underlying Direct2D and Blend2D plotter backends.
 *   **Multi-process Isolation**: JavaScript engine and network stack isolated into separate OS processes via a platform-agnostic IPC layer.
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
-*   **BDirectWindow Migration (Haiku)**: Granted the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency.
+*   **BDirectWindow Migration (Haiku)**: Granted the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency on both native BView and Blend2D fallback renderings.
 *   **Native Haiku Widget Parity**: Completed integration of native `BControl` elements into the BeOS/Haiku frontend widget map, including selects, text areas, and file pickers.
 *   **CSP Level 3 Trusted Types, Nonce CSP, and COOP/COEP Integration**: Implemented strict auto-sanitizing default policy walking DOM trees, cryptographic nonce parsing/validation on script execution, and COOP/COEP process isolation.
 *   **Link Pre-connect & DNS Prefetching Pipeline**: Full asynchronous DNS/socket pre-connections handled via dedicated networking process thread pools offloading connection startup latency.

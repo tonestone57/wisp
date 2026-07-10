@@ -13,7 +13,7 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 Wisp has completed its core CSS Variables implementation and optimized the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
 ### Core Features Status (July 2026)
-*   **[Finished] Blend2D Integration**: Blend2D is available as an optional high-performance rendering engine across frontends, ensuring pixel-perfect software rasterization and SIMD optimization. It functions as the default high-speed software renderer and a dynamic fallback backend.
+*   **[Finished] Blend2D Integration**: Blend2D is available as an optional alternative rendering choice and a unified high-performance software fallback backend across all frontends, ensuring pixel-perfect software rasterization and SIMD optimization when platform-native renderers are bypassed or unavailable.
 *   **[Finished] Native Direct2D & DirectWrite (Windows)**: Hardware-accelerated rendering pipeline for modern Windows systems, integrated with the core.
 *   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 or 512x512 tile strategy implemented to optimize performance and cache locality.
 *   **[Finished] CSP Level 3 Trusted Types & Security Hardening**: Strict auto-sanitizing default policy safety net with cryptographic nonce parsing and validation to completely block DOM-based XSS. Enforced on internal UI and extensions.
@@ -117,9 +117,15 @@ cmake --build build
 ```
 
 ### Rendering Backends
+Wisp is designed to prioritize platform-native rendering backends as its primary pipelines, utilizing **Blend2D** as an optional alternative choice and a robust, unified cross-platform software fallback.
+
+*   **BeOS / Haiku**: Primary backend is native `BView` rendering. Fallback backend is Blend2D.
+*   **Linux**: Primary backend is Cairo (GTK) or QPainter (Qt). Fallback backend is Blend2D.
+*   **macOS**: Primary backend is Cocoa native plotter. Fallback backend is Blend2D.
+*   **Windows**: Primary backend is Direct2D/DirectWrite (or GDI for legacy Windows versions). Fallback backend is Blend2D.
 
 #### Blend2D
-Wisp includes a high-performance Blend2D backend for software rasterization. To enable it, use:
+To compile and enable Blend2D as the alternative/fallback backend, use:
 ```bash
 cmake -B build -DWISP_USE_BLEND2D=ON
 ```

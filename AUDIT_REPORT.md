@@ -1,7 +1,7 @@
 # Wisp Code Audit Report - July 2026
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). The project supports high-performance rendering via Blend2D while providing a native Direct2D/DirectWrite path for Windows. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Wisp employs a native-first graphics strategy prioritizing platform-native pipelines (BView on Haiku, Cairo/QPainter on Linux, Cocoa on macOS, Direct2D/GDI on Windows) as its primary backends, with Blend2D as an optional high-performance software fallback backend and alternative rendering choice. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
 
 ## 2. Library Versions Audit
 
@@ -24,7 +24,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Position: Sticky**: Full support for sticky positioning, including multi-axis clamping and scroll-container constraints. Verified in `layout_apply_sticky_clamping`.
 *   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
 *   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI/Direct2D), and Blend2D.
-*   **Blend2D Integration**: High-performance software 2D engine available as an optional plotter backend for pixel-perfect consistency.
+*   **Blend2D Integration**: High-performance software 2D engine available as an optional alternative plotter backend and dynamic fallback for pixel-perfect consistency across all supported platforms when primary pipelines are bypassed or unavailable.
 *   **Fixed-Tile Redraw**: Scale-aware 256x256 (standard) or 512x512 (High-DPI) tile strategy implemented in the core to optimize performance and cache locality.
 *   **Native Haiku/BeOS Frontend**: Fully integrated with Blend2D and fixed-tile redraw strategy.
 *   **Native Direct2D & DirectWrite (Windows)**: High-performance C++ based hardware-accelerated rendering pipeline for modern Windows systems.
@@ -92,8 +92,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **FFmpeg**: Asynchronous video decoding pipeline with software volume scaling.
 
 ### 4.4 Frontends
-*   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Supports both GDI and Direct2D/DirectWrite paths.
-*   **Haiku / BeOS**: Native `libbe` frontend unified with Blend2D and fixed-tile redraw.
+*   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Supports native Direct2D/DirectWrite and GDI as primary paths, with Blend2D as an optional fallback/alternative.
+*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` rendering as primary, with fallback to Blend2D and fixed-tile redraw.
+*   **Linux (GTK / Qt)**: Uses native Cairo (GTK) or QPainter (Qt) as primary, with fallback to Blend2D.
+*   **macOS (Cocoa)**: Uses Cocoa native plotter as primary, with fallback to Blend2D.
 
 ## 5. Bugs and Technical Debt
 
