@@ -340,16 +340,6 @@ static void wisp_json_preparse_rvv(const uint8_t *buf, size_t len, const uint8_t
         if (any_idx < 0) {
             /* Fast path: No quotes or backslashes in this vector chunk */
             if (!in_string) {
-                vbool8_t cmp_space = __riscv_vmseq_vx_u8m1_b8(chunk, ' ', vl);
-                vbool8_t cmp_tab = __riscv_vmseq_vx_u8m1_b8(chunk, '\t', vl);
-                vbool8_t cmp_cr = __riscv_vmseq_vx_u8m1_b8(chunk, '\r', vl);
-                vbool8_t cmp_lf = __riscv_vmseq_vx_u8m1_b8(chunk, '\n', vl);
-                vbool8_t ws = __riscv_vmor_mm_b8(
-                    __riscv_vmor_mm_b8(cmp_space, cmp_tab, vl),
-                    __riscv_vmor_mm_b8(cmp_cr, cmp_lf, vl),
-                    vl
-                );
-
                 for (size_t j = 0; j < vl; j++) {
                     uint8_t c = buf[i + j];
                     if (c != ' ' && c != '\t' && c != '\r' && c != '\n') {
