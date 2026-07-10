@@ -5317,9 +5317,11 @@ static void layout_compute_relative_offset(const css_unit_ctx *unit_len_ctx, str
 {
 	int left, right, top, bottom;
 	struct box *containing_block;
-	uint8_t pos = css_computed_position(box->style);
 
-	assert(box && box->parent && box->style && (pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_STICKY));
+	assert(box && box->parent && box->style);
+
+	uint8_t pos = css_computed_position(box->style);
+	assert(pos == CSS_POSITION_RELATIVE || pos == CSS_POSITION_STICKY);
 
 	if (box->float_container &&
 		(css_computed_float(box->style) == CSS_FLOAT_LEFT || css_computed_float(box->style) == CSS_FLOAT_RIGHT)) {

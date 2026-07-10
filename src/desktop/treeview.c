@@ -1759,8 +1759,9 @@ static nserror treeview_delete_empty_nodes(treeview *tree, bool interaction)
             node = next_sibling;
         }
 
-        assert(node != NULL);
-        assert(node->parent != NULL);
+        if (node == NULL || node->parent == NULL) {
+            break;
+        }
 
         parent = node->parent;
         next_sibling = node->next_sib;

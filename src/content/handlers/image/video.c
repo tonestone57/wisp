@@ -331,14 +331,14 @@ static nserror nsvideo_create(const struct content_handler *handler, lwc_string 
 
     error = llcache_handle_force_stream(llcache);
     if (error != NSERROR_OK) {
-        free(video);
+        content_destroy(&video->base);
         return error;
     }
 
     video->buffer.capacity = VIDEO_BUFFER_SIZE;
     video->buffer.data = (unsigned char *)malloc(video->buffer.capacity);
     if (video->buffer.data == NULL) {
-        free(video);
+        content_destroy(&video->base);
         return NSERROR_NOMEM;
     }
     pthread_mutex_init(&video->buffer.lock, NULL);

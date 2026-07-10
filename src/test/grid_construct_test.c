@@ -462,8 +462,9 @@ START_TEST(test_grid_construction)
     if (!ctx->bctx) {
         free(ctx);
         ck_assert_msg(0, "Failed to create arena allocator");
+    } else {
+        htmlc.bctx = ctx->bctx;
     }
-    htmlc.bctx = ctx->bctx;
 
     /* RUN 1: Process GRID (and its children recursively via
      * convert_xml_to_box logic) */
