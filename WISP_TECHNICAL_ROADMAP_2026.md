@@ -160,3 +160,35 @@ By leveraging Wisp's lightweight architecture alongside modern SIMD vectorizatio
 | **WebSocket Masking** | 32 Bytes / 16 Bytes | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
 | **SIMD JSON Parser** | 32 Bytes / 16 Bytes | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
 | **CSS Tokenizer** | 32 Bytes / 16 Bytes | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
+
+---
+
+## 10. Frontend Implementation Nuances & Dynamic Fallbacks
+To ensure the backend rollout is reliable and performant across all hardware/software tiers, several architectural and platform-specific design constraints must be observed:
+
+### A. Windows: Dynamic Runtime Detection vs. Compile-time
+A single compiled Windows binary may be deployed on any OS from Windows XP up to Windows 11. Therefore, backend selection must not be hardcoded via compile-time preprocessor macros. Instead, it must be resolved dynamically at runtime:
+1.  **Direct2D Loader**: Dynamically attempt to load the Direct2D runtime library via `LoadLibrary("d2d1.dll")` and retrieve function pointers (such as `D2D1CreateFactory`).
+2.  **Graceful Degeneration**: If `d2d1.dll` cannot be loaded, or if D2D factory/resource initialization fails (e.g., on Windows XP, or Vista instances lacking the Platform Update), immediately degenerate the drawing pipeline back to **Blend2D** software rendering.
+
+### B. Windows XP SSE2 Requirements & Safe Fallback Chain
+While Blend2D is an exceptional software rasterizer, its JIT compilation pipeline (via AsmJit) and SIMD features require a minimum of **SSE2** instruction support on x86 processors. Some ultra-legacy Windows XP targets (e.g., AMD Athlon XP, Intel Pentium III) lack SSE2. Attempting to initialize Blend2D on these environments will result in an immediate `SIGILL` (Illegal Instruction) crash.
+*   **The Safe Fallback Chain for Windows XP**:
+    *   **Phase 1**: Query CPU features at startup (using runtime `__builtin_cpu_supports` or dynamic CPUID flags).
+    *   **Phase 2**: If the CPU supports SSE2, route the software rendering pipeline through **Blend2D**.
+    *   **Phase 3**: If the CPU lacks SSE2, bypass Blend2D entirely and safely fall back to the native **GDI** plotter.
+
+### C. Consistent Internal Configuration Mapping
+To prevent configuration drift and code bloat, mapped user options must bind cleanly to a unified internal rendering enum definition:
+```c
+typedef enum {
+    WISP_RENDER_BACKEND_AUTO = 0,
+    WISP_RENDER_BACKEND_NATIVE,
+    WISP_RENDER_BACKEND_BLEND2D
+} WispRenderBackend;
+```
+
+### D. Tracking BeOS/Haiku View Implementation File
+The primary rendering and event dispatch logic for BeOS/Haiku is centralized under **`frontends/beos/window.cpp`**. To mirror the GTK/Qt/macOS backend hierarchy:
+*   Under `AUTO` or `NATIVE`, prioritize native **`BView` (AGG)** rendering.
+*   Under the fallback/alternative `OPTION_RENDER_BACKEND_BLEND2D`, use the thread-local **Blend2D** rasterizer inside the `BDirectWindow` frame buffer lock loop.
