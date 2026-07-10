@@ -89,6 +89,8 @@ sys_colour_MarkText:000000
 sys_colour_SelectedItem:000000
 sys_colour_SelectedItemText:000000
 sys_colour_VisitedText:000000
+enable_coop:1
+enable_coep:1
 downloads_clear:0
 request_overwrite:1
 downloads_directory:/home/vince
