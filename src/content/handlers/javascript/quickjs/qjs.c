@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "wisp/utils/utf8proc_wrapper.h"
 
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -226,7 +227,7 @@ static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
-        if (strcmp(curr->origin, origin) == 0) {
+        if (wisp_simd_streq(curr->origin, origin)) {
             curr->ref_count++;
             wisp_ipc_handle *h = curr->ipc_handle;
             pthread_mutex_unlock(&js_processes_mutex);
@@ -306,7 +307,7 @@ static void release_js_process_for_origin(const char *origin) {
     struct origin_js_process **prev = &js_processes;
     struct origin_js_process *curr = js_processes;
     while (curr) {
-        if (strcmp(curr->origin, origin) == 0) {
+        if (wisp_simd_streq(curr->origin, origin)) {
             curr->ref_count--;
             if (curr->ref_count == 0) {
                 *prev = curr->next;
@@ -346,7 +347,7 @@ static wisp_ipc_handle *get_js_process_handle(const char *origin) {
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
-        if (strcmp(curr->origin, origin) == 0) {
+        if (wisp_simd_streq(curr->origin, origin)) {
             wisp_ipc_handle *h = curr->ipc_handle;
             pthread_mutex_unlock(&js_processes_mutex);
             return h;
@@ -363,7 +364,7 @@ static void handle_process_crash(const char *origin) {
     struct origin_js_process **prev = &js_processes;
     struct origin_js_process *curr = js_processes;
     while (curr) {
-        if (strcmp(curr->origin, origin) == 0) {
+        if (wisp_simd_streq(curr->origin, origin)) {
             *prev = curr->next;
             wisp_ipc_destroy(curr->ipc_handle);
 

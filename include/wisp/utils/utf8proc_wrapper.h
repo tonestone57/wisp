@@ -28,6 +28,17 @@ bool wisp_is_ascii(const char *str, size_t len);
 bool wisp_validate_utf8(const char *str, size_t len);
 
 /*
+ * SIMD-accelerated string comparison primitives.
+ */
+int wisp_simd_strcmp(const char *s1, const char *s2);
+bool wisp_simd_streq(const char *s1, const char *s2);
+
+/*
+ * Security and blocklist checks.
+ */
+bool wisp_security_is_origin_blocked(const char *origin);
+
+/*
  * Fast-path ASCII case conversions.
  * Requires that inputs are verified to be ASCII.
  */

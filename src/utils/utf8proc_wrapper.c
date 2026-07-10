@@ -182,6 +182,202 @@ static bool wisp_is_ascii_rvv(const char *str, size_t len) {
 }
 #endif
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+__attribute__((target("avx2")))
+static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
+    size_t offset = 0;
+    while (1) {
+        bool s1_safe = (((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 32);
+        bool s2_safe = (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 32);
+        if (s1_safe && s2_safe) {
+            __m256i v1 = _mm256_loadu_si256((const __m256i *)(s1 + offset));
+            __m256i v2 = _mm256_loadu_si256((const __m256i *)(s2 + offset));
+            __m256i cmp = _mm256_cmpeq_epi8(v1, v2);
+            int eq_mask = _mm256_movemask_epi8(cmp);
+
+            __m256i zero = _mm256_setzero_si256();
+            __m256i nulls = _mm256_cmpeq_epi8(v1, zero);
+            int null_mask = _mm256_movemask_epi8(nulls);
+
+            if (eq_mask == 0xffffffff && null_mask == 0) {
+                offset += 32;
+                continue;
+            }
+
+            for (int i = 0; i < 32; i++) {
+                char c1 = s1[offset + i];
+                char c2 = s2[offset + i];
+                if (c1 != c2) {
+                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
+                }
+                if (c1 == '\0') return 0;
+            }
+            offset += 32;
+        } else {
+            while (1) {
+                char c1 = s1[offset];
+                char c2 = s2[offset];
+                if (c1 != c2) {
+                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
+                }
+                if (c1 == '\0') return 0;
+                offset++;
+                if ((((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 32) &&
+                    (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 32)) {
+                    break;
+                }
+            }
+        }
+    }
+}
+#endif
+
+#if defined(__arm__) || defined(__aarch64__)
+static int wisp_simd_strcmp_neon(const char *s1, const char *s2) {
+    size_t offset = 0;
+    while (1) {
+        bool s1_safe = (((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 16);
+        bool s2_safe = (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 16);
+        if (s1_safe && s2_safe) {
+            uint8x16_t v1 = vld1q_u8((const uint8_t *)(s1 + offset));
+            uint8x16_t v2 = vld1q_u8((const uint8_t *)(s2 + offset));
+
+            uint8x16_t diff = veorq_u8(v1, v2);
+            uint64x2_t diff64 = vreinterpretq_u64_u8(diff);
+            uint64_t d1 = vgetq_lane_u64(diff64, 0);
+            uint64_t d2 = vgetq_lane_u64(diff64, 1);
+
+            uint8x16_t zero = vdupq_n_u8(0);
+            uint8x16_t nulls = vceqq_u8(v1, zero);
+            uint64x2_t nulls64 = vreinterpretq_u64_u8(nulls);
+            uint64_t n1 = vgetq_lane_u64(nulls64, 0);
+            uint64_t n2 = vgetq_lane_u64(nulls64, 1);
+
+            if ((d1 | d2) == 0 && (n1 | n2) == 0) {
+                offset += 16;
+                continue;
+            }
+
+            for (int i = 0; i < 16; i++) {
+                char c1 = s1[offset + i];
+                char c2 = s2[offset + i];
+                if (c1 != c2) {
+                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
+                }
+                if (c1 == '\0') return 0;
+            }
+            offset += 16;
+        } else {
+            while (1) {
+                char c1 = s1[offset];
+                char c2 = s2[offset];
+                if (c1 != c2) {
+                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
+                }
+                if (c1 == '\0') return 0;
+                offset++;
+                if ((((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 16) &&
+                    (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 16)) {
+                    break;
+                }
+            }
+        }
+    }
+}
+#endif
+
+#if defined(__riscv) && defined(__riscv_vector)
+static int wisp_simd_strcmp_rvv(const char *s1, const char *s2) {
+    size_t offset = 0;
+    while (1) {
+        bool s1_safe = (((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 64);
+        bool s2_safe = (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 64);
+        if (s1_safe && s2_safe) {
+            size_t vl = __riscv_vsetvl_e8m1(64);
+            vuint8m1_t v1 = __riscv_vle8_v_u8m1((const uint8_t *)(s1 + offset), vl);
+            vuint8m1_t v2 = __riscv_vle8_v_u8m1((const uint8_t *)(s2 + offset), vl);
+
+            vbool8_t ne_mask = __riscv_vmsne_vv_u8m1_b8(v1, v2, vl);
+            long first_ne = __riscv_vfirst_m_b8(ne_mask, vl);
+
+            vbool8_t null_mask = __riscv_vmseq_vx_u8m1_b8(v1, 0, vl);
+            long first_null = __riscv_vfirst_m_b8(null_mask, vl);
+
+            if (first_ne < 0 && first_null < 0) {
+                offset += vl;
+                continue;
+            }
+
+            for (size_t i = 0; i < vl; i++) {
+                char c1 = s1[offset + i];
+                char c2 = s2[offset + i];
+                if (c1 != c2) {
+                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
+                }
+                if (c1 == '\0') return 0;
+            }
+            offset += vl;
+        } else {
+            while (1) {
+                char c1 = s1[offset];
+                char c2 = s2[offset];
+                if (c1 != c2) {
+                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
+                }
+                if (c1 == '\0') return 0;
+                offset++;
+                if ((((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 64) &&
+                    (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 64)) {
+                    break;
+                }
+            }
+        }
+    }
+}
+#endif
+
+int wisp_simd_strcmp(const char *s1, const char *s2) {
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    if (has_avx2()) {
+        return wisp_simd_strcmp_avx2(s1, s2);
+    }
+#elif defined(__arm__) || defined(__aarch64__)
+    if (has_neon()) {
+        return wisp_simd_strcmp_neon(s1, s2);
+    }
+#elif defined(__riscv) && defined(__riscv_vector)
+    if (has_rvv()) {
+        return wisp_simd_strcmp_rvv(s1, s2);
+    }
+#endif
+    return strcmp(s1, s2);
+}
+
+bool wisp_simd_streq(const char *s1, const char *s2) {
+    return wisp_simd_strcmp(s1, s2) == 0;
+}
+
+static const char *blocked_origins[] = {
+    "adserver.com",
+    "malicious-tracker.net",
+    "attacker.com",
+    "telemetry.evil.org",
+    "analytics.track.me",
+    "doubleclick.net",
+    "google-analytics.com",
+    "coop-malicious.org"
+};
+
+bool wisp_security_is_origin_blocked(const char *origin) {
+    if (!origin) return false;
+    for (size_t i = 0; i < sizeof(blocked_origins) / sizeof(blocked_origins[0]); i++) {
+        if (wisp_simd_streq(blocked_origins[i], origin)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void wisp_is_ascii_func_for_test(void) {
     /* Stub for test harness referencing */
 }
