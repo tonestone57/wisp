@@ -75,4 +75,9 @@ bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_
  */
 bool csp_check_nonce(struct csp *csp, csp_directive directive, const char *nonce);
 
+/**
+ * Check if an origin/domain is in the dynamic tracking/malicious blocklist.
+ */
+bool wisp_security_is_origin_blocked(const char *origin);
+
 #endif

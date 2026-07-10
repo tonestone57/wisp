@@ -13,7 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utf8proc.h>
-#include "wisp/utils/utf8proc_wrapper.h"
+#include <wisp/utils/utf8proc_wrapper.h>
+#include <wisp/content/csp.h>
 
 #define NELEMS(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -130,10 +131,10 @@ START_TEST(test_simd_streq_and_strcmp)
     /* Test strcmp behaviors */
     ck_assert_int_eq(wisp_simd_strcmp("hello", "hello"), 0);
     ck_assert_int_eq(wisp_simd_strcmp("", ""), 0);
-    ck_assert_int_gt(wisp_simd_strcmp("hello", "hell_"), 0);
-    ck_assert_int_lt(wisp_simd_strcmp("hell_", "hello"), 0);
-    ck_assert_int_gt(wisp_simd_strcmp("abc", ""), 0);
-    ck_assert_int_lt(wisp_simd_strcmp("", "abc"), 0);
+    ck_assert(wisp_simd_strcmp("hello", "hell_") > 0);
+    ck_assert(wisp_simd_strcmp("hell_", "hello") < 0);
+    ck_assert(wisp_simd_strcmp("abc", "") > 0);
+    ck_assert(wisp_simd_strcmp("", "abc") < 0);
 }
 END_TEST
 

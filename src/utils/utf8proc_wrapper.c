@@ -20,6 +20,14 @@
 #include <riscv_vector.h>
 #endif
 
+#if defined(__clang__) || defined(__GNUC__)
+#define WISP_NO_ASAN __attribute__((no_sanitize("address")))
+#elif defined(_MSC_VER)
+#define WISP_NO_ASAN __declspec(no_sanitize_address)
+#else
+#define WISP_NO_ASAN
+#endif
+
 /* Dynamic CPU Feature Detection */
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 static inline bool has_avx2(void) {
@@ -183,7 +191,10 @@ static bool wisp_is_ascii_rvv(const char *str, size_t len) {
 #endif
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+#if defined(__GNUC__) || defined(__clang__)
 __attribute__((target("avx2")))
+#endif
+WISP_NO_ASAN
 static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {
@@ -199,19 +210,23 @@ static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
             __m256i nulls = _mm256_cmpeq_epi8(v1, zero);
             int null_mask = _mm256_movemask_epi8(nulls);
 
-            if (eq_mask == 0xffffffff && null_mask == 0) {
-                offset += 32;
-                continue;
+            if (eq_mask != -1) {
+                int mismatch_idx = __builtin_ctz(~eq_mask);
+                if (null_mask != 0) {
+                    int null_idx = __builtin_ctz(null_mask);
+                    if (mismatch_idx > null_idx) {
+                        return 0;
+                    }
+                }
+                unsigned char c1 = (unsigned char)s1[offset + mismatch_idx];
+                unsigned char c2 = (unsigned char)s2[offset + mismatch_idx];
+                return (int)c1 - (int)c2;
             }
 
-            for (int i = 0; i < 32; i++) {
-                char c1 = s1[offset + i];
-                char c2 = s2[offset + i];
-                if (c1 != c2) {
-                    return (int)(unsigned char)c1 - (int)(unsigned char)c2;
-                }
-                if (c1 == '\0') return 0;
+            if (null_mask != 0) {
+                return 0;
             }
+
             offset += 32;
         } else {
             while (1) {
@@ -233,6 +248,7 @@ static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
 #endif
 
 #if defined(__arm__) || defined(__aarch64__)
+WISP_NO_ASAN
 static int wisp_simd_strcmp_neon(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {
@@ -287,6 +303,7 @@ static int wisp_simd_strcmp_neon(const char *s1, const char *s2) {
 #endif
 
 #if defined(__riscv) && defined(__riscv_vector)
+WISP_NO_ASAN
 static int wisp_simd_strcmp_rvv(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {
@@ -337,6 +354,11 @@ static int wisp_simd_strcmp_rvv(const char *s1, const char *s2) {
 #endif
 
 int wisp_simd_strcmp(const char *s1, const char *s2) {
+    if (!s1 || !s2) {
+        if (s1 == s2) return 0;
+        return s1 ? 1 : -1;
+    }
+
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     if (has_avx2()) {
         return wisp_simd_strcmp_avx2(s1, s2);
@@ -355,27 +377,6 @@ int wisp_simd_strcmp(const char *s1, const char *s2) {
 
 bool wisp_simd_streq(const char *s1, const char *s2) {
     return wisp_simd_strcmp(s1, s2) == 0;
-}
-
-static const char *blocked_origins[] = {
-    "adserver.com",
-    "malicious-tracker.net",
-    "attacker.com",
-    "telemetry.evil.org",
-    "analytics.track.me",
-    "doubleclick.net",
-    "google-analytics.com",
-    "coop-malicious.org"
-};
-
-bool wisp_security_is_origin_blocked(const char *origin) {
-    if (!origin) return false;
-    for (size_t i = 0; i < sizeof(blocked_origins) / sizeof(blocked_origins[0]); i++) {
-        if (wisp_simd_streq(blocked_origins[i], origin)) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void wisp_is_ascii_func_for_test(void) {
