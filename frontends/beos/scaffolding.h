@@ -86,6 +86,9 @@ public:
     NSBrowserWindow(BRect frame, struct beos_scaffolding *scaf);
     virtual ~NSBrowserWindow();
 
+    bool LockDirect() { return _LockDirect(); }
+    void UnlockDirect() { _UnlockDirect(); }
+
     virtual void DirectConnected(direct_buffer_info *info);
 
     virtual void DispatchMessage(BMessage *message, BHandler *handler);
