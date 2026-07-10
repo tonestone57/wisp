@@ -16,6 +16,8 @@
 #include <immintrin.h>
 #elif defined(__arm__) || defined(__aarch64__)
 #include <arm_neon.h>
+#elif defined(__riscv) && defined(__riscv_vector)
+#include <riscv_vector.h>
 #endif
 
 /* Dynamic CPU Feature Detection */
@@ -37,6 +39,65 @@ static inline bool has_neon(void) {
     return false;
 #endif
 }
+#endif
+
+#if defined(__riscv)
+#ifdef __linux__
+#include <sys/auxv.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+/* Define constants in case they are missing in older headers */
+#ifndef AT_HWCAP
+#define AT_HWCAP 9
+#endif
+#ifndef COMPAT_HWCAP_ISA_V
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
+#endif
+
+#ifndef __NR_riscv_hwprobe
+#define __NR_riscv_hwprobe 258
+#endif
+#ifndef RISCV_HWPROBE_KEY_IMA_EXT_0
+#define RISCV_HWPROBE_KEY_IMA_EXT_0 4
+#endif
+#ifndef RISCV_HWPROBE_IMA_V
+#define RISCV_HWPROBE_IMA_V (1 << 2)
+#endif
+
+struct wisp_riscv_hwprobe {
+    int64_t key;
+    uint64_t value;
+};
+
+static inline bool has_rvv(void) {
+    /* Try riscv_hwprobe first (modern Linux standard) */
+    struct wisp_riscv_hwprobe request;
+    request.key = RISCV_HWPROBE_KEY_IMA_EXT_0;
+    request.value = 0;
+    if (syscall(__NR_riscv_hwprobe, &request, 1, 0, NULL, 0) == 0) {
+        if (request.value & RISCV_HWPROBE_IMA_V) {
+            return true;
+        }
+    }
+
+    /* Fallback to AT_HWCAP */
+    unsigned long hwcap = getauxval(AT_HWCAP);
+    if (hwcap & COMPAT_HWCAP_ISA_V) {
+        return true;
+    }
+
+    return false;
+}
+#else /* non-Linux RISC-V */
+static inline bool has_rvv(void) {
+#ifdef __riscv_vector
+    return true;
+#else
+    return false;
+#endif
+}
+#endif
 #endif
 
 /* 1. is_ascii implementations */
@@ -105,6 +166,22 @@ static bool wisp_is_ascii_neon(const char *str, size_t len) {
 }
 #endif
 
+#if defined(__riscv) && defined(__riscv_vector)
+static bool wisp_is_ascii_rvv(const char *str, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        size_t vl = __riscv_vsetvl_e8m1(len - i);
+        vuint8m1_t chunk = __riscv_vle8_v_u8m1((const uint8_t *)(str + i), vl);
+        vbool8_t is_nonascii = __riscv_vmsgeu_vx_u8m1_b8(chunk, 0x80, vl);
+        if (__riscv_vfirst_m_b8(is_nonascii, vl) >= 0) {
+            return false;
+        }
+        i += vl;
+    }
+    return true;
+}
+#endif
+
 void wisp_is_ascii_func_for_test(void) {
     /* Stub for test harness referencing */
 }
@@ -117,6 +194,10 @@ bool wisp_is_ascii(const char *str, size_t len) {
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
         return wisp_is_ascii_neon(str, len);
+    }
+#elif defined(__riscv) && defined(__riscv_vector)
+    if (has_rvv()) {
+        return wisp_is_ascii_rvv(str, len);
     }
 #endif
     return wisp_is_ascii_scalar(str, len);
@@ -233,6 +314,22 @@ static void wisp_ascii_tolower_neon(const char *src, char *dst, size_t len) {
 }
 #endif
 
+#if defined(__riscv) && defined(__riscv_vector)
+static void wisp_ascii_tolower_rvv(const char *src, char *dst, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        size_t vl = __riscv_vsetvl_e8m1(len - i);
+        vuint8m1_t chunk = __riscv_vle8_v_u8m1((const uint8_t *)(src + i), vl);
+        vbool8_t ge_A = __riscv_vmsgeu_vx_u8m1_b8(chunk, 'A', vl);
+        vbool8_t le_Z = __riscv_vmsleu_vx_u8m1_b8(chunk, 'Z', vl);
+        vbool8_t is_upper = __riscv_vmand_mm_b8(ge_A, le_Z, vl);
+        vuint8m1_t lower = __riscv_vadd_vx_u8m1_m(is_upper, chunk, chunk, 32, vl);
+        __riscv_vse8_v_u8m1((uint8_t *)(dst + i), lower, vl);
+        i += vl;
+    }
+}
+#endif
+
 void wisp_ascii_tolower(const char *src, char *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     if (has_avx2()) {
@@ -242,6 +339,11 @@ void wisp_ascii_tolower(const char *src, char *dst, size_t len) {
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
         wisp_ascii_tolower_neon(src, dst, len);
+        return;
+    }
+#elif defined(__riscv) && defined(__riscv_vector)
+    if (has_rvv()) {
+        wisp_ascii_tolower_rvv(src, dst, len);
         return;
     }
 #endif
@@ -318,6 +420,22 @@ static void wisp_ascii_toupper_neon(const char *src, char *dst, size_t len) {
 }
 #endif
 
+#if defined(__riscv) && defined(__riscv_vector)
+static void wisp_ascii_toupper_rvv(const char *src, char *dst, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        size_t vl = __riscv_vsetvl_e8m1(len - i);
+        vuint8m1_t chunk = __riscv_vle8_v_u8m1((const uint8_t *)(src + i), vl);
+        vbool8_t ge_a = __riscv_vmsgeu_vx_u8m1_b8(chunk, 'a', vl);
+        vbool8_t le_z = __riscv_vmsleu_vx_u8m1_b8(chunk, 'z', vl);
+        vbool8_t is_lower = __riscv_vmand_mm_b8(ge_a, le_z, vl);
+        vuint8m1_t upper = __riscv_vsub_vx_u8m1_m(is_lower, chunk, chunk, 32, vl);
+        __riscv_vse8_v_u8m1((uint8_t *)(dst + i), upper, vl);
+        i += vl;
+    }
+}
+#endif
+
 void wisp_ascii_toupper(const char *src, char *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     if (has_avx2()) {
@@ -327,6 +445,11 @@ void wisp_ascii_toupper(const char *src, char *dst, size_t len) {
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
         wisp_ascii_toupper_neon(src, dst, len);
+        return;
+    }
+#elif defined(__riscv) && defined(__riscv_vector)
+    if (has_rvv()) {
+        wisp_ascii_toupper_rvv(src, dst, len);
         return;
     }
 #endif
@@ -377,6 +500,19 @@ static void wisp_ascii_to_utf32_neon(const char *src, int32_t *dst, size_t len) 
 }
 #endif
 
+#if defined(__riscv) && defined(__riscv_vector)
+static void wisp_ascii_to_utf32_rvv(const char *src, int32_t *dst, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        size_t vl = __riscv_vsetvl_e8m1(len - i);
+        vint8m1_t chunk = __riscv_vle8_v_i8m1((const int8_t *)(src + i), vl);
+        vint32m4_t extended = __riscv_vsext_vf4_i32m4(chunk, vl);
+        __riscv_vse32_v_i32m4(dst + i, extended, vl);
+        i += vl;
+    }
+}
+#endif
+
 void wisp_ascii_to_utf32(const char *src, int32_t *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     if (has_avx2()) {
@@ -386,6 +522,11 @@ void wisp_ascii_to_utf32(const char *src, int32_t *dst, size_t len) {
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
         wisp_ascii_to_utf32_neon(src, dst, len);
+        return;
+    }
+#elif defined(__riscv) && defined(__riscv_vector)
+    if (has_rvv()) {
+        wisp_ascii_to_utf32_rvv(src, dst, len);
         return;
     }
 #endif
@@ -440,6 +581,21 @@ static void wisp_utf32_to_ascii_neon(const int32_t *src, char *dst, size_t len) 
 }
 #endif
 
+#if defined(__riscv) && defined(__riscv_vector)
+static void wisp_utf32_to_ascii_rvv(const int32_t *src, char *dst, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        size_t vl = __riscv_vsetvl_e32m4(len - i);
+        vint32m4_t chunk = __riscv_vle32_v_i32m4(src + i, vl);
+        vuint32m4_t u_chunk = __riscv_vreinterpret_v_i32m4_u32m4(chunk);
+        vuint16m2_t chunk_16 = __riscv_vnsrl_wx_u16m2(u_chunk, 0, vl);
+        vuint8m1_t chunk_8 = __riscv_vnsrl_wx_u8m1(chunk_16, 0, vl);
+        __riscv_vse8_v_u8m1((uint8_t *)(dst + i), chunk_8, vl);
+        i += vl;
+    }
+}
+#endif
+
 void wisp_utf32_to_ascii(const int32_t *src, char *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
     if (has_avx2()) {
@@ -449,6 +605,11 @@ void wisp_utf32_to_ascii(const int32_t *src, char *dst, size_t len) {
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
         wisp_utf32_to_ascii_neon(src, dst, len);
+        return;
+    }
+#elif defined(__riscv) && defined(__riscv_vector)
+    if (has_rvv()) {
+        wisp_utf32_to_ascii_rvv(src, dst, len);
         return;
     }
 #endif
