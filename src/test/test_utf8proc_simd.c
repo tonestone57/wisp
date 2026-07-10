@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utf8proc.h>
-#include <wisp/utils/utf8proc_wrapper.h>
-#include <wisp/content/csp.h>
+#include "wisp/utils/utf8proc_wrapper.h"
+#include "wisp/content/csp.h"
 
 #define NELEMS(x) (sizeof(x) / sizeof((x)[0]))
 
