@@ -27,6 +27,7 @@
 #include <Window.h>
 #include <FilePanel.h>
 #include <map>
+#include "wisp/mouse.h"
 
 extern struct gui_window_table *beos_window_table;
 extern struct gui_clipboard_table *beos_clipboard_table;
@@ -46,7 +47,7 @@ struct gui_window {
     } mouse;
 
     int caretx, carety, careth;
-    enum gui_pointer_shape current_pointer;
+    gui_pointer_shape current_pointer;
     int last_x, last_y;
 
     class NSBrowserFrameView *view;
