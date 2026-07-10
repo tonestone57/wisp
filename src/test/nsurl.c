@@ -1303,9 +1303,9 @@ static Suite *nsurl_suite(void)
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_compare2_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_get_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_get_component1_test, 6);
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_get_component2_test, 6);
+    tcase_add_test(tc_api_assert, nsurl_api_assert_get_component2_test);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_has_component1_test, 6);
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_has_component2_test, 6);
+    tcase_add_test(tc_api_assert, nsurl_api_assert_has_component2_test);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_access_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_access_leaf_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_length_test, 6);
