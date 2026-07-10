@@ -6,12 +6,19 @@ Wisp is a lightweight, high-performance web engine forked from NetSurf. As of Ju
 ---
 
 ## 2. Graphics Architecture
-Wisp utilizes a "best-of-breed" plotting architecture to ensure performance and consistency across all supported platforms.
+Wisp utilizes a prioritized native-first plotting architecture, utilizing platform-native renderers as the primary backends and **Blend2D** as an optional alternative choice and a unified high-performance software fallback backend.
 
 ### Primary Backends
-*   **Direct2D & DirectWrite (Windows 7+)**: A hardware-accelerated pipeline providing high-performance GPU drawing and crisp native typography. Features robust device-loss recovery.
-*   **Blend2D (Unified Backbone & Fallback)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It is the primary rasterizer for Linux and macOS, and the mandatory fallback for **Windows XP/Vista**, ensuring modern CSS compatibility on legacy hardware.
-*   **Native Typography Interop**: Wisp uses platform-specific handlers (`win32_plot_text_ns`, `macos_plot_text_ns`, etc.) to ensure that even when using Blend2D for content rasterization, text remains crisp and adheres to system-level subpixel rendering settings.
+*   **BeOS / Haiku**: Native `BView` (AGG) rendering.
+*   **Linux (GTK / Qt)**: Cairo (GTK) or QPainter (Qt).
+*   **macOS**: Cocoa native plotter.
+*   **Windows**: Direct2D & DirectWrite (Windows 7+) or GDI (legacy Windows XP/Vista).
+
+### Fallback & Alternative Backend
+*   **Blend2D (Unified Software Fallback)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It serves as an optional alternative backend and the unified software fallback across all supported platforms, ensuring modern rendering features are fully supported when native pipelines are bypassed or unavailable.
+
+### Typography Interop
+*   **Native Typography**: Wisp uses platform-specific handlers (`win32_plot_text_ns`, `macos_plot_text_ns`, etc.) to ensure text remains crisp, adhering to system-level subpixel rendering settings across all plotting configurations.
 
 ### Rendering Strategy
 Wisp has fully transitioned to a **Fixed-Tile Redraw** strategy (256px or 512px tiles). This system optimizes cache locality, eliminates overdraw, and provides the necessary isolation for the Parallel Tile Redraw architecture.
@@ -23,8 +30,8 @@ Wisp's architecture is uniquely positioned to take advantage of multi-core proce
 
 ### Cross-OS Implementation
 1.  **Work Stealing**: The browser core pushes "Dirty Tile Tasks" to the `wisp_subsystem` worker pool, which scales based on the system's logical core count.
-2.  **Thread-Local Backends**: Each worker thread utilizes a thread-local instance of the rendering backend (Blend2D or Direct2D), allowing simultaneous rasterization of different tiles without mutex locking.
-3.  **Asynchronous Compositing**: Once all workers finish their assigned tiles, the main thread performs a single atomic blit (e.g., via `SetDIBitsToDevice` on Windows or `BView` blit on Haiku) to the screen.
+2.  **Thread-Local Backends**: Each worker thread utilizes a thread-local instance of the active rendering backend (such as platform-native backends or fallback Blend2D), allowing simultaneous rasterization of different tiles without mutex locking.
+3.  **Asynchronous Compositing**: Once all workers finish their assigned tiles, the main thread performs a single atomic blit (e.g., via `SetDIBitsToDevice` on Windows or native `BView` blit on Haiku) to the screen.
 
 ### Platform Performance
 *   **Haiku / BeOS**: Workers rasterize tiles safely into thread-confined raw memory regions, bypassing the single-threaded `BWindow` looper limit.
@@ -72,8 +79,16 @@ The following stability and security measures have been integrated:
 *   **Canvas 2D Plotter Bridge**: Successfully bridged WebIDL stubs for the Canvas 2D API to the underlying Direct2D and Blend2D plotter backends.
 *   **Multi-process Isolation**: JavaScript engine and network stack isolated into separate OS processes via a platform-agnostic IPC layer.
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
-*   **BDirectWindow Migration (Haiku)**: Granted the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency.
+*   **BDirectWindow Migration (Haiku)**: Granted the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency on both native BView and Blend2D fallback renderings.
 *   **Native Haiku Widget Parity**: Completed integration of native `BControl` elements into the BeOS/Haiku frontend widget map, including selects, text areas, and file pickers.
+*   **CSP Level 3 Trusted Types, Nonce CSP, and COOP/COEP Integration**: Implemented strict auto-sanitizing default policy walking DOM trees, cryptographic nonce parsing/validation on script execution, and COOP/COEP process isolation.
+*   **Link Pre-connect & DNS Prefetching Pipeline**: Full asynchronous DNS/socket pre-connections handled via dedicated networking process thread pools offloading connection startup latency.
+*   **QuickJS Bytecode Ahead-of-Time (AOT) Caching**: Dynamically caches serialized QuickJS binary bytecode with SHA-256 keys to completely bypass lexing/parsing phases for returning users.
+*   **LZ4 Compressed Tile Lookaside Lists**: Highly optimized thread-safe cache compressing out-of-viewport raw tiles with real-time LZ4 compression to prevent RAM OOMs on low-resource environments.
+*   **SIMD-Accelerated UTF-8 Processing**: Dynamic feature-detected AVX2 and NEON vectorization of ASCII/UTF-8 validations, case mappings, and UTF-32 conversion with robust scalar fallbacks (i586 compatible).
+*   **CSS Variable Caching & Fast-Path Evaluation**: Implemented style-context hashing/caching of custom property values in `libcss` to skip redundant recursive resolution passes, accelerating modern variable-heavy pages.
+*   **Site Isolation & JavaScript Multi-Process Architecture**: Fully integrated per-origin process isolation with thread-safe origin tracking, UNIX sockets created with secure `0700` permissions, and automatic crashed engine reclamation fallback.
+*   **QUIC & HTTP/3 Transport Support**: Supported QUIC and HTTP/3 protocol negotiation and Alt-Svc connection caching safely integrated in the libcurl networking process.
 
 ---
 
@@ -83,14 +98,9 @@ These tasks are high-priority for the 2027 development cycle:
 ### Graphics & Performance
 *   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
 *   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware. This compositor dynamically pivots back to the high-performance Blend2D/GDI pipelines on non-DX11 or legacy hardware to maintain perfect backward compatibility.
-*   **[Planned] CSS Variable Caching & Fast-Path Evaluation** (Complexity: **Medium** | Benefit: **High**): Implement style-context hashing/caching of custom property values. If inherited style contexts have unchanged CSS custom properties, skip the recursive resolution pass entirely for that subtree to accelerate modern CSS layouts (e.g., Tailwind CSS pages).
-*   **[Planned] SIMD-Accelerated UTF-8 processing** (Complexity: **Medium** | Benefit: **Medium**): Integrate SIMD vectorization (AVX2/NEON) into `libutf8proc` wrappers to accelerate both fast-path ASCII/UTF-8 validation and full-path text normalization, case-mapping, and encoding conversions globally. All SIMD pipelines utilize runtime feature detection (e.g., CPUID-based dynamic dispatching) with robust scalar fallbacks, ensuring 100% compatibility with older pre-AVX2, legacy, and retro CPUs.
 
 ### Architecture & Security
-*   **[Planned] Site Isolation** (Complexity: **High** | Benefit: **High**): Extend the multi-process model to support per-origin process isolation.
 *   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD) for maximum protection.
-*   **[Planned] Link Pre-connect & DNS Prefetching Pipeline** (Complexity: **Medium** | Benefit: **High**): Parse `<link rel="dns-prefetch">` and `<link rel="preconnect">` in the main thread and issue early async DNS/socket setup requests to `wisp-network` to bypass connection latency prior to fetching resources.
-*   **[Planned] CSP Level 3 Trusted Types** (Complexity: **Medium** | Benefit: **High**): Integrate CSP Trusted Types to restrict script execution and string-based injection (e.g., `innerHTML`), completely blocking DOM-based XSS vulnerabilities.
 
 ### UI & Features
 *   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): A lightweight, cross-platform UI library for consistent 'browser chrome' (tabs, address bar).
@@ -98,16 +108,15 @@ These tasks are high-priority for the 2027 development cycle:
 ---
 
 ## 8. Future Horizons (2027-2028)
-*   **Zero-Copy IPC Architecture via Shared Memory**: Optimize the multi-process boundaries so that rasterized Blend2D tile bitmaps are passed from rendering/layout worker processes using POSIX/Windows shared-memory handles (`shm_open` or native file mappings), completely bypassing serialization over IPC channels.
-*   **HTTP/3 QUIC Connection Caching and 0-RTT Session Resumption**: Optimize the transport layers in `wisp-network` to leverage dynamic 0-RTT handshakes and cache transport states to minimize connection setup latency on repeated requests.
-*   **Optional JIT Compilation Tier Options**: Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
-*   **Shared-Memory GPU-Shared Textures**: In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
-*   **WebAssembly (WASM) Interpretation**: Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
-*   **Wisp Protocol / WebSocket Payload Masking**: Upstream WebSocket client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. Implement SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2 / `veorq_u8` on NEON) to mask up to 32 bytes per clock cycle, eliminating upstream proxy network bottleneck.
-*   **Structural JSON Parsing for QuickJS-ng**: Leverage a two-stage SIMD pre-parser (similar to `simdjson`) using AVX2/NEON vector comparisons to scan raw incoming JSON strings 16/32 bytes at a time, generating structural token masks and fast bitwise jumps (`popcnt` or trailing zero counts) to completely skip raw data blocks and whitespaces.
-*   **CSS Lexical and Layout Whitespace Skipping**: Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
-*   **Multi-Process Shared Memory Color Space & Alpha Blending**: Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
-*   **CSP Nonce & Security Validation**: Speed up incoming request packet header verification (nonce checks, origin blocklists) by utilizing SIMD string comparison primitives rather than sequential `strcmp` loops.
+*   **Zero-Copy IPC Architecture via Shared Memory** (Complexity: **High** | Benefit: **High**): Optimize the multi-process boundaries so that rasterized Blend2D tile bitmaps are passed from rendering/layout worker processes using POSIX/Windows shared-memory handles (`shm_open` or native file mappings), completely bypassing serialization over IPC channels.
+*   **Optional JIT Compilation Tier Options** (Complexity: **High** | Benefit: **Medium**): Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
+*   **Shared-Memory GPU-Shared Textures** (Complexity: **High** | Benefit: **High**): In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
+*   **WebAssembly (WASM) Interpretation** (Complexity: **Medium** | Benefit: **Medium**): Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
+*   **Wisp Protocol / WebSocket Payload Masking SIMD Acceleration** (Complexity: **Medium** | Benefit: **High**): Upstream WebSocket client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. Implement SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2 / `veorq_u8` on NEON) to mask up to 32 bytes per clock cycle, eliminating upstream proxy network bottleneck.
+*   **Structural JSON Parsing for QuickJS-ng SIMD Pre-parser** (Complexity: **Medium** | Benefit: **High**): Leverage a two-stage SIMD pre-parser (similar to `simdjson`) using AVX2/NEON vector comparisons to scan raw incoming JSON strings 16/32 bytes at a time, generating structural token masks and fast bitwise jumps (`popcnt` or trailing zero counts) to completely skip raw data blocks and whitespaces.
+*   **CSS Lexical and Layout Whitespace Skipping SIMD** (Complexity: **Medium** | Benefit: **High**): Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
+*   **Multi-Process Shared Memory Color Space & Alpha Blending SIMD** (Complexity: **Medium** | Benefit: **Medium**): Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
+*   **SIMD CSP Nonce & Security Validation** (Complexity: **Medium** | Benefit: **High**): Speed up incoming request packet header verification (nonce checks, origin blocklists) by utilizing SIMD string comparison primitives rather than sequential `strcmp` loops.
 
 ---
 
@@ -118,23 +127,12 @@ To take Wisp to the next level for its 2027 development cycle, several highly sp
 ### A. Compatibility & Performance: User-Space TLS & Network Fallbacks
 Because Wisp aims to run natively on Windows XP/7 alongside modern OSes, relying on the host operating system's network stack creates a massive compatibility bottleneck.
 *   **The Problem**: Windows XP and Vista's native crypto stacks (Schannel) do not support TLS 1.2 or TLS 1.3, making the modern web completely inaccessible without a proxy handling the decryption.
-*   **The Fix (Statically-Linked User-Space Crypto Stack)**: Force the `wisp-network` process to completely bypass host OS network APIs. Statically link a lightweight, ultra-fast modern crypto library like **mbedTLS** or **BearSSL** directly into the network process.
+*   **The Fix (Statically-Linked User-Space Crypto Stack)** (Complexity: **Medium** | Benefit: **High**): Force the `wisp-network` process to completely bypass host OS network APIs. Statically link a lightweight, ultra-fast modern crypto library like **mbedTLS** or **BearSSL** directly into the network process.
 *   **The Benefit**: Wisp achieves 100% independent HTTPS capability. A user on Windows XP or an older Haiku nightly build can connect directly to modern, strictly secured websites without requiring a middleman proxy or OS-level registry hacks.
 
-### B. Speed: QuickJS Bytecode Ahead-of-Time (AOT) Caching
-QuickJS-ng is wonderfully lightweight, but it lacks a heavy JIT compiler. On older, low-frequency CPUs (like an Intel Atom or a Pentium 4 running XP), parsing massive modern JavaScript bundles on every page load causes noticeable CPU stutter.
-*   **The Improvement**: Implement a **Bytecode Cache Store** for the JavaScript process. QuickJS natively supports serializing parsed scripts into binary bytecode. When a user visits a site, Wisp will parse the JS *once*, execute it, and dump the compiled bytecode to a local cache database.
-*   **The Mechanism**: On subsequent visits, Wisp skips the lexing, parsing, and tokenization phases entirely, streaming the raw bytecode directly into the `JSContext`.
-
-### C. Stability & Memory: LZ4 Compressed Tile Lookaside Lists
-While the fixed-buffer pool (`tile_pool.c`) effectively stops heap fragmentation, raw 32-bit uncompressed bitmaps consume vast amounts of RAM.
-*   **The Problem**: A single 512x512px tile at 32-bit color depth requires 1MB of memory. A high-resolution screen can generate dozens of these tiles. On a legacy system or a low-spec embedded board with only 512MB–1GB of total system RAM, Wisp will quickly trigger Out-Of-Memory (OOM) faults.
-*   **The Fix (ZRAM-Style Tile Compression)**: Integrate an ultra-fast compression pass for non-visible tiles. When the Viewport-Prioritized Scheduler determines a tile has scrolled significantly out of the active frustum, instead of freeing it or keeping it raw, pass it to an in-memory **LZ4 compression wrapper**.
-*   **The Math**: LZ4 can compress predictable UI/bitmap data at gigabytes per second with a typical 4:1 compression ratio, instantly shrinking a 1MB tile down to ~250KB in microseconds. When the user scrolls back, it decompresses nearly instantaneously.
-
-### D. Security: Asymmetric OS Sandboxing
+### B. Security: Asymmetric OS Sandboxing
 Leaving legacy OS users entirely unsandboxed is highly dangerous, but legacy environments do not support modern sandboxing mechanisms like AppContainers.
-*   **The Fix (Stratified Execution Sandboxes)**: Implement an explicit architectural fallback matrix based on runtime OS detection:
+*   **The Fix (Stratified Execution Sandboxes)** (Complexity: **High** | Benefit: **High**): Implement an explicit architectural fallback matrix based on runtime OS detection:
 
 | Target OS | Primary Sandbox Mechanism | Security Profile |
 |---|---|---|
@@ -145,22 +143,52 @@ Leaving legacy OS users entirely unsandboxed is highly dangerous, but legacy env
 
 > **Note on Legacy Windows Security**: By creating a restricted token, stripping away SIDs, and placing the JS/Network processes into a Win32 JobObject with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, you prevent a compromised process from writing to the system directories or surviving a browser crash, even on Windows XP.
 
-### E. Architectural Trade-offs Matrix
+### C. Architectural Trade-offs Matrix
 Implementing these additions alongside your current 2027 backlog balances out the engineering effort:
 
-| Improvement | Complexity | Target Area | Key Beneficiary |
-|---|---|---|---|
-| **User-Space TLS Stack** | Medium | Compatibility | Legacy Windows / Alternative OS |
-| **QuickJS Bytecode Cache** | Low | Speed | Low-spec / Retro CPUs |
-| **LZ4 Compressed Tiles** | Medium | Stability / Memory | Low-RAM Hardware Environments |
-| **Asymmetric Sandboxing** | High | Security | Windows XP / 7 Legacy Users |
+| Improvement | Complexity | Benefit | Target Area | Key Beneficiary |
+|---|---|---|---|---|
+| **User-Space TLS Stack** | Medium | High | Compatibility | Legacy Windows / Alternative OS |
+| **Asymmetric Sandboxing** | High | High | Security | Windows XP / 7 Legacy Users |
 
-### F. Strategic Optimization Impact (Vectorized Bottlenecks)
+### D. Strategic Optimization Impact (Vectorized Bottlenecks)
 
 By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers:
 
-| Expansion Target | Vector Width (AVX2 / NEON) | Primary Benefit Area | Architectural Impact |
-|---|---|---|---|
-| **WebSocket Masking** | 32 Bytes / 16 Bytes | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
-| **SIMD JSON Parser** | 32 Bytes / 16 Bytes | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
-| **CSS Tokenizer** | 32 Bytes / 16 Bytes | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
+| Expansion Target | Vector Width (AVX2 / NEON) | Complexity | Benefit | Primary Benefit Area | Architectural Impact |
+|---|---|---|---|---|---|
+| **WebSocket Masking** | 32 Bytes / 16 Bytes | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
+| **SIMD JSON Parser** | 32 Bytes / 16 Bytes | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
+| **CSS Tokenizer** | 32 Bytes / 16 Bytes | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
+
+---
+
+## 10. Frontend Implementation Nuances & Dynamic Fallbacks
+To ensure the backend rollout is reliable and performant across all hardware/software tiers, several architectural and platform-specific design constraints must be observed:
+
+### A. Windows: Dynamic Runtime Detection vs. Compile-time
+A single compiled Windows binary may be deployed on any OS from Windows XP up to Windows 11. Therefore, backend selection must not be hardcoded via compile-time preprocessor macros. Instead, it must be resolved dynamically at runtime:
+1.  **Direct2D Loader**: Dynamically attempt to load the Direct2D runtime library via `LoadLibrary("d2d1.dll")` and retrieve function pointers (such as `D2D1CreateFactory`).
+2.  **Graceful Degeneration**: If `d2d1.dll` cannot be loaded, or if D2D factory/resource initialization fails (e.g., on Windows XP, or Vista instances lacking the Platform Update), immediately degenerate the drawing pipeline back to **Blend2D** software rendering.
+
+### B. Windows XP SSE2 Requirements & Safe Fallback Chain
+While Blend2D is an exceptional software rasterizer, its JIT compilation pipeline (via AsmJit) and SIMD features require a minimum of **SSE2** instruction support on x86 processors. Some ultra-legacy Windows XP targets (e.g., AMD Athlon XP, Intel Pentium III) lack SSE2. Attempting to initialize Blend2D on these environments will result in an immediate `SIGILL` (Illegal Instruction) crash.
+*   **The Safe Fallback Chain for Windows XP**:
+    *   **Phase 1**: Query CPU features at startup (using runtime `__builtin_cpu_supports` or dynamic CPUID flags).
+    *   **Phase 2**: If the CPU supports SSE2, route the software rendering pipeline through **Blend2D**.
+    *   **Phase 3**: If the CPU lacks SSE2, bypass Blend2D entirely and safely fall back to the native **GDI** plotter.
+
+### C. Consistent Internal Configuration Mapping
+To prevent configuration drift and code bloat, mapped user options must bind cleanly to a unified internal rendering enum definition:
+```c
+typedef enum {
+    WISP_RENDER_BACKEND_AUTO = 0,
+    WISP_RENDER_BACKEND_NATIVE,
+    WISP_RENDER_BACKEND_BLEND2D
+} WispRenderBackend;
+```
+
+### D. Tracking BeOS/Haiku View Implementation File
+The primary rendering and event dispatch logic for BeOS/Haiku is centralized under **`frontends/beos/window.cpp`**. To mirror the GTK/Qt/macOS backend hierarchy:
+*   Under `AUTO` or `NATIVE`, prioritize native **`BView` (AGG)** rendering.
+*   Under the fallback/alternative `OPTION_RENDER_BACKEND_BLEND2D`, use the thread-local **Blend2D** rasterizer inside the `BDirectWindow` frame buffer lock loop.

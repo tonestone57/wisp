@@ -13,9 +13,15 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 Wisp has completed its core CSS Variables implementation and optimized the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
 ### Core Features Status (July 2026)
-*   **[Finished] Blend2D Integration**: Blend2D is available as an optional high-performance rendering engine across frontends, ensuring pixel-perfect software rasterization and SIMD optimization.
+*   **[Finished] Blend2D Integration**: Blend2D is available as an optional alternative rendering choice and a unified high-performance software fallback backend across all frontends, ensuring pixel-perfect software rasterization and SIMD optimization when platform-native renderers are bypassed or unavailable.
 *   **[Finished] Native Direct2D & DirectWrite (Windows)**: Hardware-accelerated rendering pipeline for modern Windows systems, integrated with the core.
 *   **[Finished] Fixed-Tile Redraw**: Scale-aware 256x256 or 512x512 tile strategy implemented to optimize performance and cache locality.
+*   **[Finished] CSP Level 3 Trusted Types & Security Hardening**: Strict auto-sanitizing default policy safety net with cryptographic nonce parsing and validation to completely block DOM-based XSS. Enforced on internal UI and extensions.
+*   **[Finished] Link Pre-connect & DNS Prefetching Pipeline**: Automated `<link rel="dns-prefetch">` and `<link rel="preconnect">` processing. IPC network thread pool offloading to bypass server connection setup latency.
+*   **[Finished] QuickJS Bytecode Ahead-of-Time (AOT) Caching**: Serializes parsed scripts to binary bytecode under `/tmp/wisp-bytecode-cache` to bypass lexing/parsing phases on subsequent visits, drastically accelerating performance.
+*   **[Finished] LZ4 Compressed Tile Lookaside Lists**: Out-of-viewport tiles are dynamically compressed using real-time LZ4 compression (typical 4:1 compression ratio) to minimize RAM footprint, reclaiming them instantaneously on viewport scrollback.
+*   **[Finished] SIMD-Accelerated UTF-8 processing**: High-performance ASCII/UTF-8 validation, case-folding, and UTF-32 conversion utilizing AVX2/NEON vectorization with safe scalar fallbacks for older CPUs (i586 compatible).
+*   **[Finished] CSS Variable Caching & Fast-Path Evaluation**: Implemented style-context hashing/caching of custom property values in `libcss` to skip redundant recursive resolution passes, accelerating modern variable-heavy pages.
 *   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D, fixed-tile redraw strategy, BDirectWindow for low-latency blitting, and native widget parity.
 *   **[Finished] IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks.
 *   **[Finished] A/V Master Clock**: Synchronized audio and video tracks in the FFmpeg-based media pipeline.
@@ -111,9 +117,15 @@ cmake --build build
 ```
 
 ### Rendering Backends
+Wisp is designed to prioritize platform-native rendering backends as its primary pipelines, utilizing **Blend2D** as an optional alternative choice and a robust, unified cross-platform software fallback.
+
+*   **BeOS / Haiku**: Primary backend is native `BView` (AGG) rendering. Fallback backend is Blend2D.
+*   **Linux**: Primary backend is Cairo (GTK) or QPainter (Qt). Fallback backend is Blend2D.
+*   **macOS**: Primary backend is Cocoa native plotter. Fallback backend is Blend2D.
+*   **Windows**: Primary backend is Direct2D/DirectWrite (or GDI for legacy Windows versions). Fallback backend is Blend2D.
 
 #### Blend2D
-Wisp includes a high-performance Blend2D backend for software rasterization. To enable it, use:
+To compile and enable Blend2D as the alternative/fallback backend, use:
 ```bash
 cmake -B build -DWISP_USE_BLEND2D=ON
 ```
