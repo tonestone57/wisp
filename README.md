@@ -20,7 +20,7 @@ Wisp has completed its core CSS Variables implementation and optimized the Incre
 *   **[Finished] Link Pre-connect & DNS Prefetching Pipeline**: Automated `<link rel="dns-prefetch">` and `<link rel="preconnect">` processing. IPC network thread pool offloading to bypass server connection setup latency.
 *   **[Finished] QuickJS Bytecode Ahead-of-Time (AOT) Caching**: Serializes parsed scripts to binary bytecode under `/tmp/wisp-bytecode-cache` to bypass lexing/parsing phases on subsequent visits, drastically accelerating performance.
 *   **[Finished] LZ4 Compressed Tile Lookaside Lists**: Out-of-viewport tiles are dynamically compressed using real-time LZ4 compression (typical 4:1 compression ratio) to minimize RAM footprint, reclaiming them instantaneously on viewport scrollback.
-*   **[Finished] SIMD-Accelerated UTF-8 processing**: High-performance ASCII/UTF-8 validation, case-folding, and UTF-32 conversion utilizing AVX2/NEON vectorization with safe scalar fallbacks for older CPUs (i586 compatible).
+*   **[Finished] SIMD-Accelerated UTF-8 processing**: High-performance ASCII/UTF-8 validation, case-folding, and UTF-32 conversion utilizing vectorized pipelines (**AVX2 on X86, NEON on ARM, and RVV on RISC-V**) with safe scalar fallbacks for older CPUs (i586 compatible).
 *   **[Finished] CSS Variable Caching & Fast-Path Evaluation**: Implemented style-context hashing/caching of custom property values in `libcss` to skip redundant recursive resolution passes, accelerating modern variable-heavy pages.
 *   **[Finished] Native Haiku/BeOS Frontend**: Fully integrated with Blend2D, fixed-tile redraw strategy, BDirectWindow for low-latency blitting, and native widget parity.
 *   **[Finished] IntersectionObserver**: Fully integrated into the layout engine via post-layout hooks.
@@ -117,21 +117,31 @@ cmake --build build
 ```
 
 ### Rendering Backends
-Wisp is designed to prioritize platform-native rendering backends as its primary pipelines, utilizing **Blend2D** as an optional alternative choice and a robust, unified cross-platform software fallback.
+Wisp compiles and runs with **platform-native rendering backends as the default**. The historical "Auto" backend selection mode has been completely removed to prioritize native platform performance, toolkit-native font rendering, and seamless compositor integration.
 
-*   **BeOS / Haiku**: Primary backend is native `BView` (AGG) rendering. Fallback backend is Blend2D.
-*   **Linux**: Primary backend is Cairo (GTK) or QPainter (Qt). Fallback backend is Blend2D.
-*   **macOS**: Primary backend is Cocoa native plotter. Fallback backend is Blend2D.
-*   **Windows**: Primary backend is Direct2D/DirectWrite (or GDI for legacy Windows versions). Fallback backend is Blend2D.
+*   **BeOS / Haiku**: Default backend is native `BView` (AGG) rendering. Optional fallback backend is Blend2D.
+*   **Linux**: Default backend is Cairo (for GTK) or QPainter (for Qt). Optional fallback backend is Blend2D.
+*   **macOS**: Default backend is Cocoa native plotter. Optional fallback backend is Blend2D.
+*   **Windows**: Default backend can be explicitly selected at compile time as either **Direct2D** or **GDI** (see options below). Optional fallback backend is Blend2D.
 
-#### Blend2D
-To compile and enable Blend2D as the alternative/fallback backend, use:
+#### Direct2D vs GDI Compiles on Windows
+On Windows, you can explicitly control which native rendering pipeline is compiled:
+*   **Direct2D & DirectWrite (Default)**: Hardware-accelerated high-fidelity rendering pipeline.
+    ```bash
+    cmake -B build -DWISP_WINDOWS_USE_D2D=ON
+    ```
+*   **Legacy GDI**: Traditional software rendering pipeline, recommended for Windows XP or Vista targets.
+    ```bash
+    cmake -B build -DWISP_WINDOWS_USE_D2D=OFF
+    ```
+
+#### Optional Blend2D Backend
+Blend2D is completely optional and must be explicitly enabled at compile time:
 ```bash
 cmake -B build -DWISP_USE_BLEND2D=ON
 ```
 
-#### AsmJit (JIT Support)
-By default, Blend2D uses AsmJit (supports x86, x86_64, and AArch64) for JIT-compiled SIMD pipelines. If you need to build without JIT (e.g., for architectures not supported by AsmJit), you can disable it:
-```bash
-cmake -B build -DWISP_USE_BLEND2D=ON -DBLEND2D_NO_JIT=ON
-```
+#### AsmJit (JIT Support) Compile-time Safeguards
+When optional Blend2D compilation is enabled (`WISP_USE_BLEND2D=ON`), the build system automatically configures the **AsmJit** JIT compiler based on the target CPU architecture:
+*   **SSE2 or ARM64 targets (Standard)**: AsmJit is compiled and enabled to optimize SIMD software rendering pipelines.
+*   **Legacy/non-SSE2 targets (e.g., Windows XP / i586)**: The build system automatically turns **OFF** AsmJit compilation and usage (`BLEND2D_NO_JIT=ON`) to prevent Illegal Instruction crashes on older hardware, falling back safely to scalar software rendering.

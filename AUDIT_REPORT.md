@@ -1,7 +1,7 @@
 # Wisp Code Audit Report - July 2026
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Wisp employs a native-first graphics strategy prioritizing platform-native pipelines (BView on Haiku, Cairo/QPainter on Linux, Cocoa on macOS, Direct2D/GDI on Windows) as its primary backends, with Blend2D as an optional high-performance software fallback backend and alternative rendering choice. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Wisp employs a prioritized native-first graphics strategy where platform-native pipelines are compiled and run by default, completely removing the runtime 'auto' backend selection mode to reduce overhead. Blend2D remains a fully optional alternative rendering choice and software fallback backend. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
 
 ## 2. Library Versions Audit
 
@@ -63,7 +63,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **Link Pre-connect & DNS Prefetching Pipeline**: Full asynchronous DNS/socket pre-connections handled via dedicated networking process thread pools offloading connection startup latency.
 *   **QuickJS Bytecode Ahead-of-Time (AOT) Caching**: Dynamically caches serialized QuickJS binary bytecode with SHA-256 keys to completely bypass lexing/parsing phases for returning users.
 *   **LZ4 Compressed Tile Lookaside Lists**: Highly optimized thread-safe cache compressing out-of-viewport raw tiles with real-time LZ4 compression to prevent RAM OOMs on low-resource environments.
-*   **SIMD-Accelerated UTF-8 Processing**: Dynamic feature-detected AVX2 and NEON vectorization of ASCII/UTF-8 validations, case mappings, and UTF-32 conversion with robust scalar fallbacks (i586 compatible).
+*   **SIMD-Accelerated UTF-8 Processing**: Dynamic feature-detected **AVX2 (on X86), NEON (on ARM), and RVV (on RISC-V)** vectorization of ASCII/UTF-8 validations, case mappings, and UTF-32 conversion with robust scalar fallbacks (i586 compatible).
 *   **CSS Variable Caching & Fast-Path Evaluation**: Implemented style-context hashing/caching of custom property values in `libcss` to skip redundant recursive resolution passes, accelerating modern variable-heavy pages.
 *   **Site Isolation & JavaScript Multi-Process Architecture**: Fully integrated per-origin process isolation with thread-safe origin tracking, UNIX sockets created with secure `0700` permissions, and automatic crashed engine reclamation fallback.
 
@@ -92,10 +92,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **FFmpeg**: Asynchronous video decoding pipeline with software volume scaling.
 
 ### 4.4 Frontends
-*   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Supports native Direct2D/DirectWrite and GDI as primary paths, with Blend2D as an optional fallback/alternative.
-*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` (AGG) rendering as primary, with fallback to Blend2D and fixed-tile redraw.
-*   **Linux (GTK / Qt)**: Uses native Cairo (GTK) or QPainter (Qt) as primary, with fallback to Blend2D.
-*   **macOS (Cocoa)**: Uses Cocoa native plotter as primary, with fallback to Blend2D.
+*   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Native backend choice is explicitly compile-time selectable via `WISP_WINDOWS_USE_D2D` to build either the Direct2D/DirectWrite pipeline or the legacy GDI pipeline (default compile is Direct2D). Blend2D remains as an optional fallback/alternative.
+*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` (AGG) rendering as the default primary backend, with fallback to Blend2D and fixed-tile redraw.
+*   **Linux (GTK / Qt)**: Uses native Cairo (GTK) or QPainter (Qt) as the default primary backend, with fallback to Blend2D.
+*   **macOS (Cocoa)**: Uses Cocoa native plotter as the default primary backend, with fallback to Blend2D.
 
 ## 5. Bugs and Technical Debt
 
@@ -113,7 +113,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 2.  **SIMD Layout**: Utilize the 64-byte aligned arena for SIMD-accelerated layout calculations. (Complexity: **High** | Benefit: **Medium**)
 3.  **Haiku OS Native Port-Level & Messaging Sandboxing (MAC)**: Implement Mandatory Access Control (MAC) on Haiku Ports to intercept messaging between isolated Teams (processes) and core system servers (Storage, Network). This provides high-level security containment using Haiku's native kernel-managed message passing instead of grafting standard POSIX Unix sockets. (Complexity: **Medium** | Benefit: **High**)
 4.  **WebSocket Payload Masking SIMD Acceleration**: Optimize WebSocket client-to-proxy dynamic XOR masking by broadcasting the rolling 4-byte key and vectorizing XOR operations (`_mm256_xor_si256` / `veorq_u8`), processing up to 32 bytes per cycle. (Complexity: **Medium** | Benefit: **High**)
-5.  **QuickJS-ng Structural JSON SIMD Pre-parser**: Integrate an AVX2/NEON JSON structural pre-parser modeled on `simdjson` to scan strings 16/32 bytes at a time and generate token masks with fast bitwise jumps, bypassing character-by-character lexing on big payloads. (Complexity: **Medium** | Benefit: **High**)
+5.  **QuickJS-ng Structural JSON SIMD Pre-parser**: Integrate an **AVX2 (on X86), NEON (on ARM), and RVV (on RISC-V)** JSON structural pre-parser modeled on `simdjson` to scan strings 16/32 bytes at a time and generate token masks with fast bitwise jumps, bypassing character-by-character lexing on big payloads. (Complexity: **Medium** | Benefit: **High**)
 6.  **CSS Tokenizer SIMD Delimiter & Whitespace Scanning**: Load target whitespace and structural delimiters into a SIMD scanning register to examine 16/32 byte blocks at once, accelerating large stylesheet lexical processing. (Complexity: **Medium** | Benefit: **High**)
 7.  **Vectorized Multi-Process Color Space & Alpha Blending**: Accelerate Zero-Copy IPC compositing by implementing SIMD floating-point/fixed-point matrix conversions (YUV-to-RGB) and parallelized pixel blending on layout buffers. (Complexity: **Medium** | Benefit: **Medium**)
 8.  **SIMD CSP Nonce & Security Header Validation**: Replace sequential `strcmp` with SIMD coarse string comparisons to check nonces and security blocklists against packet headers 32 bytes at a time. (Complexity: **Medium** | Benefit: **High**)
