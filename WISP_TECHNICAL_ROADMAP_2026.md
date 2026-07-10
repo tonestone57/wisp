@@ -9,7 +9,7 @@ Wisp is a lightweight, high-performance web engine forked from NetSurf. As of Ju
 Wisp utilizes a prioritized native-first plotting architecture, utilizing platform-native renderers as the primary backends and **Blend2D** as an optional alternative choice and a unified high-performance software fallback backend.
 
 ### Primary Backends
-*   **BeOS / Haiku**: Native `BView` rendering.
+*   **BeOS / Haiku**: Native `BView` (AGG) rendering.
 *   **Linux (GTK / Qt)**: Cairo (GTK) or QPainter (Qt).
 *   **macOS**: Cocoa native plotter.
 *   **Windows**: Direct2D & DirectWrite (Windows 7+) or GDI (legacy Windows XP/Vista).

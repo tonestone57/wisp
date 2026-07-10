@@ -119,7 +119,7 @@ cmake --build build
 ### Rendering Backends
 Wisp is designed to prioritize platform-native rendering backends as its primary pipelines, utilizing **Blend2D** as an optional alternative choice and a robust, unified cross-platform software fallback.
 
-*   **BeOS / Haiku**: Primary backend is native `BView` rendering. Fallback backend is Blend2D.
+*   **BeOS / Haiku**: Primary backend is native `BView` (AGG) rendering. Fallback backend is Blend2D.
 *   **Linux**: Primary backend is Cairo (GTK) or QPainter (Qt). Fallback backend is Blend2D.
 *   **macOS**: Primary backend is Cocoa native plotter. Fallback backend is Blend2D.
 *   **Windows**: Primary backend is Direct2D/DirectWrite (or GDI for legacy Windows versions). Fallback backend is Blend2D.

@@ -93,7 +93,7 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 
 ### 4.4 Frontends
 *   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Supports native Direct2D/DirectWrite and GDI as primary paths, with Blend2D as an optional fallback/alternative.
-*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` rendering as primary, with fallback to Blend2D and fixed-tile redraw.
+*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` (AGG) rendering as primary, with fallback to Blend2D and fixed-tile redraw.
 *   **Linux (GTK / Qt)**: Uses native Cairo (GTK) or QPainter (Qt) as primary, with fallback to Blend2D.
 *   **macOS (Cocoa)**: Uses Cocoa native plotter as primary, with fallback to Blend2D.
 
