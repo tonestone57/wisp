@@ -65,6 +65,9 @@ static int macos_tile_task_compare(const void *a, const void *b)
     bool use_blend2d = false;
     if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
         use_blend2d = true;
+    } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
+        /* On macOS, Blend2D is often faster than Core Graphics for complex paths */
+        use_blend2d = true;
     }
 
     if (use_blend2d) {
