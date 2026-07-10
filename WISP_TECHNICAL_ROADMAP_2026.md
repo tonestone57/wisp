@@ -6,16 +6,16 @@ Wisp is a lightweight, high-performance web engine forked from NetSurf. As of Ju
 ---
 
 ## 2. Graphics Architecture
-Wisp utilizes a prioritized native-first plotting architecture, utilizing platform-native renderers as the primary backends and **Blend2D** as an optional alternative choice and a unified high-performance software fallback backend.
+Wisp utilizes a prioritized platform-native-first plotting architecture by default, removing the historical runtime "Auto" mode to prevent performance overhead and toolkit drift. Platform-native backends serve as the default compiling and runtime rendering engines, while **Blend2D** remains fully optional and available as an alternative choice and high-performance software fallback backend.
 
 ### Primary Backends
-*   **BeOS / Haiku**: Native `BView` (AGG) rendering.
-*   **Linux (GTK / Qt)**: Cairo (GTK) or QPainter (Qt).
-*   **macOS**: Cocoa native plotter.
-*   **Windows**: Direct2D & DirectWrite (Windows 7+) or GDI (legacy Windows XP/Vista).
+*   **BeOS / Haiku**: Native `BView` (AGG) rendering (Default).
+*   **Linux (GTK / Qt)**: Cairo (GTK) or QPainter (Qt) (Default).
+*   **macOS**: Cocoa native plotter (Default).
+*   **Windows**: Can be explicitly chosen at compile time via `WISP_WINDOWS_USE_D2D` to build either the **Direct2D** (Default) or legacy **GDI** pipeline.
 
-### Fallback & Alternative Backend
-*   **Blend2D (Unified Software Fallback)**: A high-performance software 2D engine using JIT-compiled SIMD (AVX-512, NEON) for rasterization. It serves as an optional alternative backend and the unified software fallback across all supported platforms, ensuring modern rendering features are fully supported when native pipelines are bypassed or unavailable.
+### Optional Fallback Backend
+*   **Blend2D**: A software 2D engine compiled optionally with `WISP_USE_BLEND2D=ON`. It acts as an optional alternative and software fallback across all supported platforms when native pipelines are bypassed or unavailable.
 
 ### Typography Interop
 *   **Native Typography**: Wisp uses platform-specific handlers (`win32_plot_text_ns`, `macos_plot_text_ns`, etc.) to ensure text remains crisp, adhering to system-level subpixel rendering settings across all plotting configurations.
@@ -166,29 +166,27 @@ By leveraging Wisp's lightweight architecture alongside modern SIMD vectorizatio
 ## 10. Frontend Implementation Nuances & Dynamic Fallbacks
 To ensure the backend rollout is reliable and performant across all hardware/software tiers, several architectural and platform-specific design constraints must be observed:
 
-### A. Windows: Dynamic Runtime Detection vs. Compile-time
-A single compiled Windows binary may be deployed on any OS from Windows XP up to Windows 11. Therefore, backend selection must not be hardcoded via compile-time preprocessor macros. Instead, it must be resolved dynamically at runtime:
-1.  **Direct2D Loader**: Dynamically attempt to load the Direct2D runtime library via `LoadLibrary("d2d1.dll")` and retrieve function pointers (such as `D2D1CreateFactory`).
-2.  **Graceful Degeneration**: If `d2d1.dll` cannot be loaded, or if D2D factory/resource initialization fails (e.g., on Windows XP, or Vista instances lacking the Platform Update), immediately degenerate the drawing pipeline back to **Blend2D** software rendering.
+### A. Windows: Explicit Compile-time & Runtime Selection
+Windows compiles allow explicit pipeline choices, coupled with dynamic runtime validation:
+1.  **Explicit Compile-time selection**: Controlled by `WISP_WINDOWS_USE_D2D` in CMake to choose either Direct2D (`ON`) or GDI (`OFF`) as the native backend.
+2.  **Direct2D Loader**: For Direct2D compiles, dynamically attempt to load the Direct2D library (`d2d1.dll`) via `LoadLibrary` to gracefully handle older systems like Windows XP/Vista.
+3.  **Graceful Degeneration**: If initialization fails, fall back to **Blend2D** software rendering (if compiled) or the **GDI** plotter.
 
-### B. Windows XP SSE2 Requirements & Safe Fallback Chain
-While Blend2D is an exceptional software rasterizer, its JIT compilation pipeline (via AsmJit) and SIMD features require a minimum of **SSE2** instruction support on x86 processors. Some ultra-legacy Windows XP targets (e.g., AMD Athlon XP, Intel Pentium III) lack SSE2. Attempting to initialize Blend2D on these environments will result in an immediate `SIGILL` (Illegal Instruction) crash.
-*   **The Safe Fallback Chain for Windows XP**:
-    *   **Phase 1**: Query CPU features at startup (using runtime `__builtin_cpu_supports` or dynamic CPUID flags).
-    *   **Phase 2**: If the CPU supports SSE2, route the software rendering pipeline through **Blend2D**.
-    *   **Phase 3**: If the CPU lacks SSE2, bypass Blend2D entirely and safely fall back to the native **GDI** plotter.
+### B. Compile-time AsmJit (JIT) Toggle based on SSE2 and ARM64
+To guarantee absolute safety on retro hardware, `asmjit` is optionally compiled based on target CPU capabilities:
+1.  **x86/x64 SSE2 or ARM64 (Enabled)**: AsmJit is compiled and linked to emit high-speed vectorized pipelines at runtime.
+2.  **Legacy non-SSE2 x86 (Disabled)**: The build system automatically sets `BLEND2D_NO_JIT=ON` when compiling for non-SSE2 architectures (such as targeting Windows XP with `no-sse2` compiler flags). In this state, `asmjit` is completely excluded from compilation, preventing Illegal Instruction crashes on older x86 hardware (e.g., AMD Athlon XP or Pentium III).
 
 ### C. Consistent Internal Configuration Mapping
-To prevent configuration drift and code bloat, mapped user options must bind cleanly to a unified internal rendering enum definition:
+To prevent configuration drift and code bloat, mapped user options bind cleanly to a unified internal rendering enum definition, with the Auto option removed:
 ```c
 typedef enum {
-    WISP_RENDER_BACKEND_AUTO = 0,
-    WISP_RENDER_BACKEND_NATIVE,
-    WISP_RENDER_BACKEND_BLEND2D
+    WISP_RENDER_BACKEND_NATIVE = 0,
+    WISP_RENDER_BACKEND_BLEND2D = 2
 } WispRenderBackend;
 ```
 
 ### D. Tracking BeOS/Haiku View Implementation File
-The primary rendering and event dispatch logic for BeOS/Haiku is centralized under **`frontends/beos/window.cpp`**. To mirror the GTK/Qt/macOS backend hierarchy:
-*   Under `AUTO` or `NATIVE`, prioritize native **`BView` (AGG)** rendering.
-*   Under the fallback/alternative `OPTION_RENDER_BACKEND_BLEND2D`, use the thread-local **Blend2D** rasterizer inside the `BDirectWindow` frame buffer lock loop.
+The primary rendering and event dispatch logic for BeOS/Haiku is centralized under **`frontends/beos/window.cpp`**:
+*   Under the default `NATIVE` option, prioritize native **`BView` (AGG)** rendering.
+*   Under the optional fallback `OPTION_RENDER_BACKEND_BLEND2D`, use the thread-local **Blend2D** rasterizer inside the `BDirectWindow` frame buffer lock loop.

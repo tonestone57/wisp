@@ -33,9 +33,9 @@
 
 #include "wisp/types.h"
 
-#define OPTION_RENDER_BACKEND_AUTO 0
-#define OPTION_RENDER_BACKEND_NATIVE 1
+#define OPTION_RENDER_BACKEND_NATIVE 0
 #define OPTION_RENDER_BACKEND_BLEND2D 2
+#define OPTION_RENDER_BACKEND_AUTO -1
 
 /* defines for system colour table */
 #define NSOPTION_SYS_COLOUR_START NSOPTION_sys_colour_AccentColor
@@ -303,8 +303,8 @@ NSOPTION_STRING(verbose_filter, WISP_BUILTIN_VERBOSE_FILTER)
 /* page colour selection */
 NSOPTION_UINT(colour_selection, 0)
 
-/** rendering backend selection (0=Auto, 1=Native, 2=Blend2D) */
-NSOPTION_INTEGER(render_backend, OPTION_RENDER_BACKEND_AUTO)
+/** rendering backend selection (0=Native, 2=Blend2D, Auto mode removed) */
+NSOPTION_INTEGER(render_backend, OPTION_RENDER_BACKEND_NATIVE)
 
 /** Enable HTTP/3 support (if available) */
 NSOPTION_BOOL(enable_http3, true)

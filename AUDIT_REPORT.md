@@ -1,7 +1,7 @@
 # Wisp Code Audit Report - July 2026
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Wisp employs a native-first graphics strategy prioritizing platform-native pipelines (BView on Haiku, Cairo/QPainter on Linux, Cocoa on macOS, Direct2D/GDI on Windows) as its primary backends, with Blend2D as an optional high-performance software fallback backend and alternative rendering choice. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Wisp employs a prioritized native-first graphics strategy where platform-native pipelines are compiled and run by default, completely removing the runtime 'auto' backend selection mode to reduce overhead. Blend2D remains a fully optional alternative rendering choice and software fallback backend. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
 
 ## 2. Library Versions Audit
 
@@ -92,10 +92,10 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 *   **FFmpeg**: Asynchronous video decoding pipeline with software volume scaling.
 
 ### 4.4 Frontends
-*   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Supports native Direct2D/DirectWrite and GDI as primary paths, with Blend2D as an optional fallback/alternative.
-*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` (AGG) rendering as primary, with fallback to Blend2D and fixed-tile redraw.
-*   **Linux (GTK / Qt)**: Uses native Cairo (GTK) or QPainter (Qt) as primary, with fallback to Blend2D.
-*   **macOS (Cocoa)**: Uses Cocoa native plotter as primary, with fallback to Blend2D.
+*   **Windows**: Partially migrated to C++ (`window.cpp`, `bitmap.cpp`) to support COM management and modern C++ containers. Native backend choice is explicitly compile-time selectable via `WISP_WINDOWS_USE_D2D` to build either the Direct2D/DirectWrite pipeline or the legacy GDI pipeline (default compile is Direct2D). Blend2D remains as an optional fallback/alternative.
+*   **Haiku / BeOS**: Native `libbe` frontend using native `BView` (AGG) rendering as the default primary backend, with fallback to Blend2D and fixed-tile redraw.
+*   **Linux (GTK / Qt)**: Uses native Cairo (GTK) or QPainter (Qt) as the default primary backend, with fallback to Blend2D.
+*   **macOS (Cocoa)**: Uses Cocoa native plotter as the default primary backend, with fallback to Blend2D.
 
 ## 5. Bugs and Technical Debt
 
