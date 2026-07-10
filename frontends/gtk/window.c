@@ -186,9 +186,6 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     bool use_blend2d = false;
     if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
         use_blend2d = true;
-    } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
-        /* On Linux, avoid Cairo for page content, use Blend2D */
-        use_blend2d = true;
     }
 
     if (use_blend2d) {

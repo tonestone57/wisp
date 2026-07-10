@@ -203,9 +203,6 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     bool use_blend2d = false;
     if (backend == OPTION_RENDER_BACKEND_BLEND2D) {
         use_blend2d = true;
-    } else if (backend == OPTION_RENDER_BACKEND_AUTO) {
-        /* On Linux, we lean heavily on Blend2D for page content */
-        use_blend2d = true;
     }
 
     if (use_blend2d) {
