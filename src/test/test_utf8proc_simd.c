@@ -159,6 +159,55 @@ START_TEST(test_origin_blocklist)
     ck_assert(wisp_security_is_origin_blocked("coop-malicious.org"));
 }
 END_TEST
+  
+/* Test WebSocket Payload Masking SIMD Acceleration */
+START_TEST(test_websocket_masking)
+{
+    const uint8_t mask_key[4] = {0xDE, 0xAD, 0xBE, 0xEF};
+
+    /* Test Case 1: Short payload (less than SIMD alignment) */
+    uint8_t short_data[7] = {1, 2, 3, 4, 5, 6, 7};
+    uint8_t short_data_expected[7] = {1, 2, 3, 4, 5, 6, 7};
+    for (size_t i = 0; i < 7; i++) {
+        short_data_expected[i] ^= mask_key[i % 4];
+    }
+    wisp_websocket_mask(short_data, 7, mask_key, 0);
+    ck_assert_mem_eq(short_data, short_data_expected, 7);
+
+    /* Test Case 2: Exact 32 bytes payload */
+    uint8_t data_32[32];
+    uint8_t data_32_expected[32];
+    for (size_t i = 0; i < 32; i++) {
+        data_32[i] = (uint8_t)i;
+        data_32_expected[i] = (uint8_t)i ^ mask_key[i % 4];
+    }
+    wisp_websocket_mask(data_32, 32, mask_key, 0);
+    ck_assert_mem_eq(data_32, data_32_expected, 32);
+
+    /* Test Case 3: 100 bytes payload with various key offsets */
+    for (size_t offset = 0; offset < 4; offset++) {
+        uint8_t data_100[100];
+        uint8_t data_100_expected[100];
+        for (size_t i = 0; i < 100; i++) {
+            data_100[i] = (uint8_t)(i * 3);
+            data_100_expected[i] = (uint8_t)(i * 3) ^ mask_key[(i + offset) % 4];
+        }
+        wisp_websocket_mask(data_100, 100, mask_key, offset);
+        ck_assert_mem_eq(data_100, data_100_expected, 100);
+    }
+
+    /* Test Case 4: Reversibility (masking twice yields original data) */
+    uint8_t raw_data[123];
+    uint8_t copy_data[123];
+    for (size_t i = 0; i < 123; i++) {
+        raw_data[i] = (uint8_t)(i ^ 0x55);
+        copy_data[i] = raw_data[i];
+    }
+    wisp_websocket_mask(copy_data, 123, mask_key, 1);
+    wisp_websocket_mask(copy_data, 123, mask_key, 1);
+    ck_assert_mem_eq(copy_data, raw_data, 123);
+}
+END_TEST
 
 /* Test wrapper compatibility with original libutf8proc */
 START_TEST(test_utf8proc_wrapper_compatibility)
@@ -213,6 +262,7 @@ static Suite *utf8proc_simd_suite(void)
     tcase_add_test(tc, test_encoding_conversions);
     tcase_add_test(tc, test_simd_streq_and_strcmp);
     tcase_add_test(tc, test_origin_blocklist);
+    tcase_add_test(tc, test_websocket_masking);
     tcase_add_test(tc, test_utf8proc_wrapper_compatibility);
 
     suite_add_tcase(s, tc);
