@@ -85,7 +85,7 @@ The following stability and security measures have been integrated:
 *   **Link Pre-connect & DNS Prefetching Pipeline**: Full asynchronous DNS/socket pre-connections handled via dedicated networking process thread pools offloading connection startup latency.
 *   **QuickJS Bytecode Ahead-of-Time (AOT) Caching**: Dynamically caches serialized QuickJS binary bytecode with SHA-256 keys to completely bypass lexing/parsing phases for returning users.
 *   **LZ4 Compressed Tile Lookaside Lists**: Highly optimized thread-safe cache compressing out-of-viewport raw tiles with real-time LZ4 compression to prevent RAM OOMs on low-resource environments.
-*   **SIMD-Accelerated UTF-8 Processing**: Dynamic feature-detected AVX2 and NEON vectorization of ASCII/UTF-8 validations, case mappings, and UTF-32 conversion with robust scalar fallbacks (i586 compatible).
+*   **SIMD-Accelerated UTF-8 Processing**: Dynamic feature-detected **AVX2 (on X86), NEON (on ARM), and RVV (on RISC-V)** vectorization of ASCII/UTF-8 validations, case mappings, and UTF-32 conversion with robust scalar fallbacks (i586 compatible).
 *   **CSS Variable Caching & Fast-Path Evaluation**: Implemented style-context hashing/caching of custom property values in `libcss` to skip redundant recursive resolution passes, accelerating modern variable-heavy pages.
 *   **Site Isolation & JavaScript Multi-Process Architecture**: Fully integrated per-origin process isolation with thread-safe origin tracking, UNIX sockets created with secure `0700` permissions, and automatic crashed engine reclamation fallback.
 *   **QUIC & HTTP/3 Transport Support**: Supported QUIC and HTTP/3 protocol negotiation and Alt-Svc connection caching safely integrated in the libcurl networking process.
@@ -112,8 +112,8 @@ These tasks are high-priority for the 2027 development cycle:
 *   **Optional JIT Compilation Tier Options** (Complexity: **High** | Benefit: **Medium**): Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
 *   **Shared-Memory GPU-Shared Textures** (Complexity: **High** | Benefit: **High**): In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
 *   **WebAssembly (WASM) Interpretation** (Complexity: **Medium** | Benefit: **Medium**): Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
-*   **Wisp Protocol / WebSocket Payload Masking SIMD Acceleration** (Complexity: **Medium** | Benefit: **High**): Upstream WebSocket client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. Implement SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2 / `veorq_u8` on NEON) to mask up to 32 bytes per clock cycle, eliminating upstream proxy network bottleneck.
-*   **Structural JSON Parsing for QuickJS-ng SIMD Pre-parser** (Complexity: **Medium** | Benefit: **High**): Leverage a two-stage SIMD pre-parser (similar to `simdjson`) using AVX2/NEON vector comparisons to scan raw incoming JSON strings 16/32 bytes at a time, generating structural token masks and fast bitwise jumps (`popcnt` or trailing zero counts) to completely skip raw data blocks and whitespaces.
+*   **Wisp Protocol / WebSocket Payload Masking SIMD Acceleration** (Complexity: **Medium** | Benefit: **High**): Upstream WebSocket client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. Implement SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2 / `veorq_u8` on NEON / `vxor.vv` on RVV) to mask up to 32 bytes per clock cycle, eliminating upstream proxy network bottleneck.
+*   **Structural JSON Parsing for QuickJS-ng SIMD Pre-parser** (Complexity: **Medium** | Benefit: **High**): Leverage a two-stage SIMD pre-parser (similar to `simdjson`) using **AVX2 (on X86), NEON (on ARM), and RVV (on RISC-V)** vector comparisons to scan raw incoming JSON strings 16/32 bytes at a time, generating structural token masks and fast bitwise jumps (`popcnt` or trailing zero counts) to completely skip raw data blocks and whitespaces.
 *   **CSS Lexical and Layout Whitespace Skipping SIMD** (Complexity: **Medium** | Benefit: **High**): Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
 *   **Multi-Process Shared Memory Color Space & Alpha Blending SIMD** (Complexity: **Medium** | Benefit: **Medium**): Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
 *   **SIMD CSP Nonce & Security Validation** (Complexity: **Medium** | Benefit: **High**): Speed up incoming request packet header verification (nonce checks, origin blocklists) by utilizing SIMD string comparison primitives rather than sequential `strcmp` loops.
@@ -155,11 +155,11 @@ Implementing these additions alongside your current 2027 backlog balances out th
 
 By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers:
 
-| Expansion Target | Vector Width (AVX2 / NEON) | Complexity | Benefit | Primary Benefit Area | Architectural Impact |
+| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact |
 |---|---|---|---|---|---|
-| **WebSocket Masking** | 32 Bytes / 16 Bytes | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
-| **SIMD JSON Parser** | 32 Bytes / 16 Bytes | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
-| **CSS Tokenizer** | 32 Bytes / 16 Bytes | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
+| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
+| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
+| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
 
 ---
 
@@ -172,9 +172,9 @@ Windows compiles allow explicit pipeline choices, coupled with dynamic runtime v
 2.  **Direct2D Loader**: For Direct2D compiles, dynamically attempt to load the Direct2D library (`d2d1.dll`) via `LoadLibrary` to gracefully handle older systems like Windows XP/Vista.
 3.  **Graceful Degeneration**: If initialization fails, fall back to **Blend2D** software rendering (if compiled) or the **GDI** plotter.
 
-### B. Compile-time AsmJit (JIT) Toggle based on SSE2 and ARM64
+### B. Compile-time AsmJit (JIT) Toggle based on SSE2, ARM64 and RISC-V
 To guarantee absolute safety on retro hardware, `asmjit` is optionally compiled based on target CPU capabilities:
-1.  **x86/x64 SSE2 or ARM64 (Enabled)**: AsmJit is compiled and linked to emit high-speed vectorized pipelines at runtime.
+1.  **x86/x64 SSE2 or ARM64 / RISC-V (Enabled)**: AsmJit or native vector compilers are compiled and linked to emit high-speed vectorized pipelines at runtime.
 2.  **Legacy non-SSE2 x86 (Disabled)**: The build system automatically sets `BLEND2D_NO_JIT=ON` when compiling for non-SSE2 architectures (such as targeting Windows XP with `no-sse2` compiler flags). In this state, `asmjit` is completely excluded from compilation, preventing Illegal Instruction crashes on older x86 hardware (e.g., AMD Athlon XP or Pentium III).
 
 ### C. Consistent Internal Configuration Mapping
