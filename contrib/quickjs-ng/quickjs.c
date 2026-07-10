@@ -47,6 +47,7 @@
 #include "quickjs.h"
 #include "libregexp.h"
 #include "dtoa.h"
+#include "quickjs-json-simd.h"
 
 #if defined(EMSCRIPTEN) || defined(_MSC_VER)
 #define DIRECT_DISPATCH  0
@@ -21809,6 +21810,11 @@ typedef struct JSParseState {
     JSFunctionDef *cur_func;
     bool is_module; /* parsing a module */
     bool allow_html_comments;
+
+    /* Structural JSON Pre-parsing offset cache */
+    const uint8_t **json_struct_offsets;
+    size_t json_struct_count;
+    size_t json_struct_idx;
 } JSParseState;
 
 typedef struct JSOpCode {
@@ -23118,6 +23124,16 @@ static __exception int json_next_token(JSParseState *s)
     json_free_token(s, &s->token);
 
     p = s->last_ptr = s->buf_ptr;
+    if (s->json_struct_offsets) {
+        while (s->json_struct_idx < s->json_struct_count && s->json_struct_offsets[s->json_struct_idx] < p) {
+            s->json_struct_idx++;
+        }
+        if (s->json_struct_idx < s->json_struct_count) {
+            p = s->json_struct_offsets[s->json_struct_idx];
+        } else {
+            p = s->buf_end;
+        }
+    }
     s->last_line_num = s->token.line_num;
     s->last_col_num = s->token.col_num;
  redo:
@@ -37258,6 +37274,9 @@ static void js_parse_init(JSContext *ctx, JSParseState *s,
     s->token.val = ' ';
     s->token.line_num = 1;
     s->token.col_num = 1;
+    s->json_struct_offsets = NULL;
+    s->json_struct_count = 0;
+    s->json_struct_idx = 0;
 }
 
 static JSValue JS_EvalFunctionInternal(JSContext *ctx, JSValue fun_obj,
@@ -49995,6 +50014,7 @@ static JSValue JS_ParseJSON_internal(JSContext *ctx, const char *buf, size_t buf
     JSValue val = JS_UNDEFINED;
 
     js_parse_init(ctx, s, buf, buf_len, filename, 1);
+    s->json_struct_offsets = wisp_json_preparse(ctx, buf, buf_len, &s->json_struct_count);
     if (json_next_token(s))
         goto fail;
     val = json_parse_value(s, pr);
@@ -50006,8 +50026,16 @@ static JSValue JS_ParseJSON_internal(JSContext *ctx, const char *buf, size_t buf
             goto fail;
         }
     }
+    if (s->json_struct_offsets) {
+        js_free(ctx, (void *)s->json_struct_offsets);
+        s->json_struct_offsets = NULL;
+    }
     return val;
  fail:
+    if (s->json_struct_offsets) {
+        js_free(ctx, (void *)s->json_struct_offsets);
+        s->json_struct_offsets = NULL;
+    }
     JS_FreeValue(ctx, val);
     free_token(s, &s->token);
     return JS_EXCEPTION;

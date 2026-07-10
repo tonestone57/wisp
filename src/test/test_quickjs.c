@@ -105,6 +105,57 @@ START_TEST(test_quickjs_aot_cache)
 END_TEST
 
 /**
+ * Test structural JSON pre-parsing with AVX2/NEON/RVV 1.0 SIMD loops.
+ */
+START_TEST(test_quickjs_json_simd)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* 1. Test nested JSON objects and arrays */
+    const char *code1 = "var obj = JSON.parse('{\"a\": {\"b\": {\"c\": 42}}, \"arr\": [1, 2, [3, 4]]}'); obj.a.b.c === 42 && obj.arr[2][1] === 4;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_json_nested");
+    ck_assert(result == true);
+
+    /* 2. Test JSON with heavy whitespaces, tabs, carriage returns, and newlines */
+    const char *code2 = "var obj = JSON.parse(' \\n\\r\\t { \\n\\r\\t \"x\" \\n\\r\\t : \\n\\r\\t 999 \\n\\r\\t } \\n\\r\\t '); obj.x === 999;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_json_whitespace");
+    ck_assert(result == true);
+
+    /* 3. Test JSON with long string containing spaces, quotes, and escape characters */
+    const char *code3 = "var obj = JSON.parse('{\"desc\": \"A very long description with spaces, quotes like \\\\\\\"hello\\\\\\\" and trailing text.\"}'); obj.desc.includes('hello');";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_json_long_string");
+    ck_assert(result == true);
+
+    /* 4. Test error handling for invalid JSON syntax */
+    const char *code4 = "var pass = false; try { JSON.parse('{\"broken\": '); } catch (e) { pass = true; } pass === true;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_json_syntax_error");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
+/**
  * Test EventTarget full functionality.
  */
 START_TEST(test_quickjs_event_target_full)
@@ -1430,6 +1481,7 @@ Suite *quickjs_suite(void)
     tc_exec = tcase_create("Execution");
     tcase_add_test(tc_exec, test_quickjs_exec_simple);
     tcase_add_test(tc_exec, test_quickjs_aot_cache);
+    tcase_add_test(tc_exec, test_quickjs_json_simd);
     tcase_add_test(tc_exec, test_quickjs_exec_syntax_error);
     tcase_add_test(tc_exec, test_quickjs_exec_objects);
     tcase_add_test(tc_exec, test_quickjs_exec_console_log);
