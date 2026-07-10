@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "content/handlers/javascript/js.h"
 #include <wisp/utils/corestrings.h>
@@ -53,6 +54,52 @@ static dom_document *create_test_document(void)
 START_TEST(test_quickjs_init_finalise)
 {
     js_initialise();
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_aot_cache)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Force a clean environment for bytecode storage testing */
+    unlink("/tmp/wisp-bytecode-cache/cb23c5dc9286beade7a95d92d41c5c78b878e77ec88c26adb5a5bf5c8e3ce21c.bin");
+
+    const char *code = "var aot_test_var = 123 + 456; aot_test_var === 579;";
+
+    /* First run - compiles and saves cache */
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_aot_cache_first");
+    ck_assert(result == true);
+
+    /* Verify cache file exists (SHA256 for the string above is expected to be stable) */
+    FILE *f = fopen("/tmp/wisp-bytecode-cache/cb23c5dc9286beade7a95d92d41c5c78b878e77ec88c26adb5a5bf5c8e3ce21c.bin", "rb");
+    ck_assert_ptr_nonnull(f);
+    fclose(f);
+
+    /* Second run - loads directly from raw cached bytecode */
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_aot_cache_second");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -1382,6 +1429,7 @@ Suite *quickjs_suite(void)
     /* Execution test case */
     tc_exec = tcase_create("Execution");
     tcase_add_test(tc_exec, test_quickjs_exec_simple);
+    tcase_add_test(tc_exec, test_quickjs_aot_cache);
     tcase_add_test(tc_exec, test_quickjs_exec_syntax_error);
     tcase_add_test(tc_exec, test_quickjs_exec_objects);
     tcase_add_test(tc_exec, test_quickjs_exec_console_log);

@@ -119,7 +119,7 @@ JSValue wisp_workerglobalscope_importScripts_impl(JSContext *ctx, QJSNodePrivate
         pthread_mutex_unlock(&req.mutex);
 
         if (req.success && req.out_buffer) {
-            JSValue res = JS_Eval(ctx, (const char *)req.out_buffer, req.out_len, url_str, JS_EVAL_TYPE_GLOBAL);
+            JSValue res = js_eval_with_aot_cache(ctx, req.out_buffer, req.out_len, url_str, JS_EVAL_TYPE_GLOBAL);
             JS_FreeValue(ctx, res);
             free(req.out_buffer);
         }

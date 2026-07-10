@@ -41,6 +41,103 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <signal.h>
+#include <openssl/evp.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#define mkdir(path, mode) _mkdir(path)
+#endif
+
+static void compute_sha256(const uint8_t *data, size_t len, char *hex_out) {
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
+    const EVP_MD *md = EVP_sha256();
+    uint8_t hash[EVP_MAX_MD_SIZE];
+    unsigned int hash_len = 0;
+
+    if (mdctx && md) {
+        EVP_DigestInit_ex(mdctx, md, NULL);
+        EVP_DigestUpdate(mdctx, data, len);
+        EVP_DigestFinal_ex(mdctx, hash, &hash_len);
+    }
+    if (mdctx) {
+        EVP_MD_CTX_free(mdctx);
+    }
+
+    for (unsigned int i = 0; i < hash_len; i++) {
+        sprintf(hex_out + (i * 2), "%02x", hash[i]);
+    }
+    hex_out[hash_len * 2] = '\0';
+}
+
+JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags) {
+    if (!txt || txtlen == 0) {
+        return JS_Eval(ctx, (const char *)txt, txtlen, name, eval_flags);
+    }
+
+    char hex[65];
+    compute_sha256(txt, txtlen, hex);
+
+    char cache_dir[] = "/tmp/wisp-bytecode-cache";
+    char cache_path[256];
+    snprintf(cache_path, sizeof(cache_path), "%s/%s.bin", cache_dir, hex);
+
+#ifdef _WIN32
+    _mkdir(cache_dir);
+#else
+    mkdir(cache_dir, 0700);
+#endif
+
+    FILE *f = fopen(cache_path, "rb");
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        long sz = ftell(f);
+        fseek(f, 0, SEEK_SET);
+
+        if (sz > 0) {
+            uint8_t *buf = malloc(sz);
+            if (buf) {
+                if (fread(buf, 1, sz, f) == (size_t)sz) {
+                    fclose(f);
+                    f = NULL;
+
+                    JSValue obj = JS_ReadObject(ctx, buf, sz, JS_READ_OBJ_BYTECODE);
+                    free(buf);
+
+                    if (!JS_IsException(obj)) {
+                        JSValue res = JS_EvalFunction(ctx, obj);
+                        return res;
+                    } else {
+                        unlink(cache_path);
+                    }
+                } else {
+                    free(buf);
+                }
+            }
+        }
+        if (f) fclose(f);
+    }
+
+    JSValue compiled = JS_Eval(ctx, (const char *)txt, txtlen, name, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    if (JS_IsException(compiled)) {
+        return compiled;
+    }
+
+    size_t bytecode_size = 0;
+    uint8_t *bytecode = JS_WriteObject(ctx, &bytecode_size, compiled, JS_WRITE_OBJ_BYTECODE);
+    if (bytecode && bytecode_size > 0) {
+        f = fopen(cache_path, "wb");
+        if (f) {
+            fwrite(bytecode, 1, bytecode_size, f);
+            fclose(f);
+        }
+    }
+    if (bytecode) {
+        js_free(ctx, bytecode);
+    }
+
+    JSValue res = JS_EvalFunction(ctx, compiled);
+    return res;
+}
 
 extern struct wisp_table *guit;
 
@@ -635,7 +732,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         NSLOG(wisp, WARNING, "JS IPC failed for %s, falling back to in-process", name);
     }
 
-    JSValue val = JS_Eval(thread->ctx, (const char *)txt, txtlen, name, JS_EVAL_TYPE_GLOBAL);
+    JSValue val = js_eval_with_aot_cache(thread->ctx, txt, txtlen, name, JS_EVAL_TYPE_GLOBAL);
     bool success = !JS_IsException(val);
     if (!success) {
         JSValue exc = JS_GetException(thread->ctx);
