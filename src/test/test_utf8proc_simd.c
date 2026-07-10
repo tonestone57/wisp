@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utf8proc.h>
+#include "wisp/utils/websocket_mask.h"
 #include "wisp/utils/utf8proc_wrapper.h"
 #include "wisp/content/csp.h"
 
