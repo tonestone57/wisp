@@ -53,7 +53,7 @@ extern "C" {
 
 __thread BView *current_view;
 
-static __thread BShape *stateful_shape = NULL;
+static thread_local BShape stateful_shape;
 
 static const pattern kDottedPattern = {0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa};
 static const pattern kDashedPattern = {0xcc, 0xcc, 0x33, 0x33, 0xcc, 0xcc, 0x33, 0x33};
@@ -449,50 +449,43 @@ static nserror nsbeos_plot_text(const struct redraw_context *ctx, const struct p
 
 static nserror nsbeos_plot_finalise(const struct redraw_context *ctx)
 {
-    if (stateful_shape) {
-        delete stateful_shape;
-        stateful_shape = NULL;
-    }
+    stateful_shape.Clear();
     return NSERROR_OK;
 }
 
 static nserror nsbeos_plot_path_begin(const struct redraw_context *ctx)
 {
-    if (!stateful_shape) stateful_shape = new BShape();
-    stateful_shape->Clear();
+    stateful_shape.Clear();
     return NSERROR_OK;
 }
 
 static nserror nsbeos_plot_path_move_to(const struct redraw_context *ctx, float x, float y)
 {
-    if (stateful_shape) stateful_shape->MoveTo(BPoint(x, y));
+    stateful_shape.MoveTo(BPoint(x, y));
     return NSERROR_OK;
 }
 
 static nserror nsbeos_plot_path_line_to(const struct redraw_context *ctx, float x, float y)
 {
-    if (stateful_shape) stateful_shape->LineTo(BPoint(x, y));
+    stateful_shape.LineTo(BPoint(x, y));
     return NSERROR_OK;
 }
 
 static nserror nsbeos_plot_path_bezier_to(const struct redraw_context *ctx, float x1, float y1, float x2, float y2, float x3, float y3)
 {
-    if (stateful_shape) {
-        BPoint pts[3] = { BPoint(x1, y1), BPoint(x2, y2), BPoint(x3, y3) };
-        stateful_shape->BezierTo(pts);
-    }
+    BPoint pts[3] = { BPoint(x1, y1), BPoint(x2, y2), BPoint(x3, y3) };
+    stateful_shape.BezierTo(pts);
     return NSERROR_OK;
 }
 
 static nserror nsbeos_plot_path_close(const struct redraw_context *ctx)
 {
-    if (stateful_shape) stateful_shape->Close();
+    stateful_shape.Close();
     return NSERROR_OK;
 }
 
 static nserror nsbeos_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
 {
-    if (!stateful_shape) return NSERROR_OK;
     BView *view = nsbeos_current_gc();
     if (view == NULL) return NSERROR_INVALID;
 
@@ -506,10 +499,10 @@ static nserror nsbeos_plot_path_fill(const struct redraw_context *ctx, const plo
             current.Multiply(matrix);
             view->SetTransform(current);
         }
-        view->FillShape(stateful_shape);
+        view->FillShape(&stateful_shape);
         view->PopState();
 #else
-        view->FillShape(stateful_shape);
+        view->FillShape(&stateful_shape);
 #endif
     }
     return NSERROR_OK;
@@ -517,13 +510,17 @@ static nserror nsbeos_plot_path_fill(const struct redraw_context *ctx, const plo
 
 static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
 {
-    if (!stateful_shape) return NSERROR_OK;
     BView *view = nsbeos_current_gc();
     if (view == NULL) return NSERROR_INVALID;
 
     if (pstyle->stroke_type != PLOT_OP_TYPE_NONE) {
         view->SetHighColor(nsbeos_rgb_colour(pstyle->stroke_colour, pstyle->stroke_opacity));
         view->SetPenSize(plot_style_fixed_to_float(pstyle->stroke_width));
+
+        pattern pat = B_SOLID_HIGH;
+        if (pstyle->stroke_type == PLOT_OP_TYPE_DOT) pat = kDottedPattern;
+        else if (pstyle->stroke_type == PLOT_OP_TYPE_DASH) pat = kDashedPattern;
+
 #ifdef __HAIKU__
         view->PushState();
         if (transform) {
@@ -532,10 +529,10 @@ static nserror nsbeos_plot_path_stroke(const struct redraw_context *ctx, const p
             current.Multiply(matrix);
             view->SetTransform(current);
         }
-        view->StrokeShape(stateful_shape);
+        view->StrokeShape(&stateful_shape, pat);
         view->PopState();
 #else
-        view->StrokeShape(stateful_shape);
+        view->StrokeShape(&stateful_shape, pat);
 #endif
     }
     return NSERROR_OK;
