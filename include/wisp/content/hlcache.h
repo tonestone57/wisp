@@ -40,6 +40,8 @@ typedef struct hlcache_child_context {
     const char *charset; /**< Charset of parent */
     bool quirks; /**< Whether parent is quirky */
     struct csp *csp; /**< Content Security Policy of parent */
+    const char *coep; /**< Cross-Origin Embedder Policy of parent */
+    struct nsurl *parent_url; /**< Parent URL for origin checking */
 } hlcache_child_context;
 
 /** High-level cache event */

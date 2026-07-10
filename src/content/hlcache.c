@@ -38,6 +38,7 @@
 #include <wisp/content/hlcache.h>
 #include <wisp/content/llcache.h>
 #include <wisp/content/csp.h>
+#include <wisp/utils/nsoption.h>
 #include "content/mimesniff.h"
 // Note, this is *ONLY* so that we can abort cleanly during shutdown of the
 // cache
@@ -675,6 +676,17 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         else if (accepted_types == CONTENT_HTML) dir = CSP_FRAME_SRC;
 
         if (!csp_check_url(child->csp, dir, url)) {
+            *result = NULL;
+            return NSERROR_CSP_BLOCKED;
+        }
+    }
+
+    /* Check against Cross-Origin Embedder Policy (COEP) */
+    if (nsoption_bool(enable_coep) && child != NULL && child->coep != NULL &&
+        (strcasecmp(child->coep, "require-corp") == 0) && child->parent_url != NULL) {
+        /* If cross-origin, block it under COEP requirement */
+        if (!nsurl_compare(child->parent_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
+            NSLOG(wisp, ERROR, "COEP BLOCKED cross-origin subresource load: %s", nsurl_access(url));
             *result = NULL;
             return NSERROR_CSP_BLOCKED;
         }

@@ -513,6 +513,8 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
+    child.coep = c->coep;
+    child.parent_url = c->base_url;
 
     /* Increment active fetch count BEFORE hlcache_handle_retrieve.
      * This is critical because the callback can be called synchronously
@@ -605,14 +607,28 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
     script_handler = select_script_handler(ctype);
     lwc_string_unref(lwcmimetype);
 
-    if (!csp_check_inline(c->csp, CSP_SCRIPT_SRC)) {
-        NSLOG(wisp, INFO, "CSP BLOCKED inline script");
-        return DOM_HUBBUB_OK;
+    bool allowed = false;
+    dom_string *nonce_attr = NULL;
+    dom_string *nonce_str = NULL;
+    dom_string_create((const uint8_t *)"nonce", 5, &nonce_str);
+    if (nonce_str) {
+        dom_element_get_attribute(node, nonce_str, &nonce_attr);
+        dom_string_unref(nonce_str);
+    }
+
+    if (nonce_attr != NULL) {
+        const char *nonce_val = dom_string_data(nonce_attr);
+        allowed = csp_check_nonce(c->csp, CSP_SCRIPT_SRC, nonce_val);
+        dom_string_unref(nonce_attr);
+    } else {
+        allowed = csp_check_inline(c->csp, CSP_SCRIPT_SRC);
     }
 
     NSLOG(wisp, INFO, "exec_inline_script: script_handler=%p, jsthread=%p", script_handler, c->jsthread);
 
-    if (script_handler != NULL) {
+    if (!allowed) {
+        NSLOG(wisp, INFO, "CSP BLOCKED inline script execution");
+    } else if (script_handler != NULL) {
         NSLOG(
             wisp, INFO, "exec_inline_script: calling script_handler with %zu bytes", dom_string_byte_length(script));
         script_handler(
