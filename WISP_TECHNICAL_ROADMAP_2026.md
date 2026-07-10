@@ -174,8 +174,9 @@ Windows compiles allow explicit pipeline choices, coupled with dynamic runtime v
 
 ### B. Compile-time AsmJit (JIT) Toggle based on SSE2, ARM64 and RISC-V
 To guarantee absolute safety on retro hardware, `asmjit` is optionally compiled based on target CPU capabilities:
-1.  **x86/x64 SSE2 or ARM64 / RISC-V (Enabled)**: AsmJit or native vector compilers are compiled and linked to emit high-speed vectorized pipelines at runtime.
-2.  **Legacy non-SSE2 x86 (Disabled)**: The build system automatically sets `BLEND2D_NO_JIT=ON` when compiling for non-SSE2 architectures (such as targeting Windows XP with `no-sse2` compiler flags). In this state, `asmjit` is completely excluded from compilation, preventing Illegal Instruction crashes on older x86 hardware (e.g., AMD Athlon XP or Pentium III).
+1.  **x86/x64 SSE2 or ARM64 (Enabled)**: AsmJit is compiled and linked to emit high-speed vectorized pipelines at runtime.
+2.  **RISC-V (Disabled)**: AsmJit JIT compilation is completely disabled (`BLEND2D_NO_JIT=ON`) because RISC-V is not supported by AsmJit.
+3.  **Legacy non-SSE2 x86 (Disabled)**: The build system automatically sets `BLEND2D_NO_JIT=ON` when compiling for non-SSE2 architectures (such as targeting Windows XP with `no-sse2` compiler flags). In this state, `asmjit` is completely excluded from compilation, preventing Illegal Instruction crashes on older x86 hardware (e.g., AMD Athlon XP or Pentium III).
 
 ### C. Consistent Internal Configuration Mapping
 To prevent configuration drift and code bloat, mapped user options bind cleanly to a unified internal rendering enum definition, with the Auto option removed:
