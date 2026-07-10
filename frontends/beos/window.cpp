@@ -66,6 +66,10 @@ extern "C" {
 #include "wisp/plotters.h"
 #include "wisp/url_db.h"
 #include "wisp/window.h"
+#include "wisp/content/hlcache.h"
+#include "wisp/content/handlers/html/form_internal.h"
+#include "wisp/utils/task_queue.h"
+#include "wisp/desktop/plot_blend2d.h"
 }
 
 #include "beos/about.h"
@@ -78,12 +82,14 @@ extern "C" {
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
 #ifdef WITH_BLEND2D
-#ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
-#endif
 #endif
 
 class NSBrowserFrameView;
+class BBitmap;
+
+static bool nsbeos_gui_window_exists(struct gui_window *g);
+static BBitmap *nsbeos_blit_bitmap;
 
 class NSTextView : public BTextView {
 public:
@@ -128,14 +134,14 @@ public:
         BRect textRect = r;
         textRect.right = btnRect.left - 5;
 
-        fText = new BTextControl(textRect, "file_path", "", "", NULL, B_FOLLOW_LEFT_RIGHT | B_FOLLOW_VCENTER);
+        fText = new BTextControl(textRect, "file_path", "", "", NULL, B_FOLLOW_LEFT_RIGHT | B_FOLLOW_V_CENTER);
         fText->SetEnabled(false);
         AddChild(fText);
 
         BMessage *msg = new BMessage('fbrw');
         msg->AddPointer("control", fControl);
         msg->AddPointer("gui_window", fGui);
-        fBrowse = new BButton(btnRect, "browse", "Browse...", msg, B_FOLLOW_RIGHT | B_FOLLOW_VCENTER);
+        fBrowse = new BButton(btnRect, "browse", "Browse...", msg, B_FOLLOW_RIGHT | B_FOLLOW_V_CENTER);
         AddChild(fBrowse);
     }
 
@@ -154,6 +160,7 @@ private:
     struct gui_window *fGui;
 };
 
+#ifdef WITH_BLEND2D
 struct beos_tile_task_t {
     struct gui_window *g;
     struct hlcache_handle *h;
@@ -167,23 +174,23 @@ struct beos_tile_task_t {
 
 static void nsbeos_tile_raster_complete(void *arg);
 
-static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView *view, void *buffer, int tile_size, const struct rect *tile_clip)
+static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, BView *view, void *buffer, int tile_size, const struct rect *tile_clip)
 {
     if (!window->fDirectActive || !window->fDirectInfo)
         return false;
 
     bool success = false;
-    if (window->LockDirect()) {
+    if (window->_LockDirect()) {
         direct_buffer_info *info = window->fDirectInfo;
         if ((info->buffer_state & B_DIRECT_MODE_MASK) == B_DIRECT_STOP) {
-            window->UnlockDirect();
+            window->_UnlockDirect();
             return false;
         }
 
-        /* Calculate view offset relative to screen by adding window origin */
-        BPoint view_origin = view->ConvertToWindow(BPoint(0, 0));
-        int vx = (int)view_origin.x + info->window_bounds.left;
-        int vy = (int)view_origin.y + info->window_bounds.top;
+        /* Calculate view offset relative to screen */
+        BPoint view_origin = view->ConvertToScreen(BPoint(0, 0));
+        int vx = (int)view_origin.x;
+        int vy = (int)view_origin.y;
 
         /* Source tile coordinate in the raster buffer (relative to tile origin) */
         int tx = tile_clip->x0 - (tile_clip->x0 % tile_size);
@@ -201,7 +208,7 @@ static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView 
 
         /* Skip if bpp is unexpected (Blend2D uses 4bpp/PRGB32) */
         if (bpp != 4) {
-            window->UnlockDirect();
+            window->_UnlockDirect();
             return false;
         }
 
@@ -231,7 +238,7 @@ static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView 
         }
 
         success = true;
-        window->UnlockDirect();
+        window->_UnlockDirect();
     }
     return success;
 }
@@ -353,6 +360,7 @@ static void nsbeos_tile_raster_complete(void *arg)
 
     free(task);
 }
+#endif
 
 
 
@@ -969,6 +977,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
         return;
     }
 
+#ifdef WITH_BLEND2D
     /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();
 
@@ -1114,6 +1123,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             }
         }
     }
+#endif // WITH_BLEND2D
 
     if (g->careth != 0) {
         if (view->LockLooper()) {
