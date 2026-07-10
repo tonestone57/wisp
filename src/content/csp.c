@@ -3,6 +3,7 @@
 #include <strings.h>
 #include <wisp/utils/log.h>
 #include <wisp/content/csp.h>
+#include <wisp/utils/utf8proc_wrapper.h>
 
 typedef struct csp_source {
     char *scheme;
@@ -239,6 +240,18 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
 }
 
 bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
+    if (url) {
+        lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+        if (host_lwc) {
+            if (wisp_security_is_origin_blocked(lwc_string_data(host_lwc))) {
+                NSLOG(wisp, INFO, "SECURITY BLOCKED URL: %s (domain is blocklisted)", nsurl_access(url));
+                lwc_string_unref(host_lwc);
+                return false;
+            }
+            lwc_string_unref(host_lwc);
+        }
+    }
+
     if (!csp) return true;
 
     csp_source *src = csp->directives[directive];
@@ -297,7 +310,7 @@ bool csp_check_nonce(struct csp *csp, csp_directive directive, const char *nonce
     if (!src) return true;
 
     while (src) {
-        if (src->nonce && strcmp(src->nonce, nonce) == 0) {
+        if (src->nonce && wisp_simd_streq(src->nonce, nonce)) {
             return true;
         }
         src = src->next;
@@ -315,8 +328,29 @@ bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_
     if (!csp) return true;
     if (!csp->has_trusted_types_directive) return true;
     for (int i = 0; i < csp->allowed_policies_count; i++) {
-        if (strcmp(csp->allowed_policies[i], "*") == 0 ||
-            strcmp(csp->allowed_policies[i], policy_name) == 0) {
+        if (wisp_simd_streq(csp->allowed_policies[i], "*") ||
+            wisp_simd_streq(csp->allowed_policies[i], policy_name)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static const char *blocked_origins[] = {
+    "adserver.com",
+    "malicious-tracker.net",
+    "attacker.com",
+    "telemetry.evil.org",
+    "analytics.track.me",
+    "doubleclick.net",
+    "google-analytics.com",
+    "coop-malicious.org"
+};
+
+bool wisp_security_is_origin_blocked(const char *origin) {
+    if (!origin) return false;
+    for (size_t i = 0; i < sizeof(blocked_origins) / sizeof(blocked_origins[0]); i++) {
+        if (wisp_simd_streq(blocked_origins[i], origin)) {
             return true;
         }
     }

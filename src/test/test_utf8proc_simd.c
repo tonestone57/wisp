@@ -13,8 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utf8proc.h>
-#include "wisp/utils/utf8proc_wrapper.h"
 #include "wisp/utils/websocket_mask.h"
+#include "wisp/utils/utf8proc_wrapper.h"
+#include "wisp/content/csp.h"
 
 #define NELEMS(x) (sizeof(x) / sizeof((x)[0]))
 
@@ -108,6 +109,58 @@ START_TEST(test_encoding_conversions)
 }
 END_TEST
 
+/* Test SIMD string comparison and equality */
+START_TEST(test_simd_streq_and_strcmp)
+{
+    /* Test streq with exact matches */
+    ck_assert(wisp_simd_streq("hello", "hello"));
+    ck_assert(wisp_simd_streq("", ""));
+    ck_assert(wisp_simd_streq("12345678901234567890123456789012", "12345678901234567890123456789012")); /* 32 bytes exact */
+    ck_assert(wisp_simd_streq("This is a longer string to test SIMD chunk comparison across 32-byte chunks and more.",
+                              "This is a longer string to test SIMD chunk comparison across 32-byte chunks and more."));
+
+    /* Test streq with mismatches */
+    ck_assert(!wisp_simd_streq("hello", "hellx"));
+    ck_assert(!wisp_simd_streq("hello", "hello_world"));
+    ck_assert(!wisp_simd_streq("hello_world", "hello"));
+    ck_assert(!wisp_simd_streq("", "a"));
+    ck_assert(!wisp_simd_streq("a", ""));
+    ck_assert(!wisp_simd_streq("12345678901234567890123456789012", "1234567890123456789012345678901x"));
+    ck_assert(!wisp_simd_streq("This is a longer string to test SIMD chunk comparison across 32-byte chunks and more.",
+                               "This is a longer string to test SIMD chunk comparison across 32-byte chunks and moxe."));
+
+    /* Test strcmp behaviors */
+    ck_assert_int_eq(wisp_simd_strcmp("hello", "hello"), 0);
+    ck_assert_int_eq(wisp_simd_strcmp("", ""), 0);
+    ck_assert(wisp_simd_strcmp("hello", "hell_") > 0);
+    ck_assert(wisp_simd_strcmp("hell_", "hello") < 0);
+    ck_assert(wisp_simd_strcmp("abc", "") > 0);
+    ck_assert(wisp_simd_strcmp("", "abc") < 0);
+}
+END_TEST
+
+/* Test origin blocklist check */
+START_TEST(test_origin_blocklist)
+{
+    /* Permitted domains */
+    ck_assert(!wisp_security_is_origin_blocked("wisp-browser.org"));
+    ck_assert(!wisp_security_is_origin_blocked("google.com"));
+    ck_assert(!wisp_security_is_origin_blocked("wikipedia.org"));
+    ck_assert(!wisp_security_is_origin_blocked(""));
+    ck_assert(!wisp_security_is_origin_blocked(NULL));
+
+    /* Blocked domains */
+    ck_assert(wisp_security_is_origin_blocked("adserver.com"));
+    ck_assert(wisp_security_is_origin_blocked("malicious-tracker.net"));
+    ck_assert(wisp_security_is_origin_blocked("attacker.com"));
+    ck_assert(wisp_security_is_origin_blocked("telemetry.evil.org"));
+    ck_assert(wisp_security_is_origin_blocked("analytics.track.me"));
+    ck_assert(wisp_security_is_origin_blocked("doubleclick.net"));
+    ck_assert(wisp_security_is_origin_blocked("google-analytics.com"));
+    ck_assert(wisp_security_is_origin_blocked("coop-malicious.org"));
+}
+END_TEST
+  
 /* Test WebSocket Payload Masking SIMD Acceleration */
 START_TEST(test_websocket_masking)
 {
@@ -208,6 +261,8 @@ static Suite *utf8proc_simd_suite(void)
     tcase_add_test(tc, test_utf8_validation);
     tcase_add_test(tc, test_ascii_case_mapping);
     tcase_add_test(tc, test_encoding_conversions);
+    tcase_add_test(tc, test_simd_streq_and_strcmp);
+    tcase_add_test(tc, test_origin_blocklist);
     tcase_add_test(tc, test_websocket_masking);
     tcase_add_test(tc, test_utf8proc_wrapper_compatibility);
 
