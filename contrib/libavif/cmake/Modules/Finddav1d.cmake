@@ -22,15 +22,15 @@ if(PKG_CONFIG_FOUND)
     pkg_check_modules(_DAV1D dav1d)
 endif(PKG_CONFIG_FOUND)
 
-find_path(DAV1D_INCLUDE_DIR NAMES dav1d/dav1d.h PATHS ${_DAV1D_INCLUDEDIR} ${_DAV1D_INCLUDE_DIRS})
+find_path(DAV1D_INCLUDE_DIR NAMES dav1d/dav1d.h PATHS ${_DAV1D_INCLUDEDIR} ${_DAV1D_INCLUDE_DIRS} /boot/system/develop/headers /boot/system/develop/headers/x86)
 if(NOT DAV1D_INCLUDE_DIR)
-    find_path(DAV1D_INCLUDE_DIR NAMES dav1d.h PATHS ${_DAV1D_INCLUDEDIR} ${_DAV1D_INCLUDE_DIRS} PATH_SUFFIXES dav1d)
+    find_path(DAV1D_INCLUDE_DIR NAMES dav1d.h PATHS ${_DAV1D_INCLUDEDIR} ${_DAV1D_INCLUDE_DIRS} /boot/system/develop/headers /boot/system/develop/headers/x86 PATH_SUFFIXES dav1d)
     if(DAV1D_INCLUDE_DIR)
         get_filename_component(DAV1D_INCLUDE_DIR "${DAV1D_INCLUDE_DIR}/.." ABSOLUTE)
     endif()
 endif()
 
-find_library(DAV1D_LIBRARY NAMES dav1d PATHS ${_DAV1D_LIBDIR} ${_DAV1D_LIBRARY_DIRS})
+find_library(DAV1D_LIBRARY NAMES dav1d PATHS ${_DAV1D_LIBDIR} ${_DAV1D_LIBRARY_DIRS} /boot/system/develop/lib /boot/system/develop/lib/x86)
 
 if(DAV1D_LIBRARY)
     set(DAV1D_LIBRARIES ${DAV1D_LIBRARIES} ${DAV1D_LIBRARY})

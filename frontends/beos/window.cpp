@@ -78,10 +78,16 @@ extern "C" {
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 #include "wisp/content.h"
 #ifdef WITH_BLEND2D
-#ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
 #endif
-#endif
+
+#include "wisp/utils/task_queue.h"
+#include "wisp/content/hlcache.h"
+#include "wisp/content/handlers/html/form_internal.h"
+
+static BBitmap *nsbeos_blit_bitmap = NULL;
+static bool nsbeos_gui_window_exists(struct gui_window *g);
+static void gui_window_file_gadget_open(struct gui_window *g, struct hlcache_handle *hl, struct form_control *gadget);
 
 class NSBrowserFrameView;
 
@@ -128,14 +134,14 @@ public:
         BRect textRect = r;
         textRect.right = btnRect.left - 5;
 
-        fText = new BTextControl(textRect, "file_path", "", "", NULL, B_FOLLOW_LEFT_RIGHT | B_FOLLOW_VCENTER);
+        fText = new BTextControl(textRect, "file_path", "", "", NULL, B_FOLLOW_LEFT_RIGHT | B_FOLLOW_V_CENTER);
         fText->SetEnabled(false);
         AddChild(fText);
 
         BMessage *msg = new BMessage('fbrw');
         msg->AddPointer("control", fControl);
         msg->AddPointer("gui_window", fGui);
-        fBrowse = new BButton(btnRect, "browse", "Browse...", msg, B_FOLLOW_RIGHT | B_FOLLOW_VCENTER);
+        fBrowse = new BButton(btnRect, "browse", "Browse...", msg, B_FOLLOW_RIGHT | B_FOLLOW_V_CENTER);
         AddChild(fBrowse);
     }
 
@@ -167,7 +173,7 @@ struct beos_tile_task_t {
 
 static void nsbeos_tile_raster_complete(void *arg);
 
-static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView *view, void *buffer, int tile_size, const struct rect *tile_clip)
+static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, BView *view, void *buffer, int tile_size, const struct rect *tile_clip)
 {
     if (!window->fDirectActive || !window->fDirectInfo)
         return false;
@@ -180,10 +186,10 @@ static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView 
             return false;
         }
 
-        /* Calculate view offset relative to screen by adding window origin */
-        BPoint view_origin = view->ConvertToWindow(BPoint(0, 0));
-        int vx = (int)view_origin.x + info->window_bounds.left;
-        int vy = (int)view_origin.y + info->window_bounds.top;
+        /* Calculate view offset relative to screen by using ConvertToScreen */
+        BPoint view_origin = view->ConvertToScreen(BPoint(0, 0));
+        int vx = (int)view_origin.x;
+        int vy = (int)view_origin.y;
 
         /* Source tile coordinate in the raster buffer (relative to tile origin) */
         int tx = tile_clip->x0 - (tile_clip->x0 % tile_size);
@@ -236,6 +242,7 @@ static bool nsbeos_tile_direct_blit(NSBrowserWindow *window, NSBrowserFrameView 
     return success;
 }
 
+#ifdef WITH_BLEND2D
 extern "C" void beos_tile_redraw_worker(void *arg)
 {
     struct beos_tile_task_t *task = (struct beos_tile_task_t *)arg;
@@ -353,6 +360,7 @@ static void nsbeos_tile_raster_complete(void *arg)
 
     free(task);
 }
+#endif
 
 
 
@@ -360,7 +368,6 @@ static void nsbeos_tile_raster_complete(void *arg)
 static const rgb_color kWhiteColor = {255, 255, 255, 255};
 
 static struct gui_window *window_list = 0;
-static BBitmap *nsbeos_blit_bitmap = NULL;
 
 static BString current_selection;
 static BList current_selection_textruns;
@@ -696,7 +703,7 @@ void nsbeos_dispatch_event(BMessage *message)
                 switch (control->type) {
                 case GADGET_SUBMIT:
                     if (message->what == 'gdgt') {
-                        form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
+                        form_submit(hlcache_handle_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
                     }
                     break;
                 case GADGET_RESET:
@@ -955,7 +962,11 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
         return;
 
     int backend = nsoption_int(render_backend);
+#ifdef WITH_BLEND2D
     bool use_blend2d = (backend == OPTION_RENDER_BACKEND_BLEND2D);
+#else
+    bool use_blend2d = false;
+#endif
     /* For Haiku, OPTION_RENDER_BACKEND_AUTO remains Native */
 
     if (!use_blend2d) {
@@ -969,6 +980,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
         return;
     }
 
+#ifdef WITH_BLEND2D
     /* Fixed-Tile Redraw Implementation with Worker Offloading */
     int tile_size = browser_get_tile_size();
 
@@ -1114,6 +1126,7 @@ void nsbeos_window_expose_event(BView *view, gui_window *g, BMessage *message)
             }
         }
     }
+#endif
 
     if (g->careth != 0) {
         if (view->LockLooper()) {
