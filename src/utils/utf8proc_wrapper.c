@@ -21,7 +21,7 @@
 #endif
 
 #if defined(__clang__) || defined(__GNUC__)
-#define WISP_NO_ASAN __attribute__((no_sanitize("address")))
+#define WISP_NO_ASAN __attribute__((no_sanitize("address", "thread")))
 #elif defined(_MSC_VER)
 #define WISP_NO_ASAN __declspec(no_sanitize_address)
 #else

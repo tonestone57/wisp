@@ -176,6 +176,7 @@ option(WISP_USE_NATIVE_GRADIENTS "Use native frontend gradient rendering when av
 option(WISP_DEVICE_PIXEL_LAYOUT "Layout engine works in device pixels (requires DPI scaling for images)" ${DEFAULT_DEVICE_PIXEL_LAYOUT})
 option(WISP_ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
 option(WISP_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (UBSan)" OFF)
+option(WISP_ENABLE_TSAN "Enable ThreadSanitizer (TSan)" OFF)
 
 if(WISP_ENABLE_ASAN)
     add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=address>
@@ -189,6 +190,13 @@ if(WISP_ENABLE_UBSAN)
                         $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
     add_link_options(-fsanitize=undefined)
     set(QJS_ENABLE_UBSAN ON CACHE BOOL "" FORCE)
+endif()
+
+if(WISP_ENABLE_TSAN)
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=thread>
+                        $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
+    add_link_options(-fsanitize=thread)
+    set(QJS_ENABLE_TSAN ON CACHE BOOL "" FORCE)
 endif()
 
 if(WISP_DEVICE_PIXEL_LAYOUT)
@@ -293,7 +301,7 @@ if(WISP_ENABLE_LTO)
     message(STATUS "Enabled Link Time Optimization (LTO)")
 endif()
 
-if(CMAKE_BUILD_TYPE MATCHES Debug AND NOT WISP_ENABLE_GPROF)
+if(CMAKE_BUILD_TYPE MATCHES Debug AND NOT WISP_ENABLE_GPROF AND NOT WISP_ENABLE_TSAN)
     if((WIN32 AND CMAKE_C_COMPILER_ID MATCHES "Clang") OR UNIX)
         add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=address,undefined>
                             $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)

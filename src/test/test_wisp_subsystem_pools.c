@@ -154,6 +154,7 @@ static void priority_task(void *arg) {
 
 START_TEST(test_subsystem_priority)
 {
+    setenv("WISP_JS_WORKERS", "1", 1);
     /* Initialize with 1 worker in JS pool for predictability */
     init_wisp_subsystem(10);
 
@@ -193,6 +194,7 @@ START_TEST(test_subsystem_priority)
     ck_assert_int_eq(priority_results[2], 1);
 
     shutdown_wisp_subsystem();
+    unsetenv("WISP_JS_WORKERS");
 }
 END_TEST
 

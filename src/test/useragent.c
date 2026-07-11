@@ -24,6 +24,14 @@
 #include "utils/useragent.h"
 #include "test/malloc_fig.h"
 
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define WISP_SANITIZER_ENABLED
+#elif defined(__has_feature)
+  #if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+  #define WISP_SANITIZER_ENABLED
+  #endif
+#endif
+
 START_TEST(test_user_agent_normal)
 {
     const char *ua;
@@ -36,6 +44,7 @@ START_TEST(test_user_agent_normal)
 }
 END_TEST
 
+#ifndef WISP_SANITIZER_ENABLED
 START_TEST(test_user_agent_oom)
 {
     const char *ua;
@@ -54,6 +63,7 @@ START_TEST(test_user_agent_oom)
     free_user_agent_string();
 }
 END_TEST
+#endif
 
 static Suite *useragent_suite_create(void)
 {
@@ -64,7 +74,9 @@ static Suite *useragent_suite_create(void)
 
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_user_agent_normal);
+#ifndef WISP_SANITIZER_ENABLED
     tcase_add_test(tc_core, test_user_agent_oom);
+#endif
     suite_add_tcase(s, tc_core);
 
     return s;

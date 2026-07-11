@@ -278,6 +278,11 @@ void init_wisp_subsystem(int queue_size) {
     if (n_cores <= 0) n_cores = 1;
     int raster_workers = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int js_workers = (n_cores > 4) ? 4 : (int)n_cores;
+    char *env_workers = getenv("WISP_JS_WORKERS");
+    if (env_workers != NULL) {
+        int val = atoi(env_workers);
+        if (val > 0) js_workers = val;
+    }
     if (js_workers < 1) js_workers = 1;
     raster_pool = init_pool(raster_workers, queue_size);
     js_pool = init_pool(js_workers, queue_size);
