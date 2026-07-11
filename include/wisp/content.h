@@ -31,6 +31,10 @@
 #include "wisp/content_type.h"
 #include "wisp/types.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct bitmap;
 struct hlcache_handle;
 struct rect;
@@ -241,5 +245,9 @@ void content_inc_bg_tasks(struct hlcache_handle *h);
  * \param h The content handle.
  */
 void content_dec_bg_tasks(struct hlcache_handle *h);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

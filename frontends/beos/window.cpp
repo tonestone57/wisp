@@ -70,6 +70,7 @@ extern "C" {
 #include "wisp/content/hlcache.h"
 #include "wisp/utils/task_queue.h"
 #include "wisp/desktop/plot_blend2d.h"
+#include "wisp/content.h"
 }
 
 #include "beos/about.h"
@@ -80,7 +81,6 @@ extern "C" {
 #include "beos/window.h"
 #include "desktop/tile_pool.h"
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
-#include "wisp/content.h"
 #ifdef WITH_BLEND2D
 #include <blend2d/blend2d.h>
 #endif
