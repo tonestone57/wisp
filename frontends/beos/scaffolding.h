@@ -93,6 +93,9 @@ public:
     virtual bool QuitRequested(void);
     void WindowActivated(bool active);
 
+    bool LockDirect() { return Lock(); }
+    void UnlockDirect() { Unlock(); }
+
     struct beos_scaffolding *Scaffolding() const
     {
         return fScaffolding;
@@ -108,10 +111,14 @@ private:
 };
 
 
+#ifndef WISP_HOMEPAGE
+#define WISP_HOMEPAGE "about:welcome"
+#endif
+
 typedef enum {
 
     /* no/unknown actions */
-    NO_ACTION = 'nsMA',
+    NO_ACTION = 'nsXA',
 
     /* help actions */
     HELP_OPEN_CONTENTS,
