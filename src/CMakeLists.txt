@@ -344,8 +344,8 @@ add_executable(wisp-js
 target_link_libraries(wisp-js wisp ${WISP_COMMON_LIBS})
 
 if(HAIKU OR BEOS)
-    target_link_libraries(wisp-network PRIVATE network)
-    target_link_libraries(wisp-js PRIVATE network)
+    target_link_libraries(wisp-network network)
+    target_link_libraries(wisp-js network)
 endif()
 
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
