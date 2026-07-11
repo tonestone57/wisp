@@ -6,6 +6,9 @@ add_definitions(-DGTK_RESPATH="${CMAKE_INSTALL_PREFIX}/share/wisp-gtk:./${CMAKE_
 pkg_check_modules(GTK REQUIRED gtk+-3.0>=3.24)
 include_directories(${GTK_INCLUDE_DIRS})
 
+pkg_check_modules(PIPEWIRE REQUIRED libpipewire-0.3)
+include_directories(${PIPEWIRE_INCLUDE_DIRS})
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Copy default.css to resources to avoid symlinks
@@ -51,7 +54,7 @@ add_executable(wisp-gtk
 	audio.c
 )
 
-target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} pulse-simple pulse)
+target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} ${PIPEWIRE_LIBRARIES})
 
 install(TARGETS wisp-gtk DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
