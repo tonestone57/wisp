@@ -51,7 +51,7 @@ add_executable(wisp-beos
 add_dependencies(wisp-beos beos_messages)
 target_include_directories(wisp-beos PRIVATE ${GENERATED_MESSAGES_DIR} ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(wisp-beos wisp be translation tracker network media columnlistview locale game)
+target_link_libraries(wisp-beos wisp translation tracker network media columnlistview game be)
 
 target_compile_definitions(wisp-beos PRIVATE nsbeos)
 
