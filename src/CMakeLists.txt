@@ -242,6 +242,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/bloom.c
 	utils/corestrings.c
 	utils/file.c
+	utils/filename.c
 	utils/filepath.c
 	utils/hashmap.c
 	utils/hashtable.c
@@ -341,6 +342,11 @@ add_executable(wisp-js
     utils/utils.c
 )
 target_link_libraries(wisp-js wisp ${WISP_COMMON_LIBS})
+
+if(HAIKU OR BEOS)
+    target_link_libraries(wisp-network PRIVATE network)
+    target_link_libraries(wisp-js PRIVATE network)
+endif()
 
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)
