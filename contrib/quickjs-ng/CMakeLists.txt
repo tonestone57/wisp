@@ -339,6 +339,7 @@ endif()
 
 if(NOT QJS_BUILD_LIBC)
     add_library(qjs-libc STATIC quickjs-libc.c)
+    set_target_properties(qjs-libc PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_compile_definitions(qjs-libc PRIVATE ${qjs_defines})
     target_link_libraries(qjs-libc PRIVATE ${qjs_libs} qjs)
 endif()

@@ -378,6 +378,7 @@ static void nsbeos_window_moved_event(BView *view, gui_window *g, BMessage *even
 static void nsbeos_redraw_caret(struct gui_window *g);
 static void gui_window_cleanup_widgets(struct gui_window *g);
 static bool nsbeos_gui_window_exists(struct gui_window *g);
+static void gui_window_file_gadget_open(struct gui_window *g, struct hlcache_handle *hl, struct form_control *gadget);
 
 
 NSBrowserFrameView::NSBrowserFrameView(BRect frame, struct gui_window *gui)
@@ -703,7 +704,7 @@ void nsbeos_dispatch_event(BMessage *message)
                 switch (control->type) {
                 case GADGET_SUBMIT:
                     if (message->what == 'gdgt') {
-                        form_submit(content_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
+                        form_submit(hlcache_handle_get_url(browser_window_get_content(gui->bw)), gui->bw, control->form, control);
                     }
                     break;
                 case GADGET_RESET:
