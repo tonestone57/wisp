@@ -561,18 +561,29 @@ int main(int argc, char **argv)
     bool only_ident = true; /* if the only token type is ident */
     bool is_generic = false;
 
-    struct keyval_list base = {0};
-    struct keyval_list IDENT = {0};
-    struct keyval_list IDENT_LIST = {0};
-    struct keyval_list LENGTH_UNIT = {0};
-    struct keyval_list URI = {0};
-    struct keyval_list WRAP = {0};
-    struct keyval_list NUMBER = {0};
-    struct keyval_list COLOR = {0};
-    struct keyval_list CALC = {0};
-    struct keyval_list SIZING = {0};
+    struct keyval_list base;
+    struct keyval_list IDENT;
+    struct keyval_list IDENT_LIST;
+    struct keyval_list LENGTH_UNIT;
+    struct keyval_list URI;
+    struct keyval_list WRAP;
+    struct keyval_list NUMBER;
+    struct keyval_list COLOR;
+    struct keyval_list CALC;
+    struct keyval_list SIZING;
 
     int ret = 0;
+
+    memset(&base, 0, sizeof(base));
+    memset(&IDENT, 0, sizeof(IDENT));
+    memset(&IDENT_LIST, 0, sizeof(IDENT_LIST));
+    memset(&LENGTH_UNIT, 0, sizeof(LENGTH_UNIT));
+    memset(&URI, 0, sizeof(URI));
+    memset(&WRAP, 0, sizeof(WRAP));
+    memset(&NUMBER, 0, sizeof(NUMBER));
+    memset(&COLOR, 0, sizeof(COLOR));
+    memset(&CALC, 0, sizeof(CALC));
+    memset(&SIZING, 0, sizeof(SIZING));
 
     if (argc < 2) {
         fprintf(stderr, "Usage: %s [-o <filename>] <descriptor>\n", argv[0]);
