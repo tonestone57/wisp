@@ -12,5 +12,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Haiku" AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang
         COMPILE_FLAGS "-O0 -fno-tree-vectorize -fno-sanitize=address,undefined -fno-sanitize-recover=all"
         LINK_FLAGS "-fno-sanitize=address,undefined"
     )
+    target_compile_options(gen_parser PRIVATE "-O0" "-fno-tree-vectorize" "-fno-sanitize=address,undefined")
+    target_link_options(gen_parser PRIVATE "-fno-sanitize=address,undefined")
 endif()
 
