@@ -1159,7 +1159,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         break;
     case BROWSER_OBJECT_RELOAD:
         if (scaffold->current_menu_object != NULL) {
-            content_invalidate_reuse_data(hlcache_handle_get_content(scaffold->current_menu_object));
+            content_invalidate_reuse_data(scaffold->current_menu_object);
             browser_window_reload(bw, false);
             scaffold->current_menu_object = NULL;
         }
