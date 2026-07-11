@@ -297,6 +297,11 @@ void shutdown_wisp_subsystem(void) {
 void* wisp_worker_routine(void *arg) {
     WispWorker *worker = (WispWorker *)arg;
     WispPool *pool = worker->pool;
+
+#ifdef __HAIKU__
+    rename_thread(find_thread(NULL), "Wisp Worker");
+#endif
+
     while (__atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
         js_task_t *task = NULL;
         bool has_task = false;
@@ -495,6 +500,10 @@ void wisp_worker_fetch_cb(void *p) {
 void* wisp_web_worker_routine(void *arg) {
     WispWorkerHandle *h = (WispWorkerHandle *)arg;
     jsthread *t = NULL;
+
+#ifdef __HAIKU__
+    rename_thread(find_thread(NULL), "Wisp Web Worker");
+#endif
     if (qjs_init_worker_thread(h, &t) != NSERROR_OK) { h->running = false; return NULL; }
     JS_SetInterruptHandler(JS_GetRuntime(t->ctx), js_worker_interrupt_handler, h);
 

@@ -23,6 +23,10 @@
 #include <unistd.h>
 #include <time.h>
 
+#ifdef __HAIKU__
+#include <OS.h>
+#endif
+
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
@@ -159,6 +163,10 @@ static int64_t nsvideo_seek(void *opaque, int64_t offset, int whence)
 static void *nsvideo_decode_loop(void *arg)
 {
     nsvideo_content *video = (nsvideo_content *)arg;
+
+#ifdef __HAIKU__
+    rename_thread(find_thread(NULL), "Wisp Video Decoder");
+#endif
     AVPacket *packet = av_packet_alloc();
     AVFrame *frame = av_frame_alloc();
     struct SwsContext *sws_ctx = NULL;

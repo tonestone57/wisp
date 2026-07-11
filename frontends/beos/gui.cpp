@@ -527,11 +527,22 @@ static void gui_init(int argc, char **argv)
     nsoption_set_charp(OPTION, strdup((y)))
 
 #ifdef __HAIKU__
-    SETFONTDEFAULT(font_sans, "DejaVu Sans");
-    SETFONTDEFAULT(font_serif, "DejaVu Serif");
-    SETFONTDEFAULT(font_mono, "DejaVu Mono");
-    SETFONTDEFAULT(font_cursive, "DejaVu Sans");
-    SETFONTDEFAULT(font_fantasy, "DejaVu Sans");
+    font_family plain_family, fixed_family;
+    if (be_plain_font != NULL) {
+        be_plain_font->GetFamilyAndStyle(&plain_family, NULL);
+    } else {
+        strcpy(plain_family, "DejaVu Sans");
+    }
+    if (be_fixed_font != NULL) {
+        be_fixed_font->GetFamilyAndStyle(&fixed_family, NULL);
+    } else {
+        strcpy(fixed_family, "DejaVu Mono");
+    }
+    SETFONTDEFAULT(font_sans, plain_family);
+    SETFONTDEFAULT(font_serif, plain_family);
+    SETFONTDEFAULT(font_mono, fixed_family);
+    SETFONTDEFAULT(font_cursive, plain_family);
+    SETFONTDEFAULT(font_fantasy, plain_family);
 #else
     SETFONTDEFAULT(font_sans, "Bitstream Vera Sans");
     SETFONTDEFAULT(font_serif, "Bitstream Vera Serif");

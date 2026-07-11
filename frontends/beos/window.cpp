@@ -600,6 +600,9 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
     g->bw = bw;
     g->current_pointer = GUI_POINTER_DEFAULT;
+#ifdef __HAIKU__
+    g->last_resize_time = 0;
+#endif
 
     if (window_list)
         window_list->prev = g;
@@ -1277,6 +1280,14 @@ void nsbeos_window_resize_event(BView *view, gui_window *g, BMessage *event)
     if (atomic_add(&g->pending_resizes, -1) > 1)
         return;
 
+#ifdef __HAIKU__
+    bigtime_t now = system_time();
+    if (now - g->last_resize_time < 50000) {
+        return;
+    }
+    g->last_resize_time = now;
+#endif
+
     browser_window_schedule_reformat(g->bw);
 }
 
@@ -1643,16 +1654,18 @@ static void gui_set_clipboard(const char *buffer, size_t length, nsclipboard_sty
 
             int arraySize = sizeof(text_run_array) + n_styles * sizeof(text_run);
             text_run_array *array = (text_run_array *)malloc(arraySize);
-            array->count = n_styles;
-            for (int i = 0; i < n_styles; i++) {
-                BFont font;
-                nsbeos_style_to_font(font, &styles[i].style);
-                array->runs[i].offset = styles[i].start;
-                array->runs[i].font = font;
-                array->runs[i].color = nsbeos_rgb_colour(styles[i].style.foreground);
+            if (array != NULL) {
+                array->count = n_styles;
+                for (int i = 0; i < n_styles; i++) {
+                    BFont font;
+                    nsbeos_style_to_font(font, &styles[i].style);
+                    array->runs[i].offset = styles[i].start;
+                    array->runs[i].font = font;
+                    array->runs[i].color = nsbeos_rgb_colour(styles[i].style.foreground);
+                }
+                clip->AddData("application/x-vnd.Be-text_run_array", B_MIME_TYPE, array, arraySize);
+                free(array);
             }
-            clip->AddData("application/x-vnd.Be-text_run_array", B_MIME_TYPE, array, arraySize);
-            free(array);
             be_clipboard->Commit();
         }
         be_clipboard->Unlock();
