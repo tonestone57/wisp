@@ -21,6 +21,7 @@
 #include <OS.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 extern "C" {
 #include "utils/errors.h"
@@ -43,6 +44,8 @@ typedef struct {
 
 /** List of all callbacks. */
 static BList *callbacks = NULL;
+
+static pthread_mutex_t schedule_lock = PTHREAD_MUTEX_INITIALIZER;
 
 /** earliest deadline. It's used for select() in gui_poll() */
 bigtime_t earliest_callback_timeout = B_INFINITE_TIMEOUT;
@@ -77,6 +80,8 @@ nserror beos_schedule(int t, void (*callback)(void *p), void *p)
 {
     NSLOG(schedule, DEBUG, "t:%d cb:%p p:%p", t, callback, p);
 
+    pthread_mutex_lock(&schedule_lock);
+
     if (callbacks == NULL) {
         callbacks = new BList;
     }
@@ -85,6 +90,7 @@ nserror beos_schedule(int t, void (*callback)(void *p), void *p)
     schedule_remove(callback, p);
 
     if (t < 0) {
+        pthread_mutex_unlock(&schedule_lock);
         return NSERROR_OK;
     }
 
@@ -99,6 +105,8 @@ nserror beos_schedule(int t, void (*callback)(void *p), void *p)
     }
     callbacks->AddItem(cb);
 
+    pthread_mutex_unlock(&schedule_lock);
+
     return NSERROR_OK;
 }
 
@@ -106,31 +114,41 @@ bool schedule_run(void)
 {
     NSLOG(schedule, DEBUG, "schedule_run()");
 
+    pthread_mutex_lock(&schedule_lock);
+
     earliest_callback_timeout = B_INFINITE_TIMEOUT;
-    if (callbacks == NULL)
+    if (callbacks == NULL) {
+        pthread_mutex_unlock(&schedule_lock);
         return false; /* Nothing to do */
+    }
 
     bigtime_t now = system_time();
-    int32 i;
+    BList expired_callbacks;
 
-    NSLOG(schedule, DEBUG, "Checking %" PRId32 " callbacks to for deadline.", callbacks->CountItems());
-
-    /* Run all the callbacks which made it this far. */
-    for (i = 0; i < callbacks->CountItems();) {
+    /* Collect and remove expired callbacks under lock */
+    for (int32 i = 0; i < callbacks->CountItems(); ) {
         _nsbeos_callback_t *cb = (_nsbeos_callback_t *)(callbacks->ItemAt(i));
         if (cb->timeout > now) {
-            // update next deadline
-            if (earliest_callback_timeout > cb->timeout)
+            if (earliest_callback_timeout > cb->timeout) {
                 earliest_callback_timeout = cb->timeout;
+            }
             i++;
-            continue;
+        } else {
+            callbacks->RemoveItem(i);
+            expired_callbacks.AddItem(cb);
         }
-        NSLOG(schedule, DEBUG, "Running callbacks %p(%p).", cb->callback, cb->context);
+    }
 
-        if (!cb->callback_killed)
+    pthread_mutex_unlock(&schedule_lock);
+
+    /* Run the expired callbacks outside of the lock to prevent deadlocks */
+    for (int32 i = 0; i < expired_callbacks.CountItems(); i++) {
+        _nsbeos_callback_t *cb = (_nsbeos_callback_t *)(expired_callbacks.ItemAt(i));
+        if (!cb->callback_killed && cb->callback != NULL) {
             cb->callback(cb->context);
-        callbacks->RemoveItem(cb);
+        }
         free(cb);
     }
+
     return true;
 }
