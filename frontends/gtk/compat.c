@@ -376,7 +376,22 @@ void nsgdk_cursor_unref(GdkCursor *cursor)
 void nsgtk_widget_modify_font(GtkWidget *widget, PangoFontDescription *font_desc)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
-    gtk_widget_override_font(widget, font_desc);
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    GtkCssProvider *old_provider = g_object_get_data(G_OBJECT(widget), "nsgtk-font-provider");
+    if (old_provider) {
+        gtk_style_context_remove_provider(context, GTK_STYLE_PROVIDER(old_provider));
+        g_object_set_data(G_OBJECT(widget), "nsgtk-font-provider", NULL);
+    }
+    if (font_desc != NULL) {
+        GtkCssProvider *provider = gtk_css_provider_new();
+        gchar *font_str = pango_font_description_to_string(font_desc);
+        gchar *css = g_strdup_printf("* { font: %s; }", font_str);
+        gtk_css_provider_load_from_data(provider, css, -1, NULL);
+        gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        g_object_set_data_full(G_OBJECT(widget), "nsgtk-font-provider", provider, g_object_unref);
+        g_free(font_str);
+        g_free(css);
+    }
 #else
     gtk_widget_modify_font(widget, font_desc);
 #endif
