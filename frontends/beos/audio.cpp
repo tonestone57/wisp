@@ -24,6 +24,8 @@ static void audio_callback(void *cookie, void *buffer, size_t size, const media_
 }
 
 static bool beos_audio_init(int rate, int channels) {
+    beos_audio_fini(); /* Ensure any existing player/buffers are completely cleaned up first */
+
     media_raw_audio_format format;
     format.frame_rate = (float)rate;
     format.channel_count = (uint32)channels;
