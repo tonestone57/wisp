@@ -228,7 +228,7 @@ int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
     pid_t pid = fork();
     if (pid == 0) {
         execl(executable, executable, ipc_name, NULL);
-        exit(1);
+        _exit(1);
     }
     return pid;
 #endif

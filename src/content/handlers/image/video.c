@@ -82,6 +82,8 @@ typedef struct nsvideo_content {
 
     void *current_bitmap;
     pthread_mutex_t bitmap_lock;
+    bool mutexes_initialized;
+    bool thread_created;
 } nsvideo_content;
 
 static int nsvideo_read_packet(void *opaque, uint8_t *buf, int buf_size)
@@ -343,15 +345,20 @@ static nserror nsvideo_create(const struct content_handler *handler, lwc_string 
     }
     pthread_mutex_init(&video->buffer.lock, NULL);
     pthread_mutex_init(&video->bitmap_lock, NULL);
+    video->mutexes_initialized = true;
 
     video->decoding = true;
     video->volume = 1.0f;
     video->avio_buffer = (unsigned char *)av_malloc(4096);
     video->avio_ctx = avio_alloc_context(video->avio_buffer, 4096, 0, video, nsvideo_read_packet, NULL, nsvideo_seek);
     video->format_ctx = avformat_alloc_context();
-    video->format_ctx->pb = video->avio_ctx;
+    if (video->format_ctx) {
+        video->format_ctx->pb = video->avio_ctx;
+    }
 
-    pthread_create(&video->decode_thread, NULL, nsvideo_decode_loop, video);
+    if (pthread_create(&video->decode_thread, NULL, nsvideo_decode_loop, video) == 0) {
+        video->thread_created = true;
+    }
 
     *c = (struct content *)video;
 
@@ -385,14 +392,22 @@ static void nsvideo_destroy(struct content *c)
 
     video->abort = true;
 
-    pthread_mutex_lock(&video->buffer.lock);
-    video->decoding = false;
-    pthread_mutex_unlock(&video->buffer.lock);
+    if (video->mutexes_initialized) {
+        pthread_mutex_lock(&video->buffer.lock);
+        video->decoding = false;
+        pthread_mutex_unlock(&video->buffer.lock);
+    } else {
+        video->decoding = false;
+    }
 
-    pthread_join(video->decode_thread, NULL);
+    if (video->thread_created) {
+        pthread_join(video->decode_thread, NULL);
+    }
 
-    pthread_mutex_destroy(&video->buffer.lock);
-    pthread_mutex_destroy(&video->bitmap_lock);
+    if (video->mutexes_initialized) {
+        pthread_mutex_destroy(&video->buffer.lock);
+        pthread_mutex_destroy(&video->bitmap_lock);
+    }
 
     if (video->video_codec_ctx) avcodec_free_context(&video->video_codec_ctx);
     if (video->audio_codec_ctx) avcodec_free_context(&video->audio_codec_ctx);

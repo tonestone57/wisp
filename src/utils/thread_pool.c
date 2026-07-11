@@ -54,7 +54,7 @@ thread_pool_t *thread_pool_create(int num_threads) {
     thread_pool_t *pool = (thread_pool_t *)malloc(sizeof(thread_pool_t));
     if (pool == NULL) return NULL;
 
-    pool->thread_count = num_threads;
+    pool->thread_count = 0;
     pool->shutdown = 0;
     pool->queue_head = NULL;
     pool->queue_tail = NULL;
@@ -77,6 +77,7 @@ thread_pool_t *thread_pool_create(int num_threads) {
             thread_pool_destroy(pool);
             return NULL;
         }
+        pool->thread_count++;
     }
 
     return pool;
