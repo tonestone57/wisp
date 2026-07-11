@@ -298,9 +298,13 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 # try to find libm
-find_library(M_LIBRARIES m)
-if(M_LIBRARIES OR CMAKE_C_COMPILER_ID STREQUAL "TinyCC")
-    list(APPEND qjs_libs m)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+    find_library(M_LIBRARIES m)
+    if(M_LIBRARIES OR CMAKE_C_COMPILER_ID STREQUAL "TinyCC")
+        list(APPEND qjs_libs m)
+    endif()
+else()
+    list(APPEND qjs_libs root)
 endif()
 
 add_library(qjs ${WISP_LIB_TYPE} ${qjs_sources})
