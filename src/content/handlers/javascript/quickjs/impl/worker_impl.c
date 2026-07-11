@@ -22,7 +22,11 @@ static void worker_finalizer(JSRuntime *rt, JSValue val) {
     if (priv) {
         JS_FreeValueRT(rt, priv->onmessage);
         JS_FreeValueRT(rt, priv->onerror);
-        if (priv->handle) priv->handle->worker_priv = NULL;
+        if (priv->handle) {
+            priv->handle->worker_priv = NULL;
+            priv->handle->running = false; /* Signal worker thread to terminate */
+            wisp_worker_handle_unref(priv->handle);
+        }
         free(priv);
     }
 }

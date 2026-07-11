@@ -509,7 +509,22 @@ void* wisp_web_worker_routine(void *arg) {
 #ifdef __HAIKU__
     rename_thread(find_thread(NULL), "Wisp Web Worker");
 #endif
-    if (qjs_init_worker_thread(h, &t) != NSERROR_OK) { h->running = false; return NULL; }
+    if (qjs_init_worker_thread(h, &t) != NSERROR_OK) {
+        h->running = false;
+#ifdef _WIN32
+        EnterCriticalSection(&web_worker_lock);
+#else
+        pthread_mutex_lock(&web_worker_lock);
+#endif
+        active_web_workers--;
+#ifdef _WIN32
+        LeaveCriticalSection(&web_worker_lock);
+#else
+        pthread_mutex_unlock(&web_worker_lock);
+#endif
+        wisp_worker_handle_unref(h);
+        return NULL;
+    }
     JS_SetInterruptHandler(JS_GetRuntime(t->ctx), js_worker_interrupt_handler, h);
 
     WispFetchRequest req;
@@ -585,6 +600,7 @@ void* wisp_web_worker_routine(void *arg) {
 #else
     pthread_mutex_unlock(&web_worker_lock);
 #endif
+    wisp_worker_handle_unref(h);
     return NULL;
 }
 
@@ -614,10 +630,58 @@ WispWorkerHandle* wisp_subsystem_spawn_worker(const char *script_url) {
     wisp_message_queue_init(&h->to_worker);
     wisp_message_queue_init(&h->from_worker);
     h->script_url = strdup(script_url);
+    h->ref_count = 2; /* 1 for JS main thread object, 1 for web worker thread */
 #ifdef _WIN32
     h->thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)wisp_web_worker_routine, h, 0, NULL);
 #else
     pthread_create(&h->thread, NULL, wisp_web_worker_routine, h);
 #endif
     return h;
+}
+
+void wisp_worker_handle_ref(WispWorkerHandle *h) {
+    if (!h) return;
+#ifdef _WIN32
+    EnterCriticalSection(&web_worker_lock);
+    h->ref_count++;
+    LeaveCriticalSection(&web_worker_lock);
+#else
+    pthread_mutex_lock(&web_worker_lock);
+    h->ref_count++;
+    pthread_mutex_unlock(&web_worker_lock);
+#endif
+}
+
+void wisp_worker_handle_unref(WispWorkerHandle *h) {
+    if (!h) return;
+    bool should_free = false;
+#ifdef _WIN32
+    EnterCriticalSection(&web_worker_lock);
+    h->ref_count--;
+    if (h->ref_count == 0) {
+        should_free = true;
+    }
+    LeaveCriticalSection(&web_worker_lock);
+#else
+    pthread_mutex_lock(&web_worker_lock);
+    h->ref_count--;
+    if (h->ref_count == 0) {
+        should_free = true;
+    }
+    pthread_mutex_unlock(&web_worker_lock);
+#endif
+
+    if (should_free) {
+#ifdef _WIN32
+        if (h->thread) {
+            CloseHandle(h->thread);
+        }
+#else
+        pthread_detach(h->thread);
+#endif
+        wisp_message_queue_deinit(&h->to_worker);
+        wisp_message_queue_deinit(&h->from_worker);
+        free(h->script_url);
+        free(h);
+    }
 }

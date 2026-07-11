@@ -66,7 +66,11 @@ typedef struct WispWorkerHandle {
     char *script_url;
     void *worker_priv; /* Pointer to QJSWorkerPrivate (main thread side) */
     void *worker_js_thread; /* Pointer to worker's jsthread */
+    int ref_count;
 } WispWorkerHandle;
+
+void wisp_worker_handle_ref(WispWorkerHandle *h);
+void wisp_worker_handle_unref(WispWorkerHandle *h);
 
 struct WispPool;
 
