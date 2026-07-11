@@ -561,16 +561,16 @@ int main(int argc, char **argv)
     bool only_ident = true; /* if the only token type is ident */
     bool is_generic = false;
 
-    struct keyval_list base;
-    struct keyval_list IDENT;
-    struct keyval_list IDENT_LIST;
-    struct keyval_list LENGTH_UNIT;
-    struct keyval_list URI;
-    struct keyval_list WRAP;
-    struct keyval_list NUMBER;
-    struct keyval_list COLOR;
-    struct keyval_list CALC;
-    struct keyval_list SIZING;
+    static struct keyval_list base;
+    static struct keyval_list IDENT;
+    static struct keyval_list IDENT_LIST;
+    static struct keyval_list LENGTH_UNIT;
+    static struct keyval_list URI;
+    static struct keyval_list WRAP;
+    static struct keyval_list NUMBER;
+    static struct keyval_list COLOR;
+    static struct keyval_list CALC;
+    static struct keyval_list SIZING;
 
     int ret = 0;
 
