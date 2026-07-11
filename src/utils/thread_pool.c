@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef __HAIKU__
+#include <OS.h>
+#endif
+
 typedef struct thread_pool_task {
     thread_pool_task_fn func;
     void *arg;
@@ -21,6 +25,10 @@ struct thread_pool {
 
 static void *thread_pool_worker(void *thread_pool) {
     thread_pool_t *pool = (thread_pool_t *)thread_pool;
+
+#ifdef __HAIKU__
+    rename_thread(find_thread(NULL), "Wisp Thread Pool Worker");
+#endif
 
     for (;;) {
         pthread_mutex_lock(&(pool->lock));

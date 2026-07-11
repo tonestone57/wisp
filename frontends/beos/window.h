@@ -55,6 +55,10 @@ struct gui_window {
     int32 pending_resizes;
     BRect pendingRedraw;
 
+#ifdef __HAIKU__
+    bigtime_t last_resize_time;
+#endif
+
     std::map<struct form_control *, BView *> widgets;
     BFilePanel *wndOpenFile;
 
