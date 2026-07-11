@@ -23,6 +23,8 @@ static void audio_callback(void *cookie, void *buffer, size_t size, const media_
     pthread_mutex_unlock(&buffer_lock);
 }
 
+static void beos_audio_fini(void);
+
 static bool beos_audio_init(int rate, int channels) {
     beos_audio_fini(); /* Ensure any existing player/buffers are completely cleaned up first */
 
