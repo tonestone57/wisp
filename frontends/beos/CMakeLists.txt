@@ -59,4 +59,12 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     set(CMAKE_INSTALL_DO_STRIP OFF)
 endif()
 
+# Copy resources next to the executable in the build directory for out-of-the-box execution
+add_custom_command(TARGET wisp-beos POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${CMAKE_CURRENT_SOURCE_DIR}/res"
+    "$<TARGET_FILE_DIR:wisp-beos>"
+    COMMENT "Copying BeOS resources to build directory..."
+)
+
 install(TARGETS wisp-beos DESTINATION bin)
