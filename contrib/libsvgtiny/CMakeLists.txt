@@ -23,7 +23,7 @@ set_target_properties(svgtiny PROPERTIES SOVERSION ${WISP_ABI})
 
 add_dependencies(svgtiny svgtiny_autogen)
 
-target_link_libraries(svgtiny nsutils dom m)
+target_link_libraries(svgtiny nsutils dom ${MATH_LIB})
 
 target_include_directories(svgtiny PRIVATE
 	${CMAKE_SOURCE_DIR}/contrib/libsvgtiny/src
