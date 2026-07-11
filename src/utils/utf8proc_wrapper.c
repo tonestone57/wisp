@@ -21,11 +21,11 @@
 #endif
 
 #if defined(__clang__) || defined(__GNUC__)
-#define WISP_NO_ASAN __attribute__((no_sanitize("address")))
+#define WISP_NO_SANITIZE __attribute__((no_sanitize("address", "thread")))
 #elif defined(_MSC_VER)
-#define WISP_NO_ASAN __declspec(no_sanitize_address)
+#define WISP_NO_SANITIZE __declspec(no_sanitize_address)
 #else
-#define WISP_NO_ASAN
+#define WISP_NO_SANITIZE
 #endif
 
 /* Dynamic CPU Feature Detection */
@@ -194,7 +194,7 @@ static bool wisp_is_ascii_rvv(const char *str, size_t len) {
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((target("avx2")))
 #endif
-WISP_NO_ASAN
+WISP_NO_SANITIZE
 static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {
@@ -248,7 +248,7 @@ static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
 #endif
 
 #if defined(__arm__) || defined(__aarch64__)
-WISP_NO_ASAN
+WISP_NO_SANITIZE
 static int wisp_simd_strcmp_neon(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {
@@ -303,7 +303,7 @@ static int wisp_simd_strcmp_neon(const char *s1, const char *s2) {
 #endif
 
 #if defined(__riscv) && defined(__riscv_vector)
-WISP_NO_ASAN
+WISP_NO_SANITIZE
 static int wisp_simd_strcmp_rvv(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {

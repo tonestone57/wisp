@@ -42,6 +42,14 @@
 
 #include "test/malloc_fig.h"
 
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define WISP_SANITIZER_ENABLED
+#elif defined(__has_feature)
+  #if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+  #define WISP_SANITIZER_ENABLED
+  #endif
+#endif
+
 /* Low level fixtures */
 
 static void corestring_create(void)
@@ -431,7 +439,7 @@ END_TEST
 
 #define CHAIN_TEST_MALLOC_COUNT_MAX 60
 
-#ifndef __SANITIZE_ADDRESS__
+#ifndef WISP_SANITIZER_ENABLED
 
 START_TEST(chain_add_all_remove_all_alloc)
 {
@@ -482,7 +490,7 @@ static TCase *chain_case_create(void)
     tcase_add_test(tc, chain_add_all_twice_remove_all);
     tcase_add_test(tc, chain_add_all_twice_remove_all_iterate);
 
-#ifndef __SANITIZE_ADDRESS__
+#ifndef WISP_SANITIZER_ENABLED
     tcase_add_loop_test(tc, chain_add_all_remove_all_alloc, 0, CHAIN_TEST_MALLOC_COUNT_MAX + 1);
 #endif
 
