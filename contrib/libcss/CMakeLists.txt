@@ -249,7 +249,7 @@ set_target_properties(css PROPERTIES SOVERSION ${WISP_ABI})
 
 add_dependencies(css libcss_properties libcss_select_gen libcss_propreg_gen gen_parser)
 
-target_link_libraries(css nsutils parserutils m)
+target_link_libraries(css nsutils parserutils ${MATH_LIB})
 
 # Export generated files include path to consumers
 target_include_directories(css PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/src/generated")

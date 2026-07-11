@@ -1,6 +1,20 @@
 cmake_minimum_required(VERSION 3.20)
 project(wisp LANGUAGES C CXX)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+    find_program(HAIKU_GCC_AR gcc-ar)
+    find_program(HAIKU_GCC_RANLIB gcc-ranlib)
+    if(HAIKU_GCC_AR)
+        set(CMAKE_AR ${HAIKU_GCC_AR} CACHE FILEPATH "Archiver" FORCE)
+    endif()
+    if(HAIKU_GCC_RANLIB)
+        set(CMAKE_RANLIB ${HAIKU_GCC_RANLIB} CACHE FILEPATH "Ranlib" FORCE)
+    endif()
+    set(MATH_LIB root)
+else()
+    set(MATH_LIB m)
+endif()
+
 # Testing option: ON for Debug builds, OFF for others
 set(DEFAULT_ENABLE_TESTS OFF)
 if(CMAKE_BUILD_TYPE MATCHES Debug)

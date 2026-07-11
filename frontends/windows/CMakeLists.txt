@@ -86,7 +86,7 @@ add_dependencies(wisp-windows windows_messages)
 target_include_directories(wisp-windows PRIVATE ${GENERATED_MESSAGES_DIR} ${CMAKE_SOURCE_DIR}/src)
 
 if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-    target_link_libraries(wisp-windows wisp m ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32 d2d1 dwrite windowscodecs oleaut32
+    target_link_libraries(wisp-windows wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32 d2d1 dwrite windowscodecs oleaut32
         # Static library dependencies (required when linking curl, libxml2, etc. statically)
         bcrypt       # Windows crypto API (used by libxml2)
         nghttp2      # HTTP/2 support
@@ -104,7 +104,7 @@ if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 4)
         lzma         # XZ compression (used by libxml2)
     )
 else()
-    target_link_libraries(wisp-windows wisp m ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32 d2d1 dwrite windowscodecs oleaut32
+    target_link_libraries(wisp-windows wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ws2_32 comctl32 gdi32 user32 kernel32 msimg32 wininet shlwapi crypt32 ole32 d2d1 dwrite windowscodecs oleaut32
         # Static library dependencies (required when linking curl, libxml2, etc. statically)
         bcrypt       # Windows crypto API (used by libxml2)
         nghttp2      # HTTP/2 support

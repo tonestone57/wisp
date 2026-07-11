@@ -45,7 +45,7 @@ target_include_directories(nsmonkey PRIVATE ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(nsmonkey PRIVATE MONKEY_RESPATH="${GENERATED_MESSAGES_DIR}")
 target_compile_definitions(nsmonkey PRIVATE MONKEY_SRCPATH="${CMAKE_SOURCE_DIR}/src/resources")
 
-target_link_libraries(nsmonkey wisp m ${WISP_COMMON_LIBS})
+target_link_libraries(nsmonkey wisp ${MATH_LIB} ${WISP_COMMON_LIBS})
 
 if(WIN32 AND CMAKE_BUILD_TYPE MATCHES Debug)
     add_custom_command(TARGET nsmonkey POST_BUILD
