@@ -29,7 +29,7 @@ extern "C" {
 
 
 NS_StatusSplitter::NS_StatusSplitter(QLabel *status, QScrollBar *scrollbar, QWidget *parent)
-    : QSplitter(parent), m_resize_move(false)
+    : QSplitter(parent)
 {
     setChildrenCollapsible(false);
     addWidget(status);
@@ -40,9 +40,7 @@ NS_StatusSplitter::NS_StatusSplitter(QLabel *status, QScrollBar *scrollbar, QWid
 
 void NS_StatusSplitter::moved_slot(int pos, int index)
 {
-    if (m_resize_move) {
-        m_resize_move = false;
-    } else {
+    if (size().width() > 0) {
         nsoption_set_int(toolbar_status_size, ((pos * 10000) / size().width()));
     }
 }
@@ -51,6 +49,7 @@ void NS_StatusSplitter::moved_slot(int pos, int index)
 void NS_StatusSplitter::resizeEvent(QResizeEvent *event)
 {
     QSplitter::resizeEvent(event);
-    m_resize_move = true;
+    bool b = blockSignals(true);
     moveSplitter((event->size().width() * nsoption_int(toolbar_status_size)) / 10000, 1);
+    blockSignals(b);
 }
