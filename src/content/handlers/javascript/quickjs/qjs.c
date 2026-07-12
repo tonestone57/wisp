@@ -236,7 +236,8 @@ static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
         curr = curr->next;
     }
 
-    if (access("./wisp-js", X_OK) != 0) {
+    char exec_path[256];
+    if (!wisp_ipc_find_executable("wisp-js", exec_path, sizeof(exec_path))) {
         pthread_mutex_unlock(&js_processes_mutex);
         return NULL;
     }
@@ -255,7 +256,7 @@ static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
         return NULL;
     }
 
-    pid_t pid = wisp_ipc_spawn("./wisp-js", ipc_path);
+    pid_t pid = wisp_ipc_spawn(exec_path, ipc_path);
     if (pid < 0) {
         wisp_ipc_destroy(server);
         unlink(ipc_path);

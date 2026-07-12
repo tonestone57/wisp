@@ -314,9 +314,95 @@ int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
 #else
     pid_t pid = fork();
     if (pid == 0) {
-        execl(executable, executable, ipc_name, NULL);
+        execlp(executable, executable, ipc_name, NULL);
         _exit(1);
     }
     return pid;
+#endif
+}
+
+bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) {
+#ifdef _WIN32
+    char self_path[MAX_PATH];
+    if (GetModuleFileNameA(NULL, self_path, sizeof(self_path)) > 0) {
+        char *last_backslash = strrchr(self_path, '\\');
+        if (last_backslash) {
+            *last_backslash = '\0';
+            // Try same directory (e.g. for installed)
+            snprintf(out_path, out_len, "%s\\%s.exe", self_path, name);
+            if (access(out_path, 0) == 0) {
+                return true;
+            }
+            // Try ..\src\ (for build directory)
+            snprintf(out_path, out_len, "%s\\..\\src\\%s.exe", self_path, name);
+            if (access(out_path, 0) == 0) {
+                return true;
+            }
+        }
+    }
+    snprintf(out_path, out_len, ".\\%s.exe", name);
+    if (access(out_path, 0) == 0) {
+        return true;
+    }
+    strncpy(out_path, name, out_len - 1);
+    out_path[out_len - 1] = '\0';
+    return true;
+#else
+    // 1. Try to read /proc/self/exe (Linux)
+    char self_path[512];
+    ssize_t len = readlink("/proc/self/exe", self_path, sizeof(self_path) - 1);
+    if (len != -1) {
+        self_path[len] = '\0';
+        char *last_slash = strrchr(self_path, '/');
+        if (last_slash) {
+            *last_slash = '\0';
+            // Try same directory (e.g. for installed)
+            snprintf(out_path, out_len, "%s/%s", self_path, name);
+            if (access(out_path, X_OK) == 0) {
+                return true;
+            }
+            // Try ../src/ (for build directory)
+            snprintf(out_path, out_len, "%s/../src/%s", self_path, name);
+            if (access(out_path, X_OK) == 0) {
+                return true;
+            }
+        }
+    }
+
+    // 2. Try the current directory
+    snprintf(out_path, out_len, "./%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
+
+    // 3. Try standard installation paths
+    snprintf(out_path, out_len, "/usr/local/bin/%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
+    snprintf(out_path, out_len, "/usr/bin/%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
+
+    // 4. Try searching PATH
+    const char *path_env = getenv("PATH");
+    if (path_env) {
+        char *path_copy = strdup(path_env);
+        if (path_copy) {
+            char *dir = strtok(path_copy, ":");
+            while (dir) {
+                snprintf(out_path, out_len, "%s/%s", dir, name);
+                if (access(out_path, X_OK) == 0) {
+                    free(path_copy);
+                    return true;
+                }
+                dir = strtok(NULL, ":");
+            }
+            free(path_copy);
+        }
+    }
+
+    return false;
 #endif
 }
