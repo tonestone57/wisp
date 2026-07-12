@@ -1085,13 +1085,13 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 	if (box->type != BOX_NONE && ns_computed_display(box->style, props.node_is_root) != CSS_DISPLAY_NONE) {
 		const css_computed_counter *reset = NULL, *inc = NULL, *set = NULL;
 		uint32_t total_counters = 0;
-		if (css_computed_counter_reset(box->style, &reset) == CSS_COUNTER_RESET_NAMED) {
+		if (css_computed_counter_reset(box->style, &reset) == CSS_COUNTER_RESET_NAMED && reset != NULL) {
 			for (size_t i = 0; reset[i].name != NULL; i++) total_counters++;
 		}
-		if (css_computed_counter_set(box->style, &set) == CSS_COUNTER_SET_NAMED) {
+		if (css_computed_counter_set(box->style, &set) == CSS_COUNTER_SET_NAMED && set != NULL) {
 			for (size_t i = 0; set[i].name != NULL; i++) total_counters++;
 		}
-		if (css_computed_counter_increment(box->style, &inc) == CSS_COUNTER_INCREMENT_NAMED) {
+		if (css_computed_counter_increment(box->style, &inc) == CSS_COUNTER_INCREMENT_NAMED && inc != NULL) {
 			for (size_t i = 0; inc[i].name != NULL; i++) total_counters++;
 		}
 		if (total_counters > 0) {
