@@ -149,14 +149,14 @@ static void fetch_javascript_abort(void *ctx)
 /** callback to poll for additional resource fetch contents */
 static void fetch_javascript_poll(lwc_string *scheme)
 {
-    struct fetch_javascript_context *c, *next;
-
-    if (ring == NULL)
-        return;
+    struct fetch_javascript_context *c, *save_ring = NULL;
 
     /* Iterate over ring, processing each pending fetch */
-    c = ring;
-    do {
+    while (ring != NULL) {
+        /* Take the first entry from the ring */
+        c = ring;
+        RING_REMOVE(ring, c);
+
         /* Ignore fetches that have been flagged as locked.
          * This allows safe re-entrant calls to this function.
          * Re-entrancy can occur if, as a result of a callback,
@@ -164,7 +164,7 @@ static void fetch_javascript_poll(lwc_string *scheme)
          * again.
          */
         if (c->locked == true) {
-            next = c->r_next;
+            RING_INSERT(save_ring, c);
             continue;
         }
 
@@ -174,18 +174,15 @@ static void fetch_javascript_poll(lwc_string *scheme)
             fetch_javascript_handler(c);
         }
 
-        /* Compute next fetch item at the last possible moment
-         * as processing this item may have added to the ring
-         */
-        next = c->r_next;
-
+        /* And now finish */
         fetch_remove_from_queues(c->fetchh);
         fetch_free(c->fetchh);
+    }
 
-        /* Advance to next ring entry, exiting if we've reached
-         * the start of the ring or the ring has become empty
-         */
-    } while ((c = next) != ring && ring != NULL);
+    /* Finally, if we saved any fetches which were locked, put them back
+     * into the ring for next time
+     */
+    ring = save_ring;
 }
 
 /**
