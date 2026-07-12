@@ -134,7 +134,6 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
         return NULL;
     }
 #endif
-    wisp_ipc_set_cloexec(h->fd);
     return h;
 }
 
