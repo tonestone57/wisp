@@ -94,7 +94,8 @@ int main(int argc, char **argv) {
                 if (msg.length >= 8) {
                     memcpy(&fetch_id, msg.data, 4);
                     memcpy(&url_len, msg.data + 4, 4);
-                    if (msg.length >= 8 + url_len + 2) {
+                    /* Use overflow-safe checks to validate bounds */
+                    if (msg.length >= 10 && url_len <= msg.length - 10) {
                         char *url_str = malloc(url_len + 1);
                         if (url_str) {
                             memcpy(url_str, msg.data + 8, url_len);
@@ -129,7 +130,8 @@ int main(int argc, char **argv) {
                 uint32_t url_len;
                 if (msg.length >= 4) {
                     memcpy(&url_len, msg.data, 4);
-                    if (msg.length >= 4 + url_len) {
+                    /* Use overflow-safe checks to validate bounds */
+                    if (url_len <= msg.length - 4) {
                         char *url_str = malloc(url_len + 1);
                         if (url_str) {
                             memcpy(url_str, msg.data + 4, url_len);
@@ -151,7 +153,8 @@ int main(int argc, char **argv) {
                 uint32_t url_len;
                 if (msg.length >= 4) {
                     memcpy(&url_len, msg.data, 4);
-                    if (msg.length >= 4 + url_len) {
+                    /* Use overflow-safe checks to validate bounds */
+                    if (url_len <= msg.length - 4) {
                         char *url_str = malloc(url_len + 1);
                         if (url_str) {
                             memcpy(url_str, msg.data + 4, url_len);
