@@ -637,10 +637,10 @@ static nserror hotlist_load_entry(dom_node *li, hotlist_load_ctx *ctx)
 
     /* Need to get URL as a nsurl object */
     err = nsurl_create(dom_string_data(url1), &url);
-    dom_string_unref(url1);
 
     if (err != NSERROR_OK) {
         NSLOG(wisp, INFO, "Failed normalising '%s'", dom_string_data(url1));
+        dom_string_unref(url1);
 
         if (title1 != NULL) {
             dom_string_unref(title1);
@@ -648,6 +648,7 @@ static nserror hotlist_load_entry(dom_node *li, hotlist_load_ctx *ctx)
 
         return err;
     }
+    dom_string_unref(url1);
 
     /* Add the entry */
     err = hotlist_add_entry_internal(url, title, NULL, ctx->rel, ctx->relshp, &ctx->rel);
