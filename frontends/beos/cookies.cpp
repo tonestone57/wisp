@@ -409,8 +409,10 @@ void CookieWindow::_DeleteCookies()
  */
 void nsbeos_cookies_init(void)
 {
+    cookieJar.clear();
+    urldb_iterate_cookies(&nsbeos_cookie_parser);
+
     CookieWindow *cookWin = new CookieWindow(BRect(100, 100, 700, 500));
     cookWin->Show();
     cookWin->Activate();
-    urldb_iterate_cookies(&nsbeos_cookie_parser);
 }

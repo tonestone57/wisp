@@ -236,18 +236,26 @@ static nserror beos_font_position(
     nsbeos_style_to_font(font, fstyle);
     BString str(string, length);
     int32 len = str.CountChars();
+    if (length == 0 || len <= 0) {
+        *char_offset = 0;
+        *actual_x = 0;
+        return NSERROR_OK;
+    }
+
     float escapements[len];
     float esc = 0.0;
     float current = 0.0;
     int i;
 
     index = 0;
-    font.GetEscapements(string, len, escapements);
+    const char *safe_str = str.String();
+    int32 safe_len = str.Length();
+    font.GetEscapements(safe_str, len, escapements);
     // slow but it should work
-    for (i = 0; string[index] && i < len; i++) {
+    for (i = 0; index < safe_len && safe_str[index] && i < len; i++) {
         esc += escapements[i];
         current = font.Size() * esc + fstyle->letter_spacing * i;
-        index += utf8_char_len(&string[index]);
+        index += utf8_char_len(&safe_str[index]);
         // is current char already too far away?
         if (x < current)
             break;
@@ -291,6 +299,12 @@ static nserror beos_font_split(
     nsbeos_style_to_font(font, fstyle);
     BString str(string, length);
     int32 len = str.CountChars();
+    if (length == 0 || len <= 0) {
+        *char_offset = 0;
+        *actual_x = 0;
+        return NSERROR_OK;
+    }
+
     float escapements[len];
     float esc = 0.0;
     float current = 0.0;
@@ -298,10 +312,12 @@ static nserror beos_font_split(
     int i;
     int last_space = 0;
 
-    font.GetEscapements(string, len, escapements);
+    const char *safe_str = str.String();
+    int32 safe_len = str.Length();
+    font.GetEscapements(safe_str, len, escapements);
     // very slow but it should work
-    for (i = 0; string[index] && i < len; i++) {
-        if (string[index] == ' ') {
+    for (i = 0; index < safe_len && safe_str[index] && i < len; i++) {
+        if (safe_str[index] == ' ') {
             last_x = current;
             last_space = index;
         }
@@ -309,11 +325,10 @@ static nserror beos_font_split(
             *actual_x = (int)last_x;
             *char_offset = last_space;
             return NSERROR_OK;
-            ;
         }
         esc += escapements[i];
         current = font.Size() * esc + fstyle->letter_spacing * i;
-        index += utf8_char_len(&string[index]);
+        index += utf8_char_len(&safe_str[index]);
     }
     *actual_x = (int)current;
     *char_offset = index;
