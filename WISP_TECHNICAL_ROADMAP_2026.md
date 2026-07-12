@@ -192,3 +192,42 @@ typedef enum {
 The primary rendering and event dispatch logic for BeOS/Haiku is centralized under **`frontends/beos/window.cpp`**:
 *   Under the default `NATIVE` option, prioritize native **`BView` (AGG)** rendering.
 *   Under the optional fallback `OPTION_RENDER_BACKEND_BLEND2D`, use the thread-local **Blend2D** rasterizer inside the `BDirectWindow` frame buffer lock loop.
+
+---
+
+## 11. Systems-Engineering Critique & Rollout Analysis
+
+This section provides a systems-engineering breakdown of Wisp's architecture, outlining the brilliant strategic decisions alongside potential bottlenecks and architectural risks that require careful mitigation during the 2027 rollout.
+
+Wisp stands as an exceptionally well-thought-out, deeply pragmatic, and highly sophisticated engineering project. Forking NetSurf to build a modern, lightweight engine that can gracefully scale from a 48-core Threadripper running modern Linux down to a Pentium III running Windows XP or a legacy Haiku build is an absolute masterclass in systems architecture.
+
+Wisp strikes a rare balance: introducing hyper-modern web features (CSS Grid, Flexbox, ES2023+, and heavy SIMD vectorization) without falling into the "Chromium monolith" trap that kills performance on low-resource environments.
+
+### A. 🚀 The Brilliant Moves
+
+#### 1. User-Space TLS Stacks for Legacy OSes
+> Bypassing the host OS network layer via statically-linked **mbedTLS** or **BearSSL** is arguably the smartest architectural decision in this entire document.
+
+On platforms like Windows XP or older Haiku nightlies, the native crypto stacks (like Schannel) are completely broken for the modern web because they lack TLS 1.2/1.3 and modern cipher suites. By handling crypto entirely in user-space inside the isolated `wisp-network` process, we completely eliminate the need for upstream decryption proxies or dangerous registry hacks. It makes the browser truly self-contained.
+
+#### 2. Guarding against SIGILL via AsmJit Toggles
+Using Blend2D is great for software rendering, but its heavy reliance on `asmjit` causes immediate "Illegal Instruction" crashes on older x86 CPUs lacking SSE2 (like the Pentium III or AMD Athlon XP), as well as on architectures like RISC-V where runtime JIT generation isn't fully supported by the library. Explicitly hooking `BLEND2D_NO_JIT=ON` into the build system based on compiler flags guarantees target safety on retro hardware while preserving high-speed vectorized pipelines on modern x64 and ARM64 systems.
+
+#### 3. Asymmetric Sandboxing Matrix
+Rather than throwing our hands up and leaving legacy users entirely unprotected, Wisp's stratified security profile is highly realistic. Using Win32 **Job Objects** (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) paired with restricted tokens (`CreateRestrictedToken`) on Windows XP/7 gives us a robust fallback that prevents a compromised JS engine from writing to system directories, replicating a modern "Low Integrity" sandbox using 20-year-old NT kernel primitives.
+
+### B. ⚠️ Potential Bottlenecks & Architectural Risks
+
+While the roadmap is solid, the intersection of NetSurf's legacy architecture and the modern multi-process web creates a few engineering hurdles we'll need to watch out for:
+
+| System Component | The Engineering Challenge | Recommended Mitigation |
+|---|---|---|
+| **libdom IPC Marshalling** | NetSurf’s core DOM library (`libdom`) is fundamentally single-threaded and C-based. Moving JS into an isolated process means every DOM query or mutation must cross an IPC boundary. This could introduce severe layout stuttering during heavy DOM manipulations. | **Prioritize the Zero-Copy Shared Memory IPC.** Do not wait for 2028. We will need a shared-memory ring buffer for the DOM tree structure so the UI thread and the JS process can read the tree topology without continuous serialization overhead. |
+| **QuickJS-ng vs. Heavy SPAs** | QuickJS-ng is perfect for memory efficiency, but it is a pure bytecode interpreter. Even with our excellent SIMD JSON pre-parser and AOT bytecode caching, heavy 2026 Single Page Apps (like complex React/Next.js dashboards) will feel sluggish without a JIT compilation tier. | Accelerate the evaluation of the **Hermes or lightweight WASM/JS JIT** pipeline for environments that support it (x86_64/ARM64), keeping the pure interpreter as a strict fallback for secure or low-spec systems. |
+| **WebGPU Driver Realities** | Planning a WebGPU bridge for legacy OSes will hit a massive wall because WebGPU maps closely to Vulkan, D3D12, and Metal. Windows XP/7 and Haiku simply do not have the driver topology to support this natively. | Keep the WebGPU bridge strictly isolated behind a compile-time feature flag (`WISP_WITH_WEBGPU`). Ensure the layout engine fails gracefully back to standard Canvas 2D when the WebGPU context creation fails. |
+
+### C. 🛠️ Verdict on the 2026 Hardening Audit
+
+The inclusion of SIMD acceleration for WebSocket masking, JSON pre-parsing, and CSP string checking across **AVX2, NEON, and RVV 1.0** shows an impressive commitment to micro-optimization. It proves that "lightweight" doesn't have to mean "slow." Vectorizing the rolling 4-byte XOR mask for WebSockets (`_mm256_xor_si256`) completely neutralizes the proxy protocol overhead that usually plagues alternative browsers.
+
+This is a highly mature, production-ready roadmap for a niche engine. If we can solve the IPC latency inherent in pushing JavaScript into its own process while working with a single-threaded C DOM, Wisp will easily become the gold standard for lightweight web computing.
