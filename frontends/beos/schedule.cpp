@@ -96,6 +96,10 @@ nserror beos_schedule(int t, void (*callback)(void *p), void *p)
 
     bigtime_t timeout = system_time() + t * 1000LL;
     _nsbeos_callback_t *cb = (_nsbeos_callback_t *)malloc(sizeof(_nsbeos_callback_t));
+    if (cb == NULL) {
+        pthread_mutex_unlock(&schedule_lock);
+        return NSERROR_NOMEM;
+    }
     cb->callback = callback;
     cb->context = p;
     cb->callback_killed = cb->callback_fired = false;
