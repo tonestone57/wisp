@@ -343,6 +343,7 @@ static nserror nsvideo_create(const struct content_handler *handler, lwc_string 
     error = llcache_handle_force_stream(llcache);
     if (error != NSERROR_OK) {
         content_destroy(&video->base);
+        // cppcheck-suppress memleak
         return error;
     }
 
@@ -350,6 +351,7 @@ static nserror nsvideo_create(const struct content_handler *handler, lwc_string 
     video->buffer.data = (unsigned char *)malloc(video->buffer.capacity);
     if (video->buffer.data == NULL) {
         content_destroy(&video->base);
+        // cppcheck-suppress memleak
         return NSERROR_NOMEM;
     }
     pthread_mutex_init(&video->buffer.lock, NULL);

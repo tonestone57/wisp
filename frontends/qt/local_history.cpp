@@ -60,7 +60,7 @@ nserror NS_Local_history::setbw(struct browser_window *bw)
 
 void NS_Local_history::draw(struct rect *clip, struct redraw_context *ctx)
 {
-    local_history_redraw(m_session, 0, 0, clip, ctx);
+    local_history_redraw(m_session, -m_xoffset, -m_yoffset, clip, ctx);
 }
 
 bool NS_Local_history::key_press(uint32_t nskey)

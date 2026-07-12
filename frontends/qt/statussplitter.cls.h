@@ -46,5 +46,4 @@ private slots:
 
 private:
     void resizeEvent(QResizeEvent *event);
-    bool m_resize_move;
 };
