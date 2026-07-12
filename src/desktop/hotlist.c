@@ -263,7 +263,7 @@ hotlist_create_treeview_field_data(struct hotlist_entry *e, const char *title, c
     err = hotlist_create_treeview_field_visits_data(e, data);
     if (err != NSERROR_OK) {
         free((void *)e->data[HL_TITLE].value);
-        return NSERROR_OK;
+        return err;
     }
 
     return NSERROR_OK;
