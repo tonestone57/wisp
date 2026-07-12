@@ -41,6 +41,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = 0; // OS picks port
     if (bind(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        closesocket(h->fd);
         free(h->name);
         free(h);
         return NULL;
@@ -64,6 +65,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     strncpy(addr.sun_path, name, sizeof(addr.sun_path) - 1);
     unlink(name);
     if (bind(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        close(h->fd);
         free(h->name);
         free(h);
         return NULL;
@@ -83,11 +85,13 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     int port;
     if (ns_strtoint(name, 10, &port) != NSERROR_OK) {
+        closesocket(h->fd);
         free(h);
         return NULL;
     }
     addr.sin_port = htons(port); // Port passed as string
     if (connect(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        closesocket(h->fd);
         free(h);
         return NULL;
     }
@@ -98,6 +102,7 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, name, sizeof(addr.sun_path) - 1);
     if (connect(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        close(h->fd);
         free(h);
         return NULL;
     }
