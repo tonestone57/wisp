@@ -92,9 +92,13 @@ void _dom_html_collection_finalise(struct dom_html_collection *col)
  */
 void _dom_html_collection_destroy(struct dom_html_collection *col)
 {
+    struct dom_html_document *doc = col->doc;
+
     _dom_html_collection_finalise(col);
 
-    free(col);
+    if (doc == NULL || ((struct dom_document *)doc)->arena == NULL) {
+        free(col);
+    }
 }
 
 

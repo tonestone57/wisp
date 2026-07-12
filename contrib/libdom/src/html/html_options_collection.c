@@ -74,9 +74,13 @@ void _dom_html_options_collection_finalise(struct dom_html_options_collection *c
  */
 void _dom_html_options_collection_destroy(struct dom_html_options_collection *col)
 {
+    struct dom_html_document *doc = col->base.doc;
+
     _dom_html_options_collection_finalise(col);
 
-    free(col);
+    if (doc == NULL || ((struct dom_document *)doc)->arena == NULL) {
+        free(col);
+    }
 }
 
 
