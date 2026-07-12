@@ -39,7 +39,7 @@ extern "C" {
 class NSDownloadWindow : public BWindow
 {
 public:
-    NSDownloadWindow(download_context *ctx);
+    NSDownloadWindow(download_context *ctx, struct gui_download_window *dw);
     ~NSDownloadWindow();
 
     void MessageReceived(BMessage *message);
@@ -50,6 +50,7 @@ public:
 
 private:
     download_context *ctx;
+    struct gui_download_window *dw;
     BStatusBar *bar;
     unsigned long progress;
     bool success;
@@ -65,8 +66,8 @@ struct gui_download_window {
 };
 
 
-NSDownloadWindow::NSDownloadWindow(download_context *ctx)
-    : BWindow(BRect(30, 30, 400, 200), "Downloads", B_TITLED_WINDOW, B_NOT_RESIZABLE), ctx(ctx), progress(0),
+NSDownloadWindow::NSDownloadWindow(download_context *ctx, struct gui_download_window *dw)
+    : BWindow(BRect(30, 30, 400, 200), "Downloads", B_TITLED_WINDOW, B_NOT_RESIZABLE), ctx(ctx), dw(dw), progress(0),
       success(false)
 {
     unsigned long dlsize = download_context_get_total_length(ctx);
@@ -98,6 +99,18 @@ NSDownloadWindow::~NSDownloadWindow()
 {
     download_context_abort(ctx);
     download_context_destroy(ctx);
+
+    if (dw) {
+        if (dw->storageLock) {
+            dw->storageLock->Lock();
+            delete dw->storage;
+            dw->storageLock->Unlock();
+            delete dw->storageLock;
+        } else {
+            delete dw->storage;
+        }
+        free(dw);
+    }
 }
 
 
@@ -187,7 +200,7 @@ static struct gui_download_window *gui_download_window_create(download_context *
     download->storage = new BMallocIO();
     download->ctx = ctx;
 
-    download->window = new NSDownloadWindow(ctx);
+    download->window = new NSDownloadWindow(ctx, download);
 
     // Also ask the user where to save the file
     BMessage *msg = new BMessage(B_SAVE_REQUESTED);
@@ -222,8 +235,13 @@ static void gui_download_window_error(struct gui_download_window *dw, const char
 {
     dw->window->Failure(error_msg);
 
-    delete dw->storageLock;
+    dw->storageLock->Lock();
     delete dw->storage;
+    dw->storage = NULL;
+    dw->storageLock->Unlock();
+
+    delete dw->storageLock;
+    dw->storageLock = NULL;
 }
 
 
@@ -237,10 +255,14 @@ static void gui_download_window_done(struct gui_download_window *dw)
     // the user to select something in the BFilePanel!
     BFile *file = dynamic_cast<BFile *>(dw->storage);
     delete file;
-    if (file)
+    dw->storage = NULL;
+
+    if (file) {
         delete dw->storageLock;
-    else
+        dw->storageLock = NULL;
+    } else {
         dw->storageLock->Unlock();
+    }
 }
 
 static struct gui_download_table download_table = {
