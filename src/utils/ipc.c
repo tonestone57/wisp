@@ -9,10 +9,20 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define socket_errno WSAGetLastError()
+#define SOCKET_EAGAIN WSAEWOULDBLOCK
+#define SOCKET_EINTR WSAEINTR
+#define send_socket(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
+#define recv_socket(fd, buf, len) recv((SOCKET)(fd), (char *)(buf), (int)(len), 0)
 #else
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#define socket_errno errno
+#define SOCKET_EAGAIN EAGAIN
+#define SOCKET_EINTR EINTR
+#define send_socket(fd, buf, len) write((fd), (buf), (len))
+#define recv_socket(fd, buf, len) read((fd), (buf), (len))
 #endif
 
 struct wisp_ipc_handle {
@@ -139,9 +149,9 @@ static ssize_t write_all(int fd, const void *buf, size_t len) {
     size_t total = 0;
     const uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = write(fd, p + total, len - total);
+        ssize_t n = send_socket(fd, p + total, len - total);
         if (n <= 0) {
-            if (n < 0 && (errno == EINTR || errno == EAGAIN)) continue;
+            if (n < 0 && (socket_errno == SOCKET_EINTR || socket_errno == SOCKET_EAGAIN)) continue;
             return -1;
         }
         total += n;
@@ -153,9 +163,9 @@ static ssize_t read_all(int fd, void *buf, size_t len) {
     size_t total = 0;
     uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = read(fd, p + total, len - total);
+        ssize_t n = recv_socket(fd, p + total, len - total);
         if (n <= 0) {
-            if (n < 0 && (errno == EINTR || errno == EAGAIN)) {
+            if (n < 0 && (socket_errno == SOCKET_EINTR || socket_errno == SOCKET_EAGAIN)) {
                 if (total == 0) return -1; // EAGAIN on first read
                 continue;
             }
