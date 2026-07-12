@@ -162,6 +162,127 @@ By leveraging Wisp's lightweight architecture alongside modern SIMD vectorizatio
 | **SIMD CSP Nonce & Security Check** | 32 Bytes / 16 Bytes / Variable | Medium | High | Request security processing | Drastically speeds up header checking | **[Finished]** |
 | **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS | Planned |
 
+### E. High-Performance IPC: Shared-Memory DOM Topology & Batch Mutation Queues
+
+Solving the IPC latency bottleneck while keeping a single-threaded C DOM (`libdom`) and an isolated JavaScript process (`wisp-js`) is the ultimate trial by fire for a lightweight browser. If every call to `node.firstChild` or `node.setAttribute` requires a heavy-weight round-trip IPC context switch, the browser's execution speed will crater.
+
+Because we cannot pass raw C pointers across process boundaries due to varying address space layouts (ASLR), we must replace pointer-chasing with a **Shared-Memory Virtual Topology** paired with a **Lock-Free Batch-Buffered Mutation Queue**.
+
+This architecture eliminates IPC overhead for 95% of standard script operations by transforming expensive cross-process communication into local memory reads and deferred, asynchronous batched writes.
+
+#### 1. High-Level Architectural Layout
+Rather than treating the JavaScript engine as a remote client requesting data over a pipe, we split the DOM interface into two layers: the master authoritative tree in `libdom` (UI process) and a highly compressed, read-only mirror mapped directly into the address space of the `wisp-js` process.
+
+##### The Strategy:
+ * **Reads (O(1) Complexity):** Handled entirely within the JS process by reading directly from a shared memory region. Zero IPC overhead.
+ * **Writes (Batched Asynchronous):** Serialized into a lock-free, single-writer single-reader (SWSR) ring buffer residing in shared memory, flushed automatically at the end of the microtask tick.
+ * **Synchronous Layout Queries (The Outlier):** Forced execution stalls only when JS requests calculated metrics (e.g., `offsetWidth`), requiring a synchronous IPC barrier.
+
+#### 2. The Shared Virtual DOM Space (SVDS)
+The UI process allocates a contiguous shared memory region that maps the document topology using compact, fixed-size structures. Instead of raw memory pointers, nodes reference each other using a dense 32-bit index identifier (`WispNodeID`).
+
+```c
+// include/wisp/core/shm_dom.h
+
+typedef uint32_t WispNodeID;
+#define WISP_NODE_NULL 0
+
+typedef enum {
+    WISP_NODE_ELEMENT = 1,
+    WISP_NODE_TEXT = 3,
+    WISP_NODE_DOCUMENT = 9
+} WispNodeType;
+
+// Exactly 32 bytes - optimized for cache-line alignment
+typedef struct {
+    WispNodeID parent_id;
+    WispNodeID first_child_id;
+    WispNodeID next_sibling_id;
+    WispNodeID prev_sibling_id;
+
+    uint16_t node_type;
+    uint16_t tag_atom;        // Interned string ID for tag name (e.g., 42 for "div")
+    uint32_t class_hash;       // Packed representation or atom for fast matching
+    uint32_t attr_offset;     // Offset into the auxiliary Shared String/Attr Pool
+    uint32_t reserved;         // Future proofing / 64-bit alignment padding
+} WispShmNode;
+```
+
+When `libdom` modifies the core tree, it updates this shared memory array. Because `wisp-js` has a read-only mapping of this exact same memory block, resolving `element.nextSibling` inside QuickJS-ng is reduced to a standard pointer offset calculation in local RAM:
+
+```c
+// contrib/quickjs-ng/wisp_dom_bindings.c
+JSValue wisp_js_dom_get_next_sibling(JSContext *ctx, JSValueConst this_val) {
+    WispNodeID current_id = JS_GetOpaque(this_val, wisp_node_class_id);
+
+    // Direct memory lookup, no IPC!
+    WispShmNode *nodes = (WispShmNode *)global_shm_dom_base;
+    WispNodeID next_id = nodes[current_id].next_sibling_id;
+
+    if (next_id == WISP_NODE_NULL) return JS_NULL;
+    return wisp_get_or_create_js_wrapper(ctx, next_id);
+}
+```
+
+#### 3. The Batch-Buffered Mutation Queue (BBMQ)
+When JavaScript modifies the DOM, we do not immediately alert the UI process. Instead, the mutation is serialized into a highly optimized binary command stream inside a shared-memory **Single-Writer Single-Reader (SWSR) Ring Buffer**.
+
+##### Mutation Command Structure
+```c
+typedef enum {
+    WISP_MUTATION_SET_ATTRIBUTE,
+    WISP_MUTATION_APPEND_CHILD,
+    WISP_MUTATION_REMOVE_CHILD,
+    WISP_MUTATION_SET_TEXT_CONTENT
+} WispMutationType;
+
+typedef struct {
+    uint32_t command_type;
+    WispNodeID target_node;
+    WispNodeID operand_node;
+    uint32_t param_atom;      // Used for attribute names
+    uint32_t string_len;      // If string content follows
+    // String payload follows immediately inline if string_len > 0
+} WispMutationCommand;
+```
+
+##### The Microtask Flush Mechanism
+ 1. JavaScript executes `element.setAttribute("class", "active");`.
+ 2. The binding serializes a `WISP_MUTATION_SET_ATTRIBUTE` payload straight into the BBMQ. The function returns immediately.
+ 3. The JavaScript engine proceeds uninterrupted, executing further mutations.
+ 4. When the **QuickJS Microtask Loop** empties (the end of the script execution tick), `wisp-js` checks if commands are queued.
+ 5. If commands exist, it updates the Ring Buffer's `write_ptr` and issues a singular, lightweight platform signal (e.g., writing 8 bytes to an `eventfd` or signaling a Win32 Event Object) to notify the main UI loop.
+ 6. The UI thread wakes up, consumes all queued mutations in a single sequential sweep, applies them to `libdom`, updates the SVDS topology map, and marks the layout dirty for the next frame paint.
+
+#### 4. The Critical Exception: Layout Thrashed Queries
+The classic enemy of this model is synchronous layout requests, such as:
+
+```javascript
+let width = element.offsetWidth; // Requires active layout calculations
+```
+
+Because layout metrics rely on font rendering, text wrapping, and CSS calculations managed by the main UI thread, `wisp-js` cannot answer this locally.
+
+##### The Resolution Protocol:
+ 1. `wisp-js` writes an absolute execution block command to its IPC channel.
+ 2. It automatically flushes the BBMQ up to that exact timestamp to guarantee the UI thread calculates dimensions based on the most up-to-date DOM state.
+ 3. `wisp-js` enters a blocking state, waiting on a highly optimized native synchronization primitive.
+ 4. The Main UI Process consumes the mutations, runs a partial layout pass up to the requested node, writes the result back over the response channel, and signals `wisp-js` to wake up.
+
+> **Performance Optimization Note:** To mitigate the cost of these layout stalls, Wisp implements a **Bounding Box Cache** within the SVDS node structure. If the UI process completes a layout pass and the node is not marked dirty by an outstanding mutation, `wisp-js` can serve the layout metric directly from the shared memory block, bypassing the stall entirely.
+
+#### 5. Cross-OS Primitive Mapping Matrix
+To maintain Wisp's dedication to operating across massive timeline disparities (Windows XP through modern Linux and Haiku), the under-the-hood primitives adapt seamlessly at compile-time:
+
+| Platform | Shared Memory Mapping (SVDS / BBMQ) | Process Signaling (Wakeup Interrupt) |
+|---|---|---|
+| **Linux** | `shm_open()` + `mmap()` | `eventfd()` (Read/Write via `epoll`) |
+| **Windows 7 / 10 / 11** | `CreateFileMappingW()` + `MapViewOfFile()` | `CreateEventW()` + `SetEvent()` |
+| **Windows XP** | `CreateFileMappingA()` + `MapViewOfFile()` | `CreateEventA()` + `SignalObjectAndWait()` fallback |
+| **Haiku / BeOS** | `create_area()` + `clone_area()` | Native semaphores (`create_sem()`, `release_sem()`) |
+
+By utilizing `create_area` on Haiku and `CreateFileMappingA` on Windows XP, Wisp gains modern, zero-copy multi-process capabilities using the target OS's native virtual memory manager. This keeps resource consumption at a tiny fraction of Chromium's IPC sub-allocators while effectively mitigating the single-threaded constraints of the underlying `libdom` implementation.
+
 ---
 
 ## 10. Frontend Implementation Nuances & Dynamic Fallbacks
