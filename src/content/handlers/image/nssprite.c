@@ -220,7 +220,7 @@ static nserror nssprite_clone(const struct content *old, struct content **newc)
     if (old->status == CONTENT_STATUS_READY || old->status == CONTENT_STATUS_DONE) {
         if (nssprite_convert(&sprite->base) == false) {
             content_destroy(&sprite->base);
-            /* cppcheck-suppress memleak */
+            // cppcheck-suppress memleak
             return NSERROR_CLONE_FAILED;
         }
     }

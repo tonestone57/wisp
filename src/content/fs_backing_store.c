@@ -2795,6 +2795,7 @@ static nserror store_read_journal(struct store_state *state, struct store_entry 
             elem->data = (uint8_t *)map + offset_in_page;
             elem->flags |= ENTRY_ELEM_FLAG_MMAP;
             elem->ref = 1;
+            /* cppcheck-suppress memleak */
             return NSERROR_OK;
         }
 #endif
