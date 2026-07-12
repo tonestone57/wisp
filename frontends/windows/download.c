@@ -133,10 +133,19 @@ static void nsws_download_update_progress(void *p)
 }
 
 
-static void nsws_download_clear_data(struct gui_download_window *w)
+static void nsws_download_destroy(struct gui_download_window *w)
 {
     if (w == NULL)
         return;
+
+    win32_schedule(-1, nsws_download_update_progress, (void *)w);
+    win32_schedule(-1, nsws_download_update_label, (void *)w);
+
+    if (w->hwnd != NULL) {
+        DestroyWindow(w->hwnd);
+        w->hwnd = NULL;
+    }
+
     if (w->title != NULL)
         free(w->title);
     if (w->filename != NULL)
@@ -147,10 +156,16 @@ static void nsws_download_clear_data(struct gui_download_window *w)
         free(w->time_left);
     if (w->total_size != NULL)
         free(w->total_size);
-    if (w->file != NULL)
+    if (w->file != NULL) {
         fclose(w->file);
-    win32_schedule(-1, nsws_download_update_progress, (void *)w);
-    win32_schedule(-1, nsws_download_update_label, (void *)w);
+        w->file = NULL;
+    }
+
+    if (download1 == w) {
+        download1 = NULL;
+    }
+    downloading = false;
+    free(w);
 }
 
 
@@ -165,15 +180,13 @@ static INT_PTR CALLBACK nsws_download_event_callback(HWND hwnd, UINT msg, WPARAM
     case WM_COMMAND:
         switch (LOWORD(wparam)) {
         case IDOK:
-            if (download1->downloaded != download1->size)
+            if (download1 && download1->downloaded != download1->size)
                 return TRUE;
-            fallthrough;
+            nsws_download_destroy(download1);
+            return FALSE;
 
         case IDCANCEL:
-            nsws_download_clear_data(download1);
-            download1 = NULL;
-            downloading = false;
-            EndDialog(hwnd, IDCANCEL);
+            nsws_download_destroy(download1);
             return FALSE;
         }
     }
@@ -305,7 +318,11 @@ static nserror gui_download_window_data(struct gui_download_window *w, const cha
     if (res != size)
         NSLOG(wisp, INFO, "file write error %" PRIsizet " of %u", size - res, size);
     w->downloaded += res;
-    w->progress = (unsigned int)(((long long)(w->downloaded) * 10000) / w->size);
+    if (w->size > 0) {
+        w->progress = (unsigned int)(((long long)(w->downloaded) * 10000) / w->size);
+    } else {
+        w->progress = 0;
+    }
     gettimeofday(&val, NULL);
     w->time_remaining = (w->progress == 0)
         ? -1
@@ -320,12 +337,7 @@ static void gui_download_window_error(struct gui_download_window *w, const char 
 
 static void gui_download_window_done(struct gui_download_window *w)
 {
-    if (w == NULL)
-        return;
-    downloading = false;
-    if (w->hwnd != NULL)
-        EndDialog(w->hwnd, IDOK);
-    nsws_download_clear_data(w);
+    nsws_download_destroy(w);
 }
 
 static struct gui_download_table download_table = {

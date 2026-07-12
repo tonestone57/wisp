@@ -13,22 +13,25 @@ static bool win32_audio_init(int rate, int channels) {
     IMMDeviceEnumerator *pEnumerator = NULL;
     IMMDevice *pDevice = NULL;
     WAVEFORMATEX *pwfx = NULL;
+    bool success = false;
 
     CoInitialize(NULL);
 
     hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), NULL, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnumerator);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) goto cleanup;
 
     hr = pEnumerator->GetDefaultAudioEndpoint(eRender, eConsole, &pDevice);
     pEnumerator->Release();
-    if (FAILED(hr)) return false;
+    pEnumerator = NULL;
+    if (FAILED(hr)) goto cleanup;
 
     hr = pDevice->Activate(__uuidof(IAudioClient), CLSCTX_ALL, NULL, (void**)&pAudioClient);
     pDevice->Release();
-    if (FAILED(hr)) return false;
+    pDevice = NULL;
+    if (FAILED(hr)) goto cleanup;
 
     hr = pAudioClient->GetMixFormat(&pwfx);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) goto cleanup;
 
     if (pwfx->wFormatTag == WAVE_FORMAT_EXTENSIBLE) {
         WAVEFORMATEXTENSIBLE *pEwfx = (WAVEFORMATEXTENSIBLE*)pwfx;
@@ -42,13 +45,31 @@ static bool win32_audio_init(int rate, int channels) {
     }
 
     hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 10000000, 0, pwfx, NULL);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) goto cleanup;
 
     hr = pAudioClient->GetService(__uuidof(IAudioRenderClient), (void**)&pRenderClient);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr)) goto cleanup;
 
     hr = pAudioClient->Start();
-    return SUCCEEDED(hr);
+    if (SUCCEEDED(hr)) {
+        success = true;
+    }
+
+cleanup:
+    if (pEnumerator) pEnumerator->Release();
+    if (pDevice) pDevice->Release();
+    if (!success) {
+        if (pAudioClient) {
+            pAudioClient->Release();
+            pAudioClient = NULL;
+        }
+        if (pRenderClient) {
+            pRenderClient->Release();
+            pRenderClient = NULL;
+        }
+        CoUninitialize();
+    }
+    return success;
 }
 
 static void win32_audio_play(const void *data, size_t size) {
