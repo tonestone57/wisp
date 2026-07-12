@@ -6,6 +6,25 @@ add_definitions(-DGTK_RESPATH="${CMAKE_INSTALL_PREFIX}/share/wisp-gtk:./${CMAKE_
 pkg_check_modules(GTK REQUIRED gtk+-3.0>=3.24)
 include_directories(${GTK_INCLUDE_DIRS})
 
+pkg_check_modules(PIPEWIRE libpipewire-0.3)
+if(PIPEWIRE_FOUND)
+	add_definitions(-DWITH_PIPEWIRE)
+	include_directories(${PIPEWIRE_INCLUDE_DIRS})
+	set(GTK_AUDIO_LIBRARIES ${PIPEWIRE_LIBRARIES})
+	message(STATUS "GTK Frontend: Audio enabled via PipeWire")
+else()
+	pkg_check_modules(PULSE pulse-simple pulse)
+	if(PULSE_FOUND)
+		add_definitions(-DWITH_PULSE)
+		include_directories(${PULSE_INCLUDE_DIRS})
+		set(GTK_AUDIO_LIBRARIES ${PULSE_LIBRARIES})
+		message(STATUS "GTK Frontend: Audio enabled via PulseAudio")
+	else()
+		message(WARNING "GTK Frontend: Neither PipeWire nor PulseAudio found! Audio disabled.")
+		set(GTK_AUDIO_LIBRARIES "")
+	endif()
+endif()
+
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Copy default.css to resources to avoid symlinks
@@ -51,7 +70,7 @@ add_executable(wisp-gtk
 	audio.c
 )
 
-target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} pulse-simple pulse)
+target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} ${GTK_AUDIO_LIBRARIES})
 
 install(TARGETS wisp-gtk DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
