@@ -15,8 +15,10 @@
 #include <sys/wait.h>
 #endif
 
+#include <stdint.h>
+
 struct wisp_ipc_handle {
-    int fd;
+    intptr_t fd;
     bool is_server;
     char *name;
     bool non_blocking;
@@ -35,13 +37,13 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
         WSAStartup(MAKEWORD(2, 2), &wsa);
         wsa_init = true;
     }
-    h->fd = socket(AF_INET, SOCK_STREAM, 0);
+    h->fd = (intptr_t)socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     addr.sin_port = 0; // OS picks port
-    if (bind(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        closesocket(h->fd);
+    if (bind((SOCKET)h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        closesocket((SOCKET)h->fd);
         free(h->name);
         free(h);
         return NULL;
@@ -49,14 +51,14 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
 
     struct sockaddr_in sin;
     int len = sizeof(sin);
-    if (getsockname(h->fd, (struct sockaddr *)&sin, &len) == 0) {
+    if (getsockname((SOCKET)h->fd, (struct sockaddr *)&sin, &len) == 0) {
         unsigned short port = ntohs(sin.sin_port);
         free(h->name);
         h->name = malloc(16);
         snprintf(h->name, 16, "%u", port);
     }
 
-    listen(h->fd, 5);
+    listen((SOCKET)h->fd, 5);
 #else
     h->fd = socket(AF_UNIX, SOCK_STREAM, 0);
     struct sockaddr_un addr;
@@ -79,19 +81,19 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
     if (!h) return NULL;
 #ifdef _WIN32
-    h->fd = socket(AF_INET, SOCK_STREAM, 0);
+    h->fd = (intptr_t)socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
     int port;
     if (ns_strtoint(name, 10, &port) != NSERROR_OK) {
-        closesocket(h->fd);
+        closesocket((SOCKET)h->fd);
         free(h);
         return NULL;
     }
     addr.sin_port = htons(port); // Port passed as string
-    if (connect(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        closesocket(h->fd);
+    if (connect((SOCKET)h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
+        closesocket((SOCKET)h->fd);
         free(h);
         return NULL;
     }
@@ -113,18 +115,26 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
 wisp_ipc_handle* wisp_ipc_accept(wisp_ipc_handle *server) {
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
     if (!h) return NULL;
+#ifdef _WIN32
+    h->fd = (intptr_t)accept((SOCKET)server->fd, NULL, NULL);
+    if ((SOCKET)h->fd == INVALID_SOCKET) {
+        free(h);
+        return NULL;
+    }
+#else
     h->fd = accept(server->fd, NULL, NULL);
     if (h->fd < 0) {
         free(h);
         return NULL;
     }
+#endif
     return h;
 }
 
 void wisp_ipc_destroy(wisp_ipc_handle *handle) {
     if (!handle) return;
 #ifdef _WIN32
-    closesocket(handle->fd);
+    closesocket((SOCKET)handle->fd);
 #else
     close(handle->fd);
     if (handle->is_server && handle->name) {
@@ -135,13 +145,63 @@ void wisp_ipc_destroy(wisp_ipc_handle *handle) {
     free(handle);
 }
 
-static ssize_t write_all(int fd, const void *buf, size_t len) {
+#ifdef _WIN32
+#define socket_errno WSAGetLastError()
+#define SOCKET_EAGAIN WSAEWOULDBLOCK
+#define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
+#define SOCKET_EINTR WSAEINTR
+#define socket_read(fd, buf, len) recv((SOCKET)(fd), (char *)(buf), (int)(len), 0)
+#define socket_write(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
+#else
+#define socket_errno errno
+#define SOCKET_EAGAIN EAGAIN
+#define SOCKET_EWOULDBLOCK EWOULDBLOCK
+#define SOCKET_EINTR EINTR
+#define socket_read(fd, buf, len) read(fd, buf, len)
+#define socket_write(fd, buf, len) write(fd, buf, len)
+#endif
+
+static bool wait_socket(intptr_t fd, bool for_write, int timeout_ms) {
+    fd_set fds;
+    FD_ZERO(&fds);
+#ifdef _WIN32
+    FD_SET((SOCKET)fd, &fds);
+#else
+    FD_SET((int)fd, &fds);
+#endif
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+    int ret;
+    int nfds = 0;
+#ifndef _WIN32
+    nfds = (int)(fd + 1);
+#endif
+    if (for_write) {
+        ret = select(nfds, NULL, &fds, NULL, timeout_ms >= 0 ? &tv : NULL);
+    } else {
+        ret = select(nfds, &fds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
+    }
+    return ret > 0;
+}
+
+static ssize_t write_all(intptr_t fd, const void *buf, size_t len) {
     size_t total = 0;
     const uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = write(fd, p + total, len - total);
+        ssize_t n = socket_write(fd, p + total, len - total);
         if (n <= 0) {
-            if (n < 0 && (errno == EINTR || errno == EAGAIN)) continue;
+            if (n < 0) {
+                int err = socket_errno;
+                if (err == SOCKET_EINTR) {
+                    continue;
+                }
+                if (err == SOCKET_EAGAIN || err == SOCKET_EWOULDBLOCK) {
+                    if (wait_socket(fd, true, 5000)) { // wait up to 5 seconds
+                        continue;
+                    }
+                }
+            }
             return -1;
         }
         total += n;
@@ -149,15 +209,26 @@ static ssize_t write_all(int fd, const void *buf, size_t len) {
     return total;
 }
 
-static ssize_t read_all(int fd, void *buf, size_t len) {
+static ssize_t read_all(intptr_t fd, void *buf, size_t len) {
     size_t total = 0;
     uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = read(fd, p + total, len - total);
+        ssize_t n = socket_read(fd, p + total, len - total);
         if (n <= 0) {
-            if (n < 0 && (errno == EINTR || errno == EAGAIN)) {
-                if (total == 0) return -1; // EAGAIN on first read
-                continue;
+            if (n < 0) {
+                int err = socket_errno;
+                if (err == SOCKET_EINTR) {
+                    continue;
+                }
+                if (err == SOCKET_EAGAIN || err == SOCKET_EWOULDBLOCK) {
+                    if (total == 0) {
+                        return -1; // EAGAIN on first read
+                    }
+                    /* Committed to a message, wait for remainder */
+                    if (wait_socket(fd, false, 5000)) { // wait up to 5 seconds
+                        continue;
+                    }
+                }
             }
             return total == 0 ? 0 : -1; // EOF or error
         }
@@ -209,12 +280,12 @@ void wisp_ipc_set_blocking(wisp_ipc_handle *handle, bool blocking) {
     handle->non_blocking = !blocking;
 #ifdef _WIN32
     unsigned long mode = blocking ? 0 : 1;
-    ioctlsocket(handle->fd, FIONBIO, &mode);
+    ioctlsocket((SOCKET)handle->fd, FIONBIO, &mode);
 #else
-    int flags = fcntl(handle->fd, F_GETFL, 0);
+    int flags = fcntl((int)handle->fd, F_GETFL, 0);
     if (blocking) flags &= ~O_NONBLOCK;
     else flags |= O_NONBLOCK;
-    fcntl(handle->fd, F_SETFL, flags);
+    fcntl((int)handle->fd, F_SETFL, flags);
 #endif
 }
 

@@ -94,19 +94,34 @@ int main(int argc, char **argv) {
                 if (msg.length >= 8) {
                     memcpy(&fetch_id, msg.data, 4);
                     memcpy(&url_len, msg.data + 4, 4);
-                    if (msg.length >= 8 + url_len + 2) {
+                    /* Use overflow-safe checks to validate bounds */
+                    if (msg.length >= 10 && url_len <= msg.length - 10) {
                         char *url_str = malloc(url_len + 1);
                         if (url_str) {
                             memcpy(url_str, msg.data + 8, url_len);
                             url_str[url_len] = '\0';
-                            nsurl *url;
-                            nsurl_create(url_str, &url);
-                            bool only_2xx = (msg.data[8 + url_len] != 0);
-                            bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
-                            struct fetch *f_out;
-                            fetch_start(url, NULL, network_process_fetch_callback, (void*)(uintptr_t)fetch_id,
-                                        only_2xx, NULL, true, downgrade_tls, NULL, &f_out);
-                            nsurl_unref(url);
+                            nsurl *url = NULL;
+                            if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                                bool only_2xx = (msg.data[8 + url_len] != 0);
+                                bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
+                                struct fetch *f_out;
+                                fetch_start(url, NULL, network_process_fetch_callback, (void*)(uintptr_t)fetch_id,
+                                            only_2xx, NULL, true, downgrade_tls, NULL, &f_out);
+                                nsurl_unref(url);
+                            } else {
+                                /* Immediately report error to avoid hanging the browser fetcher */
+                                wisp_ipc_msg imsg;
+                                imsg.type = WISP_IPC_MSG_FETCH_ERROR;
+                                const char *err_msg = "InvalidURL";
+                                imsg.length = 4 + strlen(err_msg) + 1;
+                                imsg.data = malloc(imsg.length);
+                                if (imsg.data) {
+                                    memcpy(imsg.data, &fetch_id, 4);
+                                    memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
+                                    wisp_ipc_send(ipc_main, &imsg);
+                                    free(imsg.data);
+                                }
+                            }
                             free(url_str);
                         }
                     }
@@ -115,13 +130,14 @@ int main(int argc, char **argv) {
                 uint32_t url_len;
                 if (msg.length >= 4) {
                     memcpy(&url_len, msg.data, 4);
-                    if (msg.length >= 4 + url_len) {
+                    /* Use overflow-safe checks to validate bounds */
+                    if (url_len <= msg.length - 4) {
                         char *url_str = malloc(url_len + 1);
                         if (url_str) {
                             memcpy(url_str, msg.data + 4, url_len);
                             url_str[url_len] = '\0';
-                            nsurl *url;
-                            if (nsurl_create(url_str, &url) == NSERROR_OK) {
+                            nsurl *url = NULL;
+                            if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
                                 lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
                                 if (host_lwc) {
                                     fetch_curl_dns_prefetch(lwc_string_data(host_lwc));
@@ -137,13 +153,14 @@ int main(int argc, char **argv) {
                 uint32_t url_len;
                 if (msg.length >= 4) {
                     memcpy(&url_len, msg.data, 4);
-                    if (msg.length >= 4 + url_len) {
+                    /* Use overflow-safe checks to validate bounds */
+                    if (url_len <= msg.length - 4) {
                         char *url_str = malloc(url_len + 1);
                         if (url_str) {
                             memcpy(url_str, msg.data + 4, url_len);
                             url_str[url_len] = '\0';
-                            nsurl *url;
-                            if (nsurl_create(url_str, &url) == NSERROR_OK) {
+                            nsurl *url = NULL;
+                            if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
                                 fetch_curl_preconnect(url_str);
                                 nsurl_unref(url);
                             }

@@ -666,6 +666,8 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, self);
     }
 
+    qjs_cleanup_mutation_observer(thread);
+
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         qjs_finalise_dom_bridge(thread->ctx);
@@ -707,13 +709,17 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 wisp_ipc_msg response;
                 wisp_ipc_set_blocking(ipc_js, false);
                 int retries = 500; // 5 seconds
+                bool got_response = false;
                 while (retries-- > 0) {
                     nserror recv_err = wisp_ipc_recv(ipc_js, &response);
                     if (recv_err == NSERROR_OK) {
-                        wisp_ipc_set_blocking(ipc_js, true);
-                        bool success = (response.length > 0 || response.data != NULL);
-                        wisp_ipc_msg_free(&response);
-                        return success;
+                        if (response.type == WISP_IPC_MSG_JS_EXEC) {
+                            got_response = true;
+                            break;
+                        } else {
+                            /* Ignore unexpected/stale message types */
+                            wisp_ipc_msg_free(&response);
+                        }
                     } else if (recv_err != NSERROR_NOT_FOUND) {
                         /* Socket error or EOF -> crash detected! */
                         NSLOG(wisp, ERROR, "JS process crashed during recv for origin %s", thread->origin);
@@ -723,6 +729,14 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     usleep(10000);
                 }
                 wisp_ipc_set_blocking(ipc_js, true);
+                if (got_response) {
+                    bool success = (response.length > 0 || response.data != NULL);
+                    wisp_ipc_msg_free(&response);
+                    return success;
+                } else if (retries <= 0) {
+                    NSLOG(wisp, ERROR, "JS process timed out for origin %s", thread->origin);
+                    handle_process_crash(thread->origin);
+                }
             } else {
                 free(msg.data);
                 NSLOG(wisp, ERROR, "JS process write failed for origin %s (likely crashed)", thread->origin);

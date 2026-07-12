@@ -277,3 +277,11 @@ int qjs_init_mutationobserver(JSContext *ctx)
 
     return 0;
 }
+
+void qjs_cleanup_mutation_observer(struct jsthread *thread)
+{
+    if (thread->mutation_callback_registered_doc) {
+        dom_document_remove_mutation_callback((struct dom_document *)thread->mutation_callback_registered_doc, mutation_callback, thread);
+        thread->mutation_callback_registered_doc = NULL;
+    }
+}

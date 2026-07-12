@@ -124,6 +124,7 @@ static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val)
 
 JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
 void qjs_finalise_dom_bridge(JSContext *ctx);
+void qjs_cleanup_mutation_observer(struct jsthread *thread);
 int qjs_init_canvas(JSContext *ctx);
 int qjs_init_trusted_types(JSContext *ctx);
 void *qjs_get_window_priv(JSContext *ctx);
