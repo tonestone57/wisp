@@ -89,6 +89,9 @@ The following stability and security measures have been integrated:
 *   **CSS Variable Caching & Fast-Path Evaluation**: Implemented style-context hashing/caching of custom property values in `libcss` to skip redundant recursive resolution passes, accelerating modern variable-heavy pages.
 *   **Site Isolation & JavaScript Multi-Process Architecture**: Fully integrated per-origin process isolation with thread-safe origin tracking, UNIX sockets created with secure `0700` permissions, and automatic crashed engine reclamation fallback.
 *   **QUIC & HTTP/3 Transport Support**: Supported QUIC and HTTP/3 protocol negotiation and Alt-Svc connection caching safely integrated in the libcurl networking process.
+*   **Wisp Protocol / WebSocket Payload Masking SIMD Acceleration**: Fully implemented and integrated. Upstream client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. This is optimized in `src/utils/websocket_mask.c` and `include/wisp/utils/websocket_mask.h` using SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2, `veorq_u8` on NEON, and dynamic `vle8`/`vxor` vectorization on RVV 1.0) to mask up to 32 bytes per clock cycle. It features dynamic CPU feature detection with a robust scalar fallback, and is integrated into the build system and verified via `test_utf8proc_simd.c`.
+*   **Structural JSON Parsing for QuickJS-ng SIMD Pre-parser**: Fully implemented and integrated. A high-performance two-stage SIMD pre-parser is defined in `contrib/quickjs-ng/quickjs-json-simd.h` utilizing AVX2 (32-byte chunks), ARM NEON (16-byte chunks), RVV 1.0 (variable-length vectors with optimized direct scalar fast-path scans), and scalar fallbacks. It identifies structural candidates and skips whitespaces and string contents, generating an offset cache allocated with the context-based native allocator (`js_malloc`). The pre-parser integrates inside `JS_ParseJSON_internal` in `contrib/quickjs-ng/quickjs.c` where `json_next_token` fast-forwards sequential reads using the offset list, and the cache is safely cleaned up with `js_free` on return. Fully verified with `test_quickjs_json_simd` in `src/test/test_quickjs.c`.
+*   **SIMD-Accelerated CSP Nonce & Security Validation**: Fully implemented and integrated. High-performance string comparison primitives `wisp_simd_strcmp` and `wisp_simd_streq` are implemented in `src/utils/utf8proc_wrapper.c` and declared in `include/wisp/utils/utf8proc_wrapper.h` (utilizing AVX2 for x86, NEON for ARM, and RVV 1.0 for RISC-V) with dynamic CPU feature detection and page-safe chunk boundary checking before falling back to scalar comparison. These primitives optimize CSP nonce checks (`csp_check_nonce`), trusted types validation (`csp_trusted_types_policy_allowed`), and JS process origin comparisons (`qjs.c`). Additionally, a SIMD-accelerated origin blocklist check (`wisp_security_is_origin_blocked`) is integrated into `csp_check_url` in `src/content/csp.c` to block blacklisted domains, verified via `test_utf8proc_simd`.
 
 ---
 
@@ -112,11 +115,8 @@ These tasks are high-priority for the 2027 development cycle:
 *   **Optional JIT Compilation Tier Options** (Complexity: **High** | Benefit: **Medium**): Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
 *   **Shared-Memory GPU-Shared Textures** (Complexity: **High** | Benefit: **High**): In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
 *   **WebAssembly (WASM) Interpretation** (Complexity: **Medium** | Benefit: **Medium**): Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
-*   **Wisp Protocol / WebSocket Payload Masking SIMD Acceleration** (Complexity: **Medium** | Benefit: **High**): Upstream WebSocket client-to-proxy payloads require a rolling 4-byte masking key bitwise-XOR operation. Implement SIMD broadcast and dynamic XOR vectorization (`_mm256_xor_si256` on AVX2 / `veorq_u8` on NEON / `vxor.vv` on RVV) to mask up to 32 bytes per clock cycle, eliminating upstream proxy network bottleneck.
-*   **Structural JSON Parsing for QuickJS-ng SIMD Pre-parser** (Complexity: **Medium** | Benefit: **High**): Leverage a two-stage SIMD pre-parser (similar to `simdjson`) using **AVX2 (on X86), NEON (on ARM), and RVV (on RISC-V)** vector comparisons to scan raw incoming JSON strings 16/32 bytes at a time, generating structural token masks and fast bitwise jumps (`popcnt` or trailing zero counts) to completely skip raw data blocks and whitespaces.
 *   **CSS Lexical and Layout Whitespace Skipping SIMD** (Complexity: **Medium** | Benefit: **High**): Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
 *   **Multi-Process Shared Memory Color Space & Alpha Blending SIMD** (Complexity: **Medium** | Benefit: **Medium**): Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
-*   **SIMD CSP Nonce & Security Validation** (Complexity: **Medium** | Benefit: **High**): Speed up incoming request packet header verification (nonce checks, origin blocklists) by utilizing SIMD string comparison primitives rather than sequential `strcmp` loops.
 
 ---
 
@@ -155,11 +155,12 @@ Implementing these additions alongside your current 2027 backlog balances out th
 
 By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers:
 
-| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact |
-|---|---|---|---|---|---|
-| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead |
-| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps |
-| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS |
+| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact | Status |
+|---|---|---|---|---|---|---|
+| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead | **[Finished]** |
+| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps | **[Finished]** |
+| **SIMD CSP Nonce & Security Check** | 32 Bytes / 16 Bytes / Variable | Medium | High | Request security processing | Drastically speeds up header checking | **[Finished]** |
+| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS | Planned |
 
 ---
 
