@@ -666,6 +666,8 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, self);
     }
 
+    qjs_cleanup_mutation_observer(thread);
+
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         qjs_finalise_dom_bridge(thread->ctx);
