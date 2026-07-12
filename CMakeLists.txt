@@ -285,10 +285,10 @@ endif()
 option(WISP_ENABLE_LTO "Enable Link Time Optimization" ${DEFAULT_WISP_ENABLE_LTO})
 
 if(WISP_ENABLE_LTO)
-    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-flto>
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-flto=auto>
                         $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-ffunction-sections>
                         $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fdata-sections>)
-    add_link_options(-flto -Wl,--gc-sections)
+    add_link_options(-flto=auto -Wl,--gc-sections)
     message(STATUS "Enabled Link Time Optimization (LTO)")
 endif()
 
