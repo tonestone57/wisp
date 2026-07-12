@@ -9,10 +9,20 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#define socket_errno WSAGetLastError()
+#define SOCKET_EAGAIN WSAEWOULDBLOCK
+#define SOCKET_EINTR WSAEINTR
+#define send_socket(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
+#define recv_socket(fd, buf, len) recv((SOCKET)(fd), (char *)(buf), (int)(len), 0)
 #else
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#define socket_errno errno
+#define SOCKET_EAGAIN EAGAIN
+#define SOCKET_EINTR EINTR
+#define send_socket(fd, buf, len) write((fd), (buf), (len))
+#define recv_socket(fd, buf, len) read((fd), (buf), (len))
 #endif
 
 #include <stdint.h>
@@ -23,6 +33,17 @@ struct wisp_ipc_handle {
     char *name;
     bool non_blocking;
 };
+
+static void wisp_ipc_set_cloexec(int fd) {
+#ifdef _WIN32
+    SetHandleInformation((HANDLE)fd, HANDLE_FLAG_INHERIT, 0);
+#else
+    int flags = fcntl(fd, F_GETFD, 0);
+    if (flags != -1) {
+        fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
+#endif
+}
 
 wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
@@ -38,6 +59,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
         wsa_init = true;
     }
     h->fd = (intptr_t)socket(AF_INET, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -61,6 +83,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     listen((SOCKET)h->fd, 5);
 #else
     h->fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
@@ -82,6 +105,7 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     if (!h) return NULL;
 #ifdef _WIN32
     h->fd = (intptr_t)socket(AF_INET, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -99,6 +123,7 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     }
 #else
     h->fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
@@ -128,6 +153,7 @@ wisp_ipc_handle* wisp_ipc_accept(wisp_ipc_handle *server) {
         return NULL;
     }
 #endif
+    wisp_ipc_set_cloexec(h->fd);
     return h;
 }
 
@@ -145,21 +171,6 @@ void wisp_ipc_destroy(wisp_ipc_handle *handle) {
     free(handle);
 }
 
-#ifdef _WIN32
-#define socket_errno WSAGetLastError()
-#define SOCKET_EAGAIN WSAEWOULDBLOCK
-#define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
-#define SOCKET_EINTR WSAEINTR
-#define socket_read(fd, buf, len) recv((SOCKET)(fd), (char *)(buf), (int)(len), 0)
-#define socket_write(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
-#else
-#define socket_errno errno
-#define SOCKET_EAGAIN EAGAIN
-#define SOCKET_EWOULDBLOCK EWOULDBLOCK
-#define SOCKET_EINTR EINTR
-#define socket_read(fd, buf, len) read(fd, buf, len)
-#define socket_write(fd, buf, len) write(fd, buf, len)
-#endif
 
 static bool wait_socket(intptr_t fd, bool for_write, int timeout_ms) {
     fd_set fds;
@@ -189,14 +200,14 @@ static ssize_t write_all(intptr_t fd, const void *buf, size_t len) {
     size_t total = 0;
     const uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = socket_write(fd, p + total, len - total);
+        ssize_t n = send_socket(fd, p + total, len - total);
         if (n <= 0) {
             if (n < 0) {
                 int err = socket_errno;
                 if (err == SOCKET_EINTR) {
                     continue;
                 }
-                if (err == SOCKET_EAGAIN || err == SOCKET_EWOULDBLOCK) {
+                if (err == SOCKET_EAGAIN) {
                     if (wait_socket(fd, true, 5000)) { // wait up to 5 seconds
                         continue;
                     }
@@ -213,14 +224,14 @@ static ssize_t read_all(intptr_t fd, void *buf, size_t len) {
     size_t total = 0;
     uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = socket_read(fd, p + total, len - total);
+        ssize_t n = recv_socket(fd, p + total, len - total);
         if (n <= 0) {
             if (n < 0) {
                 int err = socket_errno;
                 if (err == SOCKET_EINTR) {
                     continue;
                 }
-                if (err == SOCKET_EAGAIN || err == SOCKET_EWOULDBLOCK) {
+                if (err == SOCKET_EAGAIN) {
                     if (total == 0) {
                         return -1; // EAGAIN on first read
                     }
