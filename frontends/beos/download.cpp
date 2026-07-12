@@ -158,11 +158,11 @@ void NSDownloadWindow::Progress(int size)
 {
     progress += size;
 
-    char *buffer = human_friendly_bytesize(progress);
-    strcat(buffer, "/");
+    char local_buf[64];
+    snprintf(local_buf, sizeof(local_buf), "%s/", human_friendly_bytesize(progress));
 
     if (bar->LockLooper()) {
-        bar->Update(size, NULL, buffer);
+        bar->Update(size, NULL, local_buf);
         bar->Invalidate();
         bar->UnlockLooper();
     }

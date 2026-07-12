@@ -7,6 +7,7 @@
 
 static IAudioClient *pAudioClient = NULL;
 static IAudioRenderClient *pRenderClient = NULL;
+static int audio_bytes_per_frame = 8;
 
 static bool win32_audio_init(int rate, int channels) {
     HRESULT hr;
@@ -42,6 +43,9 @@ static bool win32_audio_init(int rate, int channels) {
         pEwfx->Format.nAvgBytesPerSec = pEwfx->Format.nSamplesPerSec * pEwfx->Format.nBlockAlign;
         pEwfx->Samples.wValidBitsPerSample = 32;
         pEwfx->SubFormat = KSDATAFORMAT_SUBTYPE_IEEE_FLOAT;
+        audio_bytes_per_frame = pEwfx->Format.nBlockAlign;
+    } else {
+        audio_bytes_per_frame = pwfx->nBlockAlign;
     }
 
     hr = pAudioClient->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, 10000000, 0, pwfx, NULL);
@@ -58,6 +62,7 @@ static bool win32_audio_init(int rate, int channels) {
 cleanup:
     if (pEnumerator) pEnumerator->Release();
     if (pDevice) pDevice->Release();
+    if (pwfx) CoTaskMemFree(pwfx);
     if (!success) {
         if (pAudioClient) {
             pAudioClient->Release();
@@ -83,12 +88,12 @@ static void win32_audio_play(const void *data, size_t size) {
     pAudioClient->GetCurrentPadding(&numFramesPadding);
 
     UINT32 numFramesAvailable = bufferFrameCount - numFramesPadding;
-    UINT32 framesToWrite = size / 8; // 4 bytes per sample * 2 channels
+    UINT32 framesToWrite = size / audio_bytes_per_frame;
     if (framesToWrite > numFramesAvailable) framesToWrite = numFramesAvailable;
 
     if (framesToWrite > 0) {
         pRenderClient->GetBuffer(framesToWrite, &pData);
-        memcpy(pData, data, framesToWrite * 8);
+        memcpy(pData, data, framesToWrite * audio_bytes_per_frame);
         pRenderClient->ReleaseBuffer(framesToWrite, 0);
     }
 }
