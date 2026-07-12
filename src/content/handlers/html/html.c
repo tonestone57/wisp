@@ -576,6 +576,7 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	lwc_string *charset;
 	nserror nerror;
 	dom_hubbub_parser_params parse_params;
+	memset(&parse_params, 0, sizeof(parse_params));
 	dom_hubbub_error error;
 	dom_exception err;
 	void *old_node_data;
@@ -793,6 +794,7 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 {
 	html_content *html = (html_content *)c;
 	dom_hubbub_parser_params parse_params;
+	memset(&parse_params, 0, sizeof(parse_params));
 	dom_hubbub_error error;
 	const char *encoding;
 	const uint8_t *source_data;
