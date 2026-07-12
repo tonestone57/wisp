@@ -1,3 +1,12 @@
+if(WISP_WERROR)
+	if(MSVC)
+		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:/WX>)
+	else()
+		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror=attribute-warning>)
+	endif()
+endif()
+
 include_directories("${CMAKE_SOURCE_DIR}/frontends")
 
 if(WISP_BUILD_GTK_FRONTEND)

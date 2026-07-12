@@ -1,5 +1,14 @@
 find_package(PkgConfig)
 
+if(WISP_WERROR)
+	if(MSVC)
+		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:/WX>)
+	else()
+		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>
+                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror=attribute-warning>)
+	endif()
+endif()
+
 if(WIN32)
 	set(PKG_CONFIG_USE_STATIC_LIBS ON)
 endif()

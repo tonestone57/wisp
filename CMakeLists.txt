@@ -244,15 +244,6 @@ if(WISP_ENABLE_GPROF AND WISP_ENABLE_FINSTRUMENT)
     message(FATAL_ERROR "Enable only one of WISP_ENABLE_GPROF or WISP_ENABLE_FINSTRUMENT")
 endif()
 
-if(WISP_WERROR)
-	if(MSVC)
-		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:/WX>)
-	else()
-		add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror>
-                            $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-Werror=attribute-warning>)
-	endif()
-endif()
-
 if(DEFINED WISP_LOG_LEVEL)
     string(TOUPPER "${WISP_LOG_LEVEL}" WISP_LOG_LEVEL_UPPER)
     if(WISP_LOG_LEVEL_UPPER STREQUAL "ERROR")
