@@ -149,24 +149,47 @@ void wisp_worker_notify_main_thread(WispWorkerHandle *h) {
 }
 
 static void start_worker(WispPool *pool, int i) {
-    pool->workers[i].worker_id = i;
-    pool->workers[i].rt = JS_NewRuntime();
-    pool->workers[i].ctx = JS_NewContext(pool->workers[i].rt);
-    pool->workers[i].pool = pool;
-#ifdef _WIN32
-    pool->workers[i].thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)wisp_worker_routine, &pool->workers[i], 0, NULL);
-#else
-    pthread_create(&pool->workers[i].thread, NULL, wisp_worker_routine, &pool->workers[i]);
-#endif
 #ifdef _WIN32
     EnterCriticalSection(&pool->lock);
 #else
     pthread_mutex_lock(&pool->lock);
 #endif
-    pool->active_workers++;
+
+    if (pool->stop) {
 #ifdef _WIN32
+        LeaveCriticalSection(&pool->lock);
+#else
+        pthread_mutex_unlock(&pool->lock);
+#endif
+        return;
+    }
+
+    pool->workers[i].worker_id = i;
+    pool->workers[i].rt = JS_NewRuntime();
+    pool->workers[i].ctx = JS_NewContext(pool->workers[i].rt);
+    pool->workers[i].pool = pool;
+
+#ifdef _WIN32
+    pool->workers[i].thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)wisp_worker_routine, &pool->workers[i], 0, NULL);
+    if (pool->workers[i].thread != NULL) {
+        pool->active_workers++;
+    } else {
+        pool->workers[i].running = false;
+        JS_FreeContext(pool->workers[i].ctx); pool->workers[i].ctx = NULL;
+        JS_FreeRuntime(pool->workers[i].rt); pool->workers[i].rt = NULL;
+    }
     LeaveCriticalSection(&pool->lock);
 #else
+    int ret = pthread_create(&pool->workers[i].thread, NULL, wisp_worker_routine, &pool->workers[i]);
+    if (ret == 0) {
+        pool->active_workers++;
+    } else {
+        pool->workers[i].running = false;
+        pthread_t null_thread; memset(&null_thread, 0, sizeof(pthread_t));
+        pool->workers[i].thread = null_thread;
+        JS_FreeContext(pool->workers[i].ctx); pool->workers[i].ctx = NULL;
+        JS_FreeRuntime(pool->workers[i].rt); pool->workers[i].rt = NULL;
+    }
     pthread_mutex_unlock(&pool->lock);
 #endif
 }
@@ -626,15 +649,65 @@ WispWorkerHandle* wisp_subsystem_spawn_worker(const char *script_url) {
     pthread_mutex_unlock(&web_worker_lock);
 #endif
     WispWorkerHandle *h = calloc(1, sizeof(WispWorkerHandle));
-    if (!h) return NULL;
+    if (!h) {
+#ifdef _WIN32
+        EnterCriticalSection(&web_worker_lock);
+#else
+        pthread_mutex_lock(&web_worker_lock);
+#endif
+        active_web_workers--;
+#ifdef _WIN32
+        LeaveCriticalSection(&web_worker_lock);
+#else
+        pthread_mutex_unlock(&web_worker_lock);
+#endif
+        return NULL;
+    }
     wisp_message_queue_init(&h->to_worker);
     wisp_message_queue_init(&h->from_worker);
     h->script_url = strdup(script_url);
+    if (!h->script_url) {
+        wisp_message_queue_deinit(&h->to_worker);
+        wisp_message_queue_deinit(&h->from_worker);
+        free(h);
+#ifdef _WIN32
+        EnterCriticalSection(&web_worker_lock);
+#else
+        pthread_mutex_lock(&web_worker_lock);
+#endif
+        active_web_workers--;
+#ifdef _WIN32
+        LeaveCriticalSection(&web_worker_lock);
+#else
+        pthread_mutex_unlock(&web_worker_lock);
+#endif
+        return NULL;
+    }
     h->ref_count = 2; /* 1 for JS main thread object, 1 for web worker thread */
 #ifdef _WIN32
     h->thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)wisp_web_worker_routine, h, 0, NULL);
+    if (h->thread == NULL) {
+        free(h->script_url);
+        wisp_message_queue_deinit(&h->to_worker);
+        wisp_message_queue_deinit(&h->from_worker);
+        free(h);
+        EnterCriticalSection(&web_worker_lock);
+        active_web_workers--;
+        LeaveCriticalSection(&web_worker_lock);
+        return NULL;
+    }
 #else
-    pthread_create(&h->thread, NULL, wisp_web_worker_routine, h);
+    int ret = pthread_create(&h->thread, NULL, wisp_web_worker_routine, h);
+    if (ret != 0) {
+        free(h->script_url);
+        wisp_message_queue_deinit(&h->to_worker);
+        wisp_message_queue_deinit(&h->from_worker);
+        free(h);
+        pthread_mutex_lock(&web_worker_lock);
+        active_web_workers--;
+        pthread_mutex_unlock(&web_worker_lock);
+        return NULL;
+    }
 #endif
     return h;
 }

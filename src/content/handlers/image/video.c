@@ -88,6 +88,7 @@ typedef struct nsvideo_content {
     pthread_mutex_t bitmap_lock;
     bool mutexes_initialized;
     bool thread_created;
+    bool data_complete;
 } nsvideo_content;
 
 static int nsvideo_read_packet(void *opaque, uint8_t *buf, int buf_size)
@@ -97,13 +98,13 @@ static int nsvideo_read_packet(void *opaque, uint8_t *buf, int buf_size)
 
     pthread_mutex_lock(&video->buffer.lock);
 
-    while (video->buffer.pos >= video->buffer.size && !video->abort && video->decoding) {
+    while (video->buffer.pos >= video->buffer.size && !video->abort && video->decoding && !video->data_complete) {
         pthread_mutex_unlock(&video->buffer.lock);
         usleep(10000);
         pthread_mutex_lock(&video->buffer.lock);
     }
 
-    if (video->abort || !video->decoding) {
+    if (video->abort || !video->decoding || (video->data_complete && video->buffer.pos >= video->buffer.size)) {
         pthread_mutex_unlock(&video->buffer.lock);
         return AVERROR_EOF;
     }
@@ -356,6 +357,7 @@ static nserror nsvideo_create(const struct content_handler *handler, lwc_string 
     video->mutexes_initialized = true;
 
     video->decoding = true;
+    video->data_complete = false;
     video->volume = 1.0f;
     video->avio_buffer = (unsigned char *)av_malloc(4096);
     video->avio_ctx = avio_alloc_context(video->avio_buffer, 4096, 0, video, nsvideo_read_packet, NULL, nsvideo_seek);
@@ -391,6 +393,10 @@ static bool nsvideo_process_data(struct content *c, const char *data, unsigned i
 
 static bool nsvideo_convert(struct content *c)
 {
+    nsvideo_content *video = (nsvideo_content *)c;
+    pthread_mutex_lock(&video->buffer.lock);
+    video->data_complete = true;
+    pthread_mutex_unlock(&video->buffer.lock);
     return true;
 }
 
