@@ -34,9 +34,10 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
         if (!server) return false;
 
         char exec_path[256];
-        /* In a real app we'd use something like procfs to find our own path,
-           but here we assume it's in the same dir as the main executable. */
-        snprintf(exec_path, sizeof(exec_path), "./wisp-network");
+        if (!wisp_ipc_find_executable("wisp-network", exec_path, sizeof(exec_path))) {
+            wisp_ipc_destroy(server);
+            return false;
+        }
 
         wisp_ipc_spawn(exec_path, ipc_name);
         ipc_network = wisp_ipc_accept(server);

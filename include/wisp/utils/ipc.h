@@ -50,4 +50,7 @@ void wisp_ipc_set_blocking(wisp_ipc_handle *handle, bool blocking);
 /* Process spawning */
 int wisp_ipc_spawn(const char *executable, const char *ipc_name);
 
+/* Helper to locate a child process executable */
+bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len);
+
 #endif
