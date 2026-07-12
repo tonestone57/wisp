@@ -43,7 +43,7 @@ nserror NS_Cookies::setSearch(const char *search_term)
 
 void NS_Cookies::draw(struct rect *clip, struct redraw_context *ctx)
 {
-    cookie_manager_redraw(0, 0, clip, ctx);
+    cookie_manager_redraw(-m_xoffset, -m_yoffset, clip, ctx);
 }
 
 bool NS_Cookies::key_press(uint32_t nskey)

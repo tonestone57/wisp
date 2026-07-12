@@ -39,7 +39,7 @@ NS_Global_history::~NS_Global_history()
 
 void NS_Global_history::draw(struct rect *clip, struct redraw_context *ctx)
 {
-    global_history_redraw(0, 0, clip, ctx);
+    global_history_redraw(-m_xoffset, -m_yoffset, clip, ctx);
 }
 
 bool NS_Global_history::key_press(uint32_t nskey)

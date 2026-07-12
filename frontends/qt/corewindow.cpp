@@ -159,11 +159,21 @@ nserror NS_Corewindow::static_set_extent(struct core_window *cw, int width, int 
 
 nserror NS_Corewindow::static_set_scroll(struct core_window *cw, int x, int y)
 {
+    struct nsqt_core_window *nsqtcw = (struct nsqt_core_window *)cw;
+    if (nsqtcw && nsqtcw->cw) {
+        nsqtcw->cw->m_xoffset = x;
+        nsqtcw->cw->m_yoffset = y;
+    }
     return NSERROR_OK;
 }
 
 nserror NS_Corewindow::static_get_scroll(const struct core_window *cw, int *x, int *y)
 {
+    struct nsqt_core_window *nsqtcw = (struct nsqt_core_window *)cw;
+    if (nsqtcw && nsqtcw->cw) {
+        if (x) *x = nsqtcw->cw->m_xoffset;
+        if (y) *y = nsqtcw->cw->m_yoffset;
+    }
     return NSERROR_OK;
 }
 

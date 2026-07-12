@@ -39,7 +39,7 @@ NS_Bookmarks::~NS_Bookmarks()
 
 void NS_Bookmarks::draw(struct rect *clip, struct redraw_context *ctx)
 {
-    hotlist_redraw(0, 0, clip, ctx);
+    hotlist_redraw(-m_xoffset, -m_yoffset, clip, ctx);
 }
 
 bool NS_Bookmarks::key_press(uint32_t nskey)
