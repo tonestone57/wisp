@@ -1,11 +1,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <wisp/audio.h>
+
+#ifdef WITH_PIPEWIRE
+
 #include <pthread.h>
 #include <spa/param/audio/format-utils.h>
 #include <spa/utils/ringbuffer.h>
 #include <pipewire/pipewire.h>
-#include <wisp/audio.h>
 
 struct nsgtk_audio_state {
     struct pw_thread_loop *thread_loop;
@@ -83,11 +86,11 @@ static const struct pw_stream_events stream_events = {
     .process = on_process,
 };
 
-static void nsgtk_audio_fini(void);
+static void nsgtk_audio_fini_pw(void);
 
 static bool nsgtk_audio_init(int rate, int channels) {
     if (state.running) {
-        nsgtk_audio_fini();
+        nsgtk_audio_fini_pw();
     }
 
     state.rate = rate;
@@ -223,7 +226,7 @@ static void nsgtk_audio_play(const void *data, size_t size) {
     pthread_mutex_unlock(&state.lock);
 }
 
-static void nsgtk_audio_fini(void) {
+static void nsgtk_audio_fini_pw(void) {
     if (!state.running) return;
 
     pthread_mutex_lock(&state.lock);
@@ -257,6 +260,66 @@ static void nsgtk_audio_fini(void) {
 
     pw_deinit();
 }
+
+static void nsgtk_audio_fini(void) {
+    nsgtk_audio_fini_pw();
+}
+
+#elif defined(WITH_PULSE)
+
+#include <pulse/simple.h>
+#include <pulse/error.h>
+
+static pa_simple *pa_s = NULL;
+
+static bool nsgtk_audio_init(int rate, int channels) {
+    pa_sample_spec ss;
+    ss.format = PA_SAMPLE_FLOAT32LE;
+    ss.rate = rate;
+    ss.channels = channels;
+
+    int error;
+    pa_s = pa_simple_new(NULL, "Wisp", PA_STREAM_PLAYBACK, NULL, "Video Playback", &ss, NULL, NULL, &error);
+    if (!pa_s) {
+        fprintf(stderr, "PulseAudio: pa_simple_new() failed: %s\n", pa_strerror(error));
+        return false;
+    }
+    return true;
+}
+
+static void nsgtk_audio_play(const void *data, size_t size) {
+    if (!pa_s) return;
+    int error;
+    if (pa_simple_write(pa_s, data, size, &error) < 0) {
+        fprintf(stderr, "PulseAudio: pa_simple_write() failed: %s\n", pa_strerror(error));
+    }
+}
+
+static void nsgtk_audio_fini(void) {
+    if (pa_s) {
+        pa_simple_drain(pa_s, NULL);
+        pa_simple_free(pa_s);
+        pa_s = NULL;
+    }
+}
+
+#else /* Silent dummy fallback */
+
+static bool nsgtk_audio_init(int rate, int channels) {
+    (void)rate;
+    (void)channels;
+    return true;
+}
+
+static void nsgtk_audio_play(const void *data, size_t size) {
+    (void)data;
+    (void)size;
+}
+
+static void nsgtk_audio_fini(void) {
+}
+
+#endif
 
 static struct gui_audio_table audio_table = {
     .init = nsgtk_audio_init,
