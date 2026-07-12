@@ -32,6 +32,17 @@ struct wisp_ipc_handle {
     bool non_blocking;
 };
 
+static void wisp_ipc_set_cloexec(int fd) {
+#ifdef _WIN32
+    SetHandleInformation((HANDLE)fd, HANDLE_FLAG_INHERIT, 0);
+#else
+    int flags = fcntl(fd, F_GETFD, 0);
+    if (flags != -1) {
+        fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+    }
+#endif
+}
+
 wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
     if (!h) return NULL;
@@ -46,6 +57,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
         wsa_init = true;
     }
     h->fd = socket(AF_INET, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -69,6 +81,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     listen(h->fd, 5);
 #else
     h->fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
@@ -90,6 +103,7 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     if (!h) return NULL;
 #ifdef _WIN32
     h->fd = socket(AF_INET, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_in addr;
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr("127.0.0.1");
@@ -107,6 +121,7 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     }
 #else
     h->fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_un addr;
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
@@ -128,6 +143,7 @@ wisp_ipc_handle* wisp_ipc_accept(wisp_ipc_handle *server) {
         free(h);
         return NULL;
     }
+    wisp_ipc_set_cloexec(h->fd);
     return h;
 }
 
