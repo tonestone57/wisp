@@ -27,12 +27,59 @@ endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# Copy default.css to resources to avoid symlinks
+# Clean build resources folder to avoid symlink duplication/overwriting conflicts
+file(REMOVE_RECURSE ${CMAKE_CURRENT_BINARY_DIR}/res)
+
+# Copy res/ directory from source to binary directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+# Delete the symlinks from the copied folder in build directory so they can be replaced by real files/directories
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/res/adblock.css)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/res/credits.html)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/res/internal.css)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/res/license.html)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/res/welcome.html)
+file(REMOVE ${CMAKE_CURRENT_BINARY_DIR}/res/icons)
+
+# Copy common resources to binary directory to replace symlinks
 configure_file(
 	${CMAKE_SOURCE_DIR}/src/resources/default.css
 	${CMAKE_CURRENT_BINARY_DIR}/res/default.css
 	COPYONLY
 )
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/quirks.css
+	${CMAKE_CURRENT_BINARY_DIR}/res/quirks.css
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/adblock.css
+	${CMAKE_CURRENT_BINARY_DIR}/res/adblock.css
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/credits.html
+	${CMAKE_CURRENT_BINARY_DIR}/res/credits.html
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/internal.css
+	${CMAKE_CURRENT_BINARY_DIR}/res/internal.css
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/license.html
+	${CMAKE_CURRENT_BINARY_DIR}/res/license.html
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/en/welcome.html
+	${CMAKE_CURRENT_BINARY_DIR}/res/welcome.html
+	COPYONLY
+)
+
+# Copy the icons directory to replace the icons symlink
+file(COPY ${CMAKE_SOURCE_DIR}/src/resources/icons DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/res)
 
 add_executable(wisp-gtk
 	gui.c
@@ -73,5 +120,4 @@ add_executable(wisp-gtk
 target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} ${GTK_AUDIO_LIBRARIES})
 
 install(TARGETS wisp-gtk DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(DIRECTORY res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/res/default.css DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
