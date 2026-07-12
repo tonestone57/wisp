@@ -83,6 +83,12 @@ int main(int argc, char **argv) {
                     wisp_ipc_msg_free(&response);
                     JS_FreeValue(ctx, val);
                     free(script);
+                } else {
+                    wisp_ipc_msg response;
+                    response.type = WISP_IPC_MSG_JS_EXEC;
+                    response.length = 0;
+                    response.data = NULL;
+                    wisp_ipc_send(ipc_main, &response);
                 }
             }
         }

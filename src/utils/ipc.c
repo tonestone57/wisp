@@ -135,13 +135,55 @@ void wisp_ipc_destroy(wisp_ipc_handle *handle) {
     free(handle);
 }
 
+#ifdef _WIN32
+#define socket_errno WSAGetLastError()
+#define SOCKET_EAGAIN WSAEWOULDBLOCK
+#define SOCKET_EWOULDBLOCK WSAEWOULDBLOCK
+#define SOCKET_EINTR WSAEINTR
+#define socket_read(fd, buf, len) recv((SOCKET)(fd), (char *)(buf), (int)(len), 0)
+#define socket_write(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
+#else
+#define socket_errno errno
+#define SOCKET_EAGAIN EAGAIN
+#define SOCKET_EWOULDBLOCK EWOULDBLOCK
+#define SOCKET_EINTR EINTR
+#define socket_read(fd, buf, len) read(fd, buf, len)
+#define socket_write(fd, buf, len) write(fd, buf, len)
+#endif
+
+static bool wait_socket(int fd, bool for_write, int timeout_ms) {
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+    int ret;
+    if (for_write) {
+        ret = select(fd + 1, NULL, &fds, NULL, timeout_ms >= 0 ? &tv : NULL);
+    } else {
+        ret = select(fd + 1, &fds, NULL, NULL, timeout_ms >= 0 ? &tv : NULL);
+    }
+    return ret > 0;
+}
+
 static ssize_t write_all(int fd, const void *buf, size_t len) {
     size_t total = 0;
     const uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = write(fd, p + total, len - total);
+        ssize_t n = socket_write(fd, p + total, len - total);
         if (n <= 0) {
-            if (n < 0 && (errno == EINTR || errno == EAGAIN)) continue;
+            if (n < 0) {
+                int err = socket_errno;
+                if (err == SOCKET_EINTR) {
+                    continue;
+                }
+                if (err == SOCKET_EAGAIN || err == SOCKET_EWOULDBLOCK) {
+                    if (wait_socket(fd, true, 5000)) { // wait up to 5 seconds
+                        continue;
+                    }
+                }
+            }
             return -1;
         }
         total += n;
@@ -153,11 +195,22 @@ static ssize_t read_all(int fd, void *buf, size_t len) {
     size_t total = 0;
     uint8_t *p = buf;
     while (total < len) {
-        ssize_t n = read(fd, p + total, len - total);
+        ssize_t n = socket_read(fd, p + total, len - total);
         if (n <= 0) {
-            if (n < 0 && (errno == EINTR || errno == EAGAIN)) {
-                if (total == 0) return -1; // EAGAIN on first read
-                continue;
+            if (n < 0) {
+                int err = socket_errno;
+                if (err == SOCKET_EINTR) {
+                    continue;
+                }
+                if (err == SOCKET_EAGAIN || err == SOCKET_EWOULDBLOCK) {
+                    if (total == 0) {
+                        return -1; // EAGAIN on first read
+                    }
+                    /* Committed to a message, wait for remainder */
+                    if (wait_socket(fd, false, 5000)) { // wait up to 5 seconds
+                        continue;
+                    }
+                }
             }
             return total == 0 ? 0 : -1; // EOF or error
         }

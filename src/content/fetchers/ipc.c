@@ -16,8 +16,7 @@ static uint32_t next_fetch_id = 1;
 
 struct ipc_fetch_info {
     uint32_t id;
-    fetch_callback callback;
-    void *callback_pw;
+    struct fetch *fetchh;
     bool finished;
     struct ipc_fetch_info *next;
 };
@@ -56,6 +55,7 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
     struct ipc_fetch_info *f = calloc(1, sizeof(*f));
     if (!f) return NULL;
     f->id = next_fetch_id++;
+    f->fetchh = parent_fetch;
     f->next = active_fetches;
     active_fetches = f;
 
@@ -111,6 +111,11 @@ static void fetch_ipc_poll(lwc_string *scheme) {
 
     wisp_ipc_msg msg;
     while (wisp_ipc_recv(ipc_network, &msg) == NSERROR_OK) {
+        if (msg.length < 4) {
+            wisp_ipc_msg_free(&msg);
+            continue;
+        }
+
         uint32_t fetch_id;
         memcpy(&fetch_id, msg.data, 4);
 
@@ -124,23 +129,29 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     fmsg.type = FETCH_HEADER;
                     fmsg.data.header_or_data.buf = msg.data + 4;
                     fmsg.data.header_or_data.len = msg.length - 4;
-                    f->callback(&fmsg, f->callback_pw);
+                    fetch_send_callback(&fmsg, f->fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_DATA:
                     fmsg.type = FETCH_DATA;
                     fmsg.data.header_or_data.buf = msg.data + 4;
                     fmsg.data.header_or_data.len = msg.length - 4;
-                    f->callback(&fmsg, f->callback_pw);
+                    fetch_send_callback(&fmsg, f->fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_FINISHED:
                     fmsg.type = FETCH_FINISHED;
-                    f->callback(&fmsg, f->callback_pw);
+                    fetch_send_callback(&fmsg, f->fetchh);
                     f->finished = true;
                     break;
                 case WISP_IPC_MSG_FETCH_ERROR:
                     fmsg.type = FETCH_ERROR;
-                    fmsg.data.error = (char*)msg.data + 4;
-                    f->callback(&fmsg, f->callback_pw);
+                    if (msg.length > 4) {
+                        /* Ensure received error string is safely null-terminated */
+                        msg.data[msg.length - 1] = '\0';
+                        fmsg.data.error = (char*)msg.data + 4;
+                    } else {
+                        fmsg.data.error = "UnknownError";
+                    }
+                    fetch_send_callback(&fmsg, f->fetchh);
                     f->finished = true;
                     break;
                 default:
