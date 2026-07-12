@@ -1634,8 +1634,10 @@ static void gui_get_clipboard(char **buffer, size_t *length)
             ssize_t textlen;
             if (clip->FindData("text/plain", B_MIME_TYPE, (const void **)&text, &textlen) >= B_OK) {
                 *buffer = (char *)malloc(textlen);
-                *length = textlen;
-                memcpy(*buffer, text, textlen);
+                if (*buffer != NULL) {
+                    *length = textlen;
+                    memcpy(*buffer, text, textlen);
+                }
             }
         }
         be_clipboard->Unlock();
