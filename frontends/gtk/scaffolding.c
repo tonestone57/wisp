@@ -1165,7 +1165,9 @@ nserror nsgtk_scaffolding_destroy_all(void)
     struct nsgtk_scaffolding *gs;
 
     gs = scaf_list;
-    assert(gs != NULL);
+    if (gs == NULL) {
+        return NSERROR_OK;
+    }
 
     if (nsgtk_check_for_downloads(gs->window) == true) {
         return NSERROR_INVALID;
