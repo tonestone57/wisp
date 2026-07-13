@@ -338,6 +338,11 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
             if (access(out_path, 0) == 0) {
                 return true;
             }
+            // Try ..\..\src\ (for frontend build directories like build\frontends\qt)
+            snprintf(out_path, out_len, "%s\\..\\..\\src\\%s.exe", self_path, name);
+            if (access(out_path, 0) == 0) {
+                return true;
+            }
         }
     }
     snprintf(out_path, out_len, ".\\%s.exe", name);
@@ -363,6 +368,11 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
             }
             // Try ../src/ (for build directory)
             snprintf(out_path, out_len, "%s/../src/%s", self_path, name);
+            if (access(out_path, X_OK) == 0) {
+                return true;
+            }
+            // Try ../../src/ (for frontend build directories like build/frontends/gtk)
+            snprintf(out_path, out_len, "%s/../../src/%s", self_path, name);
             if (access(out_path, X_OK) == 0) {
                 return true;
             }

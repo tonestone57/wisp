@@ -224,6 +224,9 @@ static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *or
 
 static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
     if (!origin) return NULL;
+    if (strncmp(origin, "null-origin-", 12) == 0 || strncmp(origin, "null-worker-", 12) == 0) {
+        return NULL;
+    }
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
