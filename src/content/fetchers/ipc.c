@@ -168,6 +168,11 @@ static bool fetch_ipc_can_fetch(const nsurl *url) {
 }
 
 nserror fetch_ipc_register(void) {
+    char exec_path[256];
+    if (!wisp_ipc_find_executable("wisp-network", exec_path, sizeof(exec_path))) {
+        NSLOG(wisp, WARNING, "wisp-network executable not found, skipping IPC fetcher registration");
+        return NSERROR_NOT_FOUND;
+    }
     static const struct fetcher_operation_table fetcher_ops = {
         .initialise = fetch_ipc_initialise,
         .acceptable = fetch_ipc_can_fetch,
