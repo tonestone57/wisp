@@ -129,6 +129,7 @@ int qjs_init_canvas(JSContext *ctx);
 int qjs_init_trusted_types(JSContext *ctx);
 void *qjs_get_window_priv(JSContext *ctx);
 void *qjs_get_document_priv(JSContext *ctx);
+struct dom_document *qjs_thread_get_document(struct jsthread *t);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);

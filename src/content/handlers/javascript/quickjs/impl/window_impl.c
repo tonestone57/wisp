@@ -63,8 +63,11 @@ JSValue wisp_window_self_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_window_document_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (t && t->doc_priv) {
-        return qjs_wrap_node(ctx, (dom_node *)t->doc_priv);
+    if (t) {
+        struct dom_document *doc_node = qjs_thread_get_document(t);
+        if (doc_node) {
+            return qjs_wrap_node(ctx, (dom_node *)doc_node);
+        }
     }
     return JS_NULL;
 }

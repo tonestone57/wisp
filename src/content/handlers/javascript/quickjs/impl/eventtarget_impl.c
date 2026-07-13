@@ -34,7 +34,7 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
 
     struct jsthread *thread = JS_GetContextOpaque(ctx);
-    js_dom_event_add_listener(thread, (dom_document *)thread->doc_priv, (dom_node *)priv->node, type_dom, argv[1]);
+    js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
 
     dom_string_unref(type_dom);
     JS_FreeCString(ctx, type);
@@ -53,7 +53,7 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
 
     struct jsthread *thread = JS_GetContextOpaque(ctx);
-    js_dom_event_remove_listener(thread, (dom_document *)thread->doc_priv, (dom_node *)priv->node, type_dom, argv[1]);
+    js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
 
     dom_string_unref(type_dom);
     JS_FreeCString(ctx, type);
@@ -79,7 +79,7 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
         type = JS_ToCString(ctx, argv[0]);
     }
 
-    bool success = js_fire_event(thread, type ? type : "click", (struct dom_document *)thread->doc_priv, (dom_node *)priv->node);
+    bool success = js_fire_event(thread, type ? type : "click", qjs_thread_get_document(thread), (dom_node *)priv->node);
 
     if (type) JS_FreeCString(ctx, (char *)type);
     JS_FreeValue(ctx, type_val);
