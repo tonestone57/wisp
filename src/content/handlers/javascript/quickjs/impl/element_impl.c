@@ -143,7 +143,22 @@ JSValue wisp_element_tagName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
-JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewObject(ctx); }
+
+JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        JSValue style = JS_GetPropertyStr(ctx, wrapper, "__wisp_style_cached");
+        if (JS_IsUndefined(style)) {
+            style = JS_NewObject(ctx);
+            JS_SetPropertyStr(ctx, wrapper, "__wisp_style_cached", JS_DupValue(ctx, style));
+        }
+        JS_FreeValue(ctx, wrapper);
+        return style;
+    }
+    return JS_NewObject(ctx);
+}
 
 JSValue wisp_element_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
 {
