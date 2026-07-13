@@ -864,6 +864,11 @@ static void window_destroy(GtkWidget *widget, gpointer data)
         gw->icon = NULL;
     }
 
+    if (gw->search != NULL) {
+        free(gw->search);
+        gw->search = NULL;
+    }
+
     free(gw);
 }
 
