@@ -1366,7 +1366,11 @@ static bool fetch_curl_initiate_fetch(struct curl_fetch_info *fetch, CURL *handl
 
     /* add to the global curl multi handle */
     codem = curl_multi_add_handle(fetch_curl_multi, fetch->curl_handle);
-    assert(codem == CURLM_OK || codem == CURLM_CALL_MULTI_PERFORM);
+    if (codem != CURLM_OK && codem != CURLM_CALL_MULTI_PERFORM) {
+        NSLOG(wisp, ERROR, "curl_multi_add_handle failed: %s", curl_multi_strerror(codem));
+        fetch->curl_handle = 0;
+        return false;
+    }
 
     return true;
 }

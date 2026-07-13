@@ -935,6 +935,10 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 {
     if (!thread || !doc) return false;
     if (!target) target = (dom_node *)doc;
+    if (target == (dom_node *)thread->win_priv) {
+        target = (dom_node *)qjs_thread_get_document(thread);
+        if (!target) return false;
+    }
     dom_string *type_str = NULL; dom_string_create((const uint8_t *)type, strlen(type), &type_str);
     dom_event *evt = NULL; dom_event_create(&evt);
     bool success = false;

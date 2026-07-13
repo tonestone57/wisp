@@ -2040,7 +2040,25 @@ css_error css__stylesheet_parse_tokens(css_stylesheet *sheet, opcode_t opcode, c
     error = css__stylesheet_style_create(sheet, &style);
     if (error != CSS_OK) return error;
 
-    error = handler(sheet->parser_frontend, tokens, &ctx, style);
+    css_language *temp_c = (css_language *)sheet->parser_frontend;
+    bool created_temp = false;
+    if (temp_c == NULL) {
+        temp_c = calloc(1, sizeof(css_language));
+        if (temp_c == NULL) {
+            css__stylesheet_style_destroy(style);
+            return CSS_NOMEM;
+        }
+        temp_c->sheet = sheet;
+        temp_c->strings = sheet->propstrings;
+        created_temp = true;
+    }
+
+    error = handler(temp_c, tokens, &ctx, style);
+
+    if (created_temp) {
+        free(temp_c);
+    }
+
     if (error != CSS_OK) {
         css__stylesheet_style_destroy(style);
         return error;
