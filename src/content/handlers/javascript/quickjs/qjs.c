@@ -403,6 +403,16 @@ void *qjs_get_document_priv(JSContext *ctx)
     return t ? t->doc_priv : NULL;
 }
 
+struct dom_document *qjs_thread_get_document(struct jsthread *t)
+{
+    if (!t || !t->doc_priv) return NULL;
+    if (t->win_priv && t->win_priv != t->doc_priv) {
+        struct html_content *htmlc = (struct html_content *)t->doc_priv;
+        return (struct dom_document *)htmlc->document;
+    }
+    return (struct dom_document *)t->doc_priv;
+}
+
 void js_initialise(void)
 {
 }
@@ -530,9 +540,12 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     JS_DefinePropertyValueStr(t->ctx, global_obj, "window", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(t->ctx, global_obj, "self", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     if (doc_priv) {
-        JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_priv), JS_PROP_C_W_E);
-        dom_node_ref((dom_node *)doc_priv);
         t->doc_priv = doc_priv;
+        struct dom_document *doc_node = qjs_thread_get_document(t);
+        if (doc_node) {
+            JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_node), JS_PROP_C_W_E);
+            dom_node_ref((dom_node *)doc_node);
+        }
     }
 
     JS_FreeValue(t->ctx, global_obj);
@@ -682,7 +695,8 @@ void js_destroythread(jsthread *thread)
         JS_RunGC(rt);
         JS_RunGC(rt);
     }
-    if (thread->doc_priv) dom_node_unref((dom_node *)thread->doc_priv);
+    struct dom_document *doc_node = qjs_thread_get_document(thread);
+    if (doc_node) dom_node_unref((dom_node *)doc_node);
     if (thread->origin) {
         release_js_process_for_origin(thread->origin);
         free(thread->origin);
@@ -786,7 +800,8 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
             new_map->next = ctx->thread->events; ctx->thread->events = new_map;
         }
     }
-    JSValue this_obj = (ctx->target == (struct dom_event_target *)ctx->thread->win_priv || ctx->target == (struct dom_event_target *)ctx->thread->doc_priv) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
+    struct dom_document *doc_node_evt = qjs_thread_get_document(ctx->thread);
+    JSValue this_obj = (ctx->target == (struct dom_event_target *)ctx->thread->win_priv || ctx->target == (struct dom_event_target *)doc_node_evt) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
     JSValue ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
     if (JS_IsException(ret)) {
         JSValue exc = JS_GetException(jsctx); const char *exc_str = JS_ToCString(jsctx, exc);
