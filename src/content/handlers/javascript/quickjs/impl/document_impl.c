@@ -8,6 +8,10 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "JSDocument.gen.h"
+#include "JSEvent.gen.h"
+#include "JSCustomEvent.gen.h"
+#include "JSMessageEvent.gen.h"
+#include "JSErrorEvent.gen.h"
 
 JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName)
 {
@@ -59,7 +63,44 @@ JSValue wisp_document_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, 
 
 JSValue wisp_document_getElementsByTagName_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName)
 {
-    NSLOG(wisp, DEBUG, "Document.getElementsByTagName stub");
+    if (!priv || !priv->node || !localName) return JS_NewArray(ctx);
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, localName, true);
+}
+
+JSValue wisp_document_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate *priv, const char * classNames)
+{
+    if (!priv || !priv->node || !classNames) return JS_NewArray(ctx);
+    size_t len = strlen(classNames);
+    char *selector = malloc(len + 2);
+    if (!selector) return JS_ThrowOutOfMemory(ctx);
+    selector[0] = '.';
+    for (size_t i = 0; i < len; i++) {
+        selector[i + 1] = (classNames[i] == ' ') ? '.' : classNames[i];
+    }
+    selector[len + 1] = '\0';
+    JSValue res = qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selector, true);
+    free(selector);
+    return res;
+}
+
+JSValue wisp_document_createEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * interface)
+{
+    dom_event *evt = NULL;
+    dom_event_create(&evt);
+    if (evt) {
+        JSValue obj;
+        if (interface && strcasecmp(interface, "CustomEvent") == 0) {
+            obj = qjs_new_customevent(ctx, evt, false);
+        } else if (interface && strcasecmp(interface, "MessageEvent") == 0) {
+            obj = qjs_new_messageevent(ctx, evt, false);
+        } else if (interface && strcasecmp(interface, "ErrorEvent") == 0) {
+            obj = qjs_new_errorevent(ctx, evt, false);
+        } else {
+            obj = qjs_new_event(ctx, evt, false);
+        }
+        dom_event_unref(evt);
+        return obj;
+    }
     return JS_NULL;
 }
 

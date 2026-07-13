@@ -567,10 +567,12 @@ class QuickJSBindingGenerator:
         # Marshaller declarations
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val);\n"
         for ctor in constructors:
-            if ctor['name'] == 'constructor':
+            if ctor.get('is_dummy'):
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
+            elif ctor['name'] == 'constructor':
                 c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
             else:
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
         for op in flat_ops:
             c_code += f"static JSValue js_{lower_name}_{op['impl_name']}_marshaller(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
 
@@ -614,6 +616,13 @@ class QuickJSBindingGenerator:
         c_code += f"        free(priv);\n"
         c_code += f"    }}\n}}\n\n"
 
+        # Ensure a standard constructor exists on the global object for every interface
+        # so that window.HTMLElement, window.Element, window.EventTarget etc are defined
+        # and throw a TypeError on direct instantiation but can be subclassed / extended.
+        has_constructor = any(c['name'] == 'constructor' for c in constructors)
+        if not has_constructor:
+            constructors.append({'name': 'constructor', 'impl_name': 'dummy_constructor', 'args': [], 'is_dummy': True})
+
         # Helper to group constructors by name
         ctors_by_name = {}
         for ctor in constructors:
@@ -622,10 +631,16 @@ class QuickJSBindingGenerator:
             ctors_by_name[ctor['name']].append(ctor)
 
         for ctor in constructors:
+            if ctor.get('is_dummy'):
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
+                c_code += f"    return JS_ThrowTypeError(ctx, \"Illegal constructor\");\n"
+                c_code += f"}}\n\n"
+                continue
+
             if ctor['name'] == 'constructor':
                 c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
             else:
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
 
             impl_args = []
             for i, arg in enumerate(ctor['args']):
@@ -714,12 +729,12 @@ class QuickJSBindingGenerator:
             if ctor_name == 'constructor':
                 c_code += f"static JSValue js_{lower_name}_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
             else:
-                c_code += f"static JSValue js_{lower_name}_{ctor_name}_ctor(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)\n{{\n"
+                c_code += f"static JSValue js_{lower_name}_{ctor_name}_ctor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)\n{{\n"
 
             if len(group) == 1:
                 ctor = group[0]
                 suffix = "" if ctor_name == 'constructor' else "_ctor"
-                c_code += f"    return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, {'new_target' if ctor_name == 'constructor' else 'this_val'}, argc, argv);\n"
+                c_code += f"    return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, new_target, argc, argv);\n"
             else:
                 # Dispatch by argc and type
                 # Sort by decreasing argc, then by specificity (generic 'true' checks last)
@@ -740,7 +755,7 @@ class QuickJSBindingGenerator:
                     c_code += f"    {'else ' if i > 0 else ''}if ({' && '.join(checks)}) "
 
                     suffix = "" if ctor_name == 'constructor' else "_ctor"
-                    c_code += f"return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, {'new_target' if ctor_name == 'constructor' else 'this_val'}, argc, argv);\n"
+                    c_code += f"return js_{lower_name}_{ctor['impl_name']}{suffix}_marshaller(ctx, new_target, argc, argv);\n"
 
                 c_code += f"    else return JS_ThrowTypeError(ctx, \"No matching constructor for {name}\");\n"
             c_code += f"}}\n\n"
@@ -819,7 +834,8 @@ class QuickJSBindingGenerator:
                 c_code += f"        }}\n"
             else:
                 c_code += f"        {{\n"
-                c_code += f"            JSValue {ctor_name}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor_name}_ctor, \"{ctor_name}\", {max_args}, JS_CFUNC_generic, 0);\n"
+                c_code += f"            JSValue {ctor_name}_ctor_val = JS_NewCFunction2(ctx, (JSCFunction *)js_{lower_name}_{ctor_name}_ctor, \"{ctor_name}\", {max_args}, JS_CFUNC_constructor, 0);\n"
+                c_code += f"            JS_SetConstructor(ctx, {ctor_name}_ctor_val, proto);\n"
                 c_code += f"            JSValue global_obj = JS_GetGlobalObject(ctx);\n"
                 c_code += f"            JS_SetPropertyStr(ctx, global_obj, \"{ctor_name}\", {ctor_name}_ctor_val);\n"
                 c_code += f"            JS_FreeValue(ctx, global_obj);\n"
