@@ -6,8 +6,21 @@
 #include <wisp/utils/log.h>
 #include "JSLocation.gen.h"
 
+struct nsurl;
+extern const char *nsurl_access(const struct nsurl *url);
+extern struct nsurl *content_get_url(void *c);
+
 JSValue wisp_location_href_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t && t->doc_priv) {
+        if (t->win_priv && t->win_priv != t->doc_priv) {
+            struct nsurl *url = content_get_url((struct content *)t->doc_priv);
+            if (url) {
+                return JS_NewString(ctx, nsurl_access(url));
+            }
+        }
+    }
     return JS_NewString(ctx, "about:blank");
 }
 
