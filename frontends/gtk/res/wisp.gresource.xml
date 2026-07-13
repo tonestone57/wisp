@@ -19,6 +19,8 @@
     <file>adblock.css</file>
     <file>default.css</file>
     <file>internal.css</file>
+    <file>user.css</file>
+    <file>SearchEngines</file>
     <file>wisp.png</file>
     <file>icons/show-cookie.png</file>
     <file>icons/local-history.png</file>

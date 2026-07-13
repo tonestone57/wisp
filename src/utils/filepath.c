@@ -126,7 +126,7 @@ char *filepath_sfind(char **respathv, char *filepath, const char *filename)
         respathc++;
     }
 
-    NSLOG(wisp, ERROR, "FATAL: Resource '%s' not found", filename);
+    NSLOG(wisp, INFO, "Resource '%s' not found", filename);
     return NULL;
 }
 

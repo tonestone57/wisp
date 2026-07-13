@@ -166,6 +166,9 @@ static void start_worker(WispPool *pool, int i) {
 
     pool->workers[i].worker_id = i;
     pool->workers[i].rt = JS_NewRuntime();
+    if (pool->workers[i].rt != NULL) {
+        JS_SetMaxStackSize(pool->workers[i].rt, 4096 * 1024);
+    }
     pool->workers[i].ctx = JS_NewContext(pool->workers[i].rt);
     pool->workers[i].pool = pool;
 
