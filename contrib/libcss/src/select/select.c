@@ -121,13 +121,15 @@ static css_error deserialize_tokens(lwc_string *serialized, parserutils_vector *
     const uint8_t *data = (const uint8_t *)lwc_string_data(serialized);
     size_t len = lwc_string_length(serialized);
     if (len < sizeof(uint32_t)) return CSS_INVALID;
-    uint32_t n = *(uint32_t *)data;
+    uint32_t n;
+    memcpy(&n, data, sizeof(uint32_t));
     const uint8_t *p = data + sizeof(uint32_t);
     const uint8_t *end = data + len;
     if (parserutils_vector_create(sizeof(css_token), 8, vector) != PARSERUTILS_OK) return CSS_NOMEM;
     for (uint32_t i = 0; i < n; i++) {
         if (p + sizeof(css_token) > end) break;
-        css_token token = *(css_token *)p;
+        css_token token;
+        memcpy(&token, p, sizeof(css_token));
         p += sizeof(css_token);
         if (token.data.data != NULL) {
             size_t token_len = token.data.len;
@@ -137,7 +139,14 @@ static css_error deserialize_tokens(lwc_string *serialized, parserutils_vector *
             memcpy((void *)token.data.data, p, token_len);
             p += token_len;
         }
-        if (token.idata != NULL) lwc_string_ref(token.idata);
+        if (token.idata != NULL) {
+            if (token.data.data != NULL) {
+                lwc_error lerror = lwc_intern_string((char *)token.data.data, token.data.len, &token.idata);
+                if (lerror != lwc_error_ok) return css_error_from_lwc_error(lerror);
+            } else {
+                token.idata = NULL;
+            }
+        }
         parserutils_vector_append(*vector, &token);
     }
     return CSS_OK;
