@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
 
     corestrings_init();
     rt = JS_NewRuntime();
-    JS_SetMaxStackSize(rt, 4096 * 1024);
+    JS_SetMaxStackSize(rt, 8192 * 1024);
 
     while (1) {
         wisp_ipc_msg msg;

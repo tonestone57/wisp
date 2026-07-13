@@ -446,7 +446,7 @@ nserror js_newheap(int timeout, jsheap **heap)
     if (!h->rt) { free(h); return NSERROR_NOMEM; }
     h->timeout = timeout;
     JS_SetMemoryLimit(h->rt, 64 * 1024 * 1024);
-    JS_SetMaxStackSize(h->rt, 4096 * 1024);
+    JS_SetMaxStackSize(h->rt, 8192 * 1024);
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
     *heap = h;
     return NSERROR_OK;
@@ -471,6 +471,7 @@ void js_destroyheap(jsheap *heap)
 
 nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
 {
+    JS_UpdateStackTop(heap->rt);
     jsthread *t = calloc(1, sizeof(*t));
     if (!t) return NSERROR_NOMEM;
     t->ctx = JS_NewContext(heap->rt);
@@ -547,7 +548,7 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
 
     JSRuntime *rt = JS_NewRuntime();
     if (!rt) { free(t); return NSERROR_NOMEM; }
-    JS_SetMaxStackSize(rt, 4096 * 1024);
+    JS_SetMaxStackSize(rt, 8192 * 1024);
 
     t->ctx = JS_NewContext(rt);
     if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }
@@ -691,6 +692,7 @@ void js_destroythread(jsthread *thread)
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
 {
     if (!thread || thread->closed) return false;
+    JS_UpdateStackTop(JS_GetRuntime(thread->ctx));
 
     wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {
