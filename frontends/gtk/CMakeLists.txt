@@ -1,7 +1,7 @@
 find_package(PkgConfig)
 
 # Second GTK_RESPATH entry is for AppImages
-add_definitions(-DGTK_RESPATH="${CMAKE_INSTALL_PREFIX}/share/wisp-gtk:./${CMAKE_INSTALL_PREFIX}/share/wisp-gtk" -DWITH_GRESOURCE -DWITH_BUILTIN_PIXBUF -DWISP_HOMEPAGE="about:welcome")
+add_definitions(-DGTK_RESPATH="${CMAKE_INSTALL_PREFIX}/share/wisp-gtk:./${CMAKE_INSTALL_PREFIX}/share/wisp-gtk" -DWITH_GRESOURCE -DWISP_HOMEPAGE="about:welcome")
 
 pkg_check_modules(GTK REQUIRED gtk+-3.0>=3.24)
 include_directories(${GTK_INCLUDE_DIRS})
@@ -75,6 +75,21 @@ configure_file(
 configure_file(
 	${CMAKE_SOURCE_DIR}/src/resources/en/welcome.html
 	${CMAKE_CURRENT_BINARY_DIR}/res/welcome.html
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/user.css
+	${CMAKE_CURRENT_BINARY_DIR}/res/user.css
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/mime.types
+	${CMAKE_CURRENT_BINARY_DIR}/res/mime.types
+	COPYONLY
+)
+configure_file(
+	${CMAKE_SOURCE_DIR}/src/resources/SearchEngines
+	${CMAKE_CURRENT_BINARY_DIR}/res/SearchEngines
 	COPYONLY
 )
 

@@ -1,0 +1,10 @@
+# Minimal default mime types database
+text/html html htm
+text/css css
+image/jpeg jpeg jpg
+image/png png
+image/gif gif
+image/webp webp
+image/svg+xml svg
+application/javascript js
+application/json json

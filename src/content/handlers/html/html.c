@@ -1521,10 +1521,10 @@ static void html_free_layout(html_content *htmlc)
 	}
 
 	if (htmlc->bctx != NULL) {
-		/* freeing talloc context should let the entire box
+		/* destroying arena context lets the entire box
 		 * set be destroyed
 		 */
-		talloc_free(htmlc->bctx);
+		arena_destroy(htmlc->bctx);
 		htmlc->bctx = NULL;
 	}
 	htmlc->layout = NULL;
