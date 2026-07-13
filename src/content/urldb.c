@@ -2950,12 +2950,10 @@ nserror urldb_load(const char *filename)
                     return NSERROR_NOMEM;
                 }
 
-                if (scheme_lwc) lwc_string_unref(scheme_lwc);
                 if (host_lwc) lwc_string_unref(host_lwc);
                 if (port_lwc) lwc_string_unref(port_lwc);
                 if (path_lwc) lwc_string_unref(path_lwc);
                 if (query_lwc) lwc_string_unref(query_lwc);
-                if (fragment_lwc) lwc_string_unref(fragment_lwc);
 
                 /* Create path_query for urldb_add_path */
                 size_t pq_len = strlen(s) + (query[0] != '\0' ? strlen(query) + 1 : 0) + 1;
