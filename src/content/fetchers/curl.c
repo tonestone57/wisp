@@ -39,6 +39,9 @@
 #include <strings.h>
 #include <time.h>
 #include <pthread.h>
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 #ifdef HAVE_POSIX_INET_HEADERS
 #include <sys/types.h>
@@ -1860,14 +1863,24 @@ static curl_socket_t fetch_curl_socket_open(void *clientp, curlsocktype purpose,
     (void)clientp;
     (void)purpose;
 
-    return (curl_socket_t)guit->fetch->socket_open(address->family, address->socktype, address->protocol);
+    if (guit && guit->fetch && guit->fetch->socket_open) {
+        return (curl_socket_t)guit->fetch->socket_open(address->family, address->socktype, address->protocol);
+    }
+    return socket(address->family, address->socktype, address->protocol);
 }
 
 static int fetch_curl_socket_close(void *clientp, curl_socket_t item)
 {
     (void)clientp;
 
-    return guit->fetch->socket_close((int)item);
+    if (guit && guit->fetch && guit->fetch->socket_close) {
+        return guit->fetch->socket_close((int)item);
+    }
+#ifdef _WIN32
+    return closesocket((SOCKET)item);
+#else
+    return close((int)item);
+#endif
 }
 
 /**

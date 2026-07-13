@@ -14,6 +14,8 @@
 #include <libwapcaplet/libwapcaplet.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/desktop/gui_table.h>
+#include <wisp/wisp.h>
+#include <wisp/fetch.h>
 
 struct wisp_table *guit;
 
@@ -68,6 +70,19 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     }
 }
 
+static const char *default_filetype(const char *unix_path) {
+    if (strstr(unix_path, ".css")) return "text/css";
+    if (strstr(unix_path, ".html")) return "text/html";
+    if (strstr(unix_path, ".png")) return "image/png";
+    if (strstr(unix_path, ".jpg") || strstr(unix_path, ".jpeg")) return "image/jpeg";
+    return "text/plain";
+}
+
+static struct gui_fetch_table network_fetch_table = {
+    .filetype = default_filetype,
+    .mimetype = (void*)default_filetype,
+};
+
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     const char *ipc_name = argv[1];
@@ -75,6 +90,12 @@ int main(int argc, char **argv) {
     ipc_main = wisp_ipc_connect(ipc_name);
     if (!ipc_main) return 1;
     wisp_ipc_set_blocking(ipc_main, false);
+
+    extern struct gui_file_table *default_file_table;
+    static struct wisp_table network_table;
+    network_table.file = default_file_table;
+    network_table.fetch = &network_fetch_table;
+    wisp_register(&network_table);
 
     corestrings_init();
     nsoption_init(NULL, NULL, NULL);
