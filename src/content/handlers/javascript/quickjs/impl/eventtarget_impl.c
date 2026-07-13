@@ -96,7 +96,12 @@ JSValue wisp_eventtarget_dispatchEvent_impl(JSContext *ctx, QJSNodePrivate *priv
 
     /* 'event' here is the LibDOM dom_event pointer extracted from the wrapper's private data */
     bool success = false;
-    dom_event_target_dispatch_event((dom_event_target *)priv->node, (dom_event *)event, &success);
+    dom_node *target = (dom_node *)priv->node;
+    if (target == (dom_node *)thread->win_priv) {
+        target = (dom_node *)qjs_thread_get_document(thread);
+        if (!target) return JS_FALSE;
+    }
+    dom_event_target_dispatch_event((dom_event_target *)target, (dom_event *)event, &success);
     return JS_NewBool(ctx, success);
 }
 
