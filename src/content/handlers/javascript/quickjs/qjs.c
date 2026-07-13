@@ -118,7 +118,14 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
         if (f) fclose(f);
     }
 
-    JSValue compiled = JS_Eval(ctx, (const char *)txt, txtlen, name, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    char *txt_null_term = malloc(txtlen + 1);
+    if (!txt_null_term) return JS_ThrowOutOfMemory(ctx);
+    memcpy(txt_null_term, txt, txtlen);
+    txt_null_term[txtlen] = '\0';
+
+    JSValue compiled = JS_Eval(ctx, (const char *)txt_null_term, txtlen, name, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    free(txt_null_term);
+
     if (JS_IsException(compiled)) {
         return compiled;
     }
