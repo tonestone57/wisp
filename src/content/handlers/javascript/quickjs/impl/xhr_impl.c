@@ -18,6 +18,9 @@
 
 JSClassID qjs_xmlhttprequest_class_id;
 
+static void xhr_add_active(JSContext *ctx, WispXHR *xhr);
+static void xhr_remove_active(JSContext *ctx, WispXHR *xhr);
+
 static void xhr_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_xmlhttprequest_class_id);
@@ -48,6 +51,8 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
                 fetch_change_callback(xhr->fetch_handle, NULL, NULL);
                 fetch_abort(xhr->fetch_handle);
                 fetch_free(xhr->fetch_handle);
+                xhr->fetch_handle = NULL;
+                xhr_remove_active(xhr->ctx, xhr);
             }
             free(xhr->statusText);
             free(xhr->method);
@@ -109,10 +114,59 @@ static void xhr_parse_response_xml(WispXHR *xhr)
     }
 }
 
+static void xhr_add_active(JSContext *ctx, WispXHR *xhr)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue active_xhrs = JS_GetPropertyStr(ctx, global_obj, "__active_xhrs");
+    if (JS_IsUndefined(active_xhrs) || JS_IsNull(active_xhrs)) {
+        JS_FreeValue(ctx, active_xhrs);
+        active_xhrs = JS_NewArray(ctx);
+        JS_SetPropertyStr(ctx, global_obj, "__active_xhrs", JS_DupValue(ctx, active_xhrs));
+    }
+
+    JSValue len_val = JS_GetPropertyStr(ctx, active_xhrs, "length");
+    uint32_t len = 0;
+    JS_ToUint32(ctx, &len, len_val);
+    JS_FreeValue(ctx, len_val);
+
+    JS_SetPropertyUint32(ctx, active_xhrs, len, JS_DupValue(ctx, xhr->self));
+    JS_FreeValue(ctx, active_xhrs);
+    JS_FreeValue(ctx, global_obj);
+}
+
+static void xhr_remove_active(JSContext *ctx, WispXHR *xhr)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue active_xhrs = JS_GetPropertyStr(ctx, global_obj, "__active_xhrs");
+    if (JS_IsObject(active_xhrs)) {
+        JSValue len_val = JS_GetPropertyStr(ctx, active_xhrs, "length");
+        uint32_t len = 0;
+        JS_ToUint32(ctx, &len, len_val);
+        JS_FreeValue(ctx, len_val);
+
+        for (uint32_t i = 0; i < len; i++) {
+            JSValue val = JS_GetPropertyUint32(ctx, active_xhrs, i);
+            if (JS_IsSameValue(ctx, val, xhr->self)) {
+                JS_SetPropertyUint32(ctx, active_xhrs, i, JS_UNDEFINED);
+                JS_FreeValue(ctx, val);
+                break;
+            }
+            JS_FreeValue(ctx, val);
+        }
+    }
+    JS_FreeValue(ctx, active_xhrs);
+    JS_FreeValue(ctx, global_obj);
+}
+
 static void xhr_callback(const struct fetch_msg *msg, void *p)
 {
     WispXHR *xhr = p;
     if (!xhr) return;
+
+    /* If the message type is >= FETCH_FINISHED, the fetch is completed/finished.
+     * The fetcher will free the fetch_handle immediately after this callback returns,
+     * so we must nullify our reference to prevent Use-After-Free/Double-Free. */
+    bool is_terminal = (msg->type >= FETCH_FINISHED);
 
     switch (msg->type) {
     case FETCH_HEADER: {
@@ -179,16 +233,19 @@ static void xhr_callback(const struct fetch_msg *msg, void *p)
     }
 
     case FETCH_FINISHED:
-        xhr->status = (int)fetch_http_code(xhr->fetch_handle);
-        xhr_set_ready_state(xhr, 4); /* DONE */
-        break;
-
-    case FETCH_ERROR:
-        xhr_set_ready_state(xhr, 4); /* DONE, but with error */
+        if (xhr->fetch_handle) {
+            xhr->status = (int)fetch_http_code(xhr->fetch_handle);
+        }
         break;
 
     default:
         break;
+    }
+
+    if (is_terminal) {
+        xhr_remove_active(xhr->ctx, xhr);
+        xhr->fetch_handle = NULL;
+        xhr_set_ready_state(xhr, 4); /* DONE */
     }
 }
 
@@ -302,6 +359,8 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
     nserror err = fetch_start(xhr->url, NULL, xhr_callback, xhr, false, &post, false, false, headers, &xhr->fetch_handle);
     if (err != NSERROR_OK) {
         NSLOG(wisp, ERROR, "XHR fetch failed to start: %s", messages_get_errorcode(err));
+    } else {
+        xhr_add_active(ctx, xhr);
     }
 
     free(headers);
@@ -348,6 +407,7 @@ JSValue wisp_xmlhttprequest_abort_impl(JSContext *ctx, QJSNodePrivate *priv) {
         fetch_abort(xhr->fetch_handle);
         fetch_free(xhr->fetch_handle);
         xhr->fetch_handle = NULL;
+        xhr_remove_active(ctx, xhr);
     }
     return JS_UNDEFINED;
 }
