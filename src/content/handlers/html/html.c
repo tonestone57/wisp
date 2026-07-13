@@ -628,7 +628,11 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->dirty_use_union = false;
 	c->dirty_list = NULL;
 
-	pthread_mutex_init(&c->doc_mutex, NULL);
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&c->doc_mutex, &attr);
+	pthread_mutexattr_destroy(&attr);
 
 	c->enable_scripting = nsoption_bool(enable_javascript);
 	c->base.active = 1; /* The html content itself is active */
