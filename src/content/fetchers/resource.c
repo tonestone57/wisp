@@ -48,7 +48,7 @@
 
 /** Valid resource paths */
 static const char *fetch_resource_paths[] = {"adblock.css", "default.css", "internal.css", "quirks.css", "user.css",
-    "credits.html", "license.html", "welcome.html", "favicon.ico", "wisp.png", "icons/arrow-l.png",
+    "credits.html", "license.html", "welcome.html", "favicon.ico", "favicon.png", "wisp.png", "icons/arrow-l.png",
     "icons/content.png", "icons/directory.png", "icons/directory2.png", "icons/hotlist-add.png",
     "icons/hotlist-rmv.png", "icons/search.png"};
 

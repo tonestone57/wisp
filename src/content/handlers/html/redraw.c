@@ -2793,7 +2793,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             obj_data.y, obj_data.width, obj_data.height, object_clip.x0, object_clip.y0, object_clip.x1, object_clip.y1,
             object_clip.x1 - object_clip.x0, object_clip.y1 - object_clip.y0);
 
-        if (!content_redraw(box->object, &obj_data, &object_clip, ctx)) {
+        if (!content_redraw(box->object, &obj_data, &object_clip, ctx) &&
+            content_get_status(box->object) == CONTENT_STATUS_ERROR) {
             const char *tag = "";
             const char *cls = "";
             dom_string *name = NULL;
