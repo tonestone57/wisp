@@ -489,6 +489,74 @@ void js_destroyheap(jsheap *heap)
     free(heap);
 }
 
+static void qjs_inject_fetch_polyfill(JSContext *ctx)
+{
+    const char *fetch_polyfill =
+        "globalThis.fetch = function(url, options) {\n"
+        "    return new Promise(function(resolve, reject) {\n"
+        "        var xhr = new XMLHttpRequest();\n"
+        "        options = options || {};\n"
+        "        var method = options.method || 'GET';\n"
+        "        xhr.open(method, url, true);\n"
+        "        if (options.headers) {\n"
+        "            for (var header in options.headers) {\n"
+        "                if (options.headers.hasOwnProperty(header)) {\n"
+        "                    xhr.setRequestHeader(header, options.headers[header]);\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "        xhr.onload = function() {\n"
+        "            var response = {\n"
+        "                ok: xhr.status >= 200 && xhr.status < 300,\n"
+        "                status: xhr.status,\n"
+        "                statusText: xhr.statusText,\n"
+        "                text: function() { return Promise.resolve(xhr.responseText); },\n"
+        "                json: function() {\n"
+        "                    try {\n"
+        "                        return Promise.resolve(JSON.parse(xhr.responseText));\n"
+        "                    } catch (e) {\n"
+        "                        return Promise.reject(e);\n"
+        "                    }\n"
+        "                }\n"
+        "            };\n"
+        "            resolve(response);\n"
+        "        };\n"
+        "        xhr.onerror = function() {\n"
+        "            reject(new TypeError('Network request failed'));\n"
+        "        };\n"
+        "        xhr.send(options.body || null);\n"
+        "    });\n"
+        "};\n"
+        "globalThis.performance = globalThis.performance || {\n"
+        "    now: function() { return Date.now(); },\n"
+        "    timing: {\n"
+        "        navigationStart: Date.now() - 100,\n"
+        "        unloadEventStart: 0,\n"
+        "        unloadEventEnd: 0,\n"
+        "        redirectStart: 0,\n"
+        "        redirectEnd: 0,\n"
+        "        fetchStart: Date.now() - 80,\n"
+        "        domainLookupStart: Date.now() - 80,\n"
+        "        domainLookupEnd: Date.now() - 80,\n"
+        "        connectStart: Date.now() - 80,\n"
+        "        connectEnd: Date.now() - 80,\n"
+        "        secureConnectionStart: 0,\n"
+        "        requestStart: Date.now() - 50,\n"
+        "        responseStart: Date.now() - 30,\n"
+        "        responseEnd: Date.now() - 20,\n"
+        "        domLoading: Date.now() - 10,\n"
+        "        domInteractive: Date.now(),\n"
+        "        domContentLoadedEventStart: Date.now(),\n"
+        "        domContentLoadedEventEnd: Date.now(),\n"
+        "        domComplete: Date.now(),\n"
+        "        loadEventStart: Date.now(),\n"
+        "        loadEventEnd: Date.now()\n"
+        "    }\n"
+        "};\n";
+    JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, val);
+}
+
 nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
 {
     JS_UpdateStackTop(heap->rt);
@@ -559,6 +627,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     }
 
     JS_FreeValue(t->ctx, global_obj);
+    qjs_inject_fetch_polyfill(t->ctx);
     *thread = t;
     return NSERROR_OK;
 }
@@ -603,6 +672,8 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     JSValue global = JS_GetGlobalObject(t->ctx);
     JS_DefinePropertyValueStr(t->ctx, global, "self", JS_DupValue(t->ctx, global), JS_PROP_C_W_E);
     JS_FreeValue(t->ctx, global);
+
+    qjs_inject_fetch_polyfill(t->ctx);
 
     *thread_out = t;
     return NSERROR_OK;
@@ -841,10 +912,6 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, JSValue js_funcval)
 {
     if (!thread || !node) return false;
-    if (node == (struct dom_node *)thread->win_priv) {
-        node = (struct dom_node *)qjs_thread_get_document(thread);
-        if (!node) return false;
-    }
     struct qjs_event_listener_ctx *ctx = malloc(sizeof(*ctx));
     if (!ctx) return false;
     ctx->thread = thread; ctx->func = JS_DupValue(thread->ctx, js_funcval);
@@ -864,10 +931,6 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, JSValue js_funcval)
 {
     if (!thread || !node) return false;
-    if (node == (struct dom_node *)thread->win_priv) {
-        node = (struct dom_node *)qjs_thread_get_document(thread);
-        if (!node) return false;
-    }
     struct qjs_event_listener_ctx **prev = &thread->listeners;
     struct qjs_event_listener_ctx *curr = thread->listeners;
     while (curr) {
