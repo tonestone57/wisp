@@ -204,3 +204,25 @@ int qjs_init_element(JSContext *ctx) {
 
     return 0;
 }
+
+JSValue wisp_element_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate *priv, const char * classNames)
+{
+    if (!priv || !priv->node || !classNames) return JS_NewArray(ctx);
+    size_t len = strlen(classNames);
+    char *selector = malloc(len + 2);
+    if (!selector) return JS_ThrowOutOfMemory(ctx);
+    selector[0] = '.';
+    for (size_t i = 0; i < len; i++) {
+        selector[i + 1] = (classNames[i] == ' ') ? '.' : classNames[i];
+    }
+    selector[len + 1] = '\0';
+    JSValue res = qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selector, true);
+    free(selector);
+    return res;
+}
+
+JSValue wisp_element_getElementsByTagName_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName)
+{
+    if (!priv || !priv->node || !localName) return JS_NewArray(ctx);
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, localName, true);
+}
