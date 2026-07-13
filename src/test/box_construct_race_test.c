@@ -114,6 +114,8 @@ static void mock_convert_xml_to_box(void *p)
     (void)p;
 }
 
+#include "utils/arena.h"
+
 /**
  * Mock implementation of html_free_layout that handles conversion cancellation.
  */
@@ -128,7 +130,7 @@ static void mock_html_free_layout(struct mock_html_content *htmlc)
     }
 
     if (htmlc->bctx != NULL) {
-        talloc_free(htmlc->bctx);
+        arena_destroy((struct arena *)htmlc->bctx);
         htmlc->bctx = NULL;
     }
     htmlc->layout = NULL;
@@ -141,7 +143,7 @@ static struct mock_box_construct_ctx *start_box_conversion(struct mock_html_cont
 {
     /* Create bctx if needed */
     if (htmlc->bctx == NULL) {
-        htmlc->bctx = talloc_zero(NULL, int);
+        htmlc->bctx = (int *)arena_create(64 * 1024);
     }
 
     /* Create conversion context */
