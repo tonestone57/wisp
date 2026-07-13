@@ -626,6 +626,46 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         }
     }
 
+    /* Register compatibility polyfills and stubs */
+    const char *polyfills =
+        "if (typeof globalThis.performance === 'undefined') {\n"
+        "  globalThis.performance = {\n"
+        "    timing: {\n"
+        "      navigationStart: Date.now() - 100,\n"
+        "      unloadEventStart: 0, unloadEventEnd: 0,\n"
+        "      redirectStart: 0, redirectEnd: 0,\n"
+        "      fetchStart: Date.now() - 90,\n"
+        "      domainLookupStart: Date.now() - 85,\n"
+        "      domainLookupEnd: Date.now() - 80,\n"
+        "      connectStart: Date.now() - 80, connectEnd: Date.now() - 70,\n"
+        "      secureConnectionStart: 0,\n"
+        "      requestStart: Date.now() - 70,\n"
+        "      responseStart: Date.now() - 50,\n"
+        "      responseEnd: Date.now() - 40,\n"
+        "      domLoading: Date.now() - 30, domInteractive: Date.now() - 20,\n"
+        "      domContentLoadedEventStart: Date.now() - 15,\n"
+        "      domContentLoadedEventEnd: Date.now() - 10,\n"
+        "      domComplete: Date.now() - 5,\n"
+        "      loadEventStart: Date.now(), loadEventEnd: Date.now() + 5\n"
+        "    },\n"
+        "    navigation: { type: 0, redirectCount: 0 },\n"
+        "    getEntries: function() { return []; },\n"
+        "    getEntriesByName: function() { return []; },\n"
+        "    getEntriesByType: function() { return []; },\n"
+        "    now: function() { return Date.now(); }\n"
+        "  };\n"
+        "}\n"
+        "if (typeof globalThis.PerformanceObserver === 'undefined') {\n"
+        "  globalThis.PerformanceObserver = class {\n"
+        "    constructor(callback) { this.callback = callback; }\n"
+        "    observe() {}\n"
+        "    disconnect() {}\n"
+        "    takeRecords() { return []; }\n"
+        "  };\n"
+        "}\n";
+    JSValue val = JS_Eval(t->ctx, polyfills, strlen(polyfills), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(t->ctx, val);
+
     JS_FreeValue(t->ctx, global_obj);
     qjs_inject_fetch_polyfill(t->ctx);
     *thread = t;

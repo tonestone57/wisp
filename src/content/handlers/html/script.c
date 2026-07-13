@@ -169,6 +169,9 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
     html_content *parent = pw;
     unsigned int i;
     struct html_script *s;
+    nserror ret_val = NSERROR_OK;
+
+    pthread_mutex_lock(&parent->doc_mutex);
 
     /* Find script */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
@@ -234,10 +237,11 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
      * scripts as they come in.
      */
     else if (parent->conversion_begun) {
-        return html_script_exec(parent, false);
+        ret_val = html_script_exec(parent, false);
     }
 
-    return NSERROR_OK;
+    pthread_mutex_unlock(&parent->doc_mutex);
+    return ret_val;
 }
 
 /**
@@ -248,6 +252,8 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     html_content *parent = pw;
     unsigned int i;
     struct html_script *s;
+
+    pthread_mutex_lock(&parent->doc_mutex);
 
     /* Find script */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
@@ -304,6 +310,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
         guit->misc->schedule(0, script_resume_conversion_cb, parent);
     }
 
+    pthread_mutex_unlock(&parent->doc_mutex);
     return NSERROR_OK;
 }
 
@@ -318,6 +325,9 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
     script_handler_t *script_handler;
     dom_hubbub_error err;
     unsigned int active_sync_scripts = 0;
+    nserror ret_val = NSERROR_OK;
+
+    pthread_mutex_lock(&parent->doc_mutex);
 
     /* Count sync scripts which have yet to complete (other than us) */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
@@ -420,10 +430,11 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
      * and proceed to done state if all scripts have finished
      */
     else if (parent->conversion_begun) {
-        return html_script_exec(parent, false);
+        ret_val = html_script_exec(parent, false);
     }
 
-    return NSERROR_OK;
+    pthread_mutex_unlock(&parent->doc_mutex);
+    return ret_val;
 }
 
 /**
