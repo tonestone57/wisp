@@ -39,10 +39,43 @@
 #include "gtk/resources.h"
 #include "gtk/schedule.h"
 #include "gtk/warn.h"
+struct browser_window;
+struct nsgtk_pi_window;
+#include "gtk/toolbar.h"
+#include "gtk/window.h"
+#include <wisp/content/fetch.h>
+#include <wisp/browser_window.h>
+#include <libwapcaplet/libwapcaplet.h>
 
 
 static nserror gui_launch_url(struct nsurl *url)
 {
+    static bool in_launch_url = false;
+
+    if (in_launch_url) {
+        return NSERROR_NO_FETCH_HANDLER;
+    }
+
+    /* Intercept web URLs (http/https) to handle them internally in Wisp instead of Chrome */
+    lwc_string *scheme_lwc = nsurl_get_component(url, NSURL_SCHEME);
+    if (scheme_lwc != NULL) {
+        const char *scheme = lwc_string_data(scheme_lwc);
+        if (strcasecmp(scheme, "http") == 0 || strcasecmp(scheme, "https") == 0) {
+            lwc_string_unref(scheme_lwc);
+            if (window_list != NULL) {
+                struct browser_window *bw = nsgtk_get_browser_window(window_list);
+                if (bw != NULL) {
+                    in_launch_url = true;
+                    browser_window_navigate(bw, url, NULL, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
+                    in_launch_url = false;
+                    return NSERROR_OK;
+                }
+            }
+            return NSERROR_NO_FETCH_HANDLER;
+        }
+        lwc_string_unref(scheme_lwc);
+    }
+
     gboolean ok;
     GError *error = NULL;
 

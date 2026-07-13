@@ -473,6 +473,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 {
     jsthread *t = calloc(1, sizeof(*t));
     if (!t) return NSERROR_NOMEM;
+    JS_UpdateStackTop(heap->rt);
     t->ctx = JS_NewContext(heap->rt);
     if (!t->ctx) { free(t); return NSERROR_NOMEM; }
     t->heap = heap; t->win_priv = win_priv;

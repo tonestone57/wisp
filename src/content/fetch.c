@@ -277,7 +277,12 @@ nserror fetcher_init(void)
      * fetch_curl_register() directly in main(). */
     ret = fetch_ipc_register();
     if (ret != NSERROR_OK) {
-        return ret;
+        extern nserror fetch_curl_register(void);
+        NSLOG(wisp, WARNING, "fetch_ipc_register failed, falling back to in-process curl fetcher");
+        ret = fetch_curl_register();
+        if (ret != NSERROR_OK) {
+            return ret;
+        }
     }
 #endif
 
