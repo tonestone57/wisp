@@ -256,7 +256,9 @@ static void fetcher_poll(void *unused)
         }
 
         /* schedule active fetchers to run again in 10ms */
-        guit->misc->schedule(SCHEDULE_TIME, fetcher_poll, NULL);
+        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+            guit->misc->schedule(SCHEDULE_TIME, fetcher_poll, NULL);
+        }
     }
 }
 
@@ -420,7 +422,9 @@ nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd
          * select on. All the other fetchers continue to need
          * polling frequently.
          */
-        guit->misc->schedule(FDSET_TIMEOUT, fetcher_poll, NULL);
+        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+            guit->misc->schedule(FDSET_TIMEOUT, fetcher_poll, NULL);
+        }
     }
 
     *maxfd_out = maxfd;
@@ -498,7 +502,9 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
     if (fetch_dispatch_jobs()) {
         NSLOG(fetch, DEBUG, "scheduling poll");
         /* schedule active fetchers to run again in 10ms */
-        guit->misc->schedule(10, fetcher_poll, NULL);
+        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+            guit->misc->schedule(10, fetcher_poll, NULL);
+        }
     }
 
     *fetch_out = fetch;
