@@ -841,6 +841,10 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, JSValue js_funcval)
 {
     if (!thread || !node) return false;
+    if (node == (struct dom_node *)thread->win_priv) {
+        node = (struct dom_node *)qjs_thread_get_document(thread);
+        if (!node) return false;
+    }
     struct qjs_event_listener_ctx *ctx = malloc(sizeof(*ctx));
     if (!ctx) return false;
     ctx->thread = thread; ctx->func = JS_DupValue(thread->ctx, js_funcval);
@@ -860,6 +864,10 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, JSValue js_funcval)
 {
     if (!thread || !node) return false;
+    if (node == (struct dom_node *)thread->win_priv) {
+        node = (struct dom_node *)qjs_thread_get_document(thread);
+        if (!node) return false;
+    }
     struct qjs_event_listener_ctx **prev = &thread->listeners;
     struct qjs_event_listener_ctx *curr = thread->listeners;
     while (curr) {

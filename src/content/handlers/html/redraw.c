@@ -2794,69 +2794,71 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             object_clip.x1 - object_clip.x0, object_clip.y1 - object_clip.y0);
 
         if (!content_redraw(box->object, &obj_data, &object_clip, ctx)) {
-            const char *tag = "";
-            const char *cls = "";
-            dom_string *name = NULL;
-            dom_string *class_attr = NULL;
-            if (box->node != NULL) {
-                if (dom_node_get_node_name(box->node, &name) == DOM_NO_ERR && name != NULL) {
-                    tag = dom_string_data(name);
+            if (content_get_status(box->object) == CONTENT_STATUS_ERROR) {
+                const char *tag = "";
+                const char *cls = "";
+                dom_string *name = NULL;
+                dom_string *class_attr = NULL;
+                if (box->node != NULL) {
+                    if (dom_node_get_node_name(box->node, &name) == DOM_NO_ERR && name != NULL) {
+                        tag = dom_string_data(name);
+                    }
+                    if (dom_element_get_attribute(box->node, corestring_dom_class, &class_attr) == DOM_NO_ERR &&
+                        class_attr != NULL) {
+                        cls = dom_string_data(class_attr);
+                    }
                 }
-                if (dom_element_get_attribute(box->node, corestring_dom_class, &class_attr) == DOM_NO_ERR &&
-                    class_attr != NULL) {
-                    cls = dom_string_data(class_attr);
-                }
-            }
-            const char *url = NULL;
-            const char *mime_c = NULL;
-            {
-                nsurl *nurl = content_get_url(hlcache_handle_get_content(box->object));
-                url = nurl ? nsurl_access(nurl) : NULL;
-                lwc_string *mime = content_get_mime_type(box->object);
-                mime_c = mime ? lwc_string_data(mime) : NULL;
-                if (mime)
-                    lwc_string_unref(mime);
-            }
-            NSLOG(wisp, ERROR,
-                "Object redraw failed; red square shown for element tag=%s class=%s mime=%s url=%s size=%dx%d",
-                tag ? tag : "", cls ? cls : "", mime_c ? mime_c : "", url ? url : "", width, height);
-            if (class_attr != NULL)
-                dom_string_unref(class_attr);
-            if (name != NULL)
-                dom_string_unref(name);
-            /* Show image fail */
-            /* Unicode (U+FFFC) 'OBJECT REPLACEMENT CHARACTER' */
-            const char *obj = "\xef\xbf\xbc";
-            int obj_width;
-            int obj_x = x + padding_left;
-            nserror res;
-
-            rect.x0 = x + padding_left;
-            rect.y0 = y + padding_top;
-            rect.x1 = x + padding_left + width - 1;
-            rect.y1 = y + padding_top + height - 1;
-            res = ctx->plot->rectangle(ctx, plot_style_broken_object, &rect);
-            if (res != NSERROR_OK) {
+                const char *url = NULL;
+                const char *mime_c = NULL;
                 {
+                    nsurl *nurl = content_get_url(hlcache_handle_get_content(box->object));
+                    url = nurl ? nsurl_access(nurl) : NULL;
+                    lwc_string *mime = content_get_mime_type(box->object);
+                    mime_c = mime ? lwc_string_data(mime) : NULL;
+                    if (mime)
+                        lwc_string_unref(mime);
+                }
+                NSLOG(wisp, ERROR,
+                    "Object redraw failed; red square shown for element tag=%s class=%s mime=%s url=%s size=%dx%d",
+                    tag ? tag : "", cls ? cls : "", mime_c ? mime_c : "", url ? url : "", width, height);
+                if (class_attr != NULL)
+                    dom_string_unref(class_attr);
+                if (name != NULL)
+                    dom_string_unref(name);
+                /* Show image fail */
+                /* Unicode (U+FFFC) 'OBJECT REPLACEMENT CHARACTER' */
+                const char *obj = "\xef\xbf\xbc";
+                int obj_width;
+                int obj_x = x + padding_left;
+                nserror res;
+
+                rect.x0 = x + padding_left;
+                rect.y0 = y + padding_top;
+                rect.x1 = x + padding_left + width - 1;
+                rect.y1 = y + padding_top + height - 1;
+                res = ctx->plot->rectangle(ctx, plot_style_broken_object, &rect);
+                if (res != NSERROR_OK) {
+                    {
+                        {
+                            result = false;
+                            goto cleanup;
+                        }
+                    }
+                }
+
+                res = guit->layout->width(plot_fstyle_broken_object, obj, sizeof(obj) - 1, &obj_width);
+                if (res != NSERROR_OK) {
+                    obj_x += 1;
+                } else {
+                    obj_x += width / 2 - obj_width / 2;
+                }
+
+                if (ctx->plot->text(ctx, plot_fstyle_broken_object, obj_x, y + padding_top + (int)(height * 0.75), obj,
+                        sizeof(obj) - 1) != NSERROR_OK) {
                     {
                         result = false;
                         goto cleanup;
                     }
-                }
-            }
-
-            res = guit->layout->width(plot_fstyle_broken_object, obj, sizeof(obj) - 1, &obj_width);
-            if (res != NSERROR_OK) {
-                obj_x += 1;
-            } else {
-                obj_x += width / 2 - obj_width / 2;
-            }
-
-            if (ctx->plot->text(ctx, plot_fstyle_broken_object, obj_x, y + padding_top + (int)(height * 0.75), obj,
-                    sizeof(obj) - 1) != NSERROR_OK) {
-                {
-                    result = false;
-                    goto cleanup;
                 }
             }
         }
