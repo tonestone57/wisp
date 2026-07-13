@@ -4860,6 +4860,8 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	struct box_border *border = box->border;
 	int available_width;
 	int space;
+	bool adjusted_width = false;
+	bool adjusted_height = false;
 
 	assert(box->type == BOX_BLOCK || box->type == BOX_TABLE || box->type == BOX_INLINE_BLOCK || box->type == BOX_FLEX ||
 		box->type == BOX_GRID || box->type == BOX_INLINE_FLEX || box->type == BOX_INLINE_GRID);
@@ -4877,8 +4879,14 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 		/* Block level container => temporarily increase containing
 		 * block dimensions to include padding (we restore this
 		 * again at the end) */
-		containing_block->width += containing_block->padding[LEFT] + containing_block->padding[RIGHT];
-		containing_block->height += containing_block->padding[TOP] + containing_block->padding[BOTTOM];
+		if (containing_block->width != AUTO && containing_block->width != UNKNOWN_WIDTH) {
+			containing_block->width += containing_block->padding[LEFT] + containing_block->padding[RIGHT];
+			adjusted_width = true;
+		}
+		if (containing_block->height != AUTO) {
+			containing_block->height += containing_block->padding[TOP] + containing_block->padding[BOTTOM];
+			adjusted_height = true;
+		}
 	}
 
 	/* Capture available_width AFTER padding adjustment */
@@ -5131,6 +5139,8 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
 		padding[TOP], height, padding[BOTTOM], border[BOTTOM].width, margin[BOTTOM], bottom, containing_block->height);
 
+	int cb_height = (containing_block->height == AUTO) ? 0 : containing_block->height;
+
 	if (top == AUTO && height == AUTO && bottom == AUTO) {
 		top = static_top;
 		height = box->height;
@@ -5138,21 +5148,21 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 			margin[TOP] = 0;
 		if (margin[BOTTOM] == AUTO)
 			margin[BOTTOM] = 0;
-		bottom = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+		bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
 			padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 	} else if (top != AUTO && height != AUTO && bottom != AUTO) {
 		if (margin[TOP] == AUTO && margin[BOTTOM] == AUTO) {
-			space = containing_block->height - top - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			space = cb_height - top - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
 				border[BOTTOM].width - bottom;
 			margin[TOP] = margin[BOTTOM] = space / 2;
 		} else if (margin[TOP] == AUTO) {
-			margin[TOP] = containing_block->height - top - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			margin[TOP] = cb_height - top - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (margin[BOTTOM] == AUTO) {
-			margin[BOTTOM] = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			margin[BOTTOM] = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
 				padding[BOTTOM] - border[BOTTOM].width - bottom;
 		} else {
-			bottom = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		}
 	} else {
@@ -5162,24 +5172,24 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 			margin[BOTTOM] = 0;
 		if (top == AUTO && height == AUTO && bottom != AUTO) {
 			height = box->height;
-			top = containing_block->height - margin[TOP] - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			top = cb_height - margin[TOP] - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (top == AUTO && height != AUTO && bottom == AUTO) {
 			top = static_top;
-			bottom = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		} else if (top != AUTO && height == AUTO && bottom == AUTO) {
 			height = box->height;
-			bottom = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		} else if (top == AUTO && height != AUTO && bottom != AUTO) {
-			top = containing_block->height - margin[TOP] - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			top = cb_height - margin[TOP] - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (top != AUTO && height == AUTO && bottom != AUTO) {
-			height = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - padding[BOTTOM] -
+			height = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (top != AUTO && height != AUTO && bottom == AUTO) {
-			bottom = containing_block->height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		}
 	}
@@ -5189,12 +5199,11 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 
 	box->y = top + margin[TOP] + border[TOP].width;
 
-	if (containing_block->type == BOX_BLOCK || containing_block->type == BOX_INLINE_BLOCK ||
-		containing_block->type == BOX_TABLE_CELL) {
-		/* Block-level ancestor => reset container's height */
+	if (adjusted_width) {
+		containing_block->width -= containing_block->padding[LEFT] + containing_block->padding[RIGHT];
+	}
+	if (adjusted_height) {
 		containing_block->height -= containing_block->padding[TOP] + containing_block->padding[BOTTOM];
-	} else {
-		/** \todo Inline ancestors */
 	}
 	box->height = height;
 	layout_apply_minmax_height(&content->unit_len_ctx, box, containing_block);
