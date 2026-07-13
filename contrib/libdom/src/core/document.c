@@ -1493,7 +1493,11 @@ void _dom_document_set_id_name(dom_document *doc, dom_string *name)
 {
     if (doc->id_name != NULL)
         dom_string_unref(doc->id_name);
-    doc->id_name = dom_string_ref(name);
+    if (name != NULL) {
+        doc->id_name = dom_string_ref(name);
+    } else {
+        doc->id_name = NULL;
+    }
 }
 
 /*-----------------------------------------------------------------------*/

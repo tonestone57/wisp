@@ -28,8 +28,10 @@
 #include <wisp/content/handlers/css/utils.h>
 #include <wisp/utils/log.h>
 #include "utils/talloc.h"
+#include "utils/arena.h"
 
 #include <wisp/content/handlers/html/box.h>
+#include <wisp/content/handlers/html/private.h>
 #include "content/handlers/html/table.h"
 
 /* Define to enable verbose table debug */
@@ -747,7 +749,7 @@ bool table_calculate_column_types(const css_unit_ctx *unit_len_ctx, struct box *
         /* table->col already constructed, for example frameset table */
         return true;
 
-    table->col = col = talloc_array(table, struct column, table->columns);
+    table->col = col = arena_alloc(table->content->bctx, table->columns * sizeof(struct column));
     if (!col)
         return false;
 
