@@ -281,12 +281,14 @@ static char **nsgtk_init_resource_path(const char *config_home)
 
     char self_path[1024];
     char exe_res_path[2048] = "";
+    char exe_share_path[2048] = "";
 #ifdef _WIN32
     if (GetModuleFileNameA(NULL, self_path, sizeof(self_path)) > 0) {
         char *last_backslash = strrchr(self_path, '\\');
         if (last_backslash) {
             *last_backslash = '\0';
             snprintf(exe_res_path, sizeof(exe_res_path), "%s\\res", self_path);
+            snprintf(exe_share_path, sizeof(exe_share_path), "%s\\..\\share\\wisp-gtk", self_path);
         }
     }
 #else
@@ -297,18 +299,19 @@ static char **nsgtk_init_resource_path(const char *config_home)
         if (last_slash) {
             *last_slash = '\0';
             snprintf(exe_res_path, sizeof(exe_res_path), "%s/res", self_path);
+            snprintf(exe_share_path, sizeof(exe_share_path), "%s/../share/wisp-gtk", self_path);
         }
     }
 #endif
 
     if (config_home != NULL) {
         if (exe_res_path[0] != '\0') {
-            resource_path_len = snprintf(NULL, 0, "%s:%s:${WISPRES}:%s", config_home, exe_res_path, GTK_RESPATH);
+            resource_path_len = snprintf(NULL, 0, "%s:%s:%s:${WISPRES}:%s", config_home, exe_res_path, exe_share_path, GTK_RESPATH);
             resource_path = malloc(resource_path_len + 1);
             if (resource_path == NULL) {
                 return NULL;
             }
-            snprintf(resource_path, resource_path_len + 1, "%s:%s:${WISPRES}:%s", config_home, exe_res_path, GTK_RESPATH);
+            snprintf(resource_path, resource_path_len + 1, "%s:%s:%s:${WISPRES}:%s", config_home, exe_res_path, exe_share_path, GTK_RESPATH);
         } else {
             resource_path_len = snprintf(NULL, 0, "%s:${WISPRES}:%s", config_home, GTK_RESPATH);
             resource_path = malloc(resource_path_len + 1);
@@ -319,12 +322,12 @@ static char **nsgtk_init_resource_path(const char *config_home)
         }
     } else {
         if (exe_res_path[0] != '\0') {
-            resource_path_len = snprintf(NULL, 0, "%s:${WISPRES}:%s", exe_res_path, GTK_RESPATH);
+            resource_path_len = snprintf(NULL, 0, "%s:%s:${WISPRES}:%s", exe_res_path, exe_share_path, GTK_RESPATH);
             resource_path = malloc(resource_path_len + 1);
             if (resource_path == NULL) {
                 return NULL;
             }
-            snprintf(resource_path, resource_path_len + 1, "%s:${WISPRES}:%s", exe_res_path, GTK_RESPATH);
+            snprintf(resource_path, resource_path_len + 1, "%s:%s:${WISPRES}:%s", exe_res_path, exe_share_path, GTK_RESPATH);
         } else {
             resource_path_len = snprintf(NULL, 0, "${WISPRES}:%s", GTK_RESPATH);
             resource_path = malloc(resource_path_len + 1);
