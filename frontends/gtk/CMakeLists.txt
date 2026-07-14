@@ -6,6 +6,9 @@ add_definitions(-DGTK_RESPATH="${CMAKE_INSTALL_PREFIX}/share/wisp-gtk:./${CMAKE_
 pkg_check_modules(GTK REQUIRED gtk+-3.0>=3.24)
 include_directories(${GTK_INCLUDE_DIRS})
 
+pkg_check_modules(FONTCONFIG REQUIRED fontconfig)
+include_directories(${FONTCONFIG_INCLUDE_DIRS})
+
 pkg_check_modules(PIPEWIRE libpipewire-0.3)
 if(PIPEWIRE_FOUND)
 	add_definitions(-DWITH_PIPEWIRE)
@@ -129,7 +132,7 @@ add_executable(wisp-gtk
 	audio.c
 )
 
-target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} ${GTK_AUDIO_LIBRARIES})
+target_link_libraries(wisp-gtk wisp ${MATH_LIB} ${WISP_COMMON_LIBS} ${GTK_LIBRARIES} ${GTK_AUDIO_LIBRARIES} ${FONTCONFIG_LIBRARIES})
 
 install(TARGETS wisp-gtk DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/res/ DESTINATION ${CMAKE_INSTALL_DATADIR}/wisp-gtk)
