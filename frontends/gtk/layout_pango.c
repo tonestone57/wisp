@@ -380,6 +380,18 @@ PangoFontDescription *nsfont_style_to_description(const plot_font_style_t *fstyl
     return desc;
 }
 
+void nsfont_finalise(void)
+{
+    if (nsfont_pango_layout != NULL) {
+        g_object_unref(nsfont_pango_layout);
+        nsfont_pango_layout = NULL;
+    }
+    if (nsfont_pango_context != NULL) {
+        g_object_unref(nsfont_pango_context);
+        nsfont_pango_context = NULL;
+    }
+}
+
 static struct gui_layout_table layout_table = {
     .width = nsfont_width,
     .position = nsfont_position_in_string,

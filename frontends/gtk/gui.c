@@ -1194,6 +1194,10 @@ static void nsgtk_finalise(void)
     }
 
     free(nsgtk_config_home);
+    if (respaths != NULL) {
+        filepath_free_strvec(respaths);
+        respaths = NULL;
+    }
 
     gtk_fetch_filetype_fin();
 
@@ -1215,6 +1219,8 @@ static void nsgtk_finalise(void)
         g_object_unref(warning_builder);
         warning_builder = NULL;
     }
+
+    nsfont_finalise();
 
     FcFini();
 
