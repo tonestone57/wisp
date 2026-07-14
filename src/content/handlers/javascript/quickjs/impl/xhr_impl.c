@@ -164,8 +164,8 @@ static void xhr_callback(const struct fetch_msg *msg, void *p)
     if (!xhr) return;
 
     /* If the message type is >= FETCH_FINISHED, the fetch is completed/finished.
-     * The fetcher will free the fetch_handle immediately after this callback returns,
-     * so we must nullify our reference to prevent Use-After-Free/Double-Free. */
+     * The XHR object is protected from GC during dispatch and will be safely cleaned up
+     * by xhr_finalizer when eventually garbage-collected. */
     bool is_terminal = (msg->type >= FETCH_FINISHED);
 
     switch (msg->type) {
