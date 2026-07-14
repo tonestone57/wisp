@@ -928,7 +928,15 @@ JSValue wisp_canvasrenderingcontext2d_shadowOffsetX_get_impl(JSContext *ctx, QJS
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetX_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetY_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, 0.0); }
 JSValue wisp_canvasrenderingcontext2d_shadowOffsetY_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, double maxWidth) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, double x, double y, double maxWidth)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+    NSLOG(wisp, INFO, "Canvas.strokeText: %s at (%f, %f)", text, x, y);
+    /* Basic stub: just draw a small rectangle where the text would be */
+    wisp_canvasrenderingcontext2d_strokeRect_impl(ctx, priv, x, y, (double)strlen(text) * 8.0, 12.0);
+    return JS_UNDEFINED;
+}
 
 int qjs_init_canvas(JSContext *ctx)
 {
