@@ -10,8 +10,12 @@
 #include "content/handlers/html/box_manipulate.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include <wisp/utils/corestrings.h>
 #include "utils/libdom.h"
 #include "generated_bindings.h"
+
+struct content;
+extern struct nsurl *content_get_url(struct content *c);
 
 JSValue wisp_node_hasChildNodes_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
@@ -65,19 +69,57 @@ JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * oth
 
 JSValue wisp_node_lookupPrefix_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace)
 {
-    NSLOG(wisp, DEBUG, "Node.lookupPrefix() called (stub)");
+    if (!priv || !priv->node || !namespace) return JS_NULL;
+    dom_string *ns_dom = NULL;
+    dom_string_create((const uint8_t *)namespace, strlen(namespace), &ns_dom);
+    if (!ns_dom) return JS_NULL;
+
+    dom_string *prefix_dom = NULL;
+    dom_exception exc = dom_node_lookup_prefix((dom_node *)priv->node, ns_dom, &prefix_dom);
+    dom_string_unref(ns_dom);
+
+    if (exc == DOM_NO_ERR && prefix_dom) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(prefix_dom), dom_string_byte_length(prefix_dom));
+        dom_string_unref(prefix_dom);
+        return val;
+    }
     return JS_NULL;
 }
 
 JSValue wisp_node_lookupNamespaceURI_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespaceURI)
 {
-    NSLOG(wisp, DEBUG, "Node.lookupNamespaceURI() called (stub)");
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *prefix_dom = NULL;
+    if (namespaceURI) {
+        dom_string_create((const uint8_t *)namespaceURI, strlen(namespaceURI), &prefix_dom);
+    }
+
+    dom_string *ns_dom = NULL;
+    dom_exception exc = dom_node_lookup_namespace((dom_node *)priv->node, prefix_dom, &ns_dom);
+    if (prefix_dom) dom_string_unref(prefix_dom);
+
+    if (exc == DOM_NO_ERR && ns_dom) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(ns_dom), dom_string_byte_length(ns_dom));
+        dom_string_unref(ns_dom);
+        return val;
+    }
     return JS_NULL;
 }
 
 JSValue wisp_node_isDefaultNamespace_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace)
 {
-    NSLOG(wisp, DEBUG, "Node.isDefaultNamespace() called (stub)");
+    if (!priv || !priv->node || !namespace) return JS_FALSE;
+    dom_string *ns_dom = NULL;
+    dom_string_create((const uint8_t *)namespace, strlen(namespace), &ns_dom);
+    if (!ns_dom) return JS_FALSE;
+
+    bool result = false;
+    dom_exception exc = dom_node_is_default_namespace((dom_node *)priv->node, ns_dom, &result);
+    dom_string_unref(ns_dom);
+
+    if (exc == DOM_NO_ERR) {
+        return JS_NewBool(ctx, result);
+    }
     return JS_FALSE;
 }
 
@@ -146,9 +188,35 @@ JSValue wisp_node_nodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
+#include <wisp/utils/nsurl.h>
+
 JSValue wisp_node_baseURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    NSLOG(wisp, DEBUG, "Node.baseURI getter called (stub)");
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_document *doc = NULL;
+    dom_node_get_owner_document((dom_node *)priv->node, &doc);
+    if (!doc) {
+        dom_node_type type;
+        dom_node_get_node_type((dom_node *)priv->node, &type);
+        if (type == DOM_DOCUMENT_NODE) {
+            doc = (struct dom_document *)priv->node;
+            dom_node_ref((dom_node *)doc);
+        }
+    }
+    if (doc) {
+        html_content *htmlc = NULL;
+        dom_node_get_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, (void **)&htmlc);
+        dom_node_unref((dom_node *)doc);
+        if (htmlc) {
+            struct nsurl *url = content_get_url((struct content *)htmlc);
+            if (url) {
+                const char *url_str = nsurl_access(url);
+                if (url_str) {
+                    return JS_NewString(ctx, url_str);
+                }
+            }
+        }
+    }
     return JS_NULL;
 }
 
@@ -201,8 +269,27 @@ JSValue wisp_node_parentElement_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_childNodes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    NSLOG(wisp, DEBUG, "Node.childNodes getter called (stub)");
-    return JS_NewArray(ctx);
+    if (!priv || !priv->node) return JS_NewArray(ctx);
+    JSValue arr = JS_NewArray(ctx);
+    if (JS_IsException(arr)) return arr;
+
+    struct dom_node *curr = NULL;
+    dom_exception exc = dom_node_get_first_child((dom_node *)priv->node, &curr);
+    uint32_t index = 0;
+    if (exc == DOM_NO_ERR && curr) {
+        while (curr) {
+            JSValue child_val = qjs_wrap_node(ctx, curr);
+            JS_SetPropertyUint32(ctx, arr, index++, child_val);
+            struct dom_node *next = NULL;
+            dom_exception next_exc = dom_node_get_next_sibling(curr, &next);
+            dom_node_unref(curr);
+            if (next_exc != DOM_NO_ERR) {
+                break;
+            }
+            curr = next;
+        }
+    }
+    return arr;
 }
 
 JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
