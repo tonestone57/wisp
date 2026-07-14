@@ -29,6 +29,12 @@ JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, c
     return JS_NULL;
 }
 
+JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, "head", false);
+}
+
 JSValue wisp_document_createTextNode_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
 {
     if (!priv || !priv->node) return JS_NULL;

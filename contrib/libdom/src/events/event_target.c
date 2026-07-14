@@ -188,6 +188,18 @@ dom_exception _dom_event_target_remove_event_listener_ns(dom_event_target_intern
 
 /*-------------------------------------------------------------------------*/
 
+static bool target_has_listener(dom_event_target_internal *eti, dom_event_listener *listener, dom_string *type, bool capture)
+{
+    if (eti->listeners == NULL) return false;
+    struct listener_entry *le = eti->listeners;
+    do {
+        bool match = dom_string_isequal(le->type, type) && (le->listener == listener) && (le->capture == capture);
+        if (match) return true;
+        le = (struct listener_entry *)le->list.next;
+    } while (le != eti->listeners);
+    return false;
+}
+
 /**
  * Dispatch an event on certain EventTarget
  *
@@ -204,28 +216,60 @@ dom_exception _dom_event_target_dispatch(dom_event_target *et, dom_event_target_
     dom_event_flow_phase phase, bool *success)
 {
     if (eti->listeners != NULL) {
+        int count = 0;
         struct listener_entry *le = eti->listeners;
+        do {
+            count++;
+            le = (struct listener_entry *)le->list.next;
+        } while (le != eti->listeners);
+
+        struct listener_info {
+            dom_event_listener *listener;
+            dom_string *type;
+            bool capture;
+        } *infos = malloc(sizeof(struct listener_info) * count);
+
+        if (infos == NULL) return DOM_NO_MEM_ERR;
+
+        int i = 0;
+        le = eti->listeners;
+        do {
+            infos[i].listener = le->listener;
+            dom_event_listener_ref(le->listener);
+            infos[i].type = dom_string_ref(le->type);
+            infos[i].capture = le->capture;
+            i++;
+            le = (struct listener_entry *)le->list.next;
+        } while (le != eti->listeners);
 
         evt->current = et;
 
-        do {
-            if (dom_string_isequal(le->type, evt->type)) {
-                assert(le->listener->handler != NULL);
+        for (int j = 0; j < count; j++) {
+            /* Check if the listener is still registered on the target */
+            if (target_has_listener(eti, infos[j].listener, infos[j].type, infos[j].capture)) {
+                if (dom_string_isequal(infos[j].type, evt->type)) {
+                    assert(infos[j].listener->handler != NULL);
 
-                if ((le->capture && phase == DOM_CAPTURING_PHASE) ||
-                    (le->capture == false && phase == DOM_BUBBLING_PHASE) ||
-                    (evt->target == evt->current && phase == DOM_AT_TARGET)) {
-                    le->listener->handler(evt, le->listener->pw);
-                    /* If the handler called
-                     * stopImmediatePropagation, we should
-                     * break */
-                    if (evt->stop_now == true)
-                        break;
+                    if ((infos[j].capture && phase == DOM_CAPTURING_PHASE) ||
+                        (infos[j].capture == false && phase == DOM_BUBBLING_PHASE) ||
+                        (evt->target == evt->current && phase == DOM_AT_TARGET)) {
+                        infos[j].listener->handler(evt, infos[j].listener->pw);
+                        /* If the handler called
+                         * stopImmediatePropagation, we should
+                         * break */
+                        if (evt->stop_now == true)
+                            break;
+                    }
                 }
             }
+        }
 
-            le = (struct listener_entry *)le->list.next;
-        } while (le != eti->listeners);
+        /* Clean up references */
+        for (int j = 0; j < count; j++) {
+            dom_event_listener_unref(infos[j].listener);
+            dom_string_unref(infos[j].type);
+        }
+        free(infos);
     }
 
     if (evt->prevent_default == true)
