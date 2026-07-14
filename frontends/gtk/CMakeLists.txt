@@ -3,7 +3,7 @@ find_package(PkgConfig)
 # Second GTK_RESPATH entry is for AppImages
 add_definitions(-DGTK_RESPATH="${CMAKE_INSTALL_PREFIX}/share/wisp-gtk:./${CMAKE_INSTALL_PREFIX}/share/wisp-gtk" -DWITH_GRESOURCE -DWISP_HOMEPAGE="about:welcome")
 
-pkg_check_modules(GTK REQUIRED gtk+-3.0>=3.24)
+pkg_check_modules(GTK REQUIRED gtk+-3.0>=3.2)
 include_directories(${GTK_INCLUDE_DIRS})
 
 pkg_check_modules(PIPEWIRE libpipewire-0.3)
