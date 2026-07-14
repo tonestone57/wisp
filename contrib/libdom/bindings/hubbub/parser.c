@@ -905,6 +905,10 @@ dom_hubbub_error dom_hubbub_parser_insert_chunk(dom_hubbub_parser *parser, const
  */
 void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)
 {
+    if (parser == NULL) {
+        return;
+    }
+
     /* The call to hubbub_parser_destroy will clean up the hubbub tree builder
      * which in turn unreferences the document/fragment node set via the
      * HUBBUB_PARSER_DOCUMENT_NODE option (context.document). This balances
