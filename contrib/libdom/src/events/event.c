@@ -33,9 +33,15 @@ dom_exception _dom_event_create(dom_event **evt)
     return _dom_event_initialise(*evt);
 }
 
+extern void wisp_dom_event_destroyed_hook(void *evt) __attribute__((weak));
+
 /* Destructor */
 void _dom_event_destroy(dom_event *evt)
 {
+    if (wisp_dom_event_destroyed_hook) {
+        wisp_dom_event_destroyed_hook(evt);
+    }
+
     _dom_event_finalise(evt);
 
     free(evt);

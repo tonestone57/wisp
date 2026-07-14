@@ -560,6 +560,7 @@ START_TEST(test_grid_construction)
     /* Cleanup */
     box_free_tree(root);
     dom_node_unref(grid_el);
+    dom_node_unref(root_el);
 
     dom_node_unref(doc);
 

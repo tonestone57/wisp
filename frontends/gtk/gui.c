@@ -25,6 +25,7 @@
  */
 
 #include <gtk/gtk.h>
+#include <fontconfig/fontconfig.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
@@ -1193,6 +1194,10 @@ static void nsgtk_finalise(void)
     }
 
     free(nsgtk_config_home);
+    if (respaths != NULL) {
+        filepath_free_strvec(respaths);
+        respaths = NULL;
+    }
 
     gtk_fetch_filetype_fin();
 
@@ -1201,6 +1206,23 @@ static void nsgtk_finalise(void)
 
     /* finalise options */
     nsoption_finalise(nsoptions, nsoptions_default);
+
+    if (favicon_pixbuf != NULL) {
+        g_object_unref(favicon_pixbuf);
+        favicon_pixbuf = NULL;
+    }
+    if (win_default_icon_pixbuf != NULL) {
+        g_object_unref(win_default_icon_pixbuf);
+        win_default_icon_pixbuf = NULL;
+    }
+    if (warning_builder != NULL) {
+        g_object_unref(warning_builder);
+        warning_builder = NULL;
+    }
+
+    nsfont_finalise();
+
+    FcFini();
 
     /* finalise logging */
     nslog_finalise();

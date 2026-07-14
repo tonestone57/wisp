@@ -583,11 +583,9 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
 
         switch (script_type) {
         case HTML_SCRIPT_SYNC:
-            /* Don't pause parser during script download.
-             * This allows parallel resource discovery and download.
-             * Script will execute when ready via conversion_begun path.
-             * This matches modern browser behavior (speculative parsing).
-             */
+            if (c->parser != NULL) {
+                dom_hubbub_parser_pause(c->parser, true);
+            }
             break;
 
         case HTML_SCRIPT_ASYNC:

@@ -279,12 +279,18 @@ static bool fetch_resource_initialise(lwc_string *scheme)
         }
 
         e->data = NULL;
-        res = guit->fetch->get_resource_data(lwc_string_data(e->path), &e->data, &e->data_len);
+        res = NSERROR_NOT_FOUND;
+        if (guit != NULL && guit->fetch != NULL && guit->fetch->get_resource_data != NULL) {
+            res = guit->fetch->get_resource_data(lwc_string_data(e->path), &e->data, &e->data_len);
+        }
         if (res == NSERROR_OK) {
             NSLOG(wisp, INFO, "direct data for %s", fetch_resource_paths[i]);
             fetch_resource_path_count++;
         } else {
-            e->redirect_url = guit->fetch->get_resource_url(fetch_resource_paths[i]);
+            e->redirect_url = NULL;
+            if (guit != NULL && guit->fetch != NULL && guit->fetch->get_resource_url != NULL) {
+                e->redirect_url = guit->fetch->get_resource_url(fetch_resource_paths[i]);
+            }
             if (e->redirect_url == NULL) {
                 if (strcmp(fetch_resource_paths[i], "user.css") == 0) {
                     fetch_resource_path_count++;

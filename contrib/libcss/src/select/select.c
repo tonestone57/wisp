@@ -1609,11 +1609,12 @@ css_error css_select_style(css_select_ctx *ctx, void *node, const css_unit_ctx *
                         state.current_origin = dp->origin;
 
                         uint32_t opv = *resolved_style->bytecode;
-                        advance_bytecode(resolved_style, sizeof(uint32_t));
+                        css_style temp_style = *resolved_style;
+                        advance_bytecode(&temp_style, sizeof(uint32_t));
                         /* Reset rule_id to -1 so cascade always updates state,
                          * since we already checked that this IS the winning rule. */
                         state.props[dp->opcode][dp->pseudo].rule_id = (uint32_t)-1;
-                        prop_dispatch[dp->opcode].cascade(opv, resolved_style, &state);
+                        prop_dispatch[dp->opcode].cascade(opv, &temp_style, &state);
                         css__stylesheet_style_destroy(resolved_style);
                         resolved_ok = true;
                     }

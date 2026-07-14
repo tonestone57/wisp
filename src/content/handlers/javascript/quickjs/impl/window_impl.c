@@ -6,6 +6,7 @@
 #include <wisp/utils/log.h>
 #include "JSWindow.gen.h"
 #include "qjs_internal.h"
+#include "JSHistory.gen.h"
 
 /* Custom Window init */
 int qjs_init_window(JSContext *ctx)
@@ -58,6 +59,18 @@ JSValue wisp_window_window_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_window_self_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return JS_GetGlobalObject(ctx);
+}
+
+JSValue wisp_window_history_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue hist = JS_GetPropertyStr(ctx, global, "__wisp_history_cached");
+    if (JS_IsUndefined(hist)) {
+        hist = qjs_new_history(ctx, NULL, false);
+        JS_SetPropertyStr(ctx, global, "__wisp_history_cached", JS_DupValue(ctx, hist));
+    }
+    JS_FreeValue(ctx, global);
+    return hist;
 }
 
 JSValue wisp_window_document_get_impl(JSContext *ctx, QJSNodePrivate *priv)
