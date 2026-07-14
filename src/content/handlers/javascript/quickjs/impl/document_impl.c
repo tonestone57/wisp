@@ -8,6 +8,11 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "JSDocument.gen.h"
+#include <dom/html/html_document.h>
+#include <wisp/utils/nsurl.h>
+#include <libwapcaplet/libwapcaplet.h>
+
+extern struct nsurl *content_get_url(void *c);
 #include "JSEvent.gen.h"
 #include "JSCustomEvent.gen.h"
 #include "JSMessageEvent.gen.h"
@@ -209,4 +214,76 @@ int qjs_init_document(JSContext *ctx) {
     JS_FreeValue(ctx, global_obj);
 
     return 0;
+}
+
+JSValue wisp_document_domain_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t && t->doc_priv) {
+        struct nsurl *url = content_get_url((struct content *)t->doc_priv);
+        if (url) {
+            lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+            if (host_lwc) {
+                const char *data = lwc_string_data(host_lwc);
+                size_t len = lwc_string_length(host_lwc);
+                JSValue res = JS_NewStringLen(ctx, data, len);
+                lwc_string_unref(host_lwc);
+                return res;
+            }
+        }
+    }
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_document_domain_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_document_title_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    dom_html_document *html_doc = (dom_html_document *)priv->node;
+    dom_string *title_dom = NULL;
+    dom_exception exc = dom_html_document_get_title(html_doc, &title_dom);
+    if (exc == DOM_NO_ERR && title_dom) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(title_dom), dom_string_byte_length(title_dom));
+        dom_string_unref(title_dom);
+        return val;
+    }
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_document_title_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    dom_html_document *html_doc = (dom_html_document *)priv->node;
+    dom_string *title_dom = NULL;
+    dom_string_create((const uint8_t *)value, strlen(value), &title_dom);
+    if (title_dom) {
+        dom_html_document_set_title(html_doc, title_dom);
+        dom_string_unref(title_dom);
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_document_activeElement_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    /* Try body first */
+    JSValue body = wisp_document_body_get_impl(ctx, priv);
+    if (!JS_IsNull(body)) {
+        return body;
+    }
+    JS_FreeValue(ctx, body);
+
+    /* Fall back to documentElement */
+    JSValue doc_el = wisp_document_documentElement_get_impl(ctx, priv);
+    if (!JS_IsNull(doc_el)) {
+        return doc_el;
+    }
+    JS_FreeValue(ctx, doc_el);
+
+    return JS_NULL;
 }
