@@ -335,7 +335,7 @@ static bool curl_with_openssl;
 static char fetch_proxy_userpwd[100];
 
 /** Interlock to prevent initiation during callbacks */
-static bool inside_curl = false;
+static int inside_curl = 0;
 
 
 /**
@@ -1402,7 +1402,7 @@ static CURL *fetch_curl_get_handle(lwc_string *host)
 static bool fetch_curl_start(void *vfetch)
 {
     struct curl_fetch_info *fetch = (struct curl_fetch_info *)vfetch;
-    if (inside_curl) {
+    if (inside_curl > 0) {
         NSLOG(wisp, DEBUG, "Deferring fetch because we're inside cURL");
         return false;
     }
@@ -1499,7 +1499,7 @@ static void fetch_curl_abort(void *vf)
     assert(f);
     NSLOG(wisp, INFO, "fetch %p, url '%s'", f, nsurl_access(f->url));
     if (f->curl_handle) {
-        if (inside_curl) {
+        if (inside_curl > 0) {
             NSLOG(wisp, DEBUG, "Deferring cleanup");
             f->abort = true;
         } else {
@@ -1777,11 +1777,12 @@ static void fetch_curl_poll(lwc_string *scheme_ignored)
     }
 
     /* do any possible work on the current fetches */
-    inside_curl = true;
+    inside_curl++;
     do {
         codem = curl_multi_perform(fetch_curl_multi, &running);
         if (codem != CURLM_OK && codem != CURLM_CALL_MULTI_PERFORM) {
             NSLOG(wisp, WARNING, "curl_multi_perform: %i %s", codem, curl_multi_strerror(codem));
+            inside_curl--;
             return;
         }
     } while (codem == CURLM_CALL_MULTI_PERFORM);
@@ -1798,7 +1799,7 @@ static void fetch_curl_poll(lwc_string *scheme_ignored)
         }
         curl_msg = curl_multi_info_read(fetch_curl_multi, &queue);
     }
-    inside_curl = false;
+    inside_curl--;
 }
 
 
