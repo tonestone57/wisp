@@ -596,7 +596,21 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 		css_fixed value = 0;
 		css_unit unit = CSS_UNIT_PX;
 
-		assert(lh__box_is_inline_content(b));
+		if (!lh__box_is_inline_content(b)) {
+			NSLOG(layout, WARNING, "Non-inline box %p (%d) in inline container", b, b->type);
+			if (b->children) {
+				if (b->type == BOX_TABLE)
+					layout_minmax_table(b, font_func, content);
+				else
+					layout_minmax_block(b, font_func, content);
+			}
+			b->min_width.value = b->children ? b->children->min_width.value : 0;
+			b->max_width = b->children ? b->children->max_width : 0;
+			if (min < b->min_width.value)
+				min = b->min_width.value;
+			max += b->max_width;
+			continue;
+		}
 
 		NSLOG(layout, DEEPDEBUG, "%p: min %i, max %i", b, min, max);
 
@@ -3040,7 +3054,14 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 		struct css_size min_width, min_height;
 		int max_width, max_height;
 
-		assert(lh__box_is_inline_content(b));
+		if (!lh__box_is_inline_content(b)) {
+			NSLOG(layout, WARNING, "Non-inline box %p (%d) in inline container layout_line", b, b->type);
+			b->width = 0;
+			space_after = 0;
+			b->x = x;
+			b->y = *y;
+			continue;
+		}
 
 		NSLOG(layout, DEEPDEBUG, "pass 1: b %p, x %i", b, x);
 
