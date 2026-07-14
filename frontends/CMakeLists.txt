@@ -33,6 +33,6 @@ if(WISP_BUILD_MACOS_FRONTEND)
     add_subdirectory(macos)
 endif()
 
-if(HAIKU OR BEOS)
+if(WISP_BUILD_BEOS_FRONTEND)
     add_subdirectory(beos)
 endif()
