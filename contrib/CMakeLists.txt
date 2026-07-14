@@ -22,21 +22,25 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_subdirectory(quickjs-ng)
 
 if(WISP_USE_BLEND2D)
-    # Configure JIT / asmjit based on target CPU capabilities (SSE2 or ARM64 required)
-    set(WISP_DISABLE_JIT ON)
-
-    # Enable JIT/asmjit ONLY for SSE2 CPU or ARM64 CPU
+    # Determine whether JIT/asmjit is supported on the host CPU architecture (SSE2/ARM64)
+    set(WISP_ASMJIT_SUPPORTED OFF)
     if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "amd64")
-        # x86_64 always has SSE2 by default
-        set(WISP_DISABLE_JIT OFF)
+        set(WISP_ASMJIT_SUPPORTED ON)
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "i.86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "i686" OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        # 32-bit x86 has SSE2 unless compiled with -mno-sse2 or targeting WinXP without SSE2
-        if(NOT CMAKE_C_FLAGS MATCHES "-mno-sse2" AND NOT CMAKE_CXX_FLAGS MATCHES "-mno-sse2" AND NOT WISP_TARGET_WINXP)
-            set(WISP_DISABLE_JIT OFF)
-        endif()
+        set(WISP_ASMJIT_SUPPORTED ON)
     elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "AARCH64")
-        # ARM64 always has JIT support
+        set(WISP_ASMJIT_SUPPORTED ON)
+    endif()
+
+    # Now configure JIT/asmjit enablement based on CPU support and compilation flags
+    set(WISP_DISABLE_JIT ON)
+    if(WISP_ASMJIT_SUPPORTED)
         set(WISP_DISABLE_JIT OFF)
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "i.86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86" OR CMAKE_SYSTEM_PROCESSOR MATCHES "i686" OR CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
+            if(CMAKE_C_FLAGS MATCHES "-mno-sse2" OR CMAKE_CXX_FLAGS MATCHES "-mno-sse2" OR WISP_TARGET_WINXP)
+                set(WISP_DISABLE_JIT ON)
+            endif()
+        endif()
     endif()
 
     if(WISP_DISABLE_JIT)
