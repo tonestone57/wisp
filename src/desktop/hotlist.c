@@ -755,6 +755,10 @@ nserror hotlist_load_directory_cb(dom_node *node, void *ctx)
 
         /* Add folder node */
         err = hotlist_add_folder_internal(title, current_ctx->rel, current_ctx->relshp, &f, default_folder);
+        if (current_ctx->title != NULL) {
+            dom_string_unref(current_ctx->title);
+            current_ctx->title = NULL;
+        }
         if (err != NSERROR_OK) {
             dom_string_unref(name);
             return NSERROR_NOMEM;

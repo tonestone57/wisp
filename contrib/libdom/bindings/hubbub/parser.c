@@ -54,6 +54,8 @@ struct dom_hubbub_parser {
     dom_svg svg; /**< SVG element callback function */
 
     void *mctx; /**< Pointer to client data */
+
+    bool is_fragment; /**< Indicates if it is a fragment parser */
 };
 
 /* Forward declaration to break reference loop */
@@ -703,6 +705,7 @@ dom_hubbub_parser_create(dom_hubbub_parser_params *params, dom_hubbub_parser **p
     binding->parser = NULL;
     binding->doc = NULL;
     binding->encoding = params->enc;
+    binding->is_fragment = false;
 
     if (params->enc != NULL) {
         binding->encoding_source = DOM_HUBBUB_ENCODING_SOURCE_HEADER;
@@ -782,7 +785,7 @@ dom_hubbub_parser_create(dom_hubbub_parser_params *params, dom_hubbub_parser **p
     }
 
     /* set return parameters */
-    *document = (dom_document *)dom_node_ref(binding->doc);
+    *document = binding->doc;
     *parser = binding;
 
     return DOM_HUBBUB_OK;
@@ -827,6 +830,7 @@ dom_hubbub_error dom_hubbub_fragment_parser_create(dom_hubbub_parser_params *par
     binding->parser = NULL;
     binding->doc = (struct dom_document *)dom_node_ref(document);
     binding->encoding = params->enc;
+    binding->is_fragment = true;
 
     if (params->enc != NULL) {
         binding->encoding_source = DOM_HUBBUB_ENCODING_SOURCE_HEADER;
@@ -905,10 +909,18 @@ dom_hubbub_error dom_hubbub_parser_insert_chunk(dom_hubbub_parser *parser, const
  */
 void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)
 {
+    if (parser == NULL) {
+        return;
+    }
+
+    /* The call to hubbub_parser_destroy will clean up the hubbub tree builder
+     * which in turn unreferences the document/fragment node set via the
+     * HUBBUB_PARSER_DOCUMENT_NODE option (context.document). This balances
+     * the dom_node_ref called during parser creation. */
     hubbub_parser_destroy(parser->parser);
     parser->parser = NULL;
 
-    if (parser->doc != NULL) {
+    if (parser->doc != NULL && parser->is_fragment) {
         dom_node_unref((struct dom_node *)parser->doc);
         parser->doc = NULL;
     }
