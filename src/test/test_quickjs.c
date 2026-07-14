@@ -1196,10 +1196,36 @@ START_TEST(test_quickjs_storage)
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
 
-    /* Test localStorage exists */
-    const char *code1 = "typeof localStorage === 'object' && typeof localStorage.getItem === 'function'";
-    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_localStorage");
-    ck_assert(result == true);
+    /* Test localStorage operations */
+    const char *code1 =
+        "try {\n"
+        "  if (typeof localStorage !== 'object' || typeof localStorage.getItem !== 'function') throw 'localStorage missing';\n"
+        "  localStorage.setItem('mykey', 'myvalue');\n"
+        "  if (localStorage.getItem('mykey') !== 'myvalue') throw 'getItem fail';\n"
+        "  if (localStorage.length !== 1) throw 'length fail: ' + localStorage.length;\n"
+        "  if (localStorage.key(0) !== 'mykey') throw 'key fail';\n"
+        "  localStorage.removeItem('mykey');\n"
+        "  if (localStorage.getItem('mykey') !== null) throw 'removeItem fail';\n"
+        "  if (localStorage.length !== 0) throw 'length empty fail';\n"
+        "  localStorage.setItem('k1', 'v1');\n"
+        "  localStorage.setItem('k2', 'v2');\n"
+        "  localStorage.clear();\n"
+        "  if (localStorage.length !== 0) throw 'clear fail';\n"
+        "} catch(e) {\n"
+        "  console.log('TEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    JSValue val_storage = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code1, strlen(code1), "test_localStorage", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val_storage)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val_storage));
+    JS_FreeValue(thread->ctx, val_storage);
 
     js_closethread(thread);
     js_destroythread(thread);
