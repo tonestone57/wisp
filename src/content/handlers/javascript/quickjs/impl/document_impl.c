@@ -29,6 +29,36 @@ JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, c
     return JS_NULL;
 }
 
+JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *head_str = NULL;
+    dom_exception exc = dom_string_create((const uint8_t *)"head", 4, &head_str);
+    if (exc != DOM_NO_ERR) return JS_NULL;
+
+    dom_nodelist *nodes = NULL;
+    exc = dom_document_get_elements_by_tag_name((dom_document *)priv->node, head_str, &nodes);
+    dom_string_unref(head_str);
+
+    if (exc == DOM_NO_ERR && nodes) {
+        uint32_t len = 0;
+        exc = dom_nodelist_get_length(nodes, &len);
+        if (exc == DOM_NO_ERR && len > 0) {
+            dom_node *node = NULL;
+            exc = dom_nodelist_item(nodes, 0, (void *)&node);
+            dom_nodelist_unref(nodes);
+            if (exc == DOM_NO_ERR && node) {
+                JSValue val = qjs_wrap_node(ctx, node);
+                dom_node_unref(node);
+                return val;
+            }
+        } else {
+            dom_nodelist_unref(nodes);
+        }
+    }
+    return JS_NULL;
+}
+
 JSValue wisp_document_createTextNode_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
 {
     if (!priv || !priv->node) return JS_NULL;

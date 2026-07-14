@@ -204,6 +204,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/impl/eventtarget_impl.c
 	content/handlers/javascript/quickjs/impl/storage_impl.c
 	content/handlers/javascript/quickjs/impl/navigator_impl.c
+	content/handlers/javascript/quickjs/impl/urlsearchparams_impl.c
 	content/handlers/javascript/quickjs/impl/xhr_impl.c
 	content/handlers/javascript/quickjs/impl/mutationobserver_impl.c
 	content/handlers/javascript/quickjs/impl/mutationrecord_impl.c
