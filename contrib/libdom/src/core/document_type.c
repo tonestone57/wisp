@@ -94,7 +94,7 @@ void _dom_document_type_destroy(dom_node_internal *doctypenode)
     _dom_document_type_finalise(doctype);
 
     /* Free doctype */
-    DOM_FREE(doctype);
+    free(doctype);
 }
 
 /* Initialise this document_type */
