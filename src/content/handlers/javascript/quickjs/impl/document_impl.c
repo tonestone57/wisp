@@ -6,6 +6,8 @@
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include <wisp/utils/corestrings.h>
+#include <wisp/content/handlers/html/private.h>
 #include "utils/libdom.h"
 #include "JSDocument.gen.h"
 #include "JSEvent.gen.h"
@@ -152,6 +154,69 @@ JSValue wisp_document_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv
 {
     if (!priv || !priv->node) return JS_NULL;
     return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
+}
+
+JSValue wisp_document_defaultView_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_GetGlobalObject(ctx);
+}
+
+JSValue wisp_document_createComment_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *data_dom = NULL;
+    dom_string_create((const uint8_t *)data, strlen(data), &data_dom);
+    struct dom_comment *result = NULL;
+    dom_document_create_comment((dom_document *)priv->node, data_dom, &result);
+    dom_string_unref(data_dom);
+    if (result) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+        dom_node_unref((dom_node *)result);
+        return val;
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_document_getElementsByName_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
+{
+    if (!priv || !priv->node || !name) return JS_NewArray(ctx);
+    size_t len = strlen(name);
+    char *selector = malloc(len + 9);
+    if (!selector) return JS_ThrowOutOfMemory(ctx);
+    sprintf(selector, "[name=\"%s\"]", name);
+    JSValue res = qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selector, true);
+    free(selector);
+    return res;
+}
+
+JSValue wisp_document_createDocumentFragment_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_document_fragment *result = NULL;
+    dom_document_create_document_fragment((dom_document *)priv->node, &result);
+    if (result) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+        dom_node_unref((dom_node *)result);
+        return val;
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_document_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "complete");
+    html_content *htmlc = NULL;
+    dom_node_get_user_data((dom_node *)priv->node, corestring_dom___ns_key_html_content_data, (void **)&htmlc);
+    if (htmlc) {
+        if (htmlc->parse_completed) {
+            return JS_NewString(ctx, "complete");
+        } else if (htmlc->conversion_begun) {
+            return JS_NewString(ctx, "interactive");
+        } else {
+            return JS_NewString(ctx, "loading");
+        }
+    }
+    return JS_NewString(ctx, "complete");
 }
 
 int qjs_init_document(JSContext *ctx) {

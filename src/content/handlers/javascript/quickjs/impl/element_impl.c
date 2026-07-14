@@ -69,7 +69,137 @@ JSValue wisp_element_id_set_impl(JSContext *ctx, QJSNodePrivate *priv, const cha
 JSValue wisp_element_className_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_element_getAttribute_impl(ctx, priv, "class"); }
 JSValue wisp_element_className_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_element_setAttribute_impl(ctx, priv, "class", value); }
 
-JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
+typedef struct {
+    char *buf;
+    size_t len;
+    size_t alloc;
+} HTMLBuffer;
+
+static void html_buf_append(HTMLBuffer *b, const char *str, size_t len) {
+    if (b->len + len >= b->alloc) {
+        b->alloc = b->alloc ? b->alloc * 2 + len : len + 1024;
+        b->buf = realloc(b->buf, b->alloc);
+    }
+    memcpy(b->buf + b->len, str, len);
+    b->len += len;
+    b->buf[b->len] = '\0';
+}
+
+static void serialize_node_to_html(dom_node *node, HTMLBuffer *b)
+{
+    dom_node_type type;
+    dom_node_get_node_type(node, &type);
+
+    if (type == DOM_ELEMENT_NODE) {
+        dom_string *tag_name = NULL;
+        dom_element_get_tag_name((dom_element *)node, &tag_name);
+        const char *tag = tag_name ? (const char *)dom_string_data(tag_name) : "div";
+        size_t tag_len = tag_name ? dom_string_byte_length(tag_name) : 3;
+
+        html_buf_append(b, "<", 1);
+        html_buf_append(b, tag, tag_len);
+
+        dom_namednodemap *attrs = NULL;
+        dom_node_get_attributes(node, &attrs);
+        if (attrs) {
+            uint32_t len = 0;
+            dom_namednodemap_get_length(attrs, &len);
+            for (uint32_t i = 0; i < len; i++) {
+                dom_node *attr_node = NULL;
+                dom_namednodemap_item(attrs, i, &attr_node);
+                if (attr_node) {
+                    dom_string *name = NULL;
+                    dom_node_get_node_name(attr_node, &name);
+                    dom_string *val = NULL;
+                    dom_node_get_node_value(attr_node, &val);
+
+                    if (name) {
+                        html_buf_append(b, " ", 1);
+                        html_buf_append(b, (const char *)dom_string_data(name), dom_string_byte_length(name));
+                        if (val) {
+                            html_buf_append(b, "=\"", 2);
+                            html_buf_append(b, (const char *)dom_string_data(val), dom_string_byte_length(val));
+                            html_buf_append(b, "\"", 1);
+                        }
+                        dom_string_unref(name);
+                    }
+                    if (val) dom_string_unref(val);
+                    dom_node_unref(attr_node);
+                }
+            }
+            dom_namednodemap_unref(attrs);
+        }
+
+        html_buf_append(b, ">", 1);
+
+        bool is_self_closing = (strcasecmp(tag, "img") == 0 || strcasecmp(tag, "br") == 0 ||
+                                strcasecmp(tag, "input") == 0 || strcasecmp(tag, "link") == 0 ||
+                                strcasecmp(tag, "meta") == 0 || strcasecmp(tag, "hr") == 0);
+
+        if (!is_self_closing) {
+            dom_node *child = NULL;
+            dom_node_get_first_child(node, &child);
+            while (child) {
+                serialize_node_to_html(child, b);
+                dom_node *next = NULL;
+                dom_node_get_next_sibling(child, &next);
+                dom_node_unref(child);
+                child = next;
+            }
+
+            html_buf_append(b, "</", 2);
+            html_buf_append(b, tag, tag_len);
+            html_buf_append(b, ">", 1);
+        }
+
+        if (tag_name) dom_string_unref(tag_name);
+
+    } else if (type == DOM_TEXT_NODE) {
+        dom_string *val = NULL;
+        dom_node_get_node_value(node, &val);
+        if (val) {
+            html_buf_append(b, (const char *)dom_string_data(val), dom_string_byte_length(val));
+            dom_string_unref(val);
+        }
+    } else if (type == DOM_COMMENT_NODE) {
+        dom_string *val = NULL;
+        dom_node_get_node_value(node, &val);
+        if (val) {
+            html_buf_append(b, "<!--", 4);
+            html_buf_append(b, (const char *)dom_string_data(val), dom_string_byte_length(val));
+            html_buf_append(b, "-->", 3);
+            dom_string_unref(val);
+        }
+    } else {
+        dom_node *child = NULL;
+        dom_node_get_first_child(node, &child);
+        while (child) {
+            serialize_node_to_html(child, b);
+            dom_node *next = NULL;
+            dom_node_get_next_sibling(child, &next);
+            dom_node_unref(child);
+            child = next;
+        }
+    }
+}
+
+JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    HTMLBuffer b = { NULL, 0, 0 };
+    dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        serialize_node_to_html(child, &b);
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    JSValue val = JS_NewStringLen(ctx, b.buf ? b.buf : "", b.len);
+    free(b.buf);
+    return val;
+}
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
@@ -225,4 +355,47 @@ JSValue wisp_element_getElementsByTagName_impl(JSContext *ctx, QJSNodePrivate *p
 {
     if (!priv || !priv->node || !localName) return JS_NewArray(ctx);
     return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, localName, true);
+}
+
+JSValue wisp_element_outerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    HTMLBuffer b = { NULL, 0, 0 };
+    serialize_node_to_html((dom_node *)priv->node, &b);
+    JSValue val = JS_NewStringLen(ctx, b.buf ? b.buf : "", b.len);
+    free(b.buf);
+    return val;
+}
+
+JSValue wisp_element_matches_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
+{
+    if (!priv || !priv->node || !selectors) return JS_FALSE;
+    dom_node *element = (dom_node *)priv->node;
+
+    dom_node *parent = NULL;
+    dom_node_get_parent_node(element, &parent);
+    dom_node *root = parent ? parent : element;
+
+    JSValue list = qjs_dom_query_selector_internal(ctx, root, selectors, true);
+    if (parent) dom_node_unref(parent);
+
+    if (JS_IsArray(list)) {
+        JSValue len_val = JS_GetPropertyStr(ctx, list, "length");
+        uint32_t len = 0;
+        JS_ToUint32(ctx, &len, len_val);
+        JS_FreeValue(ctx, len_val);
+
+        for (uint32_t i = 0; i < len; i++) {
+            JSValue item = JS_GetPropertyUint32(ctx, list, i);
+            QJSNodePrivate *ipriv = qjs_get_dom_priv(ctx, item);
+            if (ipriv && ipriv->node == element) {
+                JS_FreeValue(ctx, item);
+                JS_FreeValue(ctx, list);
+                return JS_TRUE;
+            }
+            JS_FreeValue(ctx, item);
+        }
+    }
+    JS_FreeValue(ctx, list);
+    return JS_FALSE;
 }
