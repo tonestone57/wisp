@@ -48,6 +48,11 @@
 #include <wisp/content/handlers/html/private.h>
 #include "content/handlers/html/object.h"
 #include "content/handlers/html/box_manipulate.h"
+#include <limits.h>
+
+#ifndef AUTO
+#define AUTO INT_MIN
+#endif
 
 /* Performance tracing - enable via CMake: -DNEOSURF_ENABLE_PERF_TRACE=ON */
 #include <wisp/utils/perf.h>
@@ -348,8 +353,16 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
                 css_fixed hpos = 0, vpos = 0;
                 css_unit hunit = CSS_UNIT_PX;
                 css_unit vunit = CSS_UNIT_PX;
-                int width = box->padding[LEFT] + box->width + box->padding[RIGHT];
-                int height = box->padding[TOP] + box->height + box->padding[BOTTOM];
+                int box_width = box->width;
+                int box_height = box->height;
+                if (box_width == UNKNOWN_WIDTH || box_width == AUTO || box_width < 0) {
+                    box_width = 0;
+                }
+                if (box_height == UNKNOWN_WIDTH || box_height == AUTO || box_height < 0) {
+                    box_height = 0;
+                }
+                int width = box->padding[LEFT] + box_width + box->padding[RIGHT];
+                int height = box->padding[TOP] + box_height + box->padding[BOTTOM];
                 int t, h, l, w;
 
                 /* Need to know background-position */
