@@ -9,33 +9,36 @@
 #include "utils/libdom.h"
 #include "JSCustomEvent.gen.h"
 
-#define MAX_CUSTOM_EVENT_DETAILS 256
-static struct {
-    void *node;
-    JSValue detail;
-    JSContext *ctx;
-} custom_event_details[MAX_CUSTOM_EVENT_DETAILS];
-static int custom_event_details_idx = 0;
-
 static void save_custom_event_detail(JSContext *ctx, void *node, JSValue detail) {
     if (!node) return;
-    int idx = custom_event_details_idx;
-    if (custom_event_details[idx].node != NULL && custom_event_details[idx].ctx == ctx) {
-        JS_FreeValue(ctx, custom_event_details[idx].detail);
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue registry = JS_GetPropertyStr(ctx, global, "__custom_event_details");
+    if (JS_IsUndefined(registry)) {
+        registry = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, global, "__custom_event_details", JS_DupValue(ctx, registry));
     }
-    custom_event_details[idx].node = node;
-    custom_event_details[idx].detail = JS_DupValue(ctx, detail);
-    custom_event_details[idx].ctx = ctx;
-    custom_event_details_idx = (idx + 1) % MAX_CUSTOM_EVENT_DETAILS;
+    char key[64];
+    snprintf(key, sizeof(key), "%p", node);
+    JS_SetPropertyStr(ctx, registry, key, JS_DupValue(ctx, detail));
+    JS_FreeValue(ctx, registry);
+    JS_FreeValue(ctx, global);
 }
 
 static JSValue get_custom_event_detail(JSContext *ctx, void *node) {
     if (!node) return JS_NULL;
-    for (int i = 0; i < MAX_CUSTOM_EVENT_DETAILS; i++) {
-        if (custom_event_details[i].node == node && custom_event_details[i].ctx == ctx) {
-            return JS_DupValue(ctx, custom_event_details[i].detail);
-        }
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue registry = JS_GetPropertyStr(ctx, global, "__custom_event_details");
+    if (JS_IsObject(registry)) {
+        char key[64];
+        snprintf(key, sizeof(key), "%p", node);
+        JSValue val = JS_GetPropertyStr(ctx, registry, key);
+        JS_FreeValue(ctx, registry);
+        JS_FreeValue(ctx, global);
+        if (JS_IsUndefined(val)) return JS_NULL;
+        return val;
     }
+    JS_FreeValue(ctx, registry);
+    JS_FreeValue(ctx, global);
     return JS_NULL;
 }
 
