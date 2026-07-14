@@ -1921,7 +1921,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 
 				box->type = BOX_TEXT;
 
-				box->text = talloc_strdup(ctx->bctx, current);
+				box->text = arena_strdup(ctx->bctx, current);
 				if (box->text == NULL) {
 					free(text);
 					return false;
@@ -1931,18 +1931,6 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 
 				box_add_child(props.inline_container, box);
 			}
-
-			box->type = BOX_TEXT;
-
-			box->text = arena_strdup(ctx->bctx, current);
-			if (box->text == NULL) {
-				free(text);
-				return false;
-			}
-
-			box->length = strlen(box->text);
-
-			box_add_child(props.inline_container, box);
 
 			current[len] = old;
 			current += len;

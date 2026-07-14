@@ -71,6 +71,11 @@
 #include "content/handlers/html/redraw_helpers.h"
 #include "content/handlers/html/stacking.h"
 #include "content/handlers/image/svg.h"
+#include <limits.h>
+
+#ifndef AUTO
+#define AUTO INT_MIN
+#endif
 
 
 bool html_redraw_debug = false;
@@ -1058,16 +1063,25 @@ static bool html_redraw_background(int x, int y, struct box *box, float scale, c
     plot_content = (background->background != NULL);
 
     if (plot_content) {
+        int box_width = box->width;
+        int box_height = box->height;
+        if (box_width == UNKNOWN_WIDTH || box_width == AUTO || box_width < 0) {
+            box_width = 0;
+        }
+        if (box_height == UNKNOWN_WIDTH || box_height == AUTO || box_height < 0) {
+            box_height = 0;
+        }
+
         if (!box->parent) {
             /* Root element, special case:
              * background origin calc. is based on margin box */
             x -= box->margin[LEFT] * scale;
             y -= box->margin[TOP] * scale;
-            width = box->margin[LEFT] + box->padding[LEFT] + box->width + box->padding[RIGHT] + box->margin[RIGHT];
-            height = box->margin[TOP] + box->padding[TOP] + box->height + box->padding[BOTTOM] + box->margin[BOTTOM];
+            width = box->margin[LEFT] + box->padding[LEFT] + box_width + box->padding[RIGHT] + box->margin[RIGHT];
+            height = box->margin[TOP] + box->padding[TOP] + box_height + box->padding[BOTTOM] + box->margin[BOTTOM];
         } else {
-            width = box->padding[LEFT] + box->width + box->padding[RIGHT];
-            height = box->padding[TOP] + box->height + box->padding[BOTTOM];
+            width = box->padding[LEFT] + box_width + box->padding[RIGHT];
+            height = box->padding[TOP] + box_height + box->padding[BOTTOM];
         }
         /* handle background-repeat */
         switch (css_computed_background_repeat(background->style)) {
@@ -2036,12 +2050,21 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             unscaled_x = x;
             unscaled_y = y;
         }
-        width = box->width;
-        height = box->height;
+        int box_width = box->width;
+        int box_height = box->height;
+        if (box_width == UNKNOWN_WIDTH || box_width == AUTO || box_width < 0) {
+            box_width = 0;
+        }
+        if (box_height == UNKNOWN_WIDTH || box_height == AUTO || box_height < 0) {
+            box_height = 0;
+        }
+
+        width = box_width;
+        height = box_height;
         padding_left = box->padding[LEFT];
         padding_top = box->padding[TOP];
-        padding_width = padding_left + box->width + box->padding[RIGHT];
-        padding_height = padding_top + box->height + box->padding[BOTTOM];
+        padding_width = padding_left + box_width + box->padding[RIGHT];
+        padding_height = padding_top + box_height + box->padding[BOTTOM];
         border_left = box->border[LEFT].width;
         border_top = box->border[TOP].width;
         border_right = box->border[RIGHT].width;
@@ -2078,14 +2101,23 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             unscaled_x = x_parent + box->x + box->sticky_x;
             unscaled_y = y_parent + box->y + box->sticky_y;
         }
-        width = box->width * scale;
-        height = box->height * scale;
+        int box_width = box->width;
+        int box_height = box->height;
+        if (box_width == UNKNOWN_WIDTH || box_width == AUTO || box_width < 0) {
+            box_width = 0;
+        }
+        if (box_height == UNKNOWN_WIDTH || box_height == AUTO || box_height < 0) {
+            box_height = 0;
+        }
+
+        width = box_width * scale;
+        height = box_height * scale;
         /* left and top padding values are normally zero,
          * so avoid trivial FP maths */
         padding_left = box->padding[LEFT] ? box->padding[LEFT] * scale : 0;
         padding_top = box->padding[TOP] ? box->padding[TOP] * scale : 0;
-        padding_width = (box->padding[LEFT] + box->width + box->padding[RIGHT]) * scale;
-        padding_height = (box->padding[TOP] + box->height + box->padding[BOTTOM]) * scale;
+        padding_width = (box->padding[LEFT] + box_width + box->padding[RIGHT]) * scale;
+        padding_height = (box->padding[TOP] + box_height + box->padding[BOTTOM]) * scale;
         border_left = box->border[LEFT].width * scale;
         border_top = box->border[TOP].width * scale;
         border_right = box->border[RIGHT].width * scale;
