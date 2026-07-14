@@ -201,6 +201,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/impl/dedicatedworkerglobalscope_impl.c
 	content/handlers/javascript/quickjs/impl/messageevent_impl.c
 	content/handlers/javascript/quickjs/impl/errorevent_impl.c
+	content/handlers/javascript/quickjs/impl/customevent_impl.c
 	content/handlers/javascript/quickjs/impl/eventtarget_impl.c
 	content/handlers/javascript/quickjs/impl/storage_impl.c
 	content/handlers/javascript/quickjs/impl/navigator_impl.c
