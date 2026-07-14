@@ -6,6 +6,8 @@
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include <wisp/utils/corestrings.h>
+#include <wisp/content/handlers/html/private.h>
 #include "utils/libdom.h"
 #include "JSDocument.gen.h"
 #include <dom/html/html_document.h>
@@ -37,31 +39,7 @@ JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, c
 JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
-    dom_string *head_str = NULL;
-    dom_exception exc = dom_string_create((const uint8_t *)"head", 4, &head_str);
-    if (exc != DOM_NO_ERR) return JS_NULL;
-
-    dom_nodelist *nodes = NULL;
-    exc = dom_document_get_elements_by_tag_name((dom_document *)priv->node, head_str, &nodes);
-    dom_string_unref(head_str);
-
-    if (exc == DOM_NO_ERR && nodes) {
-        uint32_t len = 0;
-        exc = dom_nodelist_get_length(nodes, &len);
-        if (exc == DOM_NO_ERR && len > 0) {
-            dom_node *node = NULL;
-            exc = dom_nodelist_item(nodes, 0, (void *)&node);
-            dom_nodelist_unref(nodes);
-            if (exc == DOM_NO_ERR && node) {
-                JSValue val = qjs_wrap_node(ctx, node);
-                dom_node_unref(node);
-                return val;
-            }
-        } else {
-            dom_nodelist_unref(nodes);
-        }
-    }
-    return JS_NULL;
+    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, "head", false);
 }
 
 JSValue wisp_document_createTextNode_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
@@ -181,6 +159,69 @@ JSValue wisp_document_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv
 {
     if (!priv || !priv->node) return JS_NULL;
     return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
+}
+
+JSValue wisp_document_defaultView_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_GetGlobalObject(ctx);
+}
+
+JSValue wisp_document_createComment_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    dom_string *data_dom = NULL;
+    dom_string_create((const uint8_t *)data, strlen(data), &data_dom);
+    struct dom_comment *result = NULL;
+    dom_document_create_comment((dom_document *)priv->node, data_dom, &result);
+    dom_string_unref(data_dom);
+    if (result) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+        dom_node_unref((dom_node *)result);
+        return val;
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_document_getElementsByName_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
+{
+    if (!priv || !priv->node || !name) return JS_NewArray(ctx);
+    size_t len = strlen(name);
+    char *selector = malloc(len + 16);
+    if (!selector) return JS_ThrowOutOfMemory(ctx);
+    sprintf(selector, "[name=\"%s\"]", name);
+    JSValue res = qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selector, true);
+    free(selector);
+    return res;
+}
+
+JSValue wisp_document_createDocumentFragment_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    struct dom_document_fragment *result = NULL;
+    dom_document_create_document_fragment((dom_document *)priv->node, &result);
+    if (result) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+        dom_node_unref((dom_node *)result);
+        return val;
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_document_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "complete");
+    html_content *htmlc = NULL;
+    dom_node_get_user_data((dom_node *)priv->node, corestring_dom___ns_key_html_content_data, (void **)&htmlc);
+    if (htmlc) {
+        if (htmlc->parse_completed) {
+            return JS_NewString(ctx, "complete");
+        } else if (htmlc->conversion_begun) {
+            return JS_NewString(ctx, "interactive");
+        } else {
+            return JS_NewString(ctx, "loading");
+        }
+    }
+    return JS_NewString(ctx, "complete");
 }
 
 int qjs_init_document(JSContext *ctx) {

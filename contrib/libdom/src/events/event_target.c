@@ -188,6 +188,18 @@ dom_exception _dom_event_target_remove_event_listener_ns(dom_event_target_intern
 
 /*-------------------------------------------------------------------------*/
 
+static bool target_has_listener(dom_event_target_internal *eti, dom_event_listener *listener, dom_string *type, bool capture)
+{
+    if (eti->listeners == NULL) return false;
+    struct listener_entry *le = eti->listeners;
+    do {
+        bool match = dom_string_isequal(le->type, type) && (le->listener == listener) && (le->capture == capture);
+        if (match) return true;
+        le = (struct listener_entry *)le->list.next;
+    } while (le != eti->listeners);
+    return false;
+}
+
 /**
  * Dispatch an event on certain EventTarget
  *
@@ -211,67 +223,53 @@ dom_exception _dom_event_target_dispatch(dom_event_target *et, dom_event_target_
             le = (struct listener_entry *)le->list.next;
         } while (le != eti->listeners);
 
-        struct listener_copy {
-            struct dom_event_listener *listener;
+        struct listener_info {
+            dom_event_listener *listener;
             dom_string *type;
             bool capture;
-        } *copied_listeners = malloc(count * sizeof(struct listener_copy));
+        } *infos = malloc(sizeof(struct listener_info) * count);
 
-        if (copied_listeners != NULL) {
-            int idx = 0;
-            le = eti->listeners;
-            do {
-                copied_listeners[idx].listener = le->listener;
-                dom_event_listener_ref(le->listener);
-                copied_listeners[idx].type = le->type;
-                dom_string_ref(le->type);
-                copied_listeners[idx].capture = le->capture;
-                idx++;
-                le = (struct listener_entry *)le->list.next;
-            } while (le != eti->listeners);
+        if (infos == NULL) return DOM_NO_MEM_ERR;
 
-            evt->current = et;
+        int i = 0;
+        le = eti->listeners;
+        do {
+            infos[i].listener = le->listener;
+            dom_event_listener_ref(le->listener);
+            infos[i].type = dom_string_ref(le->type);
+            infos[i].capture = le->capture;
+            i++;
+            le = (struct listener_entry *)le->list.next;
+        } while (le != eti->listeners);
 
-            for (int i = 0; i < count; i++) {
-                struct listener_copy curr = copied_listeners[i];
+        evt->current = et;
 
-                /* Verify that the listener is still registered on the target */
-                bool still_registered = false;
-                if (eti->listeners != NULL) {
-                    struct listener_entry *check = eti->listeners;
-                    do {
-                        if (check->listener == curr.listener &&
-                            dom_string_isequal(check->type, curr.type) &&
-                            check->capture == curr.capture) {
-                            still_registered = true;
+        for (int j = 0; j < count; j++) {
+            /* Check if the listener is still registered on the target */
+            if (target_has_listener(eti, infos[j].listener, infos[j].type, infos[j].capture)) {
+                if (dom_string_isequal(infos[j].type, evt->type)) {
+                    assert(infos[j].listener->handler != NULL);
+
+                    if ((infos[j].capture && phase == DOM_CAPTURING_PHASE) ||
+                        (infos[j].capture == false && phase == DOM_BUBBLING_PHASE) ||
+                        (evt->target == evt->current && phase == DOM_AT_TARGET)) {
+                        infos[j].listener->handler(evt, infos[j].listener->pw);
+                        /* If the handler called
+                         * stopImmediatePropagation, we should
+                         * break */
+                        if (evt->stop_now == true)
                             break;
-                        }
-                        check = (struct listener_entry *)check->list.next;
-                    } while (check != eti->listeners);
-                }
-
-                if (still_registered) {
-                    if (dom_string_isequal(curr.type, evt->type)) {
-                        assert(curr.listener->handler != NULL);
-
-                        if ((curr.capture && phase == DOM_CAPTURING_PHASE) ||
-                            (!curr.capture && phase == DOM_BUBBLING_PHASE) ||
-                            (evt->target == evt->current && phase == DOM_AT_TARGET)) {
-                            curr.listener->handler(evt, curr.listener->pw);
-                            if (evt->stop_now == true)
-                                break;
-                        }
                     }
                 }
             }
-
-            /* Cleanup refs and free */
-            for (int i = 0; i < count; i++) {
-                dom_event_listener_unref(copied_listeners[i].listener);
-                dom_string_unref(copied_listeners[i].type);
-            }
-            free(copied_listeners);
         }
+
+        /* Clean up references */
+        for (int j = 0; j < count; j++) {
+            dom_event_listener_unref(infos[j].listener);
+            dom_string_unref(infos[j].type);
+        }
+        free(infos);
     }
 
     if (evt->prevent_default == true)

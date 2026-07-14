@@ -314,6 +314,43 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     return NSERROR_OK;
 }
 
+static void html_execute_pending_sync_scripts(html_content *parent)
+{
+    unsigned int i;
+    struct html_script *s;
+    script_handler_t *script_handler;
+
+    for (i = 0; i < parent->scripts_count; i++) {
+        s = &parent->scripts[i];
+
+        if (s->type != HTML_SCRIPT_SYNC) {
+            continue;
+        }
+
+        if (s->already_started) {
+            continue;
+        }
+
+        /* If this script is not ready, we must block execution of subsequent scripts */
+        if (s->data.handle == NULL || content_get_status(s->data.handle) != CONTENT_STATUS_DONE) {
+            break;
+        }
+
+        s->already_started = true;
+
+        script_handler = select_script_handler(content_get_type(s->data.handle));
+        if (script_handler != NULL && parent->jsthread != NULL) {
+            const uint8_t *data;
+            size_t size;
+            data = content_get_source_data(s->data.handle, &size);
+
+            pthread_mutex_lock(&parent->doc_mutex);
+            script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
+            pthread_mutex_unlock(&parent->doc_mutex);
+        }
+    }
+}
+
 /**
  * Callback for syncronous scripts
  */
@@ -322,17 +359,18 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
     html_content *parent = pw;
     unsigned int i;
     struct html_script *s;
-    script_handler_t *script_handler;
     dom_hubbub_error err;
     unsigned int active_sync_scripts = 0;
     nserror ret_val = NSERROR_OK;
 
     pthread_mutex_lock(&parent->doc_mutex);
 
-    /* Count sync scripts which have yet to complete (other than us) */
+    /* Count sync scripts which have yet to complete downloading (other than us) */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
         if (s->type == HTML_SCRIPT_SYNC && s->data.handle != script && s->already_started == false) {
-            active_sync_scripts++;
+            if (s->data.handle == NULL || content_get_status(s->data.handle) != CONTENT_STATUS_DONE) {
+                active_sync_scripts++;
+            }
         }
     }
 
@@ -361,20 +399,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         parent->scripts_active--;
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 
-        s->already_started = true;
-
-        /* attempt to execute script */
-        script_handler = select_script_handler(content_get_type(s->data.handle));
-        if (script_handler != NULL && parent->jsthread != NULL) {
-            /* script has a handler */
-            const uint8_t *data;
-            size_t size;
-            data = content_get_source_data(s->data.handle, &size);
-
-            pthread_mutex_lock(&parent->doc_mutex);
-            script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
-            pthread_mutex_unlock(&parent->doc_mutex);
-        }
+        html_execute_pending_sync_scripts(parent);
 
         /* continue parse */
         if (parent->parser != NULL && active_sync_scripts == 0) {

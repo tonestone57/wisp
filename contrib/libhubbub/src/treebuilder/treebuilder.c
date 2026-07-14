@@ -936,7 +936,11 @@ hubbub_error element_stack_pop(hubbub_treebuilder *treebuilder, hubbub_ns *ns, e
 
     /** \todo reduce allocated stack size once there's enough free */
 
-    treebuilder->context.current_node = slot - 1;
+    if (slot > 0) {
+        treebuilder->context.current_node = slot - 1;
+    } else {
+        treebuilder->context.current_node = 0;
+    }
     assert((signed)treebuilder->context.current_node >= 0);
 
     return HUBBUB_OK;
