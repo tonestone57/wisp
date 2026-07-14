@@ -287,3 +287,13 @@ JSValue wisp_document_activeElement_get_impl(JSContext *ctx, QJSNodePrivate *pri
 
     return JS_NULL;
 }
+
+JSValue wisp_document_currentScript_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
+JSValue wisp_document_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewString(ctx, "complete");
+}
