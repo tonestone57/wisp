@@ -2,12 +2,30 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <pthread.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "JSCustomEvent.gen.h"
+
+struct custom_event_ctx_map {
+    void *node;
+    JSContext *ctx;
+    struct custom_event_ctx_map *next;
+};
+
+static struct custom_event_ctx_map *event_ctx_list = NULL;
+static pthread_mutex_t event_ctx_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static int JS_DeletePropertyStr(JSContext *ctx, JSValueConst obj, const char *prop) {
+    JSAtom atom = JS_NewAtom(ctx, prop);
+    if (atom == JS_ATOM_NULL) return -1;
+    int ret = JS_DeleteProperty(ctx, obj, atom, 0);
+    JS_FreeAtom(ctx, atom);
+    return ret;
+}
 
 static void save_custom_event_detail(JSContext *ctx, void *node, JSValue detail) {
     if (!node) return;
@@ -22,6 +40,17 @@ static void save_custom_event_detail(JSContext *ctx, void *node, JSValue detail)
     JS_SetPropertyStr(ctx, registry, key, JS_DupValue(ctx, detail));
     JS_FreeValue(ctx, registry);
     JS_FreeValue(ctx, global);
+
+    /* Save node -> ctx mapping */
+    pthread_mutex_lock(&event_ctx_mutex);
+    struct custom_event_ctx_map *entry = malloc(sizeof(*entry));
+    if (entry) {
+        entry->node = node;
+        entry->ctx = ctx;
+        entry->next = event_ctx_list;
+        event_ctx_list = entry;
+    }
+    pthread_mutex_unlock(&event_ctx_mutex);
 }
 
 static JSValue get_custom_event_detail(JSContext *ctx, void *node) {
@@ -40,6 +69,34 @@ static JSValue get_custom_event_detail(JSContext *ctx, void *node) {
     JS_FreeValue(ctx, registry);
     JS_FreeValue(ctx, global);
     return JS_NULL;
+}
+
+void wisp_dom_event_destroyed_hook(void *evt) {
+    if (!evt) return;
+    pthread_mutex_lock(&event_ctx_mutex);
+    struct custom_event_ctx_map **prev = &event_ctx_list;
+    struct custom_event_ctx_map *curr = event_ctx_list;
+    while (curr) {
+        if (curr->node == evt) {
+            JSContext *ctx = curr->ctx;
+            JSValue global = JS_GetGlobalObject(ctx);
+            JSValue registry = JS_GetPropertyStr(ctx, global, "__custom_event_details");
+            if (JS_IsObject(registry)) {
+                char key[64];
+                snprintf(key, sizeof(key), "%p", evt);
+                JS_DeletePropertyStr(ctx, registry, key);
+            }
+            JS_FreeValue(ctx, registry);
+            JS_FreeValue(ctx, global);
+
+            *prev = curr->next;
+            free(curr);
+            break;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
+    pthread_mutex_unlock(&event_ctx_mutex);
 }
 
 JSValue wisp_customevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
