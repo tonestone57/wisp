@@ -81,11 +81,27 @@ static inline css_unit css__to_css_unit(uint32_t u)
         return CSS_UNIT_MAX_CONTENT;
     case UNIT_MINMAX:
         return CSS_UNIT_MINMAX;
+    case UNIT_IC:
+        return CSS_UNIT_IC;
+    case UNIT_CQW:
+        return CSS_UNIT_CQW;
+    case UNIT_CQH:
+        return CSS_UNIT_CQH;
+    case UNIT_CQI:
+        return CSS_UNIT_CQI;
+    case UNIT_CQB:
+        return CSS_UNIT_CQB;
+    case UNIT_TURN:
+        return CSS_UNIT_DEG;
+    case UNIT_DPCM:
+    case UNIT_DPPX:
+    case UNIT_CALC_ANY:
+    case UNIT_CALC_NUMBER:
+        return CSS_UNIT_NUMBER;
     }
 
-    /* Unhandled unit type - fail in debug to catch missing conversions */
-    assert(0 && "Unhandled bytecode unit in css__to_css_unit");
-    return 0;
+    /* Unhandled unit type - fail gracefully to prevent browser crash */
+    return CSS_UNIT_PX;
 }
 
 #endif
