@@ -58,6 +58,42 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_node_stubs)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *script =
+        "var parent = document.createElement('div');\n"
+        "var child1 = document.createElement('span');\n"
+        "var child2 = document.createElement('p');\n"
+        "parent.appendChild(child1);\n"
+        "parent.appendChild(child2);\n"
+        "var children = parent.childNodes;\n"
+        "var childrenOk = children.length === 2 && children[0] === child1 && children[1] === child2;\n"
+        "var baseURIOk = parent.baseURI !== null;\n"
+        "var lookupOk = typeof parent.lookupPrefix === 'function' && typeof parent.lookupNamespaceURI === 'function' && typeof parent.isDefaultNamespace === 'function';\n"
+        "childrenOk && baseURIOk && lookupOk;";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_node_stubs");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_aot_cache)
 {
     jsheap *heap = NULL;
@@ -1514,6 +1550,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_crypto);
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
+    tcase_add_test(tc_window, test_quickjs_node_stubs);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_trusted_types);

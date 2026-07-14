@@ -14,7 +14,8 @@
 #include <wisp/utils/nsurl.h>
 #include <libwapcaplet/libwapcaplet.h>
 
-extern struct nsurl *content_get_url(void *c);
+struct content;
+extern struct nsurl *content_get_url(struct content *c);
 #include "JSEvent.gen.h"
 #include "JSCustomEvent.gen.h"
 #include "JSMessageEvent.gen.h"
@@ -332,9 +333,4 @@ JSValue wisp_document_activeElement_get_impl(JSContext *ctx, QJSNodePrivate *pri
 JSValue wisp_document_currentScript_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return JS_NULL;
-}
-
-JSValue wisp_document_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_NewString(ctx, "complete");
 }
