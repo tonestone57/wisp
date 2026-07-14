@@ -243,9 +243,8 @@ static void xhr_callback(const struct fetch_msg *msg, void *p)
     }
 
     if (is_terminal) {
-        xhr_remove_active(xhr->ctx, xhr);
-        xhr->fetch_handle = NULL;
-        xhr_set_ready_state(xhr, 4); /* DONE */
+        xhr_set_ready_state(xhr, 4); /* DONE - protected from GC during dispatch */
+        xhr_remove_active(xhr->ctx, xhr); /* Unprotect now that callbacks are complete */
     }
 }
 
