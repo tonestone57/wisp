@@ -99,8 +99,8 @@ int main(int argc, char **argv) {
 
     corestrings_init();
     nsoption_init(NULL, NULL, NULL);
+    fetch_use_ipc = false;
     fetcher_init();
-    fetch_curl_register();
 
     while (1) {
         struct timeval tv = {0, 10000}; // 10ms

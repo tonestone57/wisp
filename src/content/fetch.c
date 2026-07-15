@@ -105,6 +105,8 @@ struct fetch {
 static struct fetch *fetch_ring = NULL; /**< Ring of active fetches. */
 static struct fetch *queue_ring = NULL; /**< Ring of queued fetches */
 
+bool fetch_use_ipc = true;
+
 /******************************************************************************
  * fetch internals							      *
  ******************************************************************************/
@@ -277,10 +279,17 @@ nserror fetcher_init(void)
     /* For multi-process isolation, the main process registers the IPC fetcher.
      * The network process (wisp-network) will explicitly override this by calling
      * fetch_curl_register() directly in main(). */
-    ret = fetch_ipc_register();
+    ret = NSERROR_NOT_FOUND;
+    if (fetch_use_ipc) {
+        ret = fetch_ipc_register();
+    }
     if (ret != NSERROR_OK) {
         extern nserror fetch_curl_register(void);
-        NSLOG(wisp, WARNING, "fetch_ipc_register failed, falling back to in-process curl fetcher");
+        if (fetch_use_ipc) {
+            NSLOG(wisp, WARNING, "fetch_ipc_register failed, falling back to in-process curl fetcher");
+        } else {
+            NSLOG(wisp, INFO, "IPC fetcher bypassed, using in-process curl fetcher");
+        }
         ret = fetch_curl_register();
         if (ret != NSERROR_OK) {
             return ret;
