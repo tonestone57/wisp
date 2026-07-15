@@ -25,9 +25,15 @@ extern struct wisp_table *guit;
 
 static wisp_ipc_handle *ipc_main;
 
+struct network_fetch_info {
+    uint32_t fetch_id;
+    struct fetch *fetchh;
+};
+
 static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     wisp_ipc_msg imsg;
-    uint32_t fetch_id = (uint32_t)(uintptr_t)p;
+    struct network_fetch_info *info = p;
+    uint32_t fetch_id = info->fetch_id;
 
     switch (msg->type) {
         case FETCH_HEADER:
@@ -52,12 +58,28 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         case FETCH_FINISHED:
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
-            imsg.length = 4;
-            imsg.data = malloc(4);
+            imsg.length = 8;
+            imsg.data = malloc(8);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
+            uint32_t http_code = (uint32_t)fetch_http_code(info->fetchh);
+            memcpy(imsg.data + 4, &http_code, 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
+            free(info);
+            break;
+        case FETCH_REDIRECT:
+            imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
+            imsg.length = 4 + 4 + strlen(msg->data.redirect) + 1;
+            imsg.data = malloc(imsg.length);
+            if (!imsg.data) return;
+            memcpy(imsg.data, &fetch_id, 4);
+            uint32_t redirect_http_code = (uint32_t)fetch_http_code(info->fetchh);
+            memcpy(imsg.data + 4, &redirect_http_code, 4);
+            memcpy((char*)imsg.data + 8, msg->data.redirect, strlen(msg->data.redirect) + 1);
+            wisp_ipc_send(ipc_main, &imsg);
+            free(imsg.data);
+            free(info);
             break;
         case FETCH_ERROR:
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
@@ -68,6 +90,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy((char*)imsg.data + 4, msg->data.error, imsg.length - 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
+            free(info);
             break;
         default:
             break;
@@ -106,13 +129,18 @@ int main(int argc, char **argv) {
     fetch_use_ipc = false;
     fetcher_init();
 
+    fprintf(stderr, "WISP-NETWORK: Process started, connecting...\n");
     while (1) {
         struct timeval tv = {0, 10000}; // 10ms
 
         wisp_ipc_msg msg;
         nserror err = wisp_ipc_recv(ipc_main, &msg);
 
+        if (err != NSERROR_NOT_FOUND) {
+            fprintf(stderr, "WISP-NETWORK: recv returned %d\n", err);
+        }
         if (err == NSERROR_OK) {
+            fprintf(stderr, "WISP-NETWORK: Received message of type %d, length %d\n", msg.type, msg.length);
             if (msg.type == WISP_IPC_MSG_FETCH_REQUEST) {
                 uint32_t fetch_id;
                 uint32_t url_len;
@@ -129,9 +157,18 @@ int main(int argc, char **argv) {
                             if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
                                 bool only_2xx = (msg.data[8 + url_len] != 0);
                                 bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
-                                struct fetch *f_out;
-                                fetch_start(url, NULL, network_process_fetch_callback, (void*)(uintptr_t)fetch_id,
-                                            only_2xx, NULL, true, downgrade_tls, NULL, &f_out);
+                                struct network_fetch_info *info = malloc(sizeof(*info));
+                                if (info) {
+                                    info->fetch_id = fetch_id;
+                                    info->fetchh = NULL;
+                                    struct fetch *f_out = NULL;
+                                    if (fetch_start(url, NULL, network_process_fetch_callback, info,
+                                                    only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
+                                        info->fetchh = f_out;
+                                    } else {
+                                        free(info);
+                                    }
+                                }
                                 nsurl_unref(url);
                             } else {
                                 /* Immediately report error to avoid hanging the browser fetcher */
