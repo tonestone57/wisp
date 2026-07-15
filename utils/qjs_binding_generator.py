@@ -611,6 +611,7 @@ class QuickJSBindingGenerator:
             c_code += f"            dom_event_unref((dom_event *)priv->node);\n"
         else:
             c_code += f"            if (priv->is_dom_node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
+            c_code += f"            if (priv->is_dom_node) dom_node_unref((dom_node *)priv->node);\n"
         c_code += f"        }}\n"
         c_code += f"        free(priv);\n"
         c_code += f"    }}\n}}\n\n"
