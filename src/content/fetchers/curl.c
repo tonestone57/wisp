@@ -1172,30 +1172,29 @@ static CURLcode fetch_curl_set_postdata(struct curl_fetch_info *f)
         SETOPT(CURLOPT_POSTFIELDS, NULL);
         SETOPT(NSCURL_POSTDATA_CURLOPT, NULL);
         SETOPT(CURLOPT_HTTPGET, 1L);
-        return code;
-    }
+    } else {
+        switch (f->postdata->type) {
+        case FETCH_POSTDATA_NONE:
+            SETOPT(CURLOPT_POSTFIELDS, NULL);
+            SETOPT(NSCURL_POSTDATA_CURLOPT, NULL);
+            SETOPT(CURLOPT_HTTPGET, 1L);
+            break;
 
-    switch (f->postdata->type) {
-    case FETCH_POSTDATA_NONE:
-        SETOPT(CURLOPT_POSTFIELDS, NULL);
-        SETOPT(NSCURL_POSTDATA_CURLOPT, NULL);
-        SETOPT(CURLOPT_HTTPGET, 1L);
-        break;
+        case FETCH_POSTDATA_URLENC:
+            SETOPT(NSCURL_POSTDATA_CURLOPT, NULL);
+            SETOPT(CURLOPT_HTTPGET, 0L);
+            SETOPT(CURLOPT_POSTFIELDS, f->postdata->data.urlenc);
+            break;
 
-    case FETCH_POSTDATA_URLENC:
-        SETOPT(NSCURL_POSTDATA_CURLOPT, NULL);
-        SETOPT(CURLOPT_HTTPGET, 0L);
-        SETOPT(CURLOPT_POSTFIELDS, f->postdata->data.urlenc);
-        break;
-
-    case FETCH_POSTDATA_MULTIPART:
-        SETOPT(CURLOPT_POSTFIELDS, NULL);
-        SETOPT(CURLOPT_HTTPGET, 0L);
-        if (f->curl_postdata == NULL) {
-            f->curl_postdata = fetch_curl_postdata_convert(f->curl_handle, f->postdata->data.multipart);
+        case FETCH_POSTDATA_MULTIPART:
+            SETOPT(CURLOPT_POSTFIELDS, NULL);
+            SETOPT(CURLOPT_HTTPGET, 0L);
+            if (f->curl_postdata == NULL) {
+                f->curl_postdata = fetch_curl_postdata_convert(f->curl_handle, f->postdata->data.multipart);
+            }
+            SETOPT(NSCURL_POSTDATA_CURLOPT, f->curl_postdata);
+            break;
         }
-        SETOPT(NSCURL_POSTDATA_CURLOPT, f->curl_postdata);
-        break;
     }
     return code;
 }
