@@ -17,7 +17,7 @@
 #include <wisp/wisp.h>
 #include <wisp/fetch.h>
 
-struct wisp_table *guit;
+extern struct wisp_table *guit;
 
 static wisp_ipc_handle *ipc_main;
 
