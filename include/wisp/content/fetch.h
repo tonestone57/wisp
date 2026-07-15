@@ -314,4 +314,6 @@ void fetch_set_cookie(struct fetch *fetch, const char *data);
  */
 nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd_set, int *maxfd);
 
+extern bool fetch_use_ipc;
+
 #endif

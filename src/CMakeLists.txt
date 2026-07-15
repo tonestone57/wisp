@@ -363,6 +363,10 @@ endif()
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)
 
+install(TARGETS wisp-network wisp-js
+	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+)
+
 if(NOT WIN32)
 install(TARGETS wisp
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
