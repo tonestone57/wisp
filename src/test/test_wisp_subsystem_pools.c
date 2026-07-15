@@ -240,9 +240,14 @@ START_TEST(test_tile_pool_compressed_cache)
     ck_assert_ptr_nonnull(decompressed_ret);
 
     // Verify integrity of decompressed data
+    bool data_integrity_ok = true;
     for (int i = 0; i < 512 * 512 * 4; i++) {
-        ck_assert_int_eq(((uint8_t *)decompressed_ret)[i], (uint8_t)(i % 256));
+        if (((uint8_t *)decompressed_ret)[i] != (uint8_t)(i % 256)) {
+            data_integrity_ok = false;
+            break;
+        }
     }
+    ck_assert_int_eq(data_integrity_ok, true);
 
     // Put it back in the cache
     tile_pool_put_cached(owner, 100, 100, 512, decompressed_ret, 1.0f);
