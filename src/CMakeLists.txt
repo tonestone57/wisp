@@ -337,22 +337,11 @@ target_include_directories(wisp PRIVATE
 # Multi-process executables
 add_executable(wisp-network
     processes/network/main.c
-    utils/ipc.c
-    utils/log.c
-    utils/nsoption.c
-    utils/messages.c
-    utils/corestrings.c
-    utils/utils.c
-    utils/utf8.c
-    utils/hashtable.c
 )
 target_link_libraries(wisp-network wisp ${WISP_COMMON_LIBS})
 
 add_executable(wisp-js
     processes/js/main.c
-    utils/ipc.c
-    utils/log.c
-    utils/utils.c
 )
 target_link_libraries(wisp-js wisp ${WISP_COMMON_LIBS})
 

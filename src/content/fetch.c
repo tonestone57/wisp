@@ -875,6 +875,8 @@ nserror fetch_pipeline_start(struct fetch_request *req, fetch_pipeline_callback 
        We map verifiable=true for no_cache to bypass some internal persistence. */
     res = fetch_start(req->url, NULL, fetch_pipeline_callback_wrapper, ctx, false, &post, req->no_cache, false, req->headers, &ctx->f);
     if (res != NSERROR_OK) {
+        free(ctx->body_data);
+        free(ctx->header_data);
         free(ctx);
         return res;
     }
