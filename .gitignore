@@ -10,3 +10,4 @@ contrib/libavif/*
 !contrib/libavif/LICENSE
 !contrib/libavif/README.md
 test_cache/
+*.log
