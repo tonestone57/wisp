@@ -23,6 +23,7 @@
 
 #include <wisp/utils/config.h>
 
+#include <pthread.h>
 #include <assert.h>
 #include <ctype.h>
 #include <stdint.h>
@@ -313,11 +314,15 @@ static void html_css_process_modified_styles(void *pw)
     unsigned int i;
     bool all_done = true;
 
+    pthread_mutex_lock(&c->doc_mutex);
+
     for (i = 0, s = c->stylesheets; i != c->stylesheet_count; i++, s++) {
         if (c->stylesheets[i].modified) {
             all_done &= html_css_process_modified_style(c, s);
         }
     }
+
+    pthread_mutex_unlock(&c->doc_mutex);
 
     /* If we failed to process any sheet, schedule a retry */
     if (all_done == false) {
@@ -332,6 +337,8 @@ bool html_css_update_style(html_content *c, dom_node *style)
     unsigned int i;
     struct html_stylesheet *s;
 
+    pthread_mutex_lock(&c->doc_mutex);
+
     /* Find sheet */
     for (i = 0, s = c->stylesheets; i != c->stylesheet_count; i++, s++) {
         if (s->node == style)
@@ -342,12 +349,15 @@ bool html_css_update_style(html_content *c, dom_node *style)
     }
     if (s == NULL) {
         NSLOG(wisp, INFO, "Could not find or create inline stylesheet for %p", style);
+        pthread_mutex_unlock(&c->doc_mutex);
         return false;
     }
 
     s->modified = true;
 
     guit->misc->schedule(0, html_css_process_modified_styles, c);
+
+    pthread_mutex_unlock(&c->doc_mutex);
 
     return true;
 }
