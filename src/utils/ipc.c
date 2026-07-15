@@ -384,6 +384,10 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
     if (access(out_path, X_OK) == 0) {
         return true;
     }
+    snprintf(out_path, out_len, "./build/src/%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
 
     // 3. Try standard installation paths
     snprintf(out_path, out_len, "/usr/local/bin/%s", name);

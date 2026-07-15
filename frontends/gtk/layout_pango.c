@@ -25,6 +25,7 @@
 
 
 #include <gtk/gtk.h>
+#include <pango/pangocairo.h>
 #include <assert.h>
 #include <stdio.h>
 
@@ -390,6 +391,7 @@ void nsfont_finalise(void)
         g_object_unref(nsfont_pango_context);
         nsfont_pango_context = NULL;
     }
+    pango_cairo_font_map_set_default(NULL);
 }
 
 static struct gui_layout_table layout_table = {
