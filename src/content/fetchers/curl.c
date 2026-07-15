@@ -607,8 +607,10 @@ static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_
     }
 
     /* And add any headers specified by the caller */
-    for (i = 0; headers[i] != NULL; i++) {
-        APPEND(fetch->headers, headers[i]);
+    if (headers != NULL) {
+        for (i = 0; headers[i] != NULL; i++) {
+            APPEND(fetch->headers, headers[i]);
+        }
     }
 
     return fetch;
