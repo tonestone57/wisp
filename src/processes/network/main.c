@@ -28,11 +28,50 @@ static wisp_ipc_handle *ipc_main;
 struct network_fetch_info {
     uint32_t fetch_id;
     struct fetch *fetchh;
+    bool finished;
+    struct network_fetch_info *next;
 };
+
+static struct network_fetch_info *active_fetches_list = NULL;
+
+static bool is_active_fetch(struct network_fetch_info *info) {
+    struct network_fetch_info *curr = active_fetches_list;
+    while (curr) {
+        if (curr == info) {
+            return true;
+        }
+        curr = curr->next;
+    }
+    return false;
+}
+
+static void cleanup_finished_fetches(void) {
+    struct network_fetch_info *curr = active_fetches_list;
+    struct network_fetch_info *prev = NULL;
+    while (curr != NULL) {
+        struct network_fetch_info *next = curr->next;
+        if (curr->finished) {
+            if (prev == NULL) {
+                active_fetches_list = next;
+            } else {
+                prev->next = next;
+            }
+            free(curr);
+        } else {
+            prev = curr;
+        }
+        curr = next;
+    }
+}
 
 static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     wisp_ipc_msg imsg;
     struct network_fetch_info *info = p;
+
+    if (!is_active_fetch(info)) {
+        return;
+    }
+
     uint32_t fetch_id = info->fetch_id;
 
     switch (msg->type) {
@@ -62,11 +101,11 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             imsg.data = malloc(8);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            uint32_t http_code = (uint32_t)fetch_http_code(info->fetchh);
+            uint32_t http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
             memcpy(imsg.data + 4, &http_code, 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            free(info);
+            info->finished = true;
             break;
         case FETCH_REDIRECT:
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
@@ -74,12 +113,12 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            uint32_t redirect_http_code = (uint32_t)fetch_http_code(info->fetchh);
+            uint32_t redirect_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 302;
             memcpy(imsg.data + 4, &redirect_http_code, 4);
             memcpy((char*)imsg.data + 8, msg->data.redirect, strlen(msg->data.redirect) + 1);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            free(info);
+            info->finished = true;
             break;
         case FETCH_ERROR:
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
@@ -90,7 +129,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy((char*)imsg.data + 4, msg->data.error, imsg.length - 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            free(info);
+            info->finished = true;
             break;
         default:
             break;
@@ -161,11 +200,15 @@ int main(int argc, char **argv) {
                                 if (info) {
                                     info->fetch_id = fetch_id;
                                     info->fetchh = NULL;
+                                    info->finished = false;
+                                    info->next = active_fetches_list;
+                                    active_fetches_list = info;
                                     struct fetch *f_out = NULL;
                                     if (fetch_start(url, NULL, network_process_fetch_callback, info,
                                                     only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
                                         info->fetchh = f_out;
                                     } else {
+                                        active_fetches_list = info->next;
                                         free(info);
                                     }
                                 }
@@ -237,6 +280,7 @@ int main(int argc, char **argv) {
         }
 
         fetch_poll_all();
+        cleanup_finished_fetches();
 #ifdef _WIN32
         Sleep(10);
 #else
