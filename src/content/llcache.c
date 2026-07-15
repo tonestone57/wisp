@@ -496,22 +496,32 @@ static nserror llcache_fetch_split_header(const uint8_t *data, size_t len, char 
     char *n, *v;
     const uint8_t *colon;
 
+    size_t i = 0;
     /* Strip leading whitespace from name */
-    while (data[0] == ' ' || data[0] == '\t' || data[0] == '\r' || data[0] == '\n') {
-        data++;
+    while (i < len && (data[i] == ' ' || data[i] == '\t' || data[i] == '\r' || data[i] == '\n')) {
+        i++;
     }
+    data += i;
+    len -= i;
 
     /* Find colon */
-    colon = (const uint8_t *)strchr((const char *)data, ':');
+    colon = NULL;
+    for (size_t j = 0; j < len; j++) {
+        if (data[j] == ':') {
+            colon = data + j;
+            break;
+        }
+    }
+
     if (colon == NULL) {
         /* Failed, assume a key with no value */
-        colon = data + strlen((const char *)data);
+        const uint8_t *end = data + len;
 
         /* Strip trailing whitespace from name */
-        while ((colon > data) && (colon[-1] == ' ' || colon[-1] == '\t' || colon[-1] == '\r' || colon[-1] == '\n')) {
-            colon--;
+        while ((end > data) && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) {
+            end--;
         }
-        n = strndup((const char *)data, colon - data);
+        n = strndup((const char *)data, end - data);
         if (n == NULL)
             return NSERROR_NOMEM;
 
@@ -522,32 +532,29 @@ static nserror llcache_fetch_split_header(const uint8_t *data, size_t len, char 
         }
     } else {
         /* Split header into name & value */
+        const uint8_t *name_end = colon;
 
         /* Strip trailing whitespace from name */
-        while (colon > data && (colon[-1] == ' ' || colon[-1] == '\t' || colon[-1] == '\r' || colon[-1] == '\n'))
-            colon--;
+        while (name_end > data && (name_end[-1] == ' ' || name_end[-1] == '\t' || name_end[-1] == '\r' || name_end[-1] == '\n'))
+            name_end--;
 
-        n = strndup((const char *)data, colon - data);
+        n = strndup((const char *)data, name_end - data);
         if (n == NULL)
             return NSERROR_NOMEM;
 
-        /* Find colon again */
-        while (*colon != ':') {
-            colon++;
-        }
-
         /* Skip over colon and any subsequent whitespace */
-        do {
-            colon++;
-        } while (*colon == ' ' || *colon == '\t' || *colon == '\r' || *colon == '\n');
+        const uint8_t *val_start = colon + 1;
+        const uint8_t *end = data + len;
+        while (val_start < end && (*val_start == ' ' || *val_start == '\t' || *val_start == '\r' || *val_start == '\n')) {
+            val_start++;
+        }
 
         /* Strip trailing whitespace from value */
-        while (len > 0 &&
-            (data[len - 1] == ' ' || data[len - 1] == '\t' || data[len - 1] == '\r' || data[len - 1] == '\n')) {
-            len--;
+        while (end > val_start && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) {
+            end--;
         }
 
-        v = strndup((const char *)colon, len - (colon - data));
+        v = strndup((const char *)val_start, end - val_start);
         if (v == NULL) {
             free(n);
             return NSERROR_NOMEM;
