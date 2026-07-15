@@ -550,5 +550,10 @@ int main(int argc, char **argv)
     /* And free any monkey-specific bits */
     monkey_free_handlers();
 
+    if (monkey_get_critical_error_count() > 0) {
+        fprintf(stderr, "[FATAL] Headless execution encountered terminal errors.\n");
+        return 1; // Non-zero indicates failure to the AI agent
+    }
+
     return 0;
 }

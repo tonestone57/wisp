@@ -31,5 +31,6 @@ enum monkey_output_type {
 };
 
 int moutf(enum monkey_output_type mout_type, const char *fmt, ...);
+int monkey_get_critical_error_count(void);
 
 #endif
