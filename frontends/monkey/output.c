@@ -35,11 +35,17 @@ static const char *type_text[] = {
     "PLOT",
 };
 
+static int critical_error_count = 0;
+
 /* exported interface documented in monkey/output.h */
 int moutf(enum monkey_output_type mout_type, const char *fmt, ...)
 {
     va_list ap;
     int res;
+
+    if (mout_type == MOUT_ERROR || mout_type == MOUT_DIE) {
+        critical_error_count++;
+    }
 
     res = fprintf(stdout, "%s ", type_text[mout_type]);
 
@@ -50,4 +56,9 @@ int moutf(enum monkey_output_type mout_type, const char *fmt, ...)
     fputc('\n', stdout);
 
     return res + 1;
+}
+
+int monkey_get_critical_error_count(void)
+{
+    return critical_error_count;
 }
