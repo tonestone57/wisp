@@ -94,6 +94,86 @@ START_TEST(test_quickjs_node_stubs)
 }
 END_TEST
 
+START_TEST(test_quickjs_dom_parser)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test DOMParser constructor, XML parsing, HTML parsing, error handling and MIME validation */
+    const char *code =
+        "try {\n"
+        "  if (typeof DOMParser !== 'function') throw 'DOMParser missing';\n"
+        "  var parser = new DOMParser();\n"
+        "  if (!parser) throw 'failed to instantiate';\n"
+        "\n"
+        "  // 1. Well-formed XML parsing\n"
+        "  var xmlDoc = parser.parseFromString('<root><child id=\"c1\">hello</child></root>', 'text/xml');\n"
+        "  if (!xmlDoc) throw 'failed to parse XML';\n"
+        "  var child = xmlDoc.getElementById('c1');\n"
+        "  if (!child) throw 'getElementById failed on XML';\n"
+        "  if (child.tagName !== 'child') throw 'incorrect child tag';\n"
+        "\n"
+        "  // 2. Spec-compliant XML parsing error handling (<parsererror>)\n"
+        "  var badXmlDoc = parser.parseFromString('<root><unclosed></root>', 'text/xml');\n"
+        "  if (!badXmlDoc) throw 'failed to parse bad XML';\n"
+        "  var parsererror = badXmlDoc.documentElement;\n"
+        "  if (!parsererror || parsererror.tagName !== 'parsererror') throw 'parsererror element missing';\n"
+        "\n"
+        "  // 3. Successful HTML parsing\n"
+        "  var htmlDoc = parser.parseFromString('<html><body><div id=\"h1\">world</div></body></html>', 'text/html');\n"
+        "  if (!htmlDoc) throw 'failed to parse HTML';\n"
+        "  var div = htmlDoc.getElementById('h1');\n"
+        "  if (!div) throw 'getElementById failed on HTML';\n"
+        "  if (div.tagName.toLowerCase() !== 'div') throw 'incorrect HTML tag';\n"
+        "\n"
+        "  // 4. Rejection of unsupported MIME types\n"
+        "  var threw = false;\n"
+        "  try {\n"
+        "    parser.parseFromString('hello', 'image/png');\n"
+        "  } catch (e) {\n"
+        "    threw = true;\n"
+        "  }\n"
+        "  if (!threw) throw 'unsupported MIME type did not throw';\n"
+        "} catch(e) {\n"
+        "  console.log('TEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_DOMParser", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\\n--- EXCEPTION: %s ---\\n\\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    corestrings_fini();
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_aot_cache)
 {
     jsheap *heap = NULL;
@@ -1569,6 +1649,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_location);
     tcase_add_test(tc_window, test_quickjs_document);
     tcase_add_test(tc_window, test_quickjs_storage);
+    tcase_add_test(tc_window, test_quickjs_dom_parser);
     tcase_add_test(tc_window, test_quickjs_event_target_basic);
     tcase_add_test(tc_window, test_quickjs_event_target_full);
     tcase_add_test(tc_window, test_quickjs_xhr);
