@@ -73,7 +73,12 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
         memcpy(msg.data + 8, url_access, url_len);
         msg.data[8 + url_len] = only_2xx ? 1 : 0;
         msg.data[8 + url_len + 1] = downgrade_tls ? 1 : 0;
-        wisp_ipc_send(ipc_network, &msg);
+        nserror send_err = wisp_ipc_send(ipc_network, &msg);
+        if (send_err != NSERROR_OK) {
+            NSLOG(wisp, ERROR, "wisp_ipc_send failed with error %d", send_err);
+        } else {
+            NSLOG(wisp, DEBUG, "wisp_ipc_send succeeded for fetch_id %u", f->id);
+        }
         free(msg.data);
     }
 
@@ -111,7 +116,9 @@ static void fetch_ipc_poll(lwc_string *scheme) {
     if (!ipc_network) return;
 
     wisp_ipc_msg msg;
-    while (wisp_ipc_recv(ipc_network, &msg) == NSERROR_OK) {
+    nserror err;
+    while ((err = wisp_ipc_recv(ipc_network, &msg)) == NSERROR_OK) {
+        NSLOG(wisp, DEBUG, "fetch_ipc_poll: Received message of type %d, length %d", msg.type, msg.length);
         if (msg.length < 4) {
             wisp_ipc_msg_free(&msg);
             continue;
@@ -140,6 +147,27 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     break;
                 case WISP_IPC_MSG_FETCH_FINISHED:
                     fmsg.type = FETCH_FINISHED;
+                    if (msg.length >= 8) {
+                        uint32_t http_code;
+                        memcpy(&http_code, msg.data + 4, 4);
+                        fetch_set_http_code(f->fetchh, (long)http_code);
+                    }
+                    fetch_send_callback(&fmsg, f->fetchh);
+                    f->finished = true;
+                    break;
+                case WISP_IPC_MSG_FETCH_REDIRECT:
+                    fmsg.type = FETCH_REDIRECT;
+                    if (msg.length >= 8) {
+                        uint32_t http_code;
+                        memcpy(&http_code, msg.data + 4, 4);
+                        fetch_set_http_code(f->fetchh, (long)http_code);
+                    }
+                    if (msg.length > 8) {
+                        msg.data[msg.length - 1] = '\0';
+                        fmsg.data.redirect = (char*)msg.data + 8;
+                    } else {
+                        fmsg.data.redirect = "";
+                    }
                     fetch_send_callback(&fmsg, f->fetchh);
                     f->finished = true;
                     break;
@@ -160,6 +188,9 @@ static void fetch_ipc_poll(lwc_string *scheme) {
             }
         }
         wisp_ipc_msg_free(&msg);
+    }
+    if (err != NSERROR_NOT_FOUND) {
+        NSLOG(wisp, ERROR, "fetch_ipc_poll: recv returned error %d", err);
     }
 }
 
