@@ -2,7 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <sys/select.h>
+#endif
 #include <wisp/utils/ipc.h>
 #include <wisp/utils/log.h>
 #include <wisp/content/fetch.h>
@@ -196,7 +200,11 @@ int main(int argc, char **argv) {
         }
 
         fetch_poll_all();
+#ifdef _WIN32
+        Sleep(10);
+#else
         select(0, NULL, NULL, NULL, &tv);
+#endif
     }
 
     wisp_ipc_destroy(ipc_main);

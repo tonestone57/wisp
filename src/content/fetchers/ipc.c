@@ -167,6 +167,20 @@ static bool fetch_ipc_can_fetch(const nsurl *url) {
     return nsurl_has_component(url, NSURL_HOST);
 }
 
+static void fetch_ipc_finalise(lwc_string *scheme) {
+    if (ipc_network) {
+        wisp_ipc_destroy(ipc_network);
+        ipc_network = NULL;
+    }
+    struct ipc_fetch_info *curr = active_fetches;
+    while (curr) {
+        struct ipc_fetch_info *next = curr->next;
+        free(curr);
+        curr = next;
+    }
+    active_fetches = NULL;
+}
+
 nserror fetch_ipc_register(void) {
     char exec_path[256];
     if (!wisp_ipc_find_executable("wisp-network", exec_path, sizeof(exec_path))) {
@@ -181,7 +195,7 @@ nserror fetch_ipc_register(void) {
         .abort = fetch_ipc_abort,
         .free = fetch_ipc_free,
         .poll = fetch_ipc_poll,
-        .finalise = NULL
+        .finalise = fetch_ipc_finalise
     };
     fetcher_add(lwc_string_ref(corestring_lwc_http), &fetcher_ops);
     fetcher_add(lwc_string_ref(corestring_lwc_https), &fetcher_ops);

@@ -1,4 +1,5 @@
 #include "wisp/utils/ipc.h"
+#include "wisp/utils/utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
