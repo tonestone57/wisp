@@ -1223,6 +1223,10 @@ static void nsgtk_finalise(void)
         warning_builder = NULL;
     }
 
+    while (gtk_events_pending()) {
+        gtk_main_iteration();
+    }
+
     nsfont_finalise();
 
     FcFini();
@@ -1311,4 +1315,18 @@ int main(int argc, char **argv)
     }
 
     return 0;
+}
+
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((used))
+#endif
+const char *__lsan_default_suppressions(void)
+{
+    return "leak:libfontconfig\n"
+           "leak:libglib\n"
+           "leak:libpango\n"
+           "leak:libgtk\n"
+           "leak:libcairo\n"
+           "leak:libgobject\n"
+           "leak:gdk_pango\n";
 }
