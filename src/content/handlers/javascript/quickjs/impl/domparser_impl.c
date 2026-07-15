@@ -112,9 +112,10 @@ static JSValue parse_xml_to_js_document(JSContext *ctx, const char *input_str)
         return wrap;
     }
 
-    // Success!
-    // Increment reference count to take ownership before destroying parser
-    dom_node_ref((dom_node *)doc);
+    // Success! Wrap the document first to secure its reference count
+    JSValue wrap = qjs_wrap_node(ctx, (dom_node *)doc);
+
+    // Safely destroy the parser now
     dom_xml_parser_destroy(parser);
 
     struct jsthread *t = JS_GetContextOpaque(ctx);
@@ -122,7 +123,7 @@ static JSValue parse_xml_to_js_document(JSContext *ctx, const char *input_str)
         dom_node_set_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, t->doc_priv, NULL, NULL);
     }
 
-    JSValue wrap = qjs_wrap_node(ctx, (dom_node *)doc);
+    // Release our original reference (since wrap holds its own reference)
     dom_node_unref((dom_node *)doc);
     return wrap;
 }
@@ -156,8 +157,10 @@ static JSValue parse_html_to_js_document(JSContext *ctx, const char *input_str)
         return JS_ThrowInternalError(ctx, "DOMParser.parseFromString: HTML parsing failed");
     }
 
-    // Increment reference count to take ownership before destroying parser
-    dom_node_ref((dom_node *)doc);
+    // Wrap the document first to secure its reference count
+    JSValue wrap = qjs_wrap_node(ctx, (dom_node *)doc);
+
+    // Safely destroy the parser now
     dom_hubbub_parser_destroy(parser);
 
     struct jsthread *t = JS_GetContextOpaque(ctx);
@@ -165,7 +168,7 @@ static JSValue parse_html_to_js_document(JSContext *ctx, const char *input_str)
         dom_node_set_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, t->doc_priv, NULL, NULL);
     }
 
-    JSValue wrap = qjs_wrap_node(ctx, (dom_node *)doc);
+    // Release our original reference (since wrap holds its own reference)
     dom_node_unref((dom_node *)doc);
     return wrap;
 }
