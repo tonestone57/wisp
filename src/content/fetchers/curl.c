@@ -1168,6 +1168,13 @@ static CURLcode fetch_curl_set_postdata(struct curl_fetch_info *f)
             return code;                                                                                               \
     }
 
+    if (f->postdata == NULL) {
+        SETOPT(CURLOPT_POSTFIELDS, NULL);
+        SETOPT(NSCURL_POSTDATA_CURLOPT, NULL);
+        SETOPT(CURLOPT_HTTPGET, 1L);
+        return code;
+    }
+
     switch (f->postdata->type) {
     case FETCH_POSTDATA_NONE:
         SETOPT(CURLOPT_POSTFIELDS, NULL);
