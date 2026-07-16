@@ -5169,21 +5169,23 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 			margin[TOP] = 0;
 		if (margin[BOTTOM] == AUTO)
 			margin[BOTTOM] = 0;
-		bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+		int h = (height == AUTO) ? 0 : height;
+		bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - h -
 			padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 	} else if (top != AUTO && height != AUTO && bottom != AUTO) {
+		int h = (height == AUTO) ? 0 : height;
 		if (margin[TOP] == AUTO && margin[BOTTOM] == AUTO) {
-			space = cb_height - top - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			space = cb_height - top - border[TOP].width - padding[TOP] - h - padding[BOTTOM] -
 				border[BOTTOM].width - bottom;
 			margin[TOP] = margin[BOTTOM] = space / 2;
 		} else if (margin[TOP] == AUTO) {
-			margin[TOP] = cb_height - top - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			margin[TOP] = cb_height - top - border[TOP].width - padding[TOP] - h - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (margin[BOTTOM] == AUTO) {
-			margin[BOTTOM] = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			margin[BOTTOM] = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - h -
 				padding[BOTTOM] - border[BOTTOM].width - bottom;
 		} else {
-			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - h -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		}
 	} else {
@@ -5193,24 +5195,29 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 			margin[BOTTOM] = 0;
 		if (top == AUTO && height == AUTO && bottom != AUTO) {
 			height = box->height;
-			top = cb_height - margin[TOP] - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			int h = (height == AUTO) ? 0 : height;
+			top = cb_height - margin[TOP] - border[TOP].width - padding[TOP] - h - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (top == AUTO && height != AUTO && bottom == AUTO) {
 			top = static_top;
-			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			int h = (height == AUTO) ? 0 : height;
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - h -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		} else if (top != AUTO && height == AUTO && bottom == AUTO) {
 			height = box->height;
-			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			int h = (height == AUTO) ? 0 : height;
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - h -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		} else if (top == AUTO && height != AUTO && bottom != AUTO) {
-			top = cb_height - margin[TOP] - border[TOP].width - padding[TOP] - height - padding[BOTTOM] -
+			int h = (height == AUTO) ? 0 : height;
+			top = cb_height - margin[TOP] - border[TOP].width - padding[TOP] - h - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (top != AUTO && height == AUTO && bottom != AUTO) {
 			height = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - padding[BOTTOM] -
 				border[BOTTOM].width - margin[BOTTOM] - bottom;
 		} else if (top != AUTO && height != AUTO && bottom == AUTO) {
-			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - height -
+			int h = (height == AUTO) ? 0 : height;
+			bottom = cb_height - top - margin[TOP] - border[TOP].width - padding[TOP] - h -
 				padding[BOTTOM] - border[BOTTOM].width - margin[BOTTOM];
 		}
 	}
