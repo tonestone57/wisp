@@ -324,20 +324,55 @@ bool _dom_document_finalise(dom_document *doc)
      * they are held by the client. */
     doc->nodelists = NULL;
 
-    if (doc->id_name != NULL)
+    if (doc->id_name != NULL) {
         dom_string_unref(doc->id_name);
+        doc->id_name = NULL;
+    }
 
-    dom_string_unref(doc->uri);
-    dom_string_unref(doc->class_string);
-    dom_string_unref(doc->script_string);
-    dom_string_unref(doc->_memo_empty);
-    dom_string_unref(doc->_memo_domnodeinserted);
-    dom_string_unref(doc->_memo_domnoderemoved);
-    dom_string_unref(doc->_memo_domnodeinsertedintodocument);
-    dom_string_unref(doc->_memo_domnoderemovedfromdocument);
-    dom_string_unref(doc->_memo_domattrmodified);
-    dom_string_unref(doc->_memo_domcharacterdatamodified);
-    dom_string_unref(doc->_memo_domsubtreemodified);
+    if (doc->uri != NULL) {
+        dom_string_unref(doc->uri);
+        doc->uri = NULL;
+    }
+    if (doc->class_string != NULL) {
+        dom_string_unref(doc->class_string);
+        doc->class_string = NULL;
+    }
+    if (doc->script_string != NULL) {
+        dom_string_unref(doc->script_string);
+        doc->script_string = NULL;
+    }
+    if (doc->_memo_empty != NULL) {
+        dom_string_unref(doc->_memo_empty);
+        doc->_memo_empty = NULL;
+    }
+    if (doc->_memo_domnodeinserted != NULL) {
+        dom_string_unref(doc->_memo_domnodeinserted);
+        doc->_memo_domnodeinserted = NULL;
+    }
+    if (doc->_memo_domnoderemoved != NULL) {
+        dom_string_unref(doc->_memo_domnoderemoved);
+        doc->_memo_domnoderemoved = NULL;
+    }
+    if (doc->_memo_domnodeinsertedintodocument != NULL) {
+        dom_string_unref(doc->_memo_domnodeinsertedintodocument);
+        doc->_memo_domnodeinsertedintodocument = NULL;
+    }
+    if (doc->_memo_domnoderemovedfromdocument != NULL) {
+        dom_string_unref(doc->_memo_domnoderemovedfromdocument);
+        doc->_memo_domnoderemovedfromdocument = NULL;
+    }
+    if (doc->_memo_domattrmodified != NULL) {
+        dom_string_unref(doc->_memo_domattrmodified);
+        doc->_memo_domattrmodified = NULL;
+    }
+    if (doc->_memo_domcharacterdatamodified != NULL) {
+        dom_string_unref(doc->_memo_domcharacterdatamodified);
+        doc->_memo_domcharacterdatamodified = NULL;
+    }
+    if (doc->_memo_domsubtreemodified != NULL) {
+        dom_string_unref(doc->_memo_domsubtreemodified);
+        doc->_memo_domsubtreemodified = NULL;
+    }
 
     _dom_document_event_internal_finalise(&doc->dei);
 
@@ -347,6 +382,7 @@ bool _dom_document_finalise(dom_document *doc)
         free(entry);
         entry = next;
     }
+    doc->mutation_callbacks = NULL;
 
     return true;
 }
