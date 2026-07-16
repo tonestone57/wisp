@@ -5723,10 +5723,19 @@ static void layout_get_box_bbox(
 		box->border[RIGHT].width = 1000000;
 	}
 
+	int w = box->width;
+	if (w < 0) {
+		w = 0;
+	}
+	int h = box->height;
+	if (h < 0) {
+		h = 0;
+	}
+
 	*desc_x0 = -box->border[LEFT].width;
 	*desc_y0 = -box->border[TOP].width;
-	*desc_x1 = box->padding[LEFT] + box->width + box->padding[RIGHT] + box->border[RIGHT].width;
-	*desc_y1 = box->padding[TOP] + box->height + box->padding[BOTTOM] + box->border[BOTTOM].width;
+	*desc_x1 = box->padding[LEFT] + w + box->padding[RIGHT] + box->border[RIGHT].width;
+	*desc_y1 = box->padding[TOP] + h + box->padding[BOTTOM] + box->border[BOTTOM].width;
 
 	/* result must be reasonable */
 	if (*desc_x1 >= 100000000) {
@@ -5783,7 +5792,10 @@ static void layout_update_descendant_bbox(
 		NSLOG(wisp, ERROR, "child %p has UNKNOWN_WIDTH in layout_update_descendant_bbox", (void *)child);
 		return;
 	}
-	if (child->width < -1 || child->width >= 100000000) {
+	if (child->width < -1) {
+		child->width = 0;
+	}
+	if (child->width >= 100000000) {
 		NSLOG(wisp, ERROR, "child %p has invalid width in layout_update_descendant_bbox: %d", (void *)child, child->width);
 		return;
 	}
