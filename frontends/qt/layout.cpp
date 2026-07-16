@@ -691,6 +691,9 @@ static struct gui_layout_table layout_table = {
     .position = nsqt_layout_position,
     .split = nsqt_layout_split,
     .load_font_data = nsqt_load_font_data,
+    .free_font_data = NULL,
+    .init = NULL,
+    .finalise = NULL,
 };
 
 struct gui_layout_table *nsqt_layout_table = &layout_table;
