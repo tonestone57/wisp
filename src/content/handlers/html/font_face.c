@@ -229,6 +229,10 @@ static nserror font_fetch_callback(llcache_handle *handle, const llcache_event *
 {
     struct font_download *dl = pw;
 
+    if (!dl->in_use) {
+        return NSERROR_OK;
+    }
+
     switch (event->type) {
     case LLCACHE_EVENT_DONE: {
         /* Font download complete */
@@ -435,6 +439,9 @@ nserror html_font_face_process(const css_font_face *font_face, const char *base_
 /* Exported function documented in font_face.h */
 nserror html_font_face_init(struct html_content *c, css_select_ctx *select_ctx)
 {
+    /* Clean up any leftover downloads from a previous page */
+    html_font_face_fini(c);
+
     /* Store the content so we can notify it when fonts complete */
     font_waiting_content = c;
     (void)select_ctx;
@@ -450,6 +457,23 @@ nserror html_font_face_fini(struct html_content *c)
     if (font_waiting_content == c) {
         font_waiting_content = NULL;
     }
+
+    /* Cancel and release any ongoing font downloads */
+    for (int i = 0; i < MAX_FONT_DOWNLOADS; i++) {
+        if (font_downloads[i].in_use) {
+            if (font_downloads[i].handle != NULL) {
+                llcache_handle_abort(font_downloads[i].handle);
+                llcache_handle_release(font_downloads[i].handle);
+                font_downloads[i].handle = NULL;
+            }
+            if (font_downloads[i].variant.family_name != NULL) {
+                free(font_downloads[i].variant.family_name);
+                font_downloads[i].variant.family_name = NULL;
+            }
+            font_downloads[i].in_use = false;
+        }
+    }
+    pending_font_count = 0;
 
     return NSERROR_OK;
 }

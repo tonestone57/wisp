@@ -300,7 +300,7 @@ int main(int argc, char **argv) {
 #ifdef _WIN32
         Sleep(10);
 #else
-        select(0, NULL, NULL, NULL, &tv);
+        usleep(10000);
 #endif
     }
 

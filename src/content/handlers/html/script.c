@@ -575,6 +575,7 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
     if (ns_error != NSERROR_OK) {
         /* Fetch failed - decrement the counter we just incremented */
         c->base.active--;
+        c->scripts_active--;
         /* mark duff script fetch as already started */
         nscript->already_started = true;
         NSLOG(wisp, INFO, "Fetch failed with error %d, active=%d", ns_error, c->base.active);
