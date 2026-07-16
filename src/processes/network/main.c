@@ -173,12 +173,9 @@ int main(int argc, char **argv) {
         struct timeval tv = {0, 10000}; // 10ms
 
         wisp_ipc_msg msg;
-        nserror err = wisp_ipc_recv(ipc_main, &msg);
+        nserror err;
 
-        if (err != NSERROR_NOT_FOUND) {
-            fprintf(stderr, "WISP-NETWORK: recv returned %d\n", err);
-        }
-        if (err == NSERROR_OK) {
+        while ((err = wisp_ipc_recv(ipc_main, &msg)) == NSERROR_OK) {
             fprintf(stderr, "WISP-NETWORK: Received message of type %d, length %d\n", msg.type, msg.length);
             if (msg.type == WISP_IPC_MSG_FETCH_REQUEST) {
                 uint32_t fetch_id;
@@ -292,7 +289,10 @@ int main(int argc, char **argv) {
                 }
             }
             wisp_ipc_msg_free(&msg);
-        } else if (err != NSERROR_NOT_FOUND) {
+        }
+
+        if (err != NSERROR_NOT_FOUND) {
+            fprintf(stderr, "WISP-NETWORK: recv returned %d\n", err);
             break;
         }
 
