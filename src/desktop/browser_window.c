@@ -1741,6 +1741,10 @@ nserror browser_window_destroy_internal(struct browser_window *bw)
     }
 
     if (bw->loading_content != NULL) {
+        struct content *c = hlcache_handle_get_content(bw->loading_content);
+        if (c != NULL && content_get_type(bw->loading_content) == CONTENT_HTML) {
+            html_destroy_thread(c);
+        }
         hlcache_handle_abort(bw->loading_content);
         hlcache_handle_release(bw->loading_content);
         bw->loading_content = NULL;
@@ -3750,6 +3754,10 @@ void browser_window_stop(struct browser_window *bw)
     int children, index;
 
     if (bw->loading_content != NULL) {
+        struct content *c = hlcache_handle_get_content(bw->loading_content);
+        if (c != NULL && content_get_type(bw->loading_content) == CONTENT_HTML) {
+            html_destroy_thread(c);
+        }
         hlcache_handle_abort(bw->loading_content);
         hlcache_handle_release(bw->loading_content);
         bw->loading_content = NULL;

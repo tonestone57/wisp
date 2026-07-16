@@ -10,9 +10,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <pthread.h>
 
 static wisp_ipc_handle *ipc_network = NULL;
 static uint32_t next_fetch_id = 1;
+static pthread_mutex_t ipc_send_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct ipc_fetch_info {
     uint32_t id;
@@ -73,7 +75,9 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
         memcpy(msg.data + 8, url_access, url_len);
         msg.data[8 + url_len] = only_2xx ? 1 : 0;
         msg.data[8 + url_len + 1] = downgrade_tls ? 1 : 0;
+        pthread_mutex_lock(&ipc_send_mutex);
         nserror send_err = wisp_ipc_send(ipc_network, &msg);
+        pthread_mutex_unlock(&ipc_send_mutex);
         if (send_err != NSERROR_OK) {
             NSLOG(wisp, ERROR, "wisp_ipc_send failed with error %d", send_err);
         } else {
@@ -103,7 +107,9 @@ static void fetch_ipc_abort(void *vf) {
     msg.data = malloc(4);
     if (msg.data) {
         memcpy(msg.data, &f->id, 4);
+        pthread_mutex_lock(&ipc_send_mutex);
         wisp_ipc_send(ipc_network, &msg);
+        pthread_mutex_unlock(&ipc_send_mutex);
         free(msg.data);
     }
 
@@ -282,7 +288,9 @@ void fetch_ipc_early_request(nsurl *url, bool preconnect) {
     if (msg.data) {
         memcpy(msg.data, &url_len, 4);
         memcpy(msg.data + 4, url_access, url_len);
+        pthread_mutex_lock(&ipc_send_mutex);
         wisp_ipc_send(ipc_network, &msg);
+        pthread_mutex_unlock(&ipc_send_mutex);
         free(msg.data);
     }
 }
