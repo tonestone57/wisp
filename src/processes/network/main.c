@@ -273,6 +273,23 @@ int main(int argc, char **argv) {
                         }
                     }
                 }
+            } else if (msg.type == WISP_IPC_MSG_FETCH_ABORT) {
+                uint32_t fetch_id;
+                if (msg.length >= 4) {
+                    memcpy(&fetch_id, msg.data, 4);
+                    struct network_fetch_info *info = active_fetches_list;
+                    while (info && info->fetch_id != fetch_id) {
+                        info = info->next;
+                    }
+                    if (info && !info->finished) {
+                        if (info->fetchh) {
+                            fetch_abort(info->fetchh);
+                            fetch_free(info->fetchh);
+                            info->fetchh = NULL;
+                        }
+                        info->finished = true;
+                    }
+                }
             }
             wisp_ipc_msg_free(&msg);
         } else if (err != NSERROR_NOT_FOUND) {

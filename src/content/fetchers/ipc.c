@@ -93,8 +93,22 @@ static bool fetch_ipc_start(void *vf) {
 
 static void fetch_ipc_abort(void *vf) {
     struct ipc_fetch_info *f = vf;
+    if (f->finished) return;
     f->finished = true;
-    /* We should send an ABORT message to network process too */
+
+    /* Send an ABORT message to network process */
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_FETCH_ABORT;
+    msg.length = 4;
+    msg.data = malloc(4);
+    if (msg.data) {
+        memcpy(msg.data, &f->id, 4);
+        wisp_ipc_send(ipc_network, &msg);
+        free(msg.data);
+    }
+
+    fetch_remove_from_queues(f->fetchh);
+    fetch_free(f->fetchh);
 }
 
 static void fetch_ipc_free(void *vf) {
@@ -154,6 +168,8 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     }
                     fetch_send_callback(&fmsg, f->fetchh);
                     f->finished = true;
+                    fetch_remove_from_queues(f->fetchh);
+                    fetch_free(f->fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_REDIRECT:
                     fmsg.type = FETCH_REDIRECT;
@@ -170,6 +186,8 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     }
                     fetch_send_callback(&fmsg, f->fetchh);
                     f->finished = true;
+                    fetch_remove_from_queues(f->fetchh);
+                    fetch_free(f->fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_ERROR:
                     fmsg.type = FETCH_ERROR;
@@ -182,6 +200,8 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     }
                     fetch_send_callback(&fmsg, f->fetchh);
                     f->finished = true;
+                    fetch_remove_from_queues(f->fetchh);
+                    fetch_free(f->fetchh);
                     break;
                 default:
                     break;
