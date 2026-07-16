@@ -19,6 +19,7 @@
 #include <glib.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -40,15 +41,19 @@ static GList *queued_callbacks = NULL;
 /** List of callbacks which are about to be run in this ::schedule_run. */
 static GList *this_run = NULL;
 
+static pthread_mutex_t schedule_lock = PTHREAD_MUTEX_INITIALIZER;
+
 static gboolean nsgtk_schedule_generic_callback(gpointer data)
 {
     _nsgtk_callback_t *cb = (_nsgtk_callback_t *)(data);
+    pthread_mutex_lock(&schedule_lock);
     if (cb->callback_killed) {
         /* This callback instance has been killed. */
         NSLOG(schedule, DEBUG, "CB at %p already dead.", cb);
     }
     queued_callbacks = g_list_remove(queued_callbacks, cb);
     pending_callbacks = g_list_append(pending_callbacks, cb);
+    pthread_mutex_unlock(&schedule_lock);
     return FALSE;
 }
 
@@ -81,9 +86,11 @@ static nserror schedule_remove(void (*callback)(void *p), void *cbctx)
         .callback_killed = false,
     };
 
+    pthread_mutex_lock(&schedule_lock);
     g_list_foreach(queued_callbacks, nsgtk_schedule_kill_callback, &cb_match);
     g_list_foreach(pending_callbacks, nsgtk_schedule_kill_callback, &cb_match);
     g_list_foreach(this_run, nsgtk_schedule_kill_callback, &cb_match);
+    pthread_mutex_unlock(&schedule_lock);
 
     if (cb_match.callback_killed == false) {
         return NSERROR_NOT_FOUND;
@@ -106,11 +113,18 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
     }
 
     cb = malloc(sizeof(_nsgtk_callback_t));
+    if (cb == NULL) {
+        return NSERROR_NOMEM;
+    }
     cb->callback = callback;
     cb->context = cbctx;
     cb->callback_killed = false;
+
+    pthread_mutex_lock(&schedule_lock);
     /* Prepend is faster right now. */
     queued_callbacks = g_list_prepend(queued_callbacks, cb);
+    pthread_mutex_unlock(&schedule_lock);
+
     g_timeout_add(t, nsgtk_schedule_generic_callback, cb);
 
     return NSERROR_OK;
@@ -118,21 +132,32 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
 
 bool schedule_run(void)
 {
+    pthread_mutex_lock(&schedule_lock);
     /* Capture this run of pending callbacks into the list. */
     this_run = pending_callbacks;
 
-    if (this_run == NULL)
+    if (this_run == NULL) {
+        pthread_mutex_unlock(&schedule_lock);
         return false; /* Nothing to do */
+    }
 
     /* Clear the pending list. */
     pending_callbacks = NULL;
+    pthread_mutex_unlock(&schedule_lock);
 
     NSLOG(schedule, DEBUG, "Captured a run of %d callbacks to fire.", g_list_length(this_run));
 
     /* Run all the callbacks which made it this far. */
-    while (this_run != NULL) {
+    while (true) {
+        pthread_mutex_lock(&schedule_lock);
+        if (this_run == NULL) {
+            pthread_mutex_unlock(&schedule_lock);
+            break;
+        }
         _nsgtk_callback_t *cb = (_nsgtk_callback_t *)(this_run->data);
         this_run = g_list_remove(this_run, this_run->data);
+        pthread_mutex_unlock(&schedule_lock);
+
         if (!cb->callback_killed)
             cb->callback(cb->context);
         free(cb);
