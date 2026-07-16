@@ -281,7 +281,6 @@ int main(int argc, char **argv) {
                     if (info && !info->finished) {
                         if (info->fetchh) {
                             fetch_abort(info->fetchh);
-                            fetch_free(info->fetchh);
                             info->fetchh = NULL;
                         }
                         info->finished = true;
