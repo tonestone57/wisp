@@ -3408,6 +3408,13 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			NSLOG(layout, DEEPDEBUG, "float %p", b);
 
 			d = b->children;
+			if (d == NULL) {
+				NSLOG(layout, WARNING, "Float box %p has no children", b);
+				b->width = 0;
+				b->height = 0;
+				split_box = 0;
+				continue;
+			}
 			d->float_children = 0;
 			d->cached_place_below_level = 0;
 			b->float_container = d->float_container = cont;
