@@ -2346,6 +2346,23 @@ void JS_FreeRuntime(JSRuntime *rt)
     }
 #endif
 
+    if (!list_empty(&rt->gc_obj_list)) {
+        struct list_head *el;
+        printf("=== QUICKJS-NG DETECTED LEAKS IN RT ===\n");
+        list_for_each(el, &rt->gc_obj_list) {
+            JSGCObjectHeader *p = list_entry(el, JSGCObjectHeader, link);
+            if (p->gc_obj_type == JS_GC_OBJ_TYPE_JS_OBJECT) {
+                JSObject *obj = (JSObject *)p;
+                char buf[256];
+                printf("Leaked JS Object: ref_count=%d, class_id=%d, class_name=%s\n",
+                       p->ref_count, obj->class_id,
+                       obj->class_id < rt->class_count ? JS_AtomGetStrRT(rt, buf, sizeof(buf), rt->class_array[obj->class_id].class_name) : "unknown");
+            } else {
+                printf("Leaked GC Object: ref_count=%d, type=%d\n", p->ref_count, p->gc_obj_type);
+            }
+        }
+        printf("========================================\n");
+    }
     assert(list_empty(&rt->gc_obj_list));
 
     /* free the classes */

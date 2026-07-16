@@ -2745,13 +2745,3 @@ error:
 
 	return error;
 }
-
-/* Exported function documented in html/html.h */
-void html_destroy_thread(struct content *c)
-{
-	html_content *html = (html_content *)c;
-	if (html && html->jsthread != NULL) {
-		js_destroythread(html->jsthread);
-		html->jsthread = NULL;
-	}
-}

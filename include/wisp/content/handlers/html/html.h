@@ -214,9 +214,4 @@ struct content_html_object *html_get_objects(struct hlcache_handle *h, unsigned 
  */
 bool html_get_id_offset(struct hlcache_handle *h, lwc_string *frag_id, int *x, int *y);
 
-/**
- * Destroy the Javascript thread associated with an HTML content.
- */
-void html_destroy_thread(struct content *c);
-
 #endif
