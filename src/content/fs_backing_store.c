@@ -743,7 +743,7 @@ static void validate_entries_after_write(struct store_state *state)
             truncated = true;
             goto vd_done;
         }
-        if (ver == 3) {
+        if (ver == 3 || ver == CONTROL_VERSION) {
             uint32_t expected = 0;
             if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
                 truncated = true;
@@ -1652,7 +1652,7 @@ static nserror read_entries(struct store_state *state)
                 truncated = true;
                 goto rd_done;
             }
-            if (ver == 3) {
+            if (ver == 3 || ver == CONTROL_VERSION) {
                 uint32_t expected = 0;
                 if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
                     truncated = true;
