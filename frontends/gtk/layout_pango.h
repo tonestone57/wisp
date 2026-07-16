@@ -40,6 +40,4 @@ nserror nsfont_paint(int x, int y, const char *string, size_t length, const stru
  */
 PangoFontDescription *nsfont_style_to_description(const struct plot_font_style *fstyle);
 
-void nsfont_finalise(void);
-
 #endif

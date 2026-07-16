@@ -57,6 +57,7 @@
 #include <wisp/desktop/searchweb.h>
 #include <wisp/misc.h>
 #include <wisp/wisp.h>
+#include <wisp/layout.h>
 #include "desktop/system_colour.h"
 #include "desktop/tile_pool.h"
 
@@ -294,6 +295,14 @@ nserror wisp_init(const char *store_path)
         return ret;
     }
 
+    if (guit != NULL && guit->layout != NULL && guit->layout->init != NULL) {
+        ret = guit->layout->init();
+        if (ret != NSERROR_OK) {
+            NSLOG(wisp, ERROR, "Layout/Font initialization failed (%s)", messages_get_errorcode(ret));
+            return ret;
+        }
+    }
+
     NSLOG(wisp, INFO, "wisp_init: success");
 
     return NSERROR_OK;
@@ -365,6 +374,10 @@ void wisp_exit(void)
     unsigned lwc_count = 0;
     lwc_iterate_strings(wisp_lwc_iterator, &lwc_count);
     NSLOG(wisp, INFO, "Remaining lwc strings count: %u", lwc_count);
+
+    if (guit != NULL && guit->layout != NULL && guit->layout->finalise != NULL) {
+        guit->layout->finalise();
+    }
 
     task_queue_destroy();
 

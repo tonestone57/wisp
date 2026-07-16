@@ -126,6 +126,18 @@ struct gui_layout_table {
      * \param[in] id   Font variant identity
      */
     void (*free_font_data)(const struct font_variant_id *id);
+
+    /**
+     * Initialize font resolution/matching subsystem.
+     * Optional, may be NULL.
+     */
+    nserror (*init)(void);
+
+    /**
+     * Finalise font resolution/matching subsystem.
+     * Optional, may be NULL.
+     */
+    void (*finalise)(void);
 };
 
 #endif
