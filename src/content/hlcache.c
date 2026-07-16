@@ -351,8 +351,11 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
     bool free_actual_type = false;
 
     if (effective_type != NULL) {
-        bool match;
-        if (lwc_string_caseless_isequal(effective_type, corestring_lwc_application_octet_stream, &match) == lwc_error_ok && match) {
+        bool match_octet = false;
+        bool match_plain = false;
+        lwc_string_caseless_isequal(effective_type, corestring_lwc_application_octet_stream, &match_octet);
+        lwc_string_caseless_isequal(effective_type, corestring_lwc_text_plain, &match_plain);
+        if (match_octet || match_plain) {
             if ((ctx->accepted_types & CONTENT_JS) && ctx->handle != NULL) {
                 const char *url_str = nsurl_access(hlcache_handle_get_url(ctx->handle));
                 if (url_str != NULL) {
