@@ -126,6 +126,15 @@ static void fetch_ipc_free(void *vf) {
     }
 }
 
+static bool is_active_fetch(struct ipc_fetch_info *f) {
+    struct ipc_fetch_info *curr = active_fetches;
+    while (curr) {
+        if (curr == f) return true;
+        curr = curr->next;
+    }
+    return false;
+}
+
 static void fetch_ipc_poll(lwc_string *scheme) {
     if (!ipc_network) return;
 
@@ -167,9 +176,11 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                         fetch_set_http_code(f->fetchh, (long)http_code);
                     }
                     fetch_send_callback(&fmsg, f->fetchh);
-                    f->finished = true;
-                    fetch_remove_from_queues(f->fetchh);
-                    fetch_free(f->fetchh);
+                    if (is_active_fetch(f)) {
+                        f->finished = true;
+                        fetch_remove_from_queues(f->fetchh);
+                        fetch_free(f->fetchh);
+                    }
                     break;
                 case WISP_IPC_MSG_FETCH_REDIRECT:
                     fmsg.type = FETCH_REDIRECT;
@@ -185,9 +196,11 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                         fmsg.data.redirect = "";
                     }
                     fetch_send_callback(&fmsg, f->fetchh);
-                    f->finished = true;
-                    fetch_remove_from_queues(f->fetchh);
-                    fetch_free(f->fetchh);
+                    if (is_active_fetch(f)) {
+                        f->finished = true;
+                        fetch_remove_from_queues(f->fetchh);
+                        fetch_free(f->fetchh);
+                    }
                     break;
                 case WISP_IPC_MSG_FETCH_ERROR:
                     fmsg.type = FETCH_ERROR;
@@ -199,9 +212,11 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                         fmsg.data.error = "UnknownError";
                     }
                     fetch_send_callback(&fmsg, f->fetchh);
-                    f->finished = true;
-                    fetch_remove_from_queues(f->fetchh);
-                    fetch_free(f->fetchh);
+                    if (is_active_fetch(f)) {
+                        f->finished = true;
+                        fetch_remove_from_queues(f->fetchh);
+                        fetch_free(f->fetchh);
+                    }
                     break;
                 default:
                     break;
