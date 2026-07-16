@@ -221,7 +221,7 @@ static ssize_t write_all(intptr_t fd, const void *buf, size_t len) {
     return total;
 }
 
-static ssize_t read_all(intptr_t fd, void *buf, size_t len) {
+static ssize_t read_all(intptr_t fd, void *buf, size_t len, bool allow_eagain) {
     size_t total = 0;
     uint8_t *p = buf;
     while (total < len) {
@@ -233,7 +233,7 @@ static ssize_t read_all(intptr_t fd, void *buf, size_t len) {
                     continue;
                 }
                 if (err == SOCKET_EAGAIN) {
-                    if (total == 0) {
+                    if (allow_eagain && total == 0) {
                         return -1; // EAGAIN on first read
                     }
                     /* Committed to a message, wait for remainder */
@@ -263,7 +263,7 @@ nserror wisp_ipc_send(wisp_ipc_handle *handle, const wisp_ipc_msg *msg) {
 
 nserror wisp_ipc_recv(wisp_ipc_handle *handle, wisp_ipc_msg *msg) {
     uint32_t header[2];
-    ssize_t ret = read_all(handle->fd, header, sizeof(header));
+    ssize_t ret = read_all(handle->fd, header, sizeof(header), true);
     if (ret < 0) return NSERROR_NOT_FOUND; // EAGAIN
     if (ret == 0) return NSERROR_NOT_FOUND; // EOF
     if (ret != sizeof(header)) return NSERROR_INVALID;
@@ -273,7 +273,7 @@ nserror wisp_ipc_recv(wisp_ipc_handle *handle, wisp_ipc_msg *msg) {
     if (msg->length > 0) {
         msg->data = malloc(msg->length);
         if (!msg->data) return NSERROR_NOMEM;
-        if (read_all(handle->fd, msg->data, msg->length) != (ssize_t)msg->length) {
+        if (read_all(handle->fd, msg->data, msg->length, false) != (ssize_t)msg->length) {
             free(msg->data);
             return NSERROR_INVALID;
         }

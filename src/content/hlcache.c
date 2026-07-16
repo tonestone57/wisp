@@ -39,6 +39,7 @@
 #include <wisp/content/llcache.h>
 #include <wisp/content/csp.h>
 #include <wisp/utils/nsoption.h>
+#include <wisp/utils/corestrings.h>
 #include "content/mimesniff.h"
 // Note, this is *ONLY* so that we can abort cleanly during shutdown of the
 // cache
@@ -346,11 +347,34 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
 {
     content_type type = CONTENT_NONE;
     nserror error = NSERROR_OK;
+    lwc_string *actual_type = effective_type;
+    bool free_actual_type = false;
+
+    if (effective_type != NULL) {
+        bool match;
+        if (lwc_string_caseless_isequal(effective_type, corestring_lwc_application_octet_stream, &match) == lwc_error_ok && match) {
+            if ((ctx->accepted_types & CONTENT_JS) && ctx->handle != NULL) {
+                const char *url_str = nsurl_access(hlcache_handle_get_url(ctx->handle));
+                if (url_str != NULL) {
+                    const char *query = strchr(url_str, '?');
+                    const char *fragment = strchr(url_str, '#');
+                    const char *end = url_str + strlen(url_str);
+                    if (query && query < end) end = query;
+                    if (fragment && fragment < end) end = fragment;
+                    if (end - url_str >= 3 && strncmp(end - 3, ".js", 3) == 0) {
+                        if (lwc_intern_string("application/javascript", 22, &actual_type) == lwc_error_ok) {
+                            free_actual_type = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     ctx->migrate_target = true;
 
-    if ((effective_type != NULL) && hlcache_type_is_acceptable(effective_type, ctx->accepted_types, &type)) {
-        error = hlcache_find_content(ctx, effective_type);
+    if ((actual_type != NULL) && hlcache_type_is_acceptable(actual_type, ctx->accepted_types, &type)) {
+        error = hlcache_find_content(ctx, actual_type);
         if (error != NSERROR_OK && error != NSERROR_NEED_DATA) {
             if (ctx->handle->cb != NULL) {
                 hlcache_event hlevent;
@@ -384,7 +408,7 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
         /* Unacceptable type: report error */
         NSLOG(wisp, ERROR, "UnacceptableType for %s. Effective type: %s. Accepted types: %d",
             nsurl_access(hlcache_handle_get_url(ctx->handle)),
-            effective_type ? lwc_string_data(effective_type) : "NULL", ctx->accepted_types);
+            actual_type ? lwc_string_data(actual_type) : "NULL", ctx->accepted_types);
 
         if (ctx->handle->cb != NULL) {
             hlcache_event hlevent;
@@ -406,6 +430,10 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
     RING_REMOVE(hlcache->retrieval_ctx_ring, ctx);
     free((char *)ctx->child.charset);
     free(ctx);
+
+    if (free_actual_type) {
+        lwc_string_unref(actual_type);
+    }
 
     return error;
 }
