@@ -962,7 +962,7 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
     /* set default icon if its available */
     res = nsgdk_pixbuf_new_from_resname("wisp.xpm", &win_default_icon_pixbuf);
     if (res == NSERROR_OK) {
-        NSLOG(wisp, INFO, "Seting default window icon");
+        NSLOG(wisp, INFO, "Setting default window icon");
         gtk_window_set_default_icon(win_default_icon_pixbuf);
     }
 
