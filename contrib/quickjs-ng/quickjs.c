@@ -2286,6 +2286,8 @@ void JS_SetRuntimeInfo(JSRuntime *rt, const char *s)
         rt->rt_info = s;
 }
 
+static void free_gc_object(JSRuntime *rt, JSGCObjectHeader *gp);
+
 void JS_FreeRuntime(JSRuntime *rt)
 {
     struct list_head *el, *el1;
@@ -2345,6 +2347,12 @@ void JS_FreeRuntime(JSRuntime *rt)
             printf("Secondary object leaks: %d\n", count);
     }
 #endif
+
+    /* Force free any remaining GC objects to prevent assertion failure on shutdown */
+    while (!list_empty(&rt->gc_obj_list)) {
+        JSGCObjectHeader *p = list_entry(rt->gc_obj_list.next, JSGCObjectHeader, link);
+        free_gc_object(rt, p);
+    }
 
     assert(list_empty(&rt->gc_obj_list));
 
