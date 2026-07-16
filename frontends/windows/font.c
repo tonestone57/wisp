@@ -1679,6 +1679,8 @@ static struct gui_layout_table layout_table = {
     .split = win32_font_split,
     .load_font_data = html_font_face_load_data,
     .free_font_data = win32_free_font_data,
+    .init = NULL,
+    .finalise = NULL,
 };
 
 struct gui_layout_table *win32_layout_table = &layout_table;

@@ -80,6 +80,10 @@ static struct gui_layout_table layout_table = {
     .width = macos_font_width,
     .position = macos_font_position,
     .split = macos_font_split,
+    .load_font_data = NULL,
+    .free_font_data = NULL,
+    .init = NULL,
+    .finalise = NULL,
 };
 
 struct gui_layout_table *macos_layout_table = &layout_table;

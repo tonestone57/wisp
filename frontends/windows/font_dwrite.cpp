@@ -175,11 +175,13 @@ extern "C" void win32_dwrite_fini(void) {
 }
 
 static struct gui_layout_table layout_table_dwrite = {
-    win32_dwrite_width,
-    win32_dwrite_position,
-    win32_dwrite_split,
-    NULL, // load_font_data
-    NULL, // free_font_data
+    .width = win32_dwrite_width,
+    .position = win32_dwrite_position,
+    .split = win32_dwrite_split,
+    .load_font_data = NULL,
+    .free_font_data = NULL,
+    .init = NULL,
+    .finalise = NULL,
 };
 
 extern "C" struct gui_layout_table *win_layout_table_dwrite = &layout_table_dwrite;

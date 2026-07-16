@@ -391,8 +391,13 @@ bool nsfont_paint(const plot_font_style_t *fstyle, const char *string, size_t le
 
 
 static struct gui_layout_table layout_table = {
-    /*.width = */ beos_font_width,
-    /*.position = */ beos_font_position,
-    /*.split = */ beos_font_split};
+    .width = beos_font_width,
+    .position = beos_font_position,
+    .split = beos_font_split,
+    .load_font_data = NULL,
+    .free_font_data = NULL,
+    .init = NULL,
+    .finalise = NULL,
+};
 
 struct gui_layout_table *beos_layout_table = &layout_table;

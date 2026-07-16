@@ -25,7 +25,6 @@
  */
 
 #include <gtk/gtk.h>
-#include <fontconfig/fontconfig.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
@@ -1226,10 +1225,6 @@ static void nsgtk_finalise(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
-
-    nsfont_finalise();
-
-    FcFini();
 
     /* finalise logging */
     nslog_finalise();

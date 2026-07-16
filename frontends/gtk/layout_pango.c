@@ -26,6 +26,7 @@
 
 #include <gtk/gtk.h>
 #include <pango/pangocairo.h>
+#include <fontconfig/fontconfig.h>
 #include <assert.h>
 #include <stdio.h>
 
@@ -71,6 +72,12 @@ static inline void nsfont_pango_check(void)
         NSLOG(wisp, INFO, "Creating nsfont_pango_layout.");
         nsfont_pango_layout = pango_layout_new(nsfont_pango_context);
     }
+}
+
+static nserror nsfont_init(void)
+{
+    nsfont_pango_check();
+    return NSERROR_OK;
 }
 
 /**
@@ -392,12 +399,18 @@ void nsfont_finalise(void)
         nsfont_pango_context = NULL;
     }
     pango_cairo_font_map_set_default(NULL);
+
+    FcFini();
 }
 
 static struct gui_layout_table layout_table = {
     .width = nsfont_width,
     .position = nsfont_position_in_string,
     .split = nsfont_split,
+    .load_font_data = NULL,
+    .free_font_data = NULL,
+    .init = nsfont_init,
+    .finalise = nsfont_finalise,
 };
 
 struct gui_layout_table *nsgtk_layout_table = &layout_table;
