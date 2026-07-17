@@ -1516,7 +1516,7 @@ void _dom_document_try_destroy(dom_document *doc)
     if (doc->base.base.refcnt != 0 || doc->base.parent != NULL)
         return;
 
-    _dom_document_destroy((dom_node_internal *)doc);
+    dom_node_destroy((dom_node_internal *)doc);
 }
 
 /**
