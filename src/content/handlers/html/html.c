@@ -67,8 +67,6 @@
 #include <wisp/content/handlers/html/interaction.h>
 #include <wisp/content/handlers/html/private.h>
 
-WISP_THREAD_LOCAL tls_lock_entry_t local_read_locks[TLS_MAX_LOCKS] = { { NULL, 0 } };
-
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/css.h"
 #include "content/handlers/html/dom_event.h"
