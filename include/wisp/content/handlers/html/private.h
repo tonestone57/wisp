@@ -108,11 +108,6 @@ union html_focus_owner {
 #include <string.h>
 #include <assert.h>
 
-#include <pthread.h>
-#include <stdbool.h>
-#include <string.h>
-#include <assert.h>
-
 #define MAX_READER_THREADS 32
 
 typedef struct {
@@ -277,17 +272,18 @@ static inline void doc_rwlock_uplock(doc_rwlock_t *lock) {
     lock->upgrade_thread = self;
     lock->upgrade_count = 1;
 
-    for (int i = 0; i < MAX_READER_THREADS; i++) {
-        if (!lock->readers[i].active) {
-            lock->readers[i].active = true;
-            lock->readers[i].thread = self;
-            lock->readers[i].count = 1;
-            pthread_mutex_unlock(&lock->mutex);
-            return;
+    while (true) {
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (!lock->readers[i].active) {
+                lock->readers[i].active = true;
+                lock->readers[i].thread = self;
+                lock->readers[i].count = 1;
+                pthread_mutex_unlock(&lock->mutex);
+                return;
+            }
         }
+        pthread_cond_wait(&lock->cond, &lock->mutex);
     }
-
-    pthread_mutex_unlock(&lock->mutex);
 }
 
 static inline void doc_rwlock_upunlock(doc_rwlock_t *lock) {
@@ -339,6 +335,17 @@ static inline void doc_rwlock_upgrade(doc_rwlock_t *lock) {
     lock->writer_thread = self;
     lock->write_count = 1;
     lock->has_upgrade = false;
+
+    /* Clear/deactivate our reader slot registered during uplock to prevent slot leaks and deadlock */
+    for (int i = 0; i < MAX_READER_THREADS; i++) {
+        if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+            lock->readers[i].count--;
+            if (lock->readers[i].count == 0) {
+                lock->readers[i].active = false;
+            }
+            break;
+        }
+    }
 
     pthread_mutex_unlock(&lock->mutex);
 }
