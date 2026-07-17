@@ -126,6 +126,7 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
     pthread_mutex_unlock(&schedule_lock);
 
     g_timeout_add(t, nsgtk_schedule_generic_callback, cb);
+    g_main_context_wakeup(NULL);
 
     return NSERROR_OK;
 }
