@@ -95,28 +95,21 @@ The following stability and security measures have been integrated:
 
 ---
 
-## 7. Remaining Tasks & Priority Backlog
-These tasks are high-priority for the 2027 development cycle:
+## 7. Unfinished Tasks & Priority Backlog
+The following table outlines the key prioritized backlog and future horizons planned for the 2027–2028 development cycles.
 
-### Graphics & Performance
-*   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
-*   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware. This compositor dynamically pivots back to the high-performance Blend2D/GDI pipelines on non-DX11 or legacy hardware to maintain perfect backward compatibility.
-
-### Architecture & Security
-*   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD) for maximum protection.
-
-### UI & Features
-*   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): A lightweight, cross-platform UI library for consistent 'browser chrome' (tabs, address bar).
-
----
-
-## 8. Future Horizons (2027-2028)
-*   **Zero-Copy IPC Architecture via Shared Memory** (Complexity: **High** | Benefit: **High**): Optimize the multi-process boundaries so that rasterized Blend2D tile bitmaps are passed from rendering/layout worker processes using POSIX/Windows shared-memory handles (`shm_open` or native file mappings), completely bypassing serialization over IPC channels.
-*   **Optional JIT Compilation Tier Options** (Complexity: **High** | Benefit: **Medium**): Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
-*   **Shared-Memory GPU-Shared Textures** (Complexity: **High** | Benefit: **High**): In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
-*   **WebAssembly (WASM) Interpretation** (Complexity: **Medium** | Benefit: **Medium**): Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
-*   **CSS Lexical and Layout Whitespace Skipping SIMD** (Complexity: **Medium** | Benefit: **High**): Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
-*   **Multi-Process Shared Memory Color Space & Alpha Blending SIMD** (Complexity: **Medium** | Benefit: **Medium**): Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
+| Task Descriptor | Target Area | Complexity | Benefit | Architectural Description |
+|---|---|---|---|---|
+| **GPU-Accelerated Compositing** | Graphics | **High** | **High** | Offload tile-blitting and scroll passes to GPU (OpenGL/Vulkan) for smooth 60FPS; fall back to Blend2D/GDI. |
+| **OS-Level Sandboxing** | Security | **High** | **High** | Native sandboxing using Landlock (Linux), AppContainers (Windows), and Pledge (OpenBSD). |
+| **Unified C UI Library** | Frontend | **Medium** | **High** | Compact, cross-platform UI widgets for consistent chrome (tabs, URL bar) across platforms. |
+| **Zero-Copy IPC (Shared Memory)** | IPC | **High** | **High** | Pass Blend2D tile bitmaps over shared-memory handles (`shm_open`/file mapping) to bypass IPC bottlenecks. |
+| **WebAssembly (WASM) Interpreter**| Core | **Medium** | **Medium**| Lightweight WASM interpreter to support modern web applications without footprint bloat. |
+| **WebGPU API Bridge** | Graphics | **High** | **Medium**| Bridge WebIDL WebGPU stubs to native graphics pipelines where system driver topologies allow. |
+| **Optional JIT Compilation Tier** | JS Engine | **High** | **Medium**| Evaluate embedding JIT layers (e.g. Hermes or lightweight WASM JIT) for script-heavy sites. |
+| **GPU-Shared Textures** | Graphics | **High** | **High** | Share GPU texture buffers directly across process borders in the upcoming compositor loops. |
+| **CSS Whitespace skipping (SIMD)** | CSS | **Medium** | **High** | Scan and skip CSS whitespace characters using SIMD vectors (AVX2/NEON/RVV 1.0) in 16/32 byte blocks. |
+| **Color Space Blending (SIMD)** | Graphics | **Medium** | **Medium**| Vectorize YUV-to-RGB conversions and parallel alpha blending inside the Zero-Copy IPC compositing layer. |
 
 ---
 
@@ -153,14 +146,30 @@ Implementing these additions alongside your current 2027 backlog balances out th
 
 ### D. Strategic Optimization Impact (Vectorized Bottlenecks)
 
-By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers:
+By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers. **Note: SIMD optimizations are strictly isolated to the fast-path pipelines with safe scalar/non-SIMD fallbacks to ensure compatibility on non-vectorized hardware.**
 
-| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact | Status |
-|---|---|---|---|---|---|---|
-| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead | **[Finished]** |
-| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps | **[Finished]** |
-| **SIMD CSP Nonce & Security Check** | 32 Bytes / 16 Bytes / Variable | Medium | High | Request security processing | Drastically speeds up header checking | **[Finished]** |
-| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS | Planned |
+| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact | Status | Fast-Path (SIMD) vs. Non-SIMD Fallback |
+|---|---|---|---|---|---|---|---|
+| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead | **[Finished]** | AVX2 (`_mm256_xor_si256`), NEON (`veorq_u8`), RVV 1.0 (`vxor.vv`) | Standard 8-bit scalar bitwise XOR loop (i586 compatible) |
+| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps | **[Finished]** | Multi-byte structural scan scanning 16/32 byte boundary registers | Character-by-character parsing stream |
+| **SIMD CSP Nonce & Security Check** | 32 Bytes / 16 Bytes / Variable | Medium | High | Request security processing | Drastically speeds up header checking | **[Finished]** | Aligned vector comparators (`wisp_simd_strcmp`, `wisp_simd_streq`) | Standard `strcmp` / `memcmp` loops |
+| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS | Planned | Vectorized delimiter and whitespace skip buffers | Sequential character scanner state-machine |
+
+### F. Parser & DOM Mutation Optimizations & Roadmap (2027 Development Cycle)
+
+During the detailed audit and diagnosis of the HTML Parser, XML Parser, and DOM Mutation Event subsystems, several high-impact optimization pathways were identified. Consistent with Wisp's performance architecture, the high-performance variants are strictly designated as **Fast-Path optimizations using SIMD vector registers** with safe, fully compatible **scalar fallbacks** for legacy systems:
+
+1. **Parser Tokenizer Whitespace Skipping**
+   - **Fast-Path (SIMD Required)**: Utilize SIMD vector scanning registers (AVX2, NEON, RVV 1.0) pre-loaded with whitespace patterns (spaces, tabs, line breaks, carriage returns). This allows the tokenizer in `domparser_impl.c` or the Hubbub parser to scan and skip up to 32 bytes of white spaces in a single clock cycle, dramatically speeding up modern bloated XML/HTML document parsing.
+   - **Non-SIMD Fallback**: Fall back to sequential character-by-character loops checking `isspace()` or pointer-increment comparators.
+
+2. **DOM Event Target Dispatch Filtering & Matching**
+   - **Fast-Path (SIMD Required)**: Accelerate the filtering and matching of event types (such as bypassing legacy mutation strings like `"DOMNodeInserted"`) inside `_dom_event_target_dispatch` by using 128-bit or 256-bit SIMD string comparisons to compare event-type name strings concurrently.
+   - **Non-SIMD Fallback**: Fall back cleanly to standard string comparisons (`strcmp` or `strncmp`).
+
+3. **Batched Mutation Record Buffer Copying**
+   - **Fast-Path (SIMD Required)**: Optimize bulk serialization and transfer of mutation records (`WispMutationRecord`) inside `mutationobserver_impl.c` by leveraging vectorized block copies (e.g. `_mm256_store_si256`) to clone record entries into the microtask execution queues.
+   - **Non-SIMD Fallback**: Fall back to classic `memcpy` or element-by-element loop copying.
 
 ### E. High-Performance IPC: Shared-Memory DOM Topology & Batch Mutation Queues
 

@@ -427,9 +427,16 @@ static void nsvideo_destroy(struct content *c)
 
     if (video->video_codec_ctx) avcodec_free_context(&video->video_codec_ctx);
     if (video->audio_codec_ctx) avcodec_free_context(&video->audio_codec_ctx);
-    if (video->format_ctx) avformat_close_input(&video->format_ctx);
-    if (video->avio_ctx) av_free(video->avio_ctx);
-    if (video->avio_buffer) av_free(video->avio_buffer);
+    if (video->format_ctx) {
+        video->format_ctx->pb = NULL;
+        avformat_close_input(&video->format_ctx);
+    }
+    if (video->avio_ctx) {
+        av_freep(&video->avio_ctx->buffer);
+        avio_context_free(&video->avio_ctx);
+    } else if (video->avio_buffer) {
+        av_free(video->avio_buffer);
+    }
     if (video->buffer.data) free(video->buffer.data);
     if (video->current_bitmap) guit->bitmap->destroy(video->current_bitmap);
 
