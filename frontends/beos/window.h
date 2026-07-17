@@ -28,6 +28,7 @@
 #include <FilePanel.h>
 #include <map>
 #include "wisp/mouse.h"
+#include "wisp/desktop/compositor.h"
 
 extern struct gui_window_table *beos_window_table;
 extern struct gui_clipboard_table *beos_clipboard_table;
@@ -36,9 +37,13 @@ struct browser_window;
 struct beos_scaffolding;
 
 struct gui_window {
+    wisp_compositor_t *compositor;  /* GPU-Accelerated Compositor */
     struct beos_scaffolding *scaffold;
     bool toplevel;
     struct browser_window *bw;
+#if defined(__HAIKU__)
+    BView *gl_view;                 /* Haiku BGLView for OpenGL ES Compositing */
+#endif
 
     struct {
         int pressed_x;

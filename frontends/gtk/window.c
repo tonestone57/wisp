@@ -74,6 +74,8 @@
 nserror nsgtk_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 #endif
 
+#include "wisp/desktop/compositor.h"
+
 /**
  * time (in ms) between throbber animation frame updates
  */
@@ -83,6 +85,8 @@ static GtkWidget *select_menu;
 static struct form_control *select_menu_control;
 
 struct gui_window {
+    wisp_compositor_t *compositor;  /* GPU-Accelerated Compositor */
+    GtkWidget *gl_area;             /* GtkGLArea widget */
     /**
      * The gtk scaffold object containing menu, buttons, url bar, [tabs],
      * drawing area, etc that may contain one or more gui_windows.
@@ -173,6 +177,62 @@ static int nsgtk_tile_task_compare(const void *a, const void *b)
     return 0;
 }
 
+#if GTK_CHECK_VERSION(3, 16, 0)
+#include <gdk/gdkglcontext.h>
+#include <GLES2/gl2.h>
+#include <EGL/egl.h>
+
+static gboolean nsgtk_compositor_frame_ready_idle(gpointer data)
+{
+    struct gui_window *gw = (struct gui_window *)data;
+    if (gw && gw->gl_area) {
+        gtk_gl_area_queue_render(GTK_GL_AREA(gw->gl_area));
+    }
+    return FALSE;
+}
+
+static void nsgtk_compositor_frame_ready_cb(void *usr_data)
+{
+    /* Conforms to GTK: invoke the idle callback on the GTK main thread */
+    g_idle_add(nsgtk_compositor_frame_ready_idle, usr_data);
+}
+
+static gboolean nsgtk_window_gl_render(GtkGLArea *area, GdkGLContext *context, gpointer data)
+{
+    struct gui_window *gw = (struct gui_window *)data;
+    if (gw->compositor) {
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        wisp_compositor_present_gl(gw->compositor);
+    }
+    return TRUE;
+}
+
+static void nsgtk_window_gl_realize(GtkWidget *widget, gpointer data)
+{
+    struct gui_window *gw = (struct gui_window *)data;
+    gtk_gl_area_make_current(GTK_GL_AREA(widget));
+    if (gtk_gl_area_get_error(GTK_GL_AREA(widget)) != NULL) {
+        return;
+    }
+
+    GdkGLContext *gdk_ctx = gtk_gl_area_get_context(GTK_GL_AREA(widget));
+    if (gdk_ctx && gw->compositor) {
+        gw->compositor->ui_thread_context = gdk_ctx;
+        NSLOG(wisp, INFO, "[GtkGLArea] Realized GLArea context on GTK main thread.");
+
+        /* Conforms to GtkGLArea: retrieve raw active EGLContext */
+        #ifdef WITH_GLES2
+        EGLContext raw_egl_ctx = eglGetCurrentContext();
+        wisp_compositor_initialize_egl_shared(gw->compositor, raw_egl_ctx);
+        #else
+        wisp_compositor_initialize_egl_shared(gw->compositor, NULL);
+        #endif
+    }
+}
+#endif
+
 #if GTK_CHECK_VERSION(3, 0, 0)
 
 static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -228,6 +288,14 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
         bl_context_end(&bl_ctx);
         bl_context_destroy(&bl_ctx);
         bl_image_destroy(&bl_img);
+
+        if (gw->compositor) {
+            wisp_texture_t *tex = wisp_compositor_get_tile_texture(gw->compositor, 0, 0, alloc.width, pixel_data);
+            if (tex) {
+                wisp_compositor_submit_texture(gw->compositor, tex, 0, 0, NULL);
+                wisp_compositor_draw_frame(gw->compositor, gtk_adjustment_get_value(hscroll), gtk_adjustment_get_value(vscroll));
+            }
+        }
 
         cairo_set_source_surface(cr, surface, 0, 0);
         cairo_paint(cr);
@@ -854,6 +922,11 @@ static void window_destroy(GtkWidget *widget, gpointer data)
 {
     struct gui_window *gw = data;
 
+    if (gw->compositor != NULL) {
+        wisp_compositor_destroy(gw->compositor);
+        gw->compositor = NULL;
+    }
+
     browser_window_destroy(gw->bw);
 
     g_object_unref(gw->input_method);
@@ -966,6 +1039,14 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->bw = bw;
     g->mouse.state = 0;
     g->current_pointer = GUI_POINTER_DEFAULT;
+    g->compositor = wisp_compositor_create(WISP_COMPOSITOR_API_OPENGL_ES, g);
+    if (g->compositor) {
+#if GTK_CHECK_VERSION(3, 16, 0)
+        g->compositor->frame_ready_cb = nsgtk_compositor_frame_ready_cb;
+        g->compositor->frame_ready_usr_data = g;
+#endif
+        wisp_compositor_start(g->compositor);
+    }
 
     /* attach scaffold */
     if (flags & GW_CREATE_TAB) {
@@ -989,6 +1070,20 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     /* Construct our primary elements */
     g->container = GTK_WIDGET(gtk_builder_get_object(tab_builder, "tabBox"));
     g->layout = GTK_LAYOUT(gtk_builder_get_object(tab_builder, "layout"));
+
+#if GTK_CHECK_VERSION(3, 16, 0)
+    /* Create the real GtkGLArea widget, connect signals, and add it to the window container */
+    GtkWidget *gl_area = gtk_gl_area_new();
+    g->gl_area = gl_area;
+    gtk_widget_set_hexpand(gl_area, TRUE);
+    gtk_widget_set_vexpand(gl_area, TRUE);
+    g_signal_connect(gl_area, "render", G_CALLBACK(nsgtk_window_gl_render), g);
+    g_signal_connect(gl_area, "realize", G_CALLBACK(nsgtk_window_gl_realize), g);
+    gtk_container_add(GTK_CONTAINER(g->layout), gl_area);
+    gtk_widget_show(gl_area);
+    NSLOG(wisp, INFO, "Successfully integrated real GtkGLArea widget with shared context into window layout.");
+#endif
+
     g->grid = GTK_WIDGET(gtk_builder_get_object(tab_builder, "tabContents"));
     g->status_bar = GTK_LABEL(gtk_builder_get_object(tab_builder, "status_bar"));
     g->paned = GTK_PANED(gtk_builder_get_object(tab_builder, "hpaned1"));
@@ -1096,6 +1191,11 @@ static void gui_window_destroy(struct gui_window *gw)
     assert(gw != NULL);
     assert(gw->bw != NULL);
     NSLOG(wisp, INFO, "scaffolding: %p", gw->scaffold);
+
+    if (gw->compositor != NULL) {
+        wisp_compositor_destroy(gw->compositor);
+        gw->compositor = NULL;
+    }
 
     /* kill off any throbber that might be running */
     nsgtk_schedule(-1, next_throbber_frame, gw);
