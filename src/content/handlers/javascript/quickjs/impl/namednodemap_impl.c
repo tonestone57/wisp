@@ -8,18 +8,6 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "JSNamedNodeMap.gen.h"
-#include <dom/core/namednodemap.h>
-
-static void namednodemap_finalizer_manual(JSRuntime *rt, JSValue val)
-{
-    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_namednodemap_class_id);
-    if (priv) {
-        if (priv->magic == QJS_DOM_MAGIC && priv->node) {
-            dom_namednodemap_unref((dom_namednodemap *)priv->node);
-        }
-        free(priv);
-    }
-}
 
 JSValue wisp_namednodemap_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
@@ -157,6 +145,22 @@ JSValue wisp_namednodemap_removeNamedItemNS_impl(JSContext *ctx, QJSNodePrivate 
     return val;
 }
 
+static void namednodemap_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_namednodemap_class_id);
+    if (priv) {
+        if (priv->magic == QJS_DOM_MAGIC && priv->node) {
+            if (priv->is_dom_node) {
+                qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);
+                dom_node_unref((dom_node *)priv->node);
+            } else {
+                dom_namednodemap_unref((dom_namednodemap *)priv->node);
+            }
+        }
+        free(priv);
+    }
+}
+
 JSValue qjs_new_namednodemap(JSContext *ctx, void *node, bool is_dom_node)
 {
     JSValue obj = JS_NewObjectClass(ctx, qjs_namednodemap_class_id);
@@ -168,9 +172,15 @@ JSValue qjs_new_namednodemap(JSContext *ctx, void *node, bool is_dom_node)
     }
     priv->magic = QJS_DOM_MAGIC;
     priv->node = node;
-    priv->is_dom_node = false;
+    priv->is_dom_node = is_dom_node;
     priv->ctx = ctx;
-    if (node) dom_namednodemap_ref((dom_namednodemap *)node);
+    if (node) {
+        if (is_dom_node) {
+            dom_node_ref((dom_node *)node);
+        } else {
+            dom_namednodemap_ref((dom_namednodemap *)node);
+        }
+    }
     JS_SetOpaque(obj, priv);
 
     /* Wrap in proxy to support indexed attributes access */
@@ -194,13 +204,13 @@ int qjs_init_namednodemap(JSContext *ctx)
         JS_NewClassID(rt, &qjs_namednodemap_class_id);
     }
 
-    JSClassDef qjs_namednodemap_class_manual = {
+    JSClassDef js_namednodemap_class_manual = {
         "NamedNodeMap",
         .finalizer = namednodemap_finalizer_manual,
     };
 
     if (!JS_IsRegisteredClass(rt, qjs_namednodemap_class_id)) {
-        JS_NewClass(rt, qjs_namednodemap_class_id, &qjs_namednodemap_class_manual);
+        JS_NewClass(rt, qjs_namednodemap_class_id, &js_namednodemap_class_manual);
     }
 
     qjs_init_namednodemap_gen(ctx);

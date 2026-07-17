@@ -192,6 +192,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/impl/node_impl.c
 	content/handlers/javascript/quickjs/impl/namednodemap_impl.c
 	content/handlers/javascript/quickjs/impl/domtokenlist_impl.c
+	content/handlers/javascript/quickjs/impl/domparser_impl.c
 	content/handlers/javascript/quickjs/impl/event_impl.c
 	content/handlers/javascript/quickjs/impl/element_impl.c
 	content/handlers/javascript/quickjs/impl/document_impl.c
@@ -219,7 +220,6 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/impl/canvas_impl.c
 	content/handlers/javascript/quickjs/impl/trusted_types_impl.c
 	content/handlers/javascript/quickjs/impl/htmlimageelement_impl.c
-	content/handlers/javascript/quickjs/impl/domparser_impl.c
 	content/handlers/javascript/quickjs/crypto.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
