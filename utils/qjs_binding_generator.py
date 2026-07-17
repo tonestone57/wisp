@@ -612,6 +612,14 @@ class QuickJSBindingGenerator:
         else:
             c_code += f"            if (priv->is_dom_node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
             c_code += f"            if (priv->is_dom_node) dom_node_unref((dom_node *)priv->node);\n"
+            if name == "NodeList" or name == "RadioNodeList":
+                c_code += f"            else dom_nodelist_unref((dom_nodelist *)priv->node);\n"
+            elif name == "HTMLCollection":
+                c_code += f"            else dom_html_collection_unref((dom_html_collection *)priv->node);\n"
+            elif name == "HTMLOptionsCollection":
+                c_code += f"            else dom_html_options_collection_unref((dom_html_options_collection *)priv->node);\n"
+            elif name == "NamedNodeMap":
+                c_code += f"            else dom_namednodemap_unref((dom_namednodemap *)priv->node);\n"
         c_code += f"        }}\n"
         c_code += f"        free(priv);\n"
         c_code += f"    }}\n}}\n\n"
