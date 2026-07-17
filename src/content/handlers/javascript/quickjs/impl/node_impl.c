@@ -13,13 +13,22 @@
 #include <wisp/utils/corestrings.h>
 #include "utils/libdom.h"
 #include "generated_bindings.h"
+#include "wisp/utils/shm_dom.h"
+#include "wisp/utils/nsurl.h"
 
 struct content;
 extern struct nsurl *content_get_url(struct content *c);
 
+extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
+
 JSValue wisp_node_hasChildNodes_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_FALSE;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        return JS_NewBool(ctx, sn && sn->first_child_id != 0);
+    }
     bool result = false;
     dom_node_has_child_nodes((dom_node *)priv->node, &result);
     return JS_NewBool(ctx, result);
@@ -28,6 +37,7 @@ JSValue wisp_node_hasChildNodes_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_normalize_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) return JS_UNDEFINED;
     dom_node_normalize((dom_node *)priv->node);
     return JS_UNDEFINED;
 }
@@ -35,6 +45,7 @@ JSValue wisp_node_normalize_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_cloneNode_impl(JSContext *ctx, QJSNodePrivate *priv, bool deep)
 {
     if (!priv || !priv->node) return JS_EXCEPTION;
+    if (wisp_is_js_process) return JS_NULL;
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_clone_node((dom_node *)priv->node, deep, &result);
     if (exc != DOM_NO_ERR || result == NULL) return JS_NULL;
@@ -46,6 +57,9 @@ JSValue wisp_node_cloneNode_impl(JSContext *ctx, QJSNodePrivate *priv, bool deep
 JSValue wisp_node_isEqualNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * otherNode)
 {
     if (!priv || !priv->node || !otherNode) return JS_FALSE;
+    if (wisp_is_js_process) {
+        return JS_NewBool(ctx, (uint64_t)(uintptr_t)priv->node == (uint64_t)(uintptr_t)otherNode);
+    }
     bool result = false;
     dom_node_is_equal((dom_node *)priv->node, (dom_node *)otherNode, &result);
     return JS_NewBool(ctx, result);
@@ -54,6 +68,7 @@ JSValue wisp_node_isEqualNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
 JSValue wisp_node_compareDocumentPosition_impl(JSContext *ctx, QJSNodePrivate *priv, void * other)
 {
     if (!priv || !priv->node || !other) return JS_NewInt32(ctx, 0);
+    if (wisp_is_js_process) return JS_NewInt32(ctx, 0);
     uint16_t result = 0;
     dom_node_compare_document_position((dom_node *)priv->node, (dom_node *)other, &result);
     return JS_NewInt32(ctx, result);
@@ -62,6 +77,16 @@ JSValue wisp_node_compareDocumentPosition_impl(JSContext *ctx, QJSNodePrivate *p
 JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * other)
 {
     if (!priv || !priv->node || !other) return JS_FALSE;
+    if (wisp_is_js_process) {
+        uint64_t other_id = (uint64_t)(uintptr_t)other;
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, other_id);
+        while (sn) {
+            if (sn->id == (uint64_t)(uintptr_t)priv->node) return JS_TRUE;
+            if (sn->parent_id == 0) break;
+            sn = find_shm_node(wisp_shm_dom, sn->parent_id);
+        }
+        return JS_FALSE;
+    }
     bool result = false;
     dom_node_contains((dom_node *)priv->node, (dom_node *)other, &result);
     return JS_NewBool(ctx, result);
@@ -70,6 +95,7 @@ JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * oth
 JSValue wisp_node_lookupPrefix_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace)
 {
     if (!priv || !priv->node || !namespace) return JS_NULL;
+    if (wisp_is_js_process) return JS_NULL;
     dom_string *ns_dom = NULL;
     dom_string_create((const uint8_t *)namespace, strlen(namespace), &ns_dom);
     if (!ns_dom) return JS_NULL;
@@ -89,6 +115,7 @@ JSValue wisp_node_lookupPrefix_impl(JSContext *ctx, QJSNodePrivate *priv, const 
 JSValue wisp_node_lookupNamespaceURI_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespaceURI)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) return JS_NULL;
     dom_string *prefix_dom = NULL;
     if (namespaceURI) {
         dom_string_create((const uint8_t *)namespaceURI, strlen(namespaceURI), &prefix_dom);
@@ -109,6 +136,7 @@ JSValue wisp_node_lookupNamespaceURI_impl(JSContext *ctx, QJSNodePrivate *priv, 
 JSValue wisp_node_isDefaultNamespace_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace)
 {
     if (!priv || !priv->node || !namespace) return JS_FALSE;
+    if (wisp_is_js_process) return JS_FALSE;
     dom_string *ns_dom = NULL;
     dom_string_create((const uint8_t *)namespace, strlen(namespace), &ns_dom);
     if (!ns_dom) return JS_FALSE;
@@ -126,6 +154,62 @@ JSValue wisp_node_isDefaultNamespace_impl(JSContext *ctx, QJSNodePrivate *priv, 
 JSValue wisp_node_insertBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, void * child)
 {
     if (!priv || !priv->node || !node) return JS_EXCEPTION;
+    if (wisp_is_js_process) {
+        uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
+        uint64_t child_id = (uint64_t)(uintptr_t)node;
+        uint64_t ref_id = child ? (uint64_t)(uintptr_t)child : 0;
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_INSERT_BEFORE, parent_id, child_id, ref_id, NULL, NULL);
+
+        shm_dom_node_t *parent_shm = find_shm_node(wisp_shm_dom, parent_id);
+        shm_dom_node_t *child_shm = find_shm_node(wisp_shm_dom, child_id);
+        if (parent_shm && child_shm) {
+            if (child_shm->parent_id != 0) {
+                shm_dom_node_t *old_parent = find_shm_node(wisp_shm_dom, child_shm->parent_id);
+                if (old_parent) {
+                    if (old_parent->first_child_id == child_id) old_parent->first_child_id = child_shm->next_sibling_id;
+                    if (old_parent->last_child_id == child_id) old_parent->last_child_id = child_shm->previous_sibling_id;
+                }
+                if (child_shm->previous_sibling_id != 0) {
+                    shm_dom_node_t *prev = find_shm_node(wisp_shm_dom, child_shm->previous_sibling_id);
+                    if (prev) prev->next_sibling_id = child_shm->next_sibling_id;
+                }
+                if (child_shm->next_sibling_id != 0) {
+                    shm_dom_node_t *next = find_shm_node(wisp_shm_dom, child_shm->next_sibling_id);
+                    if (next) next->previous_sibling_id = child_shm->previous_sibling_id;
+                }
+            }
+
+            if (ref_id != 0) {
+                shm_dom_node_t *ref_shm = find_shm_node(wisp_shm_dom, ref_id);
+                if (ref_shm) {
+                    child_shm->parent_id = parent_id;
+                    child_shm->next_sibling_id = ref_id;
+                    child_shm->previous_sibling_id = ref_shm->previous_sibling_id;
+
+                    if (ref_shm->previous_sibling_id != 0) {
+                        shm_dom_node_t *prev = find_shm_node(wisp_shm_dom, ref_shm->previous_sibling_id);
+                        if (prev) prev->next_sibling_id = child_id;
+                    } else {
+                        parent_shm->first_child_id = child_id;
+                    }
+                    ref_shm->previous_sibling_id = child_id;
+                }
+            } else {
+                child_shm->parent_id = parent_id;
+                child_shm->next_sibling_id = 0;
+                child_shm->previous_sibling_id = parent_shm->last_child_id;
+
+                if (parent_shm->last_child_id != 0) {
+                    shm_dom_node_t *last_child = find_shm_node(wisp_shm_dom, parent_shm->last_child_id);
+                    if (last_child) last_child->next_sibling_id = child_id;
+                } else {
+                    parent_shm->first_child_id = child_id;
+                }
+                parent_shm->last_child_id = child_id;
+            }
+        }
+        return qjs_wrap_node(ctx, (dom_node *)node);
+    }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_insert_before((dom_node *)priv->node, (dom_node *)node, (dom_node *)child, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_insert_before failed");
@@ -137,6 +221,48 @@ JSValue wisp_node_insertBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void *
 JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node)
 {
     if (!priv || !priv->node || !node) return JS_EXCEPTION;
+    if (wisp_is_js_process) {
+        uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
+        uint64_t child_id = (uint64_t)(uintptr_t)node;
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_APPEND_CHILD, parent_id, child_id, 0, NULL, NULL);
+
+        shm_dom_node_t *parent_shm = find_shm_node(wisp_shm_dom, parent_id);
+        shm_dom_node_t *child_shm = find_shm_node(wisp_shm_dom, child_id);
+        if (parent_shm && child_shm) {
+            if (child_shm->parent_id != 0) {
+                shm_dom_node_t *old_parent = find_shm_node(wisp_shm_dom, child_shm->parent_id);
+                if (old_parent) {
+                    if (old_parent->first_child_id == child_id) {
+                        old_parent->first_child_id = child_shm->next_sibling_id;
+                    }
+                    if (old_parent->last_child_id == child_id) {
+                        old_parent->last_child_id = child_shm->previous_sibling_id;
+                    }
+                }
+                if (child_shm->previous_sibling_id != 0) {
+                    shm_dom_node_t *prev = find_shm_node(wisp_shm_dom, child_shm->previous_sibling_id);
+                    if (prev) prev->next_sibling_id = child_shm->next_sibling_id;
+                }
+                if (child_shm->next_sibling_id != 0) {
+                    shm_dom_node_t *next = find_shm_node(wisp_shm_dom, child_shm->next_sibling_id);
+                    if (next) next->previous_sibling_id = child_shm->previous_sibling_id;
+                }
+            }
+
+            child_shm->parent_id = parent_id;
+            child_shm->next_sibling_id = 0;
+            child_shm->previous_sibling_id = parent_shm->last_child_id;
+
+            if (parent_shm->last_child_id != 0) {
+                shm_dom_node_t *last_child = find_shm_node(wisp_shm_dom, parent_shm->last_child_id);
+                if (last_child) last_child->next_sibling_id = child_id;
+            } else {
+                parent_shm->first_child_id = child_id;
+            }
+            parent_shm->last_child_id = child_id;
+        }
+        return qjs_wrap_node(ctx, (dom_node *)node);
+    }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_append_child((dom_node *)priv->node, (dom_node *)node, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
@@ -148,6 +274,38 @@ JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
 JSValue wisp_node_replaceChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, void * child)
 {
     if (!priv || !priv->node || !node || !child) return JS_EXCEPTION;
+    if (wisp_is_js_process) {
+        uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
+        uint64_t new_child_id = (uint64_t)(uintptr_t)node;
+        uint64_t old_child_id = (uint64_t)(uintptr_t)child;
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_REPLACE_CHILD, parent_id, new_child_id, old_child_id, NULL, NULL);
+
+        shm_dom_node_t *parent_shm = find_shm_node(wisp_shm_dom, parent_id);
+        shm_dom_node_t *new_child_shm = find_shm_node(wisp_shm_dom, new_child_id);
+        shm_dom_node_t *old_child_shm = find_shm_node(wisp_shm_dom, old_child_id);
+        if (parent_shm && new_child_shm && old_child_shm) {
+            new_child_shm->parent_id = parent_id;
+            new_child_shm->next_sibling_id = old_child_shm->next_sibling_id;
+            new_child_shm->previous_sibling_id = old_child_shm->previous_sibling_id;
+
+            if (parent_shm->first_child_id == old_child_id) parent_shm->first_child_id = new_child_id;
+            if (parent_shm->last_child_id == old_child_id) parent_shm->last_child_id = new_child_id;
+
+            if (old_child_shm->previous_sibling_id != 0) {
+                shm_dom_node_t *prev = find_shm_node(wisp_shm_dom, old_child_shm->previous_sibling_id);
+                if (prev) prev->next_sibling_id = new_child_id;
+            }
+            if (old_child_shm->next_sibling_id != 0) {
+                shm_dom_node_t *next = find_shm_node(wisp_shm_dom, old_child_shm->next_sibling_id);
+                if (next) next->previous_sibling_id = new_child_id;
+            }
+
+            old_child_shm->parent_id = 0;
+            old_child_shm->next_sibling_id = 0;
+            old_child_shm->previous_sibling_id = 0;
+        }
+        return qjs_wrap_node(ctx, (dom_node *)child);
+    }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_replace_child((dom_node *)priv->node, (dom_node *)node, (dom_node *)child, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_replace_child failed");
@@ -159,6 +317,34 @@ JSValue wisp_node_replaceChild_impl(JSContext *ctx, QJSNodePrivate *priv, void *
 JSValue wisp_node_removeChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * child)
 {
     if (!priv || !priv->node || !child) return JS_EXCEPTION;
+    if (wisp_is_js_process) {
+        uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
+        uint64_t child_id = (uint64_t)(uintptr_t)child;
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_REMOVE_CHILD, parent_id, child_id, 0, NULL, NULL);
+
+        shm_dom_node_t *parent_shm = find_shm_node(wisp_shm_dom, parent_id);
+        shm_dom_node_t *child_shm = find_shm_node(wisp_shm_dom, child_id);
+        if (parent_shm && child_shm) {
+            if (parent_shm->first_child_id == child_id) {
+                parent_shm->first_child_id = child_shm->next_sibling_id;
+            }
+            if (parent_shm->last_child_id == child_id) {
+                parent_shm->last_child_id = child_shm->previous_sibling_id;
+            }
+            if (child_shm->previous_sibling_id != 0) {
+                shm_dom_node_t *prev = find_shm_node(wisp_shm_dom, child_shm->previous_sibling_id);
+                if (prev) prev->next_sibling_id = child_shm->next_sibling_id;
+            }
+            if (child_shm->next_sibling_id != 0) {
+                shm_dom_node_t *next = find_shm_node(wisp_shm_dom, child_shm->next_sibling_id);
+                if (next) next->previous_sibling_id = child_shm->previous_sibling_id;
+            }
+            child_shm->parent_id = 0;
+            child_shm->next_sibling_id = 0;
+            child_shm->previous_sibling_id = 0;
+        }
+        return qjs_wrap_node(ctx, (dom_node *)child);
+    }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_remove_child((dom_node *)priv->node, (dom_node *)child, &result);
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_remove_child failed");
@@ -170,6 +356,11 @@ JSValue wisp_node_removeChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
 JSValue wisp_node_nodeType_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) return JS_NewInt32(ctx, sn->type);
+        return JS_NULL;
+    }
     dom_node_type type;
     dom_node_get_node_type((dom_node *)priv->node, &type);
     return JS_NewInt32(ctx, type);
@@ -178,6 +369,11 @@ JSValue wisp_node_nodeType_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_nodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) return JS_NewString(ctx, sn->name);
+        return JS_NULL;
+    }
     dom_string *name = NULL;
     dom_node_get_node_name((dom_node *)priv->node, &name);
     if (name) {
@@ -188,11 +384,13 @@ JSValue wisp_node_nodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
-#include <wisp/utils/nsurl.h>
-
 JSValue wisp_node_baseURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        // Fallback for JS Process
+        return JS_NewString(ctx, "about:blank");
+    }
     struct dom_document *doc = NULL;
     dom_node_get_owner_document((dom_node *)priv->node, &doc);
     if (!doc) {
@@ -223,6 +421,21 @@ JSValue wisp_node_baseURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->type == DOM_DOCUMENT_NODE) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->id);
+        }
+        // Scan for the document node
+        if (wisp_shm_dom) {
+            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+                if (wisp_shm_dom->nodes[i].type == 9) {
+                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id);
+                }
+            }
+        }
+        return JS_NULL;
+    }
     struct dom_document *doc = NULL;
     dom_node_get_owner_document((dom_node *)priv->node, &doc);
     if (doc) {
@@ -236,6 +449,13 @@ JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_parentNode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->parent_id != 0) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->parent_id);
+        }
+        return JS_NULL;
+    }
     struct dom_node *parent = NULL;
     dom_node_get_parent_node((dom_node *)priv->node, &parent);
     if (parent) {
@@ -249,6 +469,17 @@ JSValue wisp_node_parentNode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_parentElement_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        while (sn && sn->parent_id != 0) {
+            shm_dom_node_t *parent_sn = find_shm_node(wisp_shm_dom, sn->parent_id);
+            if (parent_sn && parent_sn->type == DOM_ELEMENT_NODE) {
+                return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)parent_sn->id);
+            }
+            sn = parent_sn;
+        }
+        return JS_NULL;
+    }
     struct dom_node *parent = NULL;
     dom_node_get_parent_node((dom_node *)priv->node, &parent);
     while (parent) {
@@ -273,6 +504,21 @@ JSValue wisp_node_childNodes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     JSValue arr = JS_NewArray(ctx);
     if (JS_IsException(arr)) return arr;
 
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        uint32_t index = 0;
+        if (sn && sn->first_child_id != 0) {
+            uint64_t child_id = sn->first_child_id;
+            while (child_id != 0) {
+                JSValue child_val = qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)child_id);
+                JS_SetPropertyUint32(ctx, arr, index++, child_val);
+                shm_dom_node_t *child_sn = find_shm_node(wisp_shm_dom, child_id);
+                child_id = child_sn ? child_sn->next_sibling_id : 0;
+            }
+        }
+        return arr;
+    }
+
     struct dom_node *curr = NULL;
     dom_exception exc = dom_node_get_first_child((dom_node *)priv->node, &curr);
     uint32_t index = 0;
@@ -295,6 +541,13 @@ JSValue wisp_node_childNodes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->first_child_id != 0) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->first_child_id);
+        }
+        return JS_NULL;
+    }
     struct dom_node *child = NULL;
     dom_node_get_first_child((dom_node *)priv->node, &child);
     if (child) {
@@ -308,6 +561,13 @@ JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_lastChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->last_child_id != 0) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->last_child_id);
+        }
+        return JS_NULL;
+    }
     struct dom_node *child = NULL;
     dom_node_get_last_child((dom_node *)priv->node, &child);
     if (child) {
@@ -321,6 +581,13 @@ JSValue wisp_node_lastChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_previousSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->previous_sibling_id != 0) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->previous_sibling_id);
+        }
+        return JS_NULL;
+    }
     struct dom_node *sibling = NULL;
     dom_node_get_previous_sibling((dom_node *)priv->node, &sibling);
     if (sibling) {
@@ -334,6 +601,13 @@ JSValue wisp_node_previousSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_nextSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->next_sibling_id != 0) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->next_sibling_id);
+        }
+        return JS_NULL;
+    }
     struct dom_node *sibling = NULL;
     dom_node_get_next_sibling((dom_node *)priv->node, &sibling);
     if (sibling) {
@@ -347,6 +621,11 @@ JSValue wisp_node_nextSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_nodeValue_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) return JS_NewString(ctx, sn->value);
+        return JS_NULL;
+    }
     dom_string *val = NULL;
     dom_node_get_node_value((dom_node *)priv->node, &val);
     if (val) {
@@ -360,6 +639,15 @@ JSValue wisp_node_nodeValue_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            strncpy(sn->value, value, SHM_DOM_STRING_MAX - 1);
+            sn->value[SHM_DOM_STRING_MAX - 1] = '\0';
+        }
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_NODE_VALUE, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
+        return JS_UNDEFINED;
+    }
     dom_string *ds; dom_string_create((const uint8_t *)value, strlen(value), &ds); dom_node_set_node_value((dom_node *)priv->node, ds); dom_string_unref(ds);
     return JS_UNDEFINED;
 }
@@ -367,6 +655,11 @@ JSValue wisp_node_nodeValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const
 JSValue wisp_node_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) return JS_NewString(ctx, sn->value);
+        return JS_NULL;
+    }
     dom_string *text = NULL;
     dom_node_get_text_content((dom_node *)priv->node, &text);
     if (text) {
@@ -380,6 +673,15 @@ JSValue wisp_node_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            strncpy(sn->value, value, SHM_DOM_STRING_MAX - 1);
+            sn->value[SHM_DOM_STRING_MAX - 1] = '\0';
+        }
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_TEXT_CONTENT, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
+        return JS_UNDEFINED;
+    }
     dom_string *ds; dom_string_create((const uint8_t *)value, strlen(value), &ds); dom_node_set_text_content((dom_node *)priv->node, ds); dom_string_unref(ds);
     return JS_UNDEFINED;
 }

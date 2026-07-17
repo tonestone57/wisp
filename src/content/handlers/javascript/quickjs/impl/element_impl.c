@@ -9,11 +9,26 @@
 #include "utils/libdom.h"
 #include "utils/corestrings.h"
 #include "JSElement.gen.h"
+#include "wisp/utils/shm_dom.h"
+
+extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
 
 JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName)
 {
     if (!priv || !priv->node) return JS_NULL;
     if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            for (uint32_t i = 0; i < sn->attr_count; i++) {
+                if (strcasecmp(sn->attrs[i].name, qualifiedName) == 0) {
+                    return JS_NewString(ctx, sn->attrs[i].value);
+                }
+            }
+        }
+        return JS_NULL;
+    }
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
@@ -31,6 +46,29 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     if (!qualifiedName || !value) return JS_ThrowTypeError(ctx, "Argument is null");
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            bool found = false;
+            for (uint32_t i = 0; i < sn->attr_count; i++) {
+                if (strcasecmp(sn->attrs[i].name, qualifiedName) == 0) {
+                    strncpy(sn->attrs[i].value, value, SHM_DOM_STRING_MAX - 1);
+                    sn->attrs[i].value[SHM_DOM_STRING_MAX - 1] = '\0';
+                    found = true;
+                    break;
+                }
+            }
+            if (!found && sn->attr_count < 16) {
+                uint32_t i = sn->attr_count++;
+                strncpy(sn->attrs[i].name, qualifiedName, SHM_DOM_STRING_MAX - 1);
+                sn->attrs[i].name[SHM_DOM_STRING_MAX - 1] = '\0';
+                strncpy(sn->attrs[i].value, value, SHM_DOM_STRING_MAX - 1);
+                sn->attrs[i].value[SHM_DOM_STRING_MAX - 1] = '\0';
+            }
+        }
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_ATTRIBUTE, (uint64_t)(uintptr_t)priv->node, 0, 0, qualifiedName, value);
+        return JS_UNDEFINED;
+    }
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_string *value_dom = NULL;
@@ -45,6 +83,19 @@ JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, 
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            for (uint32_t i = 0; i < sn->attr_count; i++) {
+                if (strcasecmp(sn->attrs[i].name, qualifiedName) == 0) {
+                    sn->attrs[i] = sn->attrs[--sn->attr_count];
+                    break;
+                }
+            }
+        }
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_REMOVE_ATTRIBUTE, (uint64_t)(uintptr_t)priv->node, 0, 0, qualifiedName, NULL);
+        return JS_UNDEFINED;
+    }
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     dom_element_remove_attribute((dom_element *)priv->node, name_dom);
@@ -56,6 +107,17 @@ JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 {
     if (!priv || !priv->node) return JS_FALSE;
     if (!qualifiedName) return JS_ThrowTypeError(ctx, "qualifiedName is null");
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            for (uint32_t i = 0; i < sn->attr_count; i++) {
+                if (strcasecmp(sn->attrs[i].name, qualifiedName) == 0) {
+                    return JS_TRUE;
+                }
+            }
+        }
+        return JS_FALSE;
+    }
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)qualifiedName, strlen(qualifiedName), &name_dom);
     bool result = false;
@@ -261,6 +323,11 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
 JSValue wisp_element_tagName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) return JS_NewString(ctx, sn->tag_name);
+        return JS_NULL;
+    }
     dom_string *name = NULL;
     dom_element_get_tag_name((dom_element *)priv->node, &name);
     if (name) {
@@ -283,6 +350,7 @@ JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) return JS_NULL;
     dom_namednodemap *attrs = NULL;
     dom_exception exc = dom_node_get_attributes((dom_node *)priv->node, &attrs);
     if (exc != DOM_NO_ERR || !attrs) return JS_NULL;

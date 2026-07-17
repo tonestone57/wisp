@@ -49,6 +49,9 @@
 #define mkdir(path, mode) _mkdir(path)
 #endif
 
+bool wisp_is_js_process = false;
+shm_dom_t *wisp_shm_dom = NULL;
+
 static void compute_sha256(const uint8_t *data, size_t len, char *hex_out) {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     const EVP_MD *md = EVP_sha256();
@@ -627,6 +630,10 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->origin = strdup(origin_buf);
     ensure_js_process_for_origin(t->origin);
 
+    /* Map shared memory segment for the thread context */
+    snprintf(t->shm_dom_name, sizeof(t->shm_dom_name), "/wisp_shm_dom_%u", (unsigned int)(uintptr_t)t);
+    t->shm_dom = shm_dom_create(t->shm_dom_name, true);
+
     /* Bridge must be initialized first */
     if (qjs_init_dom_bridge(t->ctx) != 0) {
         js_destroythread(t);
@@ -836,7 +843,221 @@ void js_destroythread(jsthread *thread)
         release_js_process_for_origin(thread->origin);
         free(thread->origin);
     }
+    if (thread->shm_dom) {
+        shm_dom_destroy(thread->shm_dom, thread->shm_dom_name, true);
+    }
     free(thread);
+}
+
+static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_id) {
+    if (!node || shm->node_count >= SHM_DOM_MAX_NODES) return;
+
+    uint32_t idx = shm->node_count++;
+    shm_dom_node_t *sn = &shm->nodes[idx];
+    memset(sn, 0, sizeof(*sn));
+
+    sn->id = (uint64_t)(uintptr_t)node;
+    sn->parent_id = parent_id;
+
+    dom_node_type type;
+    dom_node_get_node_type(node, &type);
+    sn->type = (uint32_t)type;
+
+    dom_string *name = NULL;
+    dom_node_get_node_name(node, &name);
+    if (name) {
+        size_t len = dom_string_byte_length(name);
+        if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
+        memcpy(sn->name, dom_string_data(name), len);
+        dom_string_unref(name);
+    }
+
+    dom_string *value = NULL;
+    dom_node_get_node_value(node, &value);
+    if (value) {
+        size_t len = dom_string_byte_length(value);
+        if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
+        memcpy(sn->value, dom_string_data(value), len);
+        dom_string_unref(value);
+    }
+
+    if (type == DOM_ELEMENT_NODE) {
+        dom_string *tag_name = NULL;
+        dom_element_get_tag_name((dom_element *)node, &tag_name);
+        if (tag_name) {
+            size_t len = dom_string_byte_length(tag_name);
+            if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
+            memcpy(sn->tag_name, dom_string_data(tag_name), len);
+            dom_string_unref(tag_name);
+        }
+
+        dom_namednodemap *attrs = NULL;
+        dom_node_get_attributes(node, &attrs);
+        if (attrs) {
+            uint32_t attr_len = 0;
+            dom_namednodemap_get_length(attrs, &attr_len);
+            if (attr_len > 16) attr_len = 16;
+            sn->attr_count = attr_len;
+            for (uint32_t i = 0; i < attr_len; i++) {
+                dom_node *attr_node = NULL;
+                dom_namednodemap_item(attrs, i, &attr_node);
+                if (attr_node) {
+                    dom_string *attr_name = NULL;
+                    dom_node_get_node_name(attr_node, &attr_name);
+                    dom_string *attr_val = NULL;
+                    dom_node_get_node_value(attr_node, &attr_val);
+
+                    if (attr_name) {
+                        size_t n_len = dom_string_byte_length(attr_name);
+                        if (n_len >= SHM_DOM_STRING_MAX) n_len = SHM_DOM_STRING_MAX - 1;
+                        memcpy(sn->attrs[i].name, dom_string_data(attr_name), n_len);
+                        dom_string_unref(attr_name);
+                    }
+                    if (attr_val) {
+                        size_t v_len = dom_string_byte_length(attr_val);
+                        if (v_len >= SHM_DOM_STRING_MAX) v_len = SHM_DOM_STRING_MAX - 1;
+                        memcpy(sn->attrs[i].value, dom_string_data(attr_val), v_len);
+                        dom_string_unref(attr_val);
+                    }
+                    dom_node_unref(attr_node);
+                }
+            }
+            dom_namednodemap_unref(attrs);
+        }
+    }
+
+    dom_node *child = NULL;
+    dom_node_get_first_child(node, &child);
+    uint64_t prev_child_id = 0;
+    if (child) {
+        sn->first_child_id = (uint64_t)(uintptr_t)child;
+        while (child) {
+            serialize_dom_node(shm, child, sn->id);
+
+            uint64_t child_id = (uint64_t)(uintptr_t)child;
+            for (uint32_t i = 0; i < shm->node_count; i++) {
+                if (shm->nodes[i].id == child_id) {
+                    shm->nodes[i].previous_sibling_id = prev_child_id;
+                    break;
+                }
+            }
+            if (prev_child_id != 0) {
+                for (uint32_t i = 0; i < shm->node_count; i++) {
+                    if (shm->nodes[i].id == prev_child_id) {
+                        shm->nodes[i].next_sibling_id = child_id;
+                        break;
+                    }
+                }
+            }
+
+            prev_child_id = child_id;
+            sn->last_child_id = child_id;
+
+            dom_node *next = NULL;
+            dom_node_get_next_sibling(child, &next);
+            dom_node_unref(child);
+            child = next;
+        }
+    }
+}
+
+static void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc) {
+    if (!shm || !doc) return;
+    shm->node_count = 0;
+    serialize_dom_node(shm, (dom_node *)doc, 0);
+}
+
+static void apply_shm_mutation(shm_mutation_t *m, struct dom_document *doc) {
+    if (!doc) return;
+
+    dom_node *target = (dom_node *)(uintptr_t)m->target_id;
+    dom_node *param1 = (dom_node *)(uintptr_t)m->param1_id;
+    dom_node *param2 = (dom_node *)(uintptr_t)m->param2_id;
+
+    switch (m->type) {
+        case SHM_MUTATION_SET_ATTRIBUTE: {
+            dom_string *name_dom = NULL;
+            dom_string_create((const uint8_t *)m->name, strlen(m->name), &name_dom);
+            dom_string *value_dom = NULL;
+            dom_string_create((const uint8_t *)m->value, strlen(m->value), &value_dom);
+            if (target && name_dom && value_dom) {
+                dom_element_set_attribute((dom_element *)target, name_dom, value_dom);
+            }
+            if (name_dom) dom_string_unref(name_dom);
+            if (value_dom) dom_string_unref(value_dom);
+            break;
+        }
+        case SHM_MUTATION_REMOVE_ATTRIBUTE: {
+            dom_string *name_dom = NULL;
+            dom_string_create((const uint8_t *)m->name, strlen(m->name), &name_dom);
+            if (target && name_dom) {
+                dom_element_remove_attribute((dom_element *)target, name_dom);
+            }
+            if (name_dom) dom_string_unref(name_dom);
+            break;
+        }
+        case SHM_MUTATION_APPEND_CHILD: {
+            if (target && param1) {
+                dom_node *result = NULL;
+                dom_node_append_child(target, param1, &result);
+                if (result) dom_node_unref(result);
+            }
+            break;
+        }
+        case SHM_MUTATION_REMOVE_CHILD: {
+            if (target && param1) {
+                dom_node *result = NULL;
+                dom_node_remove_child(target, param1, &result);
+                if (result) dom_node_unref(result);
+            }
+            break;
+        }
+        case SHM_MUTATION_INSERT_BEFORE: {
+            if (target && param1) {
+                dom_node *result = NULL;
+                dom_node_insert_before(target, param1, param2, &result);
+                if (result) dom_node_unref(result);
+            }
+            break;
+        }
+        case SHM_MUTATION_REPLACE_CHILD: {
+            if (target && param1 && param2) {
+                dom_node *result = NULL;
+                dom_node_replace_child(target, param1, param2, &result);
+                if (result) dom_node_unref(result);
+            }
+            break;
+        }
+        case SHM_MUTATION_SET_NODE_VALUE: {
+            dom_string *ds = NULL;
+            dom_string_create((const uint8_t *)m->value, strlen(m->value), &ds);
+            if (target && ds) {
+                dom_node_set_node_value(target, ds);
+            }
+            if (ds) dom_string_unref(ds);
+            break;
+        }
+        case SHM_MUTATION_SET_TEXT_CONTENT: {
+            dom_string *ds = NULL;
+            dom_string_create((const uint8_t *)m->value, strlen(m->value), &ds);
+            if (target && ds) {
+                dom_node_set_text_content(target, ds);
+            }
+            if (ds) dom_string_unref(ds);
+            break;
+        }
+    }
+}
+
+static void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
+    if (!shm) return;
+    shm_mutation_queue_t *mq = &shm->mutation_queue;
+    while (mq->tail != mq->head) {
+        uint32_t idx = mq->tail % SHM_MUTATION_QUEUE_SIZE;
+        shm_mutation_t *m = &mq->queue[idx];
+        apply_shm_mutation(m, doc);
+        mq->tail++;
+    }
 }
 
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
@@ -846,6 +1067,20 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {
+        if (!thread->shm_initialized) {
+            wisp_ipc_msg init_msg;
+            init_msg.type = WISP_IPC_MSG_SHM_INIT;
+            init_msg.length = strlen(thread->shm_dom_name);
+            init_msg.data = (uint8_t *)thread->shm_dom_name;
+            wisp_ipc_send(ipc_js, &init_msg);
+            thread->shm_initialized = true;
+        }
+
+        struct dom_document *doc = qjs_thread_get_document(thread);
+        if (doc) {
+            serialize_dom_tree(thread->shm_dom, doc);
+        }
+
         /* Use thread pointer as a unique context ID for the remote process */
         uint32_t ctx_id = (uint32_t)(uintptr_t)thread;
 
@@ -884,6 +1119,10 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 }
                 wisp_ipc_set_blocking(ipc_js, true);
                 if (got_response) {
+                    if (doc) {
+                        drain_mutation_queue(thread->shm_dom, doc);
+                        dom_node_unref((dom_node *)doc);
+                    }
                     bool success = (response.length > 0 || response.data != NULL);
                     wisp_ipc_msg_free(&response);
                     return success;
@@ -896,6 +1135,9 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 NSLOG(wisp, ERROR, "JS process write failed for origin %s (likely crashed)", thread->origin);
                 handle_process_crash(thread->origin);
             }
+        }
+        if (doc) {
+            dom_node_unref((dom_node *)doc);
         }
         /* Fallback to in-process if IPC fails or times out */
         NSLOG(wisp, WARNING, "JS IPC failed for %s, falling back to in-process", name);

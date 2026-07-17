@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include "utils/libdom.h"
 #include "content/handlers/javascript/js.h"
+#include "wisp/utils/shm_dom.h"
 
 /* Forward declarations */
 struct nsurl;
@@ -98,6 +99,10 @@ struct jsthread {
     struct WispIntersectionObserver *intersection_observers;
     struct WispXHR *xmlhttprequests;
     void *mutation_callback_registered_doc;
+
+    shm_dom_t *shm_dom;
+    char shm_dom_name[64];
+    bool shm_initialized;
 };
 
 static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val) {
