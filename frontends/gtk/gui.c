@@ -1202,6 +1202,7 @@ static void nsgtk_finalise(void)
     }
 
     gtk_fetch_filetype_fin();
+    nsgtk_free_resources();
 
     /* common finalisation */
     wisp_exit();

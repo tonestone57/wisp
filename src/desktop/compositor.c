@@ -63,7 +63,9 @@ static const char *VERTEX_SHADER_SRC =
     "}\n";
 
 static const char *FRAGMENT_SHADER_SRC =
+    "#ifdef GL_ES\n"
     "precision mediump float;\n"
+    "#endif\n"
     "varying vec2 v_tex_coord;\n"
     "uniform sampler2D u_texture;\n"
     "void main() {\n"
@@ -878,9 +880,9 @@ void wisp_compositor_present_gl(wisp_compositor_t *comp)
 #endif
 }
 
-wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, int tx, int ty, int tile_size, const void *pixels)
+wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, int tx, int ty, int width, int height, const void *pixels)
 {
-    if (!compositor || !pixels || tile_size <= 0) {
+    if (!compositor || !pixels || width <= 0 || height <= 0) {
         return NULL;
     }
 
@@ -890,6 +892,13 @@ wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, 
     for (int i = 0; i < TILE_CACHE_SIZE; i++) {
         if (compositor->tile_cache[i].in_use && compositor->tile_cache[i].tx == tx && compositor->tile_cache[i].ty == ty) {
             wisp_texture_t *cached_tex = compositor->tile_cache[i].texture;
+            if (cached_tex->width != width || cached_tex->height != height) {
+                /* Size mismatch (e.g. window resize). Reallocate texture. */
+                wisp_texture_destroy(cached_tex);
+                compositor->tile_cache[i].texture = NULL;
+                compositor->tile_cache[i].in_use = false;
+                continue;
+            }
             ns_mutex_unlock(&compositor->lock);
 
             /* Fast-Path Upload: update the cached texture in VRAM once dirty */
@@ -916,7 +925,7 @@ wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, 
     }
 
     /* 3. Allocate and save new texture in cache */
-    wisp_texture_t *new_tex = wisp_texture_create(compositor, tile_size, tile_size);
+    wisp_texture_t *new_tex = wisp_texture_create(compositor, width, height);
     if (new_tex) {
         wisp_texture_upload(new_tex, pixels, new_tex->size);
         compositor->tile_cache[target_idx].tx = tx;

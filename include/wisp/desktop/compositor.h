@@ -254,11 +254,12 @@ bool wisp_compositor_draw_frame(wisp_compositor_t *compositor, float scroll_x, f
  * \param compositor The compositor context.
  * \param tx         Tile coordinate x.
  * \param ty         Tile coordinate y.
- * \param tile_size  Tile size.
+ * \param width      Tile width.
+ * \param height     Tile height.
  * \param pixels     Tile pixel data.
  * \return Reusable GPU shared texture pointer.
  */
-wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, int tx, int ty, int tile_size, const void *pixels);
+wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, int tx, int ty, int width, int height, const void *pixels);
 
 /**
  * Present the composited FBO texture as a fullscreen quad inside the active GL context.
