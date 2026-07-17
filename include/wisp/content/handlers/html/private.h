@@ -205,7 +205,7 @@ static inline void doc_rwlock_rdunlock(doc_rwlock_t *lock) {
             /* Deregister from active readers list */
             pthread_mutex_lock(&lock->mutex);
             lock->active_readers--;
-            if (lock->active_readers == 0) {
+            if (lock->active_readers == 0 || lock->pending_writers > 0) {
                 pthread_cond_broadcast(&lock->cond);
             }
             pthread_mutex_unlock(&lock->mutex);
