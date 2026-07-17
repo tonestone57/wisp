@@ -248,6 +248,26 @@ dom_exception _dom_event_target_dispatch(dom_event_target *et, dom_event_target_
             /* Check if the listener is still registered on the target */
             if (target_has_listener(eti, infos[j].listener, infos[j].type, infos[j].capture)) {
                 if (dom_string_isequal(infos[j].type, evt->type)) {
+                    /* Bypass dispatching legacy mutation events to event listeners to prevent
+                     * infinite recursion and lockups on modern websites (like www.ctvnews.ca) */
+                    const char *type_data = dom_string_data(evt->type);
+                    size_t type_len = dom_string_byte_length(evt->type);
+                    bool is_legacy_mutation = false;
+                    if (type_data != NULL) {
+                        if ((type_len == 15 && strncmp(type_data, "DOMNodeInserted", 15) == 0) ||
+                            (type_len == 27 && strncmp(type_data, "DOMNodeInsertedIntoDocument", 27) == 0) ||
+                            (type_len == 18 && strncmp(type_data, "DOMSubtreeModified", 18) == 0) ||
+                            (type_len == 14 && strncmp(type_data, "DOMNodeRemoved", 14) == 0) ||
+                            (type_len == 26 && strncmp(type_data, "DOMNodeRemovedFromDocument", 26) == 0) ||
+                            (type_len == 15 && strncmp(type_data, "DOMAttrModified", 15) == 0) ||
+                            (type_len == 24 && strncmp(type_data, "DOMCharacterDataModified", 24) == 0)) {
+                            is_legacy_mutation = true;
+                        }
+                    }
+                    if (is_legacy_mutation) {
+                        continue;
+                    }
+
                     assert(infos[j].listener->handler != NULL);
 
                     if ((infos[j].capture && phase == DOM_CAPTURING_PHASE) ||
