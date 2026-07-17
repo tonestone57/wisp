@@ -8,6 +8,8 @@
 #include "utils/libdom.h"
 #include "JSEventTarget.gen.h"
 
+extern bool wisp_is_js_process;
+
 static QJSNodePrivate *get_priv_with_global(JSContext *ctx, JSValueConst val) {
     QJSNodePrivate *priv = qjs_get_dom_priv(ctx, val);
     if (!priv) {
@@ -24,6 +26,7 @@ static QJSNodePrivate *get_priv_with_global(JSContext *ctx, JSValueConst val) {
 
 static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
+    if (wisp_is_js_process) return JS_UNDEFINED;
     QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
     if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
     if (argc < 2) return JS_UNDEFINED;
@@ -43,6 +46,7 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
 
 static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
+    if (wisp_is_js_process) return JS_UNDEFINED;
     QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
     if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
     if (argc < 2) return JS_UNDEFINED;
@@ -62,6 +66,7 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
 
 static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
+    if (wisp_is_js_process) return JS_FALSE;
     QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
     if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
     if (argc < 1) return JS_FALSE;
