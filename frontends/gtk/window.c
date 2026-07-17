@@ -191,6 +191,17 @@ static gboolean nsgtk_window_gl_render(GtkGLArea *area, GdkGLContext *context, g
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(gw->compositor->gl_program);
+
+        /* Bind the shared texture and configure uniforms */
+        if (gw->compositor->layer_count > 0 && gw->compositor->layers[0].texture) {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, gw->compositor->layers[0].texture->handle.gl_tex_id);
+            GLint u_tex = glGetUniformLocation(gw->compositor->gl_program, "u_texture");
+            if (u_tex != -1) {
+                glUniform1i(u_tex, 0);
+            }
+        }
+
         glBindBuffer(GL_ARRAY_BUFFER, gw->compositor->vbo);
         glEnableVertexAttribArray(0);
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
@@ -199,6 +210,7 @@ static gboolean nsgtk_window_gl_render(GtkGLArea *area, GdkGLContext *context, g
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+        glBindTexture(GL_TEXTURE_2D, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glUseProgram(0);
     }

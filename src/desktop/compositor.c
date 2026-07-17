@@ -320,8 +320,12 @@ wisp_compositor_t *wisp_compositor_create(wisp_compositor_api api, void *native_
                             EGL_NONE
                         };
 
-                        /* Initialize three separate EGLContexts sharing resources to avoid clashes */
-                        EGLContext shared_ctx = eglCreateContext(display, config, EGL_NO_CONTEXT, context_attribs);
+                        /* Initialize separate EGLContexts sharing resources with the parent UI context to avoid clashes */
+                        EGLContext parent_ctx = EGL_NO_CONTEXT;
+                        if (comp->ui_thread_context != NULL) {
+                            parent_ctx = (EGLContext)comp->ui_thread_context;
+                        }
+                        EGLContext shared_ctx = eglCreateContext(display, config, parent_ctx, context_attribs);
                         EGLContext ui_ctx     = eglCreateContext(display, config, shared_ctx, context_attribs);
                         EGLContext comp_ctx   = eglCreateContext(display, config, shared_ctx, context_attribs);
 
