@@ -104,6 +104,180 @@ union html_focus_owner {
 
 
 #include <pthread.h>
+#include <stdbool.h>
+#include <string.h>
+#include <assert.h>
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_THREADS__)
+#  define WISP_THREAD_LOCAL _Thread_local
+#elif defined(__GNUC__) || defined(__clang__)
+#  define WISP_THREAD_LOCAL __thread
+#elif defined(_MSC_VER)
+#  define WISP_THREAD_LOCAL __declspec(thread)
+#else
+#  define WISP_THREAD_LOCAL _Thread_local
+#endif
+
+#define TLS_MAX_LOCKS 8
+
+typedef struct {
+    void *lock_addr;
+    int count;
+} tls_lock_entry_t;
+
+extern WISP_THREAD_LOCAL tls_lock_entry_t local_read_locks[TLS_MAX_LOCKS];
+
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    pthread_t writer_thread;
+    bool has_writer;
+    int write_count;
+    int pending_writers;
+    int active_readers;
+} doc_rwlock_t;
+
+static inline void doc_rwlock_init(doc_rwlock_t *lock) {
+    pthread_mutex_init(&lock->mutex, NULL);
+    pthread_cond_init(&lock->cond, NULL);
+    lock->has_writer = false;
+    lock->write_count = 0;
+    lock->pending_writers = 0;
+    lock->active_readers = 0;
+}
+
+static inline void doc_rwlock_destroy(doc_rwlock_t *lock) {
+    pthread_mutex_destroy(&lock->mutex);
+    pthread_cond_destroy(&lock->cond);
+}
+
+static inline void doc_rwlock_rdlock(doc_rwlock_t *lock) {
+    pthread_t self = pthread_self();
+
+    /* 1. Fast path: check if this thread already holds a read lock on this instance.
+     * This has ZERO mutex/lock overhead! */
+    for (int i = 0; i < TLS_MAX_LOCKS; i++) {
+        if (local_read_locks[i].lock_addr == lock) {
+            local_read_locks[i].count++;
+            return;
+        }
+    }
+
+    /* 2. Check if we are the writer thread. Writer can read recursively. */
+    pthread_mutex_lock(&lock->mutex);
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+
+    /* 3. Slow path: first-time read acquisition for this thread. */
+    while (lock->has_writer) {
+        pthread_cond_wait(&lock->cond, &lock->mutex);
+    }
+    lock->active_readers++;
+    pthread_mutex_unlock(&lock->mutex);
+
+    /* Register in thread-local storage */
+    for (int i = 0; i < TLS_MAX_LOCKS; i++) {
+        if (local_read_locks[i].lock_addr == NULL) {
+            local_read_locks[i].lock_addr = lock;
+            local_read_locks[i].count = 1;
+            return;
+        }
+    }
+
+    assert(false && "Exceeded TLS_MAX_LOCKS");
+}
+
+static inline void doc_rwlock_rdunlock(doc_rwlock_t *lock) {
+    pthread_t self = pthread_self();
+
+    /* 1. Fast path: check if we hold a registered read lock */
+    for (int i = 0; i < TLS_MAX_LOCKS; i++) {
+        if (local_read_locks[i].lock_addr == lock) {
+            local_read_locks[i].count--;
+            if (local_read_locks[i].count > 0) {
+                return;
+            }
+            /* Reset TLS entry */
+            local_read_locks[i].lock_addr = NULL;
+
+            /* Deregister from active readers list */
+            pthread_mutex_lock(&lock->mutex);
+            lock->active_readers--;
+            if (lock->active_readers == 0) {
+                pthread_cond_broadcast(&lock->cond);
+            }
+            pthread_mutex_unlock(&lock->mutex);
+            return;
+        }
+    }
+
+    /* 2. If we are the active writer, we didn't register in TLS, so just return. */
+    pthread_mutex_lock(&lock->mutex);
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+    pthread_mutex_unlock(&lock->mutex);
+}
+
+static inline void doc_rwlock_wrlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    /* 1. If we are already the active writer, support recursive write lock. */
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        lock->write_count++;
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+
+    lock->pending_writers++;
+
+    /* Find out if we (the current thread) hold any read locks on this instance */
+    int self_read_count = 0;
+    for (int i = 0; i < TLS_MAX_LOCKS; i++) {
+        if (local_read_locks[i].lock_addr == lock) {
+            self_read_count = local_read_locks[i].count;
+            break;
+        }
+    }
+
+    /* 2. Wait while there is an active writer, OR there are active readers,
+     * EXCEPT if the only active reader is this thread itself. */
+    while (true) {
+        bool has_other_readers = (lock->active_readers > 0);
+        if (self_read_count > 0 && lock->active_readers == 1) {
+            has_other_readers = false;
+        }
+        if (!lock->has_writer && !has_other_readers) {
+            break;
+        }
+        pthread_cond_wait(&lock->cond, &lock->mutex);
+    }
+
+    lock->pending_writers--;
+    lock->has_writer = true;
+    lock->writer_thread = self;
+    lock->write_count = 1;
+    pthread_mutex_unlock(&lock->mutex);
+}
+
+static inline void doc_rwlock_wrunlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        lock->write_count--;
+        if (lock->write_count == 0) {
+            lock->has_writer = false;
+            pthread_cond_broadcast(&lock->cond);
+        }
+    }
+
+    pthread_mutex_unlock(&lock->mutex);
+}
 
 struct csp;
 
@@ -113,7 +287,7 @@ struct csp;
 typedef struct html_content {
     struct content base;
 
-    pthread_mutex_t doc_mutex; /**< Protects dom_document mutation */
+    doc_rwlock_t doc_mutex; /**< Protects dom_document mutation */
     struct csp *csp; /**< Content Security Policy */
     char *coop; /**< Cross-Origin-Opener-Policy header value */
     char *coep; /**< Cross-Origin-Embedder-Policy header value */
