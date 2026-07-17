@@ -249,6 +249,34 @@ START_TEST(test_utf8proc_wrapper_compatibility)
 }
 END_TEST
 
+/* Test case for Parser Tokenizer Whitespace Skipping */
+START_TEST(test_whitespace_skipping)
+{
+    const uint8_t *ws_only = (const uint8_t *)"  \t\n\r\f  \t\n\r\f";
+    size_t len_ws = strlen((const char *)ws_only);
+    ck_assert_int_eq(wisp_skip_whitespaces(ws_only, len_ws), len_ws);
+
+    const uint8_t *ws_mixed = (const uint8_t *)"  \t\n\r\f  A\t\n\r\f";
+    ck_assert_int_eq(wisp_skip_whitespaces(ws_mixed, strlen((const char *)ws_mixed)), 8);
+
+    const uint8_t *no_ws = (const uint8_t *)"Hello";
+    ck_assert_int_eq(wisp_skip_whitespaces(no_ws, 5), 0);
+
+    /* Test 16-byte boundary and longer blocks */
+    const uint8_t *ws_long = (const uint8_t *)"                "; // 16 spaces
+    ck_assert_int_eq(wisp_skip_whitespaces(ws_long, 16), 16);
+
+    const uint8_t *ws_long_mixed = (const uint8_t *)"                A"; // 16 spaces + 'A'
+    ck_assert_int_eq(wisp_skip_whitespaces(ws_long_mixed, 17), 16);
+
+    const uint8_t *ws_v_long = (const uint8_t *)"                                "; // 32 spaces
+    ck_assert_int_eq(wisp_skip_whitespaces(ws_v_long, 32), 32);
+
+    const uint8_t *ws_v_long_mixed = (const uint8_t *)"                                X"; // 32 spaces + 'X'
+    ck_assert_int_eq(wisp_skip_whitespaces(ws_v_long_mixed, 33), 32);
+}
+END_TEST
+
 static Suite *utf8proc_simd_suite(void)
 {
     Suite *s;
@@ -265,6 +293,7 @@ static Suite *utf8proc_simd_suite(void)
     tcase_add_test(tc, test_origin_blocklist);
     tcase_add_test(tc, test_websocket_masking);
     tcase_add_test(tc, test_utf8proc_wrapper_compatibility);
+    tcase_add_test(tc, test_whitespace_skipping);
 
     suite_add_tcase(s, tc);
     return s;

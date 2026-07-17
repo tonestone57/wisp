@@ -923,3 +923,9 @@ utf8proc_uint8_t *wisp_utf8proc_NFKC(const utf8proc_uint8_t *str) {
     }
     return utf8proc_NFKC(str);
 }
+
+#include <wisp/utils/whitespaces.h>
+
+size_t wisp_skip_whitespaces(const uint8_t *data, size_t len) {
+    return wisp_skip_whitespaces_impl(data, len);
+}

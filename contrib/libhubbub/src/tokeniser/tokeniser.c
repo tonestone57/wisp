@@ -19,6 +19,7 @@
 #include "hubbub/errors.h"
 #include "tokeniser/entities.h"
 #include "tokeniser/tokeniser.h"
+#include <wisp/utils/whitespaces.h>
 
 /**
  * Table of mappings between Windows-1252 codepoints 128-159 and UCS4
@@ -979,6 +980,12 @@ hubbub_error hubbub_tokeniser_handle_before_attribute_name(hubbub_tokeniser *tok
     parserutils_error error;
     uint8_t c;
 
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
+
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
     if (error != PARSERUTILS_OK) {
@@ -1098,6 +1105,12 @@ hubbub_error hubbub_tokeniser_handle_after_attribute_name(hubbub_tokeniser *toke
     parserutils_error error;
     uint8_t c;
 
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
+
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
     if (error != PARSERUTILS_OK) {
@@ -1168,6 +1181,12 @@ hubbub_error hubbub_tokeniser_handle_before_attribute_value(hubbub_tokeniser *to
     const uint8_t *cptr;
     parserutils_error error;
     uint8_t c;
+
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
 
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
@@ -1798,6 +1817,12 @@ hubbub_error hubbub_tokeniser_handle_before_doctype_name(hubbub_tokeniser *token
     parserutils_error error;
     uint8_t c;
 
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
+
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
     if (error != PARSERUTILS_OK) {
@@ -1889,6 +1914,12 @@ hubbub_error hubbub_tokeniser_handle_after_doctype_name(hubbub_tokeniser *tokeni
     parserutils_error error;
     uint8_t c;
 
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
+
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
     if (error != PARSERUTILS_OK) {
@@ -1975,6 +2006,12 @@ hubbub_error hubbub_tokeniser_handle_before_doctype_public(hubbub_tokeniser *tok
     const uint8_t *cptr;
     parserutils_error error;
     uint8_t c;
+
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
 
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
@@ -2121,6 +2158,12 @@ hubbub_error hubbub_tokeniser_handle_after_doctype_public(hubbub_tokeniser *toke
     parserutils_error error;
     uint8_t c;
 
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
+
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
     if (error != PARSERUTILS_OK) {
@@ -2212,6 +2255,12 @@ hubbub_error hubbub_tokeniser_handle_before_doctype_system(hubbub_tokeniser *tok
     const uint8_t *cptr;
     parserutils_error error;
     uint8_t c;
+
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
 
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
@@ -2357,6 +2406,12 @@ hubbub_error hubbub_tokeniser_handle_after_doctype_system(hubbub_tokeniser *toke
     parserutils_error error;
     uint8_t c;
 
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
+
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
     if (error != PARSERUTILS_OK) {
@@ -2390,6 +2445,12 @@ hubbub_error hubbub_tokeniser_handle_bogus_doctype(hubbub_tokeniser *tokeniser)
     const uint8_t *cptr;
     parserutils_error error;
     uint8_t c;
+
+    const uint8_t *data;
+    size_t avail;
+    if (parserutils_inputstream_peek_all(tokeniser->input, tokeniser->context.pending, &data, &avail) == PARSERUTILS_OK) {
+        tokeniser->context.pending += wisp_skip_whitespaces_impl(data, avail);
+    }
 
     error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending, &cptr, &len);
 
