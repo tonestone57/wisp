@@ -286,7 +286,7 @@ JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     dom_namednodemap *attrs = NULL;
     dom_exception exc = dom_node_get_attributes((dom_node *)priv->node, &attrs);
     if (exc != DOM_NO_ERR || !attrs) return JS_NULL;
-    JSValue val = qjs_new_namednodemap(ctx, attrs, true);
+    JSValue val = qjs_new_namednodemap(ctx, attrs, false);
     dom_namednodemap_unref(attrs);
     return val;
 }
