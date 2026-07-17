@@ -319,6 +319,12 @@ bool wisp_compositor_initialize_egl_shared(wisp_compositor_t *comp, void *share_
         return false;
     }
 
+    /* Headless check: if using a dummy/mock pointer for testing, bypass real hardware EGL initialization */
+    if (comp->native_window != NULL && (uintptr_t)comp->native_window < 0x10000) {
+        NSLOG(wisp, INFO, "Headless mock window handle detected. Bypassing real EGL hardware initialization.");
+        return false;
+    }
+
 #ifdef WITH_GLES2
     /* Real EGL hardware initialization with Context Sharing */
     EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
