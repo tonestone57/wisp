@@ -337,7 +337,7 @@ bool html_css_update_style(html_content *c, dom_node *style)
     unsigned int i;
     struct html_stylesheet *s;
 
-    doc_rwlock_wrlock(&c->doc_mutex);
+    doc_rwlock_uplock(&c->doc_mutex);
 
     /* Find sheet */
     for (i = 0, s = c->stylesheets; i != c->stylesheet_count; i++, s++) {
@@ -345,11 +345,16 @@ bool html_css_update_style(html_content *c, dom_node *style)
             break;
     }
     if (i == c->stylesheet_count) {
+        doc_rwlock_upgrade(&c->doc_mutex);
         s = html_create_style_element(c, style);
     }
     if (s == NULL) {
         NSLOG(wisp, INFO, "Could not find or create inline stylesheet for %p", style);
-        doc_rwlock_wrunlock(&c->doc_mutex);
+        if (c->doc_mutex.has_writer) {
+            doc_rwlock_wrunlock(&c->doc_mutex);
+        } else {
+            doc_rwlock_upunlock(&c->doc_mutex);
+        }
         return false;
     }
 
@@ -357,7 +362,11 @@ bool html_css_update_style(html_content *c, dom_node *style)
 
     guit->misc->schedule(0, html_css_process_modified_styles, c);
 
-    doc_rwlock_wrunlock(&c->doc_mutex);
+    if (c->doc_mutex.has_writer) {
+        doc_rwlock_wrunlock(&c->doc_mutex);
+    } else {
+        doc_rwlock_upunlock(&c->doc_mutex);
+    }
 
     return true;
 }
