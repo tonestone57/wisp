@@ -121,13 +121,29 @@ JSValue wisp_document_createEvent_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_document_body_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
-    struct dom_html_document *html_doc = (struct dom_html_document *)priv->node;
-    struct dom_html_element *body = NULL;
-    dom_html_document_get_body(html_doc, &body);
-    if (body) {
-        JSValue val = qjs_wrap_node(ctx, (dom_node *)body);
-        dom_node_unref((dom_node *)body);
-        return val;
+    dom_string *body_name = NULL;
+    dom_string_create((const uint8_t *)"body", 4, &body_name);
+    if (!body_name) return JS_NULL;
+    
+    dom_nodelist *nodes = NULL;
+    dom_document_get_elements_by_tag_name((dom_document *)priv->node, body_name, &nodes);
+    dom_string_unref(body_name);
+    
+    if (nodes) {
+        uint32_t len = 0;
+        dom_nodelist_get_length(nodes, &len);
+        if (len > 0) {
+            dom_node *body = NULL;
+            dom_nodelist_item(nodes, 0, &body);
+            dom_nodelist_unref(nodes);
+            if (body) {
+                JSValue val = qjs_wrap_node(ctx, body);
+                dom_node_unref(body);
+                return val;
+            }
+        } else {
+            dom_nodelist_unref(nodes);
+        }
     }
     return JS_NULL;
 }
@@ -145,10 +161,115 @@ JSValue wisp_document_documentElement_get_impl(JSContext *ctx, QJSNodePrivate *p
     return JS_NULL;
 }
 
-JSValue wisp_document_write_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue text) { return JS_UNDEFINED; }
-JSValue wisp_document_writeln_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue text) { return JS_UNDEFINED; }
-JSValue wisp_document_cookie_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+#include "content/urldb.h"
+
+JSValue wisp_document_write_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue text)
+{
+    if (!priv || !priv->node || JS_IsUndefined(text) || JS_IsNull(text)) return JS_UNDEFINED;
+    
+    // Convert text to C string
+    const char *value = JS_ToCString(ctx, text);
+    if (!value) return JS_UNDEFINED;
+    
+    dom_document *doc = (dom_document *)priv->node;
+    
+    // Get body element or document element to append to
+    struct dom_html_document *html_doc = (struct dom_html_document *)doc;
+    struct dom_html_element *body = NULL;
+    dom_html_document_get_body(html_doc, &body);
+    
+    dom_node *target = body ? (dom_node *)body : (dom_node *)doc;
+    
+    // Parse new HTML string using Hubbub fragment parser
+    dom_hubbub_parser_params params;
+    memset(&params, 0, sizeof(params));
+    params.enc = "UTF-8";
+    params.idname = corestring_dom_id;
+
+    dom_hubbub_parser *parser = NULL;
+    dom_document_fragment *fragment = NULL;
+    dom_hubbub_error err = dom_hubbub_fragment_parser_create(&params, doc, &parser, &fragment);
+    if (err == DOM_HUBBUB_OK) {
+        err = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)value, strlen(value));
+        if (err == DOM_HUBBUB_OK) {
+            err = dom_hubbub_parser_completed(parser);
+        }
+        
+        if (err == DOM_HUBBUB_OK && fragment != NULL) {
+            // Append children from fragment to target (body)
+            dom_node *f_child = NULL;
+            while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
+                dom_node *appended = NULL;
+                dom_node_append_child(target, f_child, &appended);
+                if (appended) dom_node_unref(appended);
+                dom_node_unref(f_child);
+                f_child = NULL;
+            }
+        }
+    }
+    
+    if (parser) dom_hubbub_parser_destroy(parser);
+    if (fragment) dom_node_unref((dom_node *)fragment);
+    if (body) dom_node_unref((dom_node *)body);
+    
+    JS_FreeCString(ctx, value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_document_writeln_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue text)
+{
+    if (!priv || !priv->node || JS_IsUndefined(text) || JS_IsNull(text)) return JS_UNDEFINED;
+    const char *value = JS_ToCString(ctx, text);
+    if (!value) return JS_UNDEFINED;
+    
+    size_t len = strlen(value);
+    char *new_val = malloc(len + 2);
+    if (!new_val) {
+        JS_FreeCString(ctx, value);
+        return JS_ThrowOutOfMemory(ctx);
+    }
+    memcpy(new_val, value, len);
+    new_val[len] = '\n';
+    new_val[len + 1] = '\0';
+    JS_FreeCString(ctx, value);
+    
+    JSValue text_with_nl = JS_NewString(ctx, new_val);
+    free(new_val);
+    
+    JSValue res = wisp_document_write_impl(ctx, priv, text_with_nl);
+    JS_FreeValue(ctx, text_with_nl);
+    return res;
+}
+
+JSValue wisp_document_cookie_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t && t->doc_priv) {
+        struct nsurl *url = content_get_url((struct content *)t->doc_priv);
+        if (url) {
+            char *cookie_str = urldb_get_cookie(url, false); // HTTP-only should be false for document.cookie in JS
+            if (cookie_str) {
+                JSValue res = JS_NewString(ctx, cookie_str);
+                free(cookie_str);
+                return res;
+            }
+        }
+    }
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!value) return JS_UNDEFINED;
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t && t->doc_priv) {
+        struct nsurl *url = content_get_url((struct content *)t->doc_priv);
+        if (url) {
+            urldb_set_cookie(value, url, NULL);
+        }
+    }
+    return JS_UNDEFINED;
+}
 
 JSValue wisp_document_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
 {
@@ -286,13 +407,35 @@ JSValue wisp_document_domain_set_impl(JSContext *ctx, QJSNodePrivate *priv, cons
 JSValue wisp_document_title_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "");
-    dom_html_document *html_doc = (dom_html_document *)priv->node;
-    dom_string *title_dom = NULL;
-    dom_exception exc = dom_html_document_get_title(html_doc, &title_dom);
-    if (exc == DOM_NO_ERR && title_dom) {
-        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(title_dom), dom_string_byte_length(title_dom));
-        dom_string_unref(title_dom);
-        return val;
+    
+    dom_string *title_name = NULL;
+    dom_string_create((const uint8_t *)"title", 5, &title_name);
+    if (!title_name) return JS_NewString(ctx, "");
+    
+    dom_nodelist *nodes = NULL;
+    dom_document_get_elements_by_tag_name((dom_document *)priv->node, title_name, &nodes);
+    dom_string_unref(title_name);
+    
+    if (nodes) {
+        uint32_t len = 0;
+        dom_nodelist_get_length(nodes, &len);
+        if (len > 0) {
+            dom_node *title_node = NULL;
+            dom_nodelist_item(nodes, 0, &title_node);
+            dom_nodelist_unref(nodes);
+            if (title_node) {
+                dom_string *text = NULL;
+                dom_node_get_text_content(title_node, &text);
+                dom_node_unref(title_node);
+                if (text) {
+                    JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(text), dom_string_byte_length(text));
+                    dom_string_unref(text);
+                    return val;
+                }
+            }
+        } else {
+            dom_nodelist_unref(nodes);
+        }
     }
     return JS_NewString(ctx, "");
 }
@@ -300,13 +443,74 @@ JSValue wisp_document_title_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_document_title_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
-    dom_html_document *html_doc = (dom_html_document *)priv->node;
-    dom_string *title_dom = NULL;
-    dom_string_create((const uint8_t *)value, strlen(value), &title_dom);
-    if (title_dom) {
-        dom_html_document_set_title(html_doc, title_dom);
-        dom_string_unref(title_dom);
+    
+    dom_string *title_name = NULL;
+    dom_string_create((const uint8_t *)"title", 5, &title_name);
+    if (!title_name) return JS_UNDEFINED;
+    
+    dom_nodelist *nodes = NULL;
+    dom_document_get_elements_by_tag_name((dom_document *)priv->node, title_name, &nodes);
+    
+    dom_node *title_node = NULL;
+    if (nodes) {
+        uint32_t len = 0;
+        dom_nodelist_get_length(nodes, &len);
+        if (len > 0) {
+            dom_nodelist_item(nodes, 0, &title_node);
+        }
+        dom_nodelist_unref(nodes);
     }
+    
+    if (!title_node) {
+        dom_element *title_el = NULL;
+        dom_document_create_element((dom_document *)priv->node, title_name, &title_el);
+        if (title_el) {
+            title_node = (dom_node *)title_el;
+            dom_string *head_name = NULL;
+            dom_string_create((const uint8_t *)"head", 4, &head_name);
+            dom_node *head_node = NULL;
+            if (head_name) {
+                dom_nodelist *head_nodes = NULL;
+                dom_document_get_elements_by_tag_name((dom_document *)priv->node, head_name, &head_nodes);
+                dom_string_unref(head_name);
+                if (head_nodes) {
+                    uint32_t head_len = 0;
+                    dom_nodelist_get_length(head_nodes, &head_len);
+                    if (head_len > 0) {
+                        dom_nodelist_item(head_nodes, 0, &head_node);
+                    }
+                    dom_nodelist_unref(head_nodes);
+                }
+            }
+            
+            dom_node *target = head_node;
+            if (!target) {
+                dom_element *doc_el = NULL;
+                dom_document_get_document_element((dom_document *)priv->node, &doc_el);
+                target = (dom_node *)doc_el;
+            }
+            
+            if (target) {
+                dom_node *appended = NULL;
+                dom_node_append_child(target, title_node, &appended);
+                if (appended) dom_node_unref(appended);
+                dom_node_unref(target);
+            }
+        }
+    }
+    
+    dom_string_unref(title_name);
+    
+    if (title_node) {
+        dom_string *val_dom = NULL;
+        dom_string_create((const uint8_t *)value, strlen(value), &val_dom);
+        if (val_dom) {
+            dom_node_set_text_content(title_node, val_dom);
+            dom_string_unref(val_dom);
+        }
+        dom_node_unref(title_node);
+    }
+    
     return JS_UNDEFINED;
 }
 

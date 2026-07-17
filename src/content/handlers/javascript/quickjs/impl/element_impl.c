@@ -271,8 +271,25 @@ JSValue wisp_element_tagName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
-JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
-JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
+#include "JSDOMTokenList.gen.h"
+#include "JSNamedNodeMap.gen.h"
+
+JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_domtokenlist(ctx, priv->node, true);
+}
+
+JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    dom_namednodemap *attrs = NULL;
+    dom_exception exc = dom_node_get_attributes((dom_node *)priv->node, &attrs);
+    if (exc != DOM_NO_ERR || !attrs) return JS_NULL;
+    JSValue val = qjs_new_namednodemap(ctx, attrs, true);
+    dom_namednodemap_unref(attrs);
+    return val;
+}
 
 JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
@@ -281,7 +298,18 @@ JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (JS_IsObject(wrapper)) {
         JSValue style = JS_GetPropertyStr(ctx, wrapper, "__wisp_style_cached");
         if (JS_IsUndefined(style)) {
-            style = JS_NewObject(ctx);
+            JSValue initial_style = JS_NewObject(ctx);
+            JSValue global_obj = JS_GetGlobalObject(ctx);
+            JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
+            if (JS_IsFunction(ctx, make_proxy_fn)) {
+                JSValue args[2] = { wrapper, initial_style };
+                style = JS_Call(ctx, make_proxy_fn, JS_UNDEFINED, 2, args);
+            } else {
+                style = initial_style;
+            }
+            JS_FreeValue(ctx, make_proxy_fn);
+            JS_FreeValue(ctx, global_obj);
+            
             JS_SetPropertyStr(ctx, wrapper, "__wisp_style_cached", JS_DupValue(ctx, style));
         }
         JS_FreeValue(ctx, wrapper);
@@ -327,6 +355,41 @@ int qjs_init_element(JSContext *ctx) {
     if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
     JS_FreeValue(ctx, node_proto);
     JS_FreeValue(ctx, proto);
+
+    /* Define __wisp_make_style_proxy */
+    const char *proxy_js =
+        "globalThis.__wisp_make_style_proxy = function(element, initialStyleObj) {\n"
+        "    return new Proxy(initialStyleObj, {\n"
+        "        set(target, prop, value) {\n"
+        "            target[prop] = value;\n"
+        "            let styleStr = '';\n"
+        "            for (let k in target) {\n"
+        "                if (typeof target[k] === 'string' || typeof target[k] === 'number') {\n"
+        "                    let kebab = '';\n"
+        "                    for (let j = 0; j < k.length; j++) {\n"
+        "                        let char = k[j];\n"
+        "                        if (char >= 'A' && char <= 'Z') {\n"
+        "                            kebab += '-' + char.toLowerCase();\n"
+        "                        } else {\n"
+        "                            kebab += char;\n"
+        "                        }\n"
+        "                    }\n"
+        "                    styleStr += kebab + ': ' + target[k] + '; ';\n"
+        "                }\n"
+        "            }\n"
+        "            element.setAttribute('style', styleStr);\n"
+        "            return true;\n"
+        "        },\n"
+        "        get(target, prop) {\n"
+        "            if (prop === 'cssText') {\n"
+        "                return element.getAttribute('style') || '';\n"
+        "            }\n"
+        "            return target[prop];\n"
+        "        }\n"
+        "    });\n"
+        "};";
+    JSValue eval_res = JS_Eval(ctx, proxy_js, strlen(proxy_js), "<style_proxy_init>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, eval_res);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_element_init", JS_TRUE, 0);
