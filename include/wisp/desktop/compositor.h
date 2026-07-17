@@ -124,6 +124,10 @@ typedef struct wisp_compositor {
     /* Tile texture cache to prevent redundant uploads/allocations and eliminate Use-After-Free bugs */
     wisp_cached_tile_t tile_cache[TILE_CACHE_SIZE];
 
+    /* Callback to notify frontend when a composited frame is ready */
+    void (*frame_ready_cb)(void *usr_data);
+    void *frame_ready_usr_data;
+
     /* Separate context handles for safe concurrent reentrant access */
     void *ui_thread_context;          /* Owned by GTK Main Thread / BWindow (e.g. EGLContext) */
     void *compositor_thread_context;  /* Owned strictly by Wisp's Compositor Thread (e.g. EGLContext) */
@@ -255,6 +259,13 @@ bool wisp_compositor_draw_frame(wisp_compositor_t *compositor, float scroll_x, f
  * \return Reusable GPU shared texture pointer.
  */
 wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, int tx, int ty, int tile_size, const void *pixels);
+
+/**
+ * Present the composited FBO texture as a fullscreen quad inside the active GL context.
+ *
+ * \param comp The compositor context.
+ */
+void wisp_compositor_present_gl(wisp_compositor_t *comp);
 
 #ifdef __cplusplus
 }

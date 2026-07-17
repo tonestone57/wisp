@@ -229,6 +229,10 @@ static void *compositor_thread_routine(void *arg)
         comp->frame_ready = false;
         ns_mutex_unlock(&comp->lock);
 
+        if (comp->frame_ready_cb) {
+            comp->frame_ready_cb(comp->frame_ready_usr_data);
+        }
+
         /* Avoid thread starvation and limit to 60FPS target */
         compositor_sleep(16);
     }
@@ -347,6 +351,8 @@ bool wisp_compositor_initialize_egl_shared(wisp_compositor_t *comp, void *share_
                 EGLContext parent_ctx = EGL_NO_CONTEXT;
                 if (share_context != NULL) {
                     parent_ctx = (EGLContext)share_context;
+                } else {
+                    parent_ctx = eglGetCurrentContext();
                 }
 
                 /* Initialize three separate EGLContexts sharing resources with the GtkGLArea / BGLView context */
@@ -828,6 +834,48 @@ bool wisp_compositor_draw_frame(wisp_compositor_t *compositor, float scroll_x, f
     ns_mutex_unlock(&compositor->lock);
 
     return true;
+}
+
+void wisp_compositor_present_gl(wisp_compositor_t *comp)
+{
+#ifdef WITH_GLES2
+    if (!comp || comp->gl_program == 0) {
+        return;
+    }
+
+    glUseProgram(comp->gl_program);
+
+    /* Bind the shared compositor FBO texture and configure uniforms */
+    if (comp->fbo_tex_id != 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, comp->fbo_tex_id);
+        GLint u_tex = glGetUniformLocation(comp->gl_program, "u_texture");
+        if (u_tex != -1) {
+            glUniform1i(u_tex, 0);
+        }
+    }
+
+    /* Fullscreen quad identity transform matrix */
+    float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    glUniformMatrix4fv(comp->u_transform, 1, GL_FALSE, identity);
+
+    glBindBuffer(GL_ARRAY_BUFFER, comp->vbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
+
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glUseProgram(0);
+#endif
 }
 
 wisp_texture_t *wisp_compositor_get_tile_texture(wisp_compositor_t *compositor, int tx, int ty, int tile_size, const void *pixels)

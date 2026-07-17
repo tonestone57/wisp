@@ -86,6 +86,7 @@ static struct form_control *select_menu_control;
 
 struct gui_window {
     wisp_compositor_t *compositor;  /* GPU-Accelerated Compositor */
+    GtkWidget *gl_area;             /* GtkGLArea widget */
     /**
      * The gtk scaffold object containing menu, buttons, url bar, [tabs],
      * drawing area, etc that may contain one or more gui_windows.
@@ -179,40 +180,31 @@ static int nsgtk_tile_task_compare(const void *a, const void *b)
 #if GTK_CHECK_VERSION(3, 16, 0)
 #include <gdk/gdkglcontext.h>
 #include <GLES2/gl2.h>
+#include <EGL/egl.h>
+
+static gboolean nsgtk_compositor_frame_ready_idle(gpointer data)
+{
+    struct gui_window *gw = (struct gui_window *)data;
+    if (gw && gw->gl_area) {
+        gtk_gl_area_queue_render(GTK_GL_AREA(gw->gl_area));
+    }
+    return FALSE;
+}
+
+static void nsgtk_compositor_frame_ready_cb(void *usr_data)
+{
+    /* Conforms to GTK: invoke the idle callback on the GTK main thread */
+    g_idle_add(nsgtk_compositor_frame_ready_idle, usr_data);
+}
 
 static gboolean nsgtk_window_gl_render(GtkGLArea *area, GdkGLContext *context, gpointer data)
 {
     struct gui_window *gw = (struct gui_window *)data;
-    if (gw->compositor && gw->compositor->gl_program != 0) {
-        /* Conforms to the GtkGLArea mandate: bind the shared texture and render the fullscreen quad on the GTK main thread */
-        NSLOG(wisp, DEBUG, "[GtkGLArea] Binding shared compositor FBO texture and drawing fullscreen quad.");
-
+    if (gw->compositor) {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(gw->compositor->gl_program);
-
-        /* Bind the shared compositor FBO texture and configure uniforms */
-        if (gw->compositor->fbo_tex_id != 0) {
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gw->compositor->fbo_tex_id);
-            GLint u_tex = glGetUniformLocation(gw->compositor->gl_program, "u_texture");
-            if (u_tex != -1) {
-                glUniform1i(u_tex, 0);
-            }
-        }
-
-        glBindBuffer(GL_ARRAY_BUFFER, gw->compositor->vbo);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
-
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glUseProgram(0);
+        wisp_compositor_present_gl(gw->compositor);
     }
     return TRUE;
 }
@@ -229,7 +221,14 @@ static void nsgtk_window_gl_realize(GtkWidget *widget, gpointer data)
     if (gdk_ctx && gw->compositor) {
         gw->compositor->ui_thread_context = gdk_ctx;
         NSLOG(wisp, INFO, "[GtkGLArea] Realized GLArea context on GTK main thread.");
-        wisp_compositor_initialize_egl_shared(gw->compositor, gdk_ctx);
+
+        /* Conforms to GtkGLArea: retrieve raw active EGLContext */
+        #ifdef WITH_GLES2
+        EGLContext raw_egl_ctx = eglGetCurrentContext();
+        wisp_compositor_initialize_egl_shared(gw->compositor, raw_egl_ctx);
+        #else
+        wisp_compositor_initialize_egl_shared(gw->compositor, NULL);
+        #endif
     }
 }
 #endif
@@ -1042,6 +1041,10 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->current_pointer = GUI_POINTER_DEFAULT;
     g->compositor = wisp_compositor_create(WISP_COMPOSITOR_API_OPENGL_ES, g);
     if (g->compositor) {
+#if GTK_CHECK_VERSION(3, 16, 0)
+        g->compositor->frame_ready_cb = nsgtk_compositor_frame_ready_cb;
+        g->compositor->frame_ready_usr_data = g;
+#endif
         wisp_compositor_start(g->compositor);
     }
 
@@ -1071,6 +1074,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 #if GTK_CHECK_VERSION(3, 16, 0)
     /* Create the real GtkGLArea widget, connect signals, and add it to the window container */
     GtkWidget *gl_area = gtk_gl_area_new();
+    g->gl_area = gl_area;
     gtk_widget_set_hexpand(gl_area, TRUE);
     gtk_widget_set_vexpand(gl_area, TRUE);
     g_signal_connect(gl_area, "render", G_CALLBACK(nsgtk_window_gl_render), g);

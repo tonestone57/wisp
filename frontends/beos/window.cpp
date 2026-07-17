@@ -89,23 +89,37 @@ extern "C" {
 #include <GLView.h>
 class NSGLView : public BGLView {
 public:
-    NSGLView(BRect frame, const char *name, int32 resizingMode, int32 flags, int32 type)
-        : BGLView(frame, name, resizingMode, flags, type) {}
+    NSGLView(BRect frame, const char *name, int32 resizingMode, int32 flags, int32 type, struct gui_window *gui)
+        : BGLView(frame, name, resizingMode, flags, type), g(gui) {}
 
     virtual void AttachedToWindow() {
         BGLView::AttachedToWindow();
         LockGL();
         /* Lock and perform necessary OpenGL viewport / texture setups */
         glViewport(0, 0, (int)Bounds().Width() + 1, (int)Bounds().Height() + 1);
+
+        /* Conforms to BGLView: retrieve raw active GL/EGL context to initialize sharing */
+        #ifdef WITH_GLES2
+        EGLContext raw_egl_ctx = eglGetCurrentContext();
+        wisp_compositor_initialize_egl_shared(g->compositor, raw_egl_ctx);
+        #endif
         UnlockGL();
     }
 
     virtual void Draw(BRect updateRect) {
         LockGL();
-        /* Symmetrical context locking & buffer swapping */
+        /* Clear screen, present the composited GLES quad, and SwapBuffers */
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        wisp_compositor_present_gl(g->compositor);
+
         SwapBuffers();
         UnlockGL();
     }
+
+private:
+    struct gui_window *g;
 };
 #endif
 
@@ -677,9 +691,8 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
 #if defined(__HAIKU__)
     if (beos_api == WISP_COMPOSITOR_API_OPENGL_ES) {
-        g->gl_view = new NSGLView(frame, "WispGLView", B_FOLLOW_ALL, B_WILL_DRAW, BGL_RGB | BGL_DOUBLE);
+        g->gl_view = new NSGLView(frame, "WispGLView", B_FOLLOW_ALL, B_WILL_DRAW, BGL_RGB | BGL_DOUBLE, g);
         g->view->AddChild(g->gl_view);
-        wisp_compositor_initialize_egl_shared(g->compositor, g->gl_view);
     } else {
         g->gl_view = NULL;
     }
