@@ -69,6 +69,7 @@ extern "C" {
 #include "wisp/keypress.h"
 #include "wisp/wisp.h"
 #include "wisp/plotters.h"
+#include "wisp/desktop/compositor.h"
 #include "desktop/browser_history.h"
 #include "desktop/search.h"
 #include "desktop/searchweb.h"
@@ -700,7 +701,13 @@ void NSBrowserWindow::MessageReceived(BMessage *message)
 {
     switch (message->what) {
     case 'mcfr': /* MSG_COMPOSITOR_FRAME_READY */
-        /* LockGL(), bind shared texture, swap buffers, and UnlockGL() */
+        if (fScaffolding && fScaffolding->top_level && fScaffolding->top_level->compositor) {
+            wisp_compositor_t *comp = fScaffolding->top_level->compositor;
+            if (comp->api == WISP_COMPOSITOR_API_BDIRECTWINDOW) {
+                NSLOG(wisp, INFO, "[Haiku BGLView Sync] Received MSG_COMPOSITOR_FRAME_READY. Redrawing composited frames.");
+                wisp_compositor_draw_frame(comp, comp->scroll_x, comp->scroll_y);
+            }
+        }
         break;
     case NS_MEDIA_PLAY:
         {

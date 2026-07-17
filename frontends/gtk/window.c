@@ -282,9 +282,6 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
             if (tex) {
                 wisp_compositor_submit_texture(gw->compositor, tex, 0, 0, NULL);
                 wisp_compositor_draw_frame(gw->compositor, gtk_adjustment_get_value(hscroll), gtk_adjustment_get_value(vscroll));
-
-                /* Conforms to GtkGLArea rendering flow: signal main thread to redraw */
-                g_main_context_invoke(NULL, (GSourceFunc)gtk_widget_queue_draw, widget);
             }
         }
 
@@ -1057,6 +1054,19 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     /* Construct our primary elements */
     g->container = GTK_WIDGET(gtk_builder_get_object(tab_builder, "tabBox"));
     g->layout = GTK_LAYOUT(gtk_builder_get_object(tab_builder, "layout"));
+
+#if GTK_CHECK_VERSION(3, 16, 0)
+    /* Create the real GtkGLArea widget, connect signals, and add it to the window container */
+    GtkWidget *gl_area = gtk_gl_area_new();
+    gtk_widget_set_hexpand(gl_area, TRUE);
+    gtk_widget_set_vexpand(gl_area, TRUE);
+    g_signal_connect(gl_area, "render", G_CALLBACK(nsgtk_window_gl_render), g);
+    g_signal_connect(gl_area, "realize", G_CALLBACK(nsgtk_window_gl_realize), g);
+    gtk_container_add(GTK_CONTAINER(g->layout), gl_area);
+    gtk_widget_show(gl_area);
+    NSLOG(wisp, INFO, "Successfully integrated real GtkGLArea widget with shared context into window layout.");
+#endif
+
     g->grid = GTK_WIDGET(gtk_builder_get_object(tab_builder, "tabContents"));
     g->status_bar = GTK_LABEL(gtk_builder_get_object(tab_builder, "status_bar"));
     g->paned = GTK_PANED(gtk_builder_get_object(tab_builder, "hpaned1"));
