@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 #include "wisp/utils/log.h"
 
 #ifdef _WIN32
@@ -393,7 +394,7 @@ wisp_compositor_t *wisp_compositor_create(wisp_compositor_api api, void *native_
         comp->device_ctx.metal_device = (void*)0x511D;
         NSLOG(wisp, INFO, "Initialized Metal Compositor contexts.");
     } else if (api == WISP_COMPOSITOR_API_BDIRECTWINDOW) {
-        comp->device_ctx.direct_window_info = (void*)0x611D;
+        comp->device_ctx.direct_window_info = NULL; /* Initialized as NULL by default, set dynamically by frontend BDirectWindow */
         NSLOG(wisp, INFO, "Initialized Haiku BDirectWindow Framebuffer contexts.");
     }
 
@@ -622,7 +623,7 @@ wisp_texture_t *wisp_texture_create(wisp_compositor_t *compositor, int width, in
     } else if (compositor->api == WISP_COMPOSITOR_API_METAL) {
         tex->handle.metal_texture = (void*)0x005E51;
     } else if (compositor->api == WISP_COMPOSITOR_API_BDIRECTWINDOW) {
-        tex->handle.direct_fb_ptr = (void*)0x006E61;
+        tex->handle.direct_fb_ptr = NULL; /* Initialized as NULL by default, set dynamically by frontend BDirectWindow */
     }
 
     NSLOG(wisp, INFO, "Created GPU-Shared Texture: %dx%d, format RGBA32", width, height);

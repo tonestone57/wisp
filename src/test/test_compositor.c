@@ -38,7 +38,7 @@ START_TEST(test_compositor_lifecycle)
     /* Test Haiku specific BDirectWindow pathway */
     wisp_compositor_t *comp_haiku = wisp_compositor_create(WISP_COMPOSITOR_API_BDIRECTWINDOW, (void*)0x2222);
     ck_assert_ptr_nonnull(comp_haiku);
-    ck_assert_ptr_nonnull(comp_haiku->device_ctx.direct_window_info);
+    ck_assert_ptr_null(comp_haiku->device_ctx.direct_window_info);
 
     wisp_compositor_destroy(comp_haiku);
 }
