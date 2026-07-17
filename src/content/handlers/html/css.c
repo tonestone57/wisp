@@ -336,6 +336,7 @@ bool html_css_update_style(html_content *c, dom_node *style)
 {
     unsigned int i;
     struct html_stylesheet *s;
+    bool upgraded = false;
 
     doc_rwlock_uplock(&c->doc_mutex);
 
@@ -346,11 +347,12 @@ bool html_css_update_style(html_content *c, dom_node *style)
     }
     if (i == c->stylesheet_count) {
         doc_rwlock_upgrade(&c->doc_mutex);
+        upgraded = true;
         s = html_create_style_element(c, style);
     }
     if (s == NULL) {
         NSLOG(wisp, INFO, "Could not find or create inline stylesheet for %p", style);
-        if (c->doc_mutex.has_writer) {
+        if (upgraded) {
             doc_rwlock_wrunlock(&c->doc_mutex);
         } else {
             doc_rwlock_upunlock(&c->doc_mutex);
@@ -362,7 +364,7 @@ bool html_css_update_style(html_content *c, dom_node *style)
 
     guit->misc->schedule(0, html_css_process_modified_styles, c);
 
-    if (c->doc_mutex.has_writer) {
+    if (upgraded) {
         doc_rwlock_wrunlock(&c->doc_mutex);
     } else {
         doc_rwlock_upunlock(&c->doc_mutex);

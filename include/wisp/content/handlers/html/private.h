@@ -301,18 +301,20 @@ static inline void doc_rwlock_upunlock(doc_rwlock_t *lock) {
 
     if (lock->has_upgrade && pthread_equal(lock->upgrade_thread, self)) {
         lock->upgrade_count--;
+
+        /* Symmetrically decrement reader slot count on every upunlock */
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+                lock->readers[i].count--;
+                if (lock->readers[i].count == 0) {
+                    lock->readers[i].active = false;
+                }
+                break;
+            }
+        }
+
         if (lock->upgrade_count == 0) {
             lock->has_upgrade = false;
-
-            for (int i = 0; i < MAX_READER_THREADS; i++) {
-                if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
-                    lock->readers[i].count--;
-                    if (lock->readers[i].count == 0) {
-                        lock->readers[i].active = false;
-                    }
-                    break;
-                }
-            }
             pthread_cond_broadcast(&lock->cond);
         }
     }
@@ -346,13 +348,11 @@ static inline void doc_rwlock_upgrade(doc_rwlock_t *lock) {
     lock->has_upgrade = false;
     lock->upgrade_count = 0;
 
-    /* Symmetrically clear/deactivate our reader slot registered during uplock to prevent slot leaks and deadlock */
+    /* Completely clear/deactivate our reader slot registered during uplock */
     for (int i = 0; i < MAX_READER_THREADS; i++) {
         if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
-            lock->readers[i].count--;
-            if (lock->readers[i].count == 0) {
-                lock->readers[i].active = false;
-            }
+            lock->readers[i].count = 0;
+            lock->readers[i].active = false;
             break;
         }
     }
