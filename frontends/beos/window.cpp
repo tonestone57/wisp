@@ -392,7 +392,7 @@ static void nsbeos_tile_raster_complete(void *arg)
     if (g->compositor) {
         int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
         int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
-        wisp_texture_t *tex = wisp_compositor_get_tile_texture(g->compositor, tx, ty, task->tile_size, task->buffer);
+        wisp_texture_t *tex = wisp_compositor_get_tile_texture(g->compositor, tx, ty, task->tile_size, task->tile_size, task->buffer);
         if (tex) {
             wisp_compositor_submit_texture(g->compositor, tex, tx, ty, NULL);
             wisp_compositor_draw_frame(g->compositor, task->scrollx, task->scrolly);

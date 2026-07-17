@@ -290,7 +290,7 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
         bl_image_destroy(&bl_img);
 
         if (gw->compositor) {
-            wisp_texture_t *tex = wisp_compositor_get_tile_texture(gw->compositor, 0, 0, alloc.width, pixel_data);
+            wisp_texture_t *tex = wisp_compositor_get_tile_texture(gw->compositor, 0, 0, alloc.width, alloc.height, pixel_data);
             if (tex) {
                 wisp_compositor_submit_texture(gw->compositor, tex, 0, 0, NULL);
                 wisp_compositor_draw_frame(gw->compositor, gtk_adjustment_get_value(hscroll), gtk_adjustment_get_value(vscroll));
@@ -321,7 +321,19 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     assert(z);
     assert(GTK_WIDGET(gw->layout) == widget);
 
-    current_cr = cr;
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(widget, &alloc);
+    if (alloc.width <= 0) alloc.width = 1;
+    if (alloc.height <= 0) alloc.height = 1;
+
+    cairo_surface_t *offscreen_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, alloc.width, alloc.height);
+    cairo_t *offscreen_cr = cairo_create(offscreen_surface);
+
+    /* Fill background white initially */
+    cairo_set_source_rgb(offscreen_cr, 1.0, 1.0, 1.0);
+    cairo_paint(offscreen_cr);
+
+    current_cr = offscreen_cr;
 
     GtkAdjustment *vscroll = nsgtk_layout_get_vadjustment(gw->layout);
     GtkAdjustment *hscroll = nsgtk_layout_get_hadjustment(gw->layout);
@@ -373,16 +385,16 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
 
     /* Execute prioritized redraw loop */
     for (int i = 0; i < task_count; i++) {
-        cairo_save(cr);
-        cairo_rectangle(cr, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+        cairo_save(offscreen_cr);
+        cairo_rectangle(offscreen_cr, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
                         tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
                         tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
-        cairo_clip(cr);
+        cairo_clip(offscreen_cr);
 
         browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll),
                               &tasks[i].tile_clip, &ctx);
 
-        cairo_restore(cr);
+        cairo_restore(offscreen_cr);
     }
 
     free(tasks);
@@ -390,6 +402,21 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);
     }
+
+    if (gw->compositor) {
+        unsigned char *pixel_data = cairo_image_surface_get_data(offscreen_surface);
+        wisp_texture_t *tex = wisp_compositor_get_tile_texture(gw->compositor, 0, 0, alloc.width, alloc.height, pixel_data);
+        if (tex) {
+            wisp_compositor_submit_texture(gw->compositor, tex, 0, 0, NULL);
+            wisp_compositor_draw_frame(gw->compositor, gtk_adjustment_get_value(hscroll), gtk_adjustment_get_value(vscroll));
+        }
+    }
+
+    cairo_set_source_surface(cr, offscreen_surface, 0, 0);
+    cairo_paint(cr);
+
+    cairo_destroy(offscreen_cr);
+    cairo_surface_destroy(offscreen_surface);
 
     return FALSE;
 }

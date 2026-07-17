@@ -106,4 +106,9 @@ nserror nsgtk_data_from_resname(const char *resname, const uint8_t **data_out, s
  */
 nserror nsgtk_path_from_resname(const char *resname, const char **path_out);
 
+/**
+ * Free all loaded and initialized GTK resources.
+ */
+void nsgtk_free_resources(void);
+
 #endif

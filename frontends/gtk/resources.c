@@ -72,6 +72,8 @@ struct nsgtk_resource_s {
     unsigned int len;
     enum nsgtk_resource_type_e type;
     char *path;
+    uint8_t *data;
+    size_t data_len;
 };
 
 #define RES_ENTRY(name) {name, sizeof((name)) - 1, NSGTK_RESOURCE_FILE, NULL}
@@ -275,10 +277,36 @@ static nserror init_direct_resource(char **respath, struct nsgtk_resource_s *res
         data = g_resources_lookup_data(resource->path, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
         if (data != NULL) {
             resource->type = NSGTK_RESOURCE_DIRECT;
+            gsize buffer_length = 0;
+            const gchar *buffer = g_bytes_get_data(data, &buffer_length);
+            if (buffer != NULL) {
+                resource->data = (uint8_t *)buffer;
+                resource->data_len = (size_t)buffer_length;
+            }
             resource->path = (char *)data;
         }
     }
 #endif
+
+    if ((res == NSERROR_OK) && (resource->type == NSGTK_RESOURCE_FILE)) {
+        /* load from file on disk */
+        FILE *f = fopen(resource->path, "rb");
+        if (f != NULL) {
+            fseek(f, 0, SEEK_END);
+            long sz = ftell(f);
+            fseek(f, 0, SEEK_SET);
+            if (sz >= 0) {
+                uint8_t *buf = malloc(sz + 1);
+                if (buf != NULL) {
+                    size_t read_bytes = fread(buf, 1, sz, f);
+                    buf[read_bytes] = 0;
+                    resource->data = buf;
+                    resource->data_len = read_bytes;
+                }
+            }
+            fclose(f);
+        }
+    }
 
     return res;
 }
@@ -534,36 +562,70 @@ nserror nsgtk_builder_new_from_resname(const char *resname, GtkBuilder **builder
 /* exported interface documented in gtk/resources.h */
 nserror nsgtk_data_from_resname(const char *resname, const uint8_t **data_out, size_t *data_size_out)
 {
-#ifdef WITH_GRESOURCE
     struct nsgtk_resource_s *resource;
-    GBytes *data;
-    const gchar *buffer;
-    gsize buffer_length;
 
     resource = find_resource_from_name(resname, &direct_resource[0]);
-    if ((resource->name == NULL) || (resource->type != NSGTK_RESOURCE_DIRECT)) {
+    if (resource->name == NULL) {
         return NSERROR_NOT_FOUND;
     }
 
-    data = (GBytes *)resource->path;
-
-    buffer_length = 0;
-    buffer = g_bytes_get_data(data, &buffer_length);
-
-    if (buffer == NULL) {
-        return NSERROR_NOMEM;
+    if (resource->data == NULL) {
+        return NSERROR_NOT_FOUND;
     }
 
-    *data_out = (const uint8_t *)buffer;
-    *data_size_out = (size_t)buffer_length;
+    *data_out = resource->data;
+    *data_size_out = resource->data_len;
 
     return NSERROR_OK;
-#else
-    /** \todo consider adding compiled inline resources for things
-     * other than pixbufs.
-     */
-    return NSERROR_NOT_FOUND;
+}
+
+void nsgtk_free_resources(void)
+{
+    struct nsgtk_resource_s *resource;
+
+    /* free ui resources */
+    resource = &ui_resource[0];
+    while (resource->name != NULL) {
+        if (resource->path != NULL && resource->type == NSGTK_RESOURCE_FILE) {
+            free(resource->path);
+            resource->path = NULL;
+        }
+        resource++;
+    }
+
+    /* free pixbuf resources */
+    resource = &pixbuf_resource[0];
+    while (resource->name != NULL) {
+        if (resource->path != NULL && resource->type == NSGTK_RESOURCE_FILE) {
+            free(resource->path);
+            resource->path = NULL;
+        }
+        resource++;
+    }
+
+    /* free direct resources */
+    resource = &direct_resource[0];
+    while (resource->name != NULL) {
+        if (resource->type == NSGTK_RESOURCE_FILE) {
+            if (resource->path != NULL) {
+                free(resource->path);
+                resource->path = NULL;
+            }
+            if (resource->data != NULL) {
+                free(resource->data);
+                resource->data = NULL;
+            }
+        }
+#ifdef WITH_GRESOURCE
+        else if (resource->type == NSGTK_RESOURCE_DIRECT) {
+            if (resource->path != NULL) {
+                g_bytes_unref((GBytes *)resource->path);
+                resource->path = NULL;
+            }
+        }
 #endif
+        resource++;
+    }
 }
 
 /* exported interface documented in gtk/resources.h */

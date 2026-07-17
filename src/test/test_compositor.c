@@ -67,7 +67,7 @@ START_TEST(test_compositor_textures)
     memset(mock_pixels, 0xAB, pixel_size);
 
     /* Create GPU-Shared texture representing a standard Redraw Tile (512x512) */
-    wisp_texture_t *tex = wisp_compositor_get_tile_texture(comp, 100, 200, 512, mock_pixels);
+    wisp_texture_t *tex = wisp_compositor_get_tile_texture(comp, 100, 200, 512, 512, mock_pixels);
     ck_assert_ptr_nonnull(tex);
     ck_assert_int_eq(tex->width, 512);
     ck_assert_int_eq(tex->height, 512);
@@ -80,7 +80,7 @@ START_TEST(test_compositor_textures)
     }
 
     /* Retrieve from tile texture cache and verify it returns the identical cached texture! */
-    wisp_texture_t *tex_cached = wisp_compositor_get_tile_texture(comp, 100, 200, 512, mock_pixels);
+    wisp_texture_t *tex_cached = wisp_compositor_get_tile_texture(comp, 100, 200, 512, 512, mock_pixels);
     ck_assert_ptr_eq(tex_cached, tex);
 
     /* Submit layered texture with custom affine matrix transform */
@@ -95,7 +95,7 @@ START_TEST(test_compositor_textures)
     ck_assert_float_eq(comp->layers[0].transform[4], 50.0f);
 
     /* Submit a second layer with default identity transform */
-    wisp_texture_t *tex2 = wisp_compositor_get_tile_texture(comp, 300, 400, 256, mock_pixels);
+    wisp_texture_t *tex2 = wisp_compositor_get_tile_texture(comp, 300, 400, 256, 256, mock_pixels);
     ck_assert_ptr_nonnull(tex2);
     bool submit_ok2 = wisp_compositor_submit_texture(comp, tex2, 100, 200, NULL);
     ck_assert_int_eq(submit_ok2, true);
