@@ -104,6 +104,261 @@ union html_focus_owner {
 
 
 #include <pthread.h>
+#include <stdbool.h>
+#include <string.h>
+#include <assert.h>
+
+#define MAX_READER_THREADS 32
+
+typedef struct {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+
+    pthread_t writer_thread;
+    bool has_writer;
+    int write_count;
+
+    pthread_t upgrade_thread;
+    bool has_upgrade;
+    int upgrade_count;
+
+    int pending_writers;
+
+    struct {
+        pthread_t thread;
+        bool active;
+        int count;
+    } readers[MAX_READER_THREADS];
+} doc_rwlock_t;
+
+static inline void doc_rwlock_init(doc_rwlock_t *lock) {
+    pthread_mutex_init(&lock->mutex, NULL);
+    pthread_cond_init(&lock->cond, NULL);
+    lock->has_writer = false;
+    lock->write_count = 0;
+    lock->has_upgrade = false;
+    lock->upgrade_count = 0;
+    lock->pending_writers = 0;
+    memset(lock->readers, 0, sizeof(lock->readers));
+}
+
+static inline void doc_rwlock_destroy(doc_rwlock_t *lock) {
+    pthread_mutex_destroy(&lock->mutex);
+    pthread_cond_destroy(&lock->cond);
+}
+
+static inline void doc_rwlock_rdlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    /* 1. Symmetrical per-thread recursive read lock check */
+    for (int i = 0; i < MAX_READER_THREADS; i++) {
+        if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+            lock->readers[i].count++;
+            pthread_mutex_unlock(&lock->mutex);
+            return;
+        }
+    }
+
+    /* 2. Unified wait loop to prevent writer races and handle full slot conditions */
+    while (true) {
+        /* Wait while there is an active writer (unless the writer is ourselves) */
+        while (lock->has_writer && !pthread_equal(lock->writer_thread, self)) {
+            pthread_cond_wait(&lock->cond, &lock->mutex);
+        }
+
+        /* Find a free reader slot and register */
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (!lock->readers[i].active) {
+                lock->readers[i].active = true;
+                lock->readers[i].thread = self;
+                lock->readers[i].count = 1;
+                pthread_mutex_unlock(&lock->mutex);
+                return;
+            }
+        }
+
+        /* Array is full, wait on condition variable and retry the entire check */
+        pthread_cond_wait(&lock->cond, &lock->mutex);
+    }
+}
+
+static inline void doc_rwlock_rdunlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    for (int i = 0; i < MAX_READER_THREADS; i++) {
+        if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+            lock->readers[i].count--;
+            if (lock->readers[i].count == 0) {
+                lock->readers[i].active = false;
+                pthread_cond_broadcast(&lock->cond);
+            }
+            pthread_mutex_unlock(&lock->mutex);
+            return;
+        }
+    }
+
+    pthread_mutex_unlock(&lock->mutex);
+}
+
+static inline void doc_rwlock_wrlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    /* 1. If we are already the active writer, support recursive write lock. */
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        lock->write_count++;
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+
+    lock->pending_writers++;
+
+    /* 2. Wait while there is an active writer, OR there are active readers,
+     * EXCEPT if the only active reader is this thread itself. */
+    while (true) {
+        bool has_other_readers = false;
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (lock->readers[i].active && !pthread_equal(lock->readers[i].thread, self)) {
+                has_other_readers = true;
+                break;
+            }
+        }
+        bool has_other_writer = lock->has_writer && !pthread_equal(lock->writer_thread, self);
+        bool has_other_upgrade = lock->has_upgrade && !pthread_equal(lock->upgrade_thread, self);
+
+        if (!has_other_writer && !has_other_readers && !has_other_upgrade) {
+            break;
+        }
+        pthread_cond_wait(&lock->cond, &lock->mutex);
+    }
+
+    lock->pending_writers--;
+    lock->has_writer = true;
+    lock->writer_thread = self;
+    lock->write_count = 1;
+    pthread_mutex_unlock(&lock->mutex);
+}
+
+static inline void doc_rwlock_wrunlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        lock->write_count--;
+        if (lock->write_count == 0) {
+            lock->has_writer = false;
+            pthread_cond_broadcast(&lock->cond);
+        }
+    }
+
+    pthread_mutex_unlock(&lock->mutex);
+}
+
+static inline void doc_rwlock_uplock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    if (lock->has_upgrade && pthread_equal(lock->upgrade_thread, self)) {
+        lock->upgrade_count++;
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+                lock->readers[i].count++;
+                break;
+            }
+        }
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+
+    while (true) {
+        while (lock->has_writer || lock->has_upgrade) {
+            pthread_cond_wait(&lock->cond, &lock->mutex);
+        }
+
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (!lock->readers[i].active) {
+                lock->readers[i].active = true;
+                lock->readers[i].thread = self;
+                lock->readers[i].count = 1;
+
+                lock->has_upgrade = true;
+                lock->upgrade_thread = self;
+                lock->upgrade_count = 1;
+
+                pthread_mutex_unlock(&lock->mutex);
+                return;
+            }
+        }
+        pthread_cond_wait(&lock->cond, &lock->mutex);
+    }
+}
+
+static inline void doc_rwlock_upunlock(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    if (lock->has_upgrade && pthread_equal(lock->upgrade_thread, self)) {
+        lock->upgrade_count--;
+        if (lock->upgrade_count == 0) {
+            lock->has_upgrade = false;
+
+            for (int i = 0; i < MAX_READER_THREADS; i++) {
+                if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+                    lock->readers[i].count--;
+                    if (lock->readers[i].count == 0) {
+                        lock->readers[i].active = false;
+                    }
+                    break;
+                }
+            }
+            pthread_cond_broadcast(&lock->cond);
+        }
+    }
+
+    pthread_mutex_unlock(&lock->mutex);
+}
+
+static inline void doc_rwlock_upgrade(doc_rwlock_t *lock) {
+    pthread_mutex_lock(&lock->mutex);
+    pthread_t self = pthread_self();
+
+    assert(lock->has_upgrade && pthread_equal(lock->upgrade_thread, self));
+
+    while (true) {
+        bool has_other_readers = false;
+        for (int i = 0; i < MAX_READER_THREADS; i++) {
+            if (lock->readers[i].active && !pthread_equal(lock->readers[i].thread, self)) {
+                has_other_readers = true;
+                break;
+            }
+        }
+        if (!has_other_readers) {
+            break;
+        }
+        pthread_cond_wait(&lock->cond, &lock->mutex);
+    }
+
+    lock->has_writer = true;
+    lock->writer_thread = self;
+    lock->write_count = 1;
+    lock->has_upgrade = false;
+    lock->upgrade_count = 0;
+
+    /* Symmetrically clear/deactivate our reader slot registered during uplock to prevent slot leaks and deadlock */
+    for (int i = 0; i < MAX_READER_THREADS; i++) {
+        if (lock->readers[i].active && pthread_equal(lock->readers[i].thread, self)) {
+            lock->readers[i].count--;
+            if (lock->readers[i].count == 0) {
+                lock->readers[i].active = false;
+            }
+            break;
+        }
+    }
+
+    pthread_mutex_unlock(&lock->mutex);
+}
 
 struct csp;
 
@@ -113,7 +368,7 @@ struct csp;
 typedef struct html_content {
     struct content base;
 
-    pthread_mutex_t doc_mutex; /**< Protects dom_document mutation */
+    doc_rwlock_t doc_mutex; /**< Protects dom_document mutation */
     struct csp *csp; /**< Content Security Policy */
     char *coop; /**< Cross-Origin-Opener-Policy header value */
     char *coep; /**< Cross-Origin-Embedder-Policy header value */

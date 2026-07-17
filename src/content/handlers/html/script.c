@@ -108,9 +108,9 @@ nserror html_script_exec(html_content *c, bool allow_defer)
                 size_t size;
                 data = content_get_source_data(s->data.handle, &size);
 
-                pthread_mutex_lock(&c->doc_mutex);
+                doc_rwlock_wrlock(&c->doc_mutex);
                 script_handler(c->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
-                pthread_mutex_unlock(&c->doc_mutex);
+                doc_rwlock_wrunlock(&c->doc_mutex);
 
                 have_run_something = true;
                 /* We have to re-acquire this here since the
@@ -171,7 +171,7 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
     struct html_script *s;
     nserror ret_val = NSERROR_OK;
 
-    pthread_mutex_lock(&parent->doc_mutex);
+    doc_rwlock_wrlock(&parent->doc_mutex);
 
     /* Find script */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
@@ -240,7 +240,7 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         ret_val = html_script_exec(parent, false);
     }
 
-    pthread_mutex_unlock(&parent->doc_mutex);
+    doc_rwlock_wrunlock(&parent->doc_mutex);
     return ret_val;
 }
 
@@ -253,7 +253,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     unsigned int i;
     struct html_script *s;
 
-    pthread_mutex_lock(&parent->doc_mutex);
+    doc_rwlock_wrlock(&parent->doc_mutex);
 
     /* Find script */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
@@ -310,7 +310,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
         guit->misc->schedule(0, script_resume_conversion_cb, parent);
     }
 
-    pthread_mutex_unlock(&parent->doc_mutex);
+    doc_rwlock_wrunlock(&parent->doc_mutex);
     return NSERROR_OK;
 }
 
@@ -344,9 +344,9 @@ static void html_execute_pending_sync_scripts(html_content *parent)
             size_t size;
             data = content_get_source_data(s->data.handle, &size);
 
-            pthread_mutex_lock(&parent->doc_mutex);
+            doc_rwlock_wrlock(&parent->doc_mutex);
             script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
-            pthread_mutex_unlock(&parent->doc_mutex);
+            doc_rwlock_wrunlock(&parent->doc_mutex);
         }
     }
 }
@@ -363,7 +363,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
     unsigned int active_sync_scripts = 0;
     nserror ret_val = NSERROR_OK;
 
-    pthread_mutex_lock(&parent->doc_mutex);
+    doc_rwlock_wrlock(&parent->doc_mutex);
 
     /* Count sync scripts which have yet to complete downloading (other than us) */
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
@@ -458,7 +458,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         ret_val = html_script_exec(parent, false);
     }
 
-    pthread_mutex_unlock(&parent->doc_mutex);
+    doc_rwlock_wrunlock(&parent->doc_mutex);
     return ret_val;
 }
 

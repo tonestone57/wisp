@@ -66,6 +66,7 @@
 #include <wisp/content/handlers/html/html_save.h>
 #include <wisp/content/handlers/html/interaction.h>
 #include <wisp/content/handlers/html/private.h>
+
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/css.h"
 #include "content/handlers/html/dom_event.h"
@@ -411,9 +412,9 @@ void html_finish_conversion(html_content *htmlc)
 		 * the currentTarget set to the Window object)
 		 */
 		if (htmlc->jsthread != NULL) {
-			pthread_mutex_lock(&htmlc->doc_mutex);
+			doc_rwlock_wrlock(&htmlc->doc_mutex);
 			js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
-			pthread_mutex_unlock(&htmlc->doc_mutex);
+			doc_rwlock_wrunlock(&htmlc->doc_mutex);
 		}
 	}
 
@@ -524,9 +525,9 @@ void html_finish_conversion(html_content *htmlc)
 	}
 
 	PERF("DOM to box START");
-	pthread_mutex_lock(&htmlc->doc_mutex);
+	doc_rwlock_rdlock(&htmlc->doc_mutex);
 	error = dom_to_box(html, htmlc, html_box_convert_done, &htmlc->box_conversion_context);
-	pthread_mutex_unlock(&htmlc->doc_mutex);
+	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 	if (error != NSERROR_OK) {
 		NSLOG(wisp, INFO, "box conversion failed");
 		dom_node_unref(html);
@@ -628,11 +629,7 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->dirty_use_union = false;
 	c->dirty_list = NULL;
 
-	pthread_mutexattr_t attr;
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-	pthread_mutex_init(&c->doc_mutex, &attr);
-	pthread_mutexattr_destroy(&attr);
+	doc_rwlock_init(&c->doc_mutex);
 
 	c->enable_scripting = nsoption_bool(enable_javascript);
 	c->base.active = 1; /* The html content itself is active */
@@ -928,7 +925,7 @@ static void html_parse_worker(void *arg)
 	dom_hubbub_error dom_ret;
 	nserror err = NSERROR_OK;
 
-	pthread_mutex_lock(&html->doc_mutex);
+	doc_rwlock_wrlock(&html->doc_mutex);
 	if (html->parser) {
 		dom_ret = dom_hubbub_parser_parse_chunk(html->parser, (const uint8_t *)task->data, task->size);
 		err = libdom_hubbub_error_to_nserror(dom_ret);
@@ -938,7 +935,7 @@ static void html_parse_worker(void *arg)
 			err = NSERROR_OK; /* handled on main thread */
 		}
 	}
-	pthread_mutex_unlock(&html->doc_mutex);
+	doc_rwlock_wrunlock(&html->doc_mutex);
 
 	task->parse_error = err;
 
@@ -1387,9 +1384,9 @@ static void html_reformat(struct content *c, int width, int height)
 	htmlc->unit_len_ctx.viewport_height = css_unit_device2css_px(INTTOFIX(height), htmlc->unit_len_ctx.device_dpi);
 	htmlc->unit_len_ctx.root_style = htmlc->layout->style;
 
-	pthread_mutex_lock(&htmlc->doc_mutex);
+	doc_rwlock_rdlock(&htmlc->doc_mutex);
 	layout_document(htmlc, width, height);
-	pthread_mutex_unlock(&htmlc->doc_mutex);
+	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 
 	layout = htmlc->layout;
 	PERF("html_reformat #%d DONE layout", reformat_count);
@@ -1698,7 +1695,7 @@ static void html_destroy(struct content *c)
 	/* Free objects */
 	html_object_free_objects(html);
 
-	pthread_mutex_destroy(&html->doc_mutex);
+	doc_rwlock_destroy(&html->doc_mutex);
 }
 
 
