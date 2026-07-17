@@ -282,6 +282,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/thread_pool.c
 	utils/task_queue.c
 	utils/ipc.c
+	utils/shm_dom.c
 	utils/http/generics.c
 	utils/http/primitives.c
 	utils/http/parameter.c
@@ -355,6 +356,11 @@ add_executable(wisp-js
     utils/ipc.c
     utils/log.c
     utils/utils.c
+)
+target_include_directories(wisp-js PRIVATE
+    ${CMAKE_SOURCE_DIR}/contrib
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
 )
 target_link_libraries(wisp-js wisp ${WISP_COMMON_LIBS})
 

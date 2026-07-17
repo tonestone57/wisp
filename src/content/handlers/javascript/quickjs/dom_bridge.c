@@ -52,6 +52,9 @@ static hashmap_parameters_t bridge_map_params = {
     .value_destroy = bridge_value_destroy
 };
 
+extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
+
 JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 {
     if (node == NULL) return JS_NULL;
@@ -70,7 +73,12 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
     }
 
     dom_node_type type;
-    dom_node_get_node_type(node, &type);
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)node);
+        type = sn ? (dom_node_type)sn->type : 0;
+    } else {
+        dom_node_get_node_type(node, &type);
+    }
 
     JSValue wrapper;
     switch (type) {
@@ -96,7 +104,7 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         /* Map stores a WEAK reference. We don't increment the refcount
          * because the JS object's finalizer will remove it from the map. */
         *val_ptr = wrapper;
-        dom_node_ref(node);
+        if (!wisp_is_js_process) dom_node_ref(node);
     } else {
         /* Failed to insert into map, but we still have the wrapper.
          * This shouldn't normally happen unless OOM. */
@@ -114,7 +122,7 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
             hashmap_remove(map, &key);
-            dom_node_unref(node);
+            if (!wisp_is_js_process) dom_node_unref(node);
         }
     }
 }
@@ -169,7 +177,7 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
                 hashmap_remove(map, &cleanup.keys[i]);
-                dom_node_unref(cleanup.keys[i].node);
+                if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
             }
         }
         free(cleanup.keys);
@@ -484,7 +492,7 @@ void qjs_finalise_dom_bridge(JSContext *ctx)
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
             hashmap_remove(map, &key);
-            dom_node_unref(cleanup.nodes[i]);
+            if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
         }
     }
     free(cleanup.nodes);
