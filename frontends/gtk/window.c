@@ -74,6 +74,8 @@
 nserror nsgtk_plot_text_ns(const struct redraw_context *ctx, const plot_font_style_t *fstyle, int x, int y, const char *text, size_t length);
 #endif
 
+#include "wisp/desktop/compositor.h"
+
 /**
  * time (in ms) between throbber animation frame updates
  */
@@ -83,6 +85,7 @@ static GtkWidget *select_menu;
 static struct form_control *select_menu_control;
 
 struct gui_window {
+    wisp_compositor_t *compositor;  /* GPU-Accelerated Compositor */
     /**
      * The gtk scaffold object containing menu, buttons, url bar, [tabs],
      * drawing area, etc that may contain one or more gui_windows.
@@ -173,6 +176,51 @@ static int nsgtk_tile_task_compare(const void *a, const void *b)
     return 0;
 }
 
+#if GTK_CHECK_VERSION(3, 16, 0)
+#include <gdk/gdkglcontext.h>
+#include <GLES2/gl2.h>
+
+static gboolean nsgtk_window_gl_render(GtkGLArea *area, GdkGLContext *context, gpointer data)
+{
+    struct gui_window *gw = (struct gui_window *)data;
+    if (gw->compositor && gw->compositor->gl_program != 0) {
+        /* Conforms to the GtkGLArea mandate: bind the shared texture and render the fullscreen quad on the GTK main thread */
+        NSLOG(wisp, DEBUG, "[GtkGLArea] Binding shared compositor FBO texture and drawing fullscreen quad.");
+
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glUseProgram(gw->compositor->gl_program);
+        glBindBuffer(GL_ARRAY_BUFFER, gw->compositor->vbo);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, (void*)(sizeof(float) * 2));
+
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glUseProgram(0);
+    }
+    return TRUE;
+}
+
+static void nsgtk_window_gl_realize(GtkWidget *widget, gpointer data)
+{
+    struct gui_window *gw = (struct gui_window *)data;
+    gtk_gl_area_make_current(GTK_GL_AREA(widget));
+    if (gtk_gl_area_get_error(GTK_GL_AREA(widget)) != NULL) {
+        return;
+    }
+
+    GdkGLContext *gdk_ctx = gtk_gl_area_get_context(GTK_GL_AREA(widget));
+    if (gdk_ctx && gw->compositor) {
+        gw->compositor->ui_thread_context = gdk_ctx;
+        NSLOG(wisp, INFO, "[GtkGLArea] Realized GLArea context on GTK main thread.");
+    }
+}
+#endif
+
 #if GTK_CHECK_VERSION(3, 0, 0)
 
 static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer data)
@@ -228,6 +276,17 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
         bl_context_end(&bl_ctx);
         bl_context_destroy(&bl_ctx);
         bl_image_destroy(&bl_img);
+
+        if (gw->compositor) {
+            wisp_texture_t *tex = wisp_compositor_get_tile_texture(gw->compositor, 0, 0, alloc.width, pixel_data);
+            if (tex) {
+                wisp_compositor_submit_texture(gw->compositor, tex, 0, 0, NULL);
+                wisp_compositor_draw_frame(gw->compositor, gtk_adjustment_get_value(hscroll), gtk_adjustment_get_value(vscroll));
+
+                /* Conforms to GtkGLArea rendering flow: signal main thread to redraw */
+                g_main_context_invoke(NULL, (GSourceFunc)gtk_widget_queue_draw, widget);
+            }
+        }
 
         cairo_set_source_surface(cr, surface, 0, 0);
         cairo_paint(cr);
@@ -854,6 +913,11 @@ static void window_destroy(GtkWidget *widget, gpointer data)
 {
     struct gui_window *gw = data;
 
+    if (gw->compositor != NULL) {
+        wisp_compositor_destroy(gw->compositor);
+        gw->compositor = NULL;
+    }
+
     browser_window_destroy(gw->bw);
 
     g_object_unref(gw->input_method);
@@ -966,6 +1030,10 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->bw = bw;
     g->mouse.state = 0;
     g->current_pointer = GUI_POINTER_DEFAULT;
+    g->compositor = wisp_compositor_create(WISP_COMPOSITOR_API_OPENGL_ES, g);
+    if (g->compositor) {
+        wisp_compositor_start(g->compositor);
+    }
 
     /* attach scaffold */
     if (flags & GW_CREATE_TAB) {
@@ -1096,6 +1164,11 @@ static void gui_window_destroy(struct gui_window *gw)
     assert(gw != NULL);
     assert(gw->bw != NULL);
     NSLOG(wisp, INFO, "scaffolding: %p", gw->scaffold);
+
+    if (gw->compositor != NULL) {
+        wisp_compositor_destroy(gw->compositor);
+        gw->compositor = NULL;
+    }
 
     /* kill off any throbber that might be running */
     nsgtk_schedule(-1, next_throbber_frame, gw);

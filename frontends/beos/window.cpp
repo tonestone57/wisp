@@ -351,6 +351,22 @@ static void nsbeos_tile_raster_complete(void *arg)
     content_dec_bg_tasks(task->h);
     hlcache_handle_release(task->h);
 
+    if (g->compositor) {
+        int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
+        int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
+        wisp_texture_t *tex = wisp_compositor_get_tile_texture(g->compositor, tx, ty, task->tile_size, task->buffer);
+        if (tex) {
+            wisp_compositor_submit_texture(g->compositor, tex, tx, ty, NULL);
+            wisp_compositor_draw_frame(g->compositor, task->scrollx, task->scrolly);
+
+            /* Conforms to Haiku Multi-Threaded Sync: post MSG_COMPOSITOR_FRAME_READY to BWindow */
+            NSBrowserWindow *window = dynamic_cast<NSBrowserWindow *>(view->Window());
+            if (window) {
+                window->PostMessage('mcfr');
+            }
+        }
+    }
+
     /* Save rendered buffer to cache instead of immediately returning it to pool */
     int tx = task->tile_clip.x0 - (task->tile_clip.x0 % task->tile_size);
     int ty = task->tile_clip.y0 - (task->tile_clip.y0 % task->tile_size);
@@ -600,6 +616,10 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
     g->bw = bw;
     g->current_pointer = GUI_POINTER_DEFAULT;
+    g->compositor = wisp_compositor_create(WISP_COMPOSITOR_API_BDIRECTWINDOW, g);
+    if (g->compositor) {
+        wisp_compositor_start(g->compositor);
+    }
 #ifdef __HAIKU__
     g->last_resize_time = 0;
 #endif
@@ -1334,6 +1354,11 @@ static void gui_window_destroy(struct gui_window *g)
 
 
     NSLOG(wisp, INFO, "Destroying gui_window %p", g);
+
+    if (g->compositor != NULL) {
+        wisp_compositor_destroy(g->compositor);
+        g->compositor = NULL;
+    }
 
     gui_window_cleanup_widgets(g);
 

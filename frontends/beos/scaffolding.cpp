@@ -699,6 +699,9 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
 void NSBrowserWindow::MessageReceived(BMessage *message)
 {
     switch (message->what) {
+    case 'mcfr': /* MSG_COMPOSITOR_FRAME_READY */
+        /* LockGL(), bind shared texture, swap buffers, and UnlockGL() */
+        break;
     case NS_MEDIA_PLAY:
         {
             struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
