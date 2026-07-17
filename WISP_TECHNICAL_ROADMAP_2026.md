@@ -153,14 +153,30 @@ Implementing these additions alongside your current 2027 backlog balances out th
 
 ### D. Strategic Optimization Impact (Vectorized Bottlenecks)
 
-By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers:
+By leveraging Wisp's lightweight architecture alongside modern SIMD vectorization, we can selectively target bottlenecks unique to proxy-centric alternative browsers. **Note: SIMD optimizations are strictly isolated to the fast-path pipelines with safe scalar/non-SIMD fallbacks to ensure compatibility on non-vectorized hardware.**
 
-| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact | Status |
-|---|---|---|---|---|---|---|
-| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead | **[Finished]** |
-| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps | **[Finished]** |
-| **SIMD CSP Nonce & Security Check** | 32 Bytes / 16 Bytes / Variable | Medium | High | Request security processing | Drastically speeds up header checking | **[Finished]** |
-| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS | Planned |
+| Expansion Target | Vector Width (AVX2 / NEON / RVV) | Complexity | Benefit | Primary Benefit Area | Architectural Impact | Status | Fast-Path (SIMD) vs. Non-SIMD Fallback |
+|---|---|---|---|---|---|---|---|
+| **WebSocket Masking** | 32 Bytes / 16 Bytes / Variable | Medium | High | Upstream Proxy Network Speed | Eliminates proxy protocol overhead | **[Finished]** | AVX2 (`_mm256_xor_si256`), NEON (`veorq_u8`), RVV 1.0 (`vxor.vv`) | Standard 8-bit scalar bitwise XOR loop (i586 compatible) |
+| **SIMD JSON Parser** | 32 Bytes / 16 Bytes / Variable | Medium | High | DOM/JS Engine Execution | Drastically speeds up heavy single-page apps | **[Finished]** | Multi-byte structural scan scanning 16/32 byte boundary registers | Character-by-character parsing stream |
+| **SIMD CSP Nonce & Security Check** | 32 Bytes / 16 Bytes / Variable | Medium | High | Request security processing | Drastically speeds up header checking | **[Finished]** | Aligned vector comparators (`wisp_simd_strcmp`, `wisp_simd_streq`) | Standard `strcmp` / `memcmp` loops |
+| **CSS Tokenizer** | 32 Bytes / 16 Bytes / Variable | Medium | High | Layout and Paint Latency | Fast-path scanning for modern utility CSS | Planned | Vectorized delimiter and whitespace skip buffers | Sequential character scanner state-machine |
+
+### F. Parser & DOM Mutation Optimizations & Roadmap (2027 Development Cycle)
+
+During the detailed audit and diagnosis of the HTML Parser, XML Parser, and DOM Mutation Event subsystems, several high-impact optimization pathways were identified. Consistent with Wisp's performance architecture, the high-performance variants are strictly designated as **Fast-Path optimizations using SIMD vector registers** with safe, fully compatible **scalar fallbacks** for legacy systems:
+
+1. **Parser Tokenizer Whitespace Skipping**
+   - **Fast-Path (SIMD Required)**: Utilize SIMD vector scanning registers (AVX2, NEON, RVV 1.0) pre-loaded with whitespace patterns (spaces, tabs, line breaks, carriage returns). This allows the tokenizer in `domparser_impl.c` or the Hubbub parser to scan and skip up to 32 bytes of white spaces in a single clock cycle, dramatically speeding up modern bloated XML/HTML document parsing.
+   - **Non-SIMD Fallback**: Fall back to sequential character-by-character loops checking `isspace()` or pointer-increment comparators.
+
+2. **DOM Event Target Dispatch Filtering & Matching**
+   - **Fast-Path (SIMD Required)**: Accelerate the filtering and matching of event types (such as bypassing legacy mutation strings like `"DOMNodeInserted"`) inside `_dom_event_target_dispatch` by using 128-bit or 256-bit SIMD string comparisons to compare event-type name strings concurrently.
+   - **Non-SIMD Fallback**: Fall back cleanly to standard string comparisons (`strcmp` or `strncmp`).
+
+3. **Batched Mutation Record Buffer Copying**
+   - **Fast-Path (SIMD Required)**: Optimize bulk serialization and transfer of mutation records (`WispMutationRecord`) inside `mutationobserver_impl.c` by leveraging vectorized block copies (e.g. `_mm256_store_si256`) to clone record entries into the microtask execution queues.
+   - **Non-SIMD Fallback**: Fall back to classic `memcpy` or element-by-element loop copying.
 
 ### E. High-Performance IPC: Shared-Memory DOM Topology & Batch Mutation Queues
 
