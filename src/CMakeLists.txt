@@ -190,7 +190,8 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/dom_bridge.c
 	# Manual implementations for generated bindings
 	content/handlers/javascript/quickjs/impl/node_impl.c
-	content/handlers/javascript/quickjs/impl/domparser_impl.c
+	content/handlers/javascript/quickjs/impl/namednodemap_impl.c
+	content/handlers/javascript/quickjs/impl/domtokenlist_impl.c
 	content/handlers/javascript/quickjs/impl/event_impl.c
 	content/handlers/javascript/quickjs/impl/element_impl.c
 	content/handlers/javascript/quickjs/impl/document_impl.c
@@ -337,11 +338,22 @@ target_include_directories(wisp PRIVATE
 # Multi-process executables
 add_executable(wisp-network
     processes/network/main.c
+    utils/ipc.c
+    utils/log.c
+    utils/nsoption.c
+    utils/messages.c
+    utils/corestrings.c
+    utils/utils.c
+    utils/utf8.c
+    utils/hashtable.c
 )
 target_link_libraries(wisp-network wisp ${WISP_COMMON_LIBS})
 
 add_executable(wisp-js
     processes/js/main.c
+    utils/ipc.c
+    utils/log.c
+    utils/utils.c
 )
 target_link_libraries(wisp-js wisp ${WISP_COMMON_LIBS})
 
@@ -352,10 +364,6 @@ endif()
 
 # Include tests subdirectory (tests only enabled for Debug builds or when NEOSURF_ENABLE_TESTS=ON)
 add_subdirectory(test)
-
-install(TARGETS wisp-network wisp-js
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
 
 if(NOT WIN32)
 install(TARGETS wisp
