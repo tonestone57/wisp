@@ -34,6 +34,11 @@ int wisp_simd_strcmp(const char *s1, const char *s2);
 bool wisp_simd_streq(const char *s1, const char *s2);
 
 /*
+ * Skip whitespaces using SIMD acceleration or scalar fallback.
+ */
+size_t wisp_skip_whitespaces(const uint8_t *data, size_t len);
+
+/*
  * Fast-path ASCII case conversions.
  * Requires that inputs are verified to be ASCII.
  */

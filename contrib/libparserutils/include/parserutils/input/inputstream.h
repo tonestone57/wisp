@@ -130,6 +130,27 @@ parserutils_inputstream_peek(parserutils_inputstream *stream, size_t offset, con
 }
 
 /**
+ * Peek at the entire contiguous remaining buffer safely, respecting encapsulation.
+ */
+static inline parserutils_error
+parserutils_inputstream_peek_all(parserutils_inputstream *stream, size_t offset, const uint8_t **ptr, size_t *length)
+{
+    if (stream == NULL || ptr == NULL || length == NULL)
+        return PARSERUTILS_BADPARM;
+
+    size_t off = stream->cursor + offset;
+    if (off < stream->utf8->length) {
+        *ptr = stream->utf8->data + off;
+        *length = stream->utf8->length - off;
+        return PARSERUTILS_OK;
+    }
+
+    *ptr = NULL;
+    *length = 0;
+    return PARSERUTILS_NEEDDATA;
+}
+
+/**
  * Advance the stream's current position
  *
  * \param stream  The stream whose position to advance
