@@ -163,6 +163,15 @@ typedef struct wisp_compositor {
 wisp_compositor_t *wisp_compositor_create(wisp_compositor_api api, void *native_window_handle);
 
 /**
+ * Initialize EGL shared contexts with GTK's or Haiku's native GUI context.
+ *
+ * \param comp          The compositor context.
+ * \param share_context Native GdkGLContext / EGLContext.
+ * \return true on success, false on failure.
+ */
+bool wisp_compositor_initialize_egl_shared(wisp_compositor_t *comp, void *share_context);
+
+/**
  * Destroy the compositor context and free all platform device resources.
  *
  * \param compositor The compositor context to destroy.

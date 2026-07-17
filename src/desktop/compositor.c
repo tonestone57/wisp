@@ -294,106 +294,8 @@ wisp_compositor_t *wisp_compositor_create(wisp_compositor_api api, void *native_
         comp->device_ctx.d3d_context = (void*)0x312C;
         NSLOG(wisp, INFO, "Initialized Direct3D 12 Compositor contexts.");
     } else if (api == WISP_COMPOSITOR_API_OPENGL_ES) {
-#ifdef WITH_GLES2
-        /* Headless simulation check to bypass driver hangs on unaccelerated/sandboxed CI environments */
-        bool run_simulated = false;
-        if ((uintptr_t)native_window_handle < 0x10000 || getenv("WISP_HEADLESS_TEST") != NULL) {
-            run_simulated = true;
-        }
-
-        if (!run_simulated) {
-            /* Real EGL hardware initialization with Context Sharing */
-            EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-            if (display != EGL_NO_DISPLAY) {
-                EGLint major, minor;
-                if (eglInitialize(display, &major, &minor)) {
-                    EGLint config_attribs[] = {
-                        EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
-                        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-                        EGL_NONE
-                    };
-                    EGLint num_configs;
-                    EGLConfig config = NULL;
-                    if (eglChooseConfig(display, config_attribs, &config, 1, &num_configs) && num_configs > 0) {
-                        EGLint context_attribs[] = {
-                            EGL_CONTEXT_CLIENT_VERSION, 2,
-                            EGL_NONE
-                        };
-
-                        /* Initialize separate EGLContexts sharing resources with the parent UI context to avoid clashes */
-                        EGLContext parent_ctx = EGL_NO_CONTEXT;
-                        if (comp->ui_thread_context != NULL) {
-                            parent_ctx = (EGLContext)comp->ui_thread_context;
-                        }
-                        EGLContext shared_ctx = eglCreateContext(display, config, parent_ctx, context_attribs);
-                        EGLContext ui_ctx     = eglCreateContext(display, config, shared_ctx, context_attribs);
-                        EGLContext comp_ctx   = eglCreateContext(display, config, shared_ctx, context_attribs);
-
-                        /* Create a tiny 1x1 pbuffer surface for offscreen/headless compatibility */
-                        EGLint pbuffer_attribs[] = {
-                            EGL_WIDTH, 1,
-                            EGL_HEIGHT, 1,
-                            EGL_NONE
-                        };
-                        EGLSurface surface = eglCreatePbufferSurface(display, config, pbuffer_attribs);
-
-                    if (shared_ctx != EGL_NO_CONTEXT && ui_ctx != EGL_NO_CONTEXT && comp_ctx != EGL_NO_CONTEXT && surface != EGL_NO_SURFACE) {
-                        comp->gl_display = display;
-                        comp->gl_surface = surface;
-
-                        comp->shared_resource_context   = shared_ctx;
-                        comp->ui_thread_context         = ui_ctx;
-                        comp->compositor_thread_context = comp_ctx;
-
-                        /* Temporarily bind EGL context to compile shaders and create vertex buffers */
-                        eglMakeCurrent(display, surface, surface, shared_ctx);
-
-                        /* Compile the quad shaders */
-                        GLuint vs = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER_SRC);
-                        GLuint fs = compile_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER_SRC);
-                        if (vs && fs) {
-                            comp->gl_program = glCreateProgram();
-                            glAttachShader(comp->gl_program, vs);
-                            glAttachShader(comp->gl_program, fs);
-                            glBindAttribLocation(comp->gl_program, 0, "a_position");
-                            glBindAttribLocation(comp->gl_program, 1, "a_tex_coord");
-                            glLinkProgram(comp->gl_program);
-
-                            comp->u_transform = glGetUniformLocation(comp->gl_program, "u_transform");
-
-                            /* Create quad vertices buffer */
-                            glGenBuffers(1, &comp->vbo);
-                            glBindBuffer(GL_ARRAY_BUFFER, comp->vbo);
-                            float vertices[] = {
-                                -1.0f, -1.0f, 0.0f, 0.0f,
-                                 1.0f, -1.0f, 1.0f, 0.0f,
-                                -1.0f,  1.0f, 0.0f, 1.0f,
-                                 1.0f,  1.0f, 1.0f, 1.0f,
-                            };
-                            glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-                            glBindBuffer(GL_ARRAY_BUFFER, 0);
-                        }
-
-                        /* Release main thread EGL context binding */
-                        eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-
-                        NSLOG(wisp, INFO, "Successfully initialized real reentrant EGL & OpenGL ES 2.0 graphics pipeline.");
-                    } else {
-                        if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
-                        if (shared_ctx != EGL_NO_CONTEXT) eglDestroyContext(display, shared_ctx);
-                        if (ui_ctx != EGL_NO_CONTEXT) eglDestroyContext(display, ui_ctx);
-                        if (comp_ctx != EGL_NO_CONTEXT) eglDestroyContext(display, comp_ctx);
-                        eglTerminate(display);
-                    }
-                } else {
-                    eglTerminate(display);
-                }
-            }
-        }
-    }
-#else
-        NSLOG(wisp, INFO, "Initialized OpenGL ES Compositor contexts.");
-#endif
+        /* Defer EGL context sharing initialization until egl shared initialize is called */
+        NSLOG(wisp, INFO, "Deferred OpenGL ES Compositor context sharing.");
     } else if (api == WISP_COMPOSITOR_API_METAL) {
         comp->device_ctx.metal_device = (void*)0x511D;
         NSLOG(wisp, INFO, "Initialized Metal Compositor contexts.");
@@ -403,6 +305,107 @@ wisp_compositor_t *wisp_compositor_create(wisp_compositor_api api, void *native_
     }
 
     return comp;
+}
+
+bool wisp_compositor_initialize_egl_shared(wisp_compositor_t *comp, void *share_context)
+{
+    if (!comp || comp->api != WISP_COMPOSITOR_API_OPENGL_ES) {
+        return false;
+    }
+
+#ifdef WITH_GLES2
+    /* Real EGL hardware initialization with Context Sharing */
+    EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (display != EGL_NO_DISPLAY) {
+        EGLint major, minor;
+        if (eglInitialize(display, &major, &minor)) {
+            EGLint config_attribs[] = {
+                EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+                EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+                EGL_NONE
+            };
+            EGLint num_configs;
+            EGLConfig config = NULL;
+            if (eglChooseConfig(display, config_attribs, &config, 1, &num_configs) && num_configs > 0) {
+                EGLint context_attribs[] = {
+                    EGL_CONTEXT_CLIENT_VERSION, 2,
+                    EGL_NONE
+                };
+
+                EGLContext parent_ctx = EGL_NO_CONTEXT;
+                if (share_context != NULL) {
+                    parent_ctx = (EGLContext)share_context;
+                }
+
+                /* Initialize three separate EGLContexts sharing resources with the GtkGLArea / BGLView context */
+                EGLContext shared_ctx = eglCreateContext(display, config, parent_ctx, context_attribs);
+                EGLContext ui_ctx     = eglCreateContext(display, config, shared_ctx, context_attribs);
+                EGLContext comp_ctx   = eglCreateContext(display, config, shared_ctx, context_attribs);
+
+                /* Create a tiny 1x1 pbuffer surface for offscreen/headless compatibility */
+                EGLint pbuffer_attribs[] = {
+                    EGL_WIDTH, 1,
+                    EGL_HEIGHT, 1,
+                    EGL_NONE
+                };
+                EGLSurface surface = eglCreatePbufferSurface(display, config, pbuffer_attribs);
+
+                if (shared_ctx != EGL_NO_CONTEXT && ui_ctx != EGL_NO_CONTEXT && comp_ctx != EGL_NO_CONTEXT && surface != EGL_NO_SURFACE) {
+                    comp->gl_display = display;
+                    comp->gl_surface = surface;
+
+                    comp->shared_resource_context   = shared_ctx;
+                    comp->ui_thread_context         = ui_ctx;
+                    comp->compositor_thread_context = comp_ctx;
+
+                    /* Temporarily bind EGL context to compile shaders and create vertex buffers */
+                    eglMakeCurrent(display, surface, surface, shared_ctx);
+
+                    /* Compile the quad shaders */
+                    GLuint vs = compile_shader(GL_VERTEX_SHADER, VERTEX_SHADER_SRC);
+                    GLuint fs = compile_shader(GL_FRAGMENT_SHADER, FRAGMENT_SHADER_SRC);
+                    if (vs && fs) {
+                        comp->gl_program = glCreateProgram();
+                        glAttachShader(comp->gl_program, vs);
+                        glAttachShader(comp->gl_program, fs);
+                        glBindAttribLocation(comp->gl_program, 0, "a_position");
+                        glBindAttribLocation(comp->gl_program, 1, "a_tex_coord");
+                        glLinkProgram(comp->gl_program);
+
+                        comp->u_transform = glGetUniformLocation(comp->gl_program, "u_transform");
+
+                        /* Create quad vertices buffer */
+                        glGenBuffers(1, &comp->vbo);
+                        glBindBuffer(GL_ARRAY_BUFFER, comp->vbo);
+                        float vertices[] = {
+                            -1.0f, -1.0f, 0.0f, 0.0f,
+                             1.0f, -1.0f, 1.0f, 0.0f,
+                            -1.0f,  1.0f, 0.0f, 1.0f,
+                             1.0f,  1.0f, 1.0f, 1.0f,
+                        };
+                        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+                        glBindBuffer(GL_ARRAY_BUFFER, 0);
+                    }
+
+                    /* Release main thread EGL context binding */
+                    eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+
+                    NSLOG(wisp, INFO, "Successfully initialized real reentrant EGL & OpenGL ES 2.0 graphics pipeline.");
+                    return true;
+                } else {
+                    if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
+                    if (shared_ctx != EGL_NO_CONTEXT) eglDestroyContext(display, shared_ctx);
+                    if (ui_ctx != EGL_NO_CONTEXT) eglDestroyContext(display, ui_ctx);
+                    if (comp_ctx != EGL_NO_CONTEXT) eglDestroyContext(display, comp_ctx);
+                    eglTerminate(display);
+                }
+            } else {
+                eglTerminate(display);
+            }
+        }
+    }
+#endif
+    return false;
 }
 
 void wisp_compositor_destroy(wisp_compositor_t *compositor)

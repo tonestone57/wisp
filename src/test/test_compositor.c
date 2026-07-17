@@ -49,6 +49,9 @@ START_TEST(test_compositor_textures)
     wisp_compositor_t *comp = wisp_compositor_create(WISP_COMPOSITOR_API_OPENGL_ES, (void*)0x3333);
     ck_assert_ptr_nonnull(comp);
 
+    /* Initialize shared context (passes NULL as headless context) */
+    wisp_compositor_initialize_egl_shared(comp, NULL);
+
     bool start_ok = wisp_compositor_start(comp);
     ck_assert_int_eq(start_ok, true);
 
