@@ -616,7 +616,12 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
 
     g->bw = bw;
     g->current_pointer = GUI_POINTER_DEFAULT;
-    g->compositor = wisp_compositor_create(WISP_COMPOSITOR_API_BDIRECTWINDOW, g);
+    wisp_compositor_api beos_api = WISP_COMPOSITOR_API_BDIRECTWINDOW;
+    /* Use real OpenGL ES hardware path if Blend2D render backend is active */
+    if (nsoption_int(render_backend) == OPTION_RENDER_BACKEND_BLEND2D) {
+        beos_api = WISP_COMPOSITOR_API_OPENGL_ES;
+    }
+    g->compositor = wisp_compositor_create(beos_api, g);
     if (g->compositor) {
         wisp_compositor_start(g->compositor);
     }
