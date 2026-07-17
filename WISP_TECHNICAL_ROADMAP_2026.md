@@ -95,28 +95,21 @@ The following stability and security measures have been integrated:
 
 ---
 
-## 7. Remaining Tasks & Priority Backlog
-These tasks are high-priority for the 2027 development cycle:
+## 7. Unfinished Tasks & Priority Backlog
+The following table outlines the key prioritized backlog and future horizons planned for the 2027–2028 development cycles.
 
-### Graphics & Performance
-*   **[Planned] WebGPU API Bridge** (Complexity: **High** | Benefit: **Medium**): Implement a preliminary WebGPU bridge to modern native graphics APIs.
-*   **[Planned] GPU-Accelerated Compositing** (Complexity: **High** | Benefit: **High**): Move the final tile-blitting and scrolling pass to the GPU (OpenGL/Vulkan) to ensure buttery-smooth 60FPS scrolling on modern hardware. This compositor dynamically pivots back to the high-performance Blend2D/GDI pipelines on non-DX11 or legacy hardware to maintain perfect backward compatibility.
-
-### Architecture & Security
-*   **[Planned] OS-Level Sandboxing** (Complexity: **High** | Benefit: **High**): Integrate Landlock (Linux), AppContainer (Windows), and Pledge (OpenBSD) for maximum protection.
-
-### UI & Features
-*   **[Planned] Unified C-based UI Library** (Complexity: **Medium** | Benefit: **High**): A lightweight, cross-platform UI library for consistent 'browser chrome' (tabs, address bar).
-
----
-
-## 8. Future Horizons (2027-2028)
-*   **Zero-Copy IPC Architecture via Shared Memory** (Complexity: **High** | Benefit: **High**): Optimize the multi-process boundaries so that rasterized Blend2D tile bitmaps are passed from rendering/layout worker processes using POSIX/Windows shared-memory handles (`shm_open` or native file mappings), completely bypassing serialization over IPC channels.
-*   **Optional JIT Compilation Tier Options** (Complexity: **High** | Benefit: **Medium**): Evaluate embedding an optional JIT compilation pipeline (such as Hermes or a lightweight WebAssembly JIT) for heavy script environments while keeping QuickJS-ng as the ultra-secure, lightweight default engine.
-*   **Shared-Memory GPU-Shared Textures** (Complexity: **High** | Benefit: **High**): In the upcoming GPU-Accelerated Compositing pass, pass GPU-shared texture buffers directly across process boundaries to be fed straight into the native window compositor loops.
-*   **WebAssembly (WASM) Interpretation** (Complexity: **Medium** | Benefit: **Medium**): Integrate a memory-safe, lightweight WASM interpreter to expand web application compatibility without bloating the footprint.
-*   **CSS Lexical and Layout Whitespace Skipping SIMD** (Complexity: **Medium** | Benefit: **High**): Incorporate a vector scanning register in `libcss` lexical scanners pre-loaded with target whitespace characters (spaces, carriage returns, newlines, tabs) to compare blocks of 16/32 bytes at once, advancing unstyled text pointers instantly.
-*   **Multi-Process Shared Memory Color Space & Alpha Blending SIMD** (Complexity: **Medium** | Benefit: **Medium**): Accelerate Zero-Copy IPC compositing by offloading YUV-to-RGB floating-point/fixed-point matrix conversions and parallel alpha blending/composition to vectorized SIMD lanes to process 8 to 16 pixels simultaneously.
+| Task Descriptor | Target Area | Complexity | Benefit | Architectural Description |
+|---|---|---|---|---|
+| **GPU-Accelerated Compositing** | Graphics | **High** | **High** | Offload tile-blitting and scroll passes to GPU (OpenGL/Vulkan) for smooth 60FPS; fall back to Blend2D/GDI. |
+| **OS-Level Sandboxing** | Security | **High** | **High** | Native sandboxing using Landlock (Linux), AppContainers (Windows), and Pledge (OpenBSD). |
+| **Unified C UI Library** | Frontend | **Medium** | **High** | Compact, cross-platform UI widgets for consistent chrome (tabs, URL bar) across platforms. |
+| **Zero-Copy IPC (Shared Memory)** | IPC | **High** | **High** | Pass Blend2D tile bitmaps over shared-memory handles (`shm_open`/file mapping) to bypass IPC bottlenecks. |
+| **WebAssembly (WASM) Interpreter**| Core | **Medium** | **Medium**| Lightweight WASM interpreter to support modern web applications without footprint bloat. |
+| **WebGPU API Bridge** | Graphics | **High** | **Medium**| Bridge WebIDL WebGPU stubs to native graphics pipelines where system driver topologies allow. |
+| **Optional JIT Compilation Tier** | JS Engine | **High** | **Medium**| Evaluate embedding JIT layers (e.g. Hermes or lightweight WASM JIT) for script-heavy sites. |
+| **GPU-Shared Textures** | Graphics | **High** | **High** | Share GPU texture buffers directly across process borders in the upcoming compositor loops. |
+| **CSS Whitespace skipping (SIMD)** | CSS | **Medium** | **High** | Scan and skip CSS whitespace characters using SIMD vectors (AVX2/NEON/RVV 1.0) in 16/32 byte blocks. |
+| **Color Space Blending (SIMD)** | Graphics | **Medium** | **Medium**| Vectorize YUV-to-RGB conversions and parallel alpha blending inside the Zero-Copy IPC compositing layer. |
 
 ---
 
