@@ -85,6 +85,30 @@ extern "C" {
 #include <blend2d/blend2d.h>
 #endif
 
+#if defined(__HAIKU__)
+#include <GLView.h>
+class NSGLView : public BGLView {
+public:
+    NSGLView(BRect frame, const char *name, int32 resizingMode, int32 flags, int32 type)
+        : BGLView(frame, name, resizingMode, flags, type) {}
+
+    virtual void AttachedToWindow() {
+        BGLView::AttachedToWindow();
+        LockGL();
+        /* Lock and perform necessary OpenGL viewport / texture setups */
+        glViewport(0, 0, (int)Bounds().Width() + 1, (int)Bounds().Height() + 1);
+        UnlockGL();
+    }
+
+    virtual void Draw(BRect updateRect) {
+        LockGL();
+        /* Symmetrical context locking & buffer swapping */
+        SwapBuffers();
+        UnlockGL();
+    }
+};
+#endif
+
 class NSBrowserFrameView;
 
 class NSTextView : public BTextView {
@@ -650,6 +674,16 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     g->view = new NSBrowserFrameView(frame, g);
     g->view->SetViewColor(B_TRANSPARENT_COLOR);
     g->view->SetLowColor(kWhiteColor);
+
+#if defined(__HAIKU__)
+    if (beos_api == WISP_COMPOSITOR_API_OPENGL_ES) {
+        g->gl_view = new NSGLView(frame, "WispGLView", B_FOLLOW_ALL, B_WILL_DRAW, BGL_RGB | BGL_DOUBLE);
+        g->view->AddChild(g->gl_view);
+        wisp_compositor_initialize_egl_shared(g->compositor, g->gl_view);
+    } else {
+        g->gl_view = NULL;
+    }
+#endif
 
     if (g->toplevel) {
         nsbeos_attach_toplevel_view(g->scaffold, g->view);

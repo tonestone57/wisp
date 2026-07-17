@@ -41,6 +41,9 @@ struct gui_window {
     struct beos_scaffolding *scaffold;
     bool toplevel;
     struct browser_window *bw;
+#if defined(__HAIKU__)
+    BView *gl_view;                 /* Haiku BGLView for OpenGL ES Compositing */
+#endif
 
     struct {
         int pressed_x;

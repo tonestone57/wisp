@@ -125,6 +125,9 @@ static void *compositor_thread_routine(void *arg)
 
 #ifdef WITH_GLES2
         if (comp->api == WISP_COMPOSITOR_API_OPENGL_ES && comp->gl_program != 0) {
+            /* Bind the shared offscreen FBO. Conforms to the Shared Context Offscreen Framebuffer (FBO) Mandate */
+            glBindFramebuffer(GL_FRAMEBUFFER, comp->fbo_id);
+            glViewport(0, 0, 1024, 768);
             glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             glUseProgram(comp->gl_program);
@@ -156,6 +159,7 @@ static void *compositor_thread_routine(void *arg)
                 } else if (comp->api == WISP_COMPOSITOR_API_OPENGL_ES) {
 #ifdef WITH_GLES2
                     if (comp->gl_display != EGL_NO_DISPLAY && comp->gl_program != 0) {
+                        /* Bind the texture of the specific tile layer */
                         glBindTexture(GL_TEXTURE_2D, layer->texture->handle.gl_tex_id);
 
                         /* Populate a 4x4 matrix for OpenGL shader from our 2D affine transform */
@@ -216,6 +220,8 @@ static void *compositor_thread_routine(void *arg)
 
 #ifdef WITH_GLES2
         if (comp->api == WISP_COMPOSITOR_API_OPENGL_ES && comp->gl_display != EGL_NO_DISPLAY) {
+            /* Release offscreen FBO and swap buffers */
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
             eglSwapBuffers((EGLDisplay)comp->gl_display, (EGLSurface)comp->gl_surface);
         }
 #endif
@@ -385,12 +391,27 @@ bool wisp_compositor_initialize_egl_shared(wisp_compositor_t *comp, void *share_
                         };
                         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
                         glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+                        /* Generate and configure the Shared Framebuffer Object (FBO) and target texture */
+                        glGenFramebuffers(1, &comp->fbo_id);
+                        glGenTextures(1, &comp->fbo_tex_id);
+                        glBindTexture(GL_TEXTURE_2D, comp->fbo_tex_id);
+                        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1024, 768, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+                        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+                        glBindFramebuffer(GL_FRAMEBUFFER, comp->fbo_id);
+                        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, comp->fbo_tex_id, 0);
+                        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                        glBindTexture(GL_TEXTURE_2D, 0);
                     }
 
                     /* Release main thread EGL context binding */
                     eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
 
-                    NSLOG(wisp, INFO, "Successfully initialized real reentrant EGL & OpenGL ES 2.0 graphics pipeline.");
+                    NSLOG(wisp, INFO, "Successfully initialized real reentrant EGL, Shared FBO, & OpenGL ES 2.0 graphics pipeline.");
                     return true;
                 } else {
                     if (surface != EGL_NO_SURFACE) eglDestroySurface(display, surface);
@@ -431,6 +452,12 @@ void wisp_compositor_destroy(wisp_compositor_t *compositor)
         eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
         if (compositor->vbo != 0) {
             glDeleteBuffers(1, &compositor->vbo);
+        }
+        if (compositor->fbo_id != 0) {
+            glDeleteFramebuffers(1, &compositor->fbo_id);
+        }
+        if (compositor->fbo_tex_id != 0) {
+            glDeleteTextures(1, &compositor->fbo_tex_id);
         }
         if (compositor->gl_program != 0) {
             glDeleteProgram(compositor->gl_program);
@@ -625,7 +652,9 @@ wisp_texture_t *wisp_texture_create(wisp_compositor_t *compositor, int width, in
             tex->handle.gl_tex_id = __sync_fetch_and_add(&g_gl_texture_counter, 1);
         }
 #else
-        tex->handle.gl_tex_id = __sync_fetch_and_add(&g_gl_texture_counter, 1);
+        ns_mutex_lock(&compositor->lock);
+        tex->handle.gl_tex_id = g_gl_texture_counter++;
+        ns_mutex_unlock(&compositor->lock);
 #endif
     } else if (compositor->api == WISP_COMPOSITOR_API_METAL) {
         tex->handle.metal_texture = (void*)0x005E51;

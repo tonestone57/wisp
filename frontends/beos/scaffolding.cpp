@@ -703,9 +703,11 @@ void NSBrowserWindow::MessageReceived(BMessage *message)
     case 'mcfr': /* MSG_COMPOSITOR_FRAME_READY */
         if (fScaffolding && fScaffolding->top_level && fScaffolding->top_level->compositor) {
             wisp_compositor_t *comp = fScaffolding->top_level->compositor;
-            if (comp->api == WISP_COMPOSITOR_API_BDIRECTWINDOW) {
-                NSLOG(wisp, INFO, "[Haiku BGLView Sync] Received MSG_COMPOSITOR_FRAME_READY. Redrawing composited frames.");
-                wisp_compositor_draw_frame(comp, comp->scroll_x, comp->scroll_y);
+            NSLOG(wisp, INFO, "[Haiku BGLView Sync] Received MSG_COMPOSITOR_FRAME_READY. Frame presentation completed.");
+            /* Just request a soft redraw of the top-level view to reflect final composition without re-triggering compositor */
+            if (fScaffolding->top_view && fScaffolding->top_view->LockLooper()) {
+                fScaffolding->top_view->Invalidate();
+                fScaffolding->top_view->UnlockLooper();
             }
         }
         break;

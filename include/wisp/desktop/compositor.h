@@ -140,6 +140,8 @@ typedef struct wisp_compositor {
     unsigned int gl_program;
     int u_transform;
     unsigned int vbo;
+    unsigned int fbo_id;           /* GLES2 offscreen Framebuffer Object ID */
+    unsigned int fbo_tex_id;       /* Texture ID backing the offscreen FBO */
     void *gl_display;              /* EGLDisplay handle */
     void *gl_surface;              /* EGLSurface handle */
 

@@ -192,10 +192,10 @@ static gboolean nsgtk_window_gl_render(GtkGLArea *area, GdkGLContext *context, g
 
         glUseProgram(gw->compositor->gl_program);
 
-        /* Bind the shared texture and configure uniforms */
-        if (gw->compositor->layer_count > 0 && gw->compositor->layers[0].texture) {
+        /* Bind the shared compositor FBO texture and configure uniforms */
+        if (gw->compositor->fbo_tex_id != 0) {
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, gw->compositor->layers[0].texture->handle.gl_tex_id);
+            glBindTexture(GL_TEXTURE_2D, gw->compositor->fbo_tex_id);
             GLint u_tex = glGetUniformLocation(gw->compositor->gl_program, "u_texture");
             if (u_tex != -1) {
                 glUniform1i(u_tex, 0);
@@ -229,6 +229,7 @@ static void nsgtk_window_gl_realize(GtkWidget *widget, gpointer data)
     if (gdk_ctx && gw->compositor) {
         gw->compositor->ui_thread_context = gdk_ctx;
         NSLOG(wisp, INFO, "[GtkGLArea] Realized GLArea context on GTK main thread.");
+        wisp_compositor_initialize_egl_shared(gw->compositor, gdk_ctx);
     }
 }
 #endif
