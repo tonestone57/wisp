@@ -23,4 +23,6 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *p);
 
 bool schedule_run(void);
 
+void nsgtk_schedule_finalise(void);
+
 #endif /* NETSURF_GTK_CALLBACK_H */
