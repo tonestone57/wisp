@@ -686,6 +686,16 @@ void wisp_texture_destroy(wisp_texture_t *tex)
         return;
     }
 
+    if (tex->compositor) {
+        wisp_compositor_t *compositor = tex->compositor;
+        for (int i = 0; i < compositor->layer_count; i++) {
+            if (compositor->layers[i].texture == tex) {
+                compositor->layers[i].texture = NULL;
+                compositor->layers[i].active = false;
+            }
+        }
+    }
+
 #ifdef WITH_GLES2
     if (tex->api == WISP_COMPOSITOR_API_OPENGL_ES && tex->compositor && tex->compositor->gl_display != EGL_NO_DISPLAY) {
         wisp_compositor_t *compositor = tex->compositor;
