@@ -243,7 +243,6 @@ add_library(wisp ${WISP_LIB_TYPE}
 	desktop/download.c
 	desktop/frames.c
 	desktop/wisp.c
-	desktop/compositor.c
 	desktop/cw_helper.c
 	desktop/save_complete.c
 	desktop/save_text.c
@@ -320,19 +319,8 @@ endif()
 
 set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES} ${LIBAVFORMAT_LIBRARIES} ${LIBAVCODEC_LIBRARIES} ${LIBSWSCALE_LIBRARIES} ${LIBSWRESAMPLE_LIBRARIES} ${LIBAVUTIL_LIBRARIES} ${BLEND2D_LIBRARIES} ${LZ4_LIBRARIES} pthread)
 
-# Query and integrate platform native graphics libraries
-if(UNIX AND NOT APPLE)
-    pkg_check_modules(EGL egl)
-    pkg_check_modules(GLESv2 glesv2)
-    if(EGL_FOUND AND GLESv2_FOUND)
-        list(APPEND WISP_COMMON_LIBS ${EGL_LIBRARIES} ${GLESv2_LIBRARIES})
-        add_definitions(-DWITH_GLES2)
-        message(STATUS "GPU Compositor: Found EGL and GLESv2. Real GPU acceleration enabled.")
-    endif()
-endif()
-
 if(WIN32)
-	list(APPEND WISP_COMMON_LIBS ws2_32 d3d11 dxgi)
+	list(APPEND WISP_COMMON_LIBS ws2_32)
     target_link_options(wisp PUBLIC -static)
 endif()
 
