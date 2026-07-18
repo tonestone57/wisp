@@ -50,6 +50,6 @@ nserror wisp_init(const char *store_path);
  */
 extern void wisp_exit(void);
 
-extern bool wisp_quitting;
+extern volatile bool wisp_quitting;
 
 #endif

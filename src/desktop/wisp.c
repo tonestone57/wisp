@@ -313,7 +313,7 @@ nserror wisp_init(const char *store_path)
  * Clean up components used by gui NetSurf.
  */
 
-bool wisp_quitting = false;
+volatile bool wisp_quitting = false;
 
 void wisp_exit(void)
 {
