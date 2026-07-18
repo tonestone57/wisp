@@ -664,13 +664,13 @@ void hlcache_finalise(void)
 
             /* Free any remaining content_user structures in user_list to prevent leaks */
             if (c->user_list != NULL) {
-                struct content_user *u = c->user_list->next;
+                struct content_user *u = c->user_list;
                 while (u != NULL) {
                     struct content_user *next_u = u->next;
                     free(u);
                     u = next_u;
                 }
-                c->user_list->next = NULL;
+                c->user_list = NULL;
             }
 
             content_destroy(c);
