@@ -69,7 +69,6 @@ extern "C" {
 #include "wisp/keypress.h"
 #include "wisp/wisp.h"
 #include "wisp/plotters.h"
-#include "wisp/desktop/compositor.h"
 #include "desktop/browser_history.h"
 #include "desktop/search.h"
 #include "desktop/searchweb.h"
@@ -700,17 +699,6 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
 void NSBrowserWindow::MessageReceived(BMessage *message)
 {
     switch (message->what) {
-    case 'mcfr': /* MSG_COMPOSITOR_FRAME_READY */
-        if (fScaffolding && fScaffolding->top_level && fScaffolding->top_level->compositor) {
-            wisp_compositor_t *comp = fScaffolding->top_level->compositor;
-            NSLOG(wisp, INFO, "[Haiku BGLView Sync] Received MSG_COMPOSITOR_FRAME_READY. Frame presentation completed.");
-            /* Just request a soft redraw of the top-level view to reflect final composition without re-triggering compositor */
-            if (fScaffolding->top_view && fScaffolding->top_view->LockLooper()) {
-                fScaffolding->top_view->Invalidate();
-                fScaffolding->top_view->UnlockLooper();
-            }
-        }
-        break;
     case NS_MEDIA_PLAY:
         {
             struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
