@@ -16,9 +16,11 @@
 
 /* Dynamic CPU Feature Detection */
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-static inline bool has_avx2(void) {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_cpu_supports("avx2");
+static inline bool has_sse2(void) {
+#if defined(__x86_64__) || defined(_M_X64)
+    return true;
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_cpu_supports("sse2");
 #else
     return false;
 #endif
@@ -117,40 +119,40 @@ static void wisp_json_preparse_scalar(const uint8_t *buf, size_t len, const uint
     *p_count = count;
 }
 
-/* 2. AVX2 Implementation */
+/* 2. SSE2 Implementation */
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-__attribute__((target("avx2")))
-static void wisp_json_preparse_avx2(const uint8_t *buf, size_t len, const uint8_t **offsets, size_t *p_count) {
+__attribute__((target("sse2")))
+static void wisp_json_preparse_sse2(const uint8_t *buf, size_t len, const uint8_t **offsets, size_t *p_count) {
     size_t count = *p_count;
     size_t i = 0;
     bool in_string = false;
     bool escaped = false;
 
-    if (len >= 32) {
-        __m256i v_quote = _mm256_set1_epi8('"');
-        __m256i v_backslash = _mm256_set1_epi8('\\');
-        __m256i v_space = _mm256_set1_epi8(' ');
-        __m256i v_tab = _mm256_set1_epi8('\t');
-        __m256i v_cr = _mm256_set1_epi8('\r');
-        __m256i v_lf = _mm256_set1_epi8('\n');
+    if (len >= 16) {
+        __m128i v_quote = _mm_set1_epi8('"');
+        __m128i v_backslash = _mm_set1_epi8('\\');
+        __m128i v_space = _mm_set1_epi8(' ');
+        __m128i v_tab = _mm_set1_epi8('\t');
+        __m128i v_cr = _mm_set1_epi8('\r');
+        __m128i v_lf = _mm_set1_epi8('\n');
 
-        for (; i + 31 < len; i += 32) {
-            __m256i chunk = _mm256_loadu_si256((const __m256i *)(buf + i));
-            __m256i cmp_quote = _mm256_cmpeq_epi8(chunk, v_quote);
-            __m256i cmp_backslash = _mm256_cmpeq_epi8(chunk, v_backslash);
-            __m256i cmp_any = _mm256_or_si256(cmp_quote, cmp_backslash);
-            uint32_t mask_any = _mm256_movemask_epi8(cmp_any);
+        for (; i + 15 < len; i += 16) {
+            __m128i chunk = _mm_loadu_si128((const __m128i *)(buf + i));
+            __m128i cmp_quote = _mm_cmpeq_epi8(chunk, v_quote);
+            __m128i cmp_backslash = _mm_cmpeq_epi8(chunk, v_backslash);
+            __m128i cmp_any = _mm_or_si128(cmp_quote, cmp_backslash);
+            uint32_t mask_any = _mm_movemask_epi8(cmp_any);
 
             if (mask_any == 0) {
                 if (!in_string) {
-                    __m256i cmp_space = _mm256_cmpeq_epi8(chunk, v_space);
-                    __m256i cmp_tab = _mm256_cmpeq_epi8(chunk, v_tab);
-                    __m256i cmp_cr = _mm256_cmpeq_epi8(chunk, v_cr);
-                    __m256i cmp_lf = _mm256_cmpeq_epi8(chunk, v_lf);
-                    __m256i ws = _mm256_or_si256(_mm256_or_si256(cmp_space, cmp_tab),
-                                                 _mm256_or_si256(cmp_cr, cmp_lf));
-                    uint32_t ws_mask = _mm256_movemask_epi8(ws);
-                    uint32_t non_ws_mask = ~ws_mask;
+                    __m128i cmp_space = _mm_cmpeq_epi8(chunk, v_space);
+                    __m128i cmp_tab = _mm_cmpeq_epi8(chunk, v_tab);
+                    __m128i cmp_cr = _mm_cmpeq_epi8(chunk, v_cr);
+                    __m128i cmp_lf = _mm_cmpeq_epi8(chunk, v_lf);
+                    __m128i ws = _mm_or_si128(_mm_or_si128(cmp_space, cmp_tab),
+                                                 _mm_or_si128(cmp_cr, cmp_lf));
+                    uint32_t ws_mask = _mm_movemask_epi8(ws);
+                    uint32_t non_ws_mask = (~ws_mask) & 0xFFFF;
 
                     while (non_ws_mask != 0) {
                         int idx = __builtin_ctz(non_ws_mask);
@@ -160,7 +162,7 @@ static void wisp_json_preparse_avx2(const uint8_t *buf, size_t len, const uint8_
                 }
             } else {
                 /* Slow path: contains quotes or backslashes. Fallback to scalar for this chunk. */
-                for (int j = 0; j < 32; j++) {
+                for (int j = 0; j < 16; j++) {
                     uint8_t c = buf[i + j];
                     bool char_inside_string = in_string;
                     if (in_string) {
@@ -395,8 +397,8 @@ static inline const uint8_t **wisp_json_preparse(JSContext *ctx, const char *buf
     size_t count = 0;
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        wisp_json_preparse_avx2((const uint8_t *)buf, len, offsets, &count);
+    if (has_sse2()) {
+        wisp_json_preparse_sse2((const uint8_t *)buf, len, offsets, &count);
     } else {
         wisp_json_preparse_scalar((const uint8_t *)buf, len, offsets, &count);
     }

@@ -20,7 +20,7 @@ extern "C" {
 
 /**
  * Perform WebSocket/Wisp client-to-proxy payload masking.
- * Accelerates rolling 4-byte key bitwise-XOR operation using SIMD (AVX2/NEON/RVV).
+ * Accelerates rolling 4-byte key bitwise-XOR operation using SIMD (SSE2/NEON/RVV).
  *
  * @param data       The payload buffer to be masked/unmasked in-place.
  * @param len        The length of the payload buffer.
