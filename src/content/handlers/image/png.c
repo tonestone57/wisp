@@ -78,7 +78,7 @@ enum nspng_cberr {
  */
 static void nspng_warning(png_structp png_ptr, png_const_charp warning_message)
 {
-    NSLOG(wisp, INFO, "%s", warning_message);
+    NSLOG(wisp, WARNING, "%s", warning_message);
 }
 
 /**
@@ -86,7 +86,7 @@ static void nspng_warning(png_structp png_ptr, png_const_charp warning_message)
  */
 static void nspng_error(png_structp png_ptr, png_const_charp error_message)
 {
-    NSLOG(wisp, INFO, "%s", error_message);
+    NSLOG(wisp, ERROR, "%s", error_message);
     longjmp(png_jmpbuf(png_ptr), CBERR_LIBPNG);
 }
 
@@ -291,7 +291,7 @@ static nserror nspng_create_png_data(nspng_content *png_c)
 
     if (setjmp(png_jmpbuf(png_c->png))) {
         png_destroy_read_struct(&png_c->png, &png_c->info, 0);
-        NSLOG(wisp, INFO, "Failed to set callbacks");
+        NSLOG(wisp, ERROR, "Failed to set callbacks");
         png_c->png = NULL;
         png_c->info = NULL;
 
@@ -367,7 +367,7 @@ static bool nspng_process_data(struct content *c, const char *data, unsigned int
              * up png conversion and signal the content
              * error
              */
-            NSLOG(wisp, INFO, "Fatal PNG error during header, error content");
+            NSLOG(wisp, ERROR, "Fatal PNG error during header, error content");
 
             png_destroy_read_struct(&png_c->png, &png_c->info, 0);
             png_c->png = NULL;

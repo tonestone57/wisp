@@ -205,7 +205,7 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         break;
 
     case CONTENT_MSG_ERROR:
-        NSLOG(wisp, INFO, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
+        NSLOG(wisp, WARNING, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
             event->data.errordata.errormsg);
 
         hlcache_handle_release(script);
@@ -282,7 +282,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
         break;
 
     case CONTENT_MSG_ERROR:
-        NSLOG(wisp, INFO, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
+        NSLOG(wisp, WARNING, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
             event->data.errordata.errormsg);
 
         hlcache_handle_release(script);
@@ -412,7 +412,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         break;
 
     case CONTENT_MSG_ERROR:
-        NSLOG(wisp, INFO, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
+        NSLOG(wisp, WARNING, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
             event->data.errordata.errormsg);
 
         hlcache_handle_release(script);

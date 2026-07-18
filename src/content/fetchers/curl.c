@@ -1979,7 +1979,7 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
         free(f->location);
         f->location = malloc(size);
         if (!f->location) {
-            NSLOG(wisp, INFO, "malloc failed");
+            NSLOG(wisp, ERROR, "malloc failed");
             return size;
         }
         SKIP_ST(9);
@@ -2075,13 +2075,13 @@ nserror fetch_curl_register(void)
 
     code = curl_global_init(CURL_GLOBAL_ALL);
     if (code != CURLE_OK) {
-        NSLOG(wisp, INFO, "curl_global_init failed.");
+        NSLOG(wisp, ERROR, "curl_global_init failed.");
         return NSERROR_INIT_FAILED;
     }
 
     fetch_curl_multi = curl_multi_init();
     if (!fetch_curl_multi) {
-        NSLOG(wisp, INFO, "curl_multi_init failed.");
+        NSLOG(wisp, ERROR, "curl_multi_init failed.");
         return NSERROR_INIT_FAILED;
     }
 
@@ -2129,7 +2129,7 @@ nserror fetch_curl_register(void)
      */
     fetch_blank_curl = curl_easy_init();
     if (!fetch_blank_curl) {
-        NSLOG(wisp, INFO, "curl_easy_init failed");
+        NSLOG(wisp, ERROR, "curl_easy_init failed");
         return NSERROR_INIT_FAILED;
     }
 
