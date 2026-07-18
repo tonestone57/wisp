@@ -285,7 +285,7 @@ static nserror search_web_ico_callback(hlcache_handle *ico, const hlcache_event 
         break;
 
     case CONTENT_MSG_ERROR:
-        NSLOG(wisp, INFO, "icon %s error: %s", nsurl_access(hlcache_handle_get_url(ico)),
+        NSLOG(wisp, WARNING, "icon %s error: %s", nsurl_access(hlcache_handle_get_url(ico)),
             event->data.errordata.errormsg ? event->data.errordata.errormsg : "unknown error");
 
         hlcache_handle_release(ico);
@@ -493,7 +493,7 @@ static nserror default_ico_callback(hlcache_handle *ico, const hlcache_event *ev
         break;
 
     case CONTENT_MSG_ERROR:
-        NSLOG(wisp, INFO, "icon %s error: %s", nsurl_access(hlcache_handle_get_url(ico)),
+        NSLOG(wisp, WARNING, "icon %s error: %s", nsurl_access(hlcache_handle_get_url(ico)),
             event->data.errordata.errormsg ? event->data.errordata.errormsg : "unknown error");
 
         hlcache_handle_release(ico);

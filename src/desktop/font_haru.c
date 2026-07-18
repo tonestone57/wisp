@@ -64,7 +64,7 @@ const struct font_functions haru_nsfont = {haru_nsfont_width, haru_nsfont_positi
  */
 static void error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void *user_data)
 {
-    NSLOG(wisp, INFO, "ERROR: in font_haru \n\terror_no=%x\n\tdetail_no=%d\n", (HPDF_UINT)error_no,
+    NSLOG(wisp, ERROR, "ERROR: in font_haru \n\terror_no=%x\n\tdetail_no=%d\n", (HPDF_UINT)error_no,
         (HPDF_UINT)detail_no);
 #ifdef FONT_HARU_DEBUG
     exit(1);

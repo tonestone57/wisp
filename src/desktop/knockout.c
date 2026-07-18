@@ -648,7 +648,7 @@ static nserror knockout_plot_clip(const struct redraw_context *ctx, const struct
 
     if (clip->x1 < clip->x0 || clip->y0 > clip->y1) {
 #ifdef KNOCKOUT_DEBUG
-        NSLOG(wisp, INFO, "bad clip rectangle %i %i %i %i", clip->x0, clip->y0, clip->x1, clip->y1);
+        NSLOG(wisp, WARNING, "bad clip rectangle %i %i %i %i", clip->x0, clip->y0, clip->x1, clip->y1);
 #endif
         return NSERROR_BAD_SIZE;
     }
