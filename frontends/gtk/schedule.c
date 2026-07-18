@@ -98,6 +98,20 @@ static nserror schedule_remove(void (*callback)(void *p), void *cbctx)
     return NSERROR_OK;
 }
 
+typedef struct {
+    int t;
+    _nsgtk_callback_t *cb;
+} invoke_data_t;
+
+static gboolean nsgtk_schedule_invoke_cb(gpointer data)
+{
+    invoke_data_t *id = (invoke_data_t *)data;
+    g_timeout_add(id->t, nsgtk_schedule_generic_callback, id->cb);
+    g_main_context_wakeup(NULL);
+    free(id);
+    return FALSE;
+}
+
 /* exported interface documented in gtk/schedule.h */
 nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
 {
@@ -125,8 +139,16 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
     queued_callbacks = g_list_prepend(queued_callbacks, cb);
     pthread_mutex_unlock(&schedule_lock);
 
-    g_timeout_add(t, nsgtk_schedule_generic_callback, cb);
-    g_main_context_wakeup(NULL);
+    invoke_data_t *id = malloc(sizeof(*id));
+    if (id != NULL) {
+        id->t = t;
+        id->cb = cb;
+        g_main_context_invoke(NULL, nsgtk_schedule_invoke_cb, id);
+    } else {
+        /* Fallback if OOM */
+        g_timeout_add(t, nsgtk_schedule_generic_callback, cb);
+        g_main_context_wakeup(NULL);
+    }
 
     return NSERROR_OK;
 }
