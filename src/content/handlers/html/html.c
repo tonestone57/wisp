@@ -2459,44 +2459,44 @@ bool html_exec(struct content *c, const char *src, size_t srclen)
 	dom_html_script_element *script_node;
 
 	if (htmlc->document == NULL) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to exec, no document");
+		NSLOG(wisp, WARNING, "Unable to exec, no document");
 		goto out_no_string;
 	}
 
 	err = dom_string_create((const uint8_t *)src, srclen, &dom_src);
 	if (err != DOM_NO_ERR) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to exec, could not create string");
+		NSLOG(wisp, WARNING, "Unable to exec, could not create string");
 		goto out_no_string;
 	}
 
 	err = dom_html_document_get_body(htmlc->document, &body_node);
 	if (err != DOM_NO_ERR) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to retrieve body element");
+		NSLOG(wisp, WARNING, "Unable to retrieve body element");
 		goto out_no_body;
 	}
 
 	err = dom_document_create_text_node(htmlc->document, dom_src, &text_node);
 	if (err != DOM_NO_ERR) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to exec, could not create text node");
+		NSLOG(wisp, WARNING, "Unable to exec, could not create text node");
 		goto out_no_text_node;
 	}
 
 	err = dom_document_create_element(htmlc->document, corestring_dom_SCRIPT, &script_node);
 	if (err != DOM_NO_ERR) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to exec, could not create script node");
+		NSLOG(wisp, WARNING, "Unable to exec, could not create script node");
 		goto out_no_script_node;
 	}
 
 	err = dom_node_append_child(script_node, text_node, &spare_node);
 	if (err != DOM_NO_ERR) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to exec, could not insert code node into script node");
+		NSLOG(wisp, WARNING, "Unable to exec, could not insert code node into script node");
 		goto out_unparented;
 	}
 	dom_node_unref(spare_node); /* We do not need the spare ref at all */
 
 	err = dom_node_append_child(body_node, script_node, &spare_node);
 	if (err != DOM_NO_ERR) {
-		NSLOG(wisp, DEEPDEBUG, "Unable to exec, could not insert script node into document body");
+		NSLOG(wisp, WARNING, "Unable to exec, could not insert script node into document body");
 		goto out_unparented;
 	}
 	dom_node_unref(spare_node); /* Again no need for the spare ref */

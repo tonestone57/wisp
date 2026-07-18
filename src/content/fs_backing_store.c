@@ -1222,7 +1222,7 @@ static nserror write_blocks(struct store_state *state)
         for (bfidx = 0; bfidx < BLOCK_FILE_COUNT; bfidx++) {
             wr = write(fd, &state->blocks[elem_idx][bfidx].use_map[0], BLOCK_USE_MAP_SIZE);
             if (wr != BLOCK_USE_MAP_SIZE) {
-                NSLOG(wisp, DEBUG, "writing block file %d use index on file number %d failed", elem_idx, bfidx);
+                NSLOG(wisp, ERROR, "writing block file %d use index on file number %d failed", elem_idx, bfidx);
                 goto wr_err;
             }
             written += wr;

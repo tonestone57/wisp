@@ -1104,7 +1104,7 @@ svg_serialize_node(dom_node *node, char **buf, size_t *len, size_t *cap, const s
 
     exc = dom_node_get_node_type(node, &type);
     if (exc != DOM_NO_ERR) {
-        NSLOG(wisp, DEBUG, "SVG serialize: Failed to get node type");
+        NSLOG(wisp, WARNING, "SVG serialize: Failed to get node type");
         return NSERROR_DOM;
     }
 
@@ -1126,7 +1126,7 @@ svg_serialize_node(dom_node *node, char **buf, size_t *len, size_t *cap, const s
 
         exc = dom_node_get_node_name(node, &name);
         if (exc != DOM_NO_ERR || name == NULL) {
-            NSLOG(wisp, DEBUG, "SVG serialize: Failed to get node name");
+            NSLOG(wisp, WARNING, "SVG serialize: Failed to get node name");
             return NSERROR_DOM;
         }
 
