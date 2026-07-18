@@ -175,7 +175,7 @@ static nserror fetch_data_list_add_sname(
 
     fetch_data = calloc(1, sizeof(*fetch_data));
     if (fetch_data == NULL) {
-        NSLOG(wisp, INFO, "failed allocation for fetch data");
+        NSLOG(wisp, ERROR, "failed allocation for fetch data");
         return NSERROR_NOMEM;
     }
 
@@ -184,7 +184,7 @@ static nserror fetch_data_list_add_sname(
     fetch_data->name = malloc(keysize + 1); /* allow for null */
     if (fetch_data->name == NULL) {
         free(fetch_data);
-        NSLOG(wisp, INFO, "keyname allocation failure for %s%s", name, ksfx);
+        NSLOG(wisp, ERROR, "keyname allocation failure for %s%s", name, ksfx);
         return NSERROR_NOMEM;
     }
     snprintf(fetch_data->name, keysize + 1, "%s%s", name, ksfx);
@@ -194,7 +194,7 @@ static nserror fetch_data_list_add_sname(
     if (fetch_data->value == NULL) {
         free(fetch_data->name);
         free(fetch_data);
-        NSLOG(wisp, INFO, "value allocation failure");
+        NSLOG(wisp, ERROR, "value allocation failure");
         return NSERROR_NOMEM;
     }
     snprintf(fetch_data->value, FETCH_DATA_INT_VALUE_SIZE, "%d", value);
@@ -227,7 +227,7 @@ static nserror fetch_data_list_add(dom_string *name, dom_string *value, const ch
 
     fetch_data = calloc(1, sizeof(*fetch_data));
     if (fetch_data == NULL) {
-        NSLOG(wisp, INFO, "failed allocation for fetch data");
+        NSLOG(wisp, ERROR, "failed allocation for fetch data");
         return NSERROR_NOMEM;
     }
 
@@ -415,7 +415,7 @@ static nserror form_dom_to_data_select(dom_html_select_element *select_element, 
     /* get options collection */
     exp = dom_html_select_element_get_options(select_element, &options);
     if (exp != DOM_NO_ERR) {
-        NSLOG(wisp, INFO, "Could not get select options collection");
+        NSLOG(wisp, WARNING, "Could not get select options collection");
         dom_string_unref(inputname);
         return NSERROR_DOM;
     }
@@ -423,7 +423,7 @@ static nserror form_dom_to_data_select(dom_html_select_element *select_element, 
     /* get options collection length */
     exp = dom_html_options_collection_get_length(options, &options_count);
     if (exp != DOM_NO_ERR) {
-        NSLOG(wisp, INFO, "Could not get select options collection length");
+        NSLOG(wisp, WARNING, "Could not get select options collection length");
         dom_html_options_collection_unref(options);
         dom_string_unref(inputname);
         return NSERROR_DOM;

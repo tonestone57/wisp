@@ -698,7 +698,7 @@ static bool layout_flex_item(const struct flex_ctx *ctx, const struct flex_item_
 	}
 
 	if (!success) {
-		NSLOG(flex, DEEPDEBUG, "box %p: layout failed", b);
+		NSLOG(flex, WARNING, "box %p: layout failed", b);
 	}
 
 	return success;
@@ -1173,7 +1173,7 @@ static struct flex_line_data *layout_flex__build_line(struct flex_ctx *ctx, size
 		}
 		ctx->line.count++;
 	} else {
-		NSLOG(layout, DEEPDEBUG, "Failed to fit any flex items");
+		NSLOG(layout, WARNING, "Failed to fit any flex items");
 	}
 
 	return line;

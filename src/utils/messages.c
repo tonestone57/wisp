@@ -120,7 +120,7 @@ static nserror messages_load_ctx(const char *path, struct hash_table **ctx)
 
     nctx = messages_create_ctx(HASH_SIZE);
     if (nctx == NULL) {
-        NSLOG(wisp, INFO, "Unable to create hash table for messages file %s", path);
+        NSLOG(wisp, ERROR, "Unable to create hash table for messages file %s", path);
         return NSERROR_NOMEM;
     }
 
@@ -185,7 +185,7 @@ nserror messages_add_from_inline(const uint8_t *data, size_t size)
         messages_hash = messages_create_ctx(HASH_SIZE);
     }
     if (messages_hash == NULL) {
-        NSLOG(wisp, INFO, "Unable to create hash table");
+        NSLOG(wisp, ERROR, "Unable to create hash table");
         return NSERROR_NOMEM;
     }
     return hash_add_inline(messages_hash, data, size);
@@ -204,7 +204,7 @@ nserror messages_add_key_value(const char *key, const char *value)
         messages_hash = messages_create_ctx(HASH_SIZE);
     }
     if (messages_hash == NULL) {
-        NSLOG(wisp, INFO, "Unable to create hash table");
+        NSLOG(wisp, ERROR, "Unable to create hash table");
         return NSERROR_NOMEM;
     }
     return hash_add(messages_hash, key, value);

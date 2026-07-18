@@ -782,7 +782,7 @@ static bool textarea_reflow_singleline(struct textarea *ta, size_t b_off, struct
     if (ta->lines == NULL) {
         ta->lines = malloc(LINE_CHUNK_SIZE * sizeof(struct line_info));
         if (ta->lines == NULL) {
-            NSLOG(wisp, INFO, "malloc failed");
+            NSLOG(wisp, ERROR, "malloc failed");
             return false;
         }
         ta->lines_alloc_size = LINE_CHUNK_SIZE;
@@ -804,7 +804,7 @@ static bool textarea_reflow_singleline(struct textarea *ta, size_t b_off, struct
             /* Increase password alloaction */
             char *temp = realloc(ta->password.data, b_len + TA_ALLOC_STEP);
             if (temp == NULL) {
-                NSLOG(wisp, INFO, "realloc failed");
+                NSLOG(wisp, ERROR, "realloc failed");
                 return false;
             }
 
@@ -883,7 +883,7 @@ static bool textarea_reflow_multiline(struct textarea *ta, const size_t b_start,
     if (ta->lines == NULL) {
         ta->lines = calloc(LINE_CHUNK_SIZE, sizeof(struct line_info));
         if (ta->lines == NULL) {
-            NSLOG(wisp, INFO, "Failed to allocate memory for textarea lines");
+            NSLOG(wisp, ERROR, "Failed to allocate memory for textarea lines");
             return false;
         }
         ta->lines_alloc_size = LINE_CHUNK_SIZE;
@@ -987,7 +987,7 @@ static bool textarea_reflow_multiline(struct textarea *ta, const size_t b_start,
                 /* Up to two lines my be added in a pass */
                 struct line_info *temp = realloc(ta->lines, (line + 2 + LINE_CHUNK_SIZE) * sizeof(struct line_info));
                 if (temp == NULL) {
-                    NSLOG(wisp, INFO, "realloc failed");
+                    NSLOG(wisp, ERROR, "realloc failed");
                     return false;
                 }
 
@@ -1230,7 +1230,7 @@ textarea_insert_text(struct textarea *ta, const char *text, size_t b_off, size_t
     if (b_len + ta->text.len >= ta->text.alloc) {
         char *temp = realloc(ta->text.data, b_len + ta->text.len + TA_ALLOC_STEP);
         if (temp == NULL) {
-            NSLOG(wisp, INFO, "realloc failed");
+            NSLOG(wisp, ERROR, "realloc failed");
             return false;
         }
 
@@ -1365,7 +1365,7 @@ static bool textarea_replace_text_internal(struct textarea *ta, size_t b_start, 
     if (rep_len + ta->text.len - (b_end - b_start) >= ta->text.alloc) {
         char *temp = realloc(ta->text.data, rep_len + ta->text.len - (b_end - b_start) + TA_ALLOC_STEP);
         if (temp == NULL) {
-            NSLOG(wisp, INFO, "realloc failed");
+            NSLOG(wisp, ERROR, "realloc failed");
             return false;
         }
 
@@ -1437,7 +1437,7 @@ static bool textarea_copy_to_undo_buffer(struct textarea *ta, size_t b_start, si
         /* Need more memory for undo buffer */
         char *temp = realloc(undo->text.data, b_offset + len + TA_ALLOC_STEP);
         if (temp == NULL) {
-            NSLOG(wisp, INFO, "realloc failed");
+            NSLOG(wisp, ERROR, "realloc failed");
             return false;
         }
 
@@ -1450,7 +1450,7 @@ static bool textarea_copy_to_undo_buffer(struct textarea *ta, size_t b_start, si
         struct textarea_undo_detail *temp = realloc(
             undo->details, (undo->next_detail + 128) * sizeof(struct textarea_undo_detail));
         if (temp == NULL) {
-            NSLOG(wisp, INFO, "realloc failed");
+            NSLOG(wisp, ERROR, "realloc failed");
             return false;
         }
 
@@ -1719,7 +1719,7 @@ textarea_create(const textarea_flags flags, const textarea_setup *setup, textare
 
     ret = malloc(sizeof(struct textarea));
     if (ret == NULL) {
-        NSLOG(wisp, INFO, "malloc failed");
+        NSLOG(wisp, ERROR, "malloc failed");
         return NULL;
     }
 
@@ -1762,7 +1762,7 @@ textarea_create(const textarea_flags flags, const textarea_setup *setup, textare
 
     ret->text.data = malloc(TA_ALLOC_STEP);
     if (ret->text.data == NULL) {
-        NSLOG(wisp, INFO, "malloc failed");
+        NSLOG(wisp, ERROR, "malloc failed");
         free(ret);
         return NULL;
     }
@@ -1774,7 +1774,7 @@ textarea_create(const textarea_flags flags, const textarea_setup *setup, textare
     if (flags & TEXTAREA_PASSWORD) {
         ret->password.data = malloc(TA_ALLOC_STEP);
         if (ret->password.data == NULL) {
-            NSLOG(wisp, INFO, "malloc failed");
+            NSLOG(wisp, ERROR, "malloc failed");
             free(ret->text.data);
             free(ret);
             return NULL;
@@ -1848,7 +1848,7 @@ bool textarea_set_text(struct textarea *ta, const char *text)
     if (len >= ta->text.alloc) {
         char *temp = realloc(ta->text.data, len + TA_ALLOC_STEP);
         if (temp == NULL) {
-            NSLOG(wisp, INFO, "realloc failed");
+            NSLOG(wisp, ERROR, "realloc failed");
             return false;
         }
         ta->text.data = temp;

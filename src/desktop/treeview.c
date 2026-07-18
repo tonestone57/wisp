@@ -4995,7 +4995,7 @@ nserror treeview_fini(void)
         return NSERROR_OK;
 
     } else if (tree_g.initialised == 0) {
-        NSLOG(wisp, INFO, "Warning: tried to finalise uninitialised treeview module");
+        NSLOG(wisp, WARNING, "Warning: tried to finalise uninitialised treeview module");
         return NSERROR_OK;
     }
 

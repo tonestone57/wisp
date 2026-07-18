@@ -677,7 +677,7 @@ static bool html_replace_object(struct content_html_object *object, nsurl *url)
         /* Decrement the counters we just incremented */
         for (page = c; page != NULL; page = page->page) {
             page->base.active--;
-            NSLOG(wisp, INFO, "%d fetches active (retrieve failed)", page->base.active);
+            NSLOG(wisp, WARNING, "%d fetches active (retrieve failed)", page->base.active);
         }
         return false;
     }
@@ -868,7 +868,7 @@ bool html_fetch_object(html_content *c, nsurl *url, struct box *box, content_typ
     if (error != NSERROR_OK) {
         if (box != NULL) {
             c->base.active--;
-            NSLOG(wisp, INFO, "%d fetches active (retrieve failed)", c->base.active);
+            NSLOG(wisp, WARNING, "%d fetches active (retrieve failed)", c->base.active);
         }
         free(object);
         return error != NSERROR_NOMEM;
@@ -922,7 +922,7 @@ bool html_fetch_object_buffer(html_content *c, const uint8_t *data, size_t len, 
     if (error != NSERROR_OK) {
         if (box != NULL) {
             c->base.active--;
-            NSLOG(wisp, INFO, "%d fetches active (buffer retrieve failed)", c->base.active);
+            NSLOG(wisp, WARNING, "%d fetches active (buffer retrieve failed)", c->base.active);
         }
         free(object);
         return error != NSERROR_NOMEM;

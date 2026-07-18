@@ -2728,7 +2728,7 @@ nserror urldb_init(void)
     psl_ctx = psl_latest(NULL);
 
     if (psl_ctx == NULL) {
-        NSLOG(wisp, INFO, "Failed to initialise PSL library.");
+        NSLOG(wisp, ERROR, "Failed to initialise PSL library.");
         return NSERROR_INIT_FAILED;
     }
 
@@ -2772,7 +2772,7 @@ nserror urldb_load(const char *filename)
 
     fp = fopen(filename, "r");
     if (!fp) {
-        NSLOG(wisp, INFO, "Failed to open file '%s' for reading", filename);
+        NSLOG(wisp, ERROR, "Failed to open file '%s' for reading", filename);
         return NSERROR_NOT_FOUND;
     }
 
@@ -2782,18 +2782,18 @@ nserror urldb_load(const char *filename)
     }
 
     if (ns_strtoint(s, 10, &version) != NSERROR_OK) {
-        NSLOG(wisp, INFO, "Invalid URL file version format.");
+        NSLOG(wisp, ERROR, "Invalid URL file version format.");
         fclose(fp);
         return NSERROR_INVALID;
     }
 
     if (version < MIN_URL_FILE_VERSION) {
-        NSLOG(wisp, INFO, "Unsupported URL file version.");
+        NSLOG(wisp, ERROR, "Unsupported URL file version.");
         fclose(fp);
         return NSERROR_INVALID;
     }
     if (version > URL_FILE_VERSION) {
-        NSLOG(wisp, INFO, "Unknown URL file version.");
+        NSLOG(wisp, ERROR, "Unknown URL file version.");
         fclose(fp);
         return NSERROR_INVALID;
     }
@@ -3079,7 +3079,7 @@ nserror urldb_save(const char *filename)
 
     fp = fopen(filename, "w");
     if (!fp) {
-        NSLOG(wisp, INFO, "Failed to open file '%s' for writing", filename);
+        NSLOG(wisp, ERROR, "Failed to open file '%s' for writing", filename);
         return NSERROR_SAVE_FAILED;
     }
 

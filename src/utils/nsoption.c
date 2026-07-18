@@ -679,7 +679,7 @@ nserror nsoption_read(const char *path, struct nsoption_s *opts)
 
     fp = fopen(path, "r");
     if (!fp) {
-        NSLOG(wisp, INFO, "Failed to open file '%s'", path);
+        NSLOG(wisp, WARNING, "Failed to open file '%s'", path);
         return NSERROR_NOT_FOUND;
     }
 
@@ -762,7 +762,7 @@ nserror nsoption_write(const char *path, struct nsoption_s *opts, struct nsoptio
 
     fp = fopen(path, "w");
     if (!fp) {
-        NSLOG(wisp, INFO, "failed to open file '%s' for writing", path);
+        NSLOG(wisp, ERROR, "failed to open file '%s' for writing", path);
         return NSERROR_NOT_FOUND;
     }
 

@@ -272,7 +272,7 @@ static void dom_SCRIPT_showed_up(html_content *htmlc, dom_html_script_element *s
 
     exc = dom_html_script_element_get_flags(script, &flags);
     if (exc != DOM_NO_ERR) {
-        NSLOG(wisp, DEEPDEBUG, "Unable to retrieve flags, giving up");
+        NSLOG(wisp, WARNING, "Unable to retrieve flags, giving up");
         return;
     }
 
@@ -299,7 +299,7 @@ static void dom_SCRIPT_showed_up(html_content *htmlc, dom_html_script_element *s
         if (res == (DOM_HUBBUB_HUBBUB_ERR | HUBBUB_PAUSED)) {
             NSLOG(wisp, DEEPDEBUG, "Inserted script has launced asynchronously");
         } else {
-            NSLOG(wisp, DEEPDEBUG, "Failure starting script");
+            NSLOG(wisp, WARNING, "Failure starting script");
         }
     }
 }
