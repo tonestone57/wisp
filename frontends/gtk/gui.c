@@ -1207,6 +1207,9 @@ static void nsgtk_finalise(void)
     /* common finalisation */
     wisp_exit();
 
+    /* Clean up scheduled callbacks */
+    nsgtk_schedule_finalise();
+
     /* finalise options */
     nsoption_finalise(nsoptions, nsoptions_default);
 

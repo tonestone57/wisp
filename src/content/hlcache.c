@@ -651,6 +651,35 @@ void hlcache_finalise(void)
         }
     }
 
+    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown */
+    entry = hlcache->content_list;
+    while (entry != NULL) {
+        hlcache_entry *next_entry = entry->next;
+        if (entry->content != NULL) {
+            struct content *c = entry->content;
+
+            /* Reset deferred deletion flags to allow immediate destruction */
+            __atomic_store_n(&c->active_bg_tasks, 0, __ATOMIC_SEQ_CST);
+            c->pending_delete = false;
+
+            /* Free any remaining content_user structures in user_list to prevent leaks */
+            if (c->user_list != NULL) {
+                struct content_user *u = c->user_list->next;
+                while (u != NULL) {
+                    struct content_user *next_u = u->next;
+                    free(u);
+                    u = next_u;
+                }
+                c->user_list->next = NULL;
+            }
+
+            content_destroy(c);
+        }
+        free(entry);
+        entry = next_entry;
+    }
+    hlcache->content_list = NULL;
+
     /* Clean up retrieval contexts */
     if (hlcache->retrieval_ctx_ring != NULL) {
         ctx = hlcache->retrieval_ctx_ring;

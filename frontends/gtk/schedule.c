@@ -165,3 +165,27 @@ bool schedule_run(void)
     }
     return true;
 }
+
+void nsgtk_schedule_finalise(void)
+{
+    GList *l;
+    pthread_mutex_lock(&schedule_lock);
+    for (l = queued_callbacks; l != NULL; l = l->next) {
+        free(l->data);
+    }
+    g_list_free(queued_callbacks);
+    queued_callbacks = NULL;
+
+    for (l = pending_callbacks; l != NULL; l = l->next) {
+        free(l->data);
+    }
+    g_list_free(pending_callbacks);
+    pending_callbacks = NULL;
+
+    for (l = this_run; l != NULL; l = l->next) {
+        free(l->data);
+    }
+    g_list_free(this_run);
+    this_run = NULL;
+    pthread_mutex_unlock(&schedule_lock);
+}
