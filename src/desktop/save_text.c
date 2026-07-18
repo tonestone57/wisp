@@ -73,7 +73,7 @@ void save_as_text(struct hlcache_handle *c, char *path)
     free(save.block);
 
     if (ret != NSERROR_OK) {
-        NSLOG(wisp, INFO, "failed to convert to local encoding, return %d", ret);
+        NSLOG(wisp, ERROR, "failed to convert to local encoding, return %d", ret);
         return;
     }
 
@@ -82,12 +82,12 @@ void save_as_text(struct hlcache_handle *c, char *path)
         int res = fputs(result, out);
 
         if (res < 0) {
-            NSLOG(wisp, INFO, "Warning: write failed");
+            NSLOG(wisp, WARNING, "Warning: write failed");
         }
 
         res = fputs("\n", out);
         if (res < 0) {
-            NSLOG(wisp, INFO, "Warning: failed writing trailing newline");
+            NSLOG(wisp, WARNING, "Warning: failed writing trailing newline");
         }
 
         fclose(out);

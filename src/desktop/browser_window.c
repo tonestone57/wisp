@@ -319,11 +319,11 @@ static nserror browser_window_download(struct browser_window *bw, nsurl *url, ns
         /* no internal handler for this type, call out to frontend */
         error = guit->misc->launch_url(url);
     } else if (error != NSERROR_OK) {
-        NSLOG(wisp, INFO, "Failed to fetch download: %d", error);
+        NSLOG(wisp, ERROR, "Failed to fetch download: %d", error);
     } else {
         error = download_context_create(l, root->window);
         if (error != NSERROR_OK) {
-            NSLOG(wisp, INFO, "Failed creating download context: %d", error);
+            NSLOG(wisp, ERROR, "Failed creating download context: %d", error);
             llcache_handle_abort(l);
             llcache_handle_release(l);
         }
@@ -450,7 +450,7 @@ static nserror browser_window_favicon_callback(hlcache_handle *c, const hlcache_
 
             error = nsurl_create("resource:favicon.ico", &nsurl);
             if (error != NSERROR_OK) {
-                NSLOG(wisp, INFO, "Unable to create default location url");
+                NSLOG(wisp, ERROR, "Unable to create default location url");
             } else {
                 hlcache_handle_retrieve(nsurl, HLCACHE_RETRIEVE_SNIFF_TYPE, nsref, NULL,
                     browser_window_favicon_callback, bw, NULL, CONTENT_IMAGE, &bw->favicon.loading);
@@ -532,7 +532,7 @@ browser_window_update_favicon(hlcache_handle *c, struct browser_window *bw, stru
             res = nsurl_create("resource:favicon.ico", &nsurl);
         }
         if (res != NSERROR_OK) {
-            NSLOG(wisp, INFO, "Unable to create default location url");
+            NSLOG(wisp, ERROR, "Unable to create default location url");
             return res;
         }
     } else {
@@ -2369,7 +2369,7 @@ bool browser_window_redraw(
     NSLOG(wisp, DEBUG, "PROFILER: START Browser window redraw %p", bw);
 
     if (bw == NULL) {
-        NSLOG(wisp, INFO, "NULL browser window");
+        NSLOG(wisp, WARNING, "NULL browser window");
         return false;
     }
 
@@ -2543,7 +2543,7 @@ bool browser_window_redraw(
 bool browser_window_redraw_ready(struct browser_window *bw)
 {
     if (bw == NULL) {
-        NSLOG(wisp, INFO, "NULL browser window");
+        NSLOG(wisp, WARNING, "NULL browser window");
         return false;
     } else if (bw->current_content != NULL) {
         /* Can't render locked contents */
@@ -3050,7 +3050,7 @@ nserror browser_window_navigate(struct browser_window *bw, nsurl *url, nsurl *re
         depth++;
     }
     if (depth > FRAME_DEPTH) {
-        NSLOG(wisp, INFO, "frame depth too high.");
+        NSLOG(wisp, WARNING, "frame depth too high.");
         return NSERROR_FRAME_DEPTH;
     }
 

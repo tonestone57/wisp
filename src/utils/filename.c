@@ -88,7 +88,7 @@ const char *filename_request(void)
         /* no available slots - create a new directory */
         dir = filename_create_directory(NULL);
         if (dir == NULL) {
-            NSLOG(wisp, INFO, "Failed to create a new directory.");
+            NSLOG(wisp, ERROR, "Failed to create a new directory.");
             return NULL;
         }
         i = 63;
@@ -190,7 +190,7 @@ bool filename_initialise(void)
             NSLOG(wisp, INFO, "Creating \"%s\"", directory);
             ret = nsmkdir(directory, S_IRWXU);
             if (ret != 0 && errno != EEXIST) {
-                NSLOG(wisp, INFO, "Failed to create directory \"%s\"", directory);
+                NSLOG(wisp, ERROR, "Failed to create directory \"%s\"", directory);
                 free(directory);
                 return false;
             }
@@ -294,7 +294,7 @@ bool filename_flush_directory(const char *folder, int depth)
 #else
         if (stat(child, &statbuf) == -1) {
 #endif
-            NSLOG(wisp, INFO, "Unable to stat %s: %s", child, strerror(errno));
+            NSLOG(wisp, WARNING, "Unable to stat %s: %s", child, strerror(errno));
             continue;
         }
 
@@ -361,7 +361,7 @@ bool filename_flush_directory(const char *folder, int depth)
 #else
                 if (unlink(child)) {
 #endif
-                    NSLOG(wisp, INFO, "Failed to remove '%s'", child);
+                    NSLOG(wisp, WARNING, "Failed to remove '%s'", child);
                 } else
                     changed = true;
             }
@@ -426,7 +426,7 @@ static struct directory *filename_create_directory(const char *prefix)
     /* allocate a new directory */
     new_dir = malloc(sizeof(struct directory));
     if (new_dir == NULL) {
-        NSLOG(wisp, INFO, "No memory for malloc()");
+        NSLOG(wisp, ERROR, "No memory for malloc()");
         return NULL;
     }
 
@@ -458,7 +458,7 @@ static struct directory *filename_create_directory(const char *prefix)
              * whilst we are running if there is an error, so we
              * don't report this yet and try to create the
              * structure normally. */
-            NSLOG(wisp, INFO, "Failed to create optimised structure '%s'", filename_directory);
+            NSLOG(wisp, ERROR, "Failed to create optimised structure '%s'", filename_directory);
         }
     }
 
@@ -478,7 +478,7 @@ static struct directory *filename_create_directory(const char *prefix)
 
             if (!is_dir(filename_directory)) {
                 if (nsmkdir(filename_directory, S_IRWXU)) {
-                    NSLOG(wisp, INFO, "Failed to create directory '%s'", filename_directory);
+                    NSLOG(wisp, ERROR, "Failed to create directory '%s'", filename_directory);
                     return NULL;
                 }
             }

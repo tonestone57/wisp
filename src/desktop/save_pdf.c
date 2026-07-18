@@ -444,7 +444,7 @@ HPDF_Image pdf_extract_image(struct bitmap *bitmap)
         rgb_buffer = (unsigned char *)malloc(3 * img_width * img_height);
         alpha_buffer = (unsigned char *)malloc(img_width * img_height);
         if (rgb_buffer == NULL || alpha_buffer == NULL) {
-            NSLOG(wisp, INFO, "Not enough memory to create RGB buffer");
+            NSLOG(wisp, ERROR, "Not enough memory to create RGB buffer");
             free(rgb_buffer);
             free(alpha_buffer);
             return NULL;
@@ -593,7 +593,7 @@ bool pdf_plot_path(const float *p, unsigned int n, colour fill, float width, col
             i += 7;
             empty_path = false;
         } else {
-            NSLOG(wisp, INFO, "bad path command %f", p[i]);
+            NSLOG(wisp, WARNING, "bad path command %f", p[i]);
             return false;
         }
     }
@@ -628,7 +628,7 @@ bool pdf_begin(struct print_settings *print_settings)
         HPDF_Free(pdf_doc);
     pdf_doc = HPDF_New(error_handler, NULL);
     if (!pdf_doc) {
-        NSLOG(wisp, INFO, "Error creating pdf_doc");
+        NSLOG(wisp, ERROR, "Error creating pdf_doc");
         return false;
     }
 
@@ -754,7 +754,7 @@ nserror save_pdf(const char *path)
  */
 static void error_handler(HPDF_STATUS error_no, HPDF_STATUS detail_no, void *user_data)
 {
-    NSLOG(wisp, INFO, "ERROR:\n\terror_no=%x\n\tdetail_no=%d\n", (HPDF_UINT)error_no, (HPDF_UINT)detail_no);
+    NSLOG(wisp, ERROR, "ERROR:\n\terror_no=%x\n\tdetail_no=%d\n", (HPDF_UINT)error_no, (HPDF_UINT)detail_no);
 #ifdef PDF_DEBUG
     exit(1);
 #endif
