@@ -33,6 +33,7 @@
 #include <wisp/browser_window.h>
 #include <wisp/content.h>
 #include <wisp/content/hlcache.h>
+#include <wisp/wisp.h>
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/desktop/textarea.h>
 #include <wisp/keypress.h>
@@ -925,6 +926,11 @@ static void html_parse_worker(void *arg)
 	dom_hubbub_error dom_ret;
 	nserror err = NSERROR_OK;
 
+	if (wisp_quitting || html->aborted) {
+		html_parse_task_free(task);
+		return;
+	}
+
 	doc_rwlock_wrlock(&html->doc_mutex);
 	if (html->parser) {
 		dom_ret = dom_hubbub_parser_parse_chunk(html->parser, (const uint8_t *)task->data, task->size);
@@ -938,6 +944,11 @@ static void html_parse_worker(void *arg)
 	doc_rwlock_wrunlock(&html->doc_mutex);
 
 	task->parse_error = err;
+
+	if (wisp_quitting) {
+		html_parse_task_free(task);
+		return;
+	}
 
 	guit->misc->schedule(0, html_parse_complete_cb, task);
 }
@@ -2570,14 +2581,18 @@ static content_type html_content_type(void)
 }
 
 
-static void html_fini(void)
+void html_parser_pool_shutdown(void)
 {
-	html_css_fini();
-
-	if (html_parser_pool) {
+	if (html_parser_pool != NULL) {
 		thread_pool_destroy(html_parser_pool);
 		html_parser_pool = NULL;
 	}
+}
+
+static void html_fini(void)
+{
+	html_css_fini();
+	html_parser_pool_shutdown();
 }
 
 /**

@@ -313,8 +313,18 @@ nserror wisp_init(const char *store_path)
  * Clean up components used by gui NetSurf.
  */
 
+bool wisp_quitting = false;
+
 void wisp_exit(void)
 {
+    wisp_quitting = true;
+
+    /* Shut down background HTML parser thread pool first, so that
+     * no background parsing threads are running or waiting when we
+     * finalise the cache and destroy the contents.
+     */
+    html_parser_pool_shutdown();
+
     hlcache_stop();
 
 #ifdef WITH_BLEND2D
@@ -338,9 +348,6 @@ void wisp_exit(void)
     NSLOG(wisp, INFO, "Finalising Web Search");
     search_web_finalise();
 
-    NSLOG(wisp, INFO, "Finalising high-level cache");
-    hlcache_finalise();
-
     NSLOG(wisp, INFO, "Closing fetches");
     fetcher_quit();
     /* Now the fetchers are done, our user-agent string can go */
@@ -348,6 +355,9 @@ void wisp_exit(void)
 
     /* dump any remaining cache entries */
     image_cache_fini();
+
+    NSLOG(wisp, INFO, "Finalising high-level cache");
+    hlcache_finalise();
 
     /* Clean up after content handlers */
     content_factory_fini();

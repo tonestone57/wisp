@@ -219,4 +219,9 @@ bool html_get_id_offset(struct hlcache_handle *h, lwc_string *frag_id, int *x, i
  */
 void html_destroy_thread(struct content *c);
 
+/**
+ * Shut down background HTML parser thread pool.
+ */
+void html_parser_pool_shutdown(void);
+
 #endif
