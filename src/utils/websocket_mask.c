@@ -23,9 +23,11 @@
 
 /* Dynamic CPU Feature Detection */
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-static inline bool has_avx2(void) {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_cpu_supports("avx2");
+static inline bool has_sse2(void) {
+#if defined(__x86_64__) || defined(_M_X64)
+    return true;
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_cpu_supports("sse2");
 #else
     return false;
 #endif
@@ -98,22 +100,22 @@ static inline bool has_rvv(void) {
 #endif
 #endif
 
-/* AVX2 Optimization */
+/* SSE2 Optimization */
 #if (defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)) && (defined(__GNUC__) || defined(__clang__))
-__attribute__((target("avx2")))
-static void wisp_websocket_mask_avx2(uint8_t *data, size_t len, const uint8_t mask_key[4], size_t key_offset) {
+__attribute__((target("sse2")))
+static void wisp_websocket_mask_sse2(uint8_t *data, size_t len, const uint8_t mask_key[4], size_t key_offset) {
     size_t i = 0;
-    if (len >= 32) {
-        uint8_t pattern[32];
+    if (len >= 16) {
+        uint8_t pattern[16];
         size_t start_offset = key_offset % 4;
-        for (size_t j = 0; j < 32; j++) {
+        for (size_t j = 0; j < 16; j++) {
             pattern[j] = mask_key[(j + start_offset) % 4];
         }
-        __m256i v_mask = _mm256_loadu_si256((const __m256i *)pattern);
-        for (; i + 31 < len; i += 32) {
-            __m256i v_data = _mm256_loadu_si256((const __m256i *)(data + i));
-            __m256i v_res = _mm256_xor_si256(v_data, v_mask);
-            _mm256_storeu_si256((__m256i *)(data + i), v_res);
+        __m128i v_mask = _mm_loadu_si128((const __m128i *)pattern);
+        for (; i + 15 < len; i += 16) {
+            __m128i v_data = _mm_loadu_si128((const __m128i *)(data + i));
+            __m128i v_res = _mm_xor_si128(v_data, v_mask);
+            _mm_storeu_si128((__m128i *)(data + i), v_res);
         }
     }
     for (; i < len; i++) {
@@ -175,8 +177,8 @@ static void wisp_websocket_mask_rvv(uint8_t *data, size_t len, const uint8_t mas
 /* Public API */
 void wisp_websocket_mask(uint8_t *data, size_t len, const uint8_t mask_key[4], size_t key_offset) {
 #if (defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)) && (defined(__GNUC__) || defined(__clang__))
-    if (has_avx2()) {
-        wisp_websocket_mask_avx2(data, len, mask_key, key_offset);
+    if (has_sse2()) {
+        wisp_websocket_mask_sse2(data, len, mask_key, key_offset);
         return;
     }
 #elif defined(__arm__) || defined(__aarch64__)

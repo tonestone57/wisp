@@ -25,7 +25,7 @@ START_TEST(test_ascii_detection)
     /* Pure ASCII strings of different lengths */
     const char *ascii_short = "Hello";
     const char *ascii_32 = "12345678901234567890123456789012"; /* 32 bytes */
-    const char *ascii_long = "This is a longer ASCII string that exceeds 32 characters in length to test AVX2 chunking.";
+    const char *ascii_long = "This is a longer ASCII string that exceeds 32 characters in length to test SSE2 chunking.";
 
     ck_assert(wisp_is_ascii(ascii_short, strlen(ascii_short)));
     ck_assert(wisp_is_ascii(ascii_32, strlen(ascii_32)));

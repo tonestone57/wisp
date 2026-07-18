@@ -8,7 +8,7 @@ Wisp has unified its rendering backbone around **Blend2D** across all supported 
 
 ### The Case for Blend2D
 1.  **Massive Code Deduplication**: Historically, frontends implemented their own drawing logic. By using Blend2D, Wisp utilizes a single `plotter_table` implementation (`src/desktop/plot_blend2d.c`).
-2.  **Industry-Leading Performance**: Blend2D uses AsmJit to generate optimized 2D pipelines on the fly, leveraging AVX2, AVX-512, or AArch64 NEON.
+2.  **Industry-Leading Performance**: Blend2D uses AsmJit to generate optimized 2D pipelines on the fly, leveraging SSE2, AVX-512, or AArch64 NEON.
 3.  **Pixel-Perfect Consistency**: Unifying the rasterizer ensures that layout bugs are consistent across platforms.
 4.  **Modern CSS Support**: Blend2D natively handles complex gradients, blending modes, and arbitrary path clipping.
 

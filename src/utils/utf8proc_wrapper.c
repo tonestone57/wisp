@@ -30,9 +30,11 @@
 
 /* Dynamic CPU Feature Detection */
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-static inline bool has_avx2(void) {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_cpu_supports("avx2");
+static inline bool has_sse2(void) {
+#if defined(__x86_64__) || defined(_M_X64)
+    return true;
+#elif defined(__GNUC__) || defined(__clang__)
+    return __builtin_cpu_supports("sse2");
 #else
     return false;
 #endif
@@ -120,15 +122,13 @@ static bool wisp_is_ascii_scalar(const char *str, size_t len) {
 }
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-__attribute__((target("avx2")))
-static bool wisp_is_ascii_avx2(const char *str, size_t len) {
+__attribute__((target("sse2")))
+static bool wisp_is_ascii_sse2(const char *str, size_t len) {
     size_t i = 0;
-    if (len >= 32) {
-        __m256i mask = _mm256_set1_epi8(0x80);
-        for (; i + 31 < len; i += 32) {
-            __m256i chunk = _mm256_loadu_si256((const __m256i *)(str + i));
-            __m256i test = _mm256_and_si256(chunk, mask);
-            if (!_mm256_testz_si256(test, test)) {
+    if (len >= 16) {
+        for (; i + 15 < len; i += 16) {
+            __m128i chunk = _mm_loadu_si128((const __m128i *)(str + i));
+            if (_mm_movemask_epi8(chunk) != 0) {
                 return false;
             }
         }
@@ -192,25 +192,25 @@ static bool wisp_is_ascii_rvv(const char *str, size_t len) {
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #if defined(__GNUC__) || defined(__clang__)
-__attribute__((target("avx2")))
+__attribute__((target("sse2")))
 #endif
 WISP_NO_SANITIZE
-static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
+static int wisp_simd_strcmp_sse2(const char *s1, const char *s2) {
     size_t offset = 0;
     while (1) {
-        bool s1_safe = (((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 32);
-        bool s2_safe = (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 32);
+        bool s1_safe = (((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 16);
+        bool s2_safe = (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 16);
         if (s1_safe && s2_safe) {
-            __m256i v1 = _mm256_loadu_si256((const __m256i *)(s1 + offset));
-            __m256i v2 = _mm256_loadu_si256((const __m256i *)(s2 + offset));
-            __m256i cmp = _mm256_cmpeq_epi8(v1, v2);
-            int eq_mask = _mm256_movemask_epi8(cmp);
+            __m128i v1 = _mm_loadu_si128((const __m128i *)(s1 + offset));
+            __m128i v2 = _mm_loadu_si128((const __m128i *)(s2 + offset));
+            __m128i cmp = _mm_cmpeq_epi8(v1, v2);
+            int eq_mask = _mm_movemask_epi8(cmp);
 
-            __m256i zero = _mm256_setzero_si256();
-            __m256i nulls = _mm256_cmpeq_epi8(v1, zero);
-            int null_mask = _mm256_movemask_epi8(nulls);
+            __m128i zero = _mm_setzero_si128();
+            __m128i nulls = _mm_cmpeq_epi8(v1, zero);
+            int null_mask = _mm_movemask_epi8(nulls);
 
-            if (eq_mask != -1) {
+            if (eq_mask != 0xFFFF) {
                 int mismatch_idx = __builtin_ctz(~eq_mask);
                 if (null_mask != 0) {
                     int null_idx = __builtin_ctz(null_mask);
@@ -227,7 +227,7 @@ static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
                 return 0;
             }
 
-            offset += 32;
+            offset += 16;
         } else {
             while (1) {
                 char c1 = s1[offset];
@@ -237,8 +237,8 @@ static int wisp_simd_strcmp_avx2(const char *s1, const char *s2) {
                 }
                 if (c1 == '\0') return 0;
                 offset++;
-                if ((((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 32) &&
-                    (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 32)) {
+                if ((((uintptr_t)(s1 + offset)) & 4095) <= (4096 - 16) &&
+                    (((uintptr_t)(s2 + offset)) & 4095) <= (4096 - 16)) {
                     break;
                 }
             }
@@ -360,8 +360,8 @@ int wisp_simd_strcmp(const char *s1, const char *s2) {
     }
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        return wisp_simd_strcmp_avx2(s1, s2);
+    if (has_sse2()) {
+        return wisp_simd_strcmp_sse2(s1, s2);
     }
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
@@ -385,8 +385,8 @@ void wisp_is_ascii_func_for_test(void) {
 
 bool wisp_is_ascii(const char *str, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        return wisp_is_ascii_avx2(str, len);
+    if (has_sse2()) {
+        return wisp_is_ascii_sse2(str, len);
     }
 #elif defined(__arm__) || defined(__aarch64__)
     if (has_neon()) {
@@ -455,21 +455,21 @@ static void wisp_ascii_tolower_scalar(const char *src, char *dst, size_t len) {
 }
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-__attribute__((target("avx2")))
-static void wisp_ascii_tolower_avx2(const char *src, char *dst, size_t len) {
+__attribute__((target("sse2")))
+static void wisp_ascii_tolower_sse2(const char *src, char *dst, size_t len) {
     size_t i = 0;
-    if (len >= 32) {
-        __m256i a_bound = _mm256_set1_epi8('A' - 1);
-        __m256i z_bound = _mm256_set1_epi8('Z' + 1);
-        __m256i offset = _mm256_set1_epi8(32);
-        for (; i + 31 < len; i += 32) {
-            __m256i chunk = _mm256_loadu_si256((const __m256i *)(src + i));
-            __m256i gt_A = _mm256_cmpgt_epi8(chunk, a_bound);
-            __m256i lt_Z = _mm256_cmpgt_epi8(z_bound, chunk);
-            __m256i is_upper = _mm256_and_si256(gt_A, lt_Z);
-            __m256i add_mask = _mm256_and_si256(is_upper, offset);
-            __m256i result = _mm256_add_epi8(chunk, add_mask);
-            _mm256_storeu_si256((__m256i *)(dst + i), result);
+    if (len >= 16) {
+        __m128i a_bound = _mm_set1_epi8('A' - 1);
+        __m128i z_bound = _mm_set1_epi8('Z' + 1);
+        __m128i offset = _mm_set1_epi8(32);
+        for (; i + 15 < len; i += 16) {
+            __m128i chunk = _mm_loadu_si128((const __m128i *)(src + i));
+            __m128i gt_A = _mm_cmpgt_epi8(chunk, a_bound);
+            __m128i lt_Z = _mm_cmpgt_epi8(z_bound, chunk);
+            __m128i is_upper = _mm_and_si128(gt_A, lt_Z);
+            __m128i add_mask = _mm_and_si128(is_upper, offset);
+            __m128i result = _mm_add_epi8(chunk, add_mask);
+            _mm_storeu_si128((__m128i *)(dst + i), result);
         }
     }
     for (; i < len; i++) {
@@ -529,8 +529,8 @@ static void wisp_ascii_tolower_rvv(const char *src, char *dst, size_t len) {
 
 void wisp_ascii_tolower(const char *src, char *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        wisp_ascii_tolower_avx2(src, dst, len);
+    if (has_sse2()) {
+        wisp_ascii_tolower_sse2(src, dst, len);
         return;
     }
 #elif defined(__arm__) || defined(__aarch64__)
@@ -561,21 +561,21 @@ static void wisp_ascii_toupper_scalar(const char *src, char *dst, size_t len) {
 }
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-__attribute__((target("avx2")))
-static void wisp_ascii_toupper_avx2(const char *src, char *dst, size_t len) {
+__attribute__((target("sse2")))
+static void wisp_ascii_toupper_sse2(const char *src, char *dst, size_t len) {
     size_t i = 0;
-    if (len >= 32) {
-        __m256i a_bound = _mm256_set1_epi8('a' - 1);
-        __m256i z_bound = _mm256_set1_epi8('z' + 1);
-        __m256i offset = _mm256_set1_epi8(32);
-        for (; i + 31 < len; i += 32) {
-            __m256i chunk = _mm256_loadu_si256((const __m256i *)(src + i));
-            __m256i gt_a = _mm256_cmpgt_epi8(chunk, a_bound);
-            __m256i lt_z = _mm256_cmpgt_epi8(z_bound, chunk);
-            __m256i is_lower = _mm256_and_si256(gt_a, lt_z);
-            __m256i sub_mask = _mm256_and_si256(is_lower, offset);
-            __m256i result = _mm256_sub_epi8(chunk, sub_mask);
-            _mm256_storeu_si256((__m256i *)(dst + i), result);
+    if (len >= 16) {
+        __m128i a_bound = _mm_set1_epi8('a' - 1);
+        __m128i z_bound = _mm_set1_epi8('z' + 1);
+        __m128i offset = _mm_set1_epi8(32);
+        for (; i + 15 < len; i += 16) {
+            __m128i chunk = _mm_loadu_si128((const __m128i *)(src + i));
+            __m128i gt_a = _mm_cmpgt_epi8(chunk, a_bound);
+            __m128i lt_z = _mm_cmpgt_epi8(z_bound, chunk);
+            __m128i is_lower = _mm_and_si128(gt_a, lt_z);
+            __m128i sub_mask = _mm_and_si128(is_lower, offset);
+            __m128i result = _mm_sub_epi8(chunk, sub_mask);
+            _mm_storeu_si128((__m128i *)(dst + i), result);
         }
     }
     for (; i < len; i++) {
@@ -635,8 +635,8 @@ static void wisp_ascii_toupper_rvv(const char *src, char *dst, size_t len) {
 
 void wisp_ascii_toupper(const char *src, char *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        wisp_ascii_toupper_avx2(src, dst, len);
+    if (has_sse2()) {
+        wisp_ascii_toupper_sse2(src, dst, len);
         return;
     }
 #elif defined(__arm__) || defined(__aarch64__)
@@ -662,14 +662,18 @@ static void wisp_ascii_to_utf32_scalar(const char *src, int32_t *dst, size_t len
 }
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-__attribute__((target("avx2")))
-static void wisp_ascii_to_utf32_avx2(const char *src, int32_t *dst, size_t len) {
+__attribute__((target("sse2")))
+static void wisp_ascii_to_utf32_sse2(const char *src, int32_t *dst, size_t len) {
     size_t i = 0;
     if (len >= 8) {
+        __m128i zero = _mm_setzero_si128();
         for (; i + 7 < len; i += 8) {
             __m128i chunk = _mm_loadl_epi64((const __m128i *)(src + i));
-            __m256i extended = _mm256_cvtepu8_epi32(chunk);
-            _mm256_storeu_si256((__m256i *)(dst + i), extended);
+            __m128i chunk_16 = _mm_unpacklo_epi8(chunk, zero);
+            __m128i low_32 = _mm_unpacklo_epi16(chunk_16, zero);
+            __m128i high_32 = _mm_unpackhi_epi16(chunk_16, zero);
+            _mm_storeu_si128((__m128i *)(dst + i), low_32);
+            _mm_storeu_si128((__m128i *)(dst + i + 4), high_32);
         }
     }
     for (; i < len; i++) {
@@ -712,8 +716,8 @@ static void wisp_ascii_to_utf32_rvv(const char *src, int32_t *dst, size_t len) {
 
 void wisp_ascii_to_utf32(const char *src, int32_t *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        wisp_ascii_to_utf32_avx2(src, dst, len);
+    if (has_sse2()) {
+        wisp_ascii_to_utf32_sse2(src, dst, len);
         return;
     }
 #elif defined(__arm__) || defined(__aarch64__)
@@ -739,16 +743,18 @@ static void wisp_utf32_to_ascii_scalar(const int32_t *src, char *dst, size_t len
 }
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-__attribute__((target("avx2")))
-static void wisp_utf32_to_ascii_avx2(const int32_t *src, char *dst, size_t len) {
+__attribute__((target("sse2")))
+static void wisp_utf32_to_ascii_sse2(const int32_t *src, char *dst, size_t len) {
     size_t i = 0;
     if (len >= 8) {
+        __m128i mask = _mm_set1_epi32(0xFF);
         for (; i + 7 < len; i += 8) {
-            __m256i v = _mm256_loadu_si256((const __m256i *)(src + i));
-            __m256i packed_16 = _mm256_packus_epi32(v, v);
-            __m256i permuted = _mm256_permute4x64_epi64(packed_16, 0x08);
-            __m128i low_128 = _mm256_castsi256_si128(permuted);
-            __m128i packed_8 = _mm_packus_epi16(low_128, low_128);
+            __m128i v_low = _mm_loadu_si128((const __m128i *)(src + i));
+            __m128i v_high = _mm_loadu_si128((const __m128i *)(src + i + 4));
+            __m128i v_low_masked = _mm_and_si128(v_low, mask);
+            __m128i v_high_masked = _mm_and_si128(v_high, mask);
+            __m128i packed_16 = _mm_packs_epi32(v_low_masked, v_high_masked);
+            __m128i packed_8 = _mm_packus_epi16(packed_16, packed_16);
             _mm_storel_epi64((__m128i *)(dst + i), packed_8);
         }
     }
@@ -795,8 +801,8 @@ static void wisp_utf32_to_ascii_rvv(const int32_t *src, char *dst, size_t len) {
 
 void wisp_utf32_to_ascii(const int32_t *src, char *dst, size_t len) {
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-    if (has_avx2()) {
-        wisp_utf32_to_ascii_avx2(src, dst, len);
+    if (has_sse2()) {
+        wisp_utf32_to_ascii_sse2(src, dst, len);
         return;
     }
 #elif defined(__arm__) || defined(__aarch64__)

@@ -221,7 +221,7 @@ START_TEST(test_quickjs_aot_cache)
 END_TEST
 
 /**
- * Test structural JSON pre-parsing with AVX2/NEON/RVV 1.0 SIMD loops.
+ * Test structural JSON pre-parsing with SSE2/NEON/RVV 1.0 SIMD loops.
  */
 START_TEST(test_quickjs_json_simd)
 {
