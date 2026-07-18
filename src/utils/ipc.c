@@ -138,7 +138,16 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     return h;
 }
 
+static bool wait_socket(intptr_t fd, bool for_write, int timeout_ms);
+
 wisp_ipc_handle* wisp_ipc_accept(wisp_ipc_handle *server) {
+    if (!server) return NULL;
+
+    /* Wait up to 2 seconds for a client connection to prevent infinite hang if the child process crashes on startup */
+    if (!wait_socket(server->fd, false, 2000)) {
+        return NULL;
+    }
+
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
     if (!h) return NULL;
 #ifdef _WIN32
