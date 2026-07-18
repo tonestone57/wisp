@@ -209,7 +209,7 @@ static void hlcache_content_callback(struct content *c, content_msg msg, const u
         error = handle->cb(handle, &event, handle->pw);
 
     if (error != NSERROR_OK)
-        NSLOG(wisp, INFO, "Error in callback: %d", error);
+        NSLOG(wisp, WARNING, "Error in callback: %d", error);
 }
 
 /**
