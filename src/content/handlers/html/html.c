@@ -801,7 +801,7 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 	const uint8_t *source_data;
 	size_t source_size;
 
-	NSLOG(wisp, ERROR, ">>> html_process_encoding_change called for content %p, parser=%p", c, html->parser);
+	NSLOG(wisp, DEBUG, ">>> html_process_encoding_change called for content %p, parser=%p", c, html->parser);
 
 	/* Retrieve new encoding */
 	encoding = dom_hubbub_parser_get_encoding(html->parser, &html->encoding_source);
@@ -820,7 +820,7 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 	}
 
 	/* Destroy binding */
-	NSLOG(wisp, ERROR, "html_process_encoding_change: destroying parser %p, will recreate with encoding '%s'",
+	NSLOG(wisp, DEBUG, "html_process_encoding_change: destroying parser %p, will recreate with encoding '%s'",
 		html->parser, html->encoding);
 	dom_hubbub_parser_destroy(html->parser);
 	html->parser = NULL;
