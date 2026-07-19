@@ -23,6 +23,141 @@ typedef struct js_task_t {
     uint64_t entry_time;
 } js_task_t;
 
+#define WISP_DEQUE_SIZE 4096
+
+typedef struct wisp_deque_t {
+    volatile int64_t head;
+    volatile int64_t tail;
+    js_task_t * volatile tasks[WISP_DEQUE_SIZE];
+#ifdef _WIN32
+    CRITICAL_SECTION lock;
+#else
+    pthread_mutex_t lock;
+#endif
+} wisp_deque_t;
+
+#ifdef _MSC_VER
+#include <windows.h>
+#define __ATOMIC_RELAXED 0
+#define __ATOMIC_CONSUME 1
+#define __ATOMIC_ACQUIRE 2
+#define __ATOMIC_RELEASE 3
+#define __ATOMIC_ACQ_REL 4
+#define __ATOMIC_SEQ_CST 5
+
+static inline int64_t msvc_atomic_load_64(volatile void *ptr, int memorder) {
+    return InterlockedOr64((volatile int64_t *)ptr, 0);
+}
+static inline int32_t msvc_atomic_load_32(volatile void *ptr, int memorder) {
+    return InterlockedOr((volatile int32_t *)ptr, 0);
+}
+static inline int16_t msvc_atomic_load_16(volatile void *ptr, int memorder) {
+    return InterlockedOr16((volatile short *)ptr, 0);
+}
+static inline int8_t msvc_atomic_load_8(volatile void *ptr, int memorder) {
+    return InterlockedOr8((volatile char *)ptr, 0);
+}
+
+static inline void msvc_atomic_store_64(volatile void *ptr, int64_t val, int memorder) {
+    InterlockedExchange64((volatile int64_t *)ptr, val);
+}
+static inline void msvc_atomic_store_32(volatile void *ptr, int32_t val, int memorder) {
+    InterlockedExchange((volatile int32_t *)ptr, val);
+}
+static inline void msvc_atomic_store_16(volatile void *ptr, int16_t val, int memorder) {
+    InterlockedExchange16((volatile short *)ptr, val);
+}
+static inline void msvc_atomic_store_8(volatile void *ptr, int8_t val, int memorder) {
+    InterlockedExchange8((volatile char *)ptr, val);
+}
+
+static inline int64_t msvc_atomic_add_fetch_64(volatile void *ptr, int64_t val, int memorder) {
+    return InterlockedAdd64((volatile int64_t *)ptr, val);
+}
+static inline int32_t msvc_atomic_add_fetch_32(volatile void *ptr, int32_t val, int memorder) {
+    return InterlockedExchangeAdd((volatile int32_t *)ptr, val) + val;
+}
+
+static inline int64_t msvc_atomic_sub_fetch_64(volatile void *ptr, int64_t val, int memorder) {
+    return InterlockedAdd64((volatile int64_t *)ptr, -val);
+}
+static inline int32_t msvc_atomic_sub_fetch_32(volatile void *ptr, int32_t val, int memorder) {
+    return InterlockedExchangeAdd((volatile int32_t *)ptr, -val) - val;
+}
+
+static inline int64_t msvc_atomic_fetch_add_64(volatile void *ptr, int64_t val, int memorder) {
+    return InterlockedExchangeAdd64((volatile int64_t *)ptr, val);
+}
+static inline int32_t msvc_atomic_fetch_add_32(volatile void *ptr, int32_t val, int memorder) {
+    return InterlockedExchangeAdd((volatile int32_t *)ptr, val);
+}
+
+static inline int64_t msvc_atomic_exchange_64(volatile void *ptr, int64_t val, int memorder) {
+    return InterlockedExchange64((volatile int64_t *)ptr, val);
+}
+static inline int32_t msvc_atomic_exchange_32(volatile void *ptr, int32_t val, int memorder) {
+    return InterlockedExchange((volatile int32_t *)ptr, val);
+}
+
+static inline bool msvc_atomic_compare_exchange_64(volatile void *ptr, int64_t *expected, int64_t desired) {
+    int64_t old = InterlockedCompareExchange64((volatile int64_t *)ptr, desired, *expected);
+    if (old == *expected) {
+        return true;
+    } else {
+        *expected = old;
+        return false;
+    }
+}
+static inline bool msvc_atomic_compare_exchange_32(volatile void *ptr, int32_t *expected, int32_t desired) {
+    int32_t old = InterlockedCompareExchange((volatile int32_t *)ptr, desired, *expected);
+    if (old == *expected) {
+        return true;
+    } else {
+        *expected = old;
+        return false;
+    }
+}
+
+static inline void msvc_atomic_thread_fence(int memorder) {
+    MemoryBarrier();
+}
+
+#define __atomic_load_n(ptr, memorder) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_load_64((volatile void *)(ptr), memorder) : \
+     (sizeof(*(ptr)) == 4) ? msvc_atomic_load_32((volatile void *)(ptr), memorder) : \
+     (sizeof(*(ptr)) == 2) ? msvc_atomic_load_16((volatile void *)(ptr), memorder) : \
+     msvc_atomic_load_8((volatile void *)(ptr), memorder))
+
+#define __atomic_store_n(ptr, val, memorder) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_store_64((volatile void *)(ptr), (int64_t)(val), memorder) : \
+     (sizeof(*(ptr)) == 4) ? msvc_atomic_store_32((volatile void *)(ptr), (int32_t)(val), memorder) : \
+     (sizeof(*(ptr)) == 2) ? msvc_atomic_store_16((volatile void *)(ptr), (int16_t)(val), memorder) : \
+     msvc_atomic_store_8((volatile void *)(ptr), (int8_t)(val), memorder))
+
+#define __atomic_add_fetch(ptr, val, memorder) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_add_fetch_64((volatile void *)(ptr), (int64_t)(val), memorder) : \
+     msvc_atomic_add_fetch_32((volatile void *)(ptr), (int32_t)(val), memorder))
+
+#define __atomic_sub_fetch(ptr, val, memorder) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_sub_fetch_64((volatile void *)(ptr), (int64_t)(val), memorder) : \
+     msvc_atomic_sub_fetch_32((volatile void *)(ptr), (int32_t)(val), memorder))
+
+#define __atomic_fetch_add(ptr, val, memorder) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_fetch_add_64((volatile void *)(ptr), (int64_t)(val), memorder) : \
+     msvc_atomic_fetch_add_32((volatile void *)(ptr), (int32_t)(val), memorder))
+
+#define __atomic_exchange_n(ptr, val, memorder) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_exchange_64((volatile void *)(ptr), (int64_t)(val), memorder) : \
+     (sizeof(*(ptr)) == 4) ? msvc_atomic_exchange_32((volatile void *)(ptr), (int32_t)(val), memorder) : \
+     *(ptr))
+
+#define __atomic_compare_exchange_n(ptr, expected, desired, weak, memorder1, memorder2) \
+    ((sizeof(*(ptr)) == 8) ? msvc_atomic_compare_exchange_64((volatile void *)(ptr), (int64_t *)(expected), (int64_t)(desired)) : \
+     msvc_atomic_compare_exchange_32((volatile void *)(ptr), (int32_t *)(expected), (int32_t)(desired)))
+
+#define __atomic_thread_fence(memorder) msvc_atomic_thread_fence(memorder)
+#endif
+
 typedef enum {
     WISP_MSG_TYPE_DATA,  /* Standard postMessage payload */
     WISP_MSG_TYPE_ERROR  /* Unhandled exception details */
@@ -60,7 +195,7 @@ typedef struct WispWorkerHandle {
 #endif
     volatile bool running;
     volatile bool terminated;
-    volatile bool main_thread_notified;
+    volatile int64_t main_thread_notified;
     WispMessageQueue to_worker;
     WispMessageQueue from_worker;
     char *script_url;
@@ -81,16 +216,18 @@ typedef struct {
     pthread_t thread;
 #endif
     int worker_id;
-    bool running;
+    volatile int64_t running;
     JSRuntime *rt;
     JSContext *ctx;
     struct WispPool *pool;
+    wisp_deque_t deques[4];
+    volatile int64_t deficit[4];
 } WispWorker;
 
 typedef struct WispPool {
     js_task_t *head;
     js_task_t *tail;
-    int count;
+    volatile int64_t count;
     int capacity;
     bool stop;
 #ifdef _WIN32
@@ -104,6 +241,7 @@ typedef struct WispPool {
     int worker_count;
     int active_workers;
     int busy_workers;
+    volatile int64_t dispatch_idx;
 } WispPool;
 
 /* Global pools */
