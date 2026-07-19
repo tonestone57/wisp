@@ -662,15 +662,18 @@ void hlcache_finalise(void)
             __atomic_store_n(&c->active_bg_tasks, 0, __ATOMIC_SEQ_CST);
             c->pending_delete = false;
 
-            /* Free any remaining content_user structures in user_list to prevent leaks */
+            /* Free any remaining content_user structures in user_list EXCEPT the sentinel to prevent leaks.
+             * This ensures that content_count_users() (called inside content_destroy()) can still safely
+             * query the list and determine that user count is 0, permitting immediate destruction.
+             * content_actually_destroy() will subsequently free the sentinel itself. */
             if (c->user_list != NULL) {
-                struct content_user *u = c->user_list;
+                struct content_user *u = c->user_list->next;
                 while (u != NULL) {
                     struct content_user *next_u = u->next;
                     free(u);
                     u = next_u;
                 }
-                c->user_list = NULL;
+                c->user_list->next = NULL;
             }
 
             content_destroy(c);
