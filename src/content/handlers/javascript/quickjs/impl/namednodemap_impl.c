@@ -175,7 +175,7 @@ JSValue qjs_new_namednodemap(JSContext *ctx, void *node, bool is_dom_node)
     priv->magic = QJS_DOM_MAGIC;
     priv->node = node;
     priv->is_dom_node = is_dom_node;
-    priv->ctx = ctx;    
+    priv->ctx = ctx;
     if (!wisp_is_js_process && node) {
         if (is_dom_node) {
             dom_node_ref((dom_node *)node);

@@ -608,10 +608,13 @@ void hlcache_finalise(void)
     hlcache_entry *entry;
     hlcache_retrieval_ctx *ctx, *next;
 
-    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown */
+    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown.
+     * We use a two-pass destruction process to prevent heap-use-after-free crashes when destroying
+     * nested resources (e.g. stylesheet imports unreferencing handles that point to other entries). */
+
+    /* Pass 1: Destroy all remaining content objects */
     entry = hlcache->content_list;
     while (entry != NULL) {
-        hlcache_entry *next_entry = entry->next;
         if (entry->content != NULL) {
             struct content *c = entry->content;
 
@@ -633,8 +636,19 @@ void hlcache_finalise(void)
                 c->user_list->next = NULL;
             }
 
+            /* Clear entry->content BEFORE calling content_destroy to prevent re-entrant/late releases
+             * from accessing already destroyed content. */
+            entry->content = NULL;
+
             content_destroy(c);
         }
+        entry = entry->next;
+    }
+
+    /* Pass 2: Free all hlcache_entry structures */
+    entry = hlcache->content_list;
+    while (entry != NULL) {
+        hlcache_entry *next_entry = entry->next;
         free(entry);
         entry = next_entry;
     }
@@ -888,7 +902,9 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 nserror hlcache_handle_release(hlcache_handle *handle)
 {
     if (handle->entry != NULL) {
-        content_remove_user(handle->entry->content, hlcache_content_callback, handle);
+        if (handle->entry->content != NULL) {
+            content_remove_user(handle->entry->content, hlcache_content_callback, handle);
+        }
     } else {
         RING_ITERATE_START(struct hlcache_retrieval_ctx, hlcache->retrieval_ctx_ring, ictx)
         {
