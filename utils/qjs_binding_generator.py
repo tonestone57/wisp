@@ -560,6 +560,7 @@ class QuickJSBindingGenerator:
         c_code += f"#include \"JS{name}.gen.h\"\n"
         if parent_name:
             c_code += f"#include \"JS{parent_name}.gen.h\"\n"
+        c_code += "extern bool wisp_is_js_process;\n"
         c_code += "\n"
 
         c_code += f"__attribute__((weak)) JSClassID qjs_{lower_name}_class_id;\n\n"
@@ -608,18 +609,18 @@ class QuickJSBindingGenerator:
         c_code += f"    if (priv) {{\n"
         c_code += f"        if (priv->magic == QJS_DOM_MAGIC && priv->node) {{\n"
         if is_event:
-            c_code += f"            dom_event_unref((dom_event *)priv->node);\n"
+            c_code += f"            if (!wisp_is_js_process) dom_event_unref((dom_event *)priv->node);\n"
         else:
             c_code += f"            if (priv->is_dom_node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
-            c_code += f"            if (priv->is_dom_node) dom_node_unref((dom_node *)priv->node);\n"
+            c_code += f"            if (!wisp_is_js_process && priv->is_dom_node) dom_node_unref((dom_node *)priv->node);\n"
             if name == "NodeList" or name == "RadioNodeList":
-                c_code += f"            else dom_nodelist_unref((dom_nodelist *)priv->node);\n"
+                c_code += f"            else if (!wisp_is_js_process) dom_nodelist_unref((dom_nodelist *)priv->node);\n"
             elif name == "HTMLCollection":
-                c_code += f"            else dom_html_collection_unref((dom_html_collection *)priv->node);\n"
+                c_code += f"            else if (!wisp_is_js_process) dom_html_collection_unref((dom_html_collection *)priv->node);\n"
             elif name == "HTMLOptionsCollection":
-                c_code += f"            else dom_html_options_collection_unref((dom_html_options_collection *)priv->node);\n"
+                c_code += f"            else if (!wisp_is_js_process) dom_html_options_collection_unref((dom_html_options_collection *)priv->node);\n"
             elif name == "NamedNodeMap":
-                c_code += f"            else dom_namednodemap_unref((dom_namednodemap *)priv->node);\n"
+                c_code += f"            else if (!wisp_is_js_process) dom_namednodemap_unref((dom_namednodemap *)priv->node);\n"
         c_code += f"        }}\n"
         c_code += f"        free(priv);\n"
         c_code += f"    }}\n}}\n\n"
@@ -861,9 +862,9 @@ class QuickJSBindingGenerator:
         c_code += f"    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));\n    if (!priv) {{ JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }}\n"
         c_code += f"    priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->is_dom_node = is_dom_node; priv->ctx = ctx;\n"
         if is_event:
-            c_code += f"    if (node) dom_event_ref((dom_event *)node);\n"
+            c_code += f"    if (!wisp_is_js_process && node) dom_event_ref((dom_event *)node);\n"
         else:
-            c_code += f"    if (is_dom_node && node) dom_node_ref((dom_node *)node);\n"
+            c_code += f"    if (!wisp_is_js_process && is_dom_node && node) dom_node_ref((dom_node *)node);\n"
         c_code += f"    JS_SetOpaque(obj, priv); return obj;\n}}\n"
 
         # Implementation signatures in header
