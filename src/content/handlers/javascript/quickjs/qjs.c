@@ -839,6 +839,9 @@ void js_destroythread(jsthread *thread)
     }
     struct dom_document *doc_node = qjs_thread_get_document(thread);
     if (doc_node) dom_node_unref((dom_node *)doc_node);
+    if (thread->location_url) {
+        nsurl_unref(thread->location_url);
+    }
     if (thread->origin) {
         release_js_process_for_origin(thread->origin);
         free(thread->origin);
@@ -1077,12 +1080,19 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {
         if (!thread->shm_initialized) {
-            wisp_ipc_msg init_msg;
-            init_msg.type = WISP_IPC_MSG_SHM_INIT;
-            init_msg.length = strlen(thread->shm_dom_name);
-            init_msg.data = (uint8_t *)thread->shm_dom_name;
-            wisp_ipc_send(ipc_js, &init_msg);
-            thread->shm_initialized = true;
+            const char *orig = thread->origin ? thread->origin : "";
+            size_t len = strlen(thread->shm_dom_name) + 1 + strlen(orig);
+            char *payload = malloc(len + 1);
+            if (payload) {
+                snprintf(payload, len + 1, "%s|%s", thread->shm_dom_name, orig);
+                wisp_ipc_msg init_msg;
+                init_msg.type = WISP_IPC_MSG_SHM_INIT;
+                init_msg.length = len;
+                init_msg.data = (uint8_t *)payload;
+                wisp_ipc_send(ipc_js, &init_msg);
+                free(payload);
+                thread->shm_initialized = true;
+            }
         }
 
         struct dom_document *doc = qjs_thread_get_document(thread);

@@ -196,8 +196,9 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
     ot->next = observer->targets; observer->targets = ot;
     struct jsthread *t = JS_GetContextOpaque(ctx);
     struct dom_document *doc_node = qjs_thread_get_document(t);
+    extern bool wisp_is_js_process;
     if (t->mutation_callback_registered_doc != doc_node) {
-        if (doc_node) {
+        if (doc_node && !wisp_is_js_process) {
             dom_document_add_mutation_callback(doc_node, mutation_callback, t);
         }
         t->mutation_callback_registered_doc = doc_node;
@@ -285,8 +286,11 @@ int qjs_init_mutationobserver(JSContext *ctx)
 
 void qjs_cleanup_mutation_observer(struct jsthread *thread)
 {
+    extern bool wisp_is_js_process;
     if (thread->mutation_callback_registered_doc) {
-        dom_document_remove_mutation_callback((struct dom_document *)thread->mutation_callback_registered_doc, mutation_callback, thread);
+        if (!wisp_is_js_process) {
+            dom_document_remove_mutation_callback((struct dom_document *)thread->mutation_callback_registered_doc, mutation_callback, thread);
+        }
         thread->mutation_callback_registered_doc = NULL;
     }
 }
