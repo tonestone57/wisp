@@ -853,6 +853,12 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_i
     if (!node || shm->node_count >= SHM_DOM_MAX_NODES) return;
 
     uint32_t idx = shm->node_count++;
+    extern int peak_nodes_used;
+    if ((int)shm->node_count > peak_nodes_used) {
+        peak_nodes_used = (int)shm->node_count;
+        NSLOG(wisp, INFO, "[SHM_DOM] New record peak reached: %d nodes", peak_nodes_used);
+    }
+    NSLOG(wisp, INFO, "[SHM_DOM] Node allocated. Active nodes: %d", (int)shm->node_count);
     shm_dom_node_t *sn = &shm->nodes[idx];
     memset(sn, 0, sizeof(*sn));
 
@@ -963,6 +969,9 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_i
 
 static void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc) {
     if (!shm || !doc) return;
+    if (shm->node_count > 0) {
+        NSLOG(wisp, INFO, "[SHM_DOM] Freed %d nodes prior to serialization", (int)shm->node_count);
+    }
     shm->node_count = 0;
     serialize_dom_node(shm, (dom_node *)doc, 0);
 }

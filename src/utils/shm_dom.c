@@ -1,6 +1,20 @@
 #include "wisp/utils/shm_dom.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include "wisp/utils/log.h"
+
+int peak_nodes_used = 0;
+static bool shm_dom_metrics_registered = false;
+
+static void shm_dom_log_final_peak(void) {
+    NSLOG(wisp, INFO, "=========================================");
+    NSLOG(wisp, INFO, "[SHM_DOM] BROWSER EXIT METRICS");
+    NSLOG(wisp, INFO, "[SHM_DOM] Peak shared-memory nodes used: %d / %d",
+          peak_nodes_used, SHM_DOM_MAX_NODES);
+    NSLOG(wisp, INFO, "=========================================");
+}
 
 #ifdef _WIN32
 #include <windows.h>
@@ -37,6 +51,10 @@ static HANDLE find_and_unregister_shm_handle(void *ptr) {
 #endif
 
 shm_dom_t* shm_dom_create(const char *name, bool is_server) {
+    if (is_server && !shm_dom_metrics_registered) {
+        atexit(shm_dom_log_final_peak);
+        shm_dom_metrics_registered = true;
+    }
 #ifdef _WIN32
     HANDLE hMap = NULL;
     if (is_server) {
