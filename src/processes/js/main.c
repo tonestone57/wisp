@@ -5,6 +5,7 @@
 #include <wisp/utils/ipc.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/corestrings.h>
+#include <wisp/utils/nsurl.h>
 #include "quickjs.h"
 #include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
@@ -13,6 +14,7 @@ extern JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t
 
 static wisp_ipc_handle *ipc_main;
 static JSRuntime *rt;
+static char *js_process_origin = NULL;
 
 struct js_context_node {
     uint32_t id;
@@ -85,6 +87,9 @@ static JSContext* get_context(uint32_t id) {
     /* Setup dummy jsthread for the remote context so opaque callbacks match */
     struct jsthread *t = calloc(1, sizeof(*t));
     t->ctx = node->ctx;
+    if (js_process_origin) {
+        t->origin = strdup(js_process_origin);
+    }
 
     /* Find document node ID in shm_dom to set up as the root */
     uint64_t doc_node_id = 0;
@@ -141,15 +146,45 @@ int main(int argc, char **argv) {
         if (wisp_ipc_recv(ipc_main, &msg) != NSERROR_OK) break;
 
         if (msg.type == WISP_IPC_MSG_SHM_INIT) {
-            char *shm_name = malloc(msg.length + 1);
-            if (shm_name) {
-                memcpy(shm_name, msg.data, msg.length);
-                shm_name[msg.length] = '\0';
-                if (wisp_shm_dom) {
-                    shm_dom_destroy(wisp_shm_dom, NULL, false);
+            char *payload = malloc(msg.length + 1);
+            if (payload) {
+                memcpy(payload, msg.data, msg.length);
+                payload[msg.length] = '\0';
+
+                char *delim = strchr(payload, '|');
+                if (delim) {
+                    *delim = '\0';
+                    char *shm_name = payload;
+                    char *origin = delim + 1;
+
+                    if (wisp_shm_dom) {
+                        shm_dom_destroy(wisp_shm_dom, NULL, false);
+                    }
+                    wisp_shm_dom = shm_dom_create(shm_name, false);
+
+                    if (js_process_origin) free(js_process_origin);
+                    js_process_origin = strdup(origin);
+
+                    /* Update any already-created contexts */
+                    struct js_context_node *curr_c = contexts;
+                    while (curr_c) {
+                        if (curr_c->thread) {
+                            if (curr_c->thread->origin) free(curr_c->thread->origin);
+                            curr_c->thread->origin = strdup(origin);
+                            if (curr_c->thread->location_url) {
+                                nsurl_unref(curr_c->thread->location_url);
+                                curr_c->thread->location_url = NULL;
+                            }
+                        }
+                        curr_c = curr_c->next;
+                    }
+                } else {
+                    if (wisp_shm_dom) {
+                        shm_dom_destroy(wisp_shm_dom, NULL, false);
+                    }
+                    wisp_shm_dom = shm_dom_create(payload, false);
                 }
-                wisp_shm_dom = shm_dom_create(shm_name, false);
-                free(shm_name);
+                free(payload);
             }
         } else if (msg.type == WISP_IPC_MSG_JS_EXEC) {
             /* Format: [ctx_id(4)][script...] */
@@ -216,6 +251,10 @@ int main(int argc, char **argv) {
     while (curr) {
         struct js_context_node *next = curr->next;
         if (curr->thread) {
+            if (curr->thread->location_url) {
+                nsurl_unref(curr->thread->location_url);
+            }
+            if (curr->thread->origin) free(curr->thread->origin);
             free(curr->thread);
         }
         free(curr);
@@ -225,6 +264,7 @@ int main(int argc, char **argv) {
         shm_dom_destroy(wisp_shm_dom, NULL, false);
     }
     wisp_ipc_destroy(ipc_main);
+    if (js_process_origin) free(js_process_origin);
     corestrings_fini();
     return 0;
 }
