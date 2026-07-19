@@ -464,6 +464,10 @@ static hubbub_error form_associate(void *parser, void *form, void *node)
     dom_html_document *doc = (dom_html_document *)ele->owner;
     dom_exception err = DOM_NO_ERR;
 
+    if (doc == NULL || doc->elements == NULL) {
+        return HUBBUB_OK;
+    }
+
     /* Determine the kind of the node we have here. */
     if (dom_string_caseless_isequal(ele->name, doc->elements[DOM_HTML_ELEMENT_TYPE_BUTTON])) {
         err = _dom_html_button_element_set_form((dom_html_button_element *)node, form_ele);
