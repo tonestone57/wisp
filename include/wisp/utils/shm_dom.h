@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#define SHM_DOM_MAX_NODES 65536
+#define SHM_DOM_MAX_NODES 8192
 #define SHM_DOM_STRING_MAX 128
 #define SHM_MUTATION_QUEUE_SIZE 1024
 
