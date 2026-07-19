@@ -5709,6 +5709,11 @@ static void layout_get_box_bbox(
 		box->width = 1000000;
 	}
 
+	if (box->height >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge height %d. Clamping.", (void *)box, box->height);
+		box->height = 1000000;
+	}
+
 	/* Check padding and border for INT_MAX values */
 	if (box->padding[LEFT] >= 100000000) {
 		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge padding[LEFT] %d. Clamping.", (void *)box, box->padding[LEFT]);
@@ -5718,9 +5723,29 @@ static void layout_get_box_bbox(
 		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge padding[RIGHT] %d. Clamping.", (void *)box, box->padding[RIGHT]);
 		box->padding[RIGHT] = 1000000;
 	}
+	if (box->padding[TOP] >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge padding[TOP] %d. Clamping.", (void *)box, box->padding[TOP]);
+		box->padding[TOP] = 1000000;
+	}
+	if (box->padding[BOTTOM] >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge padding[BOTTOM] %d. Clamping.", (void *)box, box->padding[BOTTOM]);
+		box->padding[BOTTOM] = 1000000;
+	}
+	if (box->border[LEFT].width >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge border[LEFT] %d. Clamping.", (void *)box, box->border[LEFT].width);
+		box->border[LEFT].width = 1000000;
+	}
 	if (box->border[RIGHT].width >= 100000000) {
 		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge border[RIGHT] %d. Clamping.", (void *)box, box->border[RIGHT].width);
 		box->border[RIGHT].width = 1000000;
+	}
+	if (box->border[TOP].width >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge border[TOP] %d. Clamping.", (void *)box, box->border[TOP].width);
+		box->border[TOP].width = 1000000;
+	}
+	if (box->border[BOTTOM].width >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Box %p has huge border[BOTTOM] %d. Clamping.", (void *)box, box->border[BOTTOM].width);
+		box->border[BOTTOM].width = 1000000;
 	}
 
 	int w = box->width;
@@ -5741,6 +5766,10 @@ static void layout_get_box_bbox(
 	if (*desc_x1 >= 100000000) {
 		NSLOG(wisp, ERROR, "desc_x1 calculation produced huge value: %d", *desc_x1);
 		*desc_x1 = 1000000;
+	}
+	if (*desc_y1 >= 100000000) {
+		NSLOG(wisp, ERROR, "desc_y1 calculation produced huge value: %d", *desc_y1);
+		*desc_y1 = 1000000;
 	}
 
 	/* To stop the top of text getting clipped when css line-height is
@@ -5817,6 +5846,11 @@ static void layout_update_descendant_bbox(
 		/* get child's descendant bbox relative to box */
 		child_desc_y0 = child->descendant_y0;
 		child_desc_y1 = child->descendant_y1;
+		/* child's descendant_y1 must be reasonable */
+		if (child_desc_y1 >= 100000000) {
+			NSLOG(wisp, ERROR, "child %p has INT_MAX descendant_y1 - propagating to parent: %d", (void *)child, child_desc_y1);
+			child_desc_y1 = 1000000;
+		}
 	}
 
 	child_desc_x0 += child_x;
@@ -5838,8 +5872,15 @@ static void layout_update_descendant_bbox(
 			box->descendant_x1 = child_desc_x1;
 		}
 	}
-	if (box->descendant_y1 < child_desc_y1)
-		box->descendant_y1 = child_desc_y1;
+	if (box->descendant_y1 < child_desc_y1) {
+		/* catch INT_MAX propagation */
+		if (child_desc_y1 >= 100000000) {
+			NSLOG(wisp, ERROR, "About to set box %p descendant_y1 to huge value from child %p: %d", (void *)box, (void *)child, child_desc_y1);
+			box->descendant_y1 = 1000000;
+		} else {
+			box->descendant_y1 = child_desc_y1;
+		}
+	}
 }
 
 

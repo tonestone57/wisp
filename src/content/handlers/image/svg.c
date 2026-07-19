@@ -437,8 +437,8 @@ static void svg_reformat(struct content *c, int width, int height)
      * svgtiny_parse_dimensions(), so we just wait for layout to call
      * again with real dimensions.  Fix 1 (shape clearing in svgtiny_parse)
      * ensures any re-parse starts clean. */
-    if (width <= 0 || height <= 0) {
-        NSLOG(wisp, DEBUG, "SVG reformat skipped: dimensions unknown (%dx%d)", width, height);
+    if (width <= 0 || height <= 0 || width >= 100000000 || height >= 100000000 || width == INT_MIN || height == INT_MIN) {
+        NSLOG(wisp, DEBUG, "SVG reformat skipped: dimensions unknown or invalid (%dx%d)", width, height);
         return;
     }
 
