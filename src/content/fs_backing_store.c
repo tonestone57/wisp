@@ -1004,10 +1004,16 @@ static bool write_entry_iterator(void *key, void *value, void *ctx)
         size_t url_len = strlen(nsurl_access(ent->url));
         state->expected_bytes += sizeof(uint32_t);
         state->expected_bytes += url_len;
-        state->expected_bytes += sizeof(int64_t);
-        state->expected_bytes += sizeof(uint16_t);
-        state->expected_bytes += sizeof(uint8_t);
-        state->expected_bytes += ENTRY_ELEM_COUNT * (sizeof(uint32_t) + sizeof(block_index_t) + sizeof(uint8_t));
+        state->expected_bytes += sizeof(ent->last_used);
+        state->expected_bytes += sizeof(ent->use_count);
+        state->expected_bytes += sizeof(ent->flags);
+        for (int i = 0; i < ENTRY_ELEM_COUNT; i++) {
+            state->expected_bytes += sizeof(ent->elem[i].size);
+            state->expected_bytes += sizeof(ent->elem[i].block);
+            state->expected_bytes += sizeof(ent->elem[i].journal_offset);
+            state->expected_bytes += sizeof(ent->elem[i].journal_length);
+            state->expected_bytes += sizeof(ent->elem[i].flags);
+        }
     }
     /* We stop early if we fail to write this entry */
     return write_entry(ent, state->fd) != NSERROR_OK;
