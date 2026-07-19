@@ -29,6 +29,8 @@ static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(pt
 #include "JSHTMLCanvasElement.gen.h"
 #include "JSCanvasRenderingContext2D.gen.h"
 
+extern bool wisp_is_js_process;
+
 JSClassID qjs_canvasrenderingcontext2d_class_id;
 
 extern struct wisp_table *guit;
@@ -82,7 +84,7 @@ static void canvas_context_2d_finalizer(JSRuntime *rt, JSValue val)
             bl_context_end(&cpriv->bl_ctx_obj);
             bl_context_destroy(&cpriv->bl_ctx_obj);
 #endif
-            if (cpriv->canvas_node) dom_node_unref(cpriv->canvas_node);
+            if (cpriv->canvas_node && !wisp_is_js_process) dom_node_unref(cpriv->canvas_node);
             CanvasState *s = cpriv->state_stack;
             while (s) {
                 CanvasState *next = s->next;
@@ -133,6 +135,7 @@ static void canvas_bitmap_handler(dom_node_operation operation, dom_string *key,
 
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
+    if (wisp_is_js_process) return JS_NULL;
     if (!priv || !priv->node) return JS_NULL;
     if (strcmp(contextId, "2d") != 0) return JS_NULL;
 
@@ -162,7 +165,7 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
     if (!cpriv) { JS_FreeValue(ctx, element_obj); return JS_ThrowOutOfMemory(ctx); }
     cpriv->magic = QJS_CANVAS_CONTEXT_MAGIC;
     cpriv->canvas_node = (struct dom_node *)priv->node;
-    dom_node_ref(cpriv->canvas_node);
+    if (!wisp_is_js_process) dom_node_ref(cpriv->canvas_node);
     cpriv->bitmap = bitmap;
     cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
     cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;

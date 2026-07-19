@@ -9,6 +9,8 @@
 #include "JSIntersectionObserver.gen.h"
 #include "observer_internal.h"
 
+extern bool wisp_is_js_process;
+
 static void intersectionobserver_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
 {
     QJSNodePrivate *priv = JS_GetOpaque(val, qjs_intersectionobserver_class_id);
@@ -45,9 +47,10 @@ static void intersectionobserver_finalizer(JSRuntime *rt, JSValue val)
             IntersectionObserverTarget *ot = observer->targets;
             while (ot) {
                 IntersectionObserverTarget *next = ot->next;
-                dom_node_unref(ot->node); free(ot); ot = next;
+                if (!wisp_is_js_process) dom_node_unref(ot->node);
+                free(ot); ot = next;
             }
-            if (observer->root) dom_node_unref(observer->root);
+            if (observer->root && !wisp_is_js_process) dom_node_unref(observer->root);
             free(observer->root_margin);
             free(observer->thresholds);
             free(observer);
@@ -62,7 +65,8 @@ JSValue wisp_intersectionobserver_observe_impl(JSContext *ctx, QJSNodePrivate *p
 {
     WispIntersectionObserver *observer = priv->node;
     IntersectionObserverTarget *ot = calloc(1, sizeof(IntersectionObserverTarget));
-    ot->node = target; dom_node_ref(target);
+    ot->node = target;
+    if (!wisp_is_js_process) dom_node_ref(target);
     ot->lastRatio = -1.0;
     ot->wasIntersecting = false;
     ot->next = observer->targets; observer->targets = ot;
@@ -76,7 +80,9 @@ JSValue wisp_intersectionobserver_unobserve_impl(JSContext *ctx, QJSNodePrivate 
     while (*curr) {
         if ((*curr)->node == target) {
             IntersectionObserverTarget *to_free = *curr;
-            *curr = to_free->next; dom_node_unref(to_free->node); free(to_free);
+            *curr = to_free->next;
+            if (!wisp_is_js_process) dom_node_unref(to_free->node);
+            free(to_free);
             return JS_UNDEFINED;
         }
         curr = &((*curr)->next);
@@ -90,7 +96,8 @@ JSValue wisp_intersectionobserver_disconnect_impl(JSContext *ctx, QJSNodePrivate
     IntersectionObserverTarget *ot = observer->targets;
     while (ot) {
         IntersectionObserverTarget *next = ot->next;
-        dom_node_unref(ot->node); free(ot); ot = next;
+        if (!wisp_is_js_process) dom_node_unref(ot->node);
+        free(ot); ot = next;
     }
     observer->targets = NULL;
     return JS_UNDEFINED;
@@ -226,14 +233,14 @@ JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callb
     observer->ctx = ctx;
     observer->queue = JS_NewArray(ctx);
     observer->root = root_node;
-    if (root_node) dom_node_ref(root_node);
+    if (root_node && !wisp_is_js_process) dom_node_ref(root_node);
     observer->root_margin = root_margin_str;
     observer->thresholds = thresholds;
     observer->num_thresholds = num_thresholds;
 
     JSValue obj = JS_NewObjectClass(ctx, qjs_intersectionobserver_class_id);
     if (JS_IsException(obj)) {
-        if (root_node) dom_node_unref(root_node);
+        if (root_node && !wisp_is_js_process) dom_node_unref(root_node);
         free(root_margin_str);
         free(thresholds);
         JS_FreeValue(ctx, observer->callback);
@@ -243,7 +250,7 @@ JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callb
     }
     QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
     if (!priv) {
-        if (root_node) dom_node_unref(root_node);
+        if (root_node && !wisp_is_js_process) dom_node_unref(root_node);
         free(root_margin_str);
         free(thresholds);
         JS_FreeValue(ctx, observer->callback);

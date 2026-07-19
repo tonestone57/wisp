@@ -88,6 +88,7 @@
  */
 
 #include <assert.h>
+#include <errno.h>
 #include <libpsl.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -2772,7 +2773,11 @@ nserror urldb_load(const char *filename)
 
     fp = fopen(filename, "r");
     if (!fp) {
-        NSLOG(wisp, ERROR, "Failed to open file '%s' for reading", filename);
+        if (errno == ENOENT) {
+            NSLOG(wisp, INFO, "Failed to open file '%s' for reading (this is normal for a clean installation)", filename);
+        } else {
+            NSLOG(wisp, ERROR, "Failed to open file '%s' for reading: %s", filename, strerror(errno));
+        }
         return NSERROR_NOT_FOUND;
     }
 
