@@ -106,6 +106,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             info->finished = true;
+            info->fetchh = NULL;
             break;
         case FETCH_REDIRECT:
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
@@ -119,6 +120,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             info->finished = true;
+            info->fetchh = NULL;
             break;
         case FETCH_ERROR:
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
@@ -130,6 +132,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             info->finished = true;
+            info->fetchh = NULL;
             break;
         default:
             break;

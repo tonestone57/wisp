@@ -353,11 +353,11 @@ void wisp_exit(void)
     /* Now the fetchers are done, our user-agent string can go */
     free_user_agent_string();
 
-    /* dump any remaining cache entries */
-    image_cache_fini();
-
     NSLOG(wisp, INFO, "Finalising high-level cache");
     hlcache_finalise();
+
+    /* dump any remaining cache entries */
+    image_cache_fini();
 
     /* Clean up after content handlers */
     content_factory_fini();
