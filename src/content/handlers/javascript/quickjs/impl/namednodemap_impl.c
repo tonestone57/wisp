@@ -9,6 +9,8 @@
 #include "utils/libdom.h"
 #include "JSNamedNodeMap.gen.h"
 
+extern bool wisp_is_js_process;
+
 JSValue wisp_namednodemap_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
@@ -152,9 +154,9 @@ static void namednodemap_finalizer_manual(JSRuntime *rt, JSValue val)
         if (priv->magic == QJS_DOM_MAGIC && priv->node) {
             if (priv->is_dom_node) {
                 qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);
-                dom_node_unref((dom_node *)priv->node);
+                if (!wisp_is_js_process) dom_node_unref((dom_node *)priv->node);
             } else {
-                dom_namednodemap_unref((dom_namednodemap *)priv->node);
+                if (!wisp_is_js_process) dom_namednodemap_unref((dom_namednodemap *)priv->node);
             }
         }
         free(priv);
@@ -174,7 +176,7 @@ JSValue qjs_new_namednodemap(JSContext *ctx, void *node, bool is_dom_node)
     priv->node = node;
     priv->is_dom_node = is_dom_node;
     priv->ctx = ctx;
-    if (node) {
+    if (node && !wisp_is_js_process) {
         if (is_dom_node) {
             dom_node_ref((dom_node *)node);
         } else {
