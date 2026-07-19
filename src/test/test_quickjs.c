@@ -37,16 +37,52 @@ static dom_document *create_test_document(void)
 {
     dom_document *doc;
     dom_exception err;
-    err = dom_implementation_create_document(DOM_IMPLEMENTATION_XML, NULL, (const uint8_t *)"html", NULL, NULL, NULL, &doc);
+    err = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
     if (err != DOM_NO_ERR) return NULL;
 
+    dom_string *html_s;
+    struct dom_element *html_el;
+    dom_string_create_interned((const uint8_t *)"html", 4, &html_s);
+    dom_document_create_element(doc, html_s, &html_el);
+    dom_node_append_child((dom_node *)doc, (dom_node *)html_el, NULL);
+    dom_string_unref(html_s);
+
+    dom_string *head_s;
+    struct dom_element *head_el;
+    dom_string_create_interned((const uint8_t *)"head", 4, &head_s);
+    dom_document_create_element(doc, head_s, &head_el);
+    printf("DEBUG: after create head_el refcnt=%u\n", ((dom_node *)head_el)->refcnt);
+    dom_node_append_child((dom_node *)html_el, (dom_node *)head_el, NULL);
+    printf("DEBUG: after append head_el refcnt=%u\n", ((dom_node *)head_el)->refcnt);
+    dom_node_unref((dom_node *)head_el);
+    printf("DEBUG: after unref head_el refcnt=%u\n", ((dom_node *)head_el)->refcnt);
+    dom_string_unref(head_s);
+
     dom_string *body_s;
-    struct dom_element *el;
-    dom_string_create((const uint8_t *)"body", 4, &body_s);
-    dom_document_create_element(doc, body_s, &el);
-    dom_node_append_child((dom_node *)doc, (dom_node *)el, NULL);
-    dom_node_unref((dom_node *)el);
+    struct dom_element *body_el;
+    dom_string_create_interned((const uint8_t *)"body", 4, &body_s);
+    dom_document_create_element(doc, body_s, &body_el);
+    dom_node_append_child((dom_node *)html_el, (dom_node *)body_el, NULL);
     dom_string_unref(body_s);
+
+    dom_string *div_s;
+    struct dom_element *div_el;
+    dom_string_create_interned((const uint8_t *)"div", 3, &div_s);
+    dom_document_create_element(doc, div_s, &div_el);
+    dom_node_append_child((dom_node *)body_el, (dom_node *)div_el, NULL);
+    dom_node_unref((dom_node *)div_el);
+    dom_string_unref(div_s);
+
+    dom_string *p_s;
+    struct dom_element *p_el;
+    dom_string_create_interned((const uint8_t *)"p", 1, &p_s);
+    dom_document_create_element(doc, p_s, &p_el);
+    dom_node_append_child((dom_node *)body_el, (dom_node *)p_el, NULL);
+    dom_node_unref((dom_node *)p_el);
+    dom_string_unref(p_s);
+
+    dom_node_unref((dom_node *)body_el);
+    dom_node_unref((dom_node *)html_el);
 
     return doc;
 }

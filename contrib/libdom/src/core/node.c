@@ -811,8 +811,10 @@ dom_exception _dom_node_insert_before(
 
     /* Attempting to insert a node before itself is a NOP */
     if (new_child == ref_child) {
-        dom_node_ref(new_child);
-        *result = new_child;
+        if (result != NULL) {
+            dom_node_ref(new_child);
+            *result = new_child;
+        }
 
         return DOM_NO_ERR;
     }
@@ -866,8 +868,10 @@ dom_exception _dom_node_insert_before(
 
     /** \todo Is it correct to return DocumentFragments? */
 
-    dom_node_ref(new_child);
-    *result = new_child;
+    if (result != NULL) {
+        dom_node_ref(new_child);
+        *result = new_child;
+    }
 
     return DOM_NO_ERR;
 }
@@ -952,8 +956,10 @@ dom_exception _dom_node_replace_child(
 
     /* Attempting to replace a node with itself is a NOP */
     if (new_child == old_child) {
-        dom_node_ref(old_child);
-        *result = old_child;
+        if (result != NULL) {
+            dom_node_ref(old_child);
+            *result = old_child;
+        }
 
         return DOM_NO_ERR;
     }
@@ -975,10 +981,12 @@ dom_exception _dom_node_replace_child(
     _dom_node_replace(old_child, new_child);
 
     /* Sort out the return value */
-    dom_node_ref(old_child);
     /* The replaced node should be marded pending */
     dom_node_mark_pending(old_child);
-    *result = old_child;
+    if (result != NULL) {
+        dom_node_ref(old_child);
+        *result = old_child;
+    }
 
     return DOM_NO_ERR;
 }
@@ -1027,7 +1035,9 @@ dom_exception _dom_node_remove_child(dom_node_internal *node, dom_node_internal 
     /* Detach the node */
     _dom_node_detach(old_child);
 
-    *result = (dom_node_internal *)dom_node_ref(old_child);
+    if (result != NULL) {
+        *result = (dom_node_internal *)dom_node_ref(old_child);
+    }
 
     success = true;
     err = _dom_dispatch_subtree_modified_event(node->owner, node, &success);
