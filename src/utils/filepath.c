@@ -111,10 +111,10 @@ char *filepath_sfind(char **respathv, char *filepath, const char *filename)
 {
     int respathc = 0;
 
-    NSLOG(wisp, DEBUG, "Looking for resource: '%s'", filename);
+    NSLOG(wisp, INFO, "Looking for resource: '%s'", filename);
 
     if ((respathv == NULL) || (respathv[0] == NULL) || (filepath == NULL)) {
-        NSLOG(wisp, DEBUG, "Resource '%s' not found (search path empty)", filename);
+        NSLOG(wisp, INFO, "Resource '%s' not found (search path empty)", filename);
         return NULL;
     }
 
@@ -126,7 +126,7 @@ char *filepath_sfind(char **respathv, char *filepath, const char *filename)
         respathc++;
     }
 
-    NSLOG(wisp, DEBUG, "Resource '%s' not found", filename);
+    NSLOG(wisp, INFO, "Resource '%s' not found", filename);
     return NULL;
 }
 
