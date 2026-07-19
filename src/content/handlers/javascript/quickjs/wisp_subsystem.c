@@ -27,6 +27,113 @@
 WispPool *raster_pool = NULL;
 WispPool *js_pool = NULL;
 
+/* Lock-safe multi-producer Chase-Lev double-ended queue (deque) implementation */
+static inline void wisp_deque_init(wisp_deque_t *q) {
+    __atomic_store_n(&q->head, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&q->tail, 0, __ATOMIC_RELAXED);
+    for (int i = 0; i < WISP_DEQUE_SIZE; i++) {
+        __atomic_store_n(&q->tasks[i], NULL, __ATOMIC_RELAXED);
+    }
+#ifdef _WIN32
+    InitializeCriticalSection(&q->lock);
+#else
+    pthread_mutex_init(&q->lock, NULL);
+#endif
+}
+
+static inline void wisp_deque_deinit(wisp_deque_t *q) {
+#ifdef _WIN32
+    DeleteCriticalSection(&q->lock);
+#else
+    pthread_mutex_destroy(&q->lock);
+#endif
+}
+
+static inline bool wisp_deque_push(wisp_deque_t *q, js_task_t *task) {
+    bool result = false;
+#ifdef _WIN32
+    EnterCriticalSection(&q->lock);
+#else
+    pthread_mutex_lock(&q->lock);
+#endif
+    int64_t t = __atomic_load_n(&q->tail, __ATOMIC_RELAXED);
+    int64_t h = __atomic_load_n(&q->head, __ATOMIC_ACQUIRE);
+    if (t - h < WISP_DEQUE_SIZE) {
+        __atomic_store_n(&q->tasks[t % WISP_DEQUE_SIZE], task, __ATOMIC_RELAXED);
+        __atomic_thread_fence(__ATOMIC_RELEASE);
+        __atomic_store_n(&q->tail, t + 1, __ATOMIC_RELEASE);
+        result = true;
+    }
+#ifdef _WIN32
+    LeaveCriticalSection(&q->lock);
+#else
+    pthread_mutex_unlock(&q->lock);
+#endif
+    return result;
+}
+
+static inline js_task_t* wisp_deque_pop(wisp_deque_t *q) {
+    js_task_t *task = NULL;
+#ifdef _WIN32
+    EnterCriticalSection(&q->lock);
+#else
+    pthread_mutex_lock(&q->lock);
+#endif
+    int64_t t = __atomic_load_n(&q->tail, __ATOMIC_RELAXED);
+    if (t > 0) {
+        t = t - 1;
+        __atomic_store_n(&q->tail, t, __ATOMIC_RELAXED);
+        __atomic_thread_fence(__ATOMIC_SEQ_CST);
+        int64_t h = __atomic_load_n(&q->head, __ATOMIC_ACQUIRE);
+        if (h <= t) {
+            task = (js_task_t *)__atomic_load_n(&q->tasks[t % WISP_DEQUE_SIZE], __ATOMIC_RELAXED);
+            if (h == t) {
+                int64_t expected_h = h;
+                if (!__atomic_compare_exchange_n(&q->head, &expected_h, h + 1, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) {
+                    task = NULL;
+                }
+                __atomic_store_n(&q->tail, h + 1, __ATOMIC_RELAXED);
+            }
+        } else {
+            __atomic_store_n(&q->tail, h, __ATOMIC_RELAXED);
+        }
+    }
+#ifdef _WIN32
+    LeaveCriticalSection(&q->lock);
+#else
+    pthread_mutex_unlock(&q->lock);
+#endif
+    return task;
+}
+
+static inline js_task_t* wisp_deque_steal(wisp_deque_t *q) {
+    js_task_t *task = NULL;
+#ifdef _WIN32
+    EnterCriticalSection(&q->lock);
+#else
+    pthread_mutex_lock(&q->lock);
+#endif
+    while (1) {
+        int64_t h = __atomic_load_n(&q->head, __ATOMIC_SEQ_CST);
+        int64_t t = __atomic_load_n(&q->tail, __ATOMIC_ACQUIRE);
+        if (h >= t) {
+            break;
+        }
+        task = (js_task_t *)__atomic_load_n(&q->tasks[h % WISP_DEQUE_SIZE], __ATOMIC_ACQUIRE);
+        int64_t expected_h = h;
+        if (__atomic_compare_exchange_n(&q->head, &expected_h, h + 1, false, __ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) {
+            break;
+        }
+        task = NULL;
+    }
+#ifdef _WIN32
+    LeaveCriticalSection(&q->lock);
+#else
+    pthread_mutex_unlock(&q->lock);
+#endif
+    return task;
+}
+
 extern struct wisp_table *guit;
 static int active_web_workers = 0;
 #ifdef _WIN32
@@ -204,6 +311,7 @@ static WispPool* init_pool(int worker_count, int queue_size) {
     pool->worker_count = worker_count;
     pool->capacity = queue_size;
     pool->stop = false;
+    __atomic_store_n(&pool->dispatch_idx, 0, __ATOMIC_RELAXED);
 #ifdef _WIN32
     InitializeCriticalSection(&pool->lock);
     InitializeConditionVariable(&pool->cond);
@@ -228,6 +336,12 @@ static WispPool* init_pool(int worker_count, int queue_size) {
         memset(&null_thread, 0, sizeof(pthread_t));
         for (int i=0; i<worker_count; i++) pool->workers[i].thread = null_thread;
 #endif
+        for (int i = 0; i < worker_count; i++) {
+            for (int j = 0; j < 4; j++) {
+                wisp_deque_init(&pool->workers[i].deques[j]);
+                __atomic_store_n(&pool->workers[i].deficit[j], 0, __ATOMIC_RELAXED);
+            }
+        }
         pool->workers[0].running = true;
         start_worker(pool, 0);
     }
@@ -269,6 +383,16 @@ static void shutdown_pool(WispPool *pool) {
 #endif
         if (pool->workers[i].ctx != NULL) { JS_FreeContext(pool->workers[i].ctx); pool->workers[i].ctx = NULL; }
         if (pool->workers[i].rt != NULL) { JS_FreeRuntime(pool->workers[i].rt); pool->workers[i].rt = NULL; }
+    }
+    for (int i = 0; i < pool->worker_count; i++) {
+        for (int j = 0; j < 4; j++) {
+            js_task_t *task;
+            while ((task = wisp_deque_pop(&pool->workers[i].deques[j])) != NULL) {
+                if (task->script) free(task->script);
+                free(task);
+            }
+            wisp_deque_deinit(&pool->workers[i].deques[j]);
+        }
     }
     js_task_t *task = pool->head;
     while (task) {
@@ -333,61 +457,125 @@ void* wisp_worker_routine(void *arg) {
     rename_thread(find_thread(NULL), "Wisp Worker");
 #endif
 
+    const int64_t quanta[4] = { 10, 20, 50, 100 }; /* Quantums (in milliseconds) for tiers 0..3 */
+
     while (__atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
         js_task_t *task = NULL;
-        bool has_task = false;
-#ifdef _WIN32
-        EnterCriticalSection(&pool->lock);
-        while (pool->head == NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
-            BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000);
-            if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
-                if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
-                    __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
-                    pool->active_workers--;
-                    JS_FreeContext(worker->ctx); JS_FreeRuntime(worker->rt);
-                    worker->ctx = NULL; worker->rt = NULL;
-                    HANDLE h = worker->thread; worker->thread = NULL;
-                    LeaveCriticalSection(&pool->lock);
-                    if (h) CloseHandle(h);
-                    return NULL;
+        int active_tier = -1;
+
+        /* Retrospective Deficit Round Robin (R-DRR) local scheduling */
+        for (int j = 3; j >= 0; j--) {
+            int64_t h = __atomic_load_n(&worker->deques[j].head, __ATOMIC_RELAXED);
+            int64_t t = __atomic_load_n(&worker->deques[j].tail, __ATOMIC_RELAXED);
+            if (h >= t) {
+                /* Queue is empty. Clamp positive accumulated credit to 0, but preserve negative penalty. */
+                if (__atomic_load_n(&worker->deficit[j], __ATOMIC_RELAXED) > 0) {
+                    __atomic_store_n(&worker->deficit[j], 0, __ATOMIC_RELAXED);
+                }
+                continue;
+            }
+
+            int64_t def = __atomic_load_n(&worker->deficit[j], __ATOMIC_RELAXED);
+            if (def < 0) {
+                /* Frozen due to prior over-execution. Boost deficit back up to allow eventual recovery. */
+                __atomic_store_n(&worker->deficit[j], def + quanta[j], __ATOMIC_RELAXED);
+                continue;
+            }
+            /* Add credit to deficit counter */
+            __atomic_store_n(&worker->deficit[j], def + quanta[j], __ATOMIC_RELAXED);
+
+            task = wisp_deque_pop(&worker->deques[j]);
+            if (task != NULL) {
+                active_tier = j;
+                break;
+            }
+        }
+
+        /* Decentralized work-stealing if local deques are empty */
+        if (task == NULL) {
+            /* 1. Try to steal from siblings in the same pool */
+            for (int i = 0; i < pool->worker_count; i++) {
+                if (i == worker->worker_id) continue;
+                for (int j = 3; j >= 0; j--) {
+                    task = wisp_deque_steal(&pool->workers[i].deques[j]);
+                    if (task != NULL) {
+                        active_tier = j;
+                        break;
+                    }
+                }
+                if (task != NULL) break;
+            }
+        }
+
+        if (task == NULL && pool == js_pool && raster_pool != NULL) {
+            /* 2. Asymmetric crossing over: Background JS workers steal from Raster workers (Tier 3 Viewport tiles) */
+            for (int i = 0; i < raster_pool->worker_count; i++) {
+                task = wisp_deque_steal(&raster_pool->workers[i].deques[3]);
+                if (task != NULL) {
+                    active_tier = 3;
+                    break;
                 }
             }
         }
-        if (pool->head != NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
-            task = pool->head; pool->head = task->next;
-            if (pool->head == NULL) pool->tail = NULL;
-            pool->count--; has_task = true; pool->busy_workers++;
-        }
-        LeaveCriticalSection(&pool->lock);
-#else
-        pthread_mutex_lock(&pool->lock);
-        while (pool->head == NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
-            struct timespec ts;
-            clock_gettime(CLOCK_REALTIME, &ts);
-            ts.tv_sec += 5;
-            int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
-            if (wait_res == ETIMEDOUT) {
-                if (pool->head == NULL && pool->active_workers > 1 && !pool->stop) {
-                    __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
-                    pool->active_workers--;
-                    JS_FreeContext(worker->ctx); JS_FreeRuntime(worker->rt);
-                    worker->ctx = NULL; worker->rt = NULL;
-                    pthread_t null_thread; memset(&null_thread, 0, sizeof(pthread_t));
-                    worker->thread = null_thread;
-                    pthread_mutex_unlock(&pool->lock);
-                    pthread_detach(pthread_self());
-                    return NULL;
+
+        if (task == NULL) {
+            /* No tasks found. Block/wait for new tasks. */
+#ifdef _WIN32
+            EnterCriticalSection(&pool->lock);
+            while (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
+                BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000);
+                if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
+                    if (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && pool->active_workers > 1 && !pool->stop) {
+                        __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
+                        pool->active_workers--;
+                        JS_FreeContext(worker->ctx); JS_FreeRuntime(worker->rt);
+                        worker->ctx = NULL; worker->rt = NULL;
+                        HANDLE h = worker->thread; worker->thread = NULL;
+                        LeaveCriticalSection(&pool->lock);
+                        if (h) CloseHandle(h);
+                        return NULL;
+                    }
                 }
-            } else if (wait_res != 0) break;
-        }
-        if (pool->head != NULL && __atomic_load_n(&worker->running, __ATOMIC_RELAXED)) {
-            task = pool->head; pool->head = task->next;
-            if (pool->head == NULL) pool->tail = NULL;
-            pool->count--; has_task = true; pool->busy_workers++;
-        }
-        pthread_mutex_unlock(&pool->lock);
+            }
+            LeaveCriticalSection(&pool->lock);
+#else
+            pthread_mutex_lock(&pool->lock);
+            while (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_sec += 5;
+                int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
+                if (wait_res == ETIMEDOUT) {
+                    if (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && pool->active_workers > 1 && !pool->stop) {
+                        __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
+                        pool->active_workers--;
+                        JS_FreeContext(worker->ctx); JS_FreeRuntime(worker->rt);
+                        worker->ctx = NULL; worker->rt = NULL;
+                        pthread_t null_thread; memset(&null_thread, 0, sizeof(pthread_t));
+                        worker->thread = null_thread;
+                        pthread_mutex_unlock(&pool->lock);
+                        pthread_detach(pthread_self());
+                        return NULL;
+                    }
+                } else if (wait_res != 0) break;
+            }
+            pthread_mutex_unlock(&pool->lock);
 #endif
-        if (has_task && task) {
+            continue; /* Restart loop to re-poll deques */
+        }
+
+        /* Execute task */
+        if (task) {
+#ifdef _WIN32
+            EnterCriticalSection(&pool->lock); pool->busy_workers++; LeaveCriticalSection(&pool->lock);
+#else
+            pthread_mutex_lock(&pool->lock); pool->busy_workers++; pthread_mutex_unlock(&pool->lock);
+#endif
+            __atomic_sub_fetch(&pool->count, 1, __ATOMIC_SEQ_CST);
+
+            uint64_t start_time;
+            nsu_getmonotonic_ms(&start_time);
+
             if (task->script) {
                 JSValue val = js_eval_with_aot_cache(worker->ctx, (const uint8_t *)task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
                 JS_FreeValue(worker->ctx, val);
@@ -395,8 +583,18 @@ void* wisp_worker_routine(void *arg) {
                 while (JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1) > 0);
             }
             if (task->function) task->function(task->arg);
+
+            uint64_t end_time;
+            nsu_getmonotonic_ms(&end_time);
+            int64_t t_exec = (int64_t)(end_time - start_time);
+
+            /* Retroactively penalize active tier's deficit balance */
+            int64_t current_def = __atomic_load_n(&worker->deficit[active_tier], __ATOMIC_RELAXED);
+            __atomic_store_n(&worker->deficit[active_tier], current_def - t_exec, __ATOMIC_RELAXED);
+
             if (task->script) free(task->script);
             free(task);
+
 #ifdef _WIN32
             EnterCriticalSection(&pool->lock); pool->busy_workers--; LeaveCriticalSection(&pool->lock);
 #else
@@ -408,7 +606,7 @@ void* wisp_worker_routine(void *arg) {
 }
 
 static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*func)(void*), void *arg, float priority) {
-    if (!pool) return false;
+    if (!pool || pool->worker_count == 0) return false;
     js_task_t *new_task = malloc(sizeof(js_task_t));
     if (!new_task) return false;
     new_task->next = NULL;
@@ -418,29 +616,38 @@ static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*fu
     new_task->priority = priority;
     nsu_getmonotonic_ms(&new_task->entry_time);
     if (script && !new_task->script) { free(new_task); return false; }
-    int worker_to_start = -1;
-#ifdef _WIN32
-    EnterCriticalSection(&pool->lock);
-#else
-    pthread_mutex_lock(&pool->lock);
-#endif
-    if (pool->count < pool->capacity) {
-        uint64_t now; nsu_getmonotonic_ms(&now);
-        js_task_t *prev = NULL;
-        js_task_t *curr = pool->head;
-        while (curr != NULL) {
-            float curr_priority = curr->priority;
-            uint64_t age = now - curr->entry_time;
-            if (age > 5000) curr_priority += (float)(age - 5000) / 1000.0f;
-            if (curr_priority < priority) break;
-            prev = curr; curr = curr->next;
+
+    int tier = 0;
+    if (priority >= 0.75f) {
+        tier = 3;
+    } else if (priority >= 0.5f) {
+        tier = 2;
+    } else if (priority >= 0.25f) {
+        tier = 1;
+    } else {
+        tier = 0;
+    }
+
+    int start_idx = (int)(__atomic_fetch_add(&pool->dispatch_idx, 1, __ATOMIC_RELAXED) % pool->worker_count);
+    bool pushed = false;
+    for (int i = 0; i < pool->worker_count; i++) {
+        int idx = (start_idx + i) % pool->worker_count;
+        if (wisp_deque_push(&pool->workers[idx].deques[tier], new_task)) {
+            pushed = true;
+            break;
         }
-        new_task->next = curr;
-        if (prev == NULL) pool->head = new_task; else prev->next = new_task;
-        if (curr == NULL) pool->tail = new_task;
-        pool->count++;
+    }
+
+    if (pushed) {
+        int worker_to_start = -1;
+#ifdef _WIN32
+        EnterCriticalSection(&pool->lock);
+#else
+        pthread_mutex_lock(&pool->lock);
+#endif
+        __atomic_add_fetch(&pool->count, 1, __ATOMIC_SEQ_CST);
         if (pool->busy_workers == pool->active_workers && pool->active_workers < pool->worker_count) {
-            for (int i=0; i<pool->worker_count; i++) {
+            for (int i = 0; i < pool->worker_count; i++) {
 #ifdef _WIN32
                 if (!pool->workers[i].running && pool->workers[i].thread == NULL)
 #else
@@ -460,11 +667,6 @@ static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*fu
         if (worker_to_start != -1) start_worker(pool, worker_to_start);
         return true;
     } else {
-#ifdef _WIN32
-        LeaveCriticalSection(&pool->lock);
-#else
-        pthread_mutex_unlock(&pool->lock);
-#endif
         if (new_task->script) free(new_task->script);
         free(new_task);
         return false;
