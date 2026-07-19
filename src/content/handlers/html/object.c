@@ -630,7 +630,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
 static bool html_replace_object(struct content_html_object *object, nsurl *url)
 {
     html_content *c;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     html_content *page;
     nserror error;
 
@@ -819,7 +819,7 @@ bool html_fetch_object(html_content *c, nsurl *url, struct box *box, content_typ
 {
     struct content_html_object *object;
     hlcache_handle_callback object_callback;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     nserror error;
 
     PERF("OBJECT DISCOVER '%s' (bg=%d)", nsurl_access(url), background);
@@ -888,7 +888,7 @@ bool html_fetch_object_buffer(html_content *c, const uint8_t *data, size_t len, 
     content_type permitted_types)
 {
     struct content_html_object *object;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     nserror error;
 
     if (c->aborted)

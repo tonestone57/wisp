@@ -157,7 +157,7 @@ static nserror html_convert_css_callback(hlcache_handle *css, const hlcache_even
 
 static nserror html_stylesheet_from_domnode(html_content *c, dom_node *node, hlcache_handle **sheet)
 {
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     dom_string *style;
     nsurl *url;
     dom_exception exc;
@@ -413,7 +413,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     nsurl *joined;
     dom_exception exc;
     nserror ns_error;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
 
     /* rel=<space separated list, including 'stylesheet'> */
     exc = dom_element_get_attribute(node, corestring_dom_rel, &rel);
@@ -590,7 +590,7 @@ nserror html_css_free_stylesheets(html_content *html)
 nserror html_css_quirks_stylesheets(html_content *c)
 {
     nserror ns_error = NSERROR_OK;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
 
     assert(c->stylesheets != NULL);
 
@@ -620,7 +620,7 @@ nserror html_css_quirks_stylesheets(html_content *c)
 nserror html_css_new_stylesheets(html_content *c)
 {
     nserror ns_error;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
 
     if (c->stylesheets != NULL) {
         return NSERROR_OK; /* already initialised */
