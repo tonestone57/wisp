@@ -516,6 +516,7 @@ JS_EXTERN bool JS_IsLiveObject(JSRuntime *rt, JSValueConst obj);
 JS_EXTERN JSContext *JS_NewContext(JSRuntime *rt);
 JS_EXTERN void JS_FreeContext(JSContext *s);
 JS_EXTERN JSContext *JS_DupContext(JSContext *ctx);
+JS_EXTERN bool JS_ContextIsAlive(JSRuntime *rt, JSContext *ctx);
 JS_EXTERN void *JS_GetContextOpaque(JSContext *ctx);
 JS_EXTERN void JS_SetContextOpaque(JSContext *ctx, void *opaque);
 JS_EXTERN JSRuntime *JS_GetRuntime(JSContext *ctx);

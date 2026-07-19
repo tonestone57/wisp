@@ -2570,6 +2570,17 @@ void *JS_GetContextOpaque(JSContext *ctx)
     return ctx->user_opaque;
 }
 
+bool JS_ContextIsAlive(JSRuntime *rt, JSContext *ctx)
+{
+    struct list_head *el;
+    list_for_each(el, &rt->context_list) {
+        JSContext *c = list_entry(el, JSContext, link);
+        if (c == ctx)
+            return true;
+    }
+    return false;
+}
+
 void JS_SetContextOpaque(JSContext *ctx, void *opaque)
 {
     ctx->user_opaque = opaque;

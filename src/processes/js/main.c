@@ -17,6 +17,7 @@ static JSRuntime *rt;
 struct js_context_node {
     uint32_t id;
     JSContext *ctx;
+    struct jsthread *thread;
     struct js_context_node *next;
 };
 
@@ -54,6 +55,7 @@ static JSContext* get_context(uint32_t id) {
     struct js_context_node *node = malloc(sizeof(*node));
     node->id = id;
     node->ctx = JS_NewContext(rt);
+    node->thread = NULL;
     node->next = contexts;
     contexts = node;
 
@@ -103,6 +105,7 @@ static JSContext* get_context(uint32_t id) {
     t->global_window_priv.is_dom_node = false;
 
     JS_SetContextOpaque(node->ctx, t);
+    node->thread = t;
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -198,14 +201,24 @@ int main(int argc, char **argv) {
     /* Cleanup */
     struct js_context_node *curr = contexts;
     while (curr) {
+        if (curr->ctx) {
+            JS_SetContextOpaque(curr->ctx, NULL);
+            JS_FreeContext(curr->ctx);
+        }
+        curr = curr->next;
+    }
+
+    JS_FreeRuntime(rt);
+
+    curr = contexts;
+    while (curr) {
         struct js_context_node *next = curr->next;
-        struct jsthread *t = JS_GetContextOpaque(curr->ctx);
-        if (t) free(t);
-        JS_FreeContext(curr->ctx);
+        if (curr->thread) {
+            free(curr->thread);
+        }
         free(curr);
         curr = next;
     }
-    JS_FreeRuntime(rt);
     if (wisp_shm_dom) {
         shm_dom_destroy(wisp_shm_dom, NULL, false);
     }
