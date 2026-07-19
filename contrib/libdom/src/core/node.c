@@ -986,6 +986,8 @@ dom_exception _dom_node_replace_child(
     if (result != NULL) {
         dom_node_ref(old_child);
         *result = old_child;
+    } else {
+        dom_node_try_destroy((dom_node *)old_child);
     }
 
     return DOM_NO_ERR;
@@ -2109,6 +2111,8 @@ void _dom_node_detach(dom_node_internal *node)
     dom_node_mark_pending(node);
 
     _dom_node_detach_range(node, node);
+
+    dom_node_try_destroy((dom_node *)node);
 }
 
 /**

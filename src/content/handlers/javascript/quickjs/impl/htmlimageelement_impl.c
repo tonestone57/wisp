@@ -10,8 +10,6 @@
 #include "JSHTMLImageElement.gen.h"
 
 extern bool wisp_is_js_process;
-extern JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
-extern JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * value);
 
 JSValue wisp_htmlimageelement_Image_impl(JSContext *ctx, uint32_t width, uint32_t height)
 {

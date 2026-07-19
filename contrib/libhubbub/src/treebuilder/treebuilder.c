@@ -934,6 +934,11 @@ hubbub_error element_stack_pop(hubbub_treebuilder *treebuilder, hubbub_ns *ns, e
         complete_svg(treebuilder, stack[slot].node);
     }
 
+    /* Clean the slot data to prevent duplicate unrefs of the HTML element on destruction */
+    stack[slot].ns = HUBBUB_NS_NULL;
+    stack[slot].type = UNKNOWN;
+    stack[slot].node = NULL;
+
     /** \todo reduce allocated stack size once there's enough free */
 
     if (slot > 0) {
