@@ -605,51 +605,8 @@ void hlcache_stop(void)
 /* See hlcache.h for documentation */
 void hlcache_finalise(void)
 {
-    uint32_t num_contents, prev_contents;
     hlcache_entry *entry;
     hlcache_retrieval_ctx *ctx, *next;
-
-    /* Obtain initial count of contents remaining */
-    for (num_contents = 0, entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        num_contents++;
-    }
-
-    NSLOG(wisp, INFO, "%" PRIu32 " contents remain before cache drain", num_contents);
-
-    /* Drain cache */
-    do {
-        prev_contents = num_contents;
-
-        hlcache_clean(NULL);
-
-        for (num_contents = 0, entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            num_contents++;
-        }
-    } while (num_contents > 0 && num_contents != prev_contents);
-
-    NSLOG(wisp, INFO, "%" PRIu32 " contents remaining after being polite", num_contents);
-
-    /* Drain cache again, forcing the matter */
-    do {
-        prev_contents = num_contents;
-
-        hlcache_clean(&entry); // Any non-NULL pointer will do
-
-        for (num_contents = 0, entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            num_contents++;
-        }
-    } while (num_contents > 0 && num_contents != prev_contents);
-
-    NSLOG(wisp, INFO, "%" PRIu32 " contents remaining:", num_contents);
-    for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        hlcache_handle entry_handle = {entry, NULL, NULL};
-        if (entry->content != NULL) {
-            NSLOG(wisp, INFO, "	%p : %s (%" PRIu32 " users)", entry,
-                nsurl_access(hlcache_handle_get_url(&entry_handle)), content_count_users(entry->content));
-        } else {
-            NSLOG(wisp, INFO, "	%p", entry);
-        }
-    }
 
     /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown */
     entry = hlcache->content_list;
