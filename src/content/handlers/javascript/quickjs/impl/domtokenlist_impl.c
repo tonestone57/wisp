@@ -9,6 +9,8 @@
 #include "utils/libdom.h"
 #include "JSDOMTokenList.gen.h"
 
+extern bool wisp_is_js_process;
+
 #define MAX_TOKENS 128
 
 typedef struct {
@@ -317,7 +319,7 @@ JSValue qjs_new_domtokenlist(JSContext *ctx, void *node, bool is_dom_node)
     priv->node = node;
     priv->is_dom_node = is_dom_node;
     priv->ctx = ctx;
-    if (is_dom_node && node) dom_node_ref((dom_node *)node);
+    if (is_dom_node && node && !wisp_is_js_process) dom_node_ref((dom_node *)node);
     JS_SetOpaque(obj, priv);
 
     /* Wrap in proxy to support indexed token access */
