@@ -416,6 +416,10 @@ static dom_exception _dom_html_document_create_element_internal(dom_html_documen
         if (exc != DOM_NO_ERR)
             return exc;
         params.type = _dom_html_document_get_element_type(html, params.name);
+        if (params.type != DOM_HTML_ELEMENT_TYPE__UNKNOWN && html->elements != NULL && html->elements[params.type] != NULL) {
+            dom_string_unref(params.name);
+            params.name = dom_string_ref(html->elements[params.type]);
+        }
     }
 
     params.doc = html;
