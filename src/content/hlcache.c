@@ -605,56 +605,16 @@ void hlcache_stop(void)
 /* See hlcache.h for documentation */
 void hlcache_finalise(void)
 {
-    uint32_t num_contents, prev_contents;
     hlcache_entry *entry;
     hlcache_retrieval_ctx *ctx, *next;
 
-    /* Obtain initial count of contents remaining */
-    for (num_contents = 0, entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        num_contents++;
-    }
+    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown.
+     * We use a two-pass destruction process to prevent heap-use-after-free crashes when destroying
+     * nested resources (e.g. stylesheet imports unreferencing handles that point to other entries). */
 
-    NSLOG(wisp, INFO, "%" PRIu32 " contents remain before cache drain", num_contents);
-
-    /* Drain cache */
-    do {
-        prev_contents = num_contents;
-
-        hlcache_clean(NULL);
-
-        for (num_contents = 0, entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            num_contents++;
-        }
-    } while (num_contents > 0 && num_contents != prev_contents);
-
-    NSLOG(wisp, INFO, "%" PRIu32 " contents remaining after being polite", num_contents);
-
-    /* Drain cache again, forcing the matter */
-    do {
-        prev_contents = num_contents;
-
-        hlcache_clean(&entry); // Any non-NULL pointer will do
-
-        for (num_contents = 0, entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            num_contents++;
-        }
-    } while (num_contents > 0 && num_contents != prev_contents);
-
-    NSLOG(wisp, INFO, "%" PRIu32 " contents remaining:", num_contents);
-    for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        hlcache_handle entry_handle = {entry, NULL, NULL};
-        if (entry->content != NULL) {
-            NSLOG(wisp, INFO, "	%p : %s (%" PRIu32 " users)", entry,
-                nsurl_access(hlcache_handle_get_url(&entry_handle)), content_count_users(entry->content));
-        } else {
-            NSLOG(wisp, INFO, "	%p", entry);
-        }
-    }
-
-    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown */
+    /* Pass 1: Destroy all remaining content objects */
     entry = hlcache->content_list;
     while (entry != NULL) {
-        hlcache_entry *next_entry = entry->next;
         if (entry->content != NULL) {
             struct content *c = entry->content;
 
@@ -676,8 +636,19 @@ void hlcache_finalise(void)
                 c->user_list->next = NULL;
             }
 
+            /* Clear entry->content BEFORE calling content_destroy to prevent re-entrant/late releases
+             * from accessing already destroyed content. */
+            entry->content = NULL;
+
             content_destroy(c);
         }
+        entry = entry->next;
+    }
+
+    /* Pass 2: Free all hlcache_entry structures */
+    entry = hlcache->content_list;
+    while (entry != NULL) {
+        hlcache_entry *next_entry = entry->next;
         free(entry);
         entry = next_entry;
     }
@@ -931,7 +902,9 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 nserror hlcache_handle_release(hlcache_handle *handle)
 {
     if (handle->entry != NULL) {
-        content_remove_user(handle->entry->content, hlcache_content_callback, handle);
+        if (handle->entry->content != NULL) {
+            content_remove_user(handle->entry->content, hlcache_content_callback, handle);
+        }
     } else {
         RING_ITERATE_START(struct hlcache_retrieval_ctx, hlcache->retrieval_ctx_ring, ictx)
         {

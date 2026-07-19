@@ -9,8 +9,11 @@
 #include "utils/libdom.h"
 #include "JSHTMLImageElement.gen.h"
 
+extern bool wisp_is_js_process;
+
 JSValue wisp_htmlimageelement_Image_impl(JSContext *ctx, uint32_t width, uint32_t height)
 {
+    if (wisp_is_js_process) return JS_NULL;
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return JS_NULL;
     struct dom_document *doc = qjs_thread_get_document(t);
