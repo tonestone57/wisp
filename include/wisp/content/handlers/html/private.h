@@ -260,6 +260,13 @@ static inline void doc_rwlock_uplock(doc_rwlock_t *lock) {
     pthread_mutex_lock(&lock->mutex);
     pthread_t self = pthread_self();
 
+    /* If this thread already holds the write lock, recursively acquire the lock as writer */
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        lock->write_count++;
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+
     if (lock->has_upgrade && pthread_equal(lock->upgrade_thread, self)) {
         lock->upgrade_count++;
         for (int i = 0; i < MAX_READER_THREADS; i++) {
@@ -299,6 +306,16 @@ static inline void doc_rwlock_upunlock(doc_rwlock_t *lock) {
     pthread_mutex_lock(&lock->mutex);
     pthread_t self = pthread_self();
 
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        lock->write_count--;
+        if (lock->write_count == 0) {
+            lock->has_writer = false;
+            pthread_cond_broadcast(&lock->cond);
+        }
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
+
     if (lock->has_upgrade && pthread_equal(lock->upgrade_thread, self)) {
         lock->upgrade_count--;
 
@@ -325,6 +342,12 @@ static inline void doc_rwlock_upunlock(doc_rwlock_t *lock) {
 static inline void doc_rwlock_upgrade(doc_rwlock_t *lock) {
     pthread_mutex_lock(&lock->mutex);
     pthread_t self = pthread_self();
+
+    /* If we already hold the write lock, upgrading is a no-op */
+    if (lock->has_writer && pthread_equal(lock->writer_thread, self)) {
+        pthread_mutex_unlock(&lock->mutex);
+        return;
+    }
 
     assert(lock->has_upgrade && pthread_equal(lock->upgrade_thread, self));
 
