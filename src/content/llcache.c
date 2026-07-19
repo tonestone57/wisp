@@ -2805,7 +2805,11 @@ static void llcache_persist(void *p)
 
     ret = build_candidate_list(&lst, &lst_count);
     if (ret != NSERROR_OK) {
-        NSLOG(llcache, WARNING, "Unable to construct candidate list for persistent writeout");
+        if (ret == NSERROR_NOT_FOUND) {
+            NSLOG(llcache, DEBUG, "No candidates found for persistent writeout");
+        } else {
+            NSLOG(llcache, WARNING, "Unable to construct candidate list for persistent writeout: %d", ret);
+        }
         return;
     }
 

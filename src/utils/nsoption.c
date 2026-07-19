@@ -25,6 +25,7 @@
  * For bool options, value is "0" or "1".
  */
 
+#include <errno.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -679,7 +680,11 @@ nserror nsoption_read(const char *path, struct nsoption_s *opts)
 
     fp = fopen(path, "r");
     if (!fp) {
-        NSLOG(wisp, WARNING, "Failed to open file '%s'", path);
+        if (errno == ENOENT) {
+            NSLOG(wisp, INFO, "Option file '%s' not found (this is normal for a clean installation)", path);
+        } else {
+            NSLOG(wisp, WARNING, "Failed to open file '%s': %s", path, strerror(errno));
+        }
         return NSERROR_NOT_FOUND;
     }
 
