@@ -36,15 +36,17 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
     if (priv) {
         WispXHR *xhr = priv->node;
         if (xhr) {
-            struct jsthread *t = JS_GetContextOpaque(xhr->ctx);
-            if (t) {
-                WispXHR **curr = &t->xmlhttprequests;
-                while (*curr) {
-                    if (*curr == xhr) {
-                        *curr = xhr->next;
-                        break;
+            if (JS_ContextIsAlive(rt, xhr->ctx)) {
+                struct jsthread *t = JS_GetContextOpaque(xhr->ctx);
+                if (t) {
+                    WispXHR **curr = &t->xmlhttprequests;
+                    while (*curr) {
+                        if (*curr == xhr) {
+                            *curr = xhr->next;
+                            break;
+                        }
+                        curr = &((*curr)->next);
                     }
-                    curr = &((*curr)->next);
                 }
             }
             if (xhr->fetch_handle) {
@@ -52,7 +54,9 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
                 fetch_abort(xhr->fetch_handle);
                 fetch_free(xhr->fetch_handle);
                 xhr->fetch_handle = NULL;
-                xhr_remove_active(xhr->ctx, xhr);
+                if (JS_ContextIsAlive(rt, xhr->ctx)) {
+                    xhr_remove_active(xhr->ctx, xhr);
+                }
             }
             free(xhr->statusText);
             free(xhr->method);

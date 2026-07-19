@@ -134,15 +134,17 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
     if (priv) {
         WispMutationObserver *observer = priv->node;
         if (observer) {
-            struct jsthread *t = JS_GetContextOpaque(priv->ctx);
-            if (t) {
-                WispMutationObserver **curr = &t->mutation_observers;
-                while (*curr) {
-                    if (*curr == observer) {
-                        *curr = observer->next;
-                        break;
+            if (JS_ContextIsAlive(rt, priv->ctx)) {
+                struct jsthread *t = JS_GetContextOpaque(priv->ctx);
+                if (t) {
+                    WispMutationObserver **curr = &t->mutation_observers;
+                    while (*curr) {
+                        if (*curr == observer) {
+                            *curr = observer->next;
+                            break;
+                        }
+                        curr = &((*curr)->next);
                     }
-                    curr = &((*curr)->next);
                 }
             }
             JS_FreeValueRT(rt, observer->callback);
