@@ -10,6 +10,8 @@
 #include "JSMutationObserver.gen.h"
 #include "observer_internal.h"
 
+extern bool wisp_is_js_process;
+
 JSValue qjs_new_mutationrecord_manual(JSContext *ctx, WispMutationRecord *record);
 
 static char *dom_string_to_c(struct dom_string *s)
@@ -153,7 +155,8 @@ static void mutationobserver_finalizer(JSRuntime *rt, JSValue val)
             MutationObserverTarget *ot = observer->targets;
             while (ot) {
                 MutationObserverTarget *next = ot->next;
-                dom_node_unref(ot->node); free(ot); ot = next;
+                if (!wisp_is_js_process) dom_node_unref(ot->node);
+                free(ot); ot = next;
             }
             free(observer);
         }
@@ -167,7 +170,8 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 {
     WispMutationObserver *observer = priv->node;
     MutationObserverTarget *ot = calloc(1, sizeof(MutationObserverTarget));
-    ot->node = target; dom_node_ref(target);
+    ot->node = target;
+    if (!wisp_is_js_process) dom_node_ref(target);
 
     if (JS_IsObject(options)) {
         JSValue val;
@@ -184,12 +188,14 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
         val = JS_GetPropertyStr(ctx, options, "characterDataOldValue");
         ot->characterDataOldValue = JS_ToBool(ctx, val); JS_FreeValue(ctx, val);
     } else {
-        free(ot); dom_node_unref(target);
+        free(ot);
+        if (!wisp_is_js_process) dom_node_unref(target);
         return JS_ThrowTypeError(ctx, "MutationObserver.observe: options must be an object");
     }
 
     if (!ot->childList && !ot->attributes && !ot->characterData) {
-        free(ot); dom_node_unref(target);
+        free(ot);
+        if (!wisp_is_js_process) dom_node_unref(target);
         return JS_ThrowTypeError(ctx, "MutationObserver.observe: at least one of childList, attributes, or characterData must be true");
     }
 
@@ -212,7 +218,8 @@ JSValue wisp_mutationobserver_disconnect_impl(JSContext *ctx, QJSNodePrivate *pr
     MutationObserverTarget *ot = observer->targets;
     while (ot) {
         MutationObserverTarget *next = ot->next;
-        dom_node_unref(ot->node); free(ot); ot = next;
+        if (!wisp_is_js_process) dom_node_unref(ot->node);
+        free(ot); ot = next;
     }
     observer->targets = NULL;
     return JS_UNDEFINED;

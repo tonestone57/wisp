@@ -58,6 +58,13 @@ JSValue wisp_htmlimageelement_Image_impl(JSContext *ctx, uint32_t width, uint32_
 JSValue wisp_htmlimageelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, priv, "src");
+        if (JS_IsNull(val) || JS_IsUndefined(val)) {
+            return JS_NewString(ctx, "");
+        }
+        return val;
+    }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"src", 3, &attr_name);
     dom_string *value_dom = NULL;
@@ -74,6 +81,9 @@ JSValue wisp_htmlimageelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_htmlimageelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        return wisp_element_setAttribute_impl(ctx, priv, "src", value);
+    }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"src", 3, &attr_name);
     dom_string *value_dom = NULL;
@@ -87,6 +97,19 @@ JSValue wisp_htmlimageelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 JSValue wisp_htmlimageelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    if (wisp_is_js_process) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, priv, "width");
+        int res_val = 0;
+        if (JS_IsString(val)) {
+            const char *str = JS_ToCString(ctx, val);
+            if (str) {
+                res_val = atoi(str);
+                JS_FreeCString(ctx, str);
+            }
+        }
+        JS_FreeValue(ctx, val);
+        return JS_NewInt32(ctx, res_val);
+    }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"width", 5, &attr_name);
     dom_string *value_dom = NULL;
@@ -105,6 +128,9 @@ JSValue wisp_htmlimageelement_width_set_impl(JSContext *ctx, QJSNodePrivate *pri
     if (!priv || !priv->node) return JS_UNDEFINED;
     char buf[32];
     snprintf(buf, sizeof(buf), "%u", value);
+    if (wisp_is_js_process) {
+        return wisp_element_setAttribute_impl(ctx, priv, "width", buf);
+    }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"width", 5, &attr_name);
     dom_string *value_dom = NULL;
@@ -118,6 +144,19 @@ JSValue wisp_htmlimageelement_width_set_impl(JSContext *ctx, QJSNodePrivate *pri
 JSValue wisp_htmlimageelement_height_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    if (wisp_is_js_process) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, priv, "height");
+        int res_val = 0;
+        if (JS_IsString(val)) {
+            const char *str = JS_ToCString(ctx, val);
+            if (str) {
+                res_val = atoi(str);
+                JS_FreeCString(ctx, str);
+            }
+        }
+        JS_FreeValue(ctx, val);
+        return JS_NewInt32(ctx, res_val);
+    }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"height", 6, &attr_name);
     dom_string *value_dom = NULL;
@@ -136,6 +175,9 @@ JSValue wisp_htmlimageelement_height_set_impl(JSContext *ctx, QJSNodePrivate *pr
     if (!priv || !priv->node) return JS_UNDEFINED;
     char buf[32];
     snprintf(buf, sizeof(buf), "%u", value);
+    if (wisp_is_js_process) {
+        return wisp_element_setAttribute_impl(ctx, priv, "height", buf);
+    }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"height", 6, &attr_name);
     dom_string *value_dom = NULL;
