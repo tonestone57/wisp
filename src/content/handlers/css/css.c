@@ -584,7 +584,7 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
     content_type accept = CONTENT_CSS;
     struct content_css_data *c = pw;
     nscss_import_ctx *ctx;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     struct nscss_import *imports;
     const char *referer;
     css_error error;

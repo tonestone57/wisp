@@ -3002,7 +3002,7 @@ nserror browser_window_navigate(struct browser_window *bw, nsurl *url, nsurl *re
     uint32_t fetch_flags = 0;
     bool fetch_is_post = (post_urlenc != NULL || post_multipart != NULL);
     llcache_post_data post;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     nserror error;
     bool is_internal = false;
     struct browser_fetch_parameters params, *pass_params = NULL;
@@ -3194,7 +3194,7 @@ static nserror navigate_internal_real(struct browser_window *bw, struct browser_
     uint32_t fetch_flags = 0;
     bool fetch_is_post;
     llcache_post_data post;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     nserror res;
     hlcache_handle *c;
 

@@ -1087,6 +1087,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
         struct dom_document *doc = qjs_thread_get_document(thread);
         if (doc) {
+            dom_node_ref((dom_node *)doc);
             serialize_dom_tree(thread->shm_dom, doc);
         }
 

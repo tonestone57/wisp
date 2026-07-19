@@ -469,7 +469,7 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
 {
     nserror ns_error;
     nsurl *joined;
-    hlcache_child_context child;
+    hlcache_child_context child = { 0 };
     struct html_script *nscript;
     bool async;
     bool defer;
