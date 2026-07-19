@@ -395,10 +395,15 @@ dom_exception _dom_node_get_node_name(dom_node_internal *node, dom_string **resu
     dom_string *node_name, *temp;
     dom_exception err;
 
-    /* Document Node and DocumentType Node can have no owner */
-    assert(node->type == DOM_DOCUMENT_TYPE_NODE || node->type == DOM_DOCUMENT_NODE || node->owner != NULL);
+    if (node == NULL) {
+        *result = NULL;
+        return DOM_NO_ERR;
+    }
 
-    assert(node->name != NULL);
+    if (node->name == NULL) {
+        *result = NULL;
+        return DOM_NO_ERR;
+    }
 
     /* If this node was created using a namespace-aware method and
      * has a defined prefix, then nodeName is a QName comprised

@@ -83,19 +83,19 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
     JSValue wrapper;
     switch (type) {
         case DOM_ELEMENT_NODE:
-            wrapper = qjs_new_element(ctx, node, !wisp_is_js_process);
+            wrapper = qjs_new_element(ctx, node, true);
             break;
         case DOM_DOCUMENT_NODE:
-            wrapper = qjs_new_document(ctx, node, !wisp_is_js_process);
+            wrapper = qjs_new_document(ctx, node, true);
             break;
         case DOM_TEXT_NODE:
-            wrapper = qjs_new_text(ctx, node, !wisp_is_js_process);
+            wrapper = qjs_new_text(ctx, node, true);
             break;
         case DOM_ATTRIBUTE_NODE:
-            wrapper = qjs_new_attr(ctx, node, !wisp_is_js_process);
+            wrapper = qjs_new_attr(ctx, node, true);
             break;
         default:
-            wrapper = qjs_new_node(ctx, node, !wisp_is_js_process);
+            wrapper = qjs_new_node(ctx, node, true);
             break;
     }
 

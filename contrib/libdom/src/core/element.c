@@ -1170,7 +1170,8 @@ dom_exception dom_element_named_ancestor_node(dom_element *element, lwc_string *
         if (node->type != DOM_ELEMENT_NODE)
             continue;
 
-        assert(node->name != NULL);
+        if (node->name == NULL)
+            continue;
 
         if (dom_string_caseless_lwc_isequal(node->name, name)) {
             *ancestor = (dom_element *)dom_node_ref(node);
@@ -1201,7 +1202,8 @@ dom_exception dom_element_named_parent_node(dom_element *element, lwc_string *na
         if (node->type != DOM_ELEMENT_NODE)
             continue;
 
-        assert(node->name != NULL);
+        if (node->name == NULL)
+            continue;
 
         if (dom_string_caseless_lwc_isequal(node->name, name)) {
             *parent = (dom_element *)dom_node_ref(node);
