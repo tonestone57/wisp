@@ -660,9 +660,9 @@ static bool wisp_dispatch_internal(WispPool *pool, const char *script, void (*fu
             }
         }
 #ifdef _WIN32
-        WakeConditionVariable(&pool->cond); LeaveCriticalSection(&pool->lock);
+        WakeAllConditionVariable(&pool->cond); LeaveCriticalSection(&pool->lock);
 #else
-        pthread_cond_signal(&pool->cond); pthread_mutex_unlock(&pool->lock);
+        pthread_cond_broadcast(&pool->cond); pthread_mutex_unlock(&pool->lock);
 #endif
         if (worker_to_start != -1) start_worker(pool, worker_to_start);
         return true;
