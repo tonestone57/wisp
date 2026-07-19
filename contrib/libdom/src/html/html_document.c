@@ -254,6 +254,10 @@ dom_exception _dom_html_document_copy(dom_node_internal *old, dom_node_internal 
  */
 static inline dom_html_element_type _dom_html_document_get_element_type(dom_html_document *html, dom_string *upper)
 {
+    if (html == NULL || html->elements == NULL) {
+        return DOM_HTML_ELEMENT_TYPE__UNKNOWN;
+    }
+
     size_t len = dom_string_byte_length(upper);
 
     switch (len) {
@@ -842,12 +846,20 @@ dom_exception _dom_html_document_get_title(dom_html_document *doc, dom_string **
     dom_exception exc = DOM_NO_ERR;
     *title = NULL;
 
+    if (doc == NULL) {
+        return DOM_INVALID_CHARACTER_ERR;
+    }
+
     if (doc->title != NULL) {
         *title = dom_string_ref(doc->title);
     } else {
         dom_element *node;
         dom_nodelist *nodes;
         uint32_t len;
+
+        if (doc->elements == NULL) {
+            return DOM_INVALID_STATE_ERR;
+        }
 
         exc = dom_document_get_elements_by_tag_name(doc, doc->elements[DOM_HTML_ELEMENT_TYPE_TITLE], &nodes);
         if (exc != DOM_NO_ERR) {
@@ -913,12 +925,20 @@ dom_exception _dom_html_document_get_body(dom_html_document *doc, struct dom_htm
 {
     dom_exception exc = DOM_NO_ERR;
 
+    if (doc == NULL) {
+        return DOM_INVALID_CHARACTER_ERR;
+    }
+
     if (doc->body != NULL) {
         *body = doc->body;
     } else {
         dom_element *node;
         dom_nodelist *nodes;
         uint32_t len;
+
+        if (doc->elements == NULL) {
+            return DOM_INVALID_STATE_ERR;
+        }
 
         exc = dom_document_get_elements_by_tag_name(doc, doc->elements[DOM_HTML_ELEMENT_TYPE_BODY], &nodes);
         if (exc != DOM_NO_ERR) {
@@ -976,6 +996,9 @@ dom_exception _dom_html_document_set_body(dom_html_document *doc, struct dom_htm
 bool images_callback(struct dom_node_internal *node, void *ctx)
 {
     dom_html_document *doc = ctx;
+    if (doc == NULL || doc->elements == NULL) {
+        return false;
+    }
     if (node->type == DOM_ELEMENT_NODE &&
         dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_IMG])) {
         return true;
@@ -999,6 +1022,9 @@ dom_exception _dom_html_document_get_images(dom_html_document *doc, struct dom_h
 bool applet_callback(struct dom_node_internal *node, void *ctx)
 {
     dom_html_document *doc = ctx;
+    if (doc == NULL || doc->elements == NULL) {
+        return false;
+    }
     if (node->type == DOM_ELEMENT_NODE &&
         dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_APPLET])) {
         return true;
@@ -1015,6 +1041,9 @@ bool applet_callback(struct dom_node_internal *node, void *ctx)
 bool applets_callback(struct dom_node_internal *node, void *ctx)
 {
     dom_html_document *doc = ctx;
+    if (doc == NULL || doc->elements == NULL) {
+        return false;
+    }
     if (node->type == DOM_ELEMENT_NODE &&
         dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_OBJECT])) {
         uint32_t len = 0;
@@ -1052,6 +1081,9 @@ dom_exception _dom_html_document_get_applets(dom_html_document *doc, struct dom_
 bool links_callback(struct dom_node_internal *node, void *ctx)
 {
     dom_html_document *doc = ctx;
+    if (doc == NULL || doc->elements == NULL || doc->memoised == NULL) {
+        return false;
+    }
     if (node->type == DOM_ELEMENT_NODE &&
         (dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_A]) ||
             dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_AREA]))) {
@@ -1086,6 +1118,10 @@ static bool __dom_html_document_node_is_form(dom_node_internal *node, void *ctx)
     dom_html_document *doc = (dom_html_document *)node->owner;
 
     UNUSED(ctx);
+
+    if (doc == NULL || doc->elements == NULL) {
+        return false;
+    }
 
     return dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_FORM]);
 }
@@ -1123,6 +1159,9 @@ dom_exception _dom_html_document_get_forms(dom_html_document *doc, struct dom_ht
 bool anchors_callback(struct dom_node_internal *node, void *ctx)
 {
     dom_html_document *doc = ctx;
+    if (doc == NULL || doc->elements == NULL || doc->memoised == NULL) {
+        return false;
+    }
     if (node->type == DOM_ELEMENT_NODE &&
         dom_string_caseless_isequal(node->name, doc->elements[DOM_HTML_ELEMENT_TYPE_A])) {
         bool has_value = false;

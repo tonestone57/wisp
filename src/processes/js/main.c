@@ -202,12 +202,14 @@ int main(int argc, char **argv) {
     struct js_context_node *curr = contexts;
     while (curr) {
         if (curr->ctx) {
+            qjs_finalise_dom_bridge(curr->ctx);
             JS_SetContextOpaque(curr->ctx, NULL);
             JS_FreeContext(curr->ctx);
         }
         curr = curr->next;
     }
 
+    qjs_bridge_cleanup(rt);
     JS_FreeRuntime(rt);
 
     curr = contexts;
@@ -223,5 +225,6 @@ int main(int argc, char **argv) {
         shm_dom_destroy(wisp_shm_dom, NULL, false);
     }
     wisp_ipc_destroy(ipc_main);
+    corestrings_fini();
     return 0;
 }
