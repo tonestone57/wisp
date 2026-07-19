@@ -12,6 +12,7 @@
 struct nsurl;
 extern const char *nsurl_access(const struct nsurl *url);
 extern struct nsurl *content_get_url(void *c);
+extern nserror nsurl_create(const char *const url_s, struct nsurl **url);
 
 extern bool wisp_is_js_process;
 
