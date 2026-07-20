@@ -81,7 +81,7 @@ static dom_document *create_test_document(void)
     dom_node_unref((dom_node *)p_el);
     dom_string_unref(p_s);
 
-    dom_node_unref((dom_node *)body_el);
+    dom_node_unref((dom_node *)body_el); /* Fix memory leak: unref body_el after appending to html_el */
     dom_node_unref((dom_node *)html_el);
 
     return doc;
