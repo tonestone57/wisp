@@ -901,6 +901,11 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 /* See hlcache.h for documentation */
 nserror hlcache_handle_release(hlcache_handle *handle)
 {
+    if (hlcache == NULL) {
+        free(handle);
+        return NSERROR_OK;
+    }
+
     if (handle->entry != NULL) {
         if (handle->entry->content != NULL) {
             content_remove_user(handle->entry->content, hlcache_content_callback, handle);
@@ -936,6 +941,10 @@ nserror hlcache_handle_release(hlcache_handle *handle)
 /* See hlcache.h for documentation */
 struct content *hlcache_handle_get_content(const hlcache_handle *handle)
 {
+    if (hlcache == NULL) {
+        return NULL;
+    }
+
     if ((handle != NULL) && (handle->entry != NULL)) {
         return handle->entry->content;
     }
@@ -946,6 +955,10 @@ struct content *hlcache_handle_get_content(const hlcache_handle *handle)
 /* See hlcache.h for documentation */
 nserror hlcache_handle_abort(hlcache_handle *handle)
 {
+    if (hlcache == NULL) {
+        return NSERROR_OK;
+    }
+
     struct hlcache_entry *entry = handle->entry;
     struct content *c;
 
@@ -1105,6 +1118,10 @@ nserror hlcache_handle_clone(hlcache_handle *handle, hlcache_handle **result)
 nsurl *hlcache_handle_get_url(const hlcache_handle *handle)
 {
     nsurl *result = NULL;
+
+    if (hlcache == NULL) {
+        return NULL;
+    }
 
     assert(handle != NULL);
 
