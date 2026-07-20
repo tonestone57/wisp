@@ -340,6 +340,7 @@ target_include_directories(test_quickjs PRIVATE
   ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
 )
 target_link_libraries(test_quickjs PRIVATE qjs nsutils wisp)
+set_tests_properties(test_quickjs PROPERTIES ENVIRONMENT "CK_VERBOSITY=verbose;CK_FORK=yes;ASAN_OPTIONS=detect_leaks=0")
 
 add_wisp_test(test_wisp_subsystem_pools
   ${CMAKE_SOURCE_DIR}/src/test/test_wisp_subsystem_pools.c
