@@ -134,8 +134,30 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             info->finished = true;
             info->fetchh = NULL;
             break;
+        case FETCH_TIMEDOUT:
+        case FETCH_CERT_ERR:
+        case FETCH_SSL_ERR: {
+            imsg.type = WISP_IPC_MSG_FETCH_ERROR;
+            const char *err_msg = (msg->type == FETCH_TIMEDOUT) ? "Timeout" :
+                                  (msg->type == FETCH_SSL_ERR) ? "SSLError" : "CertError";
+            imsg.length = 4 + strlen(err_msg) + 1;
+            imsg.data = malloc(imsg.length);
+            if (!imsg.data) return;
+            memcpy(imsg.data, &fetch_id, 4);
+            memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
+            wisp_ipc_send(ipc_main, &imsg);
+            free(imsg.data);
+            info->finished = true;
+            info->fetchh = NULL;
+            break;
+        }
         default:
             break;
+    }
+
+    if (msg->type >= FETCH_FINISHED) {
+        info->finished = true;
+        info->fetchh = NULL;
     }
 }
 
