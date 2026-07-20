@@ -18,6 +18,7 @@
 
 #include <glib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <pthread.h>
 
@@ -32,6 +33,7 @@ typedef struct {
     void (*callback)(void *); /**< The callback function. */
     void *context; /**< The context for the callback. */
     bool callback_killed; /**< Whether or not this was killed. */
+    uintptr_t id; /**< Unique callback ID. */
 } _nsgtk_callback_t;
 
 /** List of callbacks which have occurred and are pending running. */
@@ -40,13 +42,33 @@ static GList *pending_callbacks = NULL;
 static GList *queued_callbacks = NULL;
 /** List of callbacks which are about to be run in this ::schedule_run. */
 static GList *this_run = NULL;
+/** List of callbacks which are currently active (allocated and not yet run or freed). */
+static GList *active_callbacks = NULL;
+static uintptr_t next_callback_id = 1;
 
 static pthread_mutex_t schedule_lock = PTHREAD_MUTEX_INITIALIZER;
 
+static _nsgtk_callback_t *find_active_callback_by_id(uintptr_t id)
+{
+    GList *l;
+    for (l = active_callbacks; l != NULL; l = l->next) {
+        _nsgtk_callback_t *cb = (_nsgtk_callback_t *)l->data;
+        if (cb->id == id) {
+            return cb;
+        }
+    }
+    return NULL;
+}
+
 static gboolean nsgtk_schedule_generic_callback(gpointer data)
 {
-    _nsgtk_callback_t *cb = (_nsgtk_callback_t *)(data);
+    uintptr_t cb_id = (uintptr_t)data;
     pthread_mutex_lock(&schedule_lock);
+    _nsgtk_callback_t *cb = find_active_callback_by_id(cb_id);
+    if (cb == NULL) {
+        pthread_mutex_unlock(&schedule_lock);
+        return FALSE;
+    }
     if (cb->callback_killed) {
         /* This callback instance has been killed. */
         NSLOG(schedule, DEEPDEBUG, "CB at %p already dead.", cb);
@@ -100,14 +122,19 @@ static nserror schedule_remove(void (*callback)(void *p), void *cbctx)
 
 typedef struct {
     int t;
-    _nsgtk_callback_t *cb;
+    uintptr_t cb_id;
 } invoke_data_t;
 
 static gboolean nsgtk_schedule_invoke_cb(gpointer data)
 {
     invoke_data_t *id = (invoke_data_t *)data;
-    g_timeout_add(id->t, nsgtk_schedule_generic_callback, id->cb);
-    g_main_context_wakeup(NULL);
+    pthread_mutex_lock(&schedule_lock);
+    _nsgtk_callback_t *cb = find_active_callback_by_id(id->cb_id);
+    if (cb != NULL) {
+        g_timeout_add(id->t, nsgtk_schedule_generic_callback, (gpointer)id->cb_id);
+        g_main_context_wakeup(NULL);
+    }
+    pthread_mutex_unlock(&schedule_lock);
     free(id);
     return FALSE;
 }
@@ -135,18 +162,20 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
     cb->callback_killed = false;
 
     pthread_mutex_lock(&schedule_lock);
+    cb->id = next_callback_id++;
     /* Prepend is faster right now. */
     queued_callbacks = g_list_prepend(queued_callbacks, cb);
+    active_callbacks = g_list_append(active_callbacks, cb);
     pthread_mutex_unlock(&schedule_lock);
 
     invoke_data_t *id = malloc(sizeof(*id));
     if (id != NULL) {
         id->t = t;
-        id->cb = cb;
+        id->cb_id = cb->id;
         g_main_context_invoke(NULL, nsgtk_schedule_invoke_cb, id);
     } else {
         /* Fallback if OOM */
-        g_timeout_add(t, nsgtk_schedule_generic_callback, cb);
+        g_timeout_add(t, nsgtk_schedule_generic_callback, (gpointer)cb->id);
         g_main_context_wakeup(NULL);
     }
 
@@ -179,6 +208,7 @@ bool schedule_run(void)
         }
         _nsgtk_callback_t *cb = (_nsgtk_callback_t *)(this_run->data);
         this_run = g_list_remove(this_run, this_run->data);
+        active_callbacks = g_list_remove(active_callbacks, cb);
         pthread_mutex_unlock(&schedule_lock);
 
         if (!cb->callback_killed)
@@ -209,5 +239,8 @@ void nsgtk_schedule_finalise(void)
     }
     g_list_free(this_run);
     this_run = NULL;
+
+    g_list_free(active_callbacks);
+    active_callbacks = NULL;
     pthread_mutex_unlock(&schedule_lock);
 }
