@@ -236,6 +236,12 @@ nserror content__init(struct content *c, const content_handler *handler, lwc_str
     error = llcache_handle_change_callback(llcache, content_llcache_callback, c);
     if (error != NSERROR_OK) {
         lwc_string_unref(c->mime_type);
+        if (c->fallback_charset != NULL) {
+            free(c->fallback_charset);
+            c->fallback_charset = NULL;
+        }
+        free(c->user_list);
+        c->user_list = NULL;
         return error;
     }
 
@@ -1400,17 +1406,24 @@ nserror content__clone(const struct content *c, struct content *nc)
     nc->available_width = c->available_width;
     nc->quirks = c->quirks;
 
+    nc->fallback_charset = NULL;
+    nc->refresh = NULL;
+    nc->title = NULL;
+    nc->user_list = NULL;
+
     if (c->fallback_charset != NULL) {
         nc->fallback_charset = strdup(c->fallback_charset);
         if (nc->fallback_charset == NULL) {
-            return NSERROR_NOMEM;
+            error = NSERROR_NOMEM;
+            goto err_charset;
         }
     }
 
     if (c->refresh != NULL) {
         nc->refresh = nsurl_ref(c->refresh);
         if (nc->refresh == NULL) {
-            return NSERROR_NOMEM;
+            error = NSERROR_NOMEM;
+            goto err_refresh;
         }
     }
 
@@ -1421,7 +1434,8 @@ nserror content__clone(const struct content *c, struct content *nc)
     if (c->title != NULL) {
         nc->title = strdup(c->title);
         if (nc->title == NULL) {
-            return NSERROR_NOMEM;
+            error = NSERROR_NOMEM;
+            goto err_title;
         }
     }
 
@@ -1430,7 +1444,8 @@ nserror content__clone(const struct content *c, struct content *nc)
 
     nc->user_list = calloc(1, sizeof(struct content_user));
     if (nc->user_list == NULL) {
-        return NSERROR_NOMEM;
+        error = NSERROR_NOMEM;
+        goto err_user_list;
     }
 
     memcpy(&(nc->status_message), &(c->status_message), 120);
@@ -1441,6 +1456,24 @@ nserror content__clone(const struct content *c, struct content *nc)
     nc->http_code = c->http_code;
 
     return NSERROR_OK;
+
+err_user_list:
+    if (nc->title != NULL) {
+        free(nc->title);
+    }
+err_title:
+    if (nc->refresh != NULL) {
+        nsurl_unref(nc->refresh);
+    }
+err_refresh:
+    if (nc->fallback_charset != NULL) {
+        free(nc->fallback_charset);
+    }
+err_charset:
+    lwc_string_unref(nc->mime_type);
+    llcache_handle_release(nc->llcache);
+    nc->llcache = NULL;
+    return error;
 }
 
 
