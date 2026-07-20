@@ -85,7 +85,10 @@ static void *compress_tile(const void *src, size_t src_len, size_t *out_len) {
 
     *out_len = (size_t)compressed_size;
     void *reallocated = realloc(dst, *out_len);
-    return reallocated ? reallocated : dst;
+    if (reallocated) {
+        return reallocated;
+    }
+    return dst;
 }
 
 static bool decompress_tile(const void *src, size_t src_len, void *dst, size_t dst_capacity) {
