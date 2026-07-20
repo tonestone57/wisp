@@ -154,7 +154,6 @@ static void namednodemap_finalizer_manual(JSRuntime *rt, JSValue val)
         if (priv->magic == QJS_DOM_MAGIC && priv->node) {
             if (priv->is_dom_node) {
                 qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);
-                if (!wisp_is_js_process) dom_node_unref((dom_node *)priv->node);
             } else {
                 if (!wisp_is_js_process) dom_namednodemap_unref((dom_namednodemap *)priv->node);
             }
