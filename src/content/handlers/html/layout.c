@@ -5900,8 +5900,8 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 		return;
 	}
 	if (box->height == AUTO) {
-		NSLOG(wisp, ERROR, "box %p has AUTO height in layout_calculate_descendant_bboxes", (void *)box);
-		return;
+		NSLOG(wisp, ERROR, "box %p has AUTO height in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
+		box->height = 0;
 	}
 	/* assert((box->width >= 0) && (box->height >= 0)); */
 

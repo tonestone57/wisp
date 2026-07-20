@@ -65,6 +65,7 @@ typedef enum {
     NSERROR_TIMEOUT, /**< Operation timed out */
     NSERROR_PAUSED, /**< Operation paused */
     NSERROR_CSP_BLOCKED, /**< Resource blocked by CSP */
+    NSERROR_SHUTDOWN, /**< Connection shut down or EOF reached */
 } nserror;
 
 #endif

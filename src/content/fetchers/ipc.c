@@ -230,7 +230,7 @@ static void fetch_ipc_poll(lwc_string *scheme) {
         }
         wisp_ipc_msg_free(&msg);
     }
-    if (err != NSERROR_NOT_FOUND) {
+    if (err != NSERROR_NOT_FOUND && err != NSERROR_SHUTDOWN) {
         NSLOG(wisp, ERROR, "fetch_ipc_poll: recv returned error %d", err);
     }
 }
