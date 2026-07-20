@@ -455,7 +455,7 @@ START_TEST(test_grid_construction)
         ck_assert_msg(0, "Failed to allocate box_construct_ctx");
     }
     ctx->content = &htmlc;
-    ctx->n = (dom_node *)root_el; /* Start construction at Root element (HTML) */
+    ctx->n = dom_node_ref((dom_node *)root_el); /* Start construction at Root element (HTML) */
     ctx->root_box = NULL;
     ctx->cb = box_complete_cb;
     ctx->bctx = arena_create(8192);
