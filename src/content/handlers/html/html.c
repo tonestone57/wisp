@@ -573,6 +573,8 @@ static void html_document_user_data_handler(
 }
 
 
+static void html_destroy(struct content *c);
+
 static nserror html_create_html_data(html_content *c, const http_parameter *params)
 {
 	lwc_string *charset;
@@ -775,6 +777,7 @@ static nserror html_create(const content_handler *handler, lwc_string *imime_typ
 	error = html_create_html_data(html, params);
 	if (error != NSERROR_OK) {
 		content_broadcast_error(&html->base, error, NULL);
+		html_destroy((struct content *)html);
 		free(html);
 		return error;
 	}
@@ -782,6 +785,7 @@ static nserror html_create(const content_handler *handler, lwc_string *imime_typ
 	error = html_css_new_stylesheets(html);
 	if (error != NSERROR_OK) {
 		content_broadcast_error(&html->base, error, NULL);
+		html_destroy((struct content *)html);
 		free(html);
 		return error;
 	}
