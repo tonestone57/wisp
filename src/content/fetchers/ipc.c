@@ -11,8 +11,15 @@
 #include <unistd.h>
 #include <time.h>
 #include <pthread.h>
+#ifndef _WIN32
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <errno.h>
+#endif
 
 static wisp_ipc_handle *ipc_network = NULL;
+static int wisp_network_pid = -1;
 static uint32_t next_fetch_id = 1;
 static pthread_mutex_t ipc_send_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -41,7 +48,7 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
             return false;
         }
 
-        wisp_ipc_spawn(exec_path, ipc_name);
+        wisp_network_pid = wisp_ipc_spawn(exec_path, ipc_name);
         ipc_network = wisp_ipc_accept(server);
         wisp_ipc_destroy(server);
         if (ipc_network) {
@@ -244,6 +251,67 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
         wisp_ipc_destroy(ipc_network);
         ipc_network = NULL;
     }
+
+    if (wisp_network_pid > 0) {
+        /* Wait up to 500ms for the network process to exit cleanly on its own */
+        int retries = 50;
+        bool exited = false;
+        while (retries-- > 0) {
+#ifdef _WIN32
+            HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, wisp_network_pid);
+            if (hProcess) {
+                DWORD res = WaitForSingleObject(hProcess, 10);
+                CloseHandle(hProcess);
+                if (res == WAIT_OBJECT_0) {
+                    exited = true;
+                    break;
+                }
+            } else {
+                exited = true;
+                break;
+            }
+#else
+            int status;
+            pid_t res = waitpid(wisp_network_pid, &status, WNOHANG);
+            if (res == wisp_network_pid || (res == -1 && errno == ECHILD)) {
+                exited = true;
+                break;
+            }
+            usleep(10000); // 10ms
+#endif
+        }
+
+        /* If the child process didn't exit cleanly on its own, terminate it forcefully */
+        if (!exited) {
+            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 500ms, sending forceful termination", wisp_network_pid);
+#ifdef _WIN32
+            HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, wisp_network_pid);
+            if (hProcess) {
+                TerminateProcess(hProcess, 0);
+                CloseHandle(hProcess);
+            }
+#else
+            kill(wisp_network_pid, SIGTERM);
+            /* Give it 100ms more to handle SIGTERM, then send SIGKILL if needed */
+            int kill_retries = 10;
+            while (kill_retries-- > 0) {
+                int status;
+                pid_t res = waitpid(wisp_network_pid, &status, WNOHANG);
+                if (res == wisp_network_pid || (res == -1 && errno == ECHILD)) {
+                    exited = true;
+                    break;
+                }
+                usleep(10000);
+            }
+            if (!exited) {
+                kill(wisp_network_pid, SIGKILL);
+                waitpid(wisp_network_pid, NULL, 0);
+            }
+#endif
+        }
+        wisp_network_pid = -1;
+    }
+
     struct ipc_fetch_info *curr = active_fetches;
     while (curr) {
         struct ipc_fetch_info *next = curr->next;
