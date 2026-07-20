@@ -1129,7 +1129,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                             /* Ignore unexpected/stale message types */
                             wisp_ipc_msg_free(&response);
                         }
-                    } else if (recv_err != NSERROR_NOT_FOUND) {
+                    } else if (recv_err != NSERROR_NOT_FOUND && recv_err != NSERROR_SHUTDOWN) {
                         /* Socket error or EOF -> crash detected! */
                         NSLOG(wisp, ERROR, "JS process crashed during recv for origin %s", thread->origin);
                         handle_process_crash(thread->origin);

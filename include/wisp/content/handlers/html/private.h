@@ -448,6 +448,7 @@ typedef struct html_content {
      * is in progress.
      */
     void *box_conversion_context;
+    void *active_parse_tasks; /**< Linked list of active html_parse_task structures */
     /** Box tree, or NULL. */
     struct box *layout;
 

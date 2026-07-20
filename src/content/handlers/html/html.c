@@ -591,6 +591,7 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->parser = NULL;
 	c->parse_completed = false;
 	c->conversion_begun = false;
+	c->active_parse_tasks = NULL;
 	c->document = NULL;
 	c->quirks = DOM_DOCUMENT_QUIRKS_MODE_NONE;
 	c->encoding = NULL;
@@ -883,11 +884,29 @@ struct html_parse_task {
 	unsigned int size;
 	nserror parse_error;
 	bool has_encoding_change;
+	struct html_parse_task *next;
 };
 
 static void html_parse_task_free(struct html_parse_task *task)
 {
 	if (task) {
+		html_content *html = (html_content *)task->c;
+		if (html) {
+			struct html_parse_task *prev = NULL;
+			struct html_parse_task *curr = (struct html_parse_task *)html->active_parse_tasks;
+			while (curr) {
+				if (curr == task) {
+					if (prev == NULL) {
+						html->active_parse_tasks = curr->next;
+					} else {
+						prev->next = curr->next;
+					}
+					break;
+				}
+				prev = curr;
+				curr = curr->next;
+			}
+		}
 		if (task->data)
 			free(task->data);
 		free(task);
@@ -991,6 +1010,10 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
 
 	task->has_encoding_change = false;
 	task->parse_error = NSERROR_OK;
+
+	/* Link task to active_parse_tasks list */
+	task->next = (struct html_parse_task *)html->active_parse_tasks;
+	html->active_parse_tasks = task;
 
 	html->base.active++; /* Retain content fetch status until task completes */
 	__atomic_add_fetch(&html->base.active_bg_tasks, 1, __ATOMIC_SEQ_CST);
@@ -1574,6 +1597,16 @@ static void html_destroy(struct content *c)
 	struct form *f, *g;
 
 	NSLOG(wisp, INFO, "content %p", c);
+
+	/* Unschedule and free any remaining active parse tasks */
+	struct html_parse_task *task = (struct html_parse_task *)html->active_parse_tasks;
+	while (task) {
+		struct html_parse_task *next = task->next;
+		guit->misc->schedule(-1, html_parse_complete_cb, task);
+		guit->misc->schedule(-1, html_parse_worker, task);
+		html_parse_task_free(task);
+		task = next;
+	}
 
 	/* Cancel any pending conversion resumes immediately */
 	guit->misc->schedule(-1, html_resume_conversion_cb, html);

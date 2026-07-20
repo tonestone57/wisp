@@ -274,7 +274,7 @@ nserror wisp_ipc_recv(wisp_ipc_handle *handle, wisp_ipc_msg *msg) {
     uint32_t header[2];
     ssize_t ret = read_all(handle->fd, header, sizeof(header), true);
     if (ret < 0) return NSERROR_NOT_FOUND; // EAGAIN
-    if (ret == 0) return NSERROR_NOT_FOUND; // EOF
+    if (ret == 0) return NSERROR_SHUTDOWN; // EOF
     if (ret != sizeof(header)) return NSERROR_INVALID;
 
     msg->type = (wisp_ipc_msg_type)header[0];

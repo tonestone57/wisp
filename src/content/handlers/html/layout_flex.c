@@ -312,7 +312,8 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 		}
 
 		/* Calculate this child's outer height (excluding auto margins which we'll compute) */
-		int child_outer_height = child->height + child->padding[TOP] + child->padding[BOTTOM] +
+		int child_height = (child->height == AUTO) ? 0 : child->height;
+		int child_outer_height = child_height + child->padding[TOP] + child->padding[BOTTOM] +
 			child->border[TOP].width + child->border[BOTTOM].width;
 
 		/* Check CSS computed style for auto margins - box margin is already resolved to 0 */
@@ -395,6 +396,9 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 					int growth = FIXTOINT(result);
 					remainder = FIXFRAC(result);
 
+					if (child->height == AUTO) {
+						child->height = 0;
+					}
 					int old_height = child->height;
 					child->height += growth;
 					distributed += growth;
@@ -470,7 +474,8 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 		/* Position the child */
 		current_y += child->border[TOP].width;
 		child->y = current_y;
-		current_y += child->padding[TOP] + child->height + child->padding[BOTTOM];
+		int child_height = (child->height == AUTO) ? 0 : child->height;
+		current_y += child->padding[TOP] + child_height + child->padding[BOTTOM];
 		current_y += child->border[BOTTOM].width;
 
 		NSLOG(flex, DEEPDEBUG, "  Position: child %p at y=%d", child, child->y);
@@ -871,16 +876,19 @@ static inline bool layout_flex__base_and_main_sizes(
 				if (available_main_size != AUTO) {
 					item->base_size = (available_main_size * FIXTOINT(value)) / 100;
 				} else {
-					item->base_size = b->height; /* Fallback to calculated height */
+					item->base_size = (b->height == AUTO) ? 0 : b->height; /* Fallback to calculated height */
 				}
 			} else {
-				item->base_size = b->height;
+				item->base_size = (b->height == AUTO) ? 0 : b->height;
 			}
 		} else {
 			item->base_size = content_max_width - delta_outer_main;
 		}
 	}
 
+	if (item->base_size == AUTO || item->base_size < 0) {
+		item->base_size = 0;
+	}
 	item->base_size += delta_outer_main;
 
 	/* Per CSS Flexbox spec §4.5: automatic minimum size is capped by
@@ -1116,7 +1124,8 @@ static struct flex_line_data *layout_flex__build_line(struct flex_ctx *ctx, size
 		int pos_main;
 		int gap_for_item;
 
-		pos_main = ctx->horizontal ? item->main_size : b->height + lh__delta_outer_main(ctx->flex, b);
+		int item_height = (b->height == AUTO) ? 0 : b->height;
+		pos_main = ctx->horizontal ? item->main_size : item_height + lh__delta_outer_main(ctx->flex, b);
 
 		/* Account for gap: if this item is added, we need line->count gaps total
 		 * (one gap between each pair of items) */
@@ -1616,7 +1625,8 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 						if (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT) {
 							continue;
 						}
-						int child_bottom = child->y + child->height;
+						int child_h = (child->height == AUTO) ? 0 : child->height;
+						int child_bottom = child->y + child_h;
 						if (child->margin[BOTTOM] != AUTO) {
 							child_bottom += child->margin[BOTTOM];
 						}
