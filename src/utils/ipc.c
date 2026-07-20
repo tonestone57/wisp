@@ -251,7 +251,7 @@ static ssize_t read_all(intptr_t fd, void *buf, size_t len, bool allow_eagain) {
                     }
                 }
             }
-            return total == 0 ? 0 : -1; // EOF or error
+            return total == 0 ? 0 : -2; // EOF or error (-2 for partial read failure)
         }
         total += n;
     }
@@ -273,7 +273,10 @@ nserror wisp_ipc_send(wisp_ipc_handle *handle, const wisp_ipc_msg *msg) {
 nserror wisp_ipc_recv(wisp_ipc_handle *handle, wisp_ipc_msg *msg) {
     uint32_t header[2];
     ssize_t ret = read_all(handle->fd, header, sizeof(header), true);
-    if (ret < 0) return NSERROR_NOT_FOUND; // EAGAIN
+    if (ret < 0) {
+        if (ret == -2) return NSERROR_INVALID;
+        return NSERROR_NOT_FOUND; // EAGAIN
+    }
     if (ret == 0) return NSERROR_SHUTDOWN; // EOF
     if (ret != sizeof(header)) return NSERROR_INVALID;
 

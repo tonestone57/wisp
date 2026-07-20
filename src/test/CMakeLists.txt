@@ -186,6 +186,11 @@ add_wisp_test(utils
   ${CMAKE_SOURCE_DIR}/src/test/utils.c
 )
 
+add_wisp_test(test_ipc_partial_read
+  ${CMAKE_SOURCE_DIR}/src/test/test_ipc_partial_read.c
+)
+target_link_libraries(test_ipc_partial_read PRIVATE wisp)
+
 add_wisp_test(time
   ${CMAKE_SOURCE_DIR}/src/utils/time.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
