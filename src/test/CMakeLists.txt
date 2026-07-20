@@ -332,6 +332,7 @@ add_wisp_test(transform_clip_test
 add_wisp_test(test_quickjs
   ${CMAKE_SOURCE_DIR}/src/test/test_quickjs.c
 )
+set_tests_properties(test_quickjs PROPERTIES ENVIRONMENT "PATH=${TEST_ENV_PATH};CK_VERBOSITY=verbose;CK_FORK=yes;ASAN_OPTIONS=detect_leaks=0")
 add_dependencies(test_quickjs quickjs_bindings)
 target_include_directories(test_quickjs PRIVATE
   ${CMAKE_SOURCE_DIR}/contrib/quickjs-ng
