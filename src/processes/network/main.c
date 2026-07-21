@@ -230,6 +230,18 @@ int main(int argc, char **argv) {
                                                     only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
                                         info->fetchh = f_out;
                                     } else {
+                                        /* Immediately report error to avoid hanging the browser fetcher */
+                                        wisp_ipc_msg imsg;
+                                        imsg.type = WISP_IPC_MSG_FETCH_ERROR;
+                                        const char *err_msg = "Blocked";
+                                        imsg.length = 4 + strlen(err_msg) + 1;
+                                        imsg.data = malloc(imsg.length);
+                                        if (imsg.data) {
+                                            memcpy(imsg.data, &fetch_id, 4);
+                                            memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
+                                            wisp_ipc_send(ipc_main, &imsg);
+                                            free(imsg.data);
+                                        }
                                         active_fetches_list = info->next;
                                         free(info);
                                     }

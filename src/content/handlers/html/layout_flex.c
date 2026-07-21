@@ -1520,7 +1520,11 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 	int jc_gap_pre_extra = 0;
 
 	if (ctx->main_reversed) {
-		main_pos = lh__box_size_main(ctx->horizontal, ctx->flex) - main_pos;
+		int box_sz = lh__box_size_main(ctx->horizontal, ctx->flex);
+		if (box_sz == AUTO || box_sz == UNKNOWN_WIDTH) {
+			box_sz = 0;
+		}
+		main_pos = box_sz - main_pos;
 	}
 
 	if (ctx->available_main != AUTO && ctx->available_main != UNKNOWN_WIDTH &&
