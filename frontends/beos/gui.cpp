@@ -823,10 +823,11 @@ extern "C" void wisp_gui_pump_events(void)
     }
 }
 
+extern "C" void (*wisp_gui_pump_events_hook)(void);
+
 int main(int argc, char **argv)
 {
     nserror ret;
-    extern "C" void (*wisp_gui_pump_events_hook)(void);
     wisp_gui_pump_events_hook = wisp_gui_pump_events;
     BPath options;
     extern struct gui_audio_table *beos_audio_table;

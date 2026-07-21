@@ -53,13 +53,14 @@ extern "C" void wisp_gui_pump_events(void)
     QCoreApplication::processEvents();
 }
 
+extern "C" void (*wisp_gui_pump_events_hook)(void);
+
 /**
  * Main entry point from OS.
  */
 int main(int argc, char **argv)
 {
     int ret = 0;
-    extern "C" void (*wisp_gui_pump_events_hook)(void);
     wisp_gui_pump_events_hook = wisp_gui_pump_events;
     struct wisp_table nsqt_table = {
         .misc = nsqt_misc_table,
