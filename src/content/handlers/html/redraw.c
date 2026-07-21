@@ -2420,6 +2420,10 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             p.y0 = (int)(-vp_y * scale);
             p.y1 = (int)((-vp_y + root_h) * scale);
             if (ctx->plot->clip(ctx, &p) != NSERROR_OK) {
+                if (class_attr != NULL)
+                    dom_string_unref(class_attr);
+                if (name != NULL)
+                    dom_string_unref(name);
                 {
                     result = false;
                     goto cleanup;
@@ -2451,6 +2455,10 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             /* plot background */
             if (!html_redraw_background(
                     x, y, box, scale, &p, &current_background_color, bg_box, &html->unit_len_ctx, ctx)) {
+                if (class_attr != NULL)
+                    dom_string_unref(class_attr);
+                if (name != NULL)
+                    dom_string_unref(name);
                 {
                     result = false;
                     goto cleanup;
@@ -2459,18 +2467,22 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
             if (expand_viewport_bg) {
                 NSLOG(layout, INFO, "bg draw post: tag %s class %s box %p rect x0 %i x1 %i", tag, cls, box, p.x0, p.x1);
             }
-            if (class_attr != NULL)
-                dom_string_unref(class_attr);
-            if (name != NULL)
-                dom_string_unref(name);
             /* restore previous graphics window */
             if (ctx->plot->clip(ctx, &r) != NSERROR_OK) {
+                if (class_attr != NULL)
+                    dom_string_unref(class_attr);
+                if (name != NULL)
+                    dom_string_unref(name);
                 {
                     result = false;
                     goto cleanup;
                 }
             }
         }
+        if (class_attr != NULL)
+            dom_string_unref(class_attr);
+        if (name != NULL)
+            dom_string_unref(name);
     }
 
     /* borders for block level content and replaced inlines */

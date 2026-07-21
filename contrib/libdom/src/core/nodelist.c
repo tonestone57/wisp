@@ -170,10 +170,10 @@ void dom_nodelist_unref(dom_nodelist *list)
             break;
         }
 
-        dom_node_unref(list->root);
-
         /* Remove list from document */
         _dom_document_remove_nodelist(list->owner, list);
+
+        dom_node_unref(list->root);
 
         /* Destroy the list object */
         free(list);
