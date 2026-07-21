@@ -1286,7 +1286,6 @@ bool html_begin_conversion(html_content *htmlc)
 		return false;
 	}
 	dom_string_unref(node_name);
-	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 
 	/* If box conversion is already in progress, we have a late CSS
 	 * callback trying to restart conversion. We should NOT cancel
@@ -1301,10 +1300,14 @@ bool html_begin_conversion(html_content *htmlc)
 	if (htmlc->box_conversion_context != NULL) {
 		if (htmlc->conversion_restart_pending) {
 			NSLOG(wisp, INFO, "Late callback ignored: restart already pending (content %p)", htmlc);
+			dom_node_unref(html);
+			doc_rwlock_rdunlock(&htmlc->doc_mutex);
 			return true;
 		}
 		NSLOG(wisp, INFO, "Late callback for content %p - box conversion already in progress, queuing restart", htmlc);
 		htmlc->conversion_restart_pending = true;
+		dom_node_unref(html);
+		doc_rwlock_rdunlock(&htmlc->doc_mutex);
 		return true;
 	}
 
@@ -1321,9 +1324,7 @@ bool html_begin_conversion(html_content *htmlc)
 		htmlc->forms = NULL;
 	}
 
-	doc_rwlock_rdlock(&htmlc->doc_mutex);
 	htmlc->forms = html_forms_get_forms(htmlc->encoding, (dom_html_document *)htmlc->document);
-	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 	for (f = htmlc->forms; f != NULL; f = f->prev) {
 		nsurl *action;
 
@@ -1340,6 +1341,7 @@ bool html_begin_conversion(html_content *htmlc)
 			content_broadcast_error(&htmlc->base, ns_error, NULL);
 
 			dom_node_unref(html);
+			doc_rwlock_rdunlock(&htmlc->doc_mutex);
 			return false;
 		}
 
@@ -1350,6 +1352,7 @@ bool html_begin_conversion(html_content *htmlc)
 			content_broadcast_error(&htmlc->base, NSERROR_NOMEM, NULL);
 
 			dom_node_unref(html);
+			doc_rwlock_rdunlock(&htmlc->doc_mutex);
 			return false;
 		}
 
@@ -1359,12 +1362,14 @@ bool html_begin_conversion(html_content *htmlc)
 			if (f->document_charset == NULL) {
 				content_broadcast_error(&htmlc->base, NSERROR_NOMEM, NULL);
 				dom_node_unref(html);
+				doc_rwlock_rdunlock(&htmlc->doc_mutex);
 				return false;
 			}
 		}
 	}
 
 	dom_node_unref(html);
+	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 
 	/* Proceed with conversion if only scripts remain active or no fetches remain.
 	 * This allows immediate first render without waiting for script downloads.
@@ -1398,6 +1403,9 @@ static void html_stop(struct content *c)
 		if (htmlc->jsthread != NULL) {
 			/* Close the JS thread to cancel out any callbacks */
 			js_closethread(htmlc->jsthread);
+		}
+		if (c->locked) {
+			content_set_error(c);
 		}
 		break;
 
