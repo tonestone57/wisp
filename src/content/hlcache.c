@@ -719,7 +719,17 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     if (nsoption_bool(enable_coep) && child != NULL && child->coep != NULL &&
         (strcasecmp(child->coep, "require-corp") == 0) && child->parent_url != NULL) {
         /* If cross-origin, block it under COEP requirement */
-        if (!nsurl_compare(child->parent_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
+        bool exempt = false;
+        lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
+        if (scheme != NULL) {
+            const char *scheme_str = lwc_string_data(scheme);
+            if (strcasecmp(scheme_str, "resource") == 0 || strcasecmp(scheme_str, "about") == 0) {
+                exempt = true;
+            }
+            lwc_string_unref(scheme);
+        }
+
+        if (!exempt && !nsurl_compare(child->parent_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
             NSLOG(wisp, ERROR, "COEP BLOCKED cross-origin subresource load: %s", nsurl_access(url));
             *result = NULL;
             return NSERROR_CSP_BLOCKED;
