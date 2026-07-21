@@ -1048,6 +1048,9 @@ static bool html_convert(struct content *c)
 	PERF("html_convert (data complete) START");
 	html_content *htmlc = (html_content *)c;
 	htmlc->data_complete = true; /* Mark that HTML data has been received */
+	if (htmlc->data_complete_time_ms == 0) {
+		nsu_getmonotonic_ms(&htmlc->data_complete_time_ms);
+	}
 	dom_exception exc; /* returned by libdom functions */
 
 	/* The quirk check and associated stylesheet fetch is "safe"
@@ -1077,6 +1080,9 @@ static bool html_convert(struct content *c)
 	 */
 	if (html_can_begin_conversion(htmlc)) {
 		return html_begin_conversion(htmlc);
+	} else {
+		/* Schedule safety render timeout pass in 1.5 seconds */
+		guit->misc->schedule(1500, html_resume_conversion_cb, htmlc);
 	}
 	return true;
 }
@@ -1099,13 +1105,27 @@ bool html_can_begin_conversion(html_content *htmlc)
 	if (!htmlc->data_complete)
 		return false; /* HTML data not yet received */
 
-	if (htmlc->base.active != htmlc->scripts_active)
+	bool bypass_active_gate = false;
+	if (htmlc->data_complete_time_ms != 0) {
+		uint64_t now_ms;
+		nsu_getmonotonic_ms(&now_ms);
+		if (now_ms - htmlc->data_complete_time_ms > 1000) {
+			bypass_active_gate = true;
+		}
+	}
+
+	if (htmlc->base.active != htmlc->scripts_active && !bypass_active_gate) {
+		NSLOG(wisp, INFO, "Conversion gate blocked on downloads: active=%d scripts_active=%d",
+			htmlc->base.active, htmlc->scripts_active);
 		return false; /* Still waiting for CSS or HTML fetch */
+	}
 
 	for (i = 0; i != htmlc->stylesheet_count; i++) {
 		/* Cannot begin conversion if the stylesheets are modified */
-		if (htmlc->stylesheets[i].modified)
+		if (htmlc->stylesheets[i].modified && !bypass_active_gate) {
+			NSLOG(wisp, INFO, "Conversion gate blocked on modified stylesheet index %u", i);
 			return false;
+		}
 	}
 
 	/* All is good, begin */
@@ -1157,7 +1177,19 @@ bool html_begin_conversion(html_content *htmlc)
 			NSLOG(wisp, INFO, "Completing parse brought synchronous JS to light, cannot complete yet (active: %d)",
 				htmlc->base.active);
 
-			if (htmlc->base.active == 0) {
+			bool bypass_active_gate = false;
+			if (htmlc->data_complete_time_ms != 0) {
+				uint64_t now_ms;
+				nsu_getmonotonic_ms(&now_ms);
+				if (now_ms - htmlc->data_complete_time_ms > 1000) {
+					bypass_active_gate = true;
+				}
+			}
+
+			if (htmlc->base.active == 0 || bypass_active_gate) {
+				if (bypass_active_gate) {
+					NSLOG(wisp, WARNING, "Safety timeout: forcing unpause of synchronous JS parser!");
+				}
 				dom_hubbub_parser_pause(htmlc->parser, false);
 				guit->misc->schedule(0, html_resume_conversion_cb, htmlc);
 				return true;
