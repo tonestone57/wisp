@@ -460,6 +460,9 @@ typedef struct html_content {
     /** Timestamp when we first delayed box conversion for fonts (ms), 0 if not waiting */
     uint64_t font_wait_start_ms;
 
+    /** Timestamp when data_complete was set to true (ms), 0 if not yet set */
+    uint64_t data_complete_time_ms;
+
     /** Font callback table */
     const struct gui_layout_table *font_func;
 
