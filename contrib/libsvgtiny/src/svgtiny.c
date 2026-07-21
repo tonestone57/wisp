@@ -144,6 +144,17 @@ static void svgtiny_setup_state_local(struct svgtiny_parse_state *state)
 {
     svgtiny_grad_string_ref(&(state->fill_grad));
     svgtiny_grad_string_ref(&(state->stroke_grad));
+    if (state->stroke_dasharray != NULL) {
+        float *copy = malloc(state->stroke_dasharray_count * sizeof(float));
+        if (copy != NULL) {
+            memcpy(copy, state->stroke_dasharray, state->stroke_dasharray_count * sizeof(float));
+            state->stroke_dasharray = copy;
+        } else {
+            state->stroke_dasharray = NULL;
+            state->stroke_dasharray_count = 0;
+            state->stroke_dasharray_set = false;
+        }
+    }
 }
 
 
@@ -1370,9 +1381,6 @@ struct svgtiny_shape *svgtiny_add_shape(struct svgtiny_parse_state *state)
                 shape->stroke_dasharray_set = false;
                 shape->stroke_dasharray_count = 0;
             }
-            free(state->stroke_dasharray);
-            state->stroke_dasharray = NULL;
-            state->stroke_dasharray_count = 0;
         }
 
         /* Initialize fill gradient fields */
