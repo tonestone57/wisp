@@ -441,6 +441,59 @@ nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd
     return NSERROR_OK;
 }
 
+static bool is_blocked_tracker_or_ad(const nsurl *url)
+{
+    if (!url) return false;
+
+    lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+    if (!host_lwc) return false;
+    const char *host = lwc_string_data(host_lwc);
+
+    bool blocked = false;
+
+    // 1. Host-based rules
+    if (strstr(host, "googletagmanager.com") ||
+        strstr(host, "google-analytics.com") ||
+        strstr(host, "scorecardresearch.com") ||
+        strstr(host, "adnxs.com") ||
+        strstr(host, "doubleclick.net") ||
+        strstr(host, "amazon-adsystem.com") ||
+        strstr(host, "segment.io") ||
+        strstr(host, "mixpanel.com") ||
+        strstr(host, "hotjar.com") ||
+        strstr(host, "optimizely.com") ||
+        strstr(host, "criteo.com") ||
+        strstr(host, "pubmatic.com") ||
+        strstr(host, "rubiconproject.com") ||
+        strstr(host, "taboola.com") ||
+        strstr(host, "outbrain.com") ||
+        strstr(host, "telemetry") ||
+        strstr(host, "adsystem") ||
+        strstr(host, "adserver")) {
+        blocked = true;
+    }
+
+    lwc_string_unref(host_lwc);
+
+    if (blocked) return true;
+
+    // 2. Path-based rules
+    lwc_string *path_lwc = nsurl_get_component(url, NSURL_PATH);
+    if (path_lwc) {
+        const char *path = lwc_string_data(path_lwc);
+        if (strstr(path, "prebid.js") ||
+            strstr(path, "analytics.js") ||
+            strstr(path, "/telemetry/") ||
+            strstr(path, "/adserver/") ||
+            strstr(path, "/ads/")) {
+            blocked = true;
+        }
+        lwc_string_unref(path_lwc);
+    }
+
+    return blocked;
+}
+
 /* exported interface documented in content/fetch.h */
 nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p, bool only_2xx,
     const struct fetch_postdata *postdata, bool verifiable, bool downgrade_tls, const char *headers[],
@@ -448,6 +501,11 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
 {
     struct fetch *fetch;
     lwc_string *scheme;
+
+    if (is_blocked_tracker_or_ad(url)) {
+        NSLOG(fetch, INFO, "BLOCKED tracker/ad network request to: %s", nsurl_access(url));
+        return NSERROR_PERMISSION;
+    }
 
     fetch = calloc(1, sizeof(*fetch));
     if (fetch == NULL) {

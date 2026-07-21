@@ -139,7 +139,8 @@ int main(int argc, char **argv) {
 
     corestrings_init();
     rt = JS_NewRuntime();
-    JS_SetMaxStackSize(rt, 8192 * 1024);
+    JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
+    JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
 
     while (1) {
         wisp_ipc_msg msg;
@@ -194,11 +195,44 @@ int main(int argc, char **argv) {
                 JSContext *ctx = get_context(ctx_id);
 
                 size_t script_len = msg.length - 4;
-                char *script = malloc(script_len + 1);
-                if (script) {
-                    memcpy(script, msg.data + 4, script_len);
-                    script[script_len] = '\0';
+                char *script = NULL;
+                if (script_len >= 7 && strncmp((const char *)(msg.data + 4), "file://", 7) == 0) {
+                    char file_path[512];
+                    size_t path_len = script_len - 7;
+                    if (path_len < sizeof(file_path)) {
+                        memcpy(file_path, msg.data + 4 + 7, path_len);
+                        file_path[path_len] = '\0';
+                        FILE *f = fopen(file_path, "rb");
+                        if (f) {
+                            fseek(f, 0, SEEK_END);
+                            long sz = ftell(f);
+                            fseek(f, 0, SEEK_SET);
+                            if (sz >= 0) {
+                                script = malloc(sz + 1);
+                                if (script) {
+                                    if (fread(script, 1, sz, f) == (size_t)sz) {
+                                        script[sz] = '\0';
+                                        script_len = sz;
+                                    } else {
+                                        free(script);
+                                        script = NULL;
+                                    }
+                                }
+                            }
+                            fclose(f);
+                        }
+                    }
+                }
 
+                if (!script) {
+                    script = malloc(script_len + 1);
+                    if (script) {
+                        memcpy(script, msg.data + 4, script_len);
+                        script[script_len] = '\0';
+                    }
+                }
+
+                if (script) {
                     JSValue val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
 
                     wisp_ipc_msg response;

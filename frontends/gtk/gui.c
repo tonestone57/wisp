@@ -797,6 +797,9 @@ static nserror create_cache_home(char **cache_home_out)
 static nserror nsgtk_init(int *pargc, char ***pargv, char **cache_home)
 {
     nserror ret;
+    void wisp_gui_pump_events(void);
+    extern void (*wisp_gui_pump_events_hook)(void);
+    wisp_gui_pump_events_hook = wisp_gui_pump_events;
 
     /* Locate the correct user configuration directory path */
     ret = get_config_home(&nsgtk_config_home);
@@ -1152,6 +1155,13 @@ void nsgtk_task_queue_wake(void)
         if (write(nsgtk_wake_pipe[1], buf, 1) == -1) {
             /* Handle warning? */
         }
+    }
+}
+
+void wisp_gui_pump_events(void)
+{
+    while (gtk_events_pending()) {
+        gtk_main_iteration();
     }
 }
 

@@ -47,12 +47,20 @@ extern struct gui_audio_table *macos_audio_table;
 #endif
 
 
+#include <QCoreApplication>
+extern "C" void wisp_gui_pump_events(void)
+{
+    QCoreApplication::processEvents();
+}
+
 /**
  * Main entry point from OS.
  */
 int main(int argc, char **argv)
 {
     int ret = 0;
+    extern "C" void (*wisp_gui_pump_events_hook)(void);
+    wisp_gui_pump_events_hook = wisp_gui_pump_events;
     struct wisp_table nsqt_table = {
         .misc = nsqt_misc_table,
         .window = nsqt_window_table,

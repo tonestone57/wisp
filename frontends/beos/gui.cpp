@@ -814,9 +814,20 @@ static struct gui_misc_table beos_misc_table = {
 };
 
 
+#include <Application.h>
+extern "C" void wisp_gui_pump_events(void)
+{
+    if (be_app) {
+        be_app->Lock();
+        be_app->Unlock();
+    }
+}
+
 int main(int argc, char **argv)
 {
     nserror ret;
+    extern "C" void (*wisp_gui_pump_events_hook)(void);
+    wisp_gui_pump_events_hook = wisp_gui_pump_events;
     BPath options;
     extern struct gui_audio_table *beos_audio_table;
     struct wisp_table beos_table = {
