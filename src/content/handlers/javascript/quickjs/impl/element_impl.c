@@ -459,6 +459,31 @@ int qjs_init_element(JSContext *ctx) {
     JSValue eval_res = JS_Eval(ctx, proxy_js, strlen(proxy_js), "<style_proxy_init>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, eval_res);
 
+    const char *layout_stubs_js =
+        "if (typeof Element !== 'undefined' && Element.prototype) {\n"
+        "    const properties = [\n"
+        "        'clientWidth', 'clientHeight', 'clientLeft', 'clientTop',\n"
+        "        'offsetWidth', 'offsetHeight', 'offsetLeft', 'offsetTop',\n"
+        "        'scrollWidth', 'scrollHeight', 'scrollLeft', 'scrollTop'\n"
+        "    ];\n"
+        "    properties.forEach(prop => {\n"
+        "        if (!(prop in Element.prototype)) {\n"
+        "            Object.defineProperty(Element.prototype, prop, {\n"
+        "                get() {\n"
+        "                    if (prop === 'clientWidth' || prop === 'scrollWidth') return 1024;\n"
+        "                    if (prop === 'clientHeight' || prop === 'scrollHeight') return 768;\n"
+        "                    return 0;\n"
+        "                },\n"
+        "                set() {},\n"
+        "                configurable: true,\n"
+        "                enumerable: true\n"
+        "            });\n"
+        "        }\n"
+        "    });\n"
+        "}\n";
+    JSValue layout_stubs_res = JS_Eval(ctx, layout_stubs_js, strlen(layout_stubs_js), "<layout_stubs_init>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, layout_stubs_res);
+
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_element_init", JS_TRUE, 0);
     JS_FreeValue(ctx, global_obj);
