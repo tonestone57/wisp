@@ -1062,7 +1062,9 @@ static bool html_convert(struct content *c)
 	 * render and it would annoy the user to fail the entire
 	 * render for want of a quirks stylesheet.
 	 */
+	doc_rwlock_rdlock(&htmlc->doc_mutex);
 	exc = dom_document_get_quirks_mode(htmlc->document, &htmlc->quirks);
+	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 	if (exc == DOM_NO_ERR) {
 		html_css_quirks_stylesheets(htmlc);
 		NSLOG(wisp, INFO, "quirks set to %d", htmlc->quirks);
@@ -1167,7 +1169,9 @@ bool html_begin_conversion(html_content *htmlc)
 		PERF("html_begin_conversion: completing parse (active=%d, scripts_active=%d)", htmlc->base.active,
 			htmlc->scripts_active);
 		/* complete parsing */
+		doc_rwlock_wrlock(&htmlc->doc_mutex);
 		error = dom_hubbub_parser_completed(htmlc->parser);
+		doc_rwlock_wrunlock(&htmlc->doc_mutex);
 		PERF("html_begin_conversion: parse completed, error=%d (active=%d, scripts_active=%d)", error,
 			htmlc->base.active, htmlc->scripts_active);
 		if (error == DOM_HUBBUB_HUBBUB_ERR_PAUSED) {
@@ -1190,7 +1194,9 @@ bool html_begin_conversion(html_content *htmlc)
 				if (bypass_active_gate) {
 					NSLOG(wisp, WARNING, "Safety timeout: forcing unpause of synchronous JS parser!");
 				}
+				doc_rwlock_wrlock(&htmlc->doc_mutex);
 				dom_hubbub_parser_pause(htmlc->parser, false);
+				doc_rwlock_wrunlock(&htmlc->doc_mutex);
 				guit->misc->schedule(0, html_resume_conversion_cb, htmlc);
 				return true;
 			}
@@ -1242,7 +1248,9 @@ bool html_begin_conversion(html_content *htmlc)
 	if (htmlc->encoding == NULL) {
 		const char *encoding;
 
+		doc_rwlock_rdlock(&htmlc->doc_mutex);
 		encoding = dom_hubbub_parser_get_encoding(htmlc->parser, &htmlc->encoding_source);
+		doc_rwlock_rdunlock(&htmlc->doc_mutex);
 		if (encoding == NULL) {
 			content_broadcast_error(&htmlc->base, NSERROR_NOMEM, NULL);
 			return false;
@@ -1256,8 +1264,10 @@ bool html_begin_conversion(html_content *htmlc)
 	}
 
 	/* locate root element and ensure it is html */
+	doc_rwlock_rdlock(&htmlc->doc_mutex);
 	exc = dom_document_get_document_element(htmlc->document, (void *)&html);
 	if ((exc != DOM_NO_ERR) || (html == NULL)) {
+		doc_rwlock_rdunlock(&htmlc->doc_mutex);
 		NSLOG(wisp, INFO, "error retrieving html element from dom");
 		content_broadcast_error(&htmlc->base, NSERROR_DOM, NULL);
 		return false;
@@ -1268,10 +1278,15 @@ bool html_begin_conversion(html_content *htmlc)
 		(!dom_string_caseless_lwc_isequal(node_name, corestring_lwc_html))) {
 		NSLOG(wisp, INFO, "root element not html");
 		content_broadcast_error(&htmlc->base, NSERROR_DOM, NULL);
+		if (node_name != NULL) {
+			dom_string_unref(node_name);
+		}
 		dom_node_unref(html);
+		doc_rwlock_rdunlock(&htmlc->doc_mutex);
 		return false;
 	}
 	dom_string_unref(node_name);
+	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 
 	/* If box conversion is already in progress, we have a late CSS
 	 * callback trying to restart conversion. We should NOT cancel
@@ -1306,7 +1321,9 @@ bool html_begin_conversion(html_content *htmlc)
 		htmlc->forms = NULL;
 	}
 
+	doc_rwlock_rdlock(&htmlc->doc_mutex);
 	htmlc->forms = html_forms_get_forms(htmlc->encoding, (dom_html_document *)htmlc->document);
+	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 	for (f = htmlc->forms; f != NULL; f = f->prev) {
 		nsurl *action;
 
@@ -2543,10 +2560,12 @@ bool html_exec(struct content *c, const char *src, size_t srclen)
 		goto out_no_string;
 	}
 
+	doc_rwlock_wrlock(&htmlc->doc_mutex);
+
 	err = dom_string_create((const uint8_t *)src, srclen, &dom_src);
 	if (err != DOM_NO_ERR) {
 		NSLOG(wisp, WARNING, "Unable to exec, could not create string");
-		goto out_no_string;
+		goto out_no_string_locked;
 	}
 
 	err = dom_html_document_get_body(htmlc->document, &body_node);
@@ -2607,6 +2626,8 @@ out_no_text_node:
 	dom_node_unref(body_node);
 out_no_body:
 	dom_string_unref(dom_src);
+out_no_string_locked:
+	doc_rwlock_wrunlock(&htmlc->doc_mutex);
 out_no_string:
 	return result;
 }
