@@ -254,19 +254,7 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     assert(z);
     assert(GTK_WIDGET(gw->layout) == widget);
 
-    GtkAllocation alloc;
-    gtk_widget_get_allocation(widget, &alloc);
-    if (alloc.width <= 0) alloc.width = 1;
-    if (alloc.height <= 0) alloc.height = 1;
-
-    cairo_surface_t *offscreen_surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, alloc.width, alloc.height);
-    cairo_t *offscreen_cr = cairo_create(offscreen_surface);
-
-    /* Fill background white initially */
-    cairo_set_source_rgb(offscreen_cr, 1.0, 1.0, 1.0);
-    cairo_paint(offscreen_cr);
-
-    current_cr = offscreen_cr;
+    current_cr = cr;
 
     GtkAdjustment *vscroll = nsgtk_layout_get_vadjustment(gw->layout);
     GtkAdjustment *hscroll = nsgtk_layout_get_hadjustment(gw->layout);
@@ -318,16 +306,16 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
 
     /* Execute prioritized redraw loop */
     for (int i = 0; i < task_count; i++) {
-        cairo_save(offscreen_cr);
-        cairo_rectangle(offscreen_cr, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
+        cairo_save(cr);
+        cairo_rectangle(cr, tasks[i].tile_clip.x0, tasks[i].tile_clip.y0,
                         tasks[i].tile_clip.x1 - tasks[i].tile_clip.x0,
                         tasks[i].tile_clip.y1 - tasks[i].tile_clip.y0);
-        cairo_clip(offscreen_cr);
+        cairo_clip(cr);
 
         browser_window_redraw(gw->bw, -gtk_adjustment_get_value(hscroll), -gtk_adjustment_get_value(vscroll),
                               &tasks[i].tile_clip, &ctx);
 
-        cairo_restore(offscreen_cr);
+        cairo_restore(cr);
     }
 
     free(tasks);
@@ -335,12 +323,6 @@ static gboolean nsgtk_window_draw_event(GtkWidget *widget, cairo_t *cr, gpointer
     if (gw->careth != 0) {
         nsgtk_plot_caret(gw->caretx, gw->carety, gw->careth);
     }
-
-    cairo_set_source_surface(cr, offscreen_surface, 0, 0);
-    cairo_paint(cr);
-
-    cairo_destroy(offscreen_cr);
-    cairo_surface_destroy(offscreen_surface);
 
     return FALSE;
 }

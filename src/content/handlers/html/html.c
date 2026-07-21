@@ -1371,6 +1371,10 @@ bool html_begin_conversion(html_content *htmlc)
 	dom_node_unref(html);
 	doc_rwlock_rdunlock(&htmlc->doc_mutex);
 
+	/* Proceed with conversion if only scripts remain active, no fetches remain,
+	 * or if the safety timeout has bypassed the active download gate.
+	 * This allows immediate first render without waiting for script downloads.
+	 */
 	bool bypass_active_gate = false;
 	if (htmlc->data_complete_time_ms != 0) {
 		uint64_t now_ms;
@@ -1380,11 +1384,8 @@ bool html_begin_conversion(html_content *htmlc)
 		}
 	}
 
-	/* Proceed with conversion if only scripts remain active or no fetches remain.
-	 * This allows immediate first render without waiting for script downloads.
-	 */
 	if (htmlc->base.active == htmlc->scripts_active || bypass_active_gate) {
-		PERF("html_begin_conversion: calling html_finish_conversion (active=%d, scripts_active=%d, bypass=%d)", htmlc->base.active,
+		PERF("html_begin_conversion: calling html_finish_conversion (active=%d, scripts_active=%d, bypassed=%d)", htmlc->base.active,
 			htmlc->scripts_active, bypass_active_gate);
 		html_finish_conversion(htmlc);
 	}
