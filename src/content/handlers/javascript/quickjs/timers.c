@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <nsutils/time.h>
 
 extern struct wisp_table *guit;
 
@@ -44,7 +45,25 @@ void qjs_timer_callback(void *p)
         return;
     }
 
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    uint64_t old_deadline = 0;
+    uint64_t old_last_yield = 0;
+    if (t && t->heap) {
+        old_deadline = t->heap->deadline_ms;
+        old_last_yield = t->heap->last_yield_ms;
+        uint64_t now;
+        nsu_getmonotonic_ms(&now);
+        t->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        t->heap->last_yield_ms = now;
+    }
+
     JSValue ret = JS_Call(ctx, timer->func, JS_UNDEFINED, 0, NULL);
+
+    if (t && t->heap) {
+        t->heap->deadline_ms = old_deadline;
+        t->heap->last_yield_ms = old_last_yield;
+    }
+
     if (JS_IsException(ret)) {
         JSValue exc = JS_GetException(ctx);
         const char *exc_str = JS_ToCString(ctx, exc);

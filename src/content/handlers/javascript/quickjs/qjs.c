@@ -150,6 +150,88 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
     return res;
 }
 
+struct precompile_arg {
+    uint8_t *txt;
+    size_t txtlen;
+};
+
+static void do_precompile(void *arg) {
+    struct precompile_arg *pa = arg;
+    if (!pa) return;
+
+    if (pa->txt && pa->txtlen > 0) {
+        char hex[65];
+        compute_sha256(pa->txt, pa->txtlen, hex);
+
+        char cache_dir[] = "/tmp/wisp-bytecode-cache";
+        char cache_path[256];
+        snprintf(cache_path, sizeof(cache_path), "%s/%s.bin", cache_dir, hex);
+
+        struct stat st;
+        if (stat(cache_path, &st) != 0) {
+            // File does not exist, compile it!
+            JSRuntime *rt = JS_NewRuntime();
+            if (rt) {
+                JSContext *ctx = JS_NewContext(rt);
+                if (ctx) {
+                    char *txt_null_term = malloc(pa->txtlen + 1);
+                    if (txt_null_term) {
+                        memcpy(txt_null_term, pa->txt, pa->txtlen);
+                        txt_null_term[pa->txtlen] = '\0';
+
+                        JSValue compiled = JS_Eval(ctx, txt_null_term, pa->txtlen, "<precompile>", JS_EVAL_TYPE_GLOBAL | JS_EVAL_FLAG_COMPILE_ONLY);
+                        free(txt_null_term);
+
+                        if (!JS_IsException(compiled)) {
+                            size_t bytecode_size = 0;
+                            uint8_t *bytecode = JS_WriteObject(ctx, &bytecode_size, compiled, JS_WRITE_OBJ_BYTECODE);
+                            if (bytecode && bytecode_size > 0) {
+#ifdef _WIN32
+                                _mkdir(cache_dir);
+#else
+                                mkdir(cache_dir, 0700);
+#endif
+                                FILE *f = fopen(cache_path, "wb");
+                                if (f) {
+                                    fwrite(bytecode, 1, bytecode_size, f);
+                                    fclose(f);
+                                }
+                            }
+                            if (bytecode) {
+                                js_free(ctx, bytecode);
+                            }
+                            JS_FreeValue(ctx, compiled);
+                        }
+                    }
+                    JS_FreeContext(ctx);
+                }
+                JS_FreeRuntime(rt);
+            }
+        }
+    }
+
+    if (pa->txt) free(pa->txt);
+    free(pa);
+}
+
+void wisp_queue_precompile(const uint8_t *txt, size_t txtlen) {
+    if (!txt || txtlen == 0) return;
+
+    struct precompile_arg *pa = malloc(sizeof(*pa));
+    if (!pa) return;
+    pa->txt = malloc(txtlen);
+    if (!pa->txt) {
+        free(pa);
+        return;
+    }
+    memcpy(pa->txt, txt, txtlen);
+    pa->txtlen = txtlen;
+
+    if (!wisp_dispatch_js(NULL, do_precompile, pa, 0.5f)) {
+        do_precompile(pa);
+    }
+}
+
 extern struct wisp_table *guit;
 
 struct origin_js_process {
@@ -387,8 +469,17 @@ static void handle_process_crash(const char *origin) {
             unlink(ipc_path);
             rmdir(curr->ipc_dir);
 
-            kill(curr->pid, SIGKILL);
-            waitpid(curr->pid, NULL, 0);
+            int status = 0;
+            if (waitpid(curr->pid, &status, WNOHANG) == 0) {
+                kill(curr->pid, SIGKILL);
+                waitpid(curr->pid, &status, 0);
+            }
+
+            if (WIFEXITED(status)) {
+                NSLOG(wisp, WARNING, "JS process exited with code %d", WEXITSTATUS(status));
+            } else if (WIFSIGNALED(status)) {
+                NSLOG(wisp, WARNING, "JS process terminated by signal %d", WTERMSIG(status));
+            }
 
             free(curr);
             break;
@@ -430,15 +521,29 @@ void js_initialise(void)
 {
 }
 
+void (*wisp_gui_pump_events_hook)(void) = NULL;
+
 static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 {
     struct jsheap *heap = opaque;
     uint64_t now;
-    if (heap->deadline_ms > 0) {
-        nsu_getmonotonic_ms(&now);
-        if (now > heap->deadline_ms) return 1;
+    nsu_getmonotonic_ms(&now);
+
+    // 1. Hard Timeout Guard (e.g., 3 seconds max execution)
+    if (heap->deadline_ms > 0 && (now > heap->deadline_ms)) {
+        NSLOG(wisp, WARNING, "JS execution timed out, aborting script.");
+        return 1; // Terminates QuickJS execution
     }
-    return 0;
+
+    // 2. Time-Slicing: Yield to OS/UI event loop every 16ms
+    if (heap->last_yield_ms > 0 && (now > heap->last_yield_ms + 16)) {
+        heap->last_yield_ms = now;
+        if (wisp_gui_pump_events_hook) {
+            wisp_gui_pump_events_hook();
+        }
+    }
+
+    return 0; // Continue execution
 }
 
 void js_finalise(void)
@@ -468,8 +573,8 @@ nserror js_newheap(int timeout, jsheap **heap)
     h->rt = JS_NewRuntime();
     if (!h->rt) { free(h); return NSERROR_NOMEM; }
     h->timeout = timeout;
-    JS_SetMemoryLimit(h->rt, 64 * 1024 * 1024);
-    JS_SetMaxStackSize(h->rt, 8192 * 1024);
+    JS_SetMemoryLimit(h->rt, 128 * 1024 * 1024); // Increased to 128MB
+    JS_SetMaxStackSize(h->rt, 16384 * 1024);     // Increased to 16MB
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
     *heap = h;
     return NSERROR_OK;
@@ -609,6 +714,37 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            this.port2._other = this.port1;\n"
         "        }\n"
         "    };\n"
+        "}\n"
+        "if (typeof globalThis.getComputedStyle === 'undefined') {\n"
+        "    globalThis.getComputedStyle = function(elt, pseudoElt) {\n"
+        "        const dummyStyle = {\n"
+        "            getPropertyValue: function(prop) {\n"
+        "                if (prop === 'display') return 'block';\n"
+        "                if (prop === 'width') return '1024px';\n"
+        "                if (prop === 'height') return '768px';\n"
+        "                if (prop === 'opacity') return '1';\n"
+        "                return '';\n"
+        "            },\n"
+        "            getPropertyPriority: function() { return ''; },\n"
+        "            setProperty: function() {},\n"
+        "            removeProperty: function() {},\n"
+        "            length: 0,\n"
+        "            cssText: ''\n"
+        "        };\n"
+        "        return new Proxy(dummyStyle, {\n"
+        "            get(target, prop) {\n"
+        "                if (prop in target) return target[prop];\n"
+        "                if (typeof prop === 'string') {\n"
+        "                    if (prop === 'display') return 'block';\n"
+        "                    if (prop === 'width') return '1024px';\n"
+        "                    if (prop === 'height') return '768px';\n"
+        "                    if (prop === 'opacity') return '1';\n"
+        "                    return '';\n"
+        "                }\n"
+        "                return undefined;\n"
+        "            }\n"
+        "        });\n"
+        "    };\n"
         "}\n";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val);
@@ -702,7 +838,8 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
 
     JSRuntime *rt = JS_NewRuntime();
     if (!rt) { free(t); return NSERROR_NOMEM; }
-    JS_SetMaxStackSize(rt, 8192 * 1024);
+    JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
+    JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
 
     t->ctx = JS_NewContext(rt);
     if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }
@@ -1106,18 +1243,48 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
         wisp_ipc_msg msg;
         msg.type = WISP_IPC_MSG_JS_EXEC;
-        msg.length = 4 + txtlen;
-        msg.data = malloc(msg.length);
-        if (msg.data) {
-            memcpy(msg.data, &ctx_id, 4);
-            memcpy(msg.data + 4, txt, txtlen);
 
+        bool is_file = false;
+        char temp_file_path[256];
+        if (txtlen > 65536) {
+            // Write to a temporary file to avoid IPC buffer saturation
+            int fd;
+            snprintf(temp_file_path, sizeof(temp_file_path), "/tmp/wisp-script-XXXXXX");
+            fd = mkstemp(temp_file_path);
+            if (fd >= 0) {
+                if (write(fd, txt, txtlen) == (ssize_t)txtlen) {
+                    is_file = true;
+                }
+                close(fd);
+            }
+        }
+
+        if (is_file) {
+            char file_prefix[512];
+            snprintf(file_prefix, sizeof(file_prefix), "file://%s", temp_file_path);
+            size_t file_prefix_len = strlen(file_prefix);
+            msg.length = 4 + file_prefix_len;
+            msg.data = malloc(msg.length);
+            if (msg.data) {
+                memcpy(msg.data, &ctx_id, 4);
+                memcpy(msg.data + 4, file_prefix, file_prefix_len);
+            }
+        } else {
+            msg.length = 4 + txtlen;
+            msg.data = malloc(msg.length);
+            if (msg.data) {
+                memcpy(msg.data, &ctx_id, 4);
+                memcpy(msg.data + 4, txt, txtlen);
+            }
+        }
+
+        if (msg.data) {
             if (wisp_ipc_send(ipc_js, &msg) == NSERROR_OK) {
                 free(msg.data);
                 /* Implement timeout for recv to avoid UI hang */
                 wisp_ipc_msg response;
                 wisp_ipc_set_blocking(ipc_js, false);
-                int retries = 500; // 5 seconds
+                int retries = 1000; // 10 seconds timeout (increased from 500)
                 bool got_response = false;
                 while (retries-- > 0) {
                     nserror recv_err = wisp_ipc_recv(ipc_js, &response);
@@ -1138,6 +1305,9 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     usleep(10000);
                 }
                 wisp_ipc_set_blocking(ipc_js, true);
+                if (is_file) {
+                    unlink(temp_file_path);
+                }
                 if (got_response) {
                     if (doc) {
                         drain_mutation_queue(thread->shm_dom, doc);
@@ -1152,8 +1322,15 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 }
             } else {
                 free(msg.data);
+                if (is_file) {
+                    unlink(temp_file_path);
+                }
                 NSLOG(wisp, ERROR, "JS process write failed for origin %s (likely crashed)", thread->origin);
                 handle_process_crash(thread->origin);
+            }
+        } else {
+            if (is_file) {
+                unlink(temp_file_path);
             }
         }
         if (doc) {
@@ -1163,7 +1340,23 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         NSLOG(wisp, WARNING, "JS IPC failed for %s, falling back to in-process", name);
     }
 
+    uint64_t old_deadline = 0;
+    uint64_t old_last_yield = 0;
+    if (thread->heap) {
+        old_deadline = thread->heap->deadline_ms;
+        old_last_yield = thread->heap->last_yield_ms;
+        uint64_t now;
+        nsu_getmonotonic_ms(&now);
+        thread->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        thread->heap->last_yield_ms = now;
+    }
+
     JSValue val = js_eval_with_aot_cache(thread->ctx, txt, txtlen, name, JS_EVAL_TYPE_GLOBAL);
+
+    if (thread->heap) {
+        thread->heap->deadline_ms = old_deadline;
+        thread->heap->last_yield_ms = old_last_yield;
+    }
     bool success = !JS_IsException(val);
     if (!success) {
         JSValue exc = JS_GetException(thread->ctx);
@@ -1199,7 +1392,25 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     }
     struct dom_document *doc_node_evt = qjs_thread_get_document(ctx->thread);
     JSValue this_obj = (ctx->target == (struct dom_event_target *)ctx->thread->win_priv || ctx->target == (struct dom_event_target *)doc_node_evt) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
+
+    uint64_t old_deadline = 0;
+    uint64_t old_last_yield = 0;
+    if (ctx->thread && ctx->thread->heap) {
+        old_deadline = ctx->thread->heap->deadline_ms;
+        old_last_yield = ctx->thread->heap->last_yield_ms;
+        uint64_t now;
+        nsu_getmonotonic_ms(&now);
+        ctx->thread->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        ctx->thread->heap->last_yield_ms = now;
+    }
+
     JSValue ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
+
+    if (ctx->thread && ctx->thread->heap) {
+        ctx->thread->heap->deadline_ms = old_deadline;
+        ctx->thread->heap->last_yield_ms = old_last_yield;
+    }
+
     if (JS_IsException(ret)) {
         JSValue exc = JS_GetException(jsctx); const char *exc_str = JS_ToCString(jsctx, exc);
         if (exc_str) JS_FreeCString(jsctx, exc_str); JS_FreeValue(jsctx, exc);

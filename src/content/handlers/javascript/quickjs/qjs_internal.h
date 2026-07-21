@@ -53,6 +53,7 @@ struct jsheap {
     JSRuntime *rt;
     int timeout;
     uint64_t deadline_ms;
+    uint64_t last_yield_ms;
 };
 
 struct qjs_timer {

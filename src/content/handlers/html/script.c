@@ -192,6 +192,13 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         PERF("SCRIPT ASYNC DONE %d '%s' (active=%d)", i, nsurl_access(hlcache_handle_get_url(script)),
             parent->base.active - 1);
         NSLOG(wisp, INFO, "script %d done '%s'", i, nsurl_access(hlcache_handle_get_url(script)));
+        {
+            const uint8_t *data;
+            size_t size;
+            data = content_get_source_data(script, &size);
+            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen);
+            wisp_queue_precompile(data, size);
+        }
         if (parent->base.active == 0) {
             NSLOG(wisp, CRITICAL,
                 "ACTIVE UNDERFLOW! async_cb DONE decrement when 0 "
@@ -269,6 +276,13 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
         PERF("SCRIPT DEFER DONE %d '%s' (active=%d)", i, nsurl_access(hlcache_handle_get_url(script)),
             parent->base.active - 1);
         NSLOG(wisp, INFO, "script %d done '%s'", i, nsurl_access(hlcache_handle_get_url(script)));
+        {
+            const uint8_t *data;
+            size_t size;
+            data = content_get_source_data(script, &size);
+            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen);
+            wisp_queue_precompile(data, size);
+        }
         if (parent->base.active == 0) {
             NSLOG(wisp, CRITICAL,
                 "ACTIVE UNDERFLOW! defer_cb DONE decrement when 0 "
@@ -387,6 +401,13 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         PERF("SCRIPT SYNC DONE %d '%s' (active=%d)", i, nsurl_access(hlcache_handle_get_url(script)),
             parent->base.active - 1);
         NSLOG(wisp, INFO, "script %d done '%s'", i, nsurl_access(hlcache_handle_get_url(script)));
+        {
+            const uint8_t *data;
+            size_t size;
+            data = content_get_source_data(script, &size);
+            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen);
+            wisp_queue_precompile(data, size);
+        }
         NSLOG(wisp, INFO, "DIAG: sync_cb DONE: parent=%p active=%d->%d", parent, parent->base.active,
             parent->base.active - 1);
         if (parent->base.active == 0) {
