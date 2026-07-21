@@ -378,6 +378,15 @@ static struct gui_misc_table win32_misc_table = {
     .task_queue_wake = win32_task_queue_wake,
 };
 
+void wisp_gui_pump_events(void)
+{
+    MSG msg;
+    while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+
 /**
  * Entry point from windows
  **/
@@ -410,6 +419,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hLastInstance, LPSTR lpcli, in
 #ifdef WISP_WINDOWS_USE_D2D
     win32_table.layout = win_layout_table_dwrite;
 #endif
+
+    void wisp_gui_pump_events(void);
+    extern void (*wisp_gui_pump_events_hook)(void);
+    wisp_gui_pump_events_hook = wisp_gui_pump_events;
 
     ret = wisp_register(&win32_table);
     if (ret != NSERROR_OK) {

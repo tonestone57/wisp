@@ -32,8 +32,25 @@ static void setup_menu(void) {
     [appMenuItem setSubmenu:appMenu];
 }
 
+void wisp_gui_pump_events(void) {
+    @autoreleasepool {
+        NSEvent *event;
+        do {
+            event = [NSApp nextEventMatchingMask:NSEventMaskAny
+                                       untilDate:[NSDate distantPast]
+                                          inMode:NSDefaultRunLoopMode
+                                         dequeue:YES];
+            if (event) {
+                [NSApp sendEvent:event];
+            }
+        } while (event);
+    }
+}
+
 int main(int argc, char *argv[]) {
     @autoreleasepool {
+        extern void (*wisp_gui_pump_events_hook)(void);
+        wisp_gui_pump_events_hook = wisp_gui_pump_events;
         NSApplication *app = [NSApplication sharedApplication];
         macos_app_delegate = [[WispApp alloc] init];
         [app setDelegate:macos_app_delegate];
