@@ -101,7 +101,7 @@ static inline bool box_is_root(dom_node *n)
  * \param o  The object params being destroyed.
  * \return 0 to allow talloc to continue destroying the tree.
  */
-static int box_object_talloc_destructor(void *vo)
+static void box_object_talloc_destructor(void *vo)
 {
 	struct object_params *o = vo;
 
@@ -111,8 +111,6 @@ static int box_object_talloc_destructor(void *vo)
 		nsurl_unref(o->classid);
 	if (o->data != NULL)
 		nsurl_unref(o->data);
-
-	return 0;
 }
 
 
@@ -179,14 +177,13 @@ static struct frame_dimension *box_parse_multi_lengths(const dom_string *ds, uns
  * \param f  The frame params being destroyed.
  * \return 0 to allow talloc to continue destroying the tree.
  */
-static int box_frames_talloc_destructor(struct content_html_frames *f)
+static void box_frames_talloc_destructor(void *ptr)
 {
+	struct content_html_frames *f = (struct content_html_frames *)ptr;
 	if (f->url != NULL) {
 		nsurl_unref(f->url);
 		f->url = NULL;
 	}
-
-	return 0;
 }
 
 
@@ -273,8 +270,6 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
 	f->scrolling = BW_SCROLLING_NO;
 	f->children = arena_alloc(content->bctx, sizeof(struct content_html_frames) * (rows * cols));
 
-	talloc_set_destructor(f->children, box_frames_talloc_destructor);
-
 	for (row = 0; row < rows; row++) {
 		for (col = 0; col < cols; col++) {
 			index = (row * cols) + col;
@@ -292,6 +287,8 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
 			frame->border = default_border;
 			frame->border_colour = default_border_colour;
 			frame->children = NULL;
+
+			arena_register_destructor(content->bctx, frame, box_frames_talloc_destructor);
 		}
 	}
 	free(col_width);
@@ -473,7 +470,7 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
  * \param f The iframe params being destroyed.
  * \return 0 to allow talloc to continue destroying the tree.
  */
-static int box_iframes_talloc_destructor(void *ptr)
+static void box_iframes_talloc_destructor(void *ptr)
 {
 	struct content_html_iframe *f = (struct content_html_iframe *)ptr;
 
@@ -481,8 +478,6 @@ static int box_iframes_talloc_destructor(void *ptr)
 		nsurl_unref(f->url);
 		f->url = NULL;
 	}
-
-	return 0;
 }
 
 
@@ -827,7 +822,7 @@ static bool box_embed(dom_node *n, html_content *content, struct box *box, bool 
 	if (params == NULL)
 		return false;
 
-	_talloc_set_destructor(params, (int (*)(void *))box_object_talloc_destructor);
+	arena_register_destructor(content->bctx, params, box_object_talloc_destructor);
 
 	params->data = NULL;
 	params->type = NULL;
@@ -1007,7 +1002,7 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
 		return false;
 	}
 
-	talloc_set_destructor(iframe, (int (*)(struct content_html_iframe *))box_iframes_talloc_destructor);
+	arena_register_destructor(content->bctx, iframe, box_iframes_talloc_destructor);
 
 	iframe->box = box;
 	iframe->margin_width = 0;
@@ -1538,7 +1533,7 @@ static bool box_object(dom_node *n, html_content *content, struct box *box, bool
 	if (params == NULL)
 		return false;
 
-	_talloc_set_destructor(params, (int (*)(void *))box_object_talloc_destructor);
+	arena_register_destructor(content->bctx, params, box_object_talloc_destructor);
 
 	params->data = NULL;
 	params->type = NULL;
