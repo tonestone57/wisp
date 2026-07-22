@@ -605,8 +605,9 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
 
         switch (script_type) {
         case HTML_SCRIPT_SYNC:
-            if (c->parser != NULL) {
+            if (c->parser != NULL && !nscript->already_started) {
                 dom_hubbub_parser_pause(c->parser, true);
+                ret = DOM_HUBBUB_HUBBUB_ERR | HUBBUB_PAUSED;
             }
             break;
 

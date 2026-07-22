@@ -858,6 +858,13 @@ dom_hubbub_error dom_hubbub_fragment_parser_create(dom_hubbub_parser_params *par
         binding->script = params->script;
     }
 
+    /* ensure SVG function is valid or use the default */
+    if (params->svg == NULL) {
+        binding->svg = dom_hubbub_parser_default_svg;
+    } else {
+        binding->svg = params->svg;
+    }
+
     /* create hubbub parser */
     error = hubbub_parser_create(binding->encoding, params->fix_enc, &binding->parser);
     if (error != HUBBUB_OK) {
