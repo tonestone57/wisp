@@ -1343,6 +1343,31 @@ static bool box_image(dom_node *n, html_content *content, struct box *box, bool 
 		box->flags |= REPLACE_DIM;
 	}
 
+	/* Fallback: directly check HTML width and height attributes if REPLACE_DIM is not set.
+	 * If they are present and do not represent percentage values, we can assume the dimensions
+	 * are known before fetching completes. */
+	if (!(box->flags & REPLACE_DIM)) {
+		dom_string *width_attr = NULL;
+		dom_string *height_attr = NULL;
+		dom_element_get_attribute((dom_element *)n, corestring_dom_width, &width_attr);
+		dom_element_get_attribute((dom_element *)n, corestring_dom_height, &height_attr);
+		if (width_attr != NULL && height_attr != NULL) {
+			const char *w_data = dom_string_data(width_attr);
+			const char *h_data = dom_string_data(height_attr);
+			if (w_data != NULL && h_data != NULL) {
+				if (strchr(w_data, '%') == NULL && strchr(h_data, '%') == NULL) {
+					box->flags |= REPLACE_DIM;
+				}
+			}
+		}
+		if (width_attr != NULL) {
+			dom_string_unref(width_attr);
+		}
+		if (height_attr != NULL) {
+			dom_string_unref(height_attr);
+		}
+	}
+
 	return ok;
 }
 
