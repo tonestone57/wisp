@@ -504,9 +504,10 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
 
 #define BGR(c) (((svgtiny_RED((c))) | (svgtiny_GREEN((c)) << 8) | (svgtiny_BLUE((c)) << 16)))
 
-    bool use_stateful = (ctx->plot->path_begin != NULL &&
-                        ctx->plot->path_fill != NULL &&
-                        ctx->plot->path_stroke != NULL);
+    /* Force use_stateful = false to use the non-stateful path batching.
+     * This avoids the Cairo sequence bug where changing CTM in path_fill/stroke
+     * has no effect on already constructed paths. */
+    bool use_stateful = false;
 
     /* Batching state */
     bool batch_active = false;

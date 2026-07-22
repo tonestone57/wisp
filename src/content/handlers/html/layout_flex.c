@@ -1646,6 +1646,9 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 		}
 
 		box_size_main = lh__box_size_main(ctx->horizontal, b);
+		if (box_size_main == AUTO || box_size_main < 0) {
+			box_size_main = 0;
+		}
 		box_pos_main = ctx->horizontal ? &b->x : &b->y;
 
 
