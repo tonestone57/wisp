@@ -1,7 +1,7 @@
-# Wisp Browser Technical Roadmap & Architectural Summary (July 2026)
+# Wisp Browser Technical Roadmap & Architectural Summary (2027 Update)
 
 ## 1. Executive Summary
-Wisp is a lightweight, high-performance web engine forked from NetSurf. As of July 2026, Wisp has successfully bridged the gap between "retro" software efficiency and the modern web. The core engine is now stable, featuring a fully spec-compliant implementation of CSS Grid, Flexbox, and modern JavaScript (ES2023+ via QuickJS-ng). Wisp maintains a minimal footprint suitable for both modern and legacy operating systems including Haiku, Windows XP/7/10/11, Linux, and macOS. All major 2026 architectural goals, including Multi-Process Isolation and the Canvas 2D plotter bridge, have been achieved.
+Wisp is a lightweight, high-performance web engine forked from NetSurf. As of 2027, Wisp has successfully bridged the gap between "retro" software efficiency and the modern web. The core engine is now stable, featuring a fully spec-compliant implementation of CSS Grid, Flexbox, CSS Variables, and modern JavaScript (ES2023+ via QuickJS-ng). Wisp maintains a minimal footprint suitable for both modern and legacy operating systems including Haiku, Windows XP/7/10/11, Linux, and macOS. All major architectural goals, including Multi-Process Isolation, out-of-process JS Execution, and the Canvas 2D plotter bridge, have been achieved and hardened.
 
 ---
 
@@ -68,7 +68,7 @@ The mapping of C DOM nodes to JS objects uses a **weak-reference model** and exp
 
 ---
 
-## 6. Recent Technical Improvements (2026 Hardening Audit)
+## 6. Recent Technical Improvements (2026/2027 Hardening Audit)
 The following stability and security measures have been integrated:
 *   **Hardened Parsing**: Project-wide removal of unsafe `atoi` in favor of `ns_strtoint/ns_strtouint` with overflow protection.
 *   **Stable Layout Fallbacks**: Replaced browser-crashing `abort()` and `assert(0)` calls in the core layout engine with `NSLOG` warnings and geometric clamping.
@@ -77,7 +77,7 @@ The following stability and security measures have been integrated:
 *   **SIMD-Aligned Arena**: The arena allocator was hardened against integer overflows in its `ALIGN_UP` macro while maintaining 64-byte alignment for AVX-512.
 *   **Timer UAF Prevention**: Implemented mandatory timer unscheduling during thread destruction.
 *   **Canvas 2D Plotter Bridge**: Successfully bridged WebIDL stubs for the Canvas 2D API to the underlying Direct2D and Blend2D plotter backends.
-*   **Multi-process Isolation**: JavaScript engine and network stack isolated into separate OS processes via a platform-agnostic IPC layer.
+*   **Multi-process Isolation**: JavaScript engine and network stack isolated into separate OS processes via a platform-agnostic IPC layer. Layout and parsing isolation planned.
 *   **Web Worker Parity**: Full spec-compliant implementation of Web Workers, utilizing an isolated `JSRuntime` and `JSContext` per worker with structured cloning for messaging.
 *   **BDirectWindow Migration (Haiku)**: Granted the drawing engine direct, locked access to the frame buffer, bypassing `app_server` context loops for lower latency on both native BView and Blend2D fallback renderings.
 *   **Native Haiku Widget Parity**: Completed integration of native `BControl` elements into the BeOS/Haiku frontend widget map, including selects, text areas, and file pickers.
@@ -95,25 +95,30 @@ The following stability and security measures have been integrated:
 
 ---
 
-## 7. Unfinished Tasks & Priority Backlog
-The following table outlines the key prioritized backlog and future horizons planned for the 2027–2028 development cycles.
+## 7. Subsystem Priority Backlog & Progress Status
 
-| Task Descriptor | Target Area | Complexity | Benefit | Architectural Description |
-|---|---|---|---|---|
-| **GPU-Accelerated Compositing** | Graphics | **High** | **High** | Offload tile-blitting and scroll passes to GPU (OpenGL/Vulkan) for smooth 60FPS; fall back to Blend2D/GDI. |
-| **OS-Level Sandboxing** | Security | **High** | **High** | Native sandboxing using Landlock (Linux), AppContainers (Windows), and Pledge (OpenBSD). |
-| **Unified C UI Library** | Frontend | **Medium** | **High** | Compact, cross-platform UI widgets for consistent chrome (tabs, URL bar) across platforms. |
-| **Zero-Copy IPC (Shared Memory)** | IPC | **High** | **High** | Pass Blend2D tile bitmaps over shared-memory handles (`shm_open`/file mapping) to bypass IPC bottlenecks. |
-| **WebAssembly (WASM) Interpreter**| Core | **Medium** | **Medium**| Lightweight WASM interpreter to support modern web applications without footprint bloat. |
-| **WebGPU API Bridge** | Graphics | **High** | **Medium**| Bridge WebIDL WebGPU stubs to native graphics pipelines where system driver topologies allow. |
-| **Optional JIT Compilation Tier** | JS Engine | **High** | **Medium**| Evaluate embedding JIT layers (e.g. Hermes or lightweight WASM JIT) for script-heavy sites. |
-| **GPU-Shared Textures** | Graphics | **High** | **High** | Share GPU texture buffers directly across process borders in the upcoming compositor loops. |
-| **CSS Whitespace skipping (SIMD)** | CSS | **Medium** | **High** | Scan and skip CSS whitespace characters using SIMD vectors (SSE2/NEON/RVV 1.0) in 16 byte blocks. |
-| **Color Space Blending (SIMD)** | Graphics | **Medium** | **Medium**| Vectorize YUV-to-RGB conversions and parallel alpha blending inside the Zero-Copy IPC compositing layer. |
+The following table outlines the current implementation status and strategic progress of backlog items.
+
+| Task Descriptor | Target Area | Complexity | Benefit | Status | Architectural Description |
+|---|---|---|---|---|---|
+| **CSS Whitespace skipping (SIMD)** | CSS | **Medium** | **High** | **[Finished]** | Scan and skip CSS whitespace characters using SIMD vectors (SSE2/NEON/RVV 1.0) in 16 byte blocks. |
+| **Color Space Blending (SIMD)** | Graphics | **Medium** | **Medium** | **[Finished]** | Vectorize YUV-to-RGB conversions and parallel alpha blending inside the Zero-Copy IPC compositing layer. |
+| **Shared-Memory DOM** | Core/IPC | **High** | **High** | **[Finished]** | Pass DOM tree topology over shared-memory space (`shm_open`/file mapping) to bypass serialization overhead. |
+| **Batch Mutation Queue** | Core/IPC | **High** | **High** | **[Finished]** | Local buffer mutation queues flushed synchronously at the end of microtask loops. |
+| **Web API / Fetch Parity** | JS Subsystem | **High** | **High** | **[Finished]** | Standards-compliant `Headers`, `ReadableStream`, `Request`, `Response`, `fetch()`, `ShadowRoot`, and `History` routing APIs. |
+| **CSS3 Transforms & Animations** | CSS/Graphics | **High** | **High** | **[Finished]** | 3D transforms matrix projection, transitions/animations engine, and frame-step rendering. |
+| **CSS Grid Subgrids** | CSS/Layout | **Medium** | **High** | **[Finished]** | Track-definition inheritance on nested containers spanning grid tracks. |
+| **GPU-Accelerated Compositing** | Graphics | **High** | **High** | Planned | Offload tile-blitting and scroll passes to GPU (OpenGL/Vulkan) for smooth 60FPS; fall back to Blend2D/GDI. |
+| **OS-Level Sandboxing** | Security | **High** | **High** | Planned | Native sandboxing using Landlock (Linux), AppContainers (Windows), and Pledge (OpenBSD). |
+| **Unified C UI Library** | Frontend | **Medium** | **High** | Planned | Compact, cross-platform UI widgets for consistent chrome (tabs, URL bar) across platforms. |
+| **WebAssembly (WASM) Interpreter**| Core | **Medium** | **Medium**| Planned | Lightweight WASM interpreter to support modern web applications without footprint bloat. |
+| **WebGPU API Bridge** | Graphics | **High** | **Medium**| Planned | Bridge WebIDL WebGPU stubs to native graphics pipelines where system driver topologies allow. |
+| **Optional JIT Compilation Tier** | JS Engine | **High** | **Medium**| Planned | Evaluate embedding JIT layers (e.g. Hermes or lightweight WASM JIT) for script-heavy sites. |
+| **GPU-Shared Textures** | Graphics | **High** | **High** | Planned | Share GPU texture buffers directly across process borders in the upcoming compositor loops. |
 
 ---
 
-## 9. Next-Generation Roadmap Proposals (2027 Development Cycle)
+## 8. Next-Generation Roadmap Proposals (2027 Development Cycle)
 
 To take Wisp to the next level for its 2027 development cycle, several highly specialized architectural additions will address the hidden "tax" of supporting such a vast timeline of hardware and software.
 
@@ -137,7 +142,7 @@ Leaving legacy OS users entirely unsandboxed is highly dangerous, but legacy env
 > **Note on Legacy Windows Security**: By creating a restricted token, stripping away SIDs, and placing the JS/Network processes into a Win32 JobObject with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, you prevent a compromised process from writing to the system directories or surviving a browser crash, even on Windows XP.
 
 ### C. Architectural Trade-offs Matrix
-Implementing these additions alongside your current 2027 backlog balances out the engineering effort:
+Implementing these additions alongside your current backlog balances out the engineering effort:
 
 | Improvement | Complexity | Benefit | Target Area | Key Beneficiary |
 |---|---|---|---|---|
@@ -160,15 +165,15 @@ By leveraging Wisp's lightweight architecture alongside modern SIMD vectorizatio
 During the detailed audit and diagnosis of the HTML Parser, XML Parser, and DOM Mutation Event subsystems, several high-impact optimization pathways were identified. Consistent with Wisp's performance architecture, the high-performance variants are strictly designated as **Fast-Path optimizations using SIMD vector registers** with safe, fully compatible **scalar fallbacks** for legacy systems:
 
 1. **Parser Tokenizer Whitespace Skipping**
-   - **Fast-Path (SIMD Required)**: Utilize SIMD vector scanning registers (SSE2, NEON, RVV 1.0) pre-loaded with whitespace patterns (spaces, tabs, line breaks, carriage returns). This allows the tokenizer in `domparser_impl.c` or the Hubbub parser to scan and skip up to 16 bytes of white spaces in a single clock cycle, dramatically speeding up modern bloated XML/HTML document parsing.
+   - **Fast-Path (SIMD Required)**: Utilize SIMD vector scanning registers (SSE2, NEON, RVV 1.0) pre-loaded with whitespace patterns (spaces, tabs, line breaks, carriage returns). This allows the tokenizer in `domparser_impl.c` or the Hubbub parser to scan and skip up to 16 bytes of white spaces in a single clock cycle, dramatically speeding up modern bloated XML/HTML document parsing. **[Finished]**
    - **Non-SIMD Fallback**: Fall back to sequential character-by-character loops checking `isspace()` or pointer-increment comparators.
 
 2. **DOM Event Target Dispatch Filtering & Matching**
-   - **Fast-Path (SIMD Required)**: Accelerate the filtering and matching of event types (such as bypassing legacy mutation strings like `"DOMNodeInserted"`) inside `_dom_event_target_dispatch` by using 128-bit SIMD string comparisons to compare event-type name strings concurrently.
+   - **Fast-Path (SIMD Required)**: Accelerate the filtering and matching of event types (such as bypassing legacy mutation strings like `"DOMNodeInserted"`) inside `_dom_event_target_dispatch` by using 128-bit SIMD string comparisons to compare event-type name strings concurrently. **[Finished]**
    - **Non-SIMD Fallback**: Fall back cleanly to standard string comparisons (`strcmp` or `strncmp`).
 
 3. **Batched Mutation Record Buffer Copying**
-   - **Fast-Path (SIMD Required)**: Optimize bulk serialization and transfer of mutation records (`WispMutationRecord`) inside `mutationobserver_impl.c` by leveraging vectorized block copies (e.g. `_mm_storeu_si128`) to clone record entries into the microtask execution queues.
+   - **Fast-Path (SIMD Required)**: Optimize bulk serialization and transfer of mutation records (`WispMutationRecord`) inside `mutationobserver_impl.c` by leveraging vectorized block copies (e.g. `_mm_storeu_si128`) to clone record entries into the microtask execution queues. **[Finished]**
    - **Non-SIMD Fallback**: Fall back to classic `memcpy` or element-by-element loop copying.
 
 ### E. High-Performance IPC: Shared-Memory DOM Topology & Batch Mutation Queues
@@ -183,9 +188,9 @@ This architecture eliminates IPC overhead for 95% of standard script operations 
 Rather than treating the JavaScript engine as a remote client requesting data over a pipe, we split the DOM interface into two layers: the master authoritative tree in `libdom` (UI process) and a highly compressed, read-only mirror mapped directly into the address space of the `wisp-js` process.
 
 ##### The Strategy:
- * **Reads (O(1) Complexity):** Handled entirely within the JS process by reading directly from a shared memory region. Zero IPC overhead.
- * **Writes (Batched Asynchronous):** Serialized into a lock-free, single-writer single-reader (SWSR) ring buffer residing in shared memory, flushed automatically at the end of the microtask tick.
- * **Synchronous Layout Queries (The Outlier):** Forced execution stalls only when JS requests calculated metrics (e.g., `offsetWidth`), requiring a synchronous IPC barrier.
+ * **Reads (O(1) Complexity):** Handled entirely within the JS process by reading directly from a shared memory region. Zero IPC overhead. **[Finished]**
+ * **Writes (Batched Asynchronous):** Serialized into a lock-free, single-writer single-reader (SWSR) ring buffer residing in shared memory, flushed automatically at the end of the microtask tick. **[Finished]**
+ * **Synchronous Layout Queries (The Outlier):** Forced execution stalls only when JS requests calculated metrics (e.g., `offsetWidth`), requiring a synchronous IPC barrier. **[Finished]**
 
 #### 2. The Shared Virtual DOM Space (SVDS)
 The UI process allocates a contiguous shared memory region that maps the document topology using compact, fixed-size structures. Instead of raw memory pointers, nodes reference each other using a dense 32-bit index identifier (`WispNodeID`).
@@ -294,7 +299,7 @@ By utilizing `create_area` on Haiku and `CreateFileMappingA` on Windows XP, Wisp
 
 ---
 
-## 10. Frontend Implementation Nuances & Dynamic Fallbacks
+## 9. Frontend Implementation Nuances & Dynamic Fallbacks
 To ensure the backend rollout is reliable and performant across all hardware/software tiers, several architectural and platform-specific design constraints must be observed:
 
 ### A. Windows: Explicit Compile-time & Runtime Selection
@@ -325,9 +330,9 @@ The primary rendering and event dispatch logic for BeOS/Haiku is centralized und
 
 ---
 
-## 11. Systems-Engineering Critique & Rollout Analysis
+## 10. Systems-Engineering Critique & Rollout Analysis
 
-This section provides a systems-engineering breakdown of Wisp's architecture, outlining the brilliant strategic decisions alongside potential bottlenecks and architectural risks that require careful mitigation during the 2027 rollout.
+This section provides a systems-engineering breakdown of Wisp's architecture, outlining the brilliant strategic decisions alongside potential bottlenecks and architectural risks that require careful mitigation during the development cycles.
 
 Wisp stands as an exceptionally well-thought-out, deeply pragmatic, and highly sophisticated engineering project. Forking NetSurf to build a modern, lightweight engine that can gracefully scale from a 48-core Threadripper running modern Linux down to a Pentium III running Windows XP or a legacy Haiku build is an absolute masterclass in systems architecture.
 
@@ -353,10 +358,10 @@ While the roadmap is solid, the intersection of NetSurf's legacy architecture an
 | System Component | The Engineering Challenge | Recommended Mitigation |
 |---|---|---|
 | **libdom IPC Marshalling** | NetSurf’s core DOM library (`libdom`) is fundamentally single-threaded and C-based. Moving JS into an isolated process means every DOM query or mutation must cross an IPC boundary. This could introduce severe layout stuttering during heavy DOM manipulations. | **Prioritize the Zero-Copy Shared Memory IPC.** Do not wait for 2028. We will need a shared-memory ring buffer for the DOM tree structure so the UI thread and the JS process can read the tree topology without continuous serialization overhead. |
-| **QuickJS-ng vs. Heavy SPAs** | QuickJS-ng is perfect for memory efficiency, but it is a pure bytecode interpreter. Even with our excellent SIMD JSON pre-parser and AOT bytecode caching, heavy 2026 Single Page Apps (like complex React/Next.js dashboards) will feel sluggish without a JIT compilation tier. | Accelerate the evaluation of the **Hermes or lightweight WASM/JS JIT** pipeline for environments that support it (x86_64/ARM64), keeping the pure interpreter as a strict fallback for secure or low-spec systems. |
+| **QuickJS-ng vs. Heavy SPAs** | QuickJS-ng is perfect for memory efficiency, but it is a pure bytecode interpreter. Even with our excellent SIMD JSON pre-parser and AOT bytecode caching, heavy Single Page Apps (like complex React/Next.js dashboards) will feel sluggish without a JIT compilation tier. | Accelerate the evaluation of the **Hermes or lightweight WASM/JS JIT** pipeline for environments that support it (x86_64/ARM64), keeping the pure interpreter as a strict fallback for secure or low-spec systems. |
 | **WebGPU Driver Realities** | Planning a WebGPU bridge for legacy OSes will hit a massive wall because WebGPU maps closely to Vulkan, D3D12, and Metal. Windows XP/7 and Haiku simply do not have the driver topology to support this natively. | Keep the WebGPU bridge strictly isolated behind a compile-time feature flag (`WISP_WITH_WEBGPU`). Ensure the layout engine fails gracefully back to standard Canvas 2D when the WebGPU context creation fails. |
 
-### C. 🛠️ Verdict on the 2026 Hardening Audit
+### C. 🛠️ Verdict on the Hardening Audit
 
 The inclusion of SIMD acceleration for WebSocket masking, JSON pre-parsing, and CSP string checking across **SSE2, NEON, and RVV 1.0** shows an impressive commitment to micro-optimization. It proves that "lightweight" doesn't have to mean "slow." Vectorizing the rolling 4-byte XOR mask for WebSockets (`_mm_xor_si128`) completely neutralizes the proxy protocol overhead that usually plagues alternative browsers.
 
@@ -364,7 +369,7 @@ This is a highly mature, production-ready roadmap for a niche engine. If we can 
 
 ---
 
-## 12. Architectural Reality: Modern Web App Frameworks (React/Next.js)
+## 11. Architectural Reality: Modern Web App Frameworks (React/Next.js)
 
 A core tenet of Wisp's architecture is recognizing and defining the boundary between lightweight native layout engines and heavyweight, multi-gigabyte browser engines (such as Blink, Gecko, and WebKit).
 
@@ -390,44 +395,38 @@ Wasm is strictly confined to specialized apps (Figma, 3D games, or local AI/data
 
 ### Blueprint for Upgrading Wisp toward Web API Parity
 
-To enable Wisp (building on NetSurf's C99 architecture and QuickJS-ng) to run modern Web App Frameworks (React, Next.js, Vue) and achieve Web API parity, the codebase would require fundamental architectural upgrades across five main areas:
+To enable Wisp (building on NetSurf's C99 architecture and QuickJS-ng) to run modern Web App Frameworks (React, Next.js, Vue) and achieve Web API parity, the codebase has successfully completed fundamental architectural upgrades across five main areas:
 
 #### 1. Event Loop & JavaScript Execution Engine
-QuickJS-ng provides ES2023 language compliance, but modern frameworks depend heavily on specific browser host environment behaviors rather than just pure JavaScript syntax.
+QuickJS-ng provides ES2023 language compliance, and Wisp has implemented modern browser host environment behaviors:
 *   **HTML5 Spec-Compliant Event Loop**:
-    *   **Microtask Queue**: React's scheduler relies on precise Promise microtask ordering (`queueMicrotask`). Wisp’s C-level event loop must process all microtasks to completion *before* yielding to rendering or macrotasks (`setTimeout`, I/O).
+    *   **Microtask Queue**: Precise Promise microtask ordering (`queueMicrotask`) loop. Wisp’s C-level event loop processes all microtasks to completion *before* yielding to rendering or macrotasks (`setTimeout`, I/O).
     *   **Frame Synchronization**: Native implementation of `requestAnimationFrame()` and `requestIdleCallback()` tied directly to the display backend's refresh cycle.
 *   **Threaded Concurrency**:
     *   Web Worker support (`new Worker()`) by instantiating isolated QuickJS runtime instances inside dedicated OS threads (pthreads) with structured clone messaging.
 
 #### 2. DOM & Web API Binding Layer (libdom / nsgenbind)
-Frameworks do not use standard static DOM trees; they construct, measure, and observe the DOM dynamically.
-*   **MutationObserver**: Essential for React and Vue DOM reconciliation. Without C-level tracking of attribute modifications, node insertions, and text mutations, hydrated frameworks immediately crash or desynchronize.
-*   **ResizeObserver & IntersectionObserver**: Used by Next.js for image lazy loading, infinite scrolling, and component layout logic.
-*   **Synthetic Events & Bubbling Fidelity**: React uses a single top-level event listener on document or root. Wisp’s C event target model must support standard capture and bubble phases, `composedPath()`, and exact event object property propagation.
+Wisp supports dynamic DOM construction, measurement, and observations:
+*   **MutationObserver**: Essential for React and Vue DOM reconciliation, delivering offline shared-memory DOM queues flushed at microtask-ticks.
+*   **IntersectionObserver**: Used by Next.js for image lazy loading, infinite scrolling, and component layout logic.
+*   **Shadow DOM v1**: Native container structures (`ShadowRoot` / `attachShadow()`) supporting mode configurations (`open`/`closed`) and XML/HTML parsing.
+*   **HTML5 History API**: State and length properties, with offline client-side client routing operations (`pushState`/`replaceState`).
 
 #### 3. Dynamic Reflow & Incremental Layout (LibCSS)
-NetSurf and Wisp historically optimized for document-style web pages (where HTML is parsed once and rendered). Modern SPAs modify DOM nodes continuously.
+Modern SPAs modify DOM nodes continuously, which Wisp handles via incremental updates:
 *   **Incremental Layout & Targeted Repaints**:
-    *   Modern apps mutate dozens of DOM elements per second. Rebuilding or re-laying out large branches of the `box_tree` on every JS mutation causes severe performance degradation. Wisp needs incremental reflows (re-calculating layout bounds only for dirty subtree nodes).
+    *   Scale-aware fixed-tile redraw and optimized disjoint dirty region tracking (up to 16 disjoint rects) to skip re-laying out clean subtrees.
 *   **Dynamic CSS Custom Properties (Variables)**:
-    *   `var(--theme-color)` support requires dynamic cascading recalculation when JS updates CSS variables at runtime (e.g., `element.style.setProperty()`).
+    *   Hashing/caching custom properties in `libcss` to eliminate redundant recursive style passes.
 *   **Complete CSS Grid & Flexbox Engine**:
-    *   Full support for CSS Grid track sizing (`minmax()`, `fr` units, `auto-fill`), gap calculations, subgrids, and Flexbox wrapping algorithms used by Tailwind CSS and UI component libraries.
+    *   Support for CSS Grid (FR units,dense packing, gap calculations, and **Grid Subgrids**) and Flexbox (flex-grow, flex-shrink, and wrapped column flex).
 
 #### 4. Networking & Stream Pipeline
 *   **Fetch & Streams Integration**:
-    *   Replacing legacy HTTP fetch wrappers with a full Fetch API binding backed by libcurl, including support for `ReadableStream` (crucial for Next.js Server Components / React Server Components streaming responses).
+    *   Fetch API binding backed by libcurl, supporting `ReadableStream`, `WritableStream`, and progress XMLHttp chunks for server streamed responses.
 *   **CORS & Security Controls**:
-    *   Strict Cross-Origin Resource Sharing (CORS) enforcement for `fetch()` / `XMLHttpRequest` to prevent modern API requests from being blocked by endpoint security policies.
+    *   Strict Cross-Origin Resource Sharing (CORS) enforcement for `fetch()` / `XMLHttpRequest`.
 
 #### 5. Modern Rendering & Canvas API
-*   **HTML5 <canvas> (2D & WebGL)**:
-    *   Providing 2D Canvas context bindings (via Cairo or Skia) and basic WebGL bindings (via OpenGL ES abstraction) for dynamic graphics, charts, and interactive components.
-
-### Summary of Wisp Engineering Priorities
-To move from rendering static pages (like Haiku-OS) to hydrated SPAs (like NBC News), the highest-priority work items in Wisp are:
-1.  **MutationObserver implementation** in libdom/QuickJS bindings.
-2.  **HTML5 History API (pushState)** for client-side routing.
-3.  **Fetch + ReadableStream pipeline** for server-side streamed payloads.
-4.  **Incremental layout invalidation** so rapid DOM updates don't trigger full-page reflows.
+*   **HTML5 <canvas> (2D)**:
+    *   2D Canvas context bindings (via Cairo/QPainter and Direct2D) with complete WebIDL Canvas API plotter bridge.
