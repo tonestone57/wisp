@@ -388,6 +388,90 @@ PangoFontDescription *nsfont_style_to_description(const plot_font_style_t *fstyl
     return desc;
 }
 
+struct nsgtk_loaded_font {
+    char *family_name;
+    uint8_t weight;
+    uint8_t style;
+    char *temp_path;
+    struct nsgtk_loaded_font *next;
+};
+
+static struct nsgtk_loaded_font *nsgtk_fonts = NULL;
+
+static nserror nsgtk_load_font_data(const struct font_variant_id *id, const uint8_t *data, size_t size)
+{
+    if (!id || !id->family_name || !data || size == 0) {
+        return NSERROR_BAD_PARAMETER;
+    }
+
+    char temp_path[] = "/tmp/wisp-font-XXXXXX";
+    int fd = mkstemp(temp_path);
+    if (fd < 0) {
+        return NSERROR_NOT_FOUND;
+    }
+
+    if (write(fd, data, size) != (ssize_t)size) {
+        close(fd);
+        unlink(temp_path);
+        return NSERROR_NOT_FOUND;
+    }
+    close(fd);
+
+    /* Register the font file with Fontconfig */
+    if (!FcConfigAppFontAddFile(NULL, (const FcChar8 *)temp_path)) {
+        unlink(temp_path);
+        return NSERROR_NOT_FOUND;
+    }
+
+    /* Force Pango to recreate the default font map and pick up the new font */
+    pango_cairo_font_map_set_default(NULL);
+
+    if (nsfont_pango_layout != NULL) {
+        g_object_unref(nsfont_pango_layout);
+        nsfont_pango_layout = NULL;
+    }
+    if (nsfont_pango_context != NULL) {
+        g_object_unref(nsfont_pango_context);
+        nsfont_pango_context = NULL;
+    }
+
+    /* Track the loaded font */
+    struct nsgtk_loaded_font *f = malloc(sizeof(*f));
+    if (f) {
+        f->family_name = strdup(id->family_name);
+        f->weight = id->weight;
+        f->style = id->style;
+        f->temp_path = strdup(temp_path);
+        f->next = nsgtk_fonts;
+        nsgtk_fonts = f;
+    }
+
+    NSLOG(wisp, INFO, "Successfully registered custom web font '%s' dynamically via Fontconfig!", id->family_name);
+    return NSERROR_OK;
+}
+
+static void nsgtk_free_font_data(const struct font_variant_id *id)
+{
+    if (!id || !id->family_name) return;
+
+    struct nsgtk_loaded_font **prev = &nsgtk_fonts;
+    struct nsgtk_loaded_font *curr = nsgtk_fonts;
+    while (curr) {
+        if (strcmp(curr->family_name, id->family_name) == 0 &&
+            curr->weight == id->weight &&
+            curr->style == id->style) {
+            *prev = curr->next;
+            unlink(curr->temp_path);
+            free(curr->family_name);
+            free(curr->temp_path);
+            free(curr);
+            break;
+        }
+        prev = &curr->next;
+        curr = curr->next;
+    }
+}
+
 void nsfont_finalise(void)
 {
     if (nsfont_pango_layout != NULL) {
@@ -400,6 +484,15 @@ void nsfont_finalise(void)
     }
     pango_cairo_font_map_set_default(NULL);
 
+    while (nsgtk_fonts) {
+        struct nsgtk_loaded_font *next = nsgtk_fonts->next;
+        unlink(nsgtk_fonts->temp_path);
+        free(nsgtk_fonts->family_name);
+        free(nsgtk_fonts->temp_path);
+        free(nsgtk_fonts);
+        nsgtk_fonts = next;
+    }
+
     FcFini();
 }
 
@@ -407,8 +500,8 @@ static struct gui_layout_table layout_table = {
     .width = nsfont_width,
     .position = nsfont_position_in_string,
     .split = nsfont_split,
-    .load_font_data = NULL,
-    .free_font_data = NULL,
+    .load_font_data = nsgtk_load_font_data,
+    .free_font_data = nsgtk_free_font_data,
     .init = nsfont_init,
     .finalise = nsfont_finalise,
 };

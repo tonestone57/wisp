@@ -555,3 +555,46 @@ JSValue wisp_element_matches_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
     JS_FreeValue(ctx, list);
     return JS_FALSE;
 }
+
+JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
+{
+    if (!node) return JS_NULL;
+
+    dom_node_type type;
+    if (wisp_is_js_process) {
+        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)node);
+        type = sn ? (dom_node_type)sn->type : 0;
+        if (sn && type == DOM_ELEMENT_NODE) {
+            if (strcasecmp(sn->tag_name, "script") == 0) {
+                extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(sn->tag_name, "img") == 0) {
+                extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlimageelement(ctx, node, is_dom_node);
+            }
+        }
+    } else {
+        dom_html_element_type tag_type;
+        dom_exception exc = dom_html_element_get_tag_type((dom_html_element *)node, &tag_type);
+        if (exc == DOM_NO_ERR) {
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_SCRIPT) {
+                extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_IMG) {
+                extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlimageelement(ctx, node, is_dom_node);
+            }
+        }
+    }
+
+    JSValue obj = JS_NewObjectClass(ctx, qjs_element_class_id);
+    if (JS_IsException(obj)) return obj;
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->is_dom_node = is_dom_node; priv->ctx = ctx;
+    if (!wisp_is_js_process && is_dom_node && node) dom_node_ref((dom_node *)node);
+    JS_SetOpaque(obj, priv);
+    return obj;
+}

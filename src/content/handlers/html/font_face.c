@@ -404,9 +404,9 @@ nserror html_font_face_process(const css_font_face *font_face, const char *base_
             continue; /* Skip local fonts */
         }
 
-        /* Check format - we support WOFF and OpenType/TrueType */
+        /* Check format - we support OpenType/TrueType (Fontconfig doesn't support WOFF natively) */
         format = css_font_face_src_format(src);
-        if (format != CSS_FONT_FACE_FORMAT_UNSPECIFIED && format != CSS_FONT_FACE_FORMAT_WOFF &&
+        if (format != CSS_FONT_FACE_FORMAT_UNSPECIFIED &&
             format != CSS_FONT_FACE_FORMAT_OPENTYPE) {
             continue;
         }
