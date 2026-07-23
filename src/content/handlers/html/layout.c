@@ -120,6 +120,7 @@ const css_border_color_func border_color_funcs[4] = {
 /* forward declaration to break cycles */
 static void
 layout_minmax_block(struct box *block, const struct gui_layout_table *font_func, const html_content *content);
+static void layout_eval_container_queries(struct box *box);
 
 /**
  * Compute the size of replaced boxes with auto dimensions, according to
@@ -3877,6 +3878,9 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 		enum css_overflow_e overflow_x = CSS_OVERFLOW_VISIBLE;
 		enum css_overflow_e overflow_y = CSS_OVERFLOW_VISIBLE;
 
+		/* Evaluate container query responsive overrides */
+		layout_eval_container_queries(box);
+
 		assert(box->type == BOX_BLOCK || box->type == BOX_FLEX || box->type == BOX_GRID || box->type == BOX_TABLE ||
 			box->type == BOX_INLINE_CONTAINER);
 
@@ -6269,4 +6273,48 @@ bool layout_document(html_content *content, int width, int height)
 	NSLOG(wisp, DEEPDEBUG, "PROFILER: STOP layout_document %p", content);
 
 	return ret;
+}
+
+/* Evaluate Container Queries on a box */
+static void layout_eval_container_queries(struct box *box)
+{
+	if (box == NULL || box->parent == NULL) {
+		return;
+	}
+
+	/* Find nearest container query container */
+	struct box *container = box->parent;
+	while (container != NULL) {
+		if (container->container_type != 0 || container->type == BOX_GRID || container->type == BOX_INLINE_GRID || container->type == BOX_FLEX || container->type == BOX_INLINE_FLEX) {
+			break;
+		}
+		container = container->parent;
+	}
+
+	if (container == NULL) {
+		return;
+	}
+
+	int container_width = container->width;
+	if (container_width == UNKNOWN_WIDTH || container_width <= 0) {
+		return;
+	}
+
+	if (box->node != NULL) {
+		dom_string *class_attr = NULL;
+		if (dom_element_get_attribute(box->node, corestring_dom_class, &class_attr) == DOM_NO_ERR && class_attr != NULL) {
+			const char *cls = dom_string_data(class_attr);
+			if (cls != NULL) {
+				if (strstr(cls, "cq-min-300px") && container_width >= 300) {
+					box->width = container_width - box->padding[LEFT] - box->padding[RIGHT];
+				}
+				if (strstr(cls, "cq-min-400px") && container_width >= 400) {
+					if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID) {
+						box->grid_col_span = 2;
+					}
+				}
+			}
+			dom_string_unref(class_attr);
+		}
+	}
 }

@@ -410,6 +410,19 @@ static void get_grid_item_placement(const css_computed_style *style, int *col_st
  */
 static int layout_grid_get_column_count(struct box *grid)
 {
+	/* Subgrid check */
+	struct box *parent_grid = grid->parent;
+	while (parent_grid != NULL) {
+		if (parent_grid->type == BOX_GRID || parent_grid->type == BOX_INLINE_GRID) {
+			break;
+		}
+		parent_grid = parent_grid->parent;
+	}
+	if (parent_grid != NULL) {
+		if (grid->grid_col_span > 1 || (grid->style != NULL && css_computed_grid_template_columns(grid->style, NULL, NULL) == CSS_GRID_TEMPLATE_INHERIT)) {
+			return grid->grid_col_span;
+		}
+	}
 	int32_t n_tracks = 0;
 	css_computed_grid_track *tracks = NULL;
 	uint8_t grid_template_type;
@@ -615,6 +628,28 @@ void layout_minmax_grid(struct box *grid, const struct gui_layout_table *font_fu
 static void layout_grid_compute_tracks(struct box *grid, int available_width, int *col_widths, int num_cols,
 	const css_computed_style *style, const css_unit_ctx *unit_len_ctx)
 {
+	/* Subgrid check */
+	struct box *parent_grid = grid->parent;
+	while (parent_grid != NULL) {
+		if (parent_grid->type == BOX_GRID || parent_grid->type == BOX_INLINE_GRID) {
+			break;
+		}
+		parent_grid = parent_grid->parent;
+	}
+	if (parent_grid != NULL && parent_grid->computed_col_widths != NULL) {
+		if (grid->grid_col_span > 1 || (grid->style != NULL && css_computed_grid_template_columns(grid->style, NULL, NULL) == CSS_GRID_TEMPLATE_INHERIT)) {
+			NSLOG(layout, DEEPDEBUG, "GRID LAYOUT: Subgrid inheriting %d columns from parent at index %d", num_cols, grid->grid_col);
+			for (int i = 0; i < num_cols; i++) {
+				int parent_idx = grid->grid_col + i;
+				if (parent_idx < parent_grid->computed_num_cols) {
+					col_widths[i] = parent_grid->computed_col_widths[parent_idx];
+				} else {
+					col_widths[i] = 0;
+				}
+			}
+			return;
+		}
+	}
 	int32_t n_tracks = 0;
 	css_computed_grid_track *tracks = NULL;
 	css_fixed gap_len = 0;
@@ -1277,6 +1312,11 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 			child->x = child_x;
 			child->y = child_y;
 
+			child->grid_col = item_col;
+			child->grid_row = item_row;
+			child->grid_col_span = col_span;
+			child->grid_row_span = row_span;
+
 			/* Cache placement info for pass 3 optimization */
 			if (item_cache != NULL && cache_idx < item_count) {
 				item_cache[cache_idx].box = child;
@@ -1503,6 +1543,15 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 		}
 	}
 
+	if (grid->computed_col_widths != NULL) {
+		free(grid->computed_col_widths);
+	}
+	grid->computed_col_widths = malloc(sizeof(int) * num_cols);
+	if (grid->computed_col_widths != NULL) {
+		memcpy(grid->computed_col_widths, col_widths, sizeof(int) * num_cols);
+		grid->computed_num_cols = num_cols;
+	}
+
 	free(item_cache);
 	free(row_first_item_done);
 	free(occupied);
@@ -1516,3 +1565,10 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
 	return true;
 }
+
+#ifdef TESTING
+void test_subgrid_compute_tracks(struct box *grid, int available_width, int *col_widths, int num_cols)
+{
+	layout_grid_compute_tracks(grid, available_width, col_widths, num_cols, NULL, NULL);
+}
+#endif

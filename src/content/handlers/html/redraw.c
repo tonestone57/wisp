@@ -60,6 +60,184 @@
 #include "desktop/scrollbar.h"
 #include "desktop/selection.h"
 
+/* 3D Transform 4x4 Matrix System */
+struct matrix4 {
+	float m[4][4];
+};
+
+static void matrix4_identity(struct matrix4 *mat)
+{
+	memset(mat, 0, sizeof(*mat));
+	mat->m[0][0] = 1.0f;
+	mat->m[1][1] = 1.0f;
+	mat->m[2][2] = 1.0f;
+	mat->m[3][3] = 1.0f;
+}
+
+static void matrix4_mul(struct matrix4 *res, const struct matrix4 *a, const struct matrix4 *b)
+{
+	struct matrix4 temp;
+	for (int r = 0; r < 4; r++) {
+		for (int c = 0; c < 4; c++) {
+			temp.m[r][c] = a->m[r][0] * b->m[0][c] +
+			              a->m[r][1] * b->m[1][c] +
+			              a->m[r][2] * b->m[2][c] +
+			              a->m[r][3] * b->m[3][c];
+		}
+	}
+	*res = temp;
+}
+
+static void matrix4_translate(struct matrix4 *mat, float tx, float ty, float tz)
+{
+	struct matrix4 t;
+	matrix4_identity(&t);
+	t.m[0][3] = tx;
+	t.m[1][3] = ty;
+	t.m[2][3] = tz;
+	matrix4_mul(mat, mat, &t);
+}
+
+static void matrix4_scale(struct matrix4 *mat, float sx, float sy, float sz)
+{
+	struct matrix4 s;
+	matrix4_identity(&s);
+	s.m[0][0] = sx;
+	s.m[1][1] = sy;
+	s.m[2][2] = sz;
+	matrix4_mul(mat, mat, &s);
+}
+
+static void matrix4_rotate_x(struct matrix4 *mat, float angle_deg)
+{
+	float rad = angle_deg * M_PI / 180.0f;
+	float cos_a = cosf(rad);
+	float sin_a = sinf(rad);
+	struct matrix4 r;
+	matrix4_identity(&r);
+	r.m[1][1] = cos_a;
+	r.m[1][2] = -sin_a;
+	r.m[2][1] = sin_a;
+	r.m[2][2] = cos_a;
+	matrix4_mul(mat, mat, &r);
+}
+
+static void matrix4_rotate_y(struct matrix4 *mat, float angle_deg)
+{
+	float rad = angle_deg * M_PI / 180.0f;
+	float cos_a = cosf(rad);
+	float sin_a = sinf(rad);
+	struct matrix4 r;
+	matrix4_identity(&r);
+	r.m[0][0] = cos_a;
+	r.m[0][2] = sin_a;
+	r.m[2][0] = -sin_a;
+	r.m[2][2] = cos_a;
+	matrix4_mul(mat, mat, &r);
+}
+
+static void matrix4_rotate_z(struct matrix4 *mat, float angle_deg)
+{
+	float rad = angle_deg * M_PI / 180.0f;
+	float cos_a = cosf(rad);
+	float sin_a = sinf(rad);
+	struct matrix4 r;
+	matrix4_identity(&r);
+	r.m[0][0] = cos_a;
+	r.m[0][1] = -sin_a;
+	r.m[1][0] = sin_a;
+	r.m[1][1] = cos_a;
+	matrix4_mul(mat, mat, &r);
+}
+
+static void matrix4_perspective(struct matrix4 *mat, float d)
+{
+	if (d <= 0.0f) return;
+	struct matrix4 p;
+	matrix4_identity(&p);
+	p.m[3][2] = -1.0f / d;
+	matrix4_mul(mat, mat, &p);
+}
+
+static void parse_and_apply_3d_transform(const char *str, struct matrix4 *mat, struct box *box)
+{
+	if (str == NULL || mat == NULL) return;
+
+	const char *p = str;
+	while (*p != '\0' && *p != ';') {
+		while (*p == ' ' || *p == '\t' || *p == ',' || *p == '\r' || *p == '\n') {
+			p++;
+		}
+		if (*p == '\0' || *p == ';') break;
+
+		char func_name[32];
+		int len = 0;
+		while (*p != '\0' && *p != '(' && len < 31) {
+			func_name[len++] = *p++;
+		}
+		func_name[len] = '\0';
+
+		if (*p == '(') {
+			p++;
+			float args[4] = {0};
+			int arg_count = 0;
+			while (*p != '\0' && *p != ')') {
+				while (*p == ' ' || *p == '\t' || *p == ',') p++;
+				if (*p == ')') break;
+
+				char *endptr;
+				float val = strtof(p, &endptr);
+				if (p == endptr) {
+					p++;
+				} else {
+					args[arg_count++] = val;
+					p = endptr;
+					while (*p != '\0' && *p != ')' && *p != ',' && *p != ' ' && *p != '\t') {
+						p++;
+					}
+					if (arg_count >= 4) break;
+				}
+			}
+			if (*p == ')') p++;
+
+			if (strcmp(func_name, "perspective") == 0 && arg_count >= 1) {
+				matrix4_perspective(mat, args[0]);
+			} else if (strcmp(func_name, "rotateX") == 0 && arg_count >= 1) {
+				matrix4_rotate_x(mat, args[0]);
+			} else if (strcmp(func_name, "rotateY") == 0 && arg_count >= 1) {
+				matrix4_rotate_y(mat, args[0]);
+			} else if (strcmp(func_name, "rotateZ") == 0 && arg_count >= 1) {
+				matrix4_rotate_z(mat, args[0]);
+			} else if (strcmp(func_name, "rotate") == 0 && arg_count >= 1) {
+				matrix4_rotate_z(mat, args[0]);
+			} else if (strcmp(func_name, "translate3d") == 0 && arg_count >= 3) {
+				matrix4_translate(mat, args[0], args[1], args[2]);
+			} else if (strcmp(func_name, "translateZ") == 0 && arg_count >= 1) {
+				matrix4_translate(mat, 0, 0, args[0]);
+			} else if (strcmp(func_name, "translate") == 0 && arg_count >= 1) {
+				matrix4_translate(mat, args[0], arg_count >= 2 ? args[1] : 0, 0);
+			} else if (strcmp(func_name, "translateX") == 0 && arg_count >= 1) {
+				matrix4_translate(mat, args[0], 0, 0);
+			} else if (strcmp(func_name, "translateY") == 0 && arg_count >= 1) {
+				matrix4_translate(mat, 0, args[0], 0);
+			} else if (strcmp(func_name, "scale3d") == 0 && arg_count >= 3) {
+				matrix4_scale(mat, args[0], args[1], args[2]);
+			} else if (strcmp(func_name, "scaleZ") == 0 && arg_count >= 1) {
+				matrix4_scale(mat, 1, 1, args[0]);
+			} else if (strcmp(func_name, "scale") == 0 && arg_count >= 1) {
+				matrix4_scale(mat, args[0], arg_count >= 2 ? args[1] : args[0], 1);
+			} else if (strcmp(func_name, "scaleX") == 0 && arg_count >= 1) {
+				matrix4_scale(mat, args[0], 1, 1);
+			} else if (strcmp(func_name, "scaleY") == 0 && arg_count >= 1) {
+				matrix4_scale(mat, 1, args[0], 1);
+			}
+		} else {
+			p++;
+		}
+	}
+}
+
+
 #include <libcss/gradient.h>
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/box_inspect.h>
@@ -1993,6 +2171,62 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
 
             /* Mark that we need a transform, but don't push yet - wait until after early bailouts */
             need_transform = !is_identity;
+        }
+    }
+
+    /* Check for and apply Advanced 3D Transforms */
+    if (box->node != NULL && ctx->plot->push_transform != NULL) {
+        dom_string *style_attr = NULL;
+        if (dom_element_get_attribute(box->node, corestring_dom_style, &style_attr) == DOM_NO_ERR && style_attr != NULL) {
+            const char *style_str = dom_string_data(style_attr);
+            if (style_str != NULL) {
+                const char *tf = strstr(style_str, "transform:");
+                if (tf != NULL) {
+                    struct matrix4 m4;
+                    matrix4_identity(&m4);
+                    parse_and_apply_3d_transform(tf + 10, &m4, box);
+
+                    float w = box->width;
+                    float h = box->height;
+                    if (w <= 0) w = 1.0f;
+                    if (h <= 0) h = 1.0f;
+
+                    float cx = x_parent + box->x + w / 2.0f;
+                    float cy = y_parent + box->y + h / 2.0f;
+
+                    float p0x = cx - w / 2.0f;
+                    float p0y = cy - h / 2.0f;
+                    float p1x = cx + w / 2.0f;
+                    float p1y = cy - h / 2.0f;
+                    float p2x = cx - w / 2.0f;
+                    float p2y = cy + h / 2.0f;
+
+                    float w0 = m4.m[3][0] * p0x + m4.m[3][1] * p0y + m4.m[3][3];
+                    if (w0 == 0.0f) w0 = 1.0f;
+                    float q0x = (m4.m[0][0] * p0x + m4.m[0][1] * p0y + m4.m[0][3]) / w0;
+                    float q0y = (m4.m[1][0] * p0x + m4.m[1][1] * p0y + m4.m[1][3]) / w0;
+
+                    float w1 = m4.m[3][0] * p1x + m4.m[3][1] * p1y + m4.m[3][3];
+                    if (w1 == 0.0f) w1 = 1.0f;
+                    float q1x = (m4.m[0][0] * p1x + m4.m[0][1] * p1y + m4.m[0][3]) / w1;
+                    float q1y = (m4.m[1][0] * p1x + m4.m[1][1] * p1y + m4.m[1][3]) / w1;
+
+                    float w2 = m4.m[3][0] * p2x + m4.m[3][1] * p2y + m4.m[3][3];
+                    if (w2 == 0.0f) w2 = 1.0f;
+                    float q2x = (m4.m[0][0] * p2x + m4.m[0][1] * p2y + m4.m[0][3]) / w2;
+                    float q2y = (m4.m[1][0] * p2x + m4.m[1][1] * p2y + m4.m[1][3]) / w2;
+
+                    transform_matrix[0] = (q1x - q0x) / w;
+                    transform_matrix[1] = (q1y - q0y) / w;
+                    transform_matrix[2] = (q2x - q0x) / h;
+                    transform_matrix[3] = (q2y - q0y) / h;
+                    transform_matrix[4] = q0x - transform_matrix[0] * p0x - transform_matrix[2] * p0y;
+                    transform_matrix[5] = q0y - transform_matrix[1] * p0x - transform_matrix[3] * p0y;
+
+                    need_transform = true;
+                }
+            }
+            dom_string_unref(style_attr);
         }
     }
 
