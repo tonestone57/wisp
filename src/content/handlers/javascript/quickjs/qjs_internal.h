@@ -161,6 +161,8 @@ void *qjs_get_document_priv(JSContext *ctx);
 struct dom_document *qjs_thread_get_document(struct jsthread *t);
 void qjs_raf_callback_fn(void *p);
 void qjs_idle_callback_fn(void *p);
+void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc);
+void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);

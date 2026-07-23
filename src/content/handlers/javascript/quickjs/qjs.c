@@ -1024,7 +1024,7 @@ void js_destroythread(jsthread *thread)
     free(thread);
 }
 
-static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_id) {
+static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent_idx) {
     if (!node || shm->node_count >= SHM_DOM_MAX_NODES) return;
 
     uint32_t idx = shm->node_count++;
@@ -1037,8 +1037,9 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_i
     shm_dom_node_t *sn = &shm->nodes[idx];
     memset(sn, 0, sizeof(*sn));
 
-    sn->id = (uint64_t)(uintptr_t)node;
-    sn->parent_id = parent_id;
+    sn->id = idx;
+    sn->dom_ptr = (uint64_t)(uintptr_t)node;
+    sn->parent_id = parent_idx;
 
     dom_node_type type;
     dom_node_get_node_type(node, &type);
@@ -1109,30 +1110,20 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_i
 
     dom_node *child = NULL;
     dom_node_get_first_child(node, &child);
-    uint64_t prev_child_id = 0;
+    uint32_t prev_child_idx = 0;
     if (child) {
-        sn->first_child_id = (uint64_t)(uintptr_t)child;
+        sn->first_child_id = shm->node_count;
         while (child) {
-            serialize_dom_node(shm, child, sn->id);
+            uint32_t child_idx = shm->node_count;
+            serialize_dom_node(shm, child, idx);
 
-            uint64_t child_id = (uint64_t)(uintptr_t)child;
-            for (uint32_t i = 0; i < shm->node_count; i++) {
-                if (shm->nodes[i].id == child_id) {
-                    shm->nodes[i].previous_sibling_id = prev_child_id;
-                    break;
-                }
-            }
-            if (prev_child_id != 0) {
-                for (uint32_t i = 0; i < shm->node_count; i++) {
-                    if (shm->nodes[i].id == prev_child_id) {
-                        shm->nodes[i].next_sibling_id = child_id;
-                        break;
-                    }
-                }
+            shm->nodes[child_idx].previous_sibling_id = prev_child_idx;
+            if (prev_child_idx != 0) {
+                shm->nodes[prev_child_idx].next_sibling_id = child_idx;
             }
 
-            prev_child_id = child_id;
-            sn->last_child_id = child_id;
+            prev_child_idx = child_idx;
+            sn->last_child_id = child_idx;
 
             dom_node *next = NULL;
             dom_node_get_next_sibling(child, &next);
@@ -1142,21 +1133,30 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, uint64_t parent_i
     }
 }
 
-static void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc) {
+void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc) {
     if (!shm || !doc) return;
     if (shm->node_count > 0) {
         NSLOG(wisp, INFO, "[SHM_DOM] Freed %d nodes prior to serialization", (int)shm->node_count);
     }
-    shm->node_count = 0;
+    shm->node_count = 1; // Start indices at 1, 0 is WISP_NODE_NULL
     serialize_dom_node(shm, (dom_node *)doc, 0);
 }
 
-static void apply_shm_mutation(shm_mutation_t *m, struct dom_document *doc) {
+static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id) {
+    if (!shm || id == 0 || id == 0xFFFFFFFF) return NULL;
+    uint32_t idx = (uint32_t)id;
+    if (idx < shm->node_count) {
+        return (dom_node *)(uintptr_t)shm->nodes[idx].dom_ptr;
+    }
+    return NULL;
+}
+
+static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_document *doc) {
     if (!doc) return;
 
-    dom_node *target = (dom_node *)(uintptr_t)m->target_id;
-    dom_node *param1 = (dom_node *)(uintptr_t)m->param1_id;
-    dom_node *param2 = (dom_node *)(uintptr_t)m->param2_id;
+    dom_node *target = get_dom_node_from_id(shm, m->target_id);
+    dom_node *param1 = get_dom_node_from_id(shm, m->param1_id);
+    dom_node *param2 = get_dom_node_from_id(shm, m->param2_id);
 
     switch (m->type) {
         case SHM_MUTATION_SET_ATTRIBUTE: {
@@ -1233,13 +1233,13 @@ static void apply_shm_mutation(shm_mutation_t *m, struct dom_document *doc) {
     }
 }
 
-static void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
+void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
     if (!shm) return;
     shm_mutation_queue_t *mq = &shm->mutation_queue;
     while (mq->tail != mq->head) {
         uint32_t idx = mq->tail % SHM_MUTATION_QUEUE_SIZE;
         shm_mutation_t *m = &mq->queue[idx];
-        apply_shm_mutation(m, doc);
+        apply_shm_mutation(shm, m, doc);
         mq->tail++;
     }
 }
