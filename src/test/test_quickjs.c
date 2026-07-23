@@ -31,6 +31,8 @@
 #include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include "quickjs.h"
 #include "utils/hashmap.h"
+#include "wisp/desktop/gui_table.h"
+#include "wisp/misc.h"
 extern struct wisp_table *guit;
 
 static dom_document *create_test_document(void)
@@ -1636,6 +1638,206 @@ START_TEST(test_quickjs_site_isolation)
 }
 END_TEST
 
+struct mock_task {
+    int delay;
+    void (*callback)(void *p);
+    void *param;
+    struct mock_task *next;
+};
+static struct mock_task *mock_tasks = NULL;
+
+static nserror mock_schedule(int delay, void (*callback)(void *p), void *param)
+{
+    if (delay < 0) {
+        struct mock_task **prev = &mock_tasks;
+        struct mock_task *curr = mock_tasks;
+        while (curr) {
+            if (curr->callback == callback && curr->param == param) {
+                *prev = curr->next;
+                free(curr);
+                return NSERROR_OK;
+            }
+            prev = &curr->next;
+            curr = curr->next;
+        }
+        return NSERROR_NOT_FOUND;
+    }
+
+    struct mock_task *task = malloc(sizeof(*task));
+    task->delay = delay;
+    task->callback = callback;
+    task->param = param;
+    task->next = mock_tasks;
+    mock_tasks = task;
+    return NSERROR_OK;
+}
+
+static void run_mock_tasks(void)
+{
+    struct mock_task *curr = mock_tasks;
+    mock_tasks = NULL;
+    while (curr) {
+        struct mock_task *next = curr->next;
+        curr->callback(curr->param);
+        free(curr);
+        curr = next;
+    }
+}
+
+static struct gui_misc_table mock_misc = {
+    .schedule = mock_schedule
+};
+static struct wisp_table mock_guit_data = {
+    .misc = &mock_misc
+};
+
+START_TEST(test_quickjs_queue_microtask_order)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code1 = "window.order = [];\n"
+                        "window.order.push(1);\n"
+                        "queueMicrotask(function() { window.order.push(3); });\n"
+                        "window.order.push(2);";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_microtask_enqueue");
+    ck_assert(result == true);
+
+    const char *code2 = "window.order.length === 3 && window.order[0] === 1 && window.order[1] === 2 && window.order[2] === 3;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_microtask_order");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_raf)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_data;
+
+    const char *code1 = "window.rafTime = 0;\n"
+                        "window.rafId = requestAnimationFrame(function(t) { window.rafTime = t; });\n"
+                        "window.rafId > 0 && window.rafTime === 0;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_raf_schedule");
+    ck_assert(result == true);
+
+    run_mock_tasks();
+
+    const char *code2 = "window.rafTime > 0;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_raf_executed");
+    ck_assert(result == true);
+
+    const char *code3 = "window.rafTime2 = 0;\n"
+                        "var id2 = requestAnimationFrame(function(t) { window.rafTime2 = t; });\n"
+                        "cancelAnimationFrame(id2);";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_raf_cancel");
+    ck_assert(result == true);
+
+    run_mock_tasks();
+
+    const char *code4 = "window.rafTime2 === 0;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_raf_not_executed");
+    ck_assert(result == true);
+
+    guit = saved_guit;
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_ric)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_data;
+
+    const char *code1 = "window.idleRun = false;\n"
+                        "window.didTimeout = null;\n"
+                        "window.remaining = null;\n"
+                        "window.ricId = requestIdleCallback(function(deadline) {\n"
+                        "  window.idleRun = true;\n"
+                        "  window.didTimeout = deadline.didTimeout;\n"
+                        "  window.remaining = deadline.timeRemaining();\n"
+                        "});\n"
+                        "window.ricId > 0 && window.idleRun === false;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_ric_schedule");
+    ck_assert(result == true);
+
+    run_mock_tasks();
+
+    const char *code2 = "window.idleRun === true && window.didTimeout === false && window.remaining <= 50;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_ric_executed");
+    ck_assert(result == true);
+
+    const char *code3 = "window.idleRun2 = false;\n"
+                        "var id2 = requestIdleCallback(function(deadline) { window.idleRun2 = true; });\n"
+                        "cancelIdleCallback(id2);";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_ric_cancel");
+    ck_assert(result == true);
+
+    run_mock_tasks();
+
+    const char *code4 = "window.idleRun2 === false;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_ric_not_executed");
+    ck_assert(result == true);
+
+    guit = saved_guit;
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -1703,6 +1905,13 @@ Suite *quickjs_suite(void)
     TCase *tc_mutation = tcase_create("MutationObserver");
     tcase_add_test(tc_mutation, test_quickjs_mutation_observer_e2e);
     suite_add_tcase(s, tc_mutation);
+
+    /* Event Loop & Microtask Queue Resolution test case */
+    TCase *tc_event_loop = tcase_create("EventLoop");
+    tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
+    tcase_add_test(tc_event_loop, test_quickjs_raf);
+    tcase_add_test(tc_event_loop, test_quickjs_ric);
+    suite_add_tcase(s, tc_event_loop);
 
     return s;
 }

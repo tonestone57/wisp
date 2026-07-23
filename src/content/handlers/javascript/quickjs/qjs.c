@@ -888,7 +888,16 @@ void js_destroythread(jsthread *thread)
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
-        while (JS_ExecutePendingJob(rt, &ctx1) > 0);
+        int job_ret;
+        while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0) {
+            if (job_ret < 0) {
+                JSValue exc = JS_GetException(ctx1);
+                const char *exc_str = JS_ToCString(ctx1, exc);
+                NSLOG(wisp, WARNING, "JS Error in microtask during teardown: %s", exc_str ? exc_str : "unknown");
+                if (exc_str) JS_FreeCString(ctx1, exc_str);
+                JS_FreeValue(ctx1, exc);
+            }
+        }
     }
 
     struct qjs_timer *tim = thread->timers;
@@ -903,6 +912,30 @@ void js_destroythread(jsthread *thread)
         JS_FreeValue(thread->ctx, tim->func);
         free(tim);
         tim = next;
+    }
+
+    struct qjs_raf_callback *raf = thread->raf_callbacks;
+    thread->raf_callbacks = NULL;
+    while (raf) {
+        struct qjs_raf_callback *next = raf->next;
+        if (guit && guit->misc && guit->misc->schedule) {
+            guit->misc->schedule(-1, qjs_raf_callback_fn, raf);
+        }
+        JS_FreeValue(thread->ctx, raf->func);
+        free(raf);
+        raf = next;
+    }
+
+    struct qjs_idle_callback *idle = thread->idle_callbacks;
+    thread->idle_callbacks = NULL;
+    while (idle) {
+        struct qjs_idle_callback *next = idle->next;
+        if (guit && guit->misc && guit->misc->schedule) {
+            guit->misc->schedule(-1, qjs_idle_callback_fn, idle);
+        }
+        JS_FreeValue(thread->ctx, idle->func);
+        free(idle);
+        idle = next;
     }
 
     struct qjs_event_listener_ctx *l = thread->listeners;
@@ -1359,6 +1392,19 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         thread->heap->deadline_ms = old_deadline;
         thread->heap->last_yield_ms = old_last_yield;
     }
+
+    JSContext *ctx1;
+    int job_ret;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1)) != 0) {
+        if (job_ret < 0) {
+            JSValue exc = JS_GetException(ctx1);
+            const char *exc_str = JS_ToCString(ctx1, exc);
+            NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+            if (exc_str) JS_FreeCString(ctx1, exc_str);
+            JS_FreeValue(ctx1, exc);
+        }
+    }
+
     bool success = !JS_IsException(val);
     if (!success) {
         JSValue exc = JS_GetException(thread->ctx);
@@ -1417,6 +1463,19 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         JSValue exc = JS_GetException(jsctx); const char *exc_str = JS_ToCString(jsctx, exc);
         if (exc_str) JS_FreeCString(jsctx, exc_str); JS_FreeValue(jsctx, exc);
     }
+
+    JSContext *ctx1;
+    int job_ret;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(jsctx), &ctx1)) != 0) {
+        if (job_ret < 0) {
+            JSValue exc = JS_GetException(ctx1);
+            const char *exc_str = JS_ToCString(ctx1, exc);
+            NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+            if (exc_str) JS_FreeCString(ctx1, exc_str);
+            JS_FreeValue(ctx1, exc);
+        }
+    }
+
     JS_FreeValue(jsctx, ret); JS_FreeValue(jsctx, this_obj); JS_FreeValue(jsctx, js_evt); JS_FreeValue(jsctx, global);
 }
 
