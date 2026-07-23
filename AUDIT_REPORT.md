@@ -1,12 +1,12 @@
-# Wisp Code Audit Report - July 2026
+# Wisp Code Audit Report - 2027 Update
 
 ## 1. Executive Summary
-This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky). Wisp employs a prioritized native-first graphics strategy where platform-native pipelines are compiled and run by default, completely removing the runtime 'auto' backend selection mode to reduce overhead. Blend2D remains a fully optional alternative rendering choice and software fallback backend. Recent milestones include the full implementation of the Canvas 2D API bridge and the rollout of Multi-Process Isolation for enhanced stability.
+This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky, Subgrid, Container Queries, 3D Transforms, Animations). Wisp employs a prioritized native-first graphics strategy where platform-native pipelines are compiled and run by default, completely removing the runtime 'auto' backend selection mode to reduce overhead. Blend2D remains a fully optional alternative rendering choice and software fallback backend. Recent milestones include the complete implementation of the Canvas 2D API bridge, dynamic web font loading (Fontconfig TrueType preference), out-of-process JavaScript execution with process/origin isolation, and standard Fetch/Streams, Shadow DOM v1, and HTML5 History APIs.
 
 ## 2. Library Versions Audit
 
-| Library | Repo Version | Latest Online (July 2026) | Status |
-|---------|--------------|---------------------------|--------|
+| Library | Repo Version | Latest Online (2027) | Status |
+|---------|--------------|----------------------|--------|
 | `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
 | `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
 | `libavif` | v1.4.2 | v1.4.2 | **[Finished]** Up-to-date |
@@ -21,6 +21,13 @@ This audit evaluates the current state of the Wisp browser engine, focusing on m
 ## 3. Feature Status Categorization
 
 ### 3.1 Complete Implementation [Finished]
+*   **CSS3 3D Transforms, Transitions, and Animations**: Rigorous 4x4 projection matrix translates 3D transforms (perspective, translation, rotation, scaling) into 2D affine equivalents. Frame-step transition and animation loops backed by the platform scheduler feature eased alpha-blending and UAF-proof box destruction teardown.
+*   **CSS Grid Subgrids & Container Queries**: Nested grid containers inherit parent track definitions to facilitate subgrid alignments. CSS Container Queries parse min-width class attributes (`cq-min-[value]px`) during layout for dynamic styling overrides.
+*   **HTML5 History & Shadow DOM v1 APIs**: Standalone client-side SPA routing (`pushState`/`replaceState`) and standard `attachShadow()` Mode configurations (`open`/`closed`, custom `innerHTML` parser backed by LibDOM's `DOMParser`).
+*   **QuickJS Fetch API, Streams, and Microtask Loop Integration**: JavaScript bindings for `Headers`, `ReadableStream`, `ReadableStreamDefaultReader`, `WritableStream`, `WritableStreamDefaultWriter`, `Request`, and `Response`. `fetch()` returns a `Promise<Response>` resolving immediately with headers and enqueuing body chunks progressively using progressive loading states under XMLHttpRequests, with chunk-chunking fallback decoding to prevent stack overflows.
+*   **Shared-Memory DOM Space (SVDS) Topology & Batch-Buffered Mutation Queue (BBMQ)**: Refactored shared-memory topology using dense 32-bit indices (`WispNodeID`) with $O(1)$ reverse mapping to LibDOM pointers. Out-of-process `wisp-js` mutations are buffered locally in BBMQ and flushed in a single sweep at the end of the microtask tick, synchronized with write-barrier memory barriers.
+*   **HTML5 Event Loop, Microtasks, rAF, and rIC**: Precise exception-safe microtask queue draining via `JS_ExecutePendingJob` at the end of execution ticks, and display-synchronized `requestAnimationFrame`/`requestIdleCallback` callbacks with immediate cancel deallocation to prevent leaks.
+*   **Decentralized Asymmetric Work-Stealing Subsystem Worker Pool**: Overhauled `wisp_subsystem` worker pool with asymmetric work-stealing, Retrospective Deficit Round Robin (R-DRR) to prevent thread-lock contention and task-size blindness, and platform-specific size-size atomic emulator shims.
 *   **Position: Sticky**: Full support for sticky positioning, including multi-axis clamping and scroll-container constraints. Verified in `layout_apply_sticky_clamping`.
 *   **ISOBMFF Support**: Native decoding for AVIF, HEIC, and HEIF formats via generalized signature sniffing in `mimesniff.c`.
 *   **Stateful Vector Path API**: Modernized plotter interface (MoveTo, LineTo, BezierTo) implemented across GTK (Cairo), Windows (GDI/Direct2D), and Blend2D.
