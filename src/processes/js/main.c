@@ -235,6 +235,23 @@ int main(int argc, char **argv) {
                 if (script) {
                     JSValue val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
 
+                    /* Execute any pending microtasks (microtask-tick serialization) */
+                    JSContext *ctx1;
+                    int job_ret;
+                    while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0) {
+                        if (job_ret < 0) {
+                            JSValue exc = JS_GetException(ctx1);
+                            const char *exc_str = JS_ToCString(ctx1, exc);
+                            NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                            if (exc_str) JS_FreeCString(ctx1, exc_str);
+                            JS_FreeValue(ctx1, exc);
+                        }
+                    }
+
+                    /* Flush the Batch-Buffered Mutation Queue (BBMQ) */
+                    extern void bbmq_flush(void);
+                    bbmq_flush();
+
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;
                     if (JS_IsException(val)) {
