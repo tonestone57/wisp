@@ -9,6 +9,15 @@
 #define SHM_DOM_STRING_MAX 128
 #define SHM_MUTATION_QUEUE_SIZE 1024
 
+typedef uint32_t WispNodeID;
+#define WISP_NODE_NULL 0
+
+typedef enum {
+    WISP_NODE_ELEMENT = 1,
+    WISP_NODE_TEXT = 3,
+    WISP_NODE_DOCUMENT = 9
+} WispNodeType;
+
 typedef enum {
     SHM_MUTATION_SET_ATTRIBUTE = 1,
     SHM_MUTATION_REMOVE_ATTRIBUTE = 2,
@@ -36,13 +45,14 @@ typedef struct {
 } shm_mutation_queue_t;
 
 typedef struct {
-    uint64_t id;                  /* cast of (uintptr_t)dom_node* */
+    WispNodeID id;                /* 32-bit unique index identifier */
     uint32_t type;                /* dom_node_type */
-    uint64_t parent_id;
-    uint64_t first_child_id;
-    uint64_t last_child_id;
-    uint64_t next_sibling_id;
-    uint64_t previous_sibling_id;
+    WispNodeID parent_id;
+    WispNodeID first_child_id;
+    WispNodeID last_child_id;
+    WispNodeID next_sibling_id;
+    WispNodeID previous_sibling_id;
+    uint64_t dom_ptr;             /* LibDOM real node pointer value (for main/UI thread only) */
     char name[SHM_DOM_STRING_MAX];
     char value[SHM_DOM_STRING_MAX];
     char tag_name[SHM_DOM_STRING_MAX];

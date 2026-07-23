@@ -96,6 +96,72 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_svds_32bit_indices)
+{
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    // 1. Create a dummy shared-memory DOM structure
+    shm_dom_t *shm = calloc(1, sizeof(shm_dom_t));
+    ck_assert_ptr_nonnull(shm);
+
+    // 2. Serialize the DOM tree into our SVDS structure
+    serialize_dom_tree(shm, doc);
+
+    // 3. Verify topology mapping with dense 32-bit indices
+    // Index 1 must be the root (document) node
+    ck_assert_int_gt(shm->node_count, 1);
+    ck_assert_int_eq(shm->nodes[1].id, 1);
+    ck_assert_int_eq(shm->nodes[1].type, 9); // DOM_DOCUMENT_NODE
+
+    // Let's verify that relationships are correct 32-bit indices
+    WispNodeID html_idx = shm->nodes[1].first_child_id;
+    ck_assert_int_eq(html_idx, 2); // Root document's first child should be html element at index 2
+    ck_assert_int_eq(shm->nodes[html_idx].parent_id, 1);
+    ck_assert_int_eq(shm->nodes[html_idx].type, 1); // DOM_ELEMENT_NODE
+
+    // 4. Verify O(1) direct lookup in find_shm_node
+    shm_dom_node_t *sn1 = find_shm_node(shm, 1);
+    ck_assert_ptr_nonnull(sn1);
+    ck_assert_ptr_eq(sn1, &shm->nodes[1]);
+
+    shm_dom_node_t *sn2 = find_shm_node(shm, html_idx);
+    ck_assert_ptr_nonnull(sn2);
+    ck_assert_ptr_eq(sn2, &shm->nodes[html_idx]);
+
+    // 5. Verify Zero-Copy mutation mapping back to LibDOM using 32-bit indices via dom_ptr
+    // Let's find the 'html' node's child (e.g. body element or head element)
+    WispNodeID first_idx = shm->nodes[html_idx].first_child_id; // head or body
+    ck_assert_int_gt(first_idx, 0);
+
+    // Let's enqueue a SET_ATTRIBUTE mutation on first_idx
+    shm_mutation_enqueue(shm, SHM_MUTATION_SET_ATTRIBUTE, first_idx, 0, 0, "class", "shm-test-class");
+
+    // Apply mutation using drain_mutation_queue
+    drain_mutation_queue(shm, doc);
+
+    // Retrieve the real LibDOM node
+    dom_node *real_el = (dom_node *)(uintptr_t)shm->nodes[first_idx].dom_ptr;
+    ck_assert_ptr_nonnull(real_el);
+
+    // Verify that the attribute was successfully applied to LibDOM node
+    dom_string *attr_val = NULL;
+    dom_string *attr_name = NULL;
+    dom_string_create_interned((const uint8_t *)"class", 5, &attr_name);
+    dom_element_get_attribute((dom_element *)real_el, attr_name, &attr_val);
+    dom_string_unref(attr_name);
+
+    ck_assert_ptr_nonnull(attr_val);
+    ck_assert_int_eq(dom_string_byte_length(attr_val), 14);
+    ck_assert(strncmp((const char *)dom_string_data(attr_val), "shm-test-class", 14) == 0);
+    dom_string_unref(attr_val);
+
+    // Cleanup
+    free(shm);
+    dom_node_unref((dom_node *)doc);
+}
+END_TEST
+
 START_TEST(test_quickjs_css_style_declaration)
 {
     jsheap *heap = NULL;
@@ -1909,6 +1975,7 @@ Suite *quickjs_suite(void)
     /* Core test case */
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_quickjs_init_finalise);
+    tcase_add_test(tc_core, test_quickjs_svds_32bit_indices);
     tcase_add_test(tc_core, test_quickjs_heap_create_destroy);
     tcase_add_test(tc_core, test_quickjs_thread_create_destroy);
     tcase_add_test(tc_core, test_quickjs_multiple_threads);

@@ -168,6 +168,13 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
 
 shm_dom_node_t* find_shm_node(shm_dom_t *shm, uint64_t id) {
     if (!shm) return NULL;
+    uint32_t idx = (uint32_t)id;
+    if (idx > 0 && idx < shm->node_count) {
+        if (shm->nodes[idx].id == id) {
+            return &shm->nodes[idx];
+        }
+    }
+    // Fallback search, just in case (should not be hit in normal SVDS usage)
     for (uint32_t i = 0; i < shm->node_count; i++) {
         if (shm->nodes[i].id == id) {
             return &shm->nodes[i];
