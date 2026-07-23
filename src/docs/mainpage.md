@@ -8,6 +8,8 @@ Wisp web browser
 
 [Project](docs/project.md)
 
+[Architectural Boundaries](docs/architectural-boundaries.md)
+
 [User Interface](docs/user-interface.md)
 
 [Development](docs/development.md)

@@ -66,6 +66,24 @@ struct qjs_timer {
     struct qjs_timer *next;
 };
 
+struct qjs_raf_callback {
+    JSContext *ctx;
+    JSValue func;
+    int id;
+    bool cancelled;
+    struct qjs_raf_callback *next;
+};
+
+struct qjs_idle_callback {
+    JSContext *ctx;
+    JSValue func;
+    int id;
+    bool cancelled;
+    uint32_t timeout;
+    uint64_t scheduled_time;
+    struct qjs_idle_callback *next;
+};
+
 struct qjs_event_listener_ctx {
     struct qjs_event_listener_ctx *next;
     struct jsthread *thread;
@@ -96,6 +114,10 @@ struct jsthread {
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
     struct qjs_timer *timers;
+    struct qjs_raf_callback *raf_callbacks;
+    struct qjs_idle_callback *idle_callbacks;
+    int next_raf_id;
+    int next_idle_id;
 
     struct WispMutationObserver *mutation_observers;
     struct WispIntersectionObserver *intersection_observers;
@@ -137,6 +159,10 @@ int qjs_init_trusted_types(JSContext *ctx);
 void *qjs_get_window_priv(JSContext *ctx);
 void *qjs_get_document_priv(JSContext *ctx);
 struct dom_document *qjs_thread_get_document(struct jsthread *t);
+void qjs_raf_callback_fn(void *p);
+void qjs_idle_callback_fn(void *p);
+void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc);
+void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);

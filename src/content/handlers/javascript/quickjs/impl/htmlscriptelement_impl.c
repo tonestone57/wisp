@@ -1,0 +1,194 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include "quickjs.h"
+#include "dom_bridge.h"
+#include "qjs_internal.h"
+#include <wisp/utils/log.h>
+#include "utils/libdom.h"
+#include "JSHTMLScriptElement.gen.h"
+
+extern bool wisp_is_js_process;
+extern JSValue wisp_node_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value);
+
+JSValue wisp_htmlscriptelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, priv, "src");
+        if (JS_IsNull(val) || JS_IsUndefined(val)) {
+            return JS_NewString(ctx, "");
+        }
+        return val;
+    }
+    dom_string *attr_name = NULL;
+    dom_string_create((const uint8_t *)"src", 3, &attr_name);
+    dom_string *value_dom = NULL;
+    dom_element_get_attribute((dom_element *)priv->node, attr_name, &value_dom);
+    dom_string_unref(attr_name);
+    if (value_dom) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(value_dom), dom_string_byte_length(value_dom));
+        dom_string_unref(value_dom);
+        return val;
+    }
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_htmlscriptelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        return wisp_element_setAttribute_impl(ctx, priv, "src", value);
+    }
+    dom_string *attr_name = NULL;
+    dom_string_create((const uint8_t *)"src", 3, &attr_name);
+    dom_string *value_dom = NULL;
+    dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
+    dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
+    dom_string_unref(attr_name);
+    dom_string_unref(value_dom);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlscriptelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, priv, "type");
+        if (JS_IsNull(val) || JS_IsUndefined(val)) {
+            return JS_NewString(ctx, "");
+        }
+        return val;
+    }
+    dom_string *attr_name = NULL;
+    dom_string_create((const uint8_t *)"type", 4, &attr_name);
+    dom_string *value_dom = NULL;
+    dom_element_get_attribute((dom_element *)priv->node, attr_name, &value_dom);
+    dom_string_unref(attr_name);
+    if (value_dom) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(value_dom), dom_string_byte_length(value_dom));
+        dom_string_unref(value_dom);
+        return val;
+    }
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_htmlscriptelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+    }
+    dom_string *attr_name = NULL;
+    dom_string_create((const uint8_t *)"type", 4, &attr_name);
+    dom_string *value_dom = NULL;
+    dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
+    dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
+    dom_string_unref(attr_name);
+    dom_string_unref(value_dom);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlscriptelement_async_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_FALSE;
+    return wisp_element_hasAttribute_impl(ctx, priv, "async");
+}
+
+JSValue wisp_htmlscriptelement_async_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "async", "async");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "async");
+    }
+}
+
+JSValue wisp_htmlscriptelement_defer_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_FALSE;
+    return wisp_element_hasAttribute_impl(ctx, priv, "defer");
+}
+
+JSValue wisp_htmlscriptelement_defer_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "defer", "defer");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "defer");
+    }
+}
+
+JSValue wisp_htmlscriptelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_node_textContent_get_impl(ctx, priv);
+}
+
+JSValue wisp_htmlscriptelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_node_textContent_set_impl(ctx, priv, value);
+}
+
+JSValue wisp_htmlscriptelement_charset_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return wisp_element_getAttribute_impl(ctx, priv, "charset");
+}
+
+JSValue wisp_htmlscriptelement_charset_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    return wisp_element_setAttribute_impl(ctx, priv, "charset", value);
+}
+
+JSValue wisp_htmlscriptelement_crossOrigin_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return wisp_element_getAttribute_impl(ctx, priv, "crossorigin");
+}
+
+JSValue wisp_htmlscriptelement_crossOrigin_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    return wisp_element_setAttribute_impl(ctx, priv, "crossorigin", value);
+}
+
+JSValue wisp_htmlscriptelement_event_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return wisp_element_getAttribute_impl(ctx, priv, "event");
+}
+
+JSValue wisp_htmlscriptelement_event_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    return wisp_element_setAttribute_impl(ctx, priv, "event", value);
+}
+
+JSValue wisp_htmlscriptelement_htmlFor_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return wisp_element_getAttribute_impl(ctx, priv, "for");
+}
+
+JSValue wisp_htmlscriptelement_htmlFor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    return wisp_element_setAttribute_impl(ctx, priv, "for", value);
+}
+
+JSValue wisp_htmlscriptelement_nonce_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return wisp_element_getAttribute_impl(ctx, priv, "nonce");
+}
+
+JSValue wisp_htmlscriptelement_nonce_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    return wisp_element_setAttribute_impl(ctx, priv, "nonce", value);
+}

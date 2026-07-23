@@ -61,8 +61,15 @@ Wisp has completed its core CSS Variables implementation and optimized the Incre
 * **Tiled Incremental Layout**: High-performance "dirty-bit" based reflow system with a **Fixed-Tile Redraw** strategy to minimize CPU cycles and overdraw.
 * **Modern Media**: Native support for AVIF, HEIC, and HEIF image formats via `libavif` v1.4.2 and FFmpeg-based media pipeline.
 
+## Architectural Boundaries & Web API Parity
+As a lightweight web engine, Wisp maintains a clear boundary between native lightweight performance and bloated multi-gigabyte browser suites:
+*   **Traditional & Static Web**: Pages that rely on semantic HTML5, standard CSS (Grid/Flexbox), and standard SVGs are fully achievable, blazing fast, and lightweight.
+*   **Modern Web App Frameworks (React, Next.js)**: Require a full-featured browser engine runtime with complete Web API parity. Modern Single-Page Applications (SPAs) rely heavily on client-side hydration and expect hundreds of complex browser APIs (e.g. `MutationObserver`, `ResizeObserver`, Shadow DOM, `IntersectionObserver`, full Streams/Fetch APIs). Missing even a single method can abort hydration and cause cascading failures, leaving a blank white screen.
+*   **The Myth of the WebAssembly (Wasm) Requirement**: Over **99.5% of the web** relies purely on standard HTML5, CSS3, and JavaScript, rather than WebAssembly (which is used on only ~0.35% of desktop sites). Standard React/Next.js applications (such as NBC News, Twitter/X, and YouTube) do not require Wasm to render, hydrate, or route. The real hurdles for lightweight engines are JavaScript Web API Parity and dynamic CSS Layout. Wasm is strictly confined to specialized applications like Figma, 3D games, and local AI/databases.
+*   *For a detailed breakdown of these architectural boundaries, see [Architectural Boundaries](src/docs/architectural-boundaries.md).*
+
 ## Known Issues
-* **[Incomplete] WebGPU API**: Preliminary research for GPU-accelerated compute and rendering.
+*   **[Incomplete] WebGPU API**: Preliminary research for GPU-accelerated compute and rendering.
 
 ## Building and Installation
 
