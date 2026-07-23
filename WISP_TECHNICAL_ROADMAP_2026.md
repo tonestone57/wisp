@@ -364,31 +364,39 @@ This is a highly mature, production-ready roadmap for a niche engine. If we can 
 
 ---
 
-## 12. Architectural Reality: Modern Web App Frameworks (React/Next.js/Wasm)
+## 12. Architectural Reality: Modern Web App Frameworks (React/Next.js)
 
 A core tenet of Wisp's architecture is recognizing and defining the boundary between lightweight native layout engines and heavyweight, multi-gigabyte browser engines (such as Blink, Gecko, and WebKit).
 
 ### The Boundary Matrix
 
 *   **Traditional & Static Web (HTML5 + CSS3 + standard SVG)**: Fully achievable, blazing fast, and lightweight. This is the primary target and sweet spot for Wisp's native C core and optimized QuickJS-ng bindings (e.g. Haiku-OS).
-*   **Modern Web App Frameworks (React / Next.js / Wasm)**: Require a full-featured browser engine runtime with complete Web API parity.
+*   **Modern Web App Frameworks (React / Next.js)**: Require a full-featured browser engine runtime with complete Web API parity.
+
+### WebAssembly (Wasm) is NOT a General Requirement
+
+**WebAssembly (Wasm) is not required for the vast majority of modern websites.**
+Data from the HTTP Archive shows that WebAssembly is used on only **~0.35% of desktop sites** and **~0.28% of mobile sites** across the web. Over **99.5% of the web** relies purely on standard HTML5, CSS3, and JavaScript.
+
+Standard React/Next.js/Vue applications run entirely on **JavaScript**. Sites like NBC News, Twitter/X, Amazon, and YouTube do not use Wasm for their layout, routing, or hydration. Lacking Wasm will not prevent these sites from working. The actual hurdles for rendering modern web apps in lightweight engines are almost always:
+1.  **JavaScript Web API Parity**: Missing DOM features like MutationObserver, ResizeObserver, Fetch, Promises/Microtasks, or Shadow DOM.
+2.  **CSS Layout Capabilities**: Modern Flexbox, Grid, and dynamic CSS custom variables.
+Wasm is strictly confined to specialized apps (Figma, 3D games, or local AI/databases).
 
 ### Architectural Challenges for Lightweight Engines
 
 1.  **The Client-Side Hydration Bottleneck**: Single-Page Applications (SPAs) like NBC, CBS, and ABC News use client-side hydration via massive JS bundles (React/Next.js/Webpack chunks). Upon execution, the bundle expects hundreds of complex, high-level browser APIs to be fully present (such as `MutationObserver`, `ResizeObserver`, Shadow DOM v1, `IntersectionObserver`, full Streams API, and complex Fetch/Promise chains). If a lightweight engine is missing even one minor DOM API method or returns `undefined`, React's hydration aborts with an uncaught exception, leaving the user with a blank white screen.
-2.  **JIT Compilation & Wasm Requirements**: Modern benchmarks (Speedometer 3.1 & JetStream 3.0) and high-performance WebAssembly (Wasm) modules are designed for full-tier JIT engines (V8, SpiderMonkey, JavaScriptCore). A lightweight, bytecode-interpreting engine like QuickJS-ng is designed for a small memory footprint and fast startup, not for JIT-heavy, multi-megabyte Wasm workloads.
+2.  **JIT Compilation**: Modern benchmarks (Speedometer 3.1 & JetStream 3.0) and high-performance JS modules are designed for full-tier JIT engines (V8, SpiderMonkey, JavaScriptCore) to process heavy workloads. A lightweight, bytecode-interpreting engine like QuickJS-ng is designed for a small memory footprint and fast startup, not for JIT-heavy scenarios.
 
 ### Blueprint for Upgrading Wisp toward Web API Parity
 
-To enable Wisp (building on NetSurf's C99 architecture and QuickJS-ng) to run modern Web App Frameworks (React, Next.js, Vue, Wasm apps) and achieve Web API parity, the codebase would require fundamental architectural upgrades across five main areas:
+To enable Wisp (building on NetSurf's C99 architecture and QuickJS-ng) to run modern Web App Frameworks (React, Next.js, Vue) and achieve Web API parity, the codebase would require fundamental architectural upgrades across five main areas:
 
 #### 1. Event Loop & JavaScript Execution Engine
 QuickJS-ng provides ES2023 language compliance, but modern frameworks depend heavily on specific browser host environment behaviors rather than just pure JavaScript syntax.
 *   **HTML5 Spec-Compliant Event Loop**:
     *   **Microtask Queue**: React's scheduler relies on precise Promise microtask ordering (`queueMicrotask`). Wisp’s C-level event loop must process all microtasks to completion *before* yielding to rendering or macrotasks (`setTimeout`, I/O).
     *   **Frame Synchronization**: Native implementation of `requestAnimationFrame()` and `requestIdleCallback()` tied directly to the display backend's refresh cycle.
-*   **WebAssembly (Wasm) Subsystem**:
-    *   QuickJS does not include a native Wasm runtime. Wisp would need an embedded Wasm engine (such as `wasm3` or `wasmtime` C bindings) hooked into QuickJS memory to support Wasm modules compiled from Rust/C++ used by modern sites.
 *   **Threaded Concurrency**:
     *   Web Worker support (`new Worker()`) by instantiating isolated QuickJS runtime instances inside dedicated OS threads (pthreads) with structured clone messaging.
 
