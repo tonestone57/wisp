@@ -1903,6 +1903,206 @@ START_TEST(test_quickjs_raf)
 }
 END_TEST
 
+START_TEST(test_quickjs_fetch_streams)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: Headers creation and basic methods
+    const char *code1 = "var h = new Headers({ 'Content-Type': 'application/json', 'X-Custom': 'value1' });\n"
+                        "h.append('X-Custom', 'value2');\n"
+                        "h.get('Content-Type') === 'application/json' && h.get('X-Custom') === 'value1, value2' && h.has('Content-Type');";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_headers");
+    ck_assert(result == true);
+
+    // Test 2: ReadableStream standard construction and DefaultReader
+    const char *code2 = "var stream = new ReadableStream({\n"
+                        "  start(controller) {\n"
+                        "    controller.enqueue('chunk1');\n"
+                        "    controller.enqueue('chunk2');\n"
+                        "    controller.close();\n"
+                        "  }\n"
+                        "});\n"
+                        "var reader = stream.getReader();\n"
+                        "var results = [];\n"
+                        "reader.read().then(r => {\n"
+                        "  results.push(r.value);\n"
+                        "  return reader.read();\n"
+                        "}).then(r => {\n"
+                        "  results.push(r.value);\n"
+                        "  return reader.read();\n"
+                        "}).then(r => {\n"
+                        "  results.push(r.done);\n"
+                        "});\n"
+                        "stream.locked === true;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_readable_stream");
+    ck_assert(result == true);
+
+    // Test 3: WritableStream standard construction and DefaultWriter
+    const char *code3 = "var written = [];\n"
+                        "var sink = new WritableStream({\n"
+                        "  write(chunk) {\n"
+                        "    written.push(chunk);\n"
+                        "  }\n"
+                        "});\n"
+                        "var writer = sink.getWriter();\n"
+                        "writer.write('hello');\n"
+                        "writer.write('world');\n"
+                        "writer.close();\n"
+                        "written.length === 2 && written[0] === 'hello' && written[1] === 'world';";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_writable_stream");
+    ck_assert(result == true);
+
+    // Test 4: Response body text consumption
+    const char *code4 = "var stream = new ReadableStream({\n"
+                        "  start(controller) {\n"
+                        "    controller.enqueue(new Uint8Array([104, 101, 108, 108, 111]));\n"
+                        "    controller.close();\n"
+                        "  }\n"
+                        "});\n"
+                        "var res = new Response(stream);\n"
+                        "res.text().then(t => {\n"
+                        "  window.responseText = t;\n"
+                        "});\n"
+                        "res.bodyUsed === true;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_response_text_consumption");
+    ck_assert(result == true);
+
+    // Let's execute microtasks to run the promises
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *code5 = "window.responseText === 'hello';";
+    result = js_exec(thread, (const uint8_t *)code5, strlen(code5), "test_response_text_result");
+    ck_assert(result == true);
+
+    // Test 6: Large stream fallback decoding chunking test (prevents stack overflow) with diagnostics
+    const char *code6 = "try {\n"
+                        "  const size = 0x10000;\n"
+                        "  const largeArray = new Uint8Array(size);\n"
+                        "  for (let i = 0; i < size; i++) { largeArray[i] = 97; }\n"
+                        "  const savedDecoder = globalThis.TextDecoder;\n"
+                        "  globalThis.TextDecoder = undefined;\n"
+                        "  const stream = new ReadableStream({\n"
+                        "    start(controller) {\n"
+                        "      controller.enqueue(largeArray);\n"
+                        "      controller.close();\n"
+                        "    }\n"
+                        "  });\n"
+                        "  const res = new Response(stream);\n"
+                        "  res.text().then(t => {\n"
+                        "    window.largeTextResult = (t.length === size && t[0] === 'a') ? 'OK' : 'FAIL';\n"
+                        "    globalThis.TextDecoder = savedDecoder;\n"
+                        "  }).catch(e => {\n"
+                        "    window.largeTextResult = 'PROMISE ERROR: ' + e.message;\n"
+                        "    globalThis.TextDecoder = savedDecoder;\n"
+                        "  });\n"
+                        "} catch(e) {\n"
+                        "  window.largeTextResult = 'OUTER ERROR: ' + e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "true;";
+    result = js_exec(thread, (const uint8_t *)code6, strlen(code6), "test_large_response_decoding_chunking");
+    ck_assert(result == true);
+
+    // Run microtasks
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *code7 = "window.largeTextResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code7, strlen(code7), "test_large_response_result");
+    if (!result) {
+        const char *get_diag = "window.largeTextResult;";
+        js_exec(thread, (const uint8_t *)get_diag, strlen(get_diag), "get_diagnostics_large_stream");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_shadow_dom)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test: attachShadow, DOM manipulation, innerHTML parsing, and History routing in a single context with try/catch diagnostics
+    const char *code = "try {\n"
+                       "  var el = document.createElement('div');\n"
+                       "  var shadow = el.attachShadow({ mode: 'open' });\n"
+                       "  var el2 = document.createElement('div');\n"
+                       "  var shadow2 = el2.attachShadow({ mode: 'closed' });\n"
+                       "  if (!(el.shadowRoot === shadow && shadow.host === el && shadow.mode === 'open' && el2.shadowRoot === null && shadow2.host === el2 && shadow2.mode === 'closed')) {\n"
+                       "    throw new Error('part1 failed');\n"
+                       "  }\n"
+                       "  var span = document.createElement('span');\n"
+                       "  shadow.appendChild(span);\n"
+                       "  if (!(shadow.firstChild === span && shadow.firstElementChild === span && shadow.childElementCount === 1)) {\n"
+                       "    throw new Error('part2 failed');\n"
+                       "  }\n"
+                       "  shadow.innerHTML = '<p class=\"test\">Hello Shadow</p>';\n"
+                       "  var p = shadow.firstElementChild;\n"
+                       "  if (!(p !== null && p.tagName.toUpperCase() === 'P' && shadow.childElementCount === 1 && p.className === 'test')) {\n"
+                       "    throw new Error('part3 failed: p=' + p + ', tag=' + (p ? p.tagName : '') + ', count=' + shadow.childElementCount + ', class=' + (p ? p.className : ''));\n"
+                       "  }\n"
+                       "  if (typeof history !== 'undefined') {\n"
+                       "    if (history.length !== 1 || history.state !== null) {\n"
+                       "      throw new Error('history initial state failed');\n"
+                       "    }\n"
+                       "    history.pushState({ route: 'about' }, 'About Page', '/about');\n"
+                       "    if (history.length !== 2 || history.state.route !== 'about') {\n"
+                       "      throw new Error('history pushState failed: state=' + JSON.stringify(history.state) + ', length=' + history.length);\n"
+                       "    }\n"
+                       "    history.replaceState({ route: 'contact' }, 'Contact Page', '/contact');\n"
+                       "    if (history.length !== 2 || history.state.route !== 'contact') {\n"
+                       "      throw new Error('history replaceState failed: state=' + JSON.stringify(history.state) + ', length=' + history.length);\n"
+                       "    }\n"
+                       "  }\n"
+                       "  window.testResult = 'OK';\n"
+                       "} catch(e) {\n"
+                       "  window.testResult = e.message + '\\n' + e.stack;\n"
+                       "}\n"
+                       "window.testResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_shadow_dom_and_history");
+    if (!result) {
+        // Evaluate window.testResult and print it
+        const char *get_res = "window.testResult;";
+        js_exec(thread, (const uint8_t *)get_res, strlen(get_res), "get_diagnostics");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_ric)
 {
     jsheap *heap = NULL;
@@ -2037,6 +2237,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
+    tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
