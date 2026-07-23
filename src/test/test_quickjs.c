@@ -1988,6 +1988,45 @@ START_TEST(test_quickjs_fetch_streams)
     result = js_exec(thread, (const uint8_t *)code5, strlen(code5), "test_response_text_result");
     ck_assert(result == true);
 
+    // Test 6: Large stream fallback decoding chunking test (prevents stack overflow) with diagnostics
+    const char *code6 = "try {\n"
+                        "  const size = 0x10000;\n"
+                        "  const largeArray = new Uint8Array(size);\n"
+                        "  for (let i = 0; i < size; i++) { largeArray[i] = 97; }\n"
+                        "  const savedDecoder = globalThis.TextDecoder;\n"
+                        "  globalThis.TextDecoder = undefined;\n"
+                        "  const stream = new ReadableStream({\n"
+                        "    start(controller) {\n"
+                        "      controller.enqueue(largeArray);\n"
+                        "      controller.close();\n"
+                        "    }\n"
+                        "  });\n"
+                        "  const res = new Response(stream);\n"
+                        "  res.text().then(t => {\n"
+                        "    window.largeTextResult = (t.length === size && t[0] === 'a') ? 'OK' : 'FAIL';\n"
+                        "    globalThis.TextDecoder = savedDecoder;\n"
+                        "  }).catch(e => {\n"
+                        "    window.largeTextResult = 'PROMISE ERROR: ' + e.message;\n"
+                        "    globalThis.TextDecoder = savedDecoder;\n"
+                        "  });\n"
+                        "} catch(e) {\n"
+                        "  window.largeTextResult = 'OUTER ERROR: ' + e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "true;";
+    result = js_exec(thread, (const uint8_t *)code6, strlen(code6), "test_large_response_decoding_chunking");
+    ck_assert(result == true);
+
+    // Run microtasks
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *code7 = "window.largeTextResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code7, strlen(code7), "test_large_response_result");
+    if (!result) {
+        const char *get_diag = "window.largeTextResult;";
+        js_exec(thread, (const uint8_t *)get_diag, strlen(get_diag), "get_diagnostics_large_stream");
+    }
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
