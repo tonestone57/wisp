@@ -1903,6 +1903,98 @@ START_TEST(test_quickjs_raf)
 }
 END_TEST
 
+START_TEST(test_quickjs_fetch_streams)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: Headers creation and basic methods
+    const char *code1 = "var h = new Headers({ 'Content-Type': 'application/json', 'X-Custom': 'value1' });\n"
+                        "h.append('X-Custom', 'value2');\n"
+                        "h.get('Content-Type') === 'application/json' && h.get('X-Custom') === 'value1, value2' && h.has('Content-Type');";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_headers");
+    ck_assert(result == true);
+
+    // Test 2: ReadableStream standard construction and DefaultReader
+    const char *code2 = "var stream = new ReadableStream({\n"
+                        "  start(controller) {\n"
+                        "    controller.enqueue('chunk1');\n"
+                        "    controller.enqueue('chunk2');\n"
+                        "    controller.close();\n"
+                        "  }\n"
+                        "});\n"
+                        "var reader = stream.getReader();\n"
+                        "var results = [];\n"
+                        "reader.read().then(r => {\n"
+                        "  results.push(r.value);\n"
+                        "  return reader.read();\n"
+                        "}).then(r => {\n"
+                        "  results.push(r.value);\n"
+                        "  return reader.read();\n"
+                        "}).then(r => {\n"
+                        "  results.push(r.done);\n"
+                        "});\n"
+                        "stream.locked === true;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_readable_stream");
+    ck_assert(result == true);
+
+    // Test 3: WritableStream standard construction and DefaultWriter
+    const char *code3 = "var written = [];\n"
+                        "var sink = new WritableStream({\n"
+                        "  write(chunk) {\n"
+                        "    written.push(chunk);\n"
+                        "  }\n"
+                        "});\n"
+                        "var writer = sink.getWriter();\n"
+                        "writer.write('hello');\n"
+                        "writer.write('world');\n"
+                        "writer.close();\n"
+                        "written.length === 2 && written[0] === 'hello' && written[1] === 'world';";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_writable_stream");
+    ck_assert(result == true);
+
+    // Test 4: Response body text consumption
+    const char *code4 = "var stream = new ReadableStream({\n"
+                        "  start(controller) {\n"
+                        "    controller.enqueue(new Uint8Array([104, 101, 108, 108, 111]));\n"
+                        "    controller.close();\n"
+                        "  }\n"
+                        "});\n"
+                        "var res = new Response(stream);\n"
+                        "res.text().then(t => {\n"
+                        "  window.responseText = t;\n"
+                        "});\n"
+                        "res.bodyUsed === true;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_response_text_consumption");
+    ck_assert(result == true);
+
+    // Let's execute microtasks to run the promises
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *code5 = "window.responseText === 'hello';";
+    result = js_exec(thread, (const uint8_t *)code5, strlen(code5), "test_response_text_result");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_ric)
 {
     jsheap *heap = NULL;
@@ -2037,6 +2129,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
+    tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
