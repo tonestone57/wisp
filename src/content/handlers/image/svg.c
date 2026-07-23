@@ -461,6 +461,16 @@ static void svg_reformat(struct content *c, int width, int height)
         nsurl_access(content_get_url(c)), width, height, code, svg->diagram ? svg->diagram->width : 0,
         svg->diagram ? svg->diagram->height : 0, svg->diagram ? svg->diagram->shape_count : 0);
 
+    if (code == svgtiny_OK) {
+        /* Wisp SVG Parse Flag Transition: Set the parsed flag to true upon
+         * successful parsing of the SVG diagram. This critical state change
+         * ensures that subsequent redraw and layout loops correctly identify
+         * that the SVG has been parsed and do not skip rendering or layout
+         * calculation.
+         */
+        svg->parsed = true;
+    }
+
     c->width = svg->diagram->width;
     c->height = svg->diagram->height;
 }
