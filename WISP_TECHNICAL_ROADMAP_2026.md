@@ -361,3 +361,65 @@ While the roadmap is solid, the intersection of NetSurf's legacy architecture an
 The inclusion of SIMD acceleration for WebSocket masking, JSON pre-parsing, and CSP string checking across **SSE2, NEON, and RVV 1.0** shows an impressive commitment to micro-optimization. It proves that "lightweight" doesn't have to mean "slow." Vectorizing the rolling 4-byte XOR mask for WebSockets (`_mm_xor_si128`) completely neutralizes the proxy protocol overhead that usually plagues alternative browsers.
 
 This is a highly mature, production-ready roadmap for a niche engine. If we can solve the IPC latency inherent in pushing JavaScript into its own process while working with a single-threaded C DOM, Wisp will easily become the gold standard for lightweight web computing.
+
+---
+
+## 12. Architectural Reality: Modern Web App Frameworks (React/Next.js/Wasm)
+
+A core tenet of Wisp's architecture is recognizing and defining the boundary between lightweight native layout engines and heavyweight, multi-gigabyte browser engines (such as Blink, Gecko, and WebKit).
+
+### The Boundary Matrix
+
+*   **Traditional & Static Web (HTML5 + CSS3 + standard SVG)**: Fully achievable, blazing fast, and lightweight. This is the primary target and sweet spot for Wisp's native C core and optimized QuickJS-ng bindings (e.g. Haiku-OS).
+*   **Modern Web App Frameworks (React / Next.js / Wasm)**: Require a full-featured browser engine runtime with complete Web API parity.
+
+### Architectural Challenges for Lightweight Engines
+
+1.  **The Client-Side Hydration Bottleneck**: Single-Page Applications (SPAs) like NBC, CBS, and ABC News use client-side hydration via massive JS bundles (React/Next.js/Webpack chunks). Upon execution, the bundle expects hundreds of complex, high-level browser APIs to be fully present (such as `MutationObserver`, `ResizeObserver`, Shadow DOM v1, `IntersectionObserver`, full Streams API, and complex Fetch/Promise chains). If a lightweight engine is missing even one minor DOM API method or returns `undefined`, React's hydration aborts with an uncaught exception, leaving the user with a blank white screen.
+2.  **JIT Compilation & Wasm Requirements**: Modern benchmarks (Speedometer 3.1 & JetStream 3.0) and high-performance WebAssembly (Wasm) modules are designed for full-tier JIT engines (V8, SpiderMonkey, JavaScriptCore). A lightweight, bytecode-interpreting engine like QuickJS-ng is designed for a small memory footprint and fast startup, not for JIT-heavy, multi-megabyte Wasm workloads.
+
+### Blueprint for Upgrading Wisp toward Web API Parity
+
+To enable Wisp (building on NetSurf's C99 architecture and QuickJS-ng) to run modern Web App Frameworks (React, Next.js, Vue, Wasm apps) and achieve Web API parity, the codebase would require fundamental architectural upgrades across five main areas:
+
+#### 1. Event Loop & JavaScript Execution Engine
+QuickJS-ng provides ES2023 language compliance, but modern frameworks depend heavily on specific browser host environment behaviors rather than just pure JavaScript syntax.
+*   **HTML5 Spec-Compliant Event Loop**:
+    *   **Microtask Queue**: React's scheduler relies on precise Promise microtask ordering (`queueMicrotask`). Wisp’s C-level event loop must process all microtasks to completion *before* yielding to rendering or macrotasks (`setTimeout`, I/O).
+    *   **Frame Synchronization**: Native implementation of `requestAnimationFrame()` and `requestIdleCallback()` tied directly to the display backend's refresh cycle.
+*   **WebAssembly (Wasm) Subsystem**:
+    *   QuickJS does not include a native Wasm runtime. Wisp would need an embedded Wasm engine (such as `wasm3` or `wasmtime` C bindings) hooked into QuickJS memory to support Wasm modules compiled from Rust/C++ used by modern sites.
+*   **Threaded Concurrency**:
+    *   Web Worker support (`new Worker()`) by instantiating isolated QuickJS runtime instances inside dedicated OS threads (pthreads) with structured clone messaging.
+
+#### 2. DOM & Web API Binding Layer (libdom / nsgenbind)
+Frameworks do not use standard static DOM trees; they construct, measure, and observe the DOM dynamically.
+*   **MutationObserver**: Essential for React and Vue DOM reconciliation. Without C-level tracking of attribute modifications, node insertions, and text mutations, hydrated frameworks immediately crash or desynchronize.
+*   **ResizeObserver & IntersectionObserver**: Used by Next.js for image lazy loading, infinite scrolling, and component layout logic.
+*   **Synthetic Events & Bubbling Fidelity**: React uses a single top-level event listener on document or root. Wisp’s C event target model must support standard capture and bubble phases, `composedPath()`, and exact event object property propagation.
+
+#### 3. Dynamic Reflow & Incremental Layout (LibCSS)
+NetSurf and Wisp historically optimized for document-style web pages (where HTML is parsed once and rendered). Modern SPAs modify DOM nodes continuously.
+*   **Incremental Layout & Targeted Repaints**:
+    *   Modern apps mutate dozens of DOM elements per second. Rebuilding or re-laying out large branches of the `box_tree` on every JS mutation causes severe performance degradation. Wisp needs incremental reflows (re-calculating layout bounds only for dirty subtree nodes).
+*   **Dynamic CSS Custom Properties (Variables)**:
+    *   `var(--theme-color)` support requires dynamic cascading recalculation when JS updates CSS variables at runtime (e.g., `element.style.setProperty()`).
+*   **Complete CSS Grid & Flexbox Engine**:
+    *   Full support for CSS Grid track sizing (`minmax()`, `fr` units, `auto-fill`), gap calculations, subgrids, and Flexbox wrapping algorithms used by Tailwind CSS and UI component libraries.
+
+#### 4. Networking & Stream Pipeline
+*   **Fetch & Streams Integration**:
+    *   Replacing legacy HTTP fetch wrappers with a full Fetch API binding backed by libcurl, including support for `ReadableStream` (crucial for Next.js Server Components / React Server Components streaming responses).
+*   **CORS & Security Controls**:
+    *   Strict Cross-Origin Resource Sharing (CORS) enforcement for `fetch()` / `XMLHttpRequest` to prevent modern API requests from being blocked by endpoint security policies.
+
+#### 5. Modern Rendering & Canvas API
+*   **HTML5 <canvas> (2D & WebGL)**:
+    *   Providing 2D Canvas context bindings (via Cairo or Skia) and basic WebGL bindings (via OpenGL ES abstraction) for dynamic graphics, charts, and interactive components.
+
+### Summary of Wisp Engineering Priorities
+To move from rendering static pages (like Haiku-OS) to hydrated SPAs (like NBC News), the highest-priority work items in Wisp are:
+1.  **MutationObserver implementation** in libdom/QuickJS bindings.
+2.  **HTML5 History API (pushState)** for client-side routing.
+3.  **Fetch + ReadableStream pipeline** for server-side streamed payloads.
+4.  **Incremental layout invalidation** so rapid DOM updates don't trigger full-page reflows.
