@@ -131,8 +131,42 @@ void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server) {
 #endif
 }
 
+#define BBMQ_MAX_MUTATIONS 2048
+
+extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
+
+static shm_mutation_t bbmq_queue[BBMQ_MAX_MUTATIONS];
+static volatile uint32_t bbmq_count = 0;
+
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value) {
     if (!shm) return;
+    if (wisp_is_js_process) {
+        if (bbmq_count >= BBMQ_MAX_MUTATIONS) {
+            NSLOG(wisp, WARNING, "[BBMQ] Local mutation buffer is full, discarding mutation!");
+            return;
+        }
+        shm_mutation_t *m = &bbmq_queue[bbmq_count];
+        m->type = type;
+        m->target_id = target_id;
+        m->param1_id = param1_id;
+        m->param2_id = param2_id;
+        if (name) {
+            strncpy(m->name, name, SHM_DOM_STRING_MAX - 1);
+            m->name[SHM_DOM_STRING_MAX - 1] = '\0';
+        } else {
+            m->name[0] = '\0';
+        }
+        if (value) {
+            strncpy(m->value, value, SHM_DOM_STRING_MAX - 1);
+            m->value[SHM_DOM_STRING_MAX - 1] = '\0';
+        } else {
+            m->value[0] = '\0';
+        }
+        bbmq_count++;
+        return;
+    }
+
     shm_mutation_queue_t *mq = &shm->mutation_queue;
     uint32_t head = mq->head;
     uint32_t tail = mq->tail;
@@ -164,6 +198,34 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     __sync_synchronize();
 #endif
     mq->head = head + 1;
+}
+
+void bbmq_flush(void) {
+    if (!wisp_shm_dom) return;
+    if (bbmq_count == 0) return;
+
+    shm_mutation_queue_t *mq = &wisp_shm_dom->mutation_queue;
+    uint32_t head = mq->head;
+    uint32_t tail = mq->tail;
+
+    for (uint32_t i = 0; i < bbmq_count; i++) {
+        if (head - tail >= SHM_MUTATION_QUEUE_SIZE) {
+            NSLOG(wisp, WARNING, "[BBMQ] Shared mutation queue is full during flush!");
+            break;
+        }
+        uint32_t idx = head % SHM_MUTATION_QUEUE_SIZE;
+        mq->queue[idx] = bbmq_queue[i];
+        head++;
+    }
+
+#ifdef _WIN32
+    MemoryBarrier();
+#else
+    __sync_synchronize();
+#endif
+
+    mq->head = head;
+    bbmq_count = 0;
 }
 
 shm_dom_node_t* find_shm_node(shm_dom_t *shm, uint64_t id) {

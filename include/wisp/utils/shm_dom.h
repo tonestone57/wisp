@@ -63,6 +63,7 @@ typedef struct {
 shm_dom_t* shm_dom_create(const char *name, bool is_server);
 void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server);
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value);
+void bbmq_flush(void);
 shm_dom_node_t* find_shm_node(shm_dom_t *shm, uint64_t id);
 
 #endif /* WISP_UTILS_SHM_DOM_H */
