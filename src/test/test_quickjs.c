@@ -96,6 +96,64 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_css_style_declaration)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *code =
+        "var el = document.createElement('div');\n"
+        "// 1. Check style exists and has expected prototype/class\n"
+        "if (typeof el.style !== 'object') throw 'style missing';\n"
+        "if (typeof CSSStyleDeclaration !== 'undefined' && !(el.style instanceof CSSStyleDeclaration)) throw 'not an instance of CSSStyleDeclaration';\n"
+        "\n"
+        "// 2. Test initial style parsing from attribute\n"
+        "el.setAttribute('style', 'color: red; background-color: blue;');\n"
+        "var style = el.style;\n"
+        "if (style.color !== 'red') throw 'color get fail';\n"
+        "if (style.backgroundColor !== 'blue') throw 'backgroundColor camelCase get fail';\n"
+        "if (style['background-color'] !== 'blue') throw 'background-color kebab-case get fail';\n"
+        "\n"
+        "// 3. Test standard methods: getPropertyValue, setProperty, removeProperty\n"
+        "if (style.getPropertyValue('color') !== 'red') throw 'getPropertyValue fail';\n"
+        "style.setProperty('font-size', '16px');\n"
+        "if (style.fontSize !== '16px') throw 'setProperty camelCase sync fail';\n"
+        "if (style.getPropertyValue('font-size') !== '16px') throw 'setProperty getPropertyValue fail';\n"
+        "\n"
+        "var removed = style.removeProperty('color');\n"
+        "if (removed !== 'red') throw 'removeProperty return value fail';\n"
+        "if (style.color !== '') throw 'removeProperty target value fail';\n"
+        "\n"
+        "// 4. Test cssText getter and setter\n"
+        "style.cssText = 'display: inline-block; opacity: 0.5;';\n"
+        "if (style.display !== 'inline-block') throw 'cssText setter fail';\n"
+        "if (style.opacity !== '0.5') throw 'cssText setter sync fail';\n"
+        "\n"
+        "// 5. Test length and index-based enumeration\n"
+        "if (style.length !== 2) throw 'length fail: ' + style.length;\n"
+        "if (style.item(0) !== 'display') throw 'item(0) fail: ' + style.item(0);\n"
+        "if (style[1] !== 'opacity') throw 'style[1] index access fail: ' + style[1];\n"
+        "1;";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_css_style_declaration");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_node_stubs)
 {
     jsheap *heap = NULL;
@@ -1896,6 +1954,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_node_stubs);
+    tcase_add_test(tc_window, test_quickjs_css_style_declaration);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_trusted_types);

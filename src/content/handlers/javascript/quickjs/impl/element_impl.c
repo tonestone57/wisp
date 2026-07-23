@@ -359,7 +359,15 @@ JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return val;
 }
 
-JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+JSValue wisp_htmlelement_style_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+JSValue wisp_elementcssinlinestyle_style_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+
+JSValue wisp_elementcssinlinestyle_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_htmlelement_style_get_impl(ctx, priv);
+}
+
+JSValue wisp_htmlelement_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
     JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
@@ -372,6 +380,7 @@ JSValue wisp_element_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
             if (JS_IsFunction(ctx, make_proxy_fn)) {
                 JSValue args[2] = { wrapper, initial_style };
                 style = JS_Call(ctx, make_proxy_fn, JS_UNDEFINED, 2, args);
+                JS_FreeValue(ctx, initial_style);
             } else {
                 style = initial_style;
             }
@@ -396,6 +405,14 @@ JSValue wisp_element_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv,
 {
     if (!priv || !priv->node) return JS_NULL;
     return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
+}
+
+static JSValue js_element_style_get_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
+    if (!priv) return JS_UNDEFINED;
+    return wisp_htmlelement_style_get_impl(ctx, priv);
 }
 
 int qjs_init_element(JSContext *ctx) {
@@ -427,40 +444,168 @@ int qjs_init_element(JSContext *ctx) {
     /* Define __wisp_make_style_proxy */
     const char *proxy_js =
         "globalThis.__wisp_make_style_proxy = function(element, initialStyleObj) {\n"
-        "    return new Proxy(initialStyleObj, {\n"
-        "        set(target, prop, value) {\n"
-        "            target[prop] = value;\n"
-        "            let styleStr = '';\n"
-        "            for (let k in target) {\n"
-        "                if (typeof target[k] === 'string' || typeof target[k] === 'number') {\n"
-        "                    let kebab = '';\n"
-        "                    for (let j = 0; j < k.length; j++) {\n"
-        "                        let char = k[j];\n"
-        "                        if (char >= 'A' && char <= 'Z') {\n"
-        "                            kebab += '-' + char.toLowerCase();\n"
-        "                        } else {\n"
-        "                            kebab += char;\n"
-        "                        }\n"
-        "                    }\n"
-        "                    styleStr += kebab + ': ' + target[k] + '; ';\n"
+        "    let target = initialStyleObj;\n"
+        "    let propertiesList = [];\n"
+        "    let lastStyleStr = null;\n"
+        "\n"
+        "    if (globalThis.CSSStyleDeclaration && globalThis.CSSStyleDeclaration.prototype) {\n"
+        "        Object.setPrototypeOf(target, globalThis.CSSStyleDeclaration.prototype);\n"
+        "    }\n"
+        "\n"
+        "    function parseStyleString(styleStr) {\n"
+        "        if (styleStr === lastStyleStr) return;\n"
+        "        lastStyleStr = styleStr;\n"
+        "        for (let k in target) {\n"
+        "            delete target[k];\n"
+        "        }\n"
+        "        propertiesList.length = 0;\n"
+        "        if (!styleStr) return;\n"
+        "        let declarations = styleStr.split(';');\n"
+        "        for (let decl of declarations) {\n"
+        "            let colonIdx = decl.indexOf(':');\n"
+        "            if (colonIdx === -1) continue;\n"
+        "            let prop = decl.substring(0, colonIdx).trim().toLowerCase();\n"
+        "            let val = decl.substring(colonIdx + 1).trim();\n"
+        "            if (prop && val) {\n"
+        "                let camel = prop.replace(/-([a-z])/g, (g) => g[1].toUpperCase());\n"
+        "                target[camel] = val;\n"
+        "                target[prop] = val;\n"
+        "                if (propertiesList.indexOf(prop) === -1) {\n"
+        "                    propertiesList.push(prop);\n"
         "                }\n"
         "            }\n"
-        "            element.setAttribute('style', styleStr);\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    function updateStyleAttribute() {\n"
+        "        let styleStr = '';\n"
+        "        propertiesList.forEach(prop => {\n"
+        "            if (target[prop] !== undefined) {\n"
+        "                styleStr += prop + ': ' + target[prop] + '; ';\n"
+        "            }\n"
+        "        });\n"
+        "        lastStyleStr = styleStr;\n"
+        "        element.setAttribute('style', styleStr);\n"
+        "    }\n"
+        "\n"
+        "    parseStyleString(element.getAttribute('style') || '');\n"
+        "\n"
+        "    return new Proxy(target, {\n"
+        "        set(t, prop, value) {\n"
+        "            if (prop === 'cssText') {\n"
+        "                element.setAttribute('style', value);\n"
+        "                parseStyleString(value);\n"
+        "                return true;\n"
+        "            }\n"
+        "            if (typeof prop === 'string') {\n"
+        "                let kebab = prop.replace(/([A-Z])/g, '-$1').toLowerCase();\n"
+        "                let camel = prop.replace(/-([a-z])/g, (g) => g[1].toUpperCase());\n"
+        "                t[camel] = value;\n"
+        "                t[kebab] = value;\n"
+        "                if (propertiesList.indexOf(kebab) === -1) {\n"
+        "                    propertiesList.push(kebab);\n"
+        "                }\n"
+        "                updateStyleAttribute();\n"
+        "            } else {\n"
+        "                t[prop] = value;\n"
+        "            }\n"
         "            return true;\n"
         "        },\n"
-        "        get(target, prop) {\n"
+        "        get(t, prop) {\n"
+        "            parseStyleString(element.getAttribute('style') || '');\n"
         "            if (prop === 'cssText') {\n"
         "                return element.getAttribute('style') || '';\n"
         "            }\n"
-        "            return target[prop];\n"
+        "            if (prop === 'length') {\n"
+        "                return propertiesList.length;\n"
+        "            }\n"
+        "            if (prop === 'item') {\n"
+        "                return function(idx) {\n"
+        "                    return propertiesList[idx] || '';\n"
+        "                };\n"
+        "            }\n"
+        "            if (prop === 'getPropertyValue') {\n"
+        "                return function(p) {\n"
+        "                    if (typeof p === 'string') {\n"
+        "                        let kebab = p.replace(/([A-Z])/g, '-$1').toLowerCase();\n"
+        "                        return t[kebab] || '';\n"
+        "                    }\n"
+        "                    return '';\n"
+        "                };\n"
+        "            }\n"
+        "            if (prop === 'getPropertyPriority') {\n"
+        "                return function(p) {\n"
+        "                    return '';\n"
+        "                };\n"
+        "            }\n"
+        "            if (prop === 'setProperty') {\n"
+        "                return function(p, v) {\n"
+        "                    if (typeof p === 'string') {\n"
+        "                        let kebab = p.replace(/([A-Z])/g, '-$1').toLowerCase();\n"
+        "                        let camel = p.replace(/-([a-z])/g, (g) => g[1].toUpperCase());\n"
+        "                        t[camel] = v;\n"
+        "                        t[kebab] = v;\n"
+        "                        if (propertiesList.indexOf(kebab) === -1) {\n"
+        "                            propertiesList.push(kebab);\n"
+        "                        }\n"
+        "                        updateStyleAttribute();\n"
+        "                    }\n"
+        "                };\n"
+        "            }\n"
+        "            if (prop === 'removeProperty') {\n"
+        "                return function(p) {\n"
+        "                    if (typeof p === 'string') {\n"
+        "                        let kebab = p.replace(/([A-Z])/g, '-$1').toLowerCase();\n"
+        "                        let camel = p.replace(/-([a-z])/g, (g) => g[1].toUpperCase());\n"
+        "                        let oldVal = t[kebab] || '';\n"
+        "                        delete t[kebab];\n"
+        "                        delete t[camel];\n"
+        "                        let idx = propertiesList.indexOf(kebab);\n"
+        "                        if (idx !== -1) {\n"
+        "                            propertiesList.splice(idx, 1);\n"
+        "                        }\n"
+        "                        updateStyleAttribute();\n"
+        "                        return oldVal;\n"
+        "                    }\n"
+        "                    return '';\n"
+        "                };\n"
+        "            }\n"
+        "            if (typeof prop === 'string') {\n"
+        "                let idx = Number(prop);\n"
+        "                if (Number.isInteger(idx) && idx >= 0) {\n"
+        "                    return propertiesList[idx] || undefined;\n"
+        "                }\n"
+        "                if (prop.substring(0, 7) === '__wisp_') {\n"
+        "                    return t[prop];\n"
+        "                }\n"
+        "                return t[prop] !== undefined ? t[prop] : '';\n"
+        "            }\n"
+        "            return t[prop];\n"
         "        }\n"
         "    });\n"
         "};";
     JSValue eval_res = JS_Eval(ctx, proxy_js, strlen(proxy_js), "<style_proxy_init>", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(eval_res)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+        printf("\n--- proxy_js EVAL EXCEPTION: %s ---\n\n", exc_str ? exc_str : "unknown");
+        fflush(stdout);
+        JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
     JS_FreeValue(ctx, eval_res);
 
     const char *layout_stubs_js =
         "if (typeof Element !== 'undefined' && Element.prototype) {\n"
+        "    if (!('style' in Element.prototype)) {\n"
+        "        Object.defineProperty(Element.prototype, 'style', {\n"
+        "            get() {\n"
+        "                return globalThis.__wisp_element_style_get(this);\n"
+        "            },\n"
+        "            configurable: true,\n"
+        "            enumerable: true\n"
+        "        });\n"
+        "    }\n"
         "    const properties = [\n"
         "        'clientWidth', 'clientHeight', 'clientLeft', 'clientTop',\n"
         "        'offsetWidth', 'offsetHeight', 'offsetLeft', 'offsetTop',\n"
@@ -483,6 +628,10 @@ int qjs_init_element(JSContext *ctx) {
         "}\n";
     JSValue layout_stubs_res = JS_Eval(ctx, layout_stubs_js, strlen(layout_stubs_js), "<layout_stubs_init>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, layout_stubs_res);
+
+    /* Define __wisp_element_style_get on global_obj */
+    JSValue style_get_fn = JS_NewCFunction(ctx, js_element_style_get_global, "__wisp_element_style_get", 1);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_element_style_get", style_get_fn);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_element_init", JS_TRUE, 0);
