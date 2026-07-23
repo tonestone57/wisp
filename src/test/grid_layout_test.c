@@ -138,7 +138,11 @@ static void test_log(const char *fmt, va_list args)
 /* Mock content */
 static html_content mock_content;
 static css_unit_ctx mock_unit_ctx;
-dom_string *corestring_dom_class = NULL;
+extern dom_string *corestring_dom_class;
+
+/* Stub functions to satisfy corestrings linker dependencies */
+void nsurl_unref(void *url) {}
+int nsurl_create(const char *url_s, void **url) { *url = NULL; return 0; }
 
 /* Real CSS parsing used now */
 /* Mock grid track data for 3 columns: 1fr 1fr 1fr */
@@ -187,12 +191,24 @@ static uint8_t explicit_fixed_style[4096]; /* Explicitly placed at col 0, row 0 
 static uint8_t explicit_col_only_style[4096]; /* Explicit column 4, auto row */
 static uint8_t explicit_grid_4col_style[4096]; /* 4-column grid */
 
+/* Style markers for complex grid exclusions test */
+static uint8_t exclusion_grid_style[4096];
+static uint8_t exclusion_child_style[4096];
+static uint8_t exclusion_zone_style[4096];
+
 
 /* Mock css_computed_grid_template_columns */
 uint8_t
 css_computed_grid_template_columns(const css_computed_style *style, int32_t *n_tracks, css_computed_grid_track **tracks)
 {
     if (style == (const css_computed_style *)dummy_style) {
+        if (n_tracks)
+            *n_tracks = 3;
+        if (tracks)
+            *tracks = mock_grid_tracks;
+        return CSS_GRID_TEMPLATE_SET;
+    }
+    if (style == (const css_computed_style *)exclusion_grid_style) {
         if (n_tracks)
             *n_tracks = 3;
         if (tracks)
@@ -537,6 +553,12 @@ uint8_t css_computed_grid_column_start(const css_computed_style *style, int32_t 
             *val = (4 << 10); /* css_fixed for 4 */
         return CSS_GRID_LINE_SET;
     }
+    /* For exclusion zone item, return column 2 (index 1) */
+    if (style == (const css_computed_style *)exclusion_zone_style) {
+        if (val)
+            *val = (2 << 10);
+        return CSS_GRID_LINE_SET;
+    }
     /* Default: auto */
     if (val)
         *val = 0;
@@ -564,6 +586,12 @@ uint8_t css_computed_grid_row_start(const css_computed_style *style, int32_t *va
     if (style == (const css_computed_style *)explicit_fixed_style) {
         if (val)
             *val = (1 << 10); /* css_fixed for 1 */
+        return CSS_GRID_LINE_SET;
+    }
+    /* For exclusion zone style, return row 1 (index 0) */
+    if (style == (const css_computed_style *)exclusion_zone_style) {
+        if (val)
+            *val = (1 << 10);
         return CSS_GRID_LINE_SET;
     }
     if (val)
@@ -1011,6 +1039,152 @@ START_TEST(test_grid_explicit_column_only)
 }
 END_TEST
 
+#include "utils/libdom.h"
+
+/*
+ * Test: Complex Grid Exclusions
+ *
+ * Scenario:
+ *   - 3-column grid (100px each)
+ *   - Child 1: auto-placed
+ *   - Child 2: marked as exclusion, positioned definite at column 2 (index 1), row 1 (index 0).
+ *     Class containing "grid-exclude".
+ *   - Child 3: auto-placed
+ *
+ * Expected behavior with Complex Grid Exclusions:
+ *   - Child 2 is processed FIRST because it is a designated exclusion, and marked as occupied at (1,0).
+ *   - Child 1 is auto-placed, starting search from (0,0). Since (0,0) is free, it is placed at (0,0).
+ *   - Child 3 is auto-placed, starting search from (0,0). Since (0,0) is occupied by Child 1 and (1,0) is occupied
+ *     by Child 2 (exclusion zone), Child 3 flows around it and is placed at (2,0) (col 2).
+ */
+START_TEST(test_complex_grid_exclusion)
+{
+    printf("\n=== test_complex_grid_exclusion ===\n");
+
+    /* Create a tiny HTML file with standard layout and class="grid-exclude" */
+    FILE *fp = fopen("/tmp/ns_test_exclusion.html", "w");
+    fprintf(fp, "<html><body><div id=\"grid\"><div id=\"c1\">C1</div><div id=\"c2\" class=\"grid-exclude\">C2</div><div id=\"c3\">C3</div></div></body></html>");
+    fclose(fp);
+
+    dom_document *doc = NULL;
+    nserror err = libdom_parse_file("/tmp/ns_test_exclusion.html", "UTF-8", &doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(doc);
+
+    /* Locate elements manually using getElementById */
+    dom_element *grid_el = NULL;
+    dom_string *id_grid;
+    dom_string_create((const uint8_t *)"grid", 4, &id_grid);
+    dom_document_get_element_by_id(doc, id_grid, &grid_el);
+    dom_string_unref(id_grid);
+    ck_assert_ptr_nonnull(grid_el);
+
+    dom_element *c1_el = NULL;
+    dom_string *id_c1;
+    dom_string_create((const uint8_t *)"c1", 2, &id_c1);
+    dom_document_get_element_by_id(doc, id_c1, &c1_el);
+    dom_string_unref(id_c1);
+    ck_assert_ptr_nonnull(c1_el);
+
+    dom_element *c2_el = NULL;
+    dom_string *id_c2;
+    dom_string_create((const uint8_t *)"c2", 2, &id_c2);
+    dom_document_get_element_by_id(doc, id_c2, &c2_el);
+    dom_string_unref(id_c2);
+    ck_assert_ptr_nonnull(c2_el);
+
+    dom_element *c3_el = NULL;
+    dom_string *id_c3;
+    dom_string_create((const uint8_t *)"c3", 2, &id_c3);
+    dom_document_get_element_by_id(doc, id_c3, &c3_el);
+    dom_string_unref(id_c3);
+    ck_assert_ptr_nonnull(c3_el);
+
+    /* Grid container: 3 columns of 100px */
+    struct box *grid = calloc(1, sizeof(struct box));
+    grid->type = BOX_BLOCK;
+    grid->flags |= DIRTY;
+    grid->width = 300;
+    grid->height = AUTO;
+    grid->style = (css_computed_style *)exclusion_grid_style;
+    grid->node = (dom_node *)grid_el;
+
+    /* 3 children: auto, explicit exclusion (col 1, row 0), auto */
+    struct box *items[3];
+    for (int i = 0; i < 3; i++) {
+        items[i] = calloc(1, sizeof(struct box));
+        items[i]->type = BOX_BLOCK;
+        items[i]->flags |= DIRTY;
+        items[i]->width = AUTO;
+        items[i]->height = 50;
+        items[i]->flags |= DIRTY;
+        items[i]->parent = grid;
+    }
+
+    items[0]->node = (dom_node *)c1_el;
+    items[0]->style = (css_computed_style *)dummy_style;
+
+    /* Item 2 is our exclusion zone, class contains "grid-exclude" */
+    items[1]->node = (dom_node *)c2_el;
+    items[1]->style = (css_computed_style *)exclusion_zone_style;
+
+    items[2]->node = (dom_node *)c3_el;
+    items[2]->style = (css_computed_style *)dummy_style;
+
+    /* Link children */
+    grid->children = items[0];
+    for (int i = 0; i < 3; i++) {
+        if (i > 0)
+            items[i]->prev = items[i - 1];
+        if (i < 2)
+            items[i]->next = items[i + 1];
+    }
+    grid->last = items[2];
+
+    /* Initialize mock content context */
+    memset(&mock_content, 0, sizeof(mock_content));
+    mock_content.unit_len_ctx.device_dpi = (96 << 10);
+    mock_content.unit_len_ctx.font_size_default = (16 << 10);
+    mock_content.unit_len_ctx.viewport_width = (1000 << 10);
+    mock_content.unit_len_ctx.viewport_height = (1000 << 10);
+
+    /* Run layout */
+    printf("Running layout_grid for complex exclusions test...\n");
+    layout_grid(grid, 300, &mock_content);
+
+    /* Print results */
+    for (int i = 0; i < 3; i++) {
+        printf("Item %d: x=%d y=%d w=%d h=%d\n", i + 1, items[i]->x, items[i]->y, items[i]->width, items[i]->height);
+    }
+
+    /* Verify correctness */
+    /* Item 2 (exclusion) must be at x=100 (col 1) */
+    ck_assert_msg(items[1]->x == 100, "Item 2 (exclusion) should be at x=100, got x=%d", items[1]->x);
+    ck_assert_msg(items[1]->y == 0, "Item 2 (exclusion) should be at y=0, got y=%d", items[1]->y);
+
+    /* Item 1 (auto) must be at x=0 (col 0) */
+    ck_assert_msg(items[0]->x == 0, "Item 1 should be at x=0, got x=%d", items[0]->x);
+    ck_assert_msg(items[0]->y == 0, "Item 1 should be at y=0, got y=%d", items[0]->y);
+
+    /* Item 3 (auto) must be at x=200 (col 2) because col 1 is excluded */
+    ck_assert_msg(items[2]->x == 200, "Item 3 should be at x=200, got x=%d", items[2]->x);
+    ck_assert_msg(items[2]->y == 0, "Item 3 should be at y=0, got y=%d", items[2]->y);
+
+    /* Cleanup */
+    for (int i = 0; i < 3; i++) {
+        free(items[i]);
+    }
+    free(grid->computed_col_widths);
+    free(grid);
+    dom_node_unref((dom_node *)grid_el);
+    dom_node_unref((dom_node *)c1_el);
+    dom_node_unref((dom_node *)c2_el);
+    dom_node_unref((dom_node *)c3_el);
+    dom_node_unref((dom_node *)doc);
+
+    printf("=== test_complex_grid_exclusion PASSED ===\n");
+}
+
 Suite *grid_test_suite(void)
 {
     Suite *s = suite_create("grid_layout");
@@ -1020,22 +1194,24 @@ Suite *grid_test_suite(void)
     tcase_add_test(tc, test_grid_column_dense);
     tcase_add_test(tc, test_grid_explicit_placement);
     tcase_add_test(tc, test_grid_explicit_column_only);
+    tcase_add_test(tc, test_complex_grid_exclusion);
     suite_add_tcase(s, tc);
     return s;
 }
 
 
+/* Forward declaration of corestring functions */
+nserror corestrings_init(void);
+void corestrings_fini(void);
+
 void setup_corestrings(void)
 {
-    dom_string_create((const uint8_t *)"class", 5, &corestring_dom_class);
+    corestrings_init();
 }
 
 void teardown_corestrings(void)
 {
-    if (corestring_dom_class) {
-        dom_string_unref(corestring_dom_class);
-        corestring_dom_class = NULL;
-    }
+    corestrings_fini();
 }
 
 int main(int argc, char **argv)

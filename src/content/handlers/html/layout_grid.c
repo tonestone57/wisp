@@ -912,6 +912,248 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	NSLOG(layout, DEEPDEBUG,
 		"GRID LAYOUT: allocated %dx%d occupation grid (dense=%d)", occupied_cols, occupied_rows, is_dense);
 
+	/* PRE-PROCESSING PASS: Complex Grid Exclusions
+	 *
+	 * Scan children for designated exclusion zones (e.g., class name containing "exclude" or "grid-exclude").
+	 * Pre-place these exclusions and mark their spanned cells as occupied so auto-placed items flow around them.
+	 */
+	extern dom_string *corestring_dom_class;
+	for (child = grid->children; child; child = child->next) {
+		bool is_exclusion = false;
+		if (child->node != NULL && corestring_dom_class != NULL) {
+			dom_string *class_attr = NULL;
+			if (dom_element_get_attribute(child->node, corestring_dom_class, &class_attr) == DOM_NO_ERR &&
+				class_attr != NULL) {
+				const char *cls = dom_string_data(class_attr);
+				if (cls != NULL && (strstr(cls, "exclude") != NULL || strstr(cls, "grid-exclude") != NULL)) {
+					is_exclusion = true;
+				}
+				dom_string_unref(class_attr);
+			}
+		}
+
+		if (is_exclusion) {
+			int col_start, col_end, row_start, row_end;
+			int item_col, item_row, col_span, row_span;
+			get_grid_item_placement(child->style, &col_start, &col_end, &row_start, &row_end, &col_span, &row_span);
+
+			item_col = (col_start >= 0) ? col_start : 0;
+			item_row = (row_start >= 0) ? row_start : 0;
+
+			/* Recalculate span after positioning (for auto end values) */
+			if (col_end != GRID_PLACEMENT_AUTO && col_end > item_col) {
+				col_span = col_end - item_col;
+			}
+			if (row_end != GRID_PLACEMENT_AUTO && row_end > item_row) {
+				row_span = row_end - item_row;
+			}
+
+			if (col_span < 1) col_span = 1;
+			if (row_span < 1) row_span = 1;
+
+			NSLOG(layout, DEEPDEBUG, "GRID EXCLUSION FOUND: child=%p col=%d-%d row=%d-%d",
+				child, item_col, item_col + col_span, item_row, item_row + row_span);
+
+			/* Ensure column widths array has capacity for spanned columns */
+			if (item_col + col_span > max_col) {
+				if (!ensure_col_capacity(&col_widths, &col_widths_capacity, item_col + col_span - 1)) {
+					free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
+				max_col = item_col + col_span;
+			}
+
+			/* Calculate child width (sum of spanned columns + gaps) */
+			int child_width = 0;
+			for (int c = item_col; c < item_col + col_span; c++) {
+				child_width += col_widths[c];
+				if (c > item_col) {
+					child_width += gap_px;
+				}
+			}
+
+			/* Calculate x position */
+			int child_x = grid->padding[LEFT];
+			for (int c = 0; c < item_col; c++) {
+				child_x += col_widths[c] + gap_px;
+			}
+
+			/* Resolve CSS dimensions */
+			struct css_size item_min_width;
+			layout_find_dimensions(&content->unit_len_ctx, child_width, -1, child, child->style, &child->width,
+				&child->height, &child->max_width, &item_min_width, NULL, NULL, child->margin, child->padding,
+				child->border);
+			child->min_width.value = item_min_width.value;
+
+			int content_width = child_width - child->padding[LEFT] - child->padding[RIGHT] - child->border[LEFT].width -
+				child->border[RIGHT].width;
+			if (content_width < 0) {
+				content_width = 0;
+			}
+			child->width = content_width;
+
+			/* Recursively layout the child */
+			if (child->type == BOX_BLOCK || child->type == BOX_INLINE_BLOCK || child->type == BOX_FLEX ||
+				child->type == BOX_INLINE_FLEX || child->type == BOX_GRID || child->type == BOX_INLINE_GRID) {
+				child->float_container = grid;
+				if (!layout_block_context(child, -1, content)) {
+					if (occupied) free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
+				child->float_container = NULL;
+			} else if (child->type == BOX_TABLE) {
+				child->float_container = grid;
+				if (!layout_table(child, child_width, content)) {
+					if (occupied) free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
+				child->float_container = NULL;
+			}
+
+			/* Track row heights for spanned rows */
+			int total_height = child->height + child->padding[TOP] + child->padding[BOTTOM] +
+				child->border[TOP].width + child->border[BOTTOM].width;
+			int height_per_row = total_height / row_span;
+
+			for (int r = item_row; r < item_row + row_span; r++) {
+				int old_capacity = row_heights_capacity;
+				if (!ensure_row_capacity(&row_heights, &row_heights_capacity, r)) {
+					free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
+
+				if (row_heights_capacity > old_capacity) {
+					bool *new_rfd = realloc(row_first_item_done, row_heights_capacity * sizeof(bool));
+					if (!new_rfd) {
+						if (occupied) free(occupied);
+						free(row_first_item_done);
+						if (row_heights) free(row_heights);
+						if (col_widths) free(col_widths);
+						return false;
+					}
+					memset(new_rfd + old_capacity, 0, (row_heights_capacity - old_capacity) * sizeof(bool));
+					row_first_item_done = new_rfd;
+
+					if (!ensure_occupied_capacity(&occupied, &occupied_rows, &occupied_cols, row_heights_capacity, occupied_cols)) {
+						free(occupied);
+						if (row_first_item_done) free(row_first_item_done);
+						if (row_heights) free(row_heights);
+						if (col_widths) free(col_widths);
+						return false;
+					}
+				}
+
+				if (height_per_row > row_heights[r]) {
+					row_heights[r] = height_per_row;
+				}
+				row_first_item_done[r] = true;
+			}
+
+			if (item_row + row_span > max_row) {
+				max_row = item_row + row_span;
+			}
+
+			/* Determine vertical alignment */
+			uint8_t align = CSS_ALIGN_ITEMS_STRETCH;
+			if (child->style) {
+				uint8_t align_self = css_computed_align_self(child->style);
+				if (align_self == CSS_ALIGN_SELF_AUTO) {
+					if (grid->style) {
+						align = css_computed_align_items(grid->style);
+					}
+				} else {
+					align = align_self;
+				}
+			} else if (grid->style) {
+				align = css_computed_align_items(grid->style);
+			}
+
+			int spanned_height = 0;
+			for (int r = item_row; r < item_row + row_span; r++) {
+				spanned_height += row_heights[r];
+				if (r > item_row) {
+					spanned_height += gap_px;
+				}
+			}
+
+			int current_item_total_height = child->height + child->padding[TOP] + child->padding[BOTTOM] +
+				child->border[TOP].width + child->border[BOTTOM].width;
+			int align_offset = 0;
+
+			switch (align) {
+			case CSS_ALIGN_ITEMS_STRETCH: {
+				int stretch_height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
+					child->border[TOP].width - child->border[BOTTOM].width;
+				if (stretch_height < 0) {
+					stretch_height = 0;
+				}
+				child->height = stretch_height;
+				align_offset = 0;
+				break;
+			}
+			case CSS_ALIGN_ITEMS_FLEX_END:
+				align_offset = spanned_height - current_item_total_height;
+				if (align_offset < 0) align_offset = 0;
+				break;
+			case CSS_ALIGN_ITEMS_CENTER:
+				align_offset = (spanned_height - current_item_total_height) / 2;
+				if (align_offset < 0) align_offset = 0;
+				break;
+			default:
+				break;
+			}
+
+			int child_y = grid->padding[TOP];
+			for (int r = 0; r < item_row; r++) {
+				child_y += row_heights[r] + gap_px;
+			}
+			child_y += align_offset;
+
+			child->x = child_x;
+			child->y = child_y;
+
+			child->grid_col = item_col;
+			child->grid_row = item_row;
+			child->grid_col_span = col_span;
+			child->grid_row_span = row_span;
+
+			/* Note: item_cache allocation is done next. We will populate it there,
+			 * or we can just populate the cache during item cache loop. For now,
+			 * we don't need to populate cache here as we can do it in Pass 3.
+			 */
+
+			/* Mark cells as occupied for exclusion zone */
+			if (occupied != NULL) {
+				if (!ensure_occupied_capacity(&occupied, &occupied_rows, &occupied_cols, item_row + row_span, item_col + col_span)) {
+					free(occupied);
+					free(row_first_item_done);
+					free(row_heights);
+					free(col_widths);
+					return false;
+				}
+				for (int dr = 0; dr < row_span; dr++) {
+					for (int dc = 0; dc < col_span; dc++) {
+						int r = item_row + dr;
+						int c = item_col + dc;
+						occupied[r * occupied_cols + c] = true;
+					}
+				}
+			}
+		}
+	}
+
 	/* Count children for item cache allocation */
 	int item_count = 0;
 	for (child = grid->children; child; child = child->next) {
@@ -946,6 +1188,23 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 		NSLOG(layout, DEEPDEBUG, "GRID PLACEMENT: Starting pass %d", pass);
 
 		for (child = grid->children; child; child = child->next) {
+			/* Skip designated exclusion zones because they were already laid out and placed during the pre-processing pass */
+			bool is_exclusion = false;
+			if (child->node != NULL && corestring_dom_class != NULL) {
+				dom_string *class_attr = NULL;
+				if (dom_element_get_attribute(child->node, corestring_dom_class, &class_attr) == DOM_NO_ERR &&
+					class_attr != NULL) {
+					const char *cls = dom_string_data(class_attr);
+					if (cls != NULL && (strstr(cls, "exclude") != NULL || strstr(cls, "grid-exclude") != NULL)) {
+						is_exclusion = true;
+					}
+					dom_string_unref(class_attr);
+				}
+			}
+			if (is_exclusion) {
+				continue;
+			}
+
 			int col_start, col_end, row_start, row_end;
 			int item_col, item_row, col_span, row_span;
 			int child_width, child_x, child_y;
