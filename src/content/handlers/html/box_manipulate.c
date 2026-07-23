@@ -56,6 +56,9 @@
 static void box_talloc_destructor(void *ptr)
 {
 	struct box *b = (struct box *)ptr;
+
+	/* Clean up any active transitions for this box to prevent use-after-free */
+	wisp_transition_stop_for_box(b);
 	struct html_scrollbar_data *data;
 
 	if ((b->flags & STYLE_OWNED)) {
@@ -94,6 +97,11 @@ static void box_talloc_destructor(void *ptr)
 		data = scrollbar_get_data(b->scroll_y);
 		scrollbar_destroy(b->scroll_y);
 		free(data);
+	}
+
+	if (b->computed_col_widths != NULL) {
+		free(b->computed_col_widths);
+		b->computed_col_widths = NULL;
 	}
 
 	if (!(b->flags & CLONE) && b->gadget != NULL) {
@@ -170,6 +178,16 @@ struct box *box_create(struct html_content *content, css_select_results *styles,
 	box->iframe = NULL;
 	box->node = NULL;
 	box->sticky_x = box->sticky_y = 0;
+
+	/* Initialize grid/subgrid and container query cache properties */
+	box->grid_col = 0;
+	box->grid_row = 0;
+	box->grid_col_span = 1;
+	box->grid_row_span = 1;
+	box->container_type = 0;
+	box->computed_col_widths = NULL;
+	box->computed_num_cols = 0;
+	box->anim_opacity = 1.0f;
 
 	return box;
 }

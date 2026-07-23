@@ -162,6 +162,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/html/layout.c
 	content/handlers/html/layout_flex.c
 	content/handlers/html/layout_grid.c
+	content/handlers/html/layout_animation.c
 	content/handlers/html/object.c
 	content/handlers/html/redraw.c
 	content/handlers/html/redraw_border.c
