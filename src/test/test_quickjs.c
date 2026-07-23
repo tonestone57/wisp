@@ -1995,6 +1995,75 @@ START_TEST(test_quickjs_fetch_streams)
 }
 END_TEST
 
+START_TEST(test_quickjs_shadow_dom)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test: attachShadow, DOM manipulation, innerHTML parsing, and History routing in a single context with try/catch diagnostics
+    const char *code = "try {\n"
+                       "  var el = document.createElement('div');\n"
+                       "  var shadow = el.attachShadow({ mode: 'open' });\n"
+                       "  var el2 = document.createElement('div');\n"
+                       "  var shadow2 = el2.attachShadow({ mode: 'closed' });\n"
+                       "  if (!(el.shadowRoot === shadow && shadow.host === el && shadow.mode === 'open' && el2.shadowRoot === null && shadow2.host === el2 && shadow2.mode === 'closed')) {\n"
+                       "    throw new Error('part1 failed');\n"
+                       "  }\n"
+                       "  var span = document.createElement('span');\n"
+                       "  shadow.appendChild(span);\n"
+                       "  if (!(shadow.firstChild === span && shadow.firstElementChild === span && shadow.childElementCount === 1)) {\n"
+                       "    throw new Error('part2 failed');\n"
+                       "  }\n"
+                       "  shadow.innerHTML = '<p class=\"test\">Hello Shadow</p>';\n"
+                       "  var p = shadow.firstElementChild;\n"
+                       "  if (!(p !== null && p.tagName.toUpperCase() === 'P' && shadow.childElementCount === 1 && p.className === 'test')) {\n"
+                       "    throw new Error('part3 failed: p=' + p + ', tag=' + (p ? p.tagName : '') + ', count=' + shadow.childElementCount + ', class=' + (p ? p.className : ''));\n"
+                       "  }\n"
+                       "  if (typeof history !== 'undefined') {\n"
+                       "    if (history.length !== 1 || history.state !== null) {\n"
+                       "      throw new Error('history initial state failed');\n"
+                       "    }\n"
+                       "    history.pushState({ route: 'about' }, 'About Page', '/about');\n"
+                       "    if (history.length !== 2 || history.state.route !== 'about') {\n"
+                       "      throw new Error('history pushState failed: state=' + JSON.stringify(history.state) + ', length=' + history.length);\n"
+                       "    }\n"
+                       "    history.replaceState({ route: 'contact' }, 'Contact Page', '/contact');\n"
+                       "    if (history.length !== 2 || history.state.route !== 'contact') {\n"
+                       "      throw new Error('history replaceState failed: state=' + JSON.stringify(history.state) + ', length=' + history.length);\n"
+                       "    }\n"
+                       "  }\n"
+                       "  window.testResult = 'OK';\n"
+                       "} catch(e) {\n"
+                       "  window.testResult = e.message + '\\n' + e.stack;\n"
+                       "}\n"
+                       "window.testResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_shadow_dom_and_history");
+    if (!result) {
+        // Evaluate window.testResult and print it
+        const char *get_res = "window.testResult;";
+        js_exec(thread, (const uint8_t *)get_res, strlen(get_res), "get_diagnostics");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_ric)
 {
     jsheap *heap = NULL;
@@ -2130,6 +2199,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
