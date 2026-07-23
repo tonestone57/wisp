@@ -125,3 +125,5 @@ Language (IDL) within the relevant specifications
 Each interface described by the webIDL must be bound (connected) to
 the browsers internal representation for the DOM or CSS, etc. The
 process of [writing bindings](docs/jsbinding.md) is ongoing.
+
+For a detailed assessment of the challenges and boundaries of running modern Javascript web frameworks on Wisp, see the [Architectural Boundaries](docs/architectural-boundaries.md) document.
