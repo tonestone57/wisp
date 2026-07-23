@@ -6305,12 +6305,17 @@ static void layout_eval_container_queries(struct box *box)
 		if (dom_element_get_attribute(box->node, corestring_dom_class, &class_attr) == DOM_NO_ERR && class_attr != NULL) {
 			const char *cls = dom_string_data(class_attr);
 			if (cls != NULL) {
-				if (strstr(cls, "cq-min-300px") && container_width >= 300) {
-					box->width = container_width - box->padding[LEFT] - box->padding[RIGHT];
-				}
-				if (strstr(cls, "cq-min-400px") && container_width >= 400) {
-					if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID) {
-						box->grid_col_span = 2;
+				/* Generic, dynamic parser for 'cq-min-[value]px' utility classes */
+				const char *p = strstr(cls, "cq-min-");
+				if (p != NULL) {
+					int threshold = atoi(p + 7);
+					if (threshold > 0 && container_width >= threshold) {
+						/* Symmetrical, dynamic override application */
+						if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID) {
+							box->grid_col_span = 2;
+						} else {
+							box->width = container_width - box->padding[LEFT] - box->padding[RIGHT];
+						}
 					}
 				}
 			}

@@ -56,6 +56,9 @@
 static void box_talloc_destructor(void *ptr)
 {
 	struct box *b = (struct box *)ptr;
+
+	/* Clean up any active transitions for this box to prevent use-after-free */
+	wisp_transition_stop_for_box(b);
 	struct html_scrollbar_data *data;
 
 	if ((b->flags & STYLE_OWNED)) {
@@ -184,6 +187,7 @@ struct box *box_create(struct html_content *content, css_select_results *styles,
 	box->container_type = 0;
 	box->computed_col_widths = NULL;
 	box->computed_num_cols = 0;
+	box->anim_opacity = 1.0f;
 
 	return box;
 }

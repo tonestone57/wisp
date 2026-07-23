@@ -60,6 +60,27 @@
 #include "desktop/scrollbar.h"
 #include "desktop/selection.h"
 
+static colour blend_color_alpha(colour bg, colour fg, float alpha)
+{
+	if (alpha <= 0.0f) return bg;
+	if (alpha >= 1.0f) return fg;
+
+	unsigned char r_bg = (bg >> 16) & 0xff;
+	unsigned char g_bg = (bg >> 8) & 0xff;
+	unsigned char b_bg = bg & 0xff;
+
+	unsigned char r_fg = (fg >> 16) & 0xff;
+	unsigned char g_fg = (fg >> 8) & 0xff;
+	unsigned char b_fg = fg & 0xff;
+
+	unsigned char r = (unsigned char)(r_bg + alpha * (r_fg - r_bg) + 0.5f);
+	unsigned char g = (unsigned char)(g_bg + alpha * (g_fg - g_bg) + 0.5f);
+	unsigned char b = (unsigned char)(b_bg + alpha * (b_fg - b_bg) + 0.5f);
+
+	return (r << 16) | (g << 8) | b;
+}
+
+
 /* 3D Transform 4x4 Matrix System */
 struct matrix4 {
 	float m[4][4];
@@ -1776,6 +1797,9 @@ static bool html_redraw_text_box(const html_content *html, struct box *box, int 
 
     font_plot_style_from_css(&html->unit_len_ctx, box->style, &fstyle);
     fstyle.background = current_background_color;
+    if (box->anim_opacity != 1.0f) {
+        fstyle.foreground = blend_color_alpha(current_background_color, fstyle.foreground, box->anim_opacity);
+    }
 
     if (!text_redraw(box->text, box->length, box->byte_offset, box->space, &fstyle, x, y, clip, box->height, scale,
             excluded, (struct content *)html, html->sel, ctx))

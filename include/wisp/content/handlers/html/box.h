@@ -529,12 +529,17 @@ struct box {
 	int grid_row_span;
 
 	/* Container query container type */
-	uint8_t container_type;
+	uint8_t container_type; /* 0: none/normal, 1: size, 2: inline-size */
+
+	/* Animated opacity override (0.0f to 1.0f) */
+	float anim_opacity;
 
 	/* Computed track widths for subgrids */
 	int *computed_col_widths;
 	int computed_num_cols;
 };
+
+void wisp_transition_stop_for_box(struct box *box);
 
 
 #endif

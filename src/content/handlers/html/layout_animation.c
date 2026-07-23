@@ -85,6 +85,30 @@ void wisp_animation_fini(void)
 	timer_running = false;
 }
 
+void wisp_transition_stop_for_box(struct box *box)
+{
+	if (box == NULL) return;
+
+	struct wisp_transition *curr = active_transitions;
+	struct wisp_transition *prev = NULL;
+
+	while (curr != NULL) {
+		if (curr->box == box) {
+			struct wisp_transition *next = curr->next;
+			if (prev == NULL) {
+				active_transitions = next;
+			} else {
+				prev->next = next;
+			}
+			free(curr);
+			curr = next;
+		} else {
+			prev = curr;
+			curr = curr->next;
+		}
+	}
+}
+
 void wisp_transition_start(struct box *box, const char *prop, float start, float end, uint32_t duration_ms, const char *easing)
 {
 	if (box == NULL || prop == NULL) return;
@@ -156,10 +180,7 @@ void wisp_animation_step(void)
 		} else if (strcmp(curr->property, "height") == 0) {
 			curr->box->height = (int)val;
 		} else if (strcmp(curr->property, "opacity") == 0) {
-			/* Symmetrical style property updating */
-			if (curr->box->style != NULL) {
-				/* Update opacity style variable */
-			}
+			curr->box->anim_opacity = val;
 		}
 
 		/* Request repaint of the transition region */
