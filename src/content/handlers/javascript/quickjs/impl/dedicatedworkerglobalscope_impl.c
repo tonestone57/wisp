@@ -10,6 +10,7 @@
 #include "wisp_subsystem.h"
 #include "wisp/desktop/gui_table.h"
 #include "wisp/misc.h"
+#include "base64_helper.h"
 
 int qjs_init_dedicatedworkerglobalscope(JSContext *ctx) {
     qjs_init_dedicatedworkerglobalscope_gen(ctx);
@@ -77,6 +78,14 @@ JSValue wisp_workerglobalscope_close_impl(JSContext *ctx, QJSNodePrivate *priv) 
         ((WispWorkerHandle *)t->worker_handle)->running = false;
     }
     return JS_UNDEFINED;
+}
+
+JSValue wisp_workerglobalscope_atob_impl(JSContext *ctx, QJSNodePrivate *priv, const char * atob) {
+    return common_atob(ctx, atob);
+}
+
+JSValue wisp_workerglobalscope_btoa_impl(JSContext *ctx, QJSNodePrivate *priv, const char * btoa) {
+    return common_btoa(ctx, btoa);
 }
 
 typedef struct WispFetchRequest {

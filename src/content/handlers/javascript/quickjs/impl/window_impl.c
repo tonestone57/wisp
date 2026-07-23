@@ -7,6 +7,7 @@
 #include "JSWindow.gen.h"
 #include "qjs_internal.h"
 #include "JSHistory.gen.h"
+#include "base64_helper.h"
 
 /* Custom Window init */
 int qjs_init_window(JSContext *ctx)
@@ -129,4 +130,24 @@ JSValue wisp_window_alert_impl(JSContext *ctx, QJSNodePrivate *priv, const char 
 {
     NSLOG(wisp, INFO, "Window.alert: %s", message ? message : "");
     return JS_UNDEFINED;
+}
+
+JSValue wisp_window_atob_impl(JSContext *ctx, QJSNodePrivate *priv, const char * atob)
+{
+    return common_atob(ctx, atob);
+}
+
+JSValue wisp_window_btoa_impl(JSContext *ctx, QJSNodePrivate *priv, const char * btoa)
+{
+    return common_btoa(ctx, btoa);
+}
+
+JSValue wisp_windowbase64_atob_impl(JSContext *ctx, QJSNodePrivate *priv, const char * atob)
+{
+    return common_atob(ctx, atob);
+}
+
+JSValue wisp_windowbase64_btoa_impl(JSContext *ctx, QJSNodePrivate *priv, const char * btoa)
+{
+    return common_btoa(ctx, btoa);
 }
