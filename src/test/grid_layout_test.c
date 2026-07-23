@@ -511,6 +511,7 @@ START_TEST(test_grid_layout_3_columns)
     free(child1);
     free(child2);
     free(child3);
+    free(grid->computed_col_widths);
     free(grid);
 }
 END_TEST
@@ -692,6 +693,7 @@ START_TEST(test_grid_span_placement)
     for (int i = 0; i < 5; i++) {
         free(items[i]);
     }
+    free(grid->computed_col_widths);
     free(grid);
 
     ck_assert_msg(ok, "layout_grid returned false");
@@ -797,6 +799,7 @@ START_TEST(test_grid_column_dense)
     for (int i = 0; i < 6; i++) {
         free(items[i]);
     }
+    free(grid->computed_col_widths);
     free(grid);
 
     ck_assert_msg(ok, "layout_grid returned false");
@@ -908,6 +911,7 @@ START_TEST(test_grid_explicit_placement)
     for (int i = 0; i < 3; i++) {
         free(items[i]);
     }
+    free(grid->computed_col_widths);
     free(grid);
 
     printf("=== test_grid_explicit_placement PASSED ===\n");
@@ -1000,6 +1004,7 @@ START_TEST(test_grid_explicit_column_only)
     for (int i = 0; i < 5; i++) {
         free(items[i]);
     }
+    free(grid->computed_col_widths);
     free(grid);
 
     printf("=== test_grid_explicit_column_only PASSED ===\n");

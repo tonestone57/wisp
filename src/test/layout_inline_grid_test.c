@@ -217,6 +217,7 @@ START_TEST(test_inline_grid_auto_width_fails_assert)
     /* If we get here, width should be set */
     ck_assert_int_ne(grid->width, UNKNOWN_WIDTH);
 
+    free(grid->computed_col_widths);
     free(grid);
 }
 END_TEST
