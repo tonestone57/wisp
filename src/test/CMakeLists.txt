@@ -299,6 +299,9 @@ add_wisp_test(box_construct_race_test
 
 add_wisp_test(grid_layout_test
   ${CMAKE_SOURCE_DIR}/src/content/handlers/html/layout_grid.c
+  ${CMAKE_SOURCE_DIR}/src/utils/libdom.c
+  ${CMAKE_SOURCE_DIR}/src/utils/talloc.c
+  ${CMAKE_SOURCE_DIR}/src/utils/corestrings.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
   ${CMAKE_SOURCE_DIR}/src/test/layout_flex_stubs.c

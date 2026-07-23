@@ -3784,6 +3784,214 @@ static bool layout_inline_container(
 }
 
 
+static bool layout_multicol(struct box *block, int viewport_height, struct html_content *content)
+{
+	int available_width = block->width - block->padding[LEFT] - block->padding[RIGHT];
+	if (available_width <= 0) {
+		return true;
+	}
+
+	/* 1. Calculate column gap */
+	int gap_px = 0;
+	css_fixed gap_len = 0;
+	css_unit gap_unit = CSS_UNIT_PX;
+	uint8_t gap_type = CSS_COLUMN_GAP_NORMAL;
+	if (block->style != NULL) {
+		gap_type = css_computed_column_gap(block->style, &gap_len, &gap_unit);
+	}
+	if (gap_type == CSS_COLUMN_GAP_SET) {
+		gap_px = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, gap_len, gap_unit));
+	} else {
+		/* CSS_COLUMN_GAP_NORMAL: defaults to 1em */
+		gap_px = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, INTTOFIX(1), CSS_UNIT_EM));
+	}
+
+	/* 2. Calculate column count and column width */
+	int32_t count_val = 1;
+	uint8_t count_type = CSS_COLUMN_COUNT_AUTO;
+	if (block->style != NULL) {
+		count_type = css_computed_column_count(block->style, &count_val);
+	}
+
+	css_fixed width_val = 0;
+	css_unit width_unit = CSS_UNIT_PX;
+	uint8_t width_type = CSS_COLUMN_WIDTH_AUTO;
+	if (block->style != NULL) {
+		width_type = css_computed_column_width(block->style, &width_val, &width_unit);
+	}
+
+	int N = 1;
+	int W = available_width;
+
+	if (count_type == CSS_COLUMN_COUNT_AUTO && width_type == CSS_COLUMN_WIDTH_AUTO) {
+		N = 1;
+		W = available_width;
+	} else if (width_type == CSS_COLUMN_WIDTH_AUTO) {
+		N = (count_type == CSS_COLUMN_COUNT_SET) ? count_val : 1;
+		if (N < 1) N = 1;
+		W = (available_width - (N - 1) * gap_px) / N;
+	} else if (count_type == CSS_COLUMN_COUNT_AUTO) {
+		int width_px = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, width_val, width_unit));
+		if (width_px < 1) width_px = 1;
+		N = (available_width + gap_px) / (width_px + gap_px);
+		if (N < 1) N = 1;
+		W = ((available_width + gap_px) / N) - gap_px;
+	} else {
+		int width_px = FIXTOINT(css_unit_len2device_px(block->style, &content->unit_len_ctx, width_val, width_unit));
+		if (width_px < 1) width_px = 1;
+		int calculated_N = (available_width + gap_px) / (width_px + gap_px);
+		if (calculated_N < 1) calculated_N = 1;
+		N = (count_type == CSS_COLUMN_COUNT_SET && count_val < calculated_N) ? count_val : calculated_N;
+		if (N < 1) N = 1;
+		W = ((available_width + gap_px) / N) - gap_px;
+	}
+
+	if (W < 0) W = 0;
+
+	NSLOG(layout, DEEPDEBUG, "layout_multicol: count=%d, width=%d, gap=%d, avail=%d", N, W, gap_px, available_width);
+
+	/* 3. Segment children into column-balancing runs and full-width spanners */
+	struct box *box = block->children;
+	int current_y = block->padding[TOP];
+
+	while (box != NULL) {
+		/* Find the end of the current run (contiguous non-spanners) */
+		struct box *run_start = box;
+		struct box *run_end = box;
+		while (run_end != NULL) {
+			/* Check column-span property */
+			uint8_t span_type = CSS_COLUMN_SPAN_NONE;
+			if (run_end->style != NULL) {
+				span_type = css_computed_column_span(run_end->style);
+			}
+			if (span_type == CSS_COLUMN_SPAN_ALL) {
+				break; /* This is a spanner, ends the current run */
+			}
+			run_end = run_end->next;
+		}
+
+		/* A. If we have a non-empty run of columns, balance them */
+		if (run_start != run_end) {
+			int total_height = 0;
+			int max_child_height = 0;
+			struct box *curr;
+
+			/* Measure heights of all children in this run at width W */
+			for (curr = run_start; curr != run_end; curr = curr->next) {
+				if (curr->style != NULL &&
+					(css_computed_position(curr->style) == CSS_POSITION_ABSOLUTE ||
+					 css_computed_position(curr->style) == CSS_POSITION_FIXED)) {
+					continue;
+				}
+
+				layout_block_find_dimensions(&content->unit_len_ctx, W, -1, 0, 0, curr);
+
+				if (curr->type == BOX_FLEX || curr->type == BOX_INLINE_FLEX) {
+					if (!layout_flex(curr, W, content)) return false;
+				} else if (curr->type == BOX_GRID || curr->type == BOX_INLINE_GRID) {
+					if (!layout_grid(curr, W, content)) return false;
+				} else if (curr->type == BOX_TABLE) {
+					if (!layout_table(curr, W, content)) return false;
+				} else if (curr->type == BOX_INLINE_CONTAINER) {
+					if (!layout_inline_container(curr, W, block, 0, 0, content)) return false;
+				} else {
+					if (!layout_block_context(curr, -1, content)) return false;
+				}
+
+				int outer_height = curr->height + curr->margin[TOP] + curr->margin[BOTTOM] +
+				                   curr->padding[TOP] + curr->padding[BOTTOM] +
+				                   curr->border[TOP].width + curr->border[BOTTOM].width;
+				total_height += outer_height;
+				if (outer_height > max_child_height) {
+					max_child_height = outer_height;
+				}
+			}
+
+			/* Column balancing target height with safe floor */
+			int target_col_height = total_height / N;
+			if (target_col_height < max_child_height) {
+				target_col_height = max_child_height;
+			}
+			if (target_col_height < 1) target_col_height = 1;
+
+			/* Place run elements into columns sequentially */
+			int col_idx = 0;
+			int current_col_y = 0;
+			int max_col_height = 0;
+
+			for (curr = run_start; curr != run_end; curr = curr->next) {
+				if (curr->style != NULL &&
+					(css_computed_position(curr->style) == CSS_POSITION_ABSOLUTE ||
+					 css_computed_position(curr->style) == CSS_POSITION_FIXED)) {
+					continue;
+				}
+
+				/* Collapse top margin if at top of a new column */
+				int top_margin = (current_col_y == 0) ? 0 : curr->margin[TOP];
+				int outer_height = curr->height + top_margin + curr->margin[BOTTOM] +
+				                   curr->padding[TOP] + curr->padding[BOTTOM] +
+				                   curr->border[TOP].width + curr->border[BOTTOM].width;
+
+				if (current_col_y > 0 && current_col_y + outer_height > target_col_height && col_idx < N - 1) {
+					col_idx++;
+					current_col_y = 0;
+					top_margin = 0; /* Recalculate collapsed top margin for new column top */
+					outer_height = curr->height + top_margin + curr->margin[BOTTOM] +
+					               curr->padding[TOP] + curr->padding[BOTTOM] +
+					               curr->border[TOP].width + curr->border[BOTTOM].width;
+				}
+
+				curr->x = block->padding[LEFT] + col_idx * (W + gap_px) + curr->margin[LEFT];
+				curr->y = current_y + current_col_y + top_margin;
+
+				current_col_y += outer_height;
+				if (current_col_y > max_col_height) {
+					max_col_height = current_col_y;
+				}
+			}
+
+			current_y += max_col_height;
+		}
+
+		/* B. If the run ended on a column spanner, lay out the spanner at full width */
+		if (run_end != NULL) {
+			struct box *spanner = run_end;
+
+			layout_block_find_dimensions(&content->unit_len_ctx, available_width, -1, 0, 0, spanner);
+
+			if (spanner->type == BOX_FLEX || spanner->type == BOX_INLINE_FLEX) {
+				if (!layout_flex(spanner, available_width, content)) return false;
+			} else if (spanner->type == BOX_GRID || spanner->type == BOX_INLINE_GRID) {
+				if (!layout_grid(spanner, available_width, content)) return false;
+			} else if (spanner->type == BOX_TABLE) {
+				if (!layout_table(spanner, available_width, content)) return false;
+			} else if (spanner->type == BOX_INLINE_CONTAINER) {
+				if (!layout_inline_container(spanner, available_width, block, 0, 0, content)) return false;
+			} else {
+				if (!layout_block_context(spanner, -1, content)) return false;
+			}
+
+			spanner->x = block->padding[LEFT] + spanner->margin[LEFT];
+			spanner->y = current_y + spanner->margin[TOP];
+
+			int spanner_outer_height = spanner->height + spanner->margin[TOP] + spanner->margin[BOTTOM] +
+			                           spanner->padding[TOP] + spanner->padding[BOTTOM] +
+			                           spanner->border[TOP].width + spanner->border[BOTTOM].width;
+			current_y += spanner_outer_height;
+
+			box = spanner->next; /* Move past the spanner */
+		} else {
+			box = NULL; /* No more elements, we are finished */
+		}
+	}
+
+	/* 6. Set the container height and clear layout flags */
+	block->height = current_y - block->padding[TOP];
+	block->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
+
+	return true;
+}
+
 /* Documented in layout_internal.h */
 bool layout_block_context(struct box *block, int viewport_height, html_content *content)
 {
@@ -3809,6 +4017,27 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 	if (block->width == UNKNOWN_WIDTH || block->width == AUTO) {
 		NSLOG(wisp, ERROR, "block %p has invalid width for layout_block_context: %d", (void *)block, block->width);
 		return false;
+	}
+
+	int32_t col_count = 0;
+	uint8_t count_type = CSS_COLUMN_COUNT_AUTO;
+	if (block->style != NULL) {
+		count_type = css_computed_column_count(block->style, &col_count);
+	}
+	css_fixed col_width_val = 0;
+	css_unit col_width_unit = CSS_UNIT_PX;
+	uint8_t width_type = CSS_COLUMN_WIDTH_AUTO;
+	if (block->style != NULL) {
+		width_type = css_computed_column_width(block->style, &col_width_val, &col_width_unit);
+	}
+
+	bool is_multicol = (count_type == CSS_COLUMN_COUNT_SET && col_count > 1) ||
+	                   (width_type == CSS_COLUMN_WIDTH_SET);
+
+	if (block->type == BOX_BLOCK && is_multicol) {
+		if (layout_multicol(block, viewport_height, content)) {
+			return true;
+		}
 	}
 
 	block->float_children = NULL;
