@@ -99,6 +99,8 @@ void wisp_dom_event_destroyed_hook(void *evt) {
     pthread_mutex_unlock(&event_ctx_mutex);
 }
 
+extern bool wisp_is_js_process;
+
 JSValue wisp_customevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
     dom_event *evt = NULL;
     dom_event_create(&evt);
@@ -107,7 +109,9 @@ JSValue wisp_customevent_constructor_impl(JSContext *ctx, const char * type, JSV
     dom_string *type_str = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_str);
     if (!type_str) {
-        dom_event_unref(evt);
+        if (!wisp_is_js_process) {
+            dom_event_unref(evt);
+        }
         return JS_ThrowOutOfMemory(ctx);
     }
 
@@ -138,7 +142,9 @@ JSValue wisp_customevent_constructor_impl(JSContext *ctx, const char * type, JSV
     }
 
     JSValue obj = qjs_new_customevent(ctx, evt, false);
-    dom_event_unref(evt);
+    if (!wisp_is_js_process) {
+        dom_event_unref(evt);
+    }
     return obj;
 }
 

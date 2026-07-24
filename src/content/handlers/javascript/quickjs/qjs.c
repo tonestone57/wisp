@@ -2324,6 +2324,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 wisp_ipc_set_blocking(ipc_js, false);
                 int retries = 1000; // 10 seconds timeout (increased from 500)
                 bool got_response = false;
+                bool crashed = false;
                 while (retries-- > 0) {
                     nserror recv_err = wisp_ipc_recv(ipc_js, &response);
                     if (recv_err == NSERROR_OK) {
@@ -2338,11 +2339,14 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         /* Socket error or EOF -> crash detected! */
                         NSLOG(wisp, ERROR, "JS process crashed during recv for origin %s", thread->origin);
                         handle_process_crash(thread->origin);
+                        crashed = true;
                         break;
                     }
                     usleep(10000);
                 }
-                wisp_ipc_set_blocking(ipc_js, true);
+                if (!crashed) {
+                    wisp_ipc_set_blocking(ipc_js, true);
+                }
                 if (is_file) {
                     unlink(temp_file_path);
                 }
@@ -2354,9 +2358,10 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     bool success = (response.length > 0 || response.data != NULL);
                     wisp_ipc_msg_free(&response);
                     return success;
-                } else if (retries <= 0) {
+                } else if (!crashed && retries <= 0) {
                     NSLOG(wisp, ERROR, "JS process timed out for origin %s", thread->origin);
                     handle_process_crash(thread->origin);
+                    crashed = true;
                 }
             } else {
                 free(msg.data);
