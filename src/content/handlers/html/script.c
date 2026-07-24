@@ -587,9 +587,15 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
         script_type == HTML_SCRIPT_SYNC ? "SYNC" : (script_type == HTML_SCRIPT_ASYNC ? "ASYNC" : "DEFER"),
         c->base.active);
 
-    ns_error = hlcache_handle_retrieve(
-        joined, 0, content_get_url(&c->base), NULL, script_cb, c, &child, CONTENT_SCRIPT, &nscript->data.handle);
+    unsigned int script_idx = c->scripts_count - 1;
+    struct hlcache_handle *local_handle = NULL;
 
+    ns_error = hlcache_handle_retrieve(
+        joined, 0, content_get_url(&c->base), NULL, script_cb, c, &child, CONTENT_SCRIPT, &local_handle);
+
+    /* Re-acquire nscript since c->scripts may have been reallocated during synchronous script_cb */
+    nscript = &c->scripts[script_idx];
+    nscript->data.handle = local_handle;
 
     nsurl_unref(joined);
 
