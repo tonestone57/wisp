@@ -111,10 +111,13 @@ static void html_object_done(struct box *box, hlcache_handle *object, bool backg
     /* Normalise the box type, now it has been replaced. */
     switch (box->type) {
     case BOX_TABLE:
-    case BOX_INLINE_BLOCK:
+    case BOX_FLEX:
+    case BOX_GRID:
+        box->type = BOX_BLOCK;
+        break;
     case BOX_INLINE_FLEX:
     case BOX_INLINE_GRID:
-        box->type = BOX_BLOCK;
+        box->type = BOX_INLINE_BLOCK;
         break;
     default:
         /* Already correct or non-replaceable type */
