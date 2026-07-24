@@ -190,6 +190,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/timers.c
 	content/handlers/javascript/quickjs/dom_bridge.c
 	# Manual implementations for generated bindings
+	content/handlers/javascript/quickjs/impl/characterdata_impl.c
 	content/handlers/javascript/quickjs/impl/node_impl.c
 	content/handlers/javascript/quickjs/impl/namednodemap_impl.c
 	content/handlers/javascript/quickjs/impl/domtokenlist_impl.c
