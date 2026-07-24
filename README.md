@@ -12,7 +12,7 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ## Development
 Wisp has completed its core CSS Variables implementation and optimized the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
-### Core Features Status (2027 Update)
+### Core Features Status (July 2026 Update)
 *   **[Finished] CSS3 3D Transforms, Transitions, and Animations**: Rigorous 4x4 projection matrix translates 3D transforms (perspective, translation, rotation, scaling) into 2D affine equivalents. Frame-step transition and animation loops backed by the platform scheduler feature eased alpha-blending and UAF-proof box destruction teardown.
 *   **[Finished] CSS Grid Subgrids & Container Queries**: Nested grid containers inherit parent track definitions to facilitate subgrid alignments. CSS Container Queries parse min-width class attributes (`cq-min-[value]px`) during layout for dynamic styling overrides.
 *   **[Finished] HTML5 History & Shadow DOM v1 APIs**: Standalone client-side SPA routing (`pushState`/`replaceState`) and standard `attachShadow()` Mode configurations (`open`/`closed`, custom `innerHTML` parser backed by LibDOM's `DOMParser`).

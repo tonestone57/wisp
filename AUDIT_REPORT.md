@@ -1,11 +1,11 @@
-# Wisp Code Audit Report - 2027 Update
+# Wisp Code Audit Report - July 2026 Update
 
 ## 1. Executive Summary
 This audit evaluates the current state of the Wisp browser engine, focusing on modern CSS support, incremental layout, the QuickJS-ng based JavaScript subsystem, and rendering backends. Wisp has transitioned to a modernized architecture featuring QuickJS-ng v0.15.1, an incremental layout engine, and advanced CSS support (Grid, Flexbox, Sticky, Subgrid, Container Queries, 3D Transforms, Animations). Wisp employs a prioritized native-first graphics strategy where platform-native pipelines are compiled and run by default, completely removing the runtime 'auto' backend selection mode to reduce overhead. Blend2D remains a fully optional alternative rendering choice and software fallback backend. Recent milestones include the complete implementation of the Canvas 2D API bridge, dynamic web font loading (Fontconfig TrueType preference), out-of-process JavaScript execution with process/origin isolation, and standard Fetch/Streams, Shadow DOM v1, and HTML5 History APIs.
 
 ## 2. Library Versions Audit
 
-| Library | Repo Version | Latest Online (2027) | Status |
+| Library | Repo Version | Latest Online (2026) | Status |
 |---------|--------------|----------------------|--------|
 | `quickjs-ng` | v0.15.1 | v0.15.1 | **[Finished]** Up-to-date |
 | `blend2d` | v0.21.2 | v0.21.2 | **[Finished]** Up-to-date |
