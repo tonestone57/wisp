@@ -220,6 +220,125 @@ START_TEST(test_quickjs_css_style_declaration)
 }
 END_TEST
 
+START_TEST(test_quickjs_performance_timeline)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    /* 1. Test performance base attributes and default entries */
+    const char *code1 =
+        "typeof performance === 'object' &&\n"
+        "typeof performance.now === 'function' &&\n"
+        "typeof performance.timeOrigin === 'number' &&\n"
+        "typeof performance.timing === 'object' &&\n"
+        "typeof performance.navigation === 'object' &&\n"
+        "performance.getEntriesByType('paint').length === 2 &&\n"
+        "performance.getEntriesByType('navigation').length === 1;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_perf_base");
+    ck_assert(result == true);
+
+    /* 2. Test performance.mark() and performance.measure() and getEntries methods */
+    const char *code2 =
+        "var m1 = performance.mark('mark1');\n"
+        "var m2 = performance.mark('mark2');\n"
+        "var meas = performance.measure('meas1', 'mark1', 'mark2');\n"
+        "var marks = performance.getEntriesByType('mark');\n"
+        "var measures = performance.getEntriesByType('measure');\n"
+        "var entryByName = performance.getEntriesByName('meas1');\n"
+        "marks.length >= 2 &&\n"
+        "measures.length >= 1 &&\n"
+        "entryByName.length === 1 &&\n"
+        "entryByName[0].entryType === 'measure' &&\n"
+        "entryByName[0].name === 'meas1';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_perf_marks_measures");
+    ck_assert(result == true);
+
+    /* 3. Test clearMarks and clearMeasures */
+    const char *code3 =
+        "performance.clearMarks('mark1');\n"
+        "var marksLeft = performance.getEntriesByType('mark');\n"
+        "var hasMark1 = marksLeft.some(e => e.name === 'mark1');\n"
+        "performance.clearMeasures();\n"
+        "var measuresLeft = performance.getEntriesByType('measure');\n"
+        "(!hasMark1) && (measuresLeft.length === 0);";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_perf_clear");
+    ck_assert(result == true);
+
+    /* 4. Test PerformanceObserver constructor and validation */
+    const char *code4 =
+        "var constructorOk = typeof PerformanceObserver === 'function';\n"
+        "var throwOnInvalidCallback = false;\n"
+        "try {\n"
+        "    new PerformanceObserver();\n"
+        "} catch (e) {\n"
+        "    if (e instanceof TypeError) throwOnInvalidCallback = true;\n"
+        "}\n"
+        "var throwOnInvalidObserve = false;\n"
+        "var obs = new PerformanceObserver(() => {});\n"
+        "try {\n"
+        "    obs.observe({});\n"
+        "} catch (e) {\n"
+        "    if (e instanceof TypeError) throwOnInvalidObserve = true;\n"
+        "}\n"
+        "constructorOk && throwOnInvalidCallback && throwOnInvalidObserve;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_observer_validation");
+    ck_assert(result == true);
+
+    /* 5. Test PerformanceObserver callback with buffered: true */
+    const char *code5 =
+        "globalThis.received_buffered = [];\n"
+        "var obs = new PerformanceObserver((list) => {\n"
+        "    globalThis.received_buffered = list.getEntries();\n"
+        "});\n"
+        "obs.observe({ type: 'paint', buffered: true });\n"
+        "true;";
+    result = js_exec(thread, (const uint8_t *)code5, strlen(code5), "test_observer_buffered");
+    ck_assert(result == true);
+
+    /* Execute pending jobs/microtasks to drain the queue and run the observer callback */
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0) {}
+
+    const char *code5_verify = "globalThis.received_buffered.length === 2 && globalThis.received_buffered[0].entryType === 'paint';";
+    result = js_exec(thread, (const uint8_t *)code5_verify, strlen(code5_verify), "test_observer_buffered_verify");
+    ck_assert(result == true);
+
+    /* 6. Test PerformanceObserver callback with new entry events */
+    const char *code6 =
+        "globalThis.markReceived = [];\n"
+        "var obs = new PerformanceObserver((list) => {\n"
+        "    globalThis.markReceived = list.getEntries();\n"
+        "});\n"
+        "obs.observe({ entryTypes: ['mark'] });\n"
+        "performance.mark('observerMark');\n"
+        "true;";
+    result = js_exec(thread, (const uint8_t *)code6, strlen(code6), "test_observer_new_entry");
+    ck_assert(result == true);
+
+    /* Execute pending jobs/microtasks to run the callback */
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0) {}
+
+    const char *code6_verify = "globalThis.markReceived.length === 1 && globalThis.markReceived[0].name === 'observerMark';";
+    result = js_exec(thread, (const uint8_t *)code6_verify, strlen(code6_verify), "test_observer_new_entry_verify");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_tier1_apis)
 {
     jsheap *heap = NULL;
@@ -2554,6 +2673,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_css_style_declaration);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_observers);
+    tcase_add_test(tc_window, test_quickjs_performance_timeline);
     tcase_add_test(tc_window, test_quickjs_trusted_types);
     suite_add_tcase(s, tc_window);
 
