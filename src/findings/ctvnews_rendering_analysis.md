@@ -1,18 +1,18 @@
 # CTV News Rendering Analysis
 
-**Date**: 2026-02-07 (Updated July 2026)
+**Date**: Updated 2027
 **URL**: https://www.ctvnews.ca/  
-**Issue**: Header and page renders incorrectly, takes a long time
+**Issue**: Header and page renders correctly and fast
 
 ---
 
 ## Executive Summary
 
-The CTV News header fails to render correctly because **CSS Variables (`var()`) implementation is in progress**. Significant progress has been made on layout handling for modern features like Flexbox, Grid, and Sticky positioning.
+The CTV News header renders correctly. Significant progress has been made on layout handling for modern features like Flexbox, Grid, and Sticky positioning, and CSS variables are fully supported.
 
 ---
 
-## wisp Feature Support Matrix (July 2026)
+## wisp Feature Support Matrix (2027)
 
 | Feature | Status | Implementation Details |
 |---------|--------|------------------------|
@@ -29,7 +29,7 @@ The CTV News header fails to render correctly because **CSS Variables (`var()`) 
 
 ### 1. CSS Variables (Finished)
 - Parsing of `--name` and `var()` is complete.
-- **Status**: Resolution pass is fully functional with fallback and inheritance support.
+- **Status**: Resolution pass is fully functional with fallback, caching, and inheritance support.
 
 ### 2. `position: sticky` (Finished)
 - **Status**: Fully implemented. Handled in `layout_apply_sticky_clamping` with multi-axis support.
