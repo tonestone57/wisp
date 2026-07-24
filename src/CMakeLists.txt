@@ -38,6 +38,7 @@ pkg_check_modules(LIBAVCODEC REQUIRED libavcodec)
 pkg_check_modules(LIBSWSCALE REQUIRED libswscale)
 pkg_check_modules(LIBSWRESAMPLE REQUIRED libswresample)
 pkg_check_modules(LIBAVUTIL REQUIRED libavutil)
+pkg_check_modules(LIBAVDEVICE REQUIRED libavdevice)
 
 include_directories(
     ${LIBAVFORMAT_INCLUDE_DIRS}
@@ -45,6 +46,7 @@ include_directories(
     ${LIBSWSCALE_INCLUDE_DIRS}
     ${LIBSWRESAMPLE_INCLUDE_DIRS}
     ${LIBAVUTIL_INCLUDE_DIRS}
+    ${LIBAVDEVICE_INCLUDE_DIRS}
 )
 
 pkg_check_modules(LIBCRYPTO REQUIRED libcrypto)
@@ -190,6 +192,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/timers.c
 	content/handlers/javascript/quickjs/dom_bridge.c
 	# Manual implementations for generated bindings
+	content/handlers/javascript/quickjs/impl/characterdata_impl.c
 	content/handlers/javascript/quickjs/impl/node_impl.c
 	content/handlers/javascript/quickjs/impl/namednodemap_impl.c
 	content/handlers/javascript/quickjs/impl/domtokenlist_impl.c
@@ -320,7 +323,7 @@ if(WISP_BUILD_XXD)
 	)
 endif()
 
-set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES} ${LIBAVFORMAT_LIBRARIES} ${LIBAVCODEC_LIBRARIES} ${LIBSWSCALE_LIBRARIES} ${LIBSWRESAMPLE_LIBRARIES} ${LIBAVUTIL_LIBRARIES} ${BLEND2D_LIBRARIES} ${LZ4_LIBRARIES} pthread)
+set(WISP_COMMON_LIBS css dom nsutils parserutils nsgif nsbmp svgtiny ${LIBCRYPTO_LIBRARIES} ${LIBPNG_LIBRARIES} ${LIBCURL_LIBRARIES} ${LIBJPEG_LIBRARIES} ${LIBWEBP_LIBRARIES} ${LIBAVIF_LIBRARIES} ${LIBPSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBSSL_LIBRARIES} ${LIBUTF8PROC_LIBRARIES} ${LIBREGEX_LIBRARIES} ${LIBAVFORMAT_LIBRARIES} ${LIBAVCODEC_LIBRARIES} ${LIBSWSCALE_LIBRARIES} ${LIBSWRESAMPLE_LIBRARIES} ${LIBAVUTIL_LIBRARIES} ${LIBAVDEVICE_LIBRARIES} ${BLEND2D_LIBRARIES} ${LZ4_LIBRARIES} pthread)
 
 if(WIN32)
 	list(APPEND WISP_COMMON_LIBS ws2_32)

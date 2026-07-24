@@ -220,6 +220,161 @@ START_TEST(test_quickjs_css_style_declaration)
 }
 END_TEST
 
+START_TEST(test_quickjs_tier1_apis)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  // 1. TextEncoder & TextDecoder tests\n"
+        "  const encoder = new TextEncoder();\n"
+        "  if (encoder.encoding !== 'utf-8') throw new Error('TextEncoder encoding mismatch');\n"
+        "  const encoded = encoder.encode('hello world');\n"
+        "  if (encoded.length !== 11 || encoded[0] !== 104) throw new Error('TextEncoder.encode failed');\n"
+        "\n"
+        "  const decoder = new TextDecoder();\n"
+        "  if (decoder.encoding !== 'utf-8') throw new Error('TextDecoder encoding mismatch');\n"
+        "  const decoded = decoder.decode(encoded);\n"
+        "  if (decoded !== 'hello world') throw new Error('TextDecoder.decode failed: ' + decoded);\n"
+        "\n"
+        "  // 2. URL and URLSearchParams tests\n"
+        "  const url = new URL('https://user:pass@example.com:8080/path/to/page?q=1&v=abc#hash-val');\n"
+        "  if (url.protocol !== 'https:') throw new Error('URL protocol failed');\n"
+        "  if (url.username !== 'user') throw new Error('URL username failed');\n"
+        "  if (url.password !== 'pass') throw new Error('URL password failed');\n"
+        "  if (url.hostname !== 'example.com') throw new Error('URL hostname failed');\n"
+        "  if (url.port !== '8080') throw new Error('URL port failed');\n"
+        "  if (url.host !== 'example.com:8080') throw new Error('URL host failed');\n"
+        "  if (url.pathname !== '/path/to/page') throw new Error('URL pathname failed');\n"
+        "  if (url.search !== '?q=1&v=abc') throw new Error('URL search failed');\n"
+        "  if (url.hash !== '#hash-val') throw new Error('URL hash failed');\n"
+        "  if (url.origin !== 'https://example.com:8080') throw new Error('URL origin failed');\n"
+        "  if (url.href !== 'https://user:pass@example.com:8080/path/to/page?q=1&v=abc#hash-val') throw new Error('URL href failed');\n"
+        "\n"
+        "  // Relative URL parsing\n"
+        "  const relUrl = new URL('/new-path?x=y', url);\n"
+        "  if (relUrl.href !== 'https://user:pass@example.com:8080/new-path?x=y') throw new Error('Relative URL failed: ' + relUrl.href);\n"
+        "\n"
+        "  // URLSearchParams integration\n"
+        "  const params = relUrl.searchParams;\n"
+        "  if (params.get('x') !== 'y') throw new Error('URLSearchParams get failed');\n"
+        "\n"
+        "  // 3. AbortController & AbortSignal tests\n"
+        "  const controller = new AbortController();\n"
+        "  const signal = controller.signal;\n"
+        "  if (signal.aborted !== false) throw new Error('AbortSignal should not be aborted initially');\n"
+        "  \n"
+        "  let abortedCalled = 0;\n"
+        "  signal.addEventListener('abort', (e) => {\n"
+        "    abortedCalled++;\n"
+        "    if (e.target !== signal) throw new Error('Event target on abort mismatch');\n"
+        "  });\n"
+        "  \n"
+        "  controller.abort('custom reason');\n"
+        "  if (signal.aborted !== true) throw new Error('AbortSignal should be aborted after abort()');\n"
+        "  if (signal.reason !== 'custom reason') throw new Error('AbortSignal reason failed');\n"
+        "  if (abortedCalled !== 1) throw new Error('Abort event listener should have been called exactly once: ' + abortedCalled);\n"
+        "  \n"
+        "  try {\n"
+        "    signal.throwIfAborted();\n"
+        "    throw new Error('throwIfAborted failed to throw');\n"
+        "  } catch (e) {\n"
+        "    if (e !== 'custom reason') throw new Error('throwIfAborted threw wrong error: ' + e);\n"
+        "  }\n"
+        "\n"
+        "  // 4. Custom subclassed EventTarget tests\n"
+        "  class MyTarget extends EventTarget {}\n"
+        "  const target = new MyTarget();\n"
+        "  let fired = 0;\n"
+        "  const cb = () => fired++;\n"
+        "  target.addEventListener('foo', cb);\n"
+        "  target.dispatchEvent(new Event('foo'));\n"
+        "  if (fired !== 1) throw new Error('Custom EventTarget dispatchEvent failed');\n"
+        "  target.removeEventListener('foo', cb);\n"
+        "  target.dispatchEvent(new Event('foo'));\n"
+        "  if (fired !== 1) throw new Error('Custom EventTarget removeEventListener failed');\n"
+        "  \n"
+        "  // 5. Hardened weak stub verification\n"
+        "  try {\n"
+        "    new CompositionEvent('compositionstart');\n"
+        "    throw new Error('Unimplemented stub did not throw!');\n"
+        "  } catch(e) {\n"
+        "    if (e.name !== 'NotSupportedError') throw new Error('Unimplemented stub threw wrong exception: ' + e.name);\n"
+        "  }\n"
+        "\n"
+        "  // 6. MediaStream, MediaStreamTrack & getUserMedia tests\n"
+        "  if (typeof MediaStream === 'undefined') throw new Error('MediaStream is missing');\n"
+        "  if (typeof MediaStreamTrack === 'undefined') throw new Error('MediaStreamTrack is missing');\n"
+        "  if (typeof navigator.mediaDevices === 'undefined') throw new Error('navigator.mediaDevices is missing');\n"
+        "\n"
+        "  window.streamResult = 'PENDING';\n"
+        "  navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(stream => {\n"
+        "    if (!(stream instanceof MediaStream)) throw new Error('getUserMedia did not return a MediaStream');\n"
+        "    const tracks = stream.getTracks();\n"
+        "    if (tracks.length !== 2) throw new Error('MediaStream should contain exactly 2 tracks');\n"
+        "    if (stream.getAudioTracks().length !== 1) throw new Error('getAudioTracks failed');\n"
+        "    if (stream.getVideoTracks().length !== 1) throw new Error('getVideoTracks failed');\n"
+        "\n"
+        "    const audioTrack = stream.getAudioTracks()[0];\n"
+        "    if (audioTrack.kind !== 'audio') throw new Error('MediaStreamTrack kind mismatch');\n"
+        "    if (audioTrack.readyState !== 'live') throw new Error('track state should be live');\n"
+        "\n"
+        "    let trackEnded = 0;\n"
+        "    audioTrack.addEventListener('ended', () => trackEnded++);\n"
+        "    audioTrack.stop();\n"
+        "    if (audioTrack.readyState !== 'ended') throw new Error('readyState should be ended after stop()');\n"
+        "    if (trackEnded !== 1) throw new Error('ended event did not fire correctly: ' + trackEnded);\n"
+        "\n"
+        "    window.streamResult = 'OK';\n"
+        "  }).catch(e => {\n"
+        "    window.streamResult = 'FAIL: ' + e.message + '\\n' + e.stack;\n"
+        "  });\n"
+        "\n"
+        "  window.tier1Result = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.tier1Result = 'ERROR: ' + e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.tier1Result === 'OK';";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_tier1_apis");
+    if (!result) {
+        const char *diag = "window.tier1Result;";
+        js_exec(thread, (const uint8_t *)diag, strlen(diag), "get_tier1_diag");
+    }
+    ck_assert(result == true);
+
+    // Run pending jobs to resolve getUserMedia promise
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *verify_stream = "window.streamResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)verify_stream, strlen(verify_stream), "verify_media_stream");
+    if (!result) {
+        const char *diag = "window.streamResult;";
+        js_exec(thread, (const uint8_t *)diag, strlen(diag), "get_stream_diag");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_node_stubs)
 {
     jsheap *heap = NULL;
@@ -2413,6 +2568,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_tier1_apis);
     tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
