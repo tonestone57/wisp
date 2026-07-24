@@ -17,7 +17,7 @@
   The QUICK-START is the recommended way to build Wisp for Haiku. BeOS needs too much manual
   hacking to be built this way.
 
-  **Note on Haiku Status (2027):**
+  **Note on Haiku Status (July 2026):**
   Wisp's modernization utilizes the native **BDirectWindow** frontend on Haiku. The rendering pipeline has been unified around **Blend2D** with low-latency blitting, allowing the native Haiku port to support modern CSS (Gradients, Flexbox, Grid) and the QuickJS-ng engine with high performance and pixel-perfect consistency.
 
 

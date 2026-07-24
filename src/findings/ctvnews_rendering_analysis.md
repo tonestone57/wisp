@@ -1,6 +1,6 @@
 # CTV News Rendering Analysis
 
-**Date**: Updated 2027
+**Date**: Updated July 2026
 **URL**: https://www.ctvnews.ca/  
 **Issue**: Header and page renders correctly and fast
 
@@ -12,7 +12,7 @@ The CTV News header renders correctly. Significant progress has been made on lay
 
 ---
 
-## wisp Feature Support Matrix (2027)
+## wisp Feature Support Matrix (July 2026)
 
 | Feature | Status | Implementation Details |
 |---------|--------|------------------------|

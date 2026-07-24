@@ -59,7 +59,7 @@ Wisp utilizes a **Fixed-Tile Redraw** strategy, replacing the legacy union-based
 
 ---
 
-## 4. Platform Status (2027)
+## 4. Platform Status (July 2026)
 
 | OS | Backend | Status |
 |---|---|---|

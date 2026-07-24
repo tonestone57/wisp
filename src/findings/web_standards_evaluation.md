@@ -1,4 +1,4 @@
-# Evaluation of HTML5, CSS3, and JavaScript Support in Wisp (2027 Update)
+# Evaluation of HTML5, CSS3, and JavaScript Support in Wisp (July 2026 Update)
 
 This report provides a comprehensive, systematic audit and quantitative/qualitative assessment of **Wisp's** alignment with modern web standards (**HTML5**, **CSS3**, and **JavaScript**), based on the current state of the repository.
 
@@ -10,7 +10,7 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 
 | Standard | Estimated Support % | Core Strengths | Critical Gaps / Future Work |
 |---|---|---|---|
-| **HTML5 (DOM & Parser)** | **~95%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), and Fetch & Streams integration. | Full drag & drop/drag events, advanced media streams, WebRTC. |
+| **HTML5 (DOM & Parser)** | **~97%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), Fetch & Streams integration, Drag & Drop API (`DragEvent`, `DataTransfer`), and Advanced Media Streams API (`MediaStream`, `MediaStreamTrack`, `navigator.mediaDevices`). | WebRTC. |
 | **CSS3 (Layout & Style)** | **~98%** | Spec-compliant CSS Grid (including **Subgrids**, auto-placement, dense packing, FR units), Flexbox (grow, shrink, column two-pass), `position: sticky`, CSS Variables (with style hashing/caching), **Container Queries**, and **Advanced CSS3 3D Transforms** (4x4 projection matrix), with **Transitions & Animations**. | Complex grid exclusions, multi-column layout flows. |
 | **JavaScript (ES2023+)** | **~85% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, and XMLHttp/Fetch streams. | Understudied modern Bluetooth/USB APIs, specialized performance observation interfaces. |
 
