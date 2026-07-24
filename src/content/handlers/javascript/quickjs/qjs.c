@@ -1362,7 +1362,7 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        }\n"
         "\n"
         "        _parse(urlStr, baseObj) {\n"
-        "            let schemeMatch = urlStr.match(/^([a-zA-Z][a-zA-Z0-9+.-]*) :/);\n"
+        "            let schemeMatch = urlStr.match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);\n"
         "            let scheme = schemeMatch ? schemeMatch[1].toLowerCase() : null;\n"
         "            let rest = schemeMatch ? urlStr.slice(schemeMatch[0].length) : urlStr;\n"
         "\n"

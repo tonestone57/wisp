@@ -184,7 +184,7 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                 for (int i = 0; i < len; i++) {
                     JSValue cb = JS_GetPropertyUint32(ctx, list, i);
                     if (JS_IsFunction(ctx, cb)) {
-                        JSValue ret = JS_Call(ctx, cb, this_val, 1, (JSValueConst *)&argv[0]);
+                        JSValue ret = JS_Call(ctx, cb, this_val, 1, argv);
                         if (JS_IsException(ret)) {
                             JSValue exception = JS_GetException(ctx);
                             const char *err_msg = JS_ToCString(ctx, exception);
