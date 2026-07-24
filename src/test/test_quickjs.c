@@ -2034,6 +2034,129 @@ START_TEST(test_quickjs_fetch_streams)
 }
 END_TEST
 
+START_TEST(test_quickjs_drag_drop)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: DataTransfer class, creation, and readwrite mode operations
+    const char *code1 = "try {\n"
+                        "  var dt = new DataTransfer();\n"
+                        "  dt.dropEffect = 'copy';\n"
+                        "  dt.effectAllowed = 'move';\n"
+                        "  if (dt.dropEffect !== 'copy' || dt.effectAllowed !== 'move') throw new Error('properties failed');\n"
+                        "  if (dt.items.length !== 0 || dt.types.length !== 0 || dt.files.length !== 0) throw new Error('initial counts failed');\n"
+                        "  dt.setData('text/plain', 'dragged_text');\n"
+                        "  if (dt.items.length !== 1 || dt.types.length !== 1 || dt.types[0] !== 'text/plain') throw new Error('setData items failed');\n"
+                        "  if (dt.getData('text/plain') !== 'dragged_text') throw new Error('getData failed');\n"
+                        "  dt.clearData('text/plain');\n"
+                        "  if (dt.items.length !== 0 || dt.types.length !== 0) throw new Error('clearData failed');\n"
+                        "  window.testRes = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes = e.message;\n"
+                        "}\n"
+                        "window.testRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_datatransfer");
+    ck_assert(result == true);
+
+    // Test 2: DragEvent prototype, lazy dataTransfer initialization, and protection modes
+    const char *code2 = "try {\n"
+                        "  var startEvt = new DragEvent('dragstart');\n"
+                        "  var startDt = startEvt.dataTransfer;\n"
+                        "  if (!startDt) throw new Error('dragstart dataTransfer null');\n"
+                        "  startDt.setData('text/plain', 'secret');\n"
+                        "  if (startDt.getData('text/plain') !== 'secret') throw new Error('dragstart get failed');\n"
+                        "  var overEvt = new DragEvent('dragover');\n"
+                        "  var overDt = overEvt.dataTransfer;\n"
+                        "  overDt.setData('text/html', 'secret_html');\n"
+                        "  if (overDt.getData('text/html') !== '') throw new Error('dragover protected getData should be empty');\n"
+                        "  window.testRes = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes = e.message;\n"
+                        "}\n"
+                        "window.testRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_dragevent_protection");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_media_streams)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: MediaStream & MediaStreamTrack basic construction, properties, and async stop ended event
+    const char *code1 = "try {\n"
+                        "  var track = new MediaStreamTrack('video', 'Front Camera');\n"
+                        "  if (track.kind !== 'video' || track.label !== 'Front Camera' || track.readyState !== 'live') throw new Error('track prop failed');\n"
+                        "  var stream = new MediaStream([track]);\n"
+                        "  if (stream.active !== true || stream.getTracks()[0] !== track) throw new Error('stream construction failed');\n"
+                        "  var endedFired = false;\n"
+                        "  track.addEventListener('ended', function() { endedFired = true; });\n"
+                        "  track.stop();\n"
+                        "  if (track.readyState !== 'ended') throw new Error('readyState ended failed');\n"
+                        "  window.testRes = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes = e.message;\n"
+                        "}\n"
+                        "window.testRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_mediastream_track");
+    ck_assert(result == true);
+
+    // Test 2: navigator.mediaDevices getUserMedia and getDisplayMedia Promise APIs
+    const char *code2 = "try {\n"
+                        "  if (!navigator.mediaDevices) throw new Error('navigator.mediaDevices missing');\n"
+                        "  navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(function(stream) {\n"
+                        "    if (stream.getAudioTracks().length !== 1 || stream.getVideoTracks().length !== 1) {\n"
+                        "      window.promiseRes = 'fail_tracks';\n"
+                        "    } else {\n"
+                        "      window.promiseRes = 'OK';\n"
+                        "    }\n"
+                        "  });\n"
+                        "  window.testRes = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes = e.message;\n"
+                        "}\n"
+                        "window.testRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_mediadevices_promises");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_shadow_dom)
 {
     jsheap *heap = NULL;
@@ -2239,6 +2362,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_ric);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
     tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
+    tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
+    tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
