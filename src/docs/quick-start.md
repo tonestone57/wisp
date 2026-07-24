@@ -1,7 +1,7 @@
 Quick Build Steps for Wisp
 =============================
 
-Last Updated: 15th July 2026
+Last Updated: 2027
 
 This document provides steps for building Wisp.
 

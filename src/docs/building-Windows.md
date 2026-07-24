@@ -51,7 +51,7 @@ The resulting executable `wisp.exe` will be located in the build directory.
 | Option | Description | Default |
 |--------|-------------|---------|
 | `WISP_WINDOWS_USE_D2D` | Use native Direct2D/DirectWrite rendering pipeline | `ON` |
-| `NEOSURF_ENABLE_TESTS` | Build unit tests | `OFF` |
+| `WISP_ENABLE_TESTS` | Build unit/integration tests | `OFF` |
 
 If `WISP_WINDOWS_USE_D2D` is set to `OFF`, Wisp will fall back to the legacy GDI plotter.
 
