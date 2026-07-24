@@ -195,7 +195,16 @@ static uint8_t explicit_grid_4col_style[4096]; /* 4-column grid */
 static uint8_t exclusion_grid_style[4096];
 static uint8_t exclusion_child_style[4096];
 static uint8_t exclusion_zone_style[4096];
+static uint8_t exclusion_floated_style[4096];
 
+/* Mock css_computed_float to return float value for exclusion_floated_style */
+uint8_t css_computed_float(const css_computed_style *style)
+{
+    if (style == (const css_computed_style *)exclusion_floated_style) {
+        return CSS_FLOAT_LEFT;
+    }
+    return CSS_FLOAT_NONE;
+}
 
 /* Mock css_computed_grid_template_columns */
 uint8_t
@@ -559,6 +568,11 @@ uint8_t css_computed_grid_column_start(const css_computed_style *style, int32_t 
             *val = (2 << 10);
         return CSS_GRID_LINE_SET;
     }
+    if (style == (const css_computed_style *)exclusion_floated_style) {
+        if (val)
+            *val = (2 << 10);
+        return CSS_GRID_LINE_SET;
+    }
     /* Default: auto */
     if (val)
         *val = 0;
@@ -590,6 +604,11 @@ uint8_t css_computed_grid_row_start(const css_computed_style *style, int32_t *va
     }
     /* For exclusion zone style, return row 1 (index 0) */
     if (style == (const css_computed_style *)exclusion_zone_style) {
+        if (val)
+            *val = (1 << 10);
+        return CSS_GRID_LINE_SET;
+    }
+    if (style == (const css_computed_style *)exclusion_floated_style) {
         if (val)
             *val = (1 << 10);
         return CSS_GRID_LINE_SET;
@@ -1185,6 +1204,86 @@ START_TEST(test_complex_grid_exclusion)
     printf("=== test_complex_grid_exclusion PASSED ===\n");
 }
 
+START_TEST(test_complex_grid_floated_exclusion)
+{
+    printf("\n=== test_complex_grid_floated_exclusion ===\n");
+
+    /* Grid container: 3 columns of 100px */
+    struct box *grid = calloc(1, sizeof(struct box));
+    grid->type = BOX_BLOCK;
+    grid->flags |= DIRTY;
+    grid->width = 300;
+    grid->height = AUTO;
+    grid->style = (css_computed_style *)exclusion_grid_style;
+
+    /* 3 children: auto, floated exclusion (col 1, row 0), auto */
+    struct box *items[3];
+    for (int i = 0; i < 3; i++) {
+        items[i] = calloc(1, sizeof(struct box));
+        items[i]->type = BOX_BLOCK;
+        items[i]->flags |= DIRTY;
+        items[i]->width = AUTO;
+        items[i]->height = 50;
+        items[i]->flags |= DIRTY;
+        items[i]->parent = grid;
+    }
+
+    items[0]->style = (css_computed_style *)dummy_style;
+
+    /* Item 2 is our floated exclusion zone */
+    items[1]->style = (css_computed_style *)exclusion_floated_style;
+
+    items[2]->style = (css_computed_style *)dummy_style;
+
+    /* Link children */
+    grid->children = items[0];
+    for (int i = 0; i < 3; i++) {
+        if (i > 0)
+            items[i]->prev = items[i - 1];
+        if (i < 2)
+            items[i]->next = items[i + 1];
+    }
+    grid->last = items[2];
+
+    /* Initialize mock content context */
+    memset(&mock_content, 0, sizeof(mock_content));
+    mock_content.unit_len_ctx.device_dpi = (96 << 10);
+    mock_content.unit_len_ctx.font_size_default = (16 << 10);
+    mock_content.unit_len_ctx.viewport_width = (1000 << 10);
+    mock_content.unit_len_ctx.viewport_height = (1000 << 10);
+
+    /* Run layout */
+    printf("Running layout_grid for complex floated exclusions test...\n");
+    layout_grid(grid, 300, &mock_content);
+
+    /* Print results */
+    for (int i = 0; i < 3; i++) {
+        printf("Item %d: x=%d y=%d w=%d h=%d\n", i + 1, items[i]->x, items[i]->y, items[i]->width, items[i]->height);
+    }
+
+    /* Verify correctness */
+    /* Item 2 (exclusion) must be at x=100 (col 1) */
+    ck_assert_msg(items[1]->x == 100, "Item 2 (exclusion) should be at x=100, got x=%d", items[1]->x);
+    ck_assert_msg(items[1]->y == 0, "Item 2 (exclusion) should be at y=0, got y=%d", items[1]->y);
+
+    /* Item 1 (auto) must be at x=0 (col 0) */
+    ck_assert_msg(items[0]->x == 0, "Item 1 should be at x=0, got x=%d", items[0]->x);
+    ck_assert_msg(items[0]->y == 0, "Item 1 should be at y=0, got y=%d", items[0]->y);
+
+    /* Item 3 (auto) must be at x=200 (col 2) because col 1 is excluded */
+    ck_assert_msg(items[2]->x == 200, "Item 3 should be at x=200, got x=%d", items[2]->x);
+    ck_assert_msg(items[2]->y == 0, "Item 3 should be at y=0, got y=%d", items[2]->y);
+
+    /* Cleanup */
+    for (int i = 0; i < 3; i++) {
+        free(items[i]);
+    }
+    free(grid->computed_col_widths);
+    free(grid);
+
+    printf("=== test_complex_grid_floated_exclusion PASSED ===\n");
+}
+
 Suite *grid_test_suite(void)
 {
     Suite *s = suite_create("grid_layout");
@@ -1195,6 +1294,7 @@ Suite *grid_test_suite(void)
     tcase_add_test(tc, test_grid_explicit_placement);
     tcase_add_test(tc, test_grid_explicit_column_only);
     tcase_add_test(tc, test_complex_grid_exclusion);
+    tcase_add_test(tc, test_complex_grid_floated_exclusion);
     suite_add_tcase(s, tc);
     return s;
 }

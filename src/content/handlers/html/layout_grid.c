@@ -914,7 +914,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 
 	/* PRE-PROCESSING PASS: Complex Grid Exclusions
 	 *
-	 * Scan children for designated exclusion zones (e.g., class name containing "exclude" or "grid-exclude").
+	 * Scan children for designated exclusion zones (e.g., class name containing "exclude" or "grid-exclude")
+	 * or floated children, which also act as exclusion zones in grid layout.
 	 * Pre-place these exclusions and mark their spanned cells as occupied so auto-placed items flow around them.
 	 */
 	extern dom_string *corestring_dom_class;
@@ -929,6 +930,12 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 					is_exclusion = true;
 				}
 				dom_string_unref(class_attr);
+			}
+		}
+		if (!is_exclusion && child->style != NULL) {
+			uint8_t float_val = css_computed_float(child->style);
+			if (float_val == CSS_FLOAT_LEFT || float_val == CSS_FLOAT_RIGHT) {
+				is_exclusion = true;
 			}
 		}
 
@@ -1199,6 +1206,12 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 						is_exclusion = true;
 					}
 					dom_string_unref(class_attr);
+				}
+			}
+			if (!is_exclusion && child->style != NULL) {
+				uint8_t float_val = css_computed_float(child->style);
+				if (float_val == CSS_FLOAT_LEFT || float_val == CSS_FLOAT_RIGHT) {
+					is_exclusion = true;
 				}
 			}
 			if (is_exclusion) {

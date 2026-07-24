@@ -3914,6 +3914,14 @@ static bool layout_multicol(struct box *block, int viewport_height, struct html_
 			}
 			if (target_col_height < 1) target_col_height = 1;
 
+			/* Clamp target column height to the viewport/page height if printing to allow pages/columns to flow/break correctly */
+			extern bool html_redraw_printing;
+			if (viewport_height > 0 && (content->media.type == CSS_MEDIA_PRINT || html_redraw_printing)) {
+				if (target_col_height > viewport_height) {
+					target_col_height = viewport_height;
+				}
+			}
+
 			/* Place run elements into columns sequentially */
 			int col_idx = 0;
 			int current_col_y = 0;
