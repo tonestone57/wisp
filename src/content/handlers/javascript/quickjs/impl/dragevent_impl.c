@@ -7,6 +7,13 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include <wisp/wisp_dnd_bridge.h>
+#include <wisp/browser_window.h>
+#include <wisp/plot_style.h>
+#include "desktop/browser_private.h"
+#include <wisp/content/content_protected.h>
+#include "content/content.h"
+#include "content/hlcache.h"
 
 #include "JSDragEvent.gen.h"
 #include "JSDataTransfer.gen.h"
@@ -362,6 +369,98 @@ int qjs_init_dragevent(JSContext *ctx) {
     qjs_init_dragevent_gen(ctx);
     run_drag_drop_polyfill(ctx);
     return 0;
+}
+
+void wisp_dnd_dispatch_native_event(
+    void *thread_ptr,
+    wisp_dnd_event_type_t type,
+    wisp_dnd_payload_t *payload,
+    int screen_x,
+    int screen_y)
+{
+    struct jsthread *t = thread_ptr;
+    if (!t || t->closed || !t->ctx) return;
+    JSContext *ctx = t->ctx;
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue dispatch_fn = JS_GetPropertyStr(ctx, global, "__dispatchNativeDragEvent");
+    if (!JS_IsFunction(ctx, dispatch_fn)) {
+        JS_FreeValue(ctx, global);
+        JS_FreeValue(ctx, dispatch_fn);
+        return;
+    }
+
+    const char *type_str = "dragover";
+    switch (type) {
+        case WISP_DND_DRAGSTART: type_str = "dragstart"; break;
+        case WISP_DND_DRAGENTER: type_str = "dragenter"; break;
+        case WISP_DND_DRAGOVER:  type_str = "dragover";  break;
+        case WISP_DND_DRAGLEAVE: type_str = "dragleave"; break;
+        case WISP_DND_DROP:      type_str = "drop";      break;
+        case WISP_DND_DRAGEND:   type_str = "dragend";   break;
+    }
+
+    JSValue js_type = JS_NewString(ctx, type_str);
+
+    JSValue js_mimes = JS_NewArray(ctx);
+    if (payload && payload->mime_types) {
+        for (size_t i = 0; i < payload->type_count; i++) {
+            JS_SetPropertyUint32(ctx, js_mimes, i, JS_NewString(ctx, payload->mime_types[i]));
+        }
+    }
+
+    JSValue js_data = JS_NewString(ctx, "");
+    if (payload && payload->raw_data && payload->data_len > 0) {
+        js_data = JS_NewStringLen(ctx, (const char *)payload->raw_data, payload->data_len);
+    }
+
+    struct dom_document *doc = qjs_thread_get_document(t);
+    JSValue js_target = JS_NULL;
+    if (doc) {
+        dom_element *doc_el = NULL;
+        dom_document_get_document_element(doc, &doc_el);
+        if (doc_el) {
+            js_target = qjs_wrap_node(ctx, (dom_node *)doc_el);
+            dom_node_unref((dom_node *)doc_el);
+        } else {
+            js_target = qjs_wrap_node(ctx, (dom_node *)doc);
+        }
+    }
+
+    uint32_t allowed = payload ? payload->allowed_effects : 0;
+    JSValue js_allowed = JS_NewInt32(ctx, allowed);
+
+    JSValue args[5] = { js_target, js_type, js_mimes, js_data, js_allowed };
+    JSValue ret = JS_Call(ctx, dispatch_fn, JS_UNDEFINED, 5, args);
+
+    JS_FreeValue(ctx, ret);
+    JS_FreeValue(ctx, js_target);
+    JS_FreeValue(ctx, js_type);
+    JS_FreeValue(ctx, js_mimes);
+    JS_FreeValue(ctx, js_data);
+    JS_FreeValue(ctx, js_allowed);
+    JS_FreeValue(ctx, dispatch_fn);
+    JS_FreeValue(ctx, global);
+}
+
+void wisp_dnd_dispatch_native_event_bw(
+    struct browser_window *bw,
+    wisp_dnd_event_type_t type,
+    wisp_dnd_payload_t *payload,
+    int screen_x,
+    int screen_y)
+{
+    if (!bw || !bw->current_content) return;
+
+    struct jsthread *thread = NULL;
+    union content_msg_data msg_data;
+    msg_data.jsthread = &thread;
+
+    content_broadcast(hlcache_handle_get_content(bw->current_content), CONTENT_MSG_GETTHREAD, &msg_data);
+
+    if (thread) {
+        wisp_dnd_dispatch_native_event(thread, type, payload, screen_x, screen_y);
+    }
 }
 
 int qjs_init_datatransfer(JSContext *ctx) {

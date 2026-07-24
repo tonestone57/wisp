@@ -28,59 +28,69 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
 {
     QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
     if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
-
-    if (wisp_is_js_process || priv->node == NULL) {
-        if (argc < 2) return JS_UNDEFINED;
-        JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
-        if (JS_IsUndefined(listeners)) {
-            listeners = JS_NewObject(ctx);
-            JS_SetPropertyStr(ctx, this_val, "__wisp_listeners", JS_DupValue(ctx, listeners));
-        }
-        const char *type = JS_ToCString(ctx, argv[0]);
-        if (!type) {
-            JS_FreeValue(ctx, listeners);
-            return JS_EXCEPTION;
-        }
-        JSValue list = JS_GetPropertyStr(ctx, listeners, type);
-        if (JS_IsUndefined(list)) {
-            list = JS_NewArray(ctx);
-            JS_SetPropertyStr(ctx, listeners, type, JS_DupValue(ctx, list));
-        }
-        int len = 0;
-        JSValue js_len = JS_GetPropertyStr(ctx, list, "length");
-        JS_ToInt32(ctx, &len, js_len);
-        JS_FreeValue(ctx, js_len);
-
-        bool found = false;
-        for (int i = 0; i < len; i++) {
-            JSValue item = JS_GetPropertyUint32(ctx, list, i);
-            if (JS_VALUE_GET_PTR(item) == JS_VALUE_GET_PTR(argv[1])) {
-                found = true;
-                JS_FreeValue(ctx, item);
-                break;
-            }
-            JS_FreeValue(ctx, item);
-        }
-        if (!found) {
-            JS_SetPropertyUint32(ctx, list, len, JS_DupValue(ctx, argv[1]));
-        }
-        JS_FreeValue(ctx, list);
-        JS_FreeValue(ctx, listeners);
-        JS_FreeCString(ctx, type);
-        return JS_UNDEFINED;
-    }
-
     if (argc < 2) return JS_UNDEFINED;
 
+    JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
+    if (JS_IsUndefined(listeners)) {
+        listeners = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, this_val, "__wisp_listeners", JS_DupValue(ctx, listeners));
+    }
     const char *type = JS_ToCString(ctx, argv[0]);
-    if (!type) return JS_EXCEPTION;
-    dom_string *type_dom = NULL;
-    dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+    if (!type) {
+        JS_FreeValue(ctx, listeners);
+        return JS_EXCEPTION;
+    }
+    JSValue list = JS_GetPropertyStr(ctx, listeners, type);
+    if (JS_IsUndefined(list)) {
+        list = JS_NewArray(ctx);
+        JS_SetPropertyStr(ctx, listeners, type, JS_DupValue(ctx, list));
+    }
+    int len = 0;
+    JSValue js_len = JS_GetPropertyStr(ctx, list, "length");
+    JS_ToInt32(ctx, &len, js_len);
+    JS_FreeValue(ctx, js_len);
 
-    struct jsthread *thread = JS_GetContextOpaque(ctx);
-    js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
+    bool is_capture = false;
+    if (argc >= 3) {
+        if (JS_IsBool(argv[2])) {
+            is_capture = JS_ToBool(ctx, argv[2]);
+        } else if (JS_IsObject(argv[2])) {
+            JSValue cap_val = JS_GetPropertyStr(ctx, argv[2], "capture");
+            is_capture = JS_ToBool(ctx, cap_val);
+            JS_FreeValue(ctx, cap_val);
+        }
+    }
 
-    dom_string_unref(type_dom);
+    bool found = false;
+    for (int i = 0; i < len; i++) {
+        JSValue item = JS_GetPropertyUint32(ctx, list, i);
+        JSValue cb = JS_GetPropertyStr(ctx, item, "callback");
+        if (JS_VALUE_GET_PTR(cb) == JS_VALUE_GET_PTR(argv[1])) {
+            found = true;
+            JS_FreeValue(ctx, cb);
+            JS_FreeValue(ctx, item);
+            break;
+        }
+        JS_FreeValue(ctx, cb);
+        JS_FreeValue(ctx, item);
+    }
+    if (!found) {
+        JSValue record = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, record, "callback", JS_DupValue(ctx, argv[1]));
+        JS_SetPropertyStr(ctx, record, "capture", JS_NewBool(ctx, is_capture));
+        JS_SetPropertyUint32(ctx, list, len, record);
+    }
+    JS_FreeValue(ctx, list);
+    JS_FreeValue(ctx, listeners);
+
+    if (!wisp_is_js_process && priv->node != NULL) {
+        dom_string *type_dom = NULL;
+        dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+        struct jsthread *thread = JS_GetContextOpaque(ctx);
+        js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
+        dom_string_unref(type_dom);
+    }
+
     JS_FreeCString(ctx, type);
     return JS_UNDEFINED;
 }
@@ -89,58 +99,50 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
 {
     QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
     if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
-
-    if (wisp_is_js_process || priv->node == NULL) {
-        if (argc < 2) return JS_UNDEFINED;
-        JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
-        if (JS_IsUndefined(listeners)) {
-            return JS_UNDEFINED;
-        }
-        const char *type = JS_ToCString(ctx, argv[0]);
-        if (!type) {
-            JS_FreeValue(ctx, listeners);
-            return JS_EXCEPTION;
-        }
-        JSValue list = JS_GetPropertyStr(ctx, listeners, type);
-        if (JS_IsUndefined(list)) {
-            JS_FreeValue(ctx, list);
-            JS_FreeValue(ctx, listeners);
-            JS_FreeCString(ctx, type);
-            return JS_UNDEFINED;
-        }
-        int len = 0;
-        JSValue js_len = JS_GetPropertyStr(ctx, list, "length");
-        JS_ToInt32(ctx, &len, js_len);
-        JS_FreeValue(ctx, js_len);
-
-        JSValue new_list = JS_NewArray(ctx);
-        int new_idx = 0;
-        for (int i = 0; i < len; i++) {
-            JSValue item = JS_GetPropertyUint32(ctx, list, i);
-            if (JS_VALUE_GET_PTR(item) != JS_VALUE_GET_PTR(argv[1])) {
-                JS_SetPropertyUint32(ctx, new_list, new_idx++, JS_DupValue(ctx, item));
-            }
-            JS_FreeValue(ctx, item);
-        }
-        JS_SetPropertyStr(ctx, listeners, type, new_list);
-        JS_FreeValue(ctx, list);
-        JS_FreeValue(ctx, listeners);
-        JS_FreeCString(ctx, type);
-        return JS_UNDEFINED;
-    }
-
     if (argc < 2) return JS_UNDEFINED;
 
-    const char *type = JS_ToCString(ctx, argv[0]);
-    if (!type) return JS_EXCEPTION;
-    dom_string *type_dom = NULL;
-    dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+    JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
+    if (!JS_IsUndefined(listeners)) {
+        const char *type = JS_ToCString(ctx, argv[0]);
+        if (type) {
+            JSValue list = JS_GetPropertyStr(ctx, listeners, type);
+            if (!JS_IsUndefined(list)) {
+                int len = 0;
+                JSValue js_len = JS_GetPropertyStr(ctx, list, "length");
+                JS_ToInt32(ctx, &len, js_len);
+                JS_FreeValue(ctx, js_len);
 
-    struct jsthread *thread = JS_GetContextOpaque(ctx);
-    js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
+                JSValue new_list = JS_NewArray(ctx);
+                int new_idx = 0;
+                for (int i = 0; i < len; i++) {
+                    JSValue item = JS_GetPropertyUint32(ctx, list, i);
+                    JSValue cb = JS_GetPropertyStr(ctx, item, "callback");
+                    if (JS_VALUE_GET_PTR(cb) != JS_VALUE_GET_PTR(argv[1])) {
+                        JS_SetPropertyUint32(ctx, new_list, new_idx++, JS_DupValue(ctx, item));
+                    }
+                    JS_FreeValue(ctx, cb);
+                    JS_FreeValue(ctx, item);
+                }
+                JS_SetPropertyStr(ctx, listeners, type, new_list);
+            }
+            JS_FreeValue(ctx, list);
+            JS_FreeCString(ctx, type);
+        }
+    }
+    JS_FreeValue(ctx, listeners);
 
-    dom_string_unref(type_dom);
-    JS_FreeCString(ctx, type);
+    if (!wisp_is_js_process && priv->node != NULL) {
+        const char *type = JS_ToCString(ctx, argv[0]);
+        if (type) {
+            dom_string *type_dom = NULL;
+            dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
+            dom_string_unref(type_dom);
+            JS_FreeCString(ctx, type);
+        }
+    }
+
     return JS_UNDEFINED;
 }
 
