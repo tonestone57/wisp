@@ -1263,6 +1263,58 @@ START_TEST(test_quickjs_window_methods)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_alert");
     ck_assert(result == true);
 
+    /* Test Window.atob and Window.btoa basic exists */
+    const char *code_b64_exists = "typeof window.atob === 'function' && typeof window.btoa === 'function'";
+    result = js_exec(thread, (const uint8_t *)code_b64_exists, strlen(code_b64_exists), "test_b64_exists");
+    ck_assert(result == true);
+
+    /* Test Window.btoa and Window.atob standard functionality */
+    const char *code_b64_func =
+        "var enc1 = btoa('hello');\n"
+        "var dec1 = atob('aGVsbG8=');\n"
+        "enc1 === 'aGVsbG8=' && dec1 === 'hello';";
+    result = js_exec(thread, (const uint8_t *)code_b64_func, strlen(code_b64_func), "test_b64_func");
+    ck_assert(result == true);
+
+    /* Test Window.atob handles whitespace correctly */
+    const char *code_b64_space =
+        "var dec2 = atob('aGVs bG8=\\n');\n"
+        "dec2 === 'hello';";
+    result = js_exec(thread, (const uint8_t *)code_b64_space, strlen(code_b64_space), "test_b64_space");
+    ck_assert(result == true);
+
+    /* Test Window.btoa and Window.atob with Latin-1 (code point 255) */
+    const char *code_b64_latin1 =
+        "var enc3 = btoa('ÿ');\n"
+        "var dec3 = atob('/w==');\n"
+        "enc3 === '/w==' && dec3 === 'ÿ';";
+    result = js_exec(thread, (const uint8_t *)code_b64_latin1, strlen(code_b64_latin1), "test_b64_latin1");
+    ck_assert(result == true);
+
+    /* Test Window.btoa throws exception for characters outside Latin-1 range */
+    const char *code_b64_throw_unicode =
+        "var threw = false;\n"
+        "try {\n"
+        "  btoa('Ā');\n"
+        "} catch (e) {\n"
+        "  if (e instanceof Error || e instanceof TypeError) threw = true;\n"
+        "}\n"
+        "threw === true;";
+    result = js_exec(thread, (const uint8_t *)code_b64_throw_unicode, strlen(code_b64_throw_unicode), "test_b64_throw_unicode");
+    ck_assert(result == true);
+
+    /* Test Window.atob throws exception for invalid base64 input */
+    const char *code_b64_throw_invalid =
+        "var threw = false;\n"
+        "try {\n"
+        "  atob('invalid#character');\n"
+        "} catch (e) {\n"
+        "  if (e instanceof Error || e instanceof TypeError) threw = true;\n"
+        "}\n"
+        "threw === true;";
+    result = js_exec(thread, (const uint8_t *)code_b64_throw_invalid, strlen(code_b64_throw_invalid), "test_b64_throw_invalid");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
