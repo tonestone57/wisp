@@ -215,6 +215,7 @@ START_TEST(test_quickjs_css_style_declaration)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
@@ -308,11 +309,39 @@ START_TEST(test_quickjs_tier1_apis)
         "  \n"
         "  // 5. Hardened weak stub verification\n"
         "  try {\n"
-        "    new MediaStream();\n"
+        "    new CompositionEvent('compositionstart');\n"
         "    throw new Error('Unimplemented stub did not throw!');\n"
         "  } catch(e) {\n"
         "    if (e.name !== 'NotSupportedError') throw new Error('Unimplemented stub threw wrong exception: ' + e.name);\n"
         "  }\n"
+        "\n"
+        "  // 6. MediaStream, MediaStreamTrack & getUserMedia tests\n"
+        "  if (typeof MediaStream === 'undefined') throw new Error('MediaStream is missing');\n"
+        "  if (typeof MediaStreamTrack === 'undefined') throw new Error('MediaStreamTrack is missing');\n"
+        "  if (typeof navigator.mediaDevices === 'undefined') throw new Error('navigator.mediaDevices is missing');\n"
+        "\n"
+        "  window.streamResult = 'PENDING';\n"
+        "  navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then(stream => {\n"
+        "    if (!(stream instanceof MediaStream)) throw new Error('getUserMedia did not return a MediaStream');\n"
+        "    const tracks = stream.getTracks();\n"
+        "    if (tracks.length !== 2) throw new Error('MediaStream should contain exactly 2 tracks');\n"
+        "    if (stream.getAudioTracks().length !== 1) throw new Error('getAudioTracks failed');\n"
+        "    if (stream.getVideoTracks().length !== 1) throw new Error('getVideoTracks failed');\n"
+        "\n"
+        "    const audioTrack = stream.getAudioTracks()[0];\n"
+        "    if (audioTrack.kind !== 'audio') throw new Error('MediaStreamTrack kind mismatch');\n"
+        "    if (audioTrack.readyState !== 'live') throw new Error('track state should be live');\n"
+        "\n"
+        "    let trackEnded = 0;\n"
+        "    audioTrack.addEventListener('ended', () => trackEnded++);\n"
+        "    audioTrack.stop();\n"
+        "    if (audioTrack.readyState !== 'ended') throw new Error('readyState should be ended after stop()');\n"
+        "    if (trackEnded !== 1) throw new Error('ended event did not fire correctly: ' + trackEnded);\n"
+        "\n"
+        "    window.streamResult = 'OK';\n"
+        "  }).catch(e => {\n"
+        "    window.streamResult = 'FAIL: ' + e.message + '\\n' + e.stack;\n"
+        "  });\n"
         "\n"
         "  window.tier1Result = 'OK';\n"
         "} catch(e) {\n"
@@ -327,10 +356,21 @@ START_TEST(test_quickjs_tier1_apis)
     }
     ck_assert(result == true);
 
+    // Run pending jobs to resolve getUserMedia promise
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *verify_stream = "window.streamResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)verify_stream, strlen(verify_stream), "verify_media_stream");
+    if (!result) {
+        const char *diag = "window.streamResult;";
+        js_exec(thread, (const uint8_t *)diag, strlen(diag), "get_stream_diag");
+    }
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
-    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
 END_TEST
