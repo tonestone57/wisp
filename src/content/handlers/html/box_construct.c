@@ -457,7 +457,9 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         task->index = i;
         task->wg = &wg;
 
-        wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f);
+        if (!wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f)) {
+            parallel_style_worker_cb(task);
+        }
     }
 
     /* Join phase: wait for all worker tasks to finish */

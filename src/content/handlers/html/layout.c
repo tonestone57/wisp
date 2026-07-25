@@ -4361,7 +4361,9 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 					task->box = box;
 					task->content = content;
 					task->wg = &wg;
-					wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f);
+					if (!wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f)) {
+						parallel_layout_worker_cb(task);
+					}
 					wisp_layout_wait_group_wait(&wg);
 					wisp_layout_wait_group_destroy(&wg);
 				}
