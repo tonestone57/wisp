@@ -334,29 +334,521 @@ static bool node_is_independent_subtree_root(dom_node *node) {
     return false;
 }
 
-static void collect_descendant_elements(dom_node *node, dom_node **elements, int *count, int max_capacity) {
-    if (node == NULL || *count >= max_capacity) return;
+#include <wisp/plot_style.h>
 
-    dom_node_type type;
-    if (dom_node_get_node_type(node, &type) == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
-        elements[*count] = dom_node_ref(node);
-        (*count)++;
+__attribute__((weak)) extern lwc_string *corestring_lwc_a;
+__attribute__((weak)) extern dom_string *corestring_dom_href;
+
+__attribute__((weak)) extern css_error node_is_visited(void *pw, void *node, bool *match);
+__attribute__((weak)) extern css_error node_presentational_hint(void *pw, void *node, uint32_t *nhints, css_hint **hints);
+__attribute__((weak)) extern css_error get_libcss_node_data(void *pw, void *node, void **libcss_node_data);
+__attribute__((weak)) extern css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data);
+
+typedef struct {
+    lwc_string *name_lwc;
+    lwc_string *value_lwc;
+} snapshot_attr_t;
+
+typedef struct style_snapshot_s style_snapshot_t;
+
+struct style_snapshot_s {
+    dom_node *node;                  /* Weak pointer back to original dom_node */
+    lwc_string *name_lwc;            /* Tag name */
+    lwc_string *id;                  /* Element ID */
+    lwc_string **classes;            /* Class names array */
+    uint32_t n_classes;              /* Number of classes */
+    dom_html_element_type tag_type;   /* Tag type for presentational hints */
+    css_stylesheet *inline_style;    /* Inline style stylesheet */
+    void *libcss_node_data;          /* libcss private node data */
+
+    snapshot_attr_t *attrs;          /* Array of attributes */
+    uint32_t n_attrs;                /* Number of attributes */
+
+    /* Pre-calculated selection states */
+    bool is_link;
+    bool is_visited;
+    bool is_empty;
+
+    /* Pre-calculated presentational hints */
+    uint32_t nhints;
+    css_hint *hints;
+
+    /* Snapshot structural relationships */
+    style_snapshot_t *parent;
+    style_snapshot_t *prev_sibling;
+    style_snapshot_t *next_sibling;
+    style_snapshot_t *first_child;
+    style_snapshot_t *last_child;
+};
+
+static css_error snap_node_name(void *pw, void *node, css_qname *qname) {
+    style_snapshot_t *snap = node;
+    qname->ns = NULL;
+    qname->name = lwc_string_ref(snap->name_lwc);
+    return CSS_OK;
+}
+
+static css_error snap_node_classes(void *pw, void *node, lwc_string ***classes, uint32_t *n_classes) {
+    style_snapshot_t *snap = node;
+    *classes = snap->classes;
+    *n_classes = snap->n_classes;
+    for (uint32_t i = 0; i < snap->n_classes; i++) {
+        lwc_string_ref(snap->classes[i]);
     }
+    return CSS_OK;
+}
 
-    dom_node *child = NULL;
-    if (dom_node_get_first_child(node, &child) == DOM_NO_ERR && child != NULL) {
-        while (child != NULL) {
-            collect_descendant_elements(child, elements, count, max_capacity);
-            dom_node *next = NULL;
-            if (dom_node_get_next_sibling(child, &next) != DOM_NO_ERR) {
-                dom_node_unref(child);
-                break;
-            }
-            dom_node_unref(child);
-            child = next;
+static css_error snap_node_id(void *pw, void *node, lwc_string **id) {
+    style_snapshot_t *snap = node;
+    if (snap->id != NULL) {
+        *id = lwc_string_ref(snap->id);
+    } else {
+        *id = NULL;
+    }
+    return CSS_OK;
+}
+
+static css_error snap_named_ancestor_node(void *pw, void *node, const css_qname *qname, void **ancestor) {
+    style_snapshot_t *curr = ((style_snapshot_t *)node)->parent;
+    *ancestor = NULL;
+    while (curr != NULL) {
+        bool match = false;
+        if (lwc_string_caseless_isequal(curr->name_lwc, qname->name, &match) == lwc_error_ok && match) {
+            *ancestor = curr;
+            break;
+        }
+        curr = curr->parent;
+    }
+    return CSS_OK;
+}
+
+static css_error snap_named_parent_node(void *pw, void *node, const css_qname *qname, void **parent) {
+    style_snapshot_t *curr = ((style_snapshot_t *)node)->parent;
+    *parent = NULL;
+    if (curr != NULL) {
+        bool match = false;
+        if (lwc_string_caseless_isequal(curr->name_lwc, qname->name, &match) == lwc_error_ok && match) {
+            *parent = curr;
         }
     }
+    return CSS_OK;
 }
+
+static css_error snap_named_sibling_node(void *pw, void *node, const css_qname *qname, void **sibling) {
+    style_snapshot_t *curr = ((style_snapshot_t *)node)->prev_sibling;
+    *sibling = NULL;
+    while (curr != NULL) {
+        bool match = false;
+        if (lwc_string_caseless_isequal(curr->name_lwc, qname->name, &match) == lwc_error_ok && match) {
+            *sibling = curr;
+            break;
+        }
+        curr = curr->prev_sibling;
+    }
+    return CSS_OK;
+}
+
+static css_error snap_named_generic_sibling_node(void *pw, void *node, const css_qname *qname, void **sibling) {
+    style_snapshot_t *curr = ((style_snapshot_t *)node)->prev_sibling;
+    *sibling = NULL;
+    while (curr != NULL) {
+        bool match = false;
+        if (lwc_string_caseless_isequal(curr->name_lwc, qname->name, &match) == lwc_error_ok && match) {
+            *sibling = curr;
+            break;
+        }
+        curr = curr->prev_sibling;
+    }
+    return CSS_OK;
+}
+
+static css_error snap_parent_node(void *pw, void *node, void **parent) {
+    *parent = ((style_snapshot_t *)node)->parent;
+    return CSS_OK;
+}
+
+static css_error snap_sibling_node(void *pw, void *node, void **sibling) {
+    *sibling = ((style_snapshot_t *)node)->prev_sibling;
+    return CSS_OK;
+}
+
+static css_error snap_node_has_name(void *pw, void *node, const css_qname *qname, bool *match) {
+    style_snapshot_t *snap = node;
+    nscss_select_ctx *ctx = pw;
+    if (lwc_string_isequal(qname->name, ctx->universal, match) == lwc_error_ok && *match == false) {
+        lwc_string_caseless_isequal(snap->name_lwc, qname->name, match);
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_class(void *pw, void *node, lwc_string *name, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    for (uint32_t i = 0; i < snap->n_classes; i++) {
+        if (lwc_string_caseless_isequal(snap->classes[i], name, match) == lwc_error_ok && *match) {
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_id(void *pw, void *node, lwc_string *name, bool *match) {
+    style_snapshot_t *snap = node;
+    if (snap->id != NULL) {
+        lwc_string_isequal(snap->id, name, match);
+    } else {
+        *match = false;
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute(void *pw, void *node, const css_qname *qname, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            *match = true;
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute_equal(void *pw, void *node, const css_qname *qname, lwc_string *value, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            lwc_string_caseless_isequal(snap->attrs[i].value_lwc, value, match);
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute_dashmatch(void *pw, void *node, const css_qname *qname, lwc_string *value, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    size_t vlen = lwc_string_length(value);
+    if (vlen == 0) return CSS_OK;
+
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            lwc_string_caseless_isequal(snap->attrs[i].value_lwc, value, match);
+            if (*match == false) {
+                const char *vdata = lwc_string_data(value);
+                const char *data = lwc_string_data(snap->attrs[i].value_lwc);
+                size_t len = lwc_string_length(snap->attrs[i].value_lwc);
+                if (len > vlen && data[vlen] == '-' && strncasecmp(data, vdata, vlen) == 0) {
+                    *match = true;
+                }
+            }
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute_includes(void *pw, void *node, const css_qname *qname, lwc_string *value, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    size_t vlen = lwc_string_length(value);
+    if (vlen == 0) return CSS_OK;
+
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            const char *start = lwc_string_data(snap->attrs[i].value_lwc);
+            const char *end = start + lwc_string_length(snap->attrs[i].value_lwc);
+            const char *p;
+            for (p = start; p <= end; p++) {
+                if (*p == ' ' || *p == '\0') {
+                    if ((size_t)(p - start) == vlen && strncasecmp(start, lwc_string_data(value), vlen) == 0) {
+                        *match = true;
+                        break;
+                    }
+                    start = p + 1;
+                }
+            }
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute_prefix(void *pw, void *node, const css_qname *qname, lwc_string *value, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    size_t vlen = lwc_string_length(value);
+    if (vlen == 0) return CSS_OK;
+
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            lwc_string_caseless_isequal(snap->attrs[i].value_lwc, value, match);
+            if (*match == false) {
+                const char *data = lwc_string_data(snap->attrs[i].value_lwc);
+                size_t len = lwc_string_length(snap->attrs[i].value_lwc);
+                if (len >= vlen && strncasecmp(data, lwc_string_data(value), vlen) == 0) {
+                    *match = true;
+                }
+            }
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute_suffix(void *pw, void *node, const css_qname *qname, lwc_string *value, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    size_t vlen = lwc_string_length(value);
+    if (vlen == 0) return CSS_OK;
+
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            lwc_string_caseless_isequal(snap->attrs[i].value_lwc, value, match);
+            if (*match == false) {
+                const char *data = lwc_string_data(snap->attrs[i].value_lwc);
+                size_t len = lwc_string_length(snap->attrs[i].value_lwc);
+                if (len >= vlen) {
+                    const char *start = data + len - vlen;
+                    if (strncasecmp(start, lwc_string_data(value), vlen) == 0) {
+                        *match = true;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_has_attribute_substring(void *pw, void *node, const css_qname *qname, lwc_string *value, bool *match) {
+    style_snapshot_t *snap = node;
+    *match = false;
+    size_t vlen = lwc_string_length(value);
+    if (vlen == 0) return CSS_OK;
+
+    for (uint32_t i = 0; i < snap->n_attrs; i++) {
+        bool name_match = false;
+        if (lwc_string_caseless_isequal(snap->attrs[i].name_lwc, qname->name, &name_match) == lwc_error_ok && name_match) {
+            lwc_string_caseless_isequal(snap->attrs[i].value_lwc, value, match);
+            if (*match == false) {
+                const char *vdata = lwc_string_data(value);
+                const char *start = lwc_string_data(snap->attrs[i].value_lwc);
+                size_t len = lwc_string_length(snap->attrs[i].value_lwc);
+                if (len >= vlen) {
+                    const char *last_start = start + len - vlen;
+                    while (start <= last_start) {
+                        if (strncasecmp(start, vdata, vlen) == 0) {
+                            *match = true;
+                            break;
+                        }
+                        start++;
+                    }
+                }
+            }
+            break;
+        }
+    }
+    return CSS_OK;
+}
+
+static css_error snap_node_is_root(void *pw, void *node, bool *match) {
+    *match = (((style_snapshot_t *)node)->parent == NULL);
+    return CSS_OK;
+}
+
+static css_error snap_node_count_siblings(void *pw, void *n, bool same_name, bool after, int32_t *count) {
+    style_snapshot_t *snap = n;
+    int32_t cnt = 0;
+    if (after) {
+        style_snapshot_t *curr = snap->next_sibling;
+        while (curr != NULL) {
+            if (same_name) {
+                bool match = false;
+                if (lwc_string_caseless_isequal(curr->name_lwc, snap->name_lwc, &match) == lwc_error_ok && match) {
+                    cnt++;
+                }
+            } else {
+                cnt++;
+            }
+            curr = curr->next_sibling;
+        }
+    } else {
+        style_snapshot_t *curr = snap->prev_sibling;
+        while (curr != NULL) {
+            if (same_name) {
+                bool match = false;
+                if (lwc_string_caseless_isequal(curr->name_lwc, snap->name_lwc, &match) == lwc_error_ok && match) {
+                    cnt++;
+                }
+            } else {
+                cnt++;
+            }
+            curr = curr->prev_sibling;
+        }
+    }
+    *count = cnt;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_empty(void *pw, void *node, bool *match) {
+    *match = ((style_snapshot_t *)node)->is_empty;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_link(void *pw, void *node, bool *match) {
+    *match = ((style_snapshot_t *)node)->is_link;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_visited(void *pw, void *node, bool *match) {
+    *match = ((style_snapshot_t *)node)->is_visited;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_hover(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_active(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_focus(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_enabled(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_disabled(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_checked(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_target(void *pw, void *node, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_is_lang(void *pw, void *node, lwc_string *lang, bool *match) {
+    *match = false;
+    return CSS_OK;
+}
+
+static css_error snap_node_presentational_hint(void *pw, void *node, uint32_t *nhints, css_hint **hints) {
+    style_snapshot_t *snap = node;
+    *nhints = snap->nhints;
+    *hints = snap->hints;
+    return CSS_OK;
+}
+
+static css_error snap_set_libcss_node_data(void *pw, void *node, void *libcss_node_data) {
+    style_snapshot_t *snap = node;
+    snap->libcss_node_data = libcss_node_data;
+    return CSS_OK;
+}
+
+static css_error snap_get_libcss_node_data(void *pw, void *node, void **libcss_node_data) {
+    style_snapshot_t *snap = node;
+    *libcss_node_data = snap->libcss_node_data;
+    return CSS_OK;
+}
+
+static css_error snap_ua_default_for_property(void *pw, uint32_t property, css_hint *hint)
+{
+    if (property == CSS_PROP_COLOR) {
+        hint->data.color = 0xff000000;
+        hint->status = CSS_COLOR_COLOR;
+    } else if (property == CSS_PROP_FONT_FAMILY) {
+        hint->data.strings = NULL;
+        switch (nsoption_int(font_default)) {
+        case PLOT_FONT_FAMILY_SANS_SERIF:
+            hint->status = CSS_FONT_FAMILY_SANS_SERIF;
+            break;
+        case PLOT_FONT_FAMILY_SERIF:
+            hint->status = CSS_FONT_FAMILY_SERIF;
+            break;
+        case PLOT_FONT_FAMILY_MONOSPACE:
+            hint->status = CSS_FONT_FAMILY_MONOSPACE;
+            break;
+        case PLOT_FONT_FAMILY_CURSIVE:
+            hint->status = CSS_FONT_FAMILY_CURSIVE;
+            break;
+        case PLOT_FONT_FAMILY_FANTASY:
+            hint->status = CSS_FONT_FAMILY_FANTASY;
+            break;
+        }
+    } else if (property == CSS_PROP_QUOTES) {
+        hint->data.strings = NULL;
+        hint->status = CSS_QUOTES_NONE;
+    } else if (property == CSS_PROP_VOICE_FAMILY) {
+        hint->data.strings = NULL;
+        hint->status = 0;
+    } else {
+        return CSS_INVALID;
+    }
+
+    return CSS_OK;
+}
+
+static css_select_handler snapshot_selection_handler = {
+    CSS_SELECT_HANDLER_VERSION_1,
+
+    snap_node_name,
+    snap_node_classes,
+    snap_node_id,
+    snap_named_ancestor_node,
+    snap_named_parent_node,
+    snap_named_sibling_node,
+    snap_named_generic_sibling_node,
+    snap_parent_node,
+    snap_sibling_node,
+    snap_node_has_name,
+    snap_node_has_class,
+    snap_node_has_id,
+    snap_node_has_attribute,
+    snap_node_has_attribute_equal,
+    snap_node_has_attribute_dashmatch,
+    snap_node_has_attribute_includes,
+    snap_node_has_attribute_prefix,
+    snap_node_has_attribute_suffix,
+    snap_node_has_attribute_substring,
+    snap_node_is_root,
+    snap_node_count_siblings,
+    snap_node_is_empty,
+    snap_node_is_link,
+    snap_node_is_visited,
+    snap_node_is_hover,
+    snap_node_is_active,
+    snap_node_is_focus,
+    snap_node_is_enabled,
+    snap_node_is_disabled,
+    snap_node_is_checked,
+    snap_node_is_target,
+    snap_node_is_lang,
+    snap_node_presentational_hint,
+    snap_ua_default_for_property,
+    snap_set_libcss_node_data,
+    snap_get_libcss_node_data,
+};
 
 static void html_style_cache_add(html_content *c, dom_node *node, css_select_results *styles) {
 	pthread_mutex_lock(&c->style_cache_mutex);
@@ -370,9 +862,240 @@ static void html_style_cache_add(html_content *c, dom_node *node, css_select_res
 	pthread_mutex_unlock(&c->style_cache_mutex);
 }
 
+static void check_is_link(dom_node *node, bool *match) {
+    *match = false;
+    if (&corestring_lwc_a == NULL || corestring_lwc_a == NULL ||
+        &corestring_dom_href == NULL || corestring_dom_href == NULL) {
+        return;
+    }
+    dom_string *node_name = NULL;
+    if (dom_node_get_node_name(node, &node_name) == DOM_NO_ERR && node_name != NULL) {
+        if (dom_string_caseless_lwc_isequal(node_name, corestring_lwc_a)) {
+            bool has_href = false;
+            if (dom_element_has_attribute(node, corestring_dom_href, &has_href) == DOM_NO_ERR && has_href) {
+                *match = true;
+            }
+        }
+        dom_string_unref(node_name);
+    }
+}
+
+static void check_is_empty(dom_node *node, bool *match) {
+    *match = true;
+    dom_node *child = NULL;
+    if (dom_node_get_first_child(node, &child) == DOM_NO_ERR && child != NULL) {
+        while (child != NULL) {
+            dom_node_type ntype;
+            if (dom_node_get_node_type(child, &ntype) == DOM_NO_ERR) {
+                if (ntype == DOM_ELEMENT_NODE || ntype == DOM_TEXT_NODE) {
+                    *match = false;
+                    dom_node_unref(child);
+                    break;
+                }
+            }
+            dom_node *next = NULL;
+            if (dom_node_get_next_sibling(child, &next) != DOM_NO_ERR) {
+                dom_node_unref(child);
+                break;
+            }
+            dom_node_unref(child);
+            child = next;
+        }
+    }
+}
+
+static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, style_snapshot_t *parent, nscss_select_ctx *select_ctx) {
+    if (node == NULL) return NULL;
+
+    dom_node_type type;
+    if (dom_node_get_node_type(node, &type) != DOM_NO_ERR || type != DOM_ELEMENT_NODE) {
+        return NULL;
+    }
+
+    style_snapshot_t *snap = calloc(1, sizeof(style_snapshot_t));
+    if (snap == NULL) return NULL;
+
+    snap->node = dom_node_ref(node);
+    snap->parent = parent;
+
+    /* 1. Tag name */
+    dom_string *name_dom = NULL;
+    if (dom_node_get_node_name(node, &name_dom) == DOM_NO_ERR && name_dom != NULL) {
+        dom_string_intern(name_dom, &snap->name_lwc);
+        dom_string_unref(name_dom);
+    }
+
+    /* 2. Element ID */
+    dom_string *id_dom = NULL;
+    if (dom_html_element_get_id(node, &id_dom) == DOM_NO_ERR && id_dom != NULL) {
+        dom_string_intern(id_dom, &snap->id);
+        dom_string_unref(id_dom);
+    }
+
+    /* 3. Class list */
+    dom_element_get_classes(node, &snap->classes, &snap->n_classes);
+
+    /* 4. Tag type */
+    dom_html_element_get_tag_type(node, &snap->tag_type);
+
+    /* 5. Attributes */
+    dom_namednodemap *attrs = NULL;
+    if (dom_node_get_attributes(node, &attrs) == DOM_NO_ERR && attrs != NULL) {
+        uint32_t num_attrs = 0;
+        if (dom_namednodemap_get_length(attrs, &num_attrs) == DOM_NO_ERR && num_attrs > 0) {
+            snap->attrs = calloc(num_attrs, sizeof(snapshot_attr_t));
+            if (snap->attrs != NULL) {
+                uint32_t active_attrs = 0;
+                for (uint32_t idx = 0; idx < num_attrs; idx++) {
+                    dom_attr *attr = NULL;
+                    if (dom_namednodemap_item(attrs, idx, (void *)&attr) == DOM_NO_ERR && attr != NULL) {
+                        dom_string *name = NULL, *value = NULL;
+                        if (dom_attr_get_name(attr, &name) == DOM_NO_ERR && name != NULL) {
+                            if (dom_attr_get_value(attr, &value) == DOM_NO_ERR && value != NULL) {
+                                dom_string_intern(name, &snap->attrs[active_attrs].name_lwc);
+                                dom_string_intern(value, &snap->attrs[active_attrs].value_lwc);
+                                active_attrs++;
+                                dom_string_unref(value);
+                            }
+                            dom_string_unref(name);
+                        }
+                        dom_node_unref(attr);
+                    }
+                }
+                snap->n_attrs = active_attrs;
+            }
+        }
+        dom_namednodemap_unref(attrs);
+    }
+
+    /* 6. Pre-calculate states */
+    check_is_link(node, &snap->is_link);
+    if (node_is_visited != NULL) {
+        node_is_visited(select_ctx, node, &snap->is_visited);
+    } else {
+        snap->is_visited = false;
+    }
+    check_is_empty(node, &snap->is_empty);
+
+    /* 7. Pre-fetch presentational hints */
+    if (node_presentational_hint != NULL) {
+        uint32_t nhints = 0;
+        css_hint *hints = NULL;
+        node_presentational_hint(select_ctx, node, &nhints, &hints);
+        if (nhints > 0) {
+            snap->nhints = nhints;
+            snap->hints = malloc(sizeof(css_hint) * nhints);
+            if (snap->hints != NULL) {
+                memcpy(snap->hints, hints, sizeof(css_hint) * nhints);
+            }
+        }
+    }
+
+    /* 8. Pre-create/parse inline style stylesheet on the main thread */
+    dom_string *s = NULL;
+    if (nsoption_bool(author_level_css)) {
+        dom_element_get_attribute(node, corestring_dom_style, &s);
+    }
+    if (s != NULL) {
+        snap->inline_style = nscss_create_inline_style((const uint8_t *)dom_string_data(s), dom_string_byte_length(s),
+            c->encoding, nsurl_access(c->base_url), c->quirks != DOM_DOCUMENT_QUIRKS_MODE_NONE);
+        dom_string_unref(s);
+    }
+
+    /* 9. Read the existing libcss_node_data */
+    if (get_libcss_node_data != NULL) {
+        get_libcss_node_data(select_ctx, node, &snap->libcss_node_data);
+    }
+
+    /* 10. Recursively traverse and build child snapshots */
+    dom_node *child = NULL;
+    if (dom_node_get_first_child(node, &child) == DOM_NO_ERR && child != NULL) {
+        style_snapshot_t *prev_child_snap = NULL;
+        while (child != NULL) {
+            style_snapshot_t *child_snap = create_style_snapshot(c, child, snap, select_ctx);
+            if (child_snap != NULL) {
+                if (snap->first_child == NULL) {
+                    snap->first_child = child_snap;
+                }
+                if (prev_child_snap != NULL) {
+                    prev_child_snap->next_sibling = child_snap;
+                    child_snap->prev_sibling = prev_child_snap;
+                }
+                snap->last_child = child_snap;
+                prev_child_snap = child_snap;
+            }
+            dom_node *next = NULL;
+            if (dom_node_get_next_sibling(child, &next) != DOM_NO_ERR) {
+                dom_node_unref(child);
+                break;
+            }
+            dom_node_unref(child);
+            child = next;
+        }
+    }
+
+    return snap;
+}
+
+static void flatten_snapshot_tree(style_snapshot_t *snap, style_snapshot_t **array, int *count, int max_capacity) {
+    if (snap == NULL || *count >= max_capacity) return;
+    array[*count] = snap;
+    (*count)++;
+
+    style_snapshot_t *child = snap->first_child;
+    while (child != NULL) {
+        flatten_snapshot_tree(child, array, count, max_capacity);
+        child = child->next_sibling;
+    }
+}
+
+static void free_style_snapshot(style_snapshot_t *snap) {
+    if (snap == NULL) return;
+
+    style_snapshot_t *child = snap->first_child;
+    while (child != NULL) {
+        style_snapshot_t *next = child->next_sibling;
+        free_style_snapshot(child);
+        child = next;
+    }
+
+    if (snap->name_lwc != NULL) {
+        lwc_string_unref(snap->name_lwc);
+    }
+    if (snap->id != NULL) {
+        lwc_string_unref(snap->id);
+    }
+
+    if (snap->attrs != NULL) {
+        for (uint32_t i = 0; i < snap->n_attrs; i++) {
+            if (snap->attrs[i].name_lwc != NULL) {
+                lwc_string_unref(snap->attrs[i].name_lwc);
+            }
+            if (snap->attrs[i].value_lwc != NULL) {
+                lwc_string_unref(snap->attrs[i].value_lwc);
+            }
+        }
+        free(snap->attrs);
+    }
+
+    if (snap->hints != NULL) {
+        free(snap->hints);
+    }
+
+    if (snap->inline_style != NULL) {
+        css_stylesheet_destroy(snap->inline_style);
+    }
+
+    if (snap->node != NULL) {
+        dom_node_unref(snap->node);
+    }
+
+    free(snap);
+}
+
 struct parallel_style_task_data {
     html_content *content;
-    dom_node *node;
+    style_snapshot_t *snap;
     css_select_results **out_results;
     int index;
     struct wisp_wait_group *wg;
@@ -381,25 +1104,7 @@ struct parallel_style_task_data {
 static void parallel_style_worker_cb(void *arg) {
     struct parallel_style_task_data *task = arg;
     html_content *c = task->content;
-    dom_node *n = task->node;
-
-    dom_string *s = NULL;
-    css_stylesheet *inline_style = NULL;
-
-    /* Read DOM element attributes under DOM mutex to prevent any concurrent LibDOM/LibCSS read violations */
-    pthread_mutex_lock(&dom_lock);
-    if (nsoption_bool(author_level_css)) {
-        dom_element_get_attribute(n, corestring_dom_style, &s);
-    }
-    pthread_mutex_unlock(&dom_lock);
-
-    if (s != NULL) {
-        pthread_mutex_lock(&dom_lock);
-        inline_style = nscss_create_inline_style((const uint8_t *)dom_string_data(s), dom_string_byte_length(s),
-            c->encoding, nsurl_access(c->base_url), c->quirks != DOM_DOCUMENT_QUIRKS_MODE_NONE);
-        dom_string_unref(s);
-        pthread_mutex_unlock(&dom_lock);
-    }
+    style_snapshot_t *snap = task->snap;
 
     nscss_select_ctx select_ctx;
     select_ctx.ctx = c->select_ctx;
@@ -409,17 +1114,14 @@ static void parallel_style_worker_cb(void *arg) {
     select_ctx.root_style = NULL;
     select_ctx.parent_style = NULL;
 
-    pthread_mutex_lock(&dom_lock);
-    css_select_results *styles = nscss_get_style(&select_ctx, n, &c->media, &c->unit_len_ctx, inline_style);
-    pthread_mutex_unlock(&dom_lock);
+    css_select_results *styles = NULL;
+    css_error error = css_select_style(c->select_ctx, snap, &c->unit_len_ctx, &c->media, snap->inline_style, &snapshot_selection_handler, &select_ctx, &styles);
 
-    if (inline_style != NULL) {
-        pthread_mutex_lock(&dom_lock);
-        css_stylesheet_destroy(inline_style);
-        pthread_mutex_unlock(&dom_lock);
+    if (error == CSS_OK) {
+        task->out_results[task->index] = styles;
+    } else {
+        task->out_results[task->index] = NULL;
     }
-
-    task->out_results[task->index] = styles;
 
     wisp_wait_group_done(task->wg);
     free(task);
@@ -434,13 +1136,27 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
     }
 
-    /* Collect all elements in the sub-tree */
-    #define MAX_ELEMENTS 512
-    dom_node *elements[MAX_ELEMENTS];
-    int count = 0;
-    collect_descendant_elements(root, elements, &count, MAX_ELEMENTS);
+    nscss_select_ctx select_ctx;
+    select_ctx.ctx = c->select_ctx;
+    select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
+    select_ctx.base_url = c->base_url;
+    select_ctx.universal = c->universal;
+    select_ctx.root_style = NULL;
+    select_ctx.parent_style = NULL;
 
-    if (count == 0) return;
+    /* Perform a fast, sequential pre-pass down the DOM tree to construct a lightweight Element Property Snapshot */
+    style_snapshot_t *snap_root = create_style_snapshot(c, root, NULL, &select_ctx);
+    if (snap_root == NULL) return;
+
+    #define MAX_ELEMENTS 512
+    style_snapshot_t *snap_elements[MAX_ELEMENTS];
+    int count = 0;
+    flatten_snapshot_tree(snap_root, snap_elements, &count, MAX_ELEMENTS);
+
+    if (count == 0) {
+        free_style_snapshot(snap_root);
+        return;
+    }
 
     /* Flat concurrent-write results array */
     css_select_results **out_styles = calloc(count, sizeof(css_select_results *));
@@ -452,7 +1168,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
     for (int i = 0; i < count; i++) {
         struct parallel_style_task_data *task = malloc(sizeof(struct parallel_style_task_data));
         task->content = c;
-        task->node = elements[i]; /* already ref'd by collect_descendant_elements */
+        task->snap = snap_elements[i];
         task->out_results = out_styles;
         task->index = i;
         task->wg = &wg;
@@ -468,10 +1184,10 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
 
     /* Top-down snapshot composition on the main thread */
     for (int i = 0; i < count; i++) {
-        dom_node *n = elements[i];
+        style_snapshot_t *snap = snap_elements[i];
+        dom_node *n = snap->node;
         css_select_results *styles = out_styles[i];
         if (styles == NULL) {
-            dom_node_unref(n);
             continue;
         }
 
@@ -516,16 +1232,20 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
             }
         }
 
+        /* Save the updated libcss_node_data back to the original dom_node's user data */
+        if (set_libcss_node_data != NULL) {
+            set_libcss_node_data(&select_ctx, n, snap->libcss_node_data);
+        }
+
         /* Cache pre-computed style results on the DOM node */
         dom_node_set_user_data(n, style_cache_key, styles, NULL, NULL);
 
         /* Also add to c->style_cache linked list for centralized cleanup */
         html_style_cache_add(c, n, styles);
-
-        dom_node_unref(n);
     }
 
     free(out_styles);
+    free_style_snapshot(snap_root);
 }
 
 __attribute__((weak)) bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority) {
