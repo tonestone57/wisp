@@ -12,7 +12,6 @@
 
 extern JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
 
-static wisp_ipc_handle *ipc_main;
 static JSRuntime *rt;
 static char *js_process_origin = NULL;
 
@@ -27,6 +26,9 @@ static struct js_context_node *contexts = NULL;
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
+
+extern bool wisp_in_microtask;
+extern wisp_ipc_handle *ipc_main;
 
 extern int qjs_init_dom_bridge(JSContext *ctx);
 extern int qjs_init_eventtarget(JSContext *ctx);
@@ -236,6 +238,7 @@ int main(int argc, char **argv) {
                     JSValue val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
 
                     /* Execute any pending microtasks (microtask-tick serialization) */
+                    wisp_in_microtask = true;
                     JSContext *ctx1;
                     int job_ret;
                     while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0) {
@@ -247,6 +250,7 @@ int main(int argc, char **argv) {
                             JS_FreeValue(ctx1, exc);
                         }
                     }
+                    wisp_in_microtask = false;
 
                     /* Flush the Batch-Buffered Mutation Queue (BBMQ) */
                     extern void bbmq_flush(void);

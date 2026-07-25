@@ -10,6 +10,7 @@
 #include "utils/corestrings.h"
 #include "JSElement.gen.h"
 #include "wisp/utils/shm_dom.h"
+#include <wisp/utils/ipc.h>
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
@@ -407,6 +408,131 @@ JSValue wisp_element_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv,
     return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
 }
 
+#ifdef _WIN32
+#include <windows.h>
+static uint64_t get_us(void) {
+    LARGE_INTEGER count, freq;
+    QueryPerformanceCounter(&count);
+    QueryPerformanceFrequency(&freq);
+    return (count.QuadPart * 1000000) / freq.QuadPart;
+}
+#else
+#include <sys/time.h>
+static uint64_t get_us(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
+#endif
+
+bool wisp_in_microtask = false;
+wisp_ipc_handle *ipc_main = NULL;
+
+static void request_synchronous_layout_from_main(void) {
+    if (!ipc_main) return;
+
+    extern void bbmq_flush(void);
+    bbmq_flush();
+
+    wisp_ipc_msg req;
+    req.type = WISP_IPC_MSG_DOM_REQUEST;
+    req.length = 0;
+    req.data = NULL;
+    wisp_ipc_send(ipc_main, &req);
+
+    wisp_ipc_set_blocking(ipc_main, true);
+    wisp_ipc_msg resp;
+    while (wisp_ipc_recv(ipc_main, &resp) == NSERROR_OK) {
+        if (resp.type == WISP_IPC_MSG_DOM_RESPONSE) {
+            wisp_ipc_msg_free(&resp);
+            break;
+        }
+        wisp_ipc_msg_free(&resp);
+    }
+    wisp_ipc_set_blocking(ipc_main, false);
+}
+
+static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 2) return JS_NewInt32(ctx, 0);
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+
+    const char *prop = JS_ToCString(ctx, argv[1]);
+    if (!prop) return JS_NewInt32(ctx, 0);
+
+    uint64_t node_id = (uint64_t)(uintptr_t)priv->node;
+    shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, node_id);
+    if (!sn) {
+        JS_FreeCString(ctx, prop);
+        // Default stubs
+        if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "scrollWidth") == 0) return JS_NewInt32(ctx, 1024);
+        if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "scrollHeight") == 0) return JS_NewInt32(ctx, 768);
+        return JS_NewInt32(ctx, 0);
+    }
+
+    static uint64_t last_layout_pass_us = 0;
+
+    bool needs_forced_layout = wisp_shm_dom && (wisp_shm_dom->layout_dirty || sn->layout_dirty);
+
+    // Check if BBMQ contains pending writes for this node (Write-Then-Read same-microtask invariant)
+    if (!needs_forced_layout && bbmq_has_pending_for_node(node_id)) {
+        needs_forced_layout = true;
+    }
+
+    if (needs_forced_layout) {
+        if (wisp_in_microtask) {
+            // Non-critical microtask context -> Serve estimated/previously cached bounding box!
+            // No forced layout.
+        } else {
+            // Check threshold for coalescing
+            uint64_t now = get_us();
+            if (now - last_layout_pass_us < 1000) {
+                // Coalesce! Serve from shared memory.
+            } else {
+                request_synchronous_layout_from_main();
+                last_layout_pass_us = get_us();
+            }
+        }
+    }
+
+    // Read from shared memory with Seqlock to prevent torn reads
+    int32_t rx = 0, ry = 0, rw = 0, rh = 0;
+    uint32_t seq1, seq2;
+    do {
+        seq1 = __atomic_load_n(&sn->seq_version, __ATOMIC_ACQUIRE);
+        rx = sn->x;
+        ry = sn->y;
+        rw = sn->width;
+        rh = sn->height;
+        seq2 = __atomic_load_n(&sn->seq_version, __ATOMIC_ACQUIRE);
+    } while ((seq1 & 1) || (seq1 != seq2));
+
+    // Handle estimates fallback if dimensions are still uncalculated (0)
+    if (rw <= 0 || rh <= 0) {
+        if (strcasecmp(sn->tag_name, "html") == 0 || strcasecmp(sn->tag_name, "body") == 0) {
+            rw = 1024;
+            rh = 768;
+        } else {
+            rw = 100;
+            rh = 30;
+        }
+    }
+
+    JSValue res = JS_NewInt32(ctx, 0);
+    if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "scrollWidth") == 0 || strcmp(prop, "offsetWidth") == 0) {
+        res = JS_NewInt32(ctx, rw);
+    } else if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "scrollHeight") == 0 || strcmp(prop, "offsetHeight") == 0) {
+        res = JS_NewInt32(ctx, rh);
+    } else if (strcmp(prop, "offsetLeft") == 0 || strcmp(prop, "clientLeft") == 0) {
+        res = JS_NewInt32(ctx, rx);
+    } else if (strcmp(prop, "offsetTop") == 0 || strcmp(prop, "clientTop") == 0) {
+        res = JS_NewInt32(ctx, ry);
+    }
+
+    JS_FreeCString(ctx, prop);
+    return res;
+}
+
 static JSValue js_element_style_get_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     if (argc < 1) return JS_UNDEFINED;
@@ -615,9 +741,7 @@ int qjs_init_element(JSContext *ctx) {
         "        if (!(prop in Element.prototype)) {\n"
         "            Object.defineProperty(Element.prototype, prop, {\n"
         "                get() {\n"
-        "                    if (prop === 'clientWidth' || prop === 'scrollWidth') return 1024;\n"
-        "                    if (prop === 'clientHeight' || prop === 'scrollHeight') return 768;\n"
-        "                    return 0;\n"
+        "                    return globalThis.__wisp_get_layout_property(this, prop);\n"
         "                },\n"
         "                set() {},\n"
         "                configurable: true,\n"
@@ -625,9 +749,36 @@ int qjs_init_element(JSContext *ctx) {
         "            });\n"
         "        }\n"
         "    });\n"
+        "    if (!('getBoundingClientRect' in Element.prototype)) {\n"
+        "        Element.prototype.getBoundingClientRect = function() {\n"
+        "            let width = globalThis.__wisp_get_layout_property(this, 'offsetWidth');\n"
+        "            let height = globalThis.__wisp_get_layout_property(this, 'offsetHeight');\n"
+        "            let left = globalThis.__wisp_get_layout_property(this, 'offsetLeft');\n"
+        "            let top = globalThis.__wisp_get_layout_property(this, 'offsetTop');\n"
+        "            return {\n"
+        "                x: left,\n"
+        "                y: top,\n"
+        "                left: left,\n"
+        "                top: top,\n"
+        "                width: width,\n"
+        "                height: height,\n"
+        "                right: left + width,\n"
+        "                bottom: top + height\n"
+        "            };\n"
+        "        };\n"
+        "    }\n"
+        "    if (!('getClientRects' in Element.prototype)) {\n"
+        "        Element.prototype.getClientRects = function() {\n"
+        "            return [this.getBoundingClientRect()];\n"
+        "        };\n"
+        "    }\n"
         "}\n";
     JSValue layout_stubs_res = JS_Eval(ctx, layout_stubs_js, strlen(layout_stubs_js), "<layout_stubs_init>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, layout_stubs_res);
+
+    /* Define __wisp_get_layout_property on global_obj */
+    JSValue get_layout_property_fn = JS_NewCFunction(ctx, js_element_get_layout_property_global, "__wisp_get_layout_property", 2);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_get_layout_property", get_layout_property_fn);
 
     /* Define __wisp_element_style_get on global_obj */
     JSValue style_get_fn = JS_NewCFunction(ctx, js_element_style_get_global, "__wisp_element_style_get", 1);

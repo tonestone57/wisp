@@ -168,6 +168,44 @@ START_TEST(test_quickjs_event_composed_path)
 }
 END_TEST
 
+START_TEST(test_quickjs_predictive_layout)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: properties and getBoundingClientRect on elements
+    const char *code1 = "try {\n"
+                        "  var el = document.createElement('div');\n"
+                        "  if (el.clientWidth !== 100 && el.clientWidth !== 1024) throw new Error('clientWidth estimate failed: ' + el.clientWidth);\n"
+                        "  var rect = el.getBoundingClientRect();\n"
+                        "  if (rect.width !== 100 && rect.width !== 1024) throw new Error('getBoundingClientRect width failed');\n"
+                        "  window.testRes = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes = e.message;\n"
+                        "}\n"
+                        "window.testRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_predictive_layout");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_custom_elements)
 {
     jsheap *heap = NULL;
@@ -2867,6 +2905,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_custom_elements);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

@@ -3138,6 +3138,55 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
     }
 }
 
+static void update_shm_box_bounds_recursive(shm_dom_t *shm, struct box *box) {
+    if (!box) return;
+    if (box->node && shm) {
+        for (uint32_t i = 0; i < shm->node_count; i++) {
+            if (shm->nodes[i].dom_ptr == (uint64_t)(uintptr_t)box->node) {
+                struct rect r;
+                box_bounds(box, &r);
+
+                uint32_t seq = shm->nodes[i].seq_version;
+                __atomic_store_n(&shm->nodes[i].seq_version, seq + 1, __ATOMIC_RELEASE);
+
+                shm->nodes[i].x = r.x0;
+                shm->nodes[i].y = r.y0;
+                shm->nodes[i].width = r.x1 - r.x0;
+                shm->nodes[i].height = r.y1 - r.y0;
+                shm->nodes[i].layout_dirty = 0;
+
+                __atomic_store_n(&shm->nodes[i].seq_version, seq + 2, __ATOMIC_RELEASE);
+                break;
+            }
+        }
+    }
+    for (struct box *child = box->children; child; child = child->next) {
+        update_shm_box_bounds_recursive(shm, child);
+    }
+}
+
+void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
+    if (!thread || !thread->shm_dom || !doc_box) return;
+    update_shm_box_bounds_recursive(thread->shm_dom, doc_box);
+    thread->shm_dom->layout_dirty = false;
+}
+
+extern bool layout_document(struct html_content *content, int width, int height);
+
+static void force_synchronous_layout(struct jsthread *thread) {
+    struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv) ? (struct html_content *)thread->doc_priv : NULL;
+    if (htmlc && htmlc->layout) {
+        int width = htmlc->last_layout_width > 0 ? htmlc->last_layout_width : 1024;
+        int height = htmlc->last_layout_height > 0 ? htmlc->last_layout_height : 768;
+
+        doc_rwlock_rdlock(&htmlc->doc_mutex);
+        layout_document(htmlc, width, height);
+        doc_rwlock_rdunlock(&htmlc->doc_mutex);
+
+        qjs_update_shm_box_bounds(thread, htmlc->layout);
+    }
+}
+
 void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
     if (!shm) return;
     shm_mutation_queue_t *mq = &shm->mutation_queue;
@@ -3233,6 +3282,17 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         if (response.type == WISP_IPC_MSG_JS_EXEC) {
                             got_response = true;
                             break;
+                        } else if (response.type == WISP_IPC_MSG_DOM_REQUEST) {
+                            if (doc) {
+                                drain_mutation_queue(thread->shm_dom, doc);
+                                force_synchronous_layout(thread);
+                            }
+                            wisp_ipc_msg resp;
+                            resp.type = WISP_IPC_MSG_DOM_RESPONSE;
+                            resp.length = 0;
+                            resp.data = NULL;
+                            wisp_ipc_send(ipc_js, &resp);
+                            wisp_ipc_msg_free(&response);
                         } else {
                             /* Ignore unexpected/stale message types */
                             wisp_ipc_msg_free(&response);
