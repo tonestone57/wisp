@@ -2042,6 +2042,25 @@ static int fetch_curl_fdset(lwc_string *scheme, fd_set *read_set, fd_set *write_
 }
 
 
+static bool file_readable(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    if (f) {
+        fclose(f);
+        return true;
+    }
+    return false;
+}
+
+static bool dir_exists(const char *path)
+{
+    struct stat s;
+    if (stat(path, &s) == 0) {
+        return S_ISDIR(s.st_mode);
+    }
+    return false;
+}
+
 /* exported function documented in content/fetchers/curl.h */
 nserror fetch_curl_register(void)
 {
@@ -2058,6 +2077,44 @@ nserror fetch_curl_register(void)
         .poll = fetch_curl_poll,
         .fdset = fetch_curl_fdset,
         .finalise = fetch_curl_finalise};
+
+    if (nsoption_charp(ca_bundle) == NULL || strcmp(nsoption_charp(ca_bundle), "") == 0) {
+        /* Search for standard system ca-bundle file paths */
+        const char *bundle_paths[] = {
+            "/etc/ssl/certs/ca-certificates.crt",             /* Debian, Ubuntu, Gentoo, Arch, etc. */
+            "/etc/pki/tls/certs/ca-bundle.crt",               /* RedHat, Fedora, CentOS, RHEL, etc. */
+            "/etc/ssl/ca-bundle.pem",                         /* OpenSUSE */
+            "/usr/local/share/certs/ca-root-nss.crt",         /* FreeBSD */
+            "/etc/ssl/cert.pem",                              /* macOS (Homebrew / MacPorts / system) */
+            "/boot/system/data/ssl/CARootCertificates.pem",   /* Haiku */
+            "/usr/local/share/wisp/ca-bundle",                 /* Wisp custom install path */
+            "/usr/share/wisp/ca-bundle",                       /* Wisp alt install path */
+            "ca-bundle",                                      /* Windows / local fallback */
+            "ca-bundle.crt",                                  /* Windows / local fallback */
+        };
+        for (size_t b = 0; b < sizeof(bundle_paths) / sizeof(bundle_paths[0]); b++) {
+            if (file_readable(bundle_paths[b])) {
+                nsoption_set_charp(ca_bundle, strdup(bundle_paths[b]));
+                NSLOG(wisp, INFO, "Auto-detected SSL CA bundle: %s", bundle_paths[b]);
+                break;
+            }
+        }
+    }
+
+    if (nsoption_charp(ca_path) == NULL || strcmp(nsoption_charp(ca_path), "") == 0) {
+        /* Search for standard system ca-path directories */
+        const char *path_dirs[] = {
+            "/etc/ssl/certs",
+            "/etc/pki/tls/certs",
+        };
+        for (size_t p = 0; p < sizeof(path_dirs) / sizeof(path_dirs[0]); p++) {
+            if (dir_exists(path_dirs[p])) {
+                nsoption_set_charp(ca_path, strdup(path_dirs[p]));
+                NSLOG(wisp, INFO, "Auto-detected SSL CA path: %s", path_dirs[p]);
+                break;
+            }
+        }
+    }
 
 #if LIBCURL_VERSION_NUM >= 0x073800
     /* version 7.56.0 can select which SSL backend to use */

@@ -702,16 +702,30 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 
     /* Check against Content Security Policy */
     if (child != NULL && child->csp != NULL) {
-        csp_directive dir = CSP_DEFAULT_SRC;
+        bool exempt = false;
+        lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
+        if (scheme != NULL) {
+            bool match = false;
+            if (lwc_string_caseless_isequal(scheme, corestring_lwc_resource, &match) == lwc_error_ok && match) {
+                exempt = true;
+            } else if (lwc_string_caseless_isequal(scheme, corestring_lwc_about, &match) == lwc_error_ok && match) {
+                exempt = true;
+            }
+            lwc_string_unref(scheme);
+        }
 
-        if (accepted_types == CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
-        else if (accepted_types == CONTENT_IMAGE) dir = CSP_IMG_SRC;
-        else if (accepted_types == CONTENT_CSS) dir = CSP_STYLE_SRC;
-        else if (accepted_types == CONTENT_HTML) dir = CSP_FRAME_SRC;
+        if (!exempt) {
+            csp_directive dir = CSP_DEFAULT_SRC;
 
-        if (!csp_check_url(child->csp, dir, url)) {
-            *result = NULL;
-            return NSERROR_CSP_BLOCKED;
+            if (accepted_types == CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
+            else if (accepted_types == CONTENT_IMAGE) dir = CSP_IMG_SRC;
+            else if (accepted_types == CONTENT_CSS) dir = CSP_STYLE_SRC;
+            else if (accepted_types == CONTENT_HTML) dir = CSP_FRAME_SRC;
+
+            if (!csp_check_url(child->csp, dir, url)) {
+                *result = NULL;
+                return NSERROR_CSP_BLOCKED;
+            }
         }
     }
 

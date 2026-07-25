@@ -215,10 +215,26 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
     }
 
     if (src->host) {
-        lwc_string *url_host = nsurl_get_component(url, NSURL_HOST);
-        if (!url_host) return false;
-        bool match = (strcasecmp(src->host, lwc_string_data(url_host)) == 0);
-        lwc_string_unref(url_host);
+        lwc_string *url_host_lwc = nsurl_get_component(url, NSURL_HOST);
+        if (!url_host_lwc) return false;
+        const char *url_host = lwc_string_data(url_host_lwc);
+        bool match = false;
+        if (strncmp(src->host, "*.", 2) == 0) {
+            const char *suffix = src->host + 1; /* ".apple.com" */
+            size_t suffix_len = strlen(suffix);
+            size_t host_len = strlen(url_host);
+            if (host_len >= suffix_len) {
+                if (strcasecmp(url_host + (host_len - suffix_len), suffix) == 0) {
+                    match = true;
+                }
+            }
+            if (!match && strcasecmp(src->host + 2, url_host) == 0) {
+                match = true;
+            }
+        } else {
+            match = (strcasecmp(src->host, url_host) == 0);
+        }
+        lwc_string_unref(url_host_lwc);
         if (!match) return false;
     }
 
