@@ -591,6 +591,8 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->parser = NULL;
 	c->parse_completed = false;
 	c->conversion_begun = false;
+	c->style_cache = NULL;
+	pthread_mutex_init(&c->style_cache_mutex, NULL);
 	c->active_parse_tasks = NULL;
 	c->document = NULL;
 	c->quirks = DOM_DOCUMENT_QUIRKS_MODE_NONE;
@@ -1604,8 +1606,28 @@ static void html_destroy_iframe(struct content_html_iframe *iframe)
 }
 
 
+static void html_style_cache_free(html_content *c) {
+	pthread_mutex_lock(&c->style_cache_mutex);
+	struct style_cache_node *node = c->style_cache;
+	while (node != NULL) {
+		struct style_cache_node *next = node->next;
+		if (node->node != NULL) {
+			dom_node_unref(node->node);
+		}
+		if (node->styles != NULL) {
+			css_select_results_destroy(node->styles);
+		}
+		free(node);
+		node = next;
+	}
+	c->style_cache = NULL;
+	pthread_mutex_unlock(&c->style_cache_mutex);
+}
+
 static void html_free_layout(html_content *htmlc)
 {
+	html_style_cache_free(htmlc);
+
 	if (htmlc->box_conversion_context != NULL) {
 		if (cancel_dom_to_box(htmlc->box_conversion_context) != NSERROR_OK) {
 			NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");

@@ -247,9 +247,303 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
  * \param  n               node in xml tree
  * \return  the new style, or NULL on memory exhaustion
  */
+#include <unistd.h>
+
+extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+
+static pthread_mutex_t dom_lock = PTHREAD_MUTEX_INITIALIZER;
+
+struct wisp_wait_group {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    volatile int count;
+};
+
+static inline void wisp_wait_group_init(struct wisp_wait_group *wg, int count) {
+    pthread_mutex_init(&wg->mutex, NULL);
+    pthread_cond_init(&wg->cond, NULL);
+    wg->count = count;
+}
+
+static inline void wisp_wait_group_done(struct wisp_wait_group *wg) {
+    pthread_mutex_lock(&wg->mutex);
+    wg->count--;
+    if (wg->count <= 0) {
+        pthread_cond_broadcast(&wg->cond);
+    }
+    pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_wait_group_wait(struct wisp_wait_group *wg) {
+    pthread_mutex_lock(&wg->mutex);
+    while (wg->count > 0) {
+        pthread_cond_wait(&wg->cond, &wg->mutex);
+    }
+    pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_wait_group_destroy(struct wisp_wait_group *wg) {
+    pthread_mutex_destroy(&wg->mutex);
+    pthread_cond_destroy(&wg->cond);
+}
+
+static bool node_is_independent_subtree_root(dom_node *node) {
+    if (node == NULL) return false;
+    dom_node_type type;
+    if (dom_node_get_node_type(node, &type) != DOM_NO_ERR || type != DOM_ELEMENT_NODE) {
+        return false;
+    }
+
+    /* Check if it's a CSS Grid item, i.e. its parent is a grid container */
+    dom_node *parent = NULL;
+    if (dom_node_get_parent_node(node, &parent) == DOM_NO_ERR && parent != NULL) {
+        dom_string *parent_class_attr = NULL;
+        if (dom_element_get_attribute(parent, corestring_dom_class, &parent_class_attr) == DOM_NO_ERR && parent_class_attr != NULL) {
+            const char *pcls = dom_string_data(parent_class_attr);
+            if (pcls != NULL && (strstr(pcls, "grid") != NULL || strstr(pcls, "flex") != NULL)) {
+                dom_string_unref(parent_class_attr);
+                dom_node_unref(parent);
+                return true;
+            }
+            dom_string_unref(parent_class_attr);
+        }
+        dom_node_unref(parent);
+    }
+
+    /* Check if it has classes like contain-layout or contain */
+    dom_string *class_attr = NULL;
+    if (dom_element_get_attribute(node, corestring_dom_class, &class_attr) == DOM_NO_ERR && class_attr != NULL) {
+        const char *cls = dom_string_data(class_attr);
+        if (cls != NULL && (strstr(cls, "contain-layout") != NULL || strstr(cls, "contain") != NULL || strstr(cls, "grid") != NULL || strstr(cls, "flex") != NULL)) {
+            dom_string_unref(class_attr);
+            return true;
+        }
+        dom_string_unref(class_attr);
+    }
+
+    /* Check style attribute */
+    dom_string *style_attr = NULL;
+    if (dom_element_get_attribute(node, corestring_dom_style, &style_attr) == DOM_NO_ERR && style_attr != NULL) {
+        const char *style = dom_string_data(style_attr);
+        if (style != NULL && (strstr(style, "display: grid") != NULL || strstr(style, "display: flex") != NULL || strstr(style, "contain: layout") != NULL || strstr(style, "contain") != NULL)) {
+            dom_string_unref(style_attr);
+            return true;
+        }
+        dom_string_unref(style_attr);
+    }
+    return false;
+}
+
+static void collect_descendant_elements(dom_node *node, dom_node **elements, int *count, int max_capacity) {
+    if (node == NULL || *count >= max_capacity) return;
+
+    dom_node_type type;
+    if (dom_node_get_node_type(node, &type) == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
+        elements[*count] = dom_node_ref(node);
+        (*count)++;
+    }
+
+    dom_node *child = NULL;
+    if (dom_node_get_first_child(node, &child) == DOM_NO_ERR && child != NULL) {
+        while (child != NULL) {
+            collect_descendant_elements(child, elements, count, max_capacity);
+            dom_node *next = NULL;
+            if (dom_node_get_next_sibling(child, &next) != DOM_NO_ERR) {
+                dom_node_unref(child);
+                break;
+            }
+            dom_node_unref(child);
+            child = next;
+        }
+    }
+}
+
+static void html_style_cache_add(html_content *c, dom_node *node, css_select_results *styles) {
+	pthread_mutex_lock(&c->style_cache_mutex);
+	struct style_cache_node *n = malloc(sizeof(struct style_cache_node));
+	if (n) {
+		n->node = dom_node_ref(node);
+		n->styles = styles;
+		n->next = c->style_cache;
+		c->style_cache = n;
+	}
+	pthread_mutex_unlock(&c->style_cache_mutex);
+}
+
+struct parallel_style_task_data {
+    html_content *content;
+    dom_node *node;
+    css_select_results **out_results;
+    int index;
+    struct wisp_wait_group *wg;
+};
+
+static void parallel_style_worker_cb(void *arg) {
+    struct parallel_style_task_data *task = arg;
+    html_content *c = task->content;
+    dom_node *n = task->node;
+
+    dom_string *s = NULL;
+    css_stylesheet *inline_style = NULL;
+
+    /* Read DOM element attributes under DOM mutex to prevent any concurrent LibDOM/LibCSS read violations */
+    pthread_mutex_lock(&dom_lock);
+    if (nsoption_bool(author_level_css)) {
+        dom_element_get_attribute(n, corestring_dom_style, &s);
+    }
+    pthread_mutex_unlock(&dom_lock);
+
+    if (s != NULL) {
+        pthread_mutex_lock(&dom_lock);
+        inline_style = nscss_create_inline_style((const uint8_t *)dom_string_data(s), dom_string_byte_length(s),
+            c->encoding, nsurl_access(c->base_url), c->quirks != DOM_DOCUMENT_QUIRKS_MODE_NONE);
+        dom_string_unref(s);
+        pthread_mutex_unlock(&dom_lock);
+    }
+
+    nscss_select_ctx select_ctx;
+    select_ctx.ctx = c->select_ctx;
+    select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
+    select_ctx.base_url = c->base_url;
+    select_ctx.universal = c->universal;
+    select_ctx.root_style = NULL;
+    select_ctx.parent_style = NULL;
+
+    pthread_mutex_lock(&dom_lock);
+    css_select_results *styles = nscss_get_style(&select_ctx, n, &c->media, &c->unit_len_ctx, inline_style);
+    pthread_mutex_unlock(&dom_lock);
+
+    if (inline_style != NULL) {
+        pthread_mutex_lock(&dom_lock);
+        css_stylesheet_destroy(inline_style);
+        pthread_mutex_unlock(&dom_lock);
+    }
+
+    task->out_results[task->index] = styles;
+
+    wisp_wait_group_done(task->wg);
+    free(task);
+}
+
+static void html_parallel_style_selection(html_content *c, dom_node *root) {
+    if (c == NULL || root == NULL || c->select_ctx == NULL) return;
+
+    /* Initialize style cache key if not done */
+    static dom_string *style_cache_key = NULL;
+    if (style_cache_key == NULL) {
+        dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
+    }
+
+    /* Collect all elements in the sub-tree */
+    #define MAX_ELEMENTS 512
+    dom_node *elements[MAX_ELEMENTS];
+    int count = 0;
+    collect_descendant_elements(root, elements, &count, MAX_ELEMENTS);
+
+    if (count == 0) return;
+
+    /* Flat concurrent-write results array */
+    css_select_results **out_styles = calloc(count, sizeof(css_select_results *));
+
+    struct wisp_wait_group wg;
+    wisp_wait_group_init(&wg, count);
+
+    /* Dispatch styling tasks in parallel to workers */
+    for (int i = 0; i < count; i++) {
+        struct parallel_style_task_data *task = malloc(sizeof(struct parallel_style_task_data));
+        task->content = c;
+        task->node = elements[i]; /* already ref'd by collect_descendant_elements */
+        task->out_results = out_styles;
+        task->index = i;
+        task->wg = &wg;
+
+        wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f);
+    }
+
+    /* Join phase: wait for all worker tasks to finish */
+    wisp_wait_group_wait(&wg);
+    wisp_wait_group_destroy(&wg);
+
+    /* Top-down snapshot composition on the main thread */
+    for (int i = 0; i < count; i++) {
+        dom_node *n = elements[i];
+        css_select_results *styles = out_styles[i];
+        if (styles == NULL) {
+            dom_node_unref(n);
+            continue;
+        }
+
+        /* Determine parent style */
+        const css_computed_style *parent_style = NULL;
+        dom_node *parent = NULL;
+        if (dom_node_get_parent_node(n, &parent) == DOM_NO_ERR && parent != NULL) {
+            /* Check if the parent style is in our cache */
+            css_select_results *parent_cached = NULL;
+            dom_node_get_user_data(parent, style_cache_key, (void *)&parent_cached);
+            if (parent_cached != NULL) {
+                parent_style = parent_cached->styles[CSS_PSEUDO_ELEMENT_NONE];
+            } else {
+                /* Try to find parent's box style */
+                struct box *parent_box = box_for_node(parent);
+                if (parent_box != NULL) {
+                    parent_style = parent_box->style;
+                }
+            }
+            dom_node_unref(parent);
+        }
+
+        /* Compose style top-down with parent style snapshot */
+        if (parent_style != NULL) {
+            css_computed_style *composed = NULL;
+            css_error error = css_computed_style_compose(
+                parent_style, styles->styles[CSS_PSEUDO_ELEMENT_NONE], &c->unit_len_ctx, &composed);
+            if (error == CSS_OK) {
+                css_computed_style_destroy(styles->styles[CSS_PSEUDO_ELEMENT_NONE]);
+                styles->styles[CSS_PSEUDO_ELEMENT_NONE] = composed;
+            }
+
+            /* Compose pseudo elements as well */
+            for (int pseudo = CSS_PSEUDO_ELEMENT_NONE + 1; pseudo < CSS_PSEUDO_ELEMENT_COUNT; pseudo++) {
+                if (styles->styles[pseudo] == NULL) continue;
+                error = css_computed_style_compose(
+                    styles->styles[CSS_PSEUDO_ELEMENT_NONE], styles->styles[pseudo], &c->unit_len_ctx, &composed);
+                if (error == CSS_OK) {
+                    css_computed_style_destroy(styles->styles[pseudo]);
+                    styles->styles[pseudo] = composed;
+                }
+            }
+        }
+
+        /* Cache pre-computed style results on the DOM node */
+        dom_node_set_user_data(n, style_cache_key, styles, NULL, NULL);
+
+        /* Also add to c->style_cache linked list for centralized cleanup */
+        html_style_cache_add(c, n, styles);
+
+        dom_node_unref(n);
+    }
+
+    free(out_styles);
+}
+
+__attribute__((weak)) bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority) {
+    if (func) func(arg);
+    return true;
+}
+
 static css_select_results *box_get_style(
 	html_content *c, const css_computed_style *parent_style, const css_computed_style *root_style, dom_node *n)
 {
+	static dom_string *style_cache_key = NULL;
+	if (style_cache_key == NULL) {
+		dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
+	}
+	css_select_results *cached = NULL;
+	dom_node_get_user_data(n, style_cache_key, (void *)&cached);
+	if (cached != NULL) {
+		return cached;
+	}
+
 	dom_string *s = NULL;
 	css_stylesheet *inline_style = NULL;
 	css_select_results *styles;
@@ -941,6 +1235,18 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 
 	if (props.node_is_root == false) {
 		root_style = ctx->root_box->style;
+	}
+
+	if (node_is_independent_subtree_root(ctx->n)) {
+		static dom_string *style_cache_key = NULL;
+		if (style_cache_key == NULL) {
+			dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
+		}
+		css_select_results *cached = NULL;
+		dom_node_get_user_data(ctx->n, style_cache_key, (void *)&cached);
+		if (cached == NULL) {
+			html_parallel_style_selection(ctx->content, ctx->n);
+		}
 	}
 
 	styles = box_get_style(ctx->content, props.parent_style, root_style, ctx->n);
