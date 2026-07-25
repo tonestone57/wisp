@@ -2040,9 +2040,617 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        }\n"
         "    };\n"
         "}\n"
+        "\n"
+        "(function() {\n"
+        "    function getRetargetedTarget(target, currentTarget) {\n"
+        "        let t = target;\n"
+        "        while (t) {\n"
+        "            let isAncestor = false;\n"
+        "            let p = t;\n"
+        "            while (p) {\n"
+        "                if (p === currentTarget) {\n"
+        "                    isAncestor = true;\n"
+        "                    break;\n"
+        "                }\n"
+        "                p = p.parentNode || p.host;\n"
+        "            }\n"
+        "            if (isAncestor) return t;\n"
+        "            let nextT = null;\n"
+        "            let p2 = t;\n"
+        "            while (p2) {\n"
+        "                if (p2.host) {\n"
+        "                    nextT = p2.host;\n"
+        "                    break;\n"
+        "                }\n"
+        "                p2 = p2.parentNode;\n"
+        "            }\n"
+        "            if (!nextT) break;\n"
+        "            t = nextT;\n"
+        "        }\n"
+        "        return target;\n"
+        "    }\n"
+        "\n"
+        "    Object.defineProperty(Event.prototype, 'target', {\n"
+        "        get() {\n"
+        "            const t = this._target !== undefined ? this._target : null;\n"
+        "            const ct = this.currentTarget;\n"
+        "            if (t && ct) {\n"
+        "                return getRetargetedTarget(t, ct);\n"
+        "            }\n"
+        "            return t;\n"
+        "        },\n"
+        "        configurable: true, enumerable: true\n"
+        "    });\n"
+        "\n"
+        "    Object.defineProperty(Event.prototype, 'currentTarget', {\n"
+        "        get() {\n"
+        "            return this._currentTarget !== undefined ? this._currentTarget : null;\n"
+        "        },\n"
+        "        configurable: true, enumerable: true\n"
+        "    });\n"
+        "\n"
+        "    Object.defineProperty(Event.prototype, 'eventPhase', {\n"
+        "        get() {\n"
+        "            return this._eventPhase !== undefined ? this._eventPhase : 0;\n"
+        "        },\n"
+        "        configurable: true, enumerable: true\n"
+        "    });\n"
+        "\n"
+        "    Object.defineProperty(Event.prototype, 'composed', {\n"
+        "        get() {\n"
+        "            return this._composed !== undefined ? this._composed : false;\n"
+        "        },\n"
+        "        set(v) {\n"
+        "            this._composed = !!v;\n"
+        "        },\n"
+        "        configurable: true, enumerable: true\n"
+        "    });\n"
+        "\n"
+        "    Event.prototype.composedPath = function() {\n"
+        "        if (!this._composedPath) {\n"
+        "            const path = [];\n"
+        "            let curr = this.target || this.currentTarget;\n"
+        "            if (curr) {\n"
+        "                while (curr) {\n"
+        "                    path.push(curr);\n"
+        "                    if (curr.parentNode) {\n"
+        "                        curr = curr.parentNode;\n"
+        "                    } else if (curr.host) {\n"
+        "                        if (this.composed) {\n"
+        "                            curr = curr.host;\n"
+        "                        } else {\n"
+        "                            curr = null;\n"
+        "                        }\n"
+        "                    } else if (curr === globalThis.document) {\n"
+        "                        curr = globalThis;\n"
+        "                    } else {\n"
+        "                        curr = null;\n"
+        "                    }\n"
+        "                }\n"
+        "                if (path.length > 0 && path[path.length - 1] !== globalThis) {\n"
+        "                    path.push(globalThis);\n"
+        "                }\n"
+        "            }\n"
+        "            this._composedPath = path;\n"
+        "        }\n"
+        "\n"
+        "        const currentTarget = this.currentTarget;\n"
+        "        if (!currentTarget) return this._composedPath;\n"
+        "\n"
+        "        const closedRootsToHide = [];\n"
+        "        let p = this.target;\n"
+        "        while (p) {\n"
+        "            if (p.host) {\n"
+        "                if (p.mode === 'closed') {\n"
+        "                    let hasAsAncestor = false;\n"
+        "                    let cp = currentTarget;\n"
+        "                    while (cp) {\n"
+        "                        if (cp === p) {\n"
+        "                            hasAsAncestor = true;\n"
+        "                            break;\n"
+        "                        }\n"
+        "                        cp = cp.parentNode || cp.host;\n"
+        "                    }\n"
+        "                    if (!hasAsAncestor) {\n"
+        "                        closedRootsToHide.push(p);\n"
+        "                    }\n"
+        "                }\n"
+        "                p = p.host;\n"
+        "            } else {\n"
+        "                p = p.parentNode;\n"
+        "            }\n"
+        "        }\n"
+        "\n"
+        "        return this._composedPath.filter(node => {\n"
+        "            let p = node;\n"
+        "            while (p) {\n"
+        "                if (closedRootsToHide.includes(p)) {\n"
+        "                    return false;\n"
+        "                }\n"
+        "                p = p.parentNode || p.host;\n"
+        "            }\n"
+        "            return true;\n"
+        "        });\n"
+        "    };\n"
+        "\n"
+        "    const OriginalEvent = globalThis.Event;\n"
+        "    globalThis.Event = function(type, options = {}) {\n"
+        "        const evt = new OriginalEvent(type);\n"
+        "        evt._composed = !!options.composed;\n"
+        "        Object.defineProperty(evt, 'bubbles', { value: !!options.bubbles, configurable: true, enumerable: true });\n"
+        "        Object.defineProperty(evt, 'cancelable', { value: !!options.cancelable, configurable: true, enumerable: true });\n"
+        "        return evt;\n"
+        "    };\n"
+        "    globalThis.Event.prototype = OriginalEvent.prototype;\n"
+        "\n"
+        "    EventTarget.prototype.dispatchEvent = function(event) {\n"
+        "        if (!event) return false;\n"
+        "        \n"
+        "        event._target = this;\n"
+        "        \n"
+        "        const fullPath = [];\n"
+        "        let curr = this;\n"
+        "        while (curr) {\n"
+        "            fullPath.push(curr);\n"
+        "            if (curr.parentNode) {\n"
+        "                curr = curr.parentNode;\n"
+        "            } else if (curr.host) {\n"
+        "                if (event.composed) {\n"
+        "                    curr = curr.host;\n"
+        "                } else {\n"
+        "                    curr = null;\n"
+        "                }\n"
+        "            } else if (curr === globalThis.document) {\n"
+        "                curr = globalThis;\n"
+        "            } else {\n"
+        "                curr = null;\n"
+        "            }\n"
+        "        }\n"
+        "        if (fullPath.length > 0 && fullPath[fullPath.length - 1] !== globalThis) {\n"
+        "            fullPath.push(globalThis);\n"
+        "        }\n"
+        "        \n"
+        "        event._composedPath = fullPath;\n"
+        "\n"
+        "        let stopPropagation = false;\n"
+        "        let stopImmediatePropagation = false;\n"
+        "\n"
+        "        const origStop = event.stopPropagation;\n"
+        "        const origStopImm = event.stopImmediatePropagation;\n"
+        "\n"
+        "        event.stopPropagation = function() {\n"
+        "            stopPropagation = true;\n"
+        "            if (origStop) {\n"
+        "                try { origStop.call(this); } catch(e) {}\n"
+        "            }\n"
+        "        };\n"
+        "        event.stopImmediatePropagation = function() {\n"
+        "            stopImmediatePropagation = true;\n"
+        "            stopPropagation = true;\n"
+        "            if (origStopImm) {\n"
+        "                try { origStopImm.call(this); } catch(e) {}\n"
+        "            }\n"
+        "        };\n"
+        "\n"
+        "        // Phase 1: Capture Phase\n"
+        "        event._eventPhase = 1; // CAPTURING_PHASE\n"
+        "        for (let i = fullPath.length - 1; i > 0; i--) {\n"
+        "            const node = fullPath[i];\n"
+        "            if (node === this) continue;\n"
+        "            \n"
+        "            event._target = getRetargetedTarget(this, node);\n"
+        "            event._currentTarget = node;\n"
+        "            \n"
+        "            const listeners = node.__wisp_listeners ? node.__wisp_listeners[event.type] : null;\n"
+        "            if (listeners) {\n"
+        "                for (const record of listeners) {\n"
+        "                    if (record.capture) {\n"
+        "                        try {\n"
+        "                            record.callback.call(node, event);\n"
+        "                        } catch (e) {\n"
+        "                            console.error('Error in event listener:', e);\n"
+        "                        }\n"
+        "                        if (stopImmediatePropagation) break;\n"
+        "                    }\n"
+        "                }\n"
+        "            }\n"
+        "            if (stopPropagation) break;\n"
+        "        }\n"
+        "\n"
+        "        // Phase 2: Target Phase\n"
+        "        if (!stopPropagation) {\n"
+        "            event._eventPhase = 2; // AT_TARGET\n"
+        "            event._target = this;\n"
+        "            event._currentTarget = this;\n"
+        "            \n"
+        "            const listeners = this.__wisp_listeners ? this.__wisp_listeners[event.type] : null;\n"
+        "            if (listeners) {\n"
+        "                for (const record of listeners) {\n"
+        "                    try {\n"
+        "                        record.callback.call(this, event);\n"
+        "                    } catch (e) { \n"
+        "                        console.error('Error in event listener:', e);\n"
+        "                    }\n"
+        "                    if (stopImmediatePropagation) break;\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "\n"
+        "        // Phase 3: Bubble Phase\n"
+        "        if (!stopPropagation && event.bubbles) {\n"
+        "            event._eventPhase = 3; // BUBBLING_PHASE\n"
+        "            for (let i = 1; i < fullPath.length; i++) {\n"
+        "                const node = fullPath[i];\n"
+        "                if (node === this) continue;\n"
+        "                \n"
+        "                event._target = getRetargetedTarget(this, node);\n"
+        "                event._currentTarget = node;\n"
+        "                \n"
+        "                const listeners = node.__wisp_listeners ? node.__wisp_listeners[event.type] : null;\n"
+        "                if (listeners) {\n"
+        "                    for (const record of listeners) {\n"
+        "                        if (!record.capture) {\n"
+        "                            try {\n"
+        "                                record.callback.call(node, event);\n"
+        "                            } catch (e) {\n"
+        "                                console.error('Error in event listener:', e);\n"
+        "                            }\n"
+        "                            if (stopImmediatePropagation) break;\n"
+        "                        }\n"
+        "                    }\n"
+        "                }\n"
+        "                if (stopPropagation) break;\n"
+        "            }\n"
+        "        }\n"
+        "\n"
+        "        event._currentTarget = null;\n"
+        "        return !event.defaultPrevented;\n"
+        "    };\n"
+        "})();\n"
+        "\n"
+        "class CustomElementRegistry {\n"
+        "    constructor() {\n"
+        "        this._registry = new Map();\n"
+        "        this._pendingCallbacks = [];\n"
+        "        this._insideCallback = false;\n"
+        "    }\n"
+        "\n"
+        "    _queueCallback(fn) {\n"
+        "        this._pendingCallbacks.push(fn);\n"
+        "        if (this._insideCallback) return;\n"
+        "\n"
+        "        this._insideCallback = true;\n"
+        "        try {\n"
+        "            while (this._pendingCallbacks.length > 0) {\n"
+        "                const next = this._pendingCallbacks.shift();\n"
+        "                try {\n"
+        "                    next();\n"
+        "                } catch (e) {\n"
+        "                    console.error('Error in queued custom elements callback:', e);\n"
+        "                }\n"
+        "            }\n"
+        "        } finally {\n"
+        "            this._insideCallback = false;\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    define(name, constructor) {\n"
+        "        name = name.toLowerCase();\n"
+        "        if (this._registry.has(name)) {\n"
+        "            throw new DOMException('Registration failed: already defined', 'NotSupportedError');\n"
+        "        }\n"
+        "        const observed = constructor.observedAttributes || [];\n"
+        "        this._registry.set(name, {\n"
+        "            constructor: constructor,\n"
+        "            observedAttributes: new Set(observed.map(a => a.toLowerCase())),\n"
+        "            connectedCallback: constructor.prototype.connectedCallback,\n"
+        "            disconnectedCallback: constructor.prototype.disconnectedCallback,\n"
+        "            adoptedCallback: constructor.prototype.adoptedCallback,\n"
+        "            attributeChangedCallback: constructor.prototype.attributeChangedCallback\n"
+        "        });\n"
+        "        this._upgradeAll(document.documentElement, name);\n"
+        "    }\n"
+        "\n"
+        "    get(name) {\n"
+        "        return this._registry.get(name.toLowerCase())?.constructor;\n"
+        "    }\n"
+        "\n"
+        "    _upgradeNode(node) {\n"
+        "        if (!node || node.nodeType !== 1) return;\n"
+        "        const name = node.tagName.toLowerCase();\n"
+        "        const definition = this._registry.get(name);\n"
+        "        if (definition && !node._upgraded) {\n"
+        "            Object.setPrototypeOf(node, definition.constructor.prototype);\n"
+        "            node._upgraded = true;\n"
+        "            try {\n"
+        "                definition.constructor.call(node);\n"
+        "            } catch (e) {\n"
+        "                console.error('Error in Custom Element constructor:', e);\n"
+        "            }\n"
+        "            if (this._isConnected(node)) {\n"
+        "                this._triggerConnect(node);\n"
+        "            }\n"
+        "            if (definition.attributeChangedCallback) {\n"
+        "                const attrs = node.attributes || [];\n"
+        "                for (let i = 0; i < attrs.length; i++) {\n"
+        "                    const attr = attrs[i];\n"
+        "                    const attrName = attr.name.toLowerCase();\n"
+        "                    if (definition.observedAttributes.has(attrName)) {\n"
+        "                        try {\n"
+        "                            definition.attributeChangedCallback.call(node, attr.name, null, attr.value);\n"
+        "                        } catch (e) {\n"
+        "                            console.error('Error in attributeChangedCallback:', e);\n"
+        "                        }\n"
+        "                    }\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    _upgradeAll(root, specificName) {\n"
+        "        if (!root) return;\n"
+        "        const self = this;\n"
+        "        function traverse(node) {\n"
+        "            if (node.nodeType === 1) {\n"
+        "                const name = node.tagName.toLowerCase();\n"
+        "                if (!specificName || name === specificName) {\n"
+        "                    self._upgradeNode(node);\n"
+        "                }\n"
+        "                const children = Array.from(node.childNodes || []);\n"
+        "                for (const child of children) {\n"
+        "                    traverse(child);\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "        traverse(root);\n"
+        "    }\n"
+        "\n"
+        "    _isConnected(node) {\n"
+        "        let curr = node;\n"
+        "        while (curr) {\n"
+        "            if (curr === document.documentElement) return true;\n"
+        "            curr = curr.parentNode || curr.host;\n"
+        "        }\n"
+        "        return false;\n"
+        "    }\n"
+        "\n"
+        "    _triggerConnect(node) {\n"
+        "        const self = this;\n"
+        "        function run(curr) {\n"
+        "            if (curr.nodeType === 1) {\n"
+        "                const name = curr.tagName.toLowerCase();\n"
+        "                const definition = self._registry.get(name);\n"
+        "                if (definition && definition.connectedCallback) {\n"
+        "                    try {\n"
+        "                        definition.connectedCallback.call(curr);\n"
+        "                    } catch (e) {\n"
+        "                        console.error('Error in connectedCallback:', e);\n"
+        "                    }\n"
+        "                }\n"
+        "                const children = Array.from(curr.childNodes || []);\n"
+        "                for (const child of children) {\n"
+        "                    run(child);\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "        run(node);\n"
+        "    }\n"
+        "\n"
+        "    _triggerDisconnect(node) {\n"
+        "        const self = this;\n"
+        "        function run(curr) {\n"
+        "            if (curr.nodeType === 1) {\n"
+        "                const name = curr.tagName.toLowerCase();\n"
+        "                const definition = self._registry.get(name);\n"
+        "                if (definition && definition.disconnectedCallback) {\n"
+        "                    try {\n"
+        "                        definition.disconnectedCallback.call(curr);\n"
+        "                    } catch (e) {\n"
+        "                        console.error('Error in disconnectedCallback:', e);\n"
+        "                    }\n"
+        "                }\n"
+        "                const children = Array.from(curr.childNodes || []);\n"
+        "                for (const child of children) {\n"
+        "                    run(child);\n"
+        "                }\n"
+        "            }\n"
+        "        }\n"
+        "        run(node);\n"
+        "    }\n"
+        "\n"
+        "    __on_connect(node) {\n"
+        "        this._queueCallback(() => {\n"
+        "            this._upgradeAll(node);\n"
+        "            if (this._isConnected(node)) {\n"
+        "                this._triggerConnect(node);\n"
+        "            }\n"
+        "        });\n"
+        "    }\n"
+        "\n"
+        "    __on_disconnect(node) {\n"
+        "        this._queueCallback(() => {\n"
+        "            this._triggerDisconnect(node);\n"
+        "        });\n"
+        "    }\n"
+        "\n"
+        "    __on_adopt(node, oldDoc, newDoc) {\n"
+        "        this._queueCallback(() => {\n"
+        "            const self = this;\n"
+        "            function run(curr) {\n"
+        "                if (curr.nodeType === 1) {\n"
+        "                    const name = curr.tagName.toLowerCase();\n"
+        "                    const definition = self._registry.get(name);\n"
+        "                    if (definition && definition.adoptedCallback) {\n"
+        "                        try {\n"
+        "                            definition.adoptedCallback.call(curr, oldDoc, newDoc);\n"
+        "                        } catch (e) {\n"
+        "                            console.error('Error in adoptedCallback:', e);\n"
+        "                        }\n"
+        "                    }\n"
+        "                    const children = Array.from(curr.childNodes || []);\n"
+        "                    for (const child of children) {\n"
+        "                        run(child);\n"
+        "                    }\n"
+        "                }\n"
+        "            }\n"
+        "            run(node);\n"
+        "        });\n"
+        "    }\n"
+        "\n"
+        "    __on_attr_change(node, attrName, oldValue, newValue) {\n"
+        "        this._queueCallback(() => {\n"
+        "            attrName = attrName.toLowerCase();\n"
+        "            const name = node.tagName.toLowerCase();\n"
+        "            const definition = this._registry.get(name);\n"
+        "            if (definition && definition.attributeChangedCallback) {\n"
+        "                if (definition.observedAttributes.has(attrName)) {\n"
+        "                    try {\n"
+        "                        definition.attributeChangedCallback.call(node, attrName, oldValue, newValue);\n"
+        "                    } catch (e) {\n"
+        "                        console.error('Error in attributeChangedCallback:', e);\n"
+        "                    }\n"
+        "                }\n"
+        "            }\n"
+        "        });\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "globalThis.customElements = new CustomElementRegistry();\n"
+        "globalThis.__wisp_custom_elements_registry = globalThis.customElements;\n"
+        "\n"
+        "if (globalThis.Document && globalThis.Document.prototype) {\n"
+        "    const origCreateElement = globalThis.Document.prototype.createElement;\n"
+        "    globalThis.Document.prototype.createElement = function(tagName, options) {\n"
+        "        const el = origCreateElement.call(this, tagName, options);\n"
+        "        if (globalThis.customElements) {\n"
+        "            globalThis.customElements._upgradeNode(el);\n"
+        "        }\n"
+        "        return el;\n"
+        "    };\n"
+        "\n"
+        "    const origAdoptNode = globalThis.Document.prototype.adoptNode;\n"
+        "    globalThis.Document.prototype.adoptNode = function(node) {\n"
+        "        const oldDoc = node.ownerDocument;\n"
+        "        const res = origAdoptNode.call(this, node);\n"
+        "        if (globalThis.customElements && res) {\n"
+        "            globalThis.customElements.__on_adopt(res, oldDoc, this);\n"
+        "        }\n"
+        "        return res;\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "globalThis.__dispatchNativeDragEvent = function(targetNode, typeStr, mimeTypes, data, allowedEffects) {\n"
+        "    if (!targetNode) targetNode = document.body || document.documentElement;\n"
+        "    if (!targetNode) return false;\n"
+        "\n"
+        "    let mode = 'protected';\n"
+        "    if (typeStr === 'dragstart') mode = 'readwrite';\n"
+        "    else if (typeStr === 'drop') mode = 'readonly';\n"
+        "\n"
+        "    const evt = new globalThis.DragEvent(typeStr);\n"
+        "    const dt = new globalThis.DataTransfer();\n"
+        "    globalThis.__initDataTransferInstance(dt, mode);\n"
+        "    evt._dataTransfer = dt;\n"
+        "\n"
+        "    if (allowedEffects === 1) dt.effectAllowed = 'copy';\n"
+        "    else if (allowedEffects === 2) dt.effectAllowed = 'move';\n"
+        "    else if (allowedEffects === 4) dt.effectAllowed = 'link';\n"
+        "    else dt.effectAllowed = 'all';\n"
+        "\n"
+        "    if (Array.isArray(mimeTypes)) {\n"
+        "        for (const type of mimeTypes) {\n"
+        "            const payloadData = (typeStr === 'drop') ? data : '';\n"
+        "            dt.setData(type, payloadData);\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    return targetNode.dispatchEvent(evt);\n"
+        "};\n"
         "";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val);
+}
+
+static void qjs_lifecycle_mutation_hook(
+    dom_mutation_hook_category category,
+    dom_mutation_type type,
+    struct dom_node *target,
+    struct dom_node *related,
+    struct dom_string *prev_value,
+    struct dom_string *new_value,
+    struct dom_string *attr_name,
+    struct dom_string *attr_ns,
+    void *pw)
+{
+    jsthread *t = pw;
+    if (!t || t->closed || !t->ctx) return;
+    JSContext *ctx = t->ctx;
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue registry = JS_GetPropertyStr(ctx, global, "__wisp_custom_elements_registry");
+    if (JS_IsUndefined(registry) || JS_IsNull(registry)) {
+        JS_FreeValue(ctx, global);
+        JS_FreeValue(ctx, registry);
+        return;
+    }
+
+    if (category == DOM_MUTATION_HOOK_CHILD_LIST) {
+        if (related) {
+            JSValue js_node = qjs_wrap_node(ctx, related);
+            if (JS_IsObject(js_node)) {
+                if (type == DOM_MUTATION_ADDITION) {
+                    JSValue on_connect = JS_GetPropertyStr(ctx, registry, "__on_connect");
+                    if (JS_IsFunction(ctx, on_connect)) {
+                        JSValue ret = JS_Call(ctx, on_connect, JS_UNDEFINED, 1, &js_node);
+                        JS_FreeValue(ctx, ret);
+                    }
+                    JS_FreeValue(ctx, on_connect);
+                } else if (type == DOM_MUTATION_REMOVAL) {
+                    JSValue on_disconnect = JS_GetPropertyStr(ctx, registry, "__on_disconnect");
+                    if (JS_IsFunction(ctx, on_disconnect)) {
+                        JSValue ret = JS_Call(ctx, on_disconnect, JS_UNDEFINED, 1, &js_node);
+                        JS_FreeValue(ctx, ret);
+                    }
+                    JS_FreeValue(ctx, on_disconnect);
+                }
+            }
+            JS_FreeValue(ctx, js_node);
+        }
+    } else if (category == DOM_MUTATION_HOOK_ATTRIBUTES) {
+        if (target && attr_name) {
+            JSValue js_target = qjs_wrap_node(ctx, target);
+            if (JS_IsObject(js_target)) {
+                JSValue on_attr_change = JS_GetPropertyStr(ctx, registry, "__on_attr_change");
+                if (JS_IsFunction(ctx, on_attr_change)) {
+                    const char *attr_name_cstr = (const char *)dom_string_data(attr_name);
+                    size_t attr_name_len = dom_string_byte_length(attr_name);
+                    JSValue js_attr_name = JS_NewStringLen(ctx, attr_name_cstr, attr_name_len);
+
+                    JSValue js_prev = JS_NULL;
+                    if (prev_value) {
+                        js_prev = JS_NewStringLen(ctx, (const char *)dom_string_data(prev_value), dom_string_byte_length(prev_value));
+                    }
+                    JSValue js_new = JS_NULL;
+                    if (new_value) {
+                        js_new = JS_NewStringLen(ctx, (const char *)dom_string_data(new_value), dom_string_byte_length(new_value));
+                    }
+
+                    JSValue args[4] = { js_target, js_attr_name, js_prev, js_new };
+                    JSValue ret = JS_Call(ctx, on_attr_change, JS_UNDEFINED, 4, args);
+                    JS_FreeValue(ctx, ret);
+
+                    JS_FreeValue(ctx, js_attr_name);
+                    JS_FreeValue(ctx, js_prev);
+                    JS_FreeValue(ctx, js_new);
+                }
+                JS_FreeValue(ctx, on_attr_change);
+            }
+            JS_FreeValue(ctx, js_target);
+        }
+    }
+
+    JS_FreeValue(ctx, registry);
+    JS_FreeValue(ctx, global);
 }
 
 nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
@@ -2115,6 +2723,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         if (doc_node) {
             JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_node), JS_PROP_C_W_E);
             dom_node_ref((dom_node *)doc_node);
+            dom_document_set_mutation_hook(doc_node, qjs_lifecycle_mutation_hook, t);
         }
     }
 
@@ -2303,7 +2912,10 @@ void js_destroythread(jsthread *thread)
         JS_RunGC(rt);
     }
     struct dom_document *doc_node = qjs_thread_get_document(thread);
-    if (doc_node) dom_node_unref((dom_node *)doc_node);
+    if (doc_node) {
+        dom_document_set_mutation_hook(doc_node, NULL, NULL);
+        dom_node_unref((dom_node *)doc_node);
+    }
     if (thread->location_url) {
         nsurl_unref(thread->location_url);
     }
@@ -2738,6 +3350,28 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     }
     struct dom_document *doc_node_evt = qjs_thread_get_document(ctx->thread);
     JSValue this_obj = (ctx->target == (struct dom_event_target *)ctx->thread->win_priv || ctx->target == (struct dom_event_target *)doc_node_evt) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
+
+    dom_event_target *evt_target = NULL;
+    dom_event_get_target(evt, &evt_target);
+    if (evt_target) {
+        JSValue js_target = qjs_wrap_node(jsctx, (dom_node *)evt_target);
+        JS_SetPropertyStr(jsctx, js_evt, "_target", js_target);
+        dom_node_unref((dom_node *)evt_target);
+    }
+
+    dom_event_target *evt_curr = NULL;
+    dom_event_get_current_target(evt, &evt_curr);
+    if (evt_curr) {
+        JSValue js_curr = qjs_wrap_node(jsctx, (dom_node *)evt_curr);
+        JS_SetPropertyStr(jsctx, js_evt, "_currentTarget", js_curr);
+        dom_node_unref((dom_node *)evt_curr);
+    } else {
+        JS_SetPropertyStr(jsctx, js_evt, "_currentTarget", JS_DupValue(jsctx, this_obj));
+    }
+
+    dom_event_flow_phase phase;
+    dom_event_get_event_phase(evt, &phase);
+    JS_SetPropertyStr(jsctx, js_evt, "_eventPhase", JS_NewInt32(jsctx, phase));
 
     uint64_t old_deadline = 0;
     uint64_t old_last_yield = 0;

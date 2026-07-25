@@ -96,6 +96,179 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_event_composed_path)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  var host = document.createElement('div');\n"
+        "  var shadow = host.attachShadow({ mode: 'open' });\n"
+        "  var child = document.createElement('span');\n"
+        "  shadow.appendChild(child);\n"
+        "\n"
+        "  var path = null;\n"
+        "  var targetAtHost = null;\n"
+        "\n"
+        "  child.addEventListener('click', function(e) {\n"
+        "    path = e.composedPath();\n"
+        "  });\n"
+        "  host.addEventListener('click', function(e) {\n"
+        "    targetAtHost = e.target;\n"
+        "  });\n"
+        "\n"
+        "  var evt = new Event('click', { bubbles: true, composed: true });\n"
+        "  child.dispatchEvent(evt);\n"
+        "\n"
+        "  if (path === null) throw new Error('composedPath not called');\n"
+        "  if (path[0] !== child) throw new Error('path[0] should be child');\n"
+        "  if (path[1] !== shadow) throw new Error('path[1] should be shadow root');\n"
+        "  if (path[2] !== host) throw new Error('path[2] should be host');\n"
+        "  if (targetAtHost !== host) throw new Error('target should be retargeted to host at host listener');\n"
+
+        "  // Test composed: false (should NOT bubble to host)\n"
+        "  var hostReceivedComposedFalse = false;\n"
+        "  host.addEventListener('custom-evt', function(e) {\n"
+        "    hostReceivedComposedFalse = true;\n"
+        "  });\n"
+        "  var evt2 = new Event('custom-evt', { bubbles: true, composed: false });\n"
+        "  child.dispatchEvent(evt2);\n"
+        "  if (hostReceivedComposedFalse) throw new Error('composed: false event should not cross shadow root to host');\n"
+
+        "  window.testResult = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.testResult = e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.testResult === 'OK';";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_composed_path");
+    if (!result) {
+        const char *get_res = "window.testResult;";
+        js_exec(thread, (const uint8_t *)get_res, strlen(get_res), "get_diagnostics_composed_path");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_custom_elements)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  window.lifecycleEvents = [];\n"
+        "\n"
+        "  class NestedElement extends HTMLElement {\n"
+        "      constructor() { super(); }\n"
+        "      connectedCallback() {\n"
+        "          window.lifecycleEvents.push('nested_connected');\n"
+        "      }\n"
+        "  }\n"
+        "  customElements.define('nested-element', NestedElement);\n"
+        "\n"
+        "  class MyElement extends HTMLElement {\n"
+        "      static get observedAttributes() { return ['status']; }\n"
+        "      constructor() {\n"
+        "          super();\n"
+        "          window.lifecycleEvents.push('constructed');\n"
+        "      }\n"
+        "      connectedCallback() {\n"
+        "          window.lifecycleEvents.push('connected');\n"
+        "          // Queue / trigger nested re-entrant upgrade & connect\n"
+        "          var nested = document.createElement('nested-element');\n"
+        "          document.body.appendChild(nested);\n"
+        "      }\n"
+        "      disconnectedCallback() {\n"
+        "          window.lifecycleEvents.push('disconnected');\n"
+        "      }\n"
+        "      adoptedCallback(oldDoc, newDoc) {\n"
+        "          window.lifecycleEvents.push('adopted');\n"
+        "      }\n"
+        "      attributeChangedCallback(name, oldValue, newValue) {\n"
+        "          window.lifecycleEvents.push('attr:' + name + '=' + newValue);\n"
+        "      }\n"
+        "  }\n"
+        "\n"
+        "  customElements.define('my-element', MyElement);\n"
+        "  var el = document.createElement('my-element');\n"
+        "  if (window.lifecycleEvents.length !== 1 || window.lifecycleEvents[0] !== 'constructed') {\n"
+        "      throw new Error('constructed fail: ' + JSON.stringify(window.lifecycleEvents));\n"
+        "  }\n"
+        "\n"
+        "  el.setAttribute('status', 'active');\n"
+        "  if (window.lifecycleEvents.length !== 2 || window.lifecycleEvents[1] !== 'attr:status=active') {\n"
+        "      throw new Error('attributeChangedCallback failed: ' + JSON.stringify(window.lifecycleEvents));\n"
+        "  }\n"
+        "\n"
+        "  document.body.appendChild(el);\n"
+        "  // Must have 'connected' and the re-entrant nested 'nested_connected' correctly queued and executed!\n"
+        "  if (window.lifecycleEvents[2] !== 'connected' || window.lifecycleEvents[3] !== 'nested_connected') {\n"
+        "      throw new Error('re-entrant connectedCallback queues failed: ' + JSON.stringify(window.lifecycleEvents));\n"
+        "  }\n"
+        "\n"
+        "  // Test adoptedCallback via document.adoptNode\n"
+        "  var parser = new DOMParser();\n"
+        "  var newDoc = parser.parseFromString('<html><body></body></html>', 'text/html');\n"
+        "  newDoc.adoptNode(el);\n"
+        "  if (window.lifecycleEvents[4] !== 'adopted') {\n"
+        "      throw new Error('adoptedCallback failed: ' + JSON.stringify(window.lifecycleEvents));\n"
+        "  }\n"
+        "\n"
+        "  document.body.removeChild(el);\n"
+        "  if (window.lifecycleEvents[5] !== 'disconnected') {\n"
+        "      throw new Error('disconnectedCallback failed: ' + JSON.stringify(window.lifecycleEvents));\n"
+        "  }\n"
+        "  window.testResult = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.testResult = e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.testResult === 'OK';";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_custom_elements");
+    if (!result) {
+        const char *get_res = "window.testResult;";
+        js_exec(thread, (const uint8_t *)get_res, strlen(get_res), "get_diagnostics_custom_elements");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_svds_32bit_indices)
 {
     dom_document *doc = create_test_document();
@@ -2690,6 +2863,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
     tcase_add_test(tc_event_loop, test_quickjs_tier1_apis);
     tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
+    tcase_add_test(tc_event_loop, test_quickjs_event_composed_path);
+    tcase_add_test(tc_event_loop, test_quickjs_custom_elements);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     suite_add_tcase(s, tc_event_loop);
