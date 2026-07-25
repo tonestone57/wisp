@@ -175,7 +175,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
     /* Write Function Prologue
      * Preserves rbx, r12, r13, r14, r15 (callee-saved) across any C runtime helper calls.
-     * Aligns stack on 16-byte boundary.
+     * Aligns stack on 16-byte boundary perfectly under the System V AMD64 ABI (sub rsp, 8).
      */
     uint8_t prologue[] = {
         0x55,                               /* push rbp */
@@ -185,8 +185,8 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
         0x41, 0x55,                         /* push r13 */
         0x41, 0x56,                         /* push r14 */
         0x41, 0x57,                         /* push r15 */
-        0x48, 0x83, 0xec, 0x10,             /* sub rsp, 16 */
-        0x48, 0x89, 0x75, 0xc8,             /* mov [rbp - 56], rsi (save sp_ref) */
+        0x48, 0x83, 0xec, 0x08,             /* sub rsp, 8 (aligns stack pointer RSP to 16 bytes) */
+        0x48, 0x89, 0x75, 0xd0,             /* mov [rbp - 48], rsi (save sp_ref) */
         0x48, 0x8b, 0x1e,                   /* mov rbx, [rsi] (load working stack pointer sp into rbx) */
         0x49, 0x89, 0xfc,                   /* mov r12, rdi (save ctx into r12) */
         0x49, 0x89, 0xd5,                   /* mov r13, rdx (save var_buf into r13) */
@@ -367,8 +367,8 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
             /* mov rdi, r12 (ctx) */
             temp_buf[jit_idx++] = 0x4c; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xe7;
-            /* mov rsi, [rbp - 56] (sp_ref) */
-            uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xc8 };
+            /* mov rsi, [rbp - 48] (sp_ref) */
+            uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xd0 };
             memcpy(temp_buf + jit_idx, mov_rsi, sizeof(mov_rsi));
             jit_idx += sizeof(mov_rsi);
             /* mov [rsi], rbx */
@@ -387,7 +387,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             relocs[reloc_count].target_bytecode_pc = -999;
             reloc_count++;
             jit_idx += 4;
-            /* mov rsi, [rbp - 56] */
+            /* mov rsi, [rbp - 48] */
             memcpy(temp_buf + jit_idx, mov_rsi, sizeof(mov_rsi));
             jit_idx += sizeof(mov_rsi);
             /* mov rbx, [rsi] */
@@ -423,15 +423,15 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             uint8_t mov_rdx[] = { 0x48, 0x8b, 0x53, 0x08 };
             memcpy(temp_buf + jit_idx, mov_rdx, sizeof(mov_rdx));
             jit_idx += sizeof(mov_rdx);
-            /* mov rsi, [rbp - 56] (sp_ref) */
-            uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xc8 };
+            /* mov rsi, [rbp - 48] (sp_ref) */
+            uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xd0 };
             memcpy(temp_buf + jit_idx, mov_rsi, sizeof(mov_rsi));
             jit_idx += sizeof(mov_rsi);
             /* mov [rsi], rbx */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0x1e;
             /* restore stack and return */
             uint8_t ret_seq[] = {
-                0x48, 0x83, 0xc4, 0x10,             /* add rsp, 16 */
+                0x48, 0x83, 0xc4, 0x08,             /* add rsp, 8 */
                 0x41, 0x5f,                         /* pop r15 */
                 0x41, 0x5e,                         /* pop r14 */
                 0x41, 0x5d,                         /* pop r13 */
@@ -452,15 +452,15 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             uint8_t mov_rdx[] = { 0x48, 0xc7, 0xc2, 0x03, 0x00, 0x00, 0x00 };
             memcpy(temp_buf + jit_idx, mov_rdx, sizeof(mov_rdx));
             jit_idx += sizeof(mov_rdx);
-            /* mov rsi, [rbp - 56] (sp_ref) */
-            uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xc8 };
+            /* mov rsi, [rbp - 48] (sp_ref) */
+            uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xd0 };
             memcpy(temp_buf + jit_idx, mov_rsi, sizeof(mov_rsi));
             jit_idx += sizeof(mov_rsi);
             /* mov [rsi], rbx */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0x1e;
             /* restore stack and return */
             uint8_t ret_seq[] = {
-                0x48, 0x83, 0xc4, 0x10,             /* add rsp, 16 */
+                0x48, 0x83, 0xc4, 0x08,             /* add rsp, 8 */
                 0x41, 0x5f,                         /* pop r15 */
                 0x41, 0x5e,                         /* pop r14 */
                 0x41, 0x5d,                         /* pop r13 */
@@ -491,15 +491,15 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
     uint8_t mov_rdx[] = { 0x48, 0xc7, 0xc2, 0x06, 0x00, 0x00, 0x00 };
     memcpy(temp_buf + jit_idx, mov_rdx, sizeof(mov_rdx));
     jit_idx += sizeof(mov_rdx);
-    /* mov rsi, [rbp - 56] (sp_ref) */
-    uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xc8 };
+    /* mov rsi, [rbp - 48] (sp_ref) */
+    uint8_t mov_rsi[] = { 0x48, 0x8b, 0x75, 0xd0 };
     memcpy(temp_buf + jit_idx, mov_rsi, sizeof(mov_rsi));
     jit_idx += sizeof(mov_rsi);
     /* mov [rsi], rbx */
     temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0x1e;
     /* restore stack and return */
     uint8_t ret_seq[] = {
-        0x48, 0x83, 0xc4, 0x10,             /* add rsp, 16 */
+        0x48, 0x83, 0xc4, 0x08,             /* add rsp, 8 */
         0x41, 0x5f,                         /* pop r15 */
         0x41, 0x5e,                         /* pop r14 */
         0x41, 0x5d,                         /* pop r13 */
