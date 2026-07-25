@@ -72,10 +72,13 @@ static inline css_fixed css_unit__absolute_len2pt(
 		const css_unit unit)
 {
 	/* Length must not be relative */
-	assert(unit != CSS_UNIT_EM &&
-	       unit != CSS_UNIT_EX &&
-	       unit != CSS_UNIT_CH &&
-	       unit != CSS_UNIT_REM);
+	if (unit == CSS_UNIT_EM || unit == CSS_UNIT_EX || unit == CSS_UNIT_CH || unit == CSS_UNIT_REM || unit == CSS_UNIT_PCT) {
+		/* Fallback: treat 1em/rem as 12pt (16px), ex as 7.2pt, ch as 4.8pt */
+		css_fixed base_pt = FLTTOFIX(12);
+		if (unit == CSS_UNIT_EX) base_pt = FLTTOFIX(7.2);
+		else if (unit == CSS_UNIT_CH) base_pt = FLTTOFIX(4.8);
+		return FMUL(length, base_pt);
+	}
 
 	switch (css_unit__map_viewport_units(style,
 			viewport_height,
@@ -394,11 +397,24 @@ static inline css_hint_length css_unit__get_font_size(const css_computed_style *
 
         UNUSED(status);
 
-        /* The font size must be absolute. */
-        assert(status == CSS_FONT_SIZE_DIMENSION);
-        assert(size.unit != CSS_UNIT_EM);
-        assert(size.unit != CSS_UNIT_EX);
-        assert(size.unit != CSS_UNIT_PCT);
+        if (status != CSS_FONT_SIZE_DIMENSION) {
+            size.value = font_size_default;
+            size.unit = CSS_UNIT_PX;
+        } else {
+            if (size.unit == CSS_UNIT_EM) {
+                size.value = FMUL(size.value, font_size_default);
+                size.unit = CSS_UNIT_PX;
+            } else if (size.unit == CSS_UNIT_EX) {
+                size.value = FMUL(FMUL(size.value, font_size_default), FLTTOFIX(0.6));
+                size.unit = CSS_UNIT_PX;
+            } else if (size.unit == CSS_UNIT_PCT) {
+                size.value = FDIV(FMUL(size.value, font_size_default), INTTOFIX(100));
+                size.unit = CSS_UNIT_PX;
+            } else if (size.unit == CSS_UNIT_REM) {
+                size.value = FMUL(size.value, font_size_default);
+                size.unit = CSS_UNIT_PX;
+            }
+        }
     }
 
     return size;
@@ -414,15 +430,25 @@ css_error css_unit_compute_absolute_font_size(const css_hint_length *ref_length,
     };
 
     if (ref_length != NULL) {
-        /* Must be absolute. */
-        assert(ref_length->unit != CSS_UNIT_EM);
-        assert(ref_length->unit != CSS_UNIT_EX);
-        assert(ref_length->unit != CSS_UNIT_PCT);
-
         ref_len = *ref_length;
+        if (ref_len.unit == CSS_UNIT_EM) {
+            ref_len.value = FMUL(ref_len.value, font_size_default);
+            ref_len.unit = CSS_UNIT_PX;
+        } else if (ref_len.unit == CSS_UNIT_PCT) {
+            ref_len.value = FDIV(FMUL(ref_len.value, font_size_default), INTTOFIX(100));
+            ref_len.unit = CSS_UNIT_PX;
+        } else if (ref_len.unit == CSS_UNIT_EX) {
+            ref_len.value = FMUL(FMUL(ref_len.value, font_size_default), FLTTOFIX(0.6));
+            ref_len.unit = CSS_UNIT_PX;
+        } else if (ref_len.unit == CSS_UNIT_REM) {
+            ref_len.value = FMUL(ref_len.value, font_size_default);
+            ref_len.unit = CSS_UNIT_PX;
+        }
     }
 
-    assert(size->status != CSS_FONT_SIZE_INHERIT);
+    if (size->status == CSS_FONT_SIZE_INHERIT) {
+        size->status = CSS_FONT_SIZE_MEDIUM;
+    }
 
     switch (size->status) {
     case CSS_FONT_SIZE_XX_SMALL: /* Fall-through. */

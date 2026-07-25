@@ -1817,7 +1817,9 @@ dom_exception _dom_node_set_user_data(
         else
             node->user_data = ud->next;
 
-        *result = ud->data;
+        if (result != NULL) {
+            *result = ud->data;
+        }
 
         DOM_FREE(ud);
 
@@ -1849,7 +1851,9 @@ dom_exception _dom_node_set_user_data(
     ud->data = data;
     ud->handler = handler;
 
-    *result = prevdata;
+    if (result != NULL) {
+        *result = prevdata;
+    }
 
     return DOM_NO_ERR;
 }
