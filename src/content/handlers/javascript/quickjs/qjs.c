@@ -3146,16 +3146,12 @@ static void update_shm_box_bounds_recursive(shm_dom_t *shm, struct box *box) {
                 struct rect r;
                 box_bounds(box, &r);
 
-                uint32_t seq = shm->nodes[i].seq_version;
-                __atomic_store_n(&shm->nodes[i].seq_version, seq + 1, __ATOMIC_RELEASE);
-
-                shm->nodes[i].x = r.x0;
-                shm->nodes[i].y = r.y0;
-                shm->nodes[i].width = r.x1 - r.x0;
-                shm->nodes[i].height = r.y1 - r.y0;
+                uint32_t w = shm->write_index;
+                shm->nodes[i].layout[w].x = r.x0;
+                shm->nodes[i].layout[w].y = r.y0;
+                shm->nodes[i].layout[w].width = r.x1 - r.x0;
+                shm->nodes[i].layout[w].height = r.y1 - r.y0;
                 shm->nodes[i].layout_dirty = 0;
-
-                __atomic_store_n(&shm->nodes[i].seq_version, seq + 2, __ATOMIC_RELEASE);
                 break;
             }
         }
@@ -3167,8 +3163,24 @@ static void update_shm_box_bounds_recursive(shm_dom_t *shm, struct box *box) {
 
 void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
     if (!thread || !thread->shm_dom || !doc_box) return;
-    update_shm_box_bounds_recursive(thread->shm_dom, doc_box);
-    thread->shm_dom->layout_dirty = false;
+    shm_dom_t *shm = thread->shm_dom;
+
+    /* 1. Determine next write index (neither latest nor read) */
+    uint32_t latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
+    uint32_t read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
+    uint32_t write = 0;
+    while (write == latest || write == read) {
+        write++;
+    }
+    shm->write_index = write;
+
+    /* 2. Perform recursive update to write_index */
+    update_shm_box_bounds_recursive(shm, doc_box);
+
+    /* 3. Atomically flip latest_index to write_index */
+    __atomic_store_n(&shm->latest_index, write, __ATOMIC_RELEASE);
+
+    shm->layout_dirty = false;
 }
 
 extern bool layout_document(struct html_content *content, int width, int height);
