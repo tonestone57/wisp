@@ -2402,6 +2402,48 @@ START_TEST(test_quickjs_raf)
 }
 END_TEST
 
+START_TEST(test_quickjs_jit)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Define a hot function with arithmetic, locals, loops (branches) and constants */
+    const char *code =
+        "function compute_sum(n) {\n"
+        "  var sum = 0;\n"
+        "  for (var i = 0; i < n; i = i + 1) {\n"
+        "    sum = sum + i;\n"
+        "  }\n"
+        "  return sum;\n"
+        "}\n"
+        "var res = 0;\n"
+        "for (var k = 0; k < 15; k = k + 1) {\n"
+        "  res = compute_sum(100);\n"
+        "}\n"
+        "res === 4950;\n";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_jit");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_fetch_streams)
 {
     jsheap *heap = NULL;
@@ -2807,6 +2849,7 @@ Suite *quickjs_suite(void)
     /* Execution test case */
     tc_exec = tcase_create("Execution");
     tcase_add_test(tc_exec, test_quickjs_exec_simple);
+    tcase_add_test(tc_exec, test_quickjs_jit);
     tcase_add_test(tc_exec, test_quickjs_aot_cache);
     tcase_add_test(tc_exec, test_quickjs_json_simd);
     tcase_add_test(tc_exec, test_quickjs_exec_syntax_error);
