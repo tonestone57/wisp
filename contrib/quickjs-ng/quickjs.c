@@ -813,6 +813,9 @@ typedef struct JSFunctionBytecode {
     int pc2line_len;
     uint8_t *pc2line_buf;
     char *source;
+    uint32_t call_count;
+    void *jit_code;
+    size_t jit_size;
 } JSFunctionBytecode;
 
 typedef struct JSBoundFunction {
@@ -17699,6 +17702,32 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
 #ifdef ENABLE_DUMPS // JS_DUMP_BYTECODE_STEP
     if (check_dump_flag(ctx->rt, JS_DUMP_BYTECODE_STEP))
         print_func_name(b);
+#endif
+
+#if defined(__x86_64__) && (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__Haiku__))
+#ifndef CONFIG_JIT
+#define CONFIG_JIT 1
+#endif
+#endif
+
+#ifdef CONFIG_JIT
+    typedef JSValue (*JSJitFunc)(JSContext *ctx, JSValue **sp_ref, JSValue *var_buf, JSValue *cpool, JSFunctionBytecode *b);
+    if (b->jit_code) {
+        JSJitFunc jit = (JSJitFunc)b->jit_code;
+        ret_val = jit(ctx, &sp, var_buf, b->cpool, b);
+        goto done;
+    } else {
+        b->call_count++;
+        if (b->call_count >= 10) {
+            extern void qjs_jit_compile(JSFunctionBytecode *b);
+            qjs_jit_compile(b);
+            if (b->jit_code) {
+                JSJitFunc jit = (JSJitFunc)b->jit_code;
+                ret_val = jit(ctx, &sp, var_buf, b->cpool, b);
+                goto done;
+            }
+        }
+    }
 #endif
 
  restart:
@@ -36374,6 +36403,13 @@ static void free_function_bytecode(JSRuntime *rt, JSFunctionBytecode *b)
     js_free_rt(rt, b->pc2line_buf);
     js_free_rt(rt, b->source);
 
+#ifdef CONFIG_JIT
+    if (b->jit_code) {
+        extern void qjs_jit_free(void *ptr, size_t size);
+        qjs_jit_free(b->jit_code, b->jit_size);
+    }
+#endif
+
     remove_gc_object(&b->header);
     if (rt->gc_phase == JS_GC_PHASE_REMOVE_CYCLES && b->header.ref_count != 0) {
         list_add_tail(&b->header.link, &rt->gc_zero_ref_count_list);
@@ -38961,6 +38997,9 @@ static JSValue JS_ReadFunctionTag(BCReaderState *s)
         goto fail;
 
     memcpy(b, &bc, sizeof(*b));
+    b->call_count = 0;
+    b->jit_code = NULL;
+    b->jit_size = 0;
     bc.func_name = JS_ATOM_NULL;
     b->header.ref_count = 1;
     if (local_count != 0) {
@@ -63471,3 +63510,5 @@ uintptr_t js_std_cmd(int cmd, ...) {
 #undef malloc
 #undef free
 #undef realloc
+
+#include "qjs_jit.c"
