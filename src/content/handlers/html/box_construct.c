@@ -392,9 +392,6 @@ static css_error snap_node_classes(void *pw, void *node, lwc_string ***classes, 
     style_snapshot_t *snap = node;
     *classes = snap->classes;
     *n_classes = snap->n_classes;
-    for (uint32_t i = 0; i < snap->n_classes; i++) {
-        lwc_string_ref(snap->classes[i]);
-    }
     return CSS_OK;
 }
 
@@ -756,7 +753,15 @@ static css_error snap_node_is_lang(void *pw, void *node, lwc_string *lang, bool 
 static css_error snap_node_presentational_hint(void *pw, void *node, uint32_t *nhints, css_hint **hints) {
     style_snapshot_t *snap = node;
     *nhints = snap->nhints;
-    *hints = snap->hints;
+    if (snap->nhints > 0) {
+        *hints = malloc(sizeof(css_hint) * snap->nhints);
+        if (*hints == NULL) {
+            return CSS_NOMEM;
+        }
+        memcpy(*hints, snap->hints, sizeof(css_hint) * snap->nhints);
+    } else {
+        *hints = NULL;
+    }
     return CSS_OK;
 }
 
@@ -988,6 +993,7 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
             if (snap->hints != NULL) {
                 memcpy(snap->hints, hints, sizeof(css_hint) * nhints);
             }
+            free(hints);
         }
     }
 
@@ -1064,6 +1070,13 @@ static void free_style_snapshot(style_snapshot_t *snap) {
     }
     if (snap->id != NULL) {
         lwc_string_unref(snap->id);
+    }
+
+    if (snap->classes != NULL) {
+        for (uint32_t i = 0; i < snap->n_classes; i++) {
+            lwc_string_unref(snap->classes[i]);
+        }
+        free(snap->classes);
     }
 
     if (snap->attrs != NULL) {
