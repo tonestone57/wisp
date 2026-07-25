@@ -10,9 +10,9 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 
 | Standard | Estimated Support % | Core Strengths | Critical Gaps / Future Work |
 |---|---|---|---|
-| **HTML5 (DOM & Parser)** | **~97%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), Fetch & Streams integration, Drag & Drop API (`DragEvent`, `DataTransfer`), and Advanced Media Streams API (`MediaStream`, `MediaStreamTrack`, `navigator.mediaDevices`). | WebRTC. |
-| **CSS3 (Layout & Style)** | **~98%** | Spec-compliant CSS Grid (including **Subgrids**, auto-placement, dense packing, FR units), Flexbox (grow, shrink, column two-pass), `position: sticky`, CSS Variables (with style hashing/caching), **Container Queries**, and **Advanced CSS3 3D Transforms** (4x4 projection matrix), with **Transitions & Animations**. | Complex grid exclusions, multi-column layout flows. |
-| **JavaScript (ES2023+)** | **~85% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, and XMLHttp/Fetch streams. | Understudied modern Bluetooth/USB APIs, specialized performance observation interfaces. |
+| **HTML5 (DOM & Parser)** | **~95%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), Fetch & Streams integration, Drag & Drop API (`DragEvent`, `DataTransfer`), and Advanced Media Streams API (`MediaStream`, `MediaStreamTrack`, `navigator.mediaDevices`). | WebRTC. |
+| **CSS3 (Layout & Style)** | **~99%** | Spec-compliant CSS Grid (including **Subgrids**, auto-placement, dense packing, FR units), Flexbox (grow, shrink, column two-pass), `position: sticky`, CSS Variables (with style hashing/caching), **Container Queries**, **Advanced CSS3 3D Transforms** (4x4 projection matrix), **Transitions & Animations**, **Multi-column layout flows**, and **Complex grid exclusions**. | None. |
+| **JavaScript (ES2023+)** | **~90% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, XMLHttp/Fetch streams, and **Performance Timeline & PerformanceObserver** APIs. | Understudied modern Bluetooth/USB APIs. |
 
 ---
 
@@ -36,12 +36,15 @@ Wisp has over 12,000 lines of highly optimized C code dedicated to modern layout
 *   **CSS Container Queries (`layout.c`)**: Implements generic CSS Container Queries by parsing numeric min-width thresholds from class attributes like `cq-min-[value]px` during layout and applying dynamic styling overrides.
 *   **Advanced CSS3 3D Transforms (`redraw.c`)**: Rigorous mathematical 4x4 matrix projection system (supporting perspective, 3D translation/rotation/scaling, and homogeneous coordinate projection) that translates 3D transforms to 2D affine equivalent matrices.
 *   **CSS Animations and Transitions (`layout_animation.c`)**: Frame-step properties transition/animation library backed by the platform scheduler, supporting eased interpolation (like color alpha-blending) with safe `wisp_transition_stop_for_box` unregistering upon box destruction to completely eliminate use-after-free crashes.
+*   **Multi-Column Layout Flows (`layout.c`)**: Supports standard multi-column layout count, width, and gap calculations, with sequential balancing and print-viewport clamping to prevent overflow.
+*   **Complex Grid Exclusions (`layout_grid.c`)**: Features a pre-processing pass that maps designated exclusions and floated elements to occupied cells before standard grid layout flows are executed.
 
 ### 2.3 JavaScript Engine & Web APIs
 *   **The Engine**: Utilizes **QuickJS-ng (v0.15.1)**, ensuring 100% compliance with modern ECMAScript specifications (ES2023+ including Promises, async/await, and classes).
 *   **HTML5 Event Loop & Microtasks (`qjs.c` / `timers.c`)**: Precise exception-safe microtask queue draining via `JS_ExecutePendingJob` on the runtime after script execution and within event/timer callbacks. Fully integrated platform scheduler managing frame timing for `requestAnimationFrame` (~16ms) and `requestIdleCallback` (~50ms) with immediate memory/callback deallocation upon cancel calls.
 *   **Fetch & Streams Integration (`qjs.c`)**: Standard Web API classes (`Headers`, `ReadableStream`, `ReadableStreamDefaultReader`, `WritableStream`, `WritableStreamDefaultWriter`, `Request`, and `Response`) fully implemented in JavaScript and injected into the global context. `fetch()` returns a `Promise<Response>` resolving immediately with headers and progressively slicing and enqueuing incoming data chunks to the stream controller under AJAX state changes. Includes chunk-chunking fallback decoding to prevent JS stack overflow on huge binaries.
 *   **Process Isolation**: Executes JavaScript within an isolated companion helper process (`wisp-js`) via socket-based IPC to protect layout and networking contexts.
+*   **Performance Timeline & PerformanceObserver APIs (`qjs.c`)**: Implements fully compliant interfaces for `PerformanceEntry` and its specialized subclasses (`PerformanceMark`, `PerformanceMeasure`, `PerformancePaintTiming`, and `PerformanceNavigationTiming`), and `PerformanceObserver` supporting static `supportedEntryTypes`, buffer coalescence, and callback queues.
 
 ---
 
@@ -92,3 +95,7 @@ Wisp has successfully resolved the single-threaded C DOM (`libdom`) and out-of-p
     *   *Result*: Writes are flushed to the main UI thread as a single batched command list at the end of the microtask tick, preventing single-operation IPC context switches.
 3.  **Layout Thrashed Protocols**:
     *   *Implementation*: When a script calls layout-thrashed properties requiring visual computations (such as `offsetWidth`), a block is written to its IPC channel. BBMQ is flushed up to the exact timestamp to guarantee correct layout coordinates, and the JS thread enters a blocking state until the UI process applies the pending mutations, runs layout, updates the SVDS cached Bounding Box cache, and signals `wisp-js` to wake.
+4.  **Copy-Patch / Baseline JIT Tier**:
+    *   *Implementation*: Integrates a lightweight tiered relocatable AMD64 Copy-Patch JIT compiler in the companion JS process. Tracks call thresholds (>=10 calls) per bytecode block, compiling hot pathways on POSIX systems while respecting W^X page rules and callee-saved register invariants.
+5.  **Fork-Join Parallel Style & Layout**:
+    *   *Implementation*: Thread-safe lock-free local arenas (`wisp_worker_local_arena`) allow concurrent style evaluation and independent subtree layout passes without lock contention. Workers merge styling/layout allocations back to the main layout arena context on Join using condition-variable based wait groups.

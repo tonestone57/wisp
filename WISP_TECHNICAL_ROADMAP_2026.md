@@ -38,7 +38,27 @@ Wisp parallelizes the viewport tiling loop using multi-core processors.
 
 ---
 
-## 4. JavaScript & DOM Threading
+## 4. Fork-Join Parallel Style & Layout (Fork-Join Layout Engine)
+To eliminate sequential bottlenecking on complex CSS pages (Grid, Flexbox, layout containment), Wisp implements a thread-safe Fork-Join parallel parsing and layout solver integrated directly within the sequential child layout block loops:
+
+### 1. Lock-free Worker-Local Arenas
+*   To completely bypass global mutex lock contention on the centralized document allocator (`c->bctx`), each worker thread maintains a private thread-local sub-arena `wisp_worker_local_arena`.
+*   Memory blocks and callbacks allocated during sub-tree styling are written directly to this worker sub-arena in $O(1)$ complexity.
+*   On Join, a lock-free list-concatenation helper `arena_merge` merges worker-allocated memory blocks, chunk headers, and destructor registries back to the main layout tree arena context, ensuring 100% thread-safety.
+
+### 2. Parallel CSS Selector Matching
+*   Descendant DOM nodes of independent layout boundaries (Grid items, Flex items, or container layout elements) are gathered recursively into a flat concurrent-write array.
+*   Styling tasks are dispatched concurrently onto the `wisp_subsystem` worker pool under DOM lock serialization, protecting read-concurrency safety of LibDOM/LibCSS properties.
+*   Upon execution, tasks compose styles top-down with parent style snapshots and cache results locally on the DOM node via user-data hooks (`dom_node_set_user_data` / `dom_node_get_user_data`) for $O(1)$ fast single-threaded lookup.
+
+### 3. Fork-Join Layout Scheduling
+*   Fork-Join parallel layout is triggered right inside the sequential layout loop `layout_block_context` right after child dimensions are resolved.
+*   Independent sub-trees are identified dynamically (`box_is_independent_subtree_root_fixed`), and independent layout passes (`layout_grid`, `layout_flex`, or `layout_block_context`) are scheduled onto workers concurrently.
+*   Uses a POSIX condition-variable based wait-group (`wisp_layout_wait_group`) to halt the parent thread without busy-waiting, clearing layout dirty bits on worker completion so subsequent sequential passes skip already laid-out sub-trees.
+
+---
+
+## 5. JavaScript & DOM Threading
 Wisp utilizes a hybrid threading model to balance thread safety with execution performance.
 
 ### Thread Allocation
@@ -77,6 +97,9 @@ Utilizes a **weak-reference model** and explicit cycle-breaking logic to manage 
 *   **DNS & Link Prefetching**: Enabled asynchronous pre-connections offloaded to the networking process thread pool.
 *   **AOT Caching**: Serializes QuickJS-ng binary bytecode with SHA-256 keys to `/tmp/wisp-bytecode-cache` to skip lexing/parsing phases.
 *   **LZ4 Tile Compression**: Compresses out-of-viewport raw tiles with real-time LZ4 compression (4:1 ratio) to reduce memory footprints.
+*   **Fork-Join Parallel Style and Layout Engine**: Lock-free, zero-contention thread-local sub-arena allocations and Parallel CSS selector matching. Dispatches styling/layout tasks concurrently to worker threads under DOM lock serialization.
+*   **Copy-Patch / Baseline JIT Tier for QuickJS-ng**: Tiered execution framework compiling hotspot functions (threshold >= 10 calls) to relocatable native AMD64 machine code, with strict register preservation, W^X page permissions, and GC helpers.
+*   **SVDS Predictive Layout Snapshots & Coalesced IPC**: Cross-process lock-free atomic Seqlocks mapped to contiguous 64-byte cache line padded layout nodes, completely eliminating synchronous IPC stalls.
 *   **SIMD UTF-8 & WebSocket Masking**: Dynamic feature-detected SSE2, NEON, and RVV 1.0 vectors speed up ASCII/UTF-8 validations, case mappings, and WebSocket masking (up to 16 bytes per clock cycle).
 *   **SIMD JSON & CSP Validation**: Integrated a two-stage SIMD JSON pre-parser and vectorized string comparisons (`wisp_simd_strcmp`) to accelerate script parsing and security checks.
 
@@ -211,7 +234,42 @@ typedef struct {
 *   **Microtask Flush**: At the end of the QuickJS microtask loop, `wisp-js` updates `write_ptr` and issues a singular platform signal (e.g., writing to an `eventfd`). The main UI thread wakes up, consumes mutations, updates the DOM, and marks the layout dirty.
 *   **Layout Stalls & Cache**: Standard layout thrashes are mitigated by a Bounding Box Cache inside the SVDS structure. If a node is not marked dirty, `wisp-js` serves layout dimensions directly from shared memory without stalling.
 
-#### 4. Cross-OS Primitive Mapping Matrix
+#### 4. Predictive Layout Snapshots & Atomic Seqlocks
+To eliminate synchronous IPC stalls during animation frames, Wisp incorporates cross-process atomic Seqlocks into the `shm_dom_node_t` shared memory block. Each node's layout structure is padded and aligned to a 64-byte cache line boundary to prevent multi-core false sharing:
+
+```c
+typedef struct {
+    // ... basic node relationships and attributes (exactly 4480 bytes) ...
+
+    /* --- New Layout & Dirty Block (Aligned to multiple of 64 bytes) --- */
+    int32_t  x;             /* Relative border-box X */
+    int32_t  y;             /* Relative border-box Y */
+    int32_t  width;         /* Border-box width  (offsetWidth)  */
+    int32_t  height;        /* Border-box height (offsetHeight) */
+    uint32_t seq_version;   /* Sequence lock for atomic cross-process reads */
+    uint16_t layout_dirty;  /* 1 if layout is stale */
+    uint16_t flags;         /* Reserved flags */
+    uint32_t reserved_pad[16]; /* Explicit padding to hit exactly multiple of 64 bytes */
+} __attribute__((aligned(64))) shm_dom_node_t;
+
+_Static_assert(sizeof(shm_dom_node_t) == 4672, "shm_dom_node_t alignment check");
+```
+
+- **Seqlock Protocol**: Read loops in the JS process dynamically verify that the `seq_version` has not changed or is odd (indicating an active write) during coordinate mapping, preventing torn reads under rapid animation cycles:
+```c
+uint32_t seq;
+do {
+    seq = __atomic_load_n(&node->seq_version, __ATOMIC_ACQUIRE);
+    x = node->x;
+    y = node->y;
+    width = node->width;
+    height = node->height;
+} while ((seq & 1) || seq != __atomic_load_n(&node->seq_version, __ATOMIC_ACQUIRE));
+```
+- **Same-Microtask Mutation Invariant**: JS ensures read-after-write consistency in the same microtask tick by intercepting layout requests; if local BBMQ contains pending writes for the target ID, it forces an immediate layout sync rather than serving stale snapshots.
+- **Coalesced Layout Timer**: Features a microsecond-resolution timer (1000us threshold) and microtask checks to serving estimated bounds (1024x768 or 100x30) during non-critical frames, completely unblocking synchronous UI blocking.
+
+#### 5. Cross-OS Primitive Mapping Matrix
 | Platform | Shared Memory Mapping (SVDS / BBMQ) | Process Signaling (Wakeup Interrupt) |
 |---|---|---|
 | **Linux** | `shm_open()` + `mmap()` | `eventfd()` (Read/Write via `epoll`) |
