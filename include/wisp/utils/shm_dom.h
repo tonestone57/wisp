@@ -63,14 +63,15 @@ typedef struct {
     uint32_t attr_count;
 
     /* --- New Layout & Dirty Block (Aligned to multiple of 64 bytes) --- */
-    int32_t  x;             /* Relative border-box X */
-    int32_t  y;             /* Relative border-box Y */
-    int32_t  width;         /* Border-box width  (offsetWidth)  */
-    int32_t  height;        /* Border-box height (offsetHeight) */
-    uint32_t seq_version;   /* Sequence lock for atomic cross-process reads */
+    struct {
+        int32_t x;
+        int32_t y;
+        int32_t width;
+        int32_t height;
+    } layout[3];            /* Triple-buffered layout properties */
     uint16_t layout_dirty;  /* 1 if layout is stale */
     uint16_t flags;         /* Reserved flags */
-    uint32_t reserved_pad[16]; /* Explicit padding to hit exactly multiple of 64 bytes */
+    uint32_t reserved_pad[9]; /* Explicit padding to hit exactly multiple of 64 bytes */
 } __attribute__((aligned(64))) shm_dom_node_t;
 
 _Static_assert(sizeof(shm_dom_node_t) == 4672, "shm_dom_node_t must be exactly 4672 bytes (multiple of 64-byte cache line)");
@@ -80,6 +81,9 @@ typedef struct {
     uint32_t node_count;
     shm_mutation_queue_t mutation_queue;
     bool layout_dirty;
+    volatile uint32_t write_index;  /* Index of the buffer currently being written to by the writer */
+    volatile uint32_t latest_index; /* Index of the buffer currently holding the latest complete frame */
+    volatile uint32_t read_index;   /* Index of the buffer currently being read by the reader */
 } shm_dom_t;
 
 /* API */

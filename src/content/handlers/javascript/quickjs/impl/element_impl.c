@@ -495,17 +495,20 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         }
     }
 
-    // Read from shared memory with Seqlock to prevent torn reads
+    // Read from shared memory with Triple-Buffering Scheme (Lock-Free)
     int32_t rx = 0, ry = 0, rw = 0, rh = 0;
-    uint32_t seq1, seq2;
-    do {
-        seq1 = __atomic_load_n(&sn->seq_version, __ATOMIC_ACQUIRE);
-        rx = sn->x;
-        ry = sn->y;
-        rw = sn->width;
-        rh = sn->height;
-        seq2 = __atomic_load_n(&sn->seq_version, __ATOMIC_ACQUIRE);
-    } while ((seq1 & 1) || (seq1 != seq2));
+    if (wisp_shm_dom) {
+        uint32_t latest = __atomic_load_n(&wisp_shm_dom->latest_index, __ATOMIC_ACQUIRE);
+        uint32_t current_read = __atomic_load_n(&wisp_shm_dom->read_index, __ATOMIC_ACQUIRE);
+        if (latest != current_read) {
+            __atomic_store_n(&wisp_shm_dom->read_index, latest, __ATOMIC_RELEASE);
+            current_read = latest;
+        }
+        rx = sn->layout[current_read].x;
+        ry = sn->layout[current_read].y;
+        rw = sn->layout[current_read].width;
+        rh = sn->layout[current_read].height;
+    }
 
     // Handle estimates fallback if dimensions are still uncalculated (0)
     if (rw <= 0 || rh <= 0) {

@@ -96,6 +96,88 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_triple_buffered_layout_internals)
+{
+    // Create shared memory structure
+    shm_dom_t *shm = calloc(1, sizeof(shm_dom_t));
+    ck_assert_ptr_nonnull(shm);
+
+    // Initially: write = 0, latest = 0, read = 0
+    ck_assert_int_eq(shm->write_index, 0);
+    ck_assert_int_eq(shm->latest_index, 0);
+    ck_assert_int_eq(shm->read_index, 0);
+
+    // Simulating completion of first write frame
+    uint32_t latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
+    uint32_t read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
+    uint32_t write = 0;
+    while (write == latest || write == read) {
+        write++;
+    }
+    shm->write_index = write;
+    ck_assert_int_eq(shm->write_index, 1);
+
+    // Writing mock data to nodes[0].layout[1]
+    shm->nodes[0].layout[1].x = 10;
+    shm->nodes[0].layout[1].y = 20;
+
+    // Flip latest atomically
+    __atomic_store_n(&shm->latest_index, write, __ATOMIC_RELEASE);
+    ck_assert_int_eq(shm->latest_index, 1);
+
+    // Simulating JS read
+    latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
+    uint32_t current_read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
+    if (latest != current_read) {
+        __atomic_store_n(&shm->read_index, latest, __ATOMIC_RELEASE);
+        current_read = latest;
+    }
+    ck_assert_int_eq(current_read, 1);
+    ck_assert_int_eq(shm->nodes[0].layout[current_read].x, 10);
+    ck_assert_int_eq(shm->nodes[0].layout[current_read].y, 20);
+
+    // Simulating second write while reader is reading 1 (latest = 1, read = 1)
+    latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
+    read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
+    write = 0;
+    while (write == latest || write == read) {
+        write++;
+    }
+    shm->write_index = write;
+    ck_assert_int_eq(shm->write_index, 0); // 0 is free!
+
+    shm->nodes[0].layout[0].x = 30;
+    __atomic_store_n(&shm->latest_index, write, __ATOMIC_RELEASE);
+
+    // Now latest = 0, read = 1.
+    // Simulating third write BEFORE reader can read again (latest = 0, read = 1)
+    latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
+    read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
+    write = 0;
+    while (write == latest || write == read) {
+        write++;
+    }
+    shm->write_index = write;
+    ck_assert_int_eq(shm->write_index, 2); // 2 is free!
+
+    shm->nodes[0].layout[2].x = 40;
+    __atomic_store_n(&shm->latest_index, write, __ATOMIC_RELEASE);
+
+    // Now latest = 2, read = 1.
+    // Reader reads again
+    latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
+    current_read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
+    if (latest != current_read) {
+        __atomic_store_n(&shm->read_index, latest, __ATOMIC_RELEASE);
+        current_read = latest;
+    }
+    ck_assert_int_eq(current_read, 2); // Jumped straight to latest = 2, skipped 0!
+    ck_assert_int_eq(shm->nodes[0].layout[current_read].x, 40);
+
+    free(shm);
+}
+END_TEST
+
 START_TEST(test_quickjs_event_composed_path)
 {
     jsheap *heap = NULL;
@@ -2949,6 +3031,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
+    tcase_add_test(tc_event_loop, test_quickjs_triple_buffered_layout_internals);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
