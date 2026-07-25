@@ -267,20 +267,35 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *n, const cs
             /* There were no rules concerning this pseudo element */
             continue;
 
-        /* Complete the pseudo element's computed style, by composing
-         * with the base element's style */
-        error = css_computed_style_compose(
-            styles->styles[CSS_PSEUDO_ELEMENT_NONE], styles->styles[pseudo_element], unit_len_ctx, &composed);
-        if (error != CSS_OK) {
-            NSLOG(wisp, WARNING, "Failed composing pseudo-element style: %d", error);
-            css_computed_style_destroy(styles->styles[pseudo_element]);
-            styles->styles[pseudo_element] = NULL;
-            continue;
+        css_computed_style *base_style = styles->styles[CSS_PSEUDO_ELEMENT_NONE];
+        css_computed_style *temp_base_style = NULL;
+        if (base_style == NULL) {
+            temp_base_style = nscss_get_blank_style(ctx, unit_len_ctx, ctx->parent_style);
+            base_style = temp_base_style;
         }
 
-        /* Replace select_results style with composed style */
-        css_computed_style_destroy(styles->styles[pseudo_element]);
-        styles->styles[pseudo_element] = composed;
+        if (base_style != NULL) {
+            /* Complete the pseudo element's computed style, by composing
+             * with the base element's style */
+            error = css_computed_style_compose(
+                base_style, styles->styles[pseudo_element], unit_len_ctx, &composed);
+            if (error != CSS_OK) {
+                NSLOG(wisp, WARNING, "Failed composing pseudo-element style: %d", error);
+                css_computed_style_destroy(styles->styles[pseudo_element]);
+                styles->styles[pseudo_element] = NULL;
+            } else {
+                /* Replace select_results style with composed style */
+                css_computed_style_destroy(styles->styles[pseudo_element]);
+                styles->styles[pseudo_element] = composed;
+            }
+        } else {
+            css_computed_style_destroy(styles->styles[pseudo_element]);
+            styles->styles[pseudo_element] = NULL;
+        }
+
+        if (temp_base_style != NULL) {
+            css_computed_style_destroy(temp_base_style);
+        }
     }
 
     return styles;

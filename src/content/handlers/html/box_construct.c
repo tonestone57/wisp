@@ -497,21 +497,45 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         /* Compose style top-down with parent style snapshot */
         if (parent_style != NULL) {
             css_computed_style *composed = NULL;
-            css_error error = css_computed_style_compose(
-                parent_style, styles->styles[CSS_PSEUDO_ELEMENT_NONE], &c->unit_len_ctx, &composed);
-            if (error == CSS_OK) {
-                css_computed_style_destroy(styles->styles[CSS_PSEUDO_ELEMENT_NONE]);
-                styles->styles[CSS_PSEUDO_ELEMENT_NONE] = composed;
+            css_error error = CSS_OK;
+            if (styles->styles[CSS_PSEUDO_ELEMENT_NONE] != NULL) {
+                error = css_computed_style_compose(
+                    parent_style, styles->styles[CSS_PSEUDO_ELEMENT_NONE], &c->unit_len_ctx, &composed);
+                if (error == CSS_OK) {
+                    css_computed_style_destroy(styles->styles[CSS_PSEUDO_ELEMENT_NONE]);
+                    styles->styles[CSS_PSEUDO_ELEMENT_NONE] = composed;
+                }
             }
 
             /* Compose pseudo elements as well */
             for (int pseudo = CSS_PSEUDO_ELEMENT_NONE + 1; pseudo < CSS_PSEUDO_ELEMENT_COUNT; pseudo++) {
                 if (styles->styles[pseudo] == NULL) continue;
-                error = css_computed_style_compose(
-                    styles->styles[CSS_PSEUDO_ELEMENT_NONE], styles->styles[pseudo], &c->unit_len_ctx, &composed);
-                if (error == CSS_OK) {
-                    css_computed_style_destroy(styles->styles[pseudo]);
-                    styles->styles[pseudo] = composed;
+
+                css_computed_style *base_style = styles->styles[CSS_PSEUDO_ELEMENT_NONE];
+                css_computed_style *temp_base_style = NULL;
+                if (base_style == NULL) {
+                    nscss_select_ctx select_ctx;
+                    select_ctx.ctx = c->select_ctx;
+                    select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
+                    select_ctx.base_url = c->base_url;
+                    select_ctx.universal = c->universal;
+                    select_ctx.root_style = NULL;
+                    select_ctx.parent_style = parent_style;
+                    temp_base_style = nscss_get_blank_style(&select_ctx, &c->unit_len_ctx, parent_style);
+                    base_style = temp_base_style;
+                }
+
+                if (base_style != NULL) {
+                    error = css_computed_style_compose(
+                        base_style, styles->styles[pseudo], &c->unit_len_ctx, &composed);
+                    if (error == CSS_OK) {
+                        css_computed_style_destroy(styles->styles[pseudo]);
+                        styles->styles[pseudo] = composed;
+                    }
+                }
+
+                if (temp_base_style != NULL) {
+                    css_computed_style_destroy(temp_base_style);
                 }
             }
         }
