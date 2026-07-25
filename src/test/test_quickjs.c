@@ -138,6 +138,16 @@ START_TEST(test_quickjs_event_composed_path)
         "  if (path[1] !== shadow) throw new Error('path[1] should be shadow root');\n"
         "  if (path[2] !== host) throw new Error('path[2] should be host');\n"
         "  if (targetAtHost !== host) throw new Error('target should be retargeted to host at host listener');\n"
+
+        "  // Test composed: false (should NOT bubble to host)\n"
+        "  var hostReceivedComposedFalse = false;\n"
+        "  host.addEventListener('custom-evt', function(e) {\n"
+        "    hostReceivedComposedFalse = true;\n"
+        "  });\n"
+        "  var evt2 = new Event('custom-evt', { bubbles: true, composed: false });\n"
+        "  child.dispatchEvent(evt2);\n"
+        "  if (hostReceivedComposedFalse) throw new Error('composed: false event should not cross shadow root to host');\n"
+
         "  window.testResult = 'OK';\n"
         "} catch(e) {\n"
         "  window.testResult = e.message + '\\n' + e.stack;\n"

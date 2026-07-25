@@ -83,7 +83,7 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     JS_FreeValue(ctx, list);
     JS_FreeValue(ctx, listeners);
 
-    if (!wisp_is_js_process && priv->node != NULL) {
+    if (!found && !wisp_is_js_process && priv->node != NULL) {
         dom_string *type_dom = NULL;
         dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
         struct jsthread *thread = JS_GetContextOpaque(ctx);

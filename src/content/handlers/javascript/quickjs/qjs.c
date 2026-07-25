@@ -2116,7 +2116,11 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
         "                    if (curr.parentNode) {\n"
         "                        curr = curr.parentNode;\n"
         "                    } else if (curr.host) {\n"
-        "                        curr = curr.host;\n"
+        "                        if (this.composed) {\n"
+        "                            curr = curr.host;\n"
+        "                        } else {\n"
+        "                            curr = null;\n"
+        "                        }\n"
         "                    } else if (curr === globalThis.document) {\n"
         "                        curr = globalThis;\n"
         "                    } else {\n"
@@ -2191,7 +2195,11 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            if (curr.parentNode) {\n"
         "                curr = curr.parentNode;\n"
         "            } else if (curr.host) {\n"
-        "                curr = curr.host;\n"
+        "                if (event.composed) {\n"
+        "                    curr = curr.host;\n"
+        "                } else {\n"
+        "                    curr = null;\n"
+        "                }\n"
         "            } else if (curr === globalThis.document) {\n"
         "                curr = globalThis;\n"
         "            } else {\n"
@@ -2904,7 +2912,10 @@ void js_destroythread(jsthread *thread)
         JS_RunGC(rt);
     }
     struct dom_document *doc_node = qjs_thread_get_document(thread);
-    if (doc_node) dom_node_unref((dom_node *)doc_node);
+    if (doc_node) {
+        dom_document_set_mutation_hook(doc_node, NULL, NULL);
+        dom_node_unref((dom_node *)doc_node);
+    }
     if (thread->location_url) {
         nsurl_unref(thread->location_url);
     }

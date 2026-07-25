@@ -409,9 +409,11 @@ void wisp_dnd_dispatch_native_event(
         }
     }
 
-    JSValue js_data = JS_NewString(ctx, "");
+    JSValue js_data;
     if (payload && payload->raw_data && payload->data_len > 0) {
         js_data = JS_NewStringLen(ctx, (const char *)payload->raw_data, payload->data_len);
+    } else {
+        js_data = JS_NewString(ctx, "");
     }
 
     struct dom_document *doc = qjs_thread_get_document(t);
