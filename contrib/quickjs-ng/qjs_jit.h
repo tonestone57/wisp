@@ -36,7 +36,6 @@ JSValue *js_jit_mul(JSContext *ctx, JSValue *sp);
 JSValue *js_jit_lt(JSContext *ctx, JSValue *sp);
 JSValue *js_jit_neq(JSContext *ctx, JSValue *sp);
 int js_jit_if_true(JSContext *ctx, JSValue **sp_ref);
-int js_jit_if_false(JSContext *ctx, JSValue **sp_ref);
 
 #endif /* CONFIG_JIT */
 

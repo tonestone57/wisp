@@ -138,16 +138,6 @@ int js_jit_if_true(JSContext *ctx, JSValue **sp_ref) {
     return res;
 }
 
-int js_jit_if_false(JSContext *ctx, JSValue **sp_ref) {
-    JSValue *sp = *sp_ref;
-    JSValue val = *--sp;
-    *sp_ref = sp;
-    int res = JS_ToBool(ctx, val);
-    JS_FreeValue(ctx, val);
-    if (res < 0) return res;
-    return !res;
-}
-
 /* JIT Compiler Core Implementation */
 
 typedef struct {
@@ -209,7 +199,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
         int opcode = *pc++;
 
         /* Handle opcodes */
-        if (opcode == 12) { /* OP_push_i32 */
+        if (opcode == OP_push_i32) {
             int32_t val = *(int32_t *)pc;
             pc += 4;
             /* mov dword ptr [rbx], val */
@@ -226,15 +216,15 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             memcpy(temp_buf + jit_idx, add_rbx, sizeof(add_rbx));
             jit_idx += sizeof(add_rbx);
         }
-        else if (opcode == 165 || opcode == 316 || (opcode >= 321 && opcode <= 324)) { /* OP_get_loc, OP_get_loc8, OP_get_loc0..3 */
+        else if (opcode == OP_get_loc || opcode == OP_get_loc8 || (opcode >= OP_get_loc0 && opcode <= OP_get_loc3)) {
             int idx = 0;
-            if (opcode == 165) {
+            if (opcode == OP_get_loc) {
                 idx = *(uint16_t *)pc;
                 pc += 2;
-            } else if (opcode == 316) {
+            } else if (opcode == OP_get_loc8) {
                 idx = *pc++;
             } else {
-                idx = opcode - 321;
+                idx = opcode - OP_get_loc0;
             }
             /* mov rdi, r12 (ctx) */
             temp_buf[jit_idx++] = 0x4c; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xe7;
@@ -253,15 +243,15 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rbx, rax */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xc3;
         }
-        else if (opcode == 166 || opcode == 317 || (opcode >= 325 && opcode <= 328)) { /* OP_put_loc, OP_put_loc8, OP_put_loc0..3 */
+        else if (opcode == OP_put_loc || opcode == OP_put_loc8 || (opcode >= OP_put_loc0 && opcode <= OP_put_loc3)) {
             int idx = 0;
-            if (opcode == 166) {
+            if (opcode == OP_put_loc) {
                 idx = *(uint16_t *)pc;
                 pc += 2;
-            } else if (opcode == 317) {
+            } else if (opcode == OP_put_loc8) {
                 idx = *pc++;
             } else {
-                idx = opcode - 325;
+                idx = opcode - OP_put_loc0;
             }
             /* mov rdi, r12 (ctx) */
             temp_buf[jit_idx++] = 0x4c; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xe7;
@@ -280,15 +270,15 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rbx, rax */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xc3;
         }
-        else if (opcode == 167 || opcode == 318 || (opcode >= 329 && opcode <= 332)) { /* OP_set_loc, OP_set_loc8, OP_set_loc0..3 */
+        else if (opcode == OP_set_loc || opcode == OP_set_loc8 || (opcode >= OP_set_loc0 && opcode <= OP_set_loc3)) {
             int idx = 0;
-            if (opcode == 167) {
+            if (opcode == OP_set_loc) {
                 idx = *(uint16_t *)pc;
                 pc += 2;
-            } else if (opcode == 318) {
+            } else if (opcode == OP_set_loc8) {
                 idx = *pc++;
             } else {
-                idx = opcode - 329;
+                idx = opcode - OP_set_loc0;
             }
             /* mov rdi, r12 (ctx) */
             temp_buf[jit_idx++] = 0x4c; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xe7;
@@ -307,9 +297,9 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rbx, rax */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xc3;
         }
-        else if (opcode == 24 || opcode == 25) { /* OP_push_const8, OP_push_const */
+        else if (opcode == OP_push_const8 || opcode == OP_push_const) {
             int idx = 0;
-            if (opcode == 24) {
+            if (opcode == OP_push_const8) {
                 idx = *pc++;
             } else {
                 idx = *(uint16_t *)pc;
@@ -332,11 +322,11 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rbx, rax */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xc3;
         }
-        else if (opcode == 116 || opcode == 117 || opcode == 118 || opcode == OP_lt || opcode == OP_neq) { /* OP_add, OP_sub, OP_mul, OP_lt, OP_neq */
+        else if (opcode == OP_add || opcode == OP_sub || opcode == OP_mul || opcode == OP_lt || opcode == OP_neq) {
             void *func = NULL;
-            if (opcode == 116) func = (void *)js_jit_add;
-            else if (opcode == 117) func = (void *)js_jit_sub;
-            else if (opcode == 118) func = (void *)js_jit_mul;
+            if (opcode == OP_add) func = (void *)js_jit_add;
+            else if (opcode == OP_sub) func = (void *)js_jit_sub;
+            else if (opcode == OP_mul) func = (void *)js_jit_mul;
             else if (opcode == OP_lt) func = (void *)js_jit_lt;
             else func = (void *)js_jit_neq;
 
@@ -361,7 +351,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rbx, rax */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xc3;
         }
-        else if (opcode == 47 || opcode == 48) { /* OP_if_true, OP_if_false */
+        else if (opcode == OP_if_true || opcode == OP_if_false) {
             int target_bytecode_pc = pc_offset + *(int32_t *)pc;
             pc += 4;
 
@@ -373,9 +363,9 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             jit_idx += sizeof(mov_rsi);
             /* mov [rsi], rbx */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0x1e;
-            /* mov rax, func */
+            /* mov rax, js_jit_if_true */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = (opcode == 47) ? (void *)js_jit_if_true : (void *)js_jit_if_false;
+            *(void **)(temp_buf + jit_idx) = (void *)js_jit_if_true;
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -394,15 +384,18 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x8b; temp_buf[jit_idx++] = 0x1e;
             /* test rax, rax */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x85; temp_buf[jit_idx++] = 0xc0;
-            /* jz/jnz target */
+            /* jz/jnz target
+             * OP_if_true (opcode 47) jumps if not zero (0x85)
+             * OP_if_false (opcode 48) jumps if zero (0x84)
+             */
             temp_buf[jit_idx++] = 0x0f;
-            temp_buf[jit_idx++] = (opcode == 47) ? 0x85 : 0x84;
+            temp_buf[jit_idx++] = (opcode == OP_if_true) ? 0x85 : 0x84;
             relocs[reloc_count].jit_patch_offset = jit_idx;
             relocs[reloc_count].target_bytecode_pc = target_bytecode_pc;
             reloc_count++;
             jit_idx += 4;
         }
-        else if (opcode == 46) { /* OP_goto */
+        else if (opcode == OP_goto) {
             int target_bytecode_pc = pc_offset + *(int32_t *)pc;
             pc += 4;
             /* jmp displacement */
@@ -412,7 +405,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             reloc_count++;
             jit_idx += 4;
         }
-        else if (opcode == 187) { /* OP_return */
+        else if (opcode == OP_return) {
             /* sub rbx, 16 */
             uint8_t sub_rbx[] = { 0x48, 0x83, 0xeb, 0x10 };
             memcpy(temp_buf + jit_idx, sub_rbx, sizeof(sub_rbx));
@@ -443,7 +436,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             memcpy(temp_buf + jit_idx, ret_seq, sizeof(ret_seq));
             jit_idx += sizeof(ret_seq);
         }
-        else if (opcode == 188) { /* OP_return_undef */
+        else if (opcode == OP_return_undef) {
             /* mov rax, 0 */
             uint8_t mov_rax[] = { 0x48, 0xc7, 0xc0, 0x00, 0x00, 0x00, 0x00 };
             memcpy(temp_buf + jit_idx, mov_rax, sizeof(mov_rax));
@@ -473,7 +466,10 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             jit_idx += sizeof(ret_seq);
         }
         else {
-            /* Unsupported opcode. Safe, dynamic fallback to Tier 0 interpreter! */
+            /* Unsupported opcode. Safe, dynamic fallback to Tier 0 interpreter!
+             * Prevent repeated compilation overhead by setting call_count to UINT32_MAX.
+             */
+            b->call_count = UINT32_MAX;
             free(temp_buf);
             free(bytecode_to_jit_offset);
             free(relocs);
@@ -543,6 +539,9 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
         b->jit_code = jit_mem;
         b->jit_size = jit_idx;
+    } else {
+        /* Prevent repeated compilation overhead on fallback */
+        b->call_count = UINT32_MAX;
     }
 
     /* Clean up compiler buffers */
