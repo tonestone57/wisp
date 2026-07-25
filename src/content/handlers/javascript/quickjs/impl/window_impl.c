@@ -132,6 +132,11 @@ JSValue wisp_window_alert_impl(JSContext *ctx, QJSNodePrivate *priv, const char 
     return JS_UNDEFINED;
 }
 
+JSValue wisp_window_applicationCache_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
 JSValue wisp_window_atob_impl(JSContext *ctx, QJSNodePrivate *priv, const char * atob)
 {
     return common_atob(ctx, atob);

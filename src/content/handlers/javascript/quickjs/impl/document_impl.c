@@ -681,6 +681,20 @@ JSValue wisp_document_activeElement_get_impl(JSContext *ctx, QJSNodePrivate *pri
     return JS_NULL;
 }
 
+JSValue wisp_document_compatMode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewString(ctx, "CSS1Compat");
+    if (wisp_is_js_process) {
+        return JS_NewString(ctx, "CSS1Compat");
+    }
+    dom_document_quirks_mode quirks_mode = DOM_DOCUMENT_QUIRKS_MODE_NONE;
+    dom_document_get_quirks_mode((dom_document *)priv->node, &quirks_mode);
+    if (quirks_mode == DOM_DOCUMENT_QUIRKS_MODE_FULL) {
+        return JS_NewString(ctx, "BackCompat");
+    }
+    return JS_NewString(ctx, "CSS1Compat");
+}
+
 JSValue wisp_document_currentScript_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return JS_NULL;
