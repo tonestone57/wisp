@@ -31,6 +31,7 @@ struct ipc_fetch_info {
 };
 
 static struct ipc_fetch_info *active_fetches = NULL;
+static pthread_mutex_t active_fetches_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static bool fetch_ipc_initialise(lwc_string *scheme) {
     if (!ipc_network) {
@@ -66,8 +67,10 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
     if (!f) return NULL;
     f->id = next_fetch_id++;
     f->fetchh = parent_fetch;
+    pthread_mutex_lock(&active_fetches_mutex);
     f->next = active_fetches;
     active_fetches = f;
+    pthread_mutex_unlock(&active_fetches_mutex);
 
     /* Forward request to network process */
     wisp_ipc_msg msg;
@@ -104,8 +107,13 @@ static bool fetch_ipc_start(void *vf) {
 
 static void fetch_ipc_abort(void *vf) {
     struct ipc_fetch_info *f = vf;
-    if (f->finished) return;
+    pthread_mutex_lock(&active_fetches_mutex);
+    if (f->finished) {
+        pthread_mutex_unlock(&active_fetches_mutex);
+        return;
+    }
     f->finished = true;
+    pthread_mutex_unlock(&active_fetches_mutex);
 
     /* Send an ABORT message to network process */
     wisp_ipc_msg msg;
@@ -126,25 +134,33 @@ static void fetch_ipc_abort(void *vf) {
 
 static void fetch_ipc_free(void *vf) {
     struct ipc_fetch_info *f = vf;
+    pthread_mutex_lock(&active_fetches_mutex);
     struct ipc_fetch_info **prev = &active_fetches;
     struct ipc_fetch_info *curr = active_fetches;
     while (curr) {
         if (curr == f) {
             *prev = curr->next;
             free(curr);
+            pthread_mutex_unlock(&active_fetches_mutex);
             return;
         }
         prev = &curr->next;
         curr = curr->next;
     }
+    pthread_mutex_unlock(&active_fetches_mutex);
 }
 
 static bool is_active_fetch_id(uint32_t id) {
+    pthread_mutex_lock(&active_fetches_mutex);
     struct ipc_fetch_info *curr = active_fetches;
     while (curr) {
-        if (curr->id == id) return true;
+        if (curr->id == id) {
+            pthread_mutex_unlock(&active_fetches_mutex);
+            return true;
+        }
         curr = curr->next;
     }
+    pthread_mutex_unlock(&active_fetches_mutex);
     return false;
 }
 
@@ -163,39 +179,50 @@ static void fetch_ipc_poll(lwc_string *scheme) {
         uint32_t fetch_id;
         memcpy(&fetch_id, msg.data, 4);
 
+        /* Read f safely under active_fetches_mutex */
+        pthread_mutex_lock(&active_fetches_mutex);
         struct ipc_fetch_info *f = active_fetches;
         while (f && f->id != fetch_id) f = f->next;
 
-        if (f && !f->finished) {
+        struct fetch *fetchh = f ? f->fetchh : NULL;
+        bool finished = f ? f->finished : true;
+        pthread_mutex_unlock(&active_fetches_mutex);
+
+        if (fetchh && !finished) {
             fetch_msg fmsg;
             switch (msg.type) {
                 case WISP_IPC_MSG_FETCH_HEADER:
                     fmsg.type = FETCH_HEADER;
                     fmsg.data.header_or_data.buf = msg.data + 4;
                     fmsg.data.header_or_data.len = msg.length - 4;
-                    fetch_send_callback(&fmsg, f->fetchh);
+                    fetch_send_callback(&fmsg, fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_DATA:
                     fmsg.type = FETCH_DATA;
                     fmsg.data.header_or_data.buf = msg.data + 4;
                     fmsg.data.header_or_data.len = msg.length - 4;
-                    fetch_send_callback(&fmsg, f->fetchh);
+                    fetch_send_callback(&fmsg, fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_FINISHED:
                     fmsg.type = FETCH_FINISHED;
                     if (msg.length >= 8) {
                         uint32_t http_code;
                         memcpy(&http_code, msg.data + 4, 4);
-                        fetch_set_http_code(f->fetchh, (long)http_code);
+                        fetch_set_http_code(fetchh, (long)http_code);
                     }
-                    fetch_send_callback(&fmsg, f->fetchh);
+                    fetch_send_callback(&fmsg, fetchh);
                     if (is_active_fetch_id(fetch_id)) {
+                        pthread_mutex_lock(&active_fetches_mutex);
                         struct ipc_fetch_info *f_post = active_fetches;
                         while (f_post && f_post->id != fetch_id) f_post = f_post->next;
                         if (f_post) {
                             f_post->finished = true;
-                            fetch_remove_from_queues(f_post->fetchh);
-                            fetch_free(f_post->fetchh);
+                            struct fetch *fh = f_post->fetchh;
+                            pthread_mutex_unlock(&active_fetches_mutex);
+                            fetch_remove_from_queues(fh);
+                            fetch_free(fh);
+                        } else {
+                            pthread_mutex_unlock(&active_fetches_mutex);
                         }
                     }
                     break;
@@ -204,7 +231,7 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     if (msg.length >= 8) {
                         uint32_t http_code;
                         memcpy(&http_code, msg.data + 4, 4);
-                        fetch_set_http_code(f->fetchh, (long)http_code);
+                        fetch_set_http_code(fetchh, (long)http_code);
                     }
                     if (msg.length > 8) {
                         msg.data[msg.length - 1] = '\0';
@@ -212,14 +239,19 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     } else {
                         fmsg.data.redirect = "";
                     }
-                    fetch_send_callback(&fmsg, f->fetchh);
+                    fetch_send_callback(&fmsg, fetchh);
                     if (is_active_fetch_id(fetch_id)) {
+                        pthread_mutex_lock(&active_fetches_mutex);
                         struct ipc_fetch_info *f_post = active_fetches;
                         while (f_post && f_post->id != fetch_id) f_post = f_post->next;
                         if (f_post) {
                             f_post->finished = true;
-                            fetch_remove_from_queues(f_post->fetchh);
-                            fetch_free(f_post->fetchh);
+                            struct fetch *fh = f_post->fetchh;
+                            pthread_mutex_unlock(&active_fetches_mutex);
+                            fetch_remove_from_queues(fh);
+                            fetch_free(fh);
+                        } else {
+                            pthread_mutex_unlock(&active_fetches_mutex);
                         }
                     }
                     break;
@@ -232,14 +264,19 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     } else {
                         fmsg.data.error = "UnknownError";
                     }
-                    fetch_send_callback(&fmsg, f->fetchh);
+                    fetch_send_callback(&fmsg, fetchh);
                     if (is_active_fetch_id(fetch_id)) {
+                        pthread_mutex_lock(&active_fetches_mutex);
                         struct ipc_fetch_info *f_post = active_fetches;
                         while (f_post && f_post->id != fetch_id) f_post = f_post->next;
                         if (f_post) {
                             f_post->finished = true;
-                            fetch_remove_from_queues(f_post->fetchh);
-                            fetch_free(f_post->fetchh);
+                            struct fetch *fh = f_post->fetchh;
+                            pthread_mutex_unlock(&active_fetches_mutex);
+                            fetch_remove_from_queues(fh);
+                            fetch_free(fh);
+                        } else {
+                            pthread_mutex_unlock(&active_fetches_mutex);
                         }
                     }
                     break;
@@ -324,6 +361,7 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
         wisp_network_pid = -1;
     }
 
+    pthread_mutex_lock(&active_fetches_mutex);
     struct ipc_fetch_info *curr = active_fetches;
     while (curr) {
         struct ipc_fetch_info *next = curr->next;
@@ -331,6 +369,7 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
         curr = next;
     }
     active_fetches = NULL;
+    pthread_mutex_unlock(&active_fetches_mutex);
 }
 
 nserror fetch_ipc_register(void) {
