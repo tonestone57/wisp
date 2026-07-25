@@ -174,5 +174,6 @@ bool js_event_cleanup(jsthread *thread, struct dom_event *evt);
  */
 struct box;
 void js_handle_intersection_check(jsthread *thread, struct box *layout, int viewport_width, int viewport_height);
+void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box);
 
 #endif /* WISP_JAVASCRIPT_JS_H_ */

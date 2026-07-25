@@ -61,12 +61,25 @@ typedef struct {
         char value[SHM_DOM_STRING_MAX];
     } attrs[16];
     uint32_t attr_count;
-} shm_dom_node_t;
+
+    /* --- New Layout & Dirty Block (Aligned to multiple of 64 bytes) --- */
+    int32_t  x;             /* Relative border-box X */
+    int32_t  y;             /* Relative border-box Y */
+    int32_t  width;         /* Border-box width  (offsetWidth)  */
+    int32_t  height;        /* Border-box height (offsetHeight) */
+    uint32_t seq_version;   /* Sequence lock for atomic cross-process reads */
+    uint16_t layout_dirty;  /* 1 if layout is stale */
+    uint16_t flags;         /* Reserved flags */
+    uint32_t reserved_pad[16]; /* Explicit padding to hit exactly multiple of 64 bytes */
+} __attribute__((aligned(64))) shm_dom_node_t;
+
+_Static_assert(sizeof(shm_dom_node_t) == 4672, "shm_dom_node_t must be exactly 4672 bytes (multiple of 64-byte cache line)");
 
 typedef struct {
     shm_dom_node_t nodes[SHM_DOM_MAX_NODES];
     uint32_t node_count;
     shm_mutation_queue_t mutation_queue;
+    bool layout_dirty;
 } shm_dom_t;
 
 /* API */
@@ -74,6 +87,7 @@ shm_dom_t* shm_dom_create(const char *name, bool is_server);
 void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server);
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value);
 void bbmq_flush(void);
+bool bbmq_has_pending_for_node(uint64_t target_id);
 shm_dom_node_t* find_shm_node(shm_dom_t *shm, uint64_t id);
 
 #endif /* WISP_UTILS_SHM_DOM_H */

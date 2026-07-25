@@ -141,6 +141,13 @@ static volatile uint32_t bbmq_count = 0;
 
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value) {
     if (!shm) return;
+
+    shm->layout_dirty = true;
+    shm_dom_node_t *sn = find_shm_node(shm, target_id);
+    if (sn) {
+        sn->layout_dirty = 1;
+    }
+
     if (wisp_is_js_process) {
         if (bbmq_count >= BBMQ_MAX_MUTATIONS) {
             NSLOG(wisp, WARNING, "[BBMQ] Local mutation buffer is full, discarding mutation!");
@@ -198,6 +205,15 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     __sync_synchronize();
 #endif
     mq->head = head + 1;
+}
+
+bool bbmq_has_pending_for_node(uint64_t target_id) {
+    for (uint32_t i = 0; i < bbmq_count; i++) {
+        if (bbmq_queue[i].target_id == target_id) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void bbmq_flush(void) {

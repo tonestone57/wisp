@@ -6580,6 +6580,7 @@ bool layout_document(html_content *content, int width, int height)
 
 	if (content->jsthread) {
 		js_handle_intersection_check(content->jsthread, doc, width, height);
+		qjs_update_shm_box_bounds(content->jsthread, doc);
 	}
 
 	layout_calculate_descendant_bboxes(&content->unit_len_ctx, doc);
