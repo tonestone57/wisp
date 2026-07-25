@@ -332,8 +332,10 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
             /* mov rdi, r12 (ctx) */
             temp_buf[jit_idx++] = 0x4c; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xe7;
-            /* mov rsi, rbx (sp) */
-            temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xdf;
+            /* mov rsi, rbx (sp)
+             * Fix: ModRM byte for mov rsi, rbx must be 0xde (0xdf is mov rdi, rbx)
+             */
+            temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xde;
             /* mov rax, func */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
             *(void **)(temp_buf + jit_idx) = func;
@@ -466,10 +468,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             jit_idx += sizeof(ret_seq);
         }
         else {
-            /* Unsupported opcode. Safe, dynamic fallback to Tier 0 interpreter!
-             * Prevent repeated compilation overhead by setting call_count to UINT32_MAX.
-             */
-            b->call_count = UINT32_MAX;
+            /* Unsupported opcode. Safe, dynamic fallback to Tier 0 interpreter! */
             free(temp_buf);
             free(bytecode_to_jit_offset);
             free(relocs);
@@ -539,9 +538,6 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
         b->jit_code = jit_mem;
         b->jit_size = jit_idx;
-    } else {
-        /* Prevent repeated compilation overhead on fallback */
-        b->call_count = UINT32_MAX;
     }
 
     /* Clean up compiler buffers */

@@ -42,6 +42,12 @@
 #include <time.h>
 #include <math.h>
 
+#if defined(__x86_64__) && (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__Haiku__))
+#ifndef CONFIG_JIT
+#define CONFIG_JIT 1
+#endif
+#endif
+
 #include "cutils.h"
 #include "list.h"
 #include "quickjs.h"
@@ -17704,12 +17710,6 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
         print_func_name(b);
 #endif
 
-#if defined(__x86_64__) && (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__Haiku__))
-#ifndef CONFIG_JIT
-#define CONFIG_JIT 1
-#endif
-#endif
-
 #ifdef CONFIG_JIT
     typedef JSValue (*JSJitFunc)(JSContext *ctx, JSValue **sp_ref, JSValue *var_buf, JSValue *cpool, JSFunctionBytecode *b);
     if (b->jit_code) {
@@ -17717,14 +17717,16 @@ static JSValue JS_CallInternal(JSContext *caller_ctx, JSValueConst func_obj,
         ret_val = jit(ctx, &sp, var_buf, b->cpool, b);
         goto done;
     } else {
-        b->call_count++;
-        if (b->call_count >= 10) {
-            extern void qjs_jit_compile(JSFunctionBytecode *b);
-            qjs_jit_compile(b);
-            if (b->jit_code) {
-                JSJitFunc jit = (JSJitFunc)b->jit_code;
-                ret_val = jit(ctx, &sp, var_buf, b->cpool, b);
-                goto done;
+        if (b->call_count < 10) {
+            b->call_count++;
+            if (b->call_count == 10) {
+                extern void qjs_jit_compile(JSFunctionBytecode *b);
+                qjs_jit_compile(b);
+                if (b->jit_code) {
+                    JSJitFunc jit = (JSJitFunc)b->jit_code;
+                    ret_val = jit(ctx, &sp, var_buf, b->cpool, b);
+                    goto done;
+                }
             }
         }
     }
