@@ -34,6 +34,7 @@
 #include <wisp/browser.h>
 #include <wisp/browser_window.h>
 #include <wisp/content.h>
+#include <wisp/wisp_dnd_bridge.h>
 #include <wisp/desktop/searchweb.h>
 #include <wisp/desktop/textinput.h>
 #include <wisp/form.h>
@@ -580,6 +581,116 @@ static gboolean nsgtk_window_button_release_event(GtkWidget *widget, GdkEventBut
     return TRUE;
 }
 
+static gboolean nsgtk_window_drag_motion_event(
+    GtkWidget *widget,
+    GdkDragContext *context,
+    gint x,
+    gint y,
+    guint time,
+    gpointer user_data)
+{
+    struct gui_window *g = user_data;
+    if (!g || !g->bw) return FALSE;
+
+    GList *targets = gdk_drag_context_list_targets(context);
+    size_t count = g_list_length(targets);
+    char **mime_types = malloc(sizeof(char *) * count);
+    for (size_t i = 0; i < count; i++) {
+        GdkAtom atom = GDK_POINTER_TO_ATOM(g_list_nth_data(targets, i));
+        mime_types[i] = gdk_atom_name(atom);
+    }
+
+    wisp_dnd_payload_t payload = {
+        .mime_types = mime_types,
+        .type_count = count,
+        .raw_data = NULL,
+        .data_len = 0,
+        .allowed_effects = 1 /* COPY */
+    };
+
+    wisp_dnd_dispatch_native_event_bw(g->bw, WISP_DND_DRAGOVER, &payload, x, y);
+
+    for (size_t i = 0; i < count; i++) {
+        g_free(mime_types[i]);
+    }
+    free(mime_types);
+
+    gdk_drag_status(context, GDK_ACTION_COPY, time);
+    return TRUE;
+}
+
+static void nsgtk_window_drag_leave_event(
+    GtkWidget *widget,
+    GdkDragContext *context,
+    guint time,
+    gpointer user_data)
+{
+    struct gui_window *g = user_data;
+    if (g && g->bw) {
+        wisp_dnd_dispatch_native_event_bw(g->bw, WISP_DND_DRAGLEAVE, NULL, 0, 0);
+    }
+}
+
+static gboolean nsgtk_window_drag_drop_event(
+    GtkWidget *widget,
+    GdkDragContext *context,
+    gint x,
+    gint y,
+    guint time,
+    gpointer user_data)
+{
+    struct gui_window *g = user_data;
+    if (!g || !g->bw) return FALSE;
+
+    GList *targets = gdk_drag_context_list_targets(context);
+    GdkAtom preferred = GDK_NONE;
+    if (targets) {
+        preferred = GDK_POINTER_TO_ATOM(targets->data);
+    }
+
+    if (preferred != GDK_NONE) {
+        gtk_drag_get_data(widget, context, preferred, time);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static void nsgtk_window_drag_data_received_event(
+    GtkWidget *widget,
+    GdkDragContext *context,
+    gint x,
+    gint y,
+    GtkSelectionData *data,
+    guint info,
+    guint time,
+    gpointer user_data)
+{
+    struct gui_window *g = user_data;
+    if (!g || !g->bw) return;
+
+    const guchar *raw = gtk_selection_data_get_data(data);
+    gint len = gtk_selection_data_get_length(data);
+    GdkAtom target_atom = gtk_selection_data_get_target(data);
+    char *mime = target_atom ? gdk_atom_name(target_atom) : NULL;
+
+    if (raw && len > 0 && mime) {
+        char *mime_list[1] = { mime };
+        wisp_dnd_payload_t payload = {
+            .mime_types = mime_list,
+            .type_count = 1,
+            .raw_data = (void *)raw,
+            .data_len = len,
+            .allowed_effects = 1 /* COPY */
+        };
+
+        wisp_dnd_dispatch_native_event_bw(g->bw, WISP_DND_DROP, &payload, x, y);
+    }
+
+    if (mime) g_free(mime);
+
+    gtk_drag_finish(context, TRUE, FALSE, time);
+}
+
 
 static gboolean nsgtk_window_scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
@@ -1051,6 +1162,12 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     CONNECT(g->layout, "size-allocate", nsgtk_window_size_allocate_event, g);
     CONNECT(g->layout, "scroll-event", nsgtk_window_scroll_event, g);
     CONNECT(g->layout, "focus-out-event", nsgtk_window_focus_out_event, g);
+
+    /* Drag & Drop Signals */
+    CONNECT(g->layout, "drag-motion", nsgtk_window_drag_motion_event, g);
+    CONNECT(g->layout, "drag-leave", nsgtk_window_drag_leave_event, g);
+    CONNECT(g->layout, "drag-drop", nsgtk_window_drag_drop_event, g);
+    CONNECT(g->layout, "drag-data-received", nsgtk_window_drag_data_received_event, g);
 
     /* status pane signals */
     CONNECT(g->paned, "size-allocate", nsgtk_paned_size_allocate_event, g);
