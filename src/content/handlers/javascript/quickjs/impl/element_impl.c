@@ -859,6 +859,38 @@ JSValue wisp_element_matches_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
     return JS_FALSE;
 }
 
+JSValue wisp_htmlelement_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue val = JS_GetPropertyStr(ctx, wrapper, "__onerror_func");
+    JS_FreeValue(ctx, wrapper);
+    return val;
+}
+
+JSValue wisp_htmlelement_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JS_SetPropertyStr(ctx, wrapper, "__onerror_func", JS_DupValue(ctx, value));
+    JS_FreeValue(ctx, wrapper);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_onload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue val = JS_GetPropertyStr(ctx, wrapper, "__onload_func");
+    JS_FreeValue(ctx, wrapper);
+    return val;
+}
+
+JSValue wisp_htmlelement_onload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JS_SetPropertyStr(ctx, wrapper, "__onload_func", JS_DupValue(ctx, value));
+    JS_FreeValue(ctx, wrapper);
+    return JS_UNDEFINED;
+}
+
 JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
 {
     if (!node) return JS_NULL;
