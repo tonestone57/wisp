@@ -548,7 +548,17 @@ typedef struct html_content {
     /** Whether we have fallen back to a single unioned bounding box */
     bool dirty_use_union;
 
+    /** Style cache and its mutex for parallel styling */
+    struct style_cache_node *style_cache;
+    pthread_mutex_t style_cache_mutex;
+
 } html_content;
+
+struct style_cache_node {
+    struct dom_node *node;
+    struct css_select_results *styles;
+    struct style_cache_node *next;
+};
 
 /**
  * Add a rectangle to the document's disjoint dirty list.

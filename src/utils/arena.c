@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "arena.h"
 
 static inline size_t arena_align_up(size_t val, size_t align)
@@ -36,6 +37,7 @@ struct arena {
     arena_chunk *head;
     size_t default_chunk_size;
     arena_destructor *destructors;
+    pthread_mutex_t lock;
 };
 
 struct arena *arena_create(size_t chunk_size) {
@@ -49,12 +51,11 @@ struct arena *arena_create(size_t chunk_size) {
     a->head = NULL;
     a->default_chunk_size = chunk_size;
     a->destructors = NULL;
+    pthread_mutex_init(&a->lock, NULL);
     return a;
 }
 
-void *arena_alloc(struct arena *a, size_t size) {
-    if (!a || ((uintptr_t)a & 63) != 0) return NULL;
-
+static void *arena_alloc_internal(struct arena *a, size_t size) {
     size_t alloc_size = ALIGN_UP(size, 64);
     if (!a->head || ALIGN_UP(a->head->used, 64) + alloc_size > a->head->size) {
         size_t chunk_alloc = alloc_size > a->default_chunk_size ? alloc_size : a->default_chunk_size;
@@ -72,14 +73,39 @@ void *arena_alloc(struct arena *a, size_t size) {
     return ptr;
 }
 
+#ifndef _WIN32
+__thread struct arena *wisp_worker_local_arena = NULL;
+#else
+__declspec(thread) struct arena *wisp_worker_local_arena = NULL;
+#endif
+
+void *arena_alloc(struct arena *a, size_t size) {
+    if (wisp_worker_local_arena != NULL) {
+        a = wisp_worker_local_arena;
+    }
+    if (!a || ((uintptr_t)a & 63) != 0) return NULL;
+
+    pthread_mutex_lock(&a->lock);
+    void *ptr = arena_alloc_internal(a, size);
+    pthread_mutex_unlock(&a->lock);
+    return ptr;
+}
+
 void arena_register_destructor(struct arena *a, void *ptr, void (*fn)(void *)) {
+    if (wisp_worker_local_arena != NULL) {
+        a = wisp_worker_local_arena;
+    }
     if (!a || !fn) return;
-    arena_destructor *d = arena_alloc(a, sizeof(arena_destructor));
-    if (!d) return;
-    d->ptr = ptr;
-    d->fn = fn;
-    d->next = a->destructors;
-    a->destructors = d;
+
+    pthread_mutex_lock(&a->lock);
+    arena_destructor *d = arena_alloc_internal(a, sizeof(arena_destructor));
+    if (d) {
+        d->ptr = ptr;
+        d->fn = fn;
+        d->next = a->destructors;
+        a->destructors = d;
+    }
+    pthread_mutex_unlock(&a->lock);
 }
 
 void arena_destroy(struct arena *a) {
@@ -97,6 +123,7 @@ void arena_destroy(struct arena *a) {
         free(chunk);
         chunk = next;
     }
+    pthread_mutex_destroy(&a->lock);
     free(a);
 }
 
@@ -125,4 +152,40 @@ void *arena_memdup(struct arena *a, const void *ptr, size_t size) {
     void *res = arena_alloc(a, size);
     if (res) memcpy(res, ptr, size);
     return res;
+}
+
+void arena_merge(struct arena *m, struct arena *w) {
+    if (!m || !w) return;
+
+    pthread_mutex_lock(&m->lock);
+    pthread_mutex_lock(&w->lock);
+
+    /* Merge destructors */
+    if (w->destructors != NULL) {
+        /* Find the last destructor in w's list */
+        arena_destructor *last_d = w->destructors;
+        while (last_d->next != NULL) {
+            last_d = last_d->next;
+        }
+        /* Point its next to m's destructors */
+        last_d->next = m->destructors;
+        m->destructors = w->destructors;
+        w->destructors = NULL;
+    }
+
+    /* Merge chunks */
+    if (w->head != NULL) {
+        /* Find the last chunk in w's list */
+        arena_chunk *last_c = w->head;
+        while (last_c->next != NULL) {
+            last_c = last_c->next;
+        }
+        /* Point its next to m's chunks */
+        last_c->next = m->head;
+        m->head = w->head;
+        w->head = NULL;
+    }
+
+    pthread_mutex_unlock(&w->lock);
+    pthread_mutex_unlock(&m->lock);
 }

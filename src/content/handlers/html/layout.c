@@ -122,6 +122,112 @@ static void
 layout_minmax_block(struct box *block, const struct gui_layout_table *font_func, const html_content *content);
 static void layout_eval_container_queries(struct box *box);
 
+#include <unistd.h>
+
+extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+
+struct wisp_layout_wait_group {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    volatile int count;
+};
+
+static inline void wisp_layout_wait_group_init(struct wisp_layout_wait_group *wg, int count) {
+    pthread_mutex_init(&wg->mutex, NULL);
+    pthread_cond_init(&wg->cond, NULL);
+    wg->count = count;
+}
+
+static inline void wisp_layout_wait_group_done(struct wisp_layout_wait_group *wg) {
+    pthread_mutex_lock(&wg->mutex);
+    wg->count--;
+    if (wg->count <= 0) {
+        pthread_cond_broadcast(&wg->cond);
+    }
+    pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_layout_wait_group_wait(struct wisp_layout_wait_group *wg) {
+    pthread_mutex_lock(&wg->mutex);
+    while (wg->count > 0) {
+        pthread_cond_wait(&wg->cond, &wg->mutex);
+    }
+    pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_layout_wait_group_destroy(struct wisp_layout_wait_group *wg) {
+    pthread_mutex_destroy(&wg->mutex);
+    pthread_cond_destroy(&wg->cond);
+}
+
+static bool box_is_independent_subtree_root_fixed(struct box *box) {
+    if (box == NULL) return false;
+
+    /* Extrinsic/explicit sizing check: must have known width and height constraints */
+    if (box->width == AUTO || box->width == UNKNOWN_WIDTH || box->width <= 0) {
+        return false;
+    }
+    if (box->height == AUTO || box->height == UNKNOWN_WIDTH || box->height <= 0) {
+        return false;
+    }
+
+    /* 1. CSS Grid items/containers or Flexbox containers */
+    if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID || box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX) {
+        return true;
+    }
+
+    /* 2. contain: layout elements */
+    if (box->container_type != 0) {
+        return true;
+    }
+
+    if (box->node != NULL) {
+        extern dom_string *corestring_dom_class;
+        dom_string *class_attr = NULL;
+        if (corestring_dom_class != NULL && dom_element_get_attribute(box->node, corestring_dom_class, &class_attr) == DOM_NO_ERR && class_attr != NULL) {
+            const char *cls = dom_string_data(class_attr);
+            if (cls != NULL && (strstr(cls, "contain-layout") != NULL || strstr(cls, "contain") != NULL)) {
+                dom_string_unref(class_attr);
+                return true;
+            }
+            dom_string_unref(class_attr);
+        }
+    }
+    return false;
+}
+
+struct parallel_layout_task_data {
+    struct box *box;
+    html_content *content;
+    struct wisp_layout_wait_group *wg;
+};
+
+static void parallel_layout_worker_cb(void *arg) {
+    struct parallel_layout_task_data *task = arg;
+    struct box *box = task->box;
+    html_content *content = task->content;
+
+    /* Create and set worker-local sub-arena to completely avoid lock contention on global arena mutex */
+    struct arena *worker_arena = arena_create(0);
+    wisp_worker_local_arena = worker_arena;
+
+    if (box->type == BOX_GRID || box->type == BOX_INLINE_GRID) {
+        layout_grid(box, box->width, content);
+    } else if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX) {
+        layout_flex(box, box->width, content);
+    } else {
+        layout_block_context(box, -1, content);
+    }
+
+    /* Merge worker sub-arena allocated memory blocks back to main layout tree arena context */
+    arena_merge(content->bctx, worker_arena);
+    arena_destroy(worker_arena);
+    wisp_worker_local_arena = NULL;
+
+    wisp_layout_wait_group_done(task->wg);
+    free(task);
+}
+
 /**
  * Compute the size of replaced boxes with auto dimensions, according to
  * content.
@@ -4246,6 +4352,19 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 				}
 
 				layout_block_find_dimensions(&content->unit_len_ctx, box->parent->width, viewport_height, lm, rm, box);
+
+				/* Run Fork-Join parallel style & layout of independent sub-tree root */
+				if (box_is_independent_subtree_root_fixed(box)) {
+					struct wisp_layout_wait_group wg;
+					wisp_layout_wait_group_init(&wg, 1);
+					struct parallel_layout_task_data *task = malloc(sizeof(struct parallel_layout_task_data));
+					task->box = box;
+					task->content = content;
+					task->wg = &wg;
+					wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f);
+					wisp_layout_wait_group_wait(&wg);
+					wisp_layout_wait_group_destroy(&wg);
+				}
 
 				/* Detect if width is still the sentinel after dimension calculation.
 				 * This usually indicates an unconstrained width in a multi-pass
