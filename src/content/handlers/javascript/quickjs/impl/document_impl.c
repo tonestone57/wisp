@@ -49,9 +49,9 @@ JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1 && // DOM_ELEMENT_NODE
-                    (strcasecmp(wisp_shm_dom->nodes[i].tag_name, "head") == 0)) {
-                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id);
+                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (strcasecmp(wisp_shm_dom->node_strings[i].tag_name, "head") == 0)) {
+                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
         }
@@ -83,11 +83,11 @@ JSValue wisp_document_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, 
     if (wisp_is_js_process) {
         if (wisp_shm_dom && elementId) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1) { // DOM_ELEMENT_NODE
-                    for (uint32_t j = 0; j < wisp_shm_dom->nodes[i].attr_count; j++) {
-                        if (strcasecmp(wisp_shm_dom->nodes[i].attrs[j].name, "id") == 0 &&
-                            strcmp(wisp_shm_dom->nodes[i].attrs[j].value, elementId) == 0) {
-                            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id);
+                if (wisp_shm_dom->nodes[i].node_type == 1) { // DOM_ELEMENT_NODE
+                    for (uint32_t j = 0; j < wisp_shm_dom->node_strings[i].attr_count; j++) {
+                        if (strcasecmp(wisp_shm_dom->node_strings[i].attrs[j].name, "id") == 0 &&
+                            strcmp(wisp_shm_dom->node_strings[i].attrs[j].value, elementId) == 0) {
+                            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                         }
                     }
                 }
@@ -116,9 +116,9 @@ JSValue wisp_document_getElementsByTagName_impl(JSContext *ctx, QJSNodePrivate *
         uint32_t count = 0;
         if (wisp_shm_dom) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1 && // DOM_ELEMENT_NODE
-                    (strcmp(localName, "*") == 0 || strcasecmp(wisp_shm_dom->nodes[i].tag_name, localName) == 0)) {
-                    JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id));
+                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (strcmp(localName, "*") == 0 || strcasecmp(wisp_shm_dom->node_strings[i].tag_name, localName) == 0)) {
+                    JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
                 }
             }
         }
@@ -135,12 +135,12 @@ JSValue wisp_document_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate
         uint32_t count = 0;
         if (wisp_shm_dom) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1) { // DOM_ELEMENT_NODE
-                    for (uint32_t j = 0; j < wisp_shm_dom->nodes[i].attr_count; j++) {
-                        if (strcasecmp(wisp_shm_dom->nodes[i].attrs[j].name, "class") == 0) {
-                            const char *cls = wisp_shm_dom->nodes[i].attrs[j].value;
+                if (wisp_shm_dom->nodes[i].node_type == 1) { // DOM_ELEMENT_NODE
+                    for (uint32_t j = 0; j < wisp_shm_dom->node_strings[i].attr_count; j++) {
+                        if (strcasecmp(wisp_shm_dom->node_strings[i].attrs[j].name, "class") == 0) {
+                            const char *cls = wisp_shm_dom->node_strings[i].attrs[j].value;
                             if (strstr(cls, classNames)) {
-                                JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id));
+                                JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
                             }
                         }
                     }
@@ -190,9 +190,9 @@ JSValue wisp_document_body_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1 && // DOM_ELEMENT_NODE
-                    (strcasecmp(wisp_shm_dom->nodes[i].tag_name, "body") == 0)) {
-                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id);
+                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (strcasecmp(wisp_shm_dom->node_strings[i].tag_name, "body") == 0)) {
+                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
         }
@@ -231,9 +231,9 @@ JSValue wisp_document_documentElement_get_impl(JSContext *ctx, QJSNodePrivate *p
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1 && // DOM_ELEMENT_NODE
-                    (strcasecmp(wisp_shm_dom->nodes[i].tag_name, "html") == 0)) {
-                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)wisp_shm_dom->nodes[i].id);
+                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (strcasecmp(wisp_shm_dom->node_strings[i].tag_name, "html") == 0)) {
+                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
         }
@@ -539,13 +539,13 @@ JSValue wisp_document_title_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].type == 1 && // DOM_ELEMENT_NODE
-                    (strcasecmp(wisp_shm_dom->nodes[i].tag_name, "title") == 0)) {
-                    uint64_t title_id = wisp_shm_dom->nodes[i].id;
+                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (strcasecmp(wisp_shm_dom->node_strings[i].tag_name, "title") == 0)) {
+                    uint64_t title_id = i;
                     for (uint32_t j = 0; j < wisp_shm_dom->node_count; j++) {
                         if (wisp_shm_dom->nodes[j].parent_id == title_id &&
-                            wisp_shm_dom->nodes[j].type == 3) { // DOM_TEXT_NODE
-                            return JS_NewString(ctx, wisp_shm_dom->nodes[j].value);
+                            wisp_shm_dom->nodes[j].node_type == 3) { // DOM_TEXT_NODE
+                            return JS_NewString(ctx, wisp_shm_dom->node_strings[j].value);
                         }
                     }
                 }

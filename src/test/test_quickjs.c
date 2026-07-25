@@ -322,21 +322,20 @@ START_TEST(test_quickjs_svds_32bit_indices)
     // 3. Verify topology mapping with dense 32-bit indices
     // Index 1 must be the root (document) node
     ck_assert_int_gt(shm->node_count, 1);
-    ck_assert_int_eq(shm->nodes[1].id, 1);
-    ck_assert_int_eq(shm->nodes[1].type, 9); // DOM_DOCUMENT_NODE
+    ck_assert_int_eq(shm->nodes[1].node_type, 9); // DOM_DOCUMENT_NODE
 
     // Let's verify that relationships are correct 32-bit indices
     WispNodeID html_idx = shm->nodes[1].first_child_id;
     ck_assert_int_eq(html_idx, 2); // Root document's first child should be html element at index 2
     ck_assert_int_eq(shm->nodes[html_idx].parent_id, 1);
-    ck_assert_int_eq(shm->nodes[html_idx].type, 1); // DOM_ELEMENT_NODE
+    ck_assert_int_eq(shm->nodes[html_idx].node_type, 1); // DOM_ELEMENT_NODE
 
     // 4. Verify O(1) direct lookup in find_shm_node
-    shm_dom_node_t *sn1 = find_shm_node(shm, 1);
+    WispCompactNode *sn1 = find_shm_node(shm, 1);
     ck_assert_ptr_nonnull(sn1);
     ck_assert_ptr_eq(sn1, &shm->nodes[1]);
 
-    shm_dom_node_t *sn2 = find_shm_node(shm, html_idx);
+    WispCompactNode *sn2 = find_shm_node(shm, html_idx);
     ck_assert_ptr_nonnull(sn2);
     ck_assert_ptr_eq(sn2, &shm->nodes[html_idx]);
 
@@ -352,7 +351,7 @@ START_TEST(test_quickjs_svds_32bit_indices)
     drain_mutation_queue(shm, doc);
 
     // Retrieve the real LibDOM node
-    dom_node *real_el = (dom_node *)(uintptr_t)shm->nodes[first_idx].dom_ptr;
+    dom_node *real_el = (dom_node *)(uintptr_t)shm->dom_ptrs[first_idx];
     ck_assert_ptr_nonnull(real_el);
 
     // Verify that the attribute was successfully applied to LibDOM node
