@@ -34,6 +34,7 @@ static struct ipc_fetch_info *active_fetches = NULL;
 static pthread_mutex_t active_fetches_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static bool fetch_ipc_initialise(lwc_string *scheme) {
+    pthread_mutex_lock(&active_fetches_mutex);
     if (!ipc_network) {
         char ipc_name[128];
         const char *tmpdir = getenv("TMPDIR");
@@ -41,11 +42,15 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
         snprintf(ipc_name, sizeof(ipc_name), "%s/wisp-network-ipc-%d-%u", tmpdir, getpid(), (unsigned int)time(NULL));
 
         wisp_ipc_handle *server = wisp_ipc_create_server(ipc_name);
-        if (!server) return false;
+        if (!server) {
+            pthread_mutex_unlock(&active_fetches_mutex);
+            return false;
+        }
 
         char exec_path[256];
         if (!wisp_ipc_find_executable("wisp-network", exec_path, sizeof(exec_path))) {
             wisp_ipc_destroy(server);
+            pthread_mutex_unlock(&active_fetches_mutex);
             return false;
         }
 
@@ -56,12 +61,18 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
             wisp_ipc_set_blocking(ipc_network, false);
         }
     }
-    return ipc_network != NULL;
+    bool initialized = (ipc_network != NULL);
+    pthread_mutex_unlock(&active_fetches_mutex);
+    return initialized;
 }
 
 static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
                              const struct fetch_postdata *postdata, const char **headers) {
-    if (!ipc_network && !fetch_ipc_initialise(NULL)) return NULL;
+    pthread_mutex_lock(&active_fetches_mutex);
+    bool check_init = (ipc_network == NULL);
+    pthread_mutex_unlock(&active_fetches_mutex);
+
+    if (check_init && !fetch_ipc_initialise(NULL)) return NULL;
 
     struct ipc_fetch_info *f = calloc(1, sizeof(*f));
     if (!f) return NULL;
@@ -123,7 +134,9 @@ static void fetch_ipc_abort(void *vf) {
     if (msg.data) {
         memcpy(msg.data, &f->id, 4);
         pthread_mutex_lock(&ipc_send_mutex);
-        wisp_ipc_send(ipc_network, &msg);
+        if (ipc_network) {
+            wisp_ipc_send(ipc_network, &msg);
+        }
         pthread_mutex_unlock(&ipc_send_mutex);
         free(msg.data);
     }
@@ -165,11 +178,15 @@ static bool is_active_fetch_id(uint32_t id) {
 }
 
 static void fetch_ipc_poll(lwc_string *scheme) {
-    if (!ipc_network) return;
+    pthread_mutex_lock(&active_fetches_mutex);
+    wisp_ipc_handle *handle = ipc_network;
+    pthread_mutex_unlock(&active_fetches_mutex);
+
+    if (!handle) return;
 
     wisp_ipc_msg msg;
     nserror err;
-    while ((err = wisp_ipc_recv(ipc_network, &msg)) == NSERROR_OK) {
+    while ((err = wisp_ipc_recv(handle, &msg)) == NSERROR_OK) {
         NSLOG(wisp, DEBUG, "fetch_ipc_poll: Received message of type %d, length %d", msg.type, msg.length);
         if (msg.length < 4) {
             wisp_ipc_msg_free(&msg);
@@ -395,7 +412,12 @@ nserror fetch_ipc_register(void) {
 
 void fetch_ipc_early_request(nsurl *url, bool preconnect) {
     if (!url) return;
-    if (!ipc_network && !fetch_ipc_initialise(NULL)) return;
+
+    pthread_mutex_lock(&active_fetches_mutex);
+    bool check_init = (ipc_network == NULL);
+    pthread_mutex_unlock(&active_fetches_mutex);
+
+    if (check_init && !fetch_ipc_initialise(NULL)) return;
 
     wisp_ipc_msg msg;
     msg.type = preconnect ? WISP_IPC_MSG_PRECONNECT_REQUEST : WISP_IPC_MSG_DNS_PREFETCH_REQUEST;
@@ -408,7 +430,9 @@ void fetch_ipc_early_request(nsurl *url, bool preconnect) {
         memcpy(msg.data, &url_len, 4);
         memcpy(msg.data + 4, url_access, url_len);
         pthread_mutex_lock(&ipc_send_mutex);
-        wisp_ipc_send(ipc_network, &msg);
+        if (ipc_network) {
+            wisp_ipc_send(ipc_network, &msg);
+        }
         pthread_mutex_unlock(&ipc_send_mutex);
         free(msg.data);
     }
