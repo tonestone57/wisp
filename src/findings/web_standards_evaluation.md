@@ -92,3 +92,7 @@ Wisp has successfully resolved the single-threaded C DOM (`libdom`) and out-of-p
     *   *Result*: Writes are flushed to the main UI thread as a single batched command list at the end of the microtask tick, preventing single-operation IPC context switches.
 3.  **Layout Thrashed Protocols**:
     *   *Implementation*: When a script calls layout-thrashed properties requiring visual computations (such as `offsetWidth`), a block is written to its IPC channel. BBMQ is flushed up to the exact timestamp to guarantee correct layout coordinates, and the JS thread enters a blocking state until the UI process applies the pending mutations, runs layout, updates the SVDS cached Bounding Box cache, and signals `wisp-js` to wake.
+4.  **Copy-Patch / Baseline JIT Tier**:
+    *   *Implementation*: Integrates a lightweight tiered relocatable AMD64 Copy-Patch JIT compiler in the companion JS process. Tracks call thresholds (>=10 calls) per bytecode block, compiling hot pathways on POSIX systems while respecting W^X page rules and callee-saved register invariants.
+5.  **Fork-Join Parallel Style & Layout**:
+    *   *Implementation*: Thread-safe lock-free local arenas (`wisp_worker_local_arena`) allow concurrent style evaluation and independent subtree layout passes without lock contention. Workers merge styling/layout allocations back to the main layout arena context on Join using condition-variable based wait groups.
