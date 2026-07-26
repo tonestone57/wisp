@@ -134,14 +134,14 @@ extern lwc_error lwc_string_tolower(lwc_string *str, lwc_string **ret);
     ({                                                                                                                 \
         lwc_string *__lwc_s = (str);                                                                                   \
         assert(__lwc_s != NULL);                                                                                       \
-        __lwc_s->refcnt++;                                                                                             \
+        __atomic_add_fetch(&__lwc_s->refcnt, 1, __ATOMIC_SEQ_CST);                                                     \
         __lwc_s;                                                                                                       \
     })
 #else
 static inline lwc_string *lwc_string_ref(lwc_string *str)
 {
     assert(str != NULL);
-    str->refcnt++;
+    __atomic_add_fetch(&str->refcnt, 1, __ATOMIC_SEQ_CST);
     return str;
 }
 #endif
@@ -161,8 +161,8 @@ static inline lwc_string *lwc_string_ref(lwc_string *str)
     {                                                                                                                  \
         lwc_string *__lwc_s = (str);                                                                                   \
         assert(__lwc_s != NULL);                                                                                       \
-        __lwc_s->refcnt--;                                                                                             \
-        if ((__lwc_s->refcnt == 0) || ((__lwc_s->refcnt == 1) && (__lwc_s->insensitive == __lwc_s)))                   \
+        uint32_t __new_ref = __atomic_sub_fetch(&__lwc_s->refcnt, 1, __ATOMIC_SEQ_CST);                                 \
+        if ((__new_ref == 0) || ((__new_ref == 1) && (__lwc_s->insensitive == __lwc_s)))                               \
             lwc_string_destroy(__lwc_s);                                                                               \
     }
 

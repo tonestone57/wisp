@@ -1,4 +1,10 @@
 #include "wisp_subsystem.h"
+
+#ifdef __SANITIZE_THREAD__
+#undef __atomic_thread_fence
+#define __atomic_thread_fence(x) ((void)0)
+#endif
+
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
