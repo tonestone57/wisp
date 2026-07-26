@@ -5173,7 +5173,7 @@ static void layout_compute_offsets(const css_unit_ctx *unit_len_ctx, struct box 
 
 	if (containing_block->width == UNKNOWN_WIDTH || containing_block->width == AUTO ||
 		containing_block->height == AUTO) {
-		NSLOG(wisp, ERROR, "containing_block %p has invalid dimensions for layout_compute_offsets: w=%d, h=%d",
+		NSLOG(wisp, DEBUG, "containing_block %p has invalid dimensions for layout_compute_offsets: w=%d, h=%d",
 			(void *)containing_block, containing_block->width, containing_block->height);
 		*top = *right = *bottom = *left = 0;
 		return;
@@ -6258,11 +6258,11 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 	struct box *child;
 
 	if (box->width == UNKNOWN_WIDTH) {
-		NSLOG(wisp, ERROR, "box %p has UNKNOWN_WIDTH in layout_calculate_descendant_bboxes", (void *)box);
+		NSLOG(wisp, DEBUG, "box %p has UNKNOWN_WIDTH in layout_calculate_descendant_bboxes", (void *)box);
 		return;
 	}
 	if (box->height == AUTO) {
-		NSLOG(wisp, ERROR, "box %p has AUTO height in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
+		NSLOG(wisp, DEBUG, "box %p has AUTO height in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
 		box->height = 0;
 	}
 	/* assert((box->width >= 0) && (box->height >= 0)); */
