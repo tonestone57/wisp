@@ -143,9 +143,66 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     if (!shm) return;
 
     shm->layout_dirty = true;
-    shm_dom_node_t *sn = find_shm_node(shm, target_id);
+    WispCompactNode *sn = find_shm_node(shm, target_id);
+    if (sn && sn->layout_index != 0) {
+        shm->layout_cache[sn->layout_index].layout_dirty = 1;
+    }
+
     if (sn) {
-        sn->layout_dirty = 1;
+        WispNodeStrings *sns = &shm->node_strings[target_id];
+        if (type == SHM_MUTATION_SET_ATTRIBUTE && name) {
+            bool found = false;
+            for (uint32_t i = 0; i < sns->attr_count; i++) {
+                if (strcasecmp(sns->attrs[i].name, name) == 0) {
+                    if (value) {
+                        strncpy(sns->attrs[i].value, value, SHM_DOM_STRING_MAX - 1);
+                        sns->attrs[i].value[SHM_DOM_STRING_MAX - 1] = '\0';
+                    } else {
+                        sns->attrs[i].value[0] = '\0';
+                    }
+                    found = true;
+                    break;
+                }
+            }
+            if (!found && sns->attr_count < 16) {
+                uint32_t idx = sns->attr_count++;
+                strncpy(sns->attrs[idx].name, name, SHM_DOM_STRING_MAX - 1);
+                sns->attrs[idx].name[SHM_DOM_STRING_MAX - 1] = '\0';
+                if (value) {
+                    strncpy(sns->attrs[idx].value, value, SHM_DOM_STRING_MAX - 1);
+                    sns->attrs[idx].value[SHM_DOM_STRING_MAX - 1] = '\0';
+                } else {
+                    sns->attrs[idx].value[0] = '\0';
+                }
+            }
+
+            // Keep class hash up-to-date
+            if (strcmp(name, "class") == 0) {
+                uint32_t hash = 5381;
+                if (value) {
+                    const char *val_ptr = value;
+                    int c;
+                    while ((c = (unsigned char)*val_ptr++)) {
+                        hash = ((hash << 5) + hash) + c;
+                    }
+                }
+                sn->class_hash = hash;
+            }
+        } else if (type == SHM_MUTATION_REMOVE_ATTRIBUTE && name) {
+            for (uint32_t i = 0; i < sns->attr_count; i++) {
+                if (strcasecmp(sns->attrs[i].name, name) == 0) {
+                    sns->attrs[i] = sns->attrs[--sns->attr_count];
+                    break;
+                }
+            }
+        } else if (type == SHM_MUTATION_SET_NODE_VALUE || type == SHM_MUTATION_SET_TEXT_CONTENT) {
+            if (value) {
+                strncpy(sns->value, value, SHM_DOM_STRING_MAX - 1);
+                sns->value[SHM_DOM_STRING_MAX - 1] = '\0';
+            } else {
+                sns->value[0] = '\0';
+            }
+        }
     }
 
     if (wisp_is_js_process) {
@@ -244,19 +301,11 @@ void bbmq_flush(void) {
     bbmq_count = 0;
 }
 
-shm_dom_node_t* find_shm_node(shm_dom_t *shm, uint64_t id) {
+WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id) {
     if (!shm) return NULL;
     uint32_t idx = (uint32_t)id;
     if (idx > 0 && idx < shm->node_count) {
-        if (shm->nodes[idx].id == id) {
-            return &shm->nodes[idx];
-        }
-    }
-    // Fallback search, just in case (should not be hit in normal SVDS usage)
-    for (uint32_t i = 0; i < shm->node_count; i++) {
-        if (shm->nodes[i].id == id) {
-            return &shm->nodes[i];
-        }
+        return &shm->nodes[idx];
     }
     return NULL;
 }

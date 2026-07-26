@@ -74,8 +74,8 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     dom_node_type type;
     if (wisp_is_js_process) {
-        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)node);
-        type = sn ? (dom_node_type)sn->type : 0;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)node);
+        type = sn ? (dom_node_type)sn->node_type : 0;
     } else {
         dom_node_get_node_type(node, &type);
     }

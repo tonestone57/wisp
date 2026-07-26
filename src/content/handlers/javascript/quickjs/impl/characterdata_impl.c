@@ -18,8 +18,11 @@ JSValue wisp_characterdata_data_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (!priv || !priv->node) return JS_NULL;
 
     if (wisp_is_js_process) {
-        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
-        if (sn) return JS_NewString(ctx, sn->value);
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            return JS_NewString(ctx, sns->value);
+        }
         return JS_NULL;
     }
 
@@ -38,10 +41,11 @@ JSValue wisp_characterdata_data_set_impl(JSContext *ctx, QJSNodePrivate *priv, c
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
 
     if (wisp_is_js_process) {
-        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            strncpy(sn->value, value, SHM_DOM_STRING_MAX - 1);
-            sn->value[SHM_DOM_STRING_MAX - 1] = '\0';
+            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            strncpy(sns->value, value, SHM_DOM_STRING_MAX - 1);
+            sns->value[SHM_DOM_STRING_MAX - 1] = '\0';
         }
         shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_NODE_VALUE, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
         return JS_UNDEFINED;
@@ -59,8 +63,11 @@ JSValue wisp_characterdata_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
 
     if (wisp_is_js_process) {
-        shm_dom_node_t *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
-        if (sn) return JS_NewInt32(ctx, (int32_t)strlen(sn->value));
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            return JS_NewInt32(ctx, (int32_t)strlen(sns->value));
+        }
         return JS_NewInt32(ctx, 0);
     }
 
