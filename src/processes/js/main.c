@@ -97,8 +97,8 @@ static JSContext* get_context(uint32_t id) {
     uint64_t doc_node_id = 0;
     if (wisp_shm_dom) {
         for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-            if (wisp_shm_dom->nodes[i].type == 9) { /* DOM_DOCUMENT_NODE is 9 */
-                doc_node_id = wisp_shm_dom->nodes[i].id;
+            if (wisp_shm_dom->nodes[i].node_type == 9) { /* DOM_DOCUMENT_NODE is 9 */
+                doc_node_id = i;
                 break;
             }
         }

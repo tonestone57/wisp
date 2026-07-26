@@ -2929,6 +2929,34 @@ void js_destroythread(jsthread *thread)
     free(thread);
 }
 
+static uint16_t get_tag_atom_from_name(const char *tag_name) {
+    if (!tag_name) return 0;
+    if (strcasecmp(tag_name, "html") == 0) return 1;
+    if (strcasecmp(tag_name, "head") == 0) return 2;
+    if (strcasecmp(tag_name, "body") == 0) return 3;
+    if (strcasecmp(tag_name, "title") == 0) return 4;
+    if (strcasecmp(tag_name, "div") == 0) return 5;
+    if (strcasecmp(tag_name, "span") == 0) return 6;
+    if (strcasecmp(tag_name, "p") == 0) return 7;
+    if (strcasecmp(tag_name, "a") == 0) return 8;
+    if (strcasecmp(tag_name, "script") == 0) return 9;
+    if (strcasecmp(tag_name, "style") == 0) return 10;
+    if (strcasecmp(tag_name, "link") == 0) return 11;
+    if (strcasecmp(tag_name, "img") == 0) return 12;
+    if (strcasecmp(tag_name, "iframe") == 0) return 13;
+    return 14; // Other tag
+}
+
+static uint32_t compute_class_hash(const char *class_str) {
+    if (!class_str) return 0;
+    uint32_t hash = 5381;
+    int c;
+    while ((c = (unsigned char)*class_str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
+}
+
 static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent_idx) {
     if (!node || shm->node_count >= SHM_DOM_MAX_NODES) return;
 
@@ -2939,23 +2967,26 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
         NSLOG(wisp, INFO, "[SHM_DOM] New record peak reached: %d nodes", peak_nodes_used);
     }
     NSLOG(wisp, INFO, "[SHM_DOM] Node allocated. Active nodes: %d", (int)shm->node_count);
-    shm_dom_node_t *sn = &shm->nodes[idx];
+    WispCompactNode *sn = &shm->nodes[idx];
     memset(sn, 0, sizeof(*sn));
 
-    sn->id = idx;
-    sn->dom_ptr = (uint64_t)(uintptr_t)node;
+    WispNodeStrings *sns = &shm->node_strings[idx];
+    memset(sns, 0, sizeof(*sns));
+
+    shm->dom_ptrs[idx] = (uint64_t)(uintptr_t)node;
     sn->parent_id = parent_idx;
 
     dom_node_type type;
     dom_node_get_node_type(node, &type);
-    sn->type = (uint32_t)type;
+    sn->node_type = (uint16_t)type;
 
     dom_string *name = NULL;
     dom_node_get_node_name(node, &name);
     if (name) {
         size_t len = dom_string_byte_length(name);
         if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
-        memcpy(sn->name, dom_string_data(name), len);
+        memcpy(sns->name, dom_string_data(name), len);
+        sns->name[len] = '\0';
         dom_string_unref(name);
     }
 
@@ -2964,7 +2995,8 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
     if (value) {
         size_t len = dom_string_byte_length(value);
         if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
-        memcpy(sn->value, dom_string_data(value), len);
+        memcpy(sns->value, dom_string_data(value), len);
+        sns->value[len] = '\0';
         dom_string_unref(value);
     }
 
@@ -2974,7 +3006,9 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
         if (tag_name) {
             size_t len = dom_string_byte_length(tag_name);
             if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
-            memcpy(sn->tag_name, dom_string_data(tag_name), len);
+            memcpy(sns->tag_name, dom_string_data(tag_name), len);
+            sns->tag_name[len] = '\0';
+            sn->tag_atom = get_tag_atom_from_name(sns->tag_name);
             dom_string_unref(tag_name);
         }
 
@@ -2984,7 +3018,7 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
             uint32_t attr_len = 0;
             dom_namednodemap_get_length(attrs, &attr_len);
             if (attr_len > 16) attr_len = 16;
-            sn->attr_count = attr_len;
+            sns->attr_count = attr_len;
             for (uint32_t i = 0; i < attr_len; i++) {
                 dom_node *attr_node = NULL;
                 dom_namednodemap_item(attrs, i, &attr_node);
@@ -2997,13 +3031,20 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
                     if (attr_name) {
                         size_t n_len = dom_string_byte_length(attr_name);
                         if (n_len >= SHM_DOM_STRING_MAX) n_len = SHM_DOM_STRING_MAX - 1;
-                        memcpy(sn->attrs[i].name, dom_string_data(attr_name), n_len);
+                        memcpy(sns->attrs[i].name, dom_string_data(attr_name), n_len);
+                        sns->attrs[i].name[n_len] = '\0';
+
+                        if (strcasecmp((const char *)dom_string_data(attr_name), "class") == 0 && attr_val) {
+                            sn->class_hash = compute_class_hash((const char *)dom_string_data(attr_val));
+                        }
+
                         dom_string_unref(attr_name);
                     }
                     if (attr_val) {
                         size_t v_len = dom_string_byte_length(attr_val);
                         if (v_len >= SHM_DOM_STRING_MAX) v_len = SHM_DOM_STRING_MAX - 1;
-                        memcpy(sn->attrs[i].value, dom_string_data(attr_val), v_len);
+                        memcpy(sns->attrs[i].value, dom_string_data(attr_val), v_len);
+                        sns->attrs[i].value[v_len] = '\0';
                         dom_string_unref(attr_val);
                     }
                     dom_node_unref(attr_node);
@@ -3022,13 +3063,12 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
             uint32_t child_idx = shm->node_count;
             serialize_dom_node(shm, child, idx);
 
-            shm->nodes[child_idx].previous_sibling_id = prev_child_idx;
+            shm->nodes[child_idx].prev_sibling_id = prev_child_idx;
             if (prev_child_idx != 0) {
                 shm->nodes[prev_child_idx].next_sibling_id = child_idx;
             }
 
             prev_child_idx = child_idx;
-            sn->last_child_id = child_idx;
 
             dom_node *next = NULL;
             dom_node_get_next_sibling(child, &next);
@@ -3043,7 +3083,10 @@ void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc) {
     if (shm->node_count > 0) {
         NSLOG(wisp, INFO, "[SHM_DOM] Freed %d nodes prior to serialization", (int)shm->node_count);
     }
+    memset(shm->dom_ptrs, 0, sizeof(shm->dom_ptrs));
     shm->node_count = 1; // Start indices at 1, 0 is WISP_NODE_NULL
+    shm->layout_cache_count = 0;
+    memset(shm->layout_cache, 0, sizeof(shm->layout_cache));
     serialize_dom_node(shm, (dom_node *)doc, 0);
 }
 
@@ -3051,7 +3094,7 @@ static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id) {
     if (!shm || id == 0 || id == 0xFFFFFFFF) return NULL;
     uint32_t idx = (uint32_t)id;
     if (idx < shm->node_count) {
-        return (dom_node *)(uintptr_t)shm->nodes[idx].dom_ptr;
+        return (dom_node *)(uintptr_t)shm->dom_ptrs[idx];
     }
     return NULL;
 }
@@ -3142,16 +3185,32 @@ static void update_shm_box_bounds_recursive(shm_dom_t *shm, struct box *box) {
     if (!box) return;
     if (box->node && shm) {
         for (uint32_t i = 0; i < shm->node_count; i++) {
-            if (shm->nodes[i].dom_ptr == (uint64_t)(uintptr_t)box->node) {
+            if (shm->dom_ptrs[i] == (uint64_t)(uintptr_t)box->node) {
+                WispCompactNode *node = &shm->nodes[i];
+                if (node->layout_index == 0) {
+                    uint32_t l_idx = ++shm->layout_cache_count;
+                    if (l_idx < SHM_DOM_MAX_NODES) {
+                        node->layout_index = l_idx;
+                    } else {
+                        node->layout_index = SHM_DOM_MAX_NODES - 1;
+                    }
+                }
+                uint32_t l_idx = node->layout_index;
+                WispShmLayoutCache *lc = &shm->layout_cache[l_idx];
+
                 struct rect r;
                 box_bounds(box, &r);
 
-                uint32_t w = shm->write_index;
-                shm->nodes[i].layout[w].x = r.x0;
-                shm->nodes[i].layout[w].y = r.y0;
-                shm->nodes[i].layout[w].width = r.x1 - r.x0;
-                shm->nodes[i].layout[w].height = r.y1 - r.y0;
-                shm->nodes[i].layout_dirty = 0;
+                uint32_t seq = lc->seq_version;
+                __atomic_store_n(&lc->seq_version, seq + 1, __ATOMIC_RELEASE);
+
+                lc->x = r.x0;
+                lc->y = r.y0;
+                lc->width = r.x1 - r.x0;
+                lc->height = r.y1 - r.y0;
+                lc->layout_dirty = 0;
+
+                __atomic_store_n(&lc->seq_version, seq + 2, __ATOMIC_RELEASE);
                 break;
             }
         }
@@ -3165,20 +3224,7 @@ void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
     if (!thread || !thread->shm_dom || !doc_box) return;
     shm_dom_t *shm = thread->shm_dom;
 
-    /* 1. Determine next write index (neither latest nor read) */
-    uint32_t latest = __atomic_load_n(&shm->latest_index, __ATOMIC_ACQUIRE);
-    uint32_t read = __atomic_load_n(&shm->read_index, __ATOMIC_ACQUIRE);
-    uint32_t write = 0;
-    while (write == latest || write == read) {
-        write++;
-    }
-    shm->write_index = write;
-
-    /* 2. Perform recursive update to write_index */
     update_shm_box_bounds_recursive(shm, doc_box);
-
-    /* 3. Atomically flip latest_index to write_index */
-    __atomic_store_n(&shm->latest_index, write, __ATOMIC_RELEASE);
 
     shm->layout_dirty = false;
 }

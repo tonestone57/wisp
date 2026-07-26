@@ -44,15 +44,35 @@ typedef struct {
     shm_mutation_t queue[SHM_MUTATION_QUEUE_SIZE];
 } shm_mutation_queue_t;
 
+// Split topology node - exactly 32 bytes
 typedef struct {
-    WispNodeID id;                /* 32-bit unique index identifier */
-    uint32_t type;                /* dom_node_type */
-    WispNodeID parent_id;
-    WispNodeID first_child_id;
-    WispNodeID last_child_id;
-    WispNodeID next_sibling_id;
-    WispNodeID previous_sibling_id;
-    uint64_t dom_ptr;             /* LibDOM real node pointer value (for main/UI thread only) */
+    uint32_t parent_id;
+    uint32_t first_child_id;
+    uint32_t next_sibling_id;
+    uint32_t prev_sibling_id;
+    uint16_t node_type;
+    uint16_t tag_atom;
+    uint32_t class_hash;
+    uint32_t layout_index; // Index into flat LayoutCache array (0 if unrendered)
+    uint32_t reserved;     // Explicit padding to ensure exactly 32 bytes
+} WispCompactNode;
+
+_Static_assert(sizeof(WispCompactNode) == 32, "WispCompactNode must be exactly 32 bytes");
+
+typedef struct {
+    int32_t x;
+    int32_t y;
+    int32_t width;
+    int32_t height;
+    uint32_t seq_version;
+    uint16_t layout_dirty;
+    uint16_t flags;
+    uint32_t reserved[10]; // Padding to make it exactly 64 bytes
+} __attribute__((aligned(64))) WispShmLayoutCache;
+
+_Static_assert(sizeof(WispShmLayoutCache) == 64, "WispShmLayoutCache must be exactly 64 bytes");
+
+typedef struct {
     char name[SHM_DOM_STRING_MAX];
     char value[SHM_DOM_STRING_MAX];
     char tag_name[SHM_DOM_STRING_MAX];
@@ -61,29 +81,17 @@ typedef struct {
         char value[SHM_DOM_STRING_MAX];
     } attrs[16];
     uint32_t attr_count;
-
-    /* --- New Layout & Dirty Block (Aligned to multiple of 64 bytes) --- */
-    struct {
-        int32_t x;
-        int32_t y;
-        int32_t width;
-        int32_t height;
-    } layout[3];            /* Triple-buffered layout properties */
-    uint16_t layout_dirty;  /* 1 if layout is stale */
-    uint16_t flags;         /* Reserved flags */
-    uint32_t reserved_pad[9]; /* Explicit padding to hit exactly multiple of 64 bytes */
-} __attribute__((aligned(64))) shm_dom_node_t;
-
-_Static_assert(sizeof(shm_dom_node_t) == 4672, "shm_dom_node_t must be exactly 4672 bytes (multiple of 64-byte cache line)");
+} WispNodeStrings;
 
 typedef struct {
-    shm_dom_node_t nodes[SHM_DOM_MAX_NODES];
+    WispCompactNode nodes[SHM_DOM_MAX_NODES];
+    WispShmLayoutCache layout_cache[SHM_DOM_MAX_NODES];
+    WispNodeStrings node_strings[SHM_DOM_MAX_NODES];
+    uint64_t dom_ptrs[SHM_DOM_MAX_NODES]; // Local pointer mapping (for UI thread)
     uint32_t node_count;
+    uint32_t layout_cache_count;
     shm_mutation_queue_t mutation_queue;
     bool layout_dirty;
-    volatile uint32_t write_index;  /* Index of the buffer currently being written to by the writer */
-    volatile uint32_t latest_index; /* Index of the buffer currently holding the latest complete frame */
-    volatile uint32_t read_index;   /* Index of the buffer currently being read by the reader */
 } shm_dom_t;
 
 /* API */
@@ -92,6 +100,6 @@ void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server);
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value);
 void bbmq_flush(void);
 bool bbmq_has_pending_for_node(uint64_t target_id);
-shm_dom_node_t* find_shm_node(shm_dom_t *shm, uint64_t id);
+WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id);
 
 #endif /* WISP_UTILS_SHM_DOM_H */
