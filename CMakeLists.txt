@@ -302,6 +302,7 @@ option(WISP_USE_NATIVE_GRADIENTS "Use native frontend gradient rendering when av
 option(WISP_DEVICE_PIXEL_LAYOUT "Layout engine works in device pixels (requires DPI scaling for images)" ${DEFAULT_DEVICE_PIXEL_LAYOUT})
 option(WISP_ENABLE_ASAN "Enable AddressSanitizer (ASan)" OFF)
 option(WISP_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer (UBSan)" OFF)
+option(WISP_ENABLE_LSAN "Enable LeakSanitizer (LSan)" OFF)
 option(WISP_ENABLE_TSAN "Enable ThreadSanitizer (TSan)" OFF)
 
 if(WISP_ENABLE_ASAN)
@@ -316,6 +317,12 @@ if(WISP_ENABLE_UBSAN)
                         $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
     add_link_options(-fsanitize=undefined)
     set(QJS_ENABLE_UBSAN ON CACHE BOOL "" FORCE)
+endif()
+
+if(WISP_ENABLE_LSAN)
+    add_compile_options($<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=leak>
+                        $<$<OR:$<COMPILE_LANGUAGE:C>,$<COMPILE_LANGUAGE:CXX>>:-fno-omit-frame-pointer>)
+    add_link_options(-fsanitize=leak)
 endif()
 
 if(WISP_ENABLE_TSAN)
