@@ -993,7 +993,6 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
             if (snap->hints != NULL) {
                 memcpy(snap->hints, hints, sizeof(css_hint) * nhints);
             }
-            free(hints);
         }
     }
 
