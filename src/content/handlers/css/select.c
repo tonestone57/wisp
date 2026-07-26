@@ -244,6 +244,11 @@ css_select_results *nscss_get_style(nscss_select_ctx *ctx, dom_node *n, const cs
         return NULL;
     }
 
+    if (styles->styles[CSS_PSEUDO_ELEMENT_NONE] == NULL) {
+        css_select_results_destroy(styles);
+        return NULL;
+    }
+
     /* If there's a parent style, compose with partial to obtain
      * complete computed style for element */
     if (ctx->parent_style != NULL) {

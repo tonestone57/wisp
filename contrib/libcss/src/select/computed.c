@@ -300,6 +300,27 @@ css_error css_computed_style_compose(const css_computed_style *restrict parent,
     css_error error;
     size_t i;
 
+    if (child == NULL || result == NULL) {
+        return CSS_BADPARM;
+    }
+
+    if (parent == NULL) {
+        /* No parent to inherit from, just clone child style and compute absolute values */
+        error = css__computed_style_clone(child, &composed);
+        if (error != CSS_OK) {
+            return error;
+        }
+
+        error = css__compute_absolute_values(NULL, composed, unit_ctx);
+        if (error != CSS_OK) {
+            css_computed_style_destroy(composed);
+            return error;
+        }
+
+        *result = composed;
+        return css__arena_intern_style(result);
+    }
+
     /* TODO:
      *   Make this function take a composition context, to allow us
      *   to avoid the churn of unnecesaraly allocating and freeing
@@ -321,6 +342,7 @@ css_error css_computed_style_compose(const css_computed_style *restrict parent,
     /* Finally, compute absolute values for everything */
     error = css__compute_absolute_values(parent, composed, unit_ctx);
     if (error != CSS_OK) {
+        css_computed_style_destroy(composed);
         return error;
     }
 
