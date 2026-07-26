@@ -753,15 +753,7 @@ static css_error snap_node_is_lang(void *pw, void *node, lwc_string *lang, bool 
 static css_error snap_node_presentational_hint(void *pw, void *node, uint32_t *nhints, css_hint **hints) {
     style_snapshot_t *snap = node;
     *nhints = snap->nhints;
-    if (snap->nhints > 0) {
-        *hints = malloc(sizeof(css_hint) * snap->nhints);
-        if (*hints == NULL) {
-            return CSS_NOMEM;
-        }
-        memcpy(*hints, snap->hints, sizeof(css_hint) * snap->nhints);
-    } else {
-        *hints = NULL;
-    }
+    *hints = snap->hints;
     return CSS_OK;
 }
 
