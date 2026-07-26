@@ -1158,7 +1158,9 @@ static void parallel_style_worker_cb(void *arg) {
     select_ctx.parent_style = NULL;
 
     css_select_results *styles = NULL;
+    pthread_mutex_lock(&dom_lock);
     css_error error = css_select_style(c->select_ctx, snap, &c->unit_len_ctx, &c->media, snap->inline_style, &snapshot_selection_handler, &select_ctx, &styles);
+    pthread_mutex_unlock(&dom_lock);
 
     if (error == CSS_OK) {
         task->out_results[task->index] = styles;
