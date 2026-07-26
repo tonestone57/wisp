@@ -392,6 +392,9 @@ static css_error snap_node_classes(void *pw, void *node, lwc_string ***classes, 
     style_snapshot_t *snap = node;
     *classes = snap->classes;
     *n_classes = snap->n_classes;
+    /* Note: LibCSS unconditionally calls lwc_string_unref on the classes returned
+     * from this node_classes selection callback, so we must increment their reference
+     * counts here to balance LibCSS's cleanup decrement. */
     for (uint32_t i = 0; i < snap->n_classes; i++) {
         lwc_string_ref(snap->classes[i]);
     }
@@ -943,15 +946,23 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
     /* 3. Class list */
     lwc_string **classes = NULL;
     uint32_t n_classes = 0;
+    /* dom_element_get_classes retrieves a weak pointer to the element's internal class array
+     * (element->classes), so we must NOT free the 'classes' pointer itself. It also increments the
+     * refcount of each individual class string inside the array by 1. */
     dom_element_get_classes(node, &classes, &n_classes);
     snap->n_classes = n_classes;
     if (n_classes > 0 && classes != NULL) {
+        /* Allocate a private copy of the classes array pointers to prevent corrupting/freeing
+         * the persistent element's classes array. */
         snap->classes = malloc(sizeof(lwc_string *) * n_classes);
         if (snap->classes != NULL) {
             for (uint32_t i = 0; i < n_classes; i++) {
+                /* Hand-off ownership of the string reference increments done by dom_element_get_classes */
                 snap->classes[i] = classes[i];
             }
         } else {
+            /* On malloc failure, decrement string reference counts to prevent memory leaks,
+             * safely leaving the DOM element's own reference counts intact. */
             for (uint32_t i = 0; i < n_classes; i++) {
                 lwc_string_unref(classes[i]);
             }
