@@ -392,6 +392,9 @@ static css_error snap_node_classes(void *pw, void *node, lwc_string ***classes, 
     style_snapshot_t *snap = node;
     *classes = snap->classes;
     *n_classes = snap->n_classes;
+    for (uint32_t i = 0; i < snap->n_classes; i++) {
+        lwc_string_ref(snap->classes[i]);
+    }
     return CSS_OK;
 }
 
@@ -938,7 +941,24 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
     }
 
     /* 3. Class list */
-    dom_element_get_classes(node, &snap->classes, &snap->n_classes);
+    lwc_string **classes = NULL;
+    uint32_t n_classes = 0;
+    dom_element_get_classes(node, &classes, &n_classes);
+    snap->n_classes = n_classes;
+    if (n_classes > 0 && classes != NULL) {
+        snap->classes = malloc(sizeof(lwc_string *) * n_classes);
+        if (snap->classes != NULL) {
+            for (uint32_t i = 0; i < n_classes; i++) {
+                snap->classes[i] = classes[i];
+            }
+        } else {
+            for (uint32_t i = 0; i < n_classes; i++) {
+                lwc_string_unref(classes[i]);
+            }
+        }
+    } else {
+        snap->classes = NULL;
+    }
 
     /* 4. Tag type */
     dom_html_element_get_tag_type(node, &snap->tag_type);
@@ -993,7 +1013,6 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
             if (snap->hints != NULL) {
                 memcpy(snap->hints, hints, sizeof(css_hint) * nhints);
             }
-            free(hints);
         }
     }
 
