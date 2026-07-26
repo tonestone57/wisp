@@ -300,6 +300,10 @@ css_error css_computed_style_compose(const css_computed_style *restrict parent,
     css_error error;
     size_t i;
 
+    if (child == NULL) {
+        return CSS_BADPARM;
+    }
+
     /* TODO:
      *   Make this function take a composition context, to allow us
      *   to avoid the churn of unnecesaraly allocating and freeing
