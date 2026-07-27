@@ -127,6 +127,7 @@ struct jsthread {
     shm_dom_t *shm_dom;
     char shm_dom_name[64];
     bool shm_initialized;
+    uint32_t shm_capacity;
 };
 
 static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val) {
@@ -161,7 +162,7 @@ void *qjs_get_document_priv(JSContext *ctx);
 struct dom_document *qjs_thread_get_document(struct jsthread *t);
 void qjs_raf_callback_fn(void *p);
 void qjs_idle_callback_fn(void *p);
-void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc);
+void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_document *doc);
 void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc);
 
 /* From generated code */

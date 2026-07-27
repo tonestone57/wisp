@@ -26,6 +26,7 @@ static struct js_context_node *contexts = NULL;
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
+extern uint32_t wisp_shm_capacity;
 
 extern bool wisp_in_microtask;
 extern wisp_ipc_handle *ipc_main;
@@ -164,6 +165,7 @@ int main(int argc, char **argv) {
                         shm_dom_destroy(wisp_shm_dom, NULL, false);
                     }
                     wisp_shm_dom = shm_dom_create(shm_name, false);
+                    wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
 
                     if (js_process_origin) free(js_process_origin);
                     js_process_origin = strdup(origin);
@@ -186,6 +188,7 @@ int main(int argc, char **argv) {
                         shm_dom_destroy(wisp_shm_dom, NULL, false);
                     }
                     wisp_shm_dom = shm_dom_create(payload, false);
+                    wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
                 }
                 free(payload);
             }
@@ -235,6 +238,13 @@ int main(int argc, char **argv) {
                 }
 
                 if (script) {
+                    shm_dom_lock_read(wisp_shm_dom);
+                    if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
+                        uint32_t new_cap = wisp_shm_dom->node_capacity;
+                        wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
+                        wisp_shm_capacity = new_cap;
+                    }
+
                     JSValue val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
 
                     /* Execute any pending microtasks (microtask-tick serialization) */
@@ -255,6 +265,8 @@ int main(int argc, char **argv) {
                     /* Flush the Batch-Buffered Mutation Queue (BBMQ) */
                     extern void bbmq_flush(void);
                     bbmq_flush();
+
+                    shm_dom_unlock_read(wisp_shm_dom);
 
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;

@@ -342,6 +342,7 @@ add_wisp_test(test_quickjs
 )
 add_dependencies(test_quickjs quickjs_bindings)
 target_include_directories(test_quickjs PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/contrib/quickjs-ng
   ${CMAKE_SOURCE_DIR}/contrib/libnsutils/include
   ${CMAKE_BINARY_DIR}/quickjs

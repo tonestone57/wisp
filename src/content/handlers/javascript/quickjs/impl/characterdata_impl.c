@@ -20,7 +20,7 @@ JSValue wisp_characterdata_data_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             return JS_NewString(ctx, sns->value);
         }
         return JS_NULL;
@@ -43,7 +43,7 @@ JSValue wisp_characterdata_data_set_impl(JSContext *ctx, QJSNodePrivate *priv, c
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             strncpy(sns->value, value, SHM_DOM_STRING_MAX - 1);
             sns->value[SHM_DOM_STRING_MAX - 1] = '\0';
         }
@@ -65,7 +65,7 @@ JSValue wisp_characterdata_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             return JS_NewInt32(ctx, (int32_t)strlen(sns->value));
         }
         return JS_NewInt32(ctx, 0);
