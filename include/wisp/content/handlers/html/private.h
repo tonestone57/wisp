@@ -565,6 +565,12 @@ struct style_cache_node {
  */
 static inline void html_add_dirty_rect(struct html_content *html, const struct rect *r)
 {
+	if (r->x0 <= -2000000000 || r->y0 <= -2000000000 ||
+	    r->x1 <= -2000000000 || r->y1 <= -2000000000 ||
+	    r->x1 < r->x0 || r->y1 < r->y0) {
+		return; /* Skip completely invalid or unpositioned rectangles */
+	}
+
 	if (html->dirty_use_union) {
 		if (html->dirty_rect_count == 0) {
 			html->dirty_rects[0] = *r;

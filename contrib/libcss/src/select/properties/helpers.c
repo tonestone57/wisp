@@ -374,19 +374,14 @@ css_error css__cascade_number(
     /** \todo values */
 
     if (hasFlagValue(opv) == false) {
-        switch (getValue(opv)) {
-        case ORPHANS_SET:
-            value = 0;
-            length = *((css_fixed *)style->bytecode);
-            advance_bytecode(style, sizeof(length));
-            break;
-        case ORPHANS_CALC:
+        if (getValue(opv) == VALUE_IS_CALC) {
             advance_bytecode(style, sizeof(unit));
             advance_bytecode(style, sizeof(unit)); // TODO
             return CSS_OK;
-        default:
-            assert(0 && "Invalid value");
-            break;
+        } else {
+            value = 0;
+            length = *((css_fixed *)style->bytecode);
+            advance_bytecode(style, sizeof(length));
         }
     }
 
