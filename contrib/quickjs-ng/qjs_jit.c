@@ -8,6 +8,23 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
+static inline void jit_write32(uint8_t *buf, int32_t val) {
+    memcpy(buf, &val, sizeof(val));
+}
+static inline void jit_write_ptr(uint8_t *buf, void *ptr) {
+    memcpy(buf, &ptr, sizeof(ptr));
+}
+static inline int32_t pc_read32(const uint8_t *pc) {
+    int32_t val;
+    memcpy(&val, pc, sizeof(val));
+    return val;
+}
+static inline uint16_t pc_read16(const uint8_t *pc) {
+    uint16_t val;
+    memcpy(&val, pc, sizeof(val));
+    return val;
+}
+
 /* Compile-time static assertions verified */
 _Static_assert(sizeof(JSValue) == 16, "JIT stencils require 16-byte JSValue alignment!");
 
@@ -200,12 +217,12 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
         /* Handle opcodes */
         if (opcode == OP_push_i32) {
-            int32_t val = *(int32_t *)pc;
+            int32_t val = pc_read32(pc);
             pc += 4;
             /* mov dword ptr [rbx], val */
             temp_buf[jit_idx++] = 0xc7;
             temp_buf[jit_idx++] = 0x03;
-            *(int32_t *)(temp_buf + jit_idx) = val;
+            jit_write32(temp_buf + jit_idx, val);
             jit_idx += 4;
             /* mov qword ptr [rbx + 8], JS_TAG_INT (0) */
             uint8_t mov_tag[] = { 0x48, 0xc7, 0x43, 0x08, 0x00, 0x00, 0x00, 0x00 };
@@ -219,7 +236,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
         else if (opcode == OP_get_loc || opcode == OP_get_loc8 || (opcode >= OP_get_loc0 && opcode <= OP_get_loc3)) {
             int idx = 0;
             if (opcode == OP_get_loc) {
-                idx = *(uint16_t *)pc;
+                idx = pc_read16(pc);
                 pc += 2;
             } else if (opcode == OP_get_loc8) {
                 idx = *pc++;
@@ -233,10 +250,10 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rdx, rbx (sp) */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xda;
             /* mov ecx, idx */
-            temp_buf[jit_idx++] = 0xb9; *(int32_t *)(temp_buf + jit_idx) = idx; jit_idx += 4;
+            temp_buf[jit_idx++] = 0xb9; jit_write32(temp_buf + jit_idx, idx); jit_idx += 4;
             /* mov rax, js_jit_get_loc */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = (void *)js_jit_get_loc;
+            jit_write_ptr(temp_buf + jit_idx, (void *)js_jit_get_loc);
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -246,7 +263,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
         else if (opcode == OP_put_loc || opcode == OP_put_loc8 || (opcode >= OP_put_loc0 && opcode <= OP_put_loc3)) {
             int idx = 0;
             if (opcode == OP_put_loc) {
-                idx = *(uint16_t *)pc;
+                idx = pc_read16(pc);
                 pc += 2;
             } else if (opcode == OP_put_loc8) {
                 idx = *pc++;
@@ -260,10 +277,10 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rdx, rbx (sp) */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xda;
             /* mov ecx, idx */
-            temp_buf[jit_idx++] = 0xb9; *(int32_t *)(temp_buf + jit_idx) = idx; jit_idx += 4;
+            temp_buf[jit_idx++] = 0xb9; jit_write32(temp_buf + jit_idx, idx); jit_idx += 4;
             /* mov rax, js_jit_put_loc */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = (void *)js_jit_put_loc;
+            jit_write_ptr(temp_buf + jit_idx, (void *)js_jit_put_loc);
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -273,7 +290,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
         else if (opcode == OP_set_loc || opcode == OP_set_loc8 || (opcode >= OP_set_loc0 && opcode <= OP_set_loc3)) {
             int idx = 0;
             if (opcode == OP_set_loc) {
-                idx = *(uint16_t *)pc;
+                idx = pc_read16(pc);
                 pc += 2;
             } else if (opcode == OP_set_loc8) {
                 idx = *pc++;
@@ -287,10 +304,10 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rdx, rbx (sp) */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xda;
             /* mov ecx, idx */
-            temp_buf[jit_idx++] = 0xb9; *(int32_t *)(temp_buf + jit_idx) = idx; jit_idx += 4;
+            temp_buf[jit_idx++] = 0xb9; jit_write32(temp_buf + jit_idx, idx); jit_idx += 4;
             /* mov rax, js_jit_set_loc */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = (void *)js_jit_set_loc;
+            jit_write_ptr(temp_buf + jit_idx, (void *)js_jit_set_loc);
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -302,7 +319,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             if (opcode == OP_push_const8) {
                 idx = *pc++;
             } else {
-                idx = *(uint16_t *)pc;
+                idx = pc_read16(pc);
                 pc += 2;
             }
             /* mov rdi, r12 (ctx) */
@@ -312,10 +329,10 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             /* mov rdx, rbx (sp) */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xda;
             /* mov ecx, idx */
-            temp_buf[jit_idx++] = 0xb9; *(int32_t *)(temp_buf + jit_idx) = idx; jit_idx += 4;
+            temp_buf[jit_idx++] = 0xb9; jit_write32(temp_buf + jit_idx, idx); jit_idx += 4;
             /* mov rax, js_jit_push_const */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = (void *)js_jit_push_const;
+            jit_write_ptr(temp_buf + jit_idx, (void *)js_jit_push_const);
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -338,7 +355,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xde;
             /* mov rax, func */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = func;
+            jit_write_ptr(temp_buf + jit_idx, func);
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -354,7 +371,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0xc3;
         }
         else if (opcode == OP_if_true || opcode == OP_if_false) {
-            int target_bytecode_pc = pc_offset + *(int32_t *)pc;
+            int target_bytecode_pc = pc_offset + pc_read32(pc);
             pc += 4;
 
             /* mov rdi, r12 (ctx) */
@@ -367,7 +384,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0x89; temp_buf[jit_idx++] = 0x1e;
             /* mov rax, js_jit_if_true */
             temp_buf[jit_idx++] = 0x48; temp_buf[jit_idx++] = 0xb8;
-            *(void **)(temp_buf + jit_idx) = (void *)js_jit_if_true;
+            jit_write_ptr(temp_buf + jit_idx, (void *)js_jit_if_true);
             jit_idx += 8;
             /* call rax */
             temp_buf[jit_idx++] = 0xff; temp_buf[jit_idx++] = 0xd0;
@@ -398,7 +415,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
             jit_idx += 4;
         }
         else if (opcode == OP_goto) {
-            int target_bytecode_pc = pc_offset + *(int32_t *)pc;
+            int target_bytecode_pc = pc_offset + pc_read32(pc);
             pc += 4;
             /* jmp displacement */
             temp_buf[jit_idx++] = 0xe9;
@@ -520,7 +537,7 @@ void qjs_jit_compile(JSFunctionBytecode *b) {
 
         if (target_jit_pos != -1) {
             int rel_offset = target_jit_pos - (patch_offset + 4);
-            *(int32_t *)(temp_buf + patch_offset) = rel_offset;
+            jit_write32(temp_buf + patch_offset, rel_offset);
         }
     }
 

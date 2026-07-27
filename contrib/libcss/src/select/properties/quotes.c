@@ -26,13 +26,19 @@ css_error css__cascade_quotes(uint32_t opv, css_style *style, css_select_state *
         value = CSS_QUOTES_STRING;
 
         while (v != QUOTES_NONE) {
-            lwc_string *open, *close;
+            lwc_string *open = NULL, *close = NULL;
             lwc_string **temp;
 
-            css__stylesheet_string_get(style->sheet, *((css_code_t *)style->bytecode), &open);
+            if (css__stylesheet_string_get(style->sheet, *((css_code_t *)style->bytecode), &open) != CSS_OK || open == NULL) {
+                if (quotes != NULL) free(quotes);
+                return CSS_BADPARM;
+            }
             advance_bytecode(style, sizeof(css_code_t));
 
-            css__stylesheet_string_get(style->sheet, *((css_code_t *)style->bytecode), &close);
+            if (css__stylesheet_string_get(style->sheet, *((css_code_t *)style->bytecode), &close) != CSS_OK || close == NULL) {
+                if (quotes != NULL) free(quotes);
+                return CSS_BADPARM;
+            }
             advance_bytecode(style, sizeof(css_code_t));
 
             temp = realloc(quotes, (n_quotes + 2) * sizeof(lwc_string *));

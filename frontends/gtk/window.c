@@ -1337,8 +1337,14 @@ static nserror nsgtk_window_invalidate_area(struct gui_window *g, const struct r
 
     gui_window_get_scroll(g, &sx, &sy);
 
+    int draw_w = rect->x1 - rect->x0;
+    int draw_h = rect->y1 - rect->y0;
+    if (rect->x0 <= -2000000000 || rect->y0 <= -2000000000 || draw_w < 0 || draw_h < 0) {
+        return NSERROR_OK;
+    }
+
     gtk_widget_queue_draw_area(
-        GTK_WIDGET(g->layout), rect->x0 - sx, rect->y0 - sy, rect->x1 - rect->x0, rect->y1 - rect->y0);
+        GTK_WIDGET(g->layout), rect->x0 - sx, rect->y0 - sy, draw_w, draw_h);
 
     return NSERROR_OK;
 }
