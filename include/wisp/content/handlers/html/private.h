@@ -105,6 +105,8 @@ union html_focus_owner {
 
 #include <pthread.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
@@ -383,6 +385,88 @@ static inline void doc_rwlock_upgrade(doc_rwlock_t *lock) {
     pthread_mutex_unlock(&lock->mutex);
 }
 
+struct hashset {
+    uint64_t *keys;
+    unsigned int capacity;
+    unsigned int count;
+};
+
+static inline struct hashset *hashset_create(unsigned int initial_capacity)
+{
+    struct hashset *set = malloc(sizeof(struct hashset));
+    if (!set) return NULL;
+    set->capacity = initial_capacity > 0 ? initial_capacity : 16;
+    set->count = 0;
+    set->keys = calloc(set->capacity, sizeof(uint64_t));
+    if (!set->keys) {
+        free(set);
+        return NULL;
+    }
+    return set;
+}
+
+static inline void hashset_destroy(struct hashset *set)
+{
+    if (!set) return;
+    free(set->keys);
+    free(set);
+}
+
+static inline void hashset_clear(struct hashset *set)
+{
+    if (!set) return;
+    memset(set->keys, 0, set->capacity * sizeof(uint64_t));
+    set->count = 0;
+}
+
+static inline uint32_t hashset_hash_uint64(uint64_t key)
+{
+    key ^= key >> 33;
+    key *= 0xff51afd7ed558ccdULL;
+    key ^= key >> 33;
+    key *= 0xc4ceb9fe1a85ec53ULL;
+    key ^= key >> 33;
+    return (uint32_t)key;
+}
+
+static inline bool hashset_insert(struct hashset *set, uint64_t key)
+{
+    if (!set) return false;
+    uint64_t stored_val = key + 1;
+
+    /* Check load factor, resize if >= 70% */
+    if (set->count * 10 >= set->capacity * 7) {
+        unsigned int old_capacity = set->capacity;
+        uint64_t *old_keys = set->keys;
+        unsigned int new_capacity = old_capacity * 2;
+        uint64_t *new_keys = calloc(new_capacity, sizeof(uint64_t));
+        if (new_keys) {
+            set->capacity = new_capacity;
+            set->keys = new_keys;
+            set->count = 0;
+            for (unsigned int i = 0; i < old_capacity; i++) {
+                if (old_keys[i] != 0) {
+                    uint64_t old_key = old_keys[i] - 1;
+                    hashset_insert(set, old_key);
+                }
+            }
+            free(old_keys);
+        }
+    }
+
+    uint32_t h = hashset_hash_uint64(key);
+    unsigned int idx = h % set->capacity;
+    while (set->keys[idx] != 0) {
+        if (set->keys[idx] == stored_val) {
+            return false; /* Already exists */
+        }
+        idx = (idx + 1) % set->capacity;
+    }
+    set->keys[idx] = stored_val;
+    set->count++;
+    return true;
+}
+
 struct csp;
 
 /**
@@ -548,6 +632,9 @@ typedef struct html_content {
     /** Whether we have fallen back to a single unioned bounding box */
     bool dirty_use_union;
 
+    /** Virtual Grid Bitmask for change tracking */
+    struct hashset *dirty_grid;
+
     /** Style cache and its mutex for parallel styling */
     struct style_cache_node *style_cache;
     pthread_mutex_t style_cache_mutex;
@@ -560,55 +647,45 @@ struct style_cache_node {
     struct style_cache_node *next;
 };
 
+static inline void html_mark_grid_dirty(struct html_content *html, const struct rect *r)
+{
+    if (r->x0 <= -2000000000 || r->y0 <= -2000000000 ||
+        r->x1 <= -2000000000 || r->y1 <= -2000000000 ||
+        r->x1 < r->x0 || r->y1 < r->y0) {
+        return; /* Skip completely invalid or unpositioned rectangles */
+    }
+
+    /* Clamp negative coordinates to 0, representing standard on-screen viewport space */
+    int x0 = r->x0 < 0 ? 0 : r->x0;
+    int x1 = r->x1 < 0 ? 0 : r->x1;
+    int y0 = r->y0 < 0 ? 0 : r->y0;
+    int y1 = r->y1 < 0 ? 0 : r->y1;
+
+    /* Skip zero-width or zero-height rectangles */
+    if (x1 <= x0 || y1 <= y0) {
+        return;
+    }
+
+    /* Standard layout coordinate space maps to 256x256 tiles with exclusive end boundaries */
+    int start_x = x0 / 256;
+    int end_x = (x1 - 1) / 256;
+    int start_y = y0 / 256;
+    int end_y = (y1 - 1) / 256;
+
+    for (int ty = start_y; ty <= end_y; ty++) {
+        for (int tx = start_x; tx <= end_x; tx++) {
+            uint64_t tile_key = ((uint64_t)tx << 32) | (uint32_t)ty;
+            hashset_insert(html->dirty_grid, tile_key);
+        }
+    }
+}
+
 /**
  * Add a rectangle to the document's disjoint dirty list.
  */
 static inline void html_add_dirty_rect(struct html_content *html, const struct rect *r)
 {
-	if (r->x0 <= -2000000000 || r->y0 <= -2000000000 ||
-	    r->x1 <= -2000000000 || r->y1 <= -2000000000 ||
-	    r->x1 < r->x0 || r->y1 < r->y0) {
-		return; /* Skip completely invalid or unpositioned rectangles */
-	}
-
-	if (html->dirty_use_union) {
-		if (html->dirty_rect_count == 0) {
-			html->dirty_rects[0] = *r;
-			html->dirty_rect_count = 1;
-		} else {
-			ns_rect_union(&html->dirty_rects[0], r);
-		}
-	} else {
-		bool merged = false;
-		for (unsigned int i = 0; i < html->dirty_rect_count; i++) {
-			struct rect *e = &html->dirty_rects[i];
-			/* Check if new rect is entirely contained in existing one */
-			if (r->x0 >= e->x0 && r->x1 <= e->x1 && r->y0 >= e->y0 && r->y1 <= e->y1) {
-				return;
-			}
-			/* Check for overlap */
-			if (!(r->x1 < e->x0 || r->x0 > e->x1 || r->y1 < e->y0 || r->y0 > e->y1)) {
-				ns_rect_union(e, r);
-				merged = true;
-				break;
-			}
-		}
-		if (!merged) {
-			if (html->dirty_rect_count < 16) {
-				html->dirty_rects[html->dirty_rect_count++] = *r;
-			} else {
-				/* Fallback to union if too many disjoint regions */
-				struct rect union_rect = html->dirty_rects[0];
-				for (unsigned int i = 1; i < html->dirty_rect_count; i++) {
-					ns_rect_union(&union_rect, &html->dirty_rects[i]);
-				}
-				ns_rect_union(&union_rect, r);
-				html->dirty_rects[0] = union_rect;
-				html->dirty_rect_count = 1;
-				html->dirty_use_union = true;
-			}
-		}
-	}
+    html_mark_grid_dirty(html, r);
 }
 
 /**

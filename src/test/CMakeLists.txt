@@ -455,4 +455,9 @@ add_wisp_test(test_utf8proc_simd
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
+
+add_wisp_test(test_dirty_grid
+  ${CMAKE_SOURCE_DIR}/src/test/test_dirty_grid.c
+)
+target_link_libraries(test_dirty_grid PRIVATE wisp)
 endif()
