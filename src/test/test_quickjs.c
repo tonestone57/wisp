@@ -367,6 +367,16 @@ START_TEST(test_quickjs_svds_32bit_indices)
     ck_assert(strncmp((const char *)dom_string_data(attr_val), "shm-test-class", 14) == 0);
     dom_string_unref(attr_val);
 
+    // Verify out-of-line string allocation and interning with massive class strings (>256 bytes)
+    char *massive_str = malloc(1024);
+    memset(massive_str, 'A', 1023);
+    massive_str[1023] = '\0';
+    WispStringRef ref1 = wisp_shm_alloc_string(shm, massive_str);
+    WispStringRef ref2 = wisp_shm_alloc_string(shm, massive_str);
+    ck_assert_int_eq(ref1, ref2); // Should be interned to the exact same offset
+    ck_assert_str_eq(wisp_string_ref_data(shm, ref1), massive_str);
+    free(massive_str);
+
     // Cleanup
     free(shm);
     dom_node_unref((dom_node *)doc);
@@ -2909,7 +2919,7 @@ START_TEST(test_quickjs_bbmq_circular_queue)
         ck_assert_int_eq(mq->queue[i].target_id, i + 1);
         char expected_val[16];
         snprintf(expected_val, sizeof(expected_val), "val_%d", i + 1);
-        ck_assert_str_eq(mq->queue[i].value, expected_val);
+        ck_assert_str_eq(wisp_string_ref_data(wisp_shm_dom, mq->queue[i].value), expected_val);
     }
 
     // 3. Test circular queue wrap-around:

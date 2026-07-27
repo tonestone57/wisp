@@ -4,10 +4,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 
 #define SHM_DOM_MAX_NODES 8192
-#define SHM_DOM_STRING_MAX 128
 #define SHM_MUTATION_QUEUE_SIZE 1024
+
+#define SHM_STRING_HASH_SIZE 65536
+#define SHM_STRING_HEAP_SIZE (2 * 1024 * 1024)
 
 typedef uint32_t WispNodeID;
 #define WISP_NODE_NULL 0
@@ -29,13 +32,16 @@ typedef enum {
     SHM_MUTATION_SET_TEXT_CONTENT = 8,
 } shm_mutation_type_t;
 
+typedef uint32_t WispStringRef;
+#define WISP_SSO_FLAG (1U << 31)
+
 typedef struct {
     uint32_t type;                /* shm_mutation_type_t */
     uint64_t target_id;           /* ID of the target node */
     uint64_t param1_id;           /* e.g., child node ID to append/remove */
     uint64_t param2_id;           /* e.g., child node ID for insertBefore/replace */
-    char name[SHM_DOM_STRING_MAX];  /* attribute name */
-    char value[SHM_DOM_STRING_MAX]; /* attribute value or text value */
+    WispStringRef name;           /* attribute name */
+    WispStringRef value;          /* attribute value or text value */
 } shm_mutation_t;
 
 typedef struct {
@@ -73,12 +79,12 @@ typedef struct {
 _Static_assert(sizeof(WispShmLayoutCache) == 64, "WispShmLayoutCache must be exactly 64 bytes");
 
 typedef struct {
-    char name[SHM_DOM_STRING_MAX];
-    char value[SHM_DOM_STRING_MAX];
-    char tag_name[SHM_DOM_STRING_MAX];
+    WispStringRef name;
+    WispStringRef value;
+    WispStringRef tag_name;
     struct {
-        char name[SHM_DOM_STRING_MAX];
-        char value[SHM_DOM_STRING_MAX];
+        WispStringRef name;
+        WispStringRef value;
     } attrs[16];
     uint32_t attr_count;
 } WispNodeStrings;
@@ -88,11 +94,65 @@ typedef struct {
     WispShmLayoutCache layout_cache[SHM_DOM_MAX_NODES];
     WispNodeStrings node_strings[SHM_DOM_MAX_NODES];
     uint64_t dom_ptrs[SHM_DOM_MAX_NODES]; // Local pointer mapping (for UI thread)
+    uint32_t string_hash_table[SHM_STRING_HASH_SIZE];
+    char string_heap[SHM_STRING_HEAP_SIZE];
+    uint32_t string_heap_top;
     uint32_t node_count;
     uint32_t layout_cache_count;
     shm_mutation_queue_t mutation_queue;
     bool layout_dirty;
 } shm_dom_t;
+
+/* Thread-local variables for SSO decoding */
+extern __thread char wisp_sso_decode_bufs[16][4];
+extern __thread uint32_t wisp_sso_decode_idx;
+
+/* Helper Inline Functions for SSO & String references */
+static inline WispStringRef wisp_make_string_ref(const char *str, size_t len, uint32_t heap_offset) {
+    if (len <= 3) {
+        WispStringRef sso = WISP_SSO_FLAG | ((uint8_t)len << 24);
+        for (size_t i = 0; i < len; i++) {
+            sso |= ((uint8_t)str[i]) << (i * 8);
+        }
+        return sso;
+    }
+    return heap_offset & ~WISP_SSO_FLAG;
+}
+
+static inline const char* wisp_string_ref_data(const shm_dom_t *shm, WispStringRef ref) {
+    if (ref == 0) return "";
+    if (ref & WISP_SSO_FLAG) {
+        uint32_t idx = wisp_sso_decode_idx;
+        wisp_sso_decode_idx = (wisp_sso_decode_idx + 1) & 15;
+        char *buf = wisp_sso_decode_bufs[idx];
+        uint32_t len = (ref >> 24) & 0x7F;
+        if (len > 3) len = 3;
+        for (uint32_t i = 0; i < len; i++) {
+            buf[i] = (char)((ref >> (i * 8)) & 0xFF);
+        }
+        buf[len] = '\0';
+        return buf;
+    }
+    if (shm) {
+        uint32_t offset = ref & ~WISP_SSO_FLAG;
+        if (offset < SHM_STRING_HEAP_SIZE) {
+            return &shm->string_heap[offset];
+        }
+    }
+    return "";
+}
+
+static inline bool wisp_string_ref_eq(const shm_dom_t *shm, WispStringRef ref, const char *str) {
+    if (!str) return false;
+    const char *data = wisp_string_ref_data(shm, ref);
+    return strcmp(data, str) == 0;
+}
+
+static inline bool wisp_string_ref_caseeq(const shm_dom_t *shm, WispStringRef ref, const char *str) {
+    if (!str) return false;
+    const char *data = wisp_string_ref_data(shm, ref);
+    return strcasecmp(data, str) == 0;
+}
 
 /* API */
 shm_dom_t* shm_dom_create(const char *name, bool is_server);
@@ -101,5 +161,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
 void bbmq_flush(void);
 bool bbmq_has_pending_for_node(uint64_t target_id);
 WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id);
+
+WispStringRef wisp_shm_alloc_string(shm_dom_t *shm, const char *str);
 
 #endif /* WISP_UTILS_SHM_DOM_H */

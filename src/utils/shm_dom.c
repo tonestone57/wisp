@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include "wisp/utils/log.h"
 
+__thread char wisp_sso_decode_bufs[16][4];
+__thread uint32_t wisp_sso_decode_idx = 0;
+
 int peak_nodes_used = 0;
 static bool shm_dom_metrics_registered = false;
 
@@ -185,6 +188,46 @@ static void bbmq_resize(uint32_t new_capacity) {
     bbmq_capacity = new_capacity;
 }
 
+WispStringRef wisp_shm_alloc_string(shm_dom_t *shm, const char *str) {
+    if (!shm || !str) return 0;
+    size_t len = strlen(str);
+    if (len <= 3) {
+        return wisp_make_string_ref(str, len, 0);
+    }
+
+    // String Interning Hash Lookup (FNV-1a)
+    uint32_t hash = 2166136261U;
+    for (size_t i = 0; i < len; i++) {
+        hash = (hash ^ (uint8_t)str[i]) * 16777619ULL;
+    }
+    uint32_t bucket = hash % SHM_STRING_HASH_SIZE;
+
+    // Open addressing / linear probing
+    for (uint32_t i = 0; i < SHM_STRING_HASH_SIZE; i++) {
+        uint32_t slot = (bucket + i) % SHM_STRING_HASH_SIZE;
+        uint32_t offset = shm->string_hash_table[slot];
+        if (offset == 0) {
+            // Allocate new on shared heap top (Atomic Bump Allocator)
+            uint32_t bytes_needed = len + 1;
+            uint32_t cur_top = __atomic_fetch_add(&shm->string_heap_top, bytes_needed, __ATOMIC_SEQ_CST);
+            if (cur_top + bytes_needed > SHM_STRING_HEAP_SIZE) {
+                NSLOG(wisp, ERROR, "[SHM_DOM] Shared string heap out of memory!");
+                return 0;
+            }
+            memcpy(&shm->string_heap[cur_top], str, len);
+            shm->string_heap[cur_top + len] = '\0';
+            shm->string_hash_table[slot] = cur_top + 1; // 1-based offset to distinguish from empty
+            return wisp_make_string_ref(str, len, cur_top);
+        } else {
+            uint32_t heap_offset = offset - 1;
+            if (strcmp(&shm->string_heap[heap_offset], str) == 0) {
+                return wisp_make_string_ref(str, len, heap_offset);
+            }
+        }
+    }
+    return 0;
+}
+
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value) {
     if (!shm) return;
 
@@ -194,32 +237,24 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         shm->layout_cache[sn->layout_index].layout_dirty = 1;
     }
 
+    WispStringRef name_ref = wisp_shm_alloc_string(shm, name);
+    WispStringRef value_ref = wisp_shm_alloc_string(shm, value);
+
     if (sn) {
         WispNodeStrings *sns = &shm->node_strings[target_id];
         if (type == SHM_MUTATION_SET_ATTRIBUTE && name) {
             bool found = false;
             for (uint32_t i = 0; i < sns->attr_count; i++) {
-                if (strcasecmp(sns->attrs[i].name, name) == 0) {
-                    if (value) {
-                        strncpy(sns->attrs[i].value, value, SHM_DOM_STRING_MAX - 1);
-                        sns->attrs[i].value[SHM_DOM_STRING_MAX - 1] = '\0';
-                    } else {
-                        sns->attrs[i].value[0] = '\0';
-                    }
+                if (wisp_string_ref_caseeq(shm, sns->attrs[i].name, name)) {
+                    sns->attrs[i].value = value_ref;
                     found = true;
                     break;
                 }
             }
             if (!found && sns->attr_count < 16) {
                 uint32_t idx = sns->attr_count++;
-                strncpy(sns->attrs[idx].name, name, SHM_DOM_STRING_MAX - 1);
-                sns->attrs[idx].name[SHM_DOM_STRING_MAX - 1] = '\0';
-                if (value) {
-                    strncpy(sns->attrs[idx].value, value, SHM_DOM_STRING_MAX - 1);
-                    sns->attrs[idx].value[SHM_DOM_STRING_MAX - 1] = '\0';
-                } else {
-                    sns->attrs[idx].value[0] = '\0';
-                }
+                sns->attrs[idx].name = name_ref;
+                sns->attrs[idx].value = value_ref;
             }
 
             // Keep class hash up-to-date
@@ -236,18 +271,13 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
             }
         } else if (type == SHM_MUTATION_REMOVE_ATTRIBUTE && name) {
             for (uint32_t i = 0; i < sns->attr_count; i++) {
-                if (strcasecmp(sns->attrs[i].name, name) == 0) {
+                if (wisp_string_ref_caseeq(shm, sns->attrs[i].name, name)) {
                     sns->attrs[i] = sns->attrs[--sns->attr_count];
                     break;
                 }
             }
         } else if (type == SHM_MUTATION_SET_NODE_VALUE || type == SHM_MUTATION_SET_TEXT_CONTENT) {
-            if (value) {
-                strncpy(sns->value, value, SHM_DOM_STRING_MAX - 1);
-                sns->value[SHM_DOM_STRING_MAX - 1] = '\0';
-            } else {
-                sns->value[0] = '\0';
-            }
+            sns->value = value_ref;
         }
     }
 
@@ -264,18 +294,8 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         m->target_id = target_id;
         m->param1_id = param1_id;
         m->param2_id = param2_id;
-        if (name) {
-            strncpy(m->name, name, SHM_DOM_STRING_MAX - 1);
-            m->name[SHM_DOM_STRING_MAX - 1] = '\0';
-        } else {
-            m->name[0] = '\0';
-        }
-        if (value) {
-            strncpy(m->value, value, SHM_DOM_STRING_MAX - 1);
-            m->value[SHM_DOM_STRING_MAX - 1] = '\0';
-        } else {
-            m->value[0] = '\0';
-        }
+        m->name = name_ref;
+        m->value = value_ref;
         bbmq_tail = (bbmq_tail + 1) % bbmq_capacity;
         bbmq_size++;
         return;
@@ -293,18 +313,8 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     m->target_id = target_id;
     m->param1_id = param1_id;
     m->param2_id = param2_id;
-    if (name) {
-        strncpy(m->name, name, SHM_DOM_STRING_MAX - 1);
-        m->name[SHM_DOM_STRING_MAX - 1] = '\0';
-    } else {
-        m->name[0] = '\0';
-    }
-    if (value) {
-        strncpy(m->value, value, SHM_DOM_STRING_MAX - 1);
-        m->value[SHM_DOM_STRING_MAX - 1] = '\0';
-    } else {
-        m->value[0] = '\0';
-    }
+    m->name = name_ref;
+    m->value = value_ref;
 
 #ifdef _WIN32
     MemoryBarrier();
