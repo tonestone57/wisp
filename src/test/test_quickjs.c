@@ -2864,6 +2864,86 @@ START_TEST(test_quickjs_ric)
 }
 END_TEST
 
+START_TEST(test_quickjs_bbmq_circular_queue)
+{
+    // Save original state
+    extern bool wisp_is_js_process;
+    extern shm_dom_t *wisp_shm_dom;
+
+    bool saved_is_js = wisp_is_js_process;
+    shm_dom_t *saved_shm = wisp_shm_dom;
+
+    // Set process to JS process and set a dummy wisp_shm_dom
+    wisp_is_js_process = true;
+    wisp_shm_dom = calloc(1, sizeof(shm_dom_t));
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    // Initial state check
+    ck_assert_int_eq(bbmq_has_pending_for_node(42), false);
+
+    // 1. Enqueue some mutations (more than the initial capacity of 256 to force resizing)
+    for (int i = 1; i <= 300; i++) {
+        char val_str[16];
+        snprintf(val_str, sizeof(val_str), "val_%d", i);
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_ATTRIBUTE, i, 0, 0, "class", val_str);
+    }
+
+    // Check that has_pending works for elements we enqueued
+    ck_assert_int_eq(bbmq_has_pending_for_node(1), true);
+    ck_assert_int_eq(bbmq_has_pending_for_node(300), true);
+    ck_assert_int_eq(bbmq_has_pending_for_node(301), false);
+
+    // 2. Flush and sweep
+    bbmq_flush();
+
+    // Check that local buffer size is reset to 0 and does not have pending
+    ck_assert_int_eq(bbmq_has_pending_for_node(1), false);
+
+    // Check that mutations were correctly flushed to the shared queue
+    shm_mutation_queue_t *mq = &wisp_shm_dom->mutation_queue;
+    ck_assert_int_eq(mq->head, 300);
+    ck_assert_int_eq(mq->tail, 0);
+
+    for (int i = 0; i < 300; i++) {
+        ck_assert_int_eq(mq->queue[i].type, SHM_MUTATION_SET_ATTRIBUTE);
+        ck_assert_int_eq(mq->queue[i].target_id, i + 1);
+        char expected_val[16];
+        snprintf(expected_val, sizeof(expected_val), "val_%d", i + 1);
+        ck_assert_str_eq(mq->queue[i].value, expected_val);
+    }
+
+    // 3. Test circular queue wrap-around:
+    // Clear the shared queue (by advancing tail)
+    mq->tail = mq->head;
+
+    // Enqueue 200 more mutations
+    for (int i = 301; i <= 500; i++) {
+        char val_str[16];
+        snprintf(val_str, sizeof(val_str), "val_%d", i);
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_ATTRIBUTE, i, 0, 0, "class", val_str);
+    }
+
+    // Verify they are pending
+    ck_assert_int_eq(bbmq_has_pending_for_node(301), true);
+    ck_assert_int_eq(bbmq_has_pending_for_node(500), true);
+
+    // Flush again
+    bbmq_flush();
+
+    ck_assert_int_eq(mq->head, 500);
+    for (int i = 300; i < 500; i++) {
+        uint32_t idx = i % SHM_MUTATION_QUEUE_SIZE;
+        ck_assert_int_eq(mq->queue[idx].type, SHM_MUTATION_SET_ATTRIBUTE);
+        ck_assert_int_eq(mq->queue[idx].target_id, i + 1);
+    }
+
+    // Clean up
+    free(wisp_shm_dom);
+    wisp_is_js_process = saved_is_js;
+    wisp_shm_dom = saved_shm;
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -2949,6 +3029,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
+    tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
