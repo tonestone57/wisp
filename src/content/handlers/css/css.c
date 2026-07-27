@@ -437,7 +437,7 @@ css_stylesheet *nscss_get_stylesheet(struct hlcache_handle *h)
     nscss_content *c = (nscss_content *)hlcache_handle_get_content(h);
 
     if (c == NULL) {
-        NSLOG(wisp, ERROR, "Content is NULL for handle %p", h);
+        NSLOG(wisp, DEBUG, "Content is NULL for handle %p", h);
         return NULL;
     }
 
