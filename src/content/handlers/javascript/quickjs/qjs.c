@@ -2983,20 +2983,26 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
     dom_string *name = NULL;
     dom_node_get_node_name(node, &name);
     if (name) {
-        size_t len = dom_string_byte_length(name);
-        if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
-        memcpy(sns->name, dom_string_data(name), len);
-        sns->name[len] = '\0';
+        char *name_cstr = malloc(dom_string_byte_length(name) + 1);
+        if (name_cstr) {
+            memcpy(name_cstr, dom_string_data(name), dom_string_byte_length(name));
+            name_cstr[dom_string_byte_length(name)] = '\0';
+            sns->name = wisp_shm_alloc_string(shm, name_cstr);
+            free(name_cstr);
+        }
         dom_string_unref(name);
     }
 
     dom_string *value = NULL;
     dom_node_get_node_value(node, &value);
     if (value) {
-        size_t len = dom_string_byte_length(value);
-        if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
-        memcpy(sns->value, dom_string_data(value), len);
-        sns->value[len] = '\0';
+        char *value_cstr = malloc(dom_string_byte_length(value) + 1);
+        if (value_cstr) {
+            memcpy(value_cstr, dom_string_data(value), dom_string_byte_length(value));
+            value_cstr[dom_string_byte_length(value)] = '\0';
+            sns->value = wisp_shm_alloc_string(shm, value_cstr);
+            free(value_cstr);
+        }
         dom_string_unref(value);
     }
 
@@ -3004,11 +3010,14 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
         dom_string *tag_name = NULL;
         dom_element_get_tag_name((dom_element *)node, &tag_name);
         if (tag_name) {
-            size_t len = dom_string_byte_length(tag_name);
-            if (len >= SHM_DOM_STRING_MAX) len = SHM_DOM_STRING_MAX - 1;
-            memcpy(sns->tag_name, dom_string_data(tag_name), len);
-            sns->tag_name[len] = '\0';
-            sn->tag_atom = get_tag_atom_from_name(sns->tag_name);
+            char *tag_cstr = malloc(dom_string_byte_length(tag_name) + 1);
+            if (tag_cstr) {
+                memcpy(tag_cstr, dom_string_data(tag_name), dom_string_byte_length(tag_name));
+                tag_cstr[dom_string_byte_length(tag_name)] = '\0';
+                sns->tag_name = wisp_shm_alloc_string(shm, tag_cstr);
+                sn->tag_atom = get_tag_atom_from_name(tag_cstr);
+                free(tag_cstr);
+            }
             dom_string_unref(tag_name);
         }
 
@@ -3029,22 +3038,33 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
                     dom_node_get_node_value(attr_node, &attr_val);
 
                     if (attr_name) {
-                        size_t n_len = dom_string_byte_length(attr_name);
-                        if (n_len >= SHM_DOM_STRING_MAX) n_len = SHM_DOM_STRING_MAX - 1;
-                        memcpy(sns->attrs[i].name, dom_string_data(attr_name), n_len);
-                        sns->attrs[i].name[n_len] = '\0';
+                        char *an_cstr = malloc(dom_string_byte_length(attr_name) + 1);
+                        if (an_cstr) {
+                            memcpy(an_cstr, dom_string_data(attr_name), dom_string_byte_length(attr_name));
+                            an_cstr[dom_string_byte_length(attr_name)] = '\0';
+                            sns->attrs[i].name = wisp_shm_alloc_string(shm, an_cstr);
 
-                        if (strcasecmp((const char *)dom_string_data(attr_name), "class") == 0 && attr_val) {
-                            sn->class_hash = compute_class_hash((const char *)dom_string_data(attr_val));
+                            if (strcasecmp(an_cstr, "class") == 0 && attr_val) {
+                                char *av_cstr = malloc(dom_string_byte_length(attr_val) + 1);
+                                if (av_cstr) {
+                                    memcpy(av_cstr, dom_string_data(attr_val), dom_string_byte_length(attr_val));
+                                    av_cstr[dom_string_byte_length(attr_val)] = '\0';
+                                    sn->class_hash = compute_class_hash(av_cstr);
+                                    free(av_cstr);
+                                }
+                            }
+                            free(an_cstr);
                         }
-
                         dom_string_unref(attr_name);
                     }
                     if (attr_val) {
-                        size_t v_len = dom_string_byte_length(attr_val);
-                        if (v_len >= SHM_DOM_STRING_MAX) v_len = SHM_DOM_STRING_MAX - 1;
-                        memcpy(sns->attrs[i].value, dom_string_data(attr_val), v_len);
-                        sns->attrs[i].value[v_len] = '\0';
+                        char *av_cstr = malloc(dom_string_byte_length(attr_val) + 1);
+                        if (av_cstr) {
+                            memcpy(av_cstr, dom_string_data(attr_val), dom_string_byte_length(attr_val));
+                            av_cstr[dom_string_byte_length(attr_val)] = '\0';
+                            sns->attrs[i].value = wisp_shm_alloc_string(shm, av_cstr);
+                            free(av_cstr);
+                        }
                         dom_string_unref(attr_val);
                     }
                     dom_node_unref(attr_node);
@@ -3100,6 +3120,8 @@ void serialize_dom_tree(shm_dom_t *shm, struct dom_document *doc) {
     shm->node_count = 1; // Start indices at 1, 0 is WISP_NODE_NULL
     shm->layout_cache_count = 0;
     memset(shm->layout_cache, 0, sizeof(shm->layout_cache));
+    memset(shm->string_hash_table, 0, sizeof(shm->string_hash_table));
+    shm->string_heap_top = 1; // Initialize top to 1 to reserve 0 as NULL/empty
     serialize_dom_node(shm, (dom_node *)doc, 0);
 }
 
@@ -3119,12 +3141,15 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
     dom_node *param1 = get_dom_node_from_id(shm, m->param1_id);
     dom_node *param2 = get_dom_node_from_id(shm, m->param2_id);
 
+    const char *m_name_cstr = wisp_string_ref_data(shm, m->name);
+    const char *m_value_cstr = wisp_string_ref_data(shm, m->value);
+
     switch (m->type) {
         case SHM_MUTATION_SET_ATTRIBUTE: {
             dom_string *name_dom = NULL;
-            dom_string_create((const uint8_t *)m->name, strlen(m->name), &name_dom);
+            dom_string_create((const uint8_t *)m_name_cstr, strlen(m_name_cstr), &name_dom);
             dom_string *value_dom = NULL;
-            dom_string_create((const uint8_t *)m->value, strlen(m->value), &value_dom);
+            dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &value_dom);
             if (target && name_dom && value_dom) {
                 dom_element_set_attribute((dom_element *)target, name_dom, value_dom);
             }
@@ -3134,7 +3159,7 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
         }
         case SHM_MUTATION_REMOVE_ATTRIBUTE: {
             dom_string *name_dom = NULL;
-            dom_string_create((const uint8_t *)m->name, strlen(m->name), &name_dom);
+            dom_string_create((const uint8_t *)m_name_cstr, strlen(m_name_cstr), &name_dom);
             if (target && name_dom) {
                 dom_element_remove_attribute((dom_element *)target, name_dom);
             }
@@ -3175,7 +3200,7 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
         }
         case SHM_MUTATION_SET_NODE_VALUE: {
             dom_string *ds = NULL;
-            dom_string_create((const uint8_t *)m->value, strlen(m->value), &ds);
+            dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &ds);
             if (target && ds) {
                 dom_node_set_node_value(target, ds);
             }
@@ -3184,7 +3209,7 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
         }
         case SHM_MUTATION_SET_TEXT_CONTENT: {
             dom_string *ds = NULL;
-            dom_string_create((const uint8_t *)m->value, strlen(m->value), &ds);
+            dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &ds);
             if (target && ds) {
                 dom_node_set_text_content(target, ds);
             }
