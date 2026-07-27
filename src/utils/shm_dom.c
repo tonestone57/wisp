@@ -131,13 +131,59 @@ void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server) {
 #endif
 }
 
-#define BBMQ_MAX_MUTATIONS 2048
+#define BBMQ_INITIAL_CAPACITY 256
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
 
-static shm_mutation_t bbmq_queue[BBMQ_MAX_MUTATIONS];
-static volatile uint32_t bbmq_count = 0;
+static shm_mutation_t *bbmq_buffer = NULL;
+static uint32_t bbmq_head = 0;
+static uint32_t bbmq_tail = 0;
+static uint32_t bbmq_size = 0;
+static uint32_t bbmq_capacity = 0;
+
+static void bbmq_cleanup(void) {
+    if (bbmq_buffer) {
+        free(bbmq_buffer);
+        bbmq_buffer = NULL;
+    }
+    bbmq_head = 0;
+    bbmq_tail = 0;
+    bbmq_size = 0;
+    bbmq_capacity = 0;
+}
+
+static void bbmq_init(void) {
+    bbmq_capacity = BBMQ_INITIAL_CAPACITY;
+    bbmq_buffer = malloc(bbmq_capacity * sizeof(shm_mutation_t));
+    if (!bbmq_buffer) {
+        NSLOG(wisp, ERROR, "[BBMQ] Failed to allocate initial BBMQ buffer!");
+        exit(1);
+    }
+    bbmq_head = 0;
+    bbmq_tail = 0;
+    bbmq_size = 0;
+    atexit(bbmq_cleanup);
+}
+
+static void bbmq_resize(uint32_t new_capacity) {
+    shm_mutation_t *new_buffer = malloc(new_capacity * sizeof(shm_mutation_t));
+    if (!new_buffer) {
+        NSLOG(wisp, ERROR, "[BBMQ] Failed to resize BBMQ buffer!");
+        return;
+    }
+
+    for (uint32_t i = 0; i < bbmq_size; i++) {
+        uint32_t idx = (bbmq_head + i) % bbmq_capacity;
+        new_buffer[i] = bbmq_buffer[idx];
+    }
+
+    free(bbmq_buffer);
+    bbmq_buffer = new_buffer;
+    bbmq_head = 0;
+    bbmq_tail = bbmq_size;
+    bbmq_capacity = new_capacity;
+}
 
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value) {
     if (!shm) return;
@@ -206,11 +252,14 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     }
 
     if (wisp_is_js_process) {
-        if (bbmq_count >= BBMQ_MAX_MUTATIONS) {
-            NSLOG(wisp, WARNING, "[BBMQ] Local mutation buffer is full, discarding mutation!");
-            return;
+        if (!bbmq_buffer) {
+            bbmq_init();
         }
-        shm_mutation_t *m = &bbmq_queue[bbmq_count];
+        if (bbmq_size == bbmq_capacity) {
+            bbmq_resize(bbmq_capacity * 2);
+        }
+
+        shm_mutation_t *m = &bbmq_buffer[bbmq_tail];
         m->type = type;
         m->target_id = target_id;
         m->param1_id = param1_id;
@@ -227,7 +276,8 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         } else {
             m->value[0] = '\0';
         }
-        bbmq_count++;
+        bbmq_tail = (bbmq_tail + 1) % bbmq_capacity;
+        bbmq_size++;
         return;
     }
 
@@ -265,8 +315,10 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
 }
 
 bool bbmq_has_pending_for_node(uint64_t target_id) {
-    for (uint32_t i = 0; i < bbmq_count; i++) {
-        if (bbmq_queue[i].target_id == target_id) {
+    if (!bbmq_buffer) return false;
+    for (uint32_t i = 0; i < bbmq_size; i++) {
+        uint32_t idx = (bbmq_head + i) % bbmq_capacity;
+        if (bbmq_buffer[idx].target_id == target_id) {
             return true;
         }
     }
@@ -275,19 +327,20 @@ bool bbmq_has_pending_for_node(uint64_t target_id) {
 
 void bbmq_flush(void) {
     if (!wisp_shm_dom) return;
-    if (bbmq_count == 0) return;
+    if (bbmq_size == 0) return;
 
     shm_mutation_queue_t *mq = &wisp_shm_dom->mutation_queue;
     uint32_t head = mq->head;
     uint32_t tail = mq->tail;
 
-    for (uint32_t i = 0; i < bbmq_count; i++) {
+    for (uint32_t i = 0; i < bbmq_size; i++) {
         if (head - tail >= SHM_MUTATION_QUEUE_SIZE) {
             NSLOG(wisp, WARNING, "[BBMQ] Shared mutation queue is full during flush!");
             break;
         }
+        uint32_t src_idx = (bbmq_head + i) % bbmq_capacity;
         uint32_t idx = head % SHM_MUTATION_QUEUE_SIZE;
-        mq->queue[idx] = bbmq_queue[i];
+        mq->queue[idx] = bbmq_buffer[src_idx];
         head++;
     }
 
@@ -298,7 +351,9 @@ void bbmq_flush(void) {
 #endif
 
     mq->head = head;
-    bbmq_count = 0;
+    bbmq_head = 0;
+    bbmq_tail = 0;
+    bbmq_size = 0;
 }
 
 WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id) {
