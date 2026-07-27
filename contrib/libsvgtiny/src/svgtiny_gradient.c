@@ -172,6 +172,8 @@ static svgtiny_code svgtiny_parse_linear_gradient(
     svgtiny_code res;
     dom_element *ref; /* referenced element */
 
+    grad->gradient_type = svgtiny_GRADIENT_LINEAR;
+
     res = svgtiny_parse_element_from_href(linear, state, &ref);
     if (res == svgtiny_OK && ref != NULL) {
         svgtiny_update_gradient(ref, state, grad);
@@ -248,12 +250,60 @@ static svgtiny_code svgtiny_parse_radial_gradient(
 {
     svgtiny_code res;
     dom_element *ref; /* referenced element */
+    dom_string *attr;
+    dom_exception exc;
+
+    grad->gradient_type = svgtiny_GRADIENT_RADIAL;
 
     /* Follow href reference to get stops from referenced gradient */
     res = svgtiny_parse_element_from_href(radial, state, &ref);
     if (res == svgtiny_OK && ref != NULL) {
         svgtiny_update_gradient(ref, state, grad);
         dom_node_unref(ref);
+    }
+
+    /* Parse cx, cy, r attributes */
+    exc = dom_element_get_attribute(radial, state->interned_cx, &attr);
+    if (exc == DOM_NO_ERR && attr != NULL) {
+        dom_string_unref(grad->gradient_x1);
+        grad->gradient_x1 = attr;
+        attr = NULL;
+    }
+
+    exc = dom_element_get_attribute(radial, state->interned_cy, &attr);
+    if (exc == DOM_NO_ERR && attr != NULL) {
+        dom_string_unref(grad->gradient_y1);
+        grad->gradient_y1 = attr;
+        attr = NULL;
+    }
+
+    exc = dom_element_get_attribute(radial, state->interned_r, &attr);
+    if (exc == DOM_NO_ERR && attr != NULL) {
+        dom_string_unref(grad->gradient_x2);
+        grad->gradient_x2 = dom_string_ref(attr);
+        dom_string_unref(grad->gradient_y2);
+        grad->gradient_y2 = attr;
+        attr = NULL;
+    }
+
+    exc = dom_element_get_attribute(radial, state->interned_gradientUnits, &attr);
+    if (exc == DOM_NO_ERR && attr != NULL) {
+        grad->gradient_user_space_on_use = dom_string_isequal(attr, state->interned_userSpaceOnUse);
+        dom_string_unref(attr);
+    }
+
+    exc = dom_element_get_attribute(radial, state->interned_gradientTransform, &attr);
+    if (exc == DOM_NO_ERR && attr != NULL) {
+        struct svgtiny_transformation_matrix tm = {.a = 1, .b = 0, .c = 0, .d = 1, .e = 0, .f = 0};
+        svgtiny_parse_transform(dom_string_data(attr), dom_string_byte_length(attr), &tm);
+
+        grad->gradient_transform.a = tm.a;
+        grad->gradient_transform.b = tm.b;
+        grad->gradient_transform.c = tm.c;
+        grad->gradient_transform.d = tm.d;
+        grad->gradient_transform.e = tm.e;
+        grad->gradient_transform.f = tm.f;
+        dom_string_unref(attr);
     }
 
     /* Parse stops from this element (may override referenced stops) */
@@ -972,7 +1022,7 @@ svgtiny_code svgtiny_gradient_add_path(float *p, unsigned int n, struct svgtiny_
     if (has_fill_gradient) {
         struct svgtiny_parse_state_gradient *grad = &state->fill_grad;
 
-        shape->fill_gradient_type = svgtiny_GRADIENT_LINEAR;
+        shape->fill_gradient_type = grad->gradient_type;
         shape->fill_grad_x1 = fill_vector.x0;
         shape->fill_grad_y1 = fill_vector.y0;
         shape->fill_grad_x2 = fill_vector.x1;
@@ -1002,7 +1052,7 @@ svgtiny_code svgtiny_gradient_add_path(float *p, unsigned int n, struct svgtiny_
     if (has_stroke_gradient) {
         struct svgtiny_parse_state_gradient *grad = &state->stroke_grad;
 
-        shape->stroke_gradient_type = svgtiny_GRADIENT_LINEAR;
+        shape->stroke_gradient_type = grad->gradient_type;
         shape->stroke_grad_x1 = stroke_vector.x0;
         shape->stroke_grad_y1 = stroke_vector.y0;
         shape->stroke_grad_x2 = stroke_vector.x1;

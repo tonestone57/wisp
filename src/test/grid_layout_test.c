@@ -541,6 +541,17 @@ START_TEST(test_grid_layout_3_columns)
 }
 END_TEST
 
+/* Mock css_computed_width and css_computed_height for test stability */
+uint8_t css_computed_width(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    return CSS_WIDTH_AUTO;
+}
+
+uint8_t css_computed_height(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    return CSS_HEIGHT_AUTO;
+}
+
 /* Mock css_computed_grid_column_start - returns auto for all */
 uint8_t css_computed_grid_column_start(const css_computed_style *style, int32_t *val)
 {

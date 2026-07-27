@@ -995,12 +995,23 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				child->border);
 			child->min_width.value = item_min_width.value;
 
-			int content_width = child_width - child->padding[LEFT] - child->padding[RIGHT] - child->border[LEFT].width -
-				child->border[RIGHT].width;
-			if (content_width < 0) {
-				content_width = 0;
+			bool has_explicit_width = false;
+			if (child->style != NULL) {
+				css_fixed width_val;
+				css_unit width_unit;
+				if (css_computed_width(child->style, &width_val, &width_unit) != CSS_WIDTH_AUTO) {
+					has_explicit_width = true;
+				}
 			}
-			child->width = content_width;
+
+			if (!has_explicit_width) {
+				int content_width = child_width - child->padding[LEFT] - child->padding[RIGHT] - child->border[LEFT].width -
+					child->border[RIGHT].width;
+				if (content_width < 0) {
+					content_width = 0;
+				}
+				child->width = content_width;
+			}
 
 			/* Recursively layout the child */
 			if (child->type == BOX_BLOCK || child->type == BOX_INLINE_BLOCK || child->type == BOX_FLEX ||
@@ -1390,13 +1401,24 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				child->border);
 			child->min_width.value = item_min_width.value; /* Store value back in box struct */
 
-			/* Subtract horizontal padding and border so total box width fits in cell */
-			int content_width = child_width - child->padding[LEFT] - child->padding[RIGHT] - child->border[LEFT].width -
-				child->border[RIGHT].width;
-			if (content_width < 0) {
-				content_width = 0;
+			bool has_explicit_width = false;
+			if (child->style != NULL) {
+				css_fixed width_val;
+				css_unit width_unit;
+				if (css_computed_width(child->style, &width_val, &width_unit) != CSS_WIDTH_AUTO) {
+					has_explicit_width = true;
+				}
 			}
-			child->width = content_width;
+
+			if (!has_explicit_width) {
+				/* Subtract horizontal padding and border so total box width fits in cell */
+				int content_width = child_width - child->padding[LEFT] - child->padding[RIGHT] - child->border[LEFT].width -
+					child->border[RIGHT].width;
+				if (content_width < 0) {
+					content_width = 0;
+				}
+				child->width = content_width;
+			}
 
 			/* Recursively layout the child */
 			if (child->type == BOX_BLOCK || child->type == BOX_INLINE_BLOCK || child->type == BOX_FLEX ||
@@ -1535,16 +1557,29 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				child->border[TOP].width + child->border[BOTTOM].width;
 			int align_offset = 0;
 
+			bool has_explicit_height = false;
+			if (child->style != NULL) {
+				css_fixed height_val;
+				css_unit height_unit;
+				if (css_computed_height(child->style, &height_val, &height_unit) != CSS_HEIGHT_AUTO) {
+					has_explicit_height = true;
+				}
+			}
+
 			switch (align) {
 			case CSS_ALIGN_ITEMS_STRETCH: {
-				/* Stretch to fill entire spanned height - subtract padding/border */
-				int stretch_height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
-					child->border[TOP].width - child->border[BOTTOM].width;
-				if (stretch_height < 0) {
-					stretch_height = 0;
+				if (has_explicit_height) {
+					align_offset = 0;
+				} else {
+					/* Stretch to fill entire spanned height - subtract padding/border */
+					int stretch_height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
+						child->border[TOP].width - child->border[BOTTOM].width;
+					if (stretch_height < 0) {
+						stretch_height = 0;
+					}
+					child->height = stretch_height;
+					align_offset = 0;
 				}
-				child->height = stretch_height;
-				align_offset = 0;
 				break;
 			}
 			case CSS_ALIGN_ITEMS_FLEX_START:
@@ -1723,13 +1758,26 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 				child->border[TOP].width + child->border[BOTTOM].width;
 			int pass3_align_offset = 0;
 
+			bool has_explicit_height = false;
+			if (child->style != NULL) {
+				css_fixed height_val;
+				css_unit height_unit;
+				if (css_computed_height(child->style, &height_val, &height_unit) != CSS_HEIGHT_AUTO) {
+					has_explicit_height = true;
+				}
+			}
+
 			if (align == CSS_ALIGN_ITEMS_STRETCH) {
-				int stretch_height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
-					child->border[TOP].width - child->border[BOTTOM].width;
-				if (stretch_height < 0)
-					stretch_height = 0;
-				child->height = stretch_height;
-				pass3_align_offset = 0;
+				if (has_explicit_height) {
+					pass3_align_offset = 0;
+				} else {
+					int stretch_height = spanned_height - child->padding[TOP] - child->padding[BOTTOM] -
+						child->border[TOP].width - child->border[BOTTOM].width;
+					if (stretch_height < 0)
+						stretch_height = 0;
+					child->height = stretch_height;
+					pass3_align_offset = 0;
+				}
 			} else if (align == CSS_ALIGN_ITEMS_FLEX_END) {
 				pass3_align_offset = spanned_height - current_total_h;
 			} else if (align == CSS_ALIGN_ITEMS_CENTER) {
