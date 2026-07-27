@@ -147,6 +147,8 @@ static struct html_script *html_process_new_script(html_content *c, dom_string *
     nscript = &c->scripts[c->scripts_count];
     c->scripts_count++;
 
+    memset(nscript, 0, sizeof(struct html_script));
+
     nscript->already_started = false;
     nscript->parser_inserted = false;
     nscript->force_async = true;

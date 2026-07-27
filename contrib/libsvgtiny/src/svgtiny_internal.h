@@ -40,6 +40,7 @@ struct svgtiny_parse_state_gradient {
     struct svgtiny_gradient_stop gradient_stop[svgtiny_MAX_STOPS];
     bool gradient_user_space_on_use;
     struct svgtiny_transformation_matrix gradient_transform;
+    int gradient_type;
 };
 
 
