@@ -84,7 +84,7 @@ struct cert_chain {
          * DER length
          */
         size_t der_length;
-    } certs[MAX_CERT_DEPTH];
+    } *certs;
 };
 
 /**

@@ -1628,7 +1628,7 @@ static nserror llcache_process_metadata(llcache_object *object)
         goto skip_ssl_certificates;
     }
 
-    if (ssl_cert_count > MAX_CERT_DEPTH) {
+    if (ssl_cert_count > 100) {
         res = NSERROR_INVALID;
         goto format_error;
     }
