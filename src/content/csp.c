@@ -12,6 +12,7 @@ typedef struct csp_source {
     bool is_self;
     bool is_none;
     bool is_unsafe_inline;
+    bool is_unsafe_eval;
     char *nonce;
     struct csp_source *next;
 } csp_source;
@@ -72,6 +73,8 @@ static csp_source *parse_source(char *token) {
         src->is_none = true;
     } else if (strcasecmp(token, "'unsafe-inline'") == 0) {
         src->is_unsafe_inline = true;
+    } else if (strcasecmp(token, "'unsafe-eval'") == 0) {
+        src->is_unsafe_eval = true;
     } else if (strncasecmp(token, "'nonce-", 7) == 0) {
         size_t len = strlen(token);
         if (len > 8 && token[len - 1] == '\'') {
@@ -330,6 +333,25 @@ bool csp_check_nonce(struct csp *csp, csp_directive directive, const char *nonce
             return true;
         }
         src = src->next;
+    }
+
+    return false;
+}
+
+bool csp_check_eval(struct csp *csp) {
+    if (!csp) return true;
+
+    csp_source *src = csp->directives[CSP_SCRIPT_SRC];
+    if (!src) {
+        src = csp->directives[CSP_DEFAULT_SRC];
+    }
+    if (!src) return true;
+
+    csp_source *curr = src;
+    while (curr) {
+        if (curr->is_unsafe_eval) return true;
+        if (curr->is_none) return false;
+        curr = curr->next;
     }
 
     return false;

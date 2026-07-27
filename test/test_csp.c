@@ -69,6 +69,23 @@ void test_csp() {
     assert(csp_check_inline(csp, CSP_SCRIPT_SRC) == false); // 'unsafe-inline' must be ignored when a nonce is present
     csp_destroy(csp);
 
+    // Test 9: unsafe-eval check
+    assert(csp_parse("script-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == true);
+    csp_destroy(csp);
+
+    assert(csp_parse("script-src 'self'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == false);
+    csp_destroy(csp);
+
+    assert(csp_parse("default-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == true);
+    csp_destroy(csp);
+
+    assert(csp_parse("default-src 'self'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == false);
+    csp_destroy(csp);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);

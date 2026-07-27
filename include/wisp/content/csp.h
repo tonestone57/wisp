@@ -56,6 +56,14 @@ bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url);
 bool csp_check_inline(struct csp *csp, csp_directive directive);
 
 /**
+ * Check if dynamic code evaluation (eval / new Function) is allowed.
+ *
+ * \param csp The CSP object.
+ * \return true if allowed, false if blocked.
+ */
+bool csp_check_eval(struct csp *csp);
+
+/**
  * Destroy a CSP object and free its resources.
  */
 void csp_destroy(struct csp *csp);
