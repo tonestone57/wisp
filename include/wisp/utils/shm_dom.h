@@ -90,18 +90,44 @@ typedef struct {
 } WispNodeStrings;
 
 typedef struct {
-    WispCompactNode nodes[SHM_DOM_MAX_NODES];
-    WispShmLayoutCache layout_cache[SHM_DOM_MAX_NODES];
-    WispNodeStrings node_strings[SHM_DOM_MAX_NODES];
-    uint64_t dom_ptrs[SHM_DOM_MAX_NODES]; // Local pointer mapping (for UI thread)
+    volatile uint32_t lock;           /* Process-shared Read-Write Spinlock */
+    char shm_name[64];                /* Name of the shared memory object */
+    uint32_t node_capacity;           /* Current mapped capacity of nodes */
+    uint32_t node_count;
+    uint32_t layout_cache_count;
+    bool layout_dirty;
+    bool is_server;
     uint32_t string_hash_table[SHM_STRING_HASH_SIZE];
     char string_heap[SHM_STRING_HEAP_SIZE];
     uint32_t string_heap_top;
-    uint32_t node_count;
-    uint32_t layout_cache_count;
     shm_mutation_queue_t mutation_queue;
-    bool layout_dirty;
+    /* In memory, this struct is followed by arrays:
+     * WispCompactNode nodes[node_capacity]
+     * WispShmLayoutCache layout_cache[node_capacity]
+     * WispNodeStrings node_strings[node_capacity]
+     * uint64_t dom_ptrs[node_capacity]
+     */
 } shm_dom_t;
+
+static inline WispCompactNode* shm_dom_get_nodes(shm_dom_t *shm) {
+    if (!shm) return NULL;
+    return (WispCompactNode*)((char*)shm + sizeof(shm_dom_t));
+}
+
+static inline WispShmLayoutCache* shm_dom_get_layout_cache(shm_dom_t *shm) {
+    if (!shm) return NULL;
+    return (WispShmLayoutCache*)((char*)shm + sizeof(shm_dom_t) + shm->node_capacity * sizeof(WispCompactNode));
+}
+
+static inline WispNodeStrings* shm_dom_get_node_strings(shm_dom_t *shm) {
+    if (!shm) return NULL;
+    return (WispNodeStrings*)((char*)shm + sizeof(shm_dom_t) + shm->node_capacity * (sizeof(WispCompactNode) + sizeof(WispShmLayoutCache)));
+}
+
+static inline uint64_t* shm_dom_get_dom_ptrs(shm_dom_t *shm) {
+    if (!shm) return NULL;
+    return (uint64_t*)((char*)shm + sizeof(shm_dom_t) + shm->node_capacity * (sizeof(WispCompactNode) + sizeof(WispShmLayoutCache) + sizeof(WispNodeStrings)));
+}
 
 /* Thread-local variables for SSO decoding */
 extern __thread char wisp_sso_decode_bufs[16][4];
@@ -163,5 +189,12 @@ bool bbmq_has_pending_for_node(uint64_t target_id);
 WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id);
 
 WispStringRef wisp_shm_alloc_string(shm_dom_t *shm, const char *str);
+
+void shm_dom_lock_read(shm_dom_t *shm);
+void shm_dom_unlock_read(shm_dom_t *shm);
+void shm_dom_lock_write(shm_dom_t *shm);
+void shm_dom_unlock_write(shm_dom_t *shm);
+shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity);
+size_t shm_dom_size(uint32_t capacity);
 
 #endif /* WISP_UTILS_SHM_DOM_H */

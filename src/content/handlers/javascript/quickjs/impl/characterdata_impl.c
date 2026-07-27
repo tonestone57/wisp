@@ -20,7 +20,7 @@ JSValue wisp_characterdata_data_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, sns->value));
         }
         return JS_NULL;
@@ -43,7 +43,7 @@ JSValue wisp_characterdata_data_set_impl(JSContext *ctx, QJSNodePrivate *priv, c
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             sns->value = wisp_shm_alloc_string(wisp_shm_dom, value);
         }
         shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_NODE_VALUE, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
@@ -64,7 +64,7 @@ JSValue wisp_characterdata_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
-            WispNodeStrings *sns = &wisp_shm_dom->node_strings[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             return JS_NewInt32(ctx, (int32_t)strlen(wisp_string_ref_data(wisp_shm_dom, sns->value)));
         }
         return JS_NewInt32(ctx, 0);

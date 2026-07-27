@@ -48,9 +48,11 @@ JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
-                    (wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].tag_name, "head"))) {
+                if (nodes_arr[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "head"))) {
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
@@ -82,11 +84,13 @@ JSValue wisp_document_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, 
     if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         if (wisp_shm_dom && elementId) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1) { // DOM_ELEMENT_NODE
-                    for (uint32_t j = 0; j < wisp_shm_dom->node_strings[i].attr_count; j++) {
-                        if (wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].attrs[j].name, "id") &&
-                            wisp_string_ref_eq(wisp_shm_dom, wisp_shm_dom->node_strings[i].attrs[j].value, elementId)) {
+                if (nodes_arr[i].node_type == 1) { // DOM_ELEMENT_NODE
+                    for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                        if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "id") &&
+                            wisp_string_ref_eq(wisp_shm_dom, strings_arr[i].attrs[j].value, elementId)) {
                             return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                         }
                     }
@@ -115,9 +119,11 @@ JSValue wisp_document_getElementsByTagName_impl(JSContext *ctx, QJSNodePrivate *
         JSValue arr = JS_NewArray(ctx);
         uint32_t count = 0;
         if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
-                    (strcmp(localName, "*") == 0 || wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].tag_name, localName))) {
+                if (nodes_arr[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (strcmp(localName, "*") == 0 || wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, localName))) {
                     JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
                 }
             }
@@ -134,11 +140,13 @@ JSValue wisp_document_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate
         JSValue arr = JS_NewArray(ctx);
         uint32_t count = 0;
         if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1) { // DOM_ELEMENT_NODE
-                    for (uint32_t j = 0; j < wisp_shm_dom->node_strings[i].attr_count; j++) {
-                        if (wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].attrs[j].name, "class")) {
-                            const char *cls = wisp_string_ref_data(wisp_shm_dom, wisp_shm_dom->node_strings[i].attrs[j].value);
+                if (nodes_arr[i].node_type == 1) { // DOM_ELEMENT_NODE
+                    for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                        if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "class")) {
+                            const char *cls = wisp_string_ref_data(wisp_shm_dom, strings_arr[i].attrs[j].value);
                             if (strstr(cls, classNames)) {
                                 JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
                             }
@@ -189,9 +197,11 @@ JSValue wisp_document_body_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
-                    (wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].tag_name, "body"))) {
+                if (nodes_arr[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "body"))) {
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
@@ -230,9 +240,11 @@ JSValue wisp_document_documentElement_get_impl(JSContext *ctx, QJSNodePrivate *p
     if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
-                    (wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].tag_name, "html"))) {
+                if (nodes_arr[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "html"))) {
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
@@ -538,14 +550,16 @@ JSValue wisp_document_title_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (!priv || !priv->node) return JS_NewString(ctx, "");
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (wisp_shm_dom->nodes[i].node_type == 1 && // DOM_ELEMENT_NODE
-                    (wisp_string_ref_caseeq(wisp_shm_dom, wisp_shm_dom->node_strings[i].tag_name, "title"))) {
+                if (nodes_arr[i].node_type == 1 && // DOM_ELEMENT_NODE
+                    (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "title"))) {
                     uint64_t title_id = i;
                     for (uint32_t j = 0; j < wisp_shm_dom->node_count; j++) {
-                        if (wisp_shm_dom->nodes[j].parent_id == title_id &&
-                            wisp_shm_dom->nodes[j].node_type == 3) { // DOM_TEXT_NODE
-                            return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, wisp_shm_dom->node_strings[j].value));
+                        if (nodes_arr[j].parent_id == title_id &&
+                            nodes_arr[j].node_type == 3) { // DOM_TEXT_NODE
+                            return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, strings_arr[j].value));
                         }
                     }
                 }
