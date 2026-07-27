@@ -277,7 +277,8 @@ struct curl_fetch_info {
 
     uint64_t last_progress_update; /**< Time of last progress update */
     int cert_depth; /**< deepest certificate in use */
-    struct cert_info cert_data[MAX_CERT_DEPTH]; /**< HTTPS certificate data */
+    int cert_capacity; /**< allocated capacity of cert_data */
+    struct cert_info *cert_data; /**< HTTPS certificate data */
     bool profiled_response_started; /**< Profiler flag */
     char error_buffer[CURL_ERROR_SIZE]; /**< Error buffer for cURL. */
 };
@@ -504,7 +505,8 @@ static struct curl_fetch_info *fetch_alloc(void)
     fetch->curl_postdata = NULL;
 
     /* Clear certificate chain data */
-    memset(fetch->cert_data, 0, sizeof(fetch->cert_data));
+    fetch->cert_data = NULL;
+    fetch->cert_capacity = 0;
     fetch->cert_depth = -1;
     fetch->profiled_response_started = false;
 
@@ -654,32 +656,40 @@ static void fetch_curl_store_certs_in_cache(struct curl_fetch_info *f)
 {
     size_t depth;
     BIO *mem;
-    BUF_MEM *buf[MAX_CERT_DEPTH];
-    struct cert_chain chain, *cached_chain;
+    BUF_MEM **buf;
+    struct cert_chain *chain = NULL, *cached_chain;
     struct cert_info *certs;
+    size_t chain_depth = f->cert_depth + 1;
 
-    memset(&chain, 0, sizeof(chain));
+    if (cert_chain_alloc(chain_depth, &chain) != NSERROR_OK) {
+        return;
+    }
+
+    buf = calloc(chain_depth, sizeof(BUF_MEM *));
+    if (buf == NULL) {
+        cert_chain_free(chain);
+        return;
+    }
 
     certs = f->cert_data;
-    chain.depth = f->cert_depth + 1; /* 0 indexed certificate depth */
 
-    for (depth = 0; depth < chain.depth; depth++) {
+    for (depth = 0; depth < chain_depth; depth++) {
         if (certs[depth].cert == NULL) {
             /* This certificate is missing, skip it */
-            chain.certs[depth].err = SSL_CERT_ERR_CERT_MISSING;
+            chain->certs[depth].err = SSL_CERT_ERR_CERT_MISSING;
             continue;
         }
 
         /* error code (if any) */
         switch (certs[depth].err) {
         case X509_V_OK:
-            chain.certs[depth].err = SSL_CERT_ERR_OK;
+            chain->certs[depth].err = SSL_CERT_ERR_OK;
             break;
 
         case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
             /* fallthrough */
         case X509_V_ERR_UNABLE_TO_DECODE_ISSUER_PUBLIC_KEY:
-            chain.certs[depth].err = SSL_CERT_ERR_BAD_ISSUER;
+            chain->certs[depth].err = SSL_CERT_ERR_BAD_ISSUER;
             break;
 
         case X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE:
@@ -689,39 +699,39 @@ static void fetch_curl_store_certs_in_cache(struct curl_fetch_info *f)
         case X509_V_ERR_CERT_SIGNATURE_FAILURE:
             /* fallthrough */
         case X509_V_ERR_CRL_SIGNATURE_FAILURE:
-            chain.certs[depth].err = SSL_CERT_ERR_BAD_SIG;
+            chain->certs[depth].err = SSL_CERT_ERR_BAD_SIG;
             break;
 
         case X509_V_ERR_CERT_NOT_YET_VALID:
             /* fallthrough */
         case X509_V_ERR_CRL_NOT_YET_VALID:
-            chain.certs[depth].err = SSL_CERT_ERR_TOO_YOUNG;
+            chain->certs[depth].err = SSL_CERT_ERR_TOO_YOUNG;
             break;
 
         case X509_V_ERR_CERT_HAS_EXPIRED:
             /* fallthrough */
         case X509_V_ERR_CRL_HAS_EXPIRED:
-            chain.certs[depth].err = SSL_CERT_ERR_TOO_OLD;
+            chain->certs[depth].err = SSL_CERT_ERR_TOO_OLD;
             break;
 
         case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
-            chain.certs[depth].err = SSL_CERT_ERR_SELF_SIGNED;
+            chain->certs[depth].err = SSL_CERT_ERR_SELF_SIGNED;
             break;
 
         case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
-            chain.certs[depth].err = SSL_CERT_ERR_CHAIN_SELF_SIGNED;
+            chain->certs[depth].err = SSL_CERT_ERR_CHAIN_SELF_SIGNED;
             break;
 
         case X509_V_ERR_CERT_REVOKED:
-            chain.certs[depth].err = SSL_CERT_ERR_REVOKED;
+            chain->certs[depth].err = SSL_CERT_ERR_REVOKED;
             break;
 
         case X509_V_ERR_HOSTNAME_MISMATCH:
-            chain.certs[depth].err = SSL_CERT_ERR_HOSTNAME_MISMATCH;
+            chain->certs[depth].err = SSL_CERT_ERR_HOSTNAME_MISMATCH;
             break;
 
         default:
-            chain.certs[depth].err = SSL_CERT_ERR_UNKNOWN;
+            chain->certs[depth].err = SSL_CERT_ERR_UNKNOWN;
             break;
         }
 
@@ -734,26 +744,33 @@ static void fetch_curl_store_certs_in_cache(struct curl_fetch_info *f)
         (void)BIO_set_close(mem, BIO_NOCLOSE);
         BIO_free(mem);
 
-        chain.certs[depth].der = (uint8_t *)buf[depth]->data;
-        chain.certs[depth].der_length = buf[depth]->length;
+        chain->certs[depth].der = (uint8_t *)buf[depth]->data;
+        chain->certs[depth].der_length = buf[depth]->length;
     }
 
     /* Now dup that chain into the cache */
     cached_chain = fetch_curl_get_cached_chain(f);
-    if (cert_chain_dup_into(&chain, cached_chain) != NSERROR_OK) {
+    if (cert_chain_dup_into(chain, cached_chain) != NSERROR_OK) {
         /* Something went wrong storing the chain, give up */
         hashmap_remove(curl_fetch_ssl_hashmap, f->url);
     }
 
     /* release the openssl memory buffer */
-    for (depth = 0; depth < chain.depth; depth++) {
-        if (chain.certs[depth].err == SSL_CERT_ERR_CERT_MISSING) {
+    for (depth = 0; depth < chain_depth; depth++) {
+        if (chain->certs[depth].err == SSL_CERT_ERR_CERT_MISSING) {
             continue;
         }
         if (buf[depth] != NULL) {
             BUF_MEM_free(buf[depth]);
         }
     }
+
+    free(buf);
+
+    for (depth = 0; depth < chain_depth; depth++) {
+        chain->certs[depth].der = NULL;
+    }
+    cert_chain_free(chain);
 }
 
 /**
@@ -784,7 +801,7 @@ static int fetch_curl_verify_callback(int verify_ok, X509_STORE_CTX *x509_ctx)
     fetch = X509_STORE_CTX_get_app_data(x509_ctx);
 
     /* certificate chain is excessively deep so fail verification */
-    if (depth >= MAX_CERT_DEPTH) {
+    if (depth >= 100) {
         X509_STORE_CTX_set_error(x509_ctx, X509_V_ERR_CERT_CHAIN_TOO_LONG);
         return 0;
     }
@@ -792,6 +809,22 @@ static int fetch_curl_verify_callback(int verify_ok, X509_STORE_CTX *x509_ctx)
     /* record the max depth */
     if (depth > fetch->cert_depth) {
         fetch->cert_depth = depth;
+    }
+
+    /* dynamically grow the cert_data slice to hold the current depth */
+    if (depth >= fetch->cert_capacity) {
+        int new_capacity = fetch->cert_capacity > 0 ? fetch->cert_capacity * 2 : 10;
+        if (depth >= new_capacity) {
+            new_capacity = depth + 1;
+        }
+        struct cert_info *new_data = realloc(fetch->cert_data, new_capacity * sizeof(struct cert_info));
+        if (new_data == NULL) {
+            X509_STORE_CTX_set_error(x509_ctx, X509_V_ERR_OUT_OF_MEM);
+            return 0;
+        }
+        memset(new_data + fetch->cert_capacity, 0, (new_capacity - fetch->cert_capacity) * sizeof(struct cert_info));
+        fetch->cert_data = new_data;
+        fetch->cert_capacity = new_capacity;
     }
 
     /* save the certificate by incrementing the reference count and
@@ -1545,10 +1578,13 @@ static void fetch_curl_free(void *vf)
     NSCURL_POSTDATA_FREE(f->curl_postdata);
 
     /* free certificate data */
-    for (i = 0; i < MAX_CERT_DEPTH; i++) {
-        if (f->cert_data[i].cert != NULL) {
-            X509_free(f->cert_data[i].cert);
+    if (f->cert_data != NULL) {
+        for (i = 0; i < f->cert_capacity; i++) {
+            if (f->cert_data[i].cert != NULL) {
+                X509_free(f->cert_data[i].cert);
+            }
         }
+        free(f->cert_data);
     }
 
     free(f);

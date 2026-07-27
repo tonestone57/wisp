@@ -47,6 +47,15 @@ nserror cert_chain_alloc(size_t depth, struct cert_chain **chain_out)
     }
 
     chain->depth = depth;
+    if (depth > 0) {
+        chain->certs = calloc(depth, sizeof(chain->certs[0]));
+        if (chain->certs == NULL) {
+            free(chain);
+            return NSERROR_NOMEM;
+        }
+    } else {
+        chain->certs = NULL;
+    }
 
     *chain_out = chain;
 
@@ -66,6 +75,17 @@ nserror cert_chain_dup_into(const struct cert_chain *src, struct cert_chain *dst
         if (dst->certs[depth].der != NULL) {
             free(dst->certs[depth].der);
             dst->certs[depth].der = NULL;
+        }
+    }
+
+    if (dst->depth != src->depth) {
+        void *temp = realloc(dst->certs, src->depth * sizeof(dst->certs[0]));
+        if (src->depth > 0 && temp == NULL) {
+            return NSERROR_NOMEM;
+        }
+        dst->certs = temp;
+        if (src->depth > dst->depth) {
+            memset(dst->certs + dst->depth, 0, (src->depth - dst->depth) * sizeof(dst->certs[0]));
         }
     }
 
@@ -301,6 +321,9 @@ nserror cert_chain_free(struct cert_chain *chain)
             }
         }
 
+        if (chain->certs != NULL) {
+            free(chain->certs);
+        }
         free(chain);
     }
 
