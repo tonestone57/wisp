@@ -600,7 +600,7 @@ void js_destroyheap(jsheap *heap)
     free(heap);
 }
 
-static void qjs_inject_fetch_polyfill(JSContext *ctx)
+static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 {
     /* Block eval / Function if CSP blocks 'unsafe-eval' */
     struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
@@ -616,7 +616,10 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
             }
         }
     }
+}
 
+static void qjs_inject_fetch_polyfill(JSContext *ctx)
+{
     const char *fetch_polyfill =
         "if (typeof globalThis.Headers === 'undefined') {\n"
         "    globalThis.Headers = class Headers {\n"
@@ -2745,6 +2748,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     JS_FreeValue(t->ctx, global_obj);
     qjs_inject_fetch_polyfill(t->ctx);
+    qjs_apply_csp_eval_restrictions(t->ctx);
     *thread = t;
     return NSERROR_OK;
 }
