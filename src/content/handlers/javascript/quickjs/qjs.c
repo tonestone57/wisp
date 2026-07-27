@@ -13,6 +13,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <wisp/utils/utf8proc_wrapper.h>
+#include <wisp/content/csp.h>
 
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
@@ -597,6 +598,24 @@ void js_destroyheap(jsheap *heap)
         JS_FreeRuntime(heap->rt);
     }
     free(heap);
+}
+
+static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
+{
+    /* Block eval / Function if CSP blocks 'unsafe-eval' */
+    struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
+    if (t) {
+        struct html_content *htmlc = (t->win_priv && t->win_priv != t->doc_priv) ? (struct html_content *)t->doc_priv : NULL;
+        if (htmlc && htmlc->csp) {
+            if (!csp_check_eval(htmlc->csp)) {
+                const char *csp_eval_block =
+                    "globalThis.eval = function() { throw new EvalError('CSP blocks eval'); };\n"
+                    "globalThis.Function = function() { throw new EvalError('CSP blocks Function'); };\n";
+                JSValue val = JS_Eval(ctx, csp_eval_block, strlen(csp_eval_block), "<csp-eval>", JS_EVAL_TYPE_GLOBAL);
+                JS_FreeValue(ctx, val);
+            }
+        }
+    }
 }
 
 static void qjs_inject_fetch_polyfill(JSContext *ctx)
@@ -2729,6 +2748,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     JS_FreeValue(t->ctx, global_obj);
     qjs_inject_fetch_polyfill(t->ctx);
+    qjs_apply_csp_eval_restrictions(t->ctx);
     *thread = t;
     return NSERROR_OK;
 }
@@ -3298,6 +3318,78 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 {
     if (!thread || thread->closed) return false;
     JS_UpdateStackTop(JS_GetRuntime(thread->ctx));
+
+    /* In-process Content Security Policy (CSP) validation */
+    struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv) ? (struct html_content *)thread->doc_priv : NULL;
+    if (htmlc && htmlc->csp) {
+        bool is_url = false;
+        nsurl *url = NULL;
+
+        if (name) {
+            /* Check if name has a scheme/URL prefix, including protocol-relative, data, or blob URLs */
+            if (strstr(name, "://") ||
+                strncmp(name, "//", 2) == 0 ||
+                strncmp(name, "data:", 5) == 0 ||
+                strncmp(name, "blob:", 5) == 0 ||
+                strncmp(name, "http", 4) == 0 ||
+                strncmp(name, "file", 4) == 0) {
+
+                if (nsurl_create(name, &url) != NSERROR_OK) {
+                    if (htmlc->base_url) {
+                        nsurl_join(htmlc->base_url, name, &url);
+                    }
+                }
+                if (url != NULL) {
+                    is_url = true;
+                }
+            }
+        }
+
+        if (is_url && url != NULL) {
+            /* Check scheme to exclude internal trusted resources */
+            lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
+            bool is_internal = false;
+            if (scheme) {
+                const char *scheme_str = lwc_string_data(scheme);
+                if (strcasecmp(scheme_str, "resource") == 0 || strcasecmp(scheme_str, "about") == 0) {
+                    is_internal = true;
+                }
+                lwc_string_unref(scheme);
+            }
+
+            if (!is_internal) {
+                if (!csp_check_url(htmlc->csp, CSP_SCRIPT_SRC, url)) {
+                    NSLOG(wisp, WARNING, "CSP blocked script execution from URL: %s", name);
+                    nsurl_unref(url);
+                    return false;
+                }
+            }
+            nsurl_unref(url);
+        } else {
+            /* This is an inline or dynamic script evaluation.
+             * If name is "?inline script?", it was already validated in exec_inline_script using nonce or inline checks.
+             * Otherwise, check if inline script execution is permitted by CSP.
+             */
+            if (!name || strcmp(name, "?inline script?") != 0) {
+                bool is_dynamic_eval = false;
+                if (!name || strcmp(name, "<ipc>") == 0 || strcmp(name, "<eval>") == 0 || strncmp(name, "<", 1) == 0) {
+                    is_dynamic_eval = true;
+                }
+
+                if (is_dynamic_eval) {
+                    if (!csp_check_eval(htmlc->csp)) {
+                        NSLOG(wisp, WARNING, "CSP blocked dynamic script evaluation (unsafe-eval) under QuickJS: %s", name ? name : "unnamed");
+                        return false;
+                    }
+                } else {
+                    if (!csp_check_inline(htmlc->csp, CSP_SCRIPT_SRC)) {
+                        NSLOG(wisp, WARNING, "CSP blocked inline script execution under QuickJS: %s", name ? name : "unnamed");
+                        return false;
+                    }
+                }
+            }
+        }
+    }
 
     wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {

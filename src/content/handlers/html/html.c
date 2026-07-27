@@ -22,6 +22,17 @@
  * Implementation of HTML content handling.
  */
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#elif defined(__HAIKU__)
+#include <OS.h>
+#else
+#include <unistd.h>
+#endif
+
 #include <nsutils/time.h>
 #include <assert.h>
 #include <stdint.h>
@@ -2866,9 +2877,32 @@ nserror html_init(void)
 	nserror error;
 
 	if (!html_parser_pool) {
+		/* Detect the number of available logical cores at runtime */
+		long n_cores = 1;
+#ifdef _WIN32
+		SYSTEM_INFO sysinfo;
+		GetSystemInfo(&sysinfo);
+		n_cores = sysinfo.dwNumberOfProcessors;
+#elif defined(__HAIKU__)
+		system_info info;
+		get_system_info(&info);
+		n_cores = info.cpu_count;
+#else
+		n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+		if (n_cores <= 0) {
+			n_cores = 1;
+		}
+
+		/* Scale background parser thread pool dynamically to handle concurrent documents,
+		 * while clamping to prevent CPU thrashing on high core count systems. */
+		int num_threads = (int)n_cores;
+		if (num_threads > 4) {
+			num_threads = 4;
+		}
+
 		/* Initialize a thread pool for background tokenization */
-		/* Must be 1 thread to guarantee FIFO ordering of streamed HTML chunks */
-		html_parser_pool = thread_pool_create(1);
+		html_parser_pool = thread_pool_create(num_threads);
 	}
 
 	error = html_css_init();
