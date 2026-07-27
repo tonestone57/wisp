@@ -6606,17 +6606,25 @@ bool layout_document(html_content *content, int width, int height)
 	}
 	content->dirty_list = NULL;
 
-	/* Trigger redraw for the accumulated dirty rectangles */
-	for (unsigned int i = 0; i < content->dirty_rect_count; i++) {
-		struct rect *r = &content->dirty_rects[i];
-		NSLOG(layout, DEEPDEBUG, "Redraw request for dirty rect %u/%u: (%d, %d) to (%d, %d)",
-			  i + 1, content->dirty_rect_count, r->x0, r->y0, r->x1, r->y1);
+	/* Trigger redraw for the accumulated dirty grid tiles */
+	if (content->dirty_grid) {
+		unsigned int cap = content->dirty_grid->capacity;
+		uint64_t *keys = content->dirty_grid->keys;
+		for (unsigned int i = 0; i < cap; i++) {
+			if (keys[i] != 0) {
+				uint64_t key = keys[i] - 1;
+				int tx = (int)(key >> 32);
+				int ty = (int)(key & 0xFFFFFFFF);
+				int x = tx * 256;
+				int y = ty * 256;
+				NSLOG(layout, DEEPDEBUG, "Redraw request for dirty tile %d,%d: (%d, %d)",
+					  tx, ty, x, y);
 
-		content__request_redraw((struct content *)content,
-					r->x0,
-					r->y0,
-					r->x1 - r->x0,
-					r->y1 - r->y0);
+				content__request_redraw((struct content *)content,
+							x, y, 256, 256);
+			}
+		}
+		hashset_clear(content->dirty_grid);
 	}
 	content->dirty_rect_count = 0;
 	content->dirty_use_union = false;

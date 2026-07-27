@@ -634,6 +634,7 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	c->dirty_rect_count = 0;
 	c->dirty_use_union = false;
 	c->dirty_list = NULL;
+	c->dirty_grid = hashset_create(64);
 
 	doc_rwlock_init(&c->doc_mutex);
 
@@ -1650,6 +1651,9 @@ static void html_free_layout(html_content *htmlc)
 	htmlc->dirty_list = NULL;
 	htmlc->dirty_rect_count = 0;
 	htmlc->dirty_use_union = false;
+	if (htmlc->dirty_grid) {
+		hashset_clear(htmlc->dirty_grid);
+	}
 
 	/* Clear the CSS selection context when freeing the layout.
 	 * The select_ctx is semantically tied to the layout - it was used
@@ -1821,6 +1825,11 @@ static void html_destroy(struct content *c)
 	/* Free objects */
 	html_object_free_objects(html);
 
+	if (html->dirty_grid) {
+		hashset_destroy(html->dirty_grid);
+		html->dirty_grid = NULL;
+	}
+
 	doc_rwlock_destroy(&html->doc_mutex);
 }
 
@@ -1894,6 +1903,9 @@ static nserror html_close(struct content *c)
 	htmlc->dirty_rect_count = 0;
 	htmlc->dirty_use_union = false;
 	htmlc->dirty_list = NULL;
+	if (htmlc->dirty_grid) {
+		hashset_clear(htmlc->dirty_grid);
+	}
 
 	return ret;
 }
