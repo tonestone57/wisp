@@ -18,6 +18,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "wisp/utils/shm_dom.h"
 
 #include "content/handlers/javascript/js.h"
 #include <wisp/utils/corestrings.h>
@@ -314,35 +315,38 @@ START_TEST(test_quickjs_svds_32bit_indices)
     ck_assert_ptr_nonnull(doc);
 
     // 1. Create a dummy shared-memory DOM structure
-    shm_dom_t *shm = calloc(1, sizeof(shm_dom_t));
+    size_t shm_sz = shm_dom_size(SHM_DOM_MAX_NODES);
+    shm_dom_t *shm = calloc(1, shm_sz);
     ck_assert_ptr_nonnull(shm);
+    shm->node_capacity = SHM_DOM_MAX_NODES;
 
     // 2. Serialize the DOM tree into our SVDS structure
-    serialize_dom_tree(shm, doc);
+    serialize_dom_tree(shm, NULL, doc);
 
     // 3. Verify topology mapping with dense 32-bit indices
     // Index 1 must be the root (document) node
     ck_assert_int_gt(shm->node_count, 1);
-    ck_assert_int_eq(shm->nodes[1].node_type, 9); // DOM_DOCUMENT_NODE
+    WispCompactNode *nodes_arr = shm_dom_get_nodes(shm);
+    ck_assert_int_eq(nodes_arr[1].node_type, 9); // DOM_DOCUMENT_NODE
 
     // Let's verify that relationships are correct 32-bit indices
-    WispNodeID html_idx = shm->nodes[1].first_child_id;
+    WispNodeID html_idx = nodes_arr[1].first_child_id;
     ck_assert_int_eq(html_idx, 2); // Root document's first child should be html element at index 2
-    ck_assert_int_eq(shm->nodes[html_idx].parent_id, 1);
-    ck_assert_int_eq(shm->nodes[html_idx].node_type, 1); // DOM_ELEMENT_NODE
+    ck_assert_int_eq(nodes_arr[html_idx].parent_id, 1);
+    ck_assert_int_eq(nodes_arr[html_idx].node_type, 1); // DOM_ELEMENT_NODE
 
     // 4. Verify O(1) direct lookup in find_shm_node
     WispCompactNode *sn1 = find_shm_node(shm, 1);
     ck_assert_ptr_nonnull(sn1);
-    ck_assert_ptr_eq(sn1, &shm->nodes[1]);
+    ck_assert_ptr_eq(sn1, &nodes_arr[1]);
 
     WispCompactNode *sn2 = find_shm_node(shm, html_idx);
     ck_assert_ptr_nonnull(sn2);
-    ck_assert_ptr_eq(sn2, &shm->nodes[html_idx]);
+    ck_assert_ptr_eq(sn2, &nodes_arr[html_idx]);
 
     // 5. Verify Zero-Copy mutation mapping back to LibDOM using 32-bit indices via dom_ptr
     // Let's find the 'html' node's child (e.g. body element or head element)
-    WispNodeID first_idx = shm->nodes[html_idx].first_child_id; // head or body
+    WispNodeID first_idx = nodes_arr[html_idx].first_child_id; // head or body
     ck_assert_int_gt(first_idx, 0);
 
     // Let's enqueue a SET_ATTRIBUTE mutation on first_idx
@@ -352,7 +356,7 @@ START_TEST(test_quickjs_svds_32bit_indices)
     drain_mutation_queue(shm, doc);
 
     // Retrieve the real LibDOM node
-    dom_node *real_el = (dom_node *)(uintptr_t)shm->dom_ptrs[first_idx];
+    dom_node *real_el = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[first_idx];
     ck_assert_ptr_nonnull(real_el);
 
     // Verify that the attribute was successfully applied to LibDOM node
@@ -2885,8 +2889,10 @@ START_TEST(test_quickjs_bbmq_circular_queue)
 
     // Set process to JS process and set a dummy wisp_shm_dom
     wisp_is_js_process = true;
-    wisp_shm_dom = calloc(1, sizeof(shm_dom_t));
+    size_t shm_sz = shm_dom_size(SHM_DOM_MAX_NODES);
+    wisp_shm_dom = calloc(1, shm_sz);
     ck_assert_ptr_nonnull(wisp_shm_dom);
+    wisp_shm_dom->node_capacity = SHM_DOM_MAX_NODES;
 
     // Initial state check
     ck_assert_int_eq(bbmq_has_pending_for_node(42), false);
