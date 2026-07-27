@@ -1471,6 +1471,10 @@ static nserror browser_window_callback(hlcache_handle *c, const hlcache_event *e
         break;
 
     case CONTENT_MSG_REDRAW: {
+        if (event->data.redraw.x <= -2000000000 || event->data.redraw.y <= -2000000000 ||
+            event->data.redraw.width < 0 || event->data.redraw.height < 0) {
+            break;
+        }
         struct rect rect = {.x0 = event->data.redraw.x,
             .y0 = event->data.redraw.y,
             .x1 = event->data.redraw.x + event->data.redraw.width,

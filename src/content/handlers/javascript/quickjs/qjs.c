@@ -3058,22 +3058,35 @@ static void serialize_dom_node(shm_dom_t *shm, dom_node *node, WispNodeID parent
     dom_node_get_first_child(node, &child);
     uint32_t prev_child_idx = 0;
     if (child) {
-        sn->first_child_id = shm->node_count;
-        while (child) {
-            uint32_t child_idx = shm->node_count;
-            serialize_dom_node(shm, child, idx);
-
-            shm->nodes[child_idx].prev_sibling_id = prev_child_idx;
-            if (prev_child_idx != 0) {
-                shm->nodes[prev_child_idx].next_sibling_id = child_idx;
-            }
-
-            prev_child_idx = child_idx;
-
-            dom_node *next = NULL;
-            dom_node_get_next_sibling(child, &next);
+        if (shm->node_count >= SHM_DOM_MAX_NODES) {
             dom_node_unref(child);
-            child = next;
+        } else {
+            sn->first_child_id = shm->node_count;
+            while (child) {
+                if (shm->node_count >= SHM_DOM_MAX_NODES) {
+                    while (child) {
+                        dom_node *next = NULL;
+                        dom_node_get_next_sibling(child, &next);
+                        dom_node_unref(child);
+                        child = next;
+                    }
+                    break;
+                }
+                uint32_t child_idx = shm->node_count;
+                serialize_dom_node(shm, child, idx);
+
+                shm->nodes[child_idx].prev_sibling_id = prev_child_idx;
+                if (prev_child_idx != 0) {
+                    shm->nodes[prev_child_idx].next_sibling_id = child_idx;
+                }
+
+                prev_child_idx = child_idx;
+
+                dom_node *next = NULL;
+                dom_node_get_next_sibling(child, &next);
+                dom_node_unref(child);
+                child = next;
+            }
         }
     }
 }

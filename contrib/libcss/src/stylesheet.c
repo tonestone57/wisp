@@ -37,12 +37,17 @@ static size_t _rule_size(const css_rule *rule);
  * failure)
  * \note The returned string number is guaranteed to be non-zero
  */
+#include <pthread.h>
+static pthread_mutex_t string_vector_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 css_error css__stylesheet_string_add(css_stylesheet *sheet, lwc_string *string, uint32_t *string_number)
 {
     uint32_t new_string_number; /* The string number count */
 
     if (string == NULL)
         return CSS_BADPARM;
+
+    pthread_mutex_lock(&string_vector_mutex);
 
     /* search for the string in the existing vector */
     for (new_string_number = 0; new_string_number < sheet->string_vector_c; new_string_number++) {
@@ -52,12 +57,14 @@ css_error css__stylesheet_string_add(css_stylesheet *sheet, lwc_string *string, 
 
         if (res != lwc_error_ok) {
             lwc_string_unref(string);
+            pthread_mutex_unlock(&string_vector_mutex);
             return css_error_from_lwc_error(res);
         }
 
         if (isequal) {
             lwc_string_unref(string);
             *string_number = (new_string_number + 1);
+            pthread_mutex_unlock(&string_vector_mutex);
             return CSS_OK;
         }
     }
@@ -76,6 +83,7 @@ css_error css__stylesheet_string_add(css_stylesheet *sheet, lwc_string *string, 
 
         if (new_vector == NULL) {
             lwc_string_unref(string);
+            pthread_mutex_unlock(&string_vector_mutex);
             return CSS_NOMEM;
         }
         sheet->string_vector = new_vector;
@@ -85,6 +93,8 @@ css_error css__stylesheet_string_add(css_stylesheet *sheet, lwc_string *string, 
     sheet->string_vector_c++;
     sheet->string_vector[new_string_number] = string;
     *string_number = (new_string_number + 1);
+
+    pthread_mutex_unlock(&string_vector_mutex);
 
     return CSS_OK;
 }
@@ -103,11 +113,17 @@ css_error css__stylesheet_string_get(css_stylesheet *sheet, uint32_t string_numb
     /* External string numbers = index into vector + 1 */
     string_number--;
 
+    pthread_mutex_lock(&string_vector_mutex);
+
     if (string_number >= sheet->string_vector_c) {
+        pthread_mutex_unlock(&string_vector_mutex);
         return CSS_BADPARM;
     }
 
     *string = sheet->string_vector[string_number];
+
+    pthread_mutex_unlock(&string_vector_mutex);
+
     return CSS_OK;
 }
 
