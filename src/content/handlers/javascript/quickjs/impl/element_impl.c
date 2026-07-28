@@ -252,6 +252,7 @@ static void serialize_node_to_html(dom_node *node, HTMLBuffer *b)
 JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) return JS_NewString(ctx, "");
     HTMLBuffer b = { NULL, 0, 0 };
     dom_node *child = NULL;
     dom_node_get_first_child((dom_node *)priv->node, &child);
@@ -269,6 +270,7 @@ JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) return JS_UNDEFINED;
     dom_node *element = (dom_node *)priv->node;
     dom_document *doc = NULL;
     dom_exception exc = dom_node_get_owner_document(element, &doc);
@@ -733,8 +735,42 @@ int qjs_init_element(JSContext *ctx) {
     }
     JS_FreeValue(ctx, eval_res);
 
+    /* Define __wisp_is_js_process on global_obj */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_is_js_process", JS_NewBool(ctx, wisp_is_js_process), JS_PROP_C_W_E);
+
     const char *layout_stubs_js =
         "if (typeof Element !== 'undefined' && Element.prototype) {\n"
+        "    if (globalThis.__wisp_is_js_process) {\n"
+        "        Object.defineProperty(Element.prototype, 'innerHTML', {\n"
+        "            get() {\n"
+        "                let html = '';\n"
+        "                for (const child of (this.childNodes || [])) {\n"
+        "                    if (child.nodeType === 1) {\n"
+        "                        html += child.outerHTML || '';\n"
+        "                    } else if (child.nodeType === 3) {\n"
+        "                        html += child.nodeValue || '';\n"
+        "                    }\n"
+        "                }\n"
+        "                return html;\n"
+        "            },\n"
+        "            set(htmlText) {\n"
+        "                while (this.childNodes && this.childNodes.length > 0) {\n"
+        "                    this.removeChild(this.childNodes[0]);\n"
+        "                }\n"
+        "                if (!htmlText) return;\n"
+        "                const parser = new DOMParser();\n"
+        "                const doc = parser.parseFromString(htmlText, 'text/html');\n"
+        "                if (doc && doc.body) {\n"
+        "                    const childNodes = Array.from(doc.body.childNodes);\n"
+        "                    for (const child of childNodes) {\n"
+        "                        this.appendChild(child);\n"
+        "                    }\n"
+        "                }\n"
+        "            },\n"
+        "            configurable: true,\n"
+        "            enumerable: true\n"
+        "        });\n"
+        "    }\n"
         "    if (!('style' in Element.prototype)) {\n"
         "        Object.defineProperty(Element.prototype, 'style', {\n"
         "            get() {\n"

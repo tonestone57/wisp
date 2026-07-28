@@ -209,7 +209,7 @@ static void parse_and_apply_3d_transform(const char *str, struct matrix4 *mat, s
 				char *endptr;
 				float val = strtof(p, &endptr);
 				if (p == endptr) {
-					p++;
+					if (*p != '\0') p++;
 				} else {
 					args[arg_count++] = val;
 					p = endptr;
@@ -253,7 +253,7 @@ static void parse_and_apply_3d_transform(const char *str, struct matrix4 *mat, s
 				matrix4_scale(mat, 1, args[0], 1);
 			}
 		} else {
-			p++;
+			if (*p != '\0') p++;
 		}
 	}
 }
@@ -2202,9 +2202,13 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
     if (box->node != NULL && ctx->plot->push_transform != NULL) {
         dom_string *style_attr = NULL;
         if (dom_element_get_attribute(box->node, corestring_dom_style, &style_attr) == DOM_NO_ERR && style_attr != NULL) {
-            const char *style_str = dom_string_data(style_attr);
-            if (style_str != NULL) {
-                const char *tf = strstr(style_str, "transform:");
+            size_t style_len = dom_string_byte_length(style_attr);
+            char *style_copy = malloc(style_len + 1);
+            if (style_copy != NULL) {
+                memcpy(style_copy, dom_string_data(style_attr), style_len);
+                style_copy[style_len] = '\0';
+
+                const char *tf = strstr(style_copy, "transform:");
                 if (tf != NULL) {
                     struct matrix4 m4;
                     matrix4_identity(&m4);
@@ -2249,6 +2253,7 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
 
                     need_transform = true;
                 }
+                free(style_copy);
             }
             dom_string_unref(style_attr);
         }

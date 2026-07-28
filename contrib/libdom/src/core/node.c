@@ -1035,10 +1035,13 @@ dom_exception _dom_node_remove_child(dom_node_internal *node, dom_node_internal 
         return err;
 
     /* Detach the node */
-    _dom_node_detach(old_child);
+    dom_node_mark_pending(old_child);
+    _dom_node_detach_range(old_child, old_child);
 
     if (result != NULL) {
         *result = (dom_node_internal *)dom_node_ref(old_child);
+    } else {
+        dom_node_try_destroy((dom_node *)old_child);
     }
 
     success = true;

@@ -10,6 +10,8 @@
 #include "JSDOMTokenList.gen.h"
 
 extern bool wisp_is_js_process;
+extern JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
+extern JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * value);
 
 #define MAX_TOKENS 128
 
@@ -18,20 +20,39 @@ typedef struct {
     int count;
 } TokenList;
 
-static TokenList get_tokens(dom_element *el)
+static TokenList get_tokens(JSContext *ctx, QJSNodePrivate *priv)
 {
     TokenList tl = { .count = 0 };
+    if (!priv || !priv->node) return tl;
+
+    const char *class_str = NULL;
+    size_t len = 0;
     dom_string *class_dom = NULL;
-    dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)"class", 5, &name_dom);
-    if (!name_dom) return tl;
-    dom_element_get_attribute(el, name_dom, &class_dom);
-    dom_string_unref(name_dom);
+    JSValue js_class = JS_UNDEFINED;
 
-    if (!class_dom) return tl;
+    if (wisp_is_js_process) {
+        js_class = wisp_element_getAttribute_impl(ctx, priv, "class");
+        if (JS_IsString(js_class)) {
+            class_str = JS_ToCString(ctx, js_class);
+            if (class_str) len = strlen(class_str);
+        }
+    } else {
+        dom_string *name_dom = NULL;
+        dom_string_create((const uint8_t *)"class", 5, &name_dom);
+        if (name_dom) {
+            dom_element_get_attribute((dom_element *)priv->node, name_dom, &class_dom);
+            dom_string_unref(name_dom);
+        }
+        if (class_dom) {
+            class_str = (const char *)dom_string_data(class_dom);
+            len = dom_string_byte_length(class_dom);
+        }
+    }
 
-    const char *class_str = (const char *)dom_string_data(class_dom);
-    size_t len = dom_string_byte_length(class_dom);
+    if (!class_str) {
+        JS_FreeValue(ctx, js_class);
+        return tl;
+    }
 
     // Parse spaces
     size_t start = 0;
@@ -63,12 +84,19 @@ static TokenList get_tokens(dom_element *el)
         start = end;
     }
 
-    dom_string_unref(class_dom);
+    if (wisp_is_js_process) {
+        if (class_str) JS_FreeCString(ctx, class_str);
+        JS_FreeValue(ctx, js_class);
+    } else {
+        if (class_dom) dom_string_unref(class_dom);
+    }
     return tl;
 }
 
-static void set_tokens(dom_element *el, TokenList *tl)
+static void set_tokens(JSContext *ctx, QJSNodePrivate *priv, TokenList *tl)
 {
+    if (!priv || !priv->node) return;
+
     // Calculate required buffer size
     size_t size = 0;
     for (int i = 0; i < tl->count; i++) {
@@ -91,17 +119,22 @@ static void set_tokens(dom_element *el, TokenList *tl)
     }
     buf[pos] = '\0';
 
-    dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)"class", 5, &name_dom);
-    dom_string *val_dom = NULL;
-    dom_string_create((const uint8_t *)buf, pos, &val_dom);
+    if (wisp_is_js_process) {
+        JSValue res = wisp_element_setAttribute_impl(ctx, priv, "class", buf);
+        JS_FreeValue(ctx, res);
+    } else {
+        dom_string *name_dom = NULL;
+        dom_string_create((const uint8_t *)"class", 5, &name_dom);
+        dom_string *val_dom = NULL;
+        dom_string_create((const uint8_t *)buf, pos, &val_dom);
 
-    if (name_dom && val_dom) {
-        dom_element_set_attribute(el, name_dom, val_dom);
+        if (name_dom && val_dom) {
+            dom_element_set_attribute((dom_element *)priv->node, name_dom, val_dom);
+        }
+
+        if (name_dom) dom_string_unref(name_dom);
+        if (val_dom) dom_string_unref(val_dom);
     }
-
-    if (name_dom) dom_string_unref(name_dom);
-    if (val_dom) dom_string_unref(val_dom);
     free(buf);
 }
 
@@ -115,7 +148,7 @@ static void free_tokens(TokenList *tl)
 JSValue wisp_domtokenlist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
-    TokenList tl = get_tokens((dom_element *)priv->node);
+    TokenList tl = get_tokens(ctx, priv);
     int count = tl.count;
     free_tokens(&tl);
     return JS_NewInt32(ctx, count);
@@ -124,7 +157,7 @@ JSValue wisp_domtokenlist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_domtokenlist_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index)
 {
     if (!priv || !priv->node) return JS_NULL;
-    TokenList tl = get_tokens((dom_element *)priv->node);
+    TokenList tl = get_tokens(ctx, priv);
     JSValue res = JS_NULL;
     if (index < (uint32_t)tl.count) {
         res = JS_NewString(ctx, tl.tokens[index]);
@@ -136,7 +169,7 @@ JSValue wisp_domtokenlist_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32
 JSValue wisp_domtokenlist_contains_impl(JSContext *ctx, QJSNodePrivate *priv, const char * token)
 {
     if (!priv || !priv->node || !token) return JS_FALSE;
-    TokenList tl = get_tokens((dom_element *)priv->node);
+    TokenList tl = get_tokens(ctx, priv);
     bool found = false;
     for (int i = 0; i < tl.count; i++) {
         if (strcmp(tl.tokens[i], token) == 0) {
@@ -151,7 +184,7 @@ JSValue wisp_domtokenlist_contains_impl(JSContext *ctx, QJSNodePrivate *priv, co
 JSValue wisp_domtokenlist_add_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue tokens)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    TokenList tl = get_tokens((dom_element *)priv->node);
+    TokenList tl = get_tokens(ctx, priv);
 
     uint32_t len = 0;
     JSValue len_val = JS_GetPropertyStr(ctx, tokens, "length");
@@ -181,7 +214,7 @@ JSValue wisp_domtokenlist_add_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue
     }
 
     if (changed) {
-        set_tokens((dom_element *)priv->node, &tl);
+        set_tokens(ctx, priv, &tl);
     }
     free_tokens(&tl);
     return JS_UNDEFINED;
@@ -190,7 +223,7 @@ JSValue wisp_domtokenlist_add_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue
 JSValue wisp_domtokenlist_remove_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue tokens)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    TokenList tl = get_tokens((dom_element *)priv->node);
+    TokenList tl = get_tokens(ctx, priv);
 
     uint32_t len = 0;
     JSValue len_val = JS_GetPropertyStr(ctx, tokens, "length");
@@ -220,7 +253,7 @@ JSValue wisp_domtokenlist_remove_impl(JSContext *ctx, QJSNodePrivate *priv, JSVa
     }
 
     if (changed) {
-        set_tokens((dom_element *)priv->node, &tl);
+        set_tokens(ctx, priv, &tl);
     }
     free_tokens(&tl);
     return JS_UNDEFINED;
@@ -229,6 +262,10 @@ JSValue wisp_domtokenlist_remove_impl(JSContext *ctx, QJSNodePrivate *priv, JSVa
 JSValue wisp_domtokenlist_toString_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        return wisp_element_getAttribute_impl(ctx, priv, "class");
+    }
+
     dom_string *class_dom = NULL;
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)"class", 5, &name_dom);
@@ -257,7 +294,7 @@ static JSValue custom_domtokenlist_toggle(JSContext *ctx, JSValueConst this_val,
     const char *token = JS_ToCString(ctx, argv[0]);
     if (!token) return JS_EXCEPTION;
 
-    TokenList tl = get_tokens((dom_element *)priv->node);
+    TokenList tl = get_tokens(ctx, priv);
     bool found = false;
     int found_idx = -1;
     for (int i = 0; i < tl.count; i++) {
@@ -284,7 +321,7 @@ static JSValue custom_domtokenlist_toggle(JSContext *ctx, JSValueConst this_val,
             }
             tl.count--;
             result_present = false;
-            set_tokens((dom_element *)priv->node, &tl);
+            set_tokens(ctx, priv, &tl);
         }
     } else {
         if (has_force && !force_val) {
@@ -296,7 +333,7 @@ static JSValue custom_domtokenlist_toggle(JSContext *ctx, JSValueConst this_val,
                 tl.tokens[tl.count] = strdup(token);
                 tl.count++;
                 result_present = true;
-                set_tokens((dom_element *)priv->node, &tl);
+                set_tokens(ctx, priv, &tl);
             }
         }
     }
