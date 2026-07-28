@@ -2884,8 +2884,10 @@ START_TEST(test_quickjs_bbmq_circular_queue)
     extern bool wisp_is_js_process;
     extern shm_dom_t *wisp_shm_dom;
 
+    extern uint32_t wisp_shm_capacity;
     bool saved_is_js = wisp_is_js_process;
     shm_dom_t *saved_shm = wisp_shm_dom;
+    uint32_t saved_capacity = wisp_shm_capacity;
 
     // Set process to JS process and set a dummy wisp_shm_dom
     wisp_is_js_process = true;
@@ -2893,6 +2895,7 @@ START_TEST(test_quickjs_bbmq_circular_queue)
     wisp_shm_dom = calloc(1, shm_sz);
     ck_assert_ptr_nonnull(wisp_shm_dom);
     wisp_shm_dom->node_capacity = SHM_DOM_MAX_NODES;
+    wisp_shm_capacity = SHM_DOM_MAX_NODES;
 
     // Initial state check
     ck_assert_int_eq(bbmq_has_pending_for_node(42), false);
@@ -2957,6 +2960,86 @@ START_TEST(test_quickjs_bbmq_circular_queue)
     free(wisp_shm_dom);
     wisp_is_js_process = saved_is_js;
     wisp_shm_dom = saved_shm;
+    wisp_shm_capacity = saved_capacity;
+}
+END_TEST
+
+START_TEST(test_quickjs_shm_remap_and_dangling)
+{
+#include <sys/mman.h>
+    extern void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count);
+
+    const char *shm_name = "/wisp_test_shm_remap_and_dangling";
+    // Destroy any pre-existing shared memory with the same name
+    shm_unlink(shm_name);
+
+    // 1. Create a server shm_dom with capacity of 8192 nodes
+    shm_dom_t *shm = shm_dom_create(shm_name, true);
+    ck_assert_ptr_nonnull(shm);
+    uint32_t old_cap = shm->node_capacity;
+    ck_assert_int_eq(old_cap, 8192);
+
+    // Populate arrays at index 1 with distinctive values
+    WispCompactNode *nodes = shm_dom_get_nodes(shm);
+    nodes[1].node_type = 123;
+    nodes[1].parent_id = 456;
+
+    WispShmLayoutCache *lc = shm_dom_get_layout_cache(shm);
+    lc[1].x = 10;
+    lc[1].y = 20;
+    lc[1].width = 30;
+    lc[1].height = 40;
+
+    WispNodeStrings *ns = shm_dom_get_node_strings(shm);
+    ns[1].attr_count = 5;
+
+    uint64_t *ptrs = shm_dom_get_dom_ptrs(shm);
+    ptrs[1] = 0xDEADBEEF;
+
+    // 2. Perform shm_dom_remap to 16384 capacity
+    uint32_t new_cap = 16384;
+    shm_dom_t *new_shm = shm_dom_remap(shm, new_cap);
+    ck_assert_ptr_nonnull(new_shm);
+    ck_assert_int_eq(new_shm->node_capacity, new_cap);
+
+    // 3. Verify that all elements are shifted/aligned correctly to the new offsets!
+    WispCompactNode *new_nodes = shm_dom_get_nodes(new_shm);
+    ck_assert_int_eq(new_nodes[1].node_type, 123);
+    ck_assert_int_eq(new_nodes[1].parent_id, 456);
+
+    WispShmLayoutCache *new_lc = shm_dom_get_layout_cache(new_shm);
+    ck_assert_int_eq(new_lc[1].x, 10);
+    ck_assert_int_eq(new_lc[1].y, 20);
+    ck_assert_int_eq(new_lc[1].width, 30);
+    ck_assert_int_eq(new_lc[1].height, 40);
+
+    WispNodeStrings *new_ns = shm_dom_get_node_strings(new_shm);
+    ck_assert_int_eq(new_ns[1].attr_count, 5);
+
+    uint64_t *new_ptrs = shm_dom_get_dom_ptrs(new_shm);
+    ck_assert_uint_eq(new_ptrs[1], 0xDEADBEEF);
+
+    // 4. Verify failed remap handling returns NULL and doesn't cause a crash
+    // Passing 0xFFFFFFFF capacity should fail due to size overflow/mmap failure
+    shm_dom_t *failed_shm = shm_dom_remap(new_shm, 0xFFFFFFFF);
+    ck_assert_ptr_null(failed_shm);
+
+    // Let's test that shm_dom_ensure_capacity gracefully handles failed remap
+    struct jsthread dummy_thread;
+    memset(&dummy_thread, 0, sizeof(dummy_thread));
+    shm_dom_t *ensure_shm = shm_dom_create(shm_name, true);
+    ck_assert_ptr_nonnull(ensure_shm);
+    dummy_thread.shm_dom = ensure_shm;
+    dummy_thread.shm_capacity = ensure_shm->node_capacity;
+
+    // Call with an impossible capacity to force failure
+    shm_dom_ensure_capacity(&dummy_thread, 0xFFFFFFFF);
+
+    // Verify that the pointer is set to NULL rather than left dangling
+    ck_assert_ptr_null(dummy_thread.shm_dom);
+    ck_assert_int_eq(dummy_thread.shm_capacity, 0);
+
+    shm_unlink(shm_name);
 }
 END_TEST
 
@@ -2974,6 +3057,7 @@ Suite *quickjs_suite(void)
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_quickjs_init_finalise);
     tcase_add_test(tc_core, test_quickjs_svds_32bit_indices);
+    tcase_add_test(tc_core, test_quickjs_shm_remap_and_dangling);
     tcase_add_test(tc_core, test_quickjs_heap_create_destroy);
     tcase_add_test(tc_core, test_quickjs_thread_create_destroy);
     tcase_add_test(tc_core, test_quickjs_multiple_threads);

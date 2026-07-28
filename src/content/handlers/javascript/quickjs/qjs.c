@@ -2983,6 +2983,12 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
     shm_dom_t *shm = thread->shm_dom;
     if (!shm) return;
     if (required_count < shm->node_capacity) return;
+    if (required_count > 10000000) {
+        shm_dom_destroy(shm, thread->shm_dom_name, true);
+        thread->shm_dom = NULL;
+        thread->shm_capacity = 0;
+        return;
+    }
 
     uint32_t old_cap = shm->node_capacity;
     if (required_count >= old_cap) {
@@ -2995,17 +3001,21 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
             new_shm->node_capacity = new_cap;
             thread->shm_dom = new_shm;
             thread->shm_capacity = new_cap;
+        } else {
+            thread->shm_dom = NULL;
+            thread->shm_capacity = 0;
         }
     }
 }
 
 static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, WispNodeID parent_idx) {
-    if (!node) return;
+    if (!node || !shm) return;
 
     if (shm->node_count >= shm->node_capacity) {
         if (thread) {
             shm_dom_ensure_capacity(thread, shm->node_count + 1);
             shm = thread->shm_dom;
+            if (!shm) return;
         } else {
             return;
         }
@@ -3135,6 +3145,10 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
             if (thread) {
                 shm_dom_ensure_capacity(thread, shm->node_count + 1);
                 shm = thread->shm_dom;
+                if (!shm) {
+                    dom_node_unref(child);
+                    return;
+                }
             } else {
                 dom_node_unref(child);
                 return;
@@ -3150,6 +3164,15 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
                 if (thread) {
                     shm_dom_ensure_capacity(thread, shm->node_count + 1);
                     shm = thread->shm_dom;
+                    if (!shm) {
+                        while (child) {
+                            dom_node *next = NULL;
+                            dom_node_get_next_sibling(child, &next);
+                            dom_node_unref(child);
+                            child = next;
+                        }
+                        break;
+                    }
                 } else {
                     while (child) {
                         dom_node *next = NULL;
@@ -3165,6 +3188,15 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
 
             if (thread) {
                 shm = thread->shm_dom;
+                if (!shm) {
+                    while (child) {
+                        dom_node *next = NULL;
+                        dom_node_get_next_sibling(child, &next);
+                        dom_node_unref(child);
+                        child = next;
+                    }
+                    break;
+                }
             }
             nodes_array = shm_dom_get_nodes(shm);
 
@@ -3196,7 +3228,12 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     memset(shm->string_hash_table, 0, sizeof(shm->string_hash_table));
     shm->string_heap_top = 1; // Initialize top to 1 to reserve 0 as NULL/empty
     serialize_dom_node(shm, thread, (dom_node *)doc, 0);
-    shm_dom_unlock_write(thread ? thread->shm_dom : shm);
+    shm_dom_t *final_shm = thread ? thread->shm_dom : shm;
+    if (final_shm) {
+        shm_dom_unlock_write(final_shm);
+    } else if (shm) {
+        shm_dom_unlock_write(shm);
+    }
 }
 
 static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id) {
@@ -3296,7 +3333,8 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
 static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box *box) {
     if (!box) return;
     shm_dom_t *shm = thread->shm_dom;
-    if (box->node && shm) {
+    if (!shm) return;
+    if (box->node) {
         for (uint32_t i = 0; i < shm->node_count; i++) {
             if (shm_dom_get_dom_ptrs(shm)[i] == (uint64_t)(uintptr_t)box->node) {
                 WispCompactNode *nodes_array = shm_dom_get_nodes(shm);
@@ -3306,6 +3344,7 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
                     if (l_idx >= shm->node_capacity) {
                         shm_dom_ensure_capacity(thread, l_idx + 1);
                         shm = thread->shm_dom;
+                        if (!shm) return;
                         nodes_array = shm_dom_get_nodes(shm);
                         node = &nodes_array[i];
                     }
@@ -3341,8 +3380,12 @@ void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
     shm_dom_t *shm = thread->shm_dom;
     shm_dom_lock_write(shm);
     update_shm_box_bounds_recursive(thread, doc_box);
-    thread->shm_dom->layout_dirty = false;
-    shm_dom_unlock_write(thread->shm_dom);
+    if (thread->shm_dom == shm) {
+        thread->shm_dom->layout_dirty = false;
+        shm_dom_unlock_write(thread->shm_dom);
+    } else if (shm) {
+        shm_dom_unlock_write(shm);
+    }
 }
 
 extern bool layout_document(struct html_content *content, int width, int height);

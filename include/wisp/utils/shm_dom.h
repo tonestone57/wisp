@@ -107,7 +107,7 @@ typedef struct {
      * WispNodeStrings node_strings[node_capacity]
      * uint64_t dom_ptrs[node_capacity]
      */
-} shm_dom_t;
+} __attribute__((aligned(64))) shm_dom_t;
 
 static inline WispCompactNode* shm_dom_get_nodes(shm_dom_t *shm) {
     if (!shm) return NULL;
