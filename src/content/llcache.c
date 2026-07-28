@@ -4005,6 +4005,13 @@ const char *llcache_handle_get_header(const llcache_handle *handle, const char *
     return NULL;
 }
 
+nsurl *llcache_handle_get_referer(const llcache_handle *handle)
+{
+    if (handle == NULL || handle->object == NULL)
+        return NULL;
+    return handle->object->fetch.referer;
+}
+
 /* See llcache.h for documentation */
 bool llcache_handle_references_same_object(const llcache_handle *a, const llcache_handle *b)
 {

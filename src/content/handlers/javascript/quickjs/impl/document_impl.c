@@ -13,6 +13,8 @@
 #include <dom/html/html_document.h>
 #include <wisp/utils/nsurl.h>
 #include <libwapcaplet/libwapcaplet.h>
+#include <wisp/content/llcache.h>
+#include <wisp/content/content_protected.h>
 
 struct content;
 extern struct nsurl *content_get_url(struct content *c);
@@ -712,4 +714,21 @@ JSValue wisp_document_compatMode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_document_currentScript_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return JS_NULL;
+}
+
+JSValue wisp_document_referrer_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (wisp_is_js_process) return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
+    if (t && t->doc_priv) {
+        struct content *c = (struct content *)t->doc_priv;
+        if (c->llcache) {
+            struct nsurl *ref = llcache_handle_get_referer(c->llcache);
+            if (ref) {
+                return JS_NewString(ctx, nsurl_access(ref));
+            }
+        }
+    }
+    return JS_NewString(ctx, "");
 }

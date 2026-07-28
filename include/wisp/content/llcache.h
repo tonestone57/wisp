@@ -281,6 +281,14 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
 const char *llcache_handle_get_header(const llcache_handle *handle, const char *key);
 
 /**
+ * Retrieve the referer URL of a low-level cache object
+ *
+ * \param handle  Handle to retrieve referer from
+ * \return Referer URL of cache object or NULL if none
+ */
+nsurl *llcache_handle_get_referer(const llcache_handle *handle);
+
+/**
  * Determine if the same underlying object is referenced by the given handles
  *
  * \param a  First handle

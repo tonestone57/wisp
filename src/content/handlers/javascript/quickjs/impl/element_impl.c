@@ -249,26 +249,117 @@ static void serialize_node_to_html(dom_node *node, HTMLBuffer *b)
     }
 }
 
+static void request_synchronous_layout_from_main(void);
+
+static void serialize_shm_node_to_html(uint64_t node_id, HTMLBuffer *b)
+{
+    WispCompactNode *sn = find_shm_node(wisp_shm_dom, node_id);
+    if (!sn) return;
+
+    if (sn->node_type == DOM_ELEMENT_NODE) {
+        WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
+        const char *tag = wisp_string_ref_data(wisp_shm_dom, sns->tag_name);
+        if (!tag) tag = "div";
+        size_t tag_len = strlen(tag);
+
+        html_buf_append(b, "<", 1);
+        html_buf_append(b, tag, tag_len);
+
+        for (uint32_t i = 0; i < sns->attr_count; i++) {
+            const char *name = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].name);
+            const char *val = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
+            if (name) {
+                html_buf_append(b, " ", 1);
+                html_buf_append(b, name, strlen(name));
+                if (val) {
+                    html_buf_append(b, "=\"", 2);
+                    html_buf_append(b, val, strlen(val));
+                    html_buf_append(b, "\"", 1);
+                }
+            }
+        }
+
+        html_buf_append(b, ">", 1);
+
+        bool is_self_closing = (strcasecmp(tag, "img") == 0 || strcasecmp(tag, "br") == 0 ||
+                                strcasecmp(tag, "input") == 0 || strcasecmp(tag, "link") == 0 ||
+                                strcasecmp(tag, "meta") == 0 || strcasecmp(tag, "hr") == 0);
+
+        if (!is_self_closing) {
+            uint64_t child_id = sn->first_child_id;
+            while (child_id != 0) {
+                serialize_shm_node_to_html(child_id, b);
+                WispCompactNode *child_sn = find_shm_node(wisp_shm_dom, child_id);
+                child_id = child_sn ? child_sn->next_sibling_id : 0;
+            }
+
+            html_buf_append(b, "</", 2);
+            html_buf_append(b, tag, tag_len);
+            html_buf_append(b, ">", 1);
+        }
+
+    } else if (sn->node_type == DOM_TEXT_NODE) {
+        WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
+        const char *val = wisp_string_ref_data(wisp_shm_dom, sns->value);
+        if (val) {
+            html_buf_append(b, val, strlen(val));
+        }
+    } else if (sn->node_type == DOM_COMMENT_NODE) {
+        WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
+        const char *val = wisp_string_ref_data(wisp_shm_dom, sns->value);
+        if (val) {
+            html_buf_append(b, "<!--", 4);
+            html_buf_append(b, val, strlen(val));
+            html_buf_append(b, "-->", 3);
+        }
+    } else {
+        uint64_t child_id = sn->first_child_id;
+        while (child_id != 0) {
+            serialize_shm_node_to_html(child_id, b);
+            WispCompactNode *child_sn = find_shm_node(wisp_shm_dom, child_id);
+            child_id = child_sn ? child_sn->next_sibling_id : 0;
+        }
+    }
+}
+
 JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "");
     HTMLBuffer b = { NULL, 0, 0 };
-    dom_node *child = NULL;
-    dom_node_get_first_child((dom_node *)priv->node, &child);
-    while (child) {
-        serialize_node_to_html(child, &b);
-        dom_node *next = NULL;
-        dom_node_get_next_sibling(child, &next);
-        dom_node_unref(child);
-        child = next;
+    if (wisp_is_js_process) {
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            uint64_t child_id = sn->first_child_id;
+            while (child_id != 0) {
+                serialize_shm_node_to_html(child_id, &b);
+                WispCompactNode *child_sn = find_shm_node(wisp_shm_dom, child_id);
+                child_id = child_sn ? child_sn->next_sibling_id : 0;
+            }
+        }
+    } else {
+        dom_node *child = NULL;
+        dom_node_get_first_child((dom_node *)priv->node, &child);
+        while (child) {
+            serialize_node_to_html(child, &b);
+            dom_node *next = NULL;
+            dom_node_get_next_sibling(child, &next);
+            dom_node_unref(child);
+            child = next;
+        }
     }
     JSValue val = JS_NewStringLen(ctx, b.buf ? b.buf : "", b.len);
     free(b.buf);
     return val;
 }
+
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_INNER_HTML, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
+        request_synchronous_layout_from_main();
+        return JS_UNDEFINED;
+    }
     dom_node *element = (dom_node *)priv->node;
     dom_document *doc = NULL;
     dom_exception exc = dom_node_get_owner_document(element, &doc);
@@ -277,9 +368,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
     /* 1. Clear existing children */
     dom_node *child = NULL;
     while (dom_node_get_first_child(element, &child) == DOM_NO_ERR && child != NULL) {
-        dom_node *removed = NULL;
-        dom_node_remove_child(element, child, &removed);
-        if (removed) dom_node_unref(removed);
+        dom_node_remove_child(element, child, NULL);
         dom_node_unref(child);
         child = NULL;
     }
