@@ -368,9 +368,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
     /* 1. Clear existing children */
     dom_node *child = NULL;
     while (dom_node_get_first_child(element, &child) == DOM_NO_ERR && child != NULL) {
-        dom_node *removed = NULL;
-        dom_node_remove_child(element, child, &removed);
-        if (removed) dom_node_unref(removed);
+        dom_node_remove_child(element, child, NULL);
         dom_node_unref(child);
         child = NULL;
     }

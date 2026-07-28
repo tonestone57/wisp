@@ -3293,33 +3293,25 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
         }
         case SHM_MUTATION_APPEND_CHILD: {
             if (target && param1) {
-                dom_node *result = NULL;
-                dom_node_append_child(target, param1, &result);
-                if (result) dom_node_unref(result);
+                dom_node_append_child(target, param1, NULL);
             }
             break;
         }
         case SHM_MUTATION_REMOVE_CHILD: {
             if (target && param1) {
-                dom_node *result = NULL;
-                dom_node_remove_child(target, param1, &result);
-                if (result) dom_node_unref(result);
+                dom_node_remove_child(target, param1, NULL);
             }
             break;
         }
         case SHM_MUTATION_INSERT_BEFORE: {
             if (target && param1) {
-                dom_node *result = NULL;
-                dom_node_insert_before(target, param1, param2, &result);
-                if (result) dom_node_unref(result);
+                dom_node_insert_before(target, param1, param2, NULL);
             }
             break;
         }
         case SHM_MUTATION_REPLACE_CHILD: {
             if (target && param1 && param2) {
-                dom_node *result = NULL;
-                dom_node_replace_child(target, param1, param2, &result);
-                if (result) dom_node_unref(result);
+                dom_node_replace_child(target, param1, param2, NULL);
             }
             break;
         }
@@ -3346,9 +3338,7 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
                 // Clear existing children
                 dom_node *child = NULL;
                 while (dom_node_get_first_child(target, &child) == DOM_NO_ERR && child != NULL) {
-                    dom_node *removed = NULL;
-                    dom_node_remove_child(target, child, &removed);
-                    if (removed) dom_node_unref(removed);
+                    dom_node_remove_child(target, child, NULL);
                     dom_node_unref(child);
                     child = NULL;
                 }
