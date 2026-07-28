@@ -86,14 +86,50 @@ size_t shm_dom_size(uint32_t capacity) {
 
 shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity) {
     if (!old_shm) return NULL;
+    uint32_t old_cap = old_shm->node_capacity;
+    size_t old_size = shm_dom_size(old_cap);
+
+    if (new_capacity > 10000000) {
+        NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: capacity %u exceeds safety limit", new_capacity);
+#ifdef _WIN32
+        UnmapViewOfFile(old_shm);
+        HANDLE h = find_and_unregister_shm_handle(old_shm);
+        if (h) CloseHandle(h);
+#else
+        munmap(old_shm, old_size);
+#endif
+        return NULL;
+    }
+
     char name[64];
     strncpy(name, old_shm->shm_name, sizeof(name) - 1);
     name[sizeof(name) - 1] = '\0';
-    uint32_t old_cap = old_shm->node_capacity;
     bool is_server = old_shm->is_server;
 
-    size_t old_size = shm_dom_size(old_cap);
     size_t new_size = shm_dom_size(new_capacity);
+
+    // 1. Allocate temporary buffers on the local heap to copy the old arrays
+    WispCompactNode *temp_nodes = malloc(old_cap * sizeof(WispCompactNode));
+    WispShmLayoutCache *temp_layout_cache = malloc(old_cap * sizeof(WispShmLayoutCache));
+    WispNodeStrings *temp_node_strings = malloc(old_cap * sizeof(WispNodeStrings));
+    uint64_t *temp_dom_ptrs = malloc(old_cap * sizeof(uint64_t));
+
+    if (!temp_nodes || !temp_layout_cache || !temp_node_strings || !temp_dom_ptrs) {
+        NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: temporary buffer allocation failed!");
+        free(temp_nodes);
+        free(temp_layout_cache);
+        free(temp_node_strings);
+        free(temp_dom_ptrs);
+        return NULL;
+    }
+
+    // 2. Copy the old elements from their old offsets before unmapping
+    memcpy(temp_nodes, shm_dom_get_nodes(old_shm), old_cap * sizeof(WispCompactNode));
+    memcpy(temp_layout_cache, shm_dom_get_layout_cache(old_shm), old_cap * sizeof(WispShmLayoutCache));
+    memcpy(temp_node_strings, shm_dom_get_node_strings(old_shm), old_cap * sizeof(WispNodeStrings));
+    memcpy(temp_dom_ptrs, shm_dom_get_dom_ptrs(old_shm), old_cap * sizeof(uint64_t));
+
+    shm_dom_t *new_shm = NULL;
 
 #ifdef _WIN32
     UnmapViewOfFile(old_shm);
@@ -115,41 +151,87 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity) {
         hMap = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, name);
     }
 
-    if (!hMap) return NULL;
+    if (!hMap) {
+        free(temp_nodes);
+        free(temp_layout_cache);
+        free(temp_node_strings);
+        free(temp_dom_ptrs);
+        return NULL;
+    }
 
-    shm_dom_t *new_shm = (shm_dom_t *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, new_size);
+    new_shm = (shm_dom_t *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, new_size);
     if (new_shm) {
         register_shm_handle(new_shm, hMap);
     } else {
         CloseHandle(hMap);
+        free(temp_nodes);
+        free(temp_layout_cache);
+        free(temp_node_strings);
+        free(temp_dom_ptrs);
+        return NULL;
     }
-    return new_shm;
 #else
     int fd = shm_open(name, O_RDWR, 0666);
     if (fd < 0) {
         NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: failed to shm_open %s", name);
-        return old_shm;
+        munmap(old_shm, old_size);
+        free(temp_nodes);
+        free(temp_layout_cache);
+        free(temp_node_strings);
+        free(temp_dom_ptrs);
+        return NULL;
     }
 
     if (is_server) {
         if (ftruncate(fd, new_size) != 0) {
             NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: ftruncate failed");
             close(fd);
-            return old_shm;
+            munmap(old_shm, old_size);
+            free(temp_nodes);
+            free(temp_layout_cache);
+            free(temp_node_strings);
+            free(temp_dom_ptrs);
+            return NULL;
         }
     }
 
     munmap(old_shm, old_size);
 
-    shm_dom_t *new_shm = (shm_dom_t *)mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    new_shm = (shm_dom_t *)mmap(NULL, new_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     close(fd);
 
     if (new_shm == MAP_FAILED) {
         NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: mmap failed");
+        free(temp_nodes);
+        free(temp_layout_cache);
+        free(temp_node_strings);
+        free(temp_dom_ptrs);
         return NULL;
     }
-    return new_shm;
 #endif
+
+    // 3. Set the new capacity and copy the arrays back to their new offsets in new_shm
+    new_shm->node_capacity = new_capacity;
+
+    // Zero out the entire new array space to be absolutely safe
+    memset(shm_dom_get_nodes(new_shm), 0, new_capacity * sizeof(WispCompactNode));
+    memset(shm_dom_get_layout_cache(new_shm), 0, new_capacity * sizeof(WispShmLayoutCache));
+    memset(shm_dom_get_node_strings(new_shm), 0, new_capacity * sizeof(WispNodeStrings));
+    memset(shm_dom_get_dom_ptrs(new_shm), 0, new_capacity * sizeof(uint64_t));
+
+    // Copy the old elements back to the beginning of the new arrays
+    memcpy(shm_dom_get_nodes(new_shm), temp_nodes, old_cap * sizeof(WispCompactNode));
+    memcpy(shm_dom_get_layout_cache(new_shm), temp_layout_cache, old_cap * sizeof(WispShmLayoutCache));
+    memcpy(shm_dom_get_node_strings(new_shm), temp_node_strings, old_cap * sizeof(WispNodeStrings));
+    memcpy(shm_dom_get_dom_ptrs(new_shm), temp_dom_ptrs, old_cap * sizeof(uint64_t));
+
+    // 4. Free the temporary heap buffers
+    free(temp_nodes);
+    free(temp_layout_cache);
+    free(temp_node_strings);
+    free(temp_dom_ptrs);
+
+    return new_shm;
 }
 
 #ifdef _WIN32
@@ -399,6 +481,7 @@ WispStringRef wisp_shm_alloc_string(shm_dom_t *shm, const char *str) {
 
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value) {
     if (!shm) return;
+    if (wisp_is_js_process && !wisp_shm_dom) return;
 
     if (wisp_is_js_process) {
         shm_dom_lock_read(wisp_shm_dom);
@@ -406,11 +489,23 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
             uint32_t new_cap = wisp_shm_dom->node_capacity;
             wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
-            wisp_shm_capacity = new_cap;
-            shm = wisp_shm_dom;
+            if (wisp_shm_dom) {
+                wisp_shm_capacity = new_cap;
+                shm = wisp_shm_dom;
+            } else {
+                wisp_shm_capacity = 0;
+                shm = NULL;
+            }
         }
     } else {
         shm_dom_lock_read(shm);
+    }
+
+    if (!shm) {
+        if (wisp_is_js_process && wisp_shm_dom) {
+            shm_dom_unlock_read(wisp_shm_dom);
+        }
+        return;
     }
 
     shm->layout_dirty = true;
@@ -560,11 +655,18 @@ WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id) {
             shm_dom_lock_read(wisp_shm_dom);
             uint32_t new_cap = wisp_shm_dom->node_capacity;
             wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
-            wisp_shm_capacity = new_cap;
-            shm = wisp_shm_dom;
-            shm_dom_unlock_read(wisp_shm_dom);
+            if (wisp_shm_dom) {
+                wisp_shm_capacity = new_cap;
+                shm = wisp_shm_dom;
+                shm_dom_unlock_read(wisp_shm_dom);
+            } else {
+                wisp_shm_capacity = 0;
+                shm = NULL;
+            }
         }
     }
+
+    if (!shm) return NULL;
 
     uint32_t idx = (uint32_t)id;
     if (idx > 0 && idx < shm->node_count) {

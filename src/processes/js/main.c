@@ -239,14 +239,23 @@ int main(int argc, char **argv) {
                 }
 
                 if (script) {
-                    shm_dom_lock_read(wisp_shm_dom);
-                    if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
-                        uint32_t new_cap = wisp_shm_dom->node_capacity;
-                        wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
-                        wisp_shm_capacity = new_cap;
+                    if (wisp_shm_dom) {
+                        shm_dom_lock_read(wisp_shm_dom);
+                        if (wisp_shm_capacity < wisp_shm_dom->node_capacity) {
+                            uint32_t new_cap = wisp_shm_dom->node_capacity;
+                            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
+                            if (wisp_shm_dom) {
+                                wisp_shm_capacity = new_cap;
+                            } else {
+                                wisp_shm_capacity = 0;
+                            }
+                        }
                     }
 
-                    JSValue val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
+                    JSValue val = JS_UNDEFINED;
+                    if (wisp_shm_dom) {
+                        val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
+                    }
 
                     /* Execute any pending microtasks (microtask-tick serialization) */
                     wisp_in_microtask = true;
@@ -267,7 +276,9 @@ int main(int argc, char **argv) {
                     extern void bbmq_flush(void);
                     bbmq_flush();
 
-                    shm_dom_unlock_read(wisp_shm_dom);
+                    if (wisp_shm_dom) {
+                        shm_dom_unlock_read(wisp_shm_dom);
+                    }
 
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;
