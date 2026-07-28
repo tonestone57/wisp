@@ -179,14 +179,20 @@ static HANDLE find_and_unregister_shm_handle(void *ptr) {
 }
 #endif
 
-shm_dom_t* shm_dom_create(const char *name, bool is_server) {
+shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server) {
     if (is_server && !shm_dom_metrics_registered) {
         atexit(shm_dom_log_final_peak);
         shm_dom_metrics_registered = true;
     }
+
+    uint32_t use_cap = capacity;
+    if (is_server && use_cap == 0) {
+        use_cap = SHM_DOM_MAX_NODES;
+    }
+
 #ifdef _WIN32
     HANDLE hMap = NULL;
-    size_t size = shm_dom_size(SHM_DOM_MAX_NODES);
+    size_t size = shm_dom_size(is_server ? use_cap : SHM_DOM_MAX_NODES);
     if (is_server) {
         SECURITY_ATTRIBUTES sa;
         SECURITY_DESCRIPTOR sd;
@@ -208,7 +214,7 @@ shm_dom_t* shm_dom_create(const char *name, bool is_server) {
         shm = (shm_dom_t *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size);
         if (shm) {
             memset(shm, 0, size);
-            shm->node_capacity = SHM_DOM_MAX_NODES;
+            shm->node_capacity = use_cap;
             shm->is_server = true;
             strncpy(shm->shm_name, name, sizeof(shm->shm_name) - 1);
             shm->shm_name[sizeof(shm->shm_name) - 1] = '\0';
@@ -220,7 +226,9 @@ shm_dom_t* shm_dom_create(const char *name, bool is_server) {
         shm_dom_t *temp = (shm_dom_t *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(shm_dom_t));
         if (temp) {
             uint32_t cap = temp->node_capacity;
-            if (cap == 0) cap = SHM_DOM_MAX_NODES;
+            if (cap == 0) {
+                cap = (capacity != 0) ? capacity : SHM_DOM_MAX_NODES;
+            }
             size = shm_dom_size(cap);
             UnmapViewOfFile(temp);
             shm = (shm_dom_t *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size);
@@ -236,7 +244,7 @@ shm_dom_t* shm_dom_create(const char *name, bool is_server) {
     return shm;
 #else
     int fd = -1;
-    size_t size = shm_dom_size(SHM_DOM_MAX_NODES);
+    size_t size = shm_dom_size(is_server ? use_cap : SHM_DOM_MAX_NODES);
     if (is_server) {
         fd = shm_open(name, O_CREAT | O_RDWR, 0666);
         if (fd >= 0) {
@@ -261,7 +269,7 @@ shm_dom_t* shm_dom_create(const char *name, bool is_server) {
             return NULL;
         }
         memset(shm, 0, size);
-        shm->node_capacity = SHM_DOM_MAX_NODES;
+        shm->node_capacity = use_cap;
         shm->is_server = true;
         strncpy(shm->shm_name, name, sizeof(shm->shm_name) - 1);
         shm->shm_name[sizeof(shm->shm_name) - 1] = '\0';
@@ -272,7 +280,9 @@ shm_dom_t* shm_dom_create(const char *name, bool is_server) {
             return NULL;
         }
         uint32_t cap = temp->node_capacity;
-        if (cap == 0) cap = SHM_DOM_MAX_NODES;
+        if (cap == 0) {
+            cap = (capacity != 0) ? capacity : SHM_DOM_MAX_NODES;
+        }
         size = shm_dom_size(cap);
         munmap(temp, sizeof(shm_dom_t));
 

@@ -37,6 +37,8 @@
 #include <wisp/desktop/gui_table.h>
 #include <wisp/utils/ipc.h>
 #include <wisp/utils/nsurl.h>
+#include <wisp/browser_window.h>
+#include "desktop/browser_private.h"
 
 #include <pthread.h>
 #include <sys/types.h>
@@ -2691,8 +2693,19 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     /* Map shared memory segment for the thread context */
     snprintf(t->shm_dom_name, sizeof(t->shm_dom_name), "/wisp_shm_dom_%u", (unsigned int)(uintptr_t)t);
-    t->shm_dom = shm_dom_create(t->shm_dom_name, true);
-    t->shm_capacity = SHM_DOM_MAX_NODES;
+    uint32_t cap = SHM_DOM_MAX_NODES;
+    if (win_priv && win_priv != doc_priv) {
+        struct browser_window *bw = (struct browser_window *)win_priv;
+        if (bw->browser_window_type == BROWSER_WINDOW_IFRAME || bw->browser_window_type == BROWSER_WINDOW_FRAME) {
+            cap = 512;
+        } else {
+            cap = 1024;
+        }
+    } else {
+        cap = 1024;
+    }
+    t->shm_capacity = cap;
+    t->shm_dom = shm_dom_create(t->shm_dom_name, t->shm_capacity, true);
 
     /* Bridge must be initialized first */
     if (qjs_init_dom_bridge(t->ctx) != 0) {
