@@ -21,6 +21,7 @@
  * Widget methods for browsing context display.
  */
 
+#include <QColorSpace>
 #include <QPaintEvent>
 #include <QPainter>
 
@@ -211,6 +212,7 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     if (use_blend2d) {
         /* Render into a QImage using Blend2D */
         QImage img(width(), height(), QImage::Format_ARGB32_Premultiplied);
+        img.setColorSpace(QColorSpace(QColorSpace::SRgb));
         img.fill(Qt::transparent);
 
         BLContextCore bl_ctx;
