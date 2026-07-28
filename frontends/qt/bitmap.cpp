@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 
+#include <QColorSpace>
 #include <QImage>
 #include <QPainter>
 
@@ -57,7 +58,9 @@ static void *nsqt_bitmap_create(int width, int height, enum gui_bitmap_flags fla
         qfmt = QImage::Format_ARGB32;
     }
 
-    return new QImage(width, height, qfmt);
+    QImage *img = new QImage(width, height, qfmt);
+    img->setColorSpace(QColorSpace(QColorSpace::SRgb));
+    return img;
 }
 
 
@@ -196,6 +199,7 @@ static nserror nsqt_bitmap_render(struct bitmap *bitmap, struct hlcache_handle *
     cheight = ((cwidth * dheight) + (dwidth / 2)) / dwidth;
 
     QImage iimg(cwidth, cheight, dimg->format());
+    iimg.setColorSpace(QColorSpace(QColorSpace::SRgb));
 
     painter = new QPainter(&iimg);
     ctx.priv = painter;

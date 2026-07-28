@@ -47,7 +47,6 @@ HAIKU_TARGET_DIR := wisp_pkg
 PACKAGER := $(shell git config --get user.name) <$(shell git config --get user.email)>
 
 # package manifest file
-# TODO: remove requires hardcoding
 PKGINFO := \
 name	wisp$(PKGSARCH)\n\
 version	$(VERSION_MAJ).$(VERSION_MIN)-1\n\
@@ -65,15 +64,15 @@ provides	{\n\
 \tapp:wisp = $(VERSION_MAJ).$(VERSION_MIN)\n\
 }\n\
 requires	{\n\
-\thaiku_x86>=r1~alpha4_pm_hrev51655-1\n\
-\tlib:libcurl_x86>=4.4.0\n\
-\tlib:libexpat_x86>=1.6.7\n\
-\tlib:libiconv_x86>=2.5.0\n\
-\tlib:libpng16_x86>=16.34.0\n\
-\tlib:libjpeg_x86>=9.2.0\n\
-\tlib:libssl_x86>=1.0.0\n\
-\tlib:libutf8proc_x86>=1.3.1\n\
-\tlib:libz_x86>=1.2.11\n\
+\thaiku$(PKGSARCH)>=r1~alpha4_pm_hrev51655-1\n\
+\tlib:libcurl$(PKGSARCH)>=4.4.0\n\
+\tlib:libexpat$(PKGSARCH)>=1.6.7\n\
+\tlib:libiconv$(PKGSARCH)>=2.5.0\n\
+\tlib:libpng16$(PKGSARCH)>=16.34.0\n\
+\tlib:libjpeg$(PKGSARCH)>=9.2.0\n\
+\tlib:libssl$(PKGSARCH)>=1.0.0\n\
+\tlib:libutf8proc$(PKGSARCH)>=1.3.1\n\
+\tlib:libz$(PKGSARCH)>=1.2.11\n\
 }\n
 
 
