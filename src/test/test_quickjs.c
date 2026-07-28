@@ -2974,7 +2974,7 @@ START_TEST(test_quickjs_shm_remap_and_dangling)
     shm_unlink(shm_name);
 
     // 1. Create a server shm_dom with capacity of 8192 nodes
-    shm_dom_t *shm = shm_dom_create(shm_name, true);
+    shm_dom_t *shm = shm_dom_create(shm_name, 8192, true);
     ck_assert_ptr_nonnull(shm);
     uint32_t old_cap = shm->node_capacity;
     ck_assert_int_eq(old_cap, 8192);
@@ -3027,7 +3027,7 @@ START_TEST(test_quickjs_shm_remap_and_dangling)
     // Let's test that shm_dom_ensure_capacity gracefully handles failed remap
     struct jsthread dummy_thread;
     memset(&dummy_thread, 0, sizeof(dummy_thread));
-    shm_dom_t *ensure_shm = shm_dom_create(shm_name, true);
+    shm_dom_t *ensure_shm = shm_dom_create(shm_name, 8192, true);
     ck_assert_ptr_nonnull(ensure_shm);
     dummy_thread.shm_dom = ensure_shm;
     dummy_thread.shm_capacity = ensure_shm->node_capacity;
