@@ -165,7 +165,7 @@ int main(int argc, char **argv) {
                     if (wisp_shm_dom) {
                         shm_dom_destroy(wisp_shm_dom, NULL, false);
                     }
-                    wisp_shm_dom = shm_dom_create(shm_name, false);
+                    wisp_shm_dom = shm_dom_create(shm_name, 0, false);
                     wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
 
                     if (js_process_origin) free(js_process_origin);
@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
                     if (wisp_shm_dom) {
                         shm_dom_destroy(wisp_shm_dom, NULL, false);
                     }
-                    wisp_shm_dom = shm_dom_create(payload, false);
+                    wisp_shm_dom = shm_dom_create(payload, 0, false);
                     wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
                 }
                 free(payload);
