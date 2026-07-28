@@ -30,6 +30,7 @@ typedef enum {
     SHM_MUTATION_REPLACE_CHILD = 6,
     SHM_MUTATION_SET_NODE_VALUE = 7,
     SHM_MUTATION_SET_TEXT_CONTENT = 8,
+    SHM_MUTATION_SET_INNER_HTML = 9,
 } shm_mutation_type_t;
 
 typedef uint32_t WispStringRef;

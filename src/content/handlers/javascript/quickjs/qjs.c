@@ -18,6 +18,7 @@
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include "utils/corestrings.h"
 #include "quickjs.h"
 #include "utils/hashmap.h"
 #include "content/handlers/javascript/js.h"
@@ -3340,6 +3341,48 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
             if (ds) dom_string_unref(ds);
             break;
         }
+        case SHM_MUTATION_SET_INNER_HTML: {
+            if (target && m_value_cstr) {
+                // Clear existing children
+                dom_node *child = NULL;
+                while (dom_node_get_first_child(target, &child) == DOM_NO_ERR && child != NULL) {
+                    dom_node *removed = NULL;
+                    dom_node_remove_child(target, child, &removed);
+                    if (removed) dom_node_unref(removed);
+                    dom_node_unref(child);
+                    child = NULL;
+                }
+
+                // Parse and insert new HTML using Hubbub
+                dom_hubbub_parser_params params;
+                memset(&params, 0, sizeof(params));
+                params.enc = "UTF-8";
+                params.idname = corestring_dom_id;
+
+                dom_hubbub_parser *parser = NULL;
+                dom_document_fragment *fragment = NULL;
+                dom_hubbub_error err = dom_hubbub_fragment_parser_create(&params, doc, &parser, &fragment);
+                if (err == DOM_HUBBUB_OK) {
+                    err = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)m_value_cstr, strlen(m_value_cstr));
+                    if (err == DOM_HUBBUB_OK) {
+                        err = dom_hubbub_parser_completed(parser);
+                    }
+                    if (err == DOM_HUBBUB_OK && fragment != NULL) {
+                        dom_node *f_child = NULL;
+                        while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
+                            dom_node *result = NULL;
+                            dom_node_append_child(target, f_child, &result);
+                            if (result) dom_node_unref(result);
+                            dom_node_unref(f_child);
+                            f_child = NULL;
+                        }
+                    }
+                    if (fragment) dom_node_unref((dom_node *)fragment);
+                    dom_hubbub_parser_destroy(parser);
+                }
+            }
+            break;
+        }
     }
 }
 
@@ -3587,6 +3630,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         } else if (response.type == WISP_IPC_MSG_DOM_REQUEST) {
                             if (doc) {
                                 drain_mutation_queue(thread->shm_dom, doc);
+                                serialize_dom_tree(thread->shm_dom, thread, doc);
                                 force_synchronous_layout(thread);
                             }
                             wisp_ipc_msg resp;

@@ -10,6 +10,7 @@
 #include "JSDOMTokenList.gen.h"
 
 extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
 
 #define MAX_TOKENS 128
 
@@ -21,17 +22,38 @@ typedef struct {
 static TokenList get_tokens(dom_element *el)
 {
     TokenList tl = { .count = 0 };
+    const char *class_str = NULL;
+    size_t len = 0;
     dom_string *class_dom = NULL;
-    dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)"class", 5, &name_dom);
-    if (!name_dom) return tl;
-    dom_element_get_attribute(el, name_dom, &class_dom);
-    dom_string_unref(name_dom);
 
-    if (!class_dom) return tl;
+    if (wisp_is_js_process) {
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)el);
+        if (sn) {
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)el];
+            for (uint32_t i = 0; i < sns->attr_count; i++) {
+                if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, "class")) {
+                    class_str = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
+                    if (class_str) {
+                        len = strlen(class_str);
+                    }
+                    break;
+                }
+            }
+        }
+    } else {
+        dom_string *name_dom = NULL;
+        dom_string_create((const uint8_t *)"class", 5, &name_dom);
+        if (!name_dom) return tl;
+        dom_element_get_attribute(el, name_dom, &class_dom);
+        dom_string_unref(name_dom);
 
-    const char *class_str = (const char *)dom_string_data(class_dom);
-    size_t len = dom_string_byte_length(class_dom);
+        if (!class_dom) return tl;
+
+        class_str = (const char *)dom_string_data(class_dom);
+        len = dom_string_byte_length(class_dom);
+    }
+
+    if (!class_str) return tl;
 
     // Parse spaces
     size_t start = 0;
@@ -63,7 +85,9 @@ static TokenList get_tokens(dom_element *el)
         start = end;
     }
 
-    dom_string_unref(class_dom);
+    if (class_dom) {
+        dom_string_unref(class_dom);
+    }
     return tl;
 }
 
@@ -91,17 +115,40 @@ static void set_tokens(dom_element *el, TokenList *tl)
     }
     buf[pos] = '\0';
 
-    dom_string *name_dom = NULL;
-    dom_string_create((const uint8_t *)"class", 5, &name_dom);
-    dom_string *val_dom = NULL;
-    dom_string_create((const uint8_t *)buf, pos, &val_dom);
+    if (wisp_is_js_process) {
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)el);
+        WispStringRef name_ref = wisp_shm_alloc_string(wisp_shm_dom, "class");
+        WispStringRef value_ref = wisp_shm_alloc_string(wisp_shm_dom, buf);
+        if (sn) {
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)el];
+            bool found = false;
+            for (uint32_t i = 0; i < sns->attr_count; i++) {
+                if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, "class")) {
+                    sns->attrs[i].value = value_ref;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found && sns->attr_count < 16) {
+                uint32_t i = sns->attr_count++;
+                sns->attrs[i].name = name_ref;
+                sns->attrs[i].value = value_ref;
+            }
+        }
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_ATTRIBUTE, (uint64_t)(uintptr_t)el, 0, 0, "class", buf);
+    } else {
+        dom_string *name_dom = NULL;
+        dom_string_create((const uint8_t *)"class", 5, &name_dom);
+        dom_string *val_dom = NULL;
+        dom_string_create((const uint8_t *)buf, pos, &val_dom);
 
-    if (name_dom && val_dom) {
-        dom_element_set_attribute(el, name_dom, val_dom);
+        if (name_dom && val_dom) {
+            dom_element_set_attribute(el, name_dom, val_dom);
+        }
+
+        if (name_dom) dom_string_unref(name_dom);
+        if (val_dom) dom_string_unref(val_dom);
     }
-
-    if (name_dom) dom_string_unref(name_dom);
-    if (val_dom) dom_string_unref(val_dom);
     free(buf);
 }
 
@@ -229,6 +276,18 @@ JSValue wisp_domtokenlist_remove_impl(JSContext *ctx, QJSNodePrivate *priv, JSVa
 JSValue wisp_domtokenlist_toString_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn) {
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
+            for (uint32_t i = 0; i < sns->attr_count; i++) {
+                if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, "class")) {
+                    return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value));
+                }
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
     dom_string *class_dom = NULL;
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)"class", 5, &name_dom);

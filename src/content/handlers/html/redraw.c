@@ -209,7 +209,7 @@ static void parse_and_apply_3d_transform(const char *str, struct matrix4 *mat, s
 				char *endptr;
 				float val = strtof(p, &endptr);
 				if (p == endptr) {
-					p++;
+					if (*p != '\0') p++;
 				} else {
 					args[arg_count++] = val;
 					p = endptr;
@@ -253,7 +253,7 @@ static void parse_and_apply_3d_transform(const char *str, struct matrix4 *mat, s
 				matrix4_scale(mat, 1, args[0], 1);
 			}
 		} else {
-			p++;
+			if (*p != '\0') p++;
 		}
 	}
 }
