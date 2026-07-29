@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "quickjs.h"
 #include "dom_bridge.h"
 #include "qjs_internal.h"
@@ -801,6 +802,494 @@ JSValue wisp_htmlinputelement_disabled_set_impl(JSContext *ctx, QJSNodePrivate *
     } else {
         return wisp_element_removeAttribute_impl(ctx, priv, "disabled");
     }
+}
+
+// -----------------------------------------------------------------------------
+// Core WebIDL Attribute Helpers
+// -----------------------------------------------------------------------------
+
+static int32_t get_element_int_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, int32_t default_val)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, name);
+    int32_t res_val = default_val;
+    if (JS_IsString(val)) {
+        const char *str = JS_ToCString(ctx, val);
+        if (str && strlen(str) > 0) {
+            res_val = atoi(str);
+        }
+        if (str) JS_FreeCString(ctx, str);
+    }
+    JS_FreeValue(ctx, val);
+    return res_val;
+}
+
+static void set_element_int_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, int32_t value)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%d", value);
+    wisp_element_setAttribute_impl(ctx, priv, name, buf);
+}
+
+static JSValue get_element_str_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, const char *default_val)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, name);
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, default_val);
+    }
+    return val;
+}
+
+static void set_element_str_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, const char *value)
+{
+    wisp_element_setAttribute_impl(ctx, priv, name, value);
+}
+
+static JSValue get_element_bool_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, name);
+}
+
+static void set_element_bool_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, bool value)
+{
+    if (value) {
+        wisp_element_setAttribute_impl(ctx, priv, name, "");
+    } else {
+        wisp_element_removeAttribute_impl(ctx, priv, name);
+    }
+}
+
+static JSValue get_element_form_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            uint32_t curr_id = nodes_arr[our_id].parent_id;
+            while (curr_id != nodes_arr[curr_id].parent_id) {
+                if (nodes_arr[curr_id].node_type == 1 &&
+                    wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[curr_id].tag_name, "form")) {
+                    return qjs_wrap_node(ctx, (dom_node *)(uintptr_t)curr_id);
+                }
+                curr_id = nodes_arr[curr_id].parent_id;
+            }
+        }
+        return JS_NULL;
+    }
+    dom_node *curr = (dom_node *)priv->node;
+    dom_node_ref(curr);
+    while (curr) {
+        dom_node *parent = NULL;
+        dom_node_get_parent_node(curr, &parent);
+        dom_node_unref(curr);
+        curr = parent;
+        if (curr) {
+            dom_string *tag_name = NULL;
+            dom_node_get_node_name(curr, &tag_name);
+            if (tag_name) {
+                if (strcasecmp((const char *)dom_string_data(tag_name), "form") == 0) {
+                    dom_string_unref(tag_name);
+                    JSValue form_val = qjs_wrap_node(ctx, curr);
+                    dom_node_unref(curr);
+                    return form_val;
+                }
+                dom_string_unref(tag_name);
+            }
+        }
+    }
+    return JS_NULL;
+}
+
+static bool is_form_control(const char *tag)
+{
+    if (!tag) return false;
+    return (strcasecmp(tag, "input") == 0 ||
+            strcasecmp(tag, "button") == 0 ||
+            strcasecmp(tag, "select") == 0 ||
+            strcasecmp(tag, "textarea") == 0);
+}
+
+static void find_form_controls_libdom(JSContext *ctx, dom_node *parent, JSValue arr, uint32_t *count)
+{
+    dom_node *child = NULL;
+    dom_node_get_first_child(parent, &child);
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            dom_string *tag_name = NULL;
+            dom_node_get_node_name(child, &tag_name);
+            if (tag_name) {
+                const char *tag_str = (const char *)dom_string_data(tag_name);
+                if (is_form_control(tag_str)) {
+                    JS_SetPropertyUint32(ctx, arr, (*count)++, qjs_wrap_node(ctx, child));
+                }
+                dom_string_unref(tag_name);
+            }
+            find_form_controls_libdom(ctx, child, arr, count);
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// HTMLElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlelement_blur_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_click_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_focus_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_title_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "title", "");
+}
+
+JSValue wisp_htmlelement_title_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "title", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_lang_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "lang", "");
+}
+
+JSValue wisp_htmlelement_lang_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "lang", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_dir_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "dir", "");
+}
+
+JSValue wisp_htmlelement_dir_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "dir", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_hidden_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "hidden");
+}
+
+JSValue wisp_htmlelement_hidden_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "hidden", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_tabIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "tabindex", -1));
+}
+
+JSValue wisp_htmlelement_tabIndex_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "tabindex", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLIFrameElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmliframeelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "name", "");
+}
+
+JSValue wisp_htmliframeelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "name", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmliframeelement_sandbox_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "sandbox", "");
+}
+
+JSValue wisp_htmliframeelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
+JSValue wisp_htmliframeelement_contentWindow_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLFormElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlformelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "name", "");
+}
+
+JSValue wisp_htmlformelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "name", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlformelement_reset_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlformelement_submit_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlformelement_elements_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewArray(ctx);
+    JSValue arr = JS_NewArray(ctx);
+    uint32_t count = 0;
+
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t form_id = (uint32_t)(uintptr_t)priv->node;
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].node_type == 1) { // Element node
+                    const char *tag = wisp_string_ref_data(wisp_shm_dom, strings_arr[i].tag_name);
+                    if (is_form_control(tag)) {
+                        uint32_t curr = nodes_arr[i].parent_id;
+                        while (curr != nodes_arr[curr].parent_id) {
+                            if (curr == form_id) {
+                                JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
+                                break;
+                            }
+                            curr = nodes_arr[curr].parent_id;
+                        }
+                    }
+                }
+            }
+        }
+        return arr;
+    }
+
+    find_form_controls_libdom(ctx, (dom_node *)priv->node, arr, &count);
+    return arr;
+}
+
+JSValue wisp_htmlformelement_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue arr = wisp_htmlformelement_elements_get_impl(ctx, priv);
+    JSValue len_val = JS_GetPropertyStr(ctx, arr, "length");
+    JS_FreeValue(ctx, arr);
+    return len_val;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTextAreaElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltextareaelement_placeholder_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "placeholder", "");
+}
+
+JSValue wisp_htmltextareaelement_placeholder_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "placeholder", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_readOnly_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "readonly");
+}
+
+JSValue wisp_htmltextareaelement_readOnly_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "readonly", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_required_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "required");
+}
+
+JSValue wisp_htmltextareaelement_required_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "required", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_cols_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "cols", 20));
+}
+
+JSValue wisp_htmltextareaelement_cols_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
+{
+    set_element_int_attr(ctx, priv, "cols", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_rows_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "rows", 2));
+}
+
+JSValue wisp_htmltextareaelement_rows_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
+{
+    set_element_int_attr(ctx, priv, "rows", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_maxLength_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "maxlength", -1));
+}
+
+JSValue wisp_htmltextareaelement_maxLength_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "maxlength", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_minLength_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "minlength", -1));
+}
+
+JSValue wisp_htmltextareaelement_minLength_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "minlength", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltextareaelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewString(ctx, "textarea");
+}
+
+// -----------------------------------------------------------------------------
+// HTMLInputElement Implementation (Additional stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlinputelement_maxLength_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "maxlength", -1));
+}
+
+JSValue wisp_htmlinputelement_maxLength_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "maxlength", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlinputelement_minLength_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "minlength", -1));
+}
+
+JSValue wisp_htmlinputelement_minLength_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "minlength", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlinputelement_pattern_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "pattern", "");
+}
+
+JSValue wisp_htmlinputelement_pattern_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "pattern", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlinputelement_form_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_form_impl(ctx, priv);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLButtonElement Implementation (Additional stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlbuttonelement_autofocus_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "autofocus");
+}
+
+JSValue wisp_htmlbuttonelement_autofocus_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "autofocus", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlbuttonelement_form_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_form_impl(ctx, priv);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLBodyElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlbodyelement_background_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "background", "");
+}
+
+JSValue wisp_htmlbodyelement_background_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "background", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlbodyelement_bgColor_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "bgcolor", "");
+}
+
+JSValue wisp_htmlbodyelement_bgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "bgcolor", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlbodyelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "text", "");
+}
+
+JSValue wisp_htmlbodyelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "text", value);
+    return JS_UNDEFINED;
 }
 
 // -----------------------------------------------------------------------------
