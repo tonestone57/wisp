@@ -2830,6 +2830,1031 @@ JSValue wisp_htmlolistelement_compact_set_impl(JSContext *ctx, QJSNodePrivate *p
     return JS_UNDEFINED;
 }
 
+// -----------------------------------------------------------------------------
+// Helper Utilities for Table Element Implementations
+// -----------------------------------------------------------------------------
+
+static JSValue create_element_helper(JSContext *ctx, const char *tag_name)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue document = JS_GetPropertyStr(ctx, global_obj, "document");
+    JSValue create_element = JS_GetPropertyStr(ctx, document, "createElement");
+    JSValue tag = JS_NewString(ctx, tag_name);
+    JSValue el = JS_Call(ctx, create_element, document, 1, &tag);
+    JS_FreeValue(ctx, tag);
+    JS_FreeValue(ctx, create_element);
+    JS_FreeValue(ctx, document);
+    JS_FreeValue(ctx, global_obj);
+    return el;
+}
+
+static JSValue call_js_method_1(JSContext *ctx, JSValue this_val, const char *method_name, JSValue arg)
+{
+    JSValue method = JS_GetPropertyStr(ctx, this_val, method_name);
+    JSValue res = JS_Call(ctx, method, this_val, 1, &arg);
+    JS_FreeValue(ctx, method);
+    JS_FreeValue(ctx, arg);
+    return res;
+}
+
+static JSValue get_first_child_by_tag(JSContext *ctx, JSValue parent, const char *tag)
+{
+    JSValue children = JS_GetPropertyStr(ctx, parent, "children");
+    if (JS_IsException(children)) return JS_NULL;
+    uint32_t len = 0;
+    JSValue len_val = JS_GetPropertyStr(ctx, children, "length");
+    JS_ToUint32(ctx, &len, len_val);
+    JS_FreeValue(ctx, len_val);
+
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue child = JS_GetPropertyUint32(ctx, children, i);
+        JSValue tag_val = JS_GetPropertyStr(ctx, child, "tagName");
+        if (JS_IsString(tag_val)) {
+            const char *tag_str = JS_ToCString(ctx, tag_val);
+            if (tag_str && strcasecmp(tag_str, tag) == 0) {
+                JS_FreeCString(ctx, tag_str);
+                JS_FreeValue(ctx, tag_val);
+                JS_FreeValue(ctx, children);
+                return child;
+            }
+            if (tag_str) JS_FreeCString(ctx, tag_str);
+        }
+        JS_FreeValue(ctx, tag_val);
+        JS_FreeValue(ctx, child);
+    }
+    JS_FreeValue(ctx, children);
+    return JS_NULL;
+}
+
+static JSValue get_children_by_tags(JSContext *ctx, JSValue parent, const char **tags, int num_tags)
+{
+    JSValue arr = JS_NewArray(ctx);
+    JSValue children = JS_GetPropertyStr(ctx, parent, "children");
+    if (JS_IsException(children)) return arr;
+    uint32_t len = 0;
+    JSValue len_val = JS_GetPropertyStr(ctx, children, "length");
+    JS_ToUint32(ctx, &len, len_val);
+    JS_FreeValue(ctx, len_val);
+
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue child = JS_GetPropertyUint32(ctx, children, i);
+        JSValue tag_val = JS_GetPropertyStr(ctx, child, "tagName");
+        if (JS_IsString(tag_val)) {
+            const char *tag_str = JS_ToCString(ctx, tag_val);
+            if (tag_str) {
+                bool match = false;
+                for (int j = 0; j < num_tags; j++) {
+                    if (strcasecmp(tag_str, tags[j]) == 0) {
+                        match = true;
+                        break;
+                    }
+                }
+                if (match) {
+                    JS_SetPropertyUint32(ctx, arr, count++, JS_DupValue(ctx, child));
+                }
+                JS_FreeCString(ctx, tag_str);
+            }
+        }
+        JS_FreeValue(ctx, tag_val);
+        JS_FreeValue(ctx, child);
+    }
+    JS_FreeValue(ctx, children);
+    return arr;
+}
+
+static bool is_same_node_helper(JSContext *ctx, JSValue v1, JSValue v2)
+{
+    QJSNodePrivate *p1 = qjs_get_dom_priv(ctx, v1);
+    QJSNodePrivate *p2 = qjs_get_dom_priv(ctx, v2);
+    if (p1 && p2 && p1->node == p2->node) {
+        return true;
+    }
+    return JS_VALUE_GET_PTR(v1) == JS_VALUE_GET_PTR(v2);
+}
+
+static JSValue get_table_rows(JSContext *ctx, JSValue table)
+{
+    JSValue arr = JS_NewArray(ctx);
+    JSValue children = JS_GetPropertyStr(ctx, table, "children");
+    if (JS_IsException(children)) return arr;
+    uint32_t len = 0;
+    JSValue len_val = JS_GetPropertyStr(ctx, children, "length");
+    JS_ToUint32(ctx, &len, len_val);
+    JS_FreeValue(ctx, len_val);
+
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue child = JS_GetPropertyUint32(ctx, children, i);
+        JSValue tag_val = JS_GetPropertyStr(ctx, child, "tagName");
+        if (JS_IsString(tag_val)) {
+            const char *tag_str = JS_ToCString(ctx, tag_val);
+            if (tag_str) {
+                if (strcasecmp(tag_str, "TR") == 0) {
+                    JS_SetPropertyUint32(ctx, arr, count++, JS_DupValue(ctx, child));
+                } else if (strcasecmp(tag_str, "THEAD") == 0 || strcasecmp(tag_str, "TBODY") == 0 || strcasecmp(tag_str, "TFOOT") == 0) {
+                    JSValue sec_children = JS_GetPropertyStr(ctx, child, "children");
+                    if (!JS_IsException(sec_children)) {
+                        uint32_t sec_len = 0;
+                        JSValue sec_len_val = JS_GetPropertyStr(ctx, sec_children, "length");
+                        JS_ToUint32(ctx, &sec_len, sec_len_val);
+                        JS_FreeValue(ctx, sec_len_val);
+                        for (uint32_t k = 0; k < sec_len; k++) {
+                            JSValue sec_child = JS_GetPropertyUint32(ctx, sec_children, k);
+                            JSValue sec_tag_val = JS_GetPropertyStr(ctx, sec_child, "tagName");
+                            if (JS_IsString(sec_tag_val)) {
+                                const char *sec_tag_str = JS_ToCString(ctx, sec_tag_val);
+                                if (sec_tag_str && strcasecmp(sec_tag_str, "TR") == 0) {
+                                    JS_SetPropertyUint32(ctx, arr, count++, JS_DupValue(ctx, sec_child));
+                                }
+                                if (sec_tag_str) JS_FreeCString(ctx, sec_tag_str);
+                            }
+                            JS_FreeValue(ctx, sec_tag_val);
+                            JS_FreeValue(ctx, sec_child);
+                        }
+                        JS_FreeValue(ctx, sec_children);
+                    }
+                }
+                JS_FreeCString(ctx, tag_str);
+            }
+        }
+        JS_FreeValue(ctx, tag_val);
+        JS_FreeValue(ctx, child);
+    }
+    JS_FreeValue(ctx, children);
+    return arr;
+}
+
+static JSValue table_insert_row_helper(JSContext *ctx, JSValue parent, int32_t index)
+{
+    JSValue row = create_element_helper(ctx, "tr");
+    if (JS_IsException(row)) return row;
+
+    JSValue rows = get_table_rows(ctx, parent);
+    uint32_t num_rows = 0;
+    JSValue num_rows_val = JS_GetPropertyStr(ctx, rows, "length");
+    JS_ToUint32(ctx, &num_rows, num_rows_val);
+    JS_FreeValue(ctx, num_rows_val);
+
+    if (index == -1 || index >= (int32_t)num_rows) {
+        JSValue tbodies = get_children_by_tags(ctx, parent, (const char *[]){"TBODY"}, 1);
+        uint32_t num_tbodies = 0;
+        JSValue num_tbodies_val = JS_GetPropertyStr(ctx, tbodies, "length");
+        JS_ToUint32(ctx, &num_tbodies, num_tbodies_val);
+        JS_FreeValue(ctx, num_tbodies_val);
+
+        JSValue target_parent;
+        if (num_tbodies > 0) {
+            target_parent = JS_GetPropertyUint32(ctx, tbodies, num_tbodies - 1);
+        } else {
+            target_parent = create_element_helper(ctx, "tbody");
+            call_js_method_1(ctx, parent, "appendChild", JS_DupValue(ctx, target_parent));
+        }
+        JS_FreeValue(ctx, tbodies);
+
+        call_js_method_1(ctx, target_parent, "appendChild", JS_DupValue(ctx, row));
+        JS_FreeValue(ctx, target_parent);
+    } else {
+        JSValue target_row = JS_GetPropertyUint32(ctx, rows, index);
+        JSValue target_parent = JS_GetPropertyStr(ctx, target_row, "parentNode");
+
+        JSValue insert_before = JS_GetPropertyStr(ctx, target_parent, "insertBefore");
+        JSValueConst args[2] = { row, target_row };
+        JSValue res = JS_Call(ctx, insert_before, target_parent, 2, args);
+        JS_FreeValue(ctx, res);
+        JS_FreeValue(ctx, insert_before);
+
+        JS_FreeValue(ctx, target_parent);
+        JS_FreeValue(ctx, target_row);
+    }
+
+    JS_FreeValue(ctx, rows);
+    return row;
+}
+
+static JSValue table_delete_row_helper(JSContext *ctx, JSValue parent, int32_t index)
+{
+    JSValue rows = get_table_rows(ctx, parent);
+    uint32_t num_rows = 0;
+    JSValue num_rows_val = JS_GetPropertyStr(ctx, rows, "length");
+    JS_ToUint32(ctx, &num_rows, num_rows_val);
+    JS_FreeValue(ctx, num_rows_val);
+
+    int32_t target_idx = index;
+    if (target_idx == -1) {
+        target_idx = (int32_t)num_rows - 1;
+    }
+
+    if (target_idx >= 0 && target_idx < (int32_t)num_rows) {
+        JSValue target_row = JS_GetPropertyUint32(ctx, rows, target_idx);
+        JSValue target_parent = JS_GetPropertyStr(ctx, target_row, "parentNode");
+        call_js_method_1(ctx, target_parent, "removeChild", target_row);
+        JS_FreeValue(ctx, target_parent);
+    }
+    JS_FreeValue(ctx, rows);
+    return JS_UNDEFINED;
+}
+
+static JSValue section_insert_row_helper(JSContext *ctx, JSValue section, int32_t index)
+{
+    JSValue row = create_element_helper(ctx, "tr");
+    if (JS_IsException(row)) return row;
+
+    JSValue rows = get_children_by_tags(ctx, section, (const char *[]){"TR"}, 1);
+    uint32_t num_rows = 0;
+    JSValue num_rows_val = JS_GetPropertyStr(ctx, rows, "length");
+    JS_ToUint32(ctx, &num_rows, num_rows_val);
+    JS_FreeValue(ctx, num_rows_val);
+
+    if (index == -1 || index >= (int32_t)num_rows) {
+        call_js_method_1(ctx, section, "appendChild", JS_DupValue(ctx, row));
+    } else {
+        JSValue target_row = JS_GetPropertyUint32(ctx, rows, index);
+        JSValue insert_before = JS_GetPropertyStr(ctx, section, "insertBefore");
+        JSValueConst args[2] = { row, target_row };
+        JSValue res = JS_Call(ctx, insert_before, section, 2, args);
+        JS_FreeValue(ctx, res);
+        JS_FreeValue(ctx, insert_before);
+        JS_FreeValue(ctx, target_row);
+    }
+    JS_FreeValue(ctx, rows);
+    return row;
+}
+
+static JSValue section_delete_row_helper(JSContext *ctx, JSValue section, int32_t index)
+{
+    JSValue rows = get_children_by_tags(ctx, section, (const char *[]){"TR"}, 1);
+    uint32_t num_rows = 0;
+    JSValue num_rows_val = JS_GetPropertyStr(ctx, rows, "length");
+    JS_ToUint32(ctx, &num_rows, num_rows_val);
+    JS_FreeValue(ctx, num_rows_val);
+
+    int32_t target_idx = index;
+    if (target_idx == -1) {
+        target_idx = (int32_t)num_rows - 1;
+    }
+
+    if (target_idx >= 0 && target_idx < (int32_t)num_rows) {
+        JSValue target_row = JS_GetPropertyUint32(ctx, rows, target_idx);
+        call_js_method_1(ctx, section, "removeChild", target_row);
+    }
+    JS_FreeValue(ctx, rows);
+    return JS_UNDEFINED;
+}
+
+static JSValue row_insert_cell_helper(JSContext *ctx, JSValue row, int32_t index)
+{
+    JSValue cell = create_element_helper(ctx, "td");
+    if (JS_IsException(cell)) return cell;
+
+    JSValue cells = get_children_by_tags(ctx, row, (const char *[]){"TD", "TH"}, 2);
+    uint32_t num_cells = 0;
+    JSValue num_cells_val = JS_GetPropertyStr(ctx, cells, "length");
+    JS_ToUint32(ctx, &num_cells, num_cells_val);
+    JS_FreeValue(ctx, num_cells_val);
+
+    if (index == -1 || index >= (int32_t)num_cells) {
+        call_js_method_1(ctx, row, "appendChild", JS_DupValue(ctx, cell));
+    } else {
+        JSValue target_cell = JS_GetPropertyUint32(ctx, cells, index);
+        JSValue insert_before = JS_GetPropertyStr(ctx, row, "insertBefore");
+        JSValueConst args[2] = { cell, target_cell };
+        JSValue res = JS_Call(ctx, insert_before, row, 2, args);
+        JS_FreeValue(ctx, res);
+        JS_FreeValue(ctx, insert_before);
+        JS_FreeValue(ctx, target_cell);
+    }
+    JS_FreeValue(ctx, cells);
+    return cell;
+}
+
+static JSValue row_delete_cell_helper(JSContext *ctx, JSValue row, int32_t index)
+{
+    JSValue cells = get_children_by_tags(ctx, row, (const char *[]){"TD", "TH"}, 2);
+    uint32_t num_cells = 0;
+    JSValue num_cells_val = JS_GetPropertyStr(ctx, cells, "length");
+    JS_ToUint32(ctx, &num_cells, num_cells_val);
+    JS_FreeValue(ctx, num_cells_val);
+
+    int32_t target_idx = index;
+    if (target_idx == -1) {
+        target_idx = (int32_t)num_cells - 1;
+    }
+
+    if (target_idx >= 0 && target_idx < (int32_t)num_cells) {
+        JSValue target_cell = JS_GetPropertyUint32(ctx, cells, target_idx);
+        call_js_method_1(ctx, row, "removeChild", target_cell);
+    }
+    JS_FreeValue(ctx, cells);
+    return JS_UNDEFINED;
+}
+
+static int32_t get_cell_index_helper(JSContext *ctx, JSValue cell)
+{
+    JSValue parent = JS_GetPropertyStr(ctx, cell, "parentNode");
+    if (JS_IsException(parent) || JS_IsNull(parent) || JS_IsUndefined(parent)) {
+        return -1;
+    }
+    JSValue cells = get_children_by_tags(ctx, parent, (const char *[]){"TD", "TH"}, 2);
+    uint32_t num_cells = 0;
+    JSValue num_cells_val = JS_GetPropertyStr(ctx, cells, "length");
+    JS_ToUint32(ctx, &num_cells, num_cells_val);
+    JS_FreeValue(ctx, num_cells_val);
+
+    int32_t idx = -1;
+    for (uint32_t i = 0; i < num_cells; i++) {
+        JSValue c = JS_GetPropertyUint32(ctx, cells, i);
+        if (is_same_node_helper(ctx, c, cell)) {
+            idx = (int32_t)i;
+            JS_FreeValue(ctx, c);
+            break;
+        }
+        JS_FreeValue(ctx, c);
+    }
+    JS_FreeValue(ctx, cells);
+    JS_FreeValue(ctx, parent);
+    return idx;
+}
+
+static int32_t get_row_index_helper(JSContext *ctx, JSValue row)
+{
+    JSValue table = JS_GetPropertyStr(ctx, row, "parentNode");
+    while (!JS_IsNull(table) && !JS_IsUndefined(table)) {
+        JSValue tag_val = JS_GetPropertyStr(ctx, table, "tagName");
+        if (JS_IsString(tag_val)) {
+            const char *tag_str = JS_ToCString(ctx, tag_val);
+            if (tag_str && strcasecmp(tag_str, "TABLE") == 0) {
+                JS_FreeCString(ctx, tag_str);
+                JS_FreeValue(ctx, tag_val);
+                break;
+            }
+            if (tag_str) JS_FreeCString(ctx, tag_str);
+        }
+        JS_FreeValue(ctx, tag_val);
+        JSValue next_parent = JS_GetPropertyStr(ctx, table, "parentNode");
+        JS_FreeValue(ctx, table);
+        table = next_parent;
+    }
+
+    if (JS_IsNull(table) || JS_IsUndefined(table)) {
+        return -1;
+    }
+
+    JSValue rows = get_table_rows(ctx, table);
+    uint32_t num_rows = 0;
+    JSValue num_rows_val = JS_GetPropertyStr(ctx, rows, "length");
+    JS_ToUint32(ctx, &num_rows, num_rows_val);
+    JS_FreeValue(ctx, num_rows_val);
+
+    int32_t idx = -1;
+    for (uint32_t i = 0; i < num_rows; i++) {
+        JSValue r = JS_GetPropertyUint32(ctx, rows, i);
+        if (is_same_node_helper(ctx, r, row)) {
+            idx = (int32_t)i;
+            JS_FreeValue(ctx, r);
+            break;
+        }
+        JS_FreeValue(ctx, r);
+    }
+    JS_FreeValue(ctx, rows);
+    JS_FreeValue(ctx, table);
+    return idx;
+}
+
+static int32_t get_section_row_index_helper(JSContext *ctx, JSValue row)
+{
+    JSValue section = JS_GetPropertyStr(ctx, row, "parentNode");
+    if (JS_IsNull(section) || JS_IsUndefined(section)) {
+        return -1;
+    }
+
+    JSValue rows = get_children_by_tags(ctx, section, (const char *[]){"TR"}, 1);
+    uint32_t num_rows = 0;
+    JSValue num_rows_val = JS_GetPropertyStr(ctx, rows, "length");
+    JS_ToUint32(ctx, &num_rows, num_rows_val);
+    JS_FreeValue(ctx, num_rows_val);
+
+    int32_t idx = -1;
+    for (uint32_t i = 0; i < num_rows; i++) {
+        JSValue r = JS_GetPropertyUint32(ctx, rows, i);
+        if (is_same_node_helper(ctx, r, row)) {
+            idx = (int32_t)i;
+            JS_FreeValue(ctx, r);
+            break;
+        }
+        JS_FreeValue(ctx, r);
+    }
+    JS_FreeValue(ctx, rows);
+    JS_FreeValue(ctx, section);
+    return idx;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTableElement Implementation (25 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltableelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmltableelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_bgColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "bgcolor", "");
+}
+JSValue wisp_htmltableelement_bgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "bgcolor", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_border_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "border", "");
+}
+JSValue wisp_htmltableelement_border_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "border", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_cellPadding_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "cellpadding", "");
+}
+JSValue wisp_htmltableelement_cellPadding_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "cellpadding", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_cellSpacing_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "cellspacing", "");
+}
+JSValue wisp_htmltableelement_cellSpacing_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "cellspacing", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_frame_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "frame", "");
+}
+JSValue wisp_htmltableelement_frame_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "frame", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_rules_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "rules", "");
+}
+JSValue wisp_htmltableelement_rules_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "rules", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_summary_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "summary", "");
+}
+JSValue wisp_htmltableelement_summary_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "summary", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "width", "");
+}
+JSValue wisp_htmltableelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_sortable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "sortable");
+}
+JSValue wisp_htmltableelement_sortable_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "sortable", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltableelement_stopSorting_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_caption_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue cap = get_first_child_by_tag(ctx, table, "CAPTION");
+    JS_FreeValue(ctx, table);
+    return cap;
+}
+JSValue wisp_htmltableelement_caption_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue old_cap = get_first_child_by_tag(ctx, table, "CAPTION");
+    if (!JS_IsNull(old_cap)) {
+        call_js_method_1(ctx, table, "removeChild", old_cap);
+    } else {
+        JS_FreeValue(ctx, old_cap);
+    }
+    if (value) {
+        JSValue new_cap = qjs_wrap_node(ctx, (dom_node *)value);
+        call_js_method_1(ctx, table, "appendChild", new_cap);
+    }
+    JS_FreeValue(ctx, table);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_tHead_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue thead = get_first_child_by_tag(ctx, table, "THEAD");
+    JS_FreeValue(ctx, table);
+    return thead;
+}
+JSValue wisp_htmltableelement_tHead_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue old_thead = get_first_child_by_tag(ctx, table, "THEAD");
+    if (!JS_IsNull(old_thead)) {
+        call_js_method_1(ctx, table, "removeChild", old_thead);
+    } else {
+        JS_FreeValue(ctx, old_thead);
+    }
+    if (value) {
+        JSValue new_thead = qjs_wrap_node(ctx, (dom_node *)value);
+        call_js_method_1(ctx, table, "appendChild", new_thead);
+    }
+    JS_FreeValue(ctx, table);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_tFoot_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue tfoot = get_first_child_by_tag(ctx, table, "TFOOT");
+    JS_FreeValue(ctx, table);
+    return tfoot;
+}
+JSValue wisp_htmltableelement_tFoot_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue old_tfoot = get_first_child_by_tag(ctx, table, "TFOOT");
+    if (!JS_IsNull(old_tfoot)) {
+        call_js_method_1(ctx, table, "removeChild", old_tfoot);
+    } else {
+        JS_FreeValue(ctx, old_tfoot);
+    }
+    if (value) {
+        JSValue new_tfoot = qjs_wrap_node(ctx, (dom_node *)value);
+        call_js_method_1(ctx, table, "appendChild", new_tfoot);
+    }
+    JS_FreeValue(ctx, table);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_createCaption_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue cap = get_first_child_by_tag(ctx, table, "CAPTION");
+    if (!JS_IsNull(cap)) {
+        JS_FreeValue(ctx, table);
+        return cap;
+    }
+    JS_FreeValue(ctx, cap);
+
+    JSValue new_cap = create_element_helper(ctx, "caption");
+    if (JS_IsException(new_cap)) {
+        JS_FreeValue(ctx, table);
+        return new_cap;
+    }
+
+    JSValue first_child = JS_GetPropertyStr(ctx, table, "firstChild");
+    if (JS_IsNull(first_child) || JS_IsUndefined(first_child)) {
+        call_js_method_1(ctx, table, "appendChild", JS_DupValue(ctx, new_cap));
+    } else {
+        JSValue insert_before = JS_GetPropertyStr(ctx, table, "insertBefore");
+        JSValueConst args[2] = { new_cap, first_child };
+        JSValue res = JS_Call(ctx, insert_before, table, 2, args);
+        JS_FreeValue(ctx, res);
+        JS_FreeValue(ctx, insert_before);
+    }
+    JS_FreeValue(ctx, first_child);
+    JS_FreeValue(ctx, table);
+    return new_cap;
+}
+
+JSValue wisp_htmltableelement_deleteCaption_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue cap = get_first_child_by_tag(ctx, table, "CAPTION");
+    if (!JS_IsNull(cap)) {
+        call_js_method_1(ctx, table, "removeChild", cap);
+    } else {
+        JS_FreeValue(ctx, cap);
+    }
+    JS_FreeValue(ctx, table);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_createTHead_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue thead = get_first_child_by_tag(ctx, table, "THEAD");
+    if (!JS_IsNull(thead)) {
+        JS_FreeValue(ctx, table);
+        return thead;
+    }
+    JS_FreeValue(ctx, thead);
+
+    JSValue new_thead = create_element_helper(ctx, "thead");
+    if (JS_IsException(new_thead)) {
+        JS_FreeValue(ctx, table);
+        return new_thead;
+    }
+
+    JSValue children = JS_GetPropertyStr(ctx, table, "children");
+    uint32_t len = 0;
+    if (!JS_IsException(children)) {
+        JSValue len_val = JS_GetPropertyStr(ctx, children, "length");
+        JS_ToUint32(ctx, &len, len_val);
+        JS_FreeValue(ctx, len_val);
+    }
+
+    JSValue ref_child = JS_NULL;
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue child = JS_GetPropertyUint32(ctx, children, i);
+        JSValue tag_val = JS_GetPropertyStr(ctx, child, "tagName");
+        if (JS_IsString(tag_val)) {
+            const char *tag_str = JS_ToCString(ctx, tag_val);
+            if (tag_str && strcasecmp(tag_str, "CAPTION") != 0 && strcasecmp(tag_str, "COLGROUP") != 0) {
+                ref_child = child;
+                JS_FreeCString(ctx, tag_str);
+                JS_FreeValue(ctx, tag_val);
+                break;
+            }
+            if (tag_str) JS_FreeCString(ctx, tag_str);
+        }
+        JS_FreeValue(ctx, tag_val);
+        JS_FreeValue(ctx, child);
+    }
+    if (!JS_IsException(children)) JS_FreeValue(ctx, children);
+
+    if (JS_IsNull(ref_child)) {
+        call_js_method_1(ctx, table, "appendChild", JS_DupValue(ctx, new_thead));
+    } else {
+        JSValue insert_before = JS_GetPropertyStr(ctx, table, "insertBefore");
+        JSValueConst args[2] = { new_thead, ref_child };
+        JSValue res = JS_Call(ctx, insert_before, table, 2, args);
+        JS_FreeValue(ctx, res);
+        JS_FreeValue(ctx, insert_before);
+        JS_FreeValue(ctx, ref_child);
+    }
+
+    JS_FreeValue(ctx, table);
+    return new_thead;
+}
+
+JSValue wisp_htmltableelement_deleteTHead_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue thead = get_first_child_by_tag(ctx, table, "THEAD");
+    if (!JS_IsNull(thead)) {
+        call_js_method_1(ctx, table, "removeChild", thead);
+    } else {
+        JS_FreeValue(ctx, thead);
+    }
+    JS_FreeValue(ctx, table);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_createTFoot_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue tfoot = get_first_child_by_tag(ctx, table, "TFOOT");
+    if (!JS_IsNull(tfoot)) {
+        JS_FreeValue(ctx, table);
+        return tfoot;
+    }
+    JS_FreeValue(ctx, tfoot);
+
+    JSValue new_tfoot = create_element_helper(ctx, "tfoot");
+    if (JS_IsException(new_tfoot)) {
+        JS_FreeValue(ctx, table);
+        return new_tfoot;
+    }
+
+    call_js_method_1(ctx, table, "appendChild", JS_DupValue(ctx, new_tfoot));
+    JS_FreeValue(ctx, table);
+    return new_tfoot;
+}
+
+JSValue wisp_htmltableelement_deleteTFoot_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue tfoot = get_first_child_by_tag(ctx, table, "TFOOT");
+    if (!JS_IsNull(tfoot)) {
+        call_js_method_1(ctx, table, "removeChild", tfoot);
+    } else {
+        JS_FreeValue(ctx, tfoot);
+    }
+    JS_FreeValue(ctx, table);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltableelement_createTBody_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue new_tbody = create_element_helper(ctx, "tbody");
+    if (JS_IsException(new_tbody)) {
+        JS_FreeValue(ctx, table);
+        return new_tbody;
+    }
+    call_js_method_1(ctx, table, "appendChild", JS_DupValue(ctx, new_tbody));
+    JS_FreeValue(ctx, table);
+    return new_tbody;
+}
+
+JSValue wisp_htmltableelement_rows_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue rows = get_table_rows(ctx, table);
+    JS_FreeValue(ctx, table);
+    return rows;
+}
+
+JSValue wisp_htmltableelement_tBodies_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue tbodies = get_children_by_tags(ctx, table, (const char *[]){"TBODY"}, 1);
+    JS_FreeValue(ctx, table);
+    return tbodies;
+}
+
+JSValue wisp_htmltableelement_insertRow_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue row = table_insert_row_helper(ctx, table, index);
+    JS_FreeValue(ctx, table);
+    return row;
+}
+
+JSValue wisp_htmltableelement_deleteRow_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    JSValue table = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue res = table_delete_row_helper(ctx, table, index);
+    JS_FreeValue(ctx, table);
+    return res;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTableRowElement Implementation (14 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltablerowelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmltablerowelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablerowelement_bgColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "bgcolor", "");
+}
+JSValue wisp_htmltablerowelement_bgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "bgcolor", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablerowelement_ch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "char", "");
+}
+JSValue wisp_htmltablerowelement_ch_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "char", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablerowelement_chOff_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "charoff", "");
+}
+JSValue wisp_htmltablerowelement_chOff_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "charoff", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablerowelement_vAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "valign", "");
+}
+JSValue wisp_htmltablerowelement_vAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "valign", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltablerowelement_cells_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue row = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue cells = get_children_by_tags(ctx, row, (const char *[]){"TD", "TH"}, 2);
+    JS_FreeValue(ctx, row);
+    return cells;
+}
+
+JSValue wisp_htmltablerowelement_rowIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue row = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    int32_t idx = get_row_index_helper(ctx, row);
+    JS_FreeValue(ctx, row);
+    return JS_NewInt32(ctx, idx);
+}
+
+JSValue wisp_htmltablerowelement_sectionRowIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue row = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    int32_t idx = get_section_row_index_helper(ctx, row);
+    JS_FreeValue(ctx, row);
+    return JS_NewInt32(ctx, idx);
+}
+
+JSValue wisp_htmltablerowelement_insertCell_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    JSValue row = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue cell = row_insert_cell_helper(ctx, row, index);
+    JS_FreeValue(ctx, row);
+    return cell;
+}
+
+JSValue wisp_htmltablerowelement_deleteCell_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    JSValue row = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue res = row_delete_cell_helper(ctx, row, index);
+    JS_FreeValue(ctx, row);
+    return res;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTableCellElement Implementation (21 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltablecellelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmltablecellelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_axis_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "axis", "");
+}
+JSValue wisp_htmltablecellelement_axis_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "axis", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_bgColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "bgcolor", "");
+}
+JSValue wisp_htmltablecellelement_bgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "bgcolor", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_ch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "char", "");
+}
+JSValue wisp_htmltablecellelement_ch_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "char", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_chOff_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "charoff", "");
+}
+JSValue wisp_htmltablecellelement_chOff_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "charoff", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_height_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "height", "");
+}
+JSValue wisp_htmltablecellelement_height_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "height", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "width", "");
+}
+JSValue wisp_htmltablecellelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_vAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "valign", "");
+}
+JSValue wisp_htmltablecellelement_vAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "valign", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_noWrap_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "nowrap");
+}
+JSValue wisp_htmltablecellelement_noWrap_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "nowrap", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_colSpan_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "colspan", 1));
+}
+JSValue wisp_htmltablecellelement_colSpan_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) {
+    set_element_int_attr(ctx, priv, "colspan", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_rowSpan_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "rowspan", 1));
+}
+JSValue wisp_htmltablecellelement_rowSpan_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) {
+    set_element_int_attr(ctx, priv, "rowspan", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecellelement_headers_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "headers", "");
+}
+JSValue wisp_htmltablecellelement_cellIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue cell = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    int32_t idx = get_cell_index_helper(ctx, cell);
+    JS_FreeValue(ctx, cell);
+    return JS_NewInt32(ctx, idx);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTableSectionElement Implementation (12 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltablesectionelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmltablesectionelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablesectionelement_ch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "char", "");
+}
+JSValue wisp_htmltablesectionelement_ch_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "char", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablesectionelement_chOff_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "charoff", "");
+}
+JSValue wisp_htmltablesectionelement_chOff_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "charoff", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablesectionelement_vAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "valign", "");
+}
+JSValue wisp_htmltablesectionelement_vAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "valign", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltablesectionelement_rows_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue section = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue rows = get_children_by_tags(ctx, section, (const char *[]){"TR"}, 1);
+    JS_FreeValue(ctx, section);
+    return rows;
+}
+
+JSValue wisp_htmltablesectionelement_insertRow_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    JSValue section = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue row = section_insert_row_helper(ctx, section, index);
+    JS_FreeValue(ctx, section);
+    return row;
+}
+
+JSValue wisp_htmltablesectionelement_deleteRow_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    JSValue section = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue res = section_delete_row_helper(ctx, section, index);
+    JS_FreeValue(ctx, section);
+    return res;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTableColElement Implementation (12 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltablecolelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmltablecolelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecolelement_ch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "char", "");
+}
+JSValue wisp_htmltablecolelement_ch_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "char", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecolelement_chOff_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "charoff", "");
+}
+JSValue wisp_htmltablecolelement_chOff_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "charoff", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecolelement_vAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "valign", "");
+}
+JSValue wisp_htmltablecolelement_vAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "valign", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecolelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "width", "");
+}
+JSValue wisp_htmltablecolelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmltablecolelement_span_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "span", 1));
+}
+JSValue wisp_htmltablecolelement_span_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) {
+    set_element_int_attr(ctx, priv, "span", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTableCaptionElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltablecaptionelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmltablecaptionelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+
 JSValue wisp_htmlolistelement_reversed_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return get_element_bool_attr(ctx, priv, "reversed");
