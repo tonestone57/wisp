@@ -798,6 +798,396 @@ JSValue wisp_htmlinputelement_disabled_set_impl(JSContext *ctx, QJSNodePrivate *
     }
 }
 
+// -----------------------------------------------------------------------------
+// HTMLInputElement Additional Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlinputelement_placeholder_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "placeholder");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlinputelement_placeholder_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "placeholder", value);
+}
+
+JSValue wisp_htmlinputelement_readOnly_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, "readonly");
+}
+
+JSValue wisp_htmlinputelement_readOnly_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "readonly", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "readonly");
+    }
+}
+
+JSValue wisp_htmlinputelement_required_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, "required");
+}
+
+JSValue wisp_htmlinputelement_required_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "required", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "required");
+    }
+}
+
+JSValue wisp_htmlinputelement_autocomplete_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "autocomplete");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlinputelement_autocomplete_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "autocomplete", value);
+}
+
+JSValue wisp_htmlinputelement_autofocus_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, "autofocus");
+}
+
+JSValue wisp_htmlinputelement_autofocus_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "autofocus", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "autofocus");
+    }
+}
+
+// -----------------------------------------------------------------------------
+// HTMLButtonElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlbuttonelement_disabled_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, "disabled");
+}
+
+JSValue wisp_htmlbuttonelement_disabled_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "disabled", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "disabled");
+    }
+}
+
+JSValue wisp_htmlbuttonelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "type");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "submit");
+    }
+    return val;
+}
+
+JSValue wisp_htmlbuttonelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+}
+
+JSValue wisp_htmlbuttonelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "value");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlbuttonelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "value", value);
+}
+
+JSValue wisp_htmlbuttonelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "name");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlbuttonelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "name", value);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLFormElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlformelement_action_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "action");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlformelement_action_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "action", value);
+}
+
+JSValue wisp_htmlformelement_method_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "method");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "get");
+    }
+    return val;
+}
+
+JSValue wisp_htmlformelement_method_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "method", value);
+}
+
+JSValue wisp_htmlformelement_target_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "target");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlformelement_target_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "target", value);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLLinkElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmllinkelement_href_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "href");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmllinkelement_href_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "href", value);
+}
+
+JSValue wisp_htmllinkelement_rel_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "rel");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmllinkelement_rel_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "rel", value);
+}
+
+JSValue wisp_htmllinkelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "type");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmllinkelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+}
+
+JSValue wisp_htmllinkelement_media_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "media");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmllinkelement_media_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "media", value);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLStyleElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlstyleelement_media_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "media");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlstyleelement_media_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "media", value);
+}
+
+JSValue wisp_htmlstyleelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "type");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "text/css");
+    }
+    return val;
+}
+
+JSValue wisp_htmlstyleelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLMetaElement Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlmetaelement_content_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "content");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlmetaelement_content_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "content", value);
+}
+
+JSValue wisp_htmlmetaelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "name");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlmetaelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "name", value);
+}
+
+JSValue wisp_htmlmetaelement_httpEquiv_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "http-equiv");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlmetaelement_httpEquiv_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "http-equiv", value);
+}
+
+JSValue wisp_htmlmetaelement_scheme_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "scheme");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
+
+JSValue wisp_htmlmetaelement_scheme_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "scheme", value);
+}
+
+// -----------------------------------------------------------------------------
+// History Implementation
+// -----------------------------------------------------------------------------
+
+JSValue wisp_history_back_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_history_forward_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_history_go_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t delta)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_history_pushState_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue data, const char * title, const char * url)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_history_replaceState_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue data, const char * title, const char * url)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_history_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, 1);
+}
+
+JSValue wisp_history_state_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
+// -----------------------------------------------------------------------------
+// Location Implementation (Methods)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_location_reload_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url)
+{
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_location_replace_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url)
+{
+    return JS_UNDEFINED;
+}
+
 JSValue wisp_htmlinputelement_checked_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return wisp_element_hasAttribute_impl(ctx, priv, "checked");

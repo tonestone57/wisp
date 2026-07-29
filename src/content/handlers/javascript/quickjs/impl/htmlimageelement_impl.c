@@ -11,6 +11,12 @@
 
 extern bool wisp_is_js_process;
 
+// Forward declarations
+JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
+JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * value);
+JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
+JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
+
 JSValue wisp_htmlimageelement_Image_impl(JSContext *ctx, uint32_t width, uint32_t height)
 {
     if (wisp_is_js_process) return JS_NULL;
@@ -186,4 +192,58 @@ JSValue wisp_htmlimageelement_height_set_impl(JSContext *ctx, QJSNodePrivate *pr
     dom_string_unref(attr_name);
     dom_string_unref(value_dom);
     return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlimageelement_alt_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, priv, "alt");
+        if (JS_IsNull(val) || JS_IsUndefined(val)) {
+            return JS_NewString(ctx, "");
+        }
+        return val;
+    }
+    dom_string *attr_name = NULL;
+    dom_string_create((const uint8_t *)"alt", 3, &attr_name);
+    dom_string *value_dom = NULL;
+    dom_element_get_attribute((dom_element *)priv->node, attr_name, &value_dom);
+    dom_string_unref(attr_name);
+    if (value_dom) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(value_dom), dom_string_byte_length(value_dom));
+        dom_string_unref(value_dom);
+        return val;
+    }
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_htmlimageelement_alt_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        return wisp_element_setAttribute_impl(ctx, priv, "alt", value);
+    }
+    dom_string *attr_name = NULL;
+    dom_string_create((const uint8_t *)"alt", 3, &attr_name);
+    dom_string *value_dom = NULL;
+    dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
+    dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
+    dom_string_unref(attr_name);
+    dom_string_unref(value_dom);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlimageelement_complete_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_TRUE;
+}
+
+JSValue wisp_htmlimageelement_naturalWidth_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_htmlimageelement_width_get_impl(ctx, priv);
+}
+
+JSValue wisp_htmlimageelement_naturalHeight_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_htmlimageelement_height_get_impl(ctx, priv);
 }
