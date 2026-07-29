@@ -28,6 +28,298 @@ extern shm_dom_t *wisp_shm_dom;
 #include "JSMessageEvent.gen.h"
 #include "JSErrorEvent.gen.h"
 
+static struct nsurl *get_doc_url_local(JSContext *ctx)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return NULL;
+
+    if (wisp_is_js_process) {
+        if (!t->location_url && t->origin) {
+            nsurl_create(t->origin, &t->location_url);
+        }
+        return t->location_url;
+    }
+
+    if (t->doc_priv) {
+        return content_get_url((struct content *)t->doc_priv);
+    }
+    return NULL;
+}
+
+JSValue wisp_document_URL_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    struct nsurl *url = get_doc_url_local(ctx);
+    if (url) {
+        return JS_NewString(ctx, nsurl_access(url));
+    }
+    return JS_NewString(ctx, "about:blank");
+}
+
+JSValue wisp_document_origin_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    struct nsurl *url = get_doc_url_local(ctx);
+    if (url) {
+        lwc_string *scheme_lwc = nsurl_get_component(url, NSURL_SCHEME);
+        lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+        lwc_string *port_lwc = nsurl_get_component(url, NSURL_PORT);
+        if (scheme_lwc && host_lwc) {
+            const char *s_data = lwc_string_data(scheme_lwc);
+            size_t s_len = lwc_string_length(scheme_lwc);
+            const char *h_data = lwc_string_data(host_lwc);
+            size_t h_len = lwc_string_length(host_lwc);
+            size_t p_len = port_lwc ? lwc_string_length(port_lwc) : 0;
+            const char *p_data = port_lwc ? lwc_string_data(port_lwc) : "";
+
+            size_t buf_len = s_len + 3 + h_len + (p_len > 0 ? 1 + p_len : 0);
+            char *buf = malloc(buf_len + 1);
+            if (buf) {
+                char *ptr = buf;
+                memcpy(ptr, s_data, s_len); ptr += s_len;
+                memcpy(ptr, "://", 3); ptr += 3;
+                memcpy(ptr, h_data, h_len); ptr += h_len;
+                if (p_len > 0) {
+                    *ptr = ':'; ptr++;
+                    memcpy(ptr, p_data, p_len); ptr += p_len;
+                }
+                *ptr = '\0';
+                JSValue res = JS_NewString(ctx, buf);
+                free(buf);
+                lwc_string_unref(scheme_lwc);
+                lwc_string_unref(host_lwc);
+                if (port_lwc) lwc_string_unref(port_lwc);
+                return res;
+            }
+        }
+        if (scheme_lwc) lwc_string_unref(scheme_lwc);
+        if (host_lwc) lwc_string_unref(host_lwc);
+        if (port_lwc) lwc_string_unref(port_lwc);
+    }
+    return JS_NewString(ctx, "null");
+}
+
+JSValue wisp_document_characterSet_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewString(ctx, "UTF-8");
+}
+
+JSValue wisp_document_inputEncoding_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewString(ctx, "UTF-8");
+}
+
+JSValue wisp_document_contentType_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewString(ctx, "text/html");
+}
+
+JSValue wisp_document_body_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value)
+{
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_APPEND_CHILD, (uint64_t)(uintptr_t)priv->node, (uint64_t)(uintptr_t)value, 0, NULL, NULL);
+        return JS_UNDEFINED;
+    }
+    dom_node *removed = NULL;
+    dom_node *old_body = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &old_body);
+    while (old_body) {
+        dom_node_type type;
+        dom_node_get_node_type(old_body, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            dom_string *tag = NULL;
+            dom_node_get_node_name(old_body, &tag);
+            if (tag) {
+                if (strcasecmp((const char *)dom_string_data(tag), "body") == 0) {
+                    dom_string_unref(tag);
+                    break;
+                }
+                dom_string_unref(tag);
+            }
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(old_body, &next);
+        dom_node_unref(old_body);
+        old_body = next;
+    }
+    if (old_body) {
+        dom_node_replace_child((dom_node *)priv->node, (dom_node *)value, old_body, &removed);
+        dom_node_unref(old_body);
+        if (removed) dom_node_unref(removed);
+    } else {
+        dom_node_append_child((dom_node *)priv->node, (dom_node *)value, &removed);
+        if (removed) dom_node_unref(removed);
+    }
+    return JS_UNDEFINED;
+}
+
+extern JSValue qjs_new_htmlcollection_with_type(JSContext *ctx, void *node, bool is_dom_node, const char *type);
+
+JSValue wisp_document_images_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "images");
+}
+
+JSValue wisp_document_forms_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "forms");
+}
+
+JSValue wisp_document_scripts_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "scripts");
+}
+
+JSValue wisp_document_links_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "links");
+}
+
+JSValue wisp_document_plugins_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "plugins");
+}
+
+JSValue wisp_document_embeds_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "embeds");
+}
+
+JSValue wisp_document_anchors_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "anchors");
+}
+
+JSValue wisp_document_applets_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_htmlcollection_with_type(ctx, priv->node, priv->is_dom_node, "applets");
+}
+
+JSValue wisp_document_firstElementChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+        WispCompactNode *parent = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (parent) {
+            uint32_t curr_id = parent->first_child_id;
+            while (curr_id != 0) {
+                WispCompactNode *curr = &nodes[curr_id];
+                if (curr->node_type == 1) { // DOM_ELEMENT_NODE
+                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)curr_id);
+                }
+                curr_id = curr->next_sibling_id;
+            }
+        }
+        return JS_NULL;
+    }
+    struct dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            JSValue val = qjs_wrap_node(ctx, child);
+            dom_node_unref(child);
+            return val;
+        }
+        struct dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_document_lastElementChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+        WispCompactNode *parent = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (parent) {
+            uint32_t curr_id = parent->first_child_id;
+            uint32_t last_elem_id = 0;
+            while (curr_id != 0) {
+                WispCompactNode *curr = &nodes[curr_id];
+                if (curr->node_type == 1) {
+                    last_elem_id = curr_id;
+                }
+                curr_id = curr->next_sibling_id;
+            }
+            if (last_elem_id != 0) {
+                return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)last_elem_id);
+            }
+        }
+        return JS_NULL;
+    }
+    struct dom_node *child = NULL;
+    dom_node_get_last_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            JSValue val = qjs_wrap_node(ctx, child);
+            dom_node_unref(child);
+            return val;
+        }
+        struct dom_node *prev = NULL;
+        dom_node_get_previous_sibling(child, &prev);
+        dom_node_unref(child);
+        child = prev;
+    }
+    return JS_NULL;
+}
+
+JSValue wisp_document_childElementCount_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    int count = 0;
+    if (wisp_is_js_process) {
+        WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+        WispCompactNode *parent = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (parent) {
+            uint32_t curr_id = parent->first_child_id;
+            while (curr_id != 0) {
+                WispCompactNode *curr = &nodes[curr_id];
+                if (curr->node_type == 1) {
+                    count++;
+                }
+                curr_id = curr->next_sibling_id;
+            }
+        }
+        return JS_NewInt32(ctx, count);
+    }
+    struct dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            count++;
+        }
+        struct dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    return JS_NewInt32(ctx, count);
+}
+
+JSValue wisp_document_children_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NULL;
+    extern JSValue qjs_new_htmlcollection(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_htmlcollection(ctx, priv->node, priv->is_dom_node);
+}
+
 JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName)
 {
     if (wisp_is_js_process) return JS_NULL;
