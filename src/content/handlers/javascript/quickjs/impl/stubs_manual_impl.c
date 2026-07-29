@@ -148,9 +148,13 @@ JSValue wisp_htmlanchorelement_protocol_set_impl(JSContext *ctx, QJSNodePrivate 
         size_t val_len = strlen(value);
         if (val_len > 0 && value[val_len - 1] == ':') {
             char *tmp = strdup(value);
-            tmp[val_len - 1] = '\0';
-            lwc_intern_string((const char *)tmp, val_len - 1, &scheme);
-            free(tmp);
+            if (tmp) {
+                tmp[val_len - 1] = '\0';
+                lwc_intern_string((const char *)tmp, val_len - 1, &scheme);
+                free(tmp);
+            } else {
+                lwc_intern_string(value, val_len, &scheme);
+            }
         } else {
             lwc_intern_string(value, val_len, &scheme);
         }
