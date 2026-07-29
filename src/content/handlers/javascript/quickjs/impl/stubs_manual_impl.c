@@ -2664,3 +2664,573 @@ JSValue wisp_htmltextareaelement_disabled_set_impl(JSContext *ctx, QJSNodePrivat
         return wisp_element_removeAttribute_impl(ctx, priv, "disabled");
     }
 }
+
+
+// -----------------------------------------------------------------------------
+// HTMLDivElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmldivelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+
+JSValue wisp_htmldivelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLParagraphElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlparagraphelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+
+JSValue wisp_htmlparagraphelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLHeadingElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlheadingelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+
+JSValue wisp_htmlheadingelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLBRElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlbrelement_clear_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "clear", "");
+}
+
+JSValue wisp_htmlbrelement_clear_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "clear", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLHRElement Implementation (10 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlhrelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+
+JSValue wisp_htmlhrelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlhrelement_color_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "color", "");
+}
+
+JSValue wisp_htmlhrelement_color_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "color", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlhrelement_noShade_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "noshade");
+}
+
+JSValue wisp_htmlhrelement_noShade_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "noshade", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlhrelement_size_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "size", "");
+}
+
+JSValue wisp_htmlhrelement_size_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "size", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlhrelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "width", "");
+}
+
+JSValue wisp_htmlhrelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLPreElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlpreelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "width", 0));
+}
+
+JSValue wisp_htmlpreelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLQuoteElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlquoteelement_cite_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "cite", "");
+}
+
+JSValue wisp_htmlquoteelement_cite_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "cite", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLOListElement Implementation (8 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlolistelement_compact_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "compact");
+}
+
+JSValue wisp_htmlolistelement_compact_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "compact", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlolistelement_reversed_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "reversed");
+}
+
+JSValue wisp_htmlolistelement_reversed_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "reversed", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlolistelement_start_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "start", 1));
+}
+
+JSValue wisp_htmlolistelement_start_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "start", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlolistelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+
+JSValue wisp_htmlolistelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLUListElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlulistelement_compact_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "compact");
+}
+
+JSValue wisp_htmlulistelement_compact_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "compact", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLHtmlElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlhtmlelement_version_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "version", "");
+}
+
+JSValue wisp_htmlhtmlelement_version_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "version", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLModElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlmodelement_cite_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "cite", "");
+}
+
+JSValue wisp_htmlmodelement_cite_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "cite", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmodelement_dateTime_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "datetime", "");
+}
+
+JSValue wisp_htmlmodelement_dateTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "datetime", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLBaseElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlbaseelement_href_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "href", "");
+}
+
+JSValue wisp_htmlbaseelement_href_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "href", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlbaseelement_target_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "target", "");
+}
+
+JSValue wisp_htmlbaseelement_target_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "target", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTitleElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltitleelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_node_textContent_get_impl(ctx, priv);
+}
+
+JSValue wisp_htmltitleelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_node_textContent_set_impl(ctx, priv, value);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLDataElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmldataelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "value", "");
+}
+
+JSValue wisp_htmldataelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "value", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLTimeElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmltimeelement_dateTime_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "datetime", "");
+}
+
+JSValue wisp_htmltimeelement_dateTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "datetime", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLLabelElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
+JSValue wisp_htmllabelelement_form_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_form_impl(ctx, priv);
+}
+
+JSValue wisp_htmllabelelement_htmlFor_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "for", "");
+}
+
+JSValue wisp_htmllabelelement_htmlFor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "for", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLOptGroupElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmloptgroupelement_disabled_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "disabled");
+}
+
+JSValue wisp_htmloptgroupelement_disabled_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "disabled", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmloptgroupelement_label_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "label", "");
+}
+
+JSValue wisp_htmloptgroupelement_label_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "label", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLMenuElement Implementation (6 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlmenuelement_compact_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "compact");
+}
+
+JSValue wisp_htmlmenuelement_compact_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "compact", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuelement_label_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "label", "");
+}
+
+JSValue wisp_htmlmenuelement_label_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "label", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+
+JSValue wisp_htmlmenuelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLDetailsElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmldetailselement_open_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "open");
+}
+
+JSValue wisp_htmldetailselement_open_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "open", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLMenuItemElement Implementation (15 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlmenuitemelement_checked_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "checked");
+}
+
+JSValue wisp_htmlmenuitemelement_checked_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "checked", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuitemelement_command_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NULL;
+}
+
+JSValue wisp_htmlmenuitemelement_default_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "default");
+}
+
+JSValue wisp_htmlmenuitemelement_default_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "default", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuitemelement_disabled_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "disabled");
+}
+
+JSValue wisp_htmlmenuitemelement_disabled_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "disabled", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuitemelement_icon_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "icon", "");
+}
+
+JSValue wisp_htmlmenuitemelement_icon_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "icon", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuitemelement_label_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "label", "");
+}
+
+JSValue wisp_htmlmenuitemelement_label_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "label", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuitemelement_radiogroup_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "radiogroup", "");
+}
+
+JSValue wisp_htmlmenuitemelement_radiogroup_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "radiogroup", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmenuitemelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+
+JSValue wisp_htmlmenuitemelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLUListElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlulistelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+
+JSValue wisp_htmlulistelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLLIElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmllielement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+
+JSValue wisp_htmllielement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmllielement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "value", 0));
+}
+
+JSValue wisp_htmllielement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    set_element_int_attr(ctx, priv, "value", value);
+    return JS_UNDEFINED;
+}
+
+
+// -----------------------------------------------------------------------------
+// HTMLDListElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmldlistelement_compact_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return get_element_bool_attr(ctx, priv, "compact");
+}
+
+JSValue wisp_htmldlistelement_compact_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    set_element_bool_attr(ctx, priv, "compact", value);
+    return JS_UNDEFINED;
+}
