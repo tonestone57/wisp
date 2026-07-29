@@ -122,17 +122,19 @@ JSValue wisp_htmlanchorelement_protocol_get_impl(JSContext *ctx, QJSNodePrivate 
             const char *data = lwc_string_data(scheme);
             size_t len = lwc_string_length(scheme);
             char *buf = malloc(len + 2);
+            JSValue res;
             if (buf) {
                 memcpy(buf, data, len);
                 buf[len] = ':';
                 buf[len + 1] = '\0';
-                JSValue res = JS_NewString(ctx, buf);
+                res = JS_NewString(ctx, buf);
                 free(buf);
-                lwc_string_unref(scheme);
-                nsurl_unref(url);
-                return res;
+            } else {
+                res = JS_NewString(ctx, ":");
             }
             lwc_string_unref(scheme);
+            nsurl_unref(url);
+            return res;
         }
         nsurl_unref(url);
     }
@@ -152,18 +154,8 @@ JSValue wisp_htmlanchorelement_protocol_set_impl(JSContext *ctx, QJSNodePrivate 
 
         if (scheme) lwc_string_unref(scheme);
         size_t val_len = strlen(value);
-        if (val_len > 0 && value[val_len - 1] == ':') {
-            char *tmp = strdup(value);
-            if (tmp) {
-                tmp[val_len - 1] = '\0';
-                lwc_intern_string((const char *)tmp, val_len - 1, &scheme);
-                free(tmp);
-            } else {
-                lwc_intern_string(value, val_len, &scheme);
-            }
-        } else {
-            lwc_intern_string(value, val_len, &scheme);
-        }
+        size_t clean_len = (val_len > 0 && value[val_len - 1] == ':') ? val_len - 1 : val_len;
+        lwc_intern_string(value, clean_len, &scheme);
 
         struct nsurl *new_url = NULL;
         nsurl_create_from_components_str(scheme, host, port, path, query, frag, &new_url);
@@ -239,8 +231,10 @@ JSValue wisp_htmlanchorelement_host_set_impl(JSContext *ctx, QJSNodePrivate *pri
         host = NULL;
         port = NULL;
 
-        const char *colon = strchr(value, ':');
-        if (colon) {
+        const char *rbracket = strchr(value, ']');
+        const char *colon = strrchr(value, ':');
+
+        if (colon && (!rbracket || colon > rbracket)) {
             lwc_intern_string(value, colon - value, &host);
             lwc_intern_string(colon + 1, strlen(colon + 1), &port);
         } else {
@@ -566,8 +560,19 @@ JSValue wisp_htmlanchorelement_origin_get_impl(JSContext *ctx, QJSNodePrivate *p
             size_t s_len = lwc_string_length(scheme);
             const char *h_data = lwc_string_data(host);
             size_t h_len = lwc_string_length(host);
-            size_t p_len = port ? lwc_string_length(port) : 0;
-            const char *p_data = port ? lwc_string_data(port) : "";
+
+            // Omit standard default ports for http (80) & https (443)
+            bool include_port = false;
+            if (port && lwc_string_length(port) > 0) {
+                const char *p_data = lwc_string_data(port);
+                if (!((strcmp(s_data, "http") == 0 && strcmp(p_data, "80") == 0) ||
+                      (strcmp(s_data, "https") == 0 && strcmp(p_data, "443") == 0))) {
+                    include_port = true;
+                }
+            }
+
+            size_t p_len = include_port ? lwc_string_length(port) : 0;
+            const char *p_data = include_port ? lwc_string_data(port) : "";
 
             size_t buf_len = s_len + 3 + h_len + (p_len > 0 ? 1 + p_len : 0);
             char *buf = malloc(buf_len + 1);
@@ -599,78 +604,147 @@ JSValue wisp_htmlanchorelement_origin_get_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 // -----------------------------------------------------------------------------
-// Global redirects for HTMLAnchorElement's Object.defineProperty properties
+// Direct C-based getters and setters for HTMLAnchorElement properties
 // -----------------------------------------------------------------------------
 
-static JSValue js_htmlanchorelement_get_property_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc < 2) return JS_UNDEFINED;
-    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
+static JSValue js_anchor_href_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
     if (!priv || !priv->node) return JS_UNDEFINED;
-
-    const char *prop = JS_ToCString(ctx, argv[1]);
-    if (!prop) return JS_UNDEFINED;
-
-    JSValue res = JS_NULL;
-    if (strcmp(prop, "href") == 0) {
-        res = wisp_htmlanchorelement_href_get_impl(ctx, priv);
-    } else if (strcmp(prop, "protocol") == 0) {
-        res = wisp_htmlanchorelement_protocol_get_impl(ctx, priv);
-    } else if (strcmp(prop, "host") == 0) {
-        res = wisp_htmlanchorelement_host_get_impl(ctx, priv);
-    } else if (strcmp(prop, "hostname") == 0) {
-        res = wisp_htmlanchorelement_hostname_get_impl(ctx, priv);
-    } else if (strcmp(prop, "port") == 0) {
-        res = wisp_htmlanchorelement_port_get_impl(ctx, priv);
-    } else if (strcmp(prop, "pathname") == 0) {
-        res = wisp_htmlanchorelement_pathname_get_impl(ctx, priv);
-    } else if (strcmp(prop, "search") == 0) {
-        res = wisp_htmlanchorelement_search_get_impl(ctx, priv);
-    } else if (strcmp(prop, "hash") == 0) {
-        res = wisp_htmlanchorelement_hash_get_impl(ctx, priv);
-    } else if (strcmp(prop, "origin") == 0) {
-        res = wisp_htmlanchorelement_origin_get_impl(ctx, priv);
-    }
-
-    JS_FreeCString(ctx, prop);
+    return wisp_htmlanchorelement_href_get_impl(ctx, priv);
+}
+static JSValue js_anchor_href_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_href_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
     return res;
 }
 
-static JSValue js_htmlanchorelement_set_property_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
-{
-    if (argc < 3) return JS_UNDEFINED;
-    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
+static JSValue js_anchor_protocol_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
     if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_protocol_get_impl(ctx, priv);
+}
+static JSValue js_anchor_protocol_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_protocol_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
 
-    const char *prop = JS_ToCString(ctx, argv[1]);
-    const char *value = JS_ToCString(ctx, argv[2]);
-    if (!prop || !value) {
-        if (prop) JS_FreeCString(ctx, prop);
-        if (value) JS_FreeCString(ctx, value);
-        return JS_UNDEFINED;
-    }
+static JSValue js_anchor_host_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_host_get_impl(ctx, priv);
+}
+static JSValue js_anchor_host_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_host_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
 
-    if (strcmp(prop, "href") == 0) {
-        wisp_htmlanchorelement_href_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "protocol") == 0) {
-        wisp_htmlanchorelement_protocol_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "host") == 0) {
-        wisp_htmlanchorelement_host_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "hostname") == 0) {
-        wisp_htmlanchorelement_hostname_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "port") == 0) {
-        wisp_htmlanchorelement_port_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "pathname") == 0) {
-        wisp_htmlanchorelement_pathname_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "search") == 0) {
-        wisp_htmlanchorelement_search_set_impl(ctx, priv, value);
-    } else if (strcmp(prop, "hash") == 0) {
-        wisp_htmlanchorelement_hash_set_impl(ctx, priv, value);
-    }
+static JSValue js_anchor_hostname_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_hostname_get_impl(ctx, priv);
+}
+static JSValue js_anchor_hostname_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_hostname_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
 
-    JS_FreeCString(ctx, prop);
-    JS_FreeCString(ctx, value);
-    return JS_UNDEFINED;
+static JSValue js_anchor_port_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_port_get_impl(ctx, priv);
+}
+static JSValue js_anchor_port_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_port_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+static JSValue js_anchor_pathname_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_pathname_get_impl(ctx, priv);
+}
+static JSValue js_anchor_pathname_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_pathname_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+static JSValue js_anchor_search_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_search_get_impl(ctx, priv);
+}
+static JSValue js_anchor_search_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_search_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+static JSValue js_anchor_hash_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_hash_get_impl(ctx, priv);
+}
+static JSValue js_anchor_hash_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlanchorelement_hash_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+static JSValue js_anchor_origin_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlanchorelement_origin_get_impl(ctx, priv);
+}
+
+static void define_anchor_property(JSContext *ctx, JSValueConst proto, const char *name, JSValue getter, JSValue setter) {
+    JSAtom atom = JS_NewAtom(ctx, name);
+    JS_DefinePropertyGetSet(ctx, proto, atom, getter, setter, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_FreeAtom(ctx, atom);
 }
 
 // -----------------------------------------------------------------------------
@@ -705,37 +779,36 @@ int qjs_init_htmlanchorelement(JSContext *ctx)
     JSValue htmlel_proto = JS_GetClassProto(ctx, qjs_htmlelement_class_id);
     if (JS_IsObject(proto) && JS_IsObject(htmlel_proto)) JS_SetPrototype(ctx, proto, htmlel_proto);
     JS_FreeValue(ctx, htmlel_proto);
+
+    define_anchor_property(ctx, proto, "href",
+                           JS_NewCFunction(ctx, js_anchor_href_get, "get href", 0),
+                           JS_NewCFunction(ctx, js_anchor_href_set, "set href", 1));
+    define_anchor_property(ctx, proto, "protocol",
+                           JS_NewCFunction(ctx, js_anchor_protocol_get, "get protocol", 0),
+                           JS_NewCFunction(ctx, js_anchor_protocol_set, "set protocol", 1));
+    define_anchor_property(ctx, proto, "host",
+                           JS_NewCFunction(ctx, js_anchor_host_get, "get host", 0),
+                           JS_NewCFunction(ctx, js_anchor_host_set, "set host", 1));
+    define_anchor_property(ctx, proto, "hostname",
+                           JS_NewCFunction(ctx, js_anchor_hostname_get, "get hostname", 0),
+                           JS_NewCFunction(ctx, js_anchor_hostname_set, "set hostname", 1));
+    define_anchor_property(ctx, proto, "port",
+                           JS_NewCFunction(ctx, js_anchor_port_get, "get port", 0),
+                           JS_NewCFunction(ctx, js_anchor_port_set, "set port", 1));
+    define_anchor_property(ctx, proto, "pathname",
+                           JS_NewCFunction(ctx, js_anchor_pathname_get, "get pathname", 0),
+                           JS_NewCFunction(ctx, js_anchor_pathname_set, "set pathname", 1));
+    define_anchor_property(ctx, proto, "search",
+                           JS_NewCFunction(ctx, js_anchor_search_get, "get search", 0),
+                           JS_NewCFunction(ctx, js_anchor_search_set, "set search", 1));
+    define_anchor_property(ctx, proto, "hash",
+                           JS_NewCFunction(ctx, js_anchor_hash_get, "get hash", 0),
+                           JS_NewCFunction(ctx, js_anchor_hash_set, "set hash", 1));
+    define_anchor_property(ctx, proto, "origin",
+                           JS_NewCFunction(ctx, js_anchor_origin_get, "get origin", 0),
+                           JS_UNDEFINED);
+
     JS_FreeValue(ctx, proto);
-
-    /* Set up global C helper functions for property redirection */
-    JSValue get_fn = JS_NewCFunction(ctx, js_htmlanchorelement_get_property_global, "__wisp_get_anchor_property", 2);
-    JS_SetPropertyStr(ctx, global_obj, "__wisp_get_anchor_property", get_fn);
-
-    JSValue set_fn = JS_NewCFunction(ctx, js_htmlanchorelement_set_property_global, "__wisp_set_anchor_property", 3);
-    JS_SetPropertyStr(ctx, global_obj, "__wisp_set_anchor_property", set_fn);
-
-    /* JS initialization to define anchor prototype getters/setters */
-    const char *init_js =
-        "if (typeof HTMLAnchorElement !== 'undefined' && HTMLAnchorElement.prototype) {\n"
-        "    const props = ['href', 'protocol', 'host', 'hostname', 'port', 'pathname', 'search', 'hash', 'origin'];\n"
-        "    props.forEach(prop => {\n"
-        "        Object.defineProperty(HTMLAnchorElement.prototype, prop, {\n"
-        "            get() {\n"
-        "                return globalThis.__wisp_get_anchor_property(this, prop);\n"
-        "            },\n"
-        "            set(v) {\n"
-        "                if (prop !== 'origin') {\n" // origin is read-only
-        "                    globalThis.__wisp_set_anchor_property(this, prop, String(v));\n"
-        "                }\n"
-        "            },\n"
-        "            configurable: true,\n"
-        "            enumerable: true\n"
-        "        });\n"
-        "    });\n"
-        "}\n";
-
-    JSValue eval_res = JS_Eval(ctx, init_js, strlen(init_js), "<anchor_init>", JS_EVAL_TYPE_GLOBAL);
-    JS_FreeValue(ctx, eval_res);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_htmlanchorelement_init", JS_TRUE, 0);
