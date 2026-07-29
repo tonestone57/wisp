@@ -719,6 +719,109 @@ START_TEST(test_quickjs_tier1_apis)
 }
 END_TEST
 
+START_TEST(test_quickjs_webidl_stubs)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *script =
+        "try {\n"
+        "    // 1. HTMLAnchorElement Tests\n"
+        "    var a = document.createElement('a');\n"
+        "    a.href = 'http://example.com:3000/path?q=1#hash';\n"
+        "    if (a.href !== 'http://example.com:3000/path?q=1#hash') throw new Error('href get failed');\n"
+        "    if (a.protocol !== 'http:') throw new Error('protocol get failed: ' + a.protocol);\n"
+        "    if (a.host !== 'example.com:3000') throw new Error('host get failed');\n"
+        "    if (a.hostname !== 'example.com') throw new Error('hostname get failed');\n"
+        "    if (a.port !== '3000') throw new Error('port get failed');\n"
+        "    if (a.pathname !== '/path') throw new Error('pathname get failed');\n"
+        "    if (a.search !== '?q=1') throw new Error('search get failed');\n"
+        "    if (a.hash !== '#hash') throw new Error('hash get failed');\n"
+        "    if (a.origin !== 'http://example.com:3000') throw new Error('origin get failed');\n"
+        "\n"
+        "    // Setter tests\n"
+        "    a.protocol = 'https:';\n"
+        "    if (a.protocol !== 'https:') throw new Error('protocol set failed');\n"
+        "    if (a.href !== 'https://example.com:3000/path?q=1#hash') throw new Error('protocol set side-effect failed');\n"
+        "\n"
+        "    a.hostname = 'test.org';\n"
+        "    if (a.hostname !== 'test.org') throw new Error('hostname set failed');\n"
+        "\n"
+        "    a.port = '8080';\n"
+        "    if (a.port !== '8080') throw new Error('port set failed');\n"
+        "\n"
+        "    a.pathname = '/newpath';\n"
+        "    if (a.pathname !== '/newpath') throw new Error('pathname set failed');\n"
+        "\n"
+        "    a.search = '?val=abc';\n"
+        "    if (a.search !== '?val=abc') throw new Error('search set failed');\n"
+        "\n"
+        "    a.hash = '#newhash';\n"
+        "    if (a.hash !== '#newhash') throw new Error('hash set failed');\n"
+        "\n"
+        "    // Relative URL tests\n"
+        "    var a2 = document.createElement('a');\n"
+        "    a2.href = 'relative-page';\n"
+        "    if (a2.href.indexOf('relative-page') === -1) throw new Error('relative URL resolution failed: ' + a2.href);\n"
+        "\n"
+        "    // 2. HTMLInputElement Tests\n"
+        "    var input = document.createElement('input');\n"
+        "    input.value = 'hello';\n"
+        "    if (input.value !== 'hello') throw new Error('input value failed');\n"
+        "    input.type = 'password';\n"
+        "    if (input.type !== 'password') throw new Error('input type failed');\n"
+        "    input.name = 'pwd';\n"
+        "    if (input.name !== 'pwd') throw new Error('input name failed');\n"
+        "    if (input.disabled !== false) throw new Error('input default disabled failed');\n"
+        "    input.disabled = true;\n"
+        "    if (input.disabled !== true) throw new Error('input disabled set true failed');\n"
+        "    if (input.checked !== false) throw new Error('input default checked failed');\n"
+        "    input.checked = true;\n"
+        "    if (input.checked !== true) throw new Error('input checked set true failed');\n"
+        "\n"
+        "    // 3. HTMLIFrameElement Tests\n"
+        "    var iframe = document.createElement('iframe');\n"
+        "    iframe.src = 'iframe.html';\n"
+        "    if (iframe.src !== 'iframe.html') throw new Error('iframe src failed');\n"
+        "    iframe.width = '100%';\n"
+        "    if (iframe.width !== '100%') throw new Error('iframe width failed');\n"
+        "    iframe.height = '400';\n"
+        "    if (iframe.height !== '400') throw new Error('iframe height failed');\n"
+        "\n"
+        "    // 4. HTMLTextAreaElement Tests\n"
+        "    var ta = document.createElement('textarea');\n"
+        "    ta.value = 'text content';\n"
+        "    if (ta.value !== 'text content') throw new Error('textarea value failed');\n"
+        "    ta.name = 'ta_name';\n"
+        "    if (ta.name !== 'ta_name') throw new Error('textarea name failed');\n"
+        "    if (ta.disabled !== false) throw new Error('textarea default disabled failed');\n"
+        "    ta.disabled = true;\n"
+        "    if (ta.disabled !== true) throw new Error('textarea disabled set true failed');\n"
+        "    true;\n"
+        "} catch (e) {\n"
+        "    console.error(e.message + '\\n' + e.stack);\n"
+        "    false;\n"
+        "}";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_webidl_stubs");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_node_stubs)
 {
     jsheap *heap = NULL;
@@ -3104,6 +3207,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_node_stubs);
+    tcase_add_test(tc_window, test_quickjs_webidl_stubs);
     tcase_add_test(tc_window, test_quickjs_css_style_declaration);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_observers);

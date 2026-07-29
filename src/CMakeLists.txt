@@ -226,6 +226,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/javascript/quickjs/impl/trusted_types_impl.c
 	content/handlers/javascript/quickjs/impl/htmlimageelement_impl.c
 	content/handlers/javascript/quickjs/impl/htmlscriptelement_impl.c
+	content/handlers/javascript/quickjs/impl/stubs_manual_impl.c
 	content/handlers/javascript/quickjs/crypto.c
 	content/handlers/text/textplain.c
 	desktop/cookie_manager.c
