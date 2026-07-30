@@ -4477,6 +4477,10 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 				NSLOG(layout, DEEPDEBUG, "calling layout_flex for flex container %p width %i", box, box->width);
 				if (box->type == BOX_FLEX || box->type == BOX_INLINE_FLEX) {
 					if (!layout_flex(box, box->width, content)) {
+						if (class_attr != NULL)
+							dom_string_unref(class_attr);
+						if (name != NULL)
+							dom_string_unref(name);
 						return false;
 					}
 				}
