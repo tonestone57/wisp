@@ -72,7 +72,7 @@ static void box_talloc_destructor(void *ptr)
 	}
 
 	if (b->styles != NULL) {
-		if (b->content == NULL || b->content->bctx == NULL) {
+		if (b->content == NULL || b->content->select_ctx == NULL) {
 			css_select_results_destroy(b->styles);
 		}
 		b->styles = NULL;
