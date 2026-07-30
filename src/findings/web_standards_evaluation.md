@@ -10,9 +10,9 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 
 | Standard | Estimated Support % | Core Strengths | Critical Gaps / Future Work |
 |---|---|---|---|
-| **HTML5 (DOM & Parser)** | **~95%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), Fetch & Streams integration, Drag & Drop API (`DragEvent`, `DataTransfer`), and Advanced Media Streams API (`MediaStream`, `MediaStreamTrack`, `navigator.mediaDevices`). | WebRTC. |
+| **HTML5 (DOM & Parser)** | **~96%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), Fetch & Streams integration, Drag & Drop API (`DragEvent`, `DataTransfer`), and Advanced Media Streams API (`MediaStream`, `MediaStreamTrack`, `navigator.mediaDevices`). | WebRTC. |
 | **CSS3 (Layout & Style)** | **~99%** | Spec-compliant CSS Grid (including **Subgrids**, auto-placement, dense packing, FR units), Flexbox (grow, shrink, column two-pass), `position: sticky`, CSS Variables (with style hashing/caching), **Container Queries**, **Advanced CSS3 3D Transforms** (4x4 projection matrix), **Transitions & Animations**, **Multi-column layout flows**, and **Complex grid exclusions**. | None. |
-| **JavaScript (ES2023+)** | **~90% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, XMLHttp/Fetch streams, and **Performance Timeline & PerformanceObserver** APIs. | Understudied modern Bluetooth/USB APIs. |
+| **JavaScript (ES2023+)** | **~93% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, XMLHttp/Fetch streams, **Performance Timeline & PerformanceObserver** APIs, and **550+ manual WebIDL stub overrides**. | Understudied modern Bluetooth/USB APIs. |
 
 ---
 
@@ -25,8 +25,8 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 *   **HTML5 History & Client-side Routing**: Fully compliant history APIs implementing properties (`state`, `length`) and offline client-side SPA routing (`pushState`, `replaceState`).
 *   **WebIDL Bindings**:
     *   Wisp includes **9 IDL files** (covering Console, CSSOM, DOM, DOM Parsing, HTML, Observers, UI Events, URL Utils, and XHR) compiling down to **228 declared interfaces** and around **1,500 methods/getters/setters**.
-    *   **32 interfaces** are fully or partially implemented manually via dedicated C source files in `src/content/handlers/javascript/quickjs/impl/` (e.g. `Node`, `Element`, `Document`, `HTMLScriptElement`, `HTMLImageElement`, `Canvas`, `MutationObserver`, `IntersectionObserver`, `Worker`).
-    *   Unimplemented WebIDL bindings gracefully degrade to weak stubs that log warning notices using `NSLOG(wisp, WARNING, ...)` rather than crashing.
+    *   **550+ manual WebIDL stub overrides**: Fully implemented manuals (strong C overrides) covering 134+ core HTMLElement/Location/History properties and a massive subsequent integration of over 370 high-frequency properties/methods (including `HTMLTableElement`, `HTMLFormElement`, `HTMLInputElement`, `HTMLTextAreaElement`, child-traversal properties, and document collections) with 100% test coverage.
+    *   Unimplemented WebIDL bindings gracefully degrade to weak stubs that log warning notices using `NSLOG(wisp, WARNING, ...)` rather than crashing, and have been pruned from `src/docs/UnimplementedJavascript.md`.
 
 ### 2.2 CSS3 Layout Engines
 Wisp has over 12,000 lines of highly optimized C code dedicated to modern layout algorithms:
