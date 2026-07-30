@@ -576,6 +576,10 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
 	table->min_width.value += (table->columns + 1) * border_spacing_h;
 	table->max_width += (table->columns + 1) * border_spacing_h;
 
+	if (table->max_width < table->min_width.value) {
+		table->max_width = table->min_width.value;
+	}
+
 	assert(0 <= table->min_width.value && table->min_width.value <= table->max_width);
 }
 
@@ -978,6 +982,10 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 		max = (max + text_indent < 0) ? 0 : max + text_indent;
 	}
 
+	if (max < min) {
+		max = min;
+	}
+
 	*line_min = min;
 	*line_max = max;
 
@@ -1026,6 +1034,10 @@ static void layout_minmax_inline_container(struct box *inline_container, bool *h
 		first_line = false;
 		if (has_height)
 			*has_height |= line_has_height;
+	}
+
+	if (max < min) {
+		max = min;
 	}
 
 	inline_container->min_width.value = min;
@@ -1439,6 +1451,10 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 		NSLOG(layout, DEEPDEBUG,
 			"OVERFLOW_TRACE: block %p type=%d max_width=%d (min=%d max=%d extra_fixed=%d extra_frac=%f)", block,
 			block->type, block->max_width, min, max, extra_fixed, extra_frac);
+	}
+
+	if (block->max_width < block->min_width.value) {
+		block->max_width = block->min_width.value;
 	}
 
 	assert(0 <= block->min_width.value);
