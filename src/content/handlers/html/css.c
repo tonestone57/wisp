@@ -277,9 +277,9 @@ static bool html_css_process_modified_style(html_content *c, struct html_stylesh
 
     error = html_stylesheet_from_domnode(c, s->node, &sheet);
     if (error != NSERROR_OK) {
-        NSLOG(wisp, INFO, "Failed to update sheet");
-        content_broadcast_error(&c->base, error, NULL);
-        return false;
+        NSLOG(wisp, ERROR, "Failed to update sheet: %d (not treating as fatal document error)", error);
+        s->modified = false;
+        return true;
     }
 
     if (sheet != NULL) {
@@ -474,8 +474,9 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     ns_error = nsurl_join(htmlc->base_url, dom_string_data(href), &joined);
     if (ns_error != NSERROR_OK) {
         dom_string_unref(href);
-        NSLOG(wisp, ERROR, "nsurl_join failed (err: %d) - jumping to no_memory", ns_error);
-        goto no_memory;
+        NSLOG(wisp, ERROR, "nsurl_join failed (err: %d)", ns_error);
+        free(media_str);
+        return false;
     }
     dom_string_unref(href);
 
@@ -485,9 +486,10 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     stylesheets = realloc(htmlc->stylesheets, sizeof(struct html_stylesheet) * (htmlc->stylesheet_count + 1));
     if (stylesheets == NULL) {
         nsurl_unref(joined);
-        ns_error = NSERROR_NOMEM;
-        NSLOG(wisp, ERROR, "realloc stylesheets failed - jumping to no_memory");
-        goto no_memory;
+        NSLOG(wisp, ERROR, "realloc stylesheets failed");
+        free(media_str);
+        content_broadcast_error(&htmlc->base, NSERROR_NOMEM, NULL);
+        return false;
     }
 
     htmlc->stylesheets = stylesheets;
@@ -516,17 +518,13 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
         /* Retrieval failed, decrement count to clean up */
         htmlc->stylesheet_count--;
         CONTENT_ACTIVE_DEC(htmlc, "linked CSS fetch error");
-        NSLOG(wisp, ERROR, "hlcache_handle_retrieve failed (err: %d)", ns_error);
-        goto no_memory;
+        NSLOG(wisp, ERROR, "hlcache_handle_retrieve failed (err: %d) (not treating as fatal document error)", ns_error);
+        return false;
     }
 
     /* active count already logged by CONTENT_ACTIVE_INC */
 
     return true;
-
-no_memory:
-    content_broadcast_error(&htmlc->base, ns_error, NULL);
-    return false;
 }
 
 
