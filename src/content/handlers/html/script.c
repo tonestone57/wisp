@@ -200,7 +200,24 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         i = parent->scripts_count;
     }
 
-    assert(i != parent->scripts_count);
+    if (i == parent->scripts_count) {
+        /* If not found, check if this is a synchronous callback executing during retrieval
+         * where s->data.handle was not yet assigned from the retrieve caller. */
+        for (int k = (int)parent->scripts_count - 1; k >= 0; k--) {
+            if (parent->scripts[k].type == HTML_SCRIPT_ASYNC && parent->scripts[k].data.handle == NULL) {
+                parent->scripts[k].data.handle = script;
+                i = k;
+                s = &parent->scripts[k];
+                break;
+            }
+        }
+    }
+
+    if (i == parent->scripts_count) {
+        NSLOG(wisp, ERROR, "convert_script_async_cb: script not found!");
+        doc_rwlock_wrunlock(&parent->doc_mutex);
+        return NSERROR_OK;
+    }
 
     switch (event->type) {
     case CONTENT_MSG_LOADING:
@@ -308,7 +325,24 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
         i = parent->scripts_count;
     }
 
-    assert(i != parent->scripts_count);
+    if (i == parent->scripts_count) {
+        /* If not found, check if this is a synchronous callback executing during retrieval
+         * where s->data.handle was not yet assigned from the retrieve caller. */
+        for (int k = (int)parent->scripts_count - 1; k >= 0; k--) {
+            if (parent->scripts[k].type == HTML_SCRIPT_DEFER && parent->scripts[k].data.handle == NULL) {
+                parent->scripts[k].data.handle = script;
+                i = k;
+                s = &parent->scripts[k];
+                break;
+            }
+        }
+    }
+
+    if (i == parent->scripts_count) {
+        NSLOG(wisp, ERROR, "convert_script_defer_cb: script not found!");
+        doc_rwlock_wrunlock(&parent->doc_mutex);
+        return NSERROR_OK;
+    }
 
     switch (event->type) {
 
@@ -453,7 +487,24 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         i = parent->scripts_count;
     }
 
-    assert(i != parent->scripts_count);
+    if (i == parent->scripts_count) {
+        /* If not found, check if this is a synchronous callback executing during retrieval
+         * where s->data.handle was not yet assigned from the retrieve caller. */
+        for (int k = (int)parent->scripts_count - 1; k >= 0; k--) {
+            if (parent->scripts[k].type == HTML_SCRIPT_SYNC && parent->scripts[k].data.handle == NULL) {
+                parent->scripts[k].data.handle = script;
+                i = k;
+                s = &parent->scripts[k];
+                break;
+            }
+        }
+    }
+
+    if (i == parent->scripts_count) {
+        NSLOG(wisp, ERROR, "convert_script_sync_cb: script not found!");
+        doc_rwlock_wrunlock(&parent->doc_mutex);
+        return NSERROR_OK;
+    }
 
     switch (event->type) {
     case CONTENT_MSG_DONE:

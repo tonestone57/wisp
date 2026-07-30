@@ -1638,8 +1638,6 @@ static void html_style_cache_free(html_content *c) {
 
 static void html_free_layout(html_content *htmlc)
 {
-	html_style_cache_free(htmlc);
-
 	if (htmlc->box_conversion_context != NULL) {
 		if (cancel_dom_to_box(htmlc->box_conversion_context) != NSERROR_OK) {
 			NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
@@ -1657,6 +1655,8 @@ static void html_free_layout(html_content *htmlc)
 		arena_destroy(htmlc->bctx);
 		htmlc->bctx = NULL;
 	}
+
+	html_style_cache_free(htmlc);
 	htmlc->layout = NULL;
 	/* Clear dirty rectangle and list to prevent dangling pointers */
 	htmlc->dirty_list = NULL;

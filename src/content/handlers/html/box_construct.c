@@ -1386,6 +1386,11 @@ static css_select_results *box_get_style(
 	if (inline_style != NULL)
 		css_stylesheet_destroy(inline_style);
 
+	if (styles != NULL && c != NULL && c->select_ctx != NULL) {
+		dom_node_set_user_data(n, style_cache_key, styles, NULL, NULL);
+		html_style_cache_add(c, n, styles);
+	}
+
 	return styles;
 }
 
@@ -2281,7 +2286,9 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 
 	if (box->type == BOX_NONE ||
 		(ns_computed_display(box->style, props.node_is_root) == CSS_DISPLAY_NONE && props.node_is_root == false)) {
-		css_select_results_destroy(styles);
+		if (ctx->content == NULL || ctx->content->select_ctx == NULL) {
+			css_select_results_destroy(styles);
+		}
 		box->styles = NULL;
 		box->style = NULL;
 
