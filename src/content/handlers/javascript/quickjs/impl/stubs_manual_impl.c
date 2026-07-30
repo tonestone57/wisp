@@ -5821,3 +5821,711 @@ JSValue wisp_htmldatalistelement_options_get_impl(JSContext *ctx, QJSNodePrivate
 JSValue wisp_mediaerror_code_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NewInt32(ctx, 4);
 }
+JSValue wisp_htmlmediaelement_addTextTrack_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue kind, const char * label, const char * language) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type) {
+    return JS_NewString(ctx, "maybe");
+}
+
+JSValue wisp_htmlmediaelement_fastSeek_impl(JSContext *ctx, QJSNodePrivate *priv, double time) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_getStartDate_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_load_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_pause_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_play_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_audioTracks_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "audiotracks", "");
+}
+
+JSValue wisp_htmlmediaelement_autoplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "autoplay");
+}
+
+JSValue wisp_htmlmediaelement_autoplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "autoplay", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_buffered_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlmediaelement_controller_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "controller", "");
+}
+
+JSValue wisp_htmlmediaelement_controller_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    // Stub setter for htmlmediaelement.controller
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_controls_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "controls");
+}
+
+JSValue wisp_htmlmediaelement_controls_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "controls", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_crossOrigin_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "crossorigin", "");
+}
+
+JSValue wisp_htmlmediaelement_crossOrigin_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "crossorigin", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_currentSrc_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "currentsrc", "");
+}
+
+JSValue wisp_htmlmediaelement_currentTime_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "currenttime", 0.0));
+}
+
+JSValue wisp_htmlmediaelement_currentTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "currenttime", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_defaultMuted_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "defaultmuted");
+}
+
+JSValue wisp_htmlmediaelement_defaultMuted_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "defaultmuted", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_defaultPlaybackRate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "defaultplaybackrate", 0.0));
+}
+
+JSValue wisp_htmlmediaelement_defaultPlaybackRate_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "defaultplaybackrate", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_duration_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "duration", 0.0));
+}
+
+JSValue wisp_htmlmediaelement_ended_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "ended");
+}
+
+JSValue wisp_htmlmediaelement_error_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlmediaelement_loop_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "loop");
+}
+
+JSValue wisp_htmlmediaelement_loop_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "loop", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_mediaGroup_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "mediagroup", "");
+}
+
+JSValue wisp_htmlmediaelement_mediaGroup_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "mediagroup", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_muted_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "muted");
+}
+
+JSValue wisp_htmlmediaelement_muted_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "muted", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_networkState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "networkstate", 0));
+}
+
+JSValue wisp_htmlmediaelement_paused_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "paused");
+}
+
+JSValue wisp_htmlmediaelement_playbackRate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "playbackrate", 0.0));
+}
+
+JSValue wisp_htmlmediaelement_playbackRate_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "playbackrate", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_played_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "played", "");
+}
+
+JSValue wisp_htmlmediaelement_preload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "preload", "");
+}
+
+JSValue wisp_htmlmediaelement_preload_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "preload", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "readystate", 0));
+}
+
+JSValue wisp_htmlmediaelement_seekable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "seekable", "");
+}
+
+JSValue wisp_htmlmediaelement_seeking_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "seeking");
+}
+
+JSValue wisp_htmlmediaelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "src", "");
+}
+
+JSValue wisp_htmlmediaelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "src", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_srcObject_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlmediaelement_srcObject_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    // Stub setter for htmlmediaelement.srcObject
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmediaelement_textTracks_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "texttracks", "");
+}
+
+JSValue wisp_htmlmediaelement_videoTracks_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "videotracks", "");
+}
+
+JSValue wisp_htmlmediaelement_volume_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "volume", 0.0));
+}
+
+JSValue wisp_htmlmediaelement_volume_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "volume", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_mouseevent_getModifierState_impl(JSContext *ctx, QJSNodePrivate *priv, const char * keyArg) {
+    return JS_FALSE;
+}
+
+JSValue wisp_mouseevent_initMouseEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * typeArg, bool bubblesArg, bool cancelableArg, void * viewArg, int32_t detailArg, int32_t screenXArg, int32_t screenYArg, int32_t clientXArg, int32_t clientYArg, bool ctrlKeyArg, bool altKeyArg, bool shiftKeyArg, bool metaKeyArg, int16_t buttonArg, void * relatedTargetArg) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_mouseevent_altKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_mouseevent_button_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_mouseevent_buttons_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_mouseevent_clientX_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_mouseevent_clientY_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_mouseevent_ctrlKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_mouseevent_metaKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_mouseevent_region_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_mouseevent_relatedTarget_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_mouseevent_screenX_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_mouseevent_screenY_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_mouseevent_shiftKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_constructor_impl(JSContext *ctx, const char * typeArg, JSValue keyboardEventInitDict) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_keyboardevent_getModifierState_impl(JSContext *ctx, QJSNodePrivate *priv, const char * keyArg) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_initKeyboardEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * typeArg, bool bubblesArg, bool cancelableArg, void * viewArg, const char * keyArg, uint32_t locationArg, const char * modifiersListArg, bool repeat, const char * locale) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_keyboardevent_altKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_charCode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_keyboardevent_code_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_keyboardevent_ctrlKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_isComposing_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_key_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_keyboardevent_keyCode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_keyboardevent_location_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_keyboardevent_metaKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_repeat_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_shiftKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_keyboardevent_which_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_wheelevent_constructor_impl(JSContext *ctx, const char * typeArg, JSValue wheelEventInitDict) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_wheelevent_initWheelEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * typeArg, bool bubblesArg, bool cancelableArg, void * viewArg, int32_t detailArg, int32_t screenXArg, int32_t screenYArg, int32_t clientXArg, int32_t clientYArg, int16_t buttonArg, void * relatedTargetArg, const char * modifiersListArg, double deltaXArg, double deltaYArg, double deltaZArg, uint32_t deltaMode) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_wheelevent_deltaMode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_wheelevent_deltaX_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, 0.0);
+}
+
+JSValue wisp_wheelevent_deltaY_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, 0.0);
+}
+
+JSValue wisp_wheelevent_deltaZ_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, 0.0);
+}
+
+JSValue wisp_focusevent_constructor_impl(JSContext *ctx, const char * typeArg, JSValue focusEventInitDict) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_focusevent_initFocusEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * typeArg, bool bubblesArg, bool cancelableArg, void * viewArg, int32_t detailArg, void * relatedTargetArg) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_focusevent_relatedTarget_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlcanvaselement_probablySupportsContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlcanvaselement_setContext_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue context) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlcanvaselement_toBlob_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue callback, const char * type, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlcanvaselement_toDataURL_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue arguments) {
+    return JS_NewString(ctx, "data:image/png;base64,");
+}
+
+JSValue wisp_htmlcanvaselement_transferControlToProxy_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmldialogelement_close_impl(JSContext *ctx, QJSNodePrivate *priv, const char * returnValue) {
+    set_element_bool_attr(ctx, priv, "open", false);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmldialogelement_show_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue anchor) {
+    set_element_bool_attr(ctx, priv, "open", true);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmldialogelement_showModal_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue anchor) {
+    set_element_bool_attr(ctx, priv, "open", true);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmldialogelement_open_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "open");
+}
+
+JSValue wisp_htmldialogelement_open_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "open", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmldialogelement_returnValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "returnvalue", "");
+}
+
+JSValue wisp_htmldialogelement_returnValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "returnvalue", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlmeterelement_high_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "high", 0.0));
+}
+
+JSValue wisp_htmlmeterelement_high_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "high", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmeterelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlmeterelement_low_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "low", 0.0));
+}
+
+JSValue wisp_htmlmeterelement_low_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "low", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmeterelement_max_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "max", 0.0));
+}
+
+JSValue wisp_htmlmeterelement_max_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "max", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmeterelement_min_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "min", 0.0));
+}
+
+JSValue wisp_htmlmeterelement_min_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "min", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmeterelement_optimum_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "optimum", 0.0));
+}
+
+JSValue wisp_htmlmeterelement_optimum_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "optimum", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlmeterelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "value", 0.0));
+}
+
+JSValue wisp_htmlmeterelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "value", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlprogresselement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlprogresselement_position_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "position", 0.0));
+}
+
+JSValue wisp_htmltrackelement_default_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "default", "");
+}
+
+JSValue wisp_htmltrackelement_default_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "default", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltrackelement_kind_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "kind", "");
+}
+
+JSValue wisp_htmltrackelement_kind_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "kind", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltrackelement_label_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "label", "");
+}
+
+JSValue wisp_htmltrackelement_label_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "label", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltrackelement_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "readystate", 0));
+}
+
+JSValue wisp_htmltrackelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "src", "");
+}
+
+JSValue wisp_htmltrackelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "src", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltrackelement_srclang_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "srclang", "");
+}
+
+JSValue wisp_htmltrackelement_srclang_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "srclang", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmltrackelement_track_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "track", "");
+}
+
+JSValue wisp_cssstyledeclaration_getPropertyPriority_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_cssstyledeclaration_getPropertyValue_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_cssstyledeclaration_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_cssstyledeclaration_removeProperty_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
+    return JS_NewString(ctx, "");
+}
+
+JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * value, const char * priority) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_cssstyledeclaration_setPropertyPriority_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * priority) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_cssstyledeclaration_setPropertyValue_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * value) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_cssstyledeclaration_cssFloat_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "none");
+}
+
+JSValue wisp_cssstyledeclaration_cssFloat_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    // Stub setter for cssstyledeclaration.cssFloat
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv) return JS_NewString(ctx, "");
+    return wisp_element_getAttribute_impl(ctx, priv, "style");
+}
+
+JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    // Stub setter for cssstyledeclaration.cssText
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_cssstyledeclaration_dashed_attribute_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_cssstyledeclaration_dashed_attribute_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    // Stub setter for cssstyledeclaration.dashed
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_cssstyledeclaration_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+JSValue wisp_cssstyledeclaration_parentRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+JSValue wisp_htmlelement_forceSpellCheck_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_accessKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "accesskey", "");
+}
+
+JSValue wisp_htmlelement_accessKey_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "accesskey", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_accessKeyLabel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "accesskeylabel", "");
+}
+
+JSValue wisp_htmlelement_commandChecked_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "commandchecked", "");
+}
+
+JSValue wisp_htmlelement_commandDisabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "commanddisabled", "");
+}
+
+JSValue wisp_htmlelement_commandHidden_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "commandhidden", "");
+}
+
+JSValue wisp_htmlelement_commandIcon_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "commandicon", "");
+}
+
+JSValue wisp_htmlelement_commandLabel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "commandlabel", "");
+}
+
+JSValue wisp_htmlelement_commandType_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "commandtype", "");
+}
+
+JSValue wisp_htmlelement_contentEditable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "contenteditable", "");
+}
+
+JSValue wisp_htmlelement_contentEditable_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "contenteditable", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_contextMenu_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "contextmenu", "");
+}
+
+JSValue wisp_htmlelement_contextMenu_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    // Stub setter for htmlelement.contextMenu
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_dataset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "dataset", "");
+}
+
+JSValue wisp_htmlelement_draggable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "draggable");
+}
+
+JSValue wisp_htmlelement_draggable_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "draggable", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_dropzone_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "dropzone", "");
+}
+
+JSValue wisp_htmlelement_isContentEditable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "iscontenteditable", "");
+}
+
+JSValue wisp_htmlelement_spellcheck_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "spellcheck");
+}
+
+JSValue wisp_htmlelement_spellcheck_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "spellcheck", value);
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlelement_translate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "translate");
+}
+
+JSValue wisp_htmlelement_translate_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "translate", value);
+    return JS_UNDEFINED;
+}
