@@ -2831,6 +2831,427 @@ JSValue wisp_htmlolistelement_compact_set_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 // -----------------------------------------------------------------------------
+// Double attribute helpers
+// -----------------------------------------------------------------------------
+
+static double get_element_double_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, double default_val)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, name);
+    double res_val = default_val;
+    if (JS_IsString(val)) {
+        const char *str = JS_ToCString(ctx, val);
+        if (str && strlen(str) > 0) {
+            res_val = atof(str);
+        }
+        if (str) JS_FreeCString(ctx, str);
+    }
+    JS_FreeValue(ctx, val);
+    return res_val;
+}
+
+static void set_element_double_attr(JSContext *ctx, QJSNodePrivate *priv, const char *name, double value)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", value);
+    wisp_element_setAttribute_impl(ctx, priv, name, buf);
+}
+
+// -----------------------------------------------------------------------------
+// HTMLVideoElement Implementation (8 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlvideoelement_height_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "height", 0));
+}
+JSValue wisp_htmlvideoelement_height_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) {
+    set_element_int_attr(ctx, priv, "height", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlvideoelement_poster_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "poster", "");
+}
+JSValue wisp_htmlvideoelement_poster_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "poster", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlvideoelement_videoHeight_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_htmlvideoelement_videoWidth_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_htmlvideoelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, get_element_int_attr(ctx, priv, "width", 0));
+}
+JSValue wisp_htmlvideoelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) {
+    set_element_int_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLSourceElement Implementation (10 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlsourceelement_media_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "media", "");
+}
+JSValue wisp_htmlsourceelement_media_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "media", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlsourceelement_sizes_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "sizes", "");
+}
+JSValue wisp_htmlsourceelement_sizes_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "sizes", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlsourceelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "src", "");
+}
+JSValue wisp_htmlsourceelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "src", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlsourceelement_srcset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "srcset", "");
+}
+JSValue wisp_htmlsourceelement_srcset_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "srcset", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlsourceelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+JSValue wisp_htmlsourceelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLStyleElement Implementation (5 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlstyleelement_nonce_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "nonce", "");
+}
+JSValue wisp_htmlstyleelement_nonce_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "nonce", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlstyleelement_scoped_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "scoped");
+}
+JSValue wisp_htmlstyleelement_scoped_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "scoped", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlstyleelement_sheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLAreaElement Implementation (40 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlareaelement_alt_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "alt", "");
+}
+JSValue wisp_htmlareaelement_alt_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "alt", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_coords_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "coords", "");
+}
+JSValue wisp_htmlareaelement_coords_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "coords", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_download_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "download", "");
+}
+JSValue wisp_htmlareaelement_download_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "download", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_hash_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "hash", "");
+}
+JSValue wisp_htmlareaelement_hash_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "hash", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_host_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "host", "");
+}
+JSValue wisp_htmlareaelement_host_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "host", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_hostname_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "hostname", "");
+}
+JSValue wisp_htmlareaelement_hostname_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "hostname", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_href_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "href", "");
+}
+JSValue wisp_htmlareaelement_hreflang_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "hreflang", "");
+}
+JSValue wisp_htmlareaelement_hreflang_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "hreflang", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_noHref_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "nohref");
+}
+JSValue wisp_htmlareaelement_noHref_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "nohref", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_origin_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "origin", "");
+}
+JSValue wisp_htmlareaelement_password_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "password", "");
+}
+JSValue wisp_htmlareaelement_password_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "password", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_pathname_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "pathname", "");
+}
+JSValue wisp_htmlareaelement_pathname_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "pathname", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_ping_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "ping", "");
+}
+JSValue wisp_htmlareaelement_port_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "port", "");
+}
+JSValue wisp_htmlareaelement_port_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "port", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_protocol_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "protocol", "");
+}
+JSValue wisp_htmlareaelement_protocol_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "protocol", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_relList_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlareaelement_rel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "rel", "");
+}
+JSValue wisp_htmlareaelement_rel_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "rel", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_search_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "search", "");
+}
+JSValue wisp_htmlareaelement_search_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "search", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_shape_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "shape", "");
+}
+JSValue wisp_htmlareaelement_shape_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "shape", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_target_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "target", "");
+}
+JSValue wisp_htmlareaelement_target_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "target", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+JSValue wisp_htmlareaelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlareaelement_username_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "username", "");
+}
+JSValue wisp_htmlareaelement_username_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "username", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLMapElement Implementation (3 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlmapelement_areas_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlmapelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "name", "");
+}
+JSValue wisp_htmlmapelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "name", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLFontElement Implementation (6 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlfontelement_color_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "color", "");
+}
+JSValue wisp_htmlfontelement_color_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "color", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlfontelement_face_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "face", "");
+}
+JSValue wisp_htmlfontelement_face_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "face", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlfontelement_size_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "size", "");
+}
+JSValue wisp_htmlfontelement_size_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "size", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLFrameElement Implementation (16 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlframeelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlframeelement_contentWindow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlframeelement_frameBorder_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "frameborder", "");
+}
+JSValue wisp_htmlframeelement_frameBorder_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "frameborder", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_longDesc_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "longdesc", "");
+}
+JSValue wisp_htmlframeelement_longDesc_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "longdesc", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_marginHeight_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "marginheight", "");
+}
+JSValue wisp_htmlframeelement_marginHeight_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "marginheight", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_marginWidth_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "marginwidth", "");
+}
+JSValue wisp_htmlframeelement_marginWidth_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "marginwidth", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "name", "");
+}
+JSValue wisp_htmlframeelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "name", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_noResize_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "noresize");
+}
+JSValue wisp_htmlframeelement_noResize_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "noresize", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_scrolling_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "scrolling", "");
+}
+JSValue wisp_htmlframeelement_scrolling_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "scrolling", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframeelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "src", "");
+}
+JSValue wisp_htmlframeelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "src", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLFrameSetElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlframesetelement_cols_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "cols", "");
+}
+JSValue wisp_htmlframesetelement_cols_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "cols", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlframesetelement_rows_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "rows", "");
+}
+JSValue wisp_htmlframesetelement_rows_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "rows", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLLegendElement Implementation (2 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmllegendelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmllegendelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
+// HTMLProgressElement Implementation (4 stubs)
+// -----------------------------------------------------------------------------
+
+JSValue wisp_htmlprogresselement_max_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "max", 1.0));
+}
+JSValue wisp_htmlprogresselement_max_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "max", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlprogresselement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "value", 0.0));
+}
+JSValue wisp_htmlprogresselement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "value", value);
+    return JS_UNDEFINED;
+}
+
+// -----------------------------------------------------------------------------
 // HTMLCollection Implementation (custom dynamic collection type wrapping)
 // -----------------------------------------------------------------------------
 
