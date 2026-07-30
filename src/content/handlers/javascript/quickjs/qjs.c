@@ -3381,7 +3381,7 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
     shm_dom_t *shm = thread->shm_dom;
     if (!shm) return;
     if (box->node) {
-        for (uint32_t i = 0; i < shm->node_count; i++) {
+        for (uint32_t i = 1; i < shm->node_count; i++) {
             if (shm_dom_get_dom_ptrs(shm)[i] == (uint64_t)(uintptr_t)box->node) {
                 WispCompactNode *nodes_array = shm_dom_get_nodes(shm);
                 WispCompactNode *node = &nodes_array[i];

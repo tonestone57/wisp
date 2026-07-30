@@ -309,6 +309,9 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
 
 				err = dom_node_get_node_name(c, &name);
 				if (err != DOM_NO_ERR) {
+					if (name != NULL) {
+						dom_string_unref(name);
+					}
 					dom_node_unref(c);
 					return false;
 				}
@@ -1644,6 +1647,9 @@ static bool box_object(dom_node *n, html_content *content, struct box *box, bool
 
 			err = dom_node_get_node_name(c, &name);
 			if (err != DOM_NO_ERR) {
+				if (name != NULL) {
+					dom_string_unref(name);
+				}
 				dom_node_unref(c);
 				return false;
 			}
@@ -1761,6 +1767,9 @@ static bool box_select(dom_node *n, html_content *content, struct box *box, bool
 
 		err = dom_node_get_node_name(c, &name);
 		if (err != DOM_NO_ERR) {
+			if (name != NULL) {
+				dom_string_unref(name);
+			}
 			dom_node_unref(c);
 			form_free_control(gadget);
 			return false;
@@ -1789,6 +1798,9 @@ static bool box_select(dom_node *n, html_content *content, struct box *box, bool
 
 				err = dom_node_get_node_name(c2, &c2_name);
 				if (err != DOM_NO_ERR) {
+					if (c2_name != NULL) {
+						dom_string_unref(c2_name);
+					}
 					dom_node_unref(c2);
 					dom_node_unref(c);
 					form_free_control(gadget);

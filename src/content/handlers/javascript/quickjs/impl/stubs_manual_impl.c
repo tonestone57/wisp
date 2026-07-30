@@ -1149,7 +1149,7 @@ JSValue wisp_htmlformelement_elements_get_impl(JSContext *ctx, QJSNodePrivate *p
             uint32_t form_id = (uint32_t)(uintptr_t)priv->node;
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].node_type == 1) { // Element node
                     const char *tag = wisp_string_ref_data(wisp_shm_dom, strings_arr[i].tag_name);
                     if (is_form_control(tag)) {
@@ -1461,7 +1461,7 @@ JSValue wisp_htmloptionelement_index_get_impl(JSContext *ctx, QJSNodePrivate *pr
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             uint32_t parent_id = nodes_arr[our_id].parent_id;
             if (parent_id != our_id) {
-                for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+                for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                     if (nodes_arr[i].parent_id == parent_id && nodes_arr[i].node_type == 1 &&
                         wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                         if (i == our_id) {
@@ -1627,7 +1627,7 @@ JSValue wisp_htmlselectelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pr
             uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].parent_id == our_id && nodes_arr[i].node_type == 1 &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                     bool is_sel = false;
@@ -1643,7 +1643,7 @@ JSValue wisp_htmlselectelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pr
                                 return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, strings_arr[i].attrs[j].value));
                             }
                         }
-                        for (uint32_t j = 0; j < wisp_shm_dom->node_count; j++) {
+                        for (uint32_t j = 1; j < wisp_shm_dom->node_count; j++) {
                             if (nodes_arr[j].parent_id == i && nodes_arr[j].node_type == 3) {
                                 return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, strings_arr[j].value));
                             }
@@ -1866,7 +1866,7 @@ JSValue wisp_htmlselectelement_length_get_impl(JSContext *ctx, QJSNodePrivate *p
             uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].parent_id == our_id && nodes_arr[i].node_type == 1 &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                     count++;
@@ -1910,7 +1910,7 @@ JSValue wisp_htmlselectelement_selectedIndex_get_impl(JSContext *ctx, QJSNodePri
             uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].parent_id == our_id && nodes_arr[i].node_type == 1 &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                     bool is_sel = false;
@@ -2009,7 +2009,7 @@ JSValue wisp_htmlselectelement_options_get_impl(JSContext *ctx, QJSNodePrivate *
             uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].parent_id == our_id && nodes_arr[i].node_type == 1 &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                     JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
@@ -3365,7 +3365,7 @@ static void collect_elements_shm(uint32_t parent_id, const char *type, uint32_t 
     WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
     WispNodeStrings *strings = shm_dom_get_node_strings(wisp_shm_dom);
 
-    for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+    for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
         if (nodes[i].node_type != 1) continue;
 
         bool is_descendant = false;

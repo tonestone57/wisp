@@ -440,7 +440,7 @@ JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
         // Scan for the document node
         if (wisp_shm_dom) {
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].node_type == 9) {
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
