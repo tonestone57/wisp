@@ -176,9 +176,28 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
     doc_rwlock_wrlock(&parent->doc_mutex);
 
     /* Find script */
+    bool found = false;
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
-        if (s->type == HTML_SCRIPT_ASYNC && s->data.handle == script)
+        if (s->type == HTML_SCRIPT_ASYNC && s->data.handle == script) {
+            found = true;
             break;
+        }
+    }
+
+    if (!found) {
+        for (int idx = (int)parent->scripts_count - 1; idx >= 0; idx--) {
+            s = &parent->scripts[idx];
+            if (s->type == HTML_SCRIPT_ASYNC && s->data.handle == NULL) {
+                s->data.handle = script;
+                i = idx;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        i = parent->scripts_count;
     }
 
     assert(i != parent->scripts_count);
@@ -265,9 +284,28 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     doc_rwlock_wrlock(&parent->doc_mutex);
 
     /* Find script */
+    bool found = false;
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
-        if (s->type == HTML_SCRIPT_DEFER && s->data.handle == script)
+        if (s->type == HTML_SCRIPT_DEFER && s->data.handle == script) {
+            found = true;
             break;
+        }
+    }
+
+    if (!found) {
+        for (int idx = (int)parent->scripts_count - 1; idx >= 0; idx--) {
+            s = &parent->scripts[idx];
+            if (s->type == HTML_SCRIPT_DEFER && s->data.handle == NULL) {
+                s->data.handle = script;
+                i = idx;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        i = parent->scripts_count;
     }
 
     assert(i != parent->scripts_count);
@@ -391,9 +429,28 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
     }
 
     /* Find script */
+    bool found = false;
     for (i = 0, s = parent->scripts; i != parent->scripts_count; i++, s++) {
-        if (s->type == HTML_SCRIPT_SYNC && s->data.handle == script)
+        if (s->type == HTML_SCRIPT_SYNC && s->data.handle == script) {
+            found = true;
             break;
+        }
+    }
+
+    if (!found) {
+        for (int idx = (int)parent->scripts_count - 1; idx >= 0; idx--) {
+            s = &parent->scripts[idx];
+            if (s->type == HTML_SCRIPT_SYNC && s->data.handle == NULL) {
+                s->data.handle = script;
+                i = idx;
+                found = true;
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        i = parent->scripts_count;
     }
 
     assert(i != parent->scripts_count);
