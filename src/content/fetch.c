@@ -646,6 +646,9 @@ void fetch_change_callback(struct fetch *fetch, fetch_callback callback, void *p
 /* exported interface documented in content/fetch.h */
 long fetch_http_code(struct fetch *fetch)
 {
+    if (fetch == NULL) {
+        return 0;
+    }
     return fetch->http_code;
 }
 
