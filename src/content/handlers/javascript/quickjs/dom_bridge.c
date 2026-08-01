@@ -127,6 +127,13 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
     }
 }
 
+void qjs_bridge_unref_node(struct dom_node *node)
+{
+    if (!wisp_is_js_process && node) {
+        dom_node_unref(node);
+    }
+}
+
 int qjs_init_dom_bridge(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
