@@ -58,6 +58,7 @@ struct dom_string *corestring_dom_style;
 struct dom_string *corestring_dom_colspan;
 struct dom_string *corestring_dom_rowspan;
 struct dom_string *corestring_dom___ns_key_box_node_data;
+struct dom_string *corestring_dom___ns_key_style_cache_data;
 
 /* Mock nsoption */
 struct nsoption_s nsoptions_storage[1000];
@@ -402,6 +403,7 @@ START_TEST(test_grid_construction)
     INIT_STR(corestring_dom_colspan, "colspan");
     INIT_STR(corestring_dom_rowspan, "rowspan");
     INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
+    INIT_STR(corestring_dom___ns_key_style_cache_data, "__ns_key_style_cache_data");
 
     FILE *fp = fopen("/tmp/ns_test_grid.html", "w");
     ck_assert_ptr_nonnull(fp);
@@ -576,6 +578,7 @@ START_TEST(test_grid_construction)
     dom_string_unref(corestring_dom_colspan);
     dom_string_unref(corestring_dom_rowspan);
     dom_string_unref(corestring_dom___ns_key_box_node_data);
+    dom_string_unref(corestring_dom___ns_key_style_cache_data);
 
     unlink("/tmp/ns_test_grid.html");
 }
