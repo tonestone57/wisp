@@ -2020,6 +2020,7 @@ START_TEST(test_quickjs_dom_parser)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
+    /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
     dom_node_unref((dom_node *)doc);
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
@@ -2100,6 +2101,7 @@ START_TEST(test_quickjs_aot_cache)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
+    /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
     dom_node_unref((dom_node *)doc);
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
@@ -2149,6 +2151,7 @@ START_TEST(test_quickjs_json_simd)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
+    /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
     dom_node_unref((dom_node *)doc);
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
@@ -2201,6 +2204,7 @@ START_TEST(test_quickjs_event_target_full)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
+    /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
     dom_node_unref((dom_node *)doc);
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
