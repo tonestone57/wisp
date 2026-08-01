@@ -1125,7 +1125,7 @@ bool html_can_begin_conversion(html_content *htmlc)
 	if (htmlc->data_complete_time_ms != 0) {
 		uint64_t now_ms;
 		nsu_getmonotonic_ms(&now_ms);
-		if (now_ms - htmlc->data_complete_time_ms > 1000) {
+		if (now_ms - htmlc->data_complete_time_ms > 5000) {
 			bypass_active_gate = true;
 		}
 	}
@@ -1199,7 +1199,7 @@ bool html_begin_conversion(html_content *htmlc)
 			if (htmlc->data_complete_time_ms != 0) {
 				uint64_t now_ms;
 				nsu_getmonotonic_ms(&now_ms);
-				if (now_ms - htmlc->data_complete_time_ms > 1000) {
+				if (now_ms - htmlc->data_complete_time_ms > 5000) {
 					bypass_active_gate = true;
 				}
 			}
@@ -1393,7 +1393,7 @@ bool html_begin_conversion(html_content *htmlc)
 	if (htmlc->data_complete_time_ms != 0) {
 		uint64_t now_ms;
 		nsu_getmonotonic_ms(&now_ms);
-		if (now_ms - htmlc->data_complete_time_ms > 1000) {
+		if (now_ms - htmlc->data_complete_time_ms > 5000) {
 			bypass_active_gate = true;
 		}
 	}
