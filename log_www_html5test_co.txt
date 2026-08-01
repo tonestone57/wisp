@@ -1,0 +1,1652 @@
+(0.103441) /app/src/utils/log.c:510 nslog_init: Wisp version '0.8'
+(0.103596) /app/src/utils/log.c:514 nslog_init: Wisp on <Linux>, node <devbox>, release <6.8.0>, version <#1 SMP PREEMPT_DYNAMIC Fri Feb 20 20:38:43 UTC 2026>, machine <x86_64>
+(0.104174) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'wisp.ui'
+(0.104244) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/wisp.ui
+(0.104296) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'tabcontents.ui'
+(0.104343) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/tabcontents.ui
+(0.104369) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'password.ui'
+(0.104406) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/password.ui
+(0.104438) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'toolbar.ui'
+(0.104503) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/toolbar.ui
+(0.104535) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'downloads.ui'
+(0.104573) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/downloads.ui
+(0.104606) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'globalhistory.ui'
+(0.104669) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/globalhistory.ui
+(0.104704) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'localhistory.ui'
+(0.104747) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/localhistory.ui
+(0.104772) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'options.ui'
+(0.104874) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/options.ui
+(0.104904) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'hotlist.ui'
+(0.104953) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/hotlist.ui
+(0.104981) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'cookies.ui'
+(0.105017) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/cookies.ui
+(0.105066) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'viewdata.ui'
+(0.105110) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/viewdata.ui
+(0.105135) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'warning.ui'
+(0.105194) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/warning.ui
+(0.105219) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'pageinfo.ui'
+(0.105262) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/pageinfo.ui
+(0.105312) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'favicon.png'
+(0.105354) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/favicon.png
+(0.105386) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'wisp.xpm'
+(0.105424) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/wisp.xpm
+(0.105448) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'menu_cursor.png'
+(0.105502) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/menu_cursor.png
+(0.105528) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/local-history.png'
+(0.105575) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/local-history.png
+(0.105624) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/show-cookie.png'
+(0.105671) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/show-cookie.png
+(0.105704) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/24x24/actions/page-info-insecure.png'
+(0.105751) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/24x24/actions/page-info-insecure.png
+(0.105777) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/24x24/actions/page-info-internal.png'
+(0.105880) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/24x24/actions/page-info-internal.png
+(0.105915) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/24x24/actions/page-info-local.png'
+(0.105978) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/24x24/actions/page-info-local.png
+(0.106008) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/24x24/actions/page-info-secure.png'
+(0.106062) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/24x24/actions/page-info-secure.png
+(0.106092) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/24x24/actions/page-info-warning.png'
+(0.106134) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/24x24/actions/page-info-warning.png
+(0.106162) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/48x48/actions/page-info-insecure.png'
+(0.106224) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/48x48/actions/page-info-insecure.png
+(0.106257) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/48x48/actions/page-info-internal.png'
+(0.106299) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/48x48/actions/page-info-internal.png
+(0.106321) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/48x48/actions/page-info-local.png'
+(0.106368) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/48x48/actions/page-info-local.png
+(0.106399) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/48x48/actions/page-info-secure.png'
+(0.106448) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/48x48/actions/page-info-secure.png
+(0.106471) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/48x48/actions/page-info-warning.png'
+(0.106539) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/48x48/actions/page-info-warning.png
+(0.106562) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber0.png'
+(0.106602) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber0.png
+(0.106634) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber1.png'
+(0.106692) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber1.png
+(0.106719) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber2.png'
+(0.106759) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber2.png
+(0.106780) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber3.png'
+(0.106857) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber3.png
+(0.106887) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber4.png'
+(0.106928) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber4.png
+(0.106949) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber5.png'
+(0.106983) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber5.png
+(0.107011) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber6.png'
+(0.107047) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber6.png
+(0.107068) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber7.png'
+(0.107122) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber7.png
+(0.107146) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'throbber/throbber8.png'
+(0.107206) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/throbber/throbber8.png
+(0.107268) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'welcome.html'
+(0.107312) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/welcome.html
+(0.107394) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'credits.html'
+(0.107429) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/credits.html
+(0.107511) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'license.html'
+(0.107624) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/license.html
+(0.107719) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'default.css'
+(0.107782) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/default.css
+(0.107885) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'adblock.css'
+(0.107934) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/adblock.css
+(0.108025) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'internal.css'
+(0.108070) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/internal.css
+(0.108136) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'quirks.css'
+(0.108182) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/quirks.css
+(0.108248) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'wisp.png'
+(0.108288) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/wisp.png
+(0.108421) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/arrow-l.png'
+(0.108464) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/arrow-l.png
+(0.108519) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/content.png'
+(0.108556) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/content.png
+(0.108616) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/directory2.png'
+(0.108660) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/directory2.png
+(0.108724) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/directory.png'
+(0.108765) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/directory.png
+(0.108814) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/hotlist-add.png'
+(0.108898) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/hotlist-add.png
+(0.108949) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/hotlist-rmv.png'
+(0.108991) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/hotlist-rmv.png
+(0.109076) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'icons/search.png'
+(0.109118) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/icons/search.png
+(0.109180) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'languages'
+(0.109219) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/languages
+(0.109288) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'accelerators'
+(0.109329) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/accelerators
+(0.109393) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'Messages'
+(0.109428) /app/frontends/gtk/resources.c:247 init_resource: Found file resource path /usr/local/share/wisp-gtk/Messages
+(0.247607) /app/src/utils/nsoption.c:684 nsoption_read: Option file '/home/jules/.config/wisp/Choices' not found (this is normal for a clean installation)
+(0.248939) /app/frontends/gtk/gui.c:733 get_cache_home: "/home/jules/.cache/wisp"
+(0.249433) /app/src/desktop/tile_pool.c:140 tile_pool_init: Tile Pool & Compressed Cache Initialized: 16 buffers, cache size 64
+(0.249453) /app/src/desktop/wisp.c:152 wisp_init: wisp_init: start
+(0.249464) /app/src/desktop/wisp.c:162 wisp_init: init corestrings
+(0.249963) /app/src/desktop/wisp.c:170 wisp_init: init urldb
+(0.250001) /app/src/desktop/wisp.c:177 wisp_init: update nscolour
+(0.250017) /app/src/desktop/wisp.c:185 wisp_init: init cache params: mem=12582912 store_path=/home/jules/.cache/wisp disc_cache_path=(null)
+(0.250022) /app/src/desktop/wisp.c:218 wisp_init: init image_cache limit 3145728 hyst 629145 speculate 4096
+(0.250454) /app/src/content/handlers/image/image_cache.c:531 image_cache_init: Image cache initialised with a limit of 3145728 hysteresis of 629145
+(0.250476) /app/src/desktop/wisp.c:227 wisp_init: init CSS
+(0.250566) /app/src/desktop/wisp.c:234 wisp_init: init HTML
+(0.252063) /app/src/content/handlers/html/css_fetcher.c:70 html_css_fetcher_initialise: html_css_fetcher_initialise called for x-ns-css
+(0.252157) /app/src/desktop/wisp.c:241 wisp_init: init image handlers
+(0.252313) /app/src/desktop/wisp.c:248 wisp_init: init textplain
+(0.252454) /app/src/desktop/wisp.c:258 wisp_init: init fetchers
+(0.401357) /app/src/content/fetchers/data.c:61 fetch_data_initialise: fetch_data_initialise called for data
+(0.401415) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for adblock.css
+(0.401422) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for default.css
+(0.401443) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for internal.css
+(0.401449) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for quirks.css
+(0.401476) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'user.css'
+(0.401642) /app/src/content/fetchers/resource.c:301 fetch_resource_initialise: redirect url for user.css
+(0.401651) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for credits.html
+(0.401657) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for license.html
+(0.401664) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for welcome.html
+(0.401693) /app/src/content/fetchers/resource.c:301 fetch_resource_initialise: redirect url for favicon.ico
+(0.401708) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'favicon.png'
+(0.401849) /app/src/content/fetchers/resource.c:301 fetch_resource_initialise: redirect url for favicon.png
+(0.401861) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for wisp.png
+(0.401867) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/arrow-l.png
+(0.401874) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/content.png
+(0.401880) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/directory.png
+(0.401895) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/directory2.png
+(0.401901) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/hotlist-add.png
+(0.401907) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/hotlist-rmv.png
+(0.401913) /app/src/content/fetchers/resource.c:287 fetch_resource_initialise: direct data for icons/search.png
+(0.401954) /app/src/desktop/wisp.c:266 wisp_init: init hlcache: limit 9437184 store.limit 1073741824 hyst 214748364 path /home/jules/.cache/wisp
+(0.401977) /app/src/content/llcache.c:3692 llcache_initialise: llcache initialising with a limit of 9437184 bytes
+(0.401989) /app/src/content/llcache.c:3694 llcache_initialise: llcache backing store init: path=/home/jules/.cache/wisp limit=1073741824 hyst=214748364
+(0.402036) /app/src/content/fs_backing_store.c:2232 read_control: opening control file "/home/jules/.cache/wisp/control"
+(0.402208) /app/src/content/fs_backing_store.c:2070 read_entries: Read 0 entries from cache
+(0.402221) /app/src/content/fs_backing_store.c:2103 read_blocks: Initialising block use map from /home/jules/.cache/wisp/blocks
+(0.402234) /app/src/content/fs_backing_store.c:2122 read_blocks: Initialising block use map to defaults
+(0.402252) /app/src/content/fs_backing_store.c:2401 initialise: Opened journal file, size 0
+(0.402261) /app/src/content/fs_backing_store.c:2415 initialise: FS backing store init successful
+(0.402265) /app/src/content/fs_backing_store.c:2417 initialise: path:/home/jules/.cache/wisp limit:1073741824 hyst:214748364
+(0.402270) /app/src/content/fs_backing_store.c:2419 initialise: Using 0/1073741824
+(0.402331) /app/src/desktop/wisp.c:277 wisp_init: init system colours
+(0.402378) /app/src/desktop/wisp.c:291 wisp_init: init page-info
+(0.402388) /app/frontends/gtk/layout_pango.c:67 nsfont_pango_check: Creating nsfont_pango_context.
+(0.403485) /app/frontends/gtk/layout_pango.c:72 nsfont_pango_check: Creating nsfont_pango_layout.
+(0.403658) /app/src/desktop/wisp.c:306 wisp_init: wisp_init: success
+WISP-NETWORK: Process started, connecting...
+(0.419767) /app/frontends/gtk/gui.c:968 nsgtk_setup: Setting default window icon
+(0.419869) /app/src/utils/filepath.c:114 filepath_sfind: Looking for resource: 'SearchEngines'
+(0.420159) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:icons/search.png'
+(0.420199) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x50300042c820 (0x504000104210, 0x7f0ed53320b0, 0x5080000af9a0)
+(0.420206) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:icons/search.png (0, , (nil))
+(0.420240) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:icons/search.png flags:0 referer: post:(nil)
+(0.420248) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.420254) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000bddc0 (resource:icons/search.png)
+(0.420261) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000bddc0
+(0.420269) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000bddc0
+(0.420277) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000afa20, url 'resource:icons/search.png'
+(0.420285) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 0
+(0.420290) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:icons/search.png
+(0.420299) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000afa20, fetcher 0x5060000df460, url resource:icons/search.png
+(0.420305) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 1 fetching
+(0.420309) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 1 elements.
+(0.420313) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.420317) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.420386) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000bddc0
+(0.420394) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x50300042c820 to 0x5110000bddc0
+(0.420410) /app/frontends/gtk/gui.c:976 nsgtk_setup: Using '/usr/local/share/wisp-gtk/SearchEngines' as Search Engines file
+(0.420479) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'https://www.duckduckgo.com/favicon.ico'
+(0.420672) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x50300042ca90 (0x5040001042d0, 0x7f0ed53320b0, 0x5080000afaa0)
+(0.420688) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://www.duckduckgo.com/favicon.ico (0, , (nil))
+(0.420694) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://www.duckduckgo.com/favicon.ico flags:0 referer: post:(nil)
+(0.420699) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.420709) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000be2c0 (https://www.duckduckgo.com/favicon.ico)
+(0.420714) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(0.420724) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://www.duckduckgo.com/favicon.ico not found
+(0.420729) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000be2c0
+(0.420735) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000be2c0
+(0.420747) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000afb20, url 'https://www.duckduckgo.com/favicon.ico'
+(0.420764) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 1
+(0.420834) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(0.420841) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://www.duckduckgo.com/favicon.ico
+(0.420845) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.420850) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000afb20, fetcher 0x50300042caf0, url https://www.duckduckgo.com/favicon.ico
+(0.420886) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(0.420892) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.420900) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.420904) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.420909) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(0.420929) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000be2c0
+(0.420934) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x50300042ca90 to 0x5110000be2c0
+(0.423300) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber0.png
+(0.424203) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber1.png
+(0.424869) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber2.png
+(0.425409) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber3.png
+(0.426088) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber4.png
+(0.426841) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber5.png
+(0.427629) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber6.png
+(0.428456) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber7.png
+WISP-NETWORK: Received message of type 1, length 48
+(0.429061) /app/frontends/gtk/throbber.c:69 nsgtk_throbber_init: throbber/throbber8.png
+(0.429499) /app/frontends/gtk/gui.c:1009 nsgtk_setup: Set CSS DPI to 96
+(0.429531) /app/src/desktop/bitmap.c:120 bitmap_set_format: Setting core bitmap format to: 0xAARRGGBB (native endian) pre multiplied alpha
+(0.429543) /app/src/desktop/bitmap.c:126 bitmap_set_format: Sanitised layout to: Byte-wise BGRA
+(0.433980) /app/src/content/urldb.c:2769 urldb_load: Loading URL file /home/jules/.config/wisp/URLs
+(0.434005) /app/src/content/urldb.c:2777 urldb_load: Failed to open file '/home/jules/.config/wisp/URLs' for reading (this is normal for a clean installation)
+(0.434071) /app/src/desktop/treeview.c:4952 treeview_init: Initialising treeview module
+(0.434112) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:icons/arrow-l.png'
+(0.434122) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000462f40 (0x5040001138d0, 0x7f0ed53320b0, 0x5080000b8f20)
+(0.434128) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:icons/arrow-l.png (0, , (nil))
+(0.434135) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:icons/arrow-l.png flags:0 referer: post:(nil)
+(0.434142) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.434147) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000bf580 (resource:icons/arrow-l.png)
+(0.434153) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000bf580
+(0.434160) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000bf580
+(0.434171) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000b8fa0, url 'resource:icons/arrow-l.png'
+(0.434183) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 2
+(0.434188) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:icons/arrow-l.png
+(0.434193) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.434197) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.434202) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000b8fa0, fetcher 0x5060000f9260, url resource:icons/arrow-l.png
+(0.434208) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 3 fetching
+(0.434212) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 3 elements.
+(0.434217) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.434221) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.434227) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(0.434351) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000bf580
+(0.434358) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000462f40 to 0x5110000bf580
+(0.434438) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:icons/content.png'
+(0.434445) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000464890 (0x504000113950, 0x7f0ed53320b0, 0x5080000b9020)
+(0.434450) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:icons/content.png (0, , (nil))
+(0.434455) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:icons/content.png flags:0 referer: post:(nil)
+(0.434460) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.434464) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000bf6c0 (resource:icons/content.png)
+(0.434468) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000bf6c0
+(0.434474) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000bf6c0
+(0.434478) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000b90a0, url 'resource:icons/content.png'
+(0.434502) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 3
+(0.434509) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:icons/content.png
+(0.434513) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.434516) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.434520) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/arrow-l.png
+(0.434542) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000b90a0, fetcher 0x5060000f9380, url resource:icons/content.png
+(0.434552) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 4 fetching
+(0.434556) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 4 elements.
+(0.434560) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.434564) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.434569) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(0.434580) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000bf6c0
+(0.434585) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000464890 to 0x5110000bf6c0
+(0.434596) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:icons/directory.png'
+(0.434605) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x5030004649e0 (0x5040001139d0, 0x7f0ed53320b0, 0x5080000b9120)
+(0.434610) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:icons/directory.png (0, , (nil))
+(0.434615) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:icons/directory.png flags:0 referer: post:(nil)
+(0.434620) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.434634) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000bf800 (resource:icons/directory.png)
+(0.434638) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000bf800
+(0.434644) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000bf800
+(0.434649) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000b91a0, url 'resource:icons/directory.png'
+(0.434654) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 4
+(0.434658) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:icons/directory.png
+(0.434663) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.434667) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.434671) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/arrow-l.png
+(0.434675) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/content.png
+(0.434679) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000b91a0, fetcher 0x5060000f9440, url resource:icons/directory.png
+(0.434683) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 5 fetching
+(0.434687) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 5 elements.
+(0.434691) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.434695) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.434700) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(0.434759) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000bf800
+(0.434766) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x5030004649e0 to 0x5110000bf800
+(0.434781) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:icons/directory2.png'
+(0.434786) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000464b30 (0x504000113a50, 0x7f0ed53320b0, 0x5080000b9220)
+(0.434823) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:icons/directory2.png (0, , (nil))
+(0.434828) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:icons/directory2.png flags:0 referer: post:(nil)
+(0.434836) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.434841) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000bf940 (resource:icons/directory2.png)
+(0.434878) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000bf940
+(0.434886) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000bf940
+(0.434890) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000b92a0, url 'resource:icons/directory2.png'
+(0.434896) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 5
+(0.434907) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:icons/directory2.png
+(0.434911) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.434914) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.434918) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/arrow-l.png
+(0.434922) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/content.png
+(0.434926) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/directory.png
+(0.434930) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000b92a0, fetcher 0x5060000f9500, url resource:icons/directory2.png
+(0.434934) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 6 fetching
+(0.434938) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 6 elements.
+(0.434942) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.434946) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.434950) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(0.434960) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000bf940
+(0.434965) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000464b30 to 0x5110000bf940
+(0.434981) /app/src/content/hlcache.c:826 hlcache_handle_retrieve: FETCH: joining PENDING 'resource:icons/search.png'
+(0.435010) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000464c80 (0x504000113ad0, 0x7f0ed53320b0, 0x5080000af9a0)
+(0.435021) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000464c80 to 0x5110000bddc0
+(0.435207) /app/src/desktop/treeview.c:4982 treeview_init: Initialised treeview module
+(0.435213) /app/src/desktop/hotlist.c:1203 hotlist_init: Loading hotlist
+(0.448045) /app/src/desktop/hotlist.c:1247 hotlist_init: Loaded hotlist
+(0.474694) /app/frontends/gtk/window.c:1076 gui_window_create: Creating gui window 0x510000015f40 for browser window 0x515000093100
+(0.474716) /app/frontends/gtk/scaffolding.c:1375 nsgtk_new_scaffolding: Constructing a scaffold of 0x51e000009c80 for gui_window 0x510000015f40
+(0.510024) /app/frontends/gtk/scaffolding.c:1439 nsgtk_new_scaffolding: creation complete
+(0.527750) /app/frontends/gtk/tabs.c:186 nsgtk_tab_switch_page_after: sel 0
+(0.527955) /app/src/desktop/browser_window.c:3017 browser_window_navigate: bw 0x515000093100, url http://www.html5test.co/
+(0.528556) /app/src/desktop/browser_window.c:3205 navigate_internal_real: Loading 'http://www.html5test.co/'
+(0.528599) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'http://www.html5test.co/'
+(0.528662) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000519b80 (0x50400016f910, 0x7f0ed53320b0, 0x5080000d25a0)
+(0.528669) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve http://www.html5test.co/ (c0000002, , (nil))
+(0.528676) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for http://www.html5test.co/ flags:c0000002 referer: post:(nil)
+(0.528683) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(0.528689) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000deac0 (http://www.html5test.co/)
+(0.528695) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(0.528704) /app/src/content/fs_backing_store.c:2893 fetch: Entry for http://www.html5test.co/ not found
+(0.528710) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000deac0
+(0.528718) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000deac0
+(0.528728) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000d2620, url 'http://www.html5test.co/'
+(0.528744) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 2
+(0.528753) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 6
+(0.528758) /app/src/content/fetch.c:206 dump_rings: queue_ring: http://www.html5test.co/
+(0.528763) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.528767) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.528776) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/arrow-l.png
+(0.528780) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/content.png
+(0.528785) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/directory.png
+(0.528792) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/directory2.png
+(0.528834) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000d2620, fetcher 0x503000519be0, url http://www.html5test.co/
+(0.528842) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 7 fetching
+(0.528847) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 7 elements.
+(0.528851) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.528856) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(0.528861) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(0.528881) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000deac0
+(0.528887) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000519b80 to 0x5110000deac0
+(0.529313) /app/frontends/gtk/window.c:1262 gui_window_set_icon: Using default favicon
+(0.664846) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.664880) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.664890) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.664898) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.664906) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.664914) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.664995) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.665022) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.665118) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.665128) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.665135) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.665143) /app/src/desktop/browser_window.c:2373 browser_window_redraw: PROFILER: START Browser window redraw 0x515000093100
+(0.675451) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 11 callbacks to fire.
+(0.675696) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 7
+(0.675708) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/search.png
+(0.675713) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.675822) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/arrow-l.png
+(0.675829) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/content.png
+(0.675834) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/directory.png
+(0.675942) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:icons/directory2.png
+(0.675967) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.675975) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 7 elements.
+(0.675979) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.675984) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.676086) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(0.676152) /app/src/content/fetchers/resource.c:164 fetch_resource_data_handler: fetch_resource_data_handler: Sending Content-Type: image/png for icons/search.png
+(0.676163) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bddc0
+(0.676258) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bddc0
+(0.676291) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bddc0
+(0.676301) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bddc0
+(0.676427) /app/src/content/fetchers/resource.c:190 fetch_resource_data_handler: fetch_resource_data_handler: Sending FETCH_DATA (536 bytes) for icons/search.png
+(0.676435) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000bddc0
+(0.676667) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000bddc0
+(0.676696) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000afa20, fetcher 0x5060000df460 can be freed
+(0.676703) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 6 elements.
+(0.676707) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(0.676712) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000afa20, fetcher 0x5060000df460
+(0.676721) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(0.676735) /app/src/content/fetchers/resource.c:164 fetch_resource_data_handler: fetch_resource_data_handler: Sending Content-Type: image/png for icons/arrow-l.png
+(0.676822) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf580
+(0.676833) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf580
+(0.676840) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf580
+(0.676848) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf580
+(0.676865) /app/src/content/fetchers/resource.c:190 fetch_resource_data_handler: fetch_resource_data_handler: Sending FETCH_DATA (284 bytes) for icons/arrow-l.png
+(0.676946) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000bf580
+(0.677117) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000bf580
+(0.677130) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(0.677213) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000b8fa0, fetcher 0x5060000f9260 can be freed
+(0.677220) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 5 elements.
+(0.677224) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(0.677289) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000b8fa0, fetcher 0x5060000f9260
+(0.677298) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(0.677310) /app/src/content/fetchers/resource.c:164 fetch_resource_data_handler: fetch_resource_data_handler: Sending Content-Type: image/png for icons/content.png
+(0.677316) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf6c0
+(0.677324) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf6c0
+(0.677330) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf6c0
+(0.677337) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf6c0
+(0.677423) /app/src/content/fetchers/resource.c:190 fetch_resource_data_handler: fetch_resource_data_handler: Sending FETCH_DATA (598 bytes) for icons/content.png
+(0.677430) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000bf6c0
+(0.677825) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000bf6c0
+(0.677929) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(0.677947) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000b90a0, fetcher 0x5060000f9380 can be freed
+(0.677952) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 4 elements.
+(0.677955) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(0.677959) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000b90a0, fetcher 0x5060000f9380
+(0.677983) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(0.677997) /app/src/content/fetchers/resource.c:164 fetch_resource_data_handler: fetch_resource_data_handler: Sending Content-Type: image/png for icons/directory.png
+(0.678002) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf800
+(0.678011) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf800
+(0.678017) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf800
+(0.678024) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf800
+(0.678109) /app/src/content/fetchers/resource.c:190 fetch_resource_data_handler: fetch_resource_data_handler: Sending FETCH_DATA (259 bytes) for icons/directory.png
+(0.678116) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000bf800
+(0.678472) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000bf800
+(0.678483) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(0.678503) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000b91a0, fetcher 0x5060000f9440 can be freed
+(0.678570) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 3 elements.
+(0.678577) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(0.678582) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000b91a0, fetcher 0x5060000f9440
+(0.678588) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(0.678600) /app/src/content/fetchers/resource.c:164 fetch_resource_data_handler: fetch_resource_data_handler: Sending Content-Type: image/png for icons/directory2.png
+(0.678606) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf940
+(0.678613) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf940
+(0.678680) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf940
+(0.678861) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000bf940
+(0.678881) /app/src/content/fetchers/resource.c:190 fetch_resource_data_handler: fetch_resource_data_handler: Sending FETCH_DATA (336 bytes) for icons/directory2.png
+(0.678886) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000bf940
+(0.679061) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000bf940
+(0.679073) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(0.679088) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000b92a0, fetcher 0x5060000f9500 can be freed
+(0.679094) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 2 elements.
+(0.679098) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(0.679142) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000b92a0, fetcher 0x5060000f9500
+(0.679243) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.679321) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.679326) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.679404) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.679411) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.679416) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.679640) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.679651) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000bf940
+(0.679657) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000464b30 state: 0 Object state: 3
+(0.679708) /app/src/content/content.c:190 content__init: url resource:icons/directory2.png -> 0x514000055e40
+(0.679886) /app/src/content/content.c:660 content_add_user: content resource:icons/directory2.png (0x514000055e40), user 0x7f0ed532d364 0x503000464b00
+(0.680184) /app/src/content/handlers/image/png.c:213 info_callback: size 17 * 17, rowbytes 68
+(0.680236) /app/src/content/content.c:77 content_convert: content resource:icons/directory2.png (0x514000055e40)
+(0.680305) /app/src/content/handlers/image/image_cache.c:638 image_cache_add: centry 0x50b0000ab3f0, content 0x514000055e40, bitmap 0x5030005cc6b0
+(0.680360) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000bf800
+(0.680367) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x5030004649e0 state: 0 Object state: 3
+(0.680430) /app/src/content/content.c:190 content__init: url resource:icons/directory.png -> 0x514000056240
+(0.680464) /app/src/content/content.c:660 content_add_user: content resource:icons/directory.png (0x514000056240), user 0x7f0ed532d364 0x5030004649b0
+(0.680723) /app/src/content/handlers/image/png.c:213 info_callback: size 17 * 17, rowbytes 68
+(0.680840) /app/src/content/content.c:77 content_convert: content resource:icons/directory.png (0x514000056240)
+(0.680863) /app/src/content/handlers/image/image_cache.c:638 image_cache_add: centry 0x50b0000ab4a0, content 0x514000056240, bitmap 0x5030005cc770
+(0.680877) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000bf6c0
+(0.680882) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000464890 state: 0 Object state: 3
+(0.680969) /app/src/content/content.c:190 content__init: url resource:icons/content.png -> 0x514000056640
+(0.681044) /app/src/content/content.c:660 content_add_user: content resource:icons/content.png (0x514000056640), user 0x7f0ed532d364 0x503000464860
+(0.681207) /app/src/content/handlers/image/png.c:213 info_callback: size 17 * 17, rowbytes 68
+(0.681476) /app/src/content/content.c:77 content_convert: content resource:icons/content.png (0x514000056640)
+(0.681504) /app/src/content/handlers/image/image_cache.c:638 image_cache_add: centry 0x50b0000ab550, content 0x514000056640, bitmap 0x5030005cc830
+(0.681518) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000bf580
+(0.681522) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000462f40 state: 0 Object state: 3
+(0.681553) /app/src/content/content.c:190 content__init: url resource:icons/arrow-l.png -> 0x514000056a40
+(0.681631) /app/src/content/content.c:660 content_add_user: content resource:icons/arrow-l.png (0x514000056a40), user 0x7f0ed532d364 0x503000462f10
+(0.681754) /app/src/content/handlers/image/png.c:213 info_callback: size 17 * 17, rowbytes 68
+(0.681949) /app/src/content/content.c:77 content_convert: content resource:icons/arrow-l.png (0x514000056a40)
+(0.682032) /app/src/content/handlers/image/image_cache.c:638 image_cache_add: centry 0x50b0000ab600, content 0x514000056a40, bitmap 0x5030005cc8f0
+(0.682046) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000bddc0
+(0.682051) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000464c80 state: 0 Object state: 3
+(0.682155) /app/src/content/content.c:190 content__init: url resource:icons/search.png -> 0x514000056e40
+(0.682227) /app/src/content/content.c:660 content_add_user: content resource:icons/search.png (0x514000056e40), user 0x7f0ed532d364 0x503000464c50
+(0.682484) /app/src/content/handlers/image/png.c:213 info_callback: size 17 * 17, rowbytes 68
+(0.682596) /app/src/content/content.c:77 content_convert: content resource:icons/search.png (0x514000056e40)
+(0.682614) /app/src/content/handlers/image/image_cache.c:638 image_cache_add: centry 0x50b0000ab6b0, content 0x514000056e40, bitmap 0x5030005cc9b0
+(0.682626) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x50300042c820 state: 0 Object state: 3
+(0.682740) /app/src/content/content.c:660 content_add_user: content resource:icons/search.png (0x514000056e40), user 0x7f0ed532d364 0x50300042c7f0
+(0.682754) /app/src/desktop/searchweb.c:487 default_ico_callback: default icon 'resource:icons/search.png' retrieved
+(0.682764) /app/src/content/llcache.c:368 llcache_object_remove_user: Removing user 0x50300042c820 from 0x5110000bddc0
+(0.682798) /app/src/content/llcache.c:325 llcache_object_user_destroy: Destroyed user 0x50300042c820
+(0.682807) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.682812) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.682817) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.682822) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.682826) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.682830) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.690216) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.690230) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.690236) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.690240) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.690296) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.690302) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.690334) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.690437) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.690443) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.690447) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.690452) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.690456) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.690460) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.690560) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.690566) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.690571) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.690648) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.690654) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.690677) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.700961) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.700976) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.700982) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.700986) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.700991) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.700996) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.701068) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.701259) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.701285) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.701329) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.701336) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.701340) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.701344) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.701464) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.701471) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.701475) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.701504) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.701509) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.701513) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.711882) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.711896) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.711988) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.711995) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.711999) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.712004) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.712008) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.712161) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.712168) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.712173) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.712177) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.712181) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.712185) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.712393) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.712460) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.712466) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.712471) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.712475) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.712479) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.722883) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.723050) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.723059) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.723065) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.723069) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.723074) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.723078) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.723227) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.723235) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.723239) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.723244) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.723249) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.723253) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.723351) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.723425) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.723431) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.723435) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.723440) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.723444) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.733940) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.733956) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.733962) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.733967) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.733972) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.733976) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.733981) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.734231) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.734309) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.734317) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.734321) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.734326) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.734330) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.734556) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.734563) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.734567) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.734571) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.734575) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.734579) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.744875) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.744892) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.744898) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.744903) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.744908) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.744913) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.744918) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.745209) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.745217) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.745221) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.745226) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.745231) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.745235) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.745411) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.745418) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.745422) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.745491) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.745498) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.745502) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.755873) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.755889) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.755895) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.755981) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.755987) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.755991) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.755996) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.756137) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.756144) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.756148) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.756152) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.756156) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.756216) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.756360) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.756367) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.756371) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.756375) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.756379) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.756383) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+WISP-NETWORK: Received message of type 1, length 34
+(0.770067) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.770082) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.770088) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.770093) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.770098) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.770117) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.770121) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.770167) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.770172) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.770177) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.770181) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.770186) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.770190) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.770219) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.770223) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.770228) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.770233) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.770240) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.770245) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.779626) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.779686) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.779694) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.779699) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.779703) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.779708) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.779713) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.779749) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.779754) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.779825) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.779840) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.779848) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.779863) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.781063) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.781074) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.781079) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.781084) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.781089) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.781093) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.781097) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.781126) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.781131) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.781138) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.781142) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.781147) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.781151) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.781180) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.781185) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.781189) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.781194) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.781198) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.781202) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.791594) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.791609) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.791622) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.791627) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.791631) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.791635) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.791640) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.791669) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.791674) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.791678) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.791682) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.791686) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.791691) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.791719) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.791727) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.791731) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.791735) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.791739) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.791743) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.802090) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.802105) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.802111) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.802116) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.824318) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.824329) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.824335) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.824567) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.824577) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.824582) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.824587) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.824592) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.824596) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.824800) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.824809) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.824814) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.824819) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.824823) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.824828) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(0.835234) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 1 callbacks to fire.
+(0.835250) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(0.835257) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(0.835262) /app/src/content/fetch.c:213 dump_rings: fetch_ring: http://www.html5test.co/
+(0.835267) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(0.835271) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(0.835276) /app/src/content/fetch.c:252 fetcher_poll: Polling fetchers
+(0.835396) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 36
+(0.835406) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835606) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 28
+(0.835615) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835631) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 25
+(0.835636) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835646) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 24
+(0.835651) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835824) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 29
+(0.835894) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835913) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 37
+(0.835918) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835930) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 62
+(0.835935) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835949) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 31
+(0.835954) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835965) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(0.835970) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(0.835982) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(0.836000) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.193638) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 22
+(1.193654) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.193669) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 13
+(1.193674) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.193796) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(1.193934) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194023) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 18
+(1.194031) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194043) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 21
+(1.194047) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194058) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(1.194062) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194072) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 27
+(1.194077) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194145) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 67
+(1.194152) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194164) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 6
+(1.194169) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000deac0
+(1.194183) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 6, length 30
+(1.194188) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 301
+(1.194257) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 7 for 0x5110000deac0
+(1.194269) /app/src/content/fetch.c:586 fetch_abort: fetch 0x5080000d2620, fetcher 0x503000519be0, url 'http://www.html5test.co/'
+(1.194340) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000d2620, fetcher 0x503000519be0 can be freed
+(1.194349) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 1 elements.
+(1.194353) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(1.194358) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000d2620, fetcher 0x503000519be0
+(1.196024) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://html5test.co/ (c0000002, , (nil))
+(1.196038) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://html5test.co/ flags:c0000002 referer: post:(nil)
+(1.196045) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(1.196050) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e4600 (https://html5test.co/)
+(1.196056) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(1.196066) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://html5test.co/ not found
+(1.196072) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e4600
+(1.196110) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e4600
+(1.196122) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f1e20, url 'https://html5test.co/'
+(1.196136) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 3
+(1.196144) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(1.196148) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://html5test.co/
+(1.603660) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://www.duckduckgo.com/favicon.ico
+(1.603782) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f1e20, fetcher 0x5030005ce390, url https://html5test.co/
+(1.603793) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(1.603798) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(1.603803) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(1.603807) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(1.603865) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e4600
+(1.603894) /app/src/content/llcache.c:368 llcache_object_remove_user: Removing user 0x503000519b80 from 0x5110000deac0
+(1.603900) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000519b80 to 0x5110000e4600
+(1.603925) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 17
+(1.603932) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.603994) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 19
+(1.604008) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604023) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(1.604032) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604057) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 29
+(1.604062) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604074) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 25
+(1.604078) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604090) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 50
+(1.604095) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604151) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 49
+(1.604158) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604170) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(1.604175) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604188) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 37
+(1.604193) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604262) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 6
+(1.604270) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000be2c0
+(1.604294) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 6, length 43
+(1.604299) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 301
+(1.604304) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 7 for 0x5110000be2c0
+(1.604310) /app/src/content/fetch.c:586 fetch_abort: fetch 0x5080000afb20, fetcher 0x50300042caf0, url 'https://www.duckduckgo.com/favicon.ico'
+(1.604325) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000afb20, fetcher 0x50300042caf0 can be freed
+(1.604330) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 1 elements.
+(1.604335) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(1.604340) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000afb20, fetcher 0x50300042caf0
+WISP-NETWORK: Received message of type 9, length 4
+WISP-NETWORK: Received message of type 1, length 31
+WISP-NETWORK: Received message of type 9, length 4
+(1.604820) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://duckduckgo.com/favicon.ico (0, , (nil))
+(2.410714) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://duckduckgo.com/favicon.ico flags:0 referer: post:(nil)
+(2.410750) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(2.410762) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e4740 (https://duckduckgo.com/favicon.ico)
+(2.410770) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(2.410783) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://duckduckgo.com/favicon.ico not found
+(2.410790) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e4740
+(2.410800) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e4740
+(2.410813) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f1fa0, url 'https://duckduckgo.com/favicon.ico'
+(2.410832) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 4
+(2.410841) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(2.410846) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://duckduckgo.com/favicon.ico
+(2.410850) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/
+(2.410857) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f1fa0, fetcher 0x5030005ce780, url https://duckduckgo.com/favicon.ico
+(2.410862) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(2.410866) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(2.410871) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(2.410875) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(2.410887) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(2.410915) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e4740
+(2.410926) /app/src/content/llcache.c:368 llcache_object_remove_user: Removing user 0x50300042ca90 from 0x5110000be2c0
+(2.410931) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x50300042ca90 to 0x5110000e4740
+(2.410947) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 17
+(2.410953) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.410970) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 24
+(2.410975) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.410986) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(2.410990) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.411000) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 50
+(2.411004) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.411021) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 36
+(2.411025) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.411035) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 29
+(2.411040) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.411063) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(2.411068) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.411079) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 32
+(2.411087) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.411114) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 28
+(2.800534) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800643) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 25
+(2.800652) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800681) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 63
+(2.800686) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800703) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 31
+(2.800707) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800720) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(2.800724) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800735) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(2.800744) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800763) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 22
+(2.800768) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800780) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 13
+(2.800785) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800796) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(2.800801) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800811) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 18
+(2.800816) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800825) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 21
+(2.800830) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800840) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(2.800845) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800854) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 27
+(2.800859) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800871) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 67
+(2.800879) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800889) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(2.800893) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.800918) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 6
+(2.800925) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4600
+(2.801273) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 3, length 10628
+(2.801293) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000e4600
+(2.801657) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 4, length 8
+(2.801670) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(2.801679) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000e4600
+(2.801964) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: WISP-NETWORK: Received message of type 1, length 44
+Found match for 0x7f0ed53587ca((nil)), killing.
+(3.579236) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000f1e20, fetcher 0x5030005ce390 can be freed
+(3.579253) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 1 elements.
+(3.579258) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(3.579263) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000f1e20, fetcher 0x5030005ce390
+(3.579293) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 17
+(3.579306) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579330) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 19
+(3.579335) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579348) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(3.579353) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579371) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 32
+(3.579380) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579392) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 50
+(3.579397) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579409) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 27
+(3.579414) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579425) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 28
+(3.579430) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579449) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 49
+(3.579454) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579465) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(3.579473) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579489) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 2197
+(3.579494) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579513) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 33
+(3.579676) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579697) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 36
+(3.579707) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579729) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 37
+(3.579735) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579746) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 29
+(3.579751) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579761) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(3.579766) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579785) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 70
+(3.579790) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.579803) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 311
+(3.579811) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.978366) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(3.978387) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.978407) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 34
+(3.978412) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.978461) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 32
+(3.978466) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.978476) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(3.978481) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.978533) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 6
+(3.978540) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e4740
+(3.978555) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 3, length 2803
+(3.978560) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000e4740
+(3.978746) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 4, length 8
+(3.978754) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(3.978883) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000e4740
+(3.979082) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(3.979115) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000f1fa0, fetcher 0x5030005ce780 can be freed
+(3.979121) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 0 elements.
+(3.979126) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(3.979131) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000f1fa0, fetcher 0x5030005ce780
+(3.979180) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(3.979243) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 0
+(3.979250) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 0 elements.
+(3.979255) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(3.979259) /app/src/content/fetch.c:391 fetch_fdset: No jobs
+(3.981889) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 4 callbacks to fire.
+(3.981940) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000e4740
+(3.981946) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x50300042ca90 state: 0 Object state: 3
+(3.981989) /app/src/content/content.c:190 content__init: url https://duckduckgo.com/favicon.ico -> 0x513000068240
+(3.982025) /app/src/content/content.c:660 content_add_user: content https://duckduckgo.com/favicon.ico (0x513000068240), user 0x7f0ed532d364 0x50300042ca30
+(3.982039) /app/src/content/content.c:77 content_convert: content https://duckduckgo.com/favicon.ico (0x513000068240)
+(3.982060) /app/src/desktop/searchweb.c:288 search_web_ico_callback: icon https://duckduckgo.com/favicon.ico error: unknown error
+(3.982068) /app/src/content/content.c:682 content_remove_user: content https://duckduckgo.com/favicon.ico (0x513000068240), user 0x7f0ed532d364 0x50300042ca30
+(3.982079) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000e4600
+(3.982129) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000519b80 state: 0 Object state: 3
+(3.982271) /app/src/content/content.c:190 content__init: url https://html5test.co/ -> 0x51c00002f880
+(3.982283) /app/src/content/handlers/html/html.c:600 html_create_html_data: >>> html_create_html_data called for content 0x51c00002f880
+(4.360100) /app/src/content/handlers/html/html.c:719 html_create_html_data: <<< html_create_html_data SUCCESS, parser=0x5110000e5280 for content 0x51c00002f880
+(4.360137) /app/src/content/handlers/html/css.c:648 html_css_new_stylesheets: ACTIVE++ → 2 (default.css fetch start) [content=0x51c00002f880]
+(4.360172) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:default.css'
+(4.360183) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x5030005d25c0 (0x504000184510, 0x7f0ed53320b0, 0x5080000f21a0)
+(4.360189) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:default.css (0, https://html5test.co/, (nil))
+(4.360262) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:default.css flags:0 referer:https://html5test.co/ post:(nil)
+(4.360272) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(4.360278) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e5500 (resource:default.css)
+(4.360284) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e5500
+(4.360294) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e5500
+(4.360300) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f2220, url 'resource:default.css'
+(4.360309) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 0
+(4.360313) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:default.css
+(4.360318) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f2220, fetcher 0x5060001b91a0, url resource:default.css
+(4.360323) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 1 fetching
+(4.360327) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 1 elements.
+(4.360331) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(4.360335) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(4.360343) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(4.360422) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e5500
+(4.360516) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x5030005d25c0 to 0x5110000e5500
+(4.360587) /app/src/content/handlers/html/css.c:673 html_css_new_stylesheets: ACTIVE++ → 3 (user.css fetch start) [content=0x51c00002f880]
+(4.360601) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'resource:user.css'
+(4.360609) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x5030005d27d0 (0x5040001845d0, 0x7f0ed53320b0, 0x5080000f22a0)
+(4.360614) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve resource:user.css (0, https://html5test.co/, (nil))
+(4.360620) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for resource:user.css flags:0 referer:https://html5test.co/ post:(nil)
+(4.360626) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(4.360631) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e5640 (resource:user.css)
+(4.360636) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e5640
+(4.360701) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e5640
+(4.360709) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f2320, url 'resource:user.css'
+(4.360716) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(4.360721) /app/src/content/fetch.c:206 dump_rings: queue_ring: resource:user.css
+(4.360725) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:default.css
+(4.360729) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f2320, fetcher 0x5060001b9200, url resource:user.css
+(4.744641) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(4.744658) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(4.744663) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(4.744668) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(4.744679) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(4.744810) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e5640
+(4.744821) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x5030005d27d0 to 0x5110000e5640
+(4.744844) /app/src/content/content.c:660 content_add_user: content https://html5test.co/ (0x51c00002f880), user 0x7f0ed532d364 0x503000519b20
+(4.745252) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 2
+(4.745263) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:default.css
+(4.745268) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:user.css
+(4.745272) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(4.745276) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(4.745280) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(4.745453) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(4.745483) /app/src/content/fetchers/resource.c:164 fetch_resource_data_handler: fetch_resource_data_handler: Sending Content-Type: text/css for default.css
+(4.745491) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5500
+(4.745506) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5500
+(4.745515) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5500
+(4.745524) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5500
+(4.745612) /app/src/content/fetchers/resource.c:190 fetch_resource_data_handler: fetch_resource_data_handler: Sending FETCH_DATA (5432 bytes) for default.css
+(4.745619) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000e5500
+(4.745880) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000e5500
+(4.746126) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(4.746150) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000f2220, fetcher 0x5060001b91a0 can be freed
+(4.746156) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 1 elements.
+(4.746160) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(4.746165) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000f2220, fetcher 0x5060001b91a0
+(4.746172) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 302
+(4.746178) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 7 for 0x5110000e5640
+(4.746183) /app/src/content/fetch.c:586 fetch_abort: fetch 0x5080000f2320, fetcher 0x5060001b9200, url 'resource:user.css'
+(4.746222) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve file:///usr/local/share/wisp-gtk/user.css (0, https://html5test.co/, (nil))
+(4.746230) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for file:///usr/local/share/wisp-gtk/user.css flags:0 referer:https://html5test.co/ post:(nil)
+(4.746238) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(4.746244) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e5780 (file:///usr/local/share/wisp-gtk/user.css)
+(4.746250) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e5780
+(4.746330) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e5780
+(4.746339) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f23a0, url 'file:///usr/local/share/wisp-gtk/user.css'
+(5.102790) /app/src/content/fetchers/file/file.c:151 fetch_file_setup: fetch_file_setup: url 'file:///usr/local/share/wisp-gtk/user.css' -> path '/usr/local/share/wisp-gtk/user.css'
+(5.102810) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(5.102817) /app/src/content/fetch.c:206 dump_rings: queue_ring: file:///usr/local/share/wisp-gtk/user.css
+(5.102822) /app/src/content/fetch.c:213 dump_rings: fetch_ring: resource:user.css
+(5.102829) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f23a0, fetcher 0x5060001b9380, url file:///usr/local/share/wisp-gtk/user.css
+(5.102963) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(5.102971) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(5.102976) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(5.102981) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(5.102991) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(5.103132) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e5780
+(5.103145) /app/src/content/llcache.c:368 llcache_object_remove_user: Removing user 0x5030005d27d0 from 0x5110000e5640
+(5.103151) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x5030005d27d0 to 0x5110000e5780
+(5.103158) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000f2320, fetcher 0x5060001b9200 can be freed
+(5.103221) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 1 elements.
+(5.103229) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(5.103234) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000f2320, fetcher 0x5060001b9200
+(5.106885) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 5 callbacks to fire.
+(5.106950) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000e5500
+(5.106957) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x5030005d25c0 state: 0 Object state: 3
+(5.107010) /app/src/content/content.c:190 content__init: url resource:default.css -> 0x514000057840
+(5.109786) /app/src/content/handlers/css/css.c:238 nscss_create_css_data: css_stylesheet_create succeeded for 0x5140000579b0
+(5.109817) /app/src/content/content.c:660 content_add_user: content resource:default.css (0x514000057840), user 0x7f0ed532d364 0x5030005d2590
+(5.109906) /app/src/content/handlers/css/css.c:256 nscss_process_data: Processing CSS data: 5432 bytes for 0x514000057840
+(5.109957) /app/src/content/handlers/css/css.c:257 nscss_process_data: PROFILER: START CSS parsing 0x514000057840
+(5.110919) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: html
+(5.111186) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: head
+(5.111739) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(5.112450) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(5.112793) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(5.113520) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h2
+(5.114486) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h3
+(5.115073) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h4
+(5.116031) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h5
+(5.116841) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h6
+(5.117743) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: address
+(5.118150) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: em
+(5.543095) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: strong
+(5.543410) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: dfn
+(5.544059) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: code
+(5.544333) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: samp
+(5.544631) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: kbd
+(5.545137) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: var
+(5.545652) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: cite
+(5.545863) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: abbr
+(5.546162) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: acronym
+(5.546475) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: blockquote
+(5.546926) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: q
+(5.547125) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: sub
+(5.547629) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: sup
+(5.547971) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: p
+(5.548634) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: br
+(5.549117) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: br
+(5.549448) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: br
+(5.549953) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: pre
+(5.550630) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: nobr
+(5.550823) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ins
+(5.551162) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: del
+(5.551800) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.552600) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ol
+(5.553545) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(5.553828) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.553837) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554162) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554232) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554242) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554771) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ol
+(5.554840) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554851) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554857) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ol
+(5.554918) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.554928) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(5.555018) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ol
+(5.555028) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ol
+(5.555395) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: dl
+(6.014168) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: dt
+(6.014742) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: dd
+(6.015208) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: dir
+(6.015925) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: menu
+(6.016681) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: table
+(6.017266) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: table
+(6.017285) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: table
+(6.017296) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: td
+(6.017343) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: table
+(6.017354) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tr
+(6.017573) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: caption
+(6.017769) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: thead
+(6.018244) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tfoot
+(6.018617) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tbody
+(6.018960) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: colgroup
+(6.019163) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: col
+(6.019474) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: table
+(6.019486) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tr
+(6.019826) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tr
+(6.020230) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: td
+(6.020241) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: th
+(6.020644) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: th
+(6.020910) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(6.021149) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(6.021428) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: img
+(6.021590) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: center
+(6.021702) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tt
+(6.021840) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: i
+(6.022005) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: b
+(6.022131) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: big
+(6.022357) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: small
+(6.022545) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: strike
+(6.022674) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: s
+(6.022868) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: u
+(6.023093) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: hr
+(6.023833) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: hr
+(6.024027) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: noframes
+(6.483819) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: iframe
+(6.484119) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: form
+(6.484335) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.484398) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: button
+(6.485543) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.486015) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.486086) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.486096) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.486103) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: button
+(6.486767) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.486965) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.486979) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.487110) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.487327) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.487392) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(6.487433) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: select
+(6.487847) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: select
+(6.488065) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: textarea
+(6.488343) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: textarea
+(6.488438) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: fieldset
+(6.488568) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: noembed
+(6.488575) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: script
+(6.488581) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: style
+(6.488586) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: title
+(6.488667) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: article
+(6.488674) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: aside
+(6.488679) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: figcaption
+(6.488688) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: figure
+(6.488694) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: footer
+(6.488699) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: header
+(6.488704) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: main
+(6.488709) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: nav
+(6.488715) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: section
+(6.488751) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: mark
+(6.488811) /app/src/content/handlers/css/css.c:260 nscss_process_data: PROFILER: STOP CSS parsing 0x514000057840
+(6.488837) /app/src/content/content.c:77 content_convert: content resource:default.css (0x514000057840)
+(6.488843) /app/src/content/handlers/css/css.c:293 nscss_convert: nscss_convert called for 0x514000057840
+(6.963114) /app/src/content/handlers/css/css.c:487 nscss_content_done: nscss_content_done called for 0x514000057840
+(6.963161) /app/src/content/handlers/html/css.c:117 html_convert_css_callback: done stylesheet slot 0 'resource:default.css'
+(6.963169) /app/src/content/handlers/html/css.c:118 html_convert_css_callback: ACTIVE-- → 2 (CSS callback DONE) [content=0x51c00002f880]
+(6.963180) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110000e4600
+(6.963186) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000519b80 state: 2 Object state: 3
+(6.963483) /app/src/content/content.c:77 content_convert: content https://html5test.co/ (0x51c00002f880)
+(7.091336) /app/src/content/handlers/html/dom_event.c:657 dom_default_action_DOMNodeInserted_cb: javascript context: 0x5110000ea140 (htmlc: 0x51c00002f880)
+(7.092508) /app/src/content/handlers/html/css.c:483 html_css_process_link: linked stylesheet 4 'https://html5test.co/css/main.css'
+(7.092525) /app/src/content/handlers/html/css.c:510 html_css_process_link: ACTIVE++ → 4 (linked CSS fetch start) [content=0x51c00002f880]
+(7.092547) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'https://html5test.co/css/main.css'
+(7.092611) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000627df0 (0x5040001d39d0, 0x7f0ed53320b0, 0x50800017bd20)
+(7.092618) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://html5test.co/css/main.css (0, https://html5test.co/, (nil))
+(7.092625) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://html5test.co/css/main.css flags:0 referer:https://html5test.co/ post:(nil)
+(7.092632) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(7.092638) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110001399c0 (https://html5test.co/css/main.css)
+(7.092644) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(7.092654) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://html5test.co/css/main.css not found
+(7.092659) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110001399c0
+(7.092669) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110001399c0
+(7.092679) /app/src/content/fetch.c:527 fetch_start: fetch 0x50800017bda0, url 'https://html5test.co/css/main.css'
+(7.092697) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 5
+(7.092705) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(7.092709) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://html5test.co/css/main.css
+(7.092714) /app/src/content/fetch.c:213 dump_rings: fetch_ring: file:///usr/local/share/wisp-gtk/user.css
+(7.092719) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x50800017bda0, fetcher 0x503000627e80, url https://html5test.co/css/main.css
+(7.092724) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(7.092729) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(7.092733) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(7.092737) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(7.092745) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(7.092777) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110001399c0
+(7.092783) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000627df0 to 0x5110001399c0
+(7.092969) /app/src/content/handlers/html/dom_event.c:280 dom_SCRIPT_showed_up: Script was parser inserted, skipping
+(7.092991) /app/src/content/handlers/html/script.c:844 html_process_script: html_process_script: content 0x51c00002f880 parser 0x5110000e5280 node 0x511000139b00
+WISP-NETWORK: Received message of type 1, length 43
+(7.093005) /app/src/content/handlers/html/script.c:845 html_process_script: PROFILER: START JS execute 0x511000139b00
+(7.423727) /app/src/content/handlers/html/script.c:851 html_process_script: html_process_script: mimetype='text/javascript'
+(7.423741) /app/src/content/handlers/html/script.c:858 html_process_script: html_process_script: fetching EXTERNAL script: /scripts/base.js
+(7.423797) /app/src/content/handlers/html/script.c:619 exec_src_script: script 0 'https://html5test.co/scripts/base.js'
+(7.423820) /app/src/content/handlers/html/script.c:693 exec_src_script: DIAG: exec_src_script: content=0x51c00002f880 active=5 scripts_active=1 (pre-retrieve)
+(7.423850) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'https://html5test.co/scripts/base.js'
+(7.423917) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000628300 (0x5040001d3c10, 0x7f0ed53320b0, 0x50800017bea0)
+(7.423924) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://html5test.co/scripts/base.js (0, https://html5test.co/, (nil))
+(7.423932) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://html5test.co/scripts/base.js flags:0 referer:https://html5test.co/ post:(nil)
+(7.423941) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(7.423947) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x511000139c40 (https://html5test.co/scripts/base.js)
+(7.423954) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(7.423964) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://html5test.co/scripts/base.js not found
+(7.423970) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x511000139c40
+(7.423981) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x511000139c40
+(7.423997) /app/src/content/fetch.c:527 fetch_start: fetch 0x50800017bf20, url 'https://html5test.co/scripts/base.js'
+(7.424018) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 6
+(7.424027) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 2
+(7.424032) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://html5test.co/scripts/base.js
+(7.424037) /app/src/content/fetch.c:213 dump_rings: fetch_ring: file:///usr/local/share/wisp-gtk/user.css
+(7.424043) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/css/main.css
+(7.424050) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x50800017bf20, fetcher 0x503000628390, url https://html5test.co/scripts/base.js
+(7.424056) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 3 fetching
+(7.424060) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 3 elements.
+(7.424065) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(7.424070) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(7.424079) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(7.424113) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x511000139c40
+(7.424118) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000628300 to 0x511000139c40
+(7.424124) /app/src/content/handlers/html/script.c:720 exec_src_script: 5 fetches active
+(7.424137) /app/src/content/handlers/html/script.c:864 html_process_script: PROFILER: STOP JS execute 0x511000139b00
+(7.424330) /app/src/content/handlers/html/html.c:1084 html_convert: quirks set to 0
+(7.424347) /app/src/content/handlers/html/html.c:1088 html_convert: 4 fetches active (0x51c00002f880)
+(7.424355) /app/src/content/handlers/html/html.c:1134 html_can_begin_conversion: Conversion gate blocked on downloads: active=4 scripts_active=1
+(7.424414) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 0, fetch_ring 3
+(7.424420) /app/src/content/fetch.c:213 dump_rings: fetch_ring: file:///usr/local/share/wisp-gtk/user.css
+(7.424426) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/css/main.css
+(7.844476) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/scripts/base.js
+(7.844487) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 3 elements.
+(7.844492) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(7.844510) /app/src/content/fetch.c:396 fetch_fdset: Polling fetchers
+(7.844549) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 17
+(7.844557) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844588) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 24
+(7.844593) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844609) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 43
+(7.844614) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844625) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 50
+(7.844630) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844647) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 36
+(7.844652) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844662) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 29
+(7.844667) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844679) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+(7.844683) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844705) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 32
+(7.844710) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844742) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 28
+(7.844747) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844758) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 25
+(7.844762) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844774) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 62
+(7.844778) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844790) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 31
+(7.844795) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844806) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(7.844810) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844829) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(7.844843) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844854) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 22
+(7.844862) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844872) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 13
+(7.844877) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(7.844888) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 44
+WISP-NETWORK: Received message of type 1, length 46
+(7.844892) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.243880) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 18
+(8.243895) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.243910) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 21
+(8.243915) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.243928) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 41
+(8.243933) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.243943) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 27
+(8.243948) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.243963) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 67
+(8.243970) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.243982) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 26
+(8.244005) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.244016) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 2, length 6
+(8.244021) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110001399c0
+(8.244113) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 3, length 16388
+(8.244126) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110001399c0
+(8.244625) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 3, length 12400
+(8.244635) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110001399c0
+(8.244673) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 3, length 9561
+(8.244678) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110001399c0
+(8.244694) /app/src/content/fetchers/ipc.c:190 fetch_ipc_poll: fetch_ipc_poll: Received message of type 4, length 8
+(8.244698) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(8.244703) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110001399c0
+(8.244770) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(8.244810) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x50800017bda0, fetcher 0x503000627e80 can be freed
+(8.244815) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 2 elements.
+(8.244820) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(8.244828) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x50800017bda0, fetcher 0x503000627e80
+(8.245102) /app/src/content/fetch.c:823 fetch_set_http_code: Setting HTTP code to 200
+(8.245166) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5780
+(8.245186) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5780
+(8.245194) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 2 for 0x5110000e5780
+(8.245203) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 3 for 0x5110000e5780
+(8.245317) /app/src/content/llcache.c:2920 llcache_fetch_callback: Fetch event 4 for 0x5110000e5780
+(8.245354) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed53587ca((nil)), killing.
+(8.245397) /app/src/content/fetch.c:802 fetch_remove_from_queues: Fetch 0x5080000f23a0, fetcher 0x5060001b9380 can be freed
+(8.245403) /app/src/content/fetch.c:815 fetch_remove_from_queues: Fetch ring is now 1 elements.
+(8.245411) /app/src/content/fetch.c:816 fetch_remove_from_queues: Queue ring is now 0 elements.
+(8.643859) /app/src/content/fetch.c:605 fetch_free: Freeing fetch 0x5080000f23a0, fetcher 0x5060001b9380
+(8.645076) /app/frontends/gtk/schedule.c:200 schedule_run: Captured a run of 12 callbacks to fire.
+(8.645170) /app/src/content/llcache.c:3225 llcache_object_notify_users: Notifying users of 0x5110001399c0
+(8.645176) /app/src/content/llcache.c:3229 llcache_object_notify_users: User 0x503000627df0 state: 0 Object state: 3
+(8.645247) /app/src/content/content.c:190 content__init: url https://html5test.co/css/main.css -> 0x514000057e40
+(8.645407) /app/src/content/handlers/css/css.c:238 nscss_create_css_data: css_stylesheet_create succeeded for 0x514000057fb0
+(8.645422) /app/src/content/content.c:660 content_add_user: content https://html5test.co/css/main.css (0x514000057e40), user 0x7f0ed532d364 0x503000627d90
+(8.645435) /app/src/content/handlers/html/html.c:1182 html_begin_conversion: Completing parse (0x51c00002f880)
+(8.645458) /app/src/content/handlers/html/html.c:1195 html_begin_conversion: Completing parse brought synchronous JS to light, cannot complete yet (active: 4)
+(8.645463) /app/src/content/handlers/html/html.c:1209 html_begin_conversion: Safety timeout: forcing unpause of synchronous JS parser!
+(8.645699) /app/src/content/handlers/html/dom_event.c:280 dom_SCRIPT_showed_up: Script was parser inserted, skipping
+(8.645723) /app/src/content/handlers/html/script.c:844 html_process_script: html_process_script: content 0x51c00002f880 parser 0x5110000e5280 node 0x5110000e6900
+(8.645729) /app/src/content/handlers/html/script.c:845 html_process_script: PROFILER: START JS execute 0x5110000e6900
+(8.645736) /app/src/content/handlers/html/script.c:851 html_process_script: html_process_script: mimetype='text/javascript'
+(8.645741) /app/src/content/handlers/html/script.c:858 html_process_script: html_process_script: fetching EXTERNAL script: /scripts/9/engine.js
+(8.645759) /app/src/content/handlers/html/script.c:619 exec_src_script: script 1 'https://html5test.co/scripts/9/engine.js'
+(8.645771) /app/src/content/handlers/html/script.c:693 exec_src_script: DIAG: exec_src_script: content=0x51c00002f880 active=5 scripts_active=2 (pre-retrieve)
+(8.645795) /app/src/content/hlcache.c:909 hlcache_handle_retrieve: FETCH: cache MISS (new fetch) 'https://html5test.co/scripts/9/engine.js'
+(8.645841) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000629710 (0x50400018d690, 0x7f0ed53320b0, 0x5080000f2720)
+(8.645847) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://html5test.co/scripts/9/engine.js (0, https://html5test.co/, (nil))
+(8.645854) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://html5test.co/scripts/9/engine.js flags:0 referer:https://html5test.co/ post:(nil)
+(8.645861) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(8.645866) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e6a40 (https://html5test.co/scripts/9/engine.js)
+(8.645872) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(8.645884) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://html5test.co/scripts/9/engine.js not found
+(8.645890) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e6a40
+(8.645899) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e6a40
+(8.645908) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f27a0, url 'https://html5test.co/scripts/9/engine.js'
+(8.645948) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 7
+(8.645955) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 1
+(8.645960) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://html5test.co/scripts/9/engine.js
+(8.645964) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/scripts/base.js
+(8.645970) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f27a0, fetcher 0x5030006297a0, url https://html5test.co/scripts/9/engine.js
+(9.044618) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 2 fetching
+(9.044629) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 2 elements.
+(9.044633) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(9.044637) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(9.044652) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+WISP-NETWORK: Received message of type 1, length 50
+(9.044702) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e6a40
+(9.044710) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000629710 to 0x5110000e6a40
+(9.044756) /app/src/content/handlers/html/script.c:720 exec_src_script: 5 fetches active
+(9.044768) /app/src/content/handlers/html/script.c:864 html_process_script: PROFILER: STOP JS execute 0x5110000e6900
+(9.044789) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed54f4188(0x51c00002f880), killing.
+(9.044858) /app/src/content/handlers/css/css.c:256 nscss_process_data: Processing CSS data: 38337 bytes for 0x514000057e40
+(9.044865) /app/src/content/handlers/css/css.c:257 nscss_process_data: PROFILER: START CSS parsing 0x514000057e40
+(9.045911) /app/src/content/handlers/css/css.c:559 nscss_handle_font_face: Parsed @font-face for family 'html5test'
+(9.046012) /app/src/content/handlers/html/font_face.c:376 html_font_face_process: Processing @font-face 'html5test' (weight=1 style=1)
+(9.046138) /app/src/content/handlers/html/font_face.c:317 fetch_font_url: Fetching font 'html5test' (weight=1 style=1) from https://html5test.co/fonts/html5test.ttf
+(9.046207) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000629b00 (0x50400018d8d0, 0x7f0ed54c6a94, 0x7f0ed6bb9ca0)
+(9.046213) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://html5test.co/fonts/html5test.ttf (0, https://html5test.co/css/main.css, (nil))
+(9.046221) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://html5test.co/fonts/html5test.ttf flags:0 referer:https://html5test.co/css/main.css post:(nil)
+(9.046234) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(9.046239) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e6b80 (https://html5test.co/fonts/html5test.ttf)
+(9.046245) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(9.046256) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://html5test.co/fonts/html5test.ttf not found
+(9.046262) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e6b80
+(9.046274) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e6b80
+(9.046283) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f2aa0, url 'https://html5test.co/fonts/html5test.ttf'
+(9.046301) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 8
+(9.046310) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 2
+(9.046314) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://html5test.co/fonts/html5test.ttf
+(9.046322) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/scripts/base.js
+(9.046327) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/scripts/9/engine.js
+(9.046332) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f2aa0, fetcher 0x503000629b60, url https://html5test.co/fonts/html5test.ttf
+(9.046337) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 3 fetching
+(9.046341) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 3 elements.
+(9.046345) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(9.046349) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(9.046355) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(9.046387) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e6b80
+(9.046392) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000629b00 to 0x5110000e6b80
+(9.046607) /app/src/content/handlers/css/css.c:559 nscss_handle_font_face: Parsed @font-face for family 'League Gothic'
+(9.046616) /app/src/content/handlers/html/font_face.c:376 html_font_face_process: Processing @font-face 'League Gothic' (weight=1 style=1)
+(9.433838) /app/src/content/handlers/html/font_face.c:317 fetch_font_url: Fetching font 'League Gothic' (weight=1 style=1) from https://html5test.co/fonts/leaguegothic-regular-webfont.ttf
+(9.433912) /app/src/content/llcache.c:308 llcache_object_user_new: Created user 0x503000629ce0 (0x50400018db90, 0x7f0ed54c6a94, 0x7f0ed6bb9cc0)
+(9.433921) /app/src/content/llcache.c:1991 llcache_object_retrieve: Retrieve https://html5test.co/fonts/leaguegothic-regular-webfont.ttf (0, https://html5test.co/css/main.css, (nil))
+(9.433928) /app/src/content/llcache.c:1827 llcache_object_retrieve_from_cache: Searching cache for https://html5test.co/fonts/leaguegothic-regular-webfont.ttf flags:0 referer:https://html5test.co/css/main.css post:(nil)
+(9.433943) /app/src/content/llcache.c:1843 llcache_object_retrieve_from_cache: No viable object found in llcache
+(9.433949) /app/src/content/llcache.c:429 llcache_object_new: Created object 0x5110000e7440 (https://html5test.co/fonts/leaguegothic-regular-webfont.ttf)
+(9.433956) /app/src/content/llcache.c:1492 llcache_process_metadata: Retrieving metadata
+(9.433968) /app/src/content/fs_backing_store.c:2893 fetch: Entry for https://html5test.co/fonts/leaguegothic-regular-webfont.ttf not found
+(9.433975) /app/src/content/llcache.c:988 llcache_object_fetch: Starting fetch for 0x5110000e7440
+(9.433987) /app/src/content/llcache.c:948 llcache_object_refetch: Re-fetching 0x5110000e7440
+(9.434004) /app/src/content/fetch.c:527 fetch_start: fetch 0x5080000f2c20, url 'https://html5test.co/fonts/leaguegothic-regular-webfont.ttf'
+(9.434074) /app/src/content/fetchers/ipc.c:105 fetch_ipc_setup: wisp_ipc_send succeeded for fetch_id 9
+(9.434086) /app/src/content/fetch.c:232 fetch_dispatch_jobs: queue_ring 1, fetch_ring 3
+(9.434091) /app/src/content/fetch.c:206 dump_rings: queue_ring: https://html5test.co/fonts/leaguegothic-regular-webfont.ttf
+(9.434097) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/scripts/base.js
+(9.434102) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/scripts/9/engine.js
+(9.434107) /app/src/content/fetch.c:213 dump_rings: fetch_ring: https://html5test.co/fonts/html5test.ttf
+(9.434112) /app/src/content/fetch.c:164 fetch_dispatch_job: Attempting to start fetch 0x5080000f2c20, fetcher 0x503000629d40, url https://html5test.co/fonts/leaguegothic-regular-webfont.ttf
+(9.434119) /app/src/content/fetch.c:238 fetch_dispatch_jobs: 0 queued, 4 fetching
+(9.434124) /app/src/content/fetch.c:241 fetch_dispatch_jobs: Fetch ring is now 4 elements.
+(9.434129) /app/src/content/fetch.c:242 fetch_dispatch_jobs: Queue ring is now 0 elements.
+(9.434133) /app/src/content/fetch.c:570 fetch_start: scheduling poll
+(9.434142) /app/frontends/gtk/schedule.c:87 nsgtk_schedule_kill_callback: Found match for 0x7f0ed5322392((nil)), killing.
+(9.434180) /app/src/content/llcache.c:2040 llcache_object_retrieve: Retrieved 0x5110000e7440
+(9.434186) /app/src/content/llcache.c:2072 llcache_object_add_user: Adding user 0x503000629ce0 to 0x5110000e7440
+(9.434263) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(9.434529) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: html
+(9.434666) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(9.434749) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h2
+(9.434889) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h3
+(9.435004) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: th
+(9.435012) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h4
+(9.435018) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: strong
+(9.435024) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: b
+WISP-NETWORK: Received message of type 1, length 50
+WISP-NETWORK: Received message of type 1, length 69
+(9.435124) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: button
+(10.192842) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(10.193029) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: textarea
+(10.193210) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: button
+(10.193220) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: input
+(10.193228) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: textarea
+(10.193364) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: img
+(10.193510) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: table
+(10.193722) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tbody
+(10.193742) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tr
+(10.193764) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: td
+(10.193772) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tbody
+(10.193778) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tr
+(10.193787) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: th
+(10.193857) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tbody
+(10.193867) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: tr
+(10.193876) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: th
+(10.193924) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.193934) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.194219) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.194238) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.195146) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.195164) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.195326) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.195421) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.195431) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.195908) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.195923) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.195929) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: span
+(10.196056) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.196070) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.196085) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: span
+(10.196095) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.196108) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.196131) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: em
+(10.196301) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.196311) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.196317) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: strong
+(10.583136) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583158) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.583171) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: em
+(10.583264) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583277) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.583383) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583392) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.583461) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583476) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.583602) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583615) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.583666) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583677) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.583683) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.583962) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.583973) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.583979) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.584046) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584054) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.584060) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.584160) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584169) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.584174) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.584180) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(10.584287) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584316) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.584394) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584401) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.584410) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: em
+(10.584444) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584451) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.584481) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584502) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.584590) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584597) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.584602) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.584665) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.584675) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.961295) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961311) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.961319) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.961396) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961404) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.961411) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.961494) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961501) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.961561) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961568) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: h1
+(10.961573) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: em
+(10.961612) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961625) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.961660) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961670) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.961704) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: *
+(10.961710) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(10.961715) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.961814) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.961821) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.961981) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.961991) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962009) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962572) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.962586) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962594) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962682) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.962689) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962696) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962703) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.962922) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.962933) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962940) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(10.962947) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(10.962952) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(10.963030) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(10.963036) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.350903) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.350928) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.350935) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.351377) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.351395) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.351406) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.351412) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.351508) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.351515) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.351613) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.351621) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.351691) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.351947) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.351957) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.351964) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.351986) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.351996) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.352078) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.352085) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352092) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352097) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.352105) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.352179) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.352186) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352192) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352202) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.352210) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.352278) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.352284) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352291) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352306) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.352315) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.352396) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.352407) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352414) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.352420) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.352427) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.352501) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.739864) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.739887) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.739895) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.739934) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.740069) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.740080) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740086) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740092) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740097) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.740174) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.740180) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740189) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740195) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740199) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(11.740204) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740369) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.740375) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740381) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740387) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740395) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(11.740400) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740455) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.740460) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740466) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740472) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740476) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(11.740481) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740501) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.740570) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.740576) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740582) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: div
+(11.740588) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740592) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: ul
+(11.740597) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: li
+(11.740602) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: a
+(11.740764) /app/src/content/handlers/css/css.c:530 nscss_error_handler: LibCSS Info: Creating selector: body
+(11.740772) /app/src/content/handlers/css/css.c:530 nscss_error_handler: Terminated
