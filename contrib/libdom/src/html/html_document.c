@@ -934,7 +934,8 @@ dom_exception _dom_html_document_get_body(dom_html_document *doc, struct dom_htm
     }
 
     if (doc->body != NULL) {
-        *body = (struct dom_html_element *) dom_node_ref(doc->body);
+        dom_node_ref((struct dom_node *) doc->body);
+        *body = doc->body;
     } else {
         dom_element *node;
         dom_nodelist *nodes;
