@@ -117,6 +117,7 @@ CORESTRING_LWC_STRING(resource);
 CORESTRING_LWC_STRING(right);
 CORESTRING_LWC_STRING(search);
 CORESTRING_LWC_STRING(select);
+CORESTRING_LWC_STRING(source);
 CORESTRING_LWC_STRING(src);
 CORESTRING_LWC_STRING(style);
 CORESTRING_LWC_STRING(submit);
@@ -173,17 +174,21 @@ CORESTRING_LWC_VALUE(image_jxl, "image/jxl");
 CORESTRING_LWC_VALUE(image_bmp, "image/bmp");
 CORESTRING_LWC_VALUE(image_vnd_microsoft_icon, "image/vnd.microsoft.icon");
 CORESTRING_LWC_VALUE(image_webp, "image/webp");
+CORESTRING_LWC_VALUE(video_mp4, "video/mp4");
+CORESTRING_LWC_VALUE(video_webm, "video/webm");
+CORESTRING_LWC_VALUE(video_ogg, "video/ogg");
+CORESTRING_LWC_VALUE(image_avif, "image/avif");
+CORESTRING_LWC_VALUE(image_heic, "image/heic");
+CORESTRING_LWC_VALUE(image_heif, "image/heif");
 CORESTRING_LWC_VALUE(application_rss_xml, "application/rss+xml");
 CORESTRING_LWC_VALUE(application_atom_xml, "application/atom+xml");
 CORESTRING_LWC_VALUE(audio_wave, "audio/wave");
 CORESTRING_LWC_VALUE(application_ogg, "application/ogg");
-CORESTRING_LWC_VALUE(video_webm, "video/webm");
 CORESTRING_LWC_VALUE(application_x_rar_compressed, "application/x-rar-compressed");
 CORESTRING_LWC_VALUE(application_zip, "application/zip");
 CORESTRING_LWC_VALUE(application_x_gzip, "application/x-gzip");
 CORESTRING_LWC_VALUE(application_postscript, "application/postscript");
 CORESTRING_LWC_VALUE(application_pdf, "application/pdf");
-CORESTRING_LWC_VALUE(video_mp4, "video/mp4");
 CORESTRING_LWC_VALUE(image_svg, "image/svg+xml");
 
 
@@ -311,6 +316,7 @@ CORESTRING_DOM_STRING(shape);
 CORESTRING_DOM_STRING(show);
 CORESTRING_DOM_STRING(size);
 CORESTRING_DOM_STRING(sizes);
+CORESTRING_DOM_STRING(source);
 CORESTRING_DOM_STRING(src);
 CORESTRING_DOM_STRING(srcset);
 CORESTRING_DOM_STRING(stalled);
@@ -319,6 +325,9 @@ CORESTRING_DOM_STRING(storage);
 CORESTRING_DOM_STRING(style);
 CORESTRING_DOM_STRING(submit);
 CORESTRING_DOM_STRING(suspend);
+/* SVG-related strings for inline SVG support */
+CORESTRING_DOM_STRING(svg);
+CORESTRING_DOM_STRING(symbol);
 CORESTRING_DOM_STRING(target);
 CORESTRING_DOM_STRING(text);
 CORESTRING_DOM_STRING(timeupdate);
@@ -373,6 +382,7 @@ CORESTRING_DOM_STRING(__ns_key_file_name_node_data);
 CORESTRING_DOM_STRING(__ns_key_image_coords_node_data);
 CORESTRING_DOM_STRING(__ns_key_html_content_data);
 CORESTRING_DOM_STRING(__ns_key_canvas_node_data);
+CORESTRING_DOM_STRING(__ns_key_style_cache_data);
 
 /* unusual DOM strings */
 CORESTRING_DOM_VALUE(text_javascript, "text/javascript");

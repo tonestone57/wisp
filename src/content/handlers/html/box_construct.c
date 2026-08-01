@@ -1175,12 +1175,6 @@ static void parallel_style_worker_cb(void *arg) {
 static void html_parallel_style_selection(html_content *c, dom_node *root) {
     if (c == NULL || root == NULL || c->select_ctx == NULL) return;
 
-    /* Initialize style cache key if not done */
-    static dom_string *style_cache_key = NULL;
-    if (style_cache_key == NULL) {
-        dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
-    }
-
     nscss_select_ctx select_ctx;
     select_ctx.ctx = c->select_ctx;
     select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
@@ -1242,7 +1236,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         if (dom_node_get_parent_node(n, &parent) == DOM_NO_ERR && parent != NULL) {
             /* Check if the parent style is in our cache */
             css_select_results *parent_cached = NULL;
-            dom_node_get_user_data(parent, style_cache_key, (void *)&parent_cached);
+            dom_node_get_user_data(parent, corestring_dom___ns_key_style_cache_data, (void *)&parent_cached);
             if (parent_cached != NULL) {
                 parent_style = parent_cached->styles[CSS_PSEUDO_ELEMENT_NONE];
             } else {
@@ -1319,7 +1313,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         }
 
         /* Cache pre-computed style results on the DOM node */
-        dom_node_set_user_data(n, style_cache_key, styles, NULL, NULL);
+        dom_node_set_user_data(n, corestring_dom___ns_key_style_cache_data, styles, NULL, NULL);
 
         /* Also add to c->style_cache linked list for centralized cleanup */
         html_style_cache_add(c, n, styles);
@@ -1337,12 +1331,8 @@ __attribute__((weak)) bool wisp_dispatch_js(const char *script, void (*func)(voi
 static css_select_results *box_get_style(
 	html_content *c, const css_computed_style *parent_style, const css_computed_style *root_style, dom_node *n)
 {
-	static dom_string *style_cache_key = NULL;
-	if (style_cache_key == NULL) {
-		dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
-	}
 	css_select_results *cached = NULL;
-	dom_node_get_user_data(n, style_cache_key, (void *)&cached);
+	dom_node_get_user_data(n, corestring_dom___ns_key_style_cache_data, (void *)&cached);
 	if (cached != NULL) {
 		return cached;
 	}
@@ -1387,7 +1377,7 @@ static css_select_results *box_get_style(
 		css_stylesheet_destroy(inline_style);
 
 	if (styles != NULL && c != NULL && c->select_ctx != NULL) {
-		dom_node_set_user_data(n, style_cache_key, styles, NULL, NULL);
+		dom_node_set_user_data(n, corestring_dom___ns_key_style_cache_data, styles, NULL, NULL);
 		html_style_cache_add(c, n, styles);
 	}
 
@@ -2046,12 +2036,8 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 	}
 
 	if (node_is_independent_subtree_root(ctx->n)) {
-		static dom_string *style_cache_key = NULL;
-		if (style_cache_key == NULL) {
-			dom_string_create_interned((const uint8_t *)"__ns_key_style_cache_data", 25, &style_cache_key);
-		}
 		css_select_results *cached = NULL;
-		dom_node_get_user_data(ctx->n, style_cache_key, (void *)&cached);
+		dom_node_get_user_data(ctx->n, corestring_dom___ns_key_style_cache_data, (void *)&cached);
 		if (cached == NULL) {
 			html_parallel_style_selection(ctx->content, ctx->n);
 		}
