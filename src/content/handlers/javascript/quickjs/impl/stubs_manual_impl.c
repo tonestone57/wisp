@@ -7318,3 +7318,829 @@ JSValue wisp_htmltextareaelement_textLength_get_impl(JSContext *ctx, QJSNodePriv
 JSValue wisp_htmltextareaelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
 }
+
+
+// =============================================================================
+// WAVE 5 - 150+ WEBIDL STUBS IMPLEMENTATION & INTEGRATION (169 stubs)
+// =============================================================================
+
+// Forward declarations
+extern JSValue qjs_new_url(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_urlsearchparams(JSContext *ctx, void *node, bool is_dom_node);
+
+// 1. StorageEvent Implementation (5 stubs)
+JSValue wisp_storageevent_key_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_storageevent_oldValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_storageevent_newValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_storageevent_url_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_storageevent_storageArea_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 2. CloseEvent Implementation (3 stubs + constructor)
+JSValue wisp_closeevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_closeevent_wasClean_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+JSValue wisp_closeevent_code_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_closeevent_reason_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+
+// 3. MessagePort Implementation (5 stubs)
+JSValue wisp_messageport_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue message, JSValue transfer) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_messageport_start_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_messageport_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_messageport_onmessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_messageport_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// 4. BroadcastChannel Implementation (5 stubs + constructor)
+JSValue wisp_broadcastchannel_constructor_impl(JSContext *ctx, const char * name) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_broadcastchannel_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_broadcastchannel_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue message) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_broadcastchannel_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_broadcastchannel_onmessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_broadcastchannel_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// 5. HTMLButtonElement Implementation (3 stubs)
+JSValue wisp_htmlbuttonelement_menu_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlbuttonelement_menu_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    return JS_UNDEFINED;
+}
+
+// 6. HTMLLegendElement Implementation (1 stub)
+JSValue wisp_htmllegendelement_form_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_form_impl(ctx, priv);
+}
+
+// 7. HTMLInputElement Implementation (10 stubs)
+JSValue wisp_htmlinputelement_files_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlinputelement_inputMode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "inputmode", "");
+}
+JSValue wisp_htmlinputelement_inputMode_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "inputmode", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlinputelement_multiple_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "multiple");
+}
+JSValue wisp_htmlinputelement_multiple_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "multiple", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlinputelement_valueLow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "valuelow", 0.0));
+}
+JSValue wisp_htmlinputelement_valueLow_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "valuelow", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlinputelement_valueHigh_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "valuehigh", 0.0));
+}
+JSValue wisp_htmlinputelement_valueHigh_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    set_element_double_attr(ctx, priv, "valuehigh", value);
+    return JS_UNDEFINED;
+}
+
+// 8. HTMLFormElement Implementation (9 stubs)
+JSValue wisp_htmlformelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_TRUE;
+}
+JSValue wisp_htmlformelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_TRUE;
+}
+JSValue wisp_htmlformelement_requestAutocomplete_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlformelement_autocomplete_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "autocomplete", "");
+}
+JSValue wisp_htmlformelement_autocomplete_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "autocomplete", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlformelement_encoding_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "enctype", "");
+}
+JSValue wisp_htmlformelement_encoding_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "enctype", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlformelement_noValidate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "novalidate");
+}
+JSValue wisp_htmlformelement_noValidate_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "novalidate", value);
+    return JS_UNDEFINED;
+}
+
+// 9. URL Implementation (23 stubs)
+
+// Custom manual initializer/finalizer to prevent nsurl leak for URL objects
+extern JSClassID qjs_url_class_id;
+static void js_url_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_url_class_id);
+    if (priv) {
+        if (priv->magic == QJS_DOM_MAGIC && priv->node) {
+            nsurl_unref((struct nsurl *)priv->node);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_url_class_manual = {
+    "URL",
+    .finalizer = js_url_finalizer_manual,
+};
+
+int qjs_init_url(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_url_class_id == 0) JS_NewClassID(rt, &qjs_url_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_url_class_id)) {
+        JS_NewClass(rt, qjs_url_class_id, &js_url_class_manual);
+    }
+    extern int qjs_init_url_gen(JSContext *ctx);
+    return qjs_init_url_gen(ctx);
+}
+
+JSValue wisp_url_constructor_impl(JSContext *ctx, const char * url, const char * base) {
+    struct nsurl *u = NULL;
+    if (base && strlen(base) > 0) {
+        struct nsurl *b_url = NULL;
+        nsurl_create(base, &b_url);
+        if (b_url) {
+            nsurl_join(b_url, url ? url : "", &u);
+            nsurl_unref(b_url);
+        } else {
+            nsurl_create(url ? url : "", &u);
+        }
+    } else {
+        nsurl_create(url ? url : "", &u);
+    }
+    return qjs_new_url(ctx, u, false);
+}
+JSValue wisp_url_href_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    return JS_NewString(ctx, nsurl_access(u));
+}
+JSValue wisp_url_hash_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *frag = nsurl_get_component(u, NSURL_FRAGMENT);
+    if (frag) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "#%s", lwc_string_data(frag));
+        lwc_string_unref(frag);
+        return JS_NewString(ctx, buf);
+    }
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_hash_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_host_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *host = nsurl_get_component(u, NSURL_HOST);
+    lwc_string *port = nsurl_get_component(u, NSURL_PORT);
+    if (host) {
+        char buf[512];
+        if (port) {
+            snprintf(buf, sizeof(buf), "%s:%s", lwc_string_data(host), lwc_string_data(port));
+            lwc_string_unref(port);
+        } else {
+            snprintf(buf, sizeof(buf), "%s", lwc_string_data(host));
+        }
+        lwc_string_unref(host);
+        return JS_NewString(ctx, buf);
+    }
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_host_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_hostname_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *host = nsurl_get_component(u, NSURL_HOST);
+    if (host) {
+        JSValue res = JS_NewString(ctx, lwc_string_data(host));
+        lwc_string_unref(host);
+        return res;
+    }
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_hostname_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_origin_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *scheme = nsurl_get_component(u, NSURL_SCHEME);
+    lwc_string *host = nsurl_get_component(u, NSURL_HOST);
+    lwc_string *port = nsurl_get_component(u, NSURL_PORT);
+    if (scheme && host) {
+        char buf[512];
+        if (port) {
+            snprintf(buf, sizeof(buf), "%s://%s:%s", lwc_string_data(scheme), lwc_string_data(host), lwc_string_data(port));
+            lwc_string_unref(port);
+        } else {
+            snprintf(buf, sizeof(buf), "%s://%s", lwc_string_data(scheme), lwc_string_data(host));
+        }
+        lwc_string_unref(scheme);
+        lwc_string_unref(host);
+        return JS_NewString(ctx, buf);
+    }
+    if (scheme) lwc_string_unref(scheme);
+    if (host) lwc_string_unref(host);
+    if (port) lwc_string_unref(port);
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_password_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_password_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_pathname_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *path = nsurl_get_component(u, NSURL_PATH);
+    if (path) {
+        JSValue res = JS_NewString(ctx, lwc_string_data(path));
+        lwc_string_unref(path);
+        return res;
+    }
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_pathname_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_port_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *port = nsurl_get_component(u, NSURL_PORT);
+    if (port) {
+        JSValue res = JS_NewString(ctx, lwc_string_data(port));
+        lwc_string_unref(port);
+        return res;
+    }
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_port_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_protocol_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "http:");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *scheme = nsurl_get_component(u, NSURL_SCHEME);
+    if (scheme) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%s:", lwc_string_data(scheme));
+        lwc_string_unref(scheme);
+        return JS_NewString(ctx, buf);
+    }
+    return JS_NewString(ctx, "http:");
+}
+JSValue wisp_url_protocol_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_search_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    struct nsurl *u = (struct nsurl *)priv->node;
+    lwc_string *query = nsurl_get_component(u, NSURL_QUERY);
+    if (query) {
+        char buf[512];
+        snprintf(buf, sizeof(buf), "?%s", lwc_string_data(query));
+        lwc_string_unref(query);
+        return JS_NewString(ctx, buf);
+    }
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_search_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_searchParams_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return qjs_new_urlsearchparams(ctx, NULL, false);
+}
+JSValue wisp_url_searchParams_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_url_username_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_url_username_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// 10. HTMLEmbedElement Implementation (13 stubs)
+JSValue wisp_htmlembedelement___legacycaller___impl(JSContext *ctx, QJSNodePrivate *priv, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlembedelement_getSVGDocument_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmlembedelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmlembedelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlembedelement_height_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "height", "");
+}
+JSValue wisp_htmlembedelement_height_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "height", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlembedelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "name", "");
+}
+JSValue wisp_htmlembedelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "name", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlembedelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "src", "");
+}
+JSValue wisp_htmlembedelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "src", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlembedelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+JSValue wisp_htmlembedelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlembedelement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "width", "");
+}
+JSValue wisp_htmlembedelement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "width", value);
+    return JS_UNDEFINED;
+}
+
+// 11. HTMLIFrameElement Implementation (7 stubs)
+JSValue wisp_htmliframeelement_getSVGDocument_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmliframeelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "align", "");
+}
+JSValue wisp_htmliframeelement_align_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "align", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmliframeelement_allowFullscreen_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "allowfullscreen");
+}
+JSValue wisp_htmliframeelement_allowFullscreen_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "allowfullscreen", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmliframeelement_seamless_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_bool_attr(ctx, priv, "seamless");
+}
+JSValue wisp_htmliframeelement_seamless_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    set_element_bool_attr(ctx, priv, "seamless", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmliframeelement_srcdoc_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "srcdoc", "");
+}
+JSValue wisp_htmliframeelement_srcdoc_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "srcdoc", value);
+    return JS_UNDEFINED;
+}
+
+// 12. HTMLAnchorElement Implementation (12 stubs)
+JSValue wisp_htmlanchorelement_download_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "download", "");
+}
+JSValue wisp_htmlanchorelement_download_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "download", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlanchorelement_ping_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "ping", "");
+}
+JSValue wisp_htmlanchorelement_ping_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "ping", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlanchorelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "type", "");
+}
+JSValue wisp_htmlanchorelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "type", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlanchorelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return wisp_node_textContent_get_impl(ctx, priv);
+}
+JSValue wisp_htmlanchorelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return wisp_node_textContent_set_impl(ctx, priv, value);
+}
+JSValue wisp_htmlanchorelement_username_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_htmlanchorelement_username_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlanchorelement_password_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_htmlanchorelement_password_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmlanchorelement_relList_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 13. HTMLLinkElement Implementation (5 stubs)
+JSValue wisp_htmllinkelement_crossOrigin_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return get_element_str_attr(ctx, priv, "crossorigin", "");
+}
+JSValue wisp_htmllinkelement_crossOrigin_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    set_element_str_attr(ctx, priv, "crossorigin", value);
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmllinkelement_relList_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmllinkelement_sizes_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_htmllinkelement_sheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 14. HTMLOptionsCollection Implementation (5 stubs)
+JSValue wisp_htmloptionscollection___setter___impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index, void * option) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmloptionscollection_add_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue element, JSValue before) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmloptionscollection_remove_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t index) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmloptionscollection_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_htmloptionscollection_length_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_htmloptionscollection_selectedIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, -1);
+}
+JSValue wisp_htmloptionscollection_selectedIndex_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value) {
+    return JS_UNDEFINED;
+}
+
+// 15. HTMLAllCollection Implementation (4 stubs)
+JSValue wisp_htmlallcollection_item_0_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_NULL;
+}
+JSValue wisp_htmlallcollection_item_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_NULL;
+}
+JSValue wisp_htmlallcollection_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_NULL;
+}
+JSValue wisp_htmlallcollection_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// 16. RadioNodeList Implementation (2 stubs)
+JSValue wisp_radionodelist_value_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_radionodelist_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// 17. HTMLFormControlsCollection Implementation (1 stub)
+JSValue wisp_htmlformcontrolscollection_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_NULL;
+}
+
+// 18. ProcessingInstruction Implementation (2 stubs)
+JSValue wisp_processinginstruction_sheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_processinginstruction_target_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+
+// 19. XMLSerializer Implementation (1 stub + constructor)
+JSValue wisp_xmlserializer_constructor_impl(JSContext *ctx) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_xmlserializer_serializeToString_impl(JSContext *ctx, QJSNodePrivate *priv, void * root) {
+    return JS_NewString(ctx, "");
+}
+
+// 20. XMLDocument Implementation (1 stub)
+JSValue wisp_xmldocument_load_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url) {
+    return JS_TRUE;
+}
+
+// 21. TimeRanges Implementation (3 stubs)
+JSValue wisp_timeranges_end_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_timeranges_start_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_timeranges_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// 22. MessageChannel Implementation (2 stubs + constructor)
+JSValue wisp_messagechannel_constructor_impl(JSContext *ctx) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_messagechannel_port1_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_messagechannel_port2_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 23. BeforeUnloadEvent Implementation (2 stubs)
+JSValue wisp_beforeunloadevent_returnValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_beforeunloadevent_returnValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// 24. HashChangeEvent Implementation (2 stubs + constructor)
+JSValue wisp_hashchangeevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_hashchangeevent_newURL_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_hashchangeevent_oldURL_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+
+// 25. TreeWalker Implementation (12 stubs)
+JSValue wisp_treewalker_firstChild_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_lastChild_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_nextNode_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_nextSibling_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_parentNode_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_previousNode_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_previousSibling_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_currentNode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_currentNode_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_treewalker_filter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_root_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_treewalker_whatToShow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// 26. NodeIterator Implementation (8 stubs)
+JSValue wisp_nodeiterator_detach_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_nodeiterator_nextNode_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_nodeiterator_previousNode_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_nodeiterator_filter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_nodeiterator_pointerBeforeReferenceNode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+JSValue wisp_nodeiterator_referenceNode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_nodeiterator_root_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_nodeiterator_whatToShow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// 27. PseudoElement Implementation (4 stubs)
+JSValue wisp_pseudoelement_cascadedStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_pseudoelement_defaultStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_pseudoelement_rawComputedStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_pseudoelement_usedStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 28. ImageBitmap Implementation (2 stubs)
+JSValue wisp_imagebitmap_height_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+JSValue wisp_imagebitmap_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// 29. BarProp Implementation (1 stub)
+JSValue wisp_barprop_visible_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_TRUE;
+}
+
+// 30. Touch Implementation (1 stub)
+JSValue wisp_touch_region_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+
+// 31. CanvasGradient Implementation (1 stub)
+JSValue wisp_canvasgradient_addColorStop_impl(JSContext *ctx, QJSNodePrivate *priv, double offset, const char * color) {
+    return JS_UNDEFINED;
+}
+
+// 32. CanvasPattern Implementation (1 stub)
+JSValue wisp_canvaspattern_setTransform_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue transform) {
+    return JS_UNDEFINED;
+}
+
+// 33. AutocompleteErrorEvent Implementation (1 stub + constructor)
+JSValue wisp_autocompleteerrorevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_autocompleteerrorevent_reason_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+
+// 34. TrackEvent Implementation (1 stub + constructor)
+JSValue wisp_trackevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_trackevent_track_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 35. RelatedEvent Implementation (1 stub + constructor)
+JSValue wisp_relatedevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_relatedevent_relatedTarget_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 36. PageTransitionEvent Implementation (1 stub + constructor)
+JSValue wisp_pagetransitionevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_pagetransitionevent_persisted_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+// 37. PopStateEvent Implementation (1 stub + constructor)
+JSValue wisp_popstateevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_NewObject(ctx);
+}
+JSValue wisp_popstateevent_state_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 38. CSSRule Implementation (5 stubs)
+JSValue wisp_cssrule_cssText_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_cssrule_cssText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_cssrule_parentRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_cssrule_parentStyleSheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_cssrule_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// 39. CSSGroupingRule Implementation (3 stubs)
+JSValue wisp_cssgroupingrule_deleteRule_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_cssgroupingrule_insertRule_impl(JSContext *ctx, QJSNodePrivate *priv, const char * rule, uint32_t index) {
+    return JS_NewInt32(ctx, index);
+}
+JSValue wisp_cssgroupingrule_cssRules_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 40. CSSPageRule Implementation (3 stubs)
+JSValue wisp_csspagerule_selectorText_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_csspagerule_selectorText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_csspagerule_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 41. CSSMediaRule Implementation (1 stub)
+JSValue wisp_cssmediarule_media_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// 42. CSSNamespaceRule Implementation (2 stubs)
+JSValue wisp_cssnamespacerule_namespaceURI_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+JSValue wisp_cssnamespacerule_prefix_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "");
+}
+
+// 43. CSSStyleSheet Implementation (4 stubs)
+JSValue wisp_cssstylesheet_deleteRule_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_UNDEFINED;
+}
+JSValue wisp_cssstylesheet_insertRule_impl(JSContext *ctx, QJSNodePrivate *priv, const char * rule, uint32_t index) {
+    return JS_NewInt32(ctx, index);
+}
+JSValue wisp_cssstylesheet_cssRules_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+JSValue wisp_cssstylesheet_ownerRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
