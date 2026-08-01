@@ -604,6 +604,7 @@ class QuickJSBindingGenerator:
         c_code += f"static JSClassDef js_{lower_name}_class = {{\n    \"{name}\",\n    .finalizer = js_{lower_name}_finalizer,\n}};\n\n"
 
         is_event = self._is_event_type(name)
+        # Ensure DOM bridge removal and reference unreferencing are properly synchronized
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val)\n{{\n"
         c_code += f"    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_{lower_name}_class_id);\n"
         c_code += f"    if (priv) {{\n"
