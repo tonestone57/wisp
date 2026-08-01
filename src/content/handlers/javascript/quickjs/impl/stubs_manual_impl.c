@@ -7475,6 +7475,36 @@ JSValue wisp_htmlformelement_noValidate_set_impl(JSContext *ctx, QJSNodePrivate 
 }
 
 // 9. URL Implementation (23 stubs)
+
+// Custom manual initializer/finalizer to prevent nsurl leak for URL objects
+extern JSClassID qjs_url_class_id;
+static void js_url_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_url_class_id);
+    if (priv) {
+        if (priv->magic == QJS_DOM_MAGIC && priv->node) {
+            nsurl_unref((struct nsurl *)priv->node);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_url_class_manual = {
+    "URL",
+    .finalizer = js_url_finalizer_manual,
+};
+
+int qjs_init_url(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_url_class_id == 0) JS_NewClassID(rt, &qjs_url_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_url_class_id)) {
+        JS_NewClass(rt, qjs_url_class_id, &js_url_class_manual);
+    }
+    extern int qjs_init_url_gen(JSContext *ctx);
+    return qjs_init_url_gen(ctx);
+}
+
 JSValue wisp_url_constructor_impl(JSContext *ctx, const char * url, const char * base) {
     struct nsurl *u = NULL;
     if (base && strlen(base) > 0) {
