@@ -612,8 +612,8 @@ class QuickJSBindingGenerator:
         if is_event:
             c_code += f"            if (!wisp_is_js_process) dom_event_unref((dom_event *)priv->node);\n"
         else:
-            c_code += f"            if (priv->is_dom_node) qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx);\n"
-            c_code += f"            if (!wisp_is_js_process && priv->is_dom_node) dom_node_unref((dom_node *)priv->node);\n"
+            # Underflow guard: map removal and direct node unreferencing must be performed atomically
+            c_code += f"            if (priv->is_dom_node) {{ qjs_bridge_remove_node(rt, (dom_node *)priv->node, priv->ctx); qjs_bridge_unref_node((dom_node *)priv->node); }}\n"
             if name == "NodeList" or name == "RadioNodeList":
                 c_code += f"            else if (!wisp_is_js_process) dom_nodelist_unref((dom_nodelist *)priv->node);\n"
             elif name == "HTMLCollection":
