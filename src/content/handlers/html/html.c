@@ -1204,7 +1204,7 @@ bool html_begin_conversion(html_content *htmlc)
 				}
 			}
 
-			if (htmlc->base.active == 0 || bypass_active_gate) {
+			if (htmlc->base.active == 0 || htmlc->scripts_active == 0 || bypass_active_gate) {
 				if (bypass_active_gate) {
 					NSLOG(wisp, WARNING, "Safety timeout: forcing unpause of synchronous JS parser!");
 				}

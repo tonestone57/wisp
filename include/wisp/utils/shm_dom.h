@@ -12,6 +12,8 @@
 #define SHM_STRING_HASH_SIZE 65536
 #define SHM_STRING_HEAP_SIZE (2 * 1024 * 1024)
 
+#define WISP_SHM_MAX_ATTRIBUTES 16
+
 typedef uint32_t WispNodeID;
 #define WISP_NODE_NULL 0
 
@@ -86,7 +88,7 @@ typedef struct {
     struct {
         WispStringRef name;
         WispStringRef value;
-    } attrs[16];
+    } attrs[WISP_SHM_MAX_ATTRIBUTES];
     uint32_t attr_count;
 } WispNodeStrings;
 

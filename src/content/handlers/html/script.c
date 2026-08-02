@@ -741,6 +741,47 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
     return ret;
 }
 
+static bool is_javascript_mime_type(const char *mime)
+{
+    if (mime == NULL || mime[0] == '\0') {
+        return true;
+    }
+
+    /* Trim leading whitespace */
+    while (*mime && isspace((unsigned char)*mime)) {
+        mime++;
+    }
+    size_t len = strlen(mime);
+    /* Trim trailing whitespace */
+    while (len > 0 && isspace((unsigned char)mime[len - 1])) {
+        len--;
+    }
+
+    if (len == 0) {
+        return true;
+    }
+
+    /* Check legacy/standard mime types */
+    static const char *const legacy_js_mimetypes[] = {
+        "text/javascript",
+        "application/javascript",
+        "application/ecmascript",
+        "text/ecmascript",
+        "application/x-javascript",
+        "text/jscript",
+        "text/livescript",
+        "javascript",
+        "js",
+        "text/js"
+    };
+    for (size_t i = 0; i < sizeof(legacy_js_mimetypes) / sizeof(legacy_js_mimetypes[0]); i++) {
+        if (strncasecmp(mime, legacy_js_mimetypes[i], len) == 0 && legacy_js_mimetypes[i][len] == '\0') {
+            return true;
+        }
+    }
+    return false;
+}
+
 static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_string *mimetype)
 {
     dom_string *script;
@@ -766,19 +807,26 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
     nscript->data.string = script;
     nscript->already_started = true;
 
-    /* ensure script handler for content type */
-    exc = dom_string_intern(mimetype, &lwcmimetype);
-    if (exc != DOM_NO_ERR) {
-        NSLOG(wisp, WARNING, "exec_inline_script: dom_string_intern failed");
-        return DOM_HUBBUB_DOM;
+    content_type ctype = CONTENT_NONE;
+    const char *mime_cstr = mimetype ? (const char *)dom_string_data(mimetype) : NULL;
+    if (is_javascript_mime_type(mime_cstr)) {
+        ctype = CONTENT_JS;
+    } else {
+        /* ensure script handler for content type */
+        exc = dom_string_intern(mimetype, &lwcmimetype);
+        if (exc != DOM_NO_ERR) {
+            NSLOG(wisp, WARNING, "exec_inline_script: dom_string_intern failed");
+            return DOM_HUBBUB_DOM;
+        }
+
+        ctype = content_factory_type_from_mime_type(lwcmimetype);
+        lwc_string_unref(lwcmimetype);
     }
 
-    content_type ctype = content_factory_type_from_mime_type(lwcmimetype);
-    NSLOG(wisp, INFO, "exec_inline_script: lwcmimetype='%s' -> content_type=%d (CONTENT_JS=%d)",
-        lwc_string_data(lwcmimetype), ctype, CONTENT_JS);
+    NSLOG(wisp, INFO, "exec_inline_script: mimetype_cstr='%s' -> content_type=%d (CONTENT_JS=%d)",
+        mime_cstr ? mime_cstr : "", ctype, CONTENT_JS);
 
     script_handler = select_script_handler(ctype);
-    lwc_string_unref(lwcmimetype);
 
     bool allowed = false;
     dom_string *nonce_attr = NULL;

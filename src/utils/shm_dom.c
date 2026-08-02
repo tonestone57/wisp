@@ -531,14 +531,15 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         WispNodeStrings *sns = &shm_dom_get_node_strings(shm)[target_id];
         if (type == SHM_MUTATION_SET_ATTRIBUTE && name) {
             bool found = false;
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(shm, sns->attrs[i].name, name)) {
                     sns->attrs[i].value = value_ref;
                     found = true;
                     break;
                 }
             }
-            if (!found && sns->attr_count < 16) {
+            if (!found && sns->attr_count < WISP_SHM_MAX_ATTRIBUTES) {
                 uint32_t idx = sns->attr_count++;
                 sns->attrs[idx].name = name_ref;
                 sns->attrs[idx].value = value_ref;
@@ -557,7 +558,8 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
                 sn->class_hash = hash;
             }
         } else if (type == SHM_MUTATION_REMOVE_ATTRIBUTE && name) {
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(shm, sns->attrs[i].name, name)) {
                     sns->attrs[i] = sns->attrs[--sns->attr_count];
                     break;
