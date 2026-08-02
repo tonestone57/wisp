@@ -415,6 +415,24 @@ static nserror browser_window_favicon_callback(hlcache_handle *c, const hlcache_
     struct browser_window *bw = pw;
 
     switch (event->type) {
+    case CONTENT_MSG_REDIRECT: {
+        nsurl *to_url = nsurl_ref(event->data.redirect.to);
+        NSLOG(wisp, INFO, "favicon redirect from '%s' to '%s'",
+              nsurl_access(hlcache_handle_get_url(c)), nsurl_access(to_url));
+
+        if (c == bw->favicon.loading) {
+            bw->favicon.loading = NULL;
+        } else if (c == bw->favicon.current) {
+            bw->favicon.current = NULL;
+        }
+        hlcache_handle_release(c);
+
+        hlcache_handle_retrieve(to_url, HLCACHE_RETRIEVE_SNIFF_TYPE, NULL, NULL,
+                                browser_window_favicon_callback, bw, NULL, CONTENT_IMAGE, &bw->favicon.loading);
+        nsurl_unref(to_url);
+        break;
+    }
+
     case CONTENT_MSG_DONE:
         if (bw->favicon.current != NULL) {
             content_close(bw->favicon.current);
