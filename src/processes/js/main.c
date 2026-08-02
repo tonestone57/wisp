@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
     struct js_context_node *curr = contexts;
     while (curr) {
         if (curr->ctx) {
-            qjs_finalise_dom_bridge(curr->ctx);
+            qjs_finalise_dom_bridge(rt, curr->ctx);
             JS_SetContextOpaque(curr->ctx, NULL);
             JS_FreeContext(curr->ctx);
         }

@@ -2939,13 +2939,22 @@ void js_destroythread(jsthread *thread)
 
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
-        qjs_finalise_dom_bridge(thread->ctx);
-        JS_SetContextOpaque(thread->ctx, NULL);
-        JS_FreeContext(thread->ctx);
+        JSContext *ctx = thread->ctx;
 
-        /* Final GC passes to ensure all orphaned objects (including MutationObservers) are collected. */
+        /* 1. Set opaque to NULL so no more callbacks are made */
+        JS_SetContextOpaque(ctx, NULL);
+
+        /* 2. Free the context first. This finalizes all JS wrapper objects,
+         * calling their finalizers which unrefs the DOM nodes and removes
+         * their entries from the bridge map. */
+        JS_FreeContext(ctx);
+
+        /* 3. Run GC to collect and finalize any remaining orphaned objects */
         JS_RunGC(rt);
         JS_RunGC(rt);
+
+        /* 4. Finalise any remaining DOM bridge entries for this context. */
+        qjs_finalise_dom_bridge(rt, ctx);
     }
     struct dom_document *doc_node = qjs_thread_get_document(thread);
     if (doc_node) {

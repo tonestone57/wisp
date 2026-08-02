@@ -298,19 +298,38 @@ bool _dom_document_finalise(dom_document *doc)
         /* Debug: Log information about pending nodes */
         struct list_entry *entry = doc->pending_nodes.next;
         int count = 0;
-        fprintf(stderr, "DOM_DEBUG: Document %p has pending nodes:\n", (void *)doc);
+        fprintf(stderr, "DOM_DEBUG: Document %p cannot be freed due to pending nodes:\n", (void *)doc);
         while (entry != &doc->pending_nodes) {
             dom_node_internal *node = (dom_node_internal *)((char *)entry - offsetof(dom_node_internal, pending_list));
-            fprintf(stderr, "  [%d] type=%d refcnt=%u parent=%p\n", count, node->type, node->base.refcnt,
-                (void *)node->parent);
+            const char *type_name = "UNKNOWN";
+            switch (node->type) {
+            case DOM_ELEMENT_NODE: type_name = "ELEMENT"; break;
+            case DOM_ATTRIBUTE_NODE: type_name = "ATTRIBUTE"; break;
+            case DOM_TEXT_NODE: type_name = "TEXT"; break;
+            case DOM_CDATA_SECTION_NODE: type_name = "CDATA"; break;
+            case DOM_ENTITY_REFERENCE_NODE: type_name = "ENTITY_REF"; break;
+            case DOM_ENTITY_NODE: type_name = "ENTITY"; break;
+            case DOM_PROCESSING_INSTRUCTION_NODE: type_name = "PI"; break;
+            case DOM_COMMENT_NODE: type_name = "COMMENT"; break;
+            case DOM_DOCUMENT_NODE: type_name = "DOCUMENT"; break;
+            case DOM_DOCUMENT_TYPE_NODE: type_name = "DOCTYPE"; break;
+            case DOM_DOCUMENT_FRAGMENT_NODE: type_name = "FRAGMENT"; break;
+            case DOM_NOTATION_NODE: type_name = "NOTATION"; break;
+            }
+            const char *node_name_str = NULL;
+            if (node->name) {
+                node_name_str = dom_string_data(node->name);
+            }
+            fprintf(stderr, "  [%d] node=%p type=%s name='%s' refcnt=%u parent=%p\n",
+                count, (void *)node, type_name, node_name_str ? node_name_str : "(null)",
+                node->base.refcnt, (void *)node->parent);
             entry = entry->next;
             count++;
-            if (count > 20) {
+            if (count > 50) {
                 fprintf(stderr, "  ... and more pending nodes\n");
                 break;
             }
         }
-        fprintf(stderr, "DOM_DEBUG: Document %p cannot be freed due to %d pending nodes\n", (void *)doc, count);
 #endif
         return false;
     }
