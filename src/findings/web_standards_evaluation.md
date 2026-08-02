@@ -26,7 +26,7 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 *   **WebIDL Bindings**:
     *   Wisp includes **9 IDL files** (covering Console, CSSOM, DOM, DOM Parsing, HTML, Observers, UI Events, URL Utils, and XHR) compiling down to **228 declared interfaces** and around **1,500 methods/getters/setters**.
     *   **670+ manual WebIDL stub overrides**: Fully implemented manuals (strong C overrides) covering 134+ core HTMLElement/Location/History properties, followed by subsequent phases integrating over 370 high-frequency properties/methods and a final wave of 120+ WebIDL stubs (including `HTMLImageElement`, `ValidityState`, `HTMLFieldSetElement`, `HTMLOutputElement`, `HTMLInputElement`, `HTMLTextAreaElement`, `HTMLButtonElement`, `Document` metadata, `HTMLDataListElement`, `HTMLLabelElement`, and `MediaError`) with 100% test coverage.
-    *   Unimplemented WebIDL bindings gracefully degrade to weak stubs that log warning notices using `NSLOG(wisp, WARNING, ...)` rather than crashing, and have been pruned from `src/docs/UnimplementedJavascript.md` (now only 923 remaining stubs).
+    *   Unimplemented WebIDL bindings gracefully degrade to weak stubs that log warning notices using `NSLOG(wisp, WARNING, ...)` rather than crashing, and have been pruned from `src/docs/UnimplementedJavascript.md` (now only 920 remaining stubs).
 
 ### 2.2 CSS3 Layout Engines
 Wisp has over 12,000 lines of highly optimized C code dedicated to modern layout algorithms:
