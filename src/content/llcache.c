@@ -2242,7 +2242,11 @@ static nserror llcache_fetch_redirect(llcache_object *object, const char *target
             lwc_string_unref(object_scheme);
             lwc_string_unref(scheme);
             nsurl_unref(hsts_url);
-            return NSERROR_OK;
+
+            event.type = LLCACHE_EVENT_ERROR;
+            event.data.error.code = NSERROR_BAD_REDIRECT;
+            event.data.error.msg = messages_get("BadRedirect");
+            return llcache_send_event_to_users(object, &event);
         }
     }
 
@@ -2252,7 +2256,11 @@ static nserror llcache_fetch_redirect(llcache_object *object, const char *target
     /* Bail out if we've no way of handling this URL */
     if (fetch_can_fetch(hsts_url) == false) {
         nsurl_unref(hsts_url);
-        return NSERROR_OK;
+
+        event.type = LLCACHE_EVENT_ERROR;
+        event.data.error.code = NSERROR_BAD_REDIRECT;
+        event.data.error.msg = messages_get("BadRedirect");
+        return llcache_send_event_to_users(object, &event);
     }
 
     if (http_code == 301 || http_code == 302 || http_code == 303) {
@@ -2261,12 +2269,20 @@ static nserror llcache_fetch_redirect(llcache_object *object, const char *target
     } else if (http_code != 307 && http_code != 308) {
         /** \todo 300, 305 with POST */
         nsurl_unref(hsts_url);
-        return NSERROR_OK;
+
+        event.type = LLCACHE_EVENT_ERROR;
+        event.data.error.code = NSERROR_BAD_REDIRECT;
+        event.data.error.msg = messages_get("BadRedirect");
+        return llcache_send_event_to_users(object, &event);
     } else if (post != NULL) {
         /* 307 and 308 preserve the request method, but we don't support
          * POST redirects yet */
         nsurl_unref(hsts_url);
-        return NSERROR_OK;
+
+        event.type = LLCACHE_EVENT_ERROR;
+        event.data.error.code = NSERROR_BAD_REDIRECT;
+        event.data.error.msg = messages_get("BadRedirect");
+        return llcache_send_event_to_users(object, &event);
     }
 
     /* Attempt to fetch target URL */
