@@ -9756,3 +9756,669 @@ JSValue wisp_mediacontroller_onvolumechange_set_impl(JSContext *ctx, QJSNodePriv
 JSValue wisp_videotrack_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
 }
+
+
+
+// Overrides: getter | MediaList::mediaText(string);
+// Overrides: setter | MediaList::mediaText(string);
+JSValue wisp_medialist_mediaText_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | WorkerLocation::href(user);
+JSValue wisp_workerlocation_href_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | VideoTrack::kind(string);
+JSValue wisp_videotrack_kind_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | VideoTrack::label(string);
+JSValue wisp_videotrack_label_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | VideoTrack::language(string);
+JSValue wisp_videotrack_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | VideoTrack::selected(boolean);
+JSValue wisp_videotrack_selected_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | VideoTrack::selected(boolean);
+JSValue wisp_videotrack_selected_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | VideoTrackList::getTrackById();
+JSValue wisp_videotracklist_getTrackById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | VideoTrackList::length(unsigned long);
+JSValue wisp_videotracklist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | VideoTrackList::selectedIndex(long);
+JSValue wisp_videotracklist_selectedIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | VideoTrackList::onchange(user);
+JSValue wisp_videotracklist_onchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | VideoTrackList::onchange(user);
+JSValue wisp_videotracklist_onchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | VideoTrackList::onaddtrack(user);
+JSValue wisp_videotracklist_onaddtrack_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | VideoTrackList::onaddtrack(user);
+JSValue wisp_videotracklist_onaddtrack_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | VideoTrackList::onremovetrack(user);
+JSValue wisp_videotracklist_onremovetrack_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | VideoTrackList::onremovetrack(user);
+JSValue wisp_videotracklist_onremovetrack_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | AudioTrack::id(string);
+JSValue wisp_audiotrack_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | AudioTrack::kind(string);
+JSValue wisp_audiotrack_kind_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | AudioTrack::label(string);
+JSValue wisp_audiotrack_label_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | AudioTrack::language(string);
+JSValue wisp_audiotrack_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | AudioTrack::enabled(boolean);
+JSValue wisp_audiotrack_enabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | AudioTrack::enabled(boolean);
+JSValue wisp_audiotrack_enabled_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | AudioTrackList::getTrackById();
+JSValue wisp_audiotracklist_getTrackById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | AudioTrackList::length(unsigned long);
+JSValue wisp_audiotracklist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | AudioTrackList::onchange(user);
+JSValue wisp_audiotracklist_onchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | AudioTrackList::onchange(user);
+JSValue wisp_audiotracklist_onchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | AudioTrackList::onaddtrack(user);
+JSValue wisp_audiotracklist_onaddtrack_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | AudioTrackList::onaddtrack(user);
+JSValue wisp_audiotracklist_onaddtrack_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | AudioTrackList::onremovetrack(user);
+JSValue wisp_audiotracklist_onremovetrack_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | AudioTrackList::onremovetrack(user);
+JSValue wisp_audiotracklist_onremovetrack_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Handled: callback interface method | NodeFilter::acceptNode();
+// Overrides: method | Range::setStart();
+JSValue wisp_range_setStart_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, uint32_t offset) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Range::setEnd();
+JSValue wisp_range_setEnd_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, uint32_t offset) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Range::setStartBefore();
+JSValue wisp_range_setStartBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::setStartAfter();
+JSValue wisp_range_setStartAfter_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::setEndBefore();
+JSValue wisp_range_setEndBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::setEndAfter();
+JSValue wisp_range_setEndAfter_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::collapse();
+JSValue wisp_range_collapse_impl(JSContext *ctx, QJSNodePrivate *priv, bool toStart) {
+    return JS_FALSE;
+}
+
+// Overrides: method | Range::selectNode();
+JSValue wisp_range_selectNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::selectNodeContents();
+JSValue wisp_range_selectNodeContents_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::compareBoundaryPoints();
+JSValue wisp_range_compareBoundaryPoints_impl(JSContext *ctx, QJSNodePrivate *priv, uint16_t how, void * sourceRange) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Range::deleteContents();
+JSValue wisp_range_deleteContents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::extractContents();
+JSValue wisp_range_extractContents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::cloneContents();
+JSValue wisp_range_cloneContents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::insertNode();
+JSValue wisp_range_insertNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::surroundContents();
+JSValue wisp_range_surroundContents_impl(JSContext *ctx, QJSNodePrivate *priv, void * newParent) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::cloneRange();
+JSValue wisp_range_cloneRange_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::detach();
+JSValue wisp_range_detach_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Range::isPointInRange();
+JSValue wisp_range_isPointInRange_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, uint32_t offset) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Range::comparePoint();
+JSValue wisp_range_comparePoint_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, uint32_t offset) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Range::intersectsNode();
+JSValue wisp_range_intersectsNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Range::createContextualFragment();
+JSValue wisp_range_createContextualFragment_impl(JSContext *ctx, QJSNodePrivate *priv, const char * fragment) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Range::startContainer(user);
+JSValue wisp_range_startContainer_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Range::startOffset(unsigned long);
+JSValue wisp_range_startOffset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Range::endContainer(user);
+JSValue wisp_range_endContainer_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Range::endOffset(unsigned long);
+JSValue wisp_range_endOffset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Range::collapsed(boolean);
+JSValue wisp_range_collapsed_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Range::commonAncestorContainer(user);
+JSValue wisp_range_commonAncestorContainer_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: method | CharacterData::substringData();
+JSValue wisp_characterdata_substringData_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t offset, uint32_t count) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | CharacterData::appendData();
+JSValue wisp_characterdata_appendData_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CharacterData::insertData();
+JSValue wisp_characterdata_insertData_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t offset, const char * data) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | CharacterData::deleteData();
+JSValue wisp_characterdata_deleteData_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t offset, uint32_t count) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | CharacterData::replaceData();
+JSValue wisp_characterdata_replaceData_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t offset, uint32_t count, const char * data) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | CharacterData::before();
+JSValue wisp_characterdata_before_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CharacterData::after();
+JSValue wisp_characterdata_after_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CharacterData::replaceWith();
+JSValue wisp_characterdata_replaceWith_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | CharacterData::previousElementSibling(user);
+JSValue wisp_characterdata_previousElementSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | CharacterData::nextElementSibling(user);
+JSValue wisp_characterdata_nextElementSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: method | DOMImplementation::createDocumentType();
+JSValue wisp_domimplementation_createDocumentType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * publicId, const char * systemId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DOMImplementation::createDocument();
+JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * qualifiedName, void * doctype) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DOMImplementation::hasFeature();
+JSValue wisp_domimplementation_hasFeature_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::getElementsByTagNameNS();
+JSValue wisp_document_getElementsByTagNameNS_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * localName) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::createProcessingInstruction();
+JSValue wisp_document_createProcessingInstruction_impl(JSContext *ctx, QJSNodePrivate *priv, const char * target, const char * data) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::importNode();
+JSValue wisp_document_importNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, bool deep) {
+    return JS_FALSE;
+}
+
+// Overrides: method | Document::adoptNode();
+JSValue wisp_document_adoptNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::createAttribute();
+JSValue wisp_document_createAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::createAttributeNS();
+JSValue wisp_document_createAttributeNS_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * name) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::createRange();
+JSValue wisp_document_createRange_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::createNodeIterator();
+JSValue wisp_document_createNodeIterator_impl(JSContext *ctx, QJSNodePrivate *priv, void * root, uint32_t whatToShow, JSValue filter) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Document::createTreeWalker();
+JSValue wisp_document_createTreeWalker_impl(JSContext *ctx, QJSNodePrivate *priv, void * root, uint32_t whatToShow, JSValue filter) {
+    return JS_NewInt32(ctx, 0);
+}
+
+// Overrides: method | Document::open();
+JSValue wisp_document_open_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, const char * replace) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::close();
+JSValue wisp_document_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::execCommand();
+JSValue wisp_document_execCommand_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId, bool showUI, const char * value) {
+    return JS_FALSE;
+}
+
+// Overrides: method | Document::queryCommandEnabled();
+JSValue wisp_document_queryCommandEnabled_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::queryCommandIndeterm();
+JSValue wisp_document_queryCommandIndeterm_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::queryCommandState();
+JSValue wisp_document_queryCommandState_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::queryCommandSupported();
+JSValue wisp_document_queryCommandSupported_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::queryCommandValue();
+JSValue wisp_document_queryCommandValue_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::clear();
+JSValue wisp_document_clear_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::captureEvents();
+JSValue wisp_document_captureEvents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::releaseEvents();
+JSValue wisp_document_releaseEvents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::enableStyleSheetsForSet();
+JSValue wisp_document_enableStyleSheetsForSet_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::query();
+JSValue wisp_document_query_impl(JSContext *ctx, QJSNodePrivate *priv, const char * relativeSelectors) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Document::queryAll();
+JSValue wisp_document_queryAll_impl(JSContext *ctx, QJSNodePrivate *priv, const char * relativeSelectors) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::doctype(user);
+JSValue wisp_document_doctype_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::dir(string);
+JSValue wisp_document_dir_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::dir(string);
+JSValue wisp_document_dir_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::cssElementMap(user);
+JSValue wisp_document_cssElementMap_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::commands(user);
+JSValue wisp_document_commands_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::fgColor(string);
+JSValue wisp_document_fgColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::fgColor(string);
+JSValue wisp_document_fgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::linkColor(string);
+JSValue wisp_document_linkColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::linkColor(string);
+JSValue wisp_document_linkColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::vlinkColor(string);
+JSValue wisp_document_vlinkColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::vlinkColor(string);
+JSValue wisp_document_vlinkColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::alinkColor(string);
+JSValue wisp_document_alinkColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::alinkColor(string);
+JSValue wisp_document_alinkColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::bgColor(string);
+JSValue wisp_document_bgColor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::bgColor(string);
+JSValue wisp_document_bgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::all(user);
+JSValue wisp_document_all_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::styleSheets(user);
+JSValue wisp_document_styleSheets_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::selectedStyleSheetSet(string);
+JSValue wisp_document_selectedStyleSheetSet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::selectedStyleSheetSet(string);
+JSValue wisp_document_selectedStyleSheetSet_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Document::lastStyleSheetSet(string);
+JSValue wisp_document_lastStyleSheetSet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::preferredStyleSheetSet(string);
+JSValue wisp_document_preferredStyleSheetSet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::styleSheetSets(string);
+JSValue wisp_document_styleSheetSets_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Document::onerror(user);
+JSValue wisp_document_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Document::onerror(user);
+JSValue wisp_document_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentType::before();
+JSValue wisp_documenttype_before_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentType::after();
+JSValue wisp_documenttype_after_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentType::replaceWith();
+JSValue wisp_documenttype_replaceWith_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | DocumentType::name(string);
+JSValue wisp_documenttype_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | DocumentType::publicId(string);
+JSValue wisp_documenttype_publicId_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | DocumentType::systemId(string);
+JSValue wisp_documenttype_systemId_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: method | DocumentFragment::getElementById();
+JSValue wisp_documentfragment_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * elementId) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentFragment::query();
+JSValue wisp_documentfragment_query_impl(JSContext *ctx, QJSNodePrivate *priv, const char * relativeSelectors) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentFragment::queryAll();
+JSValue wisp_documentfragment_queryAll_impl(JSContext *ctx, QJSNodePrivate *priv, const char * relativeSelectors) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentFragment::querySelector();
+JSValue wisp_documentfragment_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | DocumentFragment::querySelectorAll();
+JSValue wisp_documentfragment_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | DocumentFragment::children(user);
+JSValue wisp_documentfragment_children_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | DocumentFragment::firstElementChild(user);
+JSValue wisp_documentfragment_firstElementChild_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | DocumentFragment::lastElementChild(user);
+JSValue wisp_documentfragment_lastElementChild_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | DocumentFragment::childElementCount(unsigned long);
+JSValue wisp_documentfragment_childElementCount_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Handled: callback interface method | EventListener::handleEvent();
