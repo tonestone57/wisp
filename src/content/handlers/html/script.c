@@ -772,7 +772,8 @@ static bool is_javascript_mime_type(const char *mime)
         "text/livescript",
         "javascript",
         "js",
-        "text/js"
+        "text/js",
+        "module"
     };
     for (size_t i = 0; i < sizeof(legacy_js_mimetypes) / sizeof(legacy_js_mimetypes[0]); i++) {
         if (strncasecmp(mime, legacy_js_mimetypes[i], len) == 0 && legacy_js_mimetypes[i][len] == '\0') {
@@ -855,7 +856,7 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
         script_handler(
             c->jsthread, (const uint8_t *)dom_string_data(script), dom_string_byte_length(script), "?inline script?");
     } else {
-        NSLOG(wisp, WARNING, "exec_inline_script: script_handler is NULL, skipping execution");
+        NSLOG(wisp, DEBUG, "exec_inline_script: script_handler is NULL, skipping execution");
     }
     return DOM_HUBBUB_OK;
 }
