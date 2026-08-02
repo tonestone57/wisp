@@ -2197,6 +2197,7 @@ START_TEST(test_quickjs_dom_parser)
 
     /* Test DOMParser constructor, XML parsing, HTML parsing, error handling and MIME validation */
     const char *code =
+        "(function() {\n"
         "try {\n"
         "  if (typeof DOMParser !== 'function') throw 'DOMParser missing';\n"
         "  var parser = new DOMParser();\n"
@@ -2234,6 +2235,7 @@ START_TEST(test_quickjs_dom_parser)
         "  console.log('TEST_ERROR:', e);\n"
         "  throw e;\n"
         "}\n"
+        "})();\n"
         "1;";
     JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_DOMParser", JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(val)) {
@@ -2245,6 +2247,7 @@ START_TEST(test_quickjs_dom_parser)
     }
     ck_assert(!JS_IsException(val));
     JS_FreeValue(thread->ctx, val);
+    JS_RunGC(JS_GetRuntime(thread->ctx));
 
     js_closethread(thread);
     js_destroythread(thread);
