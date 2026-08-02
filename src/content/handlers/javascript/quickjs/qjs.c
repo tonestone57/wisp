@@ -3112,7 +3112,10 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
         if (attrs) {
             uint32_t attr_len = 0;
             dom_namednodemap_get_length(attrs, &attr_len);
-            if (attr_len > 16) attr_len = 16;
+            if (attr_len > WISP_SHM_MAX_ATTRIBUTES) {
+                NSLOG(wisp, WARNING, "serialize: Element attributes truncated from %u to %d", attr_len, WISP_SHM_MAX_ATTRIBUTES);
+                attr_len = WISP_SHM_MAX_ATTRIBUTES;
+            }
             sns->attr_count = attr_len;
             for (uint32_t i = 0; i < attr_len; i++) {
                 dom_node *attr_node = NULL;

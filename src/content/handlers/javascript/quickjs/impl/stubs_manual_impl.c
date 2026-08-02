@@ -1631,14 +1631,16 @@ JSValue wisp_htmlselectelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pr
                 if (nodes_arr[i].parent_id == our_id && nodes_arr[i].node_type == 1 &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                     bool is_sel = false;
-                    for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                    uint32_t limit1 = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit1; j++) {
                         if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "selected")) {
                             is_sel = true;
                             break;
                         }
                     }
                     if (is_sel) {
-                        for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                        uint32_t limit2 = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                        for (uint32_t j = 0; j < limit2; j++) {
                             if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "value")) {
                                 return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, strings_arr[i].attrs[j].value));
                             }
@@ -1914,7 +1916,8 @@ JSValue wisp_htmlselectelement_selectedIndex_get_impl(JSContext *ctx, QJSNodePri
                 if (nodes_arr[i].parent_id == our_id && nodes_arr[i].node_type == 1 &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
                     bool is_sel = false;
-                    for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                    uint32_t limit = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
                         if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "selected")) {
                             is_sel = true;
                             break;
@@ -3400,14 +3403,16 @@ static void collect_elements_shm(uint32_t parent_id, const char *type, uint32_t 
             } else if (strcmp(type, "applets") == 0 && strcasecmp(tag, "applet") == 0) {
                 match = true;
             } else if (strcmp(type, "links") == 0 && (strcasecmp(tag, "a") == 0 || strcasecmp(tag, "area") == 0)) {
-                for (uint32_t j = 0; j < strings[i].attr_count; j++) {
+                uint32_t limit = strings[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                for (uint32_t j = 0; j < limit; j++) {
                     if (wisp_string_ref_caseeq(wisp_shm_dom, strings[i].attrs[j].name, "href")) {
                         match = true;
                         break;
                     }
                 }
             } else if (strcmp(type, "anchors") == 0 && strcasecmp(tag, "a") == 0) {
-                for (uint32_t j = 0; j < strings[i].attr_count; j++) {
+                uint32_t limit = strings[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                for (uint32_t j = 0; j < limit; j++) {
                     if (wisp_string_ref_caseeq(wisp_shm_dom, strings[i].attrs[j].name, "name")) {
                         match = true;
                         break;
@@ -3490,7 +3495,8 @@ JSValue wisp_htmlcollection_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv,
         for (int i = 0; i < count; i++) {
             uint32_t node_id = list[i];
             bool match = false;
-            for (uint32_t j = 0; j < strings[node_id].attr_count; j++) {
+            uint32_t limit = strings[node_id].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings[node_id].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t j = 0; j < limit; j++) {
                 if ((wisp_string_ref_caseeq(wisp_shm_dom, strings[node_id].attrs[j].name, "id") ||
                      wisp_string_ref_caseeq(wisp_shm_dom, strings[node_id].attrs[j].name, "name")) &&
                     wisp_string_ref_caseeq(wisp_shm_dom, strings[node_id].attrs[j].value, name)) {

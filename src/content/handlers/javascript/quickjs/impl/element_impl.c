@@ -24,7 +24,8 @@ JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, qualifiedName)) {
                     return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value));
                 }
@@ -56,14 +57,15 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
             bool found = false;
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, qualifiedName)) {
                     sns->attrs[i].value = value_ref;
                     found = true;
                     break;
                 }
             }
-            if (!found && sns->attr_count < 16) {
+            if (!found && sns->attr_count < WISP_SHM_MAX_ATTRIBUTES) {
                 uint32_t i = sns->attr_count++;
                 sns->attrs[i].name = name_ref;
                 sns->attrs[i].value = value_ref;
@@ -90,7 +92,8 @@ JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, 
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, qualifiedName)) {
                     sns->attrs[i] = sns->attrs[--sns->attr_count];
                     break;
@@ -115,7 +118,8 @@ JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, qualifiedName)) {
                     return JS_TRUE;
                 }
@@ -266,7 +270,8 @@ static void serialize_shm_node_to_html(uint64_t node_id, HTMLBuffer *b)
         html_buf_append(b, "<", 1);
         html_buf_append(b, tag, tag_len);
 
-        for (uint32_t i = 0; i < sns->attr_count; i++) {
+        uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+        for (uint32_t i = 0; i < limit; i++) {
             const char *name = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].name);
             const char *val = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
             if (name) {

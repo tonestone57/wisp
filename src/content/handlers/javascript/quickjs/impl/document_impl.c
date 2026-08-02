@@ -382,7 +382,8 @@ JSValue wisp_document_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, 
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].node_type == 1) { // DOM_ELEMENT_NODE
-                    for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                    uint32_t limit = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
                         if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "id") &&
                             wisp_string_ref_eq(wisp_shm_dom, strings_arr[i].attrs[j].value, elementId)) {
                             return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
@@ -438,7 +439,8 @@ JSValue wisp_document_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate
             WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
             for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
                 if (nodes_arr[i].node_type == 1) { // DOM_ELEMENT_NODE
-                    for (uint32_t j = 0; j < strings_arr[i].attr_count; j++) {
+                    uint32_t limit = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
                         if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "class")) {
                             const char *cls = wisp_string_ref_data(wisp_shm_dom, strings_arr[i].attrs[j].value);
                             if (strstr(cls, classNames)) {

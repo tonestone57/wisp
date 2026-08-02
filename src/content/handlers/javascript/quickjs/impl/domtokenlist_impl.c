@@ -30,7 +30,8 @@ static TokenList get_tokens(dom_element *el)
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)el);
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)el];
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, "class")) {
                     class_str = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
                     if (class_str) {
@@ -122,14 +123,15 @@ static void set_tokens(dom_element *el, TokenList *tl)
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)el];
             bool found = false;
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, "class")) {
                     sns->attrs[i].value = value_ref;
                     found = true;
                     break;
                 }
             }
-            if (!found && sns->attr_count < 16) {
+            if (!found && sns->attr_count < WISP_SHM_MAX_ATTRIBUTES) {
                 uint32_t i = sns->attr_count++;
                 sns->attrs[i].name = name_ref;
                 sns->attrs[i].value = value_ref;
@@ -280,7 +282,8 @@ JSValue wisp_domtokenlist_toString_impl(JSContext *ctx, QJSNodePrivate *priv)
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
-            for (uint32_t i = 0; i < sns->attr_count; i++) {
+            uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < limit; i++) {
                 if (wisp_string_ref_caseeq(wisp_shm_dom, sns->attrs[i].name, "class")) {
                     return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value));
                 }
