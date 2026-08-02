@@ -208,13 +208,18 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
         break;
 
     case CONTENT_MSG_READY:
-        NSLOG(wisp, WARNING,
-            "SVGDIAG obj_cb READY: content=%p type=%d box=%p "
-            "box.w=%d box.h=%d box.max_w=%d box.flags=0x%x "
-            "can_reformat=%d will_reformat_w=%d will_reformat_h=%d",
-            object, content_get_type(object), box, box->width, box->height, box->max_width, box->flags,
-            content_can_reformat(object), box->max_width != UNKNOWN_MAX_WIDTH ? box->width : 0,
-            box->max_width != UNKNOWN_MAX_WIDTH ? box->height : 0);
+        {
+            int ref_w = 0, ref_h = 0;
+            if (content_can_reformat(object)) {
+                box_get_dimensions(box, &ref_w, &ref_h);
+            }
+            NSLOG(wisp, DEEPDEBUG,
+                "SVGDIAG obj_cb READY: content=%p type=%d box=%p "
+                "box.w=%d box.h=%d box.max_w=%d box.flags=0x%x "
+                "can_reformat=%d will_reformat_w=%d will_reformat_h=%d",
+                object, content_get_type(object), box, box->width, box->height, box->max_width, box->flags,
+                content_can_reformat(object), ref_w, ref_h);
+        }
         if (content_can_reformat(object)) {
             int width, height;
             box_get_dimensions(box, &width, &height);
@@ -246,7 +251,8 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
 
     case CONTENT_MSG_DONE:
         PERF("Object DONE (remaining=%d)", c->base.active - 1);
-        NSLOG(wisp, WARNING,
+        html_object_done(box, object, o->background);
+        NSLOG(wisp, DEEPDEBUG,
             "SVGDIAG obj_cb DONE: content=%p type=%d box=%p "
             "box.w=%d box.h=%d box.object=%p box.flags=0x%x "
             "content.w=%d content.h=%d",
@@ -261,8 +267,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
         c->base.active--;
         NSLOG(wisp, INFO, "%d fetches active (scripts_active=%d)", c->base.active, c->scripts_active);
 
-        html_object_done(box, object, o->background);
-            box_mark_dirty(box);
+        box_mark_dirty(box);
 
         /*
          * Broadcast a redraw for the box area.

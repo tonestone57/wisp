@@ -405,7 +405,7 @@ static bool svg_convert(struct content *c)
         }
     }
 
-    NSLOG(wisp, WARNING,
+    NSLOG(wisp, DEEPDEBUG,
         "SVGDIAG svg_convert: url=%s c->width=%d c->height=%d "
         "has_intrinsic=%d ratio=%dx%d",
         nsurl_access(content_get_url(c)), c->width, c->height, svg->has_intrinsic_dimensions, svg->ratio_width,
@@ -801,7 +801,7 @@ static bool svg_redraw(
     nsurl *u = content_get_url(c);
     const char *us = u ? nsurl_access(u) : "(inline)";
 
-    NSLOG(wisp, WARNING,
+    NSLOG(wisp, DEEPDEBUG,
         "SVGDIAG svg_redraw ENTRY: url=%s data={x=%d y=%d w=%d h=%d} "
         "c->width=%d c->height=%d diagram=%p shapes=%u parsed=%d",
         us, data->x, data->y, data->width, data->height, c->width, c->height, svg->diagram,
@@ -810,7 +810,7 @@ static bool svg_redraw(
     if ((data->width <= 0) && (data->height <= 0)) {
         /* No point trying to plot SVG if it does not occupy a
          * valid area */
-        NSLOG(wisp, WARNING, "SVGDIAG svg_redraw SKIP: width=%d height=%d (both <= 0), url=%s", data->width,
+        NSLOG(wisp, DEEPDEBUG, "SVGDIAG svg_redraw SKIP: width=%d height=%d (both <= 0), url=%s", data->width,
             data->height, us);
         return true;
     }
