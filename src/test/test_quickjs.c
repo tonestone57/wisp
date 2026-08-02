@@ -2115,6 +2115,11 @@ START_TEST(test_quickjs_webidl_stubs)
         "        if (ni.root !== null) throw new Error(\'NodeIterator root failed\');\n"
         "        if (ni.whatToShow !== 0) throw new Error(\'NodeIterator whatToShow failed\');\n"
         "    \n"
+        "        // New Wave 150 Stubs Verification\n"
+        "        if (window.closed !== null) throw new Error(\'window.closed should be null\');\n"
+        "        if (window.prompt() !== undefined) throw new Error(\'window.prompt should return undefined\');\n"
+        "        if (window.requestAnimationFrame() !== undefined) throw new Error(\'window.requestAnimationFrame should return undefined\');\n"
+        "    \n"
 
         "    true;\n"
         "} catch (e) {\n"
