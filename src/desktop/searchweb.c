@@ -279,6 +279,19 @@ static nserror search_web_ico_callback(hlcache_handle *ico, const hlcache_event 
 
     switch (event->type) {
 
+    case CONTENT_MSG_REDIRECT: {
+        nsurl *to_url = nsurl_ref(event->data.redirect.to);
+        NSLOG(wisp, INFO, "icon redirect from '%s' to '%s'",
+              nsurl_access(hlcache_handle_get_url(ico)), nsurl_access(to_url));
+
+        hlcache_handle_release(ico);
+        provider->ico_handle = NULL;
+
+        hlcache_handle_retrieve(to_url, 0, NULL, NULL, search_web_ico_callback, provider, NULL, CONTENT_IMAGE, &provider->ico_handle);
+        nsurl_unref(to_url);
+        break;
+    }
+
     case CONTENT_MSG_DONE:
         NSLOG(wisp, INFO, "icon '%s' retrieved", nsurl_access(hlcache_handle_get_url(ico)));
         guit->search_web->provider_update(provider->name, content_get_bitmap(ico));
@@ -482,6 +495,19 @@ static nserror default_ico_callback(hlcache_handle *ico, const hlcache_event *ev
     struct search_web_ctx_s *ctx = pw;
 
     switch (event->type) {
+
+    case CONTENT_MSG_REDIRECT: {
+        nsurl *to_url = nsurl_ref(event->data.redirect.to);
+        NSLOG(wisp, INFO, "default icon redirect from '%s' to '%s'",
+              nsurl_access(hlcache_handle_get_url(ico)), nsurl_access(to_url));
+
+        hlcache_handle_release(ico);
+        ctx->default_ico_handle = NULL;
+
+        hlcache_handle_retrieve(to_url, 0, NULL, NULL, default_ico_callback, ctx, NULL, CONTENT_IMAGE, &ctx->default_ico_handle);
+        nsurl_unref(to_url);
+        break;
+    }
 
     case CONTENT_MSG_DONE:
         NSLOG(wisp, INFO, "default icon '%s' retrieved", nsurl_access(hlcache_handle_get_url(ico)));
