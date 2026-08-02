@@ -8990,3 +8990,769 @@ JSValue wisp_window_open_impl(JSContext *ctx, QJSNodePrivate *priv, const char *
 JSValue wisp_window_confirm_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message) {
     return JS_UNDEFINED;
 }
+
+// Overrides: method | Window::prompt();
+JSValue wisp_window_prompt_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message, const char * default_val) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::print();
+JSValue wisp_window_print_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::showModalDialog();
+JSValue wisp_window_showModalDialog_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url, JSValue argument) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::requestAnimationFrame();
+JSValue wisp_window_requestAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue callback) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::cancelAnimationFrame();
+JSValue wisp_window_cancelAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t handle) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::postMessage();
+JSValue wisp_window_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue message, const char * targetOrigin, JSValue transfer) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::captureEvents();
+JSValue wisp_window_captureEvents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::releaseEvents();
+JSValue wisp_window_releaseEvents_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::getComputedStyle();
+JSValue wisp_window_getComputedStyle_impl(JSContext *ctx, QJSNodePrivate *priv, void * elt, const char * pseudoElt) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Window::createImageBitmap();
+JSValue wisp_window_createImageBitmap_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue image) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_window_createImageBitmap_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue image, int32_t sx, int32_t sy, int32_t sw, int32_t sh) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Window::locationbar(user);
+JSValue wisp_window_locationbar_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::menubar(user);
+JSValue wisp_window_menubar_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::personalbar(user);
+JSValue wisp_window_personalbar_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::scrollbars(user);
+JSValue wisp_window_scrollbars_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::statusbar(user);
+JSValue wisp_window_statusbar_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::toolbar(user);
+JSValue wisp_window_toolbar_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::status(string);
+JSValue wisp_window_status_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Window::status(string);
+JSValue wisp_window_status_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Window::closed(boolean);
+JSValue wisp_window_closed_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::frames(user);
+JSValue wisp_window_frames_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::length(unsigned long);
+JSValue wisp_window_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::top(user);
+JSValue wisp_window_top_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::opener(any);
+JSValue wisp_window_opener_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | Window::opener(any);
+JSValue wisp_window_opener_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | Window::parent(user);
+JSValue wisp_window_parent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::frameElement(user);
+JSValue wisp_window_frameElement_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | Window::external(user);
+JSValue wisp_window_external_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: method | Path2D::addPath();
+JSValue wisp_path2d_addPath_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue transformation) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::addPathByStrokingPath();
+JSValue wisp_path2d_addPathByStrokingPath_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, void * styles, JSValue transformation) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::addText();
+JSValue wisp_path2d_addText_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, double x, double y, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addText_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, void * path, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::addPathByStrokingText();
+JSValue wisp_path2d_addPathByStrokingText_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, double x, double y, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addPathByStrokingText_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, void * path, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::closePath();
+JSValue wisp_path2d_closePath_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::moveTo();
+JSValue wisp_path2d_moveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::lineTo();
+JSValue wisp_path2d_lineTo_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::quadraticCurveTo();
+JSValue wisp_path2d_quadraticCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cpx, double cpy, double x, double y) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::bezierCurveTo();
+JSValue wisp_path2d_bezierCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cp1x, double cp1y, double cp2x, double cp2y, double x, double y) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::arcTo();
+JSValue wisp_path2d_arcTo_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radius) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_arcTo_1_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radiusX, double radiusY, double rotation) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::rect();
+JSValue wisp_path2d_rect_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double w, double h) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::arc();
+JSValue wisp_path2d_arc_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radius, double startAngle, double endAngle, bool anticlockwise) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | Path2D::ellipse();
+JSValue wisp_path2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radiusX, double radiusY, double rotation, double startAngle, double endAngle, bool anticlockwise) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasRenderingContext2D::createLinearGradient();
+JSValue wisp_canvasrenderingcontext2d_createLinearGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double x1, double y1) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasRenderingContext2D::createRadialGradient();
+JSValue wisp_canvasrenderingcontext2d_createRadialGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double r0, double x1, double y1, double r1) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasRenderingContext2D::createPattern();
+JSValue wisp_canvasrenderingcontext2d_createPattern_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue image, const char * repetition) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasRenderingContext2D::setLineDash();
+JSValue wisp_canvasrenderingcontext2d_setLineDash_impl(JSContext *ctx, QJSNodePrivate *priv, double segments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasRenderingContext2D::getLineDash();
+JSValue wisp_canvasrenderingcontext2d_getLineDash_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | CanvasRenderingContext2D::lineDashOffset(double);
+JSValue wisp_canvasrenderingcontext2d_lineDashOffset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | CanvasRenderingContext2D::lineDashOffset(double);
+JSValue wisp_canvasrenderingcontext2d_lineDashOffset_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | CanvasRenderingContext2D::font(string);
+JSValue wisp_canvasrenderingcontext2d_font_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | CanvasRenderingContext2D::font(string);
+JSValue wisp_canvasrenderingcontext2d_font_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | CanvasRenderingContext2D::textAlign(string);
+JSValue wisp_canvasrenderingcontext2d_textAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | CanvasRenderingContext2D::textAlign(string);
+JSValue wisp_canvasrenderingcontext2d_textAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | CanvasRenderingContext2D::textBaseline(string);
+JSValue wisp_canvasrenderingcontext2d_textBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | CanvasRenderingContext2D::textBaseline(string);
+JSValue wisp_canvasrenderingcontext2d_textBaseline_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | CanvasRenderingContext2D::direction(string);
+JSValue wisp_canvasrenderingcontext2d_direction_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | CanvasRenderingContext2D::direction(string);
+JSValue wisp_canvasrenderingcontext2d_direction_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasProxy::setContext();
+JSValue wisp_canvasproxy_setContext_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue context) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | HTMLTableHeaderCellElement::sort();
+JSValue wisp_htmltableheadercellelement_sort_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | HTMLTableHeaderCellElement::scope(string);
+JSValue wisp_htmltableheadercellelement_scope_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | HTMLTableHeaderCellElement::scope(string);
+JSValue wisp_htmltableheadercellelement_scope_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | HTMLTableHeaderCellElement::abbr(string);
+JSValue wisp_htmltableheadercellelement_abbr_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | HTMLTableHeaderCellElement::abbr(string);
+JSValue wisp_htmltableheadercellelement_abbr_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | HTMLTableHeaderCellElement::sorted(string);
+JSValue wisp_htmltableheadercellelement_sorted_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | HTMLTableHeaderCellElement::sorted(string);
+JSValue wisp_htmltableheadercellelement_sorted_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | HTMLTableDataCellElement::abbr(string);
+JSValue wisp_htmltabledatacellelement_abbr_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | HTMLTableDataCellElement::abbr(string);
+JSValue wisp_htmltabledatacellelement_abbr_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCue::track(user);
+JSValue wisp_texttrackcue_track_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrackCue::id(string);
+JSValue wisp_texttrackcue_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackCue::id(string);
+JSValue wisp_texttrackcue_id_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCue::startTime(double);
+JSValue wisp_texttrackcue_startTime_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackCue::startTime(double);
+JSValue wisp_texttrackcue_startTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCue::endTime(double);
+JSValue wisp_texttrackcue_endTime_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackCue::endTime(double);
+JSValue wisp_texttrackcue_endTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCue::pauseOnExit(boolean);
+JSValue wisp_texttrackcue_pauseOnExit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackCue::pauseOnExit(boolean);
+JSValue wisp_texttrackcue_pauseOnExit_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCue::onenter(user);
+JSValue wisp_texttrackcue_onenter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackCue::onenter(user);
+JSValue wisp_texttrackcue_onenter_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCue::onexit(user);
+JSValue wisp_texttrackcue_onexit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackCue::onexit(user);
+JSValue wisp_texttrackcue_onexit_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | TextTrackCueList::getCueById();
+JSValue wisp_texttrackcuelist_getCueById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackCueList::length(unsigned long);
+JSValue wisp_texttrackcuelist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: method | TextTrack::addCue();
+JSValue wisp_texttrack_addCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * cue) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | TextTrack::removeCue();
+JSValue wisp_texttrack_removeCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * cue) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrack::kind(user);
+JSValue wisp_texttrack_kind_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::label(string);
+JSValue wisp_texttrack_label_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::language(string);
+JSValue wisp_texttrack_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::id(string);
+JSValue wisp_texttrack_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::inBandMetadataTrackDispatchType(string);
+JSValue wisp_texttrack_inBandMetadataTrackDispatchType_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::mode(user);
+JSValue wisp_texttrack_mode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrack::mode(user);
+JSValue wisp_texttrack_mode_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrack::cues(user);
+JSValue wisp_texttrack_cues_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::activeCues(user);
+JSValue wisp_texttrack_activeCues_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrack::oncuechange(user);
+JSValue wisp_texttrack_oncuechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrack::oncuechange(user);
+JSValue wisp_texttrack_oncuechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | TextTrackList::getTrackById();
+JSValue wisp_texttracklist_getTrackById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackList::length(unsigned long);
+JSValue wisp_texttracklist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | TextTrackList::onchange(user);
+JSValue wisp_texttracklist_onchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackList::onchange(user);
+JSValue wisp_texttracklist_onchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackList::onaddtrack(user);
+JSValue wisp_texttracklist_onaddtrack_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackList::onaddtrack(user);
+JSValue wisp_texttracklist_onaddtrack_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | TextTrackList::onremovetrack(user);
+JSValue wisp_texttracklist_onremovetrack_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | TextTrackList::onremovetrack(user);
+JSValue wisp_texttracklist_onremovetrack_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | MediaController::pause();
+JSValue wisp_mediacontroller_pause_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | MediaController::unpause();
+JSValue wisp_mediacontroller_unpause_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | MediaController::play();
+JSValue wisp_mediacontroller_play_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::readyState(unsigned short);
+JSValue wisp_mediacontroller_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::buffered(user);
+JSValue wisp_mediacontroller_buffered_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::seekable(user);
+JSValue wisp_mediacontroller_seekable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::duration(double);
+JSValue wisp_mediacontroller_duration_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::currentTime(double);
+JSValue wisp_mediacontroller_currentTime_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::currentTime(double);
+JSValue wisp_mediacontroller_currentTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::paused(boolean);
+JSValue wisp_mediacontroller_paused_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::playbackState(user);
+JSValue wisp_mediacontroller_playbackState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::played(user);
+JSValue wisp_mediacontroller_played_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: getter | MediaController::defaultPlaybackRate(double);
+JSValue wisp_mediacontroller_defaultPlaybackRate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::defaultPlaybackRate(double);
+JSValue wisp_mediacontroller_defaultPlaybackRate_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::playbackRate(double);
+JSValue wisp_mediacontroller_playbackRate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::playbackRate(double);
+JSValue wisp_mediacontroller_playbackRate_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::volume(double);
+JSValue wisp_mediacontroller_volume_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::volume(double);
+JSValue wisp_mediacontroller_volume_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::muted(boolean);
+JSValue wisp_mediacontroller_muted_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::muted(boolean);
+JSValue wisp_mediacontroller_muted_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onemptied(user);
+JSValue wisp_mediacontroller_onemptied_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onemptied(user);
+JSValue wisp_mediacontroller_onemptied_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onloadedmetadata(user);
+JSValue wisp_mediacontroller_onloadedmetadata_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onloadedmetadata(user);
+JSValue wisp_mediacontroller_onloadedmetadata_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onloadeddata(user);
+JSValue wisp_mediacontroller_onloadeddata_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onloadeddata(user);
+JSValue wisp_mediacontroller_onloadeddata_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::oncanplay(user);
+JSValue wisp_mediacontroller_oncanplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::oncanplay(user);
+JSValue wisp_mediacontroller_oncanplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::oncanplaythrough(user);
+JSValue wisp_mediacontroller_oncanplaythrough_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::oncanplaythrough(user);
+JSValue wisp_mediacontroller_oncanplaythrough_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onplaying(user);
+JSValue wisp_mediacontroller_onplaying_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onplaying(user);
+JSValue wisp_mediacontroller_onplaying_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onended(user);
+JSValue wisp_mediacontroller_onended_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onended(user);
+JSValue wisp_mediacontroller_onended_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onwaiting(user);
+JSValue wisp_mediacontroller_onwaiting_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onwaiting(user);
+JSValue wisp_mediacontroller_onwaiting_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::ondurationchange(user);
+JSValue wisp_mediacontroller_ondurationchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::ondurationchange(user);
+JSValue wisp_mediacontroller_ondurationchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::ontimeupdate(user);
+JSValue wisp_mediacontroller_ontimeupdate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::ontimeupdate(user);
+JSValue wisp_mediacontroller_ontimeupdate_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onplay(user);
+JSValue wisp_mediacontroller_onplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onplay(user);
+JSValue wisp_mediacontroller_onplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onpause(user);
+JSValue wisp_mediacontroller_onpause_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onpause(user);
+JSValue wisp_mediacontroller_onpause_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onratechange(user);
+JSValue wisp_mediacontroller_onratechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onratechange(user);
+JSValue wisp_mediacontroller_onratechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | MediaController::onvolumechange(user);
+JSValue wisp_mediacontroller_onvolumechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: setter | MediaController::onvolumechange(user);
+JSValue wisp_mediacontroller_onvolumechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: getter | VideoTrack::id(string);
+JSValue wisp_videotrack_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
