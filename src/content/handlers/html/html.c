@@ -1624,6 +1624,8 @@ static void html_style_cache_free(html_content *c) {
 	while (node != NULL) {
 		struct style_cache_node *next = node->next;
 		if (node->node != NULL) {
+			void *old_data = NULL;
+			dom_node_set_user_data(node->node, corestring_dom___ns_key_style_cache_data, NULL, NULL, &old_data);
 			dom_node_unref(node->node);
 		}
 		if (node->styles != NULL) {

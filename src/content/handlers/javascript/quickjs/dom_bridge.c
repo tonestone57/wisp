@@ -130,11 +130,6 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
 void qjs_bridge_unref_node(struct dom_node *node)
 {
     if (!wisp_is_js_process && node) {
-        dom_string *node_name = NULL;
-        dom_node_get_node_name(node, &node_name);
-        const char *name_str = node_name ? dom_string_data(node_name) : NULL;
-        fprintf(stderr, "DEBUG_UNREF_NODE: node=%p name='%s'\n", (void *)node, name_str ? name_str : "null");
-        if (node_name) dom_string_unref(node_name);
         dom_node_unref(node);
     }
 }
