@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
+#define DOM_DEBUG_PENDING_NODES 1
 #ifdef DOM_DEBUG_PENDING_NODES
 #include <stddef.h>
 #include <stdio.h>
@@ -1532,9 +1533,12 @@ dom_document_dup_node(dom_document *doc, dom_node *node, bool deep, dom_node **r
  */
 void _dom_document_try_destroy(dom_document *doc)
 {
+    fprintf(stderr, "DEBUG_TRY_DESTROY: doc=%p refcnt=%u pending_empty=%d\n",
+            (void *)doc, doc->base.base.refcnt, doc->pending_nodes.next == &doc->pending_nodes);
     if (doc->base.base.refcnt != 0 || doc->base.parent != NULL)
         return;
 
+    fprintf(stderr, "DEBUG_DESTROYING_DOC: doc=%p\n", (void *)doc);
     dom_node_destroy((dom_node_internal *)doc);
 }
 
