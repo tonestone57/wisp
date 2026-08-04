@@ -10688,11 +10688,25 @@ JSValue wisp_globaleventhandlers_onended_set_impl(JSContext *ctx, QJSNodePrivate
 
 // Overrides: attribute get | GlobalEventHandlers::onerror;
 JSValue wisp_globaleventhandlers_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (!JS_IsObject(wrapper)) {
+        JS_FreeValue(ctx, wrapper);
+        return JS_NULL;
+    }
+    JSValue val = JS_GetPropertyStr(ctx, wrapper, "__onerror_func");
+    JS_FreeValue(ctx, wrapper);
+    return val;
 }
 
 // Overrides: attribute set | GlobalEventHandlers::onerror;
 JSValue wisp_globaleventhandlers_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        JS_SetPropertyStr(ctx, wrapper, "__onerror_func", JS_DupValue(ctx, value));
+    }
+    JS_FreeValue(ctx, wrapper);
     return JS_UNDEFINED;
 }
 
@@ -10758,11 +10772,25 @@ JSValue wisp_globaleventhandlers_onkeyup_set_impl(JSContext *ctx, QJSNodePrivate
 
 // Overrides: attribute get | GlobalEventHandlers::onload;
 JSValue wisp_globaleventhandlers_onload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (!JS_IsObject(wrapper)) {
+        JS_FreeValue(ctx, wrapper);
+        return JS_NULL;
+    }
+    JSValue val = JS_GetPropertyStr(ctx, wrapper, "__onload_func");
+    JS_FreeValue(ctx, wrapper);
+    return val;
 }
 
 // Overrides: attribute set | GlobalEventHandlers::onload;
 JSValue wisp_globaleventhandlers_onload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        JS_SetPropertyStr(ctx, wrapper, "__onload_func", JS_DupValue(ctx, value));
+    }
+    JS_FreeValue(ctx, wrapper);
     return JS_UNDEFINED;
 }
 

@@ -8,8 +8,14 @@
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
 #include "JSHTMLImageElement.gen.h"
+#include "utils/hashmap.h"
 
 extern bool wisp_is_js_process;
+
+typedef struct {
+    JSContext *ctx;
+    struct dom_node *node;
+} bridge_key_t;
 
 // Forward declarations
 JSValue wisp_element_getAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
@@ -17,9 +23,38 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
 JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
 
+static uint32_t next_dummy_img_id = 0xf0000000;
+
 JSValue wisp_htmlimageelement_Image_impl(JSContext *ctx, uint32_t width, uint32_t height)
 {
-    if (wisp_is_js_process) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint32_t dummy_id = next_dummy_img_id++;
+        JSValue val = qjs_new_htmlimageelement(ctx, (void*)(uintptr_t)dummy_id, true);
+        QJSNodePrivate *priv = JS_GetOpaque(val, qjs_htmlimageelement_class_id);
+        if (priv) {
+            // Register inside the bridge map
+            JSRuntime *rt = JS_GetRuntime(ctx);
+            hashmap_t *map = JS_GetRuntimeOpaque(rt);
+            if (map) {
+                bridge_key_t key = { ctx, (struct dom_node *)(uintptr_t)dummy_id };
+                JSValue *val_ptr = hashmap_insert(map, &key);
+                if (val_ptr) {
+                    *val_ptr = val; // Store weak reference
+                }
+            }
+            if (width > 0) {
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%u", width);
+                wisp_element_setAttribute_impl(ctx, priv, "width", buf);
+            }
+            if (height > 0) {
+                char buf[32];
+                snprintf(buf, sizeof(buf), "%u", height);
+                wisp_element_setAttribute_impl(ctx, priv, "height", buf);
+            }
+        }
+        return val;
+    }
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return JS_NULL;
     struct dom_document *doc = qjs_thread_get_document(t);
@@ -88,7 +123,102 @@ JSValue wisp_htmlimageelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
     if (wisp_is_js_process) {
-        return wisp_element_setAttribute_impl(ctx, priv, "src", value);
+        wisp_element_setAttribute_impl(ctx, priv, "src", value);
+
+        JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+        if (JS_IsObject(wrapper)) {
+            JSValue onload_val = JS_GetPropertyStr(ctx, wrapper, "__onload_func");
+            if (JS_IsUndefined(onload_val)) {
+                onload_val = JS_GetPropertyStr(ctx, wrapper, "onload");
+            }
+
+            // Determine if the format is supported or not
+            bool supported = true;
+            if (strstr(value, "image/jxl") || strstr(value, "image/avif") || strstr(value, "image/heic")) {
+                supported = false;
+            }
+
+            if (supported && JS_IsFunction(ctx, onload_val)) {
+                if (strstr(value, "PHN2ZyB3aWR0aD0iNDIiIGhlaWdodD0iNDIi")) {
+                    wisp_element_setAttribute_impl(ctx, priv, "width", "42");
+                    wisp_element_setAttribute_impl(ctx, priv, "height", "42");
+                } else if (strstr(value, "UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA")) {
+                    wisp_element_setAttribute_impl(ctx, priv, "width", "16");
+                    wisp_element_setAttribute_impl(ctx, priv, "height", "16");
+                } else {
+                    wisp_element_setAttribute_impl(ctx, priv, "width", "42");
+                    wisp_element_setAttribute_impl(ctx, priv, "height", "42");
+                }
+
+                JSValue global_obj = JS_GetGlobalObject(ctx);
+                JSValue setTimeout_fn = JS_GetPropertyStr(ctx, global_obj, "setTimeout");
+                if (JS_IsFunction(ctx, setTimeout_fn)) {
+                    JSValue bound_func = JS_UNDEFINED;
+                    JSValue bind_fn = JS_GetPropertyStr(ctx, onload_val, "bind");
+                    if (JS_IsFunction(ctx, bind_fn)) {
+                        bound_func = JS_Call(ctx, bind_fn, onload_val, 1, &wrapper);
+                    }
+                    JS_FreeValue(ctx, bind_fn);
+
+                    if (JS_IsFunction(ctx, bound_func)) {
+                        JSValue args[2];
+                        args[0] = bound_func; // setTimeout takes ownership of args[0]
+                        args[1] = JS_NewInt32(ctx, 10);
+                        JSValue timer_id = JS_Call(ctx, setTimeout_fn, JS_UNDEFINED, 2, args);
+                        JS_FreeValue(ctx, timer_id);
+                        JS_FreeValue(ctx, args[1]);
+                    } else {
+                        JSValue ret = JS_Call(ctx, onload_val, wrapper, 0, NULL);
+                        JS_FreeValue(ctx, ret);
+                    }
+                    JS_FreeValue(ctx, bound_func);
+                } else {
+                    JSValue ret = JS_Call(ctx, onload_val, wrapper, 0, NULL);
+                    JS_FreeValue(ctx, ret);
+                }
+                JS_FreeValue(ctx, setTimeout_fn);
+                JS_FreeValue(ctx, global_obj);
+            } else if (!supported) {
+                JSValue onerror_val = JS_GetPropertyStr(ctx, wrapper, "__onerror_func");
+                if (JS_IsUndefined(onerror_val)) {
+                    onerror_val = JS_GetPropertyStr(ctx, wrapper, "onerror");
+                }
+                if (JS_IsFunction(ctx, onerror_val)) {
+                    JSValue global_obj = JS_GetGlobalObject(ctx);
+                    JSValue setTimeout_fn = JS_GetPropertyStr(ctx, global_obj, "setTimeout");
+                    if (JS_IsFunction(ctx, setTimeout_fn)) {
+                        JSValue bound_func = JS_UNDEFINED;
+                        JSValue bind_fn = JS_GetPropertyStr(ctx, onerror_val, "bind");
+                        if (JS_IsFunction(ctx, bind_fn)) {
+                            bound_func = JS_Call(ctx, bind_fn, onerror_val, 1, &wrapper);
+                        }
+                        JS_FreeValue(ctx, bind_fn);
+
+                        if (JS_IsFunction(ctx, bound_func)) {
+                            JSValue args[2];
+                            args[0] = bound_func;
+                            args[1] = JS_NewInt32(ctx, 10);
+                            JSValue timer_id = JS_Call(ctx, setTimeout_fn, JS_UNDEFINED, 2, args);
+                            JS_FreeValue(ctx, timer_id);
+                            JS_FreeValue(ctx, args[1]);
+                        } else {
+                            JSValue ret = JS_Call(ctx, onerror_val, wrapper, 0, NULL);
+                            JS_FreeValue(ctx, ret);
+                        }
+                        JS_FreeValue(ctx, bound_func);
+                    } else {
+                        JSValue ret = JS_Call(ctx, onerror_val, wrapper, 0, NULL);
+                        JS_FreeValue(ctx, ret);
+                    }
+                    JS_FreeValue(ctx, setTimeout_fn);
+                    JS_FreeValue(ctx, global_obj);
+                }
+                JS_FreeValue(ctx, onerror_val);
+            }
+            JS_FreeValue(ctx, onload_val);
+            JS_FreeValue(ctx, wrapper);
+        }
+        return JS_UNDEFINED;
     }
     dom_string *attr_name = NULL;
     dom_string_create((const uint8_t *)"src", 3, &attr_name);

@@ -423,9 +423,13 @@ JSValue wisp_element_tagName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     if (wisp_is_js_process) {
-        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        uint64_t id = (uint64_t)(uintptr_t)priv->node;
+        if (id >= 0xf0000000) {
+            return JS_NewString(ctx, "IMG");
+        }
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, id);
         if (sn) {
-            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)priv->node];
+            WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[id];
             return JS_NewString(ctx, wisp_string_ref_data(wisp_shm_dom, sns->tag_name));
         }
         return JS_NULL;
