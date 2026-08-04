@@ -32,6 +32,9 @@
 #include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/private.h>
+#include <wisp/content/handlers/html/html.h>
+#include <wisp/content.h>
+#include <wisp/content/hlcache.h>
 #include <wisp/utils/nsoption.h>
 #include <math.h>
 #include "impl/observer_internal.h"
@@ -3507,6 +3510,42 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     /* In-process Content Security Policy (CSP) validation */
     struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv) ? (struct html_content *)thread->doc_priv : NULL;
+
+    bool is_module = false;
+    struct html_script *found_s = NULL;
+    if (htmlc && name) {
+        if (strcmp(name, "?inline script?") == 0) {
+            for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
+                struct html_script *s = &htmlc->scripts[idx];
+                if (s->type == HTML_SCRIPT_INLINE && s->data.string != NULL) {
+                    const char *str_data = dom_string_data(s->data.string);
+                    size_t str_len = dom_string_byte_length(s->data.string);
+                    if (str_len == txtlen && memcmp(str_data, txt, txtlen) == 0) {
+                        found_s = s;
+                        break;
+                    }
+                }
+            }
+        } else {
+            for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
+                struct html_script *s = &htmlc->scripts[idx];
+                if (s->type != HTML_SCRIPT_INLINE && s->data.handle != NULL) {
+                    const char *url_str = nsurl_access(hlcache_handle_get_url(s->data.handle));
+                    if (url_str && strcmp(url_str, name) == 0) {
+                        found_s = s;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (found_s && found_s->mimetype) {
+        const char *mime_data = dom_string_data(found_s->mimetype);
+        if (mime_data && strcasecmp(mime_data, "module") == 0) {
+            is_module = true;
+        }
+    }
+    int eval_flags = is_module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
     if (htmlc && htmlc->csp) {
         bool is_url = false;
         nsurl *url = NULL;
@@ -3626,18 +3665,20 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             char file_prefix[512];
             snprintf(file_prefix, sizeof(file_prefix), "file://%s", temp_file_path);
             size_t file_prefix_len = strlen(file_prefix);
-            msg.length = 4 + file_prefix_len;
+            msg.length = 8 + file_prefix_len;
             msg.data = malloc(msg.length);
             if (msg.data) {
                 memcpy(msg.data, &ctx_id, 4);
-                memcpy(msg.data + 4, file_prefix, file_prefix_len);
+                memcpy(msg.data + 4, &eval_flags, 4);
+                memcpy(msg.data + 8, file_prefix, file_prefix_len);
             }
         } else {
-            msg.length = 4 + txtlen;
+            msg.length = 8 + txtlen;
             msg.data = malloc(msg.length);
             if (msg.data) {
                 memcpy(msg.data, &ctx_id, 4);
-                memcpy(msg.data + 4, txt, txtlen);
+                memcpy(msg.data + 4, &eval_flags, 4);
+                memcpy(msg.data + 8, txt, txtlen);
             }
         }
 
@@ -3731,7 +3772,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         thread->heap->last_yield_ms = now;
     }
 
-    JSValue val = js_eval_with_aot_cache(thread->ctx, txt, txtlen, name, JS_EVAL_TYPE_GLOBAL);
+    JSValue val = js_eval_with_aot_cache(thread->ctx, txt, txtlen, name, eval_flags);
 
     if (thread->heap) {
         thread->heap->deadline_ms = old_deadline;
