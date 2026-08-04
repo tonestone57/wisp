@@ -303,7 +303,7 @@ const char *nsurl_access(const nsurl *url)
 const char *nsurl_access_log(const nsurl *url)
 {
     if (url == NULL)
-        return NULL;
+        return "(null)";
 
     if (url->components.scheme_type == NSURL_SCHEME_DATA) {
         return "[data url]";
