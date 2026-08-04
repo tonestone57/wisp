@@ -11,6 +11,7 @@
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
 
 extern JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
+extern JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque);
 
 static JSRuntime *rt;
 static char *js_process_origin = NULL;
@@ -145,6 +146,7 @@ int main(int argc, char **argv) {
     rt = JS_NewRuntime();
     JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
+    JS_SetModuleLoaderFunc(rt, NULL, wisp_module_loader, NULL);
 
     while (1) {
         wisp_ipc_msg msg;
@@ -194,21 +196,37 @@ int main(int argc, char **argv) {
                 free(payload);
             }
         } else if (msg.type == WISP_IPC_MSG_JS_EXEC) {
-            /* Format: [ctx_id(4)][eval_flags(4)][script...] */
-            if (msg.length >= 8) {
+            /* Format: [ctx_id(4)][eval_flags(4)][name_len(4)][name...][script...] */
+            if (msg.length >= 12) {
                 uint32_t ctx_id;
                 uint32_t eval_flags;
+                uint32_t name_len;
                 memcpy(&ctx_id, msg.data, 4);
                 memcpy(&eval_flags, msg.data + 4, 4);
+                memcpy(&name_len, msg.data + 8, 4);
+
+                char *script_name = NULL;
+                if (name_len > 0 && 12 + name_len <= msg.length) {
+                    script_name = malloc(name_len + 1);
+                    if (script_name) {
+                        memcpy(script_name, msg.data + 12, name_len);
+                        script_name[name_len] = '\0';
+                    }
+                }
+                if (!script_name) {
+                    script_name = strdup("<ipc>");
+                }
+
                 JSContext *ctx = get_context(ctx_id);
 
-                size_t script_len = msg.length - 8;
+                size_t offset = 12 + name_len;
+                size_t script_len = msg.length - offset;
                 char *script = NULL;
-                if (script_len >= 7 && strncmp((const char *)(msg.data + 8), "file://", 7) == 0) {
+                if (script_len >= 7 && strncmp((const char *)(msg.data + offset), "file://", 7) == 0) {
                     char file_path[512];
                     size_t path_len = script_len - 7;
                     if (path_len < sizeof(file_path)) {
-                        memcpy(file_path, msg.data + 8 + 7, path_len);
+                        memcpy(file_path, msg.data + offset + 7, path_len);
                         file_path[path_len] = '\0';
                         FILE *f = fopen(file_path, "rb");
                         if (f) {
@@ -235,7 +253,7 @@ int main(int argc, char **argv) {
                 if (!script) {
                     script = malloc(script_len + 1);
                     if (script) {
-                        memcpy(script, msg.data + 8, script_len);
+                        memcpy(script, msg.data + offset, script_len);
                         script[script_len] = '\0';
                     }
                 }
@@ -256,7 +274,7 @@ int main(int argc, char **argv) {
 
                     JSValue val = JS_UNDEFINED;
                     if (wisp_shm_dom) {
-                        val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", eval_flags);
+                        val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, script_name, eval_flags);
                     }
 
                     /* Execute any pending microtasks (microtask-tick serialization) */
@@ -307,7 +325,9 @@ int main(int argc, char **argv) {
                     wisp_ipc_msg_free(&response);
                     JS_FreeValue(ctx, val);
                     free(script);
+                    free(script_name);
                 } else {
+                    free(script_name);
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;
                     response.length = 0;
