@@ -260,7 +260,10 @@ int main(int argc, char **argv) {
 
                 if (script) {
                     if (wisp_shm_dom) {
-                        shm_dom_lock_read(wisp_shm_dom);
+                        // Query the capacity safely, remapping if necessary, but under write lock or fine-grained lock.
+                        // Actually, wisp_shm_dom has fine-grained locks. We should not hold a read lock across
+                        // the entire script execution. Instead, if capacity has grown, let's remap under a write lock.
+                        shm_dom_lock_write(wisp_shm_dom);
                         if (wisp_shm_capacity < wisp_shm_dom->node_capacity) {
                             uint32_t new_cap = wisp_shm_dom->node_capacity;
                             wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
@@ -270,6 +273,7 @@ int main(int argc, char **argv) {
                                 wisp_shm_capacity = 0;
                             }
                         }
+                        shm_dom_unlock_write(wisp_shm_dom);
                     }
 
                     JSValue val = JS_UNDEFINED;
@@ -295,10 +299,6 @@ int main(int argc, char **argv) {
                     /* Flush the Batch-Buffered Mutation Queue (BBMQ) */
                     extern void bbmq_flush(void);
                     bbmq_flush();
-
-                    if (wisp_shm_dom) {
-                        shm_dom_unlock_read(wisp_shm_dom);
-                    }
 
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;
