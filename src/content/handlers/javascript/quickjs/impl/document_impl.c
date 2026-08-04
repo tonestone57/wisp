@@ -28,6 +28,61 @@ extern shm_dom_t *wisp_shm_dom;
 #include "JSMessageEvent.gen.h"
 #include "JSErrorEvent.gen.h"
 
+static uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *value) {
+    if (!wisp_shm_dom) return 0;
+
+    shm_dom_lock_write(wisp_shm_dom);
+
+    uint32_t new_id = wisp_shm_dom->node_count++;
+    extern uint32_t wisp_shm_capacity;
+    if (new_id >= wisp_shm_capacity) {
+        uint32_t new_cap = wisp_shm_dom->node_capacity * 2;
+        shm_dom_t *new_shm = shm_dom_remap(wisp_shm_dom, new_cap);
+        if (new_shm) {
+            new_shm->node_capacity = new_cap;
+            wisp_shm_dom = new_shm;
+            wisp_shm_capacity = new_cap;
+        } else {
+            shm_dom_unlock_write(wisp_shm_dom);
+            return 0;
+        }
+    }
+
+    WispCompactNode *nodes_array = shm_dom_get_nodes(wisp_shm_dom);
+    WispCompactNode *sn = &nodes_array[new_id];
+    memset(sn, 0, sizeof(*sn));
+    sn->node_type = type;
+
+    WispNodeStrings *node_strings_array = shm_dom_get_node_strings(wisp_shm_dom);
+    WispNodeStrings *sns = &node_strings_array[new_id];
+    memset(sns, 0, sizeof(*sns));
+
+    if (type == 1) { // DOM_ELEMENT_NODE
+        sns->tag_name = wisp_shm_alloc_string(wisp_shm_dom, name);
+        if (strcasecmp(name, "html") == 0) sn->tag_atom = 1;
+        else if (strcasecmp(name, "head") == 0) sn->tag_atom = 2;
+        else if (strcasecmp(name, "body") == 0) sn->tag_atom = 3;
+        else if (strcasecmp(name, "title") == 0) sn->tag_atom = 4;
+        else if (strcasecmp(name, "div") == 0) sn->tag_atom = 5;
+        else if (strcasecmp(name, "span") == 0) sn->tag_atom = 6;
+        else if (strcasecmp(name, "p") == 0) sn->tag_atom = 7;
+        else if (strcasecmp(name, "a") == 0) sn->tag_atom = 8;
+        else if (strcasecmp(name, "script") == 0) sn->tag_atom = 9;
+        else if (strcasecmp(name, "style") == 0) sn->tag_atom = 10;
+        else if (strcasecmp(name, "link") == 0) sn->tag_atom = 11;
+        else if (strcasecmp(name, "img") == 0) sn->tag_atom = 12;
+        else if (strcasecmp(name, "iframe") == 0) sn->tag_atom = 13;
+        else sn->tag_atom = 14;
+    } else if (type == 3 || type == 8) { // DOM_TEXT_NODE, DOM_COMMENT_NODE
+        sns->value = wisp_shm_alloc_string(wisp_shm_dom, value);
+    }
+
+    shm_dom_get_dom_ptrs(wisp_shm_dom)[new_id] = 0;
+
+    shm_dom_unlock_write(wisp_shm_dom);
+    return new_id;
+}
+
 static struct nsurl *get_doc_url_local(JSContext *ctx)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
@@ -322,7 +377,11 @@ JSValue wisp_document_children_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName)
 {
-    if (wisp_is_js_process) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint64_t virtual_id = allocate_virtual_shm_node(1, localName, NULL);
+        if (virtual_id == 0) return JS_NULL;
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)virtual_id);
+    }
     if (!priv || !priv->node) return JS_NULL;
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)localName, strlen(localName), &name_dom);
@@ -358,7 +417,11 @@ JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_document_createTextNode_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
 {
-    if (wisp_is_js_process) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint64_t virtual_id = allocate_virtual_shm_node(3, NULL, data);
+        if (virtual_id == 0) return JS_NULL;
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)virtual_id);
+    }
     if (!priv || !priv->node) return JS_NULL;
     dom_string *data_dom = NULL;
     dom_string_create((const uint8_t *)data, strlen(data), &data_dom);
@@ -720,7 +783,11 @@ JSValue wisp_document_defaultView_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_document_createComment_impl(JSContext *ctx, QJSNodePrivate *priv, const char * data)
 {
-    if (wisp_is_js_process) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint64_t virtual_id = allocate_virtual_shm_node(8, NULL, data);
+        if (virtual_id == 0) return JS_NULL;
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)virtual_id);
+    }
     if (!priv || !priv->node) return JS_NULL;
     dom_string *data_dom = NULL;
     dom_string_create((const uint8_t *)data, strlen(data), &data_dom);
@@ -752,7 +819,11 @@ JSValue wisp_document_getElementsByName_impl(JSContext *ctx, QJSNodePrivate *pri
 
 JSValue wisp_document_createDocumentFragment_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (wisp_is_js_process) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint64_t virtual_id = allocate_virtual_shm_node(11, NULL, NULL);
+        if (virtual_id == 0) return JS_NULL;
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)virtual_id);
+    }
     if (!priv || !priv->node) return JS_NULL;
     struct dom_document_fragment *result = NULL;
     dom_document_create_document_fragment((dom_document *)priv->node, &result);
