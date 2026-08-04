@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "utils/hashmap.h"
+#include "wisp/utils/shm_dom.h"
 
 
 typedef struct {
@@ -496,8 +497,23 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
      * counts drop to 0 before the document node is finalising. This prevents
      * document teardown from being blocked by pending child node references. */
     for (size_t i = 0; i < cleanup.count; i++) {
-        dom_node_type type;
-        if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR && type == DOM_DOCUMENT_NODE) {
+        dom_node_type type = 0;
+        bool has_type = false;
+        if (wisp_is_js_process) {
+            if (wisp_shm_dom) {
+                WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)cleanup.nodes[i]);
+                if (sn) {
+                    type = (dom_node_type)sn->node_type;
+                    has_type = true;
+                }
+            }
+        } else {
+            if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR) {
+                has_type = true;
+            }
+        }
+
+        if (has_type && type == DOM_DOCUMENT_NODE) {
             continue;
         }
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
@@ -510,8 +526,23 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
 
     /* Second pass: unref all document nodes */
     for (size_t i = 0; i < cleanup.count; i++) {
-        dom_node_type type;
-        if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR && type != DOM_DOCUMENT_NODE) {
+        dom_node_type type = 0;
+        bool has_type = false;
+        if (wisp_is_js_process) {
+            if (wisp_shm_dom) {
+                WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)cleanup.nodes[i]);
+                if (sn) {
+                    type = (dom_node_type)sn->node_type;
+                    has_type = true;
+                }
+            }
+        } else {
+            if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR) {
+                has_type = true;
+            }
+        }
+
+        if (has_type && type != DOM_DOCUMENT_NODE) {
             continue;
         }
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };

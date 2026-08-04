@@ -265,7 +265,7 @@ int main(int argc, char **argv) {
                         if (job_ret < 0) {
                             JSValue exc = JS_GetException(ctx1);
                             const char *exc_str = JS_ToCString(ctx1, exc);
-                            NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                            fprintf(stderr, "\n=== MICROTASK JS Error: %s ===\n", exc_str ? exc_str : "unknown");
                             if (exc_str) JS_FreeCString(ctx1, exc_str);
                             JS_FreeValue(ctx1, exc);
                         }
@@ -283,6 +283,11 @@ int main(int argc, char **argv) {
                     wisp_ipc_msg response;
                     response.type = WISP_IPC_MSG_JS_EXEC;
                     if (JS_IsException(val)) {
+                        JSValue exc = JS_GetException(ctx);
+                        const char *exc_str = JS_ToCString(ctx, exc);
+                        fprintf(stderr, "\n=== JS PROCESS EXCEPTION: %s ===\n", exc_str ? exc_str : "unknown");
+                        JS_FreeCString(ctx, exc_str);
+                        JS_FreeValue(ctx, exc);
                         response.length = 0;
                         response.data = NULL;
                     } else {
