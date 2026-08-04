@@ -194,19 +194,21 @@ int main(int argc, char **argv) {
                 free(payload);
             }
         } else if (msg.type == WISP_IPC_MSG_JS_EXEC) {
-            /* Format: [ctx_id(4)][script...] */
-            if (msg.length >= 4) {
+            /* Format: [ctx_id(4)][eval_flags(4)][script...] */
+            if (msg.length >= 8) {
                 uint32_t ctx_id;
+                uint32_t eval_flags;
                 memcpy(&ctx_id, msg.data, 4);
+                memcpy(&eval_flags, msg.data + 4, 4);
                 JSContext *ctx = get_context(ctx_id);
 
-                size_t script_len = msg.length - 4;
+                size_t script_len = msg.length - 8;
                 char *script = NULL;
-                if (script_len >= 7 && strncmp((const char *)(msg.data + 4), "file://", 7) == 0) {
+                if (script_len >= 7 && strncmp((const char *)(msg.data + 8), "file://", 7) == 0) {
                     char file_path[512];
                     size_t path_len = script_len - 7;
                     if (path_len < sizeof(file_path)) {
-                        memcpy(file_path, msg.data + 4 + 7, path_len);
+                        memcpy(file_path, msg.data + 8 + 7, path_len);
                         file_path[path_len] = '\0';
                         FILE *f = fopen(file_path, "rb");
                         if (f) {
@@ -233,7 +235,7 @@ int main(int argc, char **argv) {
                 if (!script) {
                     script = malloc(script_len + 1);
                     if (script) {
-                        memcpy(script, msg.data + 4, script_len);
+                        memcpy(script, msg.data + 8, script_len);
                         script[script_len] = '\0';
                     }
                 }
@@ -254,7 +256,7 @@ int main(int argc, char **argv) {
 
                     JSValue val = JS_UNDEFINED;
                     if (wisp_shm_dom) {
-                        val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", JS_EVAL_TYPE_GLOBAL);
+                        val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, "<ipc>", eval_flags);
                     }
 
                     /* Execute any pending microtasks (microtask-tick serialization) */
