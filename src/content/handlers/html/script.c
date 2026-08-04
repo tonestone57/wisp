@@ -822,6 +822,9 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
 
         ctype = content_factory_type_from_mime_type(lwcmimetype);
         lwc_string_unref(lwcmimetype);
+        /* Re-retrieve mime_cstr since dom_string_intern might free the old memory block
+         * and reallocate / intern it, rendering the previous pointer invalid. */
+        mime_cstr = mimetype ? (const char *)dom_string_data(mimetype) : NULL;
     }
 
     NSLOG(wisp, INFO, "exec_inline_script: mimetype_cstr='%s' -> content_type=%d (CONTENT_JS=%d)",
