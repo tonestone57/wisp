@@ -485,6 +485,18 @@ static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector
     return true;
 }
 
+static bool qjs_get_node_type(struct dom_node *node, dom_node_type *out_type)
+{
+    if (wisp_is_js_process) {
+        if (!wisp_shm_dom) return false;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)node);
+        if (!sn) return false;
+        *out_type = (dom_node_type)sn->node_type;
+        return true;
+    }
+    return dom_node_get_node_type(node, out_type) == DOM_NO_ERR;
+}
+
 void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
 {
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
@@ -498,20 +510,7 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
      * document teardown from being blocked by pending child node references. */
     for (size_t i = 0; i < cleanup.count; i++) {
         dom_node_type type = 0;
-        bool has_type = false;
-        if (wisp_is_js_process) {
-            if (wisp_shm_dom) {
-                WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)cleanup.nodes[i]);
-                if (sn) {
-                    type = (dom_node_type)sn->node_type;
-                    has_type = true;
-                }
-            }
-        } else {
-            if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR) {
-                has_type = true;
-            }
-        }
+        bool has_type = qjs_get_node_type(cleanup.nodes[i], &type);
 
         if (has_type && type == DOM_DOCUMENT_NODE) {
             continue;
@@ -527,20 +526,7 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
     /* Second pass: unref all document nodes */
     for (size_t i = 0; i < cleanup.count; i++) {
         dom_node_type type = 0;
-        bool has_type = false;
-        if (wisp_is_js_process) {
-            if (wisp_shm_dom) {
-                WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)cleanup.nodes[i]);
-                if (sn) {
-                    type = (dom_node_type)sn->node_type;
-                    has_type = true;
-                }
-            }
-        } else {
-            if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR) {
-                has_type = true;
-            }
-        }
+        bool has_type = qjs_get_node_type(cleanup.nodes[i], &type);
 
         if (has_type && type != DOM_DOCUMENT_NODE) {
             continue;

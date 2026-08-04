@@ -54,6 +54,7 @@ struct jsheap {
     int timeout;
     uint64_t deadline_ms;
     uint64_t last_yield_ms;
+    struct jsthread *threads; /* Head of linked list of active threads on this heap */
 };
 
 struct qjs_timer {
@@ -103,6 +104,7 @@ struct qjs_event_map {
 struct jsthread {
     JSContext *ctx;
     struct jsheap *heap;
+    struct jsthread *next_in_heap; /* Next thread in the same heap's linked list */
     void *win_priv;
     void *doc_priv;
     char *origin;
