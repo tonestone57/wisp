@@ -944,7 +944,11 @@ JSValue wisp_element_outerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "");
     HTMLBuffer b = { NULL, 0, 0 };
-    serialize_node_to_html((dom_node *)priv->node, &b);
+    if (wisp_is_js_process) {
+        serialize_shm_node_to_html((uint64_t)(uintptr_t)priv->node, &b);
+    } else {
+        serialize_node_to_html((dom_node *)priv->node, &b);
+    }
     JSValue val = JS_NewStringLen(ctx, b.buf ? b.buf : "", b.len);
     free(b.buf);
     return val;
