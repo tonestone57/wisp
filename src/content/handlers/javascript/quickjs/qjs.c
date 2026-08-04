@@ -2864,106 +2864,125 @@ void js_destroythread(jsthread *thread)
                 JS_FreeValue(ctx1, exc);
             }
         }
+    }
 
-        struct qjs_timer *tim = thread->timers;
-        thread->timers = NULL;
-        while (tim) {
-            struct qjs_timer *next = tim->next;
-            if (!tim->cancelled && guit && guit->misc && guit->misc->schedule) {
-                /* Unscheduling uses -1 as the signal to the scheduler to drop the task.
-                 * Note: qjs_timer_callback checks tim->cancelled to perform cleanup if fired. */
-                guit->misc->schedule(-1, qjs_timer_callback, tim);
-            }
+    struct qjs_timer *tim = thread->timers;
+    thread->timers = NULL;
+    while (tim) {
+        struct qjs_timer *next = tim->next;
+        if (!tim->cancelled && guit && guit->misc && guit->misc->schedule) {
+            /* Unscheduling uses -1 as the signal to the scheduler to drop the task.
+             * Note: qjs_timer_callback checks tim->cancelled to perform cleanup if fired. */
+            guit->misc->schedule(-1, qjs_timer_callback, tim);
+        }
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, tim->func);
-            free(tim);
-            tim = next;
         }
+        free(tim);
+        tim = next;
+    }
 
-        struct qjs_raf_callback *raf = thread->raf_callbacks;
-        thread->raf_callbacks = NULL;
-        while (raf) {
-            struct qjs_raf_callback *next = raf->next;
-            if (guit && guit->misc && guit->misc->schedule) {
-                guit->misc->schedule(-1, qjs_raf_callback_fn, raf);
-            }
+    struct qjs_raf_callback *raf = thread->raf_callbacks;
+    thread->raf_callbacks = NULL;
+    while (raf) {
+        struct qjs_raf_callback *next = raf->next;
+        if (guit && guit->misc && guit->misc->schedule) {
+            guit->misc->schedule(-1, qjs_raf_callback_fn, raf);
+        }
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, raf->func);
-            free(raf);
-            raf = next;
         }
+        free(raf);
+        raf = next;
+    }
 
-        struct qjs_idle_callback *idle = thread->idle_callbacks;
-        thread->idle_callbacks = NULL;
-        while (idle) {
-            struct qjs_idle_callback *next = idle->next;
-            if (guit && guit->misc && guit->misc->schedule) {
-                guit->misc->schedule(-1, qjs_idle_callback_fn, idle);
-            }
+    struct qjs_idle_callback *idle = thread->idle_callbacks;
+    thread->idle_callbacks = NULL;
+    while (idle) {
+        struct qjs_idle_callback *next = idle->next;
+        if (guit && guit->misc && guit->misc->schedule) {
+            guit->misc->schedule(-1, qjs_idle_callback_fn, idle);
+        }
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, idle->func);
-            free(idle);
-            idle = next;
         }
+        free(idle);
+        idle = next;
+    }
 
-        struct qjs_event_listener_ctx *l = thread->listeners;
-        thread->listeners = NULL;
-        while (l) {
-            struct qjs_event_listener_ctx *next = l->next;
-            dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
-            dom_node_unref((struct dom_node *)l->target);
-            dom_string_unref(l->type);
+    struct qjs_event_listener_ctx *l = thread->listeners;
+    thread->listeners = NULL;
+    while (l) {
+        struct qjs_event_listener_ctx *next = l->next;
+        dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+        dom_node_unref((struct dom_node *)l->target);
+        dom_string_unref(l->type);
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, l->func);
-            dom_event_listener_unref(l->listener);
-            free(l);
-            l = next;
         }
+        dom_event_listener_unref(l->listener);
+        free(l);
+        l = next;
+    }
 
-        struct qjs_event_map *e = thread->events;
-        thread->events = NULL;
-        while (e) {
-            struct qjs_event_map *next = e->next;
+    struct qjs_event_map *e = thread->events;
+    thread->events = NULL;
+    while (e) {
+        struct qjs_event_map *next = e->next;
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, e->js_evt);
-            dom_event_unref(e->evt);
-            free(e);
-            e = next;
         }
+        dom_event_unref(e->evt);
+        free(e);
+        e = next;
+    }
 
-        /* Break XMLHttpRequest cycles and orphan them */
-        struct WispXHR *xhr_list = thread->xmlhttprequests;
-        thread->xmlhttprequests = NULL;
-        while (xhr_list) {
-            struct WispXHR *xhr = xhr_list;
-            xhr_list = xhr->next;
-            JSValue self = xhr->self;
-            xhr->self = JS_UNDEFINED;
-            xhr->next = NULL;
+    /* Break XMLHttpRequest cycles and orphan them */
+    struct WispXHR *xhr_list = thread->xmlhttprequests;
+    thread->xmlhttprequests = NULL;
+    while (xhr_list) {
+        struct WispXHR *xhr = xhr_list;
+        xhr_list = xhr->next;
+        JSValue self = xhr->self;
+        xhr->self = JS_UNDEFINED;
+        xhr->next = NULL;
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, self);
         }
+    }
 
-        /* Break MutationObserver cycles and orphan them */
-        struct WispMutationObserver *mo_list = (struct WispMutationObserver *)thread->mutation_observers;
-        thread->mutation_observers = NULL;
-        while (mo_list) {
-            struct WispMutationObserver *mo = mo_list;
-            mo_list = mo->next;
-            JSValue self = mo->self;
-            mo->self = JS_UNDEFINED;
-            mo->next = NULL;
+    /* Break MutationObserver cycles and orphan them */
+    struct WispMutationObserver *mo_list = (struct WispMutationObserver *)thread->mutation_observers;
+    thread->mutation_observers = NULL;
+    while (mo_list) {
+        struct WispMutationObserver *mo = mo_list;
+        mo_list = mo->next;
+        JSValue self = mo->self;
+        mo->self = JS_UNDEFINED;
+        mo->next = NULL;
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, self);
         }
+    }
 
-        /* Break IntersectionObserver cycles and orphan them */
-        struct WispIntersectionObserver *io_list = (struct WispIntersectionObserver *)thread->intersection_observers;
-        thread->intersection_observers = NULL;
-        while (io_list) {
-            struct WispIntersectionObserver *io = io_list;
-            io_list = io->next;
-            JSValue self = io->self;
-            io->self = JS_UNDEFINED;
-            io->next = NULL;
+    /* Break IntersectionObserver cycles and orphan them */
+    struct WispIntersectionObserver *io_list = (struct WispIntersectionObserver *)thread->intersection_observers;
+    thread->intersection_observers = NULL;
+    while (io_list) {
+        struct WispIntersectionObserver *io = io_list;
+        io_list = io->next;
+        JSValue self = io->self;
+        io->self = JS_UNDEFINED;
+        io->next = NULL;
+        if (thread->ctx) {
             JS_FreeValue(thread->ctx, self);
         }
+    }
 
-        qjs_cleanup_mutation_observer(thread);
+    qjs_cleanup_mutation_observer(thread);
 
+    if (thread->ctx) {
+        JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx = thread->ctx;
 
         /* 1. Set opaque to NULL so no more callbacks are made */
