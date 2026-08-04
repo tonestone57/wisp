@@ -12289,3 +12289,918 @@ JSValue wisp_domelementmap___setter___impl(JSContext *ctx, QJSNodePrivate *priv,
 JSValue wisp_domimplementation_createHTMLDocument_impl(JSContext *ctx, QJSNodePrivate *priv, const char * title) {
     return JS_UNDEFINED;
 }
+
+
+// =============================================================================
+// Automatic strong-symbol WebIDL stub overrides (184 stubs wave)
+// =============================================================================
+
+// Overrides: Document | open()
+JSValue wisp_document_open_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url, const char * name, const char * features, bool replace) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: DOMSettableTokenList | value (getter)
+JSValue wisp_domsettabletokenlist_value_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: DOMSettableTokenList | value (setter)
+JSValue wisp_domsettabletokenlist_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: DOMStringMap | __deleter__()
+JSValue wisp_domstringmap___deleter___impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: DOMStringMap | __getter__()
+JSValue wisp_domstringmap___getter___impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: DOMStringMap | __setter__()
+JSValue wisp_domstringmap___setter___impl(JSContext *ctx, QJSNodePrivate *priv, const char * name, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: DrawingStyle | constructor
+JSValue wisp_drawingstyle_constructor_impl(JSContext *ctx, void * scope) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Element | append()
+JSValue wisp_element_append_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Element | outerHTML (setter)
+JSValue wisp_element_outerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Element | prepend()
+JSValue wisp_element_prepend_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Element | remove()
+JSValue wisp_element_remove_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: ElementContentEditable | contentEditable (getter)
+JSValue wisp_elementcontenteditable_contentEditable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: ElementContentEditable | contentEditable (setter)
+JSValue wisp_elementcontenteditable_contentEditable_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: ElementContentEditable | isContentEditable (getter)
+JSValue wisp_elementcontenteditable_isContentEditable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Event | constructor
+JSValue wisp_event_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: EventSource | constructor
+JSValue wisp_eventsource_constructor_impl(JSContext *ctx, const char * url, JSValue eventSourceInitDict) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: GetStyleUtils | cascadedStyle (getter)
+JSValue wisp_getstyleutils_cascadedStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: GetStyleUtils | defaultStyle (getter)
+JSValue wisp_getstyleutils_defaultStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: GetStyleUtils | rawComputedStyle (getter)
+JSValue wisp_getstyleutils_rawComputedStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: GetStyleUtils | usedStyle (getter)
+JSValue wisp_getstyleutils_usedStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | charset (getter)
+JSValue wisp_htmlanchorelement_charset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | charset (setter)
+JSValue wisp_htmlanchorelement_charset_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | coords (getter)
+JSValue wisp_htmlanchorelement_coords_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | coords (setter)
+JSValue wisp_htmlanchorelement_coords_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | hreflang (getter)
+JSValue wisp_htmlanchorelement_hreflang_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | hreflang (setter)
+JSValue wisp_htmlanchorelement_hreflang_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | name (getter)
+JSValue wisp_htmlanchorelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | name (setter)
+JSValue wisp_htmlanchorelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | rel (getter)
+JSValue wisp_htmlanchorelement_rel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | rel (setter)
+JSValue wisp_htmlanchorelement_rel_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | rev (getter)
+JSValue wisp_htmlanchorelement_rev_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | rev (setter)
+JSValue wisp_htmlanchorelement_rev_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | shape (getter)
+JSValue wisp_htmlanchorelement_shape_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | shape (setter)
+JSValue wisp_htmlanchorelement_shape_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAnchorElement | target (getter)
+JSValue wisp_htmlanchorelement_target_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLAnchorElement | target (setter)
+JSValue wisp_htmlanchorelement_target_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLAudioElement | Audio
+JSValue wisp_htmlaudioelement_Audio_impl(JSContext *ctx, const char * src) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLButtonElement | labels (getter)
+JSValue wisp_htmlbuttonelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onabort (getter)
+JSValue wisp_htmlelement_onabort_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onabort (setter)
+JSValue wisp_htmlelement_onabort_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onautocomplete (getter)
+JSValue wisp_htmlelement_onautocomplete_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onautocomplete (setter)
+JSValue wisp_htmlelement_onautocomplete_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onautocompleteerror (getter)
+JSValue wisp_htmlelement_onautocompleteerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onautocompleteerror (setter)
+JSValue wisp_htmlelement_onautocompleteerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onblur (getter)
+JSValue wisp_htmlelement_onblur_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onblur (setter)
+JSValue wisp_htmlelement_onblur_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oncancel (getter)
+JSValue wisp_htmlelement_oncancel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oncancel (setter)
+JSValue wisp_htmlelement_oncancel_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oncanplay (getter)
+JSValue wisp_htmlelement_oncanplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oncanplay (setter)
+JSValue wisp_htmlelement_oncanplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oncanplaythrough (getter)
+JSValue wisp_htmlelement_oncanplaythrough_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oncanplaythrough (setter)
+JSValue wisp_htmlelement_oncanplaythrough_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onchange (getter)
+JSValue wisp_htmlelement_onchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onchange (setter)
+JSValue wisp_htmlelement_onchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onclick (getter)
+JSValue wisp_htmlelement_onclick_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onclick (setter)
+JSValue wisp_htmlelement_onclick_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onclose (getter)
+JSValue wisp_htmlelement_onclose_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onclose (setter)
+JSValue wisp_htmlelement_onclose_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oncontextmenu (getter)
+JSValue wisp_htmlelement_oncontextmenu_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oncontextmenu (setter)
+JSValue wisp_htmlelement_oncontextmenu_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oncuechange (getter)
+JSValue wisp_htmlelement_oncuechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oncuechange (setter)
+JSValue wisp_htmlelement_oncuechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondblclick (getter)
+JSValue wisp_htmlelement_ondblclick_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondblclick (setter)
+JSValue wisp_htmlelement_ondblclick_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondrag (getter)
+JSValue wisp_htmlelement_ondrag_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondrag (setter)
+JSValue wisp_htmlelement_ondrag_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondragend (getter)
+JSValue wisp_htmlelement_ondragend_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondragend (setter)
+JSValue wisp_htmlelement_ondragend_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondragenter (getter)
+JSValue wisp_htmlelement_ondragenter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondragenter (setter)
+JSValue wisp_htmlelement_ondragenter_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondragexit (getter)
+JSValue wisp_htmlelement_ondragexit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondragexit (setter)
+JSValue wisp_htmlelement_ondragexit_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondragleave (getter)
+JSValue wisp_htmlelement_ondragleave_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondragleave (setter)
+JSValue wisp_htmlelement_ondragleave_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondragover (getter)
+JSValue wisp_htmlelement_ondragover_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondragover (setter)
+JSValue wisp_htmlelement_ondragover_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondragstart (getter)
+JSValue wisp_htmlelement_ondragstart_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondragstart (setter)
+JSValue wisp_htmlelement_ondragstart_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondrop (getter)
+JSValue wisp_htmlelement_ondrop_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondrop (setter)
+JSValue wisp_htmlelement_ondrop_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ondurationchange (getter)
+JSValue wisp_htmlelement_ondurationchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ondurationchange (setter)
+JSValue wisp_htmlelement_ondurationchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onemptied (getter)
+JSValue wisp_htmlelement_onemptied_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onemptied (setter)
+JSValue wisp_htmlelement_onemptied_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onended (getter)
+JSValue wisp_htmlelement_onended_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onended (setter)
+JSValue wisp_htmlelement_onended_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onfocus (getter)
+JSValue wisp_htmlelement_onfocus_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onfocus (setter)
+JSValue wisp_htmlelement_onfocus_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oninput (getter)
+JSValue wisp_htmlelement_oninput_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oninput (setter)
+JSValue wisp_htmlelement_oninput_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | oninvalid (getter)
+JSValue wisp_htmlelement_oninvalid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | oninvalid (setter)
+JSValue wisp_htmlelement_oninvalid_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onkeydown (getter)
+JSValue wisp_htmlelement_onkeydown_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onkeydown (setter)
+JSValue wisp_htmlelement_onkeydown_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onkeypress (getter)
+JSValue wisp_htmlelement_onkeypress_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onkeypress (setter)
+JSValue wisp_htmlelement_onkeypress_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onkeyup (getter)
+JSValue wisp_htmlelement_onkeyup_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onkeyup (setter)
+JSValue wisp_htmlelement_onkeyup_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onloadeddata (getter)
+JSValue wisp_htmlelement_onloadeddata_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onloadeddata (setter)
+JSValue wisp_htmlelement_onloadeddata_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onloadedmetadata (getter)
+JSValue wisp_htmlelement_onloadedmetadata_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onloadedmetadata (setter)
+JSValue wisp_htmlelement_onloadedmetadata_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onloadstart (getter)
+JSValue wisp_htmlelement_onloadstart_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onloadstart (setter)
+JSValue wisp_htmlelement_onloadstart_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmousedown (getter)
+JSValue wisp_htmlelement_onmousedown_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmousedown (setter)
+JSValue wisp_htmlelement_onmousedown_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmouseenter (getter)
+JSValue wisp_htmlelement_onmouseenter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmouseenter (setter)
+JSValue wisp_htmlelement_onmouseenter_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmouseleave (getter)
+JSValue wisp_htmlelement_onmouseleave_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmouseleave (setter)
+JSValue wisp_htmlelement_onmouseleave_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmousemove (getter)
+JSValue wisp_htmlelement_onmousemove_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmousemove (setter)
+JSValue wisp_htmlelement_onmousemove_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmouseout (getter)
+JSValue wisp_htmlelement_onmouseout_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmouseout (setter)
+JSValue wisp_htmlelement_onmouseout_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmouseover (getter)
+JSValue wisp_htmlelement_onmouseover_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmouseover (setter)
+JSValue wisp_htmlelement_onmouseover_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onmouseup (getter)
+JSValue wisp_htmlelement_onmouseup_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onmouseup (setter)
+JSValue wisp_htmlelement_onmouseup_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onpause (getter)
+JSValue wisp_htmlelement_onpause_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onpause (setter)
+JSValue wisp_htmlelement_onpause_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onplay (getter)
+JSValue wisp_htmlelement_onplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onplay (setter)
+JSValue wisp_htmlelement_onplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onplaying (getter)
+JSValue wisp_htmlelement_onplaying_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onplaying (setter)
+JSValue wisp_htmlelement_onplaying_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onprogress (getter)
+JSValue wisp_htmlelement_onprogress_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onprogress (setter)
+JSValue wisp_htmlelement_onprogress_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onratechange (getter)
+JSValue wisp_htmlelement_onratechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onratechange (setter)
+JSValue wisp_htmlelement_onratechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onreset (getter)
+JSValue wisp_htmlelement_onreset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onreset (setter)
+JSValue wisp_htmlelement_onreset_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onresize (getter)
+JSValue wisp_htmlelement_onresize_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onresize (setter)
+JSValue wisp_htmlelement_onresize_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onscroll (getter)
+JSValue wisp_htmlelement_onscroll_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onscroll (setter)
+JSValue wisp_htmlelement_onscroll_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onseeked (getter)
+JSValue wisp_htmlelement_onseeked_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onseeked (setter)
+JSValue wisp_htmlelement_onseeked_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onseeking (getter)
+JSValue wisp_htmlelement_onseeking_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onseeking (setter)
+JSValue wisp_htmlelement_onseeking_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onselect (getter)
+JSValue wisp_htmlelement_onselect_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onselect (setter)
+JSValue wisp_htmlelement_onselect_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onshow (getter)
+JSValue wisp_htmlelement_onshow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onshow (setter)
+JSValue wisp_htmlelement_onshow_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onsort (getter)
+JSValue wisp_htmlelement_onsort_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onsort (setter)
+JSValue wisp_htmlelement_onsort_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onstalled (getter)
+JSValue wisp_htmlelement_onstalled_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onstalled (setter)
+JSValue wisp_htmlelement_onstalled_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onsubmit (getter)
+JSValue wisp_htmlelement_onsubmit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onsubmit (setter)
+JSValue wisp_htmlelement_onsubmit_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onsuspend (getter)
+JSValue wisp_htmlelement_onsuspend_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onsuspend (setter)
+JSValue wisp_htmlelement_onsuspend_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ontimeupdate (getter)
+JSValue wisp_htmlelement_ontimeupdate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ontimeupdate (setter)
+JSValue wisp_htmlelement_ontimeupdate_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | ontoggle (getter)
+JSValue wisp_htmlelement_ontoggle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | ontoggle (setter)
+JSValue wisp_htmlelement_ontoggle_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onvolumechange (getter)
+JSValue wisp_htmlelement_onvolumechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onvolumechange (setter)
+JSValue wisp_htmlelement_onvolumechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onwaiting (getter)
+JSValue wisp_htmlelement_onwaiting_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onwaiting (setter)
+JSValue wisp_htmlelement_onwaiting_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLElement | onwheel (getter)
+JSValue wisp_htmlelement_onwheel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLElement | onwheel (setter)
+JSValue wisp_htmlelement_onwheel_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFormElement | __getter__()
+JSValue wisp_htmlformelement___getter___0_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFormElement | __getter__()
+JSValue wisp_htmlformelement___getter___1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFormElement | acceptCharset (getter)
+JSValue wisp_htmlformelement_acceptCharset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFormElement | acceptCharset (setter)
+JSValue wisp_htmlformelement_acceptCharset_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFormElement | enctype (getter)
+JSValue wisp_htmlformelement_enctype_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFormElement | enctype (setter)
+JSValue wisp_htmlformelement_enctype_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onafterprint (getter)
+JSValue wisp_htmlframesetelement_onafterprint_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onafterprint (setter)
+JSValue wisp_htmlframesetelement_onafterprint_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onbeforeprint (getter)
+JSValue wisp_htmlframesetelement_onbeforeprint_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onbeforeprint (setter)
+JSValue wisp_htmlframesetelement_onbeforeprint_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onbeforeunload (getter)
+JSValue wisp_htmlframesetelement_onbeforeunload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onbeforeunload (setter)
+JSValue wisp_htmlframesetelement_onbeforeunload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onhashchange (getter)
+JSValue wisp_htmlframesetelement_onhashchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onhashchange (setter)
+JSValue wisp_htmlframesetelement_onhashchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onlanguagechange (getter)
+JSValue wisp_htmlframesetelement_onlanguagechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onlanguagechange (setter)
+JSValue wisp_htmlframesetelement_onlanguagechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onmessage (getter)
+JSValue wisp_htmlframesetelement_onmessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onmessage (setter)
+JSValue wisp_htmlframesetelement_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | onoffline (getter)
+JSValue wisp_htmlframesetelement_onoffline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | onoffline (setter)
+JSValue wisp_htmlframesetelement_onoffline_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: HTMLFrameSetElement | ononline (getter)
+JSValue wisp_htmlframesetelement_ononline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: HTMLFrameSetElement | ononline (setter)
+JSValue wisp_htmlframesetelement_ononline_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
