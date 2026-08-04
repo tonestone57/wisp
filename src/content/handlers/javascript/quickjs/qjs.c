@@ -50,11 +50,137 @@
 #include <sys/stat.h>
 #include <signal.h>
 #include <openssl/evp.h>
+#include <curl/curl.h>
+#include "quickjs-libc.h"
 
 #ifdef _WIN32
 #include <direct.h>
 #define mkdir(path, mode) _mkdir(path)
 #endif
+
+struct wisp_curl_buffer {
+    char *data;
+    size_t size;
+};
+
+static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
+    size_t realsize = size * nmemb;
+    struct wisp_curl_buffer *mem = (struct wisp_curl_buffer *)userp;
+
+    char *ptr = realloc(mem->data, mem->size + realsize + 1);
+    if (!ptr) {
+        return 0;  /* out of memory! */
+    }
+
+    mem->data = ptr;
+    memcpy(&(mem->data[mem->size]), contents, realsize);
+    mem->size += realsize;
+    mem->data[mem->size] = 0;
+
+    return realsize;
+}
+
+static char *wisp_sync_fetch(const char *url, size_t *out_len) {
+    CURL *curl_handle;
+    CURLcode res;
+    struct wisp_curl_buffer chunk;
+
+    chunk.data = malloc(1);  /* will be grown as needed by the realloc above */
+    if (!chunk.data) return NULL;
+    chunk.size = 0;          /* no data at this point */
+
+    curl_handle = curl_easy_init();
+    if (!curl_handle) {
+        free(chunk.data);
+        return NULL;
+    }
+
+    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, wisp_curl_write_callback);
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
+    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+    curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+
+    res = curl_easy_perform(curl_handle);
+    curl_easy_cleanup(curl_handle);
+
+    if (res != CURLE_OK) {
+        free(chunk.data);
+        return NULL;
+    }
+
+    if (out_len) {
+        *out_len = chunk.size;
+    }
+    return chunk.data;
+}
+
+static char *wisp_read_local_file(const char *filename, size_t *out_len) {
+    FILE *f = fopen(filename, "rb");
+    if (!f) return NULL;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (sz < 0) {
+        fclose(f);
+        return NULL;
+    }
+    char *buf = malloc(sz + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+    size_t read_bytes = fread(buf, 1, sz, f);
+    buf[read_bytes] = '\0';
+    fclose(f);
+    if (out_len) {
+        *out_len = read_bytes;
+    }
+    return buf;
+}
+
+static char *wisp_load_module_source(const char *module_name, size_t *out_len) {
+    if (strncmp(module_name, "http://", 7) == 0 || strncmp(module_name, "https://", 8) == 0) {
+        return wisp_sync_fetch(module_name, out_len);
+    } else if (strncmp(module_name, "//", 2) == 0) {
+        char url_buf[1024];
+        snprintf(url_buf, sizeof(url_buf), "https:%s", module_name);
+        return wisp_sync_fetch(url_buf, out_len);
+    } else if (strncmp(module_name, "file://", 7) == 0) {
+        return wisp_read_local_file(module_name + 7, out_len);
+    } else {
+        return wisp_read_local_file(module_name, out_len);
+    }
+}
+
+JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque) {
+    fprintf(stderr, "WISP_MODULE_LOADER: Loading module '%s'\n", module_name);
+    size_t buf_len = 0;
+    char *buf = wisp_load_module_source(module_name, &buf_len);
+    if (!buf) {
+        fprintf(stderr, "WISP_MODULE_LOADER: Failed to load module source for '%s'\n", module_name);
+        JS_ThrowReferenceError(ctx, "could not load module '%s'", module_name);
+        return NULL;
+    }
+    fprintf(stderr, "WISP_MODULE_LOADER: Compiling module '%s' (%zu bytes)\n", module_name, buf_len);
+    JSValue val = JS_Eval(ctx, buf, buf_len, module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    free(buf);
+
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+        fprintf(stderr, "WISP_MODULE_LOADER: Compilation failed for '%s': %s\n", module_name, exc_str ? exc_str : "unknown");
+        JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+        return NULL;
+    }
+
+    JSModuleDef *m = JS_VALUE_GET_PTR(val);
+    js_module_set_import_meta(ctx, val, false, false);
+    JS_FreeValue(ctx, val);
+    fprintf(stderr, "WISP_MODULE_LOADER: Successfully loaded module '%s'\n", module_name);
+    return m;
+}
 
 bool wisp_is_js_process = false;
 shm_dom_t *wisp_shm_dom = NULL;
@@ -585,6 +711,7 @@ nserror js_newheap(int timeout, jsheap **heap)
     h->timeout = timeout;
     JS_SetMemoryLimit(h->rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(h->rt, 16384 * 1024);     // Increased to 16MB
+    JS_SetModuleLoaderFunc(h->rt, NULL, wisp_module_loader, NULL);
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
     *heap = h;
     return NSERROR_OK;
@@ -2825,6 +2952,7 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     if (!rt) { free(t); return NSERROR_NOMEM; }
     JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
+    JS_SetModuleLoaderFunc(rt, NULL, wisp_module_loader, NULL);
 
     t->ctx = JS_NewContext(rt);
     if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }
@@ -3687,6 +3815,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
         /* Use thread pointer as a unique context ID for the remote process */
         uint32_t ctx_id = (uint32_t)(uintptr_t)thread;
+        uint32_t name_len = name ? strlen(name) : 0;
 
         wisp_ipc_msg msg;
         msg.type = WISP_IPC_MSG_JS_EXEC;
@@ -3710,20 +3839,28 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             char file_prefix[512];
             snprintf(file_prefix, sizeof(file_prefix), "file://%s", temp_file_path);
             size_t file_prefix_len = strlen(file_prefix);
-            msg.length = 8 + file_prefix_len;
+            msg.length = 12 + name_len + file_prefix_len;
             msg.data = malloc(msg.length);
             if (msg.data) {
                 memcpy(msg.data, &ctx_id, 4);
                 memcpy(msg.data + 4, &eval_flags, 4);
-                memcpy(msg.data + 8, file_prefix, file_prefix_len);
+                memcpy(msg.data + 8, &name_len, 4);
+                if (name_len > 0) {
+                    memcpy(msg.data + 12, name, name_len);
+                }
+                memcpy(msg.data + 12 + name_len, file_prefix, file_prefix_len);
             }
         } else {
-            msg.length = 8 + txtlen;
+            msg.length = 12 + name_len + txtlen;
             msg.data = malloc(msg.length);
             if (msg.data) {
                 memcpy(msg.data, &ctx_id, 4);
                 memcpy(msg.data + 4, &eval_flags, 4);
-                memcpy(msg.data + 8, txt, txtlen);
+                memcpy(msg.data + 8, &name_len, 4);
+                if (name_len > 0) {
+                    memcpy(msg.data + 12, name, name_len);
+                }
+                memcpy(msg.data + 12 + name_len, txt, txtlen);
             }
         }
 
@@ -3733,7 +3870,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 /* Implement timeout for recv to avoid UI hang */
                 wisp_ipc_msg response;
                 wisp_ipc_set_blocking(ipc_js, false);
-                int retries = 1000; // 10 seconds timeout (increased from 500)
+                int retries = 3000; // 30 seconds timeout to allow slow connections to fetch 100+ modules
                 bool got_response = false;
                 bool crashed = false;
                 while (retries-- > 0) {
@@ -3841,6 +3978,13 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
         fprintf(stderr, "\n=== JS EXEC EXCEPTION: %s ===\n", exc_str ? exc_str : "unknown");
+        JSValue stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
+        const char *stack_str = JS_ToCString(thread->ctx, stack);
+        if (stack_str) {
+            fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+            JS_FreeCString(thread->ctx, stack_str);
+        }
+        JS_FreeValue(thread->ctx, stack);
         NSLOG(wisp, ERROR, "JS execution error in %s: %s", name, exc_str ? exc_str : "unknown error");
         if (exc_str) JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);
