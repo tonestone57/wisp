@@ -496,8 +496,9 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
      * counts drop to 0 before the document node is finalising. This prevents
      * document teardown from being blocked by pending child node references. */
     for (size_t i = 0; i < cleanup.count; i++) {
-        dom_node_type type;
-        if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR && type == DOM_DOCUMENT_NODE) {
+        dom_node_type type = 0;
+        dom_node_get_node_type(cleanup.nodes[i], &type);
+        if (type == DOM_DOCUMENT_NODE) {
             continue;
         }
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
@@ -510,8 +511,9 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
 
     /* Second pass: unref all document nodes */
     for (size_t i = 0; i < cleanup.count; i++) {
-        dom_node_type type;
-        if (dom_node_get_node_type(cleanup.nodes[i], &type) == DOM_NO_ERR && type != DOM_DOCUMENT_NODE) {
+        dom_node_type type = 0;
+        dom_node_get_node_type(cleanup.nodes[i], &type);
+        if (type != DOM_DOCUMENT_NODE) {
             continue;
         }
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
