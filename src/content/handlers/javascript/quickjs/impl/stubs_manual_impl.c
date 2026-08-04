@@ -9039,7 +9039,26 @@ JSValue wisp_window_releaseEvents_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: method | Window::getComputedStyle();
 JSValue wisp_window_getComputedStyle_impl(JSContext *ctx, QJSNodePrivate *priv, void * elt, const char * pseudoElt) {
-    return JS_UNDEFINED;
+    fprintf(stderr, "DEBUG getComputedStyle elt=%p\n", elt);
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue get_computed_style_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_get_computed_style_internal");
+    if (!JS_IsFunction(ctx, get_computed_style_fn)) {
+        JS_FreeValue(ctx, get_computed_style_fn);
+        get_computed_style_fn = JS_GetPropertyStr(ctx, global_obj, "getComputedStyle");
+    }
+
+    JSValue ret = JS_UNDEFINED;
+    if (JS_IsFunction(ctx, get_computed_style_fn)) {
+        JSValue el_val = qjs_wrap_node(ctx, (struct dom_node *)elt);
+        JSValue pseudo_val = pseudoElt ? JS_NewString(ctx, pseudoElt) : JS_NULL;
+        JSValue args[2] = { el_val, pseudo_val };
+        ret = JS_Call(ctx, get_computed_style_fn, JS_UNDEFINED, 2, args);
+        JS_FreeValue(ctx, el_val);
+        JS_FreeValue(ctx, pseudo_val);
+    }
+    JS_FreeValue(ctx, get_computed_style_fn);
+    JS_FreeValue(ctx, global_obj);
+    return ret;
 }
 
 // Overrides: method | Window::createImageBitmap();

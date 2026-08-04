@@ -432,6 +432,19 @@ START_TEST(test_quickjs_css_style_declaration)
         "if (style.length !== 2) throw 'length fail: ' + style.length;\n"
         "if (style.item(0) !== 'display') throw 'item(0) fail: ' + style.item(0);\n"
         "if (style[1] !== 'opacity') throw 'style[1] index access fail: ' + style[1];\n"
+        "\n"
+        "// 6. Test property existence via 'in' operator (css3test feature detection)\n"
+        "if (!('borderRadius' in style)) throw 'borderRadius in style check failed';\n"
+        "if (!('transform' in style)) throw 'transform in style check failed';\n"
+        "if (!('color' in style)) throw 'color in style check failed';\n"
+        "if ('__wisp_style_cached' in style) throw '__wisp_style_cached should not be exposed';\n"
+        "if ('toString' in style && typeof style.toString !== 'function') throw 'toString should be standard function';\n"
+        "\n"
+        "// 7. Test getComputedStyle prototype and feature detection\n"
+        "var computed = window.getComputedStyle(el);\n"
+        "if (!(computed instanceof CSSStyleDeclaration)) throw 'getComputedStyle should return CSSStyleDeclaration';\n"
+        "if (!('borderRadius' in computed)) throw 'borderRadius in computed check failed';\n"
+        "if (computed.display !== 'inline-block') throw 'computed display delegation failed';\n"
         "1;";
 
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_css_style_declaration");

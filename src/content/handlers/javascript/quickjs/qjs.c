@@ -32,6 +32,9 @@
 #include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/private.h>
+#include <wisp/content/handlers/html/html.h>
+#include <wisp/content.h>
+#include <wisp/content/hlcache.h>
 #include <wisp/utils/nsoption.h>
 #include <math.h>
 #include "impl/observer_internal.h"
@@ -1539,37 +1542,64 @@ static void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        }\n"
         "    };\n"
         "}\n"
-        "if (typeof globalThis.getComputedStyle === 'undefined') {\n"
-        "    globalThis.getComputedStyle = function(elt, pseudoElt) {\n"
-        "        const dummyStyle = {\n"
-        "            getPropertyValue: function(prop) {\n"
+        "globalThis.__wisp_get_computed_style_internal = function(elt, pseudoElt) {\n"
+        "    const dummyStyle = {\n"
+        "        getPropertyValue: function(prop) {\n"
+        "            if (elt && elt.style) {\n"
+        "                const val = elt.style.getPropertyValue(prop);\n"
+        "                if (val !== undefined && val !== '') return val;\n"
+        "            }\n"
+        "            if (prop === 'display') return 'block';\n"
+        "            if (prop === 'width') return '1024px';\n"
+        "            if (prop === 'height') return '768px';\n"
+        "            if (prop === 'opacity') return '1';\n"
+        "            return '';\n"
+        "        },\n"
+        "        getPropertyPriority: function() { return ''; },\n"
+        "        setProperty: function() {},\n"
+        "        removeProperty: function() {},\n"
+        "        length: elt && elt.style ? elt.style.length : 0,\n"
+        "        cssText: elt && elt.style ? elt.style.cssText : ''\n"
+        "    };\n"
+        "    if (globalThis.CSSStyleDeclaration && globalThis.CSSStyleDeclaration.prototype) {\n"
+        "        Object.setPrototypeOf(dummyStyle, globalThis.CSSStyleDeclaration.prototype);\n"
+        "    }\n"
+        "    const jsBuiltIns = new Set([\n"
+        "        'constructor', 'toString', 'toLocaleString', 'valueOf', 'hasOwnProperty',\n"
+        "        'isPrototypeOf', 'propertyIsEnumerable', '__proto__', '__defineGetter__',\n"
+        "        '__defineSetter__', '__lookupGetter__', '__lookupSetter__'\n"
+        "    ]);\n"
+        "    return new Proxy(dummyStyle, {\n"
+        "        get(target, prop) {\n"
+        "            if (prop in target) return target[prop];\n"
+        "            if (typeof prop === 'string') {\n"
+        "                if (elt && elt.style) {\n"
+        "                    const val = elt.style[prop];\n"
+        "                    if (val !== undefined && val !== '') return val;\n"
+        "                }\n"
         "                if (prop === 'display') return 'block';\n"
         "                if (prop === 'width') return '1024px';\n"
         "                if (prop === 'height') return '768px';\n"
         "                if (prop === 'opacity') return '1';\n"
         "                return '';\n"
-        "            },\n"
-        "            getPropertyPriority: function() { return ''; },\n"
-        "            setProperty: function() {},\n"
-        "            removeProperty: function() {},\n"
-        "            length: 0,\n"
-        "            cssText: ''\n"
-        "        };\n"
-        "        return new Proxy(dummyStyle, {\n"
-        "            get(target, prop) {\n"
-        "                if (prop in target) return target[prop];\n"
-        "                if (typeof prop === 'string') {\n"
-        "                    if (prop === 'display') return 'block';\n"
-        "                    if (prop === 'width') return '1024px';\n"
-        "                    if (prop === 'height') return '768px';\n"
-        "                    if (prop === 'opacity') return '1';\n"
-        "                    return '';\n"
-        "                }\n"
-        "                return undefined;\n"
         "            }\n"
-        "        });\n"
-        "    };\n"
-        "}\n"
+        "            return undefined;\n"
+        "        },\n"
+        "        has(target, prop) {\n"
+        "            if (typeof prop !== 'string') {\n"
+        "                return Reflect.has(target, prop);\n"
+        "            }\n"
+        "            if (prop in target) {\n"
+        "                return true;\n"
+        "            }\n"
+        "            if (jsBuiltIns.has(prop)) {\n"
+        "                return false;\n"
+        "            }\n"
+        "            return /^[a-zA-Z0-9-]+$/.test(prop) && /^[a-z-]/.test(prop);\n"
+        "        }\n"
+        "    });\n"
+        "};\n"
+        "globalThis.getComputedStyle = globalThis.__wisp_get_computed_style_internal;\n"
         "\n"
         "if (typeof globalThis.TextEncoder === 'undefined') {\n"
         "    globalThis.TextEncoder = class TextEncoder {\n"
@@ -3525,6 +3555,42 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
     /* In-process Content Security Policy (CSP) validation */
     struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv) ? (struct html_content *)thread->doc_priv : NULL;
+
+    bool is_module = false;
+    struct html_script *found_s = NULL;
+    if (htmlc && name) {
+        if (strcmp(name, "?inline script?") == 0) {
+            for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
+                struct html_script *s = &htmlc->scripts[idx];
+                if (s->type == HTML_SCRIPT_INLINE && s->data.string != NULL) {
+                    const char *str_data = dom_string_data(s->data.string);
+                    size_t str_len = dom_string_byte_length(s->data.string);
+                    if (str_len == txtlen && memcmp(str_data, txt, txtlen) == 0) {
+                        found_s = s;
+                        break;
+                    }
+                }
+            }
+        } else {
+            for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
+                struct html_script *s = &htmlc->scripts[idx];
+                if (s->type != HTML_SCRIPT_INLINE && s->data.handle != NULL) {
+                    const char *url_str = nsurl_access(hlcache_handle_get_url(s->data.handle));
+                    if (url_str && strcmp(url_str, name) == 0) {
+                        found_s = s;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (found_s && found_s->mimetype) {
+        const char *mime_data = dom_string_data(found_s->mimetype);
+        if (mime_data && strcasecmp(mime_data, "module") == 0) {
+            is_module = true;
+        }
+    }
+    int eval_flags = is_module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
     if (htmlc && htmlc->csp) {
         bool is_url = false;
         nsurl *url = NULL;
@@ -3644,18 +3710,20 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             char file_prefix[512];
             snprintf(file_prefix, sizeof(file_prefix), "file://%s", temp_file_path);
             size_t file_prefix_len = strlen(file_prefix);
-            msg.length = 4 + file_prefix_len;
+            msg.length = 8 + file_prefix_len;
             msg.data = malloc(msg.length);
             if (msg.data) {
                 memcpy(msg.data, &ctx_id, 4);
-                memcpy(msg.data + 4, file_prefix, file_prefix_len);
+                memcpy(msg.data + 4, &eval_flags, 4);
+                memcpy(msg.data + 8, file_prefix, file_prefix_len);
             }
         } else {
-            msg.length = 4 + txtlen;
+            msg.length = 8 + txtlen;
             msg.data = malloc(msg.length);
             if (msg.data) {
                 memcpy(msg.data, &ctx_id, 4);
-                memcpy(msg.data + 4, txt, txtlen);
+                memcpy(msg.data + 4, &eval_flags, 4);
+                memcpy(msg.data + 8, txt, txtlen);
             }
         }
 
@@ -3749,7 +3817,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         thread->heap->last_yield_ms = now;
     }
 
-    JSValue val = js_eval_with_aot_cache(thread->ctx, txt, txtlen, name, JS_EVAL_TYPE_GLOBAL);
+    JSValue val = js_eval_with_aot_cache(thread->ctx, txt, txtlen, name, eval_flags);
 
     if (thread->heap) {
         thread->heap->deadline_ms = old_deadline;
@@ -3772,6 +3840,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     if (!success) {
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n=== JS EXEC EXCEPTION: %s ===\n", exc_str ? exc_str : "unknown");
         NSLOG(wisp, ERROR, "JS execution error in %s: %s", name, exc_str ? exc_str : "unknown error");
         if (exc_str) JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);

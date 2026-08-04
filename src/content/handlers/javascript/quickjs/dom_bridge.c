@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdint.h>
 #include "utils/hashmap.h"
+#include "wisp/utils/shm_dom.h"
 
 
 typedef struct {
