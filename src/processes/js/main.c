@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
                 memcpy(&name_len, msg.data + 8, 4);
 
                 char *script_name = NULL;
-                if (name_len > 0 && 12 + name_len <= msg.length) {
+                if (name_len > 0 && name_len <= msg.length - 12) {
                     script_name = malloc(name_len + 1);
                     if (script_name) {
                         memcpy(script_name, msg.data + 12, name_len);
