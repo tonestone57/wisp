@@ -541,8 +541,240 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
     free(cleanup.nodes);
 }
 
+static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compound_selector_t *comp)
+{
+    if (!wisp_shm_dom || node_id == 0) return false;
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+    WispNodeStrings *strings = shm_dom_get_node_strings(wisp_shm_dom);
+
+    WispCompactNode *sn = &nodes[node_id];
+    WispNodeStrings *sns = &strings[node_id];
+
+    if (sn->node_type != 1) return false; // Must be ELEMENT
+
+    if (comp->universal) {
+        /* Matches any element */
+    } else if (comp->tag) {
+        const char *tag = wisp_string_ref_data(wisp_shm_dom, sns->tag_name);
+        if (!tag || strcasecmp(tag, comp->tag) != 0) return false;
+    }
+
+    if (comp->id) {
+        const char *id_val = NULL;
+        uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+        for (uint32_t i = 0; i < limit; i++) {
+            const char *attr_name = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].name);
+            if (attr_name && strcasecmp(attr_name, "id") == 0) {
+                id_val = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
+                break;
+            }
+        }
+        if (!id_val || strcmp(id_val, comp->id) != 0) return false;
+    }
+
+    for (uint32_t i = 0; i < comp->class_count; i++) {
+        const char *cls_val = NULL;
+        uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+        for (uint32_t j = 0; j < limit; j++) {
+            const char *attr_name = wisp_string_ref_data(wisp_shm_dom, sns->attrs[j].name);
+            if (attr_name && strcasecmp(attr_name, "class") == 0) {
+                cls_val = wisp_string_ref_data(wisp_shm_dom, sns->attrs[j].value);
+                break;
+            }
+        }
+        if (!cls_val) return false;
+
+        size_t len = strlen(cls_val);
+        const char *target = comp->classes[i];
+        size_t target_len = strlen(target);
+        bool found = false;
+        if (len >= target_len) {
+            for (size_t j = 0; j <= len - target_len; j++) {
+                if ((j == 0 || cls_val[j - 1] == ' ') && (j + target_len == len || cls_val[j + target_len] == ' ')) {
+                    if (strncmp(cls_val + j, target, target_len) == 0) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!found) return false;
+    }
+
+    return true;
+}
+
+static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_group_t *group)
+{
+    if (group->component_count == 0) return false;
+    if (!wisp_shm_dom) return false;
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+
+    int comp_idx = group->component_count - 1;
+    if (!qjs_compound_selector_matches_shm(node_id, &group->components[comp_idx].compound)) return false;
+
+    uint32_t curr = node_id;
+    while (comp_idx > 0) {
+        qjs_combinator_t comb = group->components[comp_idx - 1].next_combinator;
+        comp_idx--;
+        const qjs_compound_selector_t *target = &group->components[comp_idx].compound;
+
+        if (comb == QJS_COMBINATOR_CHILD) {
+            uint32_t parent = nodes[curr].parent_id;
+            if (parent == 0 || parent == curr || !qjs_compound_selector_matches_shm(parent, target)) {
+                return false;
+            }
+            curr = parent;
+        } else if (comb == QJS_COMBINATOR_DESCENDANT) {
+            uint32_t parent = nodes[curr].parent_id;
+            bool found = false;
+            while (parent != 0 && parent != curr) {
+                if (qjs_compound_selector_matches_shm(parent, target)) {
+                    curr = parent;
+                    found = true;
+                    break;
+                }
+                curr = parent;
+                parent = nodes[curr].parent_id;
+            }
+            if (!found) return false;
+        } else if (comb == QJS_COMBINATOR_ADJACENT_SIBLING) {
+            uint32_t prev = nodes[curr].prev_sibling_id;
+            while (prev != 0) {
+                if (nodes[prev].node_type == 1) break;
+                prev = nodes[prev].prev_sibling_id;
+            }
+            if (prev == 0 || !qjs_compound_selector_matches_shm(prev, target)) {
+                return false;
+            }
+            curr = prev;
+        } else if (comb == QJS_COMBINATOR_GENERAL_SIBLING) {
+            uint32_t prev = nodes[curr].prev_sibling_id;
+            bool found = false;
+            while (prev != 0) {
+                if (qjs_compound_selector_matches_shm(prev, target)) {
+                    curr = prev;
+                    found = true;
+                    break;
+                }
+                prev = nodes[prev].prev_sibling_id;
+            }
+            if (!found) return false;
+        }
+    }
+
+    return true;
+}
+
+JSValue qjs_dom_query_selector_internal_shm(JSContext *ctx, uint32_t root_id, const char *selector, bool all)
+{
+    qjs_selector_root_t *parsed = qjs_selector_parse(selector);
+    if (!parsed) return all ? JS_NewArray(ctx) : JS_NULL;
+
+    JSValue result = all ? JS_NewArray(ctx) : JS_NULL;
+    uint32_t count = 0;
+
+    if (!wisp_shm_dom || root_id == 0) {
+        qjs_selector_root_free(parsed);
+        return result;
+    }
+
+    shm_dom_lock_read(wisp_shm_dom);
+
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+    uint32_t curr = nodes[root_id].first_child_id;
+
+    uint32_t max_iterations = 100000;
+
+    while (curr != 0 && max_iterations-- > 0) {
+        nodes = shm_dom_get_nodes(wisp_shm_dom);
+        bool match = false;
+        for (uint32_t i = 0; i < parsed->group_count; i++) {
+            if (qjs_selector_group_matches_shm(curr, &parsed->groups[i])) {
+                match = true;
+                break;
+            }
+        }
+
+        if (match) {
+            if (!all) {
+                JSValue val = qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)curr);
+                shm_dom_unlock_read(wisp_shm_dom);
+                qjs_selector_root_free(parsed);
+                return val;
+            }
+            JS_SetPropertyUint32(ctx, result, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)curr));
+        }
+
+        uint32_t next = nodes[curr].first_child_id;
+        if (next != 0) {
+            curr = next;
+            continue;
+        }
+
+        next = nodes[curr].next_sibling_id;
+        if (next != 0) {
+            curr = next;
+            continue;
+        }
+
+        while (curr != 0) {
+            uint32_t parent = nodes[curr].parent_id;
+            if (parent == 0 || parent == root_id) {
+                curr = 0;
+                break;
+            }
+            next = nodes[parent].next_sibling_id;
+            if (next != 0) {
+                curr = next;
+                break;
+            }
+            curr = parent;
+        }
+    }
+
+    shm_dom_unlock_read(wisp_shm_dom);
+    qjs_selector_root_free(parsed);
+    return result;
+}
+
+bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *selectors)
+{
+    if (!node || !selectors) return false;
+    qjs_selector_root_t *parsed = qjs_selector_parse(selectors);
+    if (!parsed) return false;
+
+    bool matches = false;
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            shm_dom_lock_read(wisp_shm_dom);
+            uint32_t element_id = (uint32_t)(uintptr_t)node;
+            for (uint32_t i = 0; i < parsed->group_count; i++) {
+                if (qjs_selector_group_matches_shm(element_id, &parsed->groups[i])) {
+                    matches = true;
+                    break;
+                }
+            }
+            shm_dom_unlock_read(wisp_shm_dom);
+        }
+    } else {
+        for (uint32_t i = 0; i < parsed->group_count; i++) {
+            if (qjs_selector_group_matches(node, &parsed->groups[i])) {
+                matches = true;
+                break;
+            }
+        }
+    }
+
+    qjs_selector_root_free(parsed);
+    return matches;
+}
+
 JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all)
 {
+    if (wisp_is_js_process) {
+        return qjs_dom_query_selector_internal_shm(ctx, (uint32_t)(uintptr_t)root, selector, all);
+    }
     qjs_selector_root_t *parsed = qjs_selector_parse(selector);
     if (!parsed) return all ? JS_NewArray(ctx) : JS_NULL;
 
