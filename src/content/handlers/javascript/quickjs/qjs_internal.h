@@ -167,6 +167,8 @@ void qjs_idle_callback_fn(void *p);
 void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_document *doc);
 void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc);
 
+void qjs_inject_fetch_polyfill(JSContext *ctx);
+
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);
 

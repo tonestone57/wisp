@@ -68,6 +68,7 @@ static JSContext* get_context(uint32_t id) {
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
     wisp_js_register_all_bindings(node->ctx);
+    qjs_inject_fetch_polyfill(node->ctx);
 
     qjs_init_eventtarget(node->ctx);
     qjs_init_event(node->ctx);
