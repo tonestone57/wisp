@@ -9150,7 +9150,7 @@ JSValue wisp_window_frameElement_get_impl(JSContext *ctx, QJSNodePrivate *priv) 
     return JS_NULL;
 }
 
-// Overrides: getter | Window::external(user);
+// Overrides: Window | external (getter)
 JSValue wisp_window_external_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
 }
@@ -11515,6 +11515,11 @@ JSValue wisp_canvasdrawingstyles_textBaseline_set_impl(JSContext *ctx, QJSNodePr
 
 // Overrides: method | CanvasPathMethods::arc();
 JSValue wisp_canvaspathmethods_arc_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radius, double startAngle, double endAngle, bool anticlockwise) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasPathMethods::arcTo();
+JSValue wisp_canvaspathmethods_arcTo_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radius) {
     return JS_UNDEFINED;
 }
 
@@ -14155,5 +14160,919 @@ JSValue wisp_urlutilsreadonly_pathname_get_impl(JSContext *ctx, QJSNodePrivate *
 
 // Overrides: URLUtilsReadOnly | port (getter)
 JSValue wisp_urlutilsreadonly_port_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// =============================================================================
+// WAVE 7: Final WebIDL Stubs Implementation (184 stubs)
+// =============================================================================
+
+// Overrides: URLUtilsReadOnly | protocol (getter)
+JSValue wisp_urlutilsreadonly_protocol_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: URLUtilsReadOnly | search (getter)
+JSValue wisp_urlutilsreadonly_search_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: URLUtilsSearchParams | searchParams (getter)
+JSValue wisp_urlutilssearchparams_searchParams_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: URLUtilsSearchParams | searchParams (setter)
+JSValue wisp_urlutilssearchparams_searchParams_set_impl(JSContext *ctx, QJSNodePrivate *priv, void * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: VideoTrackList | __getter__()
+JSValue wisp_videotracklist___getter___impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WebSocket | constructor
+JSValue wisp_websocket_constructor_impl(JSContext *ctx, const char * url, JSValue protocols) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | __getter__()
+JSValue wisp_window___getter___0_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | __getter__()
+JSValue wisp_window___getter___1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | alert()
+JSValue wisp_window_alert_0_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | alert()
+JSValue wisp_window_alert_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * message) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | clearInterval()
+JSValue wisp_window_clearInterval_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | clearTimeout()
+JSValue wisp_window_clearTimeout_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | name (getter)
+JSValue wisp_window_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | name (setter)
+JSValue wisp_window_name_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onabort (getter)
+JSValue wisp_window_onabort_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onabort (setter)
+JSValue wisp_window_onabort_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onafterprint (getter)
+JSValue wisp_window_onafterprint_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onafterprint (setter)
+JSValue wisp_window_onafterprint_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onautocomplete (getter)
+JSValue wisp_window_onautocomplete_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onautocomplete (setter)
+JSValue wisp_window_onautocomplete_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onautocompleteerror (getter)
+JSValue wisp_window_onautocompleteerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onautocompleteerror (setter)
+JSValue wisp_window_onautocompleteerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onbeforeprint (getter)
+JSValue wisp_window_onbeforeprint_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onbeforeprint (setter)
+JSValue wisp_window_onbeforeprint_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onbeforeunload (getter)
+JSValue wisp_window_onbeforeunload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onbeforeunload (setter)
+JSValue wisp_window_onbeforeunload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onblur (getter)
+JSValue wisp_window_onblur_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onblur (setter)
+JSValue wisp_window_onblur_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oncancel (getter)
+JSValue wisp_window_oncancel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oncancel (setter)
+JSValue wisp_window_oncancel_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oncanplay (getter)
+JSValue wisp_window_oncanplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oncanplay (setter)
+JSValue wisp_window_oncanplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oncanplaythrough (getter)
+JSValue wisp_window_oncanplaythrough_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oncanplaythrough (setter)
+JSValue wisp_window_oncanplaythrough_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onchange (getter)
+JSValue wisp_window_onchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onchange (setter)
+JSValue wisp_window_onchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onclick (getter)
+JSValue wisp_window_onclick_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onclick (setter)
+JSValue wisp_window_onclick_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onclose (getter)
+JSValue wisp_window_onclose_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onclose (setter)
+JSValue wisp_window_onclose_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oncontextmenu (getter)
+JSValue wisp_window_oncontextmenu_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oncontextmenu (setter)
+JSValue wisp_window_oncontextmenu_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oncuechange (getter)
+JSValue wisp_window_oncuechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oncuechange (setter)
+JSValue wisp_window_oncuechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondblclick (getter)
+JSValue wisp_window_ondblclick_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondblclick (setter)
+JSValue wisp_window_ondblclick_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondrag (getter)
+JSValue wisp_window_ondrag_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondrag (setter)
+JSValue wisp_window_ondrag_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondragend (getter)
+JSValue wisp_window_ondragend_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondragend (setter)
+JSValue wisp_window_ondragend_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondragenter (getter)
+JSValue wisp_window_ondragenter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondragenter (setter)
+JSValue wisp_window_ondragenter_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondragexit (getter)
+JSValue wisp_window_ondragexit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondragexit (setter)
+JSValue wisp_window_ondragexit_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondragleave (getter)
+JSValue wisp_window_ondragleave_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondragleave (setter)
+JSValue wisp_window_ondragleave_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondragover (getter)
+JSValue wisp_window_ondragover_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondragover (setter)
+JSValue wisp_window_ondragover_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondragstart (getter)
+JSValue wisp_window_ondragstart_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondragstart (setter)
+JSValue wisp_window_ondragstart_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondrop (getter)
+JSValue wisp_window_ondrop_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondrop (setter)
+JSValue wisp_window_ondrop_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ondurationchange (getter)
+JSValue wisp_window_ondurationchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ondurationchange (setter)
+JSValue wisp_window_ondurationchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onemptied (getter)
+JSValue wisp_window_onemptied_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onemptied (setter)
+JSValue wisp_window_onemptied_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onended (getter)
+JSValue wisp_window_onended_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onended (setter)
+JSValue wisp_window_onended_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onerror (getter)
+JSValue wisp_window_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onerror (setter)
+JSValue wisp_window_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onfocus (getter)
+JSValue wisp_window_onfocus_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onfocus (setter)
+JSValue wisp_window_onfocus_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onhashchange (getter)
+JSValue wisp_window_onhashchange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onhashchange (setter)
+JSValue wisp_window_onhashchange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oninput (getter)
+JSValue wisp_window_oninput_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oninput (setter)
+JSValue wisp_window_oninput_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | oninvalid (getter)
+JSValue wisp_window_oninvalid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | oninvalid (setter)
+JSValue wisp_window_oninvalid_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onkeydown (getter)
+JSValue wisp_window_onkeydown_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onkeydown (setter)
+JSValue wisp_window_onkeydown_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onkeypress (getter)
+JSValue wisp_window_onkeypress_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onkeypress (setter)
+JSValue wisp_window_onkeypress_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onkeyup (getter)
+JSValue wisp_window_onkeyup_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onkeyup (setter)
+JSValue wisp_window_onkeyup_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onlanguagechange (getter)
+JSValue wisp_window_onlanguagechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onlanguagechange (setter)
+JSValue wisp_window_onlanguagechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onload (getter)
+JSValue wisp_window_onload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onload (setter)
+JSValue wisp_window_onload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onloadeddata (getter)
+JSValue wisp_window_onloadeddata_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onloadeddata (setter)
+JSValue wisp_window_onloadeddata_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onloadedmetadata (getter)
+JSValue wisp_window_onloadedmetadata_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onloadedmetadata (setter)
+JSValue wisp_window_onloadedmetadata_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onloadstart (getter)
+JSValue wisp_window_onloadstart_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onloadstart (setter)
+JSValue wisp_window_onloadstart_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmessage (getter)
+JSValue wisp_window_onmessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmessage (setter)
+JSValue wisp_window_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmousedown (getter)
+JSValue wisp_window_onmousedown_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmousedown (setter)
+JSValue wisp_window_onmousedown_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmouseenter (getter)
+JSValue wisp_window_onmouseenter_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmouseenter (setter)
+JSValue wisp_window_onmouseenter_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmouseleave (getter)
+JSValue wisp_window_onmouseleave_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmouseleave (setter)
+JSValue wisp_window_onmouseleave_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmousemove (getter)
+JSValue wisp_window_onmousemove_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmousemove (setter)
+JSValue wisp_window_onmousemove_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmouseout (getter)
+JSValue wisp_window_onmouseout_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmouseout (setter)
+JSValue wisp_window_onmouseout_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmouseover (getter)
+JSValue wisp_window_onmouseover_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmouseover (setter)
+JSValue wisp_window_onmouseover_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onmouseup (getter)
+JSValue wisp_window_onmouseup_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onmouseup (setter)
+JSValue wisp_window_onmouseup_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onoffline (getter)
+JSValue wisp_window_onoffline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onoffline (setter)
+JSValue wisp_window_onoffline_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ononline (getter)
+JSValue wisp_window_ononline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ononline (setter)
+JSValue wisp_window_ononline_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onpagehide (getter)
+JSValue wisp_window_onpagehide_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onpagehide (setter)
+JSValue wisp_window_onpagehide_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onpageshow (getter)
+JSValue wisp_window_onpageshow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onpageshow (setter)
+JSValue wisp_window_onpageshow_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onpause (getter)
+JSValue wisp_window_onpause_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onpause (setter)
+JSValue wisp_window_onpause_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onplay (getter)
+JSValue wisp_window_onplay_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onplay (setter)
+JSValue wisp_window_onplay_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onplaying (getter)
+JSValue wisp_window_onplaying_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onplaying (setter)
+JSValue wisp_window_onplaying_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onpopstate (getter)
+JSValue wisp_window_onpopstate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onpopstate (setter)
+JSValue wisp_window_onpopstate_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onprogress (getter)
+JSValue wisp_window_onprogress_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onprogress (setter)
+JSValue wisp_window_onprogress_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onratechange (getter)
+JSValue wisp_window_onratechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onratechange (setter)
+JSValue wisp_window_onratechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onreset (getter)
+JSValue wisp_window_onreset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onreset (setter)
+JSValue wisp_window_onreset_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onresize (getter)
+JSValue wisp_window_onresize_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onresize (setter)
+JSValue wisp_window_onresize_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onscroll (getter)
+JSValue wisp_window_onscroll_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onscroll (setter)
+JSValue wisp_window_onscroll_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onseeked (getter)
+JSValue wisp_window_onseeked_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onseeked (setter)
+JSValue wisp_window_onseeked_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onseeking (getter)
+JSValue wisp_window_onseeking_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onseeking (setter)
+JSValue wisp_window_onseeking_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onselect (getter)
+JSValue wisp_window_onselect_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onselect (setter)
+JSValue wisp_window_onselect_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onshow (getter)
+JSValue wisp_window_onshow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onshow (setter)
+JSValue wisp_window_onshow_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onsort (getter)
+JSValue wisp_window_onsort_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onsort (setter)
+JSValue wisp_window_onsort_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onstalled (getter)
+JSValue wisp_window_onstalled_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onstalled (setter)
+JSValue wisp_window_onstalled_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onstorage (getter)
+JSValue wisp_window_onstorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onstorage (setter)
+JSValue wisp_window_onstorage_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onsubmit (getter)
+JSValue wisp_window_onsubmit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onsubmit (setter)
+JSValue wisp_window_onsubmit_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onsuspend (getter)
+JSValue wisp_window_onsuspend_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onsuspend (setter)
+JSValue wisp_window_onsuspend_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ontimeupdate (getter)
+JSValue wisp_window_ontimeupdate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ontimeupdate (setter)
+JSValue wisp_window_ontimeupdate_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | ontoggle (getter)
+JSValue wisp_window_ontoggle_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | ontoggle (setter)
+JSValue wisp_window_ontoggle_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onunload (getter)
+JSValue wisp_window_onunload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onunload (setter)
+JSValue wisp_window_onunload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onvolumechange (getter)
+JSValue wisp_window_onvolumechange_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onvolumechange (setter)
+JSValue wisp_window_onvolumechange_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onwaiting (getter)
+JSValue wisp_window_onwaiting_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onwaiting (setter)
+JSValue wisp_window_onwaiting_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | onwheel (getter)
+JSValue wisp_window_onwheel_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: Window | onwheel (setter)
+JSValue wisp_window_onwheel_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | setInterval()
+JSValue wisp_window_setInterval_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | setInterval()
+JSValue wisp_window_setInterval_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | setTimeout()
+JSValue wisp_window_setTimeout_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: Window | setTimeout()
+JSValue wisp_window_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowLocalStorage | localStorage (getter)
+JSValue wisp_windowlocalstorage_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: WindowModal | dialogArguments (getter)
+JSValue wisp_windowmodal_dialogArguments_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: WindowModal | returnValue (getter)
+JSValue wisp_windowmodal_returnValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: WindowModal | returnValue (setter)
+JSValue wisp_windowmodal_returnValue_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowSessionStorage | sessionStorage (getter)
+JSValue wisp_windowsessionstorage_sessionStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
+}
+
+// Overrides: WindowTimers | clearInterval()
+JSValue wisp_windowtimers_clearInterval_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowTimers | clearTimeout()
+JSValue wisp_windowtimers_clearTimeout_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowTimers | setInterval()
+JSValue wisp_windowtimers_setInterval_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowTimers | setInterval()
+JSValue wisp_windowtimers_setInterval_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowTimers | setTimeout()
+JSValue wisp_windowtimers_setTimeout_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WindowTimers | setTimeout()
+JSValue wisp_windowtimers_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: WorkerNavigator | language (getter)
+JSValue wisp_workernavigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
 }
