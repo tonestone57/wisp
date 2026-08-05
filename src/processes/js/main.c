@@ -150,7 +150,11 @@ int main(int argc, char **argv) {
 
     while (1) {
         wisp_ipc_msg msg;
-        if (wisp_ipc_recv(ipc_main, &msg) != NSERROR_OK) break;
+        nserror err = wisp_ipc_recv(ipc_main, &msg);
+        if (err != NSERROR_OK) {
+            fprintf(stderr, "\n=== JS PROCESS RECEIVE FAILED: error %d ===\n", (int)err);
+            break;
+        }
 
         if (msg.type == WISP_IPC_MSG_SHM_INIT) {
             char *payload = malloc(msg.length + 1);
@@ -306,7 +310,7 @@ int main(int argc, char **argv) {
                         JSValue exc = JS_GetException(ctx);
                         const char *exc_str = JS_ToCString(ctx, exc);
                         fprintf(stderr, "\n=== JS PROCESS EXCEPTION: %s ===\n", exc_str ? exc_str : "unknown");
-                        JS_FreeCString(ctx, exc_str);
+                        if (exc_str) JS_FreeCString(ctx, exc_str);
                         JS_FreeValue(ctx, exc);
                         response.length = 0;
                         response.data = NULL;
@@ -315,7 +319,7 @@ int main(int argc, char **argv) {
                         if (res_str) {
                             response.length = strlen(res_str);
                             response.data = (uint8_t*)strdup(res_str);
-                            JS_FreeCString(ctx, res_str);
+                            if (res_str) JS_FreeCString(ctx, res_str);
                         } else {
                             response.length = 0;
                             response.data = NULL;
@@ -372,5 +376,6 @@ int main(int argc, char **argv) {
     wisp_ipc_destroy(ipc_main);
     if (js_process_origin) free(js_process_origin);
     corestrings_fini();
+    fprintf(stderr, "\n=== JS PROCESS EXITING NORMALLY ===\n");
     return 0;
 }
