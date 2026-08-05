@@ -1821,8 +1821,7 @@ dom_exception _dom_element_set_attr_node(
 
         err = dom_node_dispatch_node_change_event(doc, old_attr, element, DOM_MUTATION_REMOVAL, &success);
         if (err != DOM_NO_ERR) {
-            dom_string_unref(name);
-            return err;
+            goto cleanup;
         }
 
         dom_node_ref(old_attr);
@@ -1838,32 +1837,28 @@ dom_exception _dom_element_set_attr_node(
          * make sure the event model work as excepted. */
         if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR) {
             dom_node_unref(old_attr);
-            dom_string_unref(name);
-            return err;
+            goto cleanup;
         }
         err = _dom_dispatch_attr_modified_event(
             doc, e, old, NULL, (dom_event_target *)old_attr, name, DOM_MUTATION_REMOVAL, &success);
         dom_string_unref(old);
         *result = old_attr;
         if (err != DOM_NO_ERR) {
-            dom_string_unref(name);
-            return err;
+            goto cleanup;
         }
 
         success = true;
         err = _dom_dispatch_subtree_modified_event(doc, (dom_event_target *)e, &success);
         if (err != DOM_NO_ERR) {
-            dom_string_unref(name);
-            return err;
+            goto cleanup;
         }
     }
 
 
     match = _dom_element_attr_list_node_create(attr, element, name, namespace);
     if (match == NULL) {
-        dom_string_unref(name);
-        /* If we failed at this step, there must be no memory */
-        return DOM_NO_MEM_ERR;
+        err = DOM_NO_MEM_ERR;
+        goto cleanup;
     }
 
     dom_string_ref(name);
@@ -1880,29 +1875,28 @@ dom_exception _dom_element_set_attr_node(
      * work as excepted. */
     if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR) {
         _dom_element_attr_list_node_destroy(match);
-        return err;
+        goto cleanup;
     }
     err = _dom_dispatch_attr_modified_event(
         doc, e, NULL, new, (dom_event_target *)attr, name, DOM_MUTATION_ADDITION, &success);
     /* Cleanup */
     dom_string_unref(new);
-    dom_string_unref(name);
     if (err != DOM_NO_ERR) {
         _dom_element_attr_list_node_destroy(match);
-        return err;
+        goto cleanup;
     }
 
     err = dom_node_dispatch_node_change_event(doc, attr, element, DOM_MUTATION_ADDITION, &success);
     if (err != DOM_NO_ERR) {
         _dom_element_attr_list_node_destroy(match);
-        return err;
+        goto cleanup;
     }
 
     success = true;
     err = _dom_dispatch_subtree_modified_event(doc, (dom_event_target *)element, &success);
     if (err != DOM_NO_ERR) {
         _dom_element_attr_list_node_destroy(match);
-        return err;
+        goto cleanup;
     }
 
     /* Link into element's attribute list */
@@ -1911,7 +1905,11 @@ dom_exception _dom_element_set_attr_node(
     else
         _dom_element_attr_list_insert(element->attributes, match);
 
-    return DOM_NO_ERR;
+cleanup:
+    if (name != NULL) {
+        dom_string_unref(name);
+    }
+    return err;
 }
 
 /**
