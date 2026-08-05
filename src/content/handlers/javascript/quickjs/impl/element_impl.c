@@ -954,69 +954,12 @@ JSValue wisp_element_outerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return val;
 }
 
-extern JSValue qjs_dom_query_selector_internal_shm(JSContext *ctx, uint32_t root_id, const char *selector, bool all);
+extern bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *selectors);
 
 JSValue wisp_element_matches_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
 {
     if (!priv || !priv->node || !selectors) return JS_FALSE;
-
-    if (wisp_is_js_process) {
-        if (!wisp_shm_dom) return JS_FALSE;
-        WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
-        uint32_t element_id = (uint32_t)(uintptr_t)priv->node;
-        uint32_t parent_id = nodes[element_id].parent_id;
-        uint32_t root_id = (parent_id != 0) ? parent_id : element_id;
-
-        JSValue list = qjs_dom_query_selector_internal_shm(ctx, root_id, selectors, true);
-        if (JS_IsArray(list)) {
-            JSValue len_val = JS_GetPropertyStr(ctx, list, "length");
-            uint32_t len = 0;
-            JS_ToUint32(ctx, &len, len_val);
-            JS_FreeValue(ctx, len_val);
-
-            for (uint32_t i = 0; i < len; i++) {
-                JSValue item = JS_GetPropertyUint32(ctx, list, i);
-                QJSNodePrivate *ipriv = qjs_get_dom_priv(ctx, item);
-                if (ipriv && ipriv->node == priv->node) {
-                    JS_FreeValue(ctx, item);
-                    JS_FreeValue(ctx, list);
-                    return JS_TRUE;
-                }
-                JS_FreeValue(ctx, item);
-            }
-            JS_FreeValue(ctx, list);
-        }
-        return JS_FALSE;
-    }
-
-    dom_node *element = (dom_node *)priv->node;
-
-    dom_node *parent = NULL;
-    dom_node_get_parent_node(element, &parent);
-    dom_node *root = parent ? parent : element;
-
-    JSValue list = qjs_dom_query_selector_internal(ctx, root, selectors, true);
-    if (parent) dom_node_unref(parent);
-
-    if (JS_IsArray(list)) {
-        JSValue len_val = JS_GetPropertyStr(ctx, list, "length");
-        uint32_t len = 0;
-        JS_ToUint32(ctx, &len, len_val);
-        JS_FreeValue(ctx, len_val);
-
-        for (uint32_t i = 0; i < len; i++) {
-            JSValue item = JS_GetPropertyUint32(ctx, list, i);
-            QJSNodePrivate *ipriv = qjs_get_dom_priv(ctx, item);
-            if (ipriv && ipriv->node == element) {
-                JS_FreeValue(ctx, item);
-                JS_FreeValue(ctx, list);
-                return JS_TRUE;
-            }
-            JS_FreeValue(ctx, item);
-        }
-    }
-    JS_FreeValue(ctx, list);
-    return JS_FALSE;
+    return qjs_dom_element_matches(ctx, (struct dom_node *)priv->node, selectors) ? JS_TRUE : JS_FALSE;
 }
 
 JSValue wisp_htmlelement_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {

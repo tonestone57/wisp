@@ -78,5 +78,6 @@ int qjs_init_imagedata(JSContext *ctx);
 int qjs_init_unimplemented(JSContext *ctx);
 
 JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all);
+bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *selectors);
 
 #endif /* WISP_QUICKJS_DOM_BRIDGE_H */

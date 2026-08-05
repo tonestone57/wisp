@@ -738,6 +738,38 @@ JSValue qjs_dom_query_selector_internal_shm(JSContext *ctx, uint32_t root_id, co
     return result;
 }
 
+bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *selectors)
+{
+    if (!node || !selectors) return false;
+    qjs_selector_root_t *parsed = qjs_selector_parse(selectors);
+    if (!parsed) return false;
+
+    bool matches = false;
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            shm_dom_lock_read(wisp_shm_dom);
+            uint32_t element_id = (uint32_t)(uintptr_t)node;
+            for (uint32_t i = 0; i < parsed->group_count; i++) {
+                if (qjs_selector_group_matches_shm(element_id, &parsed->groups[i])) {
+                    matches = true;
+                    break;
+                }
+            }
+            shm_dom_unlock_read(wisp_shm_dom);
+        }
+    } else {
+        for (uint32_t i = 0; i < parsed->group_count; i++) {
+            if (qjs_selector_group_matches(node, &parsed->groups[i])) {
+                matches = true;
+                break;
+            }
+        }
+    }
+
+    qjs_selector_root_free(parsed);
+    return matches;
+}
+
 JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, const char *selector, bool all)
 {
     if (wisp_is_js_process) {
