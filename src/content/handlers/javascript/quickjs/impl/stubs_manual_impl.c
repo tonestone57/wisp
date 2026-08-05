@@ -9150,7 +9150,7 @@ JSValue wisp_window_frameElement_get_impl(JSContext *ctx, QJSNodePrivate *priv) 
     return JS_NULL;
 }
 
-// Overrides: getter | Window::external(user);
+// Overrides: Window | external (getter)
 JSValue wisp_window_external_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
 }
