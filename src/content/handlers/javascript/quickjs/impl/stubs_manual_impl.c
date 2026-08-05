@@ -11635,7 +11635,8 @@ JSValue wisp_document_append_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue 
 
 // Overrides: method | Document::createElementNS();
 JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * qualifiedName) {
-    return JS_UNDEFINED;
+    extern JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName);
+    return wisp_document_createElement_impl(ctx, priv, qualifiedName);
 }
 
 // Overrides: attribute get | Document::implementation (getter);

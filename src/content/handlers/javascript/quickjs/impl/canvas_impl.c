@@ -135,17 +135,60 @@ static void canvas_bitmap_handler(dom_node_operation operation, dom_string *key,
 
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
-    if (wisp_is_js_process) return JS_NULL;
-    if (!priv || !priv->node) return JS_NULL;
     if (strcmp(contextId, "2d") != 0) return JS_NULL;
 
-    JSValue element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    JSValue existing = JS_GetPropertyStr(ctx, element_obj, "__canvas_context_2d");
-    if (JS_IsObject(existing)) {
-        JS_FreeValue(ctx, element_obj);
-        return existing;
+    JSValue element_obj = JS_UNDEFINED;
+    if (priv && priv->node) {
+        element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
+        JSValue existing = JS_GetPropertyStr(ctx, element_obj, "__canvas_context_2d");
+        if (JS_IsObject(existing)) {
+            JS_FreeValue(ctx, element_obj);
+            return existing;
+        }
+        JS_FreeValue(ctx, existing);
     }
-    JS_FreeValue(ctx, existing);
+
+    if (wisp_is_js_process) {
+        CanvasContext2DPrivate *cpriv = calloc(1, sizeof(*cpriv));
+        if (!cpriv) {
+            if (JS_IsObject(element_obj)) JS_FreeValue(ctx, element_obj);
+            return JS_ThrowOutOfMemory(ctx);
+        }
+        cpriv->magic = QJS_CANVAS_CONTEXT_MAGIC;
+        cpriv->canvas_node = priv ? (struct dom_node *)priv->node : NULL;
+        cpriv->bitmap = NULL;
+        cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
+        cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
+
+#ifdef WITH_BLEND2D
+        bl_context_init(&cpriv->bl_ctx_obj);
+        cpriv->b2d_ctx.bl_ctx = &cpriv->bl_ctx_obj;
+        bl_path_init(&cpriv->current_path);
+#endif
+
+        JSValue obj = JS_NewObjectClass(ctx, qjs_canvasrenderingcontext2d_class_id);
+        QJSNodePrivate *qpriv = calloc(1, sizeof(*qpriv));
+        if (!qpriv) {
+            free(cpriv);
+            JS_FreeValue(ctx, obj);
+            if (JS_IsObject(element_obj)) JS_FreeValue(ctx, element_obj);
+            return JS_ThrowOutOfMemory(ctx);
+        }
+        qpriv->magic = QJS_DOM_MAGIC;
+        qpriv->node = cpriv;
+        qpriv->ctx = ctx;
+        qpriv->is_dom_node = false;
+        JS_SetOpaque(obj, qpriv);
+
+        if (JS_IsObject(element_obj)) {
+            JS_SetPropertyStr(ctx, element_obj, "__canvas_context_2d", JS_DupValue(ctx, obj));
+            JS_FreeValue(ctx, element_obj);
+        }
+        return obj;
+    }
+
+    if (!priv || !priv->node) return JS_NULL;
+    element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
 
     struct bitmap *bitmap = NULL;
     dom_exception exc = dom_node_get_user_data(priv->node, corestring_dom___ns_key_canvas_node_data, &bitmap);
@@ -802,6 +845,29 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
     if (w <= 0 || h <= 0) return JS_ThrowRangeError(ctx, "Invalid dimensions");
 
     size_t size = (size_t)w * h * 4;
+
+    if (wisp_is_js_process) {
+        uint8_t *data = calloc(1, size);
+        if (!data) return JS_ThrowOutOfMemory(ctx);
+        JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+        if (JS_IsException(array_buffer)) {
+            free(data);
+            return array_buffer;
+        }
+        JSValue global = JS_GetGlobalObject(ctx);
+        JSValue clamped_array_ctor = JS_GetPropertyStr(ctx, global, "Uint8ClampedArray");
+        JSValue array = JS_CallConstructor(ctx, clamped_array_ctor, 1, &array_buffer);
+        JS_FreeValue(ctx, global);
+        JS_FreeValue(ctx, clamped_array_ctor);
+        JS_FreeValue(ctx, array_buffer);
+
+        if (JS_IsException(array)) return array;
+
+        JSValue ret = wisp_imagedata_constructor_1_impl(ctx, array, w, h);
+        JS_FreeValue(ctx, array);
+        return ret;
+    }
+
     uint8_t *data = malloc(size);
     if (!data) return JS_ThrowOutOfMemory(ctx);
 
