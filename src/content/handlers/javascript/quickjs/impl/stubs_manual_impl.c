@@ -11519,6 +11519,11 @@ JSValue wisp_canvaspathmethods_arc_impl(JSContext *ctx, QJSNodePrivate *priv, do
 }
 
 // Overrides: method | CanvasPathMethods::arcTo();
+JSValue wisp_canvaspathmethods_arcTo_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radius) {
+    return JS_UNDEFINED;
+}
+
+// Overrides: method | CanvasPathMethods::arcTo();
 JSValue wisp_canvaspathmethods_arcTo_1_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radiusX, double radiusY, double rotation) {
     return JS_UNDEFINED;
 }
