@@ -2236,9 +2236,9 @@ static nserror llcache_fetch_redirect(llcache_object *object, const char *target
     if ((lwc_string_isequal(object_scheme, corestring_lwc_resource, &match) == lwc_error_ok && match == false) &&
         (lwc_string_isequal(object_scheme, corestring_lwc_about, &match) == lwc_error_ok && match == false)) {
         /* file, about and resource are not valid redirect targets */
-        if ((lwc_string_isequal(object_scheme, corestring_lwc_file, &match) == lwc_error_ok && match == true) ||
-            (lwc_string_isequal(object_scheme, corestring_lwc_about, &match) == lwc_error_ok && match == true) ||
-            (lwc_string_isequal(object_scheme, corestring_lwc_resource, &match) == lwc_error_ok && match == true)) {
+        if ((lwc_string_isequal(scheme, corestring_lwc_file, &match) == lwc_error_ok && match == true) ||
+            (lwc_string_isequal(scheme, corestring_lwc_about, &match) == lwc_error_ok && match == true) ||
+            (lwc_string_isequal(scheme, corestring_lwc_resource, &match) == lwc_error_ok && match == true)) {
             lwc_string_unref(object_scheme);
             lwc_string_unref(scheme);
             nsurl_unref(hsts_url);

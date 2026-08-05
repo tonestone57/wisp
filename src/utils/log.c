@@ -333,6 +333,9 @@ static void wisp_render_log(void *_ctx, nslog_entry_context_t *ctx, const char *
 
     /* Log entries aren't newline terminated add one for clarity */
     fputc('\n', logfile);
+    if (logfile != NULL) {
+        fflush(logfile);
+    }
 }
 
 /* exported interface documented in utils/log.h */
@@ -388,6 +391,9 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
         va_end(ap);
 
         fputc('\n', logfile);
+        if (logfile != NULL) {
+            fflush(logfile);
+        }
     }
 
     if (split_logging) {
