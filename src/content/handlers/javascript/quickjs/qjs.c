@@ -170,7 +170,7 @@ JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *o
         JSValue exc = JS_GetException(ctx);
         const char *exc_str = JS_ToCString(ctx, exc);
         fprintf(stderr, "WISP_MODULE_LOADER: Compilation failed for '%s': %s\n", module_name, exc_str ? exc_str : "unknown");
-        JS_FreeCString(ctx, exc_str);
+        if (exc_str) JS_FreeCString(ctx, exc_str);
         JS_FreeValue(ctx, exc);
         return NULL;
     }
@@ -3897,7 +3897,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         }
                     } else if (recv_err != NSERROR_NOT_FOUND) {
                         /* Socket error or EOF -> crash detected! */
-                        NSLOG(wisp, ERROR, "JS process crashed during recv for origin %s", thread->origin);
+                        NSLOG(wisp, ERROR, "JS process crashed during recv (error %d) for origin %s", (int)recv_err, thread->origin);
                         handle_process_crash(thread->origin);
                         crashed = true;
                         break;
@@ -3997,10 +3997,11 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 {
     struct qjs_event_listener_ctx *ctx = pw;
     if (!ctx || !ctx->thread || ctx->thread->closed) return;
-    JSContext *jsctx = ctx->thread->ctx;
+    jsthread *thread = ctx->thread;
+    JSContext *jsctx = thread->ctx;
     JSValue global = JS_GetGlobalObject(jsctx);
     JSValue js_evt = JS_UNDEFINED;
-    struct qjs_event_map *map = ctx->thread->events;
+    struct qjs_event_map *map = thread->events;
     while (map) {
         if (map->evt == evt) { js_evt = JS_DupValue(jsctx, map->js_evt); break; }
         map = map->next;
@@ -4011,11 +4012,11 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         if (new_map) {
             dom_event_ref(evt); new_map->evt = evt;
             new_map->js_evt = JS_DupValue(jsctx, js_evt);
-            new_map->next = ctx->thread->events; ctx->thread->events = new_map;
+            new_map->next = thread->events; thread->events = new_map;
         }
     }
-    struct dom_document *doc_node_evt = qjs_thread_get_document(ctx->thread);
-    JSValue this_obj = (ctx->target == (struct dom_event_target *)ctx->thread->win_priv || ctx->target == (struct dom_event_target *)doc_node_evt) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
+    struct dom_document *doc_node_evt = qjs_thread_get_document(thread);
+    JSValue this_obj = (ctx->target == (struct dom_event_target *)thread->win_priv || ctx->target == (struct dom_event_target *)doc_node_evt) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
 
     dom_event_target *evt_target = NULL;
     dom_event_get_target(evt, &evt_target);
@@ -4041,20 +4042,20 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 
     uint64_t old_deadline = 0;
     uint64_t old_last_yield = 0;
-    if (ctx->thread && ctx->thread->heap) {
-        old_deadline = ctx->thread->heap->deadline_ms;
-        old_last_yield = ctx->thread->heap->last_yield_ms;
+    if (thread && thread->heap) {
+        old_deadline = thread->heap->deadline_ms;
+        old_last_yield = thread->heap->last_yield_ms;
         uint64_t now;
         nsu_getmonotonic_ms(&now);
-        ctx->thread->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
-        ctx->thread->heap->last_yield_ms = now;
+        thread->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        thread->heap->last_yield_ms = now;
     }
 
     JSValue ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
 
-    if (ctx->thread && ctx->thread->heap) {
-        ctx->thread->heap->deadline_ms = old_deadline;
-        ctx->thread->heap->last_yield_ms = old_last_yield;
+    if (thread && thread->heap) {
+        thread->heap->deadline_ms = old_deadline;
+        thread->heap->last_yield_ms = old_last_yield;
     }
 
     if (JS_IsException(ret)) {
