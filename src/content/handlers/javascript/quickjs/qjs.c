@@ -3507,6 +3507,7 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
                 }
             }
             nodes_array = shm_dom_get_nodes(shm);
+            sn = &nodes_array[idx]; // Re-acquire parent node pointer as the address space might have changed
 
             nodes_array[child_idx].prev_sibling_id = prev_child_idx;
             if (prev_child_idx != 0) {
@@ -3523,7 +3524,22 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
     }
 }
 
+static inline void host_ensure_shm_capacity(struct jsthread *thread) {
+    if (thread && thread->shm_dom && thread->shm_dom->node_capacity > thread->shm_capacity) {
+        uint32_t new_cap = thread->shm_dom->node_capacity;
+        shm_dom_t *new_shm = shm_dom_remap(thread->shm_dom, new_cap);
+        if (new_shm) {
+            thread->shm_dom = new_shm;
+            thread->shm_capacity = new_cap;
+        }
+    }
+}
+
 void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_document *doc) {
+    if (thread) {
+        host_ensure_shm_capacity(thread);
+        shm = thread->shm_dom;
+    }
     if (!shm || !doc) return;
     shm_dom_lock_write(shm);
     if (shm->node_count > 0) {
@@ -3717,6 +3733,7 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
 
 void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
     if (!thread || !thread->shm_dom || !doc_box) return;
+    host_ensure_shm_capacity(thread);
     shm_dom_t *shm = thread->shm_dom;
     shm_dom_lock_write(shm);
     update_shm_box_bounds_recursive(thread, doc_box);
@@ -3960,6 +3977,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                             break;
                         } else if (response.type == WISP_IPC_MSG_DOM_REQUEST) {
                             if (doc) {
+                                host_ensure_shm_capacity(thread);
                                 drain_mutation_queue(thread->shm_dom, doc);
                                 serialize_dom_tree(thread->shm_dom, thread, doc);
                                 force_synchronous_layout(thread);
@@ -3991,6 +4009,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 }
                 if (got_response) {
                     if (doc) {
+                        host_ensure_shm_capacity(thread);
                         drain_mutation_queue(thread->shm_dom, doc);
                         dom_node_unref((dom_node *)doc);
                     }
