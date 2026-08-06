@@ -195,6 +195,13 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
+                JSClassID class_id = 0;
+                QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
+                if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.keys[i].node) {
+                    if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
+                    priv->node = NULL;
+                    priv->magic = 0;
+                }
                 hashmap_remove(map, &cleanup.keys[i]);
                 if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
             }
@@ -529,6 +536,13 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
+            JSClassID class_id = 0;
+            QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
+            if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.nodes[i]) {
+                if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
+                priv->node = NULL;
+                priv->magic = 0;
+            }
             hashmap_remove(map, &key);
             if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
         }
@@ -545,6 +559,13 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
+            JSClassID class_id = 0;
+            QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
+            if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.nodes[i]) {
+                if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
+                priv->node = NULL;
+                priv->magic = 0;
+            }
             hashmap_remove(map, &key);
             if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
         }
