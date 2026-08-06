@@ -1343,11 +1343,5 @@ const char *__lsan_default_suppressions(void)
            "leak:libgtk\n"
            "leak:libcairo\n"
            "leak:libgobject\n"
-           "leak:gdk_pango\n"
-           "leak:libdom\n"
-           "leak:libcss\n"
-           "leak:quickjs\n"
-           "leak:css_select_style\n"
-           "leak:dom_string_create_interned\n"
-           "leak:corestrings_init\n";
+           "leak:gdk_pango\n";
 }
