@@ -311,6 +311,13 @@ int main(int argc, char **argv) {
                         JSValue exc = JS_GetException(ctx);
                         const char *exc_str = JS_ToCString(ctx, exc);
                         fprintf(stderr, "\n=== JS PROCESS EXCEPTION: %s ===\n", exc_str ? exc_str : "unknown");
+                        JSValue stack = JS_GetPropertyStr(ctx, exc, "stack");
+                        const char *stack_str = JS_ToCString(ctx, stack);
+                        if (stack_str) {
+                            fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                            JS_FreeCString(ctx, stack_str);
+                        }
+                        JS_FreeValue(ctx, stack);
                         if (exc_str) JS_FreeCString(ctx, exc_str);
                         JS_FreeValue(ctx, exc);
                         response.length = 0;

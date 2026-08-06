@@ -1277,6 +1277,50 @@ JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
                 extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
                 return qjs_new_htmlimageelement(ctx, node, is_dom_node);
             }
+            if (strcasecmp(tag, "select") == 0) {
+                extern JSValue qjs_new_htmlselectelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlselectelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "input") == 0) {
+                extern JSValue qjs_new_htmlinputelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlinputelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "textarea") == 0) {
+                extern JSValue qjs_new_htmltextareaelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltextareaelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "button") == 0) {
+                extern JSValue qjs_new_htmlbuttonelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlbuttonelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "form") == 0) {
+                extern JSValue qjs_new_htmlformelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlformelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "option") == 0) {
+                extern JSValue qjs_new_htmloptionelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmloptionelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "canvas") == 0) {
+                extern JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlcanvaselement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "table") == 0) {
+                extern JSValue qjs_new_htmltableelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltableelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "tr") == 0) {
+                extern JSValue qjs_new_htmltablerowelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltablerowelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "td") == 0) {
+                extern JSValue qjs_new_htmltabledatacellelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltabledatacellelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "th") == 0) {
+                extern JSValue qjs_new_htmltableheadercellelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltableheadercellelement(ctx, node, is_dom_node);
+            }
         }
     } else {
         dom_html_element_type tag_type;
@@ -1289,6 +1333,50 @@ JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
             if (tag_type == DOM_HTML_ELEMENT_TYPE_IMG) {
                 extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
                 return qjs_new_htmlimageelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_SELECT) {
+                extern JSValue qjs_new_htmlselectelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlselectelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_INPUT) {
+                extern JSValue qjs_new_htmlinputelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlinputelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_TEXTAREA) {
+                extern JSValue qjs_new_htmltextareaelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltextareaelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_BUTTON) {
+                extern JSValue qjs_new_htmlbuttonelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlbuttonelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_FORM) {
+                extern JSValue qjs_new_htmlformelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlformelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_OPTION) {
+                extern JSValue qjs_new_htmloptionelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmloptionelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_CANVAS) {
+                extern JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlcanvaselement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_TABLE) {
+                extern JSValue qjs_new_htmltableelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltableelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_TR) {
+                extern JSValue qjs_new_htmltablerowelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltablerowelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_TD) {
+                extern JSValue qjs_new_htmltabledatacellelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltabledatacellelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_TH) {
+                extern JSValue qjs_new_htmltableheadercellelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltableheadercellelement(ctx, node, is_dom_node);
             }
         }
     }
