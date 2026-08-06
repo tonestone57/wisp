@@ -11678,6 +11678,7 @@ JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *pr
         JS_FreeValue(ctx, wrapper);
         return impl;
     }
+    JS_FreeValue(ctx, wrapper);
     return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
 }
 
