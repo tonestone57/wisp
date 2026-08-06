@@ -90,7 +90,7 @@ Utilizes a **weak-reference model** and explicit cycle-breaking logic to manage 
 *   **SIMD Arena**: Enhanced the custom arena allocator's `ALIGN_UP` macro with overflow checks while enforcing 64-byte alignment for AVX-512.
 *   **Timer Safety**: Mandated timer unscheduling during thread teardown to prevent UAF.
 *   **Canvas 2D Bridge**: Connected WebIDL stubs to underlying Direct2D and Blend2D plotter backends.
-*   **1590+ WebIDL Stubs overrides, implementation, & integration**: Properly implemented over 1582 total manual WebIDL stub overrides as C strong symbols, including 1222+ custom overrides in `stubs_manual_impl.c` alone, fully supporting core HTMLElement/Location/History/Document interfaces and child relations. Integrated subsequent waves of stubs (covering HTMLImageElement, ValidityState, event handlers, document properties, and alphabetical elements) with 100% test coverage, reducing remaining unimplemented stubs in `UnimplementedJavascript.md` to exactly 0.
+*   **2970+ WebIDL Stubs overrides, implementation, & integration**: Properly implemented over 2978 total manual WebIDL stub overrides as C strong symbols, including 2530+ custom overrides in `stubs_manual_impl.c` alone, fully supporting core HTMLElement/Location/History/Document interfaces and child relations, reducing remaining unimplemented stubs in `UnimplementedJavascript.md` to exactly 0.
 *   **Process Isolation**: Isolated JavaScript execution (`wisp-js`) and Networking (`wisp-network`) into separate OS processes via a platform-agnostic IPC layer.
 *   **Web Workers**: Implemented full spec-compliant Web Workers via isolated `JSRuntime`/`JSContext` allocations using structured cloning.
 *   **Haiku Optimization**: Migrated the Haiku frontend to `BDirectWindow`, gaining direct locked framebuffer access. Integrated native `BControl` elements (selects, buttons, etc.) into the widget map.
@@ -115,7 +115,7 @@ Utilizes a **weak-reference model** and explicit cycle-breaking logic to manage 
 | **Shared-Memory DOM** | Core/IPC | High | High | **[Finished]** | Zero-copy shared-memory DOM topology mapping to bypass IPC serialization. |
 | **Batch Mutation Queue** | Core/IPC | High | High | **[Finished]** | Buffered mutations flushed synchronously at the end of microtask loops. |
 | **Web API / Fetch Parity** | JS Subsystem | High | High | **[Finished]** | Standards-compliant `Headers`, `ReadableStream`, `fetch()`, `ShadowRoot`, and `History`. |
-| **1406+ WebIDL Stubs Integration** | JS Subsystem | Medium | High | **[Finished]** | Properly implemented over 1406 total manual WebIDL stub overrides across key HTML and DOM interfaces (with 1222+ in `stubs_manual_impl.c` alone, specifically including the final wave of 184 stubs). |
+| **2970+ WebIDL Stubs Integration** | JS Subsystem | Medium | High | **[Finished]** | Properly implemented over 2978 total manual WebIDL stub overrides across key HTML and DOM interfaces (with 2530+ in `stubs_manual_impl.c` alone, specifically including the final wave of 184 stubs). |
 | **CSS3 Transforms & Animations**| CSS/Graphics | High | High | **[Finished]** | 3D transforms matrix projection, transitions engine, and frame-step rendering. |
 | **CSS Grid Subgrids** | CSS/Layout | Medium | High | **[Finished]** | Track-definition inheritance on nested containers spanning grid tracks. |
 | **GPU-Accelerated Compositing** | Graphics | High | High | Planned | Offload tile-blitting and scroll passes to GPU (OpenGL/Vulkan/Direct3D). |
