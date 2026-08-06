@@ -1178,6 +1178,11 @@ bool html_begin_conversion(html_content *htmlc)
 	 * multiple times, so store a flag to indicate that parsing is
 	 * complete to avoid repeating the completion pointlessly.
 	 */
+	if (htmlc->conversion_begun) {
+		NSLOG(wisp, DEBUG, "Conversion already begun (%p)", htmlc);
+		return true;
+	}
+
 	if (htmlc->parse_completed == false) {
 		NSLOG(wisp, INFO, "Completing parse (%p)", htmlc);
 		PERF("html_begin_conversion: completing parse (active=%d, scripts_active=%d)", htmlc->base.active,
