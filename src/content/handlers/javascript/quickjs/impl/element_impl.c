@@ -644,11 +644,30 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
     return res;
 }
 
+static JSValue wisp_create_fallback_style_proxy(JSContext *ctx) {
+    JSValue initial_style = JS_NewObject(ctx);
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
+    if (JS_IsFunction(ctx, make_proxy_fn)) {
+        JSValue dummy_wrapper = JS_NewObject(ctx);
+        JSValue args[2] = { dummy_wrapper, initial_style };
+        JSValue style = JS_Call(ctx, make_proxy_fn, JS_UNDEFINED, 2, args);
+        JS_FreeValue(ctx, dummy_wrapper);
+        JS_FreeValue(ctx, initial_style);
+        JS_FreeValue(ctx, make_proxy_fn);
+        JS_FreeValue(ctx, global_obj);
+        return style;
+    }
+    JS_FreeValue(ctx, make_proxy_fn);
+    JS_FreeValue(ctx, global_obj);
+    return initial_style;
+}
+
 static JSValue js_element_style_get_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     if (argc < 1) return JS_UNDEFINED;
     QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
-    if (!priv) return JS_UNDEFINED;
+    if (!priv) return wisp_create_fallback_style_proxy(ctx);
     return wisp_htmlelement_style_get_impl(ctx, priv);
 }
 

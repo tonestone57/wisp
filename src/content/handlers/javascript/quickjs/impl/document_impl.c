@@ -531,7 +531,6 @@ JSValue wisp_document_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate
 
 JSValue wisp_document_createEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * interface)
 {
-    if (wisp_is_js_process) return JS_NULL;
     dom_event *evt = NULL;
     dom_event_create(&evt);
     if (evt) {
@@ -545,7 +544,9 @@ JSValue wisp_document_createEvent_impl(JSContext *ctx, QJSNodePrivate *priv, con
         } else {
             obj = qjs_new_event(ctx, evt, false);
         }
-        dom_event_unref(evt);
+        if (!wisp_is_js_process) {
+            dom_event_unref(evt);
+        }
         return obj;
     }
     return JS_NULL;

@@ -8109,8 +8109,29 @@ JSValue wisp_cssgroupingrule_deleteRule_impl(JSContext *ctx, QJSNodePrivate *pri
 JSValue wisp_cssgroupingrule_insertRule_impl(JSContext *ctx, QJSNodePrivate *priv, const char * rule, uint32_t index) {
     return JS_NewInt32(ctx, index);
 }
+extern JSValue qjs_new_cssrulelist(JSContext *ctx, void *node, bool is_dom_node);
+
+static JSValue qjs_create_style_proxy(JSContext *ctx) {
+    JSValue initial_style = JS_NewObject(ctx);
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
+    if (JS_IsFunction(ctx, make_proxy_fn)) {
+        JSValue dummy_wrapper = JS_NewObject(ctx);
+        JSValue args[2] = { dummy_wrapper, initial_style };
+        JSValue style = JS_Call(ctx, make_proxy_fn, JS_UNDEFINED, 2, args);
+        JS_FreeValue(ctx, dummy_wrapper);
+        JS_FreeValue(ctx, initial_style);
+        JS_FreeValue(ctx, make_proxy_fn);
+        JS_FreeValue(ctx, global_obj);
+        return style;
+    }
+    JS_FreeValue(ctx, make_proxy_fn);
+    JS_FreeValue(ctx, global_obj);
+    return initial_style;
+}
+
 JSValue wisp_cssgroupingrule_cssRules_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return qjs_new_cssrulelist(ctx, NULL, false);
 }
 
 // 40. CSSPageRule Implementation (3 stubs)
@@ -8121,7 +8142,7 @@ JSValue wisp_csspagerule_selectorText_set_impl(JSContext *ctx, QJSNodePrivate *p
     return JS_UNDEFINED;
 }
 JSValue wisp_csspagerule_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return qjs_create_style_proxy(ctx);
 }
 
 // 41. CSSMediaRule Implementation (1 stub)
@@ -8145,7 +8166,7 @@ JSValue wisp_cssstylesheet_insertRule_impl(JSContext *ctx, QJSNodePrivate *priv,
     return JS_NewInt32(ctx, index);
 }
 JSValue wisp_cssstylesheet_cssRules_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return qjs_new_cssrulelist(ctx, NULL, false);
 }
 JSValue wisp_cssstylesheet_ownerRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
@@ -8216,7 +8237,7 @@ JSValue wisp_cssmarginrule_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: getter | CSSMarginRule::style(user);
 JSValue wisp_cssmarginrule_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return qjs_create_style_proxy(ctx);
 }
 
 // Overrides: getter | CSSImportRule::href(string);
@@ -8246,7 +8267,7 @@ JSValue wisp_cssstylerule_selectorText_set_impl(JSContext *ctx, QJSNodePrivate *
 
 // Overrides: getter | CSSStyleRule::style(user);
 JSValue wisp_cssstylerule_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return qjs_create_style_proxy(ctx);
 }
 
 // Overrides: method | CSSRuleList::item();
@@ -9117,17 +9138,17 @@ JSValue wisp_window_closed_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: getter | Window::frames(user);
 JSValue wisp_window_frames_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_GetGlobalObject(ctx);
 }
 
 // Overrides: getter | Window::length(unsigned long);
 JSValue wisp_window_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewInt32(ctx, 0);
 }
 
 // Overrides: getter | Window::top(user);
 JSValue wisp_window_top_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_GetGlobalObject(ctx);
 }
 
 // Overrides: getter | Window::opener(any);
@@ -9142,7 +9163,7 @@ JSValue wisp_window_opener_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValu
 
 // Overrides: getter | Window::parent(user);
 JSValue wisp_window_parent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_GetGlobalObject(ctx);
 }
 
 // Overrides: getter | Window::frameElement(user);
@@ -10326,14 +10347,17 @@ JSValue wisp_document_bgColor_set_impl(JSContext *ctx, QJSNodePrivate *priv, con
     return JS_UNDEFINED;
 }
 
+extern JSValue qjs_new_htmlallcollection(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_stylesheetlist(JSContext *ctx, void *node, bool is_dom_node);
+
 // Overrides: getter | Document::all(user);
 JSValue wisp_document_all_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return qjs_new_htmlallcollection(ctx, NULL, false);
 }
 
 // Overrides: getter | Document::styleSheets(user);
 JSValue wisp_document_styleSheets_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return qjs_new_stylesheetlist(ctx, NULL, false);
 }
 
 // Overrides: getter | Document::selectedStyleSheetSet(string);

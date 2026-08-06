@@ -73,31 +73,42 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         return JS_DupValue(ctx, *existing);
     }
 
+    extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
+
     dom_node_type type;
     if (wisp_is_js_process) {
-        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)node);
-        type = sn ? (dom_node_type)sn->node_type : 0;
+        uint64_t id = (uint64_t)(uintptr_t)node;
+        if (id >= 0xf0000000) {
+            type = DOM_ELEMENT_NODE;
+        } else {
+            WispCompactNode *sn = find_shm_node(wisp_shm_dom, id);
+            type = sn ? (dom_node_type)sn->node_type : 0;
+        }
     } else {
         dom_node_get_node_type(node, &type);
     }
 
     JSValue wrapper;
-    switch (type) {
-        case DOM_ELEMENT_NODE:
-            wrapper = qjs_new_element(ctx, node, true);
-            break;
-        case DOM_DOCUMENT_NODE:
-            wrapper = qjs_new_document(ctx, node, true);
-            break;
-        case DOM_TEXT_NODE:
-            wrapper = qjs_new_text(ctx, node, true);
-            break;
-        case DOM_ATTRIBUTE_NODE:
-            wrapper = qjs_new_attr(ctx, node, true);
-            break;
-        default:
-            wrapper = qjs_new_node(ctx, node, true);
-            break;
+    if (wisp_is_js_process && (uint64_t)(uintptr_t)node >= 0xf0000000) {
+        wrapper = qjs_new_htmlimageelement(ctx, node, true);
+    } else {
+        switch (type) {
+            case DOM_ELEMENT_NODE:
+                wrapper = qjs_new_element(ctx, node, true);
+                break;
+            case DOM_DOCUMENT_NODE:
+                wrapper = qjs_new_document(ctx, node, true);
+                break;
+            case DOM_TEXT_NODE:
+                wrapper = qjs_new_text(ctx, node, true);
+                break;
+            case DOM_ATTRIBUTE_NODE:
+                wrapper = qjs_new_attr(ctx, node, true);
+                break;
+            default:
+                wrapper = qjs_new_node(ctx, node, true);
+                break;
+        }
     }
 
     JSValue *val_ptr = hashmap_insert(map, &key);
