@@ -38,6 +38,7 @@
 
 #include "content/handlers/image/ico.h"
 #include "content/handlers/image/image.h"
+#include "content/handlers/image/png.h"
 
 typedef struct nsico_content {
     struct content base;
@@ -170,16 +171,29 @@ static bool nsico__decode(struct bmp_image *ico)
 {
     if (ico->decoded == false) {
         NSLOG(wisp, DEBUG, "Decoding ICO %p", ico);
-        if (bmp_decode(ico) != BMP_OK) {
-            return false;
-        }
+        if (ico->buffer_size >= 8 &&
+            ico->bmp_data[0] == 0x89 && ico->bmp_data[1] == 0x50 &&
+            ico->bmp_data[2] == 0x4e && ico->bmp_data[3] == 0x47 &&
+            ico->bmp_data[4] == 0x0d && ico->bmp_data[5] == 0x0a &&
+            ico->bmp_data[6] == 0x1a && ico->bmp_data[7] == 0x0a) {
 
-        bitmap_format_to_client(ico->bitmap,
-            &(bitmap_fmt_t){
-                .layout = BITMAP_LAYOUT_R8G8B8A8,
-                .pma = bitmap_fmt.pma,
-            });
-        guit->bitmap->modified(ico->bitmap);
+            ico->bitmap = nspng_decode_buffer(ico->bmp_data, ico->buffer_size);
+            if (ico->bitmap == NULL) {
+                return false;
+            }
+            ico->decoded = true;
+        } else {
+            if (bmp_decode(ico) != BMP_OK) {
+                return false;
+            }
+
+            bitmap_format_to_client(ico->bitmap,
+                &(bitmap_fmt_t){
+                    .layout = BITMAP_LAYOUT_R8G8B8A8,
+                    .pma = bitmap_fmt.pma,
+                });
+            guit->bitmap->modified(ico->bitmap);
+        }
     }
 
     return true;

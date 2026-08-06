@@ -22,4 +22,6 @@
 
 nserror nspng_init(void);
 
+struct bitmap *nspng_decode_buffer(const uint8_t *data, size_t size);
+
 #endif
