@@ -11,12 +11,16 @@
 extern bool wisp_is_js_process;
 
 static QJSNodePrivate *get_priv_with_global(JSContext *ctx, JSValueConst val) {
+    if (JS_IsUndefined(val) || JS_IsNull(val)) {
+        struct jsthread *t = JS_GetContextOpaque(ctx);
+        if (t) return &t->global_window_priv;
+    }
     QJSNodePrivate *priv = qjs_get_dom_priv(ctx, val);
     if (!priv) {
         JSValue global = JS_GetGlobalObject(ctx);
         if (JS_VALUE_GET_PTR(global) == JS_VALUE_GET_PTR(val)) {
             struct jsthread *t = JS_GetContextOpaque(ctx);
-            priv = &t->global_window_priv;
+            if (t) priv = &t->global_window_priv;
         }
         JS_FreeValue(ctx, global);
     }
@@ -26,18 +30,32 @@ static QJSNodePrivate *get_priv_with_global(JSContext *ctx, JSValueConst val) {
 
 static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
-    if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
-    if (argc < 2) return JS_UNDEFINED;
+    JSValueConst actual_this = this_val;
+    JSValue global_ref = JS_UNDEFINED;
+    if (JS_IsUndefined(this_val) || JS_IsNull(this_val)) {
+        global_ref = JS_GetGlobalObject(ctx);
+        actual_this = global_ref;
+    }
 
-    JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
+    QJSNodePrivate *priv = get_priv_with_global(ctx, actual_this);
+    if (!priv) {
+        JS_FreeValue(ctx, global_ref);
+        return JS_ThrowTypeError(ctx, "Invalid this");
+    }
+    if (argc < 2) {
+        JS_FreeValue(ctx, global_ref);
+        return JS_UNDEFINED;
+    }
+
+    JSValue listeners = JS_GetPropertyStr(ctx, actual_this, "__wisp_listeners");
     if (JS_IsUndefined(listeners)) {
         listeners = JS_NewObject(ctx);
-        JS_SetPropertyStr(ctx, this_val, "__wisp_listeners", JS_DupValue(ctx, listeners));
+        JS_SetPropertyStr(ctx, actual_this, "__wisp_listeners", JS_DupValue(ctx, listeners));
     }
     const char *type = JS_ToCString(ctx, argv[0]);
     if (!type) {
         JS_FreeValue(ctx, listeners);
+        JS_FreeValue(ctx, global_ref);
         return JS_EXCEPTION;
     }
     JSValue list = JS_GetPropertyStr(ctx, listeners, type);
@@ -92,16 +110,30 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     }
 
     JS_FreeCString(ctx, type);
+    JS_FreeValue(ctx, global_ref);
     return JS_UNDEFINED;
 }
 
 static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
-    if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
-    if (argc < 2) return JS_UNDEFINED;
+    JSValueConst actual_this = this_val;
+    JSValue global_ref = JS_UNDEFINED;
+    if (JS_IsUndefined(this_val) || JS_IsNull(this_val)) {
+        global_ref = JS_GetGlobalObject(ctx);
+        actual_this = global_ref;
+    }
 
-    JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
+    QJSNodePrivate *priv = get_priv_with_global(ctx, actual_this);
+    if (!priv) {
+        JS_FreeValue(ctx, global_ref);
+        return JS_ThrowTypeError(ctx, "Invalid this");
+    }
+    if (argc < 2) {
+        JS_FreeValue(ctx, global_ref);
+        return JS_UNDEFINED;
+    }
+
+    JSValue listeners = JS_GetPropertyStr(ctx, actual_this, "__wisp_listeners");
     if (!JS_IsUndefined(listeners)) {
         const char *type = JS_ToCString(ctx, argv[0]);
         if (type) {
@@ -143,14 +175,28 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
         }
     }
 
+    JS_FreeValue(ctx, global_ref);
     return JS_UNDEFINED;
 }
 
 static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    QJSNodePrivate *priv = get_priv_with_global(ctx, this_val);
-    if (!priv) return JS_ThrowTypeError(ctx, "Invalid this");
-    if (argc < 1) return JS_FALSE;
+    JSValueConst actual_this = this_val;
+    JSValue global_ref = JS_UNDEFINED;
+    if (JS_IsUndefined(this_val) || JS_IsNull(this_val)) {
+        global_ref = JS_GetGlobalObject(ctx);
+        actual_this = global_ref;
+    }
+
+    QJSNodePrivate *priv = get_priv_with_global(ctx, actual_this);
+    if (!priv) {
+        JS_FreeValue(ctx, global_ref);
+        return JS_ThrowTypeError(ctx, "Invalid this");
+    }
+    if (argc < 1) {
+        JS_FreeValue(ctx, global_ref);
+        return JS_FALSE;
+    }
 
     if (wisp_is_js_process || priv->node == NULL) {
         const char *type = NULL;
@@ -166,10 +212,11 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
         }
         if (!type) {
             JS_FreeValue(ctx, type_val);
+            JS_FreeValue(ctx, global_ref);
             return JS_FALSE;
         }
 
-        JSValue listeners = JS_GetPropertyStr(ctx, this_val, "__wisp_listeners");
+        JSValue listeners = JS_GetPropertyStr(ctx, actual_this, "__wisp_listeners");
         if (!JS_IsUndefined(listeners)) {
             JSValue list = JS_GetPropertyStr(ctx, listeners, type);
             if (!JS_IsUndefined(list)) {
@@ -179,14 +226,14 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                 JS_FreeValue(ctx, js_len);
 
                 if (JS_IsObject(argv[0])) {
-                    JS_SetPropertyStr(ctx, argv[0], "target", JS_DupValue(ctx, this_val));
-                    JS_SetPropertyStr(ctx, argv[0], "currentTarget", JS_DupValue(ctx, this_val));
+                    JS_SetPropertyStr(ctx, argv[0], "target", JS_DupValue(ctx, actual_this));
+                    JS_SetPropertyStr(ctx, argv[0], "currentTarget", JS_DupValue(ctx, actual_this));
                 }
 
                 for (int i = 0; i < len; i++) {
                     JSValue cb = JS_GetPropertyUint32(ctx, list, i);
                     if (JS_IsFunction(ctx, cb)) {
-                        JSValue ret = JS_Call(ctx, cb, this_val, 1, argv);
+                        JSValue ret = JS_Call(ctx, cb, actual_this, 1, argv);
                         if (JS_IsException(ret)) {
                             JSValue exception = JS_GetException(ctx);
                             const char *err_msg = JS_ToCString(ctx, exception);
@@ -204,6 +251,7 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
         JS_FreeValue(ctx, listeners);
         if (type) JS_FreeCString(ctx, (char *)type);
         JS_FreeValue(ctx, type_val);
+        JS_FreeValue(ctx, global_ref);
         return JS_TRUE;
     }
 
@@ -224,6 +272,7 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
 
     if (type) JS_FreeCString(ctx, (char *)type);
     JS_FreeValue(ctx, type_val);
+    JS_FreeValue(ctx, global_ref);
 
     return JS_NewBool(ctx, success);
 }
