@@ -70,6 +70,7 @@ static inline CanvasContext2DPrivate *get_canvas_cpriv(QJSNodePrivate *priv) {
     if (!priv || !priv->node) return NULL;
     CanvasContext2DPrivate *cpriv = (CanvasContext2DPrivate *)priv->node;
     if (cpriv->magic != QJS_CANVAS_CONTEXT_MAGIC) return NULL;
+    if (wisp_is_js_process) return NULL;
     return cpriv;
 }
 
@@ -135,7 +136,6 @@ static void canvas_bitmap_handler(dom_node_operation operation, dom_string *key,
 
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
-    if (wisp_is_js_process) return JS_NULL;
     if (!priv || !priv->node) return JS_NULL;
     if (strcmp(contextId, "2d") != 0) return JS_NULL;
 
@@ -146,6 +146,22 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
         return existing;
     }
     JS_FreeValue(ctx, existing);
+
+    if (wisp_is_js_process) {
+        extern JSValue qjs_new_canvasrenderingcontext2d(JSContext *ctx, void *node, bool is_dom_node);
+        CanvasContext2DPrivate *cpriv = calloc(1, sizeof(*cpriv));
+        if (!cpriv) { JS_FreeValue(ctx, element_obj); return JS_ThrowOutOfMemory(ctx); }
+        cpriv->magic = QJS_CANVAS_CONTEXT_MAGIC;
+        cpriv->canvas_node = (struct dom_node *)priv->node;
+        cpriv->bitmap = NULL;
+        cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
+        cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
+
+        JSValue context_obj = qjs_new_canvasrenderingcontext2d(ctx, cpriv, false);
+        JS_SetPropertyStr(ctx, element_obj, "__canvas_context_2d", JS_DupValue(ctx, context_obj));
+        JS_FreeValue(ctx, element_obj);
+        return context_obj;
+    }
 
     struct bitmap *bitmap = NULL;
     dom_exception exc = dom_node_get_user_data(priv->node, corestring_dom___ns_key_canvas_node_data, &bitmap);
