@@ -554,7 +554,7 @@ static void request_synchronous_layout_from_main(void) {
         }
         wisp_ipc_msg_free(&resp);
     }
-    wisp_ipc_set_blocking(ipc_main, false);
+    wisp_ipc_set_blocking(ipc_main, true);
 }
 
 static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
