@@ -117,8 +117,23 @@ static bool fetch_ipc_start(void *vf) {
 }
 
 static void fetch_ipc_abort(void *vf) {
+    if (!vf) return;
     struct ipc_fetch_info *f = vf;
     pthread_mutex_lock(&active_fetches_mutex);
+    struct ipc_fetch_info *curr = active_fetches;
+    bool valid = false;
+    while (curr) {
+        if (curr == f) {
+            valid = true;
+            break;
+        }
+        curr = curr->next;
+    }
+    if (!valid) {
+        pthread_mutex_unlock(&active_fetches_mutex);
+        return;
+    }
+
     if (f->finished) {
         pthread_mutex_unlock(&active_fetches_mutex);
         return;
