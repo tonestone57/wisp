@@ -10,6 +10,7 @@
 #include <wisp/utils/nsurl.h>
 #include <libwapcaplet/libwapcaplet.h>
 #include <wisp/utils/shm_dom.h>
+#include <wisp/utils/corestrings.h>
 
 struct nsurl;
 extern const char *nsurl_access(const struct nsurl *url);
@@ -10154,7 +10155,7 @@ JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivat
 
 // Overrides: method | DOMImplementation::hasFeature();
 JSValue wisp_domimplementation_hasFeature_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    return JS_TRUE;
 }
 
 // Overrides: method | Document::getElementsByTagNameNS();
@@ -11662,9 +11663,23 @@ JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv,
     return JS_UNDEFINED;
 }
 
+extern JSValue qjs_new_domimplementation(JSContext *ctx, void *node, bool is_dom_node);
+
 // Overrides: attribute get | Document::implementation (getter);
 JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        JSValue impl = JS_GetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached");
+        if (JS_IsUndefined(impl)) {
+            impl = qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
+            JS_SetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached", JS_DupValue(ctx, impl));
+        }
+        JS_FreeValue(ctx, wrapper);
+        return impl;
+    }
+    JS_FreeValue(ctx, wrapper);
+    return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
 }
 
 // Overrides: attribute get | Document::location (getter);
@@ -12344,7 +12359,68 @@ JSValue wisp_domelementmap___setter___impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: method | DOMImplementation::createHTMLDocument();
 JSValue wisp_domimplementation_createHTMLDocument_impl(JSContext *ctx, QJSNodePrivate *priv, const char * title) {
-    return JS_UNDEFINED;
+    dom_document *doc = NULL;
+    dom_exception err = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
+    if (err != DOM_NO_ERR || !doc) {
+        return JS_ThrowInternalError(ctx, "DOMImplementation.createHTMLDocument: Failed to create HTML document");
+    }
+
+    // Build the standard html skeleton (html, head, body)
+    dom_string *html_s = NULL;
+    struct dom_element *html_el = NULL;
+    dom_string_create_interned((const uint8_t *)"html", 4, &html_s);
+    dom_document_create_element(doc, html_s, &html_el);
+    dom_node_append_child((dom_node *)doc, (dom_node *)html_el, NULL);
+    dom_string_unref(html_s);
+
+    dom_string *head_s = NULL;
+    struct dom_element *head_el = NULL;
+    dom_string_create_interned((const uint8_t *)"head", 4, &head_s);
+    dom_document_create_element(doc, head_s, &head_el);
+    dom_node_append_child((dom_node *)html_el, (dom_node *)head_el, NULL);
+    dom_string_unref(head_s);
+
+    dom_string *body_s = NULL;
+    struct dom_element *body_el = NULL;
+    dom_string_create_interned((const uint8_t *)"body", 4, &body_s);
+    dom_document_create_element(doc, body_s, &body_el);
+    dom_node_append_child((dom_node *)html_el, (dom_node *)body_el, NULL);
+    dom_string_unref(body_s);
+
+    // Optionally create <title> element inside <head> if a title parameter was passed
+    if (title && strlen(title) > 0) {
+        dom_string *title_s = NULL;
+        struct dom_element *title_el = NULL;
+        dom_string_create_interned((const uint8_t *)"title", 5, &title_s);
+        dom_document_create_element(doc, title_s, &title_el);
+        dom_node_append_child((dom_node *)head_el, (dom_node *)title_el, NULL);
+        dom_string_unref(title_s);
+
+        dom_string *text_s = NULL;
+        struct dom_text *text_node = NULL;
+        dom_string_create((const uint8_t *)title, strlen(title), &text_s);
+        dom_document_create_text_node(doc, text_s, &text_node);
+        dom_node_append_child((dom_node *)title_el, (dom_node *)text_node, NULL);
+        dom_node_unref((dom_node *)text_node);
+        dom_string_unref(text_s);
+        dom_node_unref((dom_node *)title_el);
+    }
+
+    // Clean up local element references
+    dom_node_unref((dom_node *)head_el);
+    dom_node_unref((dom_node *)body_el);
+    dom_node_unref((dom_node *)html_el);
+
+    // Link the new document to user data / html content representation if context opaque exists
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t && t->win_priv && t->doc_priv && t->win_priv != t->doc_priv && corestring_dom___ns_key_html_content_data) {
+        dom_node_set_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, t->doc_priv, NULL, NULL);
+    }
+
+    // Wrap the document and return it to JS
+    JSValue wrap = qjs_wrap_node(ctx, (dom_node *)doc);
+    dom_node_unref((dom_node *)doc);
+    return wrap;
 }
 
 
