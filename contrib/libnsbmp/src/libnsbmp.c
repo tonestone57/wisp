@@ -491,10 +491,25 @@ static bmp_result ico_header_parse(ico_collection *ico, uint8_t *data)
                     ico->buffer_size - (ico->ico_data - data))
                         return BMP_INSUFFICIENT_DATA;
 
-                result = bmp_info_header_parse(&image->bmp,
-                                               image->bmp.bmp_data);
-                if (result != BMP_OK)
-                        return result;
+                /* Check for PNG signature to support embedded PNGs in ICO */
+                if (image->bmp.buffer_size >= 8 &&
+                    image->bmp.bmp_data[0] == 0x89 &&
+                    image->bmp.bmp_data[1] == 0x50 &&
+                    image->bmp.bmp_data[2] == 0x4e &&
+                    image->bmp.bmp_data[3] == 0x47 &&
+                    image->bmp.bmp_data[4] == 0x0d &&
+                    image->bmp.bmp_data[5] == 0x0a &&
+                    image->bmp.bmp_data[6] == 0x1a &&
+                    image->bmp.bmp_data[7] == 0x0a) {
+                        /* Embedded PNG. Skip BMP header parsing. */
+                        image->bmp.decoded = false;
+                        image->bmp.bpp = 32;
+                } else {
+                        result = bmp_info_header_parse(&image->bmp,
+                                                       image->bmp.bmp_data);
+                        if (result != BMP_OK)
+                                return result;
+                }
 
                 /* adjust the size based on the images available */
                 area = image->bmp.width * image->bmp.height;

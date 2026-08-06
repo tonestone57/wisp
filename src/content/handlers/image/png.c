@@ -437,6 +437,97 @@ static png_bytep *calc_row_pointers(struct bitmap *bitmap)
     return row_ptrs;
 }
 
+struct bitmap *nspng_decode_buffer(const uint8_t *data, size_t size)
+{
+    png_structp png_ptr;
+    png_infop info_ptr;
+    png_infop end_info_ptr;
+    volatile struct bitmap *volatile bitmap = NULL;
+    struct png_cache_read_data_s png_cache_read_data;
+    png_uint_32 width, height;
+    volatile png_bytep *volatile row_pointers = NULL;
+
+    png_cache_read_data.data = data;
+    png_cache_read_data.size = size;
+
+    if ((png_cache_read_data.data == NULL) || (png_cache_read_data.size <= 8)) {
+        return NULL;
+    }
+
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, nspng_error, nspng_warning);
+    if (png_ptr == NULL) {
+        return NULL;
+    }
+
+    info_ptr = png_create_info_struct(png_ptr);
+    if (info_ptr == NULL) {
+        png_destroy_read_struct(&png_ptr, NULL, NULL);
+        return NULL;
+    }
+
+    end_info_ptr = png_create_info_struct(png_ptr);
+    if (end_info_ptr == NULL) {
+        png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
+        return NULL;
+    }
+
+    /* setup error exit path */
+    if (setjmp(png_jmpbuf(png_ptr))) {
+        /* cleanup and bail */
+        goto png_decode_buffer_error;
+    }
+
+    /* read from a buffer instead of stdio */
+    png_set_read_fn(png_ptr, &png_cache_read_data, png_cache_read_fn);
+
+    /* ensure the png info structure is populated */
+    png_read_info(png_ptr, info_ptr);
+
+    /* setup output transforms */
+    nspng_setup_transforms(png_ptr, info_ptr);
+
+    width = png_get_image_width(png_ptr, info_ptr);
+    height = png_get_image_height(png_ptr, info_ptr);
+
+    /* Claim the required memory for the converted PNG */
+    bitmap = guit->bitmap->create(width, height, BITMAP_NONE);
+    if (bitmap == NULL) {
+        /* cleanup and bail */
+        goto png_decode_buffer_error;
+    }
+
+    row_pointers = calc_row_pointers((struct bitmap *)bitmap);
+
+    if (row_pointers != NULL) {
+        png_read_image(png_ptr, (png_bytep *)row_pointers);
+    } else {
+        guit->bitmap->destroy((struct bitmap *)bitmap);
+        bitmap = NULL;
+    }
+
+png_decode_buffer_error:
+
+    /* cleanup png read */
+    png_destroy_read_struct(&png_ptr, &info_ptr, &end_info_ptr);
+
+    if (row_pointers != NULL) {
+        free((png_bytep *)row_pointers);
+    }
+
+    if (bitmap != NULL) {
+        bool opaque = bitmap_test_opaque((void *)bitmap);
+        guit->bitmap->set_opaque((void *)bitmap, opaque);
+        bitmap_format_to_client((void *)bitmap,
+            &(bitmap_fmt_t){
+                .layout = bitmap_fmt.layout,
+                .pma = bitmap_fmt.pma,
+            });
+        guit->bitmap->modified((void *)bitmap);
+    }
+
+    return (struct bitmap *)bitmap;
+}
+
 /** PNG content to bitmap conversion.
  *
  * This routine generates a bitmap object from a PNG image content
