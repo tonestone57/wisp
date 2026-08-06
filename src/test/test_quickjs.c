@@ -3475,6 +3475,7 @@ START_TEST(test_quickjs_event_target_basic)
     bool result;
 
     js_initialise();
+    corestrings_init();
 
     err = js_newheap(5, &heap);
     ck_assert_int_eq(err, NSERROR_OK);
@@ -3490,6 +3491,52 @@ START_TEST(test_quickjs_event_target_basic)
     /* Test addEventListener exists on window */
     const char *code1 = "typeof window.addEventListener === 'function'";
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_addEventListener");
+    ck_assert(result == true);
+
+    /* Test bare and null/undefined contexts on eventtarget methods */
+    const char *code2 =
+        "(function() {\n"
+        "  'use strict';\n"
+        "  let fired = 0;\n"
+        "  function handler() { fired++; }\n"
+        "  \n"
+        "  // 1. Bare invocation\n"
+        "  addEventListener('test-bare', handler);\n"
+        "  dispatchEvent(new Event('test-bare'));\n"
+        "  if (fired !== 2) throw new Error('Bare addEventListener/dispatchEvent failed');\n"
+        "  \n"
+        "  // 2. Explicit null/undefined binding\n"
+        "  addEventListener.call(null, 'test-null', handler);\n"
+        "  dispatchEvent.call(undefined, new Event('test-null'));\n"
+        "  if (fired !== 4) throw new Error('Explicit null/undefined binding failed');\n"
+        "  \n"
+        "  // 3. removeEventListener works as bare / null binding\n"
+        "  removeEventListener('test-bare', handler);\n"
+        "  removeEventListener.call(null, 'test-null', handler);\n"
+        "  dispatchEvent(new Event('test-bare'));\n"
+        "  dispatchEvent(new Event('test-null'));\n"
+        "  if (fired !== 4) throw new Error('removeEventListener failed');\n"
+        "  \n"
+        "  // 4. Invalid this object must still throw TypeError\n"
+        "  let threw = false;\n"
+        "  try {\n"
+        "    addEventListener.call({}, 'test-invalid', handler);\n"
+        "  } catch (e) {\n"
+        "    if (e instanceof TypeError) threw = true;\n"
+        "  }\n"
+        "  if (!threw) throw new Error('Should have thrown TypeError for invalid object this');\n"
+        "  \n"
+        "  let threwNum = false;\n"
+        "  try {\n"
+        "    addEventListener.call(123, 'test-invalid', handler);\n"
+        "  } catch (e) {\n"
+        "    if (e instanceof TypeError) threwNum = true;\n"
+        "  }\n"
+        "  if (!threwNum) throw new Error('Should have thrown TypeError for invalid number this');\n"
+        "  \n"
+        "  return true;\n"
+        "})()";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_eventtarget_bare_null");
     ck_assert(result == true);
 
     js_closethread(thread);
