@@ -277,6 +277,11 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
     return JS_NewBool(ctx, success);
 }
 
+static JSValue js_eventtarget_constructor_manual(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
+{
+    return qjs_new_eventtarget(ctx, NULL, false);
+}
+
 JSValue wisp_eventtarget_constructor_impl(JSContext *ctx)
 {
     return qjs_new_eventtarget(ctx, NULL, false);
@@ -322,6 +327,12 @@ int qjs_init_eventtarget(JSContext *ctx)
     JS_DefinePropertyValueStr(ctx, proto, "addEventListener", JS_NewCFunction(ctx, js_eventtarget_addEventListener_manual, "addEventListener", 3), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(ctx, proto, "removeEventListener", JS_NewCFunction(ctx, js_eventtarget_removeEventListener_manual, "removeEventListener", 3), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(ctx, proto, "dispatchEvent", JS_NewCFunction(ctx, js_eventtarget_dispatchEvent_manual, "dispatchEvent", 1), JS_PROP_C_W_E);
+
+    // Overwrite the non-constructible EventTarget global constructor with our constructible manual constructor
+    JSValue ctor = JS_NewCFunction2(ctx, js_eventtarget_constructor_manual, "EventTarget", 0, JS_CFUNC_constructor, 0);
+    JS_SetConstructor(ctx, ctor, proto);
+    JS_SetPropertyStr(ctx, global_obj, "EventTarget", ctor);
+
     JS_FreeValue(ctx, proto);
 
     JS_DefinePropertyValueStr(ctx, global_obj, init_key, JS_TRUE, 0);
