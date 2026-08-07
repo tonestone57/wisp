@@ -957,7 +957,7 @@ JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePri
     return JS_UNDEFINED;
 }
 
-int qjs_init_canvas(JSContext *ctx)
+int qjs_init_canvasrenderingcontext2d(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_canvasrenderingcontext2d_class_id == 0) {
@@ -973,7 +973,12 @@ int qjs_init_canvas(JSContext *ctx)
         JS_NewClass(rt, qjs_canvasrenderingcontext2d_class_id, &qjs_canvas_context_2d_class_manual);
     }
 
+    return qjs_init_canvasrenderingcontext2d_gen(ctx);
+}
+
+int qjs_init_canvas(JSContext *ctx)
+{
     qjs_init_htmlcanvaselement_gen(ctx);
-    qjs_init_canvasrenderingcontext2d_gen(ctx);
+    qjs_init_canvasrenderingcontext2d(ctx);
     return 0;
 }
