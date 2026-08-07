@@ -2987,6 +2987,18 @@ static void qjs_lifecycle_mutation_hook(
     JS_FreeValue(ctx, global);
 }
 
+static JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t) {
+        struct dom_document *doc_node = qjs_thread_get_document(t);
+        if (doc_node) {
+            return qjs_wrap_node(ctx, (dom_node *)doc_node);
+        }
+    }
+    return JS_UNDEFINED;
+}
+
 nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
 {
     JS_UpdateStackTop(heap->rt);
@@ -3066,11 +3078,17 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     JS_DefinePropertyValueStr(t->ctx, global_obj, "parent", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(t->ctx, global_obj, "top", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(t->ctx, global_obj, "frames", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
+
+    /* Define 'document' accessor on the global object */
+    JSAtom doc_atom = JS_NewAtom(t->ctx, "document");
+    JSValue doc_getter = JS_NewCFunction(t->ctx, global_document_get, "get_document", 0);
+    JS_DefinePropertyGetSet(t->ctx, global_obj, doc_atom, doc_getter, JS_UNDEFINED, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_FreeAtom(t->ctx, doc_atom);
+
     if (doc_priv) {
         t->doc_priv = doc_priv;
         struct dom_document *doc_node = qjs_thread_get_document(t);
         if (doc_node) {
-            JS_DefinePropertyValueStr(t->ctx, global_obj, "document", qjs_wrap_node(t->ctx, (dom_node *)doc_node), JS_PROP_C_W_E);
             dom_node_ref((dom_node *)doc_node);
             dom_document_set_mutation_hook(doc_node, qjs_lifecycle_mutation_hook, t);
         }

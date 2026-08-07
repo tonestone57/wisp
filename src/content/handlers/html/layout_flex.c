@@ -274,6 +274,9 @@ static enum box_side layout_flex__main_end_side(const struct flex_ctx *ctx)
 bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 {
 	int container_height = flex->height;
+	if (container_height == AUTO || container_height < 0) {
+		return true;
+	}
 	int content_height = 0;
 	int auto_margin_count = 0;
 	css_fixed grow_factor_sum = 0;
