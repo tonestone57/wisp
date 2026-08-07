@@ -35,7 +35,7 @@ static const char *core_user_agent_string = NULL;
 static const char *core_user_agent_fallback = "Mozilla/5.0 (Unknown) Wisp/0";
 
 #ifndef WISP_UA_FORMAT_STRING
-#define WISP_UA_FORMAT_STRING "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Wisp/%d"
+#define WISP_UA_FORMAT_STRING "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Wisp/%s"
 #endif
 
 /**
@@ -47,6 +47,7 @@ static void user_agent_build_string(void)
     struct utsname un;
     const char *sysname = "Unknown";
     char *ua_string;
+    char version_str[32];
     int len;
 
     if (uname(&un) >= 0) {
@@ -57,14 +58,16 @@ static void user_agent_build_string(void)
         }
     }
 
-    len = snprintf(NULL, 0, WISP_UA_FORMAT_STRING, sysname, wisp_version);
+    snprintf(version_str, sizeof(version_str), "%d.%d", wisp_version_major, wisp_version_minor);
+
+    len = snprintf(NULL, 0, WISP_UA_FORMAT_STRING, sysname, version_str);
     ua_string = malloc(len + 1);
     if (!ua_string) {
         NSLOG(wisp, CRITICAL, "Failed to allocate memory for user agent string");
         core_user_agent_string = core_user_agent_fallback;
         return;
     }
-    snprintf(ua_string, len + 1, WISP_UA_FORMAT_STRING, sysname, wisp_version);
+    snprintf(ua_string, len + 1, WISP_UA_FORMAT_STRING, sysname, version_str);
 
     core_user_agent_string = ua_string;
 
