@@ -217,7 +217,8 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
 
     char cache_dir[] = "/tmp/wisp-bytecode-cache";
     char cache_path[256];
-    snprintf(cache_path, sizeof(cache_path), "%s/%s.bin", cache_dir, hex);
+    bool is_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
+    snprintf(cache_path, sizeof(cache_path), "%s/%s%s.bin", cache_dir, hex, is_module ? "_module" : "");
 
 #ifdef _WIN32
     _mkdir(cache_dir);
@@ -242,6 +243,13 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
                     free(buf);
 
                     if (!JS_IsException(obj)) {
+                        if (JS_IsModule(obj)) {
+                            if (JS_ResolveModule(ctx, obj) < 0) {
+                                JS_FreeValue(ctx, obj);
+                                unlink(cache_path);
+                                return JS_EXCEPTION;
+                            }
+                        }
                         JSValue res = JS_EvalFunction(ctx, obj);
                         return res;
                     } else {
