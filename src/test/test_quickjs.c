@@ -3168,6 +3168,26 @@ START_TEST(test_quickjs_window_global)
     result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_window3");
     ck_assert(result == true);
 
+    /* Test 4: window.parent, window.top, window.frames === window (self-references) */
+    const char *code4 = "window.parent === window && window.top === window && window.frames === window";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_window4");
+    ck_assert(result == true);
+
+    /* Test 5: matchMedia function polyfill */
+    const char *code5 = "typeof window.matchMedia === 'function' && window.matchMedia('screen').matches === false && typeof window.matchMedia('screen').addListener === 'function'";
+    result = js_exec(thread, (const uint8_t *)code5, strlen(code5), "test_window5");
+    ck_assert(result == true);
+
+    /* Test 6: ResizeObserver constructor polyfill */
+    const char *code6 = "typeof window.ResizeObserver === 'function' && (new window.ResizeObserver(() => {})) instanceof window.ResizeObserver";
+    result = js_exec(thread, (const uint8_t *)code6, strlen(code6), "test_window6");
+    ck_assert(result == true);
+
+    /* Test 7: scroll methods */
+    const char *code7 = "typeof window.scrollTo === 'function' && typeof window.scroll === 'function' && typeof window.scrollBy === 'function'";
+    result = js_exec(thread, (const uint8_t *)code7, strlen(code7), "test_window7");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);

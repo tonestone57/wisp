@@ -2864,6 +2864,42 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "\n"
         "    return targetNode.dispatchEvent(evt);\n"
         "};\n"
+        "\n"
+        "if (typeof globalThis.matchMedia === 'undefined') {\n"
+        "    globalThis.matchMedia = function(query) {\n"
+        "        return {\n"
+        "            matches: false,\n"
+        "            media: query,\n"
+        "            onchange: null,\n"
+        "            addListener: function() {},\n"
+        "            removeListener: function() {},\n"
+        "            addEventListener: function() {},\n"
+        "            removeEventListener: function() {},\n"
+        "            dispatchEvent: function() { return true; }\n"
+        "        };\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "if (typeof globalThis.ResizeObserver === 'undefined') {\n"
+        "    globalThis.ResizeObserver = class ResizeObserver {\n"
+        "        constructor(callback) {\n"
+        "            this.callback = callback;\n"
+        "        }\n"
+        "        observe(target, options) {}\n"
+        "        unobserve(target) {}\n"
+        "        disconnect() {}\n"
+        "    };\n"
+        "}\n"
+        "\n"
+        "if (typeof globalThis.scrollTo === 'undefined') {\n"
+        "    globalThis.scrollTo = function() {};\n"
+        "}\n"
+        "if (typeof globalThis.scroll === 'undefined') {\n"
+        "    globalThis.scroll = function() {};\n"
+        "}\n"
+        "if (typeof globalThis.scrollBy === 'undefined') {\n"
+        "    globalThis.scrollBy = function() {};\n"
+        "}\n"
         "";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val);
@@ -3027,6 +3063,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 
     JS_DefinePropertyValueStr(t->ctx, global_obj, "window", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(t->ctx, global_obj, "self", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(t->ctx, global_obj, "parent", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(t->ctx, global_obj, "top", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(t->ctx, global_obj, "frames", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
     if (doc_priv) {
         t->doc_priv = doc_priv;
         struct dom_document *doc_node = qjs_thread_get_document(t);
