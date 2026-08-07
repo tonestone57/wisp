@@ -4,8 +4,15 @@
 #include "quickjs.h"
 
 #if defined(__x86_64__) && (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__Haiku__))
+#if defined(__SANITIZE_ADDRESS__) || defined(ADDRESS_SANITIZER) || defined(__SANITIZE_THREAD__) || defined(THREAD_SANITIZER)
+/* Disable Copy-Patch JIT compilation under ASan/LSan/TSan to avoid frame pointer unwinding/stack walking crashes */
+#ifndef CONFIG_JIT
+#define CONFIG_JIT 0
+#endif
+#else
 #ifndef CONFIG_JIT
 #define CONFIG_JIT 1
+#endif
 #endif
 #endif
 

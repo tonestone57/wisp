@@ -1273,6 +1273,10 @@ JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
                 extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
                 return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
             }
+            if (strcasecmp(tag, "template") == 0) {
+                extern JSValue qjs_new_htmltemplateelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltemplateelement(ctx, node, is_dom_node);
+            }
             if (strcasecmp(tag, "img") == 0) {
                 extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
                 return qjs_new_htmlimageelement(ctx, node, is_dom_node);
@@ -1329,6 +1333,10 @@ JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
             if (tag_type == DOM_HTML_ELEMENT_TYPE_SCRIPT) {
                 extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
                 return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
+            }
+            if (tag_type == DOM_HTML_ELEMENT_TYPE_TEMPLATE) {
+                extern JSValue qjs_new_htmltemplateelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltemplateelement(ctx, node, is_dom_node);
             }
             if (tag_type == DOM_HTML_ELEMENT_TYPE_IMG) {
                 extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
