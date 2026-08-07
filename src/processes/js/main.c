@@ -316,8 +316,15 @@ int main(int argc, char **argv) {
                     }
 
                     JSValue val = JS_UNDEFINED;
+                    struct jsthread *t = JS_GetContextOpaque(ctx);
+                    if (t) {
+                        t->current_script_name = script_name;
+                    }
                     if (wisp_shm_dom) {
                         val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, script_name, eval_flags);
+                    }
+                    if (t) {
+                        t->current_script_name = NULL;
                     }
 
                     /* Execute any pending microtasks (microtask-tick serialization) */
