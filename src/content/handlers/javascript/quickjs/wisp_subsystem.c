@@ -775,7 +775,10 @@ void* wisp_web_worker_routine(void *arg) {
         JSValue res = js_eval_with_aot_cache(t->ctx, req.out_buffer, req.out_len, h->script_url, JS_EVAL_TYPE_GLOBAL);
         if (JS_IsException(res)) {
             JSValue exc = JS_GetException(t->ctx);
-            JSValue stack = JS_GetPropertyStr(t->ctx, exc, "stack");
+            JSValue stack = JS_UNDEFINED;
+            if (JS_IsObject(exc)) {
+                stack = JS_GetPropertyStr(t->ctx, exc, "stack");
+            }
             const char *msg_str = JS_ToCString(t->ctx, exc);
             WispMessage *errMsg = calloc(1, sizeof(*errMsg));
             errMsg->type = WISP_MSG_TYPE_ERROR;
