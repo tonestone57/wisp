@@ -1686,36 +1686,48 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "    SHOW_NOTATION: 0x800\n"
         "};\n"
         "globalThis.devicePixelRatio = globalThis.devicePixelRatio || 1.0;\n"
-        "if (typeof globalThis.MessagePort === 'undefined') {\n"
-        "    globalThis.MessagePort = class MessagePort {\n"
-        "        constructor() {\n"
-        "            this.onmessage = null;\n"
-        "            this._other = null;\n"
-        "        }\n"
-        "        postMessage(message, transfer) {\n"
-        "            var self = this;\n"
-        "            if (self._other && self._other.onmessage) {\n"
-        "                setTimeout(function() {\n"
-        "                    if (self._other && self._other.onmessage) {\n"
-        "                        self._other.onmessage({ data: message });\n"
+        "globalThis.MessagePort = class MessagePort extends globalThis.EventTarget {\n"
+        "    constructor() {\n"
+        "        super();\n"
+        "        this.onmessage = null;\n"
+        "        this._other = null;\n"
+        "    }\n"
+        "    postMessage(message, transfer) {\n"
+        "        var self = this;\n"
+        "        if (self._other) {\n"
+        "            setTimeout(function() {\n"
+        "                if (self._other) {\n"
+        "                    var event = null;\n"
+        "                    if (globalThis.MessageEvent) {\n"
+        "                        try {\n"
+        "                            event = new globalThis.MessageEvent('message', { data: message });\n"
+        "                        } catch(e) {\n"
+        "                            event = new globalThis.Event('message');\n"
+        "                            event.data = message;\n"
+        "                        }\n"
+        "                    } else {\n"
+        "                        event = new globalThis.Event('message');\n"
+        "                        event.data = message;\n"
         "                    }\n"
-        "                }, 0);\n"
-        "            }\n"
+        "                    if (self._other.onmessage) {\n"
+        "                        try { self._other.onmessage(event); } catch(e) { console.error(e); }\n"
+        "                    }\n"
+        "                    self._other.dispatchEvent(event);\n"
+        "                }\n"
+        "            }, 0);\n"
         "        }\n"
-        "        start() {}\n"
-        "        close() {}\n"
-        "    };\n"
-        "}\n"
-        "if (typeof globalThis.MessageChannel === 'undefined') {\n"
-        "    globalThis.MessageChannel = class MessageChannel {\n"
-        "        constructor() {\n"
-        "            this.port1 = new globalThis.MessagePort();\n"
-        "            this.port2 = new globalThis.MessagePort();\n"
-        "            this.port1._other = this.port2;\n"
-        "            this.port2._other = this.port1;\n"
-        "        }\n"
-        "    };\n"
-        "}\n"
+        "    }\n"
+        "    start() {}\n"
+        "    close() {}\n"
+        "};\n"
+        "globalThis.MessageChannel = class MessageChannel {\n"
+        "    constructor() {\n"
+        "        this.port1 = new globalThis.MessagePort();\n"
+        "        this.port2 = new globalThis.MessagePort();\n"
+        "        this.port1._other = this.port2;\n"
+        "        this.port2._other = this.port1;\n"
+        "    }\n"
+        "};\n"
         "globalThis.__wisp_get_computed_style_internal = function(elt, pseudoElt) {\n"
         "    const dummyStyle = {\n"
         "        getPropertyValue: function(prop) {\n"
@@ -3971,6 +3983,9 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         }
     }
 
+    char *old_script_name = thread->current_script_name;
+    thread->current_script_name = (char *)name;
+
     wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {
         if (!thread->shm_initialized) {
@@ -4177,6 +4192,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         JS_FreeValue(thread->ctx, exc);
     }
     JS_FreeValue(thread->ctx, val);
+    thread->current_script_name = old_script_name;
     return success;
 }
 
