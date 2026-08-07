@@ -52,6 +52,32 @@ extern int qjs_init_imagedata(JSContext *ctx);
 extern int qjs_init_canvas(JSContext *ctx);
 extern int qjs_init_trusted_types(JSContext *ctx);
 
+static JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (t) {
+        /* If doc_priv is not set, try to find it in the shm dom */
+        if (!t->doc_priv && wisp_shm_dom) {
+            uint64_t doc_node_id = 0;
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].node_type == 9) { /* DOM_DOCUMENT_NODE is 9 */
+                    doc_node_id = i;
+                    break;
+                }
+            }
+            if (doc_node_id != 0) {
+                t->doc_priv = (void*)(uintptr_t)doc_node_id;
+            }
+        }
+        struct dom_document *doc_node = qjs_thread_get_document(t);
+        if (doc_node) {
+            return qjs_wrap_node(ctx, (dom_node *)doc_node);
+        }
+    }
+    return JS_UNDEFINED;
+}
+
 static JSContext* get_context(uint32_t id) {
     struct js_context_node *curr = contexts;
     while (curr) {
@@ -129,9 +155,13 @@ static JSContext* get_context(uint32_t id) {
     JS_DefinePropertyValueStr(node->ctx, global_obj, "parent", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(node->ctx, global_obj, "top", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(node->ctx, global_obj, "frames", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
-    if (doc_node_id != 0) {
-        JS_DefinePropertyValueStr(node->ctx, global_obj, "document", qjs_wrap_node(node->ctx, (struct dom_node *)(uintptr_t)doc_node_id), JS_PROP_C_W_E);
-    }
+
+    /* Define 'document' accessor on the global object */
+    JSAtom doc_atom = JS_NewAtom(node->ctx, "document");
+    JSValue doc_getter = JS_NewCFunction(node->ctx, global_document_get, "get_document", 0);
+    JS_DefinePropertyGetSet(node->ctx, global_obj, doc_atom, doc_getter, JS_UNDEFINED, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_FreeAtom(node->ctx, doc_atom);
+
     JS_FreeValue(node->ctx, global_obj);
 
     return node->ctx;
