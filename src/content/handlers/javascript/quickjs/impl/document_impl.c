@@ -28,7 +28,7 @@ extern shm_dom_t *wisp_shm_dom;
 #include "JSMessageEvent.gen.h"
 #include "JSErrorEvent.gen.h"
 
-static uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *value) {
+uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *value) {
     if (!wisp_shm_dom) return 0;
 
     shm_dom_lock_write(wisp_shm_dom);

@@ -3853,13 +3853,78 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     }
 }
 
-static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id) {
+static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc) {
     if (!shm || id == 0 || id == 0xFFFFFFFF) return NULL;
     uint32_t idx = (uint32_t)id;
-    if (idx < shm->node_count) {
-        return (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[idx];
+    if (idx >= shm->node_count) return NULL;
+
+    dom_node *node = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[idx];
+    if (!node && doc) {
+        WispCompactNode *sn = &shm_dom_get_nodes(shm)[idx];
+        WispNodeStrings *sns = &shm_dom_get_node_strings(shm)[idx];
+        if (sn->node_type == 1) { // ELEMENT_NODE
+            const char *tag = wisp_string_ref_data(shm, sns->tag_name);
+            if (tag) {
+                dom_string *tag_dom = NULL;
+                dom_string_create((const uint8_t *)tag, strlen(tag), &tag_dom);
+                struct dom_element *elem = NULL;
+                dom_document_create_element(doc, tag_dom, &elem);
+                dom_string_unref(tag_dom);
+                if (elem) {
+                    node = (dom_node *)elem;
+                    shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
+
+                    // Copy attributes from SHM to the newly created host element!
+                    uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t i = 0; i < limit; i++) {
+                        const char *attr_name = wisp_string_ref_data(shm, sns->attrs[i].name);
+                        const char *attr_val = wisp_string_ref_data(shm, sns->attrs[i].value);
+                        if (attr_name && attr_val) {
+                            dom_string *name_dom = NULL;
+                            dom_string_create((const uint8_t *)attr_name, strlen(attr_name), &name_dom);
+                            dom_string *val_dom = NULL;
+                            dom_string_create((const uint8_t *)attr_val, strlen(attr_val), &val_dom);
+                            if (name_dom && val_dom) {
+                                dom_element_set_attribute(elem, name_dom, val_dom);
+                            }
+                            if (name_dom) dom_string_unref(name_dom);
+                            if (val_dom) dom_string_unref(val_dom);
+                        }
+                    }
+                }
+            }
+        } else if (sn->node_type == 3) { // TEXT_NODE
+            const char *val_cstr = wisp_string_ref_data(shm, sns->value);
+            dom_string *val_dom = NULL;
+            dom_string_create((const uint8_t *)(val_cstr ? val_cstr : ""), val_cstr ? strlen(val_cstr) : 0, &val_dom);
+            struct dom_text *text_node = NULL;
+            dom_document_create_text_node(doc, val_dom, &text_node);
+            dom_string_unref(val_dom);
+            if (text_node) {
+                node = (dom_node *)text_node;
+                shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
+            }
+        } else if (sn->node_type == 8) { // COMMENT_NODE
+            const char *val_cstr = wisp_string_ref_data(shm, sns->value);
+            dom_string *val_dom = NULL;
+            dom_string_create((const uint8_t *)(val_cstr ? val_cstr : ""), val_cstr ? strlen(val_cstr) : 0, &val_dom);
+            struct dom_comment *comment_node = NULL;
+            dom_document_create_comment(doc, val_dom, &comment_node);
+            dom_string_unref(val_dom);
+            if (comment_node) {
+                node = (dom_node *)comment_node;
+                shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
+            }
+        } else if (sn->node_type == 11) { // DOCUMENT_FRAGMENT_NODE
+            struct dom_document_fragment *frag = NULL;
+            dom_document_create_document_fragment(doc, &frag);
+            if (frag) {
+                node = (dom_node *)frag;
+                shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
+            }
+        }
     }
-    return NULL;
+    return node;
 }
 
 static dom_node* ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc) {
