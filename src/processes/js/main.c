@@ -126,6 +126,9 @@ static JSContext* get_context(uint32_t id) {
 
     JS_DefinePropertyValueStr(node->ctx, global_obj, "window", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(node->ctx, global_obj, "self", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(node->ctx, global_obj, "parent", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(node->ctx, global_obj, "top", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(node->ctx, global_obj, "frames", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
     if (doc_node_id != 0) {
         JS_DefinePropertyValueStr(node->ctx, global_obj, "document", qjs_wrap_node(node->ctx, (struct dom_node *)(uintptr_t)doc_node_id), JS_PROP_C_W_E);
     }
