@@ -58,6 +58,9 @@
 #define mkdir(path, mode) _mkdir(path)
 #endif
 
+static void compute_sha256(const uint8_t *data, size_t len, char *hex_out);
+static char *wisp_read_local_file(const char *filename, size_t *out_len);
+
 struct wisp_curl_buffer {
     char *data;
     size_t size;
@@ -81,6 +84,26 @@ static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb
 }
 
 static char *wisp_sync_fetch(const char *url, size_t *out_len) {
+    if (!url) return NULL;
+
+    char hex[65];
+    compute_sha256((const uint8_t *)url, strlen(url), hex);
+
+    char cache_dir[] = "/tmp/wisp-module-cache";
+    char cache_path[256];
+    snprintf(cache_path, sizeof(cache_path), "%s/%s.js", cache_dir, hex);
+
+#ifdef _WIN32
+    _mkdir(cache_dir);
+#else
+    mkdir(cache_dir, 0700);
+#endif
+
+    char *cached_buf = wisp_read_local_file(cache_path, out_len);
+    if (cached_buf) {
+        return cached_buf;
+    }
+
     CURL *curl_handle;
     CURLcode res;
     struct wisp_curl_buffer chunk;
@@ -107,6 +130,12 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len) {
     if (res != CURLE_OK) {
         free(chunk.data);
         return NULL;
+    }
+
+    FILE *f = fopen(cache_path, "wb");
+    if (f) {
+        fwrite(chunk.data, 1, chunk.size, f);
+        fclose(f);
     }
 
     if (out_len) {
@@ -3966,7 +3995,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 /* Implement timeout for recv to avoid UI hang */
                 wisp_ipc_msg response;
                 wisp_ipc_set_blocking(ipc_js, false);
-                int retries = 3000; // 30 seconds timeout to allow slow connections to fetch 100+ modules
+                int retries = 30000; // 300 seconds timeout to allow slow connections to fetch 100+ modules
                 bool got_response = false;
                 bool crashed = false;
                 while (retries-- > 0) {
