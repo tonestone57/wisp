@@ -760,11 +760,7 @@ static css_error snap_node_presentational_hint(void *pw, void *node, uint32_t *n
     style_snapshot_t *snap = node;
     *nhints = snap->nhints;
     if (snap->nhints > 0) {
-        *hints = malloc(sizeof(css_hint) * snap->nhints);
-        if (*hints == NULL) {
-            return CSS_NOMEM;
-        }
-        memcpy(*hints, snap->hints, sizeof(css_hint) * snap->nhints);
+        *hints = snap->hints;
     } else {
         *hints = NULL;
     }
