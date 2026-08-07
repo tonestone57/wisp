@@ -182,6 +182,152 @@ static char *wisp_load_module_source(const char *module_name, size_t *out_len) {
     }
 }
 
+char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque) {
+    if (!name) return NULL;
+
+    // If name is an absolute URL or path, just return it
+    if (strncmp(name, "http://", 7) == 0 ||
+        strncmp(name, "https://", 8) == 0 ||
+        strncmp(name, "file://", 7) == 0) {
+        return js_strdup(ctx, name);
+    }
+
+    // Check if base_name is a URL
+    const char *scheme_sep = strstr(base_name, "://");
+    if (scheme_sep) {
+        size_t scheme_len = (scheme_sep - base_name) + 3; // e.g. "https://"
+        const char *host_start = base_name + scheme_len;
+        const char *path_start = strchr(host_start, '/');
+
+        char origin[512];
+        if (path_start) {
+            size_t origin_len = path_start - base_name;
+            if (origin_len >= sizeof(origin)) origin_len = sizeof(origin) - 1;
+            memcpy(origin, base_name, origin_len);
+            origin[origin_len] = '\0';
+        } else {
+            strncpy(origin, base_name, sizeof(origin) - 1);
+            origin[sizeof(origin) - 1] = '\0';
+            path_start = "/";
+        }
+
+        // If name is absolute path relative to host
+        if (name[0] == '/') {
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "%s%s", origin, name);
+            return js_strdup(ctx, buf);
+        }
+
+        // It's a relative path. Resolve against base_name's path
+        char path_buf[1024];
+        strncpy(path_buf, path_start, sizeof(path_buf) - 1);
+        path_buf[sizeof(path_buf) - 1] = '\0';
+
+        // Get directory of path_buf (up to last '/')
+        char *last_slash = strrchr(path_buf, '/');
+        if (last_slash) {
+            *(last_slash + 1) = '\0';
+        } else {
+            path_buf[0] = '/';
+            path_buf[1] = '\0';
+        }
+
+        // Process leading ./ and ../
+        const char *r = name;
+        while (1) {
+            if (strncmp(r, "./", 2) == 0) {
+                r += 2;
+            } else if (strncmp(r, "../", 3) == 0) {
+                // Pop last directory
+                size_t len = strlen(path_buf);
+                if (len > 1) {
+                    if (path_buf[len - 1] == '/') {
+                        path_buf[len - 1] = '\0';
+                        len--;
+                    }
+                    char *prev_slash = strrchr(path_buf, '/');
+                    if (prev_slash) {
+                        *(prev_slash + 1) = '\0';
+                    } else {
+                        path_buf[0] = '/';
+                        path_buf[1] = '\0';
+                    }
+                }
+                r += 3;
+            } else {
+                break;
+            }
+        }
+
+        char buf[2048];
+        size_t path_len = strlen(path_buf);
+        if (path_len > 0 && path_buf[path_len - 1] != '/' && r[0] != '/') {
+            snprintf(buf, sizeof(buf), "%s%s/%s", origin, path_buf, r);
+        } else {
+            snprintf(buf, sizeof(buf), "%s%s%s", origin, path_buf, r);
+        }
+        return js_strdup(ctx, buf);
+    }
+
+    // Default path normalizer fallback
+    char *filename, *p;
+    const char *r;
+    int cap;
+    int len;
+
+    if (name[0] != '.') {
+        return js_strdup(ctx, name);
+    }
+
+    r = strrchr(base_name, '/');
+    if (r)
+        len = r - base_name;
+    else
+        len = 0;
+
+    cap = len + strlen(name) + 1 + 1;
+    filename = js_malloc(ctx, cap);
+    if (!filename)
+        return NULL;
+    memcpy(filename, base_name, len);
+    filename[len] = '\0';
+
+    r = name;
+    for(;;) {
+        if (r[0] == '.' && r[1] == '/') {
+            r += 2;
+        } else if (r[0] == '.' && r[1] == '.' && r[2] == '/') {
+            if (filename[0] == '\0')
+                break;
+            p = strrchr(filename, '/');
+            if (!p)
+                p = filename;
+            else
+                p++;
+            if (!strcmp(p, ".") || !strcmp(p, ".."))
+                break;
+            if (p > filename)
+                p--;
+            *p = '\0';
+            r += 3;
+        } else {
+            break;
+        }
+    }
+    if (filename[0] != '\0') {
+        size_t flen = strlen(filename);
+        if (flen + 2 <= cap) {
+            filename[flen] = '/';
+            filename[flen+1] = '\0';
+        }
+    }
+    size_t flen = strlen(filename);
+    if (flen + strlen(r) + 1 <= cap) {
+        strcpy(filename + flen, r);
+    }
+    return filename;
+}
+
 JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque) {
     fprintf(stderr, "WISP_MODULE_LOADER: Loading module '%s'\n", module_name);
     size_t buf_len = 0;
@@ -740,7 +886,7 @@ nserror js_newheap(int timeout, jsheap **heap)
     h->timeout = timeout;
     JS_SetMemoryLimit(h->rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(h->rt, 16384 * 1024);     // Increased to 16MB
-    JS_SetModuleLoaderFunc(h->rt, NULL, wisp_module_loader, NULL);
+    JS_SetModuleLoaderFunc(h->rt, wisp_module_normalize, wisp_module_loader, NULL);
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
     *heap = h;
     return NSERROR_OK;
@@ -3117,7 +3263,7 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     if (!rt) { free(t); return NSERROR_NOMEM; }
     JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
-    JS_SetModuleLoaderFunc(rt, NULL, wisp_module_loader, NULL);
+    JS_SetModuleLoaderFunc(rt, wisp_module_normalize, wisp_module_loader, NULL);
 
     t->ctx = JS_NewContext(rt);
     if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }

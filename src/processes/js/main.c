@@ -12,6 +12,7 @@
 
 extern JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
 extern JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque);
+extern char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque);
 
 static JSRuntime *rt;
 static char *js_process_origin = NULL;
@@ -180,7 +181,7 @@ int main(int argc, char **argv) {
     rt = JS_NewRuntime();
     JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
-    JS_SetModuleLoaderFunc(rt, NULL, wisp_module_loader, NULL);
+    JS_SetModuleLoaderFunc(rt, wisp_module_normalize, wisp_module_loader, NULL);
 
     while (1) {
         wisp_ipc_msg msg;
