@@ -4144,7 +4144,10 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
         fprintf(stderr, "\n=== JS EXEC EXCEPTION: %s ===\n", exc_str ? exc_str : "unknown");
-        JSValue stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
+        JSValue stack = JS_UNDEFINED;
+        if (JS_IsObject(exc)) {
+            stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
+        }
         const char *stack_str = JS_ToCString(thread->ctx, stack);
         if (stack_str) {
             fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
