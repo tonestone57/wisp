@@ -182,6 +182,152 @@ static char *wisp_load_module_source(const char *module_name, size_t *out_len) {
     }
 }
 
+char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque) {
+    if (!name) return NULL;
+
+    // If name is an absolute URL or path, just return it
+    if (strncmp(name, "http://", 7) == 0 ||
+        strncmp(name, "https://", 8) == 0 ||
+        strncmp(name, "file://", 7) == 0) {
+        return js_strdup(ctx, name);
+    }
+
+    // Check if base_name is a URL
+    const char *scheme_sep = strstr(base_name, "://");
+    if (scheme_sep) {
+        size_t scheme_len = (scheme_sep - base_name) + 3; // e.g. "https://"
+        const char *host_start = base_name + scheme_len;
+        const char *path_start = strchr(host_start, '/');
+
+        char origin[512];
+        if (path_start) {
+            size_t origin_len = path_start - base_name;
+            if (origin_len >= sizeof(origin)) origin_len = sizeof(origin) - 1;
+            memcpy(origin, base_name, origin_len);
+            origin[origin_len] = '\0';
+        } else {
+            strncpy(origin, base_name, sizeof(origin) - 1);
+            origin[sizeof(origin) - 1] = '\0';
+            path_start = "/";
+        }
+
+        // If name is absolute path relative to host
+        if (name[0] == '/') {
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "%s%s", origin, name);
+            return js_strdup(ctx, buf);
+        }
+
+        // It's a relative path. Resolve against base_name's path
+        char path_buf[1024];
+        strncpy(path_buf, path_start, sizeof(path_buf) - 1);
+        path_buf[sizeof(path_buf) - 1] = '\0';
+
+        // Get directory of path_buf (up to last '/')
+        char *last_slash = strrchr(path_buf, '/');
+        if (last_slash) {
+            *(last_slash + 1) = '\0';
+        } else {
+            path_buf[0] = '/';
+            path_buf[1] = '\0';
+        }
+
+        // Process leading ./ and ../
+        const char *r = name;
+        while (1) {
+            if (strncmp(r, "./", 2) == 0) {
+                r += 2;
+            } else if (strncmp(r, "../", 3) == 0) {
+                // Pop last directory
+                size_t len = strlen(path_buf);
+                if (len > 1) {
+                    if (path_buf[len - 1] == '/') {
+                        path_buf[len - 1] = '\0';
+                        len--;
+                    }
+                    char *prev_slash = strrchr(path_buf, '/');
+                    if (prev_slash) {
+                        *(prev_slash + 1) = '\0';
+                    } else {
+                        path_buf[0] = '/';
+                        path_buf[1] = '\0';
+                    }
+                }
+                r += 3;
+            } else {
+                break;
+            }
+        }
+
+        char buf[2048];
+        size_t path_len = strlen(path_buf);
+        if (path_len > 0 && path_buf[path_len - 1] != '/' && r[0] != '/') {
+            snprintf(buf, sizeof(buf), "%s%s/%s", origin, path_buf, r);
+        } else {
+            snprintf(buf, sizeof(buf), "%s%s%s", origin, path_buf, r);
+        }
+        return js_strdup(ctx, buf);
+    }
+
+    // Default path normalizer fallback
+    char *filename, *p;
+    const char *r;
+    int cap;
+    int len;
+
+    if (name[0] != '.') {
+        return js_strdup(ctx, name);
+    }
+
+    r = strrchr(base_name, '/');
+    if (r)
+        len = r - base_name;
+    else
+        len = 0;
+
+    cap = len + strlen(name) + 1 + 1;
+    filename = js_malloc(ctx, cap);
+    if (!filename)
+        return NULL;
+    memcpy(filename, base_name, len);
+    filename[len] = '\0';
+
+    r = name;
+    for(;;) {
+        if (r[0] == '.' && r[1] == '/') {
+            r += 2;
+        } else if (r[0] == '.' && r[1] == '.' && r[2] == '/') {
+            if (filename[0] == '\0')
+                break;
+            p = strrchr(filename, '/');
+            if (!p)
+                p = filename;
+            else
+                p++;
+            if (!strcmp(p, ".") || !strcmp(p, ".."))
+                break;
+            if (p > filename)
+                p--;
+            *p = '\0';
+            r += 3;
+        } else {
+            break;
+        }
+    }
+    if (filename[0] != '\0') {
+        size_t flen = strlen(filename);
+        if (flen + 2 <= cap) {
+            filename[flen] = '/';
+            filename[flen+1] = '\0';
+        }
+    }
+    size_t flen = strlen(filename);
+    if (flen + strlen(r) + 1 <= cap) {
+        strcpy(filename + flen, r);
+    }
+    return filename;
+}
+
 JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque) {
     fprintf(stderr, "WISP_MODULE_LOADER: Loading module '%s'\n", module_name);
     size_t buf_len = 0;
@@ -246,7 +392,8 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
 
     char cache_dir[] = "/tmp/wisp-bytecode-cache";
     char cache_path[256];
-    snprintf(cache_path, sizeof(cache_path), "%s/%s.bin", cache_dir, hex);
+    bool is_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
+    snprintf(cache_path, sizeof(cache_path), "%s/%s%s.bin", cache_dir, hex, is_module ? "_module" : "");
 
 #ifdef _WIN32
     _mkdir(cache_dir);
@@ -271,6 +418,13 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
                     free(buf);
 
                     if (!JS_IsException(obj)) {
+                        if (JS_IsModule(obj)) {
+                            if (JS_ResolveModule(ctx, obj) < 0) {
+                                JS_FreeValue(ctx, obj);
+                                unlink(cache_path);
+                                return JS_EXCEPTION;
+                            }
+                        }
                         JSValue res = JS_EvalFunction(ctx, obj);
                         return res;
                     } else {
@@ -740,7 +894,7 @@ nserror js_newheap(int timeout, jsheap **heap)
     h->timeout = timeout;
     JS_SetMemoryLimit(h->rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(h->rt, 16384 * 1024);     // Increased to 16MB
-    JS_SetModuleLoaderFunc(h->rt, NULL, wisp_module_loader, NULL);
+    JS_SetModuleLoaderFunc(h->rt, wisp_module_normalize, wisp_module_loader, NULL);
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
     *heap = h;
     return NSERROR_OK;
@@ -1686,36 +1840,48 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "    SHOW_NOTATION: 0x800\n"
         "};\n"
         "globalThis.devicePixelRatio = globalThis.devicePixelRatio || 1.0;\n"
-        "if (typeof globalThis.MessagePort === 'undefined') {\n"
-        "    globalThis.MessagePort = class MessagePort {\n"
-        "        constructor() {\n"
-        "            this.onmessage = null;\n"
-        "            this._other = null;\n"
-        "        }\n"
-        "        postMessage(message, transfer) {\n"
-        "            var self = this;\n"
-        "            if (self._other && self._other.onmessage) {\n"
-        "                setTimeout(function() {\n"
-        "                    if (self._other && self._other.onmessage) {\n"
-        "                        self._other.onmessage({ data: message });\n"
+        "globalThis.MessagePort = class MessagePort extends globalThis.EventTarget {\n"
+        "    constructor() {\n"
+        "        super();\n"
+        "        this.onmessage = null;\n"
+        "        this._other = null;\n"
+        "    }\n"
+        "    postMessage(message, transfer) {\n"
+        "        var self = this;\n"
+        "        if (self._other) {\n"
+        "            setTimeout(function() {\n"
+        "                if (self._other) {\n"
+        "                    var event = null;\n"
+        "                    if (globalThis.MessageEvent) {\n"
+        "                        try {\n"
+        "                            event = new globalThis.MessageEvent('message', { data: message });\n"
+        "                        } catch(e) {\n"
+        "                            event = new globalThis.Event('message');\n"
+        "                            event.data = message;\n"
+        "                        }\n"
+        "                    } else {\n"
+        "                        event = new globalThis.Event('message');\n"
+        "                        event.data = message;\n"
         "                    }\n"
-        "                }, 0);\n"
-        "            }\n"
+        "                    if (self._other.onmessage) {\n"
+        "                        try { self._other.onmessage(event); } catch(e) { console.error(e); }\n"
+        "                    }\n"
+        "                    self._other.dispatchEvent(event);\n"
+        "                }\n"
+        "            }, 0);\n"
         "        }\n"
-        "        start() {}\n"
-        "        close() {}\n"
-        "    };\n"
-        "}\n"
-        "if (typeof globalThis.MessageChannel === 'undefined') {\n"
-        "    globalThis.MessageChannel = class MessageChannel {\n"
-        "        constructor() {\n"
-        "            this.port1 = new globalThis.MessagePort();\n"
-        "            this.port2 = new globalThis.MessagePort();\n"
-        "            this.port1._other = this.port2;\n"
-        "            this.port2._other = this.port1;\n"
-        "        }\n"
-        "    };\n"
-        "}\n"
+        "    }\n"
+        "    start() {}\n"
+        "    close() {}\n"
+        "};\n"
+        "globalThis.MessageChannel = class MessageChannel {\n"
+        "    constructor() {\n"
+        "        this.port1 = new globalThis.MessagePort();\n"
+        "        this.port2 = new globalThis.MessagePort();\n"
+        "        this.port1._other = this.port2;\n"
+        "        this.port2._other = this.port1;\n"
+        "    }\n"
+        "};\n"
         "globalThis.__wisp_get_computed_style_internal = function(elt, pseudoElt) {\n"
         "    const dummyStyle = {\n"
         "        getPropertyValue: function(prop) {\n"
@@ -3117,7 +3283,7 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     if (!rt) { free(t); return NSERROR_NOMEM; }
     JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
     JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
-    JS_SetModuleLoaderFunc(rt, NULL, wisp_module_loader, NULL);
+    JS_SetModuleLoaderFunc(rt, wisp_module_normalize, wisp_module_loader, NULL);
 
     t->ctx = JS_NewContext(rt);
     if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }
@@ -3399,26 +3565,38 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
     }
 }
 
-static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, WispNodeID parent_idx) {
-    if (!node || !shm) return;
-
-    if (shm->node_count >= shm->node_capacity) {
-        if (thread) {
-            shm_dom_ensure_capacity(thread, shm->node_count + 1);
-            shm = thread->shm_dom;
-            if (!shm) return;
-        } else {
-            return;
+static uint32_t assign_node_index(shm_dom_t *shm, struct jsthread *thread, dom_node *node) {
+    if (!node || !shm) return 0;
+    if (shm->node_count == 0) {
+        shm->node_count = 1;
+    }
+    for (uint32_t i = 1; i < shm->node_count; i++) {
+        if ((dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[i] == node) {
+            return i;
         }
     }
-
     uint32_t idx = shm->node_count++;
+    if (idx >= shm->node_capacity) {
+        if (thread) {
+            shm_dom_ensure_capacity(thread, idx + 1);
+            shm = thread->shm_dom;
+            if (!shm) return 0;
+        } else {
+            return 0;
+        }
+    }
+    shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
+    return idx;
+}
+
+static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, uint32_t idx, WispNodeID parent_idx) {
+    if (!node || !shm) return;
+
     extern int peak_nodes_used;
     if ((int)shm->node_count > peak_nodes_used) {
         peak_nodes_used = (int)shm->node_count;
         NSLOG(wisp, INFO, "[SHM_DOM] New record peak reached: %d nodes", peak_nodes_used);
     }
-    NSLOG(wisp, INFO, "[SHM_DOM] Node allocated. Active nodes: %d", (int)shm->node_count);
     WispCompactNode *nodes_array = shm_dom_get_nodes(shm);
     WispCompactNode *sn = &nodes_array[idx];
     memset(sn, 0, sizeof(*sn));
@@ -3535,39 +3713,23 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
     dom_node_get_first_child(node, &child);
     uint32_t prev_child_idx = 0;
     if (child) {
-        if (shm->node_count >= shm->node_capacity) {
-            if (thread) {
-                shm_dom_ensure_capacity(thread, shm->node_count + 1);
-                shm = thread->shm_dom;
-                if (!shm) {
-                    dom_node_unref(child);
-                    return;
-                }
-            } else {
+        uint32_t first_child_idx = assign_node_index(shm, thread, child);
+        if (thread) {
+            shm = thread->shm_dom;
+            if (!shm) {
                 dom_node_unref(child);
                 return;
             }
         }
-
         nodes_array = shm_dom_get_nodes(shm);
         sn = &nodes_array[idx];
-        sn->first_child_id = shm->node_count;
+        sn->first_child_id = first_child_idx;
 
         while (child) {
-            if (shm->node_count >= shm->node_capacity) {
-                if (thread) {
-                    shm_dom_ensure_capacity(thread, shm->node_count + 1);
-                    shm = thread->shm_dom;
-                    if (!shm) {
-                        while (child) {
-                            dom_node *next = NULL;
-                            dom_node_get_next_sibling(child, &next);
-                            dom_node_unref(child);
-                            child = next;
-                        }
-                        break;
-                    }
-                } else {
+            uint32_t child_idx = assign_node_index(shm, thread, child);
+            if (thread) {
+                shm = thread->shm_dom;
+                if (!shm) {
                     while (child) {
                         dom_node *next = NULL;
                         dom_node_get_next_sibling(child, &next);
@@ -3577,8 +3739,9 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
                     break;
                 }
             }
-            uint32_t child_idx = shm->node_count;
-            serialize_dom_node(shm, thread, child, idx);
+            if (child_idx != 0) {
+                serialize_dom_node(shm, thread, child, child_idx, idx);
+            }
 
             if (thread) {
                 shm = thread->shm_dom;
@@ -3628,16 +3791,60 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     }
     if (!shm || !doc) return;
     shm_dom_lock_write(shm);
-    if (shm->node_count > 0) {
-        NSLOG(wisp, INFO, "[SHM_DOM] Freed %d nodes prior to serialization", (int)shm->node_count);
+
+    if (shm->node_count == 0) {
+        shm->node_count = 1;
     }
-    memset(shm_dom_get_dom_ptrs(shm), 0, sizeof(uint64_t) * shm->node_capacity);
-    shm->node_count = 1; // Start indices at 1, 0 is WISP_NODE_NULL
+
+    // Set all existing nodes' node_type to 0 to mark them unvisited
+    for (uint32_t i = 1; i < shm->node_count; i++) {
+        shm_dom_get_nodes(shm)[i].node_type = 0;
+    }
+
     shm->layout_cache_count = 0;
     memset(shm_dom_get_layout_cache(shm), 0, sizeof(WispShmLayoutCache) * shm->node_capacity);
     memset(shm->string_hash_table, 0, sizeof(shm->string_hash_table));
     shm->string_heap_top = 1; // Initialize top to 1 to reserve 0 as NULL/empty
-    serialize_dom_node(shm, thread, (dom_node *)doc, 0);
+
+    uint32_t doc_idx = assign_node_index(shm, thread, (dom_node *)doc);
+    if (thread) {
+        shm = thread->shm_dom;
+        if (!shm) return;
+    }
+    if (doc_idx != 0) {
+        serialize_dom_node(shm, thread, (dom_node *)doc, doc_idx, 0);
+    }
+
+    if (thread) {
+        shm = thread->shm_dom;
+    }
+
+    // Scan for unvisited detached nodes and serialize them
+    if (shm) {
+        for (uint32_t i = 1; i < shm->node_count; i++) {
+            dom_node *node = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[i];
+            if (node && shm_dom_get_nodes(shm)[i].node_type == 0) {
+                dom_node *parent = NULL;
+                dom_node_get_parent_node(node, &parent);
+                uint32_t parent_idx = 0;
+                if (parent) {
+                    for (uint32_t j = 1; j < shm->node_count; j++) {
+                        if ((dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[j] == parent) {
+                            parent_idx = j;
+                            break;
+                        }
+                    }
+                    dom_node_unref(parent);
+                }
+                serialize_dom_node(shm, thread, node, i, parent_idx);
+                if (thread) {
+                    shm = thread->shm_dom;
+                    if (!shm) break;
+                }
+            }
+        }
+    }
+
     shm_dom_t *final_shm = thread ? thread->shm_dom : shm;
     if (final_shm) {
         shm_dom_unlock_write(final_shm);
@@ -3720,12 +3927,101 @@ static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_do
     return node;
 }
 
+static dom_node* ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc) {
+    if (!shm || !doc || id == 0 || id == 0xFFFFFFFF) return NULL;
+    uint32_t idx = (uint32_t)id;
+    if (idx >= shm->node_count) return NULL;
+
+    dom_node *existing = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[idx];
+    if (existing) return existing;
+
+    WispCompactNode *nodes = shm_dom_get_nodes(shm);
+    WispCompactNode *sn = &nodes[idx];
+    WispNodeStrings *node_strings = shm_dom_get_node_strings(shm);
+    WispNodeStrings *sns = &node_strings[idx];
+
+    dom_node *new_node = NULL;
+    if (sn->node_type == DOM_ELEMENT_NODE) {
+        const char *tag = wisp_string_ref_data(shm, sns->tag_name);
+        if (tag) {
+            dom_string *tag_dom = NULL;
+            dom_string_create((const uint8_t *)tag, strlen(tag), &tag_dom);
+            if (tag_dom) {
+                dom_element *elem = NULL;
+                dom_document_create_element(doc, tag_dom, &elem);
+                new_node = (dom_node *)elem;
+                dom_string_unref(tag_dom);
+            }
+        }
+        if (new_node) {
+            uint32_t attr_limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+            for (uint32_t i = 0; i < attr_limit; i++) {
+                const char *attr_name = wisp_string_ref_data(shm, sns->attrs[i].name);
+                const char *attr_val = wisp_string_ref_data(shm, sns->attrs[i].value);
+                if (attr_name && attr_val) {
+                    dom_string *attr_name_dom = NULL;
+                    dom_string_create((const uint8_t *)attr_name, strlen(attr_name), &attr_name_dom);
+                    dom_string *attr_val_dom = NULL;
+                    dom_string_create((const uint8_t *)attr_val, strlen(attr_val), &attr_val_dom);
+                    if (attr_name_dom && attr_val_dom) {
+                        dom_element_set_attribute((dom_element *)new_node, attr_name_dom, attr_val_dom);
+                    }
+                    if (attr_name_dom) dom_string_unref(attr_name_dom);
+                    if (attr_val_dom) dom_string_unref(attr_val_dom);
+                }
+            }
+        }
+    } else if (sn->node_type == DOM_TEXT_NODE) {
+        const char *val = wisp_string_ref_data(shm, sns->value);
+        dom_string *val_dom = NULL;
+        dom_string_create((const uint8_t *)(val ? val : ""), val ? strlen(val) : 0, &val_dom);
+        if (val_dom) {
+            dom_text *text = NULL;
+            dom_document_create_text_node(doc, val_dom, &text);
+            new_node = (dom_node *)text;
+            dom_string_unref(val_dom);
+        }
+    } else if (sn->node_type == DOM_COMMENT_NODE) {
+        const char *val = wisp_string_ref_data(shm, sns->value);
+        dom_string *val_dom = NULL;
+        dom_string_create((const uint8_t *)(val ? val : ""), val ? strlen(val) : 0, &val_dom);
+        if (val_dom) {
+            dom_comment *comment = NULL;
+            dom_document_create_comment(doc, val_dom, &comment);
+            new_node = (dom_node *)comment;
+            dom_string_unref(val_dom);
+        }
+    } else if (sn->node_type == DOM_DOCUMENT_FRAGMENT_NODE) {
+        dom_document_fragment *frag = NULL;
+        dom_document_create_document_fragment(doc, &frag);
+        new_node = (dom_node *)frag;
+    }
+
+    if (new_node) {
+        shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)new_node;
+
+        // Recursively create and append child nodes from SHM
+        uint64_t child_id = sn->first_child_id;
+        while (child_id != 0) {
+            dom_node *child_node = ensure_host_node(shm, child_id, doc);
+            if (child_node) {
+                dom_node *appended = NULL;
+                dom_node_append_child(new_node, child_node, &appended);
+                if (appended) dom_node_unref(appended);
+            }
+            WispCompactNode *child_sn = &shm_dom_get_nodes(shm)[child_id];
+            child_id = child_sn->next_sibling_id;
+        }
+    }
+    return new_node;
+}
+
 static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_document *doc) {
     if (!doc) return;
 
-    dom_node *target = get_dom_node_from_id(shm, m->target_id, doc);
-    dom_node *param1 = get_dom_node_from_id(shm, m->param1_id, doc);
-    dom_node *param2 = get_dom_node_from_id(shm, m->param2_id, doc);
+    dom_node *target = ensure_host_node(shm, m->target_id, doc);
+    dom_node *param1 = ensure_host_node(shm, m->param1_id, doc);
+    dom_node *param2 = ensure_host_node(shm, m->param2_id, doc);
 
     const char *m_name_cstr = wisp_string_ref_data(shm, m->name);
     const char *m_value_cstr = wisp_string_ref_data(shm, m->value);
@@ -4036,6 +4332,9 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         }
     }
 
+    char *old_script_name = thread->current_script_name;
+    thread->current_script_name = (char *)name;
+
     wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
     if (ipc_js) {
         if (!thread->shm_initialized) {
@@ -4242,6 +4541,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         JS_FreeValue(thread->ctx, exc);
     }
     JS_FreeValue(thread->ctx, val);
+    thread->current_script_name = old_script_name;
     return success;
 }
 

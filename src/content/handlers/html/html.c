@@ -839,14 +839,25 @@ static nserror html_process_encoding_change(struct content *c, const char *data,
 		return NSERROR_NOMEM;
 	}
 
-	/* Destroy binding */
+	/* Destroy binding and clean up any references from the old document */
 	NSLOG(wisp, DEBUG, "html_process_encoding_change: destroying parser %p, will recreate with encoding '%s'",
 		html->parser, html->encoding);
 	dom_hubbub_parser_destroy(html->parser);
 	html->parser = NULL;
 
+	if (html->title != NULL) {
+		dom_node_unref(html->title);
+		html->title = NULL;
+	}
+
+	html_css_free_stylesheets(html);
+	html->stylesheets = NULL;
+	html->stylesheet_count = 0;
+
 	if (html->document != NULL) {
+		dom_node_set_user_data(html->document, corestring_dom___ns_key_html_content_data, NULL, NULL, NULL);
 		dom_node_unref(html->document);
+		html->document = NULL;
 	}
 
 	parse_params.enc = html->encoding;

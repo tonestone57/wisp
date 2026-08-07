@@ -1079,7 +1079,120 @@ JSValue wisp_document_compatMode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_document_currentScript_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return JS_NULL;
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t || !t->current_script_name) {
+        return JS_NULL;
+    }
+
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+
+            uint32_t matched_id = 0;
+            uint32_t last_inline_id = 0;
+
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].node_type == 1 &&
+                    (nodes_arr[i].tag_atom == 9 || wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "script"))) {
+                    const char *src_val = NULL;
+                    uint32_t limit = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
+                        if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "src")) {
+                            src_val = wisp_string_ref_data(wisp_shm_dom, strings_arr[i].attrs[j].value);
+                            break;
+                        }
+                    }
+
+                    if (src_val) {
+                        if (strcmp(t->current_script_name, "?inline script?") != 0) {
+                            if (strcmp(t->current_script_name, src_val) == 0 ||
+                                (strncmp(src_val, "//", 2) == 0 && strstr(t->current_script_name, src_val + 2)) ||
+                                strstr(t->current_script_name, src_val) ||
+                                strstr(src_val, t->current_script_name)) {
+                                matched_id = i;
+                            }
+                        }
+                    } else {
+                        last_inline_id = i;
+                    }
+                }
+            }
+
+            if (strcmp(t->current_script_name, "?inline script?") == 0) {
+                matched_id = last_inline_id;
+            }
+
+            if (matched_id != 0) {
+                return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)matched_id);
+            }
+        }
+        return JS_NULL;
+    } else {
+        struct dom_document *doc = qjs_thread_get_document(t);
+        if (doc) {
+            dom_string *script_name_dom = NULL;
+            dom_string_create((const uint8_t *)"script", 6, &script_name_dom);
+            dom_nodelist *nodes = NULL;
+            dom_document_get_elements_by_tag_name(doc, script_name_dom, &nodes);
+            dom_string_unref(script_name_dom);
+
+            if (nodes) {
+                uint32_t len = 0;
+                dom_nodelist_get_length(nodes, &len);
+                dom_node *matched_node = NULL;
+                dom_node *last_inline_node = NULL;
+
+                dom_string *src_name = NULL;
+                dom_string_create((const uint8_t *)"src", 3, &src_name);
+
+                for (uint32_t i = 0; i < len; i++) {
+                    dom_node *node = NULL;
+                    dom_nodelist_item(nodes, i, &node);
+                    if (node) {
+                        dom_string *src_val = NULL;
+                        dom_element_get_attribute((dom_element *)node, src_name, &src_val);
+
+                        if (src_val) {
+                            if (strcmp(t->current_script_name, "?inline script?") != 0) {
+                                const char *src_cstr = (const char *)dom_string_data(src_val);
+                                if (strcmp(t->current_script_name, src_cstr) == 0 ||
+                                    (strncmp(src_cstr, "//", 2) == 0 && strstr(t->current_script_name, src_cstr + 2)) ||
+                                    strstr(t->current_script_name, src_cstr) ||
+                                    strstr(src_cstr, t->current_script_name)) {
+                                    if (matched_node) dom_node_unref(matched_node);
+                                    matched_node = dom_node_ref(node);
+                                }
+                            }
+                            dom_string_unref(src_val);
+                        } else {
+                            if (last_inline_node) dom_node_unref(last_inline_node);
+                            last_inline_node = dom_node_ref(node);
+                        }
+                        dom_node_unref(node);
+                    }
+                }
+
+                if (src_name) dom_string_unref(src_name);
+                dom_nodelist_unref(nodes);
+
+                if (strcmp(t->current_script_name, "?inline script?") == 0) {
+                    if (matched_node) dom_node_unref(matched_node);
+                    matched_node = last_inline_node;
+                    last_inline_node = NULL;
+                } else {
+                    if (last_inline_node) dom_node_unref(last_inline_node);
+                }
+
+                if (matched_node) {
+                    JSValue val = qjs_wrap_node(ctx, matched_node);
+                    dom_node_unref(matched_node);
+                    return val;
+                }
+            }
+        }
+        return JS_NULL;
+    }
 }
 
 JSValue wisp_document_referrer_get_impl(JSContext *ctx, QJSNodePrivate *priv)
