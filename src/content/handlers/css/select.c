@@ -1668,7 +1668,7 @@ css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data)
 {
     dom_node *n = node;
     dom_exception err;
-    void *old_node_data;
+    void *old_node_data = NULL;
 
     /* Set this node's node data */
     err = dom_node_set_user_data(n, corestring_dom___ns_key_libcss_node_data, libcss_node_data,
@@ -1677,7 +1677,9 @@ css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data)
         return CSS_NOMEM;
     }
 
-    assert(old_node_data == NULL);
+    if (old_node_data != NULL) {
+        css_libcss_node_data_handler(&selection_handler, CSS_NODE_DELETED, NULL, n, NULL, old_node_data);
+    }
 
     return CSS_OK;
 }
