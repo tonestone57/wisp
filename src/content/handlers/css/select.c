@@ -1678,6 +1678,10 @@ css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data)
     }
 
     if (old_node_data != NULL) {
+        /* Note: css_libcss_node_data_handler is the public LibCSS API which expects exactly 6 arguments:
+         * (css_select_handler *handler, css_node_data_action action, void *pw, void *node, void *clone_node, void *libcss_node_data)
+         * This invocation perfectly aligns with the function signature and correctly cleans up the old node data.
+         */
         css_libcss_node_data_handler(&selection_handler, CSS_NODE_DELETED, NULL, n, NULL, old_node_data);
     }
 
