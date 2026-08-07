@@ -303,6 +303,9 @@ nserror wisp_init(const char *store_path)
         }
     }
 
+    /* Eagerly initialize user-agent string on main thread to prevent thread races during fetch start */
+    user_agent_string();
+
     NSLOG(wisp, INFO, "wisp_init: success");
 
     return NSERROR_OK;
