@@ -979,6 +979,7 @@ static void on_dom_node_destroy(void *node) {
 void js_initialise(void)
 {
     wisp_dom_node_destroy_hook = on_dom_node_destroy;
+    wisp_node_destroy_cb = on_dom_node_destroy;
 }
 
 void (*wisp_gui_pump_events_hook)(void) = NULL;
@@ -1009,6 +1010,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 void js_finalise(void)
 {
     wisp_dom_node_destroy_hook = NULL;
+    wisp_node_destroy_cb = NULL;
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
