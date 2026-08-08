@@ -3477,6 +3477,9 @@ void js_destroythread(jsthread *thread)
         /* 1. Set opaque to NULL so no more callbacks are made */
         JS_SetContextOpaque(ctx, NULL);
 
+        /* Force GC to reclaim dead JS wrappers holding C node references */
+        JS_RunGC(rt);
+
         /* 2. Free the context first. This finalizes all JS wrapper objects,
          * calling their finalizers which unrefs the DOM nodes and removes
          * their entries from the bridge map. */
