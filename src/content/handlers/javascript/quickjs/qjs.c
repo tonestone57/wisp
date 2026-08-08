@@ -361,6 +361,32 @@ bool wisp_is_js_process = false;
 shm_dom_t *wisp_shm_dom = NULL;
 uint32_t wisp_shm_capacity = 0;
 
+extern void (*wisp_node_destroy_cb)(void *node);
+static jsheap *global_heaps_list = NULL;
+static pthread_mutex_t global_heaps_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void qjs_on_node_destroy(void *node) {
+    if (!node) return;
+    pthread_mutex_lock(&global_heaps_mutex);
+    jsheap *heap = global_heaps_list;
+    while (heap) {
+        struct jsthread *t = heap->threads;
+        while (t) {
+            shm_dom_t *shm = t->shm_dom;
+            if (shm) {
+                for (uint32_t i = 1; i < shm->node_count; i++) {
+                    if ((void *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[i] == node) {
+                        shm_dom_get_dom_ptrs(shm)[i] = 0;
+                    }
+                }
+            }
+            t = t->next_in_heap;
+        }
+        heap = heap->next_in_global;
+    }
+    pthread_mutex_unlock(&global_heaps_mutex);
+}
+
 static void compute_sha256(const uint8_t *data, size_t len, char *hex_out) {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     const EVP_MD *md = EVP_sha256();
@@ -838,6 +864,7 @@ struct dom_document *qjs_thread_get_document(struct jsthread *t)
 
 void js_initialise(void)
 {
+    wisp_node_destroy_cb = qjs_on_node_destroy;
 }
 
 void (*wisp_gui_pump_events_hook)(void) = NULL;
@@ -896,6 +923,12 @@ nserror js_newheap(int timeout, jsheap **heap)
     JS_SetMaxStackSize(h->rt, 16384 * 1024);     // Increased to 16MB
     JS_SetModuleLoaderFunc(h->rt, wisp_module_normalize, wisp_module_loader, NULL);
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
+
+    pthread_mutex_lock(&global_heaps_mutex);
+    h->next_in_global = global_heaps_list;
+    global_heaps_list = h;
+    pthread_mutex_unlock(&global_heaps_mutex);
+
     *heap = h;
     return NSERROR_OK;
 }
@@ -903,6 +936,17 @@ nserror js_newheap(int timeout, jsheap **heap)
 void js_destroyheap(jsheap *heap)
 {
     if (!heap) return;
+
+    pthread_mutex_lock(&global_heaps_mutex);
+    jsheap **curr_h = &global_heaps_list;
+    while (*curr_h) {
+        if (*curr_h == heap) {
+            *curr_h = heap->next_in_global;
+            break;
+        }
+        curr_h = &((*curr_h)->next_in_global);
+    }
+    pthread_mutex_unlock(&global_heaps_mutex);
 
     /* Orphans and nullifies any active threads associated with this heap */
     struct jsthread *t = heap->threads;
@@ -3822,8 +3866,19 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     // Scan for unvisited detached nodes and serialize them
     if (shm) {
         for (uint32_t i = 1; i < shm->node_count; i++) {
-            dom_node *node = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[i];
-            if (node && shm_dom_get_nodes(shm)[i].node_type == 0) {
+            uintptr_t raw_ptr = (uintptr_t)shm_dom_get_dom_ptrs(shm)[i];
+            if (!raw_ptr || (raw_ptr % sizeof(void *)) != 0) {
+                continue;
+            }
+            dom_node *node = (dom_node *)raw_ptr;
+            bool is_valid = (node == (dom_node *)doc);
+            if (!is_valid && thread && thread->ctx) {
+                is_valid = qjs_bridge_has_node(thread->ctx, node);
+            }
+            if (!is_valid) {
+                continue;
+            }
+            if (shm_dom_get_nodes(shm)[i].node_type == 0) {
                 dom_node *parent = NULL;
                 dom_node_get_parent_node(node, &parent);
                 uint32_t parent_idx = 0;
