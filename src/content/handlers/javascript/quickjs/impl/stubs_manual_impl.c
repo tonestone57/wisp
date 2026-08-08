@@ -12005,9 +12005,11 @@ JSValue wisp_document_append_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue 
     return JS_UNDEFINED;
 }
 
+extern JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *priv, const char * localName);
+
 // Overrides: method | Document::createElementNS();
 JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * qualifiedName) {
-    return JS_UNDEFINED;
+    return wisp_document_createElement_impl(ctx, priv, qualifiedName);
 }
 
 extern JSValue qjs_new_domimplementation(JSContext *ctx, void *node, bool is_dom_node);
