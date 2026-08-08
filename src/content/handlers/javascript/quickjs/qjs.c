@@ -3696,20 +3696,15 @@ void js_destroythread(jsthread *thread)
         /* 1. Set opaque to NULL so no more callbacks are made */
         JS_SetContextOpaque(ctx, NULL);
 
-        /* Force GC to reclaim dead JS wrappers holding C node references */
-        JS_RunGC(rt);
-
-        /* 2. Free the context first. This finalizes all JS wrapper objects,
-         * calling their finalizers which unrefs the DOM nodes and removes
-         * their entries from the bridge map. */
-        JS_FreeContext(ctx);
-
-        /* 3. Run GC to collect and finalize any remaining orphaned objects */
-        JS_RunGC(rt);
-        JS_RunGC(rt);
-
-        /* 4. Finalise any remaining DOM bridge entries for this context. */
+        /* 2. Run DOM bridge cleanup first while context is fully alive. */
         qjs_finalise_dom_bridge(rt, ctx);
+
+        /* 3. Run GC to collect and finalize objects in the context */
+        JS_RunGC(rt);
+        JS_RunGC(rt);
+
+        /* 4. Finally, free the context. */
+        JS_FreeContext(ctx);
     }
 
     struct dom_document *doc_node = qjs_thread_get_document(thread);
@@ -4105,11 +4100,9 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
             dom_node *node = (dom_node *)raw_ptr;
             bool is_valid = (node == (dom_node *)doc);
             if (!is_valid && thread) {
-                if (thread->origin && get_js_process_handle(thread->origin) != NULL) {
-                    is_valid = true;
-                } else if (thread->ctx) {
-                    is_valid = qjs_bridge_has_node(thread->ctx, node);
-                }
+                /* Detached node. Serialize it if thread is non-NULL to ensure
+                 * all detached elements and their children are fully synchronized. */
+                is_valid = true;
             }
             if (!is_valid) {
                 continue;

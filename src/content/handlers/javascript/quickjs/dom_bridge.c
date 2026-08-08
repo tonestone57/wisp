@@ -261,9 +261,13 @@ void qjs_bridge_cleanup(JSRuntime *rt)
 typedef struct {
     JSContext *ctx;
     struct dom_node **nodes;
+    dom_node_type *types;
+    bool *has_types;
     size_t count;
     size_t capacity;
 } bridge_cleanup_t;
+
+static bool qjs_get_node_type(struct dom_node *node, dom_node_type *out_type);
 
 static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
 {
@@ -275,8 +279,18 @@ static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
             struct dom_node **new_nodes = realloc(cleanup->nodes, cleanup->capacity * sizeof(struct dom_node *));
             if (!new_nodes) return true;
             cleanup->nodes = new_nodes;
+
+            dom_node_type *new_types = realloc(cleanup->types, cleanup->capacity * sizeof(dom_node_type));
+            if (!new_types) return true;
+            cleanup->types = new_types;
+
+            bool *new_has_types = realloc(cleanup->has_types, cleanup->capacity * sizeof(bool));
+            if (!new_has_types) return true;
+            cleanup->has_types = new_has_types;
         }
-        cleanup->nodes[cleanup->count++] = k->node;
+        cleanup->nodes[cleanup->count] = k->node;
+        cleanup->has_types[cleanup->count] = qjs_get_node_type(k->node, &cleanup->types[cleanup->count]);
+        cleanup->count++;
     }
     return false;
 }
@@ -566,15 +580,15 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (!map) return;
 
-    bridge_cleanup_t cleanup = { .ctx = ctx, .nodes = NULL, .count = 0, .capacity = 0 };
+    bridge_cleanup_t cleanup = { .ctx = ctx, .nodes = NULL, .types = NULL, .has_types = NULL, .count = 0, .capacity = 0 };
     hashmap_iterate(map, bridge_cleanup_ctx_cb, &cleanup);
 
     /* First pass: unref all non-document nodes first to ensure their reference
      * counts drop to 0 before the document node is finalising. This prevents
      * document teardown from being blocked by pending child node references. */
     for (size_t i = 0; i < cleanup.count; i++) {
-        dom_node_type type = 0;
-        bool has_type = qjs_get_node_type(cleanup.nodes[i], &type);
+        dom_node_type type = cleanup.types[i];
+        bool has_type = cleanup.has_types[i];
 
         if (has_type && type == DOM_DOCUMENT_NODE) {
             continue;
@@ -596,8 +610,8 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
 
     /* Second pass: unref all document nodes */
     for (size_t i = 0; i < cleanup.count; i++) {
-        dom_node_type type = 0;
-        bool has_type = qjs_get_node_type(cleanup.nodes[i], &type);
+        dom_node_type type = cleanup.types[i];
+        bool has_type = cleanup.has_types[i];
 
         if (has_type && type != DOM_DOCUMENT_NODE) {
             continue;
@@ -617,6 +631,8 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
         }
     }
     free(cleanup.nodes);
+    free(cleanup.types);
+    free(cleanup.has_types);
 }
 
 static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compound_selector_t *comp)
