@@ -305,7 +305,7 @@ int main(int argc, char **argv) {
                         shm_dom_lock_write(wisp_shm_dom);
                         if (wisp_shm_capacity < wisp_shm_dom->node_capacity) {
                             uint32_t new_cap = wisp_shm_dom->node_capacity;
-                            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
+                            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
                             if (wisp_shm_dom) {
                                 wisp_shm_capacity = new_cap;
                             } else {
