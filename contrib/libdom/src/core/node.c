@@ -39,6 +39,8 @@
 #include "events/mutation_event.h"
 #include <dom/core/mutation_observer.h>
 
+void (*wisp_node_destroy_cb)(void *node) = NULL;
+
 static bool _dom_node_permitted_child(const dom_node_internal *parent, const dom_node_internal *child);
 static inline dom_exception _dom_node_attach(
     dom_node_internal *node, dom_node_internal *parent, dom_node_internal *previous, dom_node_internal *next);
@@ -274,6 +276,10 @@ dom_exception _dom_node_initialise(dom_node_internal *node, struct dom_document 
  */
 void _dom_node_finalise(dom_node_internal *node)
 {
+    if (wisp_node_destroy_cb) {
+        wisp_node_destroy_cb(node);
+    }
+
     struct dom_user_data *u, *v;
     struct dom_node_internal *p;
     struct dom_node_internal *n = NULL;

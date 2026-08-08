@@ -147,6 +147,18 @@ void qjs_bridge_unref_node(struct dom_node *node)
     }
 }
 
+bool qjs_bridge_has_node(JSContext *ctx, struct dom_node *node)
+{
+    if (!ctx || !node) return false;
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (map) {
+        bridge_key_t key = { ctx, node };
+        return hashmap_lookup(map, &key) != NULL;
+    }
+    return false;
+}
+
 int qjs_init_dom_bridge(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
