@@ -839,13 +839,13 @@ struct dom_document *qjs_thread_get_document(struct jsthread *t)
 extern void (*wisp_dom_node_destroy_hook)(void *node);
 
 static __thread shm_dom_t *current_thread_shm = NULL;
-static __thread shm_dom_t *thread_locked_shm = NULL;
+static __thread bool thread_shm_locked = false;
 
 static void on_dom_node_destroy(void *node) {
     if (!node) return;
     shm_dom_t *shm = current_thread_shm;
     if (shm) {
-        bool already_locked = (thread_locked_shm == shm);
+        bool already_locked = thread_shm_locked;
         if (!already_locked) {
             shm_dom_lock_write(shm);
         }
@@ -3836,7 +3836,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
 
     shm_dom_t *prev_shm = current_thread_shm;
     current_thread_shm = shm;
-    thread_locked_shm = shm;
+    thread_shm_locked = true;
 
     shm_dom_lock_write(shm);
 
@@ -3859,7 +3859,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
         shm = thread->shm_dom;
         if (!shm) {
             current_thread_shm = prev_shm;
-            thread_locked_shm = NULL;
+            thread_shm_locked = false;
             return;
         }
     }
@@ -3905,7 +3905,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     }
 
     current_thread_shm = prev_shm;
-    thread_locked_shm = NULL;
+    thread_shm_locked = false;
 }
 
 static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc) {
