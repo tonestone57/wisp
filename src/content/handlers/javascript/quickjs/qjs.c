@@ -66,6 +66,8 @@ struct wisp_curl_buffer {
     size_t size;
 };
 
+extern void (*wisp_gui_pump_events_hook)(void);
+
 static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
     size_t realsize = size * nmemb;
@@ -135,10 +137,51 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len)
         curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
         curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
         curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 5L);
-        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 15L);
+        curl_easy_setopt(curl_handle, CURLOPT_NOSIGNAL, 1L);
+        // Extend timeouts for synchronous fetches under debug or heavy loads
+        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 15L);
+        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 45L);
 
-        res = curl_easy_perform(curl_handle);
+        CURLM *multi_handle = curl_multi_init();
+        if (multi_handle) {
+            curl_multi_add_handle(multi_handle, curl_handle);
+            int still_running = 1;
+
+            while (still_running) {
+                CURLMcode mres = curl_multi_perform(multi_handle, &still_running);
+                if (mres != CURLM_OK) {
+                    res = CURLE_RECV_ERROR;
+                    break;
+                }
+
+                if (still_running) {
+                    // Pump host UI/IPC events to avoid starvation
+                    if (wisp_gui_pump_events_hook) {
+                        wisp_gui_pump_events_hook();
+                    }
+                    int numfds;
+#if LIBCURL_VERSION_NUM >= 0x074400 // 7.68.0
+                    curl_multi_poll(multi_handle, NULL, 0, 10, &numfds);
+#else
+                    curl_multi_wait(multi_handle, NULL, 0, 10, &numfds);
+#endif
+                }
+            }
+
+            // Extract actual easy transfer result
+            CURLMsg *msg;
+            int msgs_left;
+            while ((msg = curl_multi_info_read(multi_handle, &msgs_left))) {
+                if (msg->msg == CURLMSG_DONE && msg->easy_handle == curl_handle) {
+                    res = msg->data.result; // Updates 'res' with CURLE_OK or error code
+                }
+            }
+
+            curl_multi_remove_handle(multi_handle, curl_handle);
+            curl_multi_cleanup(multi_handle);
+        } else {
+            res = curl_easy_perform(curl_handle);
+        }
 
         bool should_retry = false;
 
@@ -3277,6 +3320,31 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "if (typeof globalThis.scrollBy === 'undefined') {\n"
         "    globalThis.scrollBy = function() {};\n"
         "}\n"
+        "\n"
+        "globalThis.CSS = globalThis.CSS || {};\n"
+        "globalThis.CSS.supports = globalThis.CSS.supports || function(a, b) {\n"
+        "    if (b !== undefined) {\n"
+        "        let prop = String(a).trim().toLowerCase();\n"
+        "        let knownProps = ['align-content', 'align-items', 'align-self', 'animation', 'animation-delay', 'animation-direction', 'animation-duration', 'animation-fill-mode', 'animation-iteration-count', 'animation-name', 'animation-play-state', 'animation-timing-function', 'backface-visibility', 'background', 'background-attachment', 'background-clip', 'background-color', 'background-origin', 'background-position', 'background-repeat', 'background-size', 'border', 'border-bottom', 'border-bottom-color', 'border-bottom-left-radius', 'border-bottom-right-radius', 'border-bottom-style', 'border-bottom-width', 'border-collapse', 'border-color', 'border-image', 'border-image-outset', 'border-image-repeat', 'border-image-slice', 'border-image-source', 'border-image-width', 'border-left', 'border-left-color', 'border-left-style', 'border-left-width', 'border-radius', 'border-right', 'border-right-color', 'border-right-style', 'border-right-width', 'border-spacing', 'border-style', 'border-top', 'border-top-color', 'border-top-left-radius', 'border-top-right-radius', 'border-top-style', 'border-top-width', 'border-width', 'bottom', 'box-decoration-break', 'box-shadow', 'box-sizing', 'break-after', 'break-before', 'break-inside', 'caption-side', 'clear', 'clip', 'color', 'column-count', 'column-fill', 'column-gap', 'column-rule', 'column-rule-color', 'column-rule-style', 'column-rule-width', 'column-span', 'column-width', 'columns', 'content', 'counter-increment', 'counter-reset', 'cursor', 'direction', 'display', 'empty-cells', 'filter', 'flex', 'flex-basis', 'flex-direction', 'flex-flow', 'flex-grow', 'flex-shrink', 'flex-wrap', 'float', 'font', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch', 'font-style', 'font-variant', 'font-weight', 'grid', 'grid-area', 'grid-auto-columns', 'grid-auto-flow', 'grid-auto-rows', 'grid-column', 'grid-column-end', 'grid-column-gap', 'grid-column-start', 'grid-row', 'grid-row-end', 'grid-row-gap', 'grid-row-start', 'grid-template', 'grid-template-areas', 'grid-template-columns', 'grid-template-rows', 'hanging-punctuation', 'height', 'hyphens', 'icon', 'image-orientation', 'image-rendering', 'image-resolution', 'justify-content', 'left', 'letter-spacing', 'line-height', 'list-style', 'list-style-image', 'list-style-position', 'list-style-type', 'margin', 'margin-bottom', 'margin-left', 'margin-right', 'margin-top', 'max-height', 'max-width', 'min-height', 'min-width', 'nav-down', 'nav-index', 'nav-left', 'nav-right', 'nav-up', 'opacity', 'order', 'outline', 'outline-color', 'outline-offset', 'outline-style', 'outline-width', 'overflow', 'overflow-x', 'overflow-y', 'padding', 'padding-bottom', 'padding-left', 'padding-right', 'padding-top', 'page-break-after', 'page-break-before', 'page-break-inside', 'perspective', 'perspective-origin', 'pointer-events', 'position', 'quotes', 'resize', 'right', 'tab-size', 'table-layout', 'text-align', 'text-align-last', 'text-decoration', 'text-decoration-color', 'text-decoration-line', 'text-decoration-style', 'text-indent', 'text-justify', 'text-overflow', 'text-shadow', 'text-transform', 'top', 'transform', 'transform-origin', 'transform-style', 'transition', 'transition-delay', 'transition-duration', 'transition-property', 'transition-timing-function', 'unicode-bidi', 'vertical-align', 'visibility', 'white-space', 'width', 'word-break', 'word-spacing', 'word-wrap', 'writing-mode', 'z-index'];\n"
+        "        return knownProps.indexOf(prop) !== -1;\n"
+        "    } else {\n"
+        "        let cond = String(a).trim();\n"
+        "        if (cond.startsWith('(') && cond.endsWith(')')) {\n"
+        "            cond = cond.slice(1, -1).trim();\n"
+        "        }\n"
+        "        if (cond.startsWith('selector(')) {\n"
+        "            return true;\n"
+        "        }\n"
+        "        let parts = cond.split(':');\n"
+        "        if (parts.length === 2) {\n"
+        "            return globalThis.CSS.supports(parts[0], parts[1]);\n"
+        "        }\n"
+        "        return true;\n"
+        "    }\n"
+        "};\n"
+        "globalThis.CSS.escape = globalThis.CSS.escape || function(ident) {\n"
+        "    return String(ident);\n"
+        "};\n"
         "";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val);
