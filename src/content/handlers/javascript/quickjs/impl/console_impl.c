@@ -17,6 +17,46 @@ static JSValue wisp_console_log_internal(JSContext *ctx, const char *msg, JSValu
     return JS_UNDEFINED;
 }
 
+JSValue wisp_console_assert_impl(JSContext *ctx, QJSNodePrivate *priv, bool condition, JSValue subst)
+{
+    if (!condition) {
+        JSValue len_val = JS_GetPropertyStr(ctx, subst, "length");
+        int32_t len = 0;
+        JS_ToInt32(ctx, &len, len_val);
+        JS_FreeValue(ctx, len_val);
+
+        if (len > 0) {
+            JSValue first_arg = JS_GetPropertyUint32(ctx, subst, 0);
+            const char *first_msg = JS_ToCString(ctx, first_arg);
+            JS_FreeValue(ctx, first_arg);
+
+            char *msg = NULL;
+            if (first_msg) {
+                size_t msg_len = strlen(first_msg) + 32;
+                msg = malloc(msg_len);
+                if (msg) {
+                    snprintf(msg, msg_len, "Assertion failed: %s", first_msg);
+                }
+                JS_FreeCString(ctx, first_msg);
+            }
+
+            // Create a new subst array without the first element
+            JSValue rest_subst = JS_NewArray(ctx);
+            for (int i = 1; i < len; i++) {
+                JSValue arg = JS_GetPropertyUint32(ctx, subst, i);
+                JS_SetPropertyUint32(ctx, rest_subst, i - 1, arg);
+            }
+
+            wisp_console_log_internal(ctx, msg ? msg : "Assertion failed", rest_subst, "ASSERT_ERROR");
+            JS_FreeValue(ctx, rest_subst);
+            if (msg) free(msg);
+        } else {
+            wisp_console_log_internal(ctx, "Assertion failed", JS_UNDEFINED, "ASSERT_ERROR");
+        }
+    }
+    return JS_UNDEFINED;
+}
+
 JSValue wisp_console_debug_impl(JSContext *ctx, QJSNodePrivate *priv, const char * msg, JSValue subst)
 {
     return wisp_console_log_internal(ctx, msg, subst, "DEBUG");

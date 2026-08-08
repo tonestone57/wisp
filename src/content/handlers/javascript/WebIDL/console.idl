@@ -5,6 +5,7 @@
 // Yay for non-standard standards
 
 interface Console {
+  void assert(boolean condition, any... subst);
   void debug(DOMString msg, any... subst);
   void dir(JSObject object);
   void error(DOMString msg, any... subst);

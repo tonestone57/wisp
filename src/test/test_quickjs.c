@@ -3131,6 +3131,35 @@ START_TEST(test_quickjs_console_group)
 END_TEST
 
 /**
+ * Test console.assert().
+ */
+START_TEST(test_quickjs_console_assert)
+{
+    JSRuntime *rt;
+    JSContext *ctx;
+    JSValue result;
+
+    rt = JS_NewRuntime();
+    ctx = JS_NewContext(rt);
+    qjs_init_dom_bridge(ctx); qjs_init_console(ctx);
+
+    /* Execute assertions - should not throw, whether passing or failing */
+    const char *code = "console.assert(true, 'should not log');\n"
+                       "console.assert(false, 'should log assertion failure', 1, 2, 3);";
+    result = JS_Eval(ctx, code, strlen(code), "test", JS_EVAL_TYPE_GLOBAL);
+
+    ck_assert(!JS_IsException(result));
+
+    JS_FreeValue(ctx, result);
+    qjs_console_cleanup(ctx);
+    JS_FreeContext(ctx);
+    qjs_bridge_cleanup(rt);
+    JS_RunGC(rt);
+    JS_FreeRuntime(rt);
+}
+END_TEST
+
+/**
  * Test Window global object basics.
  */
 START_TEST(test_quickjs_window_global)
@@ -4590,6 +4619,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_console, test_quickjs_console_warn);
     tcase_add_test(tc_console, test_quickjs_console_multiple_args);
     tcase_add_test(tc_console, test_quickjs_console_group);
+    tcase_add_test(tc_console, test_quickjs_console_assert);
     suite_add_tcase(s, tc_console);
 
     /* Window binding test case */
