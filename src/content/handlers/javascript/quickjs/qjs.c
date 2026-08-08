@@ -942,6 +942,9 @@ struct dom_document *qjs_thread_get_document(struct jsthread *t)
 {
     if (!t || !t->doc_priv)
         return NULL;
+    if (wisp_is_js_process) {
+        return (struct dom_document *)t->doc_priv;
+    }
     if (t->win_priv && t->win_priv != t->doc_priv) {
         struct html_content *htmlc = (struct html_content *)t->doc_priv;
         return (struct dom_document *)htmlc->document;
@@ -4055,8 +4058,12 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
             }
             dom_node *node = (dom_node *)raw_ptr;
             bool is_valid = (node == (dom_node *)doc);
-            if (!is_valid && thread && thread->ctx) {
-                is_valid = qjs_bridge_has_node(thread->ctx, node);
+            if (!is_valid && thread) {
+                if (thread->origin && get_js_process_handle(thread->origin) != NULL) {
+                    is_valid = true;
+                } else if (thread->ctx) {
+                    is_valid = qjs_bridge_has_node(thread->ctx, node);
+                }
             }
             if (!is_valid) {
                 continue;
