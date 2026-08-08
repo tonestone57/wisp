@@ -425,7 +425,11 @@ int main(int argc, char **argv) {
     if (wisp_shm_dom) {
         shm_dom_destroy(wisp_shm_dom, NULL, false);
     }
-    wisp_ipc_destroy(ipc_main);
+    if (ipc_main) {
+        wisp_ipc_handle *to_destroy = ipc_main;
+        ipc_main = NULL;
+        wisp_ipc_destroy(to_destroy);
+    }
     if (js_process_origin) free(js_process_origin);
     corestrings_fini();
     fprintf(stderr, "\n=== JS PROCESS EXITING NORMALLY ===\n");

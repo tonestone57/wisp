@@ -177,7 +177,9 @@ void wisp_ipc_destroy(wisp_ipc_handle *handle) {
         unlink(handle->name);
     }
 #endif
-    if (handle->name) free(handle->name);
+    if (handle->is_server && handle->name) {
+        free(handle->name);
+    }
     free(handle);
 }
 
