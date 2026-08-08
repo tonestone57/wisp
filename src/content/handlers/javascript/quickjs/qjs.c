@@ -877,7 +877,7 @@ void unregister_active_shm(shm_dom_t *shm) {
     pthread_mutex_unlock(&active_shm_mutex);
 }
 
-static __thread int in_serialize_dom_tree = 0;
+static __thread shm_dom_t *thread_locked_shm = NULL;
 
 static void on_dom_node_destroy(void *node) {
     if (!node) return;
@@ -885,7 +885,7 @@ static void on_dom_node_destroy(void *node) {
     for (int i = 0; i < MAX_ACTIVE_SHM; i++) {
         shm_dom_t *shm = active_shm_list[i];
         if (shm) {
-            bool already_locked = (in_serialize_dom_tree > 0);
+            bool already_locked = (thread_locked_shm == shm);
             if (!already_locked) {
                 shm_dom_lock_write(shm);
             }
@@ -3866,7 +3866,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     }
     if (!shm || !doc) return;
 
-    in_serialize_dom_tree++;
+    thread_locked_shm = shm;
 
     shm_dom_lock_write(shm);
 
@@ -3888,7 +3888,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     if (thread) {
         shm = thread->shm_dom;
         if (!shm) {
-            in_serialize_dom_tree--;
+            thread_locked_shm = NULL;
             return;
         }
     }
@@ -3933,7 +3933,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
         shm_dom_unlock_write(shm);
     }
 
-    in_serialize_dom_tree--;
+    thread_locked_shm = NULL;
 }
 
 static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc) {
