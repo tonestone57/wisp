@@ -341,6 +341,10 @@ int main(int argc, char **argv) {
 #endif
     }
 
-    wisp_ipc_destroy(ipc_main);
+    if (ipc_main) {
+        wisp_ipc_handle *to_destroy = ipc_main;
+        ipc_main = NULL;
+        wisp_ipc_destroy(to_destroy);
+    }
     return 0;
 }
