@@ -197,7 +197,7 @@ void shm_dom_lock_read(shm_dom_t *shm);
 void shm_dom_unlock_read(shm_dom_t *shm);
 void shm_dom_lock_write(shm_dom_t *shm);
 void shm_dom_unlock_write(shm_dom_t *shm);
-shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity);
+shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new_capacity);
 size_t shm_dom_size(uint32_t capacity);
 
 #endif /* WISP_UTILS_SHM_DOM_H */

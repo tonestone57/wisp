@@ -84,9 +84,9 @@ size_t shm_dom_size(uint32_t capacity) {
     return sizeof(shm_dom_t) + capacity * (sizeof(WispCompactNode) + sizeof(WispShmLayoutCache) + sizeof(WispNodeStrings) + sizeof(uint64_t));
 }
 
-shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity) {
+shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new_capacity) {
     if (!old_shm) return NULL;
-    uint32_t old_cap = old_shm->node_capacity;
+    uint32_t old_cap = old_capacity;
     size_t old_size = shm_dom_size(old_cap);
 
     if (new_capacity > 10000000) {
@@ -123,11 +123,16 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity) {
         return NULL;
     }
 
-    // 2. Copy the old elements from their old offsets before unmapping
-    memcpy(temp_nodes, shm_dom_get_nodes(old_shm), old_cap * sizeof(WispCompactNode));
-    memcpy(temp_layout_cache, shm_dom_get_layout_cache(old_shm), old_cap * sizeof(WispShmLayoutCache));
-    memcpy(temp_node_strings, shm_dom_get_node_strings(old_shm), old_cap * sizeof(WispNodeStrings));
-    memcpy(temp_dom_ptrs, shm_dom_get_dom_ptrs(old_shm), old_cap * sizeof(uint64_t));
+    // 2. Copy the old elements from their old offsets before unmapping safely using old_cap
+    WispCompactNode *old_nodes = (WispCompactNode*)((char*)old_shm + sizeof(shm_dom_t));
+    WispShmLayoutCache *old_layout_cache = (WispShmLayoutCache*)((char*)old_nodes + old_cap * sizeof(WispCompactNode));
+    WispNodeStrings *old_node_strings = (WispNodeStrings*)((char*)old_layout_cache + old_cap * sizeof(WispShmLayoutCache));
+    uint64_t *old_dom_ptrs = (uint64_t*)((char*)old_node_strings + old_cap * sizeof(WispNodeStrings));
+
+    memcpy(temp_nodes, old_nodes, old_cap * sizeof(WispCompactNode));
+    memcpy(temp_layout_cache, old_layout_cache, old_cap * sizeof(WispShmLayoutCache));
+    memcpy(temp_node_strings, old_node_strings, old_cap * sizeof(WispNodeStrings));
+    memcpy(temp_dom_ptrs, old_dom_ptrs, old_cap * sizeof(uint64_t));
 
     shm_dom_t *new_shm = NULL;
 
@@ -182,7 +187,7 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t new_capacity) {
         return NULL;
     }
 
-    if (is_server) {
+    if (is_server || new_capacity > old_cap) {
         if (ftruncate(fd, new_size) != 0) {
             NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: ftruncate failed");
             close(fd);
@@ -498,7 +503,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         extern uint32_t wisp_shm_capacity;
         if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
             uint32_t new_cap = wisp_shm_dom->node_capacity;
-            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
+            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
             if (wisp_shm_dom) {
                 wisp_shm_capacity = new_cap;
                 shm = wisp_shm_dom;
@@ -666,7 +671,7 @@ WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id) {
         if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
             shm_dom_lock_read(wisp_shm_dom);
             uint32_t new_cap = wisp_shm_dom->node_capacity;
-            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, new_cap);
+            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
             if (wisp_shm_dom) {
                 wisp_shm_capacity = new_cap;
                 shm = wisp_shm_dom;

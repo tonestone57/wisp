@@ -37,7 +37,7 @@ uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *
     extern uint32_t wisp_shm_capacity;
     if (new_id >= wisp_shm_capacity) {
         uint32_t new_cap = wisp_shm_dom->node_capacity * 2;
-        shm_dom_t *new_shm = shm_dom_remap(wisp_shm_dom, new_cap);
+        shm_dom_t *new_shm = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
         if (new_shm) {
             new_shm->node_capacity = new_cap;
             wisp_shm_dom = new_shm;

@@ -3864,7 +3864,7 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count)
         while (required_count >= new_cap) {
             new_cap *= 2;
         }
-        shm_dom_t *new_shm = shm_dom_remap(shm, new_cap);
+        shm_dom_t *new_shm = shm_dom_remap(shm, thread->shm_capacity, new_cap);
         if (new_shm) {
             new_shm->node_capacity = new_cap;
             if (current_thread_shm == shm) {
@@ -4102,7 +4102,7 @@ static inline void host_ensure_shm_capacity(struct jsthread *thread)
     if (thread && thread->shm_dom && thread->shm_dom->node_capacity > thread->shm_capacity) {
         uint32_t new_cap = thread->shm_dom->node_capacity;
         shm_dom_t *old_shm = thread->shm_dom;
-        shm_dom_t *new_shm = shm_dom_remap(old_shm, new_cap);
+        shm_dom_t *new_shm = shm_dom_remap(old_shm, thread->shm_capacity, new_cap);
         if (new_shm) {
             if (current_thread_shm == old_shm) {
                 current_thread_shm = new_shm;

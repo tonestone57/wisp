@@ -4533,7 +4533,7 @@ START_TEST(test_quickjs_shm_remap_and_dangling)
 
     // 2. Perform shm_dom_remap to 16384 capacity
     uint32_t new_cap = 16384;
-    shm_dom_t *new_shm = shm_dom_remap(shm, new_cap);
+    shm_dom_t *new_shm = shm_dom_remap(shm, old_cap, new_cap);
     ck_assert_ptr_nonnull(new_shm);
     ck_assert_int_eq(new_shm->node_capacity, new_cap);
 
@@ -4556,7 +4556,7 @@ START_TEST(test_quickjs_shm_remap_and_dangling)
 
     // 4. Verify failed remap handling returns NULL and doesn't cause a crash
     // Passing 0xFFFFFFFF capacity should fail due to size overflow/mmap failure
-    shm_dom_t *failed_shm = shm_dom_remap(new_shm, 0xFFFFFFFF);
+    shm_dom_t *failed_shm = shm_dom_remap(new_shm, new_cap, 0xFFFFFFFF);
     ck_assert_ptr_null(failed_shm);
 
     // Let's test that shm_dom_ensure_capacity gracefully handles failed remap
