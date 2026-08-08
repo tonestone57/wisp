@@ -836,8 +836,33 @@ struct dom_document *qjs_thread_get_document(struct jsthread *t)
     return (struct dom_document *)t->doc_priv;
 }
 
+extern void (*wisp_dom_node_destroy_hook)(void *node);
+
+static __thread shm_dom_t *current_thread_shm = NULL;
+static __thread bool thread_shm_locked = false;
+
+static void on_dom_node_destroy(void *node) {
+    if (!node) return;
+    shm_dom_t *shm = current_thread_shm;
+    if (shm) {
+        bool already_locked = thread_shm_locked;
+        if (!already_locked) {
+            shm_dom_lock_write(shm);
+        }
+        for (uint32_t j = 1; j < shm->node_count; j++) {
+            if (shm_dom_get_dom_ptrs(shm)[j] == (uint64_t)(uintptr_t)node) {
+                shm_dom_get_dom_ptrs(shm)[j] = 0;
+            }
+        }
+        if (!already_locked) {
+            shm_dom_unlock_write(shm);
+        }
+    }
+}
+
 void js_initialise(void)
 {
+    wisp_dom_node_destroy_hook = on_dom_node_destroy;
 }
 
 void (*wisp_gui_pump_events_hook)(void) = NULL;
@@ -867,6 +892,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 
 void js_finalise(void)
 {
+    wisp_dom_node_destroy_hook = NULL;
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
@@ -3196,6 +3222,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     }
     t->shm_capacity = cap;
     t->shm_dom = shm_dom_create(t->shm_dom_name, t->shm_capacity, true);
+    current_thread_shm = t->shm_dom;
 
     /* Bridge must be initialized first */
     if (qjs_init_dom_bridge(t->ctx) != 0) {
@@ -3503,6 +3530,9 @@ void js_destroythread(jsthread *thread)
         free(thread->origin);
     }
     if (thread->shm_dom) {
+        if (current_thread_shm == thread->shm_dom) {
+            current_thread_shm = NULL;
+        }
         shm_dom_destroy(thread->shm_dom, thread->shm_dom_name, true);
     }
     free(thread);
@@ -3541,6 +3571,9 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
     if (!shm) return;
     if (required_count < shm->node_capacity) return;
     if (required_count > 10000000) {
+        if (current_thread_shm == shm) {
+            current_thread_shm = NULL;
+        }
         shm_dom_destroy(shm, thread->shm_dom_name, true);
         thread->shm_dom = NULL;
         thread->shm_capacity = 0;
@@ -3556,9 +3589,15 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
         shm_dom_t *new_shm = shm_dom_remap(shm, new_cap);
         if (new_shm) {
             new_shm->node_capacity = new_cap;
+            if (current_thread_shm == shm) {
+                current_thread_shm = new_shm;
+            }
             thread->shm_dom = new_shm;
             thread->shm_capacity = new_cap;
         } else {
+            if (current_thread_shm == shm) {
+                current_thread_shm = NULL;
+            }
             thread->shm_dom = NULL;
             thread->shm_capacity = 0;
         }
@@ -3776,8 +3815,12 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
 static inline void host_ensure_shm_capacity(struct jsthread *thread) {
     if (thread && thread->shm_dom && thread->shm_dom->node_capacity > thread->shm_capacity) {
         uint32_t new_cap = thread->shm_dom->node_capacity;
-        shm_dom_t *new_shm = shm_dom_remap(thread->shm_dom, new_cap);
+        shm_dom_t *old_shm = thread->shm_dom;
+        shm_dom_t *new_shm = shm_dom_remap(old_shm, new_cap);
         if (new_shm) {
+            if (current_thread_shm == old_shm) {
+                current_thread_shm = new_shm;
+            }
             thread->shm_dom = new_shm;
             thread->shm_capacity = new_cap;
         }
@@ -3790,6 +3833,11 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
         shm = thread->shm_dom;
     }
     if (!shm || !doc) return;
+
+    shm_dom_t *prev_shm = current_thread_shm;
+    current_thread_shm = shm;
+    thread_shm_locked = true;
+
     shm_dom_lock_write(shm);
 
     if (shm->node_count == 0) {
@@ -3809,7 +3857,11 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     uint32_t doc_idx = assign_node_index(shm, thread, (dom_node *)doc);
     if (thread) {
         shm = thread->shm_dom;
-        if (!shm) return;
+        if (!shm) {
+            current_thread_shm = prev_shm;
+            thread_shm_locked = false;
+            return;
+        }
     }
     if (doc_idx != 0) {
         serialize_dom_node(shm, thread, (dom_node *)doc, doc_idx, 0);
@@ -3851,6 +3903,9 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     } else if (shm) {
         shm_dom_unlock_write(shm);
     }
+
+    current_thread_shm = prev_shm;
+    thread_shm_locked = false;
 }
 
 static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc) {
@@ -4210,6 +4265,8 @@ static void force_synchronous_layout(struct jsthread *thread) {
 
 void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
     if (!shm) return;
+    shm_dom_t *prev_shm = current_thread_shm;
+    current_thread_shm = shm;
     shm_mutation_queue_t *mq = &shm->mutation_queue;
     while (mq->tail != mq->head) {
         uint32_t idx = mq->tail % SHM_MUTATION_QUEUE_SIZE;
@@ -4217,6 +4274,7 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
         apply_shm_mutation(shm, m, doc);
         mq->tail++;
     }
+    current_thread_shm = prev_shm;
 }
 
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
