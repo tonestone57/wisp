@@ -71,6 +71,8 @@ dom_node_internal *_dom_node_create(void)
     return node;
 }
 
+void (*wisp_dom_node_destroy_hook)(void *node) = NULL;
+
 /**
  * Destroy a DOM node
  *
@@ -87,6 +89,10 @@ dom_node_internal *_dom_node_create(void)
  */
 void _dom_node_destroy(struct dom_node_internal *node)
 {
+    if (wisp_dom_node_destroy_hook) {
+        wisp_dom_node_destroy_hook(node);
+    }
+
     struct dom_document *owner = node->owner;
     bool null_owner_permitted = (node->type == DOM_DOCUMENT_NODE || node->type == DOM_DOCUMENT_TYPE_NODE);
 
