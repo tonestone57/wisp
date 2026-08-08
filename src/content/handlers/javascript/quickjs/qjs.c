@@ -877,7 +877,7 @@ void unregister_active_shm(shm_dom_t *shm) {
     pthread_mutex_unlock(&active_shm_mutex);
 }
 
-static int in_serialize_dom_tree = 0;
+static __thread int in_serialize_dom_tree = 0;
 
 static void on_dom_node_destroy(void *node) {
     if (!node) return;
