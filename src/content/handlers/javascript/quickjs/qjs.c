@@ -66,13 +66,14 @@ struct wisp_curl_buffer {
     size_t size;
 };
 
-static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
+static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp)
+{
     size_t realsize = size * nmemb;
     struct wisp_curl_buffer *mem = (struct wisp_curl_buffer *)userp;
 
     char *ptr = realloc(mem->data, mem->size + realsize + 1);
     if (!ptr) {
-        return 0;  /* out of memory! */
+        return 0; /* out of memory! */
     }
 
     mem->data = ptr;
@@ -83,15 +84,19 @@ static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb
     return realsize;
 }
 
-static char *wisp_sync_fetch(const char *url, size_t *out_len) {
-    if (!url) return NULL;
+static char *wisp_sync_fetch(const char *url, size_t *out_len)
+{
+    if (!url)
+        return NULL;
 
     char hex[65];
     compute_sha256((const uint8_t *)url, strlen(url), hex);
 
     char cache_dir[] = "/tmp/wisp-module-cache";
     char cache_path[256];
+    char tmp_path[256];
     snprintf(cache_path, sizeof(cache_path), "%s/%s.js", cache_dir, hex);
+    snprintf(tmp_path, sizeof(tmp_path), "%s/%s.js.tmp", cache_dir, hex);
 
 #ifdef _WIN32
     _mkdir(cache_dir);
@@ -105,37 +110,90 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len) {
     }
 
     CURL *curl_handle;
-    CURLcode res;
+    CURLcode res = CURLE_OK;
     struct wisp_curl_buffer chunk;
+    long response_code = 0;
+    int max_retries = 5;
+    int attempt;
+    bool success = false;
+    int delay_ms = 150;
 
-    chunk.data = malloc(1);  /* will be grown as needed by the realloc above */
-    if (!chunk.data) return NULL;
-    chunk.size = 0;          /* no data at this point */
+    for (attempt = 1; attempt <= max_retries; attempt++) {
+        chunk.data = malloc(1); /* will be grown as needed by the realloc above */
+        if (!chunk.data)
+            return NULL;
+        chunk.size = 0; /* no data at this point */
 
-    curl_handle = curl_easy_init();
-    if (!curl_handle) {
+        curl_handle = curl_easy_init();
+        if (!curl_handle) {
+            free(chunk.data);
+            return NULL;
+        }
+
+        curl_easy_setopt(curl_handle, CURLOPT_URL, url);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, wisp_curl_write_callback);
+        curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
+        curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
+        curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 5L);
+        curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 15L);
+
+        res = curl_easy_perform(curl_handle);
+
+        bool should_retry = false;
+
+        if (res == CURLE_OK) {
+            curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &response_code);
+            if (response_code >= 200 && response_code < 300) {
+                success = true;
+                curl_easy_cleanup(curl_handle);
+                break;
+            } else {
+                fprintf(stderr, "WISP_SYNC_FETCH: HTTP error %ld for %s (attempt %d/%d)\n", response_code, url, attempt,
+                    max_retries);
+                if (response_code == 429 || response_code >= 500) {
+                    should_retry = true;
+                } else {
+                    // 404, 403, 401 etc. are non-retryable
+                    should_retry = false;
+                }
+            }
+        } else {
+            fprintf(stderr, "WISP_SYNC_FETCH: Curl error %s for %s (attempt %d/%d)\n", curl_easy_strerror(res), url,
+                attempt, max_retries);
+            should_retry = true;
+        }
+
+        curl_easy_cleanup(curl_handle);
         free(chunk.data);
+        chunk.data = NULL;
+
+        if (!should_retry || attempt == max_retries) {
+            break;
+        }
+
+        usleep(delay_ms * 1000);
+        delay_ms *= 2; // Exponential backoff
+    }
+
+    if (!success) {
         return NULL;
     }
 
-    curl_easy_setopt(curl_handle, CURLOPT_URL, url);
-    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, wisp_curl_write_callback);
-    curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&chunk);
-    curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
-    curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
-
-    res = curl_easy_perform(curl_handle);
-    curl_easy_cleanup(curl_handle);
-
-    if (res != CURLE_OK) {
-        free(chunk.data);
-        return NULL;
-    }
-
-    FILE *f = fopen(cache_path, "wb");
+    FILE *f = fopen(tmp_path, "wb");
     if (f) {
         fwrite(chunk.data, 1, chunk.size, f);
         fclose(f);
+        if (rename(tmp_path, cache_path) != 0) {
+            fprintf(
+                stderr, "WISP_SYNC_FETCH: Failed to rename atomic cache file from %s to %s\n", tmp_path, cache_path);
+            unlink(tmp_path);
+            free(chunk.data);
+            return NULL;
+        }
+    } else {
+        free(chunk.data);
+        return NULL;
     }
 
     if (out_len) {
@@ -144,9 +202,11 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len) {
     return chunk.data;
 }
 
-static char *wisp_read_local_file(const char *filename, size_t *out_len) {
+static char *wisp_read_local_file(const char *filename, size_t *out_len)
+{
     FILE *f = fopen(filename, "rb");
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -168,7 +228,8 @@ static char *wisp_read_local_file(const char *filename, size_t *out_len) {
     return buf;
 }
 
-static char *wisp_load_module_source(const char *module_name, size_t *out_len) {
+static char *wisp_load_module_source(const char *module_name, size_t *out_len)
+{
     if (strncmp(module_name, "http://", 7) == 0 || strncmp(module_name, "https://", 8) == 0) {
         return wisp_sync_fetch(module_name, out_len);
     } else if (strncmp(module_name, "//", 2) == 0) {
@@ -182,13 +243,13 @@ static char *wisp_load_module_source(const char *module_name, size_t *out_len) {
     }
 }
 
-char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque) {
-    if (!name) return NULL;
+char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque)
+{
+    if (!name)
+        return NULL;
 
     // If name is an absolute URL or path, just return it
-    if (strncmp(name, "http://", 7) == 0 ||
-        strncmp(name, "https://", 8) == 0 ||
-        strncmp(name, "file://", 7) == 0) {
+    if (strncmp(name, "http://", 7) == 0 || strncmp(name, "https://", 8) == 0 || strncmp(name, "file://", 7) == 0) {
         return js_strdup(ctx, name);
     }
 
@@ -202,7 +263,8 @@ char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *n
         char origin[512];
         if (path_start) {
             size_t origin_len = path_start - base_name;
-            if (origin_len >= sizeof(origin)) origin_len = sizeof(origin) - 1;
+            if (origin_len >= sizeof(origin))
+                origin_len = sizeof(origin) - 1;
             memcpy(origin, base_name, origin_len);
             origin[origin_len] = '\0';
         } else {
@@ -293,7 +355,7 @@ char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *n
     filename[len] = '\0';
 
     r = name;
-    for(;;) {
+    for (;;) {
         if (r[0] == '.' && r[1] == '/') {
             r += 2;
         } else if (r[0] == '.' && r[1] == '.' && r[2] == '/') {
@@ -318,7 +380,7 @@ char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *n
         size_t flen = strlen(filename);
         if (flen + 2 <= cap) {
             filename[flen] = '/';
-            filename[flen+1] = '\0';
+            filename[flen + 1] = '\0';
         }
     }
     size_t flen = strlen(filename);
@@ -328,7 +390,8 @@ char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *n
     return filename;
 }
 
-JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque) {
+JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque)
+{
     fprintf(stderr, "WISP_MODULE_LOADER: Loading module '%s'\n", module_name);
     size_t buf_len = 0;
     char *buf = wisp_load_module_source(module_name, &buf_len);
@@ -344,8 +407,10 @@ JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *o
     if (JS_IsException(val)) {
         JSValue exc = JS_GetException(ctx);
         const char *exc_str = JS_ToCString(ctx, exc);
-        fprintf(stderr, "WISP_MODULE_LOADER: Compilation failed for '%s': %s\n", module_name, exc_str ? exc_str : "unknown");
-        if (exc_str) JS_FreeCString(ctx, exc_str);
+        fprintf(stderr, "WISP_MODULE_LOADER: Compilation failed for '%s': %s\n", module_name,
+            exc_str ? exc_str : "unknown");
+        if (exc_str)
+            JS_FreeCString(ctx, exc_str);
         JS_FreeValue(ctx, exc);
         return NULL;
     }
@@ -408,7 +473,8 @@ static void compute_sha256(const uint8_t *data, size_t len, char *hex_out) {
     hex_out[hash_len * 2] = '\0';
 }
 
-JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags) {
+JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags)
+{
     if (!txt || txtlen == 0) {
         return JS_Eval(ctx, (const char *)txt, txtlen, name, eval_flags);
     }
@@ -461,11 +527,13 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
                 }
             }
         }
-        if (f) fclose(f);
+        if (f)
+            fclose(f);
     }
 
     char *txt_null_term = malloc(txtlen + 1);
-    if (!txt_null_term) return JS_ThrowOutOfMemory(ctx);
+    if (!txt_null_term)
+        return JS_ThrowOutOfMemory(ctx);
     memcpy(txt_null_term, txt, txtlen);
     txt_null_term[txtlen] = '\0';
 
@@ -498,9 +566,11 @@ struct precompile_arg {
     size_t txtlen;
 };
 
-static void do_precompile(void *arg) {
+static void do_precompile(void *arg)
+{
     struct precompile_arg *pa = arg;
-    if (!pa) return;
+    if (!pa)
+        return;
 
     if (pa->txt && pa->txtlen > 0) {
         char hex[65];
@@ -522,7 +592,8 @@ static void do_precompile(void *arg) {
                         memcpy(txt_null_term, pa->txt, pa->txtlen);
                         txt_null_term[pa->txtlen] = '\0';
 
-                        JSValue compiled = JS_Eval(ctx, txt_null_term, pa->txtlen, "<precompile>", JS_EVAL_TYPE_GLOBAL | JS_EVAL_FLAG_COMPILE_ONLY);
+                        JSValue compiled = JS_Eval(ctx, txt_null_term, pa->txtlen, "<precompile>",
+                            JS_EVAL_TYPE_GLOBAL | JS_EVAL_FLAG_COMPILE_ONLY);
                         free(txt_null_term);
 
                         if (!JS_IsException(compiled)) {
@@ -553,15 +624,19 @@ static void do_precompile(void *arg) {
         }
     }
 
-    if (pa->txt) free(pa->txt);
+    if (pa->txt)
+        free(pa->txt);
     free(pa);
 }
 
-void wisp_queue_precompile(const uint8_t *txt, size_t txtlen) {
-    if (!txt || txtlen == 0) return;
+void wisp_queue_precompile(const uint8_t *txt, size_t txtlen)
+{
+    if (!txt || txtlen == 0)
+        return;
 
     struct precompile_arg *pa = malloc(sizeof(*pa));
-    if (!pa) return;
+    if (!pa)
+        return;
     pa->txt = malloc(txtlen);
     if (!pa->txt) {
         free(pa);
@@ -594,7 +669,8 @@ static uint32_t null_origin_counter = 0;
 struct content;
 struct nsurl *content_get_url(struct content *c);
 
-static bool create_secure_ipc_path(char *ipc_path_buf, size_t path_len, char *dir_buf, size_t dir_len) {
+static bool create_secure_ipc_path(char *ipc_path_buf, size_t path_len, char *dir_buf, size_t dir_len)
+{
     char template[] = "/tmp/wisp-js-XXXXXX";
     char *dir_name = mkdtemp(template);
     if (!dir_name) {
@@ -607,7 +683,8 @@ static bool create_secure_ipc_path(char *ipc_path_buf, size_t path_len, char *di
     return true;
 }
 
-static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *origin_buf, size_t buf_len) {
+static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *origin_buf, size_t buf_len)
+{
     if (!doc_priv || win_priv == doc_priv) {
         pthread_mutex_lock(&js_processes_mutex);
         uint32_t val = ++null_origin_counter;
@@ -631,11 +708,10 @@ static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *or
 
     if (scheme && host) {
         if (port) {
-            snprintf(origin_buf, buf_len, "%s://%s:%s",
-                     lwc_string_data(scheme), lwc_string_data(host), lwc_string_data(port));
+            snprintf(origin_buf, buf_len, "%s://%s:%s", lwc_string_data(scheme), lwc_string_data(host),
+                lwc_string_data(port));
         } else {
-            snprintf(origin_buf, buf_len, "%s://%s",
-                     lwc_string_data(scheme), lwc_string_data(host));
+            snprintf(origin_buf, buf_len, "%s://%s", lwc_string_data(scheme), lwc_string_data(host));
         }
     } else {
         pthread_mutex_lock(&js_processes_mutex);
@@ -644,9 +720,12 @@ static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *or
         snprintf(origin_buf, buf_len, "null-origin-%u", val);
     }
 
-    if (scheme) lwc_string_unref(scheme);
-    if (host) lwc_string_unref(host);
-    if (port) lwc_string_unref(port);
+    if (scheme)
+        lwc_string_unref(scheme);
+    if (host)
+        lwc_string_unref(host);
+    if (port)
+        lwc_string_unref(port);
 
     /* Enforce COOP isolation if option is enabled and same-origin COOP is declared */
     if (nsoption_bool(enable_coop)) {
@@ -657,10 +736,11 @@ static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *or
     }
 }
 
-static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
-    if (!origin) return NULL;
-    if (strncmp(origin, "null-origin-", 12) == 0 ||
-        strncmp(origin, "null-worker-", 12) == 0 ||
+static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin)
+{
+    if (!origin)
+        return NULL;
+    if (strncmp(origin, "null-origin-", 12) == 0 || strncmp(origin, "null-worker-", 12) == 0 ||
         strstr(origin, "html5test")) {
         return NULL;
     }
@@ -742,8 +822,10 @@ static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin) {
     return client;
 }
 
-static void release_js_process_for_origin(const char *origin) {
-    if (!origin) return;
+static void release_js_process_for_origin(const char *origin)
+{
+    if (!origin)
+        return;
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process **prev = &js_processes;
     struct origin_js_process *curr = js_processes;
@@ -783,8 +865,10 @@ static void release_js_process_for_origin(const char *origin) {
     pthread_mutex_unlock(&js_processes_mutex);
 }
 
-static wisp_ipc_handle *get_js_process_handle(const char *origin) {
-    if (!origin) return NULL;
+static wisp_ipc_handle *get_js_process_handle(const char *origin)
+{
+    if (!origin)
+        return NULL;
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
@@ -799,8 +883,10 @@ static wisp_ipc_handle *get_js_process_handle(const char *origin) {
     return NULL;
 }
 
-static void handle_process_crash(const char *origin) {
-    if (!origin) return;
+static void handle_process_crash(const char *origin)
+{
+    if (!origin)
+        return;
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process **prev = &js_processes;
     struct origin_js_process *curr = js_processes;
@@ -854,7 +940,8 @@ void *qjs_get_document_priv(JSContext *ctx)
 
 struct dom_document *qjs_thread_get_document(struct jsthread *t)
 {
-    if (!t || !t->doc_priv) return NULL;
+    if (!t || !t->doc_priv)
+        return NULL;
     if (t->win_priv && t->win_priv != t->doc_priv) {
         struct html_content *htmlc = (struct html_content *)t->doc_priv;
         return (struct dom_document *)htmlc->document;
@@ -915,12 +1002,16 @@ void js_finalise(void)
 nserror js_newheap(int timeout, jsheap **heap)
 {
     jsheap *h = calloc(1, sizeof(*h));
-    if (!h) return NSERROR_NOMEM;
+    if (!h)
+        return NSERROR_NOMEM;
     h->rt = JS_NewRuntime();
-    if (!h->rt) { free(h); return NSERROR_NOMEM; }
+    if (!h->rt) {
+        free(h);
+        return NSERROR_NOMEM;
+    }
     h->timeout = timeout;
     JS_SetMemoryLimit(h->rt, 128 * 1024 * 1024); // Increased to 128MB
-    JS_SetMaxStackSize(h->rt, 16384 * 1024);     // Increased to 16MB
+    JS_SetMaxStackSize(h->rt, 16384 * 1024); // Increased to 16MB
     JS_SetModuleLoaderFunc(h->rt, wisp_module_normalize, wisp_module_loader, NULL);
     JS_SetInterruptHandler(h->rt, qjs_interrupt_handler, h);
 
@@ -935,7 +1026,8 @@ nserror js_newheap(int timeout, jsheap **heap)
 
 void js_destroyheap(jsheap *heap)
 {
-    if (!heap) return;
+    if (!heap)
+        return;
 
     pthread_mutex_lock(&global_heaps_mutex);
     jsheap **curr_h = &global_heaps_list;
@@ -976,7 +1068,8 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
     /* Block eval / Function if CSP blocks 'unsafe-eval' */
     struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
     if (t) {
-        struct html_content *htmlc = (t->win_priv && t->win_priv != t->doc_priv) ? (struct html_content *)t->doc_priv : NULL;
+        struct html_content *htmlc = (t->win_priv && t->win_priv != t->doc_priv) ? (struct html_content *)t->doc_priv
+                                                                                 : NULL;
         if (htmlc && htmlc->csp) {
             if (!csp_check_eval(htmlc->csp)) {
                 const char *csp_eval_block =
@@ -3115,19 +3208,13 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
     JS_FreeValue(ctx, val);
 }
 
-static void qjs_lifecycle_mutation_hook(
-    dom_mutation_hook_category category,
-    dom_mutation_type type,
-    struct dom_node *target,
-    struct dom_node *related,
-    struct dom_string *prev_value,
-    struct dom_string *new_value,
-    struct dom_string *attr_name,
-    struct dom_string *attr_ns,
-    void *pw)
+static void qjs_lifecycle_mutation_hook(dom_mutation_hook_category category, dom_mutation_type type,
+    struct dom_node *target, struct dom_node *related, struct dom_string *prev_value, struct dom_string *new_value,
+    struct dom_string *attr_name, struct dom_string *attr_ns, void *pw)
 {
     jsthread *t = pw;
-    if (!t || t->closed || !t->ctx) return;
+    if (!t || t->closed || !t->ctx)
+        return;
     JSContext *ctx = t->ctx;
 
     JSValue global = JS_GetGlobalObject(ctx);
@@ -3172,14 +3259,16 @@ static void qjs_lifecycle_mutation_hook(
 
                     JSValue js_prev = JS_NULL;
                     if (prev_value) {
-                        js_prev = JS_NewStringLen(ctx, (const char *)dom_string_data(prev_value), dom_string_byte_length(prev_value));
+                        js_prev = JS_NewStringLen(
+                            ctx, (const char *)dom_string_data(prev_value), dom_string_byte_length(prev_value));
                     }
                     JSValue js_new = JS_NULL;
                     if (new_value) {
-                        js_new = JS_NewStringLen(ctx, (const char *)dom_string_data(new_value), dom_string_byte_length(new_value));
+                        js_new = JS_NewStringLen(
+                            ctx, (const char *)dom_string_data(new_value), dom_string_byte_length(new_value));
                     }
 
-                    JSValue args[4] = { js_target, js_attr_name, js_prev, js_new };
+                    JSValue args[4] = {js_target, js_attr_name, js_prev, js_new};
                     JSValue ret = JS_Call(ctx, on_attr_change, JS_UNDEFINED, 4, args);
                     JS_FreeValue(ctx, ret);
 
@@ -3213,11 +3302,16 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
 {
     JS_UpdateStackTop(heap->rt);
     jsthread *t = calloc(1, sizeof(*t));
-    if (!t) return NSERROR_NOMEM;
+    if (!t)
+        return NSERROR_NOMEM;
     JS_UpdateStackTop(heap->rt);
     t->ctx = JS_NewContext(heap->rt);
-    if (!t->ctx) { free(t); return NSERROR_NOMEM; }
-    t->heap = heap; t->win_priv = win_priv;
+    if (!t->ctx) {
+        free(t);
+        return NSERROR_NOMEM;
+    }
+    t->heap = heap;
+    t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
 
     char origin_buf[256];
@@ -3251,23 +3345,12 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     wisp_js_register_all_bindings(t->ctx);
 
     /* Manual refinements to prototypes must come after registration */
-    if (qjs_init_eventtarget(t->ctx) != 0 ||
-        qjs_init_event(t->ctx) != 0 ||
-        qjs_init_node(t->ctx) != 0 ||
-        qjs_init_element(t->ctx) != 0 ||
-        qjs_init_document(t->ctx) != 0 ||
-        qjs_init_window(t->ctx) != 0 ||
-        qjs_init_console(t->ctx) != 0 ||
-        qjs_init_timers(t->ctx) != 0 ||
-        qjs_init_crypto(t->ctx) != 0 ||
-        qjs_init_navigator(t->ctx) != 0 ||
-        qjs_init_location(t->ctx) != 0 ||
-        qjs_init_storage(t->ctx) != 0 ||
-        qjs_init_xmlhttprequest(t->ctx) != 0 ||
-        qjs_init_mutationobserver(t->ctx) != 0 ||
-        qjs_init_intersectionobserver(t->ctx) != 0 ||
-        qjs_init_imagedata(t->ctx) != 0 ||
-        qjs_init_canvas(t->ctx) != 0 ||
+    if (qjs_init_eventtarget(t->ctx) != 0 || qjs_init_event(t->ctx) != 0 || qjs_init_node(t->ctx) != 0 ||
+        qjs_init_element(t->ctx) != 0 || qjs_init_document(t->ctx) != 0 || qjs_init_window(t->ctx) != 0 ||
+        qjs_init_console(t->ctx) != 0 || qjs_init_timers(t->ctx) != 0 || qjs_init_crypto(t->ctx) != 0 ||
+        qjs_init_navigator(t->ctx) != 0 || qjs_init_location(t->ctx) != 0 || qjs_init_storage(t->ctx) != 0 ||
+        qjs_init_xmlhttprequest(t->ctx) != 0 || qjs_init_mutationobserver(t->ctx) != 0 ||
+        qjs_init_intersectionobserver(t->ctx) != 0 || qjs_init_imagedata(t->ctx) != 0 || qjs_init_canvas(t->ctx) != 0 ||
         qjs_init_trusted_types(t->ctx) != 0) {
         js_destroythread(t);
         return NSERROR_NOMEM;
@@ -3280,7 +3363,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->global_window_priv.is_dom_node = false;
 
     JSValue window_proto = JS_GetClassProto(t->ctx, qjs_window_class_id);
-    if (JS_IsObject(window_proto)) JS_SetPrototype(t->ctx, global_obj, window_proto);
+    if (JS_IsObject(window_proto))
+        JS_SetPrototype(t->ctx, global_obj, window_proto);
     JS_FreeValue(t->ctx, window_proto);
 
     JS_DefinePropertyValueStr(t->ctx, global_obj, "window", JS_DupValue(t->ctx, global_obj), JS_PROP_C_W_E);
@@ -3292,7 +3376,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     /* Define 'document' accessor on the global object */
     JSAtom doc_atom = JS_NewAtom(t->ctx, "document");
     JSValue doc_getter = JS_NewCFunction(t->ctx, global_document_get, "get_document", 0);
-    JS_DefinePropertyGetSet(t->ctx, global_obj, doc_atom, doc_getter, JS_UNDEFINED, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_DefinePropertyGetSet(
+        t->ctx, global_obj, doc_atom, doc_getter, JS_UNDEFINED, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
     JS_FreeAtom(t->ctx, doc_atom);
 
     if (doc_priv) {
@@ -3321,16 +3406,24 @@ extern int qjs_init_dedicatedworkerglobalscope(JSContext *ctx);
 nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
 {
     jsthread *t = calloc(1, sizeof(*t));
-    if (!t) return NSERROR_NOMEM;
+    if (!t)
+        return NSERROR_NOMEM;
 
     JSRuntime *rt = JS_NewRuntime();
-    if (!rt) { free(t); return NSERROR_NOMEM; }
+    if (!rt) {
+        free(t);
+        return NSERROR_NOMEM;
+    }
     JS_SetMemoryLimit(rt, 128 * 1024 * 1024); // Increased to 128MB
-    JS_SetMaxStackSize(rt, 16384 * 1024);     // Increased to 16MB
+    JS_SetMaxStackSize(rt, 16384 * 1024); // Increased to 16MB
     JS_SetModuleLoaderFunc(rt, wisp_module_normalize, wisp_module_loader, NULL);
 
     t->ctx = JS_NewContext(rt);
-    if (!t->ctx) { JS_FreeRuntime(rt); free(t); return NSERROR_NOMEM; }
+    if (!t->ctx) {
+        JS_FreeRuntime(rt);
+        free(t);
+        return NSERROR_NOMEM;
+    }
 
     t->is_worker = true;
     t->worker_handle = h;
@@ -3365,11 +3458,17 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     return NSERROR_OK;
 }
 
-nserror js_closethread(jsthread *thread) { if (thread) thread->closed = true; return NSERROR_OK; }
+nserror js_closethread(jsthread *thread)
+{
+    if (thread)
+        thread->closed = true;
+    return NSERROR_OK;
+}
 
 void js_destroythread(jsthread *thread)
 {
-    if (!thread) return;
+    if (!thread)
+        return;
 
     /* Unlink thread from heap's active threads list if heap is still valid */
     if (thread->heap != NULL) {
@@ -3393,7 +3492,8 @@ void js_destroythread(jsthread *thread)
                 JSValue exc = JS_GetException(ctx1);
                 const char *exc_str = JS_ToCString(ctx1, exc);
                 NSLOG(wisp, WARNING, "JS Error in microtask during teardown: %s", exc_str ? exc_str : "unknown");
-                if (exc_str) JS_FreeCString(ctx1, exc_str);
+                if (exc_str)
+                    JS_FreeCString(ctx1, exc_str);
                 JS_FreeValue(ctx1, exc);
             }
         }
@@ -3552,26 +3652,43 @@ void js_destroythread(jsthread *thread)
     free(thread);
 }
 
-static uint16_t get_tag_atom_from_name(const char *tag_name) {
-    if (!tag_name) return 0;
-    if (strcasecmp(tag_name, "html") == 0) return 1;
-    if (strcasecmp(tag_name, "head") == 0) return 2;
-    if (strcasecmp(tag_name, "body") == 0) return 3;
-    if (strcasecmp(tag_name, "title") == 0) return 4;
-    if (strcasecmp(tag_name, "div") == 0) return 5;
-    if (strcasecmp(tag_name, "span") == 0) return 6;
-    if (strcasecmp(tag_name, "p") == 0) return 7;
-    if (strcasecmp(tag_name, "a") == 0) return 8;
-    if (strcasecmp(tag_name, "script") == 0) return 9;
-    if (strcasecmp(tag_name, "style") == 0) return 10;
-    if (strcasecmp(tag_name, "link") == 0) return 11;
-    if (strcasecmp(tag_name, "img") == 0) return 12;
-    if (strcasecmp(tag_name, "iframe") == 0) return 13;
+static uint16_t get_tag_atom_from_name(const char *tag_name)
+{
+    if (!tag_name)
+        return 0;
+    if (strcasecmp(tag_name, "html") == 0)
+        return 1;
+    if (strcasecmp(tag_name, "head") == 0)
+        return 2;
+    if (strcasecmp(tag_name, "body") == 0)
+        return 3;
+    if (strcasecmp(tag_name, "title") == 0)
+        return 4;
+    if (strcasecmp(tag_name, "div") == 0)
+        return 5;
+    if (strcasecmp(tag_name, "span") == 0)
+        return 6;
+    if (strcasecmp(tag_name, "p") == 0)
+        return 7;
+    if (strcasecmp(tag_name, "a") == 0)
+        return 8;
+    if (strcasecmp(tag_name, "script") == 0)
+        return 9;
+    if (strcasecmp(tag_name, "style") == 0)
+        return 10;
+    if (strcasecmp(tag_name, "link") == 0)
+        return 11;
+    if (strcasecmp(tag_name, "img") == 0)
+        return 12;
+    if (strcasecmp(tag_name, "iframe") == 0)
+        return 13;
     return 14; // Other tag
 }
 
-static uint32_t compute_class_hash(const char *class_str) {
-    if (!class_str) return 0;
+static uint32_t compute_class_hash(const char *class_str)
+{
+    if (!class_str)
+        return 0;
     uint32_t hash = 5381;
     int c;
     while ((c = (unsigned char)*class_str++)) {
@@ -3580,10 +3697,13 @@ static uint32_t compute_class_hash(const char *class_str) {
     return hash;
 }
 
-void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
+void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count)
+{
     shm_dom_t *shm = thread->shm_dom;
-    if (!shm) return;
-    if (required_count < shm->node_capacity) return;
+    if (!shm)
+        return;
+    if (required_count < shm->node_capacity)
+        return;
     if (required_count > 10000000) {
         shm_dom_destroy(shm, thread->shm_dom_name, true);
         thread->shm_dom = NULL;
@@ -3609,8 +3729,10 @@ void shm_dom_ensure_capacity(struct jsthread *thread, uint32_t required_count) {
     }
 }
 
-static uint32_t assign_node_index(shm_dom_t *shm, struct jsthread *thread, dom_node *node) {
-    if (!node || !shm) return 0;
+static uint32_t assign_node_index(shm_dom_t *shm, struct jsthread *thread, dom_node *node)
+{
+    if (!node || !shm)
+        return 0;
     if (shm->node_count == 0) {
         shm->node_count = 1;
     }
@@ -3624,7 +3746,8 @@ static uint32_t assign_node_index(shm_dom_t *shm, struct jsthread *thread, dom_n
         if (thread) {
             shm_dom_ensure_capacity(thread, idx + 1);
             shm = thread->shm_dom;
-            if (!shm) return 0;
+            if (!shm)
+                return 0;
         } else {
             return 0;
         }
@@ -3633,8 +3756,11 @@ static uint32_t assign_node_index(shm_dom_t *shm, struct jsthread *thread, dom_n
     return idx;
 }
 
-static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, uint32_t idx, WispNodeID parent_idx) {
-    if (!node || !shm) return;
+static void
+serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, uint32_t idx, WispNodeID parent_idx)
+{
+    if (!node || !shm)
+        return;
 
     extern int peak_nodes_used;
     if ((int)shm->node_count > peak_nodes_used) {
@@ -3703,7 +3829,8 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
             uint32_t attr_len = 0;
             dom_namednodemap_get_length(attrs, &attr_len);
             if (attr_len > WISP_SHM_MAX_ATTRIBUTES) {
-                NSLOG(wisp, WARNING, "serialize: Element attributes truncated from %u to %d", attr_len, WISP_SHM_MAX_ATTRIBUTES);
+                NSLOG(wisp, WARNING, "serialize: Element attributes truncated from %u to %d", attr_len,
+                    WISP_SHM_MAX_ATTRIBUTES);
                 attr_len = WISP_SHM_MAX_ATTRIBUTES;
             }
             sns->attr_count = attr_len;
@@ -3817,7 +3944,8 @@ static void serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node
     }
 }
 
-static inline void host_ensure_shm_capacity(struct jsthread *thread) {
+static inline void host_ensure_shm_capacity(struct jsthread *thread)
+{
     if (thread && thread->shm_dom && thread->shm_dom->node_capacity > thread->shm_capacity) {
         uint32_t new_cap = thread->shm_dom->node_capacity;
         shm_dom_t *new_shm = shm_dom_remap(thread->shm_dom, new_cap);
@@ -3828,12 +3956,14 @@ static inline void host_ensure_shm_capacity(struct jsthread *thread) {
     }
 }
 
-void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_document *doc) {
+void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_document *doc)
+{
     if (thread) {
         host_ensure_shm_capacity(thread);
         shm = thread->shm_dom;
     }
-    if (!shm || !doc) return;
+    if (!shm || !doc)
+        return;
     shm_dom_lock_write(shm);
 
     if (shm->node_count == 0) {
@@ -3853,7 +3983,8 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     uint32_t doc_idx = assign_node_index(shm, thread, (dom_node *)doc);
     if (thread) {
         shm = thread->shm_dom;
-        if (!shm) return;
+        if (!shm)
+            return;
     }
     if (doc_idx != 0) {
         serialize_dom_node(shm, thread, (dom_node *)doc, doc_idx, 0);
@@ -3894,7 +4025,8 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
                 serialize_dom_node(shm, thread, node, i, parent_idx);
                 if (thread) {
                     shm = thread->shm_dom;
-                    if (!shm) break;
+                    if (!shm)
+                        break;
                 }
             }
         }
@@ -3908,10 +4040,13 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     }
 }
 
-static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc) {
-    if (!shm || id == 0 || id == 0xFFFFFFFF) return NULL;
+static dom_node *get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc)
+{
+    if (!shm || id == 0 || id == 0xFFFFFFFF)
+        return NULL;
     uint32_t idx = (uint32_t)id;
-    if (idx >= shm->node_count) return NULL;
+    if (idx >= shm->node_count)
+        return NULL;
 
     dom_node *node = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[idx];
     if (!node && doc) {
@@ -3930,7 +4065,8 @@ static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_do
                     shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
 
                     // Copy attributes from SHM to the newly created host element!
-                    uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count
+                                                                               : WISP_SHM_MAX_ATTRIBUTES;
                     for (uint32_t i = 0; i < limit; i++) {
                         const char *attr_name = wisp_string_ref_data(shm, sns->attrs[i].name);
                         const char *attr_val = wisp_string_ref_data(shm, sns->attrs[i].value);
@@ -3942,8 +4078,10 @@ static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_do
                             if (name_dom && val_dom) {
                                 dom_element_set_attribute(elem, name_dom, val_dom);
                             }
-                            if (name_dom) dom_string_unref(name_dom);
-                            if (val_dom) dom_string_unref(val_dom);
+                            if (name_dom)
+                                dom_string_unref(name_dom);
+                            if (val_dom)
+                                dom_string_unref(val_dom);
                         }
                     }
                 }
@@ -3982,13 +4120,17 @@ static dom_node* get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_do
     return node;
 }
 
-static dom_node* ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc) {
-    if (!shm || !doc || id == 0 || id == 0xFFFFFFFF) return NULL;
+static dom_node *ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc)
+{
+    if (!shm || !doc || id == 0 || id == 0xFFFFFFFF)
+        return NULL;
     uint32_t idx = (uint32_t)id;
-    if (idx >= shm->node_count) return NULL;
+    if (idx >= shm->node_count)
+        return NULL;
 
     dom_node *existing = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[idx];
-    if (existing) return existing;
+    if (existing)
+        return existing;
 
     WispCompactNode *nodes = shm_dom_get_nodes(shm);
     WispCompactNode *sn = &nodes[idx];
@@ -4021,8 +4163,10 @@ static dom_node* ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc
                     if (attr_name_dom && attr_val_dom) {
                         dom_element_set_attribute((dom_element *)new_node, attr_name_dom, attr_val_dom);
                     }
-                    if (attr_name_dom) dom_string_unref(attr_name_dom);
-                    if (attr_val_dom) dom_string_unref(attr_val_dom);
+                    if (attr_name_dom)
+                        dom_string_unref(attr_name_dom);
+                    if (attr_val_dom)
+                        dom_string_unref(attr_val_dom);
                 }
             }
         }
@@ -4062,7 +4206,8 @@ static dom_node* ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc
             if (child_node) {
                 dom_node *appended = NULL;
                 dom_node_append_child(new_node, child_node, &appended);
-                if (appended) dom_node_unref(appended);
+                if (appended)
+                    dom_node_unref(appended);
             }
             WispCompactNode *child_sn = &shm_dom_get_nodes(shm)[child_id];
             child_id = child_sn->next_sibling_id;
@@ -4071,8 +4216,10 @@ static dom_node* ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc
     return new_node;
 }
 
-static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_document *doc) {
-    if (!doc) return;
+static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_document *doc)
+{
+    if (!doc)
+        return;
 
     dom_node *target = ensure_host_node(shm, m->target_id, doc);
     dom_node *param1 = ensure_host_node(shm, m->param1_id, doc);
@@ -4082,116 +4229,126 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
     const char *m_value_cstr = wisp_string_ref_data(shm, m->value);
 
     switch (m->type) {
-        case SHM_MUTATION_SET_ATTRIBUTE: {
-            dom_string *name_dom = NULL;
-            dom_string_create((const uint8_t *)m_name_cstr, strlen(m_name_cstr), &name_dom);
-            dom_string *value_dom = NULL;
-            dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &value_dom);
-            if (target && name_dom && value_dom) {
-                dom_element_set_attribute((dom_element *)target, name_dom, value_dom);
-            }
-            if (name_dom) dom_string_unref(name_dom);
-            if (value_dom) dom_string_unref(value_dom);
-            break;
+    case SHM_MUTATION_SET_ATTRIBUTE: {
+        dom_string *name_dom = NULL;
+        dom_string_create((const uint8_t *)m_name_cstr, strlen(m_name_cstr), &name_dom);
+        dom_string *value_dom = NULL;
+        dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &value_dom);
+        if (target && name_dom && value_dom) {
+            dom_element_set_attribute((dom_element *)target, name_dom, value_dom);
         }
-        case SHM_MUTATION_REMOVE_ATTRIBUTE: {
-            dom_string *name_dom = NULL;
-            dom_string_create((const uint8_t *)m_name_cstr, strlen(m_name_cstr), &name_dom);
-            if (target && name_dom) {
-                dom_element_remove_attribute((dom_element *)target, name_dom);
-            }
-            if (name_dom) dom_string_unref(name_dom);
-            break;
+        if (name_dom)
+            dom_string_unref(name_dom);
+        if (value_dom)
+            dom_string_unref(value_dom);
+        break;
+    }
+    case SHM_MUTATION_REMOVE_ATTRIBUTE: {
+        dom_string *name_dom = NULL;
+        dom_string_create((const uint8_t *)m_name_cstr, strlen(m_name_cstr), &name_dom);
+        if (target && name_dom) {
+            dom_element_remove_attribute((dom_element *)target, name_dom);
         }
-        case SHM_MUTATION_APPEND_CHILD: {
-            if (target && param1) {
-                dom_node_append_child(target, param1, NULL);
-            }
-            break;
+        if (name_dom)
+            dom_string_unref(name_dom);
+        break;
+    }
+    case SHM_MUTATION_APPEND_CHILD: {
+        if (target && param1) {
+            dom_node_append_child(target, param1, NULL);
         }
-        case SHM_MUTATION_REMOVE_CHILD: {
-            if (target && param1) {
-                dom_node_remove_child(target, param1, NULL);
-            }
-            break;
+        break;
+    }
+    case SHM_MUTATION_REMOVE_CHILD: {
+        if (target && param1) {
+            dom_node_remove_child(target, param1, NULL);
         }
-        case SHM_MUTATION_INSERT_BEFORE: {
-            if (target && param1) {
-                dom_node_insert_before(target, param1, param2, NULL);
-            }
-            break;
+        break;
+    }
+    case SHM_MUTATION_INSERT_BEFORE: {
+        if (target && param1) {
+            dom_node_insert_before(target, param1, param2, NULL);
         }
-        case SHM_MUTATION_REPLACE_CHILD: {
-            if (target && param1 && param2) {
-                dom_node_replace_child(target, param1, param2, NULL);
-            }
-            break;
+        break;
+    }
+    case SHM_MUTATION_REPLACE_CHILD: {
+        if (target && param1 && param2) {
+            dom_node_replace_child(target, param1, param2, NULL);
         }
-        case SHM_MUTATION_SET_NODE_VALUE: {
-            dom_string *ds = NULL;
-            dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &ds);
-            if (target && ds) {
-                dom_node_set_node_value(target, ds);
-            }
-            if (ds) dom_string_unref(ds);
-            break;
+        break;
+    }
+    case SHM_MUTATION_SET_NODE_VALUE: {
+        dom_string *ds = NULL;
+        dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &ds);
+        if (target && ds) {
+            dom_node_set_node_value(target, ds);
         }
-        case SHM_MUTATION_SET_TEXT_CONTENT: {
-            dom_string *ds = NULL;
-            dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &ds);
-            if (target && ds) {
-                dom_node_set_text_content(target, ds);
-            }
-            if (ds) dom_string_unref(ds);
-            break;
+        if (ds)
+            dom_string_unref(ds);
+        break;
+    }
+    case SHM_MUTATION_SET_TEXT_CONTENT: {
+        dom_string *ds = NULL;
+        dom_string_create((const uint8_t *)m_value_cstr, strlen(m_value_cstr), &ds);
+        if (target && ds) {
+            dom_node_set_text_content(target, ds);
         }
-        case SHM_MUTATION_SET_INNER_HTML: {
-            if (target && m_value_cstr) {
-                // Clear existing children
-                dom_node *child = NULL;
-                while (dom_node_get_first_child(target, &child) == DOM_NO_ERR && child != NULL) {
-                    dom_node_remove_child(target, child, NULL);
-                    dom_node_unref(child);
-                    child = NULL;
-                }
+        if (ds)
+            dom_string_unref(ds);
+        break;
+    }
+    case SHM_MUTATION_SET_INNER_HTML: {
+        if (target && m_value_cstr) {
+            // Clear existing children
+            dom_node *child = NULL;
+            while (dom_node_get_first_child(target, &child) == DOM_NO_ERR && child != NULL) {
+                dom_node_remove_child(target, child, NULL);
+                dom_node_unref(child);
+                child = NULL;
+            }
 
-                // Parse and insert new HTML using Hubbub
-                dom_hubbub_parser_params params;
-                memset(&params, 0, sizeof(params));
-                params.enc = "UTF-8";
-                params.idname = corestring_dom_id;
+            // Parse and insert new HTML using Hubbub
+            dom_hubbub_parser_params params;
+            memset(&params, 0, sizeof(params));
+            params.enc = "UTF-8";
+            params.idname = corestring_dom_id;
 
-                dom_hubbub_parser *parser = NULL;
-                dom_document_fragment *fragment = NULL;
-                dom_hubbub_error err = dom_hubbub_fragment_parser_create(&params, doc, &parser, &fragment);
+            dom_hubbub_parser *parser = NULL;
+            dom_document_fragment *fragment = NULL;
+            dom_hubbub_error err = dom_hubbub_fragment_parser_create(&params, doc, &parser, &fragment);
+            if (err == DOM_HUBBUB_OK) {
+                err = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)m_value_cstr, strlen(m_value_cstr));
                 if (err == DOM_HUBBUB_OK) {
-                    err = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)m_value_cstr, strlen(m_value_cstr));
-                    if (err == DOM_HUBBUB_OK) {
-                        err = dom_hubbub_parser_completed(parser);
-                    }
-                    if (err == DOM_HUBBUB_OK && fragment != NULL) {
-                        dom_node *f_child = NULL;
-                        while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
-                            dom_node *result = NULL;
-                            dom_node_append_child(target, f_child, &result);
-                            if (result) dom_node_unref(result);
-                            dom_node_unref(f_child);
-                            f_child = NULL;
-                        }
-                    }
-                    if (fragment) dom_node_unref((dom_node *)fragment);
-                    dom_hubbub_parser_destroy(parser);
+                    err = dom_hubbub_parser_completed(parser);
                 }
+                if (err == DOM_HUBBUB_OK && fragment != NULL) {
+                    dom_node *f_child = NULL;
+                    while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
+                        dom_node *result = NULL;
+                        dom_node_append_child(target, f_child, &result);
+                        if (result)
+                            dom_node_unref(result);
+                        dom_node_unref(f_child);
+                        f_child = NULL;
+                    }
+                }
+                if (fragment)
+                    dom_node_unref((dom_node *)fragment);
+                dom_hubbub_parser_destroy(parser);
             }
-            break;
         }
+        break;
+    }
     }
 }
 
-static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box *box) {
-    if (!box) return;
+static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box *box)
+{
+    if (!box)
+        return;
     shm_dom_t *shm = thread->shm_dom;
-    if (!shm) return;
+    if (!shm)
+        return;
     if (box->node) {
         for (uint32_t i = 1; i < shm->node_count; i++) {
             if (shm_dom_get_dom_ptrs(shm)[i] == (uint64_t)(uintptr_t)box->node) {
@@ -4202,7 +4359,8 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
                     if (l_idx >= shm->node_capacity) {
                         shm_dom_ensure_capacity(thread, l_idx + 1);
                         shm = thread->shm_dom;
-                        if (!shm) return;
+                        if (!shm)
+                            return;
                         nodes_array = shm_dom_get_nodes(shm);
                         node = &nodes_array[i];
                     }
@@ -4233,8 +4391,10 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
     }
 }
 
-void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
-    if (!thread || !thread->shm_dom || !doc_box) return;
+void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box)
+{
+    if (!thread || !thread->shm_dom || !doc_box)
+        return;
     host_ensure_shm_capacity(thread);
     shm_dom_t *shm = thread->shm_dom;
     shm_dom_lock_write(shm);
@@ -4249,8 +4409,11 @@ void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box) {
 
 extern bool layout_document(struct html_content *content, int width, int height);
 
-static void force_synchronous_layout(struct jsthread *thread) {
-    struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv) ? (struct html_content *)thread->doc_priv : NULL;
+static void force_synchronous_layout(struct jsthread *thread)
+{
+    struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv)
+        ? (struct html_content *)thread->doc_priv
+        : NULL;
     if (htmlc && htmlc->layout) {
         int width = htmlc->last_layout_width > 0 ? htmlc->last_layout_width : 1024;
         int height = htmlc->last_layout_height > 0 ? htmlc->last_layout_height : 768;
@@ -4263,8 +4426,10 @@ static void force_synchronous_layout(struct jsthread *thread) {
     }
 }
 
-void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
-    if (!shm) return;
+void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc)
+{
+    if (!shm)
+        return;
     shm_mutation_queue_t *mq = &shm->mutation_queue;
     while (mq->tail != mq->head) {
         uint32_t idx = mq->tail % SHM_MUTATION_QUEUE_SIZE;
@@ -4276,11 +4441,14 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
 
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
 {
-    if (!thread || thread->closed) return false;
+    if (!thread || thread->closed)
+        return false;
     JS_UpdateStackTop(JS_GetRuntime(thread->ctx));
 
     /* In-process Content Security Policy (CSP) validation */
-    struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv) ? (struct html_content *)thread->doc_priv : NULL;
+    struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv)
+        ? (struct html_content *)thread->doc_priv
+        : NULL;
 
     bool is_module = false;
     struct html_script *found_s = NULL;
@@ -4323,12 +4491,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
         if (name) {
             /* Check if name has a scheme/URL prefix, including protocol-relative, data, or blob URLs */
-            if (strstr(name, "://") ||
-                strncmp(name, "//", 2) == 0 ||
-                strncmp(name, "data:", 5) == 0 ||
-                strncmp(name, "blob:", 5) == 0 ||
-                strncmp(name, "http", 4) == 0 ||
-                strncmp(name, "file", 4) == 0) {
+            if (strstr(name, "://") || strncmp(name, "//", 2) == 0 || strncmp(name, "data:", 5) == 0 ||
+                strncmp(name, "blob:", 5) == 0 || strncmp(name, "http", 4) == 0 || strncmp(name, "file", 4) == 0) {
 
                 if (nsurl_create(name, &url) != NSERROR_OK) {
                     if (htmlc->base_url) {
@@ -4363,8 +4527,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             nsurl_unref(url);
         } else {
             /* This is an inline or dynamic script evaluation.
-             * If name is "?inline script?", it was already validated in exec_inline_script using nonce or inline checks.
-             * Otherwise, check if inline script execution is permitted by CSP.
+             * If name is "?inline script?", it was already validated in exec_inline_script using nonce or inline
+             * checks. Otherwise, check if inline script execution is permitted by CSP.
              */
             if (!name || strcmp(name, "?inline script?") != 0) {
                 bool is_dynamic_eval = false;
@@ -4374,12 +4538,14 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 
                 if (is_dynamic_eval) {
                     if (!csp_check_eval(htmlc->csp)) {
-                        NSLOG(wisp, WARNING, "CSP blocked dynamic script evaluation (unsafe-eval) under QuickJS: %s", name ? name : "unnamed");
+                        NSLOG(wisp, WARNING, "CSP blocked dynamic script evaluation (unsafe-eval) under QuickJS: %s",
+                            name ? name : "unnamed");
                         return false;
                     }
                 } else {
                     if (!csp_check_inline(htmlc->csp, CSP_SCRIPT_SRC)) {
-                        NSLOG(wisp, WARNING, "CSP blocked inline script execution under QuickJS: %s", name ? name : "unnamed");
+                        NSLOG(wisp, WARNING, "CSP blocked inline script execution under QuickJS: %s",
+                            name ? name : "unnamed");
                         return false;
                     }
                 }
@@ -4499,7 +4665,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         }
                     } else if (recv_err != NSERROR_NOT_FOUND) {
                         /* Socket error or EOF -> crash detected! */
-                        NSLOG(wisp, ERROR, "JS process crashed during recv (error %d) for origin %s", (int)recv_err, thread->origin);
+                        NSLOG(wisp, ERROR, "JS process crashed during recv (error %d) for origin %s", (int)recv_err,
+                            thread->origin);
                         handle_process_crash(thread->origin);
                         crashed = true;
                         break;
@@ -4571,7 +4738,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
             NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
-            if (exc_str) JS_FreeCString(ctx1, exc_str);
+            if (exc_str)
+                JS_FreeCString(ctx1, exc_str);
             JS_FreeValue(ctx1, exc);
         }
     }
@@ -4592,7 +4760,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         }
         JS_FreeValue(thread->ctx, stack);
         NSLOG(wisp, ERROR, "JS execution error in %s: %s", name, exc_str ? exc_str : "unknown error");
-        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        if (exc_str)
+            JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);
     }
     JS_FreeValue(thread->ctx, val);
@@ -4603,27 +4772,36 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 static void qjs_event_handler(struct dom_event *evt, void *pw)
 {
     struct qjs_event_listener_ctx *ctx = pw;
-    if (!ctx || !ctx->thread || ctx->thread->closed) return;
+    if (!ctx || !ctx->thread || ctx->thread->closed)
+        return;
     jsthread *thread = ctx->thread;
     JSContext *jsctx = thread->ctx;
     JSValue global = JS_GetGlobalObject(jsctx);
     JSValue js_evt = JS_UNDEFINED;
     struct qjs_event_map *map = thread->events;
     while (map) {
-        if (map->evt == evt) { js_evt = JS_DupValue(jsctx, map->js_evt); break; }
+        if (map->evt == evt) {
+            js_evt = JS_DupValue(jsctx, map->js_evt);
+            break;
+        }
         map = map->next;
     }
     if (JS_IsUndefined(js_evt)) {
         js_evt = qjs_new_event(jsctx, evt, true);
         struct qjs_event_map *new_map = malloc(sizeof(*new_map));
         if (new_map) {
-            dom_event_ref(evt); new_map->evt = evt;
+            dom_event_ref(evt);
+            new_map->evt = evt;
             new_map->js_evt = JS_DupValue(jsctx, js_evt);
-            new_map->next = thread->events; thread->events = new_map;
+            new_map->next = thread->events;
+            thread->events = new_map;
         }
     }
     struct dom_document *doc_node_evt = qjs_thread_get_document(thread);
-    JSValue this_obj = (ctx->target == (struct dom_event_target *)thread->win_priv || ctx->target == (struct dom_event_target *)doc_node_evt) ? JS_DupValue(jsctx, global) : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
+    JSValue this_obj = (ctx->target == (struct dom_event_target *)thread->win_priv ||
+                           ctx->target == (struct dom_event_target *)doc_node_evt)
+        ? JS_DupValue(jsctx, global)
+        : qjs_wrap_node(jsctx, (dom_node *)ctx->target);
 
     dom_event_target *evt_target = NULL;
     dom_event_get_target(evt, &evt_target);
@@ -4666,8 +4844,11 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     }
 
     if (JS_IsException(ret)) {
-        JSValue exc = JS_GetException(jsctx); const char *exc_str = JS_ToCString(jsctx, exc);
-        if (exc_str) JS_FreeCString(jsctx, exc_str); JS_FreeValue(jsctx, exc);
+        JSValue exc = JS_GetException(jsctx);
+        const char *exc_str = JS_ToCString(jsctx, exc);
+        if (exc_str)
+            JS_FreeCString(jsctx, exc_str);
+        JS_FreeValue(jsctx, exc);
     }
 
     JSContext *ctx1;
@@ -4677,24 +4858,33 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
             NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
-            if (exc_str) JS_FreeCString(ctx1, exc_str);
+            if (exc_str)
+                JS_FreeCString(ctx1, exc_str);
             JS_FreeValue(ctx1, exc);
         }
     }
 
-    JS_FreeValue(jsctx, ret); JS_FreeValue(jsctx, this_obj); JS_FreeValue(jsctx, js_evt); JS_FreeValue(jsctx, global);
+    JS_FreeValue(jsctx, ret);
+    JS_FreeValue(jsctx, this_obj);
+    JS_FreeValue(jsctx, js_evt);
+    JS_FreeValue(jsctx, global);
 }
 
 bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
 {
-    if (!thread || !doc) return false;
-    if (!target) target = (dom_node *)doc;
+    if (!thread || !doc)
+        return false;
+    if (!target)
+        target = (dom_node *)doc;
     if (target == (dom_node *)thread->win_priv) {
         target = (dom_node *)qjs_thread_get_document(thread);
-        if (!target) return false;
+        if (!target)
+            return false;
     }
-    dom_string *type_str = NULL; dom_string_create((const uint8_t *)type, strlen(type), &type_str);
-    dom_event *evt = NULL; dom_event_create(&evt);
+    dom_string *type_str = NULL;
+    dom_string_create((const uint8_t *)type, strlen(type), &type_str);
+    dom_event *evt = NULL;
+    dom_event_create(&evt);
     bool success = false;
     if (evt) {
         dom_event_init(evt, type_str, false, false);
@@ -4707,62 +4897,89 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
     return success;
 }
 
-bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, JSValue js_funcval)
+bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
+    struct dom_string *event_type_dom, JSValue js_funcval)
 {
-    if (!thread || !node) return false;
+    if (!thread || !node)
+        return false;
     if (node == (struct dom_node *)thread->win_priv) {
         node = (struct dom_node *)qjs_thread_get_document(thread);
-        if (!node) return false;
+        if (!node)
+            return false;
     }
     struct qjs_event_listener_ctx *ctx = malloc(sizeof(*ctx));
-    if (!ctx) return false;
-    ctx->thread = thread; ctx->func = JS_DupValue(thread->ctx, js_funcval);
-    ctx->target = (struct dom_event_target *)node; ctx->type = event_type_dom;
-    dom_node_ref(node); dom_string_ref(event_type_dom);
+    if (!ctx)
+        return false;
+    ctx->thread = thread;
+    ctx->func = JS_DupValue(thread->ctx, js_funcval);
+    ctx->target = (struct dom_event_target *)node;
+    ctx->type = event_type_dom;
+    dom_node_ref(node);
+    dom_string_ref(event_type_dom);
     dom_event_listener *listener;
     if (dom_event_listener_create(qjs_event_handler, ctx, &listener) != DOM_NO_ERR) {
-        dom_node_unref(node); dom_string_unref(event_type_dom); JS_FreeValue(thread->ctx, ctx->func); free(ctx);
+        dom_node_unref(node);
+        dom_string_unref(event_type_dom);
+        JS_FreeValue(thread->ctx, ctx->func);
+        free(ctx);
         return false;
     }
     ctx->listener = listener;
     dom_event_target_add_event_listener(ctx->target, ctx->type, listener, false);
-    ctx->next = thread->listeners; thread->listeners = ctx;
+    ctx->next = thread->listeners;
+    thread->listeners = ctx;
     return true;
 }
 
-bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node, struct dom_string *event_type_dom, JSValue js_funcval)
+bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
+    struct dom_string *event_type_dom, JSValue js_funcval)
 {
-    if (!thread || !node) return false;
+    if (!thread || !node)
+        return false;
     if (node == (struct dom_node *)thread->win_priv) {
         node = (struct dom_node *)qjs_thread_get_document(thread);
-        if (!node) return false;
+        if (!node)
+            return false;
     }
     struct qjs_event_listener_ctx **prev = &thread->listeners;
     struct qjs_event_listener_ctx *curr = thread->listeners;
     while (curr) {
-        if (curr->target == (struct dom_event_target *)node && dom_string_isequal(curr->type, event_type_dom) && JS_VALUE_GET_PTR(curr->func) == JS_VALUE_GET_PTR(js_funcval)) {
+        if (curr->target == (struct dom_event_target *)node && dom_string_isequal(curr->type, event_type_dom) &&
+            JS_VALUE_GET_PTR(curr->func) == JS_VALUE_GET_PTR(js_funcval)) {
             dom_event_target_remove_event_listener(curr->target, curr->type, curr->listener, false);
-            dom_node_unref((struct dom_node *)curr->target); dom_string_unref(curr->type);
-            JS_FreeValue(thread->ctx, curr->func); dom_event_listener_unref(curr->listener);
-            *prev = curr->next; free(curr); return true;
+            dom_node_unref((struct dom_node *)curr->target);
+            dom_string_unref(curr->type);
+            JS_FreeValue(thread->ctx, curr->func);
+            dom_event_listener_unref(curr->listener);
+            *prev = curr->next;
+            free(curr);
+            return true;
         }
-        prev = &curr->next; curr = curr->next;
+        prev = &curr->next;
+        curr = curr->next;
     }
     return false;
 }
 
-void js_handle_new_element(jsthread *thread, struct dom_element *node) {}
+void js_handle_new_element(jsthread *thread, struct dom_element *node)
+{
+}
 
 bool js_event_cleanup(jsthread *thread, struct dom_event *evt)
 {
-    if (!thread || !evt) return false;
+    if (!thread || !evt)
+        return false;
     struct qjs_event_map **prev = &thread->events, *curr = thread->events;
     while (curr) {
         if (curr->evt == evt) {
-            *prev = curr->next; JS_FreeValue(thread->ctx, curr->js_evt);
-            dom_event_unref(evt); free(curr); return true;
+            *prev = curr->next;
+            JS_FreeValue(thread->ctx, curr->js_evt);
+            dom_event_unref(evt);
+            free(curr);
+            return true;
         }
-        prev = &curr->next; curr = curr->next;
+        prev = &curr->next;
+        curr = curr->next;
     }
     return false;
 }
@@ -4771,11 +4988,14 @@ JSValue qjs_new_intersectionobserverentry_manual(JSContext *ctx, WispIntersectio
 
 void js_handle_intersection_check(jsthread *thread, struct box *layout, int viewport_width, int viewport_height)
 {
-    if (!thread || !thread->intersection_observers || !layout) return;
-    uint64_t now_ms; nsu_getmonotonic_ms(&now_ms);
+    if (!thread || !thread->intersection_observers || !layout)
+        return;
+    uint64_t now_ms;
+    nsu_getmonotonic_ms(&now_ms);
     WispIntersectionObserver *obs = thread->intersection_observers;
     while (obs) {
-        bool changed = false; IntersectionObserverTarget *ot = obs->targets;
+        bool changed = false;
+        IntersectionObserverTarget *ot = obs->targets;
 
         int rx0 = 0, ry0 = 0, rx1 = viewport_width, ry1 = viewport_height;
         if (obs->root) {
@@ -4790,7 +5010,8 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
         while (ot) {
             struct box *target_box = box_find_by_node(layout, ot->node);
             if (target_box) {
-                int tx, ty; box_coords(target_box, &tx, &ty);
+                int tx, ty;
+                box_coords(target_box, &tx, &ty);
                 int tw = target_box->width + target_box->padding[LEFT] + target_box->padding[RIGHT];
                 int th = target_box->height + target_box->padding[TOP] + target_box->padding[BOTTOM];
 
@@ -4825,21 +5046,33 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
                 }
 
                 if (trigger) {
-                    WispIntersectionObserverEntry entry; memset(&entry, 0, sizeof(entry));
-                    entry.time = (double)now_ms; entry.target = ot->node; dom_node_ref(ot->node);
-                    entry.isIntersecting = isIntersecting; entry.targetX = tx; entry.targetY = ty;
-                    entry.targetWidth = tw; entry.targetHeight = th;
-                    entry.rootWidth = rx1 - rx0; entry.rootHeight = ry1 - ry0;
+                    WispIntersectionObserverEntry entry;
+                    memset(&entry, 0, sizeof(entry));
+                    entry.time = (double)now_ms;
+                    entry.target = ot->node;
+                    dom_node_ref(ot->node);
+                    entry.isIntersecting = isIntersecting;
+                    entry.targetX = tx;
+                    entry.targetY = ty;
+                    entry.targetWidth = tw;
+                    entry.targetHeight = th;
+                    entry.rootWidth = rx1 - rx0;
+                    entry.rootHeight = ry1 - ry0;
                     if (isIntersecting) {
-                        entry.intersectX = ix0; entry.intersectY = iy0;
-                        entry.intersectWidth = ix1 - ix0; entry.intersectHeight = iy1 - iy0;
+                        entry.intersectX = ix0;
+                        entry.intersectY = iy0;
+                        entry.intersectWidth = ix1 - ix0;
+                        entry.intersectHeight = iy1 - iy0;
                         entry.intersectionRatio = currentRatio;
                     } else {
                         entry.intersectionRatio = 0.0;
                     }
-                    uint32_t len = 0; JSValue js_len = JS_GetPropertyStr(obs->ctx, obs->queue, "length");
-                    JS_ToUint32(obs->ctx, &len, js_len); JS_FreeValue(obs->ctx, js_len);
-                    JS_SetPropertyUint32(obs->ctx, obs->queue, len, qjs_new_intersectionobserverentry_manual(obs->ctx, &entry));
+                    uint32_t len = 0;
+                    JSValue js_len = JS_GetPropertyStr(obs->ctx, obs->queue, "length");
+                    JS_ToUint32(obs->ctx, &len, js_len);
+                    JS_FreeValue(obs->ctx, js_len);
+                    JS_SetPropertyUint32(
+                        obs->ctx, obs->queue, len, qjs_new_intersectionobserverentry_manual(obs->ctx, &entry));
                     ot->wasIntersecting = isIntersecting;
                     ot->lastRatio = currentRatio;
                     changed = true;
@@ -4848,9 +5081,12 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
             ot = ot->next;
         }
         if (changed) {
-            JSValue args[2]; args[0] = obs->queue; args[1] = JS_NULL;
+            JSValue args[2];
+            args[0] = obs->queue;
+            args[1] = JS_NULL;
             JSValue ret = JS_Call(obs->ctx, obs->callback, JS_UNDEFINED, 2, args);
-            JS_FreeValue(obs->ctx, ret); JS_FreeValue(obs->ctx, obs->queue);
+            JS_FreeValue(obs->ctx, ret);
+            JS_FreeValue(obs->ctx, obs->queue);
             obs->queue = JS_NewArray(obs->ctx);
         }
         obs = obs->next;
