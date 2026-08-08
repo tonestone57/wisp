@@ -55,6 +55,7 @@ struct jsheap {
     uint64_t deadline_ms;
     uint64_t last_yield_ms;
     struct jsthread *threads; /* Head of linked list of active threads on this heap */
+    struct jsheap *next_in_global; /* Thread-safe global linked list of active heaps */
 };
 
 struct qjs_timer {
