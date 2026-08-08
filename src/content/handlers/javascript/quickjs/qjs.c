@@ -460,7 +460,7 @@ void qjs_on_node_destroy(void *node) {
                         if (owner == (struct dom_document *)node) {
                             shm_dom_get_dom_ptrs(shm)[i] = 0;
                         }
-                        if (owner) {
+                        if (owner && owner != (struct dom_document *)node) {
                             dom_node_unref((dom_node *)owner);
                         }
                     }
