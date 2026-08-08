@@ -10,6 +10,7 @@
 #include "utils/hashmap.h"
 #include "wisp/utils/shm_dom.h"
 
+static bool qjs_get_node_type(struct dom_node *node, dom_node_type *out_type);
 
 typedef struct {
     JSContext *ctx;
@@ -191,7 +192,16 @@ void qjs_bridge_cleanup(JSRuntime *rt)
         bridge_full_cleanup_t cleanup = { .rt = rt, .keys = NULL, .count = 0, .capacity = 0 };
         hashmap_iterate(map, bridge_full_cleanup_cb, &cleanup);
 
+        /* First pass: unref all non-document nodes first to ensure their reference
+         * counts drop to 0 before the document node is finalising. This prevents
+         * document teardown from being blocked by pending child node references. */
         for (size_t i = 0; i < cleanup.count; i++) {
+            dom_node_type type = 0;
+            bool has_type = qjs_get_node_type(cleanup.keys[i].node, &type);
+            if (has_type && type == DOM_DOCUMENT_NODE) {
+                continue;
+            }
+
             /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
@@ -206,6 +216,30 @@ void qjs_bridge_cleanup(JSRuntime *rt)
                 if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
             }
         }
+
+        /* Second pass: unref all document nodes */
+        for (size_t i = 0; i < cleanup.count; i++) {
+            dom_node_type type = 0;
+            bool has_type = qjs_get_node_type(cleanup.keys[i].node, &type);
+            if (has_type && type != DOM_DOCUMENT_NODE) {
+                continue;
+            }
+
+            /* Entries must be removed from map before unref to avoid re-entrant UAF. */
+            JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
+            if (val) {
+                JSClassID class_id = 0;
+                QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
+                if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.keys[i].node) {
+                    if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
+                    priv->node = NULL;
+                    priv->magic = 0;
+                }
+                hashmap_remove(map, &cleanup.keys[i]);
+                if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
+            }
+        }
+
         free(cleanup.keys);
         hashmap_destroy(map);
         JS_SetRuntimeOpaque(rt, NULL);
