@@ -480,7 +480,8 @@ JSValue wisp_htmlelement_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (JS_IsObject(wrapper)) {
         JSValue style = JS_GetPropertyStr(ctx, wrapper, "__wisp_style_cached");
         if (JS_IsUndefined(style)) {
-            JSValue initial_style = JS_NewObject(ctx);
+            extern JSValue qjs_new_cssstyledeclaration(JSContext *ctx, void *node, bool is_dom_node);
+            JSValue initial_style = qjs_new_cssstyledeclaration(ctx, priv->node, true);
             JSValue global_obj = JS_GetGlobalObject(ctx);
             JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
             if (JS_IsFunction(ctx, make_proxy_fn)) {
@@ -645,7 +646,8 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
 }
 
 static JSValue wisp_create_fallback_style_proxy(JSContext *ctx) {
-    JSValue initial_style = JS_NewObject(ctx);
+    extern JSValue qjs_new_cssstyledeclaration(JSContext *ctx, void *node, bool is_dom_node);
+    JSValue initial_style = qjs_new_cssstyledeclaration(ctx, NULL, true);
     JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
     if (JS_IsFunction(ctx, make_proxy_fn)) {
@@ -669,6 +671,15 @@ static JSValue js_element_style_get_global(JSContext *ctx, JSValueConst this_val
     QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
     if (!priv) return wisp_create_fallback_style_proxy(ctx);
     return wisp_htmlelement_style_get_impl(ctx, priv);
+}
+
+static JSValue js_new_cssstyledeclaration_global(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    if (argc < 1) return JS_NULL;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
+    if (!priv || !priv->node) return JS_NULL;
+    extern JSValue qjs_new_cssstyledeclaration(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_cssstyledeclaration(ctx, priv->node, true);
 }
 
 int qjs_init_element(JSContext *ctx) {
@@ -933,6 +944,10 @@ int qjs_init_element(JSContext *ctx) {
     /* Define __wisp_element_style_get on global_obj */
     JSValue style_get_fn = JS_NewCFunction(ctx, js_element_style_get_global, "__wisp_element_style_get", 1);
     JS_SetPropertyStr(ctx, global_obj, "__wisp_element_style_get", style_get_fn);
+
+    /* Define __wisp_new_cssstyledeclaration on global_obj */
+    JSValue new_style_fn = JS_NewCFunction(ctx, js_new_cssstyledeclaration_global, "__wisp_new_cssstyledeclaration", 1);
+    JS_SetPropertyStr(ctx, global_obj, "__wisp_new_cssstyledeclaration", new_style_fn);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_element_init", JS_TRUE, 0);

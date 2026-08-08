@@ -6440,31 +6440,298 @@ JSValue wisp_htmltrackelement_track_get_impl(JSContext *ctx, QJSNodePrivate *pri
     return get_element_str_attr(ctx, priv, "track", "");
 }
 
+#include <ctype.h>
+
+struct style_property {
+    char *name;
+    char *value;
+};
+
+static char *camel_to_kebab(const char *str) {
+    if (!str) return NULL;
+    size_t len = strlen(str);
+    char *res = malloc(len * 2 + 1);
+    size_t j = 0;
+    for (size_t i = 0; i < len; i++) {
+        if (isupper((unsigned char)str[i])) {
+            res[j++] = '-';
+            res[j++] = tolower((unsigned char)str[i]);
+        } else {
+            res[j++] = str[i];
+        }
+    }
+    res[j] = '\0';
+    return res;
+}
+
+static int parse_style_attribute(const char *style_str, struct style_property *props, int max_props) {
+    if (!style_str) return 0;
+    int count = 0;
+    char *str = strdup(style_str);
+    char *saveptr1 = NULL;
+    char *decl = strtok_r(str, ";", &saveptr1);
+    while (decl && count < max_props) {
+        char *colon = strchr(decl, ':');
+        if (colon) {
+            *colon = '\0';
+            char *name = decl;
+            char *val = colon + 1;
+            while (isspace((unsigned char)*name)) name++;
+            char *name_end = name + strlen(name) - 1;
+            while (name_end >= name && isspace((unsigned char)*name_end)) {
+                *name_end = '\0';
+                name_end--;
+            }
+            while (isspace((unsigned char)*val)) val++;
+            char *val_end = val + strlen(val) - 1;
+            while (val_end >= val && isspace((unsigned char)*val_end)) {
+                *val_end = '\0';
+                val_end--;
+            }
+            if (*name && *val) {
+                for (char *p = name; *p; p++) *p = tolower((unsigned char)*p);
+                props[count].name = strdup(name);
+                props[count].value = strdup(val);
+                count++;
+            }
+        }
+        decl = strtok_r(NULL, ";", &saveptr1);
+    }
+    free(str);
+    return count;
+}
+
+static void free_style_properties(struct style_property *props, int count) {
+    for (int i = 0; i < count; i++) {
+        free(props[i].name);
+        free(props[i].value);
+    }
+}
+
+static bool has_important_priority(const char *val) {
+    if (!val) return false;
+    size_t len = strlen(val);
+    if (len < 10) return false;
+    const char *suffix = val + len - 10;
+    if (strcasecmp(suffix, "!important") == 0) {
+        return true;
+    }
+    return false;
+}
+
+static char *get_clean_value(const char *val) {
+    if (!val) return NULL;
+    size_t len = strlen(val);
+    if (len >= 10) {
+        const char *suffix = val + len - 10;
+        if (strcasecmp(suffix, "!important") == 0) {
+            size_t clean_len = len - 10;
+            char *clean_val = strndup(val, clean_len);
+            char *end = clean_val + clean_len - 1;
+            while (end >= clean_val && isspace((unsigned char)*end)) {
+                *end = '\0';
+                end--;
+            }
+            return clean_val;
+        }
+    }
+    return strdup(val);
+}
+
+static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, struct style_property *props, int count) {
+    size_t total_len = 0;
+    for (int i = 0; i < count; i++) {
+        total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
+    }
+    char *buf = malloc(total_len + 1);
+    buf[0] = '\0';
+    for (int i = 0; i < count; i++) {
+        strcat(buf, props[i].name);
+        strcat(buf, ": ");
+        strcat(buf, props[i].value);
+        strcat(buf, "; ");
+    }
+    JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
+    JS_FreeValue(ctx, dummy);
+    free(buf);
+}
+
 JSValue wisp_cssstyledeclaration_getPropertyPriority_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node || !property) return JS_NewString(ctx, "");
+    char *kebab = camel_to_kebab(property);
+    JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
+    if (JS_IsNull(style_attr) || JS_IsUndefined(style_attr)) {
+        free(kebab);
+        return JS_NewString(ctx, "");
+    }
+    const char *style_str = JS_ToCString(ctx, style_attr);
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    JS_FreeCString(ctx, style_str);
+    JS_FreeValue(ctx, style_attr);
+    JSValue result = JS_NewString(ctx, "");
+    for (int i = 0; i < count; i++) {
+        if (strcasecmp(props[i].name, kebab) == 0) {
+            if (has_important_priority(props[i].value)) {
+                JS_FreeValue(ctx, result);
+                result = JS_NewString(ctx, "important");
+            }
+            break;
+        }
+    }
+    free_style_properties(props, count);
+    free(kebab);
+    return result;
 }
 
 JSValue wisp_cssstyledeclaration_getPropertyValue_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node || !property) return JS_NewString(ctx, "");
+    char *kebab = camel_to_kebab(property);
+    JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
+    if (JS_IsNull(style_attr) || JS_IsUndefined(style_attr)) {
+        free(kebab);
+        return JS_NewString(ctx, "");
+    }
+    const char *style_str = JS_ToCString(ctx, style_attr);
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    JS_FreeCString(ctx, style_str);
+    JS_FreeValue(ctx, style_attr);
+    JSValue result = JS_NewString(ctx, "");
+    for (int i = 0; i < count; i++) {
+        if (strcasecmp(props[i].name, kebab) == 0) {
+            char *clean_val = get_clean_value(props[i].value);
+            JS_FreeValue(ctx, result);
+            result = JS_NewString(ctx, clean_val);
+            free(clean_val);
+            break;
+        }
+    }
+    free_style_properties(props, count);
+    free(kebab);
+    return result;
 }
 
 JSValue wisp_cssstyledeclaration_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
+    if (JS_IsNull(style_attr) || JS_IsUndefined(style_attr)) {
+        return JS_NewString(ctx, "");
+    }
+    const char *style_str = JS_ToCString(ctx, style_attr);
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    JS_FreeCString(ctx, style_str);
+    JS_FreeValue(ctx, style_attr);
+    JSValue result = JS_NewString(ctx, "");
+    if (index < (uint32_t)count) {
+        JS_FreeValue(ctx, result);
+        result = JS_NewString(ctx, props[index].name);
+    }
+    free_style_properties(props, count);
+    return result;
 }
 
 JSValue wisp_cssstyledeclaration_removeProperty_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node || !property) return JS_NewString(ctx, "");
+    char *kebab = camel_to_kebab(property);
+    JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
+    const char *style_str = NULL;
+    if (!JS_IsNull(style_attr) && !JS_IsUndefined(style_attr)) {
+        style_str = JS_ToCString(ctx, style_attr);
+    }
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    if (style_str) {
+        JS_FreeCString(ctx, style_str);
+    }
+    JS_FreeValue(ctx, style_attr);
+    JSValue removed_val = JS_NewString(ctx, "");
+    for (int i = 0; i < count; i++) {
+        if (strcasecmp(props[i].name, kebab) == 0) {
+            char *clean = get_clean_value(props[i].value);
+            JS_FreeValue(ctx, removed_val);
+            removed_val = JS_NewString(ctx, clean);
+            free(clean);
+            free(props[i].name);
+            free(props[i].value);
+            props[i] = props[--count];
+            break;
+        }
+    }
+    serialize_style_properties(ctx, priv, props, count);
+    free_style_properties(props, count);
+    free(kebab);
+    return removed_val;
 }
 
 JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * value, const char * priority) {
+    if (!priv || !priv->node || !property) return JS_UNDEFINED;
+    char *kebab = camel_to_kebab(property);
+    JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
+    const char *style_str = NULL;
+    if (!JS_IsNull(style_attr) && !JS_IsUndefined(style_attr)) {
+        style_str = JS_ToCString(ctx, style_attr);
+    }
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    if (style_str) {
+        JS_FreeCString(ctx, style_str);
+    }
+    JS_FreeValue(ctx, style_attr);
+    char *final_val = NULL;
+    if (value && *value) {
+        if (priority && strcasecmp(priority, "important") == 0) {
+            size_t needed = strlen(value) + 12;
+            final_val = malloc(needed);
+            snprintf(final_val, needed, "%s !important", value);
+        } else {
+            final_val = strdup(value);
+        }
+    }
+    bool found = false;
+    for (int i = 0; i < count; i++) {
+        if (strcasecmp(props[i].name, kebab) == 0) {
+            free(props[i].value);
+            if (final_val) {
+                props[i].value = strdup(final_val);
+            } else {
+                free(props[i].name);
+                props[i] = props[--count];
+            }
+            found = true;
+            break;
+        }
+    }
+    if (!found && final_val && count < 256) {
+        props[count].name = strdup(kebab);
+        props[count].value = strdup(final_val);
+        count++;
+    }
+    serialize_style_properties(ctx, priv, props, count);
+    if (final_val) free(final_val);
+    free_style_properties(props, count);
+    free(kebab);
     return JS_UNDEFINED;
 }
 
 JSValue wisp_cssstyledeclaration_setPropertyPriority_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * priority) {
+    if (!priv || !priv->node || !property) return JS_UNDEFINED;
+    JSValue current_val = wisp_cssstyledeclaration_getPropertyValue_impl(ctx, priv, property);
+    const char *val_str = JS_ToCString(ctx, current_val);
+    wisp_cssstyledeclaration_setProperty_impl(ctx, priv, property, val_str, priority);
+    JS_FreeCString(ctx, val_str);
+    JS_FreeValue(ctx, current_val);
     return JS_UNDEFINED;
 }
 
 JSValue wisp_cssstyledeclaration_setPropertyValue_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * value) {
+    if (!priv || !priv->node || !property) return JS_UNDEFINED;
+    JSValue current_pri = wisp_cssstyledeclaration_getPropertyPriority_impl(ctx, priv, property);
+    const char *pri_str = JS_ToCString(ctx, current_pri);
+    wisp_cssstyledeclaration_setProperty_impl(ctx, priv, property, value, pri_str);
+    JS_FreeCString(ctx, pri_str);
+    JS_FreeValue(ctx, current_pri);
     return JS_UNDEFINED;
 }
 
@@ -6473,17 +6740,22 @@ JSValue wisp_cssstyledeclaration_cssFloat_get_impl(JSContext *ctx, QJSNodePrivat
 }
 
 JSValue wisp_cssstyledeclaration_cssFloat_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    // Stub setter for cssstyledeclaration.cssFloat
     return JS_UNDEFINED;
 }
 
 JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv) return JS_NewString(ctx, "");
-    return wisp_element_getAttribute_impl(ctx, priv, "style");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "style");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
 }
 
 JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    // Stub setter for cssstyledeclaration.cssText
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", value ? value : "");
+    JS_FreeValue(ctx, dummy);
     return JS_UNDEFINED;
 }
 
@@ -6492,12 +6764,22 @@ JSValue wisp_cssstyledeclaration_dashed_attribute_get_impl(JSContext *ctx, QJSNo
 }
 
 JSValue wisp_cssstyledeclaration_dashed_attribute_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    // Stub setter for cssstyledeclaration.dashed
     return JS_UNDEFINED;
 }
 
 JSValue wisp_cssstyledeclaration_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
+    if (JS_IsNull(style_attr) || JS_IsUndefined(style_attr)) {
+        return JS_NewInt32(ctx, 0);
+    }
+    const char *style_str = JS_ToCString(ctx, style_attr);
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    JS_FreeCString(ctx, style_str);
+    JS_FreeValue(ctx, style_attr);
+    free_style_properties(props, count);
+    return JS_NewInt32(ctx, count);
 }
 
 JSValue wisp_cssstyledeclaration_parentRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
