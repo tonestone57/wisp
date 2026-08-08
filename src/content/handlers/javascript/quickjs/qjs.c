@@ -430,8 +430,15 @@ extern void (*wisp_node_destroy_cb)(void *node);
 static jsheap *global_heaps_list = NULL;
 static pthread_mutex_t global_heaps_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static __thread shm_dom_t *current_thread_shm = NULL;
+static __thread bool thread_shm_locked = false;
+
 void qjs_on_node_destroy(void *node) {
     if (!node) return;
+    dom_node_type type = 0;
+    dom_node_get_node_type((dom_node *)node, &type);
+    bool is_doc = (type == DOM_DOCUMENT_NODE);
+
     pthread_mutex_lock(&global_heaps_mutex);
     jsheap *heap = global_heaps_list;
     while (heap) {
@@ -439,10 +446,27 @@ void qjs_on_node_destroy(void *node) {
         while (t) {
             shm_dom_t *shm = t->shm_dom;
             if (shm) {
+                bool already_locked = (shm == current_thread_shm && thread_shm_locked);
+                if (!already_locked) {
+                    shm_dom_lock_write(shm);
+                }
                 for (uint32_t i = 1; i < shm->node_count; i++) {
-                    if ((void *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[i] == node) {
+                    uintptr_t entry_ptr = (uintptr_t)shm_dom_get_dom_ptrs(shm)[i];
+                    if (entry_ptr == (uintptr_t)node) {
                         shm_dom_get_dom_ptrs(shm)[i] = 0;
+                    } else if (is_doc && entry_ptr != 0 && (entry_ptr % sizeof(void *)) == 0) {
+                        struct dom_document *owner = NULL;
+                        dom_node_get_owner_document((dom_node *)entry_ptr, &owner);
+                        if (owner == (struct dom_document *)node) {
+                            shm_dom_get_dom_ptrs(shm)[i] = 0;
+                        }
+                        if (owner) {
+                            dom_node_unref((dom_node *)owner);
+                        }
                     }
+                }
+                if (!already_locked) {
+                    shm_dom_unlock_write(shm);
                 }
             }
             t = t->next_in_heap;
@@ -954,9 +978,6 @@ struct dom_document *qjs_thread_get_document(struct jsthread *t)
 
 extern void (*wisp_dom_node_destroy_hook)(void *node);
 
-static __thread shm_dom_t *current_thread_shm = NULL;
-static __thread bool thread_shm_locked = false;
-
 static void on_dom_node_destroy(void *node) {
     if (!node) return;
     shm_dom_t *shm = current_thread_shm;
@@ -979,6 +1000,7 @@ static void on_dom_node_destroy(void *node) {
 void js_initialise(void)
 {
     wisp_dom_node_destroy_hook = on_dom_node_destroy;
+    wisp_node_destroy_cb = qjs_on_node_destroy;
 }
 
 void (*wisp_gui_pump_events_hook)(void) = NULL;
@@ -1009,6 +1031,7 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 void js_finalise(void)
 {
     wisp_dom_node_destroy_hook = NULL;
+    wisp_node_destroy_cb = NULL;
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
