@@ -435,6 +435,10 @@ static __thread bool thread_shm_locked = false;
 
 void qjs_on_node_destroy(void *node) {
     if (!node) return;
+    dom_node_type type = 0;
+    dom_node_get_node_type((dom_node *)node, &type);
+    bool is_doc = (type == DOM_DOCUMENT_NODE);
+
     pthread_mutex_lock(&global_heaps_mutex);
     jsheap *heap = global_heaps_list;
     while (heap) {
@@ -447,8 +451,18 @@ void qjs_on_node_destroy(void *node) {
                     shm_dom_lock_write(shm);
                 }
                 for (uint32_t i = 1; i < shm->node_count; i++) {
-                    if ((void *)(uintptr_t)shm_dom_get_dom_ptrs(shm)[i] == node) {
+                    uintptr_t entry_ptr = (uintptr_t)shm_dom_get_dom_ptrs(shm)[i];
+                    if (entry_ptr == (uintptr_t)node) {
                         shm_dom_get_dom_ptrs(shm)[i] = 0;
+                    } else if (is_doc && entry_ptr != 0 && (entry_ptr % sizeof(void *)) == 0) {
+                        struct dom_document *owner = NULL;
+                        dom_node_get_owner_document((dom_node *)entry_ptr, &owner);
+                        if (owner == (struct dom_document *)node) {
+                            shm_dom_get_dom_ptrs(shm)[i] = 0;
+                        }
+                        if (owner && owner != (struct dom_document *)node) {
+                            dom_node_unref((dom_node *)owner);
+                        }
                     }
                 }
                 if (!already_locked) {
