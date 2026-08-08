@@ -456,7 +456,10 @@ JSValue wisp_element_classList_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
-    if (wisp_is_js_process) return JS_NULL;
+    if (wisp_is_js_process) {
+        extern JSValue qjs_new_namednodemap(JSContext *ctx, void *node, bool is_dom_node);
+        return qjs_new_namednodemap(ctx, priv->node, true);
+    }
     dom_namednodemap *attrs = NULL;
     dom_exception exc = dom_node_get_attributes((dom_node *)priv->node, &attrs);
     if (exc != DOM_NO_ERR || !attrs) return JS_NULL;

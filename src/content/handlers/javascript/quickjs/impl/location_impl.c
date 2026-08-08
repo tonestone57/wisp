@@ -28,8 +28,17 @@ static struct nsurl *get_location_nsurl(JSContext *ctx)
         return t->location_url;
     }
 
+    if (!t->location_url && t->origin && (strstr(t->origin, "://") || strncmp(t->origin, "about:", 6) == 0)) {
+        nsurl_create(t->origin, &t->location_url);
+    }
+    if (t->location_url) {
+        return t->location_url;
+    }
+
     if (t->doc_priv) {
-        return content_get_url((struct content *)t->doc_priv);
+        if (t->win_priv != t->doc_priv) {
+            return content_get_url((struct content *)t->doc_priv);
+        }
     }
     return NULL;
 }
@@ -260,6 +269,24 @@ JSValue wisp_location_origin_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NewString(ctx, "null");
 }
 
+static JSValue js_location_href_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    return wisp_location_href_get_impl(ctx, priv);
+}
+
+static JSValue js_location_href_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (argc > 0) {
+        const char *url_str = JS_ToCString(ctx, argv[0]);
+        if (url_str) {
+            extern JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url);
+            wisp_location_assign_impl(ctx, priv, url_str);
+            JS_FreeCString(ctx, url_str);
+        }
+    }
+    return JS_UNDEFINED;
+}
+
 static JSValue js_location_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
 {
     return qjs_new_location(ctx, NULL, false);
@@ -286,6 +313,14 @@ int qjs_init_location(JSContext *ctx)
         JS_FreeValue(ctx, proto);
         proto = JS_NewObject(ctx);
         JS_SetClassProto(ctx, qjs_location_class_id, JS_DupValue(ctx, proto));
+    }
+
+    if (JS_IsObject(proto)) {
+        JSAtom href_atom = JS_NewAtom(ctx, "href");
+        JSValue getter = JS_NewCFunction2(ctx, (JSCFunction *)js_location_href_get, "get_href", 0, JS_CFUNC_generic, 0);
+        JSValue setter = JS_NewCFunction2(ctx, (JSCFunction *)js_location_href_set, "set_href", 1, JS_CFUNC_generic, 0);
+        JS_DefinePropertyGetSet(ctx, proto, href_atom, getter, setter, JS_PROP_CONFIGURABLE);
+        JS_FreeAtom(ctx, href_atom);
     }
 
     JSValue loc = qjs_new_location(ctx, NULL, false);

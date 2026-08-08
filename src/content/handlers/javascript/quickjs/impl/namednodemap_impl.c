@@ -10,10 +10,16 @@
 #include "JSNamedNodeMap.gen.h"
 
 extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
 
 JSValue wisp_namednodemap_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    if (wisp_is_js_process) {
+        uint32_t node_id = (uint32_t)(uintptr_t)priv->node;
+        WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
+        return JS_NewInt32(ctx, sns->attr_count);
+    }
     dom_ulong length = 0;
     dom_exception exc = dom_namednodemap_get_length((dom_namednodemap *)priv->node, &length);
     if (exc != DOM_NO_ERR) return JS_NewInt32(ctx, 0);
@@ -23,6 +29,18 @@ JSValue wisp_namednodemap_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_namednodemap_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint32_t node_id = (uint32_t)(uintptr_t)priv->node;
+        WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
+        if (index >= sns->attr_count) return JS_NULL;
+        const char *attr_name = wisp_string_ref_data(wisp_shm_dom, sns->attrs[index].name);
+        const char *attr_val = wisp_string_ref_data(wisp_shm_dom, sns->attrs[index].value);
+        JSValue attr = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, attr, "name", JS_NewString(ctx, attr_name ? attr_name : ""));
+        JS_SetPropertyStr(ctx, attr, "value", JS_NewString(ctx, attr_val ? attr_val : ""));
+        JS_SetPropertyStr(ctx, attr, "expando", JS_FALSE);
+        return attr;
+    }
     dom_node *result = NULL;
     dom_exception exc = dom_namednodemap_item((dom_namednodemap *)priv->node, index, &result);
     if (exc != DOM_NO_ERR || !result) return JS_NULL;
@@ -34,6 +52,23 @@ JSValue wisp_namednodemap_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32
 JSValue wisp_namednodemap_getNamedItem_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
 {
     if (!priv || !priv->node || !name) return JS_NULL;
+    if (wisp_is_js_process) {
+        uint32_t node_id = (uint32_t)(uintptr_t)priv->node;
+        WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
+        uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+        for (uint32_t i = 0; i < limit; i++) {
+            const char *attr_name = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].name);
+            if (attr_name && strcasecmp(attr_name, name) == 0) {
+                const char *attr_val = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
+                JSValue attr = JS_NewObject(ctx);
+                JS_SetPropertyStr(ctx, attr, "name", JS_NewString(ctx, attr_name));
+                JS_SetPropertyStr(ctx, attr, "value", JS_NewString(ctx, attr_val ? attr_val : ""));
+                JS_SetPropertyStr(ctx, attr, "expando", JS_FALSE);
+                return attr;
+            }
+        }
+        return JS_NULL;
+    }
     dom_string *name_dom = NULL;
     dom_string_create((const uint8_t *)name, strlen(name), &name_dom);
     if (!name_dom) return JS_NULL;
@@ -227,6 +262,13 @@ int qjs_init_namednodemap(JSContext *ctx)
         "                let idx = Number(prop);\n"
         "                if (Number.isInteger(idx) && idx >= 0) {\n"
         "                    return target.item(idx);\n"
+        "                }\n"
+        "                if (prop !== 'length' && prop !== 'item' && prop !== 'getNamedItem' &&\n"
+        "                    prop !== 'getNamedItemNS' && prop !== 'setNamedItem' &&\n"
+        "                    prop !== 'setNamedItemNS' && prop !== 'removeNamedItem' &&\n"
+        "                    prop !== 'removeNamedItemNS') {\n"
+        "                    let attr = target.getNamedItem(prop);\n"
+        "                    if (attr !== null) return attr;\n"
         "                }\n"
         "            }\n"
         "            let val = target[prop];\n"
