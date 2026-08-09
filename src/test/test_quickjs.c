@@ -3754,6 +3754,92 @@ START_TEST(test_quickjs_canvas_imagedata)
 }
 END_TEST
 
+START_TEST(test_quickjs_canvas_gradient)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    corestrings_init();
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *script =
+        "let canvas = document.createElement('canvas');\n"
+        "let ctx = canvas.getContext('2d');\n"
+        "if (!ctx) throw 'getContext failed';\n"
+        "// Test simple hex style set and get\n"
+        "ctx.fillStyle = '#ff0000';\n"
+        "if (ctx.fillStyle !== '#ff0000') throw 'fillStyle string fail';\n"
+        "\n"
+        "// Test linear gradient creation and addColorStop\n"
+        "let grad = ctx.createLinearGradient(0, 0, 100, 100);\n"
+        "if (!grad) throw 'createLinearGradient failed';\n"
+        "if (!(grad instanceof CanvasGradient)) throw 'gradient instance fail';\n"
+        "grad.addColorStop(0, 'red');\n"
+        "grad.addColorStop(1, 'blue');\n"
+        "\n"
+        "// Test offset range error validation\n"
+        "try {\n"
+        "  grad.addColorStop(-0.1, 'green');\n"
+        "  throw 'addColorStop below 0 should fail';\n"
+        "} catch (e) {\n"
+        "  if (!(e instanceof RangeError)) throw 'expected RangeError on addColorStop';\n"
+        "}\n"
+        "try {\n"
+        "  grad.addColorStop(1.1, 'green');\n"
+        "  throw 'addColorStop above 1 should fail';\n"
+        "} catch (e) {\n"
+        "  if (!(e instanceof RangeError)) throw 'expected RangeError on addColorStop';\n"
+        "}\n"
+        "\n"
+        "// Test setting fillStyle and strokeStyle to CanvasGradient\n"
+        "ctx.fillStyle = grad;\n"
+        "if (ctx.fillStyle !== grad) throw 'fillStyle get/set gradient fail';\n"
+        "ctx.strokeStyle = grad;\n"
+        "if (ctx.strokeStyle !== grad) throw 'strokeStyle get/set gradient fail';\n"
+        "\n"
+        "// Test radial gradient\n"
+        "let rgrad = ctx.createRadialGradient(0, 0, 10, 100, 100, 50);\n"
+        "if (!rgrad) throw 'createRadialGradient failed';\n"
+        "if (!(rgrad instanceof CanvasGradient)) throw 'radial gradient instance fail';\n"
+        "\n"
+        "// Test canvas pattern\n"
+        "let pat = ctx.createPattern(canvas, 'repeat');\n"
+        "if (!pat) throw 'createPattern failed';\n"
+        "if (!(pat instanceof CanvasPattern)) throw 'pattern instance fail';\n"
+        "ctx.fillStyle = pat;\n"
+        "if (ctx.fillStyle !== pat) throw 'fillStyle pattern get/set fail';\n"
+        "\n"
+        "// Test save/restore of fill and stroke styles\n"
+        "ctx.fillStyle = grad;\n"
+        "ctx.strokeStyle = pat;\n"
+        "ctx.save();\n"
+        "ctx.fillStyle = '#00ff00';\n"
+        "ctx.strokeStyle = '#0000ff';\n"
+        "if (ctx.fillStyle !== '#00ff00') throw 'save override fillStyle fail';\n"
+        "if (ctx.strokeStyle !== '#0000ff') throw 'save override strokeStyle fail';\n"
+        "ctx.restore();\n"
+        "if (ctx.fillStyle !== grad) throw 'restore style fillStyle fail';\n"
+        "if (ctx.strokeStyle !== pat) throw 'restore style strokeStyle fail';\n"
+        "1;";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_canvas_gradient");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+    corestrings_fini();
+}
+END_TEST
+
 START_TEST(test_quickjs_observers)
 {
     jsheap *heap = NULL;
@@ -4643,6 +4729,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_webidl_stubs);
     tcase_add_test(tc_window, test_quickjs_css_style_declaration);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
+    tcase_add_test(tc_window, test_quickjs_canvas_gradient);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_performance_timeline);
     tcase_add_test(tc_window, test_quickjs_trusted_types);

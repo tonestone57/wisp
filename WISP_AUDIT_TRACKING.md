@@ -46,10 +46,10 @@ We have run a robust automated auditing tool against `src/content/handlers/javas
 
 #### Phase A: High-Impact Core Web APIs (Immediate Focus)
 These directly break page rendering and web applications if they are no-ops:
-- **Canvas 2D Context**: `putImageData_1` (dirty bounds), `transform`, `createLinearGradient`, `clip`, `measureText`.
-- **DOM Mutations & Traversal**: `appendChild`, `insertBefore`, `replaceChild`, `setAttribute`, `classList` methods.
-- **Events & Listeners**: `addEventListener`, `removeEventListener`, `dispatchEvent`, `CustomEvent`.
-- **CSSOM**: `style.setProperty`, `style.getPropertyValue`, `window.getComputedStyle`.
+- **Canvas 2D Context**: `putImageData_1` (dirty bounds), `transform`, `createLinearGradient` (with CanvasGradient structures, GC marking, addColorStop range-checking, and fillStyle/strokeStyle integration), `clip`, `measureText`. [COMPLETED]
+- **DOM Mutations & Traversal**: `appendChild`, `insertBefore`, `replaceChild`, `setAttribute`, `classList` methods. [COMPLETED]
+- **Events & Listeners**: `addEventListener`, `removeEventListener`, `dispatchEvent`, `CustomEvent`. [COMPLETED]
+- **CSSOM**: `style.setProperty`, `style.getPropertyValue`, `window.getComputedStyle`. [COMPLETED]
 
 #### Phase B: HTML5 & Browser Infrastructure
 - **Forms & Input**: `HTMLInputElement` setters/getters, `form.submit()`.
@@ -71,7 +71,7 @@ For modern or hardware-level specifications that Wisp does not yet support (e.g.
   - [x] `wisp_canvasrenderingcontext2d_putImageData_1_impl` (Dirty bounds support)
 
 ### 2. JavaScript Engine / Web APIs
-- [ ] Canvas 2D API parity check (ImageData dirty rects, ImageData scaling)
+- [x] Canvas 2D API parity check (ImageData dirty rects, CanvasGradient, CanvasPattern, style save/restore)
 - [ ] Web Workers / EventLoop task queue audits
 
 ### 3. CSS3 Implementation & Parsing
