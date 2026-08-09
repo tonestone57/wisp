@@ -909,6 +909,7 @@ struct html_parse_task {
 	unsigned int size;
 	nserror parse_error;
 	bool has_encoding_change;
+	bool is_aborted;
 	struct html_parse_task *next;
 };
 
@@ -945,6 +946,16 @@ static void html_parse_complete_cb(void *arg)
 	struct html_parse_task *task = (struct html_parse_task *)arg;
 	html_content *html = (html_content *)task->c;
 
+	if (task->is_aborted) {
+		html->base.active--;
+		html_parse_task_free(task);
+
+		if (__atomic_sub_fetch(&html->base.active_bg_tasks, 1, __ATOMIC_SEQ_CST) == 0 && html->base.pending_delete) {
+			content_destroy(&html->base);
+		}
+		return;
+	}
+
 	if (task->has_encoding_change) {
 		task->parse_error = html_process_encoding_change(task->c, task->data, task->size);
 	}
@@ -975,7 +986,8 @@ static void html_parse_worker(void *arg)
 	nserror err = NSERROR_OK;
 
 	if (wisp_quitting || html->aborted) {
-		html_parse_task_free(task);
+		task->is_aborted = true;
+		guit->misc->schedule(0, html_parse_complete_cb, task);
 		return;
 	}
 
@@ -993,8 +1005,9 @@ static void html_parse_worker(void *arg)
 
 	task->parse_error = err;
 
-	if (wisp_quitting) {
-		html_parse_task_free(task);
+	if (wisp_quitting || html->aborted) {
+		task->is_aborted = true;
+		guit->misc->schedule(0, html_parse_complete_cb, task);
 		return;
 	}
 
@@ -1035,6 +1048,7 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
 
 	task->has_encoding_change = false;
 	task->parse_error = NSERROR_OK;
+	task->is_aborted = false;
 
 	/* Link task to active_parse_tasks list */
 	task->next = (struct html_parse_task *)html->active_parse_tasks;
