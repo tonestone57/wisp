@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<body>
+<div id="test"></div>
+<script>
+let el = document.getElementById('test');
+console.log('START_TEST');
+el.style.setProperty('color', 'red', 'important');
+console.log('color_set: ' + el.style.color);
+el.style.color = 'blue';
+console.log('style_attr_after_assign: ' + el.getAttribute('style'));
+
+el.style.removeProperty('color');
+console.log('style_attr_after_remove: ' + el.getAttribute('style'));
+
+el.style.cssText = 'color: green; background-color: yellow !important;';
+console.log('color: ' + el.style.color);
+console.log('background-color: ' + el.style.backgroundColor);
+console.log('getPropertyPriority: ' + el.style.getPropertyPriority('background-color'));
+
+el.setAttribute('style', 'font-size: 10px;');
+console.log('color_after_attr: ' + el.style.color);
+console.log('font-size: ' + el.style.fontSize);
+console.log('DONE');
+</script>
+</body>
+</html>
