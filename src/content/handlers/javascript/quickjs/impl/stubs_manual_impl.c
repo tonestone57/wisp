@@ -48,6 +48,59 @@ static struct nsurl *get_doc_base_url(JSContext *ctx)
     return NULL;
 }
 
+extern bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
+    struct dom_string *event_type_dom, JSValue js_funcval);
+extern bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
+    struct dom_string *event_type_dom, JSValue js_funcval);
+
+static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name, const char *event_name, JSValue value) {
+    if (!priv || !priv->node) return;
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    if (!thread) return;
+
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        char prop_buf[64];
+        snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
+        JSValue oldVal = JS_GetPropertyStr(ctx, wrapper, prop_buf);
+        if (!JS_IsUndefined(oldVal) && !JS_IsNull(oldVal)) {
+            struct dom_string *type_dom = NULL;
+            dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
+            if (type_dom) {
+                js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, oldVal);
+                dom_string_unref(type_dom);
+            }
+        }
+        JS_FreeValue(ctx, oldVal);
+
+        JS_SetPropertyStr(ctx, wrapper, prop_buf, JS_DupValue(ctx, value));
+
+        if (JS_IsFunction(ctx, value)) {
+            struct dom_string *type_dom = NULL;
+            dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
+            if (type_dom) {
+                js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, value);
+                dom_string_unref(type_dom);
+            }
+        }
+    }
+    JS_FreeValue(ctx, wrapper);
+}
+
+static JSValue helper_get_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name) {
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        char prop_buf[64];
+        snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
+        JSValue val = JS_GetPropertyStr(ctx, wrapper, prop_buf);
+        JS_FreeValue(ctx, wrapper);
+        return val;
+    }
+    JS_FreeValue(ctx, wrapper);
+    return JS_NULL;
+}
+
 // -----------------------------------------------------------------------------
 // HTMLAnchorElement Implementation (16 stubs)
 // -----------------------------------------------------------------------------
@@ -11060,25 +11113,12 @@ JSValue wisp_globaleventhandlers_onended_set_impl(JSContext *ctx, QJSNodePrivate
 
 // Overrides: attribute get | GlobalEventHandlers::onerror;
 JSValue wisp_globaleventhandlers_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv || !priv->node) return JS_NULL;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (!JS_IsObject(wrapper)) {
-        JS_FreeValue(ctx, wrapper);
-        return JS_NULL;
-    }
-    JSValue val = JS_GetPropertyStr(ctx, wrapper, "__onerror_func");
-    JS_FreeValue(ctx, wrapper);
-    return val;
+    return helper_get_event_handler(ctx, priv, "onerror");
 }
 
 // Overrides: attribute set | GlobalEventHandlers::onerror;
 JSValue wisp_globaleventhandlers_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
-    if (!priv || !priv->node) return JS_UNDEFINED;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (JS_IsObject(wrapper)) {
-        JS_SetPropertyStr(ctx, wrapper, "__onerror_func", JS_DupValue(ctx, value));
-    }
-    JS_FreeValue(ctx, wrapper);
+    helper_set_event_handler(ctx, priv, "onerror", "error", value);
     return JS_UNDEFINED;
 }
 
@@ -11144,25 +11184,12 @@ JSValue wisp_globaleventhandlers_onkeyup_set_impl(JSContext *ctx, QJSNodePrivate
 
 // Overrides: attribute get | GlobalEventHandlers::onload;
 JSValue wisp_globaleventhandlers_onload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv || !priv->node) return JS_NULL;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (!JS_IsObject(wrapper)) {
-        JS_FreeValue(ctx, wrapper);
-        return JS_NULL;
-    }
-    JSValue val = JS_GetPropertyStr(ctx, wrapper, "__onload_func");
-    JS_FreeValue(ctx, wrapper);
-    return val;
+    return helper_get_event_handler(ctx, priv, "onload");
 }
 
 // Overrides: attribute set | GlobalEventHandlers::onload;
 JSValue wisp_globaleventhandlers_onload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
-    if (!priv || !priv->node) return JS_UNDEFINED;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (JS_IsObject(wrapper)) {
-        JS_SetPropertyStr(ctx, wrapper, "__onload_func", JS_DupValue(ctx, value));
-    }
-    JS_FreeValue(ctx, wrapper);
+    helper_set_event_handler(ctx, priv, "onload", "load", value);
     return JS_UNDEFINED;
 }
 
@@ -12338,11 +12365,12 @@ JSValue wisp_document_onkeyup_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSV
 
 // Overrides: attribute get | Document::onload (getter);
 JSValue wisp_document_onload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onload");
 }
 
 // Overrides: attribute set | Document::onload (setter);
 JSValue wisp_document_onload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onload", "load", value);
     return JS_UNDEFINED;
 }
 
@@ -14958,11 +14986,12 @@ JSValue wisp_window_onended_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSVal
 
 // Overrides: Window | onerror (getter)
 JSValue wisp_window_onerror_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onerror");
 }
 
 // Overrides: Window | onerror (setter)
 JSValue wisp_window_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onerror", "error", value);
     return JS_UNDEFINED;
 }
 
@@ -15048,11 +15077,12 @@ JSValue wisp_window_onlanguagechange_set_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: Window | onload (getter)
 JSValue wisp_window_onload_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onload");
 }
 
 // Overrides: Window | onload (setter)
 JSValue wisp_window_onload_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onload", "load", value);
     return JS_UNDEFINED;
 }
 
