@@ -39,9 +39,25 @@ JSValue wisp_dedicatedworkerglobalscope_postMessage_impl(JSContext *ctx, QJSNode
     if (!t || !t->is_worker || !t->worker_handle) return JS_UNDEFINED;
 
     WispWorkerHandle *h = (WispWorkerHandle *)t->worker_handle;
-    size_t size;
-    uint8_t *data = JS_WriteObject(ctx, &size, message, JS_WRITE_OBJ_SAB | JS_WRITE_OBJ_REFERENCE);
-    if (!data) return JS_EXCEPTION;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue json = JS_GetPropertyStr(ctx, global, "JSON");
+    JSValue stringify = JS_GetPropertyStr(ctx, json, "stringify");
+    JSValue json_str = JS_Call(ctx, stringify, json, 1, &message);
+    JS_FreeValue(ctx, stringify);
+    JS_FreeValue(ctx, json);
+    JS_FreeValue(ctx, global);
+    if (JS_IsException(json_str)) {
+        return json_str;
+    }
+    const char *cstr = JS_ToCString(ctx, json_str);
+    if (!cstr) {
+        JS_FreeValue(ctx, json_str);
+        return JS_Throw(ctx, JS_NewString(ctx, "DataCloneError"));
+    }
+    size_t size = strlen(cstr);
+    uint8_t *data = (uint8_t *)strdup(cstr);
+    JS_FreeCString(ctx, cstr);
+    JS_FreeValue(ctx, json_str);
 
     WispMessage *msg = calloc(1, sizeof(*msg));
     msg->type = WISP_MSG_TYPE_DATA;

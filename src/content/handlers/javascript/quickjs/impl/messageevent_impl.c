@@ -9,6 +9,10 @@
 #include "qjs_internal.h"
 
 typedef struct QJSMessageEventPrivate {
+    uint32_t magic;
+    void *node;
+    JSContext *ctx;
+    bool is_dom_node;
     JSValue data;
     char *origin;
     char *lastEventId;
@@ -36,6 +40,10 @@ JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data) {
 
     QJSMessageEventPrivate *priv = calloc(1, sizeof(*priv));
     if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = NULL;
+    priv->ctx = ctx;
+    priv->is_dom_node = false;
     priv->data = JS_DupValue(ctx, data);
     priv->origin = strdup("");
     priv->lastEventId = strdup("");

@@ -53,7 +53,10 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
     dom_event *evt = NULL;
     dom_event_create(&evt);
-    if (evt) dom_event_init(evt, type_dom, false, false);
+    if (evt) {
+        dom_event_init(evt, type_dom, false, false);
+        dom_event_set_is_trusted(evt, false);
+    }
     dom_string_unref(type_dom);
     JS_FreeCString(ctx, type);
     if (!evt) return JS_ThrowInternalError(ctx, "Failed to create event");
@@ -104,8 +107,19 @@ JSValue wisp_event_eventPhase_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 JSValue wisp_event_bubbles_get_impl(JSContext *ctx, QJSNodePrivate *priv) { bool res; dom_event_get_bubbles(priv->node, &res); return JS_NewBool(ctx, res); }
 JSValue wisp_event_cancelable_get_impl(JSContext *ctx, QJSNodePrivate *priv) { bool res; dom_event_get_cancelable(priv->node, &res); return JS_NewBool(ctx, res); }
-JSValue wisp_event_defaultPrevented_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_FALSE; }
-JSValue wisp_event_isTrusted_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_TRUE; }
+JSValue wisp_event_defaultPrevented_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_FALSE;
+    bool prevented = false;
+    dom_event_is_default_prevented(priv->node, &prevented);
+    return JS_NewBool(ctx, prevented);
+}
+
+JSValue wisp_event_isTrusted_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_FALSE;
+    bool trusted = true;
+    dom_event_get_is_trusted(priv->node, &trusted);
+    return JS_NewBool(ctx, trusted);
+}
 JSValue wisp_event_timeStamp_get_impl(JSContext *ctx, QJSNodePrivate *priv) { uint64_t now; nsu_getmonotonic_ms(&now); return JS_NewFloat64(ctx, (double)now); }
 
 int qjs_init_event(JSContext *ctx)
