@@ -74,21 +74,48 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
 
 static JSClassDef wisp_xmlhttprequest_class = { "XMLHttpRequest", .finalizer = xhr_finalizer, .gc_mark = xhr_mark };
 
-static void xhr_trigger_event(WispXHR *xhr, const char *name)
+static void xhr_dispatch_event_helper(WispXHR *xhr, const char *type)
 {
-    JSValue on_val = JS_GetPropertyStr(xhr->ctx, xhr->self, name);
-    if (JS_IsFunction(xhr->ctx, on_val)) {
-        JSValue ret = JS_Call(xhr->ctx, on_val, xhr->self, 0, NULL);
-        JS_FreeValue(xhr->ctx, ret);
+    JSContext *ctx = xhr->ctx;
+    if (!ctx || JS_IsUndefined(xhr->self)) return;
+
+    /* 1. Call on<event> if it exists (e.g., onload, onreadystatechange, onerror) */
+    char on_name[64];
+    snprintf(on_name, sizeof(on_name), "on%s", type);
+    JSValue on_val = JS_GetPropertyStr(ctx, xhr->self, on_name);
+    if (JS_IsFunction(ctx, on_val)) {
+        JSValue ret = JS_Call(ctx, on_val, xhr->self, 0, NULL);
+        JS_FreeValue(ctx, ret);
     }
-    JS_FreeValue(xhr->ctx, on_val);
+    JS_FreeValue(ctx, on_val);
+
+    /* 2. Dispatch a proper Event object using dispatchEvent */
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue event_ctor = JS_GetPropertyStr(ctx, global_obj, "Event");
+    if (JS_IsFunction(ctx, event_ctor)) {
+        JSValue type_val = JS_NewString(ctx, type);
+        JSValue ev_obj = JS_CallConstructor(ctx, event_ctor, 1, &type_val);
+        JS_FreeValue(ctx, type_val);
+
+        if (!JS_IsException(ev_obj)) {
+            JSValue dispatch_fn = JS_GetPropertyStr(ctx, xhr->self, "dispatchEvent");
+            if (JS_IsFunction(ctx, dispatch_fn)) {
+                JSValue ret = JS_Call(ctx, dispatch_fn, xhr->self, 1, &ev_obj);
+                JS_FreeValue(ctx, ret);
+            }
+            JS_FreeValue(ctx, dispatch_fn);
+            JS_FreeValue(ctx, ev_obj);
+        }
+    }
+    JS_FreeValue(ctx, event_ctor);
+    JS_FreeValue(ctx, global_obj);
 }
 
 static void xhr_set_ready_state(WispXHR *xhr, int state)
 {
     if (xhr->readyState != state) {
         xhr->readyState = state;
-        xhr_trigger_event(xhr, "onreadystatechange");
+        xhr_dispatch_event_helper(xhr, "readystatechange");
     }
 }
 
@@ -248,6 +275,14 @@ static void xhr_callback(const struct fetch_msg *msg, void *p)
 
     if (is_terminal) {
         xhr_set_ready_state(xhr, 4); /* DONE - protected from GC during dispatch */
+        if (msg->type == FETCH_FINISHED) {
+            xhr_dispatch_event_helper(xhr, "load");
+        } else if (msg->type == FETCH_TIMEDOUT) {
+            xhr_dispatch_event_helper(xhr, "timeout");
+        } else {
+            xhr_dispatch_event_helper(xhr, "error");
+        }
+        xhr_dispatch_event_helper(xhr, "loadend");
         xhr_remove_active(xhr->ctx, xhr); /* Unprotect now that callbacks are complete */
     }
 }
@@ -333,7 +368,17 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
 
     struct fetch_postdata post;
     memset(&post, 0, sizeof(post));
-    if (xhr->out_headers) {
+
+    JSValue body_val = JS_GetPropertyStr(ctx, xhr->self, "__body");
+    if (JS_IsString(body_val) || JS_IsObject(body_val)) {
+        const char *body_str = JS_ToCString(ctx, body_val);
+        if (body_str) {
+            post.type = FETCH_POSTDATA_URLENC;
+            post.data.urlenc = (char *)body_str;
+        } else {
+            post.type = FETCH_POSTDATA_NONE;
+        }
+    } else if (xhr->out_headers) {
         post.type = FETCH_POSTDATA_MULTIPART;
         post.data.multipart = xhr->out_headers;
     } else {
@@ -365,6 +410,11 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
     } else {
         xhr_add_active(ctx, xhr);
     }
+
+    if (post.type == FETCH_POSTDATA_URLENC && post.data.urlenc) {
+        JS_FreeCString(ctx, post.data.urlenc);
+    }
+    JS_FreeValue(ctx, body_val);
 
     free(headers);
     return JS_UNDEFINED;

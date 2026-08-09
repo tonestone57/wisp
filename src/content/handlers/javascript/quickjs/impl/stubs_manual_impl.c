@@ -8959,28 +8959,34 @@ JSValue wisp_sharedworker_onerror_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: method | WorkerGlobalScope::setTimeout();
 JSValue wisp_workerglobalscope_setTimeout_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    return wisp_timer_create(ctx, handler, timeout, arguments, false);
 }
 JSValue wisp_workerglobalscope_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    JSValue handler_val = JS_NewString(ctx, handler);
+    JSValue ret = wisp_timer_create(ctx, handler_val, timeout, arguments, false);
+    JS_FreeValue(ctx, handler_val);
+    return ret;
 }
 
 // Overrides: method | WorkerGlobalScope::clearTimeout();
 JSValue wisp_workerglobalscope_clearTimeout_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
-    return JS_UNDEFINED;
+    return wisp_timer_clear(ctx, handle);
 }
 
 // Overrides: method | WorkerGlobalScope::setInterval();
 JSValue wisp_workerglobalscope_setInterval_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    return wisp_timer_create(ctx, handler, timeout, arguments, true);
 }
 JSValue wisp_workerglobalscope_setInterval_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    JSValue handler_val = JS_NewString(ctx, handler);
+    JSValue ret = wisp_timer_create(ctx, handler_val, timeout, arguments, true);
+    JS_FreeValue(ctx, handler_val);
+    return ret;
 }
 
 // Overrides: method | WorkerGlobalScope::clearInterval();
 JSValue wisp_workerglobalscope_clearInterval_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
-    return JS_UNDEFINED;
+    return wisp_timer_clear(ctx, handle);
 }
 
 // Overrides: method | WorkerGlobalScope::createImageBitmap();
@@ -15455,22 +15461,28 @@ JSValue wisp_window_onwheel_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSVal
 
 // Overrides: Window | setInterval()
 JSValue wisp_window_setInterval_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    return wisp_timer_create(ctx, handler, timeout, arguments, true);
 }
 
 // Overrides: Window | setInterval()
 JSValue wisp_window_setInterval_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    JSValue handler_val = JS_NewString(ctx, handler);
+    JSValue ret = wisp_timer_create(ctx, handler_val, timeout, arguments, true);
+    JS_FreeValue(ctx, handler_val);
+    return ret;
 }
 
 // Overrides: Window | setTimeout()
 JSValue wisp_window_setTimeout_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    return wisp_timer_create(ctx, handler, timeout, arguments, false);
 }
 
 // Overrides: Window | setTimeout()
 JSValue wisp_window_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    JSValue handler_val = JS_NewString(ctx, handler);
+    JSValue ret = wisp_timer_create(ctx, handler_val, timeout, arguments, false);
+    JS_FreeValue(ctx, handler_val);
+    return ret;
 }
 
 // Overrides: WindowLocalStorage | localStorage (getter)
@@ -15500,32 +15512,38 @@ JSValue wisp_windowsessionstorage_sessionStorage_get_impl(JSContext *ctx, QJSNod
 
 // Overrides: WindowTimers | clearInterval()
 JSValue wisp_windowtimers_clearInterval_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
-    return JS_UNDEFINED;
+    return wisp_timer_clear(ctx, handle);
 }
 
 // Overrides: WindowTimers | clearTimeout()
 JSValue wisp_windowtimers_clearTimeout_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t handle) {
-    return JS_UNDEFINED;
+    return wisp_timer_clear(ctx, handle);
 }
 
 // Overrides: WindowTimers | setInterval()
 JSValue wisp_windowtimers_setInterval_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    return wisp_timer_create(ctx, handler, timeout, arguments, true);
 }
 
 // Overrides: WindowTimers | setInterval()
 JSValue wisp_windowtimers_setInterval_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    JSValue handler_val = JS_NewString(ctx, handler);
+    JSValue ret = wisp_timer_create(ctx, handler_val, timeout, arguments, true);
+    JS_FreeValue(ctx, handler_val);
+    return ret;
 }
 
 // Overrides: WindowTimers | setTimeout()
 JSValue wisp_windowtimers_setTimeout_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    return wisp_timer_create(ctx, handler, timeout, arguments, false);
 }
 
 // Overrides: WindowTimers | setTimeout()
 JSValue wisp_windowtimers_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * handler, int32_t timeout, JSValue arguments) {
-    return JS_UNDEFINED;
+    JSValue handler_val = JS_NewString(ctx, handler);
+    JSValue ret = wisp_timer_create(ctx, handler_val, timeout, arguments, false);
+    JS_FreeValue(ctx, handler_val);
+    return ret;
 }
 
 // Overrides: WorkerNavigator | language (getter)

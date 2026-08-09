@@ -61,6 +61,7 @@ struct jsheap {
 struct qjs_timer {
     JSContext *ctx;
     JSValue func;
+    JSValue arguments;
     bool repeat;
     int interval;
     int id;
@@ -170,6 +171,9 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
 void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc);
 
 void qjs_inject_fetch_polyfill(JSContext *ctx);
+
+JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSValue arguments, bool repeat);
+JSValue wisp_timer_clear(JSContext *ctx, int32_t handle);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);
