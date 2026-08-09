@@ -3372,6 +3372,18 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "globalThis.CSS.escape = globalThis.CSS.escape || function(ident) {\n"
         "    return String(ident);\n"
         "};\n"
+        "let __onloadHandler = null;\n"
+        "Object.defineProperty(globalThis, 'onload', {\n"
+        "    get: function() { return __onloadHandler; },\n"
+        "    set: function(fn) {\n"
+        "        __onloadHandler = fn;\n"
+        "        if (typeof fn === 'function') {\n"
+        "            globalThis.addEventListener('load', fn);\n"
+        "        }\n"
+        "    },\n"
+        "    configurable: true,\n"
+        "    enumerable: true\n"
+        "});\n"
         "";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val);
@@ -5091,6 +5103,20 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
         NSLOG(wisp, ERROR, "js_fire_event: Failed to create dom_event");
     }
     dom_string_unref(type_str);
+
+    if (get_js_process_handle(thread->origin)) {
+        char js_cmd[1024];
+        snprintf(js_cmd, sizeof(js_cmd),
+            "(function() {\n"
+            "    let evt = new Event('%s');\n"
+            "    window.dispatchEvent(evt);\n"
+            "    if ('%s' === 'load' && typeof globalThis.onload === 'function') {\n"
+            "        try { globalThis.onload(evt); } catch(e) { console.error(e); }\n"
+            "    }\n"
+            "})();", type, type);
+        js_exec(thread, (const uint8_t *)js_cmd, strlen(js_cmd), "<event_dispatch_bridge>");
+    }
+
     return success;
 }
 
