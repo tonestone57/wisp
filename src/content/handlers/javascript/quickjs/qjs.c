@@ -2901,6 +2901,7 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "    };\n"
         "    globalThis.Event.prototype = OriginalEvent.prototype;\n"
         "\n"
+        "    const originalDispatchEvent = EventTarget.prototype.dispatchEvent;\n"
         "    EventTarget.prototype.dispatchEvent = function(event) {\n"
         "        if (!event) return false;\n"
         "        \n"
@@ -2909,6 +2910,20 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            throw new TypeError('Invalid this');\n"
         "        }\n"
         "        event._target = self;\n"
+        "        \n"
+        "        let insideShadow = false;\n"
+        "        let curr_shadow = self;\n"
+        "        while (curr_shadow) {\n"
+        "            if (globalThis.ShadowRoot && curr_shadow instanceof globalThis.ShadowRoot) {\n"
+        "                insideShadow = true;\n"
+        "                break;\n"
+        "            }\n"
+        "            curr_shadow = curr_shadow.parentNode || curr_shadow.host;\n"
+        "        }\n"
+        "        const isNative = (self instanceof Node || (globalThis.Window && self instanceof globalThis.Window)) && (typeof __wisp_is_js_process === 'undefined' || !__wisp_is_js_process);\n"
+        "        if (isNative && !insideShadow && originalDispatchEvent) {\n"
+        "            return originalDispatchEvent.call(self, event);\n"
+        "        }\n"
         "        \n"
         "        const fullPath = [];\n"
         "        let curr = self;\n"
@@ -2968,7 +2983,12 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "                for (const record of listeners) {\n"
         "                    if (record.capture) {\n"
         "                        try {\n"
-        "                            record.callback.call(node, event);\n"
+        "                            const cb = record.callback;\n"
+        "                            if (typeof cb === 'function') {\n"
+        "                                cb.call(node, event);\n"
+        "                            } else if (cb && typeof cb.handleEvent === 'function') {\n"
+        "                                cb.handleEvent(event);\n"
+        "                            }\n"
         "                        } catch (e) {\n"
         "                            console.error('Error in event listener:', e);\n"
         "                        }\n"
@@ -2989,7 +3009,12 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            if (listeners) {\n"
         "                for (const record of listeners) {\n"
         "                    try {\n"
-        "                        record.callback.call(self, event);\n"
+        "                        const cb = record.callback;\n"
+        "                        if (typeof cb === 'function') {\n"
+        "                            cb.call(self, event);\n"
+        "                        } else if (cb && typeof cb.handleEvent === 'function') {\n"
+        "                            cb.handleEvent(event);\n"
+        "                        }\n"
         "                    } catch (e) { \n"
         "                        console.error('Error in event listener:', e);\n"
         "                    }\n"
@@ -3013,7 +3038,12 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "                    for (const record of listeners) {\n"
         "                        if (!record.capture) {\n"
         "                            try {\n"
-        "                                record.callback.call(node, event);\n"
+        "                                const cb = record.callback;\n"
+        "                                if (typeof cb === 'function') {\n"
+        "                                    cb.call(node, event);\n"
+        "                                } else if (cb && typeof cb.handleEvent === 'function') {\n"
+        "                                    cb.handleEvent(event);\n"
+        "                                }\n"
         "                            } catch (e) {\n"
         "                                console.error('Error in event listener:', e);\n"
         "                            }\n"
@@ -3433,6 +3463,20 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        for (let prop in events) {\n"
         "            setupHandler(proto, prop, events[prop]);\n"
         "        }\n"
+        "    }\n"
+        "    if (globalThis.CustomEvent) {\n"
+        "        const OriginalCustomEvent = globalThis.CustomEvent;\n"
+        "        globalThis.CustomEvent = function(type, options = {}) {\n"
+        "            const evt = new OriginalCustomEvent(type, options);\n"
+        "            const detail = options.detail !== undefined ? options.detail : null;\n"
+        "            Object.defineProperty(evt, 'detail', { value: detail, configurable: true, enumerable: true });\n"
+        "            return evt;\n"
+        "        };\n"
+        "        globalThis.CustomEvent.prototype = OriginalCustomEvent.prototype;\n"
+        "        globalThis.CustomEvent.prototype.initCustomEvent = function(type, bubbles, cancelable, detail) {\n"
+        "            this.initEvent(type, bubbles, cancelable);\n"
+        "            Object.defineProperty(this, 'detail', { value: detail !== undefined ? detail : null, configurable: true, enumerable: true });\n"
+        "        };\n"
         "    }\n"
         "})();\n"
         "";
@@ -5096,7 +5140,20 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         thread->heap->last_yield_ms = now;
     }
 
-    JSValue ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
+    JSValue ret;
+    if (JS_IsFunction(jsctx, ctx->func)) {
+        ret = JS_Call(jsctx, ctx->func, this_obj, 1, &js_evt);
+    } else if (JS_IsObject(ctx->func)) {
+        JSValue handleEvent = JS_GetPropertyStr(jsctx, ctx->func, "handleEvent");
+        if (JS_IsFunction(jsctx, handleEvent)) {
+            ret = JS_Call(jsctx, handleEvent, ctx->func, 1, &js_evt);
+        } else {
+            ret = JS_UNDEFINED;
+        }
+        JS_FreeValue(jsctx, handleEvent);
+    } else {
+        ret = JS_UNDEFINED;
+    }
 
     if (thread && thread->heap) {
         thread->heap->deadline_ms = old_deadline;

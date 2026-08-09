@@ -9,6 +9,10 @@
 #include "qjs_internal.h"
 
 typedef struct QJSErrorEventPrivate {
+    uint32_t magic;
+    void *node;
+    JSContext *ctx;
+    bool is_dom_node;
     char *message;
     char *filename;
     int lineno;
@@ -38,6 +42,10 @@ JSValue qjs_new_errorevent_manual(JSContext *ctx, const char *msg, const char *f
 
     QJSErrorEventPrivate *priv = calloc(1, sizeof(*priv));
     if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = NULL;
+    priv->ctx = ctx;
+    priv->is_dom_node = false;
     priv->message = strdup(msg ? msg : "");
     priv->filename = strdup(file ? file : "");
     priv->lineno = line;

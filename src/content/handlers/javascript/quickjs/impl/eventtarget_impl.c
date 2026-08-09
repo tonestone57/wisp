@@ -231,7 +231,8 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                 }
 
                 for (int i = 0; i < len; i++) {
-                    JSValue cb = JS_GetPropertyUint32(ctx, list, i);
+                    JSValue item = JS_GetPropertyUint32(ctx, list, i);
+                    JSValue cb = JS_GetPropertyStr(ctx, item, "callback");
                     if (JS_IsFunction(ctx, cb)) {
                         JSValue ret = JS_Call(ctx, cb, actual_this, 1, argv);
                         if (JS_IsException(ret)) {
@@ -242,8 +243,23 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                             JS_FreeValue(ctx, exception);
                         }
                         JS_FreeValue(ctx, ret);
+                    } else if (JS_IsObject(cb)) {
+                        JSValue handleEvent = JS_GetPropertyStr(ctx, cb, "handleEvent");
+                        if (JS_IsFunction(ctx, handleEvent)) {
+                            JSValue ret = JS_Call(ctx, handleEvent, cb, 1, argv);
+                            if (JS_IsException(ret)) {
+                                JSValue exception = JS_GetException(ctx);
+                                const char *err_msg = JS_ToCString(ctx, exception);
+                                NSLOG(wisp, WARNING, "Error in event listener handleEvent: %s", err_msg);
+                                JS_FreeCString(ctx, err_msg);
+                                JS_FreeValue(ctx, exception);
+                            }
+                            JS_FreeValue(ctx, ret);
+                        }
+                        JS_FreeValue(ctx, handleEvent);
                     }
                     JS_FreeValue(ctx, cb);
+                    JS_FreeValue(ctx, item);
                 }
             }
             JS_FreeValue(ctx, list);

@@ -11,8 +11,11 @@
 #include "wisp_subsystem.h"
 
 typedef struct QJSWorkerPrivate {
-    WispWorkerHandle *handle;
+    uint32_t magic;
+    void *node;
     JSContext *ctx;
+    bool is_dom_node;
+    WispWorkerHandle *handle;
     JSValue onmessage;
     JSValue onerror;
 } QJSWorkerPrivate;
@@ -56,7 +59,11 @@ JSValue wisp_worker_constructor_impl(JSContext *ctx, const char * scriptURL) {
     if (JS_IsException(obj)) return obj;
     QJSWorkerPrivate *priv = calloc(1, sizeof(QJSWorkerPrivate));
     if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
-    priv->ctx = ctx; priv->onmessage = JS_NULL; priv->onerror = JS_NULL;
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = NULL;
+    priv->ctx = ctx;
+    priv->is_dom_node = false;
+    priv->onmessage = JS_NULL; priv->onerror = JS_NULL;
     priv->handle = wisp_subsystem_spawn_worker(scriptURL);
     if (!priv->handle) { free(priv); JS_FreeValue(ctx, obj); return JS_ThrowTypeError(ctx, "Worker limit reached"); }
     priv->handle->worker_priv = priv;

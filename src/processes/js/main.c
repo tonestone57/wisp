@@ -95,7 +95,6 @@ static JSContext* get_context(uint32_t id) {
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
     wisp_js_register_all_bindings(node->ctx);
-    qjs_inject_fetch_polyfill(node->ctx);
 
     qjs_init_eventtarget(node->ctx);
     qjs_init_event(node->ctx);
@@ -115,6 +114,8 @@ static JSContext* get_context(uint32_t id) {
     qjs_init_imagedata(node->ctx);
     qjs_init_canvas(node->ctx);
     qjs_init_trusted_types(node->ctx);
+
+    qjs_inject_fetch_polyfill(node->ctx);
 
     /* Setup dummy jsthread for the remote context so opaque callbacks match */
     struct jsthread *t = calloc(1, sizeof(*t));
@@ -151,6 +152,7 @@ static JSContext* get_context(uint32_t id) {
     if (JS_IsObject(window_proto)) JS_SetPrototype(node->ctx, global_obj, window_proto);
     JS_FreeValue(node->ctx, window_proto);
 
+    JS_DefinePropertyValueStr(node->ctx, global_obj, "__wisp_is_js_process", JS_TRUE, 0);
     JS_DefinePropertyValueStr(node->ctx, global_obj, "window", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(node->ctx, global_obj, "self", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);
     JS_DefinePropertyValueStr(node->ctx, global_obj, "parent", JS_DupValue(node->ctx, global_obj), JS_PROP_C_W_E);

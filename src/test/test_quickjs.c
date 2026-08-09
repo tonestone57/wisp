@@ -2430,6 +2430,108 @@ START_TEST(test_quickjs_event_target_full)
 }
 END_TEST
 
+START_TEST(test_quickjs_events_and_listeners_advanced)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  // 1. CustomEvent construction and detail verification\n"
+        "  var ce = new CustomEvent('custom', { detail: { payload: 'hello_custom' }, bubbles: true });\n"
+        "  if (ce.type !== 'custom') throw new Error('CustomEvent type mismatch');\n"
+        "  if (ce.bubbles !== true) throw new Error('CustomEvent bubbles mismatch');\n"
+        "  if (!ce.detail || ce.detail.payload !== 'hello_custom') throw new Error('CustomEvent detail mismatch');\n"
+        "  if (ce.isTrusted !== false) throw new Error('CustomEvent isTrusted should be false');\n"
+        "\n"
+        "  // 2. initCustomEvent verification\n"
+        "  var ce2 = document.createEvent('CustomEvent');\n"
+        "  ce2.initCustomEvent('custom_init', true, true, 'init_detail');\n"
+        "  if (ce2.type !== 'custom_init') throw new Error('initCustomEvent type failed');\n"
+        "  if (ce2.bubbles !== true || ce2.cancelable !== true) throw new Error('initCustomEvent bubbles/cancelable failed');\n"
+        "  if (ce2.detail !== 'init_detail') throw new Error('initCustomEvent detail failed');\n"
+        "  if (ce2.isTrusted !== false) throw new Error('initCustomEvent isTrusted should be false');\n"
+        "\n"
+        "  // 3. handleEvent object listener verification\n"
+        "  var el = document.createElement('div');\n"
+        "  var handleEventCalled = false;\n"
+        "  var listenerObj = {\n"
+        "    handleEvent: function(e) {\n"
+        "      if (e.target === el) {\n"
+        "        handleEventCalled = true;\n"
+        "      }\n"
+        "    }\n"
+        "  };\n"
+        "  el.addEventListener('click', listenerObj);\n"
+        "  el.dispatchEvent(new Event('click'));\n"
+        "  if (!handleEventCalled) throw new Error('handleEvent not called or wrong target');\n"
+        "  el.removeEventListener('click', listenerObj);\n"
+        "  handleEventCalled = false;\n"
+        "  el.dispatchEvent(new Event('click'));\n"
+        "  if (handleEventCalled) throw new Error('removeEventListener failed for handleEvent object');\n"
+        "\n"
+        "  // 4. defaultPrevented verification\n"
+        "  var ev = new Event('cancelable_event', { cancelable: true });\n"
+        "  if (ev.defaultPrevented !== false) throw new Error('defaultPrevented should be false initially');\n"
+        "  ev.preventDefault();\n"
+        "  if (ev.defaultPrevented !== true) throw new Error('preventDefault failed');\n"
+        "\n"
+        "  // 5. Event Capturing, Target, and Bubbling phases verification\n"
+        "  var parent = document.createElement('div');\n"
+        "  var child = document.createElement('span');\n"
+        "  parent.appendChild(child);\n"
+        "  \n"
+        "  var phases = [];\n"
+        "  parent.addEventListener('click', function(e) {\n"
+        "    phases.push('parent_capture:' + e.eventPhase);\n"
+        "  }, true);\n"
+        "  parent.addEventListener('click', function(e) {\n"
+        "    phases.push('parent_bubble:' + e.eventPhase);\n"
+        "  }, false);\n"
+        "  child.addEventListener('click', function(e) {\n"
+        "    phases.push('child_target:' + e.eventPhase);\n"
+        "  });\n"
+        "  \n"
+        "  child.dispatchEvent(new Event('click', { bubbles: true }));\n"
+        "  var phaseStr = phases.join(',');\n"
+        "  if (phaseStr !== 'parent_capture:1,child_target:2,parent_bubble:3') {\n"
+        "    throw new Error('Event propagation phase order failed: ' + phaseStr);\n"
+        "  }\n"
+        "  \n"
+        "  window.advancedEventResult = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.advancedEventResult = e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.advancedEventResult === 'OK';";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_advanced_events_listeners");
+    if (!result) {
+        const char *diag = "window.advancedEventResult;";
+        js_exec(thread, (const uint8_t *)diag, strlen(diag), "get_diag_events");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_trusted_types)
 {
     jsheap *heap = NULL;
@@ -4634,6 +4736,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_parser);
     tcase_add_test(tc_window, test_quickjs_event_target_basic);
     tcase_add_test(tc_window, test_quickjs_event_target_full);
+    tcase_add_test(tc_window, test_quickjs_events_and_listeners_advanced);
     tcase_add_test(tc_window, test_quickjs_xhr);
     tcase_set_timeout(tc_window, 10);
     tcase_add_test(tc_window, test_quickjs_crypto);
