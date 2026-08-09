@@ -105,7 +105,7 @@ JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_window_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     JSValue global = JS_GetGlobalObject(ctx);
-    JSValue store = JS_GetPropertyStr(ctx, global, "localStorage");
+    JSValue store = JS_GetPropertyStr(ctx, global, "__wisp_localStorage");
     JS_FreeValue(ctx, global);
     return store;
 }
@@ -113,7 +113,7 @@ JSValue wisp_window_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_window_sessionStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     JSValue global = JS_GetGlobalObject(ctx);
-    JSValue store = JS_GetPropertyStr(ctx, global, "sessionStorage");
+    JSValue store = JS_GetPropertyStr(ctx, global, "__wisp_sessionStorage");
     JS_FreeValue(ctx, global);
     return store;
 }

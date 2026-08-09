@@ -162,11 +162,11 @@ int qjs_init_storage(JSContext *ctx)
 
     StorageStore *local_s = calloc(1, sizeof(StorageStore));
     JSValue localStorage = qjs_new_storage(ctx, local_s, false);
-    JS_DefinePropertyValueStr(ctx, global_obj, "localStorage", localStorage, JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_localStorage", localStorage, 0);
 
     StorageStore *session_s = calloc(1, sizeof(StorageStore));
     JSValue sessionStorage = qjs_new_storage(ctx, session_s, false);
-    JS_DefinePropertyValueStr(ctx, global_obj, "sessionStorage", sessionStorage, JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_sessionStorage", sessionStorage, 0);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_storage_init", JS_TRUE, 0);
