@@ -1668,6 +1668,25 @@ static void html_style_cache_free(html_content *c) {
 	pthread_mutex_unlock(&c->style_cache_mutex);
 }
 
+static void box_unref_nodes(struct box *box)
+{
+	struct box *child;
+
+	if (box == NULL)
+		return;
+
+	/* Recurse on children */
+	for (child = box->children; child != NULL; child = child->next) {
+		box_unref_nodes(child);
+	}
+
+	/* Unref the node of the current box if it's not a clone and is not NULL */
+	if (!(box->flags & CLONE) && box->node != NULL) {
+		dom_node_unref(box->node);
+		box->node = NULL;
+	}
+}
+
 static void html_free_layout(html_content *htmlc)
 {
 	if (htmlc->box_conversion_context != NULL) {
@@ -1678,6 +1697,10 @@ static void html_free_layout(html_content *htmlc)
 		/* The box_conversion_context is freed internally by cancel_dom_to_box
 		 * in box_construct.c, so we do not free it here to avoid a double-free. */
 		htmlc->box_conversion_context = NULL;
+	}
+
+	if (htmlc->layout != NULL) {
+		box_unref_nodes(htmlc->layout);
 	}
 
 	if (htmlc->bctx != NULL) {

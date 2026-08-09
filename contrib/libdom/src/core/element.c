@@ -578,6 +578,16 @@ void _dom_element_finalise(struct dom_element *ele)
     /* Destroy the pre-separated class names */
     _dom_element_destroy_classes(ele);
 
+    if (ele->id_name != NULL) {
+        dom_string_unref(ele->id_name);
+        ele->id_name = NULL;
+    }
+
+    if (ele->id_ns != NULL) {
+        dom_string_unref(ele->id_ns);
+        ele->id_ns = NULL;
+    }
+
     /* Finalise base class */
     _dom_node_finalise(&ele->base);
 }
@@ -1488,8 +1498,17 @@ dom_exception _dom_element_copy_internal(dom_element *old, dom_element *new)
         goto error;
     }
 
-    new->id_ns = NULL;
-    new->id_name = NULL;
+    if (old->id_name != NULL) {
+        new->id_name = dom_string_ref(old->id_name);
+    } else {
+        new->id_name = NULL;
+    }
+
+    if (old->id_ns != NULL) {
+        new->id_ns = dom_string_ref(old->id_ns);
+    } else {
+        new->id_ns = NULL;
+    }
 
     /* TODO: deal with dom_type_info, it get no definition ! */
 
