@@ -940,6 +940,12 @@ JS_EXTERN JSValue JS_NewArrayFrom(JSContext *ctx, int count,
 // and JS_GetProxyTarget instead, and remember that the target itself can
 // also be a proxy, ad infinitum
 JS_EXTERN bool JS_IsArray(JSValueConst val);
+#ifndef QUICKJS_NG_BUILD
+#define JS_IsArray_1(val) (JS_IsArray(val))
+#define JS_IsArray_2(ctx, val) (JS_IsArray(val))
+#define JS_IsArray_CHOOSER(_1, _2, NAME, ...) NAME
+#define JS_IsArray(...) JS_IsArray_CHOOSER(__VA_ARGS__, JS_IsArray_2, JS_IsArray_1)(__VA_ARGS__)
+#endif
 
 JS_EXTERN bool JS_IsProxy(JSValueConst val);
 JS_EXTERN JSValue JS_GetProxyTarget(JSContext *ctx, JSValueConst proxy);

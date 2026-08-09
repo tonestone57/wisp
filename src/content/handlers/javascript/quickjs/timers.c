@@ -8,13 +8,6 @@
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
 #include "quickjs.h"
-
-/* Ensure compatibility with both legacy QuickJS (2 args) and quickjs-ng (1 arg) */
-#ifdef JS_IsArray
-#undef JS_IsArray
-#endif
-#define JS_IsArray(ctx, val) (JS_IsArray(val))
-
 #include "qjs_internal.h"
 #include "dom_bridge.h"
 #include <stdlib.h>
