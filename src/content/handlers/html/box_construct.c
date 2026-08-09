@@ -1125,6 +1125,11 @@ static void free_style_snapshot(style_snapshot_t *snap) {
         css_stylesheet_destroy(snap->inline_style);
     }
 
+    if (snap->libcss_node_data != NULL) {
+        css_libcss_node_data_handler(&snapshot_selection_handler, CSS_NODE_DELETED, NULL, snap, NULL, snap->libcss_node_data);
+        snap->libcss_node_data = NULL;
+    }
+
     if (snap->node != NULL) {
         dom_node_unref(snap->node);
     }
