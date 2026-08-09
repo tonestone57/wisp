@@ -8,6 +8,13 @@
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
 #include "quickjs.h"
+
+/* Ensure compatibility with both legacy QuickJS (2 args) and quickjs-ng (1 arg) */
+#ifdef JS_IsArray
+#undef JS_IsArray
+#endif
+#define JS_IsArray(ctx, val) (JS_IsArray(val))
+
 #include "qjs_internal.h"
 #include "dom_bridge.h"
 #include <stdlib.h>
@@ -262,7 +269,7 @@ void qjs_timer_callback(void *p)
     if (JS_IsFunction(ctx, timer->func)) {
         int argc = 0;
         JSValueConst *argv = NULL;
-        if (JS_IsArray(timer->arguments)) {
+        if (JS_IsArray(ctx, timer->arguments)) {
             JSValue len_val = JS_GetPropertyStr(ctx, timer->arguments, "length");
             uint32_t len = 0;
             JS_ToUint32(ctx, &len, len_val);
