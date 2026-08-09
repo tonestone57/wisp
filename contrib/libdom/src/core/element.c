@@ -1488,8 +1488,17 @@ dom_exception _dom_element_copy_internal(dom_element *old, dom_element *new)
         goto error;
     }
 
-    new->id_ns = NULL;
-    new->id_name = NULL;
+    if (old->id_name != NULL) {
+        new->id_name = dom_string_ref(old->id_name);
+    } else {
+        new->id_name = NULL;
+    }
+
+    if (old->id_ns != NULL) {
+        new->id_ns = dom_string_ref(old->id_ns);
+    } else {
+        new->id_ns = NULL;
+    }
 
     /* TODO: deal with dom_type_info, it get no definition ! */
 
