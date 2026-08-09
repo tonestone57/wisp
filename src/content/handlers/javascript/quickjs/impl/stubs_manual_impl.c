@@ -11,10 +11,11 @@
 #include <libwapcaplet/libwapcaplet.h>
 #include <wisp/utils/shm_dom.h>
 #include <wisp/utils/corestrings.h>
+#include <wisp/content/handlers/html/private.h>
+#include <wisp/content/handlers/html/form_internal.h>
 
 struct nsurl;
 extern const char *nsurl_access(const struct nsurl *url);
-extern struct nsurl *content_get_url(void *c);
 extern nserror nsurl_create(const char *const url_s, struct nsurl **url);
 
 extern bool wisp_is_js_process;
@@ -1189,6 +1190,34 @@ JSValue wisp_htmlformelement_reset_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_htmlformelement_submit_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
+    if (wisp_is_js_process) {
+        return JS_UNDEFINED;
+    }
+    if (!priv || !priv->node) {
+        return JS_UNDEFINED;
+    }
+
+    dom_node *doc = NULL;
+    dom_node_get_owner_document((dom_node *)priv->node, (dom_document **)&doc);
+    if (doc) {
+        struct html_content *htmlc = NULL;
+        dom_node_get_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, (void **)&htmlc);
+        dom_node_unref((dom_node *)doc);
+        if (htmlc) {
+            struct form *f = NULL;
+            for (f = htmlc->forms; f != NULL; f = f->prev) {
+                if (f->node == priv->node) {
+                    break;
+                }
+            }
+            if (f) {
+                struct nsurl *page_url = content_get_url((struct content *)htmlc);
+                if (page_url && htmlc->bw) {
+                    form_submit(page_url, htmlc->bw, f, NULL);
+                }
+            }
+        }
+    }
     return JS_UNDEFINED;
 }
 
