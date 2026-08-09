@@ -8436,15 +8436,6 @@ JSValue wisp_touch_region_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NewString(ctx, "");
 }
 
-// 31. CanvasGradient Implementation (1 stub)
-JSValue wisp_canvasgradient_addColorStop_impl(JSContext *ctx, QJSNodePrivate *priv, double offset, const char * color) {
-    return JS_UNDEFINED;
-}
-
-// 32. CanvasPattern Implementation (1 stub)
-JSValue wisp_canvaspattern_setTransform_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue transform) {
-    return JS_UNDEFINED;
-}
 
 // 33. AutocompleteErrorEvent Implementation (1 stub + constructor)
 JSValue wisp_autocompleteerrorevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
@@ -9654,20 +9645,6 @@ JSValue wisp_path2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x,
     return JS_UNDEFINED;
 }
 
-// Overrides: method | CanvasRenderingContext2D::createLinearGradient();
-JSValue wisp_canvasrenderingcontext2d_createLinearGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double x1, double y1) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | CanvasRenderingContext2D::createRadialGradient();
-JSValue wisp_canvasrenderingcontext2d_createRadialGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double r0, double x1, double y1, double r1) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | CanvasRenderingContext2D::createPattern();
-JSValue wisp_canvasrenderingcontext2d_createPattern_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue image, const char * repetition) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: method | CanvasRenderingContext2D::setLineDash();
 JSValue wisp_canvasrenderingcontext2d_setLineDash_impl(JSContext *ctx, QJSNodePrivate *priv, double segments) {

@@ -28,10 +28,30 @@ static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(pt
 /* Forward declarations for generated headers */
 #include "JSHTMLCanvasElement.gen.h"
 #include "JSCanvasRenderingContext2D.gen.h"
+#include "JSCanvasGradient.gen.h"
+#include "JSCanvasPattern.gen.h"
 
 extern bool wisp_is_js_process;
 
 JSClassID qjs_canvasrenderingcontext2d_class_id;
+JSClassID qjs_canvasgradient_class_id;
+JSClassID qjs_canvaspattern_class_id;
+
+typedef struct CanvasGradientPrivate {
+    double x0, y0, x1, y1;
+    double r0, r1; // for radial
+    bool is_radial;
+    int count;
+    struct {
+        double offset;
+        char *color;
+    } stops[32];
+} CanvasGradientPrivate;
+
+typedef struct CanvasPatternPrivate {
+    JSValue image;
+    char *repetition;
+} CanvasPatternPrivate;
 
 extern struct wisp_table *guit;
 
@@ -43,6 +63,8 @@ typedef struct CanvasState {
     colour stroke_colour;
     float global_alpha;
     float line_width;
+    JSValue fill_style_val;
+    JSValue stroke_style_val;
     struct CanvasState *next;
 } CanvasState;
 
@@ -63,6 +85,9 @@ typedef struct CanvasContext2DPrivate {
     colour stroke_colour;
     float global_alpha;
     float line_width;
+
+    JSValue fill_style_val;
+    JSValue stroke_style_val;
 } CanvasContext2DPrivate;
 
 /* Internal helper to extract our private data from QJSNodePrivate */
@@ -89,9 +114,13 @@ static void canvas_context_2d_finalizer(JSRuntime *rt, JSValue val)
             CanvasState *s = cpriv->state_stack;
             while (s) {
                 CanvasState *next = s->next;
+                JS_FreeValueRT(rt, s->fill_style_val);
+                JS_FreeValueRT(rt, s->stroke_style_val);
                 free(s);
                 s = next;
             }
+            JS_FreeValueRT(rt, cpriv->fill_style_val);
+            JS_FreeValueRT(rt, cpriv->stroke_style_val);
             free(cpriv);
         }
         free(priv);
@@ -147,15 +176,18 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
     }
     JS_FreeValue(ctx, existing);
 
-    if (wisp_is_js_process) {
+    if (wisp_is_js_process || guit == NULL || guit->bitmap == NULL) {
         extern JSValue qjs_new_canvasrenderingcontext2d(JSContext *ctx, void *node, bool is_dom_node);
         CanvasContext2DPrivate *cpriv = calloc(1, sizeof(*cpriv));
         if (!cpriv) { JS_FreeValue(ctx, element_obj); return JS_ThrowOutOfMemory(ctx); }
         cpriv->magic = QJS_CANVAS_CONTEXT_MAGIC;
         cpriv->canvas_node = (struct dom_node *)priv->node;
+        if (!wisp_is_js_process) dom_node_ref(cpriv->canvas_node);
         cpriv->bitmap = NULL;
         cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
         cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
+        cpriv->fill_style_val = JS_UNDEFINED;
+        cpriv->stroke_style_val = JS_UNDEFINED;
 
         JSValue context_obj = qjs_new_canvasrenderingcontext2d(ctx, cpriv, false);
         JS_SetPropertyStr(ctx, element_obj, "__canvas_context_2d", JS_DupValue(ctx, context_obj));
@@ -164,17 +196,26 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
     }
 
     struct bitmap *bitmap = NULL;
-    dom_exception exc = dom_node_get_user_data(priv->node, corestring_dom___ns_key_canvas_node_data, &bitmap);
+    dom_exception exc = DOM_NO_ERR;
+    if (corestring_dom___ns_key_canvas_node_data != NULL) {
+        exc = dom_node_get_user_data(priv->node, corestring_dom___ns_key_canvas_node_data, &bitmap);
+    }
     if (exc != DOM_NO_ERR || bitmap == NULL) {
         int width = 300, height = 150;
         dom_string *w_attr = NULL, *h_attr = NULL;
-        dom_element_get_attribute((dom_element *)priv->node, corestring_dom_width, &w_attr);
+        if (corestring_dom_width != NULL) {
+            dom_element_get_attribute((dom_element *)priv->node, corestring_dom_width, &w_attr);
+        }
         if (w_attr) { ns_strtoint((const char *)dom_string_data(w_attr), 10, &width); dom_string_unref(w_attr); }
-        dom_element_get_attribute((dom_element *)priv->node, corestring_dom_height, &h_attr);
+        if (corestring_dom_height != NULL) {
+            dom_element_get_attribute((dom_element *)priv->node, corestring_dom_height, &h_attr);
+        }
         if (h_attr) { ns_strtoint((const char *)dom_string_data(h_attr), 10, &height); dom_string_unref(h_attr); }
         bitmap = (struct bitmap *)guit->bitmap->create(width, height, BITMAP_CLEAR);
         if (!bitmap) { JS_FreeValue(ctx, element_obj); return JS_ThrowInternalError(ctx, "Failed to create canvas bitmap"); }
-        dom_node_set_user_data(priv->node, corestring_dom___ns_key_canvas_node_data, bitmap, canvas_bitmap_handler, NULL);
+        if (corestring_dom___ns_key_canvas_node_data != NULL) {
+            dom_node_set_user_data(priv->node, corestring_dom___ns_key_canvas_node_data, bitmap, canvas_bitmap_handler, NULL);
+        }
     }
 
     CanvasContext2DPrivate *cpriv = calloc(1, sizeof(*cpriv));
@@ -185,6 +226,8 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
     cpriv->bitmap = bitmap;
     cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
     cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
+    cpriv->fill_style_val = JS_UNDEFINED;
+    cpriv->stroke_style_val = JS_UNDEFINED;
 
 #ifdef WITH_BLEND2D
     bl_context_init(&cpriv->bl_ctx_obj);
@@ -221,7 +264,9 @@ JSValue wisp_htmlcanvaselement_width_get_impl(JSContext *ctx, QJSNodePrivate *pr
     if (!priv || !priv->node) return JS_UNDEFINED;
     int width = 300;
     dom_string *w_attr = NULL;
-    dom_element_get_attribute((dom_element *)priv->node, corestring_dom_width, &w_attr);
+    if (corestring_dom_width != NULL) {
+        dom_element_get_attribute((dom_element *)priv->node, corestring_dom_width, &w_attr);
+    }
     if (w_attr) { ns_strtoint((const char *)dom_string_data(w_attr), 10, &width); dom_string_unref(w_attr); }
     return JS_NewInt32(ctx, width);
 }
@@ -229,10 +274,12 @@ JSValue wisp_htmlcanvaselement_width_get_impl(JSContext *ctx, QJSNodePrivate *pr
 JSValue wisp_htmlcanvaselement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
-    dom_string *w_dom = NULL; dom_string_create((const uint8_t *)buf, strlen(buf), &w_dom);
-    dom_element_set_attribute((dom_element *)priv->node, corestring_dom_width, w_dom);
-    dom_string_unref(w_dom);
+    if (corestring_dom_width != NULL) {
+        char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
+        dom_string *w_dom = NULL; dom_string_create((const uint8_t *)buf, strlen(buf), &w_dom);
+        dom_element_set_attribute((dom_element *)priv->node, corestring_dom_width, w_dom);
+        dom_string_unref(w_dom);
+    }
     return JS_UNDEFINED;
 }
 
@@ -241,7 +288,9 @@ JSValue wisp_htmlcanvaselement_height_get_impl(JSContext *ctx, QJSNodePrivate *p
     if (!priv || !priv->node) return JS_UNDEFINED;
     int height = 150;
     dom_string *h_attr = NULL;
-    dom_element_get_attribute((dom_element *)priv->node, corestring_dom_height, &h_attr);
+    if (corestring_dom_height != NULL) {
+        dom_element_get_attribute((dom_element *)priv->node, corestring_dom_height, &h_attr);
+    }
     if (h_attr) { ns_strtoint((const char *)dom_string_data(h_attr), 10, &height); dom_string_unref(h_attr); }
     return JS_NewInt32(ctx, height);
 }
@@ -249,10 +298,12 @@ JSValue wisp_htmlcanvaselement_height_get_impl(JSContext *ctx, QJSNodePrivate *p
 JSValue wisp_htmlcanvaselement_height_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
-    dom_string *h_dom = NULL; dom_string_create((const uint8_t *)buf, strlen(buf), &h_dom);
-    dom_element_set_attribute((dom_element *)priv->node, corestring_dom_height, h_dom);
-    dom_string_unref(h_dom);
+    if (corestring_dom_height != NULL) {
+        char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
+        dom_string *h_dom = NULL; dom_string_create((const uint8_t *)buf, strlen(buf), &h_dom);
+        dom_element_set_attribute((dom_element *)priv->node, corestring_dom_height, h_dom);
+        dom_string_unref(h_dom);
+    }
     return JS_UNDEFINED;
 }
 
@@ -260,6 +311,11 @@ JSValue wisp_canvasrenderingcontext2d_fillStyle_get_impl(JSContext *ctx, QJSNode
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (!cpriv) return JS_UNDEFINED;
+
+    if (!JS_IsUndefined(cpriv->fill_style_val)) {
+        return JS_DupValue(ctx, cpriv->fill_style_val);
+    }
+
     char buf[16];
     snprintf(buf, sizeof(buf), "#%02x%02x%02x", cpriv->fill_colour & 0xFF, (cpriv->fill_colour >> 8) & 0xFF, (cpriv->fill_colour >> 16) & 0xFF);
     return JS_NewString(ctx, buf);
@@ -269,8 +325,19 @@ JSValue wisp_canvasrenderingcontext2d_fillStyle_set_impl(JSContext *ctx, QJSNode
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (!cpriv) return JS_UNDEFINED;
-    const char *str = JS_ToCString(ctx, value);
-    if (str) { cpriv->fill_colour = parse_color(str); JS_FreeCString(ctx, str); }
+
+    if (JS_IsObject(value)) {
+        JS_FreeValue(ctx, cpriv->fill_style_val);
+        cpriv->fill_style_val = JS_DupValue(ctx, value);
+    } else {
+        const char *str = JS_ToCString(ctx, value);
+        if (str) {
+            cpriv->fill_colour = parse_color(str);
+            JS_FreeCString(ctx, str);
+            JS_FreeValue(ctx, cpriv->fill_style_val);
+            cpriv->fill_style_val = JS_DupValue(ctx, value);
+        }
+    }
     return JS_UNDEFINED;
 }
 
@@ -278,6 +345,11 @@ JSValue wisp_canvasrenderingcontext2d_strokeStyle_get_impl(JSContext *ctx, QJSNo
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (!cpriv) return JS_UNDEFINED;
+
+    if (!JS_IsUndefined(cpriv->stroke_style_val)) {
+        return JS_DupValue(ctx, cpriv->stroke_style_val);
+    }
+
     char buf[16];
     snprintf(buf, sizeof(buf), "#%02x%02x%02x", cpriv->stroke_colour & 0xFF, (cpriv->stroke_colour >> 8) & 0xFF, (cpriv->stroke_colour >> 16) & 0xFF);
     return JS_NewString(ctx, buf);
@@ -287,8 +359,19 @@ JSValue wisp_canvasrenderingcontext2d_strokeStyle_set_impl(JSContext *ctx, QJSNo
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (!cpriv) return JS_UNDEFINED;
-    const char *str = JS_ToCString(ctx, value);
-    if (str) { cpriv->stroke_colour = parse_color(str); JS_FreeCString(ctx, str); }
+
+    if (JS_IsObject(value)) {
+        JS_FreeValue(ctx, cpriv->stroke_style_val);
+        cpriv->stroke_style_val = JS_DupValue(ctx, value);
+    } else {
+        const char *str = JS_ToCString(ctx, value);
+        if (str) {
+            cpriv->stroke_colour = parse_color(str);
+            JS_FreeCString(ctx, str);
+            JS_FreeValue(ctx, cpriv->stroke_style_val);
+            cpriv->stroke_style_val = JS_DupValue(ctx, value);
+        }
+    }
     return JS_UNDEFINED;
 }
 
@@ -326,6 +409,8 @@ JSValue wisp_canvasrenderingcontext2d_save_impl(JSContext *ctx, QJSNodePrivate *
     if (!s) return JS_ThrowOutOfMemory(ctx);
     s->fill_colour = cpriv->fill_colour; s->stroke_colour = cpriv->stroke_colour;
     s->global_alpha = cpriv->global_alpha; s->line_width = cpriv->line_width;
+    s->fill_style_val = JS_DupValue(ctx, cpriv->fill_style_val);
+    s->stroke_style_val = JS_DupValue(ctx, cpriv->stroke_style_val);
     s->next = cpriv->state_stack; cpriv->state_stack = s;
 #ifdef WITH_BLEND2D
     bl_context_save(&cpriv->bl_ctx_obj, NULL);
@@ -340,6 +425,13 @@ JSValue wisp_canvasrenderingcontext2d_restore_impl(JSContext *ctx, QJSNodePrivat
     CanvasState *s = cpriv->state_stack; cpriv->state_stack = s->next;
     cpriv->fill_colour = s->fill_colour; cpriv->stroke_colour = s->stroke_colour;
     cpriv->global_alpha = s->global_alpha; cpriv->line_width = s->line_width;
+
+    JS_FreeValue(ctx, cpriv->fill_style_val);
+    cpriv->fill_style_val = s->fill_style_val; // transfers ownership
+
+    JS_FreeValue(ctx, cpriv->stroke_style_val);
+    cpriv->stroke_style_val = s->stroke_style_val; // transfers ownership
+
 #ifdef WITH_BLEND2D
     bl_context_restore(&cpriv->bl_ctx_obj, NULL);
 #endif
@@ -1023,6 +1115,175 @@ JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePri
     return JS_UNDEFINED;
 }
 
+JSValue wisp_canvasrenderingcontext2d_createLinearGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double x1, double y1)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+
+    CanvasGradientPrivate *grad = calloc(1, sizeof(*grad));
+    if (!grad) return JS_ThrowOutOfMemory(ctx);
+
+    grad->x0 = x0; grad->y0 = y0; grad->x1 = x1; grad->y1 = y1;
+    grad->is_radial = false;
+    grad->count = 0;
+
+    return qjs_new_canvasgradient(ctx, grad, false);
+}
+
+JSValue wisp_canvasrenderingcontext2d_createRadialGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double r0, double x1, double y1, double r1)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+
+    CanvasGradientPrivate *grad = calloc(1, sizeof(*grad));
+    if (!grad) return JS_ThrowOutOfMemory(ctx);
+
+    grad->x0 = x0; grad->y0 = y0; grad->r0 = r0;
+    grad->x1 = x1; grad->y1 = y1; grad->r1 = r1;
+    grad->is_radial = true;
+    grad->count = 0;
+
+    return qjs_new_canvasgradient(ctx, grad, false);
+}
+
+JSValue wisp_canvasrenderingcontext2d_createPattern_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue image, const char * repetition)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+
+    CanvasPatternPrivate *pat = calloc(1, sizeof(*pat));
+    if (!pat) return JS_ThrowOutOfMemory(ctx);
+
+    pat->image = JS_DupValue(ctx, image);
+    pat->repetition = repetition ? strdup(repetition) : strdup("repeat");
+
+    return qjs_new_canvaspattern(ctx, pat, false);
+}
+
+JSValue wisp_canvasgradient_addColorStop_impl(JSContext *ctx, QJSNodePrivate *priv, double offset, const char * color)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    CanvasGradientPrivate *grad = (CanvasGradientPrivate *)priv->node;
+
+    if (offset < 0.0 || offset > 1.0) {
+        return JS_ThrowRangeError(ctx, "IndexSizeError: offset must be between 0.0 and 1.0");
+    }
+
+    if (!color) {
+        return JS_ThrowTypeError(ctx, "SyntaxError: color is null");
+    }
+
+    if (grad->count < 32) {
+        grad->stops[grad->count].offset = offset;
+        grad->stops[grad->count].color = strdup(color);
+        grad->count++;
+    }
+
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_canvaspattern_setTransform_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue transform)
+{
+    return JS_UNDEFINED;
+}
+
+static void canvas_context_2d_gc_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_canvasrenderingcontext2d_class_id);
+    if (priv) {
+        CanvasContext2DPrivate *cpriv = (CanvasContext2DPrivate *)priv->node;
+        if (cpriv && cpriv->magic == QJS_CANVAS_CONTEXT_MAGIC) {
+            JS_MarkValue(rt, cpriv->fill_style_val, mark_func);
+            JS_MarkValue(rt, cpriv->stroke_style_val, mark_func);
+            CanvasState *s = cpriv->state_stack;
+            while (s) {
+                JS_MarkValue(rt, s->fill_style_val, mark_func);
+                JS_MarkValue(rt, s->stroke_style_val, mark_func);
+                s = s->next;
+            }
+        }
+    }
+}
+
+static void canvas_pattern_gc_mark(JSRuntime *rt, JSValueConst val, JS_MarkFunc *mark_func)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_canvaspattern_class_id);
+    if (priv) {
+        CanvasPatternPrivate *pat = (CanvasPatternPrivate *)priv->node;
+        if (pat) {
+            JS_MarkValue(rt, pat->image, mark_func);
+        }
+    }
+}
+
+static void canvas_gradient_finalizer(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_canvasgradient_class_id);
+    if (priv) {
+        CanvasGradientPrivate *grad = (CanvasGradientPrivate *)priv->node;
+        if (grad) {
+            for (int i = 0; i < grad->count; i++) {
+                free(grad->stops[i].color);
+            }
+            free(grad);
+        }
+        free(priv);
+    }
+}
+
+int qjs_init_canvasgradient(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_canvasgradient_class_id == 0) {
+        JS_NewClassID(rt, &qjs_canvasgradient_class_id);
+    }
+
+    JSClassDef qjs_canvasgradient_class_manual = {
+        "CanvasGradient",
+        .finalizer = canvas_gradient_finalizer,
+    };
+
+    if (!JS_IsRegisteredClass(rt, qjs_canvasgradient_class_id)) {
+        JS_NewClass(rt, qjs_canvasgradient_class_id, &qjs_canvasgradient_class_manual);
+    }
+
+    return qjs_init_canvasgradient_gen(ctx);
+}
+
+static void canvas_pattern_finalizer(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_canvaspattern_class_id);
+    if (priv) {
+        CanvasPatternPrivate *pat = (CanvasPatternPrivate *)priv->node;
+        if (pat) {
+            JS_FreeValueRT(rt, pat->image);
+            free(pat->repetition);
+            free(pat);
+        }
+        free(priv);
+    }
+}
+
+int qjs_init_canvaspattern(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_canvaspattern_class_id == 0) {
+        JS_NewClassID(rt, &qjs_canvaspattern_class_id);
+    }
+
+    JSClassDef qjs_canvaspattern_class_manual = {
+        "CanvasPattern",
+        .finalizer = canvas_pattern_finalizer,
+        .gc_mark = canvas_pattern_gc_mark,
+    };
+
+    if (!JS_IsRegisteredClass(rt, qjs_canvaspattern_class_id)) {
+        JS_NewClass(rt, qjs_canvaspattern_class_id, &qjs_canvaspattern_class_manual);
+    }
+
+    return qjs_init_canvaspattern_gen(ctx);
+}
+
 int qjs_init_canvasrenderingcontext2d(JSContext *ctx)
 {
     JSRuntime *rt = JS_GetRuntime(ctx);
@@ -1033,6 +1294,7 @@ int qjs_init_canvasrenderingcontext2d(JSContext *ctx)
     JSClassDef qjs_canvas_context_2d_class_manual = {
         "CanvasRenderingContext2D",
         .finalizer = canvas_context_2d_finalizer,
+        .gc_mark = canvas_context_2d_gc_mark,
     };
 
     if (!JS_IsRegisteredClass(rt, qjs_canvasrenderingcontext2d_class_id)) {
@@ -1046,5 +1308,7 @@ int qjs_init_canvas(JSContext *ctx)
 {
     qjs_init_htmlcanvaselement_gen(ctx);
     qjs_init_canvasrenderingcontext2d(ctx);
+    qjs_init_canvasgradient(ctx);
+    qjs_init_canvaspattern(ctx);
     return 0;
 }
