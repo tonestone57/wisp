@@ -925,7 +925,73 @@ JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNod
 
     return JS_UNDEFINED;
 }
-JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata_val, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_putImageData_1_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata_val, double dx, double dy, double dirtyX, double dirtyY, double dirtyWidth, double dirtyHeight)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (!cpriv) return JS_UNDEFINED;
+
+    QJSNodePrivate *img_priv = qjs_get_dom_priv(ctx, imagedata_val);
+    if (!img_priv || !img_priv->node) return JS_UNDEFINED;
+
+    ImageDataPrivate *idpriv = (ImageDataPrivate *)img_priv->node;
+    int img_w = idpriv->width;
+    int img_h = idpriv->height;
+
+    // Handle negative dimensions per HTML Canvas spec
+    if (dirtyWidth < 0) {
+        dirtyX += dirtyWidth;
+        dirtyWidth = -dirtyWidth;
+    }
+    if (dirtyHeight < 0) {
+        dirtyY += dirtyHeight;
+        dirtyHeight = -dirtyHeight;
+    }
+
+    // Clip dirty bounds against ImageData bounds
+    int start_x = (int)fmax(0, dirtyX);
+    int start_y = (int)fmax(0, dirtyY);
+    int end_x   = (int)fmin(img_w, dirtyX + dirtyWidth);
+    int end_y   = (int)fmin(img_h, dirtyY + dirtyHeight);
+
+    if (start_x >= end_x || start_y >= end_y) {
+        return JS_UNDEFINED; // Empty clipping rect
+    }
+
+    size_t offset, byte_length, bytes_per_element;
+    JSValue buffer = JS_GetTypedArrayBuffer(ctx, idpriv->data, &offset, &byte_length, &bytes_per_element);
+    if (JS_IsException(buffer)) return JS_UNDEFINED;
+
+    size_t psize;
+    uint8_t *data = JS_GetArrayBuffer(ctx, &psize, buffer);
+    if (!data) {
+        JS_FreeValue(ctx, buffer);
+        return JS_UNDEFINED;
+    }
+    data += offset;
+
+    uint8_t *dst_buf = guit->bitmap->get_buffer(cpriv->bitmap);
+    int dst_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
+    int dst_w = guit->bitmap->get_width(cpriv->bitmap);
+    int dst_h = guit->bitmap->get_height(cpriv->bitmap);
+
+    for (int y = start_y; y < end_y; y++) {
+        for (int x = start_x; x < end_x; x++) {
+            int cur_x = (int)dx + x;
+            int cur_y = (int)dy + y;
+            if (cur_x >= 0 && cur_x < dst_w && cur_y >= 0 && cur_y < dst_h) {
+                uint32_t *pixel = (uint32_t *)(dst_buf + cur_y * dst_stride + cur_x * 4);
+                uint8_t r = data[(y * img_w + x) * 4 + 0];
+                uint8_t g = data[(y * img_w + x) * 4 + 1];
+                uint8_t b = data[(y * img_w + x) * 4 + 2];
+                uint8_t a = data[(y * img_w + x) * 4 + 3];
+                *pixel = (a << 24) | (r << 16) | (g << 8) | b;
+            }
+        }
+    }
+
+    JS_FreeValue(ctx, buffer);
+    return JS_UNDEFINED;
+}
 JSValue wisp_canvasrenderingcontext2d_removeHitRegion_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_resetClip_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
