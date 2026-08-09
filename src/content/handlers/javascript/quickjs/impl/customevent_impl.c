@@ -53,6 +53,24 @@ static void save_custom_event_detail(JSContext *ctx, void *node, JSValue detail)
     pthread_mutex_unlock(&event_ctx_mutex);
 }
 
+void wisp_dom_event_cleanup_ctx(JSContext *ctx) {
+    pthread_mutex_lock(&event_ctx_mutex);
+    struct custom_event_ctx_map **prev = &event_ctx_list;
+    struct custom_event_ctx_map *curr = event_ctx_list;
+    while (curr) {
+        if (curr->ctx == ctx) {
+            *prev = curr->next;
+            struct custom_event_ctx_map *to_free = curr;
+            curr = curr->next;
+            free(to_free);
+        } else {
+            prev = &curr->next;
+            curr = curr->next;
+        }
+    }
+    pthread_mutex_unlock(&event_ctx_mutex);
+}
+
 static JSValue get_custom_event_detail(JSContext *ctx, void *node) {
     if (!node) return JS_NULL;
     JSValue global = JS_GetGlobalObject(ctx);
@@ -132,6 +150,7 @@ JSValue wisp_customevent_constructor_impl(JSContext *ctx, const char * type, JSV
     }
 
     dom_event_init(evt, type_str, bubbles, cancelable);
+    dom_event_set_is_trusted(evt, false);
     dom_string_unref(type_str);
 
     if (!JS_IsUndefined(detail) && !JS_IsNull(detail)) {

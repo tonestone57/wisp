@@ -799,7 +799,13 @@ void* wisp_web_worker_routine(void *arg) {
         WispMessage *msg = wisp_message_queue_pop(&h->to_worker, 100);
         if (msg) {
             JSValue global = JS_GetGlobalObject(t->ctx);
-            JSValue msg_data = JS_ReadObject(t->ctx, msg->data, msg->size, JS_READ_OBJ_SAB | JS_READ_OBJ_REFERENCE);
+            JSValue json = JS_GetPropertyStr(t->ctx, global, "JSON");
+            JSValue parse = JS_GetPropertyStr(t->ctx, json, "parse");
+            JSValue json_str_val = JS_NewStringLen(t->ctx, (const char *)msg->data, msg->size);
+            JSValue msg_data = JS_Call(t->ctx, parse, json, 1, &json_str_val);
+            JS_FreeValue(t->ctx, json_str_val);
+            JS_FreeValue(t->ctx, parse);
+            JS_FreeValue(t->ctx, json);
             extern JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data);
             JSValue event = qjs_new_messageevent_manual(t->ctx, msg_data);
             JSValue onmessage = JS_GetPropertyStr(t->ctx, global, "onmessage");

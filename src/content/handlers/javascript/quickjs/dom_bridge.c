@@ -575,8 +575,12 @@ static bool qjs_get_node_type(struct dom_node *node, dom_node_type *out_type)
     return dom_node_get_node_type(node, out_type) == DOM_NO_ERR;
 }
 
+extern void wisp_dom_event_cleanup_ctx(JSContext *ctx);
+
 void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
 {
+    wisp_dom_event_cleanup_ctx(ctx);
+
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (!map) return;
 
