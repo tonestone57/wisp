@@ -3372,18 +3372,66 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "globalThis.CSS.escape = globalThis.CSS.escape || function(ident) {\n"
         "    return String(ident);\n"
         "};\n"
-        "let __onloadHandler = null;\n"
-        "Object.defineProperty(globalThis, 'onload', {\n"
-        "    get: function() { return __onloadHandler; },\n"
-        "    set: function(fn) {\n"
-        "        __onloadHandler = fn;\n"
-        "        if (typeof fn === 'function') {\n"
-        "            globalThis.addEventListener('load', fn);\n"
+        "\n"
+        "(function() {\n"
+        "    function setupHandler(proto, prop, eventName) {\n"
+        "        if (!proto) return;\n"
+        "        try {\n"
+        "            Object.defineProperty(proto, prop, {\n"
+        "                get() {\n"
+        "                    return this['__' + prop + '_func'] || null;\n"
+        "                },\n"
+        "                set(val) {\n"
+        "                    let oldVal = this['__' + prop + '_func'];\n"
+        "                    if (oldVal) {\n"
+        "                        this.removeEventListener(eventName, oldVal);\n"
+        "                    }\n"
+        "                    this['__' + prop + '_func'] = val;\n"
+        "                    if (typeof val === 'function') {\n"
+        "                        this.addEventListener(eventName, val);\n"
+        "                    }\n"
+        "                },\n"
+        "                configurable: true,\n"
+        "                enumerable: true\n"
+        "            });\n"
+        "        } catch (e) {\n"
+        "            // ignore\n"
         "        }\n"
-        "    },\n"
-        "    configurable: true,\n"
-        "    enumerable: true\n"
-        "});\n"
+        "    }\n"
+        "\n"
+        "    const events = {\n"
+        "        onload: 'load',\n"
+        "        onerror: 'error',\n"
+        "        onmessage: 'message',\n"
+        "        onclick: 'click',\n"
+        "        onchange: 'change',\n"
+        "        oninput: 'input',\n"
+        "        onkeydown: 'keydown',\n"
+        "        onkeyup: 'keyup',\n"
+        "        onkeypress: 'keypress',\n"
+        "        onmousedown: 'mousedown',\n"
+        "        onmouseup: 'mouseup',\n"
+        "        onmousemove: 'mousemove',\n"
+        "        onmouseover: 'mouseover',\n"
+        "        onmouseout: 'mouseout',\n"
+        "        onsubmit: 'submit',\n"
+        "        onreset: 'reset',\n"
+        "        onscroll: 'scroll'\n"
+        "    };\n"
+        "\n"
+        "    const protos = [];\n"
+        "    if (typeof Window !== 'undefined' && Window.prototype) protos.push(Window.prototype);\n"
+        "    if (typeof Document !== 'undefined' && Document.prototype) protos.push(Document.prototype);\n"
+        "    if (typeof HTMLElement !== 'undefined' && HTMLElement.prototype) protos.push(HTMLElement.prototype);\n"
+        "    if (typeof Element !== 'undefined' && Element.prototype) protos.push(Element.prototype);\n"
+        "    protos.push(globalThis);\n"
+        "\n"
+        "    for (let proto of protos) {\n"
+        "        for (let prop in events) {\n"
+        "            setupHandler(proto, prop, events[prop]);\n"
+        "        }\n"
+        "    }\n"
+        "})();\n"
         "";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val);
@@ -5103,20 +5151,6 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
         NSLOG(wisp, ERROR, "js_fire_event: Failed to create dom_event");
     }
     dom_string_unref(type_str);
-
-    if (get_js_process_handle(thread->origin)) {
-        char js_cmd[1024];
-        snprintf(js_cmd, sizeof(js_cmd),
-            "(function() {\n"
-            "    let evt = new Event('%s');\n"
-            "    window.dispatchEvent(evt);\n"
-            "    if ('%s' === 'load' && typeof globalThis.onload === 'function') {\n"
-            "        try { globalThis.onload(evt); } catch(e) { console.error(e); }\n"
-            "    }\n"
-            "})();", type, type);
-        js_exec(thread, (const uint8_t *)js_cmd, strlen(js_cmd), "<event_dispatch_bridge>");
-    }
-
     return success;
 }
 
