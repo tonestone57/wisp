@@ -586,7 +586,16 @@ void* wisp_worker_routine(void *arg) {
                 JSValue val = js_eval_with_aot_cache(worker->ctx, (const uint8_t *)task->script, strlen(task->script), "<eval>", JS_EVAL_TYPE_GLOBAL);
                 JS_FreeValue(worker->ctx, val);
                 JSContext *ctx1;
-                while (JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1) > 0);
+                int job_ret;
+                while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1)) != 0) {
+                    if (job_ret < 0) {
+                        JSValue exc = JS_GetException(ctx1);
+                        const char *exc_str = JS_ToCString(ctx1, exc);
+                        NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                        if (exc_str) JS_FreeCString(ctx1, exc_str);
+                        JS_FreeValue(ctx1, exc);
+                    }
+                }
             }
             if (task->function) task->function(task->arg);
 
@@ -795,7 +804,16 @@ void* wisp_web_worker_routine(void *arg) {
     h->running = true;
     while (h->running && !h->terminated) {
         JSContext *ctx1;
-        while (JS_ExecutePendingJob(JS_GetRuntime(t->ctx), &ctx1) > 0);
+        int job_ret;
+        while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(t->ctx), &ctx1)) != 0) {
+            if (job_ret < 0) {
+                JSValue exc = JS_GetException(ctx1);
+                const char *exc_str = JS_ToCString(ctx1, exc);
+                NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                if (exc_str) JS_FreeCString(ctx1, exc_str);
+                JS_FreeValue(ctx1, exc);
+            }
+        }
         WispMessage *msg = wisp_message_queue_pop(&h->to_worker, 100);
         if (msg) {
             JSValue global = JS_GetGlobalObject(t->ctx);
