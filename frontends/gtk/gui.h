@@ -34,6 +34,6 @@ extern char **respaths;
 uint32_t gtk_gui_gdkkey_to_nskey(GdkEventKey *eventkey);
 
 /** set when no windows remain open. */
-extern bool nsgtk_complete;
+extern volatile bool nsgtk_complete;
 
 #endif /* GTK_GUI_H */

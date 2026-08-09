@@ -87,7 +87,7 @@
 extern struct gui_audio_table *macos_audio_table;
 #endif
 
-bool nsgtk_complete = false;
+volatile bool nsgtk_complete = false;
 
 /* exported global defined in gtk/gui.h */
 char *nsgtk_config_home;
@@ -1251,11 +1251,25 @@ static void nsgtk_finalise(void)
 }
 
 
+#include <signal.h>
+
+static void nsgtk_signal_handler(int sig)
+{
+    nsgtk_complete = true;
+    if (nsgtk_wake_pipe[1] != -1) {
+        char buf[1] = {'w'};
+        (void)write(nsgtk_wake_pipe[1], buf, 1);
+    }
+}
+
 /**
  * Main entry point from OS.
  */
 int main(int argc, char **argv)
 {
+    signal(SIGINT, nsgtk_signal_handler);
+    signal(SIGTERM, nsgtk_signal_handler);
+
     nserror res;
     char *cache_home = NULL;
     extern struct gui_audio_table *nsgtk_audio_table;

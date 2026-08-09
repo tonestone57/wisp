@@ -504,8 +504,11 @@ void qjs_on_node_destroy(void *node) {
                         dom_node_get_owner_document((dom_node *)entry_ptr, &owner);
                         if (owner == (struct dom_document *)node) {
                             shm_dom_get_dom_ptrs(shm)[i] = 0;
-                        }
-                        if (owner && owner != (struct dom_document *)node) {
+                            /* Decrement refcnt directly to balance the ref added by
+                             * dom_node_get_owner_document, bypassing the destructor call
+                             * to avoid recursive infinite destruction loops. */
+                            ((struct dom_node *)owner)->refcnt--;
+                        } else if (owner != NULL) {
                             dom_node_unref((dom_node *)owner);
                         }
                     }
