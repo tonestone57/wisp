@@ -1578,6 +1578,111 @@ START_TEST(test_quickjs_site_isolation)
 }
 END_TEST
 
+START_TEST(test_quickjs_dom_mutations_advanced)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *script =
+        "var parent = document.createElement('div');\n"
+        "var child1 = document.createElement('span');\n"
+        "var child2 = document.createElement('p');\n"
+        "var child3 = document.createElement('a');\n"
+        "\n"
+        "/* 1. Test standard appendChild */\n"
+        "parent.appendChild(child1);\n"
+        "parent.appendChild(child2);\n"
+        "var appendOk = parent.childNodes.length === 2 && parent.firstChild === child1 && parent.lastChild === child2;\n"
+        "\n"
+        "/* 2. Test moving already attached child */\n"
+        "var parent2 = document.createElement('section');\n"
+        "parent2.appendChild(child1);\n"
+        "var moveOk = parent.childNodes.length === 1 && parent.firstChild === child2 && parent2.firstChild === child1;\n"
+        "parent.insertBefore(child1, child2);\n" /* move back to first place */
+        "var moveBackOk = parent.childNodes.length === 2 && parent.firstChild === child1 && parent.lastChild === child2;\n"
+        "\n"
+        "/* 3. Test insertBefore */\n"
+        "parent.insertBefore(child3, child2);\n"
+        "var insertBeforeOk = parent.childNodes.length === 3 && parent.childNodes[1] === child3;\n"
+        "\n"
+        "/* 4. Test replaceChild */\n"
+        "var child4 = document.createElement('b');\n"
+        "parent.replaceChild(child4, child3);\n"
+        "var replaceChildOk = parent.childNodes.length === 3 && parent.childNodes[1] === child4 && child3.parentNode === null;\n"
+        "\n"
+        "/* 5. Test DocumentFragment appending and inserting */\n"
+        "var fragment = document.createDocumentFragment();\n"
+        "var fragChild1 = document.createElement('i');\n"
+        "var fragChild2 = document.createElement('u');\n"
+        "fragment.appendChild(fragChild1);\n"
+        "fragment.appendChild(fragChild2);\n"
+        "var fragPrepOk = fragment.childNodes.length === 2 && fragChild1.parentNode === fragment;\n"
+        "\n"
+        "parent.appendChild(fragment);\n"
+        "var fragAppendOk = fragment.childNodes.length === 0 && parent.childNodes.length === 5 &&\n"
+        "                   parent.childNodes[3] === fragChild1 && parent.childNodes[4] === fragChild2 &&\n"
+        "                   fragChild1.parentNode === parent && fragChild2.parentNode === parent;\n"
+        "\n"
+        "/* 6. Test DocumentFragment insertBefore */\n"
+        "var fragment2 = document.createDocumentFragment();\n"
+        "var fragChild3 = document.createElement('div');\n"
+        "var fragChild4 = document.createElement('span');\n"
+        "fragment2.appendChild(fragChild3);\n"
+        "fragment2.appendChild(fragChild4);\n"
+        "parent.insertBefore(fragment2, child2);\n"
+        "var fragInsertBeforeOk = fragment2.childNodes.length === 0 && parent.childNodes.length === 7 &&\n"
+        "                         parent.childNodes[1] === fragChild3 && parent.childNodes[2] === fragChild4 &&\n"
+        "                         fragChild3.parentNode === parent && fragChild4.parentNode === parent;\n"
+        "\n"
+        "/* 7. Test classList methods */\n"
+        "var classNode = document.createElement('div');\n"
+        "classNode.className = 'a b';\n"
+        "var cl = classNode.classList;\n"
+        "var classListBasicOk = cl.length === 2 && cl.item(0) === 'a' && cl.item(1) === 'b' && cl[0] === 'a' && cl[1] === 'b' && cl.contains('a') && !cl.contains('c');\n"
+        "\n"
+        "cl.add('c');\n"
+        "var classListAddOk = cl.length === 3 && cl.contains('c') && classNode.className === 'a b c';\n"
+        "\n"
+        "cl.remove('b');\n"
+        "var classListRemoveOk = cl.length === 2 && !cl.contains('b') && classNode.className === 'a c';\n"
+        "\n"
+        "var toggle1 = cl.toggle('c');\n"
+        "var classListToggleRemOk = toggle1 === false && cl.length === 1 && !cl.contains('c') && classNode.className === 'a';\n"
+        "\n"
+        "var toggle2 = cl.toggle('d');\n"
+        "var classListToggleAddOk = toggle2 === true && cl.length === 2 && cl.contains('d') && classNode.className === 'a d';\n"
+        "\n"
+        "var toggle3 = cl.toggle('a', false);\n"
+        "var classListToggleForceFalseOk = toggle3 === false && cl.length === 1 && !cl.contains('a') && classNode.className === 'd';\n"
+        "\n"
+        "var toggle4 = cl.toggle('e', true);\n"
+        "var classListToggleForceTrueOk = toggle4 === true && cl.length === 2 && cl.contains('e') && classNode.className === 'd e';\n"
+        "\n"
+        "var classListToStringOk = cl.toString() === 'd e';\n"
+        "\n"
+        "appendOk && moveOk && moveBackOk && insertBeforeOk && replaceChildOk && fragPrepOk && fragAppendOk && fragInsertBeforeOk &&\n"
+        "classListBasicOk && classListAddOk && classListRemoveOk && classListToggleRemOk && classListToggleAddOk &&\n"
+        "classListToggleForceFalseOk && classListToggleForceTrueOk && classListToStringOk;";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_dom_mutations_advanced");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -1638,6 +1743,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_trusted_types);
+    tcase_add_test(tc_window, test_quickjs_dom_mutations_advanced);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */
