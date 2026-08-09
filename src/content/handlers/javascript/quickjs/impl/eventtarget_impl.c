@@ -101,10 +101,12 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     JS_FreeValue(ctx, list);
     JS_FreeValue(ctx, listeners);
 
-    if (!found && !wisp_is_js_process && priv->node != NULL) {
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
+
+    if (!found && !wisp_is_js_process && is_real_dom_node && priv->node != NULL) {
         dom_string *type_dom = NULL;
         dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
-        struct jsthread *thread = JS_GetContextOpaque(ctx);
         js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
         dom_string_unref(type_dom);
     }
@@ -163,12 +165,14 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
     }
     JS_FreeValue(ctx, listeners);
 
-    if (!wisp_is_js_process && priv->node != NULL) {
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
+
+    if (!wisp_is_js_process && is_real_dom_node && priv->node != NULL) {
         const char *type = JS_ToCString(ctx, argv[0]);
         if (type) {
             dom_string *type_dom = NULL;
             dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
-            struct jsthread *thread = JS_GetContextOpaque(ctx);
             js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
             dom_string_unref(type_dom);
             JS_FreeCString(ctx, type);
@@ -198,7 +202,10 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
         return JS_FALSE;
     }
 
-    if (wisp_is_js_process || priv->node == NULL) {
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
+
+    if (wisp_is_js_process || !is_real_dom_node || priv->node == NULL) {
         const char *type = NULL;
         JSValue type_val = JS_UNDEFINED;
         if (JS_IsObject(argv[0])) {
@@ -271,7 +278,6 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
         return JS_TRUE;
     }
 
-    struct jsthread *thread = JS_GetContextOpaque(ctx);
     const char *type = NULL;
     JSValue type_val = JS_UNDEFINED;
     if (JS_IsObject(argv[0])) {

@@ -36,6 +36,59 @@
 #include "wisp/misc.h"
 extern struct wisp_table *guit;
 
+struct mock_task {
+    int delay;
+    void (*callback)(void *p);
+    void *param;
+    struct mock_task *next;
+};
+static struct mock_task *mock_tasks = NULL;
+
+static nserror mock_schedule(int delay, void (*callback)(void *p), void *param)
+{
+    if (delay < 0) {
+        struct mock_task **prev = &mock_tasks;
+        struct mock_task *curr = mock_tasks;
+        while (curr) {
+            if (curr->callback == callback && curr->param == param) {
+                *prev = curr->next;
+                free(curr);
+                return NSERROR_OK;
+            }
+            prev = &curr->next;
+            curr = curr->next;
+        }
+        return NSERROR_NOT_FOUND;
+    }
+
+    struct mock_task *task = malloc(sizeof(*task));
+    task->delay = delay;
+    task->callback = callback;
+    task->param = param;
+    task->next = mock_tasks;
+    mock_tasks = task;
+    return NSERROR_OK;
+}
+
+static void run_mock_tasks(void)
+{
+    struct mock_task *curr = mock_tasks;
+    mock_tasks = NULL;
+    while (curr) {
+        struct mock_task *next = curr->next;
+        curr->callback(curr->param);
+        free(curr);
+        curr = next;
+    }
+}
+
+static struct gui_misc_table mock_misc = {
+    .schedule = mock_schedule
+};
+static struct wisp_table mock_guit_data = {
+    .misc = &mock_misc
+};
+
 static dom_document *create_test_document(void)
 {
     dom_document *doc;
@@ -3432,6 +3485,9 @@ START_TEST(test_quickjs_timers)
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
 
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_data;
+
     /* Test setTimeout exists and returns a number */
     const char *code1 = "typeof setTimeout === 'function'";
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_setTimeout");
@@ -3441,6 +3497,37 @@ START_TEST(test_quickjs_timers)
     const char *code2 = "typeof clearTimeout === 'function'";
     result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_clearTimeout");
     ck_assert(result == true);
+
+    /* Test setTimeout with additional arguments */
+    const char *code_args =
+        "window.timer_called = false;\n"
+        "window.timer_arg = null;\n"
+        "window.setTimeout(function(arg) { window.timer_called = true; window.timer_arg = arg; }, 0, 'hello_args');\n"
+        "window.timer_called === false;";
+    result = js_exec(thread, (const uint8_t *)code_args, strlen(code_args), "test_setTimeout_args_schedule");
+    ck_assert(result == true);
+
+    run_mock_tasks();
+
+    const char *code_args_verify = "window.timer_called === true && window.timer_arg === 'hello_args';";
+    result = js_exec(thread, (const uint8_t *)code_args_verify, strlen(code_args_verify), "test_setTimeout_args_run");
+    ck_assert(result == true);
+
+    /* Test setTimeout with string callback evaluation */
+    const char *code_str_cb =
+        "window.timer_str_called = false;\n"
+        "window.setTimeout('window.timer_str_called = true;', 0);\n"
+        "window.timer_str_called === false;";
+    result = js_exec(thread, (const uint8_t *)code_str_cb, strlen(code_str_cb), "test_setTimeout_string_schedule");
+    ck_assert(result == true);
+
+    run_mock_tasks();
+
+    const char *code_str_verify = "window.timer_str_called === true;";
+    result = js_exec(thread, (const uint8_t *)code_str_verify, strlen(code_str_verify), "test_setTimeout_string_run");
+    ck_assert(result == true);
+
+    guit = saved_guit;
 
     js_closethread(thread);
     js_destroythread(thread);
@@ -3727,6 +3814,24 @@ START_TEST(test_quickjs_xhr)
         "xhr.open('GET', 'about:blank');\n"
         "xhr.readyState === 1 && states.length === 1 && states[0] === 1;";
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_xhr_basic");
+    ck_assert(result == true);
+
+    /* Test advanced XHR events and EventTarget compatibility */
+    const char *code_xhr_adv =
+        "var xhr = new XMLHttpRequest();\n"
+        "var load_fired = false;\n"
+        "var loadend_fired = false;\n"
+        "xhr.addEventListener('load', function() { load_fired = true; });\n"
+        "xhr.addEventListener('loadend', function() { loadend_fired = true; });\n"
+        "typeof xhr.addEventListener === 'function' && load_fired === false && loadend_fired === false;";
+    result = js_exec(thread, (const uint8_t *)code_xhr_adv, strlen(code_xhr_adv), "test_xhr_adv_listeners");
+    ck_assert(result == true);
+
+    /* Test fetch constructor and configuration with Headers */
+    const char *code_fetch_headers =
+        "var h = new Headers({'Content-Type': 'application/json'});\n"
+        "typeof fetch === 'function' && typeof h.forEach === 'function';";
+    result = js_exec(thread, (const uint8_t *)code_fetch_headers, strlen(code_fetch_headers), "test_fetch_headers");
     ck_assert(result == true);
 
     js_closethread(thread);
@@ -4035,59 +4140,6 @@ START_TEST(test_quickjs_site_isolation)
     js_finalise();
 }
 END_TEST
-
-struct mock_task {
-    int delay;
-    void (*callback)(void *p);
-    void *param;
-    struct mock_task *next;
-};
-static struct mock_task *mock_tasks = NULL;
-
-static nserror mock_schedule(int delay, void (*callback)(void *p), void *param)
-{
-    if (delay < 0) {
-        struct mock_task **prev = &mock_tasks;
-        struct mock_task *curr = mock_tasks;
-        while (curr) {
-            if (curr->callback == callback && curr->param == param) {
-                *prev = curr->next;
-                free(curr);
-                return NSERROR_OK;
-            }
-            prev = &curr->next;
-            curr = curr->next;
-        }
-        return NSERROR_NOT_FOUND;
-    }
-
-    struct mock_task *task = malloc(sizeof(*task));
-    task->delay = delay;
-    task->callback = callback;
-    task->param = param;
-    task->next = mock_tasks;
-    mock_tasks = task;
-    return NSERROR_OK;
-}
-
-static void run_mock_tasks(void)
-{
-    struct mock_task *curr = mock_tasks;
-    mock_tasks = NULL;
-    while (curr) {
-        struct mock_task *next = curr->next;
-        curr->callback(curr->param);
-        free(curr);
-        curr = next;
-    }
-}
-
-static struct gui_misc_table mock_misc = {
-    .schedule = mock_schedule
-};
-static struct wisp_table mock_guit_data = {
-    .misc = &mock_misc
-};
 
 START_TEST(test_quickjs_queue_microtask_order)
 {

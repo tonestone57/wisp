@@ -241,6 +241,7 @@ void qjs_timer_callback(void *p)
             }
         }
         JS_FreeValue(ctx, timer->func);
+        JS_FreeValue(ctx, timer->arguments);
         free(timer);
         return;
     }
@@ -257,7 +258,41 @@ void qjs_timer_callback(void *p)
         t->heap->last_yield_ms = now;
     }
 
-    JSValue ret = JS_Call(ctx, timer->func, JS_UNDEFINED, 0, NULL);
+    JSValue ret;
+    if (JS_IsFunction(ctx, timer->func)) {
+        int argc = 0;
+        JSValueConst *argv = NULL;
+        if (JS_IsArray(ctx, timer->arguments)) {
+            JSValue len_val = JS_GetPropertyStr(ctx, timer->arguments, "length");
+            uint32_t len = 0;
+            JS_ToUint32(ctx, &len, len_val);
+            JS_FreeValue(ctx, len_val);
+            if (len > 0) {
+                argc = len;
+                argv = malloc(sizeof(JSValueConst) * argc);
+                if (argv) {
+                    for (int i = 0; i < argc; i++) {
+                        argv[i] = JS_GetPropertyUint32(ctx, timer->arguments, i);
+                    }
+                } else {
+                    argc = 0;
+                }
+            }
+        }
+        ret = JS_Call(ctx, timer->func, JS_UNDEFINED, argc, argv);
+        for (int i = 0; i < argc; i++) {
+            JS_FreeValue(ctx, (JSValue)argv[i]);
+        }
+        free(argv);
+    } else {
+        const char *code = JS_ToCString(ctx, timer->func);
+        if (code) {
+            ret = JS_Eval(ctx, code, strlen(code), "<timer>", JS_EVAL_TYPE_GLOBAL);
+            JS_FreeValue(ctx, ret);
+            JS_FreeCString(ctx, code);
+        }
+        ret = JS_UNDEFINED;
+    }
 
     if (t && t->heap) {
         t->heap->deadline_ms = old_deadline;
@@ -307,44 +342,43 @@ void qjs_timer_callback(void *p)
             }
         }
         JS_FreeValue(ctx, timer->func);
+        JS_FreeValue(ctx, timer->arguments);
         free(timer);
     }
 }
 
-static JSValue js_setTimeout_internal(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, bool repeat)
+JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSValue arguments, bool repeat)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return JS_EXCEPTION;
 
-    if (argc < 1 || !JS_IsFunction(ctx, argv[0])) {
-        return JS_ThrowTypeError(ctx, "Expected function as first argument");
+    if (!JS_IsFunction(ctx, handler) && !JS_IsString(handler)) {
+        return JS_ThrowTypeError(ctx, "Expected function or string as first argument");
     }
 
-    int32_t delay = 0;
-    if (argc >= 2) {
-        JS_ToInt32(ctx, &delay, argv[1]);
-    }
-    if (delay < 0) delay = 0;
+    if (timeout < 0) timeout = 0;
 
     struct qjs_timer *timer = malloc(sizeof(*timer));
     if (!timer) return JS_ThrowOutOfMemory(ctx);
 
     timer->ctx = ctx;
-    timer->func = JS_DupValue(ctx, argv[0]);
+    timer->func = JS_DupValue(ctx, handler);
+    timer->arguments = JS_DupValue(ctx, arguments);
     timer->repeat = repeat;
-    timer->interval = delay;
+    timer->interval = timeout;
     timer->id = next_timer_id++;
     timer->cancelled = false;
 
     timer->next = t->timers;
     t->timers = timer;
 
-    fprintf(stderr, "DEBUG TIMER: Scheduled timer id=%d, delay=%d, repeat=%d\n", timer->id, delay, repeat);
+    fprintf(stderr, "DEBUG TIMER: Scheduled timer id=%d, delay=%d, repeat=%d\n", timer->id, timeout, repeat);
 
     if (guit && guit->misc && guit->misc->schedule) {
-        if (guit->misc->schedule(delay, qjs_timer_callback, timer) != NSERROR_OK) {
+        if (guit->misc->schedule(timeout, qjs_timer_callback, timer) != NSERROR_OK) {
             t->timers = timer->next;
             JS_FreeValue(ctx, timer->func);
+            JS_FreeValue(ctx, timer->arguments);
             free(timer);
             return JS_ThrowInternalError(ctx, "Failed to schedule timer");
         }
@@ -352,11 +386,54 @@ static JSValue js_setTimeout_internal(JSContext *ctx, JSValueConst this_val, int
         NSLOG(wisp, WARNING, "No GUI scheduler available for timers");
         t->timers = timer->next;
         JS_FreeValue(ctx, timer->func);
+        JS_FreeValue(ctx, timer->arguments);
         free(timer);
         return JS_UNDEFINED;
     }
 
     return JS_NewInt32(ctx, timer->id);
+}
+
+JSValue wisp_timer_clear(JSContext *ctx, int32_t handle)
+{
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return JS_UNDEFINED;
+
+    struct qjs_timer *curr = t->timers;
+    while (curr) {
+        if (curr->id == handle) {
+            curr->cancelled = true;
+            NSLOG(wisp, INFO, "Timer %d cancelled", handle);
+            return JS_UNDEFINED;
+        }
+        curr = curr->next;
+    }
+    return JS_UNDEFINED;
+}
+
+static JSValue js_setTimeout_internal(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, bool repeat)
+{
+    if (argc < 1) {
+        return JS_ThrowTypeError(ctx, "Expected at least 1 argument");
+    }
+
+    JSValue handler = argv[0];
+    int32_t delay = 0;
+    if (argc >= 2) {
+        JS_ToInt32(ctx, &delay, argv[1]);
+    }
+
+    JSValue arguments = JS_UNDEFINED;
+    if (argc > 2) {
+        arguments = JS_NewArray(ctx);
+        for (int i = 2; i < argc; i++) {
+            JS_SetPropertyUint32(ctx, arguments, i - 2, JS_DupValue(ctx, argv[i]));
+        }
+    }
+
+    JSValue ret = wisp_timer_create(ctx, handler, delay, arguments, repeat);
+    JS_FreeValue(ctx, arguments);
+    return ret;
 }
 
 static JSValue js_setTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
@@ -371,23 +448,10 @@ static JSValue js_setInterval(JSContext *ctx, JSValueConst this_val, int argc, J
 
 static JSValue js_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
-    struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (!t) return JS_UNDEFINED;
-
     if (argc < 1) return JS_UNDEFINED;
     int32_t id;
     JS_ToInt32(ctx, &id, argv[0]);
-
-    struct qjs_timer *curr = t->timers;
-    while (curr) {
-        if (curr->id == id) {
-            curr->cancelled = true;
-            NSLOG(wisp, INFO, "Timer %d cancelled", id);
-            return JS_UNDEFINED;
-        }
-        curr = curr->next;
-    }
-    return JS_UNDEFINED;
+    return wisp_timer_clear(ctx, id);
 }
 
 static JSValue js_clearInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
