@@ -4168,9 +4168,9 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
             dom_node *node = (dom_node *)raw_ptr;
             bool is_valid = (node == (dom_node *)doc);
             if (!is_valid && thread) {
-                /* Detached node. Serialize it if thread is non-NULL to ensure
-                 * all detached elements and their children are fully synchronized. */
-                is_valid = true;
+                /* Detached node. Serialize it if it has an active JS wrapper in the thread context,
+                 * which guarantees it is alive and valid. This prevents use-after-free crashes. */
+                is_valid = qjs_bridge_has_node(thread->ctx, node);
             }
             if (!is_valid) {
                 continue;
