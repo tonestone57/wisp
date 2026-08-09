@@ -15516,7 +15516,10 @@ JSValue wisp_window_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv, cons
 
 // Overrides: WindowLocalStorage | localStorage (getter)
 JSValue wisp_windowlocalstorage_localStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue val = JS_GetPropertyStr(ctx, global_obj, "__wisp_localStorage");
+    JS_FreeValue(ctx, global_obj);
+    return val;
 }
 
 // Overrides: WindowModal | dialogArguments (getter)
@@ -15536,7 +15539,10 @@ JSValue wisp_windowmodal_returnValue_set_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: WindowSessionStorage | sessionStorage (getter)
 JSValue wisp_windowsessionstorage_sessionStorage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JSValue val = JS_GetPropertyStr(ctx, global_obj, "__wisp_sessionStorage");
+    JS_FreeValue(ctx, global_obj);
+    return val;
 }
 
 // Overrides: WindowTimers | clearInterval()
