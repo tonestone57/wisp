@@ -5265,6 +5265,7 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
     struct dom_string *event_type_dom, JSValue js_funcval)
 {
+    if (wisp_is_js_process) return false;
     if (!thread || !node)
         return false;
     if (node == (struct dom_node *)thread->win_priv) {
@@ -5299,6 +5300,7 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
     struct dom_string *event_type_dom, JSValue js_funcval)
 {
+    if (wisp_is_js_process) return false;
     if (!thread || !node)
         return false;
     if (node == (struct dom_node *)thread->win_priv) {
