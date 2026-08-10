@@ -462,3 +462,7 @@ add_wisp_test(test_dirty_grid
 )
 target_link_libraries(test_dirty_grid PRIVATE wisp)
 endif()
+add_wisp_test(test_ipc_spawn
+  ${CMAKE_SOURCE_DIR}/src/test/test_ipc_spawn.c
+)
+target_link_libraries(test_ipc_spawn PRIVATE wisp)
