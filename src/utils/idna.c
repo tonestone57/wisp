@@ -389,6 +389,11 @@ static bool idna__is_valid(int32_t *label, size_t len)
     const utf8proc_property_t *unicode_props;
     idna_property idna_prop;
     size_t i = 0;
+    bool is_rtl_label = false;
+    bool has_rtl = false;
+    bool has_en = false;
+    bool has_an = false;
+    ssize_t last_idx;
 
     /* 1. Check that the string is NFC.
      * This check is skipped as the conversion to Unicode
@@ -408,6 +413,27 @@ static bool idna__is_valid(int32_t *label, size_t len)
         (unicode_props->category == UTF8PROC_CATEGORY_ME)) {
         NSLOG(wisp, INFO, "Check failed: character 0 is a combining mark");
         return false;
+    }
+
+    /* Bidi setup: Check if we have RTL characters and determine label type */
+    for (i = 0; i < len; i++) {
+        utf8proc_bidi_class_t bc = utf8proc_get_property(label[i])->bidi_class;
+        if (bc == UTF8PROC_BIDI_CLASS_R || bc == UTF8PROC_BIDI_CLASS_AL || bc == UTF8PROC_BIDI_CLASS_AN) {
+            has_rtl = true;
+            break;
+        }
+    }
+
+    if (has_rtl) {
+        utf8proc_bidi_class_t first_bc = utf8proc_get_property(label[0])->bidi_class; /* label[0] */
+        if (first_bc == UTF8PROC_BIDI_CLASS_R || first_bc == UTF8PROC_BIDI_CLASS_AL) {
+            is_rtl_label = true;
+        } else if (first_bc == UTF8PROC_BIDI_CLASS_L) {
+            is_rtl_label = false;
+        } else {
+            NSLOG(wisp, INFO, "Bidi check failed: First character must be L, R, or AL");
+            return false;
+        }
     }
 
     for (i = 0; i < len; i++) {
@@ -446,7 +472,66 @@ static bool idna__is_valid(int32_t *label, size_t len)
             return false;
         }
 
-        /** \todo 8. (optionally) check Bidi compliance */
+        /* 8. check Bidi compliance */
+        if (has_rtl) {
+            utf8proc_bidi_class_t bc = utf8proc_get_property(label[i])->bidi_class;
+            if (is_rtl_label) {
+                /* Rule 2 */
+                if (bc != UTF8PROC_BIDI_CLASS_R && bc != UTF8PROC_BIDI_CLASS_AL &&
+                    bc != UTF8PROC_BIDI_CLASS_AN && bc != UTF8PROC_BIDI_CLASS_EN &&
+                    bc != UTF8PROC_BIDI_CLASS_ES && bc != UTF8PROC_BIDI_CLASS_CS &&
+                    bc != UTF8PROC_BIDI_CLASS_ET && bc != UTF8PROC_BIDI_CLASS_ON &&
+                    bc != UTF8PROC_BIDI_CLASS_BN && bc != UTF8PROC_BIDI_CLASS_NSM) {
+                    NSLOG(wisp, INFO, "Bidi check failed: Invalid character class %d in RTL label at %zu", bc, i);
+                    return false;
+                }
+                if (bc == UTF8PROC_BIDI_CLASS_EN) has_en = true;
+                if (bc == UTF8PROC_BIDI_CLASS_AN) has_an = true;
+            } else {
+                /* Rule 5 */
+                if (bc != UTF8PROC_BIDI_CLASS_L && bc != UTF8PROC_BIDI_CLASS_EN &&
+                    bc != UTF8PROC_BIDI_CLASS_ES && bc != UTF8PROC_BIDI_CLASS_CS &&
+                    bc != UTF8PROC_BIDI_CLASS_ET && bc != UTF8PROC_BIDI_CLASS_ON &&
+                    bc != UTF8PROC_BIDI_CLASS_BN && bc != UTF8PROC_BIDI_CLASS_NSM) {
+                    NSLOG(wisp, INFO, "Bidi check failed: Invalid character class %d in LTR label at %zu", bc, i);
+                    return false;
+                }
+            }
+        }
+    }
+
+    if (has_rtl) {
+        /* Rule 4 */
+        if (is_rtl_label && has_en && has_an) {
+            NSLOG(wisp, INFO, "Bidi check failed: RTL label cannot have both EN and AN");
+            return false;
+        }
+
+        /* Rule 3 and 6 */
+        last_idx = len - 1;
+        while (last_idx >= 0) {
+            utf8proc_bidi_class_t bc = utf8proc_get_property(label[last_idx])->bidi_class;
+            if (bc != UTF8PROC_BIDI_CLASS_NSM) {
+                break;
+            }
+            last_idx--;
+        }
+
+        if (last_idx >= 0) {
+            utf8proc_bidi_class_t last_bc = utf8proc_get_property(label[last_idx])->bidi_class;
+            if (is_rtl_label) {
+                if (last_bc != UTF8PROC_BIDI_CLASS_R && last_bc != UTF8PROC_BIDI_CLASS_AL &&
+                    last_bc != UTF8PROC_BIDI_CLASS_EN && last_bc != UTF8PROC_BIDI_CLASS_AN) {
+                    NSLOG(wisp, INFO, "Bidi check failed: RTL label must end with R, AL, EN, or AN");
+                    return false;
+                }
+            } else {
+                if (last_bc != UTF8PROC_BIDI_CLASS_L && last_bc != UTF8PROC_BIDI_CLASS_EN) {
+                    NSLOG(wisp, INFO, "Bidi check failed: LTR label must end with L or EN");
+                    return false;
+                }
+            }
+        }
     }
 
     return true;
