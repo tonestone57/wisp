@@ -12,15 +12,28 @@
 
 #include "wisp/utils/ipc.h"
 
+#ifndef MAX_PATH
+#define MAX_PATH 4096
+#endif
+
+#ifndef _WIN32
+ssize_t get_self_path(char *out_path, size_t out_len) {
+    ssize_t len = readlink("/proc/self/exe", out_path, out_len - 1);
+    if (len != -1) {
+        out_path[len] = '\0';
+    }
+    return len;
+}
+#endif
+
 int main(int argc, char **argv) {
     printf("Running IPC Spawn Test...\n");
 
     const char *ipc_name = "test_ipc_spawn_name";
 
-#ifdef _WIN32
-    // Windows testing involves executing the dummy IPC target instead of creating a .bat file,
-    // to work correctly with CreateProcess logic in wisp_ipc_spawn.
     char target_path[MAX_PATH];
+
+#ifdef _WIN32
     if (GetModuleFileNameA(NULL, target_path, sizeof(target_path)) > 0) {
         char *last_backslash = strrchr(target_path, '\\');
         if (last_backslash) {
@@ -30,10 +43,22 @@ int main(int argc, char **argv) {
     } else {
         strcpy(target_path, "dummy_ipc_target.exe");
     }
+#else
+    if (get_self_path(target_path, sizeof(target_path)) > 0) {
+        char *last_slash = strrchr(target_path, '/');
+        if (last_slash) {
+            *last_slash = '\0';
+            strncat(target_path, "/dummy_ipc_target", sizeof(target_path) - strlen(target_path) - 1);
+        }
+    } else {
+        strcpy(target_path, "./dummy_ipc_target");
+    }
+#endif
 
     int pid = wisp_ipc_spawn(target_path, ipc_name);
     assert(pid > 0);
 
+#ifdef _WIN32
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
     assert(hProcess != NULL);
 
@@ -43,29 +68,8 @@ int main(int argc, char **argv) {
     assert(exit_code == 42);
     CloseHandle(hProcess);
 #else
-    char script_path[] = "/tmp/wisp_spawn_test_XXXXXX";
-    int fd = mkstemp(script_path);
-    assert(fd != -1);
-
-    const char *script_content = "#!/bin/sh\n"
-                                 "if [ \"$1\" = \"test_ipc_spawn_name\" ]; then\n"
-                                 "  exit 42\n"
-                                 "else\n"
-                                 "  exit 1\n"
-                                 "fi\n";
-    ssize_t written = write(fd, script_content, strlen(script_content));
-    assert(written == (ssize_t)strlen(script_content));
-    close(fd);
-
-    chmod(script_path, 0755);
-
-    int pid = wisp_ipc_spawn(script_path, ipc_name);
-    assert(pid > 0);
-
     int status;
     waitpid(pid, &status, 0);
-
-    unlink(script_path); // Cleanup immediately
 
     assert(WIFEXITED(status));
     assert(WEXITSTATUS(status) == 42);
