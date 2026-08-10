@@ -13,34 +13,25 @@
 #include "wisp/utils/ipc.h"
 
 int main(int argc, char **argv) {
-    if (argc > 1 && strcmp(argv[1], "--child") == 0) {
-        if (argc > 2) {
-            printf("Child running with IPC name: %s\n", argv[2]);
-            // If the IPC name matches what we expect, exit with 42
-            if (strcmp(argv[2], "test_ipc_spawn_name") == 0) {
-                return 42;
-            }
-            return 1; // Wrong IPC name
-        }
-        return 1; // No IPC name provided
-    }
-
     printf("Running IPC Spawn Test...\n");
 
-    const char *executable = argv[0];
     const char *ipc_name = "test_ipc_spawn_name";
 
 #ifdef _WIN32
-    // Windows testing involves creating a wrapper bat because wisp_ipc_spawn doesn't support arg arrays.
-    // However, CreateProcess doesn't execute .bat files directly.
-    // Let's use cmd.exe directly to run our own executable with arguments.
-    // Since wisp_ipc_spawn takes (executable, ipc_name) and formats it as `%s %s`, we can trick it
-    // by passing cmd.exe as executable, and `/c "path/to/self --child test_ipc_spawn_name"` as ipc_name.
+    // Windows testing involves executing the dummy IPC target instead of creating a .bat file,
+    // to work correctly with CreateProcess logic in wisp_ipc_spawn.
+    char target_path[MAX_PATH];
+    if (GetModuleFileNameA(NULL, target_path, sizeof(target_path)) > 0) {
+        char *last_backslash = strrchr(target_path, '\\');
+        if (last_backslash) {
+            *last_backslash = '\0';
+            strncat(target_path, "\\dummy_ipc_target.exe", sizeof(target_path) - strlen(target_path) - 1);
+        }
+    } else {
+        strcpy(target_path, "dummy_ipc_target.exe");
+    }
 
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "/c \"%s --child %s\"", executable, ipc_name);
-
-    int pid = wisp_ipc_spawn("cmd.exe", cmd);
+    int pid = wisp_ipc_spawn(target_path, ipc_name);
     assert(pid > 0);
 
     HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid);
@@ -74,7 +65,7 @@ int main(int argc, char **argv) {
     int status;
     waitpid(pid, &status, 0);
 
-    unlink(script_path);
+    unlink(script_path); // Cleanup immediately
 
     assert(WIFEXITED(status));
     assert(WEXITSTATUS(status) == 42);

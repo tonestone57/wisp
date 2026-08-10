@@ -466,3 +466,6 @@ add_wisp_test(test_ipc_spawn
   ${CMAKE_SOURCE_DIR}/src/test/test_ipc_spawn.c
 )
 target_link_libraries(test_ipc_spawn PRIVATE wisp)
+
+add_executable(dummy_ipc_target ${CMAKE_SOURCE_DIR}/src/test/dummy_ipc_target.c)
+target_link_libraries(dummy_ipc_target PRIVATE wisp)
