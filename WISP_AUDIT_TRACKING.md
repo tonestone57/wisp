@@ -1,7 +1,7 @@
 # WISP Engine Audit & Implementation Tracker (2026/2027)
 
 ## Executive Status
-- **WebIDL Coverage:** 2,979 / 2,979 stubs mapped (100% strong C symbol overrides under `src/content/handlers/javascript/quickjs/impl/`)
+- **WebIDL Coverage:** 2,995 / 2,995 stubs mapped (100% strong C symbol overrides under `src/content/handlers/javascript/quickjs/impl/`)
 - **Total wisp_*_impl Symbols Audited:** 2,995 (includes core overrides and standard/auxiliary helper bindings)
 - **Test Suite Status:** 114 / 114 passing (0 regressions)
 - **Leak Prevention:** LSan clean on CSS Node Selection Data (`free_style_snapshot` reclamation)
@@ -12,7 +12,7 @@
 
 To make the Wisp engine completely spec-compliant and robust under modern HTML5/CSS3/JavaScript specifications, any stub registered in our WebIDL mapping should be fully implemented with active logic rather than just returning `JS_UNDEFINED` or `JS_NULL` as a no-op placeholder.
 
-Our quantitative audit of the 2,979 WebIDL bindings showed:
+Our quantitative audit of the 2,995 WebIDL bindings showed:
 1. They are all successfully overridden as strong C symbols so the QuickJS runtime links to our manual layer instead of falling back to empty weak symbols.
 2. However, some of these strong overrides (like `wisp_canvasrenderingcontext2d_putImageData_1_impl` previously, and a few others) were written as no-op/fallback placeholders that just return `JS_UNDEFINED` or default values.
 
@@ -22,13 +22,13 @@ Having a strong C symbol override that simply returns `JS_UNDEFINED` is essentia
 
 ### The 3 Tiers of WebIDL Overrides
 
-In a browser engine build like Wisp, the 2,979 WebIDL symbols fall into three distinct tiers:
+In a browser engine build like Wisp, the 2,995 WebIDL symbols fall into three distinct tiers:
 
 | Tier | Status | What it does | Goal | Count |
 |---|---|---|---|---|
-| **Tier 1: Full Spec** | ✅ Functional | Complete C logic (e.g., `putImageData_0`, `getElementById`, `addEventListener`). | Keep & Test | **1,186** |
-| **Tier 2: Safe No-Ops** | ⚠️ Partial | Valid C function returning `JS_UNDEFINED` or `JS_FALSE` to prevent JS execution crashes on non-essential/minor APIs. | Upgrade to Tier 1 | **1,771** |
-| **Tier 3: Unimplemented / Throwing** | 🚫 Missing Logic | Returns `JS_EXCEPTION` with a `DOMException("NotSupportedError")` or logs `[STUB]`. | Prioritize & Implement | **38** |
+| **Tier 1: Full Spec** | ✅ Functional | Complete C logic (e.g., `putImageData_0`, `getElementById`, `addEventListener`). | Keep & Test | **1008** |
+| **Tier 2: Safe No-Ops** | ⚠️ Partial | Valid C function returning `JS_UNDEFINED` or `JS_FALSE` to prevent JS execution crashes on non-essential/minor APIs. | Upgrade to Tier 1 | **1973** |
+| **Tier 3: Unimplemented / Throwing** | 🚫 Missing Logic | Returns `JS_EXCEPTION` with a `DOMException("NotSupportedError")` or logs `[STUB]`. | Prioritize & Implement | **39** |
 
 ---
 
@@ -36,7 +36,7 @@ In a browser engine build like Wisp, the 2,979 WebIDL symbols fall into three di
 
 Trying to manually write 2,900+ heavy C functions all at once without prioritization is a trap. Even major engines (Chromium, Firefox, WebKit, Ladybird) implement WebIDL in prioritized tiers based on web compatibility and spec importance. Here is the strategic plan to systematically elevate all strong stubs to full implementations:
 
-### Categorize & Audit the 2,979 Symbols
+### Categorize & Audit the 2,995 Symbols
 We have run a robust automated auditing tool against `src/content/handlers/javascript/quickjs/impl/` to obtain the precise counts above, classifying each function as:
 - **Functional Real Logic (Tier 1)**: Interacts with DOM, layout, or canvas memory.
 - **Simple No-Op (Tier 2)**: Returns constant `JS_UNDEFINED` / `JS_NULL` / default values.

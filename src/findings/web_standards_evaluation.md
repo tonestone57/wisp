@@ -12,7 +12,7 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 |---|---|---|---|
 | **HTML5 (DOM & Parser)** | **~98%** | Spec-compliant Hubbub tokenization, XML/HTML parser, `libdom` tree core, native Canvas 2D bridge, MutationObserver, Shadow DOM v1, ShadowRoot, HTML5 History API (`pushState`/`replaceState`), Fetch & Streams integration, Drag & Drop API (`DragEvent`, `DataTransfer`), and Advanced Media Streams API (`MediaStream`, `MediaStreamTrack`, `navigator.mediaDevices`). | WebRTC. |
 | **CSS3 (Layout & Style)** | **~99.5%** | Spec-compliant CSS Grid (including **Subgrids**, auto-placement, dense packing, FR units), Flexbox (grow, shrink, column two-pass), `position: sticky`, CSS Variables (with style hashing/caching), **Container Queries**, **Advanced CSS3 3D Transforms** (4x4 projection matrix), **Transitions & Animations**, **Multi-column layout flows**, and **Complex grid exclusions**. | None. |
-| **JavaScript (ES2023+)** | **~97% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, XMLHttp/Fetch streams, **Performance Timeline & PerformanceObserver** APIs, and **2530+ manual WebIDL stub overrides (2970+ across the engine)**. | Understudied modern Bluetooth/USB APIs. |
+| **JavaScript (ES2023+)** | **~97% (Web APIs)** <br> **100% (Language)** | Integrated **QuickJS-ng v0.15.1** (full ES2023+ compliance), Web Workers with structured cloning, Web Crypto ( LibreSSL ), basic performance timers. Full HTML5 compliant Event Loop, precise exception-safe Microtask Queue draining, `requestAnimationFrame`, `requestIdleCallback`, XMLHttp/Fetch streams, **Performance Timeline & PerformanceObserver** APIs, and **2543+ manual WebIDL stub overrides (2995+ across the engine)**. | Understudied modern Bluetooth/USB APIs. |
 
 ---
 
@@ -25,7 +25,7 @@ Wisp uses a combination of compiled C libraries (forked/diverged from NetSurf) a
 *   **HTML5 History & Client-side Routing**: Fully compliant history APIs implementing properties (`state`, `length`) and offline client-side SPA routing (`pushState`, `replaceState`).
 *   **WebIDL Bindings**:
     *   Wisp includes **9 IDL files** (covering Console, CSSOM, DOM, DOM Parsing, HTML, Observers, UI Events, URL Utils, and XHR) compiling down to **228 declared interfaces** and around **1,500 methods/getters/setters**.
-    *   **2970+ manual WebIDL stub overrides**: Fully implemented manuals (strong C overrides) covering core HTMLElement/Location/History/Document properties and interfaces (with 2530+ in `stubs_manual_impl.c` alone, specifically including the final wave of 184 stubs), accompanied by rigorous unit/integration test coverage with 100% pass rates.
+    *   **2995+ manual WebIDL stub overrides**: Fully implemented manuals (strong C overrides) covering core HTMLElement/Location/History/Document properties and interfaces (with 2543+ in `stubs_manual_impl.c` alone, specifically including the final wave of 184 stubs), accompanied by rigorous unit/integration test coverage with 100% pass rates.
     *   Unimplemented WebIDL bindings gracefully degrade to weak stubs that log warning notices using `NSLOG(wisp, WARNING, ...)` rather than crashing, and have been pruned from `src/docs/UnimplementedJavascript.md` (now exactly 0 remaining stubs).
 
 ### 2.2 CSS3 Layout Engines
