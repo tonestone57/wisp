@@ -2487,11 +2487,10 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 			int row_height = 0;
 
 			htype = css_computed_height(row->style, &value, &unit);
-			int max_baseline = 0;
 			if (htype == CSS_HEIGHT_SET && unit != CSS_UNIT_PCT) {
 				row_height = FIXTOINT(css_unit_len2device_px(row->style, &content->unit_len_ctx, value, unit));
 			}
-
+			int max_baseline = 0;
 			/* Pass 1: Layout all cells and find max_baseline */
 			for (c = row->children; c; c = c->next) {
 				assert(c->style);
