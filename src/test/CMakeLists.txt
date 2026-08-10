@@ -476,6 +476,11 @@ add_wisp_test(test_content_factory
 )
 target_link_libraries(test_content_factory PRIVATE wisp)
 
+add_wisp_test(test_task_queue
+  ${CMAKE_SOURCE_DIR}/src/test/test_task_queue.c
+)
+target_link_libraries(test_task_queue PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(test_fetch
   ${CMAKE_SOURCE_DIR}/src/test/test_fetch.c
 )
