@@ -795,6 +795,7 @@ static bool box_canvas(dom_node *n, html_content *content, struct box *box, bool
 
 	/* This is replaced content */
 	box->flags |= IS_REPLACED | REPLACE_DIM;
+	box->node = n;
 
 	return true;
 }

@@ -2228,11 +2228,13 @@ JSValue wisp_htmlselectelement_size_set_impl(JSContext *ctx, QJSNodePrivate *pri
 }
 
 JSValue wisp_htmlselectelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmlselectelement_validity_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_validitystate(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_validitystate(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmlselectelement_willValidate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -2244,14 +2246,43 @@ JSValue wisp_htmlselectelement___setter___impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 JSValue wisp_htmlselectelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlselectelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlselectelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlselectelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlselectelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -5303,9 +5334,24 @@ JSValue wisp_validitystate_badInput_get_impl(JSContext *ctx, QJSNodePrivate *pri
     return JS_FALSE;
 }
 
-JSValue wisp_validitystate_customError_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+
+static bool check_custom_error(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return false;
+    JSValue msg = get_element_str_attr(ctx, priv, "__customValidity", "");
+    bool has_error = false;
+    if (JS_IsString(msg)) {
+        const char *str = JS_ToCString(ctx, msg);
+        if (str && strlen(str) > 0) has_error = true;
+        if (str) JS_FreeCString(ctx, str);
+    }
+    JS_FreeValue(ctx, msg);
+    return has_error;
 }
+
+JSValue wisp_validitystate_customError_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewBool(ctx, check_custom_error(ctx, priv));
+}
+
 
 JSValue wisp_validitystate_patternMismatch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_FALSE;
@@ -5335,13 +5381,39 @@ JSValue wisp_validitystate_typeMismatch_get_impl(JSContext *ctx, QJSNodePrivate 
     return JS_FALSE;
 }
 
-JSValue wisp_validitystate_valid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_TRUE;
+
+static bool check_value_missing(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return false;
+    JSValue required_val = get_element_bool_attr(ctx, priv, "required");
+    bool required = JS_ToBool(ctx, required_val);
+    JS_FreeValue(ctx, required_val);
+    if (!required) return false;
+
+    // get value
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "value");
+    if (JS_IsString(val)) {
+        const char *str = JS_ToCString(ctx, val);
+        bool missing = (str == NULL || strlen(str) == 0);
+        if (str) JS_FreeCString(ctx, str);
+        JS_FreeValue(ctx, val);
+        return missing;
+    }
+    JS_FreeValue(ctx, val);
+    return true; // if no value attribute, value is missing for required field
 }
 
 JSValue wisp_validitystate_valueMissing_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+    return JS_NewBool(ctx, check_value_missing(ctx, priv));
 }
+
+JSValue wisp_validitystate_valid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (check_value_missing(ctx, priv)) return JS_FALSE;
+    if (check_custom_error(ctx, priv)) return JS_FALSE;
+    return JS_TRUE;
+}
+
+
+
 
 // -----------------------------------------------------------------------------
 // HTMLFieldSetElement Implementation
@@ -5388,18 +5460,47 @@ JSValue wisp_htmlfieldsetelement_validity_get_impl(JSContext *ctx, QJSNodePrivat
 }
 
 JSValue wisp_htmlfieldsetelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmlfieldsetelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlfieldsetelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlfieldsetelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlfieldsetelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlfieldsetelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -5459,7 +5560,7 @@ JSValue wisp_htmloutputelement_validity_get_impl(JSContext *ctx, QJSNodePrivate 
 }
 
 JSValue wisp_htmloutputelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmloutputelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -5467,14 +5568,43 @@ JSValue wisp_htmloutputelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 JSValue wisp_htmloutputelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmloutputelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmloutputelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmloutputelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmloutputelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -5697,7 +5827,7 @@ JSValue wisp_htmlinputelement_validity_get_impl(JSContext *ctx, QJSNodePrivate *
 }
 
 JSValue wisp_htmlinputelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmlinputelement_willValidate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -5705,14 +5835,43 @@ JSValue wisp_htmlinputelement_willValidate_get_impl(JSContext *ctx, QJSNodePriva
 }
 
 JSValue wisp_htmlinputelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlinputelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlinputelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlinputelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlinputelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -5771,7 +5930,7 @@ JSValue wisp_htmltextareaelement_validity_get_impl(JSContext *ctx, QJSNodePrivat
 }
 
 JSValue wisp_htmltextareaelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmltextareaelement_willValidate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -5779,14 +5938,43 @@ JSValue wisp_htmltextareaelement_willValidate_get_impl(JSContext *ctx, QJSNodePr
 }
 
 JSValue wisp_htmltextareaelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmltextareaelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmltextareaelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmltextareaelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmltextareaelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -5846,7 +6034,7 @@ JSValue wisp_htmlbuttonelement_validity_get_impl(JSContext *ctx, QJSNodePrivate 
 }
 
 JSValue wisp_htmlbuttonelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmlbuttonelement_willValidate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -5854,14 +6042,43 @@ JSValue wisp_htmlbuttonelement_willValidate_get_impl(JSContext *ctx, QJSNodePriv
 }
 
 JSValue wisp_htmlbuttonelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlbuttonelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlbuttonelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlbuttonelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlbuttonelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -7495,14 +7712,43 @@ JSValue wisp_htmlobjectelement_getSVGDocument_impl(JSContext *ctx, QJSNodePrivat
 }
 
 JSValue wisp_htmlobjectelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlobjectelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlobjectelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    JSValue validity = wisp_htmlobjectelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
     return JS_TRUE;
 }
 
 JSValue wisp_htmlobjectelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -7654,7 +7900,7 @@ JSValue wisp_htmlobjectelement_useMap_set_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 JSValue wisp_htmlobjectelement_validationMessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return get_element_str_attr(ctx, priv, "__customValidity", "");
 }
 
 JSValue wisp_htmlobjectelement_validity_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -7880,10 +8126,62 @@ JSValue wisp_htmlinputelement_valueHigh_set_impl(JSContext *ctx, QJSNodePrivate 
 
 // 8. HTMLFormElement Implementation (9 stubs)
 JSValue wisp_htmlformelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_TRUE;
+    JSValue wrapper = qjs_wrap_node(ctx, (struct dom_node *)priv->node);
+    JSValue elements = JS_GetPropertyStr(ctx, wrapper, "elements");
+    JS_FreeValue(ctx, wrapper);
+    bool all_valid = true;
+    if (JS_IsObject(elements)) {
+        JSValue length_val = JS_GetPropertyStr(ctx, elements, "length");
+        uint32_t len = 0;
+        if (JS_IsNumber(length_val)) {
+            JS_ToUint32(ctx, &len, length_val);
+        }
+        JS_FreeValue(ctx, length_val);
+        for (uint32_t i = 0; i < len; i++) {
+            JSValue el = JS_GetPropertyUint32(ctx, elements, i);
+            JSValue check = JS_GetPropertyStr(ctx, el, "checkValidity");
+            if (JS_IsFunction(ctx, check)) {
+                JSValue ret = JS_Call(ctx, check, el, 0, NULL);
+                if (JS_IsBool(ret) && !JS_ToBool(ctx, ret)) {
+                    all_valid = false;
+                }
+                JS_FreeValue(ctx, ret);
+            }
+            JS_FreeValue(ctx, check);
+            JS_FreeValue(ctx, el);
+        }
+    }
+    JS_FreeValue(ctx, elements);
+    return JS_NewBool(ctx, all_valid);
 }
 JSValue wisp_htmlformelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_TRUE;
+    JSValue wrapper = qjs_wrap_node(ctx, (struct dom_node *)priv->node);
+    JSValue elements = JS_GetPropertyStr(ctx, wrapper, "elements");
+    JS_FreeValue(ctx, wrapper);
+    bool all_valid = true;
+    if (JS_IsObject(elements)) {
+        JSValue length_val = JS_GetPropertyStr(ctx, elements, "length");
+        uint32_t len = 0;
+        if (JS_IsNumber(length_val)) {
+            JS_ToUint32(ctx, &len, length_val);
+        }
+        JS_FreeValue(ctx, length_val);
+        for (uint32_t i = 0; i < len; i++) {
+            JSValue el = JS_GetPropertyUint32(ctx, elements, i);
+            JSValue check = JS_GetPropertyStr(ctx, el, "reportValidity");
+            if (JS_IsFunction(ctx, check)) {
+                JSValue ret = JS_Call(ctx, check, el, 0, NULL);
+                if (JS_IsBool(ret) && !JS_ToBool(ctx, ret)) {
+                    all_valid = false;
+                }
+                JS_FreeValue(ctx, ret);
+            }
+            JS_FreeValue(ctx, check);
+            JS_FreeValue(ctx, el);
+        }
+    }
+    JS_FreeValue(ctx, elements);
+    return JS_NewBool(ctx, all_valid);
 }
 JSValue wisp_htmlformelement_requestAutocomplete_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_UNDEFINED;
@@ -11156,11 +11454,12 @@ JSValue wisp_globaleventhandlers_oninput_set_impl(JSContext *ctx, QJSNodePrivate
 
 // Overrides: attribute get | GlobalEventHandlers::oninvalid;
 JSValue wisp_globaleventhandlers_oninvalid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "oninvalid");
 }
 
 // Overrides: attribute set | GlobalEventHandlers::oninvalid;
 JSValue wisp_globaleventhandlers_oninvalid_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "oninvalid", "invalid", value);
     return JS_UNDEFINED;
 }
 
@@ -12337,11 +12636,12 @@ JSValue wisp_document_oninput_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSV
 
 // Overrides: attribute get | Document::oninvalid (getter);
 JSValue wisp_document_oninvalid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "oninvalid");
 }
 
 // Overrides: attribute set | Document::oninvalid (setter);
 JSValue wisp_document_oninvalid_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "oninvalid", "invalid", value);
     return JS_UNDEFINED;
 }
 
@@ -13089,11 +13389,12 @@ JSValue wisp_htmlelement_onchange_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: HTMLElement | onclick (getter)
 JSValue wisp_htmlelement_onclick_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onclick");
 }
 
 // Overrides: HTMLElement | onclick (setter)
 JSValue wisp_htmlelement_onclick_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onclick", "click", value);
     return JS_UNDEFINED;
 }
 
@@ -13269,11 +13570,12 @@ JSValue wisp_htmlelement_oninput_set_impl(JSContext *ctx, QJSNodePrivate *priv, 
 
 // Overrides: HTMLElement | oninvalid (getter)
 JSValue wisp_htmlelement_oninvalid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "oninvalid");
 }
 
 // Overrides: HTMLElement | oninvalid (setter)
 JSValue wisp_htmlelement_oninvalid_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "oninvalid", "invalid", value);
     return JS_UNDEFINED;
 }
 
@@ -13339,11 +13641,12 @@ JSValue wisp_htmlelement_onloadstart_set_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: HTMLElement | onmousedown (getter)
 JSValue wisp_htmlelement_onmousedown_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onmousedown");
 }
 
 // Overrides: HTMLElement | onmousedown (setter)
 JSValue wisp_htmlelement_onmousedown_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onmousedown", "mousedown", value);
     return JS_UNDEFINED;
 }
 
@@ -13369,41 +13672,45 @@ JSValue wisp_htmlelement_onmouseleave_set_impl(JSContext *ctx, QJSNodePrivate *p
 
 // Overrides: HTMLElement | onmousemove (getter)
 JSValue wisp_htmlelement_onmousemove_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onmousemove");
 }
 
 // Overrides: HTMLElement | onmousemove (setter)
 JSValue wisp_htmlelement_onmousemove_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onmousemove", "mousemove", value);
     return JS_UNDEFINED;
 }
 
 // Overrides: HTMLElement | onmouseout (getter)
 JSValue wisp_htmlelement_onmouseout_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onmouseout");
 }
 
 // Overrides: HTMLElement | onmouseout (setter)
 JSValue wisp_htmlelement_onmouseout_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onmouseout", "mouseout", value);
     return JS_UNDEFINED;
 }
 
 // Overrides: HTMLElement | onmouseover (getter)
 JSValue wisp_htmlelement_onmouseover_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onmouseover");
 }
 
 // Overrides: HTMLElement | onmouseover (setter)
 JSValue wisp_htmlelement_onmouseover_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onmouseover", "mouseover", value);
     return JS_UNDEFINED;
 }
 
 // Overrides: HTMLElement | onmouseup (getter)
 JSValue wisp_htmlelement_onmouseup_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "onmouseup");
 }
 
 // Overrides: HTMLElement | onmouseup (setter)
 JSValue wisp_htmlelement_onmouseup_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onmouseup", "mouseup", value);
     return JS_UNDEFINED;
 }
 
@@ -14029,7 +14336,21 @@ JSValue wisp_htmlkeygenelement_challenge_set_impl(JSContext *ctx, QJSNodePrivate
 
 // Overrides: HTMLKeygenElement | checkValidity()
 JSValue wisp_htmlkeygenelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    JSValue validity = wisp_htmlkeygenelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
+    return JS_TRUE;
 }
 
 // Overrides: HTMLKeygenElement | disabled (getter)
@@ -14079,6 +14400,7 @@ JSValue wisp_htmlkeygenelement_reportValidity_impl(JSContext *ctx, QJSNodePrivat
 
 // Overrides: HTMLKeygenElement | setCustomValidity()
 JSValue wisp_htmlkeygenelement_setCustomValidity_impl(JSContext *ctx, QJSNodePrivate *priv, const char * error) {
+    set_element_str_attr(ctx, priv, "__customValidity", error ? error : "");
     return JS_UNDEFINED;
 }
 
@@ -14094,7 +14416,9 @@ JSValue wisp_htmlkeygenelement_validationMessage_get_impl(JSContext *ctx, QJSNod
 
 // Overrides: HTMLKeygenElement | validity (getter)
 JSValue wisp_htmlkeygenelement_validity_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_validitystate(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_validitystate(ctx, priv->node, priv->is_dom_node);
 }
 
 // Overrides: HTMLKeygenElement | willValidate (getter)
@@ -15039,11 +15363,12 @@ JSValue wisp_window_oninput_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSVal
 
 // Overrides: Window | oninvalid (getter)
 JSValue wisp_window_oninvalid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return helper_get_event_handler(ctx, priv, "oninvalid");
 }
 
 // Overrides: Window | oninvalid (setter)
 JSValue wisp_window_oninvalid_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "oninvalid", "invalid", value);
     return JS_UNDEFINED;
 }
 
@@ -15578,4 +15903,14 @@ JSValue wisp_windowtimers_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv
 // Overrides: WorkerNavigator | language (getter)
 JSValue wisp_workernavigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
+}
+
+
+JSValue wisp_htmlcanvaselement_onclick_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return helper_get_event_handler(ctx, priv, "onclick");
+}
+
+JSValue wisp_htmlcanvaselement_onclick_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    helper_set_event_handler(ctx, priv, "onclick", "click", value);
+    return JS_UNDEFINED;
 }

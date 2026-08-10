@@ -1306,9 +1306,49 @@ int qjs_init_canvasrenderingcontext2d(JSContext *ctx)
 
 int qjs_init_canvas(JSContext *ctx)
 {
-    qjs_init_htmlcanvaselement_gen(ctx);
+    qjs_init_htmlcanvaselement(ctx);
     qjs_init_canvasrenderingcontext2d(ctx);
     qjs_init_canvasgradient(ctx);
     qjs_init_canvaspattern(ctx);
+    return 0;
+}
+
+
+
+
+
+extern dom_string *g_qjs_node_key;
+
+JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node)
+{
+    JSValue obj = JS_NewObjectClass(ctx, qjs_htmlcanvaselement_class_id);
+    if (JS_IsException(obj)) return obj;
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC;
+    priv->node = node;
+    priv->is_dom_node = is_dom_node;
+    priv->ctx = ctx;
+    if (!wisp_is_js_process && is_dom_node && node) {
+        dom_node_ref((dom_node *)node);
+        extern dom_string *g_qjs_node_key;
+        if (g_qjs_node_key) {
+            dom_node_set_user_data((dom_node *)node, g_qjs_node_key, (void *)JS_VALUE_GET_PTR(obj), NULL, NULL);
+        }
+    }
+    JS_SetOpaque(obj, priv);
+    return obj;
+}
+
+
+
+int qjs_init_htmlcanvaselement(JSContext *ctx)
+{
+    qjs_init_htmlcanvaselement_gen(ctx);
+    JSValue proto = JS_GetClassProto(ctx, qjs_htmlcanvaselement_class_id);
+    JSValue htmlelement_proto = JS_GetClassProto(ctx, qjs_htmlelement_class_id);
+    JS_SetPrototype(ctx, proto, htmlelement_proto);
+    JS_FreeValue(ctx, htmlelement_proto);
+    JS_FreeValue(ctx, proto);
     return 0;
 }

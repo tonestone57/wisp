@@ -27,6 +27,9 @@
 #include "wisp_subsystem.h"
 #include "crypto.h"
 #include "dom_bridge.h"
+
+dom_string *g_qjs_node_key = NULL;
+
 #include <nsutils/time.h>
 #include <wisp/misc.h>
 #include <wisp/content/handlers/html/box_inspect.h>
@@ -1047,6 +1050,8 @@ static void on_dom_node_destroy(void *node) {
 
 void js_initialise(void)
 {
+    if (!g_qjs_node_key) dom_string_create((const uint8_t *)"__qjs_node", 10, &g_qjs_node_key);
+
     wisp_dom_node_destroy_hook = on_dom_node_destroy;
     wisp_node_destroy_cb = qjs_on_node_destroy;
 }
