@@ -59,6 +59,33 @@ typedef int32_t plot_style_fixed;
 #define plot_style_fixed_to_double(v) (((double)v) / PLOT_STYLE_SCALE)
 
 /**
+ * Convert a plot style font size to screen pixels.
+ *
+ * Handles rounding to the nearest integer pixel while preserving precision
+ * in sub-point font sizes.
+ *
+ * \param size  The font size in plot style units (pt * PLOT_STYLE_SCALE)
+ * \param dpi   The target screen DPI (integer)
+ * \return      Size in pixels
+ */
+static inline int plot_style_size_to_px(plot_style_fixed size, int dpi)
+{
+    return ((size * dpi) + (PLOT_STYLE_SCALE * 36)) / (PLOT_STYLE_SCALE * 72);
+}
+
+/**
+ * Convert a raw point size (pt) directly to screen pixels.
+ *
+ * \param pt   Font size in points (integer)
+ * \param dpi  The target screen DPI (integer)
+ * \return     Size in pixels
+ */
+static inline int plot_style_pt_to_px(int pt, int dpi)
+{
+    return (pt * dpi + 36) / 72;
+}
+
+/**
  * Type of plot operation
  */
 typedef enum {
