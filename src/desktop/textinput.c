@@ -65,16 +65,32 @@ void browser_window_place_caret(struct browser_window *bw, int x, int y, int hei
     x = x * bw->scale + pos_x;
     y = y * bw->scale + pos_y;
 
+    struct rect viewport = {
+        .x0 = pos_x,
+        .y0 = pos_y,
+        .x1 = pos_x + bw->width,
+        .y1 = pos_y + bw->height
+    };
+
     if (clip != NULL) {
         cr = *clip;
         cr.x0 += pos_x;
         cr.y0 += pos_y;
         cr.x1 += pos_x;
         cr.y1 += pos_y;
-        crp = &cr;
-    }
 
-    /** \todo intersect with bw viewport */
+        /* intersect with bw viewport */
+        if (cr.x0 < viewport.x0) cr.x0 = viewport.x0;
+        if (cr.y0 < viewport.y0) cr.y0 = viewport.y0;
+        if (cr.x1 > viewport.x1) cr.x1 = viewport.x1;
+        if (cr.y1 > viewport.y1) cr.y1 = viewport.y1;
+
+        if (cr.x0 > cr.x1) cr.x1 = cr.x0;
+        if (cr.y0 > cr.y1) cr.y1 = cr.y0;
+    } else {
+        cr = viewport;
+    }
+    crp = &cr;
 
     guit->window->place_caret(root_bw->window, x, y, height * bw->scale, crp);
 
