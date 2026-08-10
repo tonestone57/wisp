@@ -37,7 +37,11 @@
 #include <wisp/utils/filepath.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/utils.h>
-#include "utils/dirent.h" /** \todo why is this necessary for atari to get PATH_MAX and is there a better way */
+
+/* Fallback definition for PATH_MAX to avoid depending on dirent.h on some platforms */
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 /** maximum number of elements in the resource vector */
 #define MAX_RESPATH 128
