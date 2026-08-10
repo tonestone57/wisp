@@ -112,7 +112,7 @@ nserror http__parse_quoted_string(const char **input, lwc_string **value)
      * TEXT = [ HT, CR, LF, 32-126, 128-255 ]
      * CHAR = [ 0 - 127 ]
      *
-     * Note: Non-ASCII characters are treated as opaque obs-text data per modern HTTP standards.
+     * \todo TEXT may contain non 8859-1 chars encoded per RFC 2047
      */
 
     if (*start != '"')
