@@ -6869,13 +6869,13 @@ static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, str
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = strlen(props[i].name);
+        size_t val_len = strlen(props[i].value);
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        size_t value_len = strlen(props[i].value);
-        memcpy(ptr, props[i].value, value_len);
-        ptr += value_len;
+        memcpy(ptr, props[i].value, val_len);
+        ptr += val_len;
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
@@ -7092,13 +7092,13 @@ JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = strlen(props[i].name);
+        size_t val_len = strlen(props[i].value);
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        size_t value_len = strlen(props[i].value);
-        memcpy(ptr, props[i].value, value_len);
-        ptr += value_len;
+        memcpy(ptr, props[i].value, val_len);
+        ptr += val_len;
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
@@ -7123,13 +7123,13 @@ JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = strlen(props[i].name);
+        size_t val_len = strlen(props[i].value);
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        size_t value_len = strlen(props[i].value);
-        memcpy(ptr, props[i].value, value_len);
-        ptr += value_len;
+        memcpy(ptr, props[i].value, val_len);
+        ptr += val_len;
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
