@@ -160,11 +160,6 @@ static nserror idna__ace_to_ucs4(const char *ace_label, size_t ace_len, int32_t 
 #include <utf8proc.h>
 #include "wisp/utils/utf8proc_wrapper.h"
 
-int32_t idna_contexto[] = {
-    /* CONTEXTO codepoints which have a rule defined */
-    0x00b7, 0x0375, 0x05f3, 0x05f4, 0x30fb, 0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667, 0x0668,
-    0x0669, 0x06f0, 0x06f1, 0x06f2, 0x06f3, 0x06f4, 0x06f5, 0x06f6, 0x06f7, 0x06f8, 0x06f9, 0};
-
 /**
  * Find the IDNA property of a UCS-4 codepoint
  *
@@ -209,19 +204,90 @@ static idna_unicode_jt idna__jt_property(int32_t cp)
 }
 
 
-/**
- * Check if a CONTEXTO codepoint has a rule defined
- *
- * \param cp	Unicode codepoint
- * \return true if a rule is defined
- */
-static bool idna__contexto_rule(int32_t cp)
+static bool is_greek(int32_t cp)
 {
-    int32_t *t;
-    for (t = idna_contexto; *t != 0; t++) {
-        if (*t == cp) {
-            return true;
+    return (cp >= 0x0370 && cp <= 0x03FF) || /* Greek and Coptic */
+           (cp >= 0x1F00 && cp <= 0x1FFF);   /* Greek Extended */
+}
+
+static bool is_hebrew(int32_t cp)
+{
+    return (cp >= 0x0590 && cp <= 0x05FF);
+}
+
+static bool is_hiragana_katakana_han(int32_t cp)
+{
+    if (cp == 0x3005) return true; /* Ideographic Iteration Mark (々) */
+
+    return (cp >= 0x3040 && cp <= 0x309F) ||   /* Hiragana */
+           (cp >= 0x30A0 && cp <= 0x30FF) ||   /* Katakana */
+           (cp >= 0x3400 && cp <= 0x4DBF) ||   /* CJK Unified Ideographs Extension A */
+           (cp >= 0x4E00 && cp <= 0x9FFF) ||   /* CJK Unified Ideographs */
+           (cp >= 0xF900 && cp <= 0xFAFF) ||   /* CJK Compatibility Ideographs */
+           (cp >= 0x20000 && cp <= 0x2A6DF) || /* CJK Unified Ideographs Extension B */
+           (cp >= 0x2A700 && cp <= 0x2B73F) || /* CJK Unified Ideographs Extension C */
+           (cp >= 0x2B740 && cp <= 0x2B81F) || /* CJK Unified Ideographs Extension D */
+           (cp >= 0x2B820 && cp <= 0x2CEAF) || /* CJK Unified Ideographs Extension E */
+           (cp >= 0x2F800 && cp <= 0x2FA1F);   /* CJK Compatibility Ideographs Supplement */
+}
+
+/**
+ * Check if a CONTEXTO codepoint has a rule defined,
+ * and conforms to that rule.
+ *
+ * \param label UCS-4 string
+ * \param index character in the string which is CONTEXTO
+ * \param len The length of the label
+ * \return true if conforming
+ */
+static bool idna__contexto_rule(int32_t *label, size_t index, size_t len)
+{
+    int32_t cp = label[index];
+    size_t i;
+
+    if (cp == 0x00b7) {
+        if (index > 0 && index < (len - 1)) {
+            if (label[index - 1] == 0x006c && label[index + 1] == 0x006c) {
+                return true;
+            }
         }
+        return false;
+    } else if (cp == 0x0375) {
+        if (index < (len - 1)) {
+            if (is_greek(label[index + 1])) {
+                return true;
+            }
+        }
+        return false;
+    } else if (cp == 0x05f3 || cp == 0x05f4) {
+        if (index > 0) {
+            if (is_hebrew(label[index - 1])) {
+                return true;
+            }
+        }
+        return false;
+    } else if (cp == 0x30fb) {
+        for (i = 0; i < len; i++) {
+            if (i == index) continue;
+            if (is_hiragana_katakana_han(label[i])) {
+                return true;
+            }
+        }
+        return false;
+    } else if (cp >= 0x0660 && cp <= 0x0669) {
+        for (i = 0; i < len; i++) {
+            if (label[i] >= 0x06f0 && label[i] <= 0x06f9) {
+                return false;
+            }
+        }
+        return true;
+    } else if (cp >= 0x06f0 && cp <= 0x06f9) {
+        for (i = 0; i < len; i++) {
+            if (label[i] >= 0x0660 && label[i] <= 0x0669) {
+                return false;
+            }
+        }
+        return true;
     }
 
     return false;
@@ -455,11 +521,10 @@ static bool idna__is_valid(int32_t *label, size_t len)
             }
         }
 
-        /* 6. Check CONTEXTO characters have a rule defined */
-        /** \todo optionally we can check conformance to this rule */
+        /* 6. Check CONTEXTO characters conform to defined rules */
         if (idna_prop == IDNA_P_CONTEXTO) {
-            if (idna__contexto_rule(label[i]) == false) {
-                NSLOG(wisp, INFO, "Check failed: character %" PRIsizet " (%08x) has no CONTEXTO rule defined", i,
+            if (idna__contexto_rule(label, i, len) == false) {
+                NSLOG(wisp, INFO, "Check failed: character %" PRIsizet " (%08x) does not conform to CONTEXTO rule", i,
                     (unsigned int)label[i]);
                 return false;
             }
