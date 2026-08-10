@@ -447,7 +447,7 @@ static int layout_text_indent(const css_unit_ctx *unit_len_ctx, const css_comput
  *        0 <= table->min_width.value <= table->max_width
  */
 static void
-layout_minmax_table(struct box *table, const struct gui_layout_table *font_func, const html_content *content)
+layout_minmax_table(struct box *table, bool *has_height, const struct gui_layout_table *font_func, const html_content *content)
 {
 	unsigned int i, j;
 	int width;
@@ -607,6 +607,28 @@ layout_minmax_table(struct box *table, const struct gui_layout_table *font_func,
 	}
 
 	assert(0 <= table->min_width.value && table->min_width.value <= table->max_width);
+
+	if (has_height != NULL) {
+		bool table_has_height = false;
+		if (table->style != NULL) {
+			enum css_height_e htype;
+			css_fixed height = 0;
+			css_unit hunit = CSS_UNIT_PX;
+			htype = css_computed_height(table->style, &height, &hunit);
+			if (htype == CSS_HEIGHT_SET && height > 0) {
+				table_has_height = true;
+			}
+		}
+		if (!table_has_height) {
+			for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
+				if (row_group->children != NULL) {
+					table_has_height = true;
+					break;
+				}
+			}
+		}
+		*has_height = table_has_height;
+	}
 }
 
 /**
@@ -737,7 +759,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 			NSLOG(layout, WARNING, "Non-inline box %p (%d) in inline container", b, b->type);
 			if (b->children) {
 				if (b->type == BOX_TABLE)
-					layout_minmax_table(b, font_func, content);
+					layout_minmax_table(b, NULL, font_func, content);
 				else
 					layout_minmax_block(b, font_func, content);
 			}
@@ -759,7 +781,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 		if (lh__box_is_float_box(b)) {
 			assert(b->children);
 			if (b->children->type == BOX_TABLE)
-				layout_minmax_table(b->children, font_func, content);
+				layout_minmax_table(b->children, NULL, font_func, content);
 			else
 				layout_minmax_block(b->children, font_func, content);
 			b->min_width.value = b->children->min_width.value;
@@ -1248,10 +1270,10 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 				}
 				break;
 			case BOX_TABLE:
-				layout_minmax_table(child, font_func, content);
-				/* todo: fix for zero height tables */
-				child_has_height = true;
-				child->flags |= MAKE_HEIGHT;
+				layout_minmax_table(child, &child_has_height, font_func, content);
+				if (child_has_height) {
+					child->flags |= MAKE_HEIGHT;
+				}
 				break;
 			default:
 				/* Inline-level boxes (INLINE_BLOCK, INLINE_FLEX, INLINE_GRID)
@@ -1517,7 +1539,7 @@ void layout_minmax_box(struct box *box, const struct gui_layout_table *font_func
 		layout_minmax_grid(box, font_func, content);
 		break;
 	case BOX_TABLE:
-		layout_minmax_table(box, font_func, content);
+		layout_minmax_table(box, NULL, font_func, content);
 		break;
 	case BOX_INLINE_CONTAINER:
 		layout_minmax_inline_container(box, NULL, font_func, content);
