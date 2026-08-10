@@ -158,7 +158,6 @@ START_TEST(test_fetch_abort_success)
     fetch_abort(f);
 
     ck_assert_int_eq(test_fetcher_abort_called, true);
-    // ck_assert_int_eq(f->last_msg, FETCH__INTERNAL_ABORTED); struct fetch is opaque here
 
     fetch_remove_from_queues(f);
     fetch_free(f);
