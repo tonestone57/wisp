@@ -1928,7 +1928,7 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
         return NULL;
     }
 
-    /* Now fix-up default values */
+    /* Fixing up default values */
     if (c->domain == NULL) {
         lwc_string *host = nsurl_get_component(url, NSURL_HOST);
         if (host == NULL) {
