@@ -58,6 +58,16 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
     if (!priv) return;
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     if (!thread) return;
+    if (!priv || (!priv->node && priv != &thread->global_window_priv)) return;
+
+    JSValue wrapper;
+    if (priv == &thread->global_window_priv) {
+        wrapper = JS_GetGlobalObject(ctx);
+    } else {
+        wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    }
+
+    bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
     JSValue wrapper;
     if (priv == &thread->global_window_priv) {
@@ -71,24 +81,29 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
         char prop_buf[64];
         snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
         JSValue oldVal = JS_GetPropertyStr(ctx, wrapper, prop_buf);
-        if (!JS_IsUndefined(oldVal) && !JS_IsNull(oldVal)) {
-            struct dom_string *type_dom = NULL;
-            dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
-            if (type_dom) {
-                js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, oldVal);
-                dom_string_unref(type_dom);
+
+        if (is_real_dom_node) {
+            if (!JS_IsUndefined(oldVal) && !JS_IsNull(oldVal)) {
+                struct dom_string *type_dom = NULL;
+                dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
+                if (type_dom) {
+                    js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, oldVal);
+                    dom_string_unref(type_dom);
+                }
             }
         }
         JS_FreeValue(ctx, oldVal);
 
         JS_SetPropertyStr(ctx, wrapper, prop_buf, JS_DupValue(ctx, value));
 
-        if (JS_IsFunction(ctx, value)) {
-            struct dom_string *type_dom = NULL;
-            dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
-            if (type_dom) {
-                js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, value);
-                dom_string_unref(type_dom);
+        if (is_real_dom_node) {
+            if (JS_IsFunction(ctx, value)) {
+                struct dom_string *type_dom = NULL;
+                dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
+                if (type_dom) {
+                    js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, value);
+                    dom_string_unref(type_dom);
+                }
             }
         }
     }
@@ -96,8 +111,17 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
 }
 
 static JSValue helper_get_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name) {
-    if (!priv || !priv->node) return JS_NULL;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    if (!thread) return JS_NULL;
+    if (!priv || (!priv->node && priv != &thread->global_window_priv)) return JS_NULL;
+
+    JSValue wrapper;
+    if (priv == &thread->global_window_priv) {
+        wrapper = JS_GetGlobalObject(ctx);
+    } else {
+        wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    }
+
     if (JS_IsObject(wrapper)) {
         char prop_buf[64];
         snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
@@ -6876,13 +6900,13 @@ static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, str
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = strlen(props[i].name);
+        size_t val_len = strlen(props[i].value);
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        size_t value_len = strlen(props[i].value);
-        memcpy(ptr, props[i].value, value_len);
-        ptr += value_len;
+        memcpy(ptr, props[i].value, val_len);
+        ptr += val_len;
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
@@ -7099,13 +7123,13 @@ JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = strlen(props[i].name);
+        size_t val_len = strlen(props[i].value);
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        size_t value_len = strlen(props[i].value);
-        memcpy(ptr, props[i].value, value_len);
-        ptr += value_len;
+        memcpy(ptr, props[i].value, val_len);
+        ptr += val_len;
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
@@ -7130,13 +7154,13 @@ JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = strlen(props[i].name);
+        size_t val_len = strlen(props[i].value);
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        size_t value_len = strlen(props[i].value);
-        memcpy(ptr, props[i].value, value_len);
-        ptr += value_len;
+        memcpy(ptr, props[i].value, val_len);
+        ptr += val_len;
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
