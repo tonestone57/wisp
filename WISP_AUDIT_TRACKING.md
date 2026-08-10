@@ -72,7 +72,7 @@ For modern or hardware-level specifications that Wisp does not yet support (e.g.
 
 ### 2. JavaScript Engine / Web APIs
 - [x] Canvas 2D API parity check (ImageData dirty rects, CanvasGradient, CanvasPattern, style save/restore)
-- [ ] Web Workers / EventLoop task queue audits
+- [x] Web Workers / EventLoop task queue audits
 
 ### 3. CSS3 Implementation & Parsing
 - [ ] CSSOM property setter/getter synchronization

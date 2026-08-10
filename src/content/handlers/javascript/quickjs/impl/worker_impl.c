@@ -112,12 +112,40 @@ void wisp_dispatch_message_to_worker_object(WispWorkerHandle *h, WispMessage *ms
         JSValue msg_data = JS_ReadObject(ctx, msg->data, msg->size, JS_READ_OBJ_SAB | JS_READ_OBJ_REFERENCE);
         extern JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data);
         JSValue event = qjs_new_messageevent_manual(ctx, msg_data);
-        if (JS_IsFunction(ctx, priv->onmessage)) JS_Call(ctx, priv->onmessage, JS_UNDEFINED, 1, &event);
+        if (JS_IsFunction(ctx, priv->onmessage)) {
+            JSValue ret = JS_Call(ctx, priv->onmessage, JS_UNDEFINED, 1, &event);
+            JS_FreeValue(ctx, ret);
+            JSContext *ctx1;
+            int job_ret;
+            while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+                if (job_ret < 0) {
+                    JSValue exc = JS_GetException(ctx1);
+                    const char *exc_str = JS_ToCString(ctx1, exc);
+                    NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                    if (exc_str) JS_FreeCString(ctx1, exc_str);
+                    JS_FreeValue(ctx1, exc);
+                }
+            }
+        }
         JS_FreeValue(ctx, event); JS_FreeValue(ctx, msg_data);
     } else if (msg->type == WISP_MSG_TYPE_ERROR) {
         extern JSValue qjs_new_errorevent_manual(JSContext *ctx, const char *msg, const char *file, int line, int col);
         JSValue event = qjs_new_errorevent_manual(ctx, msg->error_message, msg->filename, msg->line_number, msg->col_number);
-        if (JS_IsFunction(ctx, priv->onerror)) JS_Call(ctx, priv->onerror, JS_UNDEFINED, 1, &event);
+        if (JS_IsFunction(ctx, priv->onerror)) {
+            JSValue ret = JS_Call(ctx, priv->onerror, JS_UNDEFINED, 1, &event);
+            JS_FreeValue(ctx, ret);
+            JSContext *ctx1;
+            int job_ret;
+            while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+                if (job_ret < 0) {
+                    JSValue exc = JS_GetException(ctx1);
+                    const char *exc_str = JS_ToCString(ctx1, exc);
+                    NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                    if (exc_str) JS_FreeCString(ctx1, exc_str);
+                    JS_FreeValue(ctx1, exc);
+                }
+            }
+        }
         JS_FreeValue(ctx, event);
     }
 }
