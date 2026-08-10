@@ -3,10 +3,7 @@
 #include <stdbool.h>
 #include "wisp/utils/shm_dom.h"
 
-// Provide mock definitions for the JS/DOM context variables
-bool wisp_is_js_process = false;
-shm_dom_t *wisp_shm_dom = NULL;
-uint32_t wisp_shm_capacity = 0;
+// Do NOT define the global variables here because they are already defined in libwisp.so
 
 START_TEST(test_shm_dom_create_destroy)
 {
