@@ -183,7 +183,7 @@ static nserror set_defaults(struct nsoption_s *defaults)
     /* locate certificate bundle */
     res_len = SearchPathA(NULL, "ca-bundle.crt", NULL, buf_tchar_size, buf, &ptr);
     if (res_len > 0) {
-        nsoption_setnull_charp(ca_bundle, strdup(buf));
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_ca_bundle, strdup(buf));
     }
 
 
@@ -198,65 +198,65 @@ static nserror set_defaults(struct nsoption_s *defaults)
     hres = SHGetFolderPath(NULL, CSIDL_PROFILE | CSIDL_FLAG_CREATE, NULL, SHGFP_TYPE_CURRENT, buf);
     if (hres == S_OK) {
         if (PathAppend(buf, dldir)) {
-            nsoption_setnull_charp(downloads_directory, strdup(buf));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_downloads_directory, strdup(buf));
         }
     }
 
     free(buf);
 
     /* ensure homepage option has a default */
-    nsoption_setnull_charp(homepage_url, strdup(WISP_HOMEPAGE));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_homepage_url, strdup(WISP_HOMEPAGE));
 
     /* cookie file default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, G_config_path, "Cookies");
     if (fname != NULL) {
-        nsoption_setnull_charp(cookie_file, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_file, fname);
     }
 
     /* cookie jar default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, G_config_path, "Cookies");
     if (fname != NULL) {
-        nsoption_setnull_charp(cookie_jar, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_jar, fname);
     }
 
     /* url database default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, G_config_path, "URLs");
     if (fname != NULL) {
-        nsoption_setnull_charp(url_file, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_url_file, fname);
     }
 
     /* bookmark database default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, G_config_path, "Hotlist");
     if (fname != NULL) {
-        nsoption_setnull_charp(hotlist_path, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_hotlist_path, fname);
     }
 
     /* disk cache default path */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, G_config_path, "Cache");
     if (fname != NULL) {
-        nsoption_setnull_charp(disc_cache_path, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_disc_cache_path, fname);
     }
     {
         DWORD v = GetVersion();
         DWORD maj = LOBYTE(LOWORD(v));
         if (maj < 6) {
             // use Windows XP supported fonts
-            nsoption_setnull_charp(font_sans, strdup("Tahoma"));
-            nsoption_setnull_charp(font_serif, strdup("Times New Roman"));
-            nsoption_setnull_charp(font_mono, strdup("Courier New"));
-            nsoption_setnull_charp(font_cursive, strdup("Comic Sans MS"));
-            nsoption_setnull_charp(font_fantasy, strdup("Tahoma"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_sans, strdup("Tahoma"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_serif, strdup("Times New Roman"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_mono, strdup("Courier New"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_cursive, strdup("Comic Sans MS"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_fantasy, strdup("Tahoma"));
         } else {
-            nsoption_setnull_charp(font_sans, strdup("Segoe UI"));
-            nsoption_setnull_charp(font_serif, strdup("Times New Roman"));
-            nsoption_setnull_charp(font_mono, strdup("Consolas"));
-            nsoption_setnull_charp(font_cursive, strdup("Segoe Script"));
-            nsoption_setnull_charp(font_fantasy, strdup("Segoe UI"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_sans, strdup("Segoe UI"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_serif, strdup("Times New Roman"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_mono, strdup("Consolas"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_cursive, strdup("Segoe Script"));
+            nsoption_setnull_tbl_charp(defaults, NSOPTION_font_fantasy, strdup("Segoe UI"));
         }
     }
 

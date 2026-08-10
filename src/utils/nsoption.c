@@ -576,17 +576,8 @@ nserror nsoption_init(nsoption_set_default_t *set_defaults, struct nsoption_s **
 
     /* update the default table */
     if (set_defaults != NULL) {
-        /** @todo it would be better if the frontends actually
-         * set values in the passed in table instead of
-         * assuming the global one.
-         */
-        opts = nsoptions;
-        nsoptions = defs;
-
         ret = set_defaults(defs);
-
         if (ret != NSERROR_OK) {
-            nsoptions = opts;
             nsoption_free(defs);
             return ret;
         }

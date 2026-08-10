@@ -255,9 +255,9 @@ static void monkey_options_handle_command(int argc, char **argv)
 static nserror set_defaults(struct nsoption_s *defaults)
 {
     /* Set defaults for absent option strings */
-    nsoption_setnull_charp(cookie_file, strdup("~/.wisp/Cookies"));
-    nsoption_setnull_charp(cookie_jar, strdup("~/.wisp/Cookies"));
-    nsoption_setnull_charp(url_file, strdup("~/.wisp/URLs"));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_file, strdup("~/.wisp/Cookies"));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_jar, strdup("~/.wisp/Cookies"));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_url_file, strdup("~/.wisp/URLs"));
 
     return NSERROR_OK;
 }

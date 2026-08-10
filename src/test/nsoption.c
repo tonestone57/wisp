@@ -102,12 +102,12 @@ static char *testnam(char *out)
 static nserror gui_options_init_defaults(struct nsoption_s *defaults)
 {
     /* Set defaults for absent option strings */
-    nsoption_setnull_charp(ca_bundle, strdup("Wisp:Resources.ca-bundle"));
-    nsoption_setnull_charp(cookie_file, strdup("Wisp:Cookies"));
-    nsoption_setnull_charp(cookie_jar, strdup("Cookies"));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_ca_bundle, strdup("Wisp:Resources.ca-bundle"));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_file, strdup("Wisp:Cookies"));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_jar, strdup("Cookies"));
 
-    if (nsoption_charp(ca_bundle) == NULL || nsoption_charp(cookie_file) == NULL ||
-        nsoption_charp(cookie_jar) == NULL) {
+    if ((defaults[NSOPTION_ca_bundle].value.s) == NULL || (defaults[NSOPTION_cookie_file].value.s) == NULL ||
+        (defaults[NSOPTION_cookie_jar].value.s) == NULL) {
         return NSERROR_BAD_PARAMETER;
     }
     return NSERROR_OK;

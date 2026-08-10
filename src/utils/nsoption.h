@@ -345,18 +345,22 @@ int nsoption_snoptionf(char *string, size_t size, enum nsoption_e option, const 
 
 
 /** set a boolean option in the default table */
-#define nsoption_set_bool(OPTION, VALUE) nsoptions[NSOPTION_##OPTION].value.b = VALUE
+#define nsoption_set_bool(OPTION, VALUE) nsoption_set_tbl_bool(nsoptions, NSOPTION_##OPTION, VALUE)
+#define nsoption_set_tbl_bool(OPTS, OPTION, VALUE) OPTS[OPTION].value.b = VALUE
 
 
 /** set an integer option in the default table */
-#define nsoption_set_int(OPTION, VALUE) nsoptions[NSOPTION_##OPTION].value.i = VALUE
+#define nsoption_set_int(OPTION, VALUE) nsoption_set_tbl_int(nsoptions, NSOPTION_##OPTION, VALUE)
+#define nsoption_set_tbl_int(OPTS, OPTION, VALUE) OPTS[OPTION].value.i = VALUE
 
 /** set an unsigned integer option in the default table */
-#define nsoption_set_uint(OPTION, VALUE) nsoptions[NSOPTION_##OPTION].value.u = VALUE
+#define nsoption_set_uint(OPTION, VALUE) nsoption_set_tbl_uint(nsoptions, NSOPTION_##OPTION, VALUE)
+#define nsoption_set_tbl_uint(OPTS, OPTION, VALUE) OPTS[OPTION].value.u = VALUE
 
 
 /** set a colour option in the default table */
-#define nsoption_set_colour(OPTION, VALUE) nsoptions[NSOPTION_##OPTION].value.c = VALUE
+#define nsoption_set_colour(OPTION, VALUE) nsoption_set_tbl_colour(nsoptions, NSOPTION_##OPTION, VALUE)
+#define nsoption_set_tbl_colour(OPTS, OPTION, VALUE) OPTS[OPTION].value.c = VALUE
 
 
 /**
@@ -376,13 +380,15 @@ nserror nsoption_set_tbl_charp(struct nsoption_s *opts, enum nsoption_e option_i
 #define nsoption_set_charp(OPTION, VALUE) nsoption_set_tbl_charp(nsoptions, NSOPTION_##OPTION, VALUE)
 
 /** set string option in default table if currently unset */
-#define nsoption_setnull_charp(OPTION, VALUE)                                                                          \
-    do {                                                                                                               \
-        if (nsoptions[NSOPTION_##OPTION].value.s == NULL) {                                                            \
-            nsoption_set_tbl_charp(nsoptions, NSOPTION_##OPTION, VALUE);                                               \
-        } else {                                                                                                       \
-            free(VALUE);                                                                                               \
-        }                                                                                                              \
+#define nsoption_setnull_charp(OPTION, VALUE) nsoption_setnull_tbl_charp(nsoptions, NSOPTION_##OPTION, VALUE)
+
+#define nsoption_setnull_tbl_charp(OPTS, OPTION, VALUE) \
+    do { \
+        if (OPTS[OPTION].value.s == NULL) { \
+            nsoption_set_tbl_charp(OPTS, OPTION, VALUE); \
+        } else { \
+            free(VALUE); \
+        } \
     } while (0)
 
 #endif
