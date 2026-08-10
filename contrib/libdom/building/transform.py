@@ -164,13 +164,13 @@ def type_to_ctype(t):
     
     # Core module
     # Insert _ before uppercase
-    s1 = ""
+    s1 = []
     for c in t:
         if c.isupper() and s1:
-            s1 += "_" + c
+            s1.append("_" + c)
         else:
-            s1 += c
-    t = s1.lower()
+            s1.append(c)
+    t = "".join(s1).lower()
     
     # events module
     t = t.replace("_u_i_", "_ui_")
@@ -181,13 +181,13 @@ def get_prefix(t):
     if t in special_prefix:
         return special_prefix[t]
     
-    s1 = ""
+    s1 = []
     for c in t:
         if c.isupper() and s1:
-            s1 += "_" + c
+            s1.append("_" + c)
         else:
-            s1 += c
-    prefix = "dom" + s1.lower()
+            s1.append(c)
+    prefix = "dom" + "".join(s1).lower()
     return prefix
 
 def to_cmethod(interface, method):
@@ -198,13 +198,13 @@ def to_cmethod(interface, method):
         ret = prefix + "_" + special_method[method]
     else:
         # CamelCase to snake_case
-        s1 = ""
+        s1 = []
         for c in method:
             if c.isupper():
-                s1 += "_" + c
+                s1.append("_" + c)
             else:
-                s1 += c
-        method_l = s1.lower()
+                s1.append(c)
+        method_l = "".join(s1).lower()
         ret = prefix + "_" + method_l
         
     ret = ret.replace("h_t_m_l", "html")
@@ -222,13 +222,13 @@ def to_attribute_accessor(interface, attr, accessor):
     if attr in special_attribute:
         ret = prefix + "_" + accessor + "_" + special_attribute[attr]
     else:
-        s1 = ""
+        s1 = []
         for c in attr:
             if c.isupper():
-                s1 += "_" + c
+                s1.append("_" + c)
             else:
-                s1 += c
-        attr_l = s1.lower()
+                s1.append(c)
+        attr_l = "".join(s1).lower()
         ret = prefix + "_" + accessor + "_" + attr_l
         
     ret = ret.replace("h_t_m_l", "html")
@@ -856,11 +856,11 @@ int main(int argc, char **argv)
              expected = ats["expected"]
              method = name
              # camel to snake
-             s1 = ""
+             s1 = []
              for c in method:
-                 if c.isupper(): s1 += "_" + c
-                 else: s1 += c
-             method = s1.lower()
+                 if c.isupper(): s1.append("_" + c)
+                 else: s1.append(c)
+             method = "".join(s1).lower()
              print(f"{method}({expected}, {actual})", end="")
              
         elif name == "same":
