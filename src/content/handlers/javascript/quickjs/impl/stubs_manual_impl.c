@@ -6596,16 +6596,15 @@ static bool has_important_priority(const char *val) {
     const char *p = val;
     while (*p) {
         if (*p == '!') {
-            p++;
-            while (isspace((unsigned char)*p)) p++;
-            if (strncasecmp(p, "important", 9) == 0) {
-                p += 9;
-                while (isspace((unsigned char)*p)) p++;
-                if (*p == '\0') return true;
+            const char *temp_p = p + 1;
+            while (isspace((unsigned char)*temp_p)) temp_p++;
+            if (strncasecmp(temp_p, "important", 9) == 0) {
+                temp_p += 9;
+                while (isspace((unsigned char)*temp_p)) temp_p++;
+                if (*temp_p == '\0') return true;
             }
-        } else {
-            p++;
         }
+        p++;
     }
     return false;
 }
@@ -6617,12 +6616,12 @@ static char *get_clean_value(const char *val) {
     while (*p) {
         if (*p == '!') {
             char *start = p;
-            p++;
-            while (isspace((unsigned char)*p)) p++;
-            if (strncasecmp(p, "important", 9) == 0) {
-                p += 9;
-                while (isspace((unsigned char)*p)) p++;
-                if (*p == '\0') {
+            char *temp_p = p + 1;
+            while (isspace((unsigned char)*temp_p)) temp_p++;
+            if (strncasecmp(temp_p, "important", 9) == 0) {
+                temp_p += 9;
+                while (isspace((unsigned char)*temp_p)) temp_p++;
+                if (*temp_p == '\0') {
                     if (start > dup) {
                         start--;
                         while (start > dup && isspace((unsigned char)*start)) start--;
