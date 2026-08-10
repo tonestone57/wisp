@@ -117,6 +117,32 @@ const css_border_color_func border_color_funcs[4] = {
 	[LEFT] = css_computed_border_left_color,
 };
 
+static int layout_get_baseline(struct box *b)
+{
+	if (b == NULL) {
+		return 0;
+	}
+
+	if (b->type == BOX_TEXT) {
+		/* Heuristic for text baseline if not explicitly available */
+		return (b->height * 4) / 5;
+	}
+
+	if (b->children) {
+		struct box *child = b->children;
+		/* Find first non-float child */
+		while (child && (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT)) {
+			child = child->next;
+		}
+		if (child) {
+			return child->y + layout_get_baseline(child);
+		}
+	}
+
+	/* Default to bottom of content box */
+	return b->height;
+}
+
 /* forward declaration to break cycles */
 static void
 layout_minmax_block(struct box *block, const struct gui_layout_table *font_func, const html_content *content);
@@ -2464,6 +2490,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 			if (htype == CSS_HEIGHT_SET && unit != CSS_UNIT_PCT) {
 				row_height = FIXTOINT(css_unit_len2device_px(row->style, &content->unit_len_ctx, value, unit));
 			}
+			int max_baseline = 0;
+			/* Pass 1: Layout all cells and find max_baseline */
 			for (c = row->children; c; c = c->next) {
 				assert(c->style);
 				c->width = xs[c->start_column + c->columns] - xs[c->start_column] - border_spacing_h -
@@ -2485,6 +2513,29 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 				 * until after vertical alignment is complete */
 				c->descendant_y0 = c->height;
 				c->descendant_y1 = c->padding[BOTTOM];
+
+				if (css_computed_vertical_align(c->style, &value, &unit) == CSS_VERTICAL_ALIGN_BASELINE) {
+					int baseline = layout_get_baseline(c);
+					if (baseline > max_baseline) {
+						max_baseline = baseline;
+					}
+				}
+			}
+
+			/* Pass 2: Apply baseline offset, compute min heights and excess_y */
+			for (c = row->children; c; c = c->next) {
+				int baseline_offset = 0;
+				if (css_computed_vertical_align(c->style, &value, &unit) == CSS_VERTICAL_ALIGN_BASELINE) {
+					int baseline = layout_get_baseline(c);
+					baseline_offset = max_baseline - baseline;
+					if (baseline_offset > 0) {
+						/* Instead of modifying the CSS-computed padding[TOP],
+						 * we add this to the total height needed by the cell.
+						 * The actual child movement will happen in the vertical
+						 * alignment phase, but we must account for it in excess_y now. */
+						c->height += baseline_offset;
+					}
+				}
 
 				htype = css_computed_height(c->style, &value, &unit);
 
@@ -2575,11 +2626,35 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 				case CSS_VERTICAL_ALIGN_TEXT_TOP:
 				case CSS_VERTICAL_ALIGN_TEXT_BOTTOM:
 				case CSS_VERTICAL_ALIGN_SET:
-				case CSS_VERTICAL_ALIGN_BASELINE:
-					/* todo: baseline alignment, for now
-					 * just use ALIGN_TOP */
 				case CSS_VERTICAL_ALIGN_TOP:
 					break;
+				case CSS_VERTICAL_ALIGN_BASELINE:
+				{
+					/* Max baseline across the row was already accounted for in row_height.
+					 * We just apply the offset here. */
+					int max_baseline = 0;
+					struct box *c2;
+					for (c2 = row->children; c2; c2 = c2->next) {
+						if (css_computed_vertical_align(c2->style, &value, &unit) == CSS_VERTICAL_ALIGN_BASELINE) {
+							int b_val = layout_get_baseline(c2);
+							if (b_val > max_baseline) max_baseline = b_val;
+						}
+					}
+
+					int baseline = layout_get_baseline(c);
+					int offset = max_baseline - baseline;
+					if (offset > 0) {
+						/* Because we added offset to c->height earlier to grow row_height,
+						 * the resulting c->padding[BOTTOM] (which fills spare height) is
+						 * currently smaller than it should be, and c->padding[TOP] is its original value.
+						 * We restore the true content height by moving 'offset' from
+						 * content area to padding[TOP].
+						 * c->padding[BOTTOM] is already correct for the new padded top. */
+						c->padding[TOP] += offset;
+						layout_move_children(c, 0, offset);
+					}
+					break;
+				}
 				case CSS_VERTICAL_ALIGN_MIDDLE:
 					c->padding[TOP] += spare_height / 2;
 					c->padding[BOTTOM] -= spare_height / 2;
