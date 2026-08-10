@@ -812,7 +812,7 @@ JSValue wisp_document_getElementsByName_impl(JSContext *ctx, QJSNodePrivate *pri
     size_t len = strlen(name);
     char *selector = malloc(len + 16);
     if (!selector) return JS_ThrowOutOfMemory(ctx);
-    sprintf(selector, "[name=\"%s\"]", name);
+    snprintf(selector, len + 16, "[name=\"%s\"]", name);
     JSValue res = qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selector, true);
     free(selector);
     return res;
