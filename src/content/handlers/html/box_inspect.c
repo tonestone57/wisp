@@ -188,8 +188,8 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
             break;
         assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in children walk");
         assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in children walk");
-        /* FIX: For absolute positioned children, box->x/y are relative to containing block,
-         * not the visual parent. Use box_coords to get correct global position.
+        /* For absolute positioned children, box->x/y are relative to containing block,
+         * not the visual parent. Using box_coords to get correct global position.
          * Per CSS 2.1 §9.6, absolute elements are offset from containing block. */
         if (b->abs_containing_block != NULL) {
             int dx, dy;
