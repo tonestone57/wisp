@@ -496,13 +496,13 @@ class CSSProperty:
             ''.join([ b['letter'] * b['size'] for b in bits ]),
             ' | '.join([ b['name'] for b in bits ]))
         rev_bits = list(reversed(bits))
-        type_mask = '0x{:x}'.format(
-            sum([ 2 ** x for x in range(rev_bits[0]['size']) ])).lower()
-        shift_list = [ (x['name'],
-                        sum([ b['size'] for b in rev_bits[:(i + 1)] ]),
-                        sum([ 2 ** x for x in range(x['size']) ]) * 2 **
-                            sum([ b['size'] for b in rev_bits[:(i + 1)] ]))
-            for i, x in enumerate(rev_bits[1:]) ]
+        type_mask = '0x{:x}'.format((1 << rev_bits[0]['size']) - 1).lower()
+        shift_list = []
+        current_shift = rev_bits[0]['size']
+        for x in rev_bits[1:]:
+            mask = (1 << x['size']) - 1
+            shift_list.append((x['name'], current_shift, mask << current_shift))
+            current_shift += x['size']
         return (type_mask, shift_list, comment)
 
 class Bin:
