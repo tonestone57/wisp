@@ -68,7 +68,6 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
 
     bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
     if (JS_IsObject(wrapper)) {
         char prop_buf[64];
         snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
