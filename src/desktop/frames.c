@@ -811,31 +811,52 @@ bool browser_window_resolve_frame_dimension(
      * (pixel/percentage) value can simply be resolved to the specified
      * width that will result in the required dimension.
      */
-    if (bw_d->unit == FRAME_DIMENSION_RELATIVE) {
-        if ((sibling_pixels == 0) && (bw_dimension == 0))
-            return false;
-        if (fabs(sibling_d->value) < 0.0001)
-            bw_d->value = 1;
-        if (sibling_pixels == 0)
-            sibling_d->value = (sibling_d->value * bw_pixels) / bw_dimension;
-        else
-            sibling_d->value = (sibling_d->value * sibling_dimension) / sibling_pixels;
+    if (bw_d->unit == FRAME_DIMENSION_RELATIVE || sibling_d->unit == FRAME_DIMENSION_RELATIVE) {
+        if (bw_d->unit == FRAME_DIMENSION_RELATIVE) {
+            if ((sibling_pixels == 0) && (bw_dimension == 0))
+                return false;
+            if (fabs(sibling_d->value) < 0.0001)
+                bw_d->value = 1;
+            if (sibling_pixels == 0)
+                sibling_d->value = (sibling_d->value * bw_pixels) / bw_dimension;
+            else
+                sibling_d->value = (sibling_d->value * sibling_dimension) / sibling_pixels;
+        } else {
+            if ((bw_pixels == 0) && (sibling_dimension == 0))
+                return false;
+            if (fabs(bw_d->value) < 0.0001)
+                bw_d->value = 1;
+            if (bw_pixels == 0)
+                bw_d->value = (bw_d->value * sibling_pixels) / sibling_dimension;
+            else
+                bw_d->value = (bw_d->value * bw_dimension) / bw_pixels;
+        }
 
-        /* todo: the availble resize may have changed, update the drag
-         * box */
-        return true;
-    } else if (sibling_d->unit == FRAME_DIMENSION_RELATIVE) {
-        if ((bw_pixels == 0) && (sibling_dimension == 0))
-            return false;
-        if (fabs(bw_d->value) < 0.0001)
-            bw_d->value = 1;
-        if (bw_pixels == 0)
-            bw_d->value = (bw_d->value * sibling_pixels) / sibling_dimension;
-        else
-            bw_d->value = (bw_d->value * bw_dimension) / bw_pixels;
-
-        /* todo: the availble resize may have changed, update the drag
-         * box */
+        if (bw->drag.type == DRAGGING_FRAME) {
+            struct rect drag_rect;
+            if (width) {
+                drag_rect.y0 = bw->parent->y;
+                drag_rect.y1 = bw->parent->y + bw->parent->height;
+                if (bw->drag.resize_left) {
+                    drag_rect.x0 = bw->x - sibling_pixels;
+                    drag_rect.x1 = bw->x + bw_pixels;
+                } else {
+                    drag_rect.x0 = bw->x;
+                    drag_rect.x1 = bw->x + bw_pixels + sibling_pixels;
+                }
+            } else {
+                drag_rect.x0 = bw->parent->x;
+                drag_rect.x1 = bw->parent->x + bw->parent->width;
+                if (bw->drag.resize_up) {
+                    drag_rect.y0 = bw->y - sibling_pixels;
+                    drag_rect.y1 = bw->y + bw_pixels;
+                } else {
+                    drag_rect.y0 = bw->y;
+                    drag_rect.y1 = bw->y + bw_pixels + sibling_pixels;
+                }
+            }
+            browser_window_set_drag_type(bw, DRAGGING_FRAME, &drag_rect);
+        }
         return true;
     }
 
