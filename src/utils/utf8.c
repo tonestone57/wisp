@@ -282,18 +282,31 @@ static nserror utf8_convert(
     }
 
     /* perform conversion */
-    if (iconv(cd, (void *)&in, &slen, &out, &result_len) == (size_t)-1) {
-        free(temp);
-        /* clear the cached conversion descriptor as it's invalid */
-        if (last_cd.cd)
-            iconv_close(last_cd.cd);
-        utf8_clear_cd_cache();
-        /** \todo handle the various cases properly
-         * There are 3 possible error cases:
-         * a) Insufficiently large output buffer
-         * b) Invalid input byte sequence
-         * c) Incomplete input sequence */
-        return NSERROR_NOMEM;
+    while (iconv(cd, (void *)&in, &slen, &out, &result_len) == (size_t)-1) {
+        if (errno == E2BIG) {
+            size_t out_pos = out - temp;
+            size_t current_size = out_pos + result_len;
+            size_t new_size = current_size + slen * 4 + 4;
+            char *new_temp = realloc(temp, new_size);
+            if (!new_temp) {
+                free(temp);
+                if (last_cd.cd)
+                    iconv_close(last_cd.cd);
+                utf8_clear_cd_cache();
+                return NSERROR_NOMEM;
+            }
+            temp = new_temp;
+            out = temp + out_pos;
+            result_len = new_size - out_pos;
+        } else {
+            nserror err = (errno == EILSEQ || errno == EINVAL) ? NSERROR_BAD_ENCODING : NSERROR_NOMEM;
+            free(temp);
+            /* clear the cached conversion descriptor as it's invalid */
+            if (last_cd.cd)
+                iconv_close(last_cd.cd);
+            utf8_clear_cd_cache();
+            return err;
+        }
     }
 
     result_len = out - temp;
