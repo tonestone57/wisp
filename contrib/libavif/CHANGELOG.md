@@ -1370,7 +1370,7 @@ code.
 ### Added
 - Added `appveyor.yml` (exported from Appveyor)
 - Move `ext/aom` to a proper submodule
-- Update AOM to commit [3e3b9342a](https://aomedia.googlesource.com/aom/+/3e3b9342a20147ec6e4f89aa290e20277c1260ce) with minor CMake changes
+- Update AOM to commit [3e3b9342a](https://aomedia.googlesource.com/aom/+/3e3b9342a20147ec6e4f89aa290e20267c1260ce) with minor CMake changes
 
 ### Changed
 - Added static library artifact zip to Windows x64 builds (Appveyor)

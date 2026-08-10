@@ -12,7 +12,7 @@ We appreciate the philosophy of Netsurf, and intend to keep the spirit of the pr
 ## Development
 Wisp has completed its core CSS Variables implementation and optimized the Incremental Layout engine. The project supports **Blend2D** for high-performance software rasterization and has implemented a high-performance native **Direct2D & DirectWrite** pipeline for Windows. Wisp utilizes a **Fixed-Tile Redraw** strategy to optimize performance on both retro and modern hardware.
 
-### Core Features Status (July 2026 Update)
+### Core Features Status (2026 Update)
 *   **[Finished] Fork-Join Parallel Style and Layout Engine**: Thread-safe lock-free worker-local arena allocations with $O(1)$ main arena merging on Join. Features parallel CSS selector matching for independent sub-trees using concurrent-write flat arrays, and Fork-Join block layout scheduling inside sequential tree traversals with condition-variable based wait groups.
 *   **[Finished] Copy-Patch / Baseline JIT Tier for QuickJS-ng**: Relocatable AMD64 Copy-Patch JIT compiler tracking hotspot functions (threshold >= 10 calls) and compiling them to native machine code on POSIX platforms. Enforces System V ABI callee-saved registers, 16-byte alignment safeguards, W^X page permissions, and GC reference-counting invariants.
 *   **[Finished] SVDS Predictive Layout Snapshots & Coalesced IPC Layout Pipeline**: Lock-free, cache-line-aligned seqlock read/write loops for `shm_dom_node_t` layout metrics. Integrates Same-Microtask BBMQ write-then-read checking, layout coalescing timers (1000us threshold), and fallback estimation to bypass synchronous IPC stalls during animation frames.

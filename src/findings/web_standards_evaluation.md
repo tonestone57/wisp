@@ -1,4 +1,4 @@
-# Evaluation of HTML5, CSS3, and JavaScript Support in Wisp (July 2026 Update)
+# Evaluation of HTML5, CSS3, and JavaScript Support in Wisp (2026 Update)
 
 This report provides a comprehensive, systematic audit and quantitative/qualitative assessment of **Wisp's** alignment with modern web standards (**HTML5**, **CSS3**, and **JavaScript**), based on the current state of the repository.
 

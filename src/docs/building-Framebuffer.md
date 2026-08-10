@@ -145,7 +145,7 @@
   From your workspace directory, run the following command to get the Wisp
   source:
 
-     $ git clone git://git.netsurf-browser.org/netsurf.git
+     $ git clone git://git.wisp-browser.org/wisp.git
 
   And change to the 'wisp' directory:
 

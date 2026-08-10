@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-  Wisp project libraries required                         15 July 2026
+  Wisp project libraries required                         August 2026
 --------------------------------------------------------------------------------
 
   To build Wisp, you need the libraries required by the core, and any extra
@@ -36,8 +36,8 @@
 
   Required:
 
-      $ git clone git://git.netsurf-browser.org/libpencil
-      $ git clone git://git.netsurf-browser.org/rufl
+      $ git clone git://git.wisp-browser.org/libpencil
+      $ git clone git://git.wisp-browser.org/rufl
 
 
   Framebuffer front end
@@ -45,7 +45,7 @@
 
   Required:
 
-      $ git clone git://git.netsurf-browser.org/libnsfb
+      $ git clone git://git.wisp-browser.org/libnsfb
 
 
   Non RISC OS front ends
@@ -53,5 +53,5 @@
 
   Optional:
 
-      $ git clone git://git.netsurf-browser.org/librosprite
+      $ git clone git://git.wisp-browser.org/librosprite
 

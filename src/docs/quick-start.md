@@ -1,7 +1,7 @@
 Quick Build Steps for Wisp
 =============================
 
-Last Updated: 15th July 2026
+Last Updated: August 2026
 
 This document provides steps for building Wisp.
 
@@ -22,7 +22,7 @@ Native build
 Grab a temporary env.sh
 -----------------------
 
-     $ wget https://git.netsurf-browser.org/netsurf.git/plain/docs/env.sh
+     $ wget https://git.wisp-browser.org/wisp.git/plain/docs/env.sh
      $ unset HOST
      $ source env.sh
 
@@ -131,11 +131,11 @@ Getting a cross compiler set up
 We maintain cross compilation environments and an SDK for a number of
   platforms.  These may be found in our toolchains repository.
 
-      $ git clone git://git.netsurf-browser.org/toolchains
+      $ git clone git://git.wisp-browser.org/toolchains
 
 Pre-built versions of the toolchains for 64bit x86 Debian systems are
   available via our [automated build and test
-  infrastructure](https://ci.netsurf-browser.org/builds/toolchains/)
+  infrastructure](https://ci.wisp-browser.org/builds/toolchains/)
 
 
 Not working?

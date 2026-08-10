@@ -1,11 +1,11 @@
 Run with Split Logs
-`cd build-ninja\frontends\windows && .\neosurf-windows.exe -split-logs`
+`cd build-ninja\frontends\windows && .\wisp-windows.exe -split-logs`
 
 Run with Split Logs and Custom URL
-`cd build-ninja\frontends\windows && .\neosurf-windows.exe -split-logs https://google.com`
+`cd build-ninja\frontends\windows && .\wisp-windows.exe -split-logs https://google.com`
 
 Log Files Location
-`build-ninja\frontends\windows\neosurf-logs\`
+`build-ninja\frontends\windows\wisp-logs\`
 
 Log files are `.txt` with different severity levels:
 - `ns-error.txt` - Errors only

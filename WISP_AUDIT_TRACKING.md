@@ -1,4 +1,4 @@
-# WISP Engine Audit & Implementation Tracker (2026/2027)
+# WISP Engine Audit & Implementation Tracker (2026/2026)
 
 ## Executive Status
 - **WebIDL Coverage:** 2,995 / 2,995 stubs mapped (100% strong C symbol overrides under `src/content/handlers/javascript/quickjs/impl/`)
@@ -52,9 +52,9 @@ These directly break page rendering and web applications if they are no-ops:
 - **CSSOM**: `style.setProperty`, `style.getPropertyValue`, `window.getComputedStyle`. [COMPLETED]
 
 #### Phase B: HTML5 & Browser Infrastructure
-- **Forms & Input**: `HTMLInputElement` setters/getters, `form.submit()`.
-- **Timers & Fetch**: `setTimeout`/`setInterval` event loop hooks, `fetch()` / `XMLHttpRequest`.
-- **Storage**: `localStorage`, `sessionStorage`.
+- **Forms & Input**: `HTMLInputElement` setters/getters, `form.submit()`. [COMPLETED]
+- **Timers & Fetch**: `setTimeout`/`setInterval` event loop hooks, `fetch()` / `XMLHttpRequest`. [COMPLETED]
+- **Storage**: `localStorage`, `sessionStorage`. [COMPLETED]
 
 #### Phase C: Spec-Compliant Graceful Refusals for Niche APIs
 For modern or hardware-level specifications that Wisp does not yet support (e.g., WebGPU, WebBluetooth, WebXR, WebAudio), the spec-compliant behavior is not a no-op that returns undefined, but rather returning appropriate spec defaults or raising `NotSupportedError` cleanly via `DOMException`.
@@ -75,9 +75,9 @@ For modern or hardware-level specifications that Wisp does not yet support (e.g.
 - [x] Web Workers / EventLoop task queue audits
 
 ### 3. CSS3 Implementation & Parsing
-- [ ] CSSOM property setter/getter synchronization
-- [ ] CSS Flexbox / Grid layout pass-throughs
+- [x] CSSOM property setter/getter synchronization
+- [x] CSS Flexbox / Grid layout pass-throughs
 
 ### 4. HTML5 Standard Elements
-- [ ] Custom Element / Web Component lifecycle stubs
-- [ ] HTML5 Form validation / Canvas element event integration
+- [x] Custom Element / Web Component lifecycle stubs
+- [x] HTML5 Form validation / Canvas element event integration

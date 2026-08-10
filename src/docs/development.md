@@ -11,7 +11,7 @@ planning to make a change to Wisp intended to be merged.
 We are often about on the IRC channel but failing that the developer
 mailing list is a good place to try.
 
-All the project sources are held in [public git repositories](http://source.netsurf-browser.org/)
+All the project sources are held in [public git repositories](http://source.wisp-browser.org/)
 
 # Compilation environment
 
@@ -24,10 +24,10 @@ BSD, Open BSD, Mac OS X and Haiku all known to work.
 Compilation for non POSIX toolkits/frontends (e.g. RISC OS) generally
 relies upon a cross compilation environment which is generated using
 the makefiles found in our
-[toolchains](http://source.netsurf-browser.org/toolchains.git/)
+[toolchains](http://source.wisp-browser.org/toolchains.git/)
 repository. These toolchains are built by the Continuous Integration
 (CI) system and the
-[results of the system](http://ci.netsurf-browser.org/builds/toolchains/)
+[results of the system](http://ci.wisp-browser.org/builds/toolchains/)
 are published as a convenience.
 
 ## Quick setup

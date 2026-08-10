@@ -15,7 +15,7 @@ description: build instructions
    ```bash
    cmake -DCMAKE_BUILD_TYPE=Debug -GNinja -DWISP_ENABLE_PERF_TRACE=OFF -DWISP_ENABLE_TESTS=ON ..
    ```
-   > **Note**: Use `-DNEOSURF_ENABLE_PERF_TRACE=ON` when measuring performance.
+   > **Note**: Use `-DWISP_ENABLE_PERF_TRACE=ON` when measuring performance.
 
 2. Build with Ninja:
    ```bash
