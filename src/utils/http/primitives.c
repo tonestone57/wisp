@@ -104,6 +104,7 @@ nserror http__parse_quoted_string(const char **input, lwc_string **value)
     const uint8_t *end;
     uint8_t c;
     lwc_string *string_value;
+    bool has_escapes = false;
 
     /* <"> *( qdtext | quoted-pair ) <">
      * qdtext = any TEXT except <">
@@ -112,7 +113,6 @@ nserror http__parse_quoted_string(const char **input, lwc_string **value)
      * CHAR = [ 0 - 127 ]
      *
      * \todo TEXT may contain non 8859-1 chars encoded per RFC 2047
-     * \todo Support quoted-pairs
      */
 
     if (*start != '"')
@@ -121,7 +121,17 @@ nserror http__parse_quoted_string(const char **input, lwc_string **value)
     end = start = start + 1;
 
     c = *end;
-    while (c == '\t' || c == '\r' || c == '\n' || c == ' ' || c == '!' || ('#' <= c && c <= 126) || c > 127) {
+    while (c == '\t' || c == '\r' || c == '\n' || c == ' ' || c == '!' ||
+           ('#' <= c && c <= '[') || (']' <= c && c <= 126) || c > 127 ||
+           c == '\\') {
+        if (c == '\\') {
+            has_escapes = true;
+            end++;
+            c = *end;
+            if (c > 127 || c == '\0') {
+                break;
+            }
+        }
         end++;
         c = *end;
     }
@@ -129,8 +139,35 @@ nserror http__parse_quoted_string(const char **input, lwc_string **value)
     if (*end != '"')
         return NSERROR_NOT_FOUND;
 
-    if (lwc_intern_string((const char *)start, end - start, &string_value) != lwc_error_ok)
-        return NSERROR_NOMEM;
+    if (has_escapes) {
+        uint8_t *unescaped = malloc(end - start);
+        if (unescaped == NULL)
+            return NSERROR_NOMEM;
+
+        const uint8_t *p = start;
+        uint8_t *q = unescaped;
+
+        while (p < end) {
+            if (*p == '\\') {
+                p++;
+                if (p < end) {
+                    *q++ = *p++;
+                }
+            } else {
+                *q++ = *p++;
+            }
+        }
+
+        if (lwc_intern_string((const char *)unescaped, q - unescaped, &string_value) != lwc_error_ok) {
+            free(unescaped);
+            return NSERROR_NOMEM;
+        }
+
+        free(unescaped);
+    } else {
+        if (lwc_intern_string((const char *)start, end - start, &string_value) != lwc_error_ok)
+            return NSERROR_NOMEM;
+    }
 
     *value = string_value;
 
