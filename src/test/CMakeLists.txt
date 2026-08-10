@@ -464,7 +464,6 @@ target_link_libraries(test_dirty_grid PRIVATE wisp)
 endif()
 
 add_wisp_test(test_content_factory
-  ${CMAKE_SOURCE_DIR}/src/content/content_factory.c
   ${CMAKE_SOURCE_DIR}/src/test/test_content_factory.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
