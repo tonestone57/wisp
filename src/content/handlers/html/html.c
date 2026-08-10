@@ -1767,6 +1767,7 @@ static void html_destroy(struct content *c)
 		if (cancel_dom_to_box(html->box_conversion_context) != NSERROR_OK) {
 			NSLOG(wisp, CRITICAL, "WARNING, Unable to cancel conversion context, browser may crash");
 		}
+		html->box_conversion_context = NULL;
 	}
 
 	selection_destroy(html->sel);
