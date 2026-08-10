@@ -273,21 +273,24 @@ class DTDHandler:
             self.global_attributes = {}
             for interface in self.root.findall("./interface"):
                 iname = interface.get("name")
+                methods = interface.findall("./method")
+                attributes = interface.findall("./attribute")
+
                 if iname:
                     self.interfaces[iname] = interface
                     self.methods[iname] = {}
                     self.attributes[iname] = {}
-                    for m in interface.findall("./method"):
+                    for m in methods:
                         if m.get("name"):
                             self.methods[iname][m.get("name")] = m
-                    for a in interface.findall("./attribute"):
+                    for a in attributes:
                         if a.get("name"):
                             self.attributes[iname][a.get("name")] = a
 
-                for m in interface.findall("./method"):
+                for m in methods:
                     if m.get("name") and m.get("name") not in self.global_methods:
                         self.global_methods[m.get("name")] = m
-                for a in interface.findall("./attribute"):
+                for a in attributes:
                     if a.get("name") and a.get("name") not in self.global_attributes:
                         self.global_attributes[a.get("name")] = a
         except Exception as e:
