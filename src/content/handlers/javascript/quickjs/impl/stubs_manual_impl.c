@@ -6808,34 +6808,56 @@ static void free_style_properties(struct style_property *props, int count) {
     }
 }
 
+#include <ctype.h>
 static bool has_important_priority(const char *val) {
     if (!val) return false;
-    size_t len = strlen(val);
-    if (len < 10) return false;
-    const char *suffix = val + len - 10;
-    if (strcasecmp(suffix, "!important") == 0) {
-        return true;
+    const char *p = val;
+    while (*p) {
+        if (*p == '!') {
+            const char *temp_p = p + 1;
+            while (isspace((unsigned char)*temp_p)) temp_p++;
+            if (strncasecmp(temp_p, "important", 9) == 0) {
+                temp_p += 9;
+                while (isspace((unsigned char)*temp_p)) temp_p++;
+                if (*temp_p == '\0') return true;
+            }
+        }
+        p++;
     }
     return false;
 }
 
 static char *get_clean_value(const char *val) {
     if (!val) return NULL;
-    size_t len = strlen(val);
-    if (len >= 10) {
-        const char *suffix = val + len - 10;
-        if (strcasecmp(suffix, "!important") == 0) {
-            size_t clean_len = len - 10;
-            char *clean_val = strndup(val, clean_len);
-            char *end = clean_val + clean_len - 1;
-            while (end >= clean_val && isspace((unsigned char)*end)) {
-                *end = '\0';
-                end--;
+    char *dup = strdup(val);
+    char *p = dup;
+    while (*p) {
+        if (*p == '!') {
+            char *start = p;
+            char *temp_p = p + 1;
+            while (isspace((unsigned char)*temp_p)) temp_p++;
+            if (strncasecmp(temp_p, "important", 9) == 0) {
+                temp_p += 9;
+                while (isspace((unsigned char)*temp_p)) temp_p++;
+                if (*temp_p == '\0') {
+                    if (start > dup) {
+                        start--;
+                        while (start > dup && isspace((unsigned char)*start)) start--;
+                        if (!isspace((unsigned char)*start)) {
+                            *(start + 1) = '\0';
+                        } else {
+                            *start = '\0';
+                        }
+                    } else {
+                        *dup = '\0';
+                    }
+                    return dup;
+                }
             }
-            return clean_val;
         }
+        p++;
     }
-    return strdup(val);
+    return dup;
 }
 
 static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, struct style_property *props, int count) {
@@ -7049,13 +7071,53 @@ JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate
     if (JS_IsNull(val) || JS_IsUndefined(val)) {
         return JS_NewString(ctx, "");
     }
-    return val;
+    const char *style_str = JS_ToCString(ctx, val);
+    struct style_property props[256];
+    int count = parse_style_attribute(style_str, props, 256);
+    JS_FreeCString(ctx, style_str);
+    JS_FreeValue(ctx, val);
+
+    size_t total_len = 0;
+    for (int i = 0; i < count; i++) {
+        total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
+    }
+    char *buf = malloc(total_len + 1);
+    buf[0] = '\0';
+    for (int i = 0; i < count; i++) {
+        strcat(buf, props[i].name);
+        strcat(buf, ": ");
+        strcat(buf, props[i].value);
+        strcat(buf, "; ");
+    }
+    JSValue result = JS_NewString(ctx, buf);
+    free(buf);
+    free_style_properties(props, count);
+    return result;
 }
 
 JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", value ? value : "");
+
+    struct style_property props[256];
+    int count = parse_style_attribute(value ? value : "", props, 256);
+
+    size_t total_len = 0;
+    for (int i = 0; i < count; i++) {
+        total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
+    }
+    char *buf = malloc(total_len + 1);
+    buf[0] = '\0';
+    for (int i = 0; i < count; i++) {
+        strcat(buf, props[i].name);
+        strcat(buf, ": ");
+        strcat(buf, props[i].value);
+        strcat(buf, "; ");
+    }
+
+    JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
     JS_FreeValue(ctx, dummy);
+    free(buf);
+    free_style_properties(props, count);
     return JS_UNDEFINED;
 }
 
