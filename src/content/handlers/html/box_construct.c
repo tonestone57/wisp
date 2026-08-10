@@ -97,7 +97,7 @@ static const content_type image_types = CONTENT_IMAGE;
 
 /* Mapping from CSS display to box type.
  * Uses designated initializers so order doesn't matter. */
-static const box_type box_map[CSS_DISPLAY_CONTENTS + 1] = {
+static const box_type box_map[CSS_DISPLAY_INLINE_GRID + 1] = {
 	[CSS_DISPLAY_INHERIT] = BOX_BLOCK,
 	[CSS_DISPLAY_INLINE] = BOX_INLINE,
 	[CSS_DISPLAY_BLOCK] = BOX_BLOCK,
@@ -119,9 +119,8 @@ static const box_type box_map[CSS_DISPLAY_CONTENTS + 1] = {
 	[CSS_DISPLAY_INLINE_FLEX] = BOX_INLINE_FLEX,
 	[CSS_DISPLAY_GRID] = BOX_GRID,
 	[CSS_DISPLAY_INLINE_GRID] = BOX_INLINE_GRID,
-	[CSS_DISPLAY_CONTENTS] = BOX_NONE,
 };
-_Static_assert(CSS_DISPLAY_CONTENTS == 0x15, "css_display_e has new values — update box_map");
+_Static_assert(CSS_DISPLAY_INLINE_GRID == 0x14, "css_display_e has new values — update box_map");
 
 
 /**
@@ -198,10 +197,6 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
 			}
 		}
 
-		/* Reset node pointers to traverse again for containing block */
-		current_node = n;
-		parent_node = NULL;
-
 		/* Find containing block (may be parent) */
 		while (true) {
 			struct box *b;
@@ -224,7 +219,7 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
 			 * parent node. Note, however, that we'll still
 			 * use the parent node's styling as the parent
 			 * style, above. */
-			if (b != NULL && b->type != BOX_INLINE && b->type != BOX_BR && b->type != BOX_NONE) {
+			if (b != NULL && b->type != BOX_INLINE && b->type != BOX_BR) {
 				props->containing_block = b;
 
 				dom_node_unref(parent_node);
@@ -2278,16 +2273,11 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 
 	if (box->type == BOX_NONE ||
 		(ns_computed_display(box->style, props.node_is_root) == CSS_DISPLAY_NONE && props.node_is_root == false)) {
-
-		bool is_contents = (ns_computed_display(box->style, props.node_is_root) == CSS_DISPLAY_CONTENTS);
-
-		if (!is_contents) {
-			if (ctx->content == NULL || ctx->content->select_ctx == NULL) {
-				css_select_results_destroy(styles);
-			}
-			box->styles = NULL;
-			box->style = NULL;
+		if (ctx->content == NULL || ctx->content->select_ctx == NULL) {
+			css_select_results_destroy(styles);
 		}
+		box->styles = NULL;
+		box->style = NULL;
 
 		/* Free associated gadget, if any. This handles both formless controls
 		 * and controls in a form's list. form_free_control sets box->gadget
@@ -2302,28 +2292,9 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 		 * (for now) */
 		/* box_free_box(box); */
 
-		if (!is_contents) {
-			*convert_children = false;
-			return true;
-		} else {
-			/* For display: contents, attach the node mapping so the tree
-			 * traversal algorithms can resolve parent mappings, but immediately
-			 * return to skip tree insertion and layout generation.
-			 */
-			err = dom_node_set_user_data(ctx->n, corestring_dom___ns_key_box_node_data, box, NULL, (void *)&old_box);
-			if (err != DOM_NO_ERR)
-				return false;
+		*convert_children = false;
 
-			box->node = dom_node_ref(ctx->n);
-
-			if (box->styles != NULL) {
-				html_style_cache_add(ctx->content, ctx->n, box->styles);
-				box->styles = NULL; /* Transfer ownership to cache so they are freed */
-			}
-
-			/* Children conversion continues natively and finds the original layout-generating ancestors. */
-			return true;
-		}
+		return true;
 	}
 
 	/* Attach DOM node to box */

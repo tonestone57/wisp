@@ -293,7 +293,7 @@ uint8_t css_computed_display(const css_computed_style *style, bool root)
 
     /* Return computed display as per $9.7 */
 
-    if (display == CSS_DISPLAY_NONE || display == CSS_DISPLAY_CONTENTS)
+    if (display == CSS_DISPLAY_NONE)
         return display; /* 1. */
 
     if ((position == CSS_POSITION_ABSOLUTE || position == CSS_POSITION_FIXED) /* 2. */
