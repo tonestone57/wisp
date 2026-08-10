@@ -388,7 +388,6 @@ static nserror page_info__measure_text(struct page_info *pi)
 /**
  * Set the text for the page_info window.
  *
-*
  * \param[in] pi  The page info window handle.
  * \return NSERROR_OK on success, appropriate error code otherwise.
  */
