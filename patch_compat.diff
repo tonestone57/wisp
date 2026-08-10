@@ -1,0 +1,37 @@
+--- frontends/gtk/download.c
++++ frontends/gtk/download.c
+@@ -434,22 +434,26 @@
+         GtkMenu *menu = GTK_MENU(gtk_menu_new());
+         GtkWidget *item;
+
+-        item = gtk_image_menu_item_new_from_stock("gtk-media-pause", NULL);
++G_GNUC_BEGIN_IGNORE_DEPRECATIONS
++        item = gtk_image_menu_item_new_from_stock("gtk-media-pause", NULL);
++G_GNUC_END_IGNORE_DEPRECATIONS
+         gtk_widget_set_sensitive(item, gtk_widget_is_sensitive(GTK_WIDGET(dl_ctx.pause)));
+         g_signal_connect_swapped(item, "activate", G_CALLBACK(gtk_button_clicked), dl_ctx.pause);
+         gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+
+-        item = gtk_image_menu_item_new_from_stock("gtk-media-play", NULL);
++G_GNUC_BEGIN_IGNORE_DEPRECATIONS
++        item = gtk_image_menu_item_new_from_stock("gtk-media-play", NULL);
++G_GNUC_END_IGNORE_DEPRECATIONS
+         gtk_widget_set_sensitive(item, gtk_widget_is_sensitive(GTK_WIDGET(dl_ctx.resume)));
+         g_signal_connect_swapped(item, "activate", G_CALLBACK(gtk_button_clicked), dl_ctx.resume);
+         gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+
+-        item = gtk_image_menu_item_new_from_stock("gtk-cancel", NULL);
++G_GNUC_BEGIN_IGNORE_DEPRECATIONS
++        item = gtk_image_menu_item_new_from_stock("gtk-cancel", NULL);
++G_GNUC_END_IGNORE_DEPRECATIONS
+         gtk_widget_set_sensitive(item, gtk_widget_is_sensitive(GTK_WIDGET(dl_ctx.cancel)));
+         g_signal_connect_swapped(item, "activate", G_CALLBACK(gtk_button_clicked), dl_ctx.cancel);
+         gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+
+-        item = gtk_image_menu_item_new_from_stock("gtk-clear", NULL);
++G_GNUC_BEGIN_IGNORE_DEPRECATIONS
++        item = gtk_image_menu_item_new_from_stock("gtk-clear", NULL);
++G_GNUC_END_IGNORE_DEPRECATIONS
+         gtk_widget_set_sensitive(item, gtk_widget_is_sensitive(GTK_WIDGET(dl_ctx.clear)));
+         g_signal_connect_swapped(item, "activate", G_CALLBACK(gtk_button_clicked), dl_ctx.clear);
+         gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
