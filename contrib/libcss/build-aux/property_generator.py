@@ -1234,6 +1234,13 @@ class MultiFileGenerator:
         Uses the structured output from SpecParser.parse().
         """
         opcodes = []
+        seen_opcodes = set()
+
+        def add_opcode(name, value):
+            if name not in seen_opcodes:
+                seen_opcodes.add(name)
+                opcodes.append((name, value))
+
         ident_kws = parsed['ident_keywords']  # [(keyword, flags, opcode_name), ...]
         
         if parsed['color']:
@@ -1248,60 +1255,54 @@ class MultiFileGenerator:
                 return None
             
             # Standard COLOR template: TRANSPARENT, CURRENT_COLOR, SET
-            opcodes.append((f"{prefix}_TRANSPARENT", "0x0000"))
-            opcodes.append((f"{prefix}_CURRENT_COLOR", "0x0001"))
-            opcodes.append((set_name, "0x0080"))
+            add_opcode(f"{prefix}_TRANSPARENT", "0x0000")
+            add_opcode(f"{prefix}_CURRENT_COLOR", "0x0001")
+            add_opcode(set_name, "0x0080")
         
         elif parsed['length_unit'] or parsed['number'] or parsed['uri'] or parsed['ident_list']:
             # LENGTH/NUMBER/URI/IDENT_LIST type
             
             # CALC first if present
             if parsed['calc'] and parsed['calc']['opcode']:
-                opcodes.append((parsed['calc']['opcode'], "VALUE_IS_CALC"))
+                add_opcode(parsed['calc']['opcode'], "VALUE_IS_CALC")
             
             # NUMBER opcode (NUMBER, DIMENSION variants)
             if parsed['number'] and parsed['number']['opcode']:
                 num_opc = parsed['number']['opcode']
                 if num_opc.endswith('_NUMBER'):
-                    opcodes.append((num_opc, "0x0080"))
+                    add_opcode(num_opc, "0x0080")
                     # Check for DIMENSION variant in length_unit
                     if parsed['length_unit'] and parsed['length_unit']['opcode']:
                         lu_opc = parsed['length_unit']['opcode']
                         if lu_opc.endswith('_DIMENSION'):
-                            opcodes.append((lu_opc, "0x0081"))
+                            add_opcode(lu_opc, "0x0081")
                         elif lu_opc != num_opc:
-                            if not any(n == lu_opc for n, _ in opcodes):
-                                opcodes.append((lu_opc, "0x0080"))
+                            add_opcode(lu_opc, "0x0080")
                 elif num_opc.endswith('_SET'):
-                    if not any(n == num_opc for n, _ in opcodes):
-                        opcodes.append((num_opc, "0x0080"))
+                    add_opcode(num_opc, "0x0080")
             
             # LENGTH SET (if not already added)
             if parsed['length_unit'] and parsed['length_unit']['opcode']:
                 lu_opc = parsed['length_unit']['opcode']
-                if not any(n == lu_opc for n, _ in opcodes):
-                    opcodes.append((lu_opc, "0x0080"))
+                add_opcode(lu_opc, "0x0080")
             
             # URI opcode
             if parsed['uri']:
-                if not any(n == parsed['uri'] for n, _ in opcodes):
-                    opcodes.append((parsed['uri'], "0x0080"))
+                add_opcode(parsed['uri'], "0x0080")
             
             # IDENT_LIST NAMED opcode
             if parsed['ident_list'] and parsed['ident_list']['named_opcode']:
                 named = parsed['ident_list']['named_opcode']
-                if not any(n == named for n, _ in opcodes):
-                    opcodes.append((named, "0x0080"))
+                add_opcode(named, "0x0080")
             
             # IDENT keywords at low values
             for idx, (_kw, _flags, opc_name) in enumerate(ident_kws):
-                if not any(n == opc_name for n, _ in opcodes):
-                    opcodes.append((opc_name, f"0x{idx:04x}"))
+                add_opcode(opc_name, f"0x{idx:04x}")
         
         elif ident_kws:
             # Pure IDENT-only type
             for idx, (_kw, _flags, opc_name) in enumerate(ident_kws):
-                opcodes.append((opc_name, f"0x{idx:04x}"))
+                add_opcode(opc_name, f"0x{idx:04x}")
         
         else:
             return None
