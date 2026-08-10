@@ -33,7 +33,6 @@
 /**
  * Replace consecutive whitespace with a single space.
  *
- *
  * \param  s  source string
  * \return  heap allocated result, or NULL on memory exhaustion
  */
