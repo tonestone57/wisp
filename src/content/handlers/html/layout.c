@@ -2522,7 +2522,10 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 				}
 			}
 
-			/* Pass 2: Apply baseline offset, compute min heights and excess_y */
+			/* To expand row_height naturally and preserve the original height, we temporarily mutate c->height
+			 * for the excess_y calculation, and then revert it after. */
+
+			/* Pass 2: Apply baseline offset to c->height, compute min heights and excess_y */
 			for (c = row->children; c; c = c->next) {
 				int baseline_offset = 0;
 				if (css_computed_vertical_align(c->style, &value, &unit) == CSS_VERTICAL_ALIGN_BASELINE) {
@@ -2562,6 +2565,12 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 				row_span_cell[c->start_column] = c;
 				c->padding[BOTTOM] = -border_spacing_v - c->border[TOP].width - c->padding[TOP] - c->height -
 					c->border[BOTTOM].width;
+
+				/* Revert c->height back to normal so standard layout isn't permanently corrupted.
+				 * The expanded requirement was already captured into excess_y and padding[BOTTOM]. */
+				if (baseline_offset > 0) {
+					c->height -= baseline_offset;
+				}
 			}
 			for (i = 0; i != columns; i++)
 				if (row_span[i] != 0)
@@ -2610,6 +2619,19 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 	/* perform vertical alignment */
 	for (row_group = table->children; row_group; row_group = row_group->next) {
 		for (row = row_group->children; row; row = row->next) {
+			int max_baseline = 0;
+			struct box *c2;
+			for (c2 = row->children; c2; c2 = c2->next) {
+				enum css_vertical_align_e va;
+				css_fixed val;
+				css_unit un;
+				va = css_computed_vertical_align(c2->style, &val, &un);
+				if (va == CSS_VERTICAL_ALIGN_BASELINE) {
+					int b_val = layout_get_baseline(c2);
+					if (b_val > max_baseline) max_baseline = b_val;
+				}
+			}
+
 			for (c = row->children; c; c = c->next) {
 				enum css_vertical_align_e vertical_align;
 
@@ -2630,27 +2652,11 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 					break;
 				case CSS_VERTICAL_ALIGN_BASELINE:
 				{
-					/* Max baseline across the row was already accounted for in row_height.
-					 * We just apply the offset here. */
-					int max_baseline = 0;
-					struct box *c2;
-					for (c2 = row->children; c2; c2 = c2->next) {
-						if (css_computed_vertical_align(c2->style, &value, &unit) == CSS_VERTICAL_ALIGN_BASELINE) {
-							int b_val = layout_get_baseline(c2);
-							if (b_val > max_baseline) max_baseline = b_val;
-						}
-					}
-
 					int baseline = layout_get_baseline(c);
 					int offset = max_baseline - baseline;
 					if (offset > 0) {
-						/* Because we added offset to c->height earlier to grow row_height,
-						 * the resulting c->padding[BOTTOM] (which fills spare height) is
-						 * currently smaller than it should be, and c->padding[TOP] is its original value.
-						 * We restore the true content height by moving 'offset' from
-						 * content area to padding[TOP].
-						 * c->padding[BOTTOM] is already correct for the new padded top. */
 						c->padding[TOP] += offset;
+						c->padding[BOTTOM] -= offset;
 						layout_move_children(c, 0, offset);
 					}
 					break;
