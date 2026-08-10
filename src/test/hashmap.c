@@ -269,6 +269,23 @@ START_TEST(iterate_one_and_stop)
 }
 END_TEST
 
+START_TEST(count_works)
+{
+    ck_assert_int_eq(hashmap_count(test_hashmap), 0);
+
+    hashmap_test_value_t *value = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+    ck_assert(value != NULL);
+    ck_assert_int_eq(hashmap_count(test_hashmap), 1);
+
+    hashmap_test_value_t *value2 = hashmap_insert(test_hashmap, corestring_nsurl_about_blank);
+    ck_assert(value2 != NULL);
+    ck_assert_int_eq(hashmap_count(test_hashmap), 1);
+
+    ck_assert(hashmap_remove(test_hashmap, corestring_nsurl_about_blank) == true);
+    ck_assert_int_eq(hashmap_count(test_hashmap), 0);
+}
+END_TEST
+
 static TCase *basic_api_case_create(void)
 {
     TCase *tc;
@@ -286,6 +303,8 @@ static TCase *basic_api_case_create(void)
     tcase_add_test(tc, iterate_empty);
     tcase_add_test(tc, iterate_one);
     tcase_add_test(tc, iterate_one_and_stop);
+
+    tcase_add_test(tc, count_works);
 
     return tc;
 }
