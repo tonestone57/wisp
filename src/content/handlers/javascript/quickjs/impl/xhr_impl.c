@@ -274,6 +274,7 @@ static void xhr_callback(const struct fetch_msg *msg, void *p)
     }
 
     if (is_terminal) {
+        xhr->fetch_handle = NULL;
         xhr_set_ready_state(xhr, 4); /* DONE - protected from GC during dispatch */
         if (msg->type == FETCH_FINISHED) {
             xhr_dispatch_event_helper(xhr, "load");

@@ -59,6 +59,25 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
     if (!thread) return;
     if (!priv || (!priv->node && priv != &thread->global_window_priv)) return;
 
+    if (wisp_is_js_process) {
+        // In the companion process, we cannot attach native LibDOM event listeners,
+        // because native event targets do not exist (the node pointer is just an integer ID).
+        // The event system handles storing this via QuickJS object properties already.
+        JSValue wrapper;
+        if (priv == &thread->global_window_priv) {
+            wrapper = JS_GetGlobalObject(ctx);
+        } else {
+            wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+        }
+        if (JS_IsObject(wrapper)) {
+            char prop_buf[64];
+            snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
+            JS_SetPropertyStr(ctx, wrapper, prop_buf, JS_DupValue(ctx, value));
+        }
+        JS_FreeValue(ctx, wrapper);
+        return;
+    }
+
     JSValue wrapper;
     if (priv == &thread->global_window_priv) {
         wrapper = JS_GetGlobalObject(ctx);
