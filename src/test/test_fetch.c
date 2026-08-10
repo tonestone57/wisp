@@ -23,7 +23,8 @@ static void *test_fetcher_setup(struct fetch *parent_fetch, struct nsurl *url, b
 }
 
 static bool test_fetcher_start(void *fetch) { return true; }
-static void test_fetcher_abort(void *fetch) {}
+static bool test_fetcher_abort_called = false;
+static void test_fetcher_abort(void *fetch) { test_fetcher_abort_called = true; }
 
 static bool test_fetcher_free_called = false;
 static void test_fetcher_free(void *fetch) {
@@ -138,6 +139,34 @@ START_TEST(test_fetch_free_success)
 }
 END_TEST
 
+
+START_TEST(test_fetch_abort_success)
+{
+    setup_test_fetcher();
+    // Setup lwc and nsurl first
+    nsurl *url;
+    nsurl_create("http://example.com/abort", &url);
+
+    // Create a fetch object
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    test_fetcher_abort_called = false;
+    fetch_abort(f);
+
+    ck_assert_int_eq(test_fetcher_abort_called, true);
+    // ck_assert_int_eq(f->last_msg, FETCH__INTERNAL_ABORTED); struct fetch is opaque here
+
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -145,6 +174,7 @@ Suite *fetch_suite(void)
 
     tcase_add_test(tc_core, test_fetch_free_failure);
     tcase_add_test(tc_core, test_fetch_free_success);
+    tcase_add_test(tc_core, test_fetch_abort_success);
     suite_add_tcase(s, tc_core);
 
     return s;
