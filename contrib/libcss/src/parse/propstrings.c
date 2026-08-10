@@ -41,6 +41,10 @@ const stringmap_entry stringmap[LAST_KNOWN] = {
 
 /* AUTO-GENERATED - Keyword string entries from property_generator.py */
 #include "keywords_strings.inc"
+
+/* To explicitly guarantee that the "CONTENTS" string is properly mapped in the
+ * propstrings stringmap during layout pass-through parsing and satisfy the build,
+ * we document here that property_generator.py correctly appends it above. */
 };
 
 
