@@ -227,19 +227,39 @@ static TCase *corestrings_case_create(void)
 }
 
 
+struct test_strings_space2nbsp {
+    const char *test;
+    const char *res;
+};
+
+static const struct test_strings_space2nbsp cnv_space2nbsp_test_vec[] = {
+    {"", ""},
+    {"test", "test"},
+    {" ", "\xC2\xA0"},
+    {"\t", "\xC2\xA0"},
+    {" a \tb", "\xC2\xA0""a""\xC2\xA0\xC2\xA0""b"},
+    {" A string  with \t whitespace ", "\xC2\xA0""A""\xC2\xA0""string""\xC2\xA0\xC2\xA0""with""\xC2\xA0\xC2\xA0\xC2\xA0""whitespace""\xC2\xA0"}
+};
+
 START_TEST(string_utils_cnv_space2nbsp_test)
 {
     char *res;
-    char comparison[64];
+    const struct test_strings_space2nbsp *tst = &cnv_space2nbsp_test_vec[_i];
 
-    snprintf(comparison, 64, "%c%cA%c%cstring%c%c%c%cwith%c%c%c%c%c%cwhitespace%c%c", 0xC2, 0xA0, 0xC2, 0xA0, 0xC2,
-        0xA0, 0xC2, 0xA0, 0xC2, 0xA0, 0xC2, 0xA0, 0xC2, 0xA0, 0xC2, 0xA0);
-
-    res = cnv_space2nbsp(" A string  with \t whitespace ");
+    res = cnv_space2nbsp(tst->test);
     ck_assert(res != NULL);
-    ck_assert_str_eq(res, comparison);
+    ck_assert_str_eq(res, tst->res);
 
     free(res);
+}
+END_TEST
+
+START_TEST(string_utils_cnv_space2nbsp_api_test)
+{
+    char *res;
+
+    res = cnv_space2nbsp(NULL);
+    ck_assert(res == NULL);
 }
 END_TEST
 
@@ -284,7 +304,8 @@ static TCase *string_utils_case_create(void)
     TCase *tc;
     tc = tcase_create("String utilities");
 
-    tcase_add_test(tc, string_utils_cnv_space2nbsp_test);
+    tcase_add_loop_test(tc, string_utils_cnv_space2nbsp_test, 0, NELEMS(cnv_space2nbsp_test_vec));
+    tcase_add_test(tc, string_utils_cnv_space2nbsp_api_test);
     tcase_add_test(tc, string_utils_strcasestr_test);
     tcase_add_test(tc, string_utils_strchrnul_test);
 
