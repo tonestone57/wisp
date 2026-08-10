@@ -9328,3 +9328,16 @@ fr.win.PageInfoSecureIssues:Problèmes de sécurité
 en.win.PageInfoSecure:Secure
 fr.win.PageInfoSecure:Sécurisé
 
+en.all.piUnknown:Provenance unknown
+en.all.piInternal:Wisp data
+en.all.piLocal:Local data
+en.all.piInsecure:Connection not secure
+en.all.piSecure:Connection is secure
+en.all.piCertMissing:Missing
+en.all.piCertNone:None
+en.all.piCertInvalid:Not valid
+en.all.piCertValid:Valid
+en.all.piNoDomain:<No domain>
+en.all.piCert:Certificate:
+en.all.piCookies:Cookies:
+en.all.piCookiesInUse:(%u in use)

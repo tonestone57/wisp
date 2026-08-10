@@ -39,6 +39,7 @@
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/desktop/page-info.h>
 #include "desktop/knockout.h"
+#include <wisp/utils/messages.h>
 #include "desktop/system_colour.h"
 
 /**
@@ -388,8 +389,7 @@ static nserror page_info__measure_text(struct page_info *pi)
 /**
  * Set the text for the page_info window.
  *
- * \todo Use messages for internationalisation.
- *
+*
  * \param[in] pi  The page info window handle.
  * \return NSERROR_OK on success, appropriate error code otherwise.
  */
@@ -397,42 +397,60 @@ static nserror page_info__set_text(struct page_info *pi)
 {
     int printed;
     static const char *header[PAGE_STATE__COUNT] = {
-        [PAGE_STATE_UNKNOWN] = "Provenance unknown",
-        [PAGE_STATE_INTERNAL] = "Wisp data",
-        [PAGE_STATE_LOCAL] = "Local data",
-        [PAGE_STATE_INSECURE] = "Connection not secure",
-        [PAGE_STATE_SECURE_OVERRIDE] = "Connection not secure",
-        [PAGE_STATE_SECURE_ISSUES] = "Connection not secure",
-        [PAGE_STATE_SECURE] = "Connection is secure",
+        [PAGE_STATE_UNKNOWN] = NULL,
+        [PAGE_STATE_INTERNAL] = NULL,
+        [PAGE_STATE_LOCAL] = NULL,
+        [PAGE_STATE_INSECURE] = NULL,
+        [PAGE_STATE_SECURE_OVERRIDE] = NULL,
+        [PAGE_STATE_SECURE_ISSUES] = NULL,
+        [PAGE_STATE_SECURE] = NULL,
     };
     static const char *certificate[PAGE_STATE__COUNT] = {
-        [PAGE_STATE_UNKNOWN] = "Missing",
-        [PAGE_STATE_INTERNAL] = "None",
-        [PAGE_STATE_LOCAL] = "None",
-        [PAGE_STATE_INSECURE] = "Not valid",
-        [PAGE_STATE_SECURE_OVERRIDE] = "Not valid",
-        [PAGE_STATE_SECURE_ISSUES] = "Not valid",
-        [PAGE_STATE_SECURE] = "Valid",
+        [PAGE_STATE_UNKNOWN] = NULL,
+        [PAGE_STATE_INTERNAL] = NULL,
+        [PAGE_STATE_LOCAL] = NULL,
+        [PAGE_STATE_INSECURE] = NULL,
+        [PAGE_STATE_SECURE_OVERRIDE] = NULL,
+        [PAGE_STATE_SECURE_ISSUES] = NULL,
+        [PAGE_STATE_SECURE] = NULL,
     };
 
     assert(pi != NULL);
     assert(pi->state < PAGE_STATE__COUNT);
 
+    if (header[PAGE_STATE_UNKNOWN] == NULL) {
+        header[PAGE_STATE_UNKNOWN] = messages_get("piUnknown");
+        header[PAGE_STATE_INTERNAL] = messages_get("piInternal");
+        header[PAGE_STATE_LOCAL] = messages_get("piLocal");
+        header[PAGE_STATE_INSECURE] = messages_get("piInsecure");
+        header[PAGE_STATE_SECURE_OVERRIDE] = messages_get("piInsecure");
+        header[PAGE_STATE_SECURE_ISSUES] = messages_get("piInsecure");
+        header[PAGE_STATE_SECURE] = messages_get("piSecure");
+
+        certificate[PAGE_STATE_UNKNOWN] = messages_get("piCertMissing");
+        certificate[PAGE_STATE_INTERNAL] = messages_get("piCertNone");
+        certificate[PAGE_STATE_LOCAL] = messages_get("piCertNone");
+        certificate[PAGE_STATE_INSECURE] = messages_get("piCertInvalid");
+        certificate[PAGE_STATE_SECURE_OVERRIDE] = messages_get("piCertInvalid");
+        certificate[PAGE_STATE_SECURE_ISSUES] = messages_get("piCertInvalid");
+        certificate[PAGE_STATE_SECURE] = messages_get("piCertValid");
+    }
+
     pi->entries[PI_ENTRY_HEADER].u.text.style = &pi__heading[pi->state];
     pi->entries[PI_ENTRY_HEADER].u.text.text = header[pi->state];
-    pi->entries[PI_ENTRY_DOMAIN].u.text.text = (pi->domain) ? lwc_string_data(pi->domain) : "<No domain>";
+    pi->entries[PI_ENTRY_DOMAIN].u.text.text = (pi->domain) ? lwc_string_data(pi->domain) : messages_get("piNoDomain");
 
-    pi->entries[PI_ENTRY_CERT].u.item.item.text = "Certificate: ";
+    pi->entries[PI_ENTRY_CERT].u.item.item.text = messages_get("piCert");
     pi->entries[PI_ENTRY_CERT].u.item.detail.text = certificate[pi->state];
 
-    printed = snprintf(pi->cookie_text, sizeof(pi->cookie_text), "(%u in use)", pi->cookies);
+    printed = snprintf(pi->cookie_text, sizeof(pi->cookie_text), messages_get("piCookiesInUse"), pi->cookies);
     if (printed < 0) {
         return NSERROR_UNKNOWN;
 
     } else if ((unsigned)printed >= sizeof(pi->cookie_text)) {
         return NSERROR_NOSPACE;
     }
-    pi->entries[PI_ENTRY_COOKIES].u.item.item.text = "Cookies: ";
+    pi->entries[PI_ENTRY_COOKIES].u.item.item.text = messages_get("piCookies");
     pi->entries[PI_ENTRY_COOKIES].u.item.detail.text = pi->cookie_text;
 
     return page_info__measure_text(pi);
