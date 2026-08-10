@@ -86,6 +86,23 @@ void test_csp() {
     assert(csp_check_eval(csp) == false);
     csp_destroy(csp);
 
+    // Test 10: Origin blocklist checks
+    assert(wisp_security_is_origin_blocked(NULL) == false);
+    assert(wisp_security_is_origin_blocked("example.com") == false);
+    assert(wisp_security_is_origin_blocked("safe-site.org") == false);
+    assert(wisp_security_is_origin_blocked("adserver.com") == true);
+    assert(wisp_security_is_origin_blocked("malicious-tracker.net") == true);
+    assert(wisp_security_is_origin_blocked("attacker.com") == true);
+    assert(wisp_security_is_origin_blocked("telemetry.evil.org") == true);
+    assert(wisp_security_is_origin_blocked("analytics.track.me") == true);
+    assert(wisp_security_is_origin_blocked("doubleclick.net") == true);
+    assert(wisp_security_is_origin_blocked("google-analytics.com") == true);
+    assert(wisp_security_is_origin_blocked("coop-malicious.org") == true);
+
+    // Exact matching vs substring (the function uses SIMD string equals)
+    assert(wisp_security_is_origin_blocked("not-adserver.com") == false);
+    assert(wisp_security_is_origin_blocked("adserver.com.br") == false);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);
