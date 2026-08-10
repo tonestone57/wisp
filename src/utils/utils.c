@@ -69,6 +69,11 @@ char *cnv_space2nbsp(const char *s)
     const char *srcP;
     char *d, *d0;
     unsigned int numNBS;
+
+    if (s == NULL) {
+        return NULL;
+    }
+
     /* Convert space & TAB into non breaking space character (0xA0) */
     for (numNBS = 0, srcP = (const char *)s; *srcP != '\0'; ++srcP) {
         if (*srcP == ' ' || *srcP == '\t') {

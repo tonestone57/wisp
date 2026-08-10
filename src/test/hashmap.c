@@ -409,6 +409,64 @@ START_TEST(chain_add_all_twice_remove_all)
 }
 END_TEST
 
+START_TEST(chain_remove_middle)
+{
+    case_pair *chain_case;
+    nsurl *missing_key;
+    int i;
+    size_t count;
+    ssize_t keys_before, values_before;
+
+    ck_assert(nsurl_create("https://not.in.hashmap.com/", &missing_key) == NSERROR_OK);
+
+    for (chain_case = chain_pairs; chain_case->url != NULL; chain_case++) {
+        ck_assert(hashmap_insert(test_hashmap, chain_case->nsurl) != NULL);
+    }
+
+    count = hashmap_count(test_hashmap);
+    keys_before = keys;
+    values_before = values;
+
+    /* Test missing key removal on populated hashmap */
+    ck_assert(hashmap_remove(test_hashmap, missing_key) == false);
+
+    /* Ensure no state change */
+    ck_assert_int_eq(hashmap_count(test_hashmap), count);
+    ck_assert_int_eq(keys, keys_before);
+    ck_assert_int_eq(values, values_before);
+
+    /* Remove alternating items to ensure middle-of-chain removal */
+    i = 0;
+    for (chain_case = chain_pairs; chain_case->url != NULL; chain_case++, i++) {
+        if (i % 2 == 0) {
+            ck_assert(hashmap_remove(test_hashmap, chain_case->nsurl) == true);
+            ck_assert_int_eq(hashmap_count(test_hashmap), --count);
+            ck_assert_int_eq(keys, --keys_before);
+            ck_assert_int_eq(values, --values_before);
+            ck_assert(hashmap_lookup(test_hashmap, chain_case->nsurl) == NULL);
+        }
+    }
+
+    /* Remove the rest */
+    i = 0;
+    for (chain_case = chain_pairs; chain_case->url != NULL; chain_case++, i++) {
+        if (i % 2 != 0) {
+            ck_assert(hashmap_remove(test_hashmap, chain_case->nsurl) == true);
+            ck_assert_int_eq(hashmap_count(test_hashmap), --count);
+            ck_assert_int_eq(keys, --keys_before);
+            ck_assert_int_eq(values, --values_before);
+            ck_assert(hashmap_lookup(test_hashmap, chain_case->nsurl) == NULL);
+        }
+    }
+
+    ck_assert_int_eq(hashmap_count(test_hashmap), 0);
+    ck_assert_int_eq(keys, 0);
+    ck_assert_int_eq(values, 0);
+
+    nsurl_unref(missing_key);
+}
+END_TEST
+
 START_TEST(chain_add_all_twice_remove_all_iterate)
 {
     case_pair *chain_case;
@@ -507,6 +565,7 @@ static TCase *chain_case_create(void)
     tcase_add_test(tc, chain_add_remove_all);
     tcase_add_test(tc, chain_add_all_remove_all);
     tcase_add_test(tc, chain_add_all_twice_remove_all);
+    tcase_add_test(tc, chain_remove_middle);
     tcase_add_test(tc, chain_add_all_twice_remove_all_iterate);
 
 #ifndef WISP_SANITIZER_ENABLED

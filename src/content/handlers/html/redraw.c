@@ -3251,7 +3251,7 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
                 dom_string_unref(name);
         }
 
-        /* FIX: For absolute positioned elements, compute correct parent position for children.
+        /* Fix applied for absolute positioned elements by computing correct parent position for children.
          * Problem: box->x/y for absolute elements are relative to containing block, not x_parent/y_parent.
          * Solution: Pass adjusted parent coords so (adj_parent + box->x/y) equals computed screen position.
          * Per CSS 2.1 §9.6, absolute element's children are in normal flow relative to the absolute element. */

@@ -546,6 +546,48 @@ static const struct test_compare compare_tests[] = {
     {"http://a.b.c/d?a", "http://a.b.c/d?b", NSURL_WITH_FRAGMENT, false},
 
     {"http://a.b.c/d?a", "https://a.b.c/d?a", NSURL_WITH_FRAGMENT, false},
+
+    /* Scheme component tests */
+    {"http://a.b.c/d?a", "http://a.b.c/e?b", NSURL_SCHEME, true},
+    {"http://a.b.c/d?a", "https://a.b.c/d?a", NSURL_SCHEME, false},
+
+    /* Username component tests */
+    {"http://user1@a.b.c/", "http://user1@a.b.c/d", NSURL_USERNAME, true},
+    {"http://user1@a.b.c/", "http://user2@a.b.c/", NSURL_USERNAME, false},
+
+    /* Password component tests */
+    {"http://user1:pass1@a.b.c/", "http://user1:pass1@a.b.c/d", NSURL_PASSWORD, true},
+    {"http://user1:pass1@a.b.c/", "http://user1:pass2@a.b.c/", NSURL_PASSWORD, false},
+
+    /* Host component tests */
+    {"http://a.b.c/d?a", "https://a.b.c/e?b", NSURL_HOST, true},
+    {"http://a.b.c/", "http://x.y.z/", NSURL_HOST, false},
+
+    /* Port component tests */
+    {"http://a.b.c:8080/d", "https://a.b.c:8080/e", NSURL_PORT, true},
+    {"http://a.b.c:8080/", "http://a.b.c:8081/", NSURL_PORT, false},
+
+    /* Path component tests */
+    {"http://a.b.c/path/to", "https://x.y.z:80/path/to?query", NSURL_PATH, true},
+    {"http://a.b.c/path/to", "http://a.b.c/path/other", NSURL_PATH, false},
+
+    /* Query component tests */
+    {"http://a.b.c/d?query1", "https://x.y.z/e?query1#frag", NSURL_QUERY, true},
+    {"http://a.b.c/d?query1", "http://a.b.c/d?query2", NSURL_QUERY, false},
+
+    /* Fragment component tests */
+    {"http://a.b.c/d?q#frag1", "https://x.y.z/e#frag1", NSURL_FRAGMENT, true},
+    {"http://a.b.c/d?q#frag1", "http://a.b.c/d?q#frag2", NSURL_FRAGMENT, false},
+
+    /* Credentials component tests (Username | Password) */
+    {"http://user1:pass1@a.b.c/", "https://user1:pass1@x.y.z/", NSURL_CREDENTIALS, true},
+    {"http://user1:pass1@a.b.c/", "http://user2:pass1@a.b.c/", NSURL_CREDENTIALS, false},
+    {"http://user1:pass1@a.b.c/", "http://user1:pass2@a.b.c/", NSURL_CREDENTIALS, false},
+
+    /* Authority component tests (Credentials | Host | Port) */
+    {"http://user:pass@a.b.c:8080/path1", "https://user:pass@a.b.c:8080/path2", NSURL_AUTHORITY, true},
+    {"http://user:pass@a.b.c:8080/", "http://user:pass@x.y.z:8080/", NSURL_AUTHORITY, false},
+    {"http://user:pass@a.b.c:8080/", "http://user:pass@a.b.c:8081/", NSURL_AUTHORITY, false},
 };
 
 /**
