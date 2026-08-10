@@ -519,7 +519,7 @@ static void gui_init(int argc, char **argv)
     find_resource(buf, "Choices", "%/Choices");
     NSLOG(wisp, INFO, "Using '%s' as Preferences file", buf);
     options_file_location = strdup(buf);
-    nsoption_read(buf, NULL);
+    nsoption_read(buf, NULL, NULL);
 
 
 #define SETFONTDEFAULT(OPTION, y)                                                                                      \
@@ -861,7 +861,7 @@ int main(int argc, char **argv)
     if (ret != NSERROR_OK) {
         die("Options failed to initialise");
     }
-    nsoption_read(options.Path(), NULL);
+    nsoption_read(options.Path(), NULL, NULL);
     nsoption_commandline(&argc, argv, NULL);
 
     BResources resources;
@@ -939,7 +939,7 @@ int gui_init_replicant(int argc, char **argv)
     if (ret != NSERROR_OK) {
         die("Options failed to initialise");
     }
-    nsoption_read(options.Path(), NULL);
+    nsoption_read(options.Path(), NULL, NULL);
     nsoption_commandline(&argc, argv, NULL);
 
     BPath messages = get_messages_path();

@@ -654,11 +654,10 @@ nserror nsoption_finalise(struct nsoption_s *opts, struct nsoption_s *defs)
 
 
 /* exported interface documented in utils/nsoption.h */
-nserror nsoption_read(const char *path, struct nsoption_s *opts)
+nserror nsoption_read(const char *path, struct nsoption_s *opts, struct nsoption_s *defs)
 {
     char s[NSOPTION_MAX_LINE_LEN];
     FILE *fp;
-    struct nsoption_s *defs;
 
     if (path == NULL) {
         return NSERROR_BAD_PARAMETER;
@@ -669,10 +668,10 @@ nserror nsoption_read(const char *path, struct nsoption_s *opts)
         opts = nsoptions;
     }
 
-    /**
-     * @todo is this an API bug not being a parameter
-     */
-    defs = nsoptions_default;
+    /* check to see if global default table selected */
+    if (defs == NULL) {
+        defs = nsoptions_default;
+    }
 
     if ((opts == NULL) || (defs == NULL)) {
         return NSERROR_BAD_PARAMETER;

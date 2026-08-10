@@ -223,7 +223,7 @@ nserror nsoption_finalise(struct nsoption_s *opts, struct nsoption_s *defs);
  * @param opts The options table to enerate values from or NULL to use global
  * @return The error status
  */
-nserror nsoption_read(const char *path, struct nsoption_s *opts);
+nserror nsoption_read(const char *path, struct nsoption_s *opts, struct nsoption_s *defs);
 
 
 /**

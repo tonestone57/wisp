@@ -473,7 +473,7 @@ int main(int argc, char **argv)
         die("Options failed to initialise");
     }
     options = filepath_find(respaths, "Choices");
-    nsoption_read(options, nsoptions);
+    nsoption_read(options, nsoptions, NULL);
     free(options);
     nsoption_commandline(&argc, argv, nsoptions);
     moutf(MOUT_GENERIC, "BOOT OPTIONS READY");

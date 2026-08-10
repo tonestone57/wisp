@@ -182,7 +182,7 @@ static void nsoption_format_create(void)
     ck_assert_int_eq(res, NSERROR_OK);
 
     /* read from file */
-    res = nsoption_read(test_choices_path, NULL);
+    res = nsoption_read(test_choices_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_OK);
 }
 
@@ -212,7 +212,7 @@ START_TEST(nsoption_session_test)
     ck_assert_int_eq(res, NSERROR_OK);
 
     /* read from file */
-    res = nsoption_read(test_choices_path, NULL);
+    res = nsoption_read(test_choices_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_OK);
 
     /* overlay commandline */
@@ -339,7 +339,7 @@ START_TEST(nsoption_dump_test)
     char *outnam;
     FILE *fp;
 
-    res = nsoption_read(test_choices_path, NULL);
+    res = nsoption_read(test_choices_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_OK);
 
     outnam = testnam(NULL);
@@ -369,7 +369,7 @@ START_TEST(nsoption_write_test)
     nserror res;
     char *outnam;
 
-    res = nsoption_read(test_choices_path, NULL);
+    res = nsoption_read(test_choices_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_OK);
 
     outnam = testnam(NULL);
@@ -389,7 +389,7 @@ END_TEST
 START_TEST(nsoption_read_test)
 {
     nserror res;
-    res = nsoption_read(test_choices_path, NULL);
+    res = nsoption_read(test_choices_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_OK);
 
     ck_assert(nsoption_charp(homepage_url) != NULL);
@@ -404,7 +404,7 @@ END_TEST
 START_TEST(nsoption_read_missing_test)
 {
     nserror res;
-    res = nsoption_read(test_choices_missing_path, NULL);
+    res = nsoption_read(test_choices_missing_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_NOT_FOUND);
 }
 END_TEST
@@ -472,7 +472,7 @@ START_TEST(nsoption_api_read_no_path_test)
     nserror res;
 
     /* read with no path or init */
-    res = nsoption_read(NULL, NULL);
+    res = nsoption_read(NULL, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_BAD_PARAMETER);
 }
 END_TEST
@@ -486,7 +486,7 @@ START_TEST(nsoption_api_read_no_init_test)
     nserror res;
 
     /* read with path but no init */
-    res = nsoption_read(test_choices_path, NULL);
+    res = nsoption_read(test_choices_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_BAD_PARAMETER);
 }
 END_TEST
