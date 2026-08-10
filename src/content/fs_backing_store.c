@@ -1051,20 +1051,29 @@ static nserror write_entries(struct store_state *state)
         return ret;
     }
 
-    snprintf(tfile, sizeof(tfile), "t%s_%ld", ENTRIES_FNAME, (long)getpid());
+    if (wisp_mkdir_all(fname) != NSERROR_OK) {
+        free(fname);
+        return NSERROR_SAVE_FAILED;
+    }
+
+#ifdef _WIN32
+    snprintf(tfile, sizeof(tfile), "t%s_XXXXXX", ENTRIES_FNAME);
     ret = wisp_mkpath(&tname, NULL, 2, state->path, tfile);
     if (ret != NSERROR_OK) {
         free(fname);
         return ret;
     }
-
-    if (wisp_mkdir_all(fname) != NSERROR_OK) {
-        free(tname);
-        free(fname);
-        return NSERROR_SAVE_FAILED;
-    }
-
+    _mktemp_s(tname, strlen(tname) + 1);
     weistate.fd = open_file_binary(tname, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+#else
+    snprintf(tfile, sizeof(tfile), "t%s_XXXXXX", ENTRIES_FNAME);
+    ret = wisp_mkpath(&tname, NULL, 2, state->path, tfile);
+    if (ret != NSERROR_OK) {
+        free(fname);
+        return ret;
+    }
+    weistate.fd = mkstemp(tname);
+#endif
     if (weistate.fd == -1) {
         free(tname);
         free(fname);
@@ -1210,13 +1219,22 @@ static nserror write_blocks(struct store_state *state)
     }
 
     char tfile[32];
-    snprintf(tfile, sizeof(tfile), "t%s_%ld", BLOCKS_FNAME, (long)getpid());
+#ifdef _WIN32
+    snprintf(tfile, sizeof(tfile), "t%s_XXXXXX", BLOCKS_FNAME);
     ret = wisp_mkpath(&tname, NULL, 2, state->path, tfile);
     if (ret != NSERROR_OK) {
         return ret;
     }
-
+    _mktemp_s(tname, strlen(tname) + 1);
     fd = open_file_binary(tname, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+#else
+    snprintf(tfile, sizeof(tfile), "t%s_XXXXXX", BLOCKS_FNAME);
+    ret = wisp_mkpath(&tname, NULL, 2, state->path, tfile);
+    if (ret != NSERROR_OK) {
+        return ret;
+    }
+    fd = mkstemp(tname);
+#endif
     if (fd == -1) {
         free(tname);
         return NSERROR_SAVE_FAILED;
