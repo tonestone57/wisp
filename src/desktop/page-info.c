@@ -330,8 +330,7 @@ static nserror page_info__measure_text_entry(struct page_info_text *pit)
         return err;
     }
 
-    /* \todo: This needs to be a helper in plot style or in nscss. */
-    height_px = ((pit->style->size / PLOT_STYLE_SCALE) * FIXTOINT(nscss_screen_dpi) + 36) / 72;
+    height_px = plot_style_size_to_px(pit->style->size, FIXTOINT(nscss_screen_dpi));
 
     pit->height = (height_px * 8 + 3) / 6;
 

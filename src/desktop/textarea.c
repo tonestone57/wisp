@@ -1662,9 +1662,10 @@ static bool textarea_drag_end(struct textarea *ta, browser_mouse_state mouse, in
 static void textarea_setup_text_offsets(struct textarea *ta)
 {
     int text_y_offset, text_y_offset_baseline;
+    int base_px;
 
-    ta->line_height = FIXTOINT(FMUL(FLTTOFIX(1.3),
-        FDIV(FMUL(nscss_screen_dpi, FDIV(INTTOFIX(ta->fstyle.size), INTTOFIX(PLOT_STYLE_SCALE))), F_72)));
+    base_px = plot_style_size_to_px(ta->fstyle.size, FIXTOINT(nscss_screen_dpi));
+    ta->line_height = (base_px * 13 + 5) / 10;
 
     text_y_offset = text_y_offset_baseline = ta->border_width;
     if (ta->flags & TEXTAREA_MULTILINE) {
@@ -1795,8 +1796,10 @@ textarea_create(const textarea_flags flags, const textarea_setup *setup, textare
         ret->show = &ret->text;
     }
 
-    ret->line_height = FIXTOINT(FMUL(FLTTOFIX(1.3),
-        FDIV(FMUL(nscss_screen_dpi, FDIV(INTTOFIX(setup->text.size), INTTOFIX(PLOT_STYLE_SCALE))), F_72)));
+    {
+        int base_px = plot_style_size_to_px(setup->text.size, FIXTOINT(nscss_screen_dpi));
+        ret->line_height = (base_px * 13 + 5) / 10;
+    }
 
     ret->caret_pos.line = ret->caret_pos.byte_off = -1;
     ret->caret_x = 0;

@@ -4956,7 +4956,7 @@ nserror treeview_init(void)
         font_pt_size = 11 * 10;
     }
 
-    font_px_size = (font_pt_size * FIXTOINT(nscss_screen_dpi) / 10 + 36) / 72;
+    font_px_size = plot_style_size_to_px((font_pt_size * PLOT_STYLE_SCALE) / 10, FIXTOINT(nscss_screen_dpi));
     tree_g.line_height = (font_px_size * 8 + 3) / 6;
 
     res = treeview_init_plot_styles(font_pt_size * PLOT_STYLE_SCALE / 10);
