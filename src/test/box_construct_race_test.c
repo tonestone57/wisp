@@ -126,6 +126,7 @@ static void mock_html_free_layout(struct mock_html_content *htmlc)
      * This mimics the real cancel_dom_to_box behavior. */
     if (htmlc->box_conversion_context != NULL) {
         mock_schedule(-1, mock_convert_xml_to_box, htmlc->box_conversion_context);
+        free(htmlc->box_conversion_context);
         htmlc->box_conversion_context = NULL;
     }
 
@@ -213,10 +214,6 @@ START_TEST(test_html_free_layout_must_cancel_pending_conversion)
         "FAIL: html_free_layout did not cancel pending box conversion. "
         "This causes heap-use-after-free when the scheduled callback runs.");
 
-    /* Clean up */
-    if (htmlc.box_conversion_context != NULL) {
-        free(htmlc.box_conversion_context);
-    }
 }
 END_TEST
 
