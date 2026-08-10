@@ -821,8 +821,39 @@ bool browser_window_resolve_frame_dimension(
         else
             sibling_d->value = (sibling_d->value * sibling_dimension) / sibling_pixels;
 
-        /* todo: the availble resize may have changed, update the drag
-         * box */
+        if (bw->drag.type == DRAGGING_FRAME) {
+            struct rect drag_rect;
+            if (width) {
+                int min_x = bw->x;
+                int max_x = sibling->x + sibling->width;
+
+                drag_rect.x0 = min_x;
+                drag_rect.x1 = max_x;
+                drag_rect.y0 = bw->y;
+                drag_rect.y1 = bw->y + bw->height;
+
+                if (x < min_x) {
+                    bw->drag.start_x = min_x;
+                } else if (x > max_x) {
+                    bw->drag.start_x = max_x;
+                }
+            } else {
+                int min_y = bw->y;
+                int max_y = sibling->y + sibling->height;
+
+                drag_rect.x0 = bw->x;
+                drag_rect.x1 = bw->x + bw->width;
+                drag_rect.y0 = min_y;
+                drag_rect.y1 = max_y;
+
+                if (y < min_y) {
+                    bw->drag.start_y = min_y;
+                } else if (y > max_y) {
+                    bw->drag.start_y = max_y;
+                }
+            }
+            browser_window_set_drag_type(bw, DRAGGING_FRAME, &drag_rect);
+        }
         return true;
     } else if (sibling_d->unit == FRAME_DIMENSION_RELATIVE) {
         if ((bw_pixels == 0) && (sibling_dimension == 0))
@@ -834,8 +865,39 @@ bool browser_window_resolve_frame_dimension(
         else
             bw_d->value = (bw_d->value * bw_dimension) / bw_pixels;
 
-        /* todo: the availble resize may have changed, update the drag
-         * box */
+        if (bw->drag.type == DRAGGING_FRAME) {
+            struct rect drag_rect;
+            if (width) {
+                int min_x = bw->x;
+                int max_x = sibling->x + sibling->width;
+
+                drag_rect.x0 = min_x;
+                drag_rect.x1 = max_x;
+                drag_rect.y0 = bw->y;
+                drag_rect.y1 = bw->y + bw->height;
+
+                if (x < min_x) {
+                    bw->drag.start_x = min_x;
+                } else if (x > max_x) {
+                    bw->drag.start_x = max_x;
+                }
+            } else {
+                int min_y = bw->y;
+                int max_y = sibling->y + sibling->height;
+
+                drag_rect.x0 = bw->x;
+                drag_rect.x1 = bw->x + bw->width;
+                drag_rect.y0 = min_y;
+                drag_rect.y1 = max_y;
+
+                if (y < min_y) {
+                    bw->drag.start_y = min_y;
+                } else if (y > max_y) {
+                    bw->drag.start_y = max_y;
+                }
+            }
+            browser_window_set_drag_type(bw, DRAGGING_FRAME, &drag_rect);
+        }
         return true;
     }
 
