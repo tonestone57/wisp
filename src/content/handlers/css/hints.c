@@ -430,7 +430,7 @@ static bool parse_font_size(const char *size, uint8_t *val, css_fixed *len, css_
         value = 7;
 
     if (value == 7) {
-        /* Calculation to manually manufacture the dimension for xxx-large font size. */
+        /* Manually calculated dimension for xxx-large font size. */
         *len = FDIV(FMUL(INTTOFIX(3), INTTOFIX(nsoption_int(font_size))), F_10);
     } else {
         /* Len is irrelevant */
