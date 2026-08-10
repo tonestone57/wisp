@@ -134,6 +134,7 @@ static const struct test_strings squash_whitespace_test_vec[] = {
     {" a ", " a "},
     {" a   b ", " a b "},
     {"   A string  with \t  \r \n  \t   lots\tof\nwhitespace\r    ", " A string with lots of whitespace "},
+    {"  UTF-8 \t string \n with \r emojis 🚀 and \t accents \n éàè  ", " UTF-8 string with emojis 🚀 and accents éàè "},
 };
 
 START_TEST(squash_whitespace_test)
