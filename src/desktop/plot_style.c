@@ -88,7 +88,7 @@ plot_font_style_t const *const plot_fstyle_broken_object = &plot_fstyle_broken_o
 /* caret style used in html_redraw_caret */
 static plot_style_t plot_style_caret_static = {
     .stroke_type = PLOT_OP_TYPE_SOLID,
-    .stroke_colour = 0x0000ff, /* todo - choose a proper colour */
+    .stroke_colour = 0x000000,
 };
 plot_style_t *plot_style_caret = &plot_style_caret_static;
 
