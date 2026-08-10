@@ -538,49 +538,49 @@ static nserror set_defaults(struct nsoption_s *defaults)
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, nsgtk_config_home, "Cookies");
     if (fname != NULL) {
-        nsoption_setnull_charp(cookie_file, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_file, fname);
     }
 
     /* cookie jar default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, nsgtk_config_home, "Cookies");
     if (fname != NULL) {
-        nsoption_setnull_charp(cookie_jar, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_jar, fname);
     }
 
     /* url database default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, nsgtk_config_home, "URLs");
     if (fname != NULL) {
-        nsoption_setnull_charp(url_file, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_url_file, fname);
     }
 
     /* bookmark database default */
     fname = NULL;
     wisp_mkpath(&fname, NULL, 2, nsgtk_config_home, "Hotlist");
     if (fname != NULL) {
-        nsoption_setnull_charp(hotlist_path, fname);
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_hotlist_path, fname);
     }
 
     /* download directory default */
     fname = getenv("HOME");
     if (fname != NULL) {
-        nsoption_setnull_charp(downloads_directory, strdup(fname));
+        nsoption_setnull_tbl_charp(defaults, NSOPTION_downloads_directory, strdup(fname));
     }
 
-    if ((nsoption_charp(cookie_file) == NULL) || (nsoption_charp(cookie_jar) == NULL) ||
-        (nsoption_charp(url_file) == NULL) || (nsoption_charp(hotlist_path) == NULL) ||
-        (nsoption_charp(downloads_directory) == NULL)) {
+    if (((defaults[NSOPTION_cookie_file].value.s) == NULL) || ((defaults[NSOPTION_cookie_jar].value.s) == NULL) ||
+        ((defaults[NSOPTION_url_file].value.s) == NULL) || ((defaults[NSOPTION_hotlist_path].value.s) == NULL) ||
+        ((defaults[NSOPTION_downloads_directory].value.s) == NULL)) {
         NSLOG(wisp, INFO, "Failed initialising default resource paths");
         return NSERROR_BAD_PARAMETER;
     }
 
     /* set default font names */
-    nsoption_set_charp(font_sans, strdup("Sans"));
-    nsoption_set_charp(font_serif, strdup("Serif"));
-    nsoption_set_charp(font_mono, strdup("Monospace"));
-    nsoption_set_charp(font_cursive, strdup("Serif"));
-    nsoption_set_charp(font_fantasy, strdup("Serif"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_sans, strdup("Sans"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_serif, strdup("Serif"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_mono, strdup("Monospace"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_cursive, strdup("Serif"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_fantasy, strdup("Serif"));
 
     /* Default toolbar button type to system defaults */
 
@@ -590,14 +590,14 @@ static nserror set_defaults(struct nsoption_s *defaults)
     switch (toolbarstyle) {
     case GTK_TOOLBAR_ICONS:
         if (tooliconsize == GTK_ICON_SIZE_SMALL_TOOLBAR) {
-            nsoption_set_int(button_type, 1);
+            nsoption_set_tbl_int(defaults, NSOPTION_button_type, 1);
         } else {
-            nsoption_set_int(button_type, 2);
+            nsoption_set_tbl_int(defaults, NSOPTION_button_type, 2);
         }
         break;
 
     case GTK_TOOLBAR_TEXT:
-        nsoption_set_int(button_type, 4);
+        nsoption_set_tbl_int(defaults, NSOPTION_button_type, 4);
         break;
 
     case GTK_TOOLBAR_BOTH:
@@ -605,15 +605,15 @@ static nserror set_defaults(struct nsoption_s *defaults)
         /* no labels in default configuration */
     default:
         /* No system default, so use large icons */
-        nsoption_set_int(button_type, 2);
+        nsoption_set_tbl_int(defaults, NSOPTION_button_type, 2);
         break;
     }
 
     /* set default items in toolbar */
-    nsoption_set_charp(toolbar_items, strdup("back/history/forward/reloadstop/url_bar/websearch/openmenu"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_toolbar_items, strdup("back/history/forward/reloadstop/url_bar/websearch/openmenu"));
 
     /* set default for menu and tool bar visibility */
-    nsoption_set_charp(bar_show, strdup("tool"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_bar_show, strdup("tool"));
 
     return NSERROR_OK;
 }

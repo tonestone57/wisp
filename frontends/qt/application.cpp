@@ -203,29 +203,29 @@ nserror NS_Application::set_option_defaults(struct nsoption_s *defaults)
     }
 
     /* cookies database default read and write paths */
-    nsoption_setnull_charp(cookie_file, strdup(data_dir.absoluteFilePath("Cookies").toUtf8()));
-    nsoption_setnull_charp(cookie_jar, strdup(data_dir.absoluteFilePath("Cookies").toUtf8()));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_file, strdup(data_dir.absoluteFilePath("Cookies").toUtf8()));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_cookie_jar, strdup(data_dir.absoluteFilePath("Cookies").toUtf8()));
 
     /* url database default path */
-    nsoption_setnull_charp(url_file, strdup(data_dir.absoluteFilePath("URLs").toUtf8()));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_url_file, strdup(data_dir.absoluteFilePath("URLs").toUtf8()));
 
     /* bookmark database default path */
-    nsoption_setnull_charp(hotlist_path, strdup(data_dir.absoluteFilePath("Hotlist").toUtf8()));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_hotlist_path, strdup(data_dir.absoluteFilePath("Hotlist").toUtf8()));
 
-    if (nsoption_charp(hotlist_path) == NULL) {
+    if ((defaults[NSOPTION_hotlist_path].value.s) == NULL) {
         NSLOG(wisp, ERROR, "Failed initialising bookmarks resource path");
         return NSERROR_BAD_PARAMETER;
     }
 
     /* disk cache default path */
-    nsoption_setnull_charp(disc_cache_path, strdup(cache_dir.absoluteFilePath("Cache").toUtf8()));
+    nsoption_setnull_tbl_charp(defaults, NSOPTION_disc_cache_path, strdup(cache_dir.absoluteFilePath("Cache").toUtf8()));
 
     /* set default font names */
-    nsoption_set_charp(font_sans, strdup("Sans"));
-    nsoption_set_charp(font_serif, strdup("Serif"));
-    nsoption_set_charp(font_mono, strdup("Monospace"));
-    nsoption_set_charp(font_cursive, strdup("Serif"));
-    nsoption_set_charp(font_fantasy, strdup("Serif"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_sans, strdup("Sans"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_serif, strdup("Serif"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_mono, strdup("Monospace"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_cursive, strdup("Serif"));
+    nsoption_set_tbl_charp(defaults, NSOPTION_font_fantasy, strdup("Serif"));
 
     /* use qt locale to generate a default accept language configuration */
     QLocale loc;
@@ -233,7 +233,7 @@ nserror NS_Application::set_option_defaults(struct nsoption_s *defaults)
     alang = accept_language_from_qlocale(loc);
     if (alang != NULL) {
         NSLOG(wisp, DEBUG, "accept_language \"%s\"", alang);
-        nsoption_set_charp(accept_language, alang);
+        nsoption_set_tbl_charp(defaults, NSOPTION_accept_language, alang);
     }
 
     nsOptionFromPalette(defaults);
