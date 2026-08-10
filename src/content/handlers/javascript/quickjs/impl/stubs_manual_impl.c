@@ -3392,7 +3392,8 @@ JSValue qjs_new_htmlcollection(JSContext *ctx, void *node, bool is_dom_node)
     priv->base.node = node;
     priv->base.is_dom_node = is_dom_node;
     priv->base.ctx = ctx;
-    strcpy(priv->type_name, "children"); // Default is children
+    strncpy(priv->type_name, "children", sizeof(priv->type_name) - 1); // Default is children
+    priv->type_name[sizeof(priv->type_name) - 1] = '\0';
     if (!wisp_is_js_process && is_dom_node && node) dom_node_ref((dom_node *)node);
     JS_SetOpaque(obj, priv);
     return obj;
