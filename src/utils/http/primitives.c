@@ -113,6 +113,7 @@ nserror http__parse_quoted_string(const char **input, lwc_string **value)
      * CHAR = [ 0 - 127 ]
      *
      * Note: Non-ASCII characters are treated as opaque obs-text data per modern HTTP standards.
+     * \todo Support quoted-pairs
      */
 
     if (*start != '"')
