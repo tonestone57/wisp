@@ -6866,13 +6866,20 @@ static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, str
         total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
     }
     char *buf = malloc(total_len + 1);
-    buf[0] = '\0';
+    char *ptr = buf;
     for (int i = 0; i < count; i++) {
-        strcat(buf, props[i].name);
-        strcat(buf, ": ");
-        strcat(buf, props[i].value);
-        strcat(buf, "; ");
+        size_t name_len = strlen(props[i].name);
+        memcpy(ptr, props[i].name, name_len);
+        ptr += name_len;
+        memcpy(ptr, ": ", 2);
+        ptr += 2;
+        size_t value_len = strlen(props[i].value);
+        memcpy(ptr, props[i].value, value_len);
+        ptr += value_len;
+        memcpy(ptr, "; ", 2);
+        ptr += 2;
     }
+    *ptr = '\0';
     JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
     JS_FreeValue(ctx, dummy);
     free(buf);
@@ -7082,13 +7089,20 @@ JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate
         total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
     }
     char *buf = malloc(total_len + 1);
-    buf[0] = '\0';
+    char *ptr = buf;
     for (int i = 0; i < count; i++) {
-        strcat(buf, props[i].name);
-        strcat(buf, ": ");
-        strcat(buf, props[i].value);
-        strcat(buf, "; ");
+        size_t name_len = strlen(props[i].name);
+        memcpy(ptr, props[i].name, name_len);
+        ptr += name_len;
+        memcpy(ptr, ": ", 2);
+        ptr += 2;
+        size_t value_len = strlen(props[i].value);
+        memcpy(ptr, props[i].value, value_len);
+        ptr += value_len;
+        memcpy(ptr, "; ", 2);
+        ptr += 2;
     }
+    *ptr = '\0';
     JSValue result = JS_NewString(ctx, buf);
     free(buf);
     free_style_properties(props, count);
@@ -7106,13 +7120,20 @@ JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate
         total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
     }
     char *buf = malloc(total_len + 1);
-    buf[0] = '\0';
+    char *ptr = buf;
     for (int i = 0; i < count; i++) {
-        strcat(buf, props[i].name);
-        strcat(buf, ": ");
-        strcat(buf, props[i].value);
-        strcat(buf, "; ");
+        size_t name_len = strlen(props[i].name);
+        memcpy(ptr, props[i].name, name_len);
+        ptr += name_len;
+        memcpy(ptr, ": ", 2);
+        ptr += 2;
+        size_t value_len = strlen(props[i].value);
+        memcpy(ptr, props[i].value, value_len);
+        ptr += value_len;
+        memcpy(ptr, "; ", 2);
+        ptr += 2;
     }
+    *ptr = '\0';
 
     JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
     JS_FreeValue(ctx, dummy);
