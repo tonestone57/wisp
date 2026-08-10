@@ -236,8 +236,7 @@ nserror nsoption_read(const char *path, struct nsoption_s *opts, struct nsoption
  * @param cb Function called for each option to be output.
  * @param ctx The context for the callback.
  * @param flags Flags controlling option matching.
- * @param opts The options table to enerate values from or NULL to use global
- * @param defs The default options table to use or NULL to use global.
+ * @param opts The options table to enerate values from or NULL to use global.
  * @param defs The default table to use or NULL to use global.
  * @return The error status.
  */
@@ -253,7 +252,6 @@ nserror nsoption_generate(nsoption_generate_cb *cb, void *ctx, enum nsoption_gen
  *
  * @param path The path to read the file from
  * @param opts The options table to enerate values from or NULL to use global
- * @param defs The default options table to use or NULL to use global
  * @param defs The default table to use or NULL to use global
  * @return The error status
  */
@@ -265,7 +263,6 @@ nserror nsoption_write(const char *path, struct nsoption_s *opts, struct nsoptio
  *
  * @param outf The stream to write to
  * @param opts The options table to enerate values from or NULL to use global
- * @param defs The default options table to use or NULL to use global
  * @return The error status
  */
 nserror nsoption_dump(FILE *outf, struct nsoption_s *opts);
@@ -277,7 +274,6 @@ nserror nsoption_dump(FILE *outf, struct nsoption_s *opts);
  * @param pargc Pointer to the size of the argument vector.
  * @param argv The argument vector.
  * @param opts The options table to enerate values from or NULL to use global
- * @param defs The default options table to use or NULL to use global
  * @return The error status
  */
 nserror nsoption_commandline(int *pargc, char **argv, struct nsoption_s *opts);
