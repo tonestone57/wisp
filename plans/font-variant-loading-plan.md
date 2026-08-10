@@ -320,7 +320,7 @@ nserror html_font_face_load_data(const char *family_name,
 ### Build verification
 ```bash
 cd /mnt/netac/proj/wisp/build
-cmake -DCMAKE_BUILD_TYPE=Debug -GNinja -DNEOSURF_ENABLE_PERF_TRACE=OFF -DNEOSURF_ENABLE_TESTS=ON ..
+cmake -DCMAKE_BUILD_TYPE=Debug -GNinja -DWISP_ENABLE_PERF_TRACE=OFF -DWISP_ENABLE_TESTS=ON ..
 ninja
 ```
 
@@ -332,7 +332,7 @@ Test with a page that uses multiple @font-face variants (e.g., Google Fonts):
 ./frontends/qt/wisp-qt -split-logs https://fonts.google.com
 ```
 
-Check `neosurf-logs/ns-deepdebug.txt` for:
+Check `wisp-logs/ns-deepdebug.txt` for:
 1. Multiple "Fetching font" lines for the same family with different weights
 2. Multiple "Loaded font" lines reaching the frontend
 3. No "already available" lines for Bold/Italic variants

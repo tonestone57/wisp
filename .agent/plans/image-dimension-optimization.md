@@ -33,9 +33,9 @@ if (wtype == CSS_WIDTH_SET && wunit != CSS_UNIT_PCT &&
 
 ### Discovery: Presentational Hints Already Implemented! ✅
 
-**Good news**: Neosurf ALREADY has presentational hint support for IMG width/height!
+**Good news**: Wisp ALREADY has presentational hint support for IMG width/height!
 
-In [`css/hints.c:1358-1365`](file:///mnt/netac/proj/neosurf/src/content/handlers/css/hints.c#L1358-L1365):
+In [`css/hints.c:1358-1365`](file:///mnt/netac/proj/wisp/src/content/handlers/css/hints.c#L1358-L1365):
 ```c
 case DOM_HTML_ELEMENT_TYPE_IMG:
     css_hint_margin_hspace_vspace(pw, node);
@@ -47,7 +47,7 @@ case DOM_HTML_ELEMENT_TYPE_OBJECT:
     css_hint_width(pw, node);   // ⭐ Already calls this!
 ```
 
-The helper functions ([`css_hint_width()`](file:///mnt/netac/proj/neosurf/src/content/handlers/css/hints.c#L941-L958) and [`css_hint_height()`](file:///mnt/netac/proj/neosurf/src/content/handlers/css/hints.c#L922-L939)) properly parse HTML attributes and convert to CSS hints.
+The helper functions ([`css_hint_width()`](file:///mnt/netac/proj/wisp/src/content/handlers/css/hints.c#L941-L958) and [`css_hint_height()`](file:///mnt/netac/proj/wisp/src/content/handlers/css/hints.c#L922-L939)) properly parse HTML attributes and convert to CSS hints.
 
 ## Root Cause Investigation Required
 
@@ -119,7 +119,7 @@ Based on diagnosis, implement appropriate fix:
 **Solution**: Fix `parse_dimension()` to default to pixels for unitless values
 
 **Files to modify**:
-- [`src/content/handlers/css/hints.c`](file:///mnt/netac/proj/neosurf/src/content/handlers/css/hints.c) - `parse_dimension()`
+- [`src/content/handlers/css/hints.c`](file:///mnt/netac/proj/wisp/src/content/handlers/css/hints.c) - `parse_dimension()`
 
 **Change**:
 ```c
@@ -140,7 +140,7 @@ if (parse_number(data, false, true, &value, &consumed)) {
 **Solution**: Re-check dimensions in `box_image()` after fetching object, or check attributes directly
 
 **Files to modify**:
-- [`src/content/handlers/html/box_special.c`](file:///mnt/netac/proj/neosurf/src/content/handlers/html/box_special.c) - `box_image()`
+- [`src/content/handlers/html/box_special.c`](file:///mnt/netac/proj/wisp/src/content/handlers/html/box_special.c) - `box_image()`
 
 **Change**: Add fallback to directly check HTML attributes:
 ```c
@@ -168,9 +168,9 @@ if (!(box->flags & REPLACE_DIM)) {
 ## Files Involved
 
 ### Investigation Files
-- [`src/content/handlers/css/hints.c`](file:///mnt/netac/proj/neosurf/src/content/handlers/css/hints.c) - Presentational hints
-- [`src/content/handlers/html/box_special.c`](file:///mnt/netac/proj/neosurf/src/content/handlers/html/box_special.c) - Box construction for IMG
-- [`src/content/handlers/css/select.c`](file:///mnt/netac/proj/neosurf/src/content/handlers/css/select.c) - CSS selection with hints
+- [`src/content/handlers/css/hints.c`](file:///mnt/netac/proj/wisp/src/content/handlers/css/hints.c) - Presentational hints
+- [`src/content/handlers/html/box_special.c`](file:///mnt/netac/proj/wisp/src/content/handlers/html/box_special.c) - Box construction for IMG
+- [`src/content/handlers/css/select.c`](file:///mnt/netac/proj/wisp/src/content/handlers/css/select.c) - CSS selection with hints
 
 ### Likely Modification Points
 - **Primary**: `hints.c` - Fix dimension parsing if needed

@@ -14,7 +14,7 @@ are parsed and executed by the monkey driver script.
 
 There are very few tests within the Wisp repository. The large
 majority of integration tests are instead held within the
-[wisp-test](http://source.netsurf-browser.org/netsurf-test.git/)
+[wisp-test](http://source.wisp-browser.org/wisp-test.git/)
 repository.
 
 To allow more effective use of these tests additional infrastructure
@@ -479,7 +479,7 @@ realm parameters the associated username and password are returned to
 answer the challenge.
 
     - action: add-auth
-      url: http://test.netsurf-browser.org/cgi-bin/auth.cgi?user=foo&pass=bar
+      url: http://test.wisp-browser.org/cgi-bin/auth.cgi?user=foo&pass=bar
       realm: Fake Realm
       username: foo
       password: bar
@@ -490,7 +490,7 @@ answer the challenge.
 Remove a previously added authentication details.
 
     - action: remove-auth
-      url: http://test.netsurf-browser.org/cgi-bin/auth.cgi?user=foo&pass=bar
+      url: http://test.wisp-browser.org/cgi-bin/auth.cgi?user=foo&pass=bar
       realm: Fake Realm
       username: foo
       password: bar

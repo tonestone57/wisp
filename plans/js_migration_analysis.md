@@ -12,7 +12,7 @@ The old Duktape-based JS engine had **full DOM bindings** backed by real libdom 
 
 | Component | Role | Size |
 |---|---|---|
-| `neosurf.bnd` | Master binding file, references WebIDL + includes all `.bnd` files | 214 lines |
+| `wisp.bnd` | Master binding file, references WebIDL + includes all `.bnd` files | 214 lines |
 | `*.bnd` files (65+) | Per-type DOM logic: Node, Element, Document, HTMLElement, etc. | ~800 lines avg |
 | `dukky.c` | Core infrastructure: node wrapping, prototype chain, class dispatch | 1685 lines |
 | `nsgenbind` tool | Code generator: `.bnd` + WebIDL → C source files | External tool |

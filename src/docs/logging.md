@@ -93,4 +93,4 @@ nslog
 
 If the nslog library is used it allows for application of a filter to
 control which messages are output. The nslog filter syntax is best
-viewed in its [documentation](http://source.netsurf-browser.org/libnslog.git/tree/docs/mainpage.md)
+viewed in its [documentation](http://source.wisp-browser.org/libnslog.git/tree/docs/mainpage.md)

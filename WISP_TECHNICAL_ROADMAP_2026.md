@@ -1,4 +1,4 @@
-# Wisp Browser Technical Roadmap & Architectural Summary (July 2026)
+# Wisp Browser Technical Roadmap & Architectural Summary (2026)
 
 ## 1. Executive Summary
 Wisp is a lightweight, high-performance web engine forked from NetSurf. As of 2026, Wisp has bridged the gap between legacy software efficiency and the modern web. The core engine features fully spec-compliant CSS Grid, Flexbox, CSS Variables, and modern JavaScript (ES2023+ via QuickJS-ng). Wisp maintains a minimal footprint suitable for modern and legacy platforms (Haiku, Windows XP/7/10/11, Linux, macOS). Core architectural milestones—including Multi-Process Isolation, out-of-process JS, and the Canvas 2D plotter bridge—are fully integrated and hardened.
@@ -82,7 +82,7 @@ Utilizes a **weak-reference model** and explicit cycle-breaking logic to manage 
 
 ---
 
-## 6. Recent Technical Improvements (July 2026 Hardening Audit)
+## 6. Recent Technical Improvements (2026 Hardening Audit)
 *   **Hardened Parsing**: Replaced unsafe `atoi` with `ns_strtoint/ns_strtouint` featuring overflow protection.
 *   **Layout Stability**: Replaced browser-crashing `assert(0)` and `abort()` with `NSLOG` warnings and safe geometric clamping.
 *   **MutationObserver**: Implemented spec-compliant queue swapping to prevent record loss during nested mutations.
@@ -126,7 +126,7 @@ Utilizes a **weak-reference model** and explicit cycle-breaking logic to manage 
 
 ---
 
-## 8. Next-Generation Roadmap Proposals (July 2026 Development Cycle)
+## 8. Next-Generation Roadmap Proposals (2026 Development Cycle)
 
 ### A. User-Space TLS & Network Fallbacks
 Legacy operating systems (like Windows XP/7 or alternative OS builds) lack TLS 1.2/1.3 support in their native crypto stacks (Schannel), blocking HTTPS connections to modern websites.

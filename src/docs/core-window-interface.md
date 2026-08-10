@@ -121,13 +121,13 @@ frontends/example/corewindow.h
     /*
      * Copyright 2016 Vincent Sanders <vince@netsurf-browser.org>
      *
-     * This file is part of NetSurf, http://www.netsurf-browser.org/
+     * This file is part of Wisp, http://www.wisp-browser.org/
      *
-     * NetSurf is free software; you can redistribute it and/or modify
+     * Wisp is free software; you can redistribute it and/or modify
      * it under the terms of the GNU General Public License as published by
      * the Free Software Foundation; version 2 of the License.
      *
-     * NetSurf is distributed in the hope that it will be useful,
+     * Wisp is distributed in the hope that it will be useful,
      * but WITHOUT ANY WARRANTY; without even the implied warranty of
      * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      * GNU General Public License for more details.
@@ -174,7 +174,7 @@ frontends/example/corewindow.h
              * callback for keypress on example core window
              *
              * \param example_cw The example core window structure.
-             * \param nskey The netsurf key code.
+             * \param nskey The wisp key code.
              * \return NSERROR_OK if key processed,
              *         NSERROR_NOT_IMPLEMENTED if key not processed
              *         otherwise apropriate error code
@@ -219,13 +219,13 @@ frontends/example/corewindow.c
     /*
      * Copyright 2016 Vincent Sanders <vince@netsurf-browser.org>
      *
-     * This file is part of NetSurf, http://www.netsurf-browser.org/
+     * This file is part of Wisp, http://www.wisp-browser.org/
      *
-     * NetSurf is free software; you can redistribute it and/or modify
+     * Wisp is free software; you can redistribute it and/or modify
      * it under the terms of the GNU General Public License as published by
      * the Free Software Foundation; version 2 of the License.
      *
-     * NetSurf is distributed in the hope that it will be useful,
+     * Wisp is distributed in the hope that it will be useful,
      * but WITHOUT ANY WARRANTY; without even the implied warranty of
      * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      * GNU General Public License for more details.
@@ -422,13 +422,13 @@ frontends/example/ssl_cert.h
     /*
      * Copyright 2016 Vincent Sanders <vince@netsurf-browser.org>
      *
-     * This file is part of NetSurf, http://www.netsurf-browser.org/
+     * This file is part of Wisp, http://www.wisp-browser.org/
      *
-     * NetSurf is free software; you can redistribute it and/or modify
+     * Wisp is free software; you can redistribute it and/or modify
      * it under the terms of the GNU General Public License as published by
      * the Free Software Foundation; version 2 of the License.
      *
-     * NetSurf is distributed in the hope that it will be useful,
+     * Wisp is distributed in the hope that it will be useful,
      * but WITHOUT ANY WARRANTY; without even the implied warranty of
      * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      * GNU General Public License for more details.
@@ -463,13 +463,13 @@ frontends/example/ssl_cert.c
     /*
      * Copyright 2015 Vincent Sanders <vince@netsurf-browser.org>
      *
-     * This file is part of NetSurf, http://www.netsurf-browser.org/
+     * This file is part of Wisp, http://www.wisp-browser.org/
      *
-     * NetSurf is free software; you can redistribute it and/or modify
+     * Wisp is free software; you can redistribute it and/or modify
      * it under the terms of the GNU General Public License as published by
      * the Free Software Foundation; version 2 of the License.
      *
-     * NetSurf is distributed in the hope that it will be useful,
+     * Wisp is distributed in the hope that it will be useful,
      * but WITHOUT ANY WARRANTY; without even the implied warranty of
      * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
      * GNU General Public License for more details.
@@ -548,7 +548,7 @@ frontends/example/ssl_cert.c
      * callback for mouse action for certificate verify on core window
      *
      * \param example_cw The example core window structure.
-     * \param mouse_state netsurf mouse state on event
+     * \param mouse_state wisp mouse state on event
      * \param x location of event
      * \param y location of event
      * \return NSERROR_OK on success otherwise apropriate error code
@@ -571,7 +571,7 @@ frontends/example/ssl_cert.c
      * callback for keypress for certificate verify on core window
      *
      * \param example_cw The example core window structure.
-     * \param nskey The netsurf key code
+     * \param nskey The wisp key code
      * \return NSERROR_OK on success otherwise apropriate error code
      */
     static nserror
