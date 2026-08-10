@@ -265,6 +265,31 @@ class DTDHandler:
         try:
             self.tree = ET.parse(dtd_file)
             self.root = self.tree.getroot()
+
+            self.interfaces = {}
+            self.methods = {}
+            self.attributes = {}
+            self.global_methods = {}
+            self.global_attributes = {}
+            for interface in self.root.findall("./interface"):
+                iname = interface.get("name")
+                if iname:
+                    self.interfaces[iname] = interface
+                    self.methods[iname] = {}
+                    self.attributes[iname] = {}
+                    for m in interface.findall("./method"):
+                        if m.get("name"):
+                            self.methods[iname][m.get("name")] = m
+                    for a in interface.findall("./attribute"):
+                        if a.get("name"):
+                            self.attributes[iname][a.get("name")] = a
+
+                for m in interface.findall("./method"):
+                    if m.get("name") and m.get("name") not in self.global_methods:
+                        self.global_methods[m.get("name")] = m
+                for a in interface.findall("./attribute"):
+                    if a.get("name") and a.get("name") not in self.global_attributes:
+                        self.global_attributes[a.get("name")] = a
         except Exception as e:
             sys.stderr.write(f"Failed to parse DTD file {dtd_file}: {e}\n")
             sys.exit(1)
@@ -669,24 +694,20 @@ int main(int argc, char **argv)
             # Native interface check? 
             # For now implement standard logic
             
-            ns = self.dd.find(f"/library/interface[@name='{interface}']/method[@name='{en}']")
-            if ns:
-                node = self.dd.get_node(ns, 1)
+            node = self.dd.methods.get(interface, {}).get(en)
+            if node is not None:
                 self.generate_method(en, node, ats)
             else:
-                ns = self.dd.find(f"/library/interface[@name='{interface}']/attribute[@name='{en}']")
-                if ns:
-                    node = self.dd.get_node(ns, 1)
+                node = self.dd.attributes.get(interface, {}).get(en)
+                if node is not None:
                     self.generate_attribute_accessor(en, node, ats)
         else:
-            ns = self.dd.find(f"/library/interface/method[@name='{en}']")
-            if ns:
-                node = self.dd.get_node(ns, 1)
+            node = self.dd.global_methods.get(en)
+            if node is not None:
                 self.generate_method(en, node, ats)
             else:
-                ns = self.dd.find(f"/library/interface/attribute[@name='{en}']")
-                if ns:
-                    node = self.dd.get_node(ns, 1)
+                node = self.dd.global_attributes.get(en)
+                if node is not None:
                     self.generate_attribute_accessor(en, node, ats)
                 else:
                     sys.stderr.write(f"Can't find how to deal with element {en}\n")
@@ -715,7 +736,7 @@ int main(int argc, char **argv)
         
         # We need parameters from DTD
         # parameters/param
-        ps = self.dd.find("parameters/param", node)
+        ps = node.findall("parameters/param")
         for p_node in ps:
             p_name = p_node.attrib["name"]
             p_type = p_node.attrib["type"]
