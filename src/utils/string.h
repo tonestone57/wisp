@@ -33,8 +33,6 @@
 /**
  * Replace consecutive whitespace with a single space.
  *
- * @todo determine if squash_whitespace utf-8 safe and that it needs to be
- *
  * \param  s  source string
  * \return  heap allocated result, or NULL on memory exhaustion
  */
