@@ -20,7 +20,6 @@
 /**
  * \file
  * \brief Interface to a number of general purpose functionality.
- * \todo Many of these functions and macros should have their own headers.
  */
 
 #ifndef WISP_UTILS_UTILS_H
@@ -32,41 +31,8 @@
 #include <string.h>
 #include <wisp/ns_inttypes.h>
 #include <wisp/utils/errors.h>
-
-#ifndef NOF_ELEMENTS
-#define NOF_ELEMENTS(array) (sizeof(array) / sizeof(*(array)))
-#endif
-
-#ifndef N_ELEMENTS
-#define N_ELEMENTS(array) NOF_ELEMENTS(array)
-#endif
-
-#ifndef UNUSED
-#define UNUSED(x) ((void)(x))
-#endif
-
-#ifndef ABS
-#define ABS(x) (((x) > 0) ? (x) : (-(x)))
-#endif
-
-#ifdef __MINT__ /* avoid using GCCs builtin min/max functions */
-#undef min
-#undef max
-#endif
-
-#ifndef __cplusplus
-#ifndef min
-#define min(x, y) (((x) < (y)) ? (x) : (y))
-#endif
-
-#ifndef max
-#define max(x, y) (((x) > (y)) ? (x) : (y))
-#endif
-
-#ifndef clamp
-#define clamp(x, low, high) (min(max((x), (low)), (high)))
-#endif
-#endif
+#include <wisp/utils/macros.h>
+#include <wisp/utils/math.h>
 
 /* Windows does not have POSIX mkdir so work around that */
 #if defined(_WIN32)
@@ -75,21 +41,6 @@
 #else
 /** POSIX mkdir function */
 #define nsmkdir(dir, mode) mkdir((dir), (mode))
-#endif
-
-#if defined(__GNUC__) && (__GNUC__ < 3)
-#define FLEX_ARRAY_LEN_DECL 0
-#else
-#define FLEX_ARRAY_LEN_DECL
-#endif
-
-#if defined(__HAIKU__) || defined(__BEOS__)
-#include <stdlib.h>
-#define strtof(s, p) ((float)(strtod((s), (p))))
-#endif
-
-#if !defined(ceilf) && defined(__MINT__)
-#define ceilf(x) (float)ceil((double)x)
 #endif
 
 /**
@@ -105,15 +56,6 @@
  * \return      Number of characters written (same as snprintf)
  */
 int nsfmt_float(char *buf, size_t size, const char *fmt, double val);
-
-/**
- * Calculate length of constant C string.
- *
- * \param  x a constant C string.
- * \return The length of C string without its terminator.
- */
-#define SLEN(x) (sizeof((x)) - 1)
-
 
 /**
  * Stable sort using insertion sort algorithm.
@@ -161,34 +103,5 @@ nserror ns_strtoll(const char *s, int base, long long *result);
  * Convert string to unsigned long long safely.
  */
 nserror ns_strtoull(const char *s, int base, unsigned long long *result);
-
-/**
- * switch fall through
- */
-#if defined __cplusplus && defined __has_cpp_attribute
-#if __has_cpp_attribute(fallthrough) && __cplusplus >= __has_cpp_attribute(fallthrough)
-#define fallthrough [[fallthrough]]
-#elif __has_cpp_attribute(gnu::fallthrough) && __STDC_VERSION__ >= __has_cpp_attribute(gnu::fallthrough)
-#define fallthrough [[gnu::fallthrough]]
-#elif __has_cpp_attribute(clang::fallthrough) && __STDC_VERSION__ >= __has_cpp_attribute(clang::fallthrough)
-#define fallthrough [[clang::fallthrough]]
-#endif
-#elif defined __STDC_VERSION__ && defined __has_c_attribute
-#if __has_c_attribute(fallthrough) && __STDC_VERSION__ >= __has_c_attribute(fallthrough)
-#define fallthrough [[fallthrough]]
-#endif
-#endif
-#if !defined fallthrough && defined __has_attribute
-#if __has_attribute(__fallthrough__)
-#define fallthrough __attribute__((__fallthrough__))
-#endif
-#endif
-#if !defined fallthrough
-/*  early gcc and clang have no implicit fallthrough warning */
-#define fallthrough                                                                                                    \
-    do {                                                                                                               \
-    } while (0)
-#endif
-
 
 #endif

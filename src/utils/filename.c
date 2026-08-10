@@ -33,7 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "utils/dirent.h"
+#include <wisp/utils/dirent.h>
 #include "utils/errors.h"
 #include "utils/file.h"
 #include "utils/filename.h"

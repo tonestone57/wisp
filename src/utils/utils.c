@@ -36,7 +36,7 @@
 #include <wisp/utils/messages.h>
 #include <wisp/utils/string.h>
 #include <wisp/utils/utils.h>
-#include "utils/dirent.h"
+#include <wisp/utils/dirent.h>
 
 /* exported interface documented in utils/string.h */
 char *squash_whitespace(const char *s)

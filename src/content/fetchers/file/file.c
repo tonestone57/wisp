@@ -51,7 +51,7 @@
 #include <wisp/utils/messages.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/utils.h>
-#include "utils/dirent.h"
+#include <wisp/utils/dirent.h>
 #include "utils/ring.h"
 #include "utils/time.h"
 #include "wisp/fetch.h"

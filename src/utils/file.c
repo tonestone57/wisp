@@ -36,7 +36,7 @@
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/string.h>
 #include <wisp/utils/utils.h>
-#include "utils/dirent.h"
+#include <wisp/utils/dirent.h>
 #include "utils/url.h"
 
 /**
