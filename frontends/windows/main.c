@@ -284,7 +284,7 @@ static nserror nsw32_option_init(int *pargc, char **argv, char *config_path)
     /* Attempt to load the user choices */
     ret = wisp_mkpath(&choices, NULL, 2, config_path, "Choices");
     if (ret == NSERROR_OK) {
-        nsoption_read(choices, nsoptions);
+        nsoption_read(choices, nsoptions, NULL);
         free(choices);
     }
 

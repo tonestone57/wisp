@@ -219,9 +219,10 @@ nserror nsoption_finalise(struct nsoption_s *opts, struct nsoption_s *defs);
  *
  * @param path The path to read the file from
  * @param opts The options table to enerate values from or NULL to use global
+ * @param defs The default options table to use or NULL to use global
  * @return The error status
  */
-nserror nsoption_read(const char *path, struct nsoption_s *opts);
+nserror nsoption_read(const char *path, struct nsoption_s *opts, struct nsoption_s *defs);
 
 
 /**

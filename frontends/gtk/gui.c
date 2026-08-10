@@ -641,7 +641,7 @@ static nserror nsgtk_option_init(int *pargc, char **argv)
     /* Attempt to load the user choices */
     ret = wisp_mkpath(&choices, NULL, 2, nsgtk_config_home, "Choices");
     if (ret == NSERROR_OK) {
-        nsoption_read(choices, nsoptions);
+        nsoption_read(choices, nsoptions, NULL);
         free(choices);
     }
 
