@@ -14395,7 +14395,21 @@ JSValue wisp_htmlkeygenelement_name_set_impl(JSContext *ctx, QJSNodePrivate *pri
 
 // Overrides: HTMLKeygenElement | reportValidity()
 JSValue wisp_htmlkeygenelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    JSValue validity = wisp_htmlkeygenelement_validity_get_impl(ctx, priv);
+    if (!JS_IsUndefined(validity) && !JS_IsNull(validity)) {
+        JSValue valid = JS_GetPropertyStr(ctx, validity, "valid");
+        int is_valid = JS_ToBool(ctx, valid);
+        JS_FreeValue(ctx, valid);
+        JS_FreeValue(ctx, validity);
+        if (is_valid == 0) {
+            struct jsthread *thread = JS_GetContextOpaque(ctx);
+            if (thread) {
+                js_fire_event(thread, "invalid", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+            }
+            return JS_FALSE;
+        }
+    }
+    return JS_TRUE;
 }
 
 // Overrides: HTMLKeygenElement | setCustomValidity()
