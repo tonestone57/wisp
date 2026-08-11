@@ -13,8 +13,7 @@
 
 static hubbub_error token_handler(const hubbub_token *token, void *pw);
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     parserutils_inputstream *stream;
     hubbub_tokeniser *tok;
     hubbub_tokeniser_optparams params;
@@ -72,8 +71,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-hubbub_error token_handler(const hubbub_token *token, void *pw)
-{
+hubbub_error token_handler(const hubbub_token *token, void *pw) {
     static const char *token_names[] = {"DOCTYPE", "START TAG", "END TAG", "COMMENT", "CHARACTERS", "EOF"};
     size_t i;
 

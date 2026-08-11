@@ -25,8 +25,7 @@ typedef struct line_ctx {
 static bool handle_line(const char *data, size_t datalen, void *pw);
 static void run_test(const uint8_t *data, size_t len, char *expected);
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     line_ctx ctx;
 
     if (argc != 2) {
@@ -53,8 +52,9 @@ int main(int argc, char **argv)
     assert(parse_testfile(argv[1], handle_line, &ctx) == true);
 
     /* and run final test */
-    if (ctx.bufused > 0 && ctx.buf[ctx.bufused - 1] == '\n')
+    if (ctx.bufused > 0 && ctx.buf[ctx.bufused - 1] == '\n') {
         ctx.bufused -= 1;
+    }
 
     run_test(ctx.buf, ctx.bufused, ctx.enc);
 
@@ -65,16 +65,16 @@ int main(int argc, char **argv)
     return 0;
 }
 
-bool handle_line(const char *data, size_t datalen, void *pw)
-{
+bool handle_line(const char *data, size_t datalen, void *pw) {
     line_ctx *ctx = (line_ctx *)pw;
 
     if (data[0] == '#') {
         if (ctx->inenc) {
             /* This marks end of testcase, so run it */
 
-            if (ctx->buf[ctx->bufused - 1] == '\n')
+            if (ctx->bufused > 0 && ctx->buf[ctx->bufused - 1] == '\n') {
                 ctx->bufused -= 1;
+            }
 
             run_test(ctx->buf, ctx->bufused, ctx->enc);
 
@@ -87,21 +87,24 @@ bool handle_line(const char *data, size_t datalen, void *pw)
         ctx->inenc = (strncasecmp(data + 1, "encoding", 8) == 0);
     } else {
         if (ctx->indata) {
-            memcpy(ctx->buf + ctx->bufused, data, datalen);
-            ctx->bufused += datalen;
+            if (ctx->bufused + datalen <= ctx->buflen) {
+                memcpy(ctx->buf + ctx->bufused, data, datalen);
+                ctx->bufused += datalen;
+            }
         }
         if (ctx->inenc) {
-            strcpy(ctx->enc, data);
-            if (ctx->enc[strlen(ctx->enc) - 1] == '\n')
-                ctx->enc[strlen(ctx->enc) - 1] = '\0';
+            snprintf(ctx->enc, sizeof(ctx->enc), "%.*s", (int)datalen, data);
+            size_t elen = strlen(ctx->enc);
+            if (elen > 0 && ctx->enc[elen - 1] == '\n') {
+                ctx->enc[elen - 1] = '\0';
+            }
         }
     }
 
     return true;
 }
 
-void run_test(const uint8_t *data, size_t len, char *expected)
-{
+void run_test(const uint8_t *data, size_t len, char *expected) {
     uint16_t mibenum = 0;
     hubbub_charset_source source = HUBBUB_CHARSET_UNKNOWN;
     static int testnum;

@@ -12,8 +12,7 @@
 
 static hubbub_error token_handler(const hubbub_token *token, void *pw);
 
-static int run_test(int argc, char **argv, unsigned int CHUNK_SIZE)
-{
+static int run_test(int argc, char **argv, unsigned int CHUNK_SIZE) {
     hubbub_parser *parser;
     hubbub_parser_optparams params;
     FILE *fp;
@@ -68,8 +67,7 @@ static int run_test(int argc, char **argv, unsigned int CHUNK_SIZE)
     return 0;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int ret;
     int shift;
     int offset;
@@ -87,8 +85,7 @@ int main(int argc, char **argv)
 #undef DO_TEST
 }
 
-hubbub_error token_handler(const hubbub_token *token, void *pw)
-{
+hubbub_error token_handler(const hubbub_token *token, void *pw) {
     static const char *token_names[] = {"DOCTYPE", "START TAG", "END TAG", "COMMENT", "CHARACTERS", "EOF"};
     size_t i;
 
