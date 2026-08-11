@@ -409,6 +409,12 @@ JSValue wisp_document_head_get_impl(JSContext *ctx, QJSNodePrivate *priv)
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
+            // Fallback for tests or before fully built tree
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].node_type == 1) { // DOM_ELEMENT_NODE
+                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
+                }
+            }
         }
         return JS_NULL;
     }

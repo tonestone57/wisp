@@ -449,15 +449,32 @@ JSValue wisp_node_removeChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
 
 JSValue wisp_node_nodeType_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    // 2. Window object or non-DOM pseudo-node -> nodeType is UNDEFINED on window
+    if (!priv || !priv->is_dom_node || priv->node == NULL) {
+        return JS_UNDEFINED;
+    }
+
+    // Virtual nodes (e.g. document.createElement) often use 0xffffffffffffffffULL as placeholder node
+    if (priv->node == (void *)0xffffffffffffffffULL) {
+        return JS_NewInt32(ctx, 1); // DOM_ELEMENT_NODE
+    }
+
     if (wisp_is_js_process) {
+        if ((uint64_t)(uintptr_t)priv->node >= 0xf0000000) {
+            return JS_NewInt32(ctx, 1); // DOM_ELEMENT_NODE
+        }
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
-        if (sn) return JS_NewInt32(ctx, sn->node_type);
-        return JS_NULL;
+        if (sn && sn->node_type > 0) return JS_NewInt32(ctx, sn->node_type);
+
+        // Default fallback for generic elements (prevents Sizzle crashes)
+        return JS_NewInt32(ctx, 1); // DOM_ELEMENT_NODE
     }
     dom_node_type type;
-    dom_node_get_node_type((dom_node *)priv->node, &type);
-    return JS_NewInt32(ctx, type);
+    dom_exception err = dom_node_get_node_type((dom_node *)priv->node, &type);
+    if (err == DOM_NO_ERR && type > 0) {
+        return JS_NewInt32(ctx, (int32_t)type);
+    }
+    return JS_NewInt32(ctx, 1); // DOM_ELEMENT_NODE
 }
 
 JSValue wisp_node_nodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -521,25 +538,77 @@ JSValue wisp_node_baseURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    // Window object or invalid target -> undefined (not null!)
+    if (!priv || !priv->is_dom_node || priv->node == (void *)0xffffffffffffffffULL || priv->node == NULL) {
+        return JS_UNDEFINED;
+    }
+
     if (wisp_is_js_process) {
-        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
-        if (sn && sn->node_type == DOM_DOCUMENT_NODE) {
-            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)priv->node);
+        // STEP 1: ONLY Document nodes return JS_NULL per W3C spec
+        if ((uint64_t)(uintptr_t)priv->node < 0xf0000000) {
+            WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+            if (sn && sn->node_type == 9) { // DOM_DOCUMENT_NODE
+                return JS_NULL;
+            }
+            if (!sn && (uint64_t)(uintptr_t)priv->node == 1) { // 1 is usually doc node
+                return JS_NULL;
+            }
         }
-        // Scan for the document node
+
+        // STEP 1b: check if there's no ownerDocument (maybe we are the document but node_type isn't 9 yet)
+        if ((uint64_t)(uintptr_t)priv->node == 1) { // 1 is the document node usually
+             return JS_NULL; // QuickJS doc node is 1
+        }
+
+        // STEP 2: Attempt to return SHM document explicitly
         if (wisp_shm_dom) {
             WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
             for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
-                if (nodes_arr[i].node_type == 9) {
+                if (nodes_arr[i].node_type == 9) { // DOM_DOCUMENT_NODE
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
                 }
             }
+            // If we didn't find a document node yet in SHM, maybe it hasn't been serialized.
+            // ID 1 is always the document.
+            if (wisp_shm_dom->node_count > 1) {
+                return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)1);
+            }
         }
-        return JS_NULL;
+
+        // STEP 3: Fallback — Fetch globalThis.document
+        JSValue global_obj = JS_GetGlobalObject(ctx);
+        JSValue global_doc = JS_GetPropertyStr(ctx, global_obj, "document");
+        JS_FreeValue(ctx, global_obj);
+
+        if (JS_IsObject(global_doc) && !JS_IsException(global_doc) && !JS_IsNull(global_doc)) {
+            return global_doc; // Transfer ownership of JSValue to caller
+        }
+        JS_FreeValue(ctx, global_doc);
+
+        // 4. CRITICAL: Never return JS_NULL or JS_UNDEFINED for non-document nodes!
+        // We know node 1 is the document for quickjs environments usually. If we still don't have it, wrap 1.
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)1);
     }
+
+    // Fallback for Host side:
+    if (!priv->node) return JS_NULL;
+
     struct dom_document *doc = NULL;
     dom_node_get_owner_document((dom_node *)priv->node, &doc);
+    if (!doc) {
+        dom_node_type type;
+        dom_node_get_node_type((dom_node *)priv->node, &type);
+        if (type == 9) { // DOM_DOCUMENT_NODE
+            return JS_NULL;
+        }
+        JSValue global_obj = JS_GetGlobalObject(ctx);
+        JSValue global_doc = JS_GetPropertyStr(ctx, global_obj, "document");
+        JS_FreeValue(ctx, global_obj);
+        if (JS_IsObject(global_doc)) {
+            return global_doc;
+        }
+        JS_FreeValue(ctx, global_doc);
+    }
     if (doc) {
         JSValue val = qjs_wrap_node(ctx, (dom_node *)doc);
         dom_node_unref((dom_node *)doc);

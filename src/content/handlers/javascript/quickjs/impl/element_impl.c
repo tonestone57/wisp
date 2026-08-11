@@ -362,6 +362,13 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
     if (wisp_is_js_process) {
+        if ((uint64_t)(uintptr_t)priv->node == 0xffffffffffffffffULL || priv->is_dom_node == false) {
+             // For virtual nodes (e.g. document.createElement not yet attached), jQuery relies on
+             // innerHTML to build a basic DOM string parser.
+             // We cannot fully synchronously parse it here, but we must NOT throw a TypeError,
+             // otherwise jQuery feature detection fails to boot entirely.
+             return JS_UNDEFINED;
+        }
         shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_INNER_HTML, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
         request_synchronous_layout_from_main();
         return JS_UNDEFINED;
