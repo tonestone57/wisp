@@ -485,8 +485,16 @@ add_wisp_test(test_shm_dom
   ${CMAKE_SOURCE_DIR}/src/test/test_shm_dom.c
 )
 target_link_libraries(test_shm_dom PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_arena
+  ${CMAKE_SOURCE_DIR}/src/test/test_arena.c
+)
+target_link_libraries(test_arena PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_fetch
   ${CMAKE_SOURCE_DIR}/src/test/test_fetch.c
 )
 target_link_libraries(test_fetch PRIVATE wisp)
+add_wisp_test(test_thread_pool
+  ${CMAKE_SOURCE_DIR}/src/test/test_thread_pool.c
+)
+target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
