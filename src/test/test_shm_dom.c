@@ -1,9 +1,15 @@
 #include <check.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <wisp/utils/shm_dom.h>
 
 // Do NOT define the global variables here because they are already defined in libwisp.so
+
+extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
+extern uint32_t wisp_shm_capacity;
+
 
 START_TEST(test_shm_dom_create)
 {
@@ -62,6 +68,268 @@ START_TEST(test_shm_dom_lock_read)
 }
 END_TEST
 
+
+START_TEST(test_shm_mutation_enqueue_native)
+{
+    const char *test_name = "/test_shm_mutation_enqueue_native";
+    uint32_t capacity = 100;
+    shm_dom_t *shm = shm_dom_create(test_name, capacity, true);
+    ck_assert_ptr_nonnull(shm);
+
+    bool saved_js_process = wisp_is_js_process;
+    wisp_is_js_process = false;
+
+    // Must setup node to be found
+    shm->node_count = 2; // Node ID 1 exists
+    shm->string_heap_top = 1; // Reserve offset 0 for empty string reference
+
+    // Add mutation
+    shm_mutation_enqueue(shm, SHM_MUTATION_SET_ATTRIBUTE, 1, 0, 0, "class", "test-class");
+
+    // Check mutation queue
+    shm_mutation_queue_t *mq = &shm->mutation_queue;
+    ck_assert_int_eq(mq->head, 1);
+    ck_assert_int_eq(mq->tail, 0);
+    ck_assert_int_eq(mq->queue[0].type, SHM_MUTATION_SET_ATTRIBUTE);
+    ck_assert_int_eq(mq->queue[0].target_id, 1);
+    ck_assert_str_eq(wisp_string_ref_data(shm, mq->queue[0].name), "class");
+    ck_assert_str_eq(wisp_string_ref_data(shm, mq->queue[0].value), "test-class");
+
+    wisp_is_js_process = saved_js_process;
+    shm_dom_destroy(shm, test_name, true);
+}
+END_TEST
+
+START_TEST(test_shm_mutation_enqueue_js)
+{
+    const char *test_name = "/test_shm_mutation_enqueue_js";
+    uint32_t capacity = 100;
+    shm_dom_t *shm = shm_dom_create(test_name, capacity, true);
+    ck_assert_ptr_nonnull(shm);
+
+    bool saved_js_process = wisp_is_js_process;
+    shm_dom_t *saved_shm = wisp_shm_dom;
+    uint32_t saved_capacity = wisp_shm_capacity;
+
+    wisp_is_js_process = true;
+    wisp_shm_dom = shm;
+    wisp_shm_capacity = capacity;
+
+    shm->node_count = 2; // Node ID 1 exists
+    shm->string_heap_top = 1; // Reserve offset 0 for empty string reference
+
+    // Add mutation
+    shm_mutation_enqueue(shm, SHM_MUTATION_SET_ATTRIBUTE, 1, 0, 0, "id", "test-id");
+
+    // It should go into bbmq_buffer, not the native queue directly
+    ck_assert_int_eq(shm->mutation_queue.head, 0);
+    ck_assert(bbmq_has_pending_for_node(1));
+
+    // Flush bbmq
+    bbmq_flush();
+
+    // Now it should be in the native queue
+    shm_mutation_queue_t *mq = &shm->mutation_queue;
+    ck_assert_int_eq(mq->head, 1);
+    ck_assert_int_eq(mq->tail, 0);
+    ck_assert_int_eq(mq->queue[0].type, SHM_MUTATION_SET_ATTRIBUTE);
+    ck_assert_int_eq(mq->queue[0].target_id, 1);
+    ck_assert_str_eq(wisp_string_ref_data(shm, mq->queue[0].name), "id");
+    ck_assert_str_eq(wisp_string_ref_data(shm, mq->queue[0].value), "test-id");
+
+    wisp_is_js_process = saved_js_process;
+    wisp_shm_dom = saved_shm;
+    wisp_shm_capacity = saved_capacity;
+    shm_dom_destroy(shm, test_name, true);
+}
+END_TEST
+
+START_TEST(test_bbmq_flush_empty)
+{
+    // Ensure wisp_shm_dom is NULL initially
+    wisp_shm_dom = NULL;
+    // Calling bbmq_flush with wisp_shm_dom == NULL shouldn't crash
+    bbmq_flush();
+
+    // Now create a valid shm_dom but no pending mutations
+    const char *test_name = "/test_shm_dom_bbmq_empty";
+    wisp_shm_dom = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    // bbmq_size is 0, so it should just return
+    bbmq_flush();
+
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, 0);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.tail, 0);
+
+    shm_dom_destroy(wisp_shm_dom, test_name, true);
+    wisp_shm_dom = NULL;
+}
+END_TEST
+
+START_TEST(test_bbmq_flush_normal)
+{
+    const char *test_name = "/test_shm_dom_bbmq_normal";
+    wisp_shm_dom = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+    wisp_shm_capacity = 100;
+
+    // We act as JS process to populate bbmq
+    wisp_is_js_process = true;
+
+    // Ensure queue starts empty
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, 0);
+
+    // Enqueue a single mutation
+    shm_mutation_enqueue(wisp_shm_dom, 1 /* SHM_MUTATION_SET_ATTRIBUTE */, 42, 0, 0, "id", "test");
+
+    // Flush it
+    bbmq_flush();
+
+    // Verify it was moved to mutation_queue
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, 1);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.queue[0].target_id, 42);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.queue[0].type, 1);
+
+    // After flush, bbmq is empty, another flush shouldn't change head
+    bbmq_flush();
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, 1);
+
+    wisp_is_js_process = false;
+    shm_dom_destroy(wisp_shm_dom, test_name, true);
+    wisp_shm_dom = NULL;
+}
+END_TEST
+
+START_TEST(test_bbmq_flush_full)
+{
+    const char *test_name = "/test_shm_dom_bbmq_full";
+    wisp_shm_dom = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+    wisp_shm_capacity = 100;
+
+    wisp_is_js_process = true;
+
+    // We mock that the shared mutation queue is fully consumed and wrap around is needed
+    // or just start from 0 and fill it up.
+
+    // Enqueue SHM_MUTATION_QUEUE_SIZE + 5 items to BBMQ
+    int total_items = SHM_MUTATION_QUEUE_SIZE + 5;
+    for (int i = 0; i < total_items; i++) {
+        shm_mutation_enqueue(wisp_shm_dom, 1, i, 0, 0, "test", "test");
+    }
+
+    // Since our bbmq_size can grow, we should have enqueued all
+    // Now flush to shared mutation queue.
+    // However, shared mutation queue has a fixed capacity SHM_MUTATION_QUEUE_SIZE
+    bbmq_flush();
+
+    // The shared queue should only be able to accept SHM_MUTATION_QUEUE_SIZE items
+    // before head - tail >= SHM_MUTATION_QUEUE_SIZE.
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, SHM_MUTATION_QUEUE_SIZE);
+
+    // bbmq_flush should reset bbmq_size to 0, which means the overflowing items are lost.
+    // That's current behavior, we just verify it doesn't overflow `mutation_queue`
+
+    wisp_is_js_process = false;
+    shm_dom_destroy(wisp_shm_dom, test_name, true);
+    wisp_shm_dom = NULL;
+}
+END_TEST
+
+START_TEST(test_shm_alloc_string_nulls)
+{
+    shm_dom_t *shm = shm_dom_create("/test_shm_alloc_string_nulls", 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    // Test null shm
+    WispStringRef ref1 = wisp_shm_alloc_string(NULL, "test");
+    ck_assert_int_eq(ref1, 0);
+
+    // Test null str
+    WispStringRef ref2 = wisp_shm_alloc_string(shm, NULL);
+    ck_assert_int_eq(ref2, 0);
+
+    // Test both null
+    WispStringRef ref3 = wisp_shm_alloc_string(NULL, NULL);
+    ck_assert_int_eq(ref3, 0);
+
+    shm_dom_destroy(shm, "/test_shm_alloc_string_nulls", true);
+}
+END_TEST
+
+START_TEST(test_shm_alloc_string_sso)
+{
+    shm_dom_t *shm = shm_dom_create("/test_shm_alloc_string_sso", 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    uint32_t initial_heap_top = shm->string_heap_top;
+
+    // Length 0
+    WispStringRef ref0 = wisp_shm_alloc_string(shm, "");
+    ck_assert(wisp_string_ref_eq(shm, ref0, ""));
+    ck_assert_int_eq(shm->string_heap_top, initial_heap_top);
+
+    // Length 1
+    WispStringRef ref1 = wisp_shm_alloc_string(shm, "A");
+    ck_assert(wisp_string_ref_eq(shm, ref1, "A"));
+    ck_assert_int_eq(shm->string_heap_top, initial_heap_top);
+
+    // Length 2
+    WispStringRef ref2 = wisp_shm_alloc_string(shm, "AB");
+    ck_assert(wisp_string_ref_eq(shm, ref2, "AB"));
+    ck_assert_int_eq(shm->string_heap_top, initial_heap_top);
+
+    // Length 3
+    WispStringRef ref3 = wisp_shm_alloc_string(shm, "ABC");
+    ck_assert(wisp_string_ref_eq(shm, ref3, "ABC"));
+    ck_assert_int_eq(shm->string_heap_top, initial_heap_top);
+
+    shm_dom_destroy(shm, "/test_shm_alloc_string_sso", true);
+}
+END_TEST
+
+START_TEST(test_shm_alloc_string_heap)
+{
+    shm_dom_t *shm = shm_dom_create("/test_shm_alloc_string_heap_tmp", 100, true);
+    memset(shm->string_hash_table, 0, sizeof(shm->string_hash_table));
+    ck_assert_ptr_nonnull(shm);
+
+    uint32_t initial_heap_top = shm->string_heap_top;
+
+    // Length > 3
+    WispStringRef ref1 = wisp_shm_alloc_string(shm, "LongStringHere");
+    ck_assert_int_ne(ref1, 0);
+    ck_assert(wisp_string_ref_eq(shm, ref1, "LongStringHere"));
+
+    uint32_t after_alloc_heap_top = shm->string_heap_top;
+    ck_assert_int_gt(after_alloc_heap_top, initial_heap_top);
+
+    // Allocate again, should intern
+    WispStringRef ref2 = wisp_shm_alloc_string(shm, "LongStringHere");
+    ck_assert_int_eq(ref1, ref2); // Should return same ref
+    ck_assert_int_eq(shm->string_heap_top, after_alloc_heap_top); // Heap top should not increase
+
+    shm_dom_destroy(shm, "/test_shm_alloc_string_heap_tmp", true);
+}
+END_TEST
+
+START_TEST(test_shm_alloc_string_oom)
+{
+    shm_dom_t *shm = shm_dom_create("/test_shm_alloc_string_oom", 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    // Artificially restrict heap
+    shm->string_heap_top = SHM_STRING_HEAP_SIZE - 2;
+
+    // Try allocating string that needs > 2 bytes
+    WispStringRef ref = wisp_shm_alloc_string(shm, "WillOOM");
+    ck_assert_int_eq(ref, 0);
+
+    shm_dom_destroy(shm, "/test_shm_alloc_string_oom", true);
+}
+END_TEST
+
 static Suite *shm_dom_suite(void)
 {
     Suite *s = suite_create("shm_dom");
@@ -70,6 +338,16 @@ static Suite *shm_dom_suite(void)
     tcase_add_test(tc_core, test_shm_dom_create);
     tcase_add_test(tc_core, test_shm_dom_destroy_null);
     tcase_add_test(tc_core, test_shm_dom_lock_read);
+    tcase_add_test(tc_core, test_shm_mutation_enqueue_native);
+    tcase_add_test(tc_core, test_shm_mutation_enqueue_js);
+    tcase_add_test(tc_core, test_bbmq_flush_empty);
+    tcase_add_test(tc_core, test_bbmq_flush_normal);
+    tcase_add_test(tc_core, test_bbmq_flush_full);
+    tcase_add_test(tc_core, test_shm_alloc_string_nulls);
+    tcase_add_test(tc_core, test_shm_alloc_string_sso);
+    tcase_add_test(tc_core, test_shm_alloc_string_heap);
+    tcase_add_test(tc_core, test_shm_alloc_string_oom);
+
     suite_add_tcase(s, tc_core);
 
     return s;
