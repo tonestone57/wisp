@@ -104,7 +104,6 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
-    if (!found && wisp_is_js_process) return JS_UNDEFINED;
     if (!found && !wisp_is_js_process && is_real_dom_node && priv->node != NULL) {
         dom_string *type_dom = NULL;
         dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
@@ -180,7 +179,6 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
         }
     }
 
-    if (wisp_is_js_process) return JS_UNDEFINED;
     JS_FreeValue(ctx, global_ref);
     return JS_UNDEFINED;
 }

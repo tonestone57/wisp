@@ -1,0 +1,23 @@
+--- src/content/handlers/javascript/quickjs/qjs.c
++++ src/content/handlers/javascript/quickjs/qjs.c
+@@ -5012,21 +5012,11 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
+                             wisp_ipc_send(ipc_js, &resp);
+                             wisp_ipc_msg_free(&response);
+-                        } else if (response.type == WISP_IPC_MSG_JS_EVENT) {
+-                            wisp_ipc_msg_free(&response);
+-                        } else if (response.type == WISP_IPC_MSG_ERROR) {
+-                            wisp_ipc_msg_free(&response);
+-                            got_response = true;
+-                            break;
+                         } else {
+                             /* Ignore unexpected/stale message types */
+                             wisp_ipc_msg_free(&response);
+                         }
+                     } else if (recv_err != NSERROR_NOT_FOUND) {
+-                        if (recv_err == NSERROR_SHUTDOWN || recv_err == 38) {
+-                            NSLOG(wisp, ERROR, "JS process gracefully shutdown during recv for origin %s", thread->origin);
+-                            break;
+-                        }
+                         /* Socket error or EOF -> crash detected! */
+                         NSLOG(wisp, ERROR, "JS process crashed during recv (error %d) for origin %s", (int)recv_err,
+                             thread->origin);

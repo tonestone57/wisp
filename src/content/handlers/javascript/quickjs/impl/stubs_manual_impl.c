@@ -55,7 +55,6 @@ extern bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *
     struct dom_string *event_type_dom, JSValue js_funcval);
 
 static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name, const char *event_name, JSValue value) {
-    if (wisp_is_js_process) return;
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     if (!thread) return;
     if (!priv || (!priv->node && priv != &thread->global_window_priv)) return;
@@ -103,7 +102,6 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
 }
 
 static JSValue helper_get_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name) {
-    if (wisp_is_js_process) return JS_UNDEFINED;
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     if (!thread) return JS_NULL;
     if (!priv || (!priv->node && priv != &thread->global_window_priv)) return JS_NULL;

@@ -5022,6 +5022,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                             resp.data = NULL;
                             wisp_ipc_send(ipc_js, &resp);
                             wisp_ipc_msg_free(&response);
+                        } else if (response.type == WISP_IPC_MSG_JS_EVENT) {
+                            wisp_ipc_msg_free(&response);
                         } else if (response.type == WISP_IPC_MSG_ERROR) {
                             wisp_ipc_msg_free(&response);
                             got_response = true;
