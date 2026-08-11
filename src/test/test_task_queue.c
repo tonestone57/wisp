@@ -17,12 +17,37 @@ START_TEST(test_task_queue_init)
 }
 END_TEST
 
+static void dummy_task(void *arg) {
+    (void)arg;
+}
+
+START_TEST(test_task_queue_destroy)
+{
+    /* Test destroying uninitialized queue (should be no-op) */
+    task_queue_destroy();
+
+    /* Test destroying empty initialized queue */
+    ck_assert_int_eq(task_queue_init(), true);
+    task_queue_destroy();
+
+    /* Test destroying queue with pending tasks */
+    ck_assert_int_eq(task_queue_init(), true);
+    ck_assert_int_eq(task_queue_post(dummy_task, NULL), true);
+    ck_assert_int_eq(task_queue_post(dummy_task, NULL), true);
+    task_queue_destroy();
+
+    /* Ensure it resets to uninitialized state */
+    ck_assert_int_eq(task_queue_post(dummy_task, NULL), false);
+}
+END_TEST
+
 static Suite *task_queue_suite(void)
 {
     Suite *s = suite_create("task_queue");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_task_queue_init);
+    tcase_add_test(tc_core, test_task_queue_destroy);
     suite_add_tcase(s, tc_core);
 
     return s;
