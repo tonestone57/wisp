@@ -701,9 +701,9 @@ static nsuerror base64_decode_alloc(
     int sextet_idx;
 
     decoded_len = ((input_length + 3) / 4) * 3;
-    if (input[input_length - 1] == '=')
+    if (input_length >= 1 && input[input_length - 1] == '=')
         (decoded_len)--;
-    if (input[input_length - 2] == '=')
+    if (input_length >= 2 && input[input_length - 2] == '=')
         (decoded_len)--;
 
     decoded = malloc(decoded_len);

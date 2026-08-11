@@ -284,11 +284,16 @@ nserror wisp_ipc_recv(wisp_ipc_handle *handle, wisp_ipc_msg *msg) {
 
     msg->type = (wisp_ipc_msg_type)header[0];
     msg->length = header[1];
+
+    if (msg->length > 64 * 1024 * 1024) {
+        return NSERROR_BAD_SIZE;
+    }
     if (msg->length > 0) {
         msg->data = malloc(msg->length);
         if (!msg->data) return NSERROR_NOMEM;
         if (read_all(handle->fd, msg->data, msg->length, false) != (ssize_t)msg->length) {
             free(msg->data);
+            msg->data = NULL;
             return NSERROR_INVALID;
         }
     } else {

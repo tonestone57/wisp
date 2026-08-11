@@ -262,7 +262,7 @@ static char *expand_path(const char *path, int pathlen)
         }
 
         if ((cstart != -1) && (exp[cloop] == '}')) {
-            replen = cloop - cstart;
+            replen = cloop - cstart + 1;
             exp[cloop] = 0;
             envv = getenv(exp + cstart + 2);
             if (envv == NULL) {
@@ -281,7 +281,7 @@ static char *expand_path(const char *path, int pathlen)
                 memmove(exp + cstart, envv, envlen);
                 explen += envlen - replen;
             }
-            cloop -= replen;
+            cloop = cstart - 1;
             cstart = -1;
         }
 

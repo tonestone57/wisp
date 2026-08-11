@@ -752,6 +752,8 @@ static bool idna__is_ldh(const char *label, size_t len)
 {
     const char *p = label;
     size_t i = 0;
+    if (len == 0)
+        return false;
 
     /* Check for leading or trailing hyphens */
     if ((p[0] == '-') || (p[len - 1] == '-'))
