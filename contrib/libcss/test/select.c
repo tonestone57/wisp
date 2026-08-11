@@ -293,7 +293,7 @@ static css_error node_has_attribute_equal(void *pw, void *n, const css_qname *qn
     }
 
     if (*match == true) {
-        assert(lwc_string_caseless_isequal(node->attrs[i].name, value, match) == lwc_error_ok);
+        assert(lwc_string_caseless_isequal(node->attrs[i].value, value, match) == lwc_error_ok);
     }
 
     return CSS_OK;

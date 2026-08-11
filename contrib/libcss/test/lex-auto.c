@@ -110,7 +110,7 @@ bool handle_line(const char *data, size_t datalen, void *pw)
         } else {
             memcpy(ctx->buf + ctx->bufused, data, datalen);
             ctx->bufused += datalen;
-            if (ctx->truncate_input) {
+            if (ctx->truncate_input && ctx->bufused > 0) {
                 ctx->bufused--;
             }
         }
@@ -118,7 +118,7 @@ bool handle_line(const char *data, size_t datalen, void *pw)
         if (ctx->indata) {
             memcpy(ctx->buf + ctx->bufused, data, datalen);
             ctx->bufused += datalen;
-            if (ctx->truncate_input) {
+            if (ctx->truncate_input && ctx->bufused > 0) {
                 ctx->bufused--;
             }
         }

@@ -493,7 +493,7 @@ static const char *opcode_names[] = {
 
 static void dump_css_fixed(css_fixed f, char **ptr)
 {
-#define ABS(x) (uint32_t)((x) < 0 ? -(x) : (x))
+#define ABS(x) (uint32_t)((x) < 0 ? -((int64_t)x) : (x))
     uint32_t uintpart = FIXTOINT(ABS(f));
     /* + 500 to ensure round to nearest (division will truncate) */
     uint32_t fracpart = ((ABS(f) & 0x3ff) * 1000 + 500) / (1 << 10);
@@ -801,6 +801,7 @@ void dump_bytecode(css_style *style, char **ptr, uint32_t depth)
             snum = *((uint32_t *)bytecode);
             ADVANCE(sizeof(snum));
             css__stylesheet_string_get(style->sheet, snum, &serialized);
+            (void)serialized;
             *ptr += sprintf(*ptr, "var(...)");
         } else if (isCalc(opv)) {
             lwc_string *calc_expr = NULL;

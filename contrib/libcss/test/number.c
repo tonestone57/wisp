@@ -70,7 +70,7 @@ bool handle_line(const char *data, size_t datalen, void *pw)
         if (ctx->inexp) {
             /* This marks end of testcase, so run it */
 
-            run_test(ctx->buf, ctx->bufused - 1, ctx->exp, ctx->explen);
+            run_test(ctx->buf, ctx->bufused > 0 ? ctx->bufused - 1 : 0, ctx->exp, ctx->explen);
 
             ctx->buf[0] = '\0';
             ctx->bufused = 0;
