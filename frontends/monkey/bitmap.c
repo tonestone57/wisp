@@ -43,6 +43,7 @@ static void *bitmap_create(int width, int height, enum gui_bitmap_flags flags)
     ret->width = width;
     ret->height = height;
     ret->opaque = (flags & BITMAP_OPAQUE) == BITMAP_OPAQUE;
+    ret->rowstride = width * 4;
 
     ret->ptr = calloc(width, height * 4);
 

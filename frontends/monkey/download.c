@@ -52,7 +52,7 @@ static struct gui_download_window *gui_download_window_create(download_context *
 
     RING_INSERT(dw_ring, ret);
 
-    moutf(MOUT_DOWNLOAD, "CREATE DWIN %u WIN %u", ret->dwin_num, parent->win_num);
+    moutf(MOUT_DOWNLOAD, "CREATE DWIN %u WIN %u", ret->dwin_num, parent ? parent->win_num : 0);
 
     return ret;
 }
@@ -66,6 +66,12 @@ static nserror gui_download_window_data(struct gui_download_window *dw, const ch
 static void gui_download_window_error(struct gui_download_window *dw, const char *error_msg)
 {
     moutf(MOUT_DOWNLOAD, "ERROR DWIN %u ERROR %s", dw->dwin_num, error_msg);
+    RING_REMOVE(dw_ring, dw);
+    download_context_destroy(dw->dlctx);
+    if (dw->host != NULL) {
+        free(dw->host);
+    }
+    free(dw);
 }
 
 static void gui_download_window_done(struct gui_download_window *dw)
@@ -73,6 +79,9 @@ static void gui_download_window_done(struct gui_download_window *dw)
     moutf(MOUT_DOWNLOAD, "DONE DWIN %u", dw->dwin_num);
     RING_REMOVE(dw_ring, dw);
     download_context_destroy(dw->dlctx);
+    if (dw->host != NULL) {
+        free(dw->host);
+    }
     free(dw);
 }
 

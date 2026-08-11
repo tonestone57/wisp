@@ -49,6 +49,10 @@ nserror gui_401login_open(struct nsurl *url, const char *realm, const char *user
 {
     struct monkey401 *m401_ctx;
 
+    if (realm == NULL) {
+        realm = "";
+    }
+
     m401_ctx = calloc(1, sizeof(*m401_ctx));
     if (m401_ctx == NULL) {
         return NSERROR_NOMEM;
@@ -57,6 +61,12 @@ nserror gui_401login_open(struct nsurl *url, const char *realm, const char *user
     if (m401_ctx->realm == NULL) {
         free(m401_ctx);
         return NSERROR_NOMEM;
+    }
+    if (username != NULL) {
+        m401_ctx->username = strdup(username);
+    }
+    if (password != NULL) {
+        m401_ctx->password = strdup(password);
     }
     m401_ctx->url = nsurl_ref(url);
     m401_ctx->cb = cb;

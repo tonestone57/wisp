@@ -43,6 +43,10 @@ nserror monkey_register_handler(const char *cmd, handle_command_fn fn)
         return NSERROR_NOMEM;
     }
     ret->cmd = strdup(cmd);
+    if (ret->cmd == NULL) {
+        free(ret);
+        return NSERROR_NOMEM;
+    }
     ret->fn = fn;
     RING_INSERT(handler_ring, ret);
     return NSERROR_OK;
@@ -72,7 +76,13 @@ void monkey_process_command(void)
     }
 
     /* remove newline */
-    buffer[strlen(buffer) - 1] = '\0';
+    size_t len = strlen(buffer);
+    while (len > 0 && (buffer[len - 1] == '\n' || buffer[len - 1] == '\r')) {
+        buffer[--len] = '\0';
+    }
+    if (len == 0) {
+        return;
+    }
 
     argv = malloc(sizeof *argv);
     if (argv == NULL) {

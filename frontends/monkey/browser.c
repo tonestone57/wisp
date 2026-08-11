@@ -308,7 +308,7 @@ static void gui_window_remove_caret(struct gui_window *g)
 
 static bool gui_window_drag_start(struct gui_window *g, gui_drag_type type, const struct rect *rect)
 {
-    moutf(MOUT_WINDOW, "SCROLL_START WIN %u TYPE %i", g->win_num, type);
+    moutf(MOUT_WINDOW, "DRAG_START WIN %u TYPE %i", g->win_num, type);
     return false;
 }
 
@@ -502,7 +502,7 @@ static void monkey_window_handle_stop(int argc, char **argv)
     unsigned int nr;
 
     if (argc != 3) {
-        moutf(MOUT_ERROR, "WINDOW STOP ARGS BAD\n");
+        moutf(MOUT_ERROR, "WINDOW STOP ARGS BAD");
         return;
     }
 
@@ -582,7 +582,7 @@ static void monkey_window_handle_reload(int argc, char **argv)
     unsigned int nr;
 
     if (argc != 3 && argc != 4) {
-        moutf(MOUT_ERROR, "WINDOW RELOAD ARGS BAD\n");
+        moutf(MOUT_ERROR, "WINDOW RELOAD ARGS BAD");
         return;
     }
 
@@ -604,7 +604,7 @@ static void monkey_window_handle_exec(int argc, char **argv)
     unsigned int nr;
 
     if (argc < 5) {
-        moutf(MOUT_ERROR, "WINDOW EXEC ARGS BAD\n");
+        moutf(MOUT_ERROR, "WINDOW EXEC ARGS BAD");
         return;
     }
 
@@ -656,7 +656,8 @@ static void monkey_window_handle_click(int argc, char **argv)
     unsigned int nr;
 
     if (argc != 12) {
-        moutf(MOUT_ERROR, "WINDOW CLICK ARGS BAD\n");
+        moutf(MOUT_ERROR, "WINDOW CLICK ARGS BAD");
+        return;
     }
 
     if (ns_strtouint(argv[2], 10, &nr) != NSERROR_OK)
@@ -717,7 +718,7 @@ void monkey_window_handle_command(int argc, char **argv)
     } else if (strcmp(argv[1], "CLICK") == 0) {
         monkey_window_handle_click(argc, argv);
     } else {
-        moutf(MOUT_ERROR, "WINDOW COMMAND UNKNOWN %s\n", argv[1]);
+        moutf(MOUT_ERROR, "WINDOW COMMAND UNKNOWN %s", argv[1]);
     }
 }
 
