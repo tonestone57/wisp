@@ -23,6 +23,7 @@ static uintptr_t node_counter;
             printf("FAIL - no memory\n");                                                                              \
             exit(1);                                                                                                   \
         }                                                                                                              \
+        memset(temp + node_ref_alloc, 0, NODE_REF_CHUNK * sizeof(uint16_t));                                           \
         node_ref = temp;                                                                                               \
         node_ref_alloc += NODE_REF_CHUNK;                                                                              \
     }
@@ -49,8 +50,7 @@ static hubbub_tree_handler tree_handler = {create_comment, create_doctype, creat
     unref_node, append_child, insert_before, remove_child, clone_node, reparent_children, get_parent, has_children,
     form_associate, add_attributes, set_quirks_mode, NULL, complete_script, NULL};
 
-static int run_test(int argc, char **argv, unsigned int CHUNK_SIZE)
-{
+static int run_test(int argc, char **argv, unsigned int CHUNK_SIZE) {
     hubbub_parser *parser;
     hubbub_parser_optparams params;
     FILE *fp;
@@ -128,8 +128,7 @@ static int run_test(int argc, char **argv, unsigned int CHUNK_SIZE)
     return passed ? 0 : 1;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int ret;
     int shift;
     int offset;
@@ -149,8 +148,7 @@ int main(int argc, char **argv)
 #undef DO_TEST
 }
 
-hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result)
-{
+hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result) {
     printf("Creating (%" PRIuPTR ") [comment '%.*s']\n", ++node_counter, (int)data->len, data->ptr);
 
     assert(memchr(data->ptr, 0xff, data->len) == NULL);
@@ -165,8 +163,7 @@ hubbub_error create_comment(void *ctx, const hubbub_string *data, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **result)
-{
+hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **result) {
     printf("Creating (%" PRIuPTR ") [doctype '%.*s']\n", ++node_counter, (int)doctype->name.len, doctype->name.ptr);
 
     assert(memchr(doctype->name.ptr, 0xff, doctype->name.len) == NULL);
@@ -187,8 +184,7 @@ hubbub_error create_doctype(void *ctx, const hubbub_doctype *doctype, void **res
     return HUBBUB_OK;
 }
 
-hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
-{
+hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result) {
     uint32_t i;
 
     printf("Creating (%" PRIuPTR ") [element '%.*s']\n", ++node_counter, (int)tag->name.len, tag->name.ptr);
@@ -211,8 +207,7 @@ hubbub_error create_element(void *ctx, const hubbub_tag *tag, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
-{
+hubbub_error create_text(void *ctx, const hubbub_string *data, void **result) {
     printf("Creating (%" PRIuPTR ") [text '%.*s']\n", ++node_counter, (int)data->len, data->ptr);
 
     assert(memchr(data->ptr, 0xff, data->len) == NULL);
@@ -227,8 +222,7 @@ hubbub_error create_text(void *ctx, const hubbub_string *data, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error ref_node(void *ctx, void *node)
-{
+hubbub_error ref_node(void *ctx, void *node) {
     UNUSED(ctx);
 
     printf("Referencing %" PRIuPTR " (=%u)\n", (uintptr_t)node, ++node_ref[(uintptr_t)node]);
@@ -236,8 +230,7 @@ hubbub_error ref_node(void *ctx, void *node)
     return HUBBUB_OK;
 }
 
-hubbub_error unref_node(void *ctx, void *node)
-{
+hubbub_error unref_node(void *ctx, void *node) {
     UNUSED(ctx);
 
     printf("Unreferencing %" PRIuPTR " (=%u)\n", (uintptr_t)node, --node_ref[(uintptr_t)node]);
@@ -245,8 +238,7 @@ hubbub_error unref_node(void *ctx, void *node)
     return HUBBUB_OK;
 }
 
-hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
-{
+hubbub_error append_child(void *ctx, void *parent, void *child, void **result) {
     printf("Appending %" PRIuPTR " to %" PRIuPTR "\n", (uintptr_t)child, (uintptr_t)parent);
     ref_node(ctx, child);
 
@@ -255,8 +247,7 @@ hubbub_error append_child(void *ctx, void *parent, void *child, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error insert_before(void *ctx, void *parent, void *child, void *ref_child, void **result)
-{
+hubbub_error insert_before(void *ctx, void *parent, void *child, void *ref_child, void **result) {
     printf("Inserting %" PRIuPTR " in %" PRIuPTR " before %" PRIuPTR "\n", (uintptr_t)child, (uintptr_t)parent,
         (uintptr_t)ref_child);
     ref_node(ctx, child);
@@ -266,8 +257,7 @@ hubbub_error insert_before(void *ctx, void *parent, void *child, void *ref_child
     return HUBBUB_OK;
 }
 
-hubbub_error remove_child(void *ctx, void *parent, void *child, void **result)
-{
+hubbub_error remove_child(void *ctx, void *parent, void *child, void **result) {
     printf("Removing %" PRIuPTR " from %" PRIuPTR "\n", (uintptr_t)child, (uintptr_t)parent);
     ref_node(ctx, child);
 
@@ -276,8 +266,7 @@ hubbub_error remove_child(void *ctx, void *parent, void *child, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error clone_node(void *ctx, void *node, bool deep, void **result)
-{
+hubbub_error clone_node(void *ctx, void *node, bool deep, void **result) {
     printf("%sCloning %" PRIuPTR " -> %" PRIuPTR "\n", deep ? "Deep-" : "", (uintptr_t)node, ++node_counter);
 
     GROW_REF
@@ -290,8 +279,7 @@ hubbub_error clone_node(void *ctx, void *node, bool deep, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error reparent_children(void *ctx, void *node, void *new_parent)
-{
+hubbub_error reparent_children(void *ctx, void *node, void *new_parent) {
     UNUSED(ctx);
 
     printf("Reparenting children of %" PRIuPTR " to %" PRIuPTR "\n", (uintptr_t)node, (uintptr_t)new_parent);
@@ -299,8 +287,7 @@ hubbub_error reparent_children(void *ctx, void *node, void *new_parent)
     return HUBBUB_OK;
 }
 
-hubbub_error get_parent(void *ctx, void *node, bool element_only, void **result)
-{
+hubbub_error get_parent(void *ctx, void *node, bool element_only, void **result) {
     printf("Retrieving parent of %" PRIuPTR " (%s)\n", (uintptr_t)node, element_only ? "element only" : "");
 
     ref_node(ctx, (void *)1);
@@ -309,8 +296,7 @@ hubbub_error get_parent(void *ctx, void *node, bool element_only, void **result)
     return HUBBUB_OK;
 }
 
-hubbub_error has_children(void *ctx, void *node, bool *result)
-{
+hubbub_error has_children(void *ctx, void *node, bool *result) {
     UNUSED(ctx);
 
     printf("Want children for %" PRIuPTR "\n", (uintptr_t)node);
@@ -320,8 +306,7 @@ hubbub_error has_children(void *ctx, void *node, bool *result)
     return HUBBUB_OK;
 }
 
-hubbub_error form_associate(void *ctx, void *form, void *node)
-{
+hubbub_error form_associate(void *ctx, void *form, void *node) {
     UNUSED(ctx);
 
     printf("Associating %" PRIuPTR " with form %" PRIuPTR "\n", (uintptr_t)node, (uintptr_t)form);
@@ -329,8 +314,7 @@ hubbub_error form_associate(void *ctx, void *form, void *node)
     return HUBBUB_OK;
 }
 
-hubbub_error add_attributes(void *ctx, void *node, const hubbub_attribute *attributes, uint32_t n_attributes)
-{
+hubbub_error add_attributes(void *ctx, void *node, const hubbub_attribute *attributes, uint32_t n_attributes) {
     uint32_t i;
 
     UNUSED(ctx);
@@ -349,8 +333,7 @@ hubbub_error add_attributes(void *ctx, void *node, const hubbub_attribute *attri
     return HUBBUB_OK;
 }
 
-hubbub_error set_quirks_mode(void *ctx, hubbub_quirks_mode mode)
-{
+hubbub_error set_quirks_mode(void *ctx, hubbub_quirks_mode mode) {
     UNUSED(ctx);
 
     printf("Quirks mode = %u\n", mode);
@@ -358,8 +341,7 @@ hubbub_error set_quirks_mode(void *ctx, hubbub_quirks_mode mode)
     return HUBBUB_OK;
 }
 
-hubbub_error complete_script(void *ctx, void *script)
-{
+hubbub_error complete_script(void *ctx, void *script) {
     UNUSED(ctx);
     UNUSED(script);
 

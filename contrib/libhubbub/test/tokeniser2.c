@@ -32,8 +32,7 @@ typedef struct context {
 static void run_test(context *ctx);
 static hubbub_error token_handler(const hubbub_token *token, void *pw);
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     struct json_object *json;
     struct array_list *tests;
     struct lh_entry *entry;
@@ -97,8 +96,7 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void run_test(context *ctx)
-{
+void run_test(context *ctx) {
     parserutils_inputstream *stream;
     hubbub_tokeniser *tok;
     hubbub_tokeniser_optparams params;
@@ -176,8 +174,7 @@ void run_test(context *ctx)
     }
 }
 
-hubbub_error token_handler(const hubbub_token *token, void *pw)
-{
+hubbub_error token_handler(const hubbub_token *token, void *pw) {
     static const char *token_names[] = {"DOCTYPE", "StartTag", "EndTag", "Comment", "Character", "EOF"};
     size_t i;
     context *ctx = (context *)pw;

@@ -2,8 +2,7 @@
 
 #include "testutils.h"
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     uint32_t result;
     int32_t context = -1;
 

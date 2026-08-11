@@ -13,10 +13,8 @@
 /* Redefine assert, so we can simply use the standard assert mechanism
  * within testcases and exit with the right output for the testrunner
  * to do the right thing. */
-void __assert2(const char *expr, const char *function, const char *file, int line);
+static inline void __assert2(const char *expr, const char *function, const char *file, int line) {
 
-void __assert2(const char *expr, const char *function, const char *file, int line)
-{
     UNUSED(function);
     UNUSED(file);
 
@@ -35,9 +33,8 @@ void __assert2(const char *expr, const char *function, const char *file, int lin
  * \param len  Length of string (bytes)
  * \return Hubbub error code, or HUBBUB_OK if unknown
  */
-hubbub_error hubbub_error_from_string(const char *str, size_t len);
-hubbub_error hubbub_error_from_string(const char *str, size_t len)
-{
+static inline hubbub_error hubbub_error_from_string(const char *str, size_t len) {
+
     if (strncmp(str, "HUBBUB_OK", len) == 0) {
         return HUBBUB_OK;
     } else if (strncmp(str, "HUBBUB_NOMEM", len) == 0) {
@@ -69,8 +66,8 @@ size_t parse_filesize(const char *filename);
  * \param pw        Pointer to client-specific private data
  * \return true on success, false otherwise.
  */
-bool parse_testfile(const char *filename, line_func callback, void *pw)
-{
+static inline bool parse_testfile(const char *filename, line_func callback, void *pw) {
+
     FILE *fp;
     char buf[300];
 
@@ -102,8 +99,8 @@ bool parse_testfile(const char *filename, line_func callback, void *pw)
  * \param limit  Upper bound on string length
  * \return String length
  */
-size_t parse_strlen(const char *str, size_t limit)
-{
+static inline size_t parse_strlen(const char *str, size_t limit) {
+
     size_t len = 0;
 
     if (str == NULL)
@@ -125,8 +122,8 @@ size_t parse_strlen(const char *str, size_t limit)
  * \param filename  Name of file to read size of
  * \return File size (in bytes), or 0 on error
  */
-size_t parse_filesize(const char *filename)
-{
+static inline size_t parse_filesize(const char *filename) {
+
     FILE *fp;
     size_t len = 0;
 
@@ -146,10 +143,8 @@ size_t parse_filesize(const char *filename)
 
 
 #ifndef strndup
-char *my_strndup(const char *s, size_t n);
+static inline char *my_strndup(const char *s, size_t n) {
 
-char *my_strndup(const char *s, size_t n)
-{
     size_t len;
     char *s2;
 
