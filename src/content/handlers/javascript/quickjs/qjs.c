@@ -61,7 +61,7 @@ dom_string *g_qjs_node_key = NULL;
 #define mkdir(path, mode) _mkdir(path)
 #endif
 
-static void compute_sha256(const uint8_t *data, size_t len, char *hex_out);
+static void compute_sha256(const uint8_t *data, size_t len, char *hex_out, size_t hex_out_len);
 static char *wisp_read_local_file(const char *filename, size_t *out_len);
 
 struct wisp_curl_buffer {
@@ -95,7 +95,7 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len)
         return NULL;
 
     char hex[65];
-    compute_sha256((const uint8_t *)url, strlen(url), hex);
+    compute_sha256((const uint8_t *)url, strlen(url), hex, sizeof(hex));
 
     char cache_dir[] = "/tmp/wisp-module-cache";
     char cache_path[256];
@@ -527,7 +527,7 @@ void qjs_on_node_destroy(void *node) {
     pthread_mutex_unlock(&global_heaps_mutex);
 }
 
-static void compute_sha256(const uint8_t *data, size_t len, char *hex_out) {
+static void compute_sha256(const uint8_t *data, size_t len, char *hex_out, size_t hex_out_len) {
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     const EVP_MD *md = EVP_sha256();
     uint8_t hash[EVP_MAX_MD_SIZE];
@@ -543,9 +543,13 @@ static void compute_sha256(const uint8_t *data, size_t len, char *hex_out) {
     }
 
     for (unsigned int i = 0; i < hash_len; i++) {
-        sprintf(hex_out + (i * 2), "%02x", hash[i]);
+        if ((i * 2) < hex_out_len) {
+            snprintf(hex_out + (i * 2), hex_out_len - (i * 2), "%02x", hash[i]);
+        }
     }
-    hex_out[hash_len * 2] = '\0';
+    if (hex_out_len > 0) {
+        hex_out[(hash_len * 2) < hex_out_len ? (hash_len * 2) : (hex_out_len - 1)] = '\0';
+    }
 }
 
 JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags)
@@ -555,7 +559,7 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
     }
 
     char hex[65];
-    compute_sha256(txt, txtlen, hex);
+    compute_sha256(txt, txtlen, hex, sizeof(hex));
 
     char cache_dir[] = "/tmp/wisp-bytecode-cache";
     char cache_path[256];
@@ -649,7 +653,7 @@ static void do_precompile(void *arg)
 
     if (pa->txt && pa->txtlen > 0) {
         char hex[65];
-        compute_sha256(pa->txt, pa->txtlen, hex);
+        compute_sha256(pa->txt, pa->txtlen, hex, sizeof(hex));
 
         char cache_dir[] = "/tmp/wisp-bytecode-cache";
         char cache_path[256];
