@@ -1,3 +1,4 @@
+#include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -188,7 +189,32 @@ int main(int argc, char **argv) {
     while (1) {
         wisp_ipc_msg msg;
         nserror err = wisp_ipc_recv(ipc_main, &msg);
-        if (err != NSERROR_OK) {
+        if (err == NSERROR_NOT_FOUND) {
+            struct js_context_node *curr_c = contexts;
+            uint64_t wait_time = 1000;
+            while (curr_c) {
+                if (curr_c->ctx) {
+                    JSContext *ctx1;
+                    int job_ret;
+                    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(curr_c->ctx), &ctx1)) != 0) {
+                        wait_time = 0;
+                        if (job_ret < 0) {
+                            JSValue exc = JS_GetException(ctx1);
+                            JS_FreeValue(ctx1, exc);
+                        }
+                    }
+                    uint64_t ctx_wait = qjs_execute_timers(curr_c->ctx);
+                    if (ctx_wait < wait_time) {
+                        wait_time = ctx_wait;
+                    }
+                }
+                curr_c = curr_c->next;
+            }
+            if (wait_time > 0) {
+                usleep(wait_time * 1000);
+            }
+            continue;
+        } else if (err != NSERROR_OK) {
             fprintf(stderr, "\n=== JS PROCESS RECEIVE FAILED: error %d ===\n", (int)err);
             break;
         }

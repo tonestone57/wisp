@@ -820,8 +820,7 @@ static wisp_ipc_handle *ensure_js_process_for_origin(const char *origin)
 {
     if (!origin)
         return NULL;
-    if (strncmp(origin, "null-origin-", 12) == 0 || strncmp(origin, "null-worker-", 12) == 0 ||
-        strstr(origin, "html5test")) {
+    if (strncmp(origin, "null-origin-", 12) == 0 || strncmp(origin, "null-worker-", 12) == 0) {
         return NULL;
     }
     pthread_mutex_lock(&js_processes_mutex);

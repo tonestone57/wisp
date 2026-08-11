@@ -1,3 +1,5 @@
+#include <stdbool.h>
+extern bool wisp_is_js_process;
 /*
  * Copyright 2025 Neosurf Contributors
  *
@@ -325,6 +327,10 @@ void qjs_timer_callback(void *p)
         /* Re-schedule if interval and not cancelled */
         if (guit && guit->misc && guit->misc->schedule) {
             guit->misc->schedule(timer->interval, qjs_timer_callback, timer);
+        } else if (wisp_is_js_process) {
+            uint64_t now;
+            nsu_getmonotonic_ms(&now);
+            timer->scheduled_time = now + timer->interval;
         }
     } else {
         /* Remove from active list and free */
@@ -640,4 +646,30 @@ int qjs_init_timers(JSContext *ctx)
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_timers_init", JS_TRUE, 0);
     JS_FreeValue(ctx, global_obj);
     return 0;
+}
+
+uint64_t qjs_execute_timers(JSContext *ctx) {
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return 1000;
+
+    uint64_t now;
+    nsu_getmonotonic_ms(&now);
+
+    struct qjs_timer *curr = t->timers;
+    uint64_t min_wait = 1000;
+
+    while (curr) {
+        if (!curr->cancelled) {
+            if (now >= curr->scheduled_time) {
+                qjs_timer_callback(curr);
+                min_wait = 0; // execute microtasks immediately
+                break;
+            } else {
+                uint64_t wait = curr->scheduled_time - now;
+                if (wait < min_wait) min_wait = wait;
+            }
+        }
+        curr = curr->next;
+    }
+    return min_wait;
 }
