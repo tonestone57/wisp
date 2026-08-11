@@ -29,6 +29,39 @@ START_TEST(test_shm_dom_destroy_null)
 }
 END_TEST
 
+START_TEST(test_shm_dom_lock_read)
+{
+    const char *test_name = "/test_shm_dom_lock_read";
+    shm_dom_t *shm = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    // Ensure initial lock state is 0
+    ck_assert_int_eq(shm->lock, 0);
+
+    // Test a read lock increments the counter
+    shm_dom_lock_read(shm);
+    ck_assert_int_eq(shm->lock, 1);
+
+    // Test a second read lock increments it again
+    shm_dom_lock_read(shm);
+    ck_assert_int_eq(shm->lock, 2);
+
+    // Test a read unlock decrements the counter
+    shm_dom_unlock_read(shm);
+    ck_assert_int_eq(shm->lock, 1);
+
+    // Final unlock
+    shm_dom_unlock_read(shm);
+    ck_assert_int_eq(shm->lock, 0);
+
+    shm_dom_destroy(shm, test_name, true);
+
+    // Test NULL does not crash
+    shm_dom_lock_read(NULL);
+    shm_dom_unlock_read(NULL);
+}
+END_TEST
+
 static Suite *shm_dom_suite(void)
 {
     Suite *s = suite_create("shm_dom");
@@ -36,6 +69,7 @@ static Suite *shm_dom_suite(void)
 
     tcase_add_test(tc_core, test_shm_dom_create);
     tcase_add_test(tc_core, test_shm_dom_destroy_null);
+    tcase_add_test(tc_core, test_shm_dom_lock_read);
     suite_add_tcase(s, tc_core);
 
     return s;
