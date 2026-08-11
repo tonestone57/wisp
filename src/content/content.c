@@ -657,6 +657,8 @@ bool content_add_user(struct content *c,
 {
     struct content_user *user;
 
+    if (!c || !c->user_list) return false;
+
     NSLOG(wisp, INFO, "content " URL_FMT_SPC " (%p), user %p %p", nsurl_access_log(llcache_handle_get_url(c->llcache)),
         c, callback, pw);
     user = malloc(sizeof(struct content_user));
@@ -679,6 +681,10 @@ void content_remove_user(struct content *c,
     void (*callback)(struct content *c, content_msg msg, const union content_msg_data *data, void *pw), void *pw)
 {
     struct content_user *user, *next;
+
+    if (!c || !c->user_list)
+        return;
+
     NSLOG(wisp, INFO, "content " URL_FMT_SPC " (%p), user %p %p", nsurl_access_log(llcache_handle_get_url(c->llcache)),
         c, callback, pw);
 

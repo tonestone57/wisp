@@ -37,6 +37,9 @@ typedef struct hlcache_handle hlcache_handle;
 typedef struct hlcache_child_context {
     const char *charset; /**< Charset of parent */
     bool quirks; /**< Whether parent is quirky */
+    struct csp *csp; /**< CSP of parent */
+    const char *coep; /**< COEP header value */
+    struct nsurl *parent_url; /**< Parent URL for COEP checks */
 } hlcache_child_context;
 
 /** High-level cache event */

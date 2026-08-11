@@ -2446,6 +2446,52 @@ static nserror llcache_fetch_process_data(llcache_object *object, const uint8_t 
     return NSERROR_OK;
 }
 
+nserror llcache_handle_retrieve_buffer(nsurl *url, const uint8_t *data, size_t len, const char *mime_type,
+    llcache_handle_callback cb, void *pw, llcache_handle **result)
+{
+    nserror error;
+    llcache_object *obj;
+    llcache_object_user *user;
+
+    error = llcache_object_new(url, &obj);
+    if (error != NSERROR_OK) return error;
+
+    obj->source_data = malloc(len ? len : 1);
+    if (obj->source_data == NULL) {
+        llcache_object_destroy(obj);
+        return NSERROR_NOMEM;
+    }
+    if (data && len > 0) {
+        memcpy(obj->source_data, data, len);
+    }
+    obj->source_len = len;
+    obj->source_alloc = len;
+    obj->fetch.state = LLCACHE_FETCH_COMPLETE;
+    obj->store_state = LLCACHE_STATE_RAM;
+
+    if (mime_type != NULL) {
+        size_t hlen = 14 + strlen(mime_type) + 1; /* SLEN("Content-Type: ") is 14 */
+        char *hbuf = malloc(hlen);
+        if (hbuf != NULL) {
+            snprintf(hbuf, hlen, "Content-Type: %s", mime_type);
+            llcache_fetch_process_header(obj, (const uint8_t *)hbuf, strlen(hbuf));
+            free(hbuf);
+        }
+    }
+
+    error = llcache_object_user_new(cb, pw, &user);
+    if (error != NSERROR_OK) {
+        llcache_object_destroy(obj);
+        return error;
+    }
+
+    llcache_object_add_user(obj, user);
+    llcache_object_add_to_list(obj, &llcache->uncached_objects);
+    *result = user->handle;
+    return NSERROR_OK;
+}
+
+
 
 
 /**
@@ -4035,100 +4081,3 @@ bool llcache_handle_references_same_object(const llcache_handle *a, const llcach
     return a->object == b->object;
 }
 
-/* See llcache.h for documentation */
-nserror llcache_handle_retrieve_buffer(nsurl *url, const uint8_t *data, size_t len, const char *mime_type,
-    llcache_handle_callback cb, void *pw, llcache_handle **result)
-{
-    nserror error;
-    llcache_object *object;
-    llcache_object_user *user;
-
-    assert(url != NULL);
-    assert(data != NULL);
-    assert(len > 0);
-    assert(mime_type != NULL);
-
-    /* Check for existing object with the same URL (dedup) */
-    for (object = llcache->uncached_objects; object != NULL; object = object->next) {
-        if (nsurl_compare(object->url, url, NSURL_COMPLETE))
-            break;
-    }
-
-    if (object != NULL) {
-        /* Found existing object — just add another user */
-        error = llcache_object_user_new(cb, pw, &user);
-        if (error != NSERROR_OK)
-            return error;
-
-        llcache_object_add_user(object, user);
-        *result = user->handle;
-
-        llcache_users_not_caught_up();
-
-        NSLOG(llcache, DEBUG, "Buffer dedup HIT: reusing object %p for '%s'", object, nsurl_access(url));
-
-        return NSERROR_OK;
-    }
-
-    /* No existing object — create a new one */
-    {
-        char *header_buf;
-        size_t header_len;
-
-        error = llcache_object_new(url, &object);
-        if (error != NSERROR_OK)
-            return error;
-
-        /* Copy source data into the object */
-        object->source_data = malloc(len);
-        if (object->source_data == NULL) {
-            llcache_object_destroy(object);
-            return NSERROR_NOMEM;
-        }
-        memcpy(object->source_data, data, len);
-        object->source_len = len;
-        object->source_alloc = len;
-
-        /* Inject Content-Type header */
-        header_len = strlen("Content-Type: ") + strlen(mime_type);
-        header_buf = malloc(header_len + 1);
-        if (header_buf == NULL) {
-            llcache_object_destroy(object);
-            return NSERROR_NOMEM;
-        }
-        snprintf(header_buf, header_len + 1, "Content-Type: %s", mime_type);
-        error = llcache_fetch_process_header(object, (const uint8_t *)header_buf, header_len);
-        free(header_buf);
-        if (error != NSERROR_OK) {
-            llcache_object_destroy(object);
-            return error;
-        }
-
-        /* Mark fetch as complete */
-        object->fetch.state = LLCACHE_FETCH_COMPLETE;
-
-        /* Put on uncached list */
-        object->prev = NULL;
-        object->next = llcache->uncached_objects;
-        if (llcache->uncached_objects != NULL)
-            llcache->uncached_objects->prev = object;
-        llcache->uncached_objects = object;
-    }
-
-    /* Create a user for this object */
-    error = llcache_object_user_new(cb, pw, &user);
-    if (error != NSERROR_OK) {
-        return error;
-    }
-
-    llcache_object_add_user(object, user);
-
-    *result = user->handle;
-
-    /* Trigger catch-up — delivers HAD_DATA + DONE to the user */
-    llcache_users_not_caught_up();
-
-    NSLOG(llcache, DEBUG, "Created buffer object %p for '%s' (%zu bytes)", object, nsurl_access(url), len);
-
-    return NSERROR_OK;
-}
