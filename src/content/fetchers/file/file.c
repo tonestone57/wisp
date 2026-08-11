@@ -514,13 +514,14 @@ process_dir_ent(struct fetch_file_context *ctx, struct dirent *ent, bool even, c
         /* Get date in output format. a (day of week) and b
          * (month) are both affected by the locale
          */
-        if (strftime((char *)&datebuf, sizeof datebuf, "%a %d %b %Y", localtime(&ent_stat.st_mtime)) == 0) {
+        struct tm *tm_info = localtime(&ent_stat.st_mtime);
+        if (tm_info == NULL || strftime((char *)&datebuf, sizeof datebuf, "%a %d %b %Y", tm_info) == 0) {
             datebuf[0] = '-';
             datebuf[1] = 0;
         }
 
         /* Get time in output format */
-        if (strftime((char *)&timebuf, sizeof timebuf, "%H:%M", localtime(&ent_stat.st_mtime)) == 0) {
+        if (tm_info == NULL || strftime((char *)&timebuf, sizeof timebuf, "%H:%M", tm_info) == 0) {
             timebuf[0] = '-';
             timebuf[1] = 0;
         }
@@ -582,14 +583,14 @@ static int dir_sort_alpha(const struct dirent **d1, const struct dirent **d2)
             if (*s1 == '\0' || *s2 == '\0')
                 break;
         }
-        if (tolower(*s1) != tolower(*s2))
+        if (tolower((unsigned char)*s1) != tolower((unsigned char)*s2))
             break;
 
         s1++;
         s2++;
     }
 
-    return tolower(*s1) - tolower(*s2);
+    return tolower((unsigned char)*s1) - tolower((unsigned char)*s2);
 }
 
 static void fetch_file_process_dir(struct fetch_file_context *ctx, struct stat *fdstat)

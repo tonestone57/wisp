@@ -538,15 +538,15 @@ static void *fetch_about_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, 
 
     path = nsurl_get_component(url, NSURL_PATH);
 
-    for (handler_loop = 0; handler_loop < about_handler_list_len; handler_loop++) {
-        if (lwc_string_isequal(path, about_handler_list[handler_loop].lname, &match) == lwc_error_ok && match) {
-            ctx->handler = about_handler_list[handler_loop].handler;
-            break;
+    if (path != NULL) {
+        for (handler_loop = 0; handler_loop < about_handler_list_len; handler_loop++) {
+            if (lwc_string_isequal(path, about_handler_list[handler_loop].lname, &match) == lwc_error_ok && match) {
+                ctx->handler = about_handler_list[handler_loop].handler;
+                break;
+            }
         }
-    }
-
-    if (path != NULL)
         lwc_string_unref(path);
+    }
 
     ctx->fetchh = fetchh;
     ctx->url = nsurl_ref(url);

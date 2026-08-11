@@ -194,9 +194,10 @@ static bool fetch_data_process(struct fetch_data_context *c)
         return false;
     }
 
-    if (strcmp(c->mimetype + strlen(c->mimetype) - 7, ";base64") == 0) {
+    size_t mlen = strlen(c->mimetype);
+    if (mlen >= 7 && strcmp(c->mimetype + mlen - 7, ";base64") == 0) {
         c->base64 = true;
-        c->mimetype[strlen(c->mimetype) - 7] = '\0';
+        c->mimetype[mlen - 7] = '\0';
     } else {
         c->base64 = false;
     }

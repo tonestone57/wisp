@@ -243,19 +243,17 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                         fetch_set_http_code(fetchh, (long)http_code);
                     }
                     fetch_send_callback(&fmsg, fetchh);
-                    if (is_active_fetch_id(fetch_id)) {
-                        pthread_mutex_lock(&active_fetches_mutex);
-                        struct ipc_fetch_info *f_post = active_fetches;
-                        while (f_post && f_post->id != fetch_id) f_post = f_post->next;
-                        if (f_post) {
-                            f_post->finished = true;
-                            struct fetch *fh = f_post->fetchh;
-                            pthread_mutex_unlock(&active_fetches_mutex);
-                            fetch_remove_from_queues(fh);
-                            fetch_free(fh);
-                        } else {
-                            pthread_mutex_unlock(&active_fetches_mutex);
-                        }
+                    pthread_mutex_lock(&active_fetches_mutex);
+                    struct ipc_fetch_info *f_post = active_fetches;
+                    while (f_post && f_post->id != fetch_id) f_post = f_post->next;
+                    if (f_post && !f_post->finished) {
+                        f_post->finished = true;
+                        struct fetch *fh = f_post->fetchh;
+                        pthread_mutex_unlock(&active_fetches_mutex);
+                        fetch_remove_from_queues(fh);
+                        fetch_free(fh);
+                    } else {
+                        pthread_mutex_unlock(&active_fetches_mutex);
                     }
                     break;
                 case WISP_IPC_MSG_FETCH_REDIRECT:

@@ -173,10 +173,10 @@ static bool curl_fetch_ssl_key_eq(void *key1, void *key2)
         goto out;
 
 out:
-    lwc_string_unref(hostname1);
-    lwc_string_unref(hostname2);
-    lwc_string_unref(port1);
-    lwc_string_unref(port2);
+    if (hostname1) lwc_string_unref(hostname1);
+    if (hostname2) lwc_string_unref(hostname2);
+    if (port1) lwc_string_unref(port1);
+    if (port2) lwc_string_unref(port2);
 
     return iseq;
 }
@@ -1393,6 +1393,8 @@ static bool fetch_curl_initiate_fetch(struct curl_fetch_info *fetch, CURL *handl
     CURLcode code;
     CURLMcode codem;
 
+    if (!fetch || !handle) return false;
+
     fetch->curl_handle = handle;
 
     /* Initialise the handle */
@@ -2019,12 +2021,14 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
             return size;
         }
         SKIP_ST(9);
-        strncpy(f->location, data + i, size - i);
-        f->location[size - i] = '\0';
-        for (i = size - i - 1; i >= 0 &&
-            (f->location[i] == ' ' || f->location[i] == '\t' || f->location[i] == '\r' || f->location[i] == '\n');
-            i--)
-            f->location[i] = '\0';
+        size_t loc_len = size - i;
+        strncpy(f->location, data + i, loc_len);
+        f->location[loc_len] = '\0';
+        while (loc_len > 0 &&
+               (f->location[loc_len - 1] == ' ' || f->location[loc_len - 1] == '\t' ||
+                f->location[loc_len - 1] == '\r' || f->location[loc_len - 1] == '\n')) {
+            f->location[--loc_len] = '\0';
+        }
     } else if (15 < size && strncasecmp(data, "Content-Length:", 15) == 0) {
         /* extract Content-Length header */
         SKIP_ST(15);

@@ -29,6 +29,10 @@ static JSValue js_crypto_getRandomValues(JSContext *ctx, JSValueConst this_val, 
         return JS_ThrowTypeError(ctx, "Failed to get ArrayBuffer pointer");
     }
 
+    if (offset + byte_length > buf_len) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "TypedArray offset out of bounds");
+    }
     if (RAND_bytes(ptr + offset, byte_length) != 1) {
         JS_FreeValue(ctx, buffer);
         return JS_ThrowInternalError(ctx, "RAND_bytes failed");
@@ -62,9 +66,8 @@ static JSValue js_crypto_subtle_digest(JSContext *ctx, JSValueConst this_val, in
         return JS_ThrowTypeError(ctx, "Unsupported digest algorithm");
     }
 
-    size_t data_len;
-    uint8_t *data_ptr;
-    bool is_typed_array = false;
+    size_t data_len = 0;
+    uint8_t *data_ptr = NULL;
 
     if (JS_IsArrayBuffer(argv[1])) {
         data_ptr = JS_GetArrayBuffer(ctx, &data_len, argv[1]);
@@ -73,10 +76,11 @@ static JSValue js_crypto_subtle_digest(JSContext *ctx, JSValueConst this_val, in
         JSValue buffer = JS_GetTypedArrayBuffer(ctx, argv[1], &offset, &byte_length, &bytes_per_element);
         if (JS_IsException(buffer)) return buffer;
         data_ptr = JS_GetArrayBuffer(ctx, &data_len, buffer);
-        data_ptr += offset;
-        data_len = byte_length;
+        if (data_ptr) {
+            data_ptr += offset;
+            data_len = byte_length;
+        }
         JS_FreeValue(ctx, buffer);
-        is_typed_array = true;
     }
 
     if (!data_ptr) {
