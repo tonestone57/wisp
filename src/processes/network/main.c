@@ -327,7 +327,9 @@ int main(int argc, char **argv) {
             wisp_ipc_msg_free(&msg);
         }
 
-        if (err != NSERROR_NOT_FOUND) {
+        if (err == NSERROR_SHUTDOWN) {
+            break;
+        } else if (err != NSERROR_NOT_FOUND) {
             fprintf(stderr, "WISP-NETWORK: recv returned %d\n", err);
             break;
         }

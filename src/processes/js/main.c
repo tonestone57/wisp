@@ -214,6 +214,8 @@ int main(int argc, char **argv) {
                 usleep(wait_time * 1000);
             }
             continue;
+        } else if (err == NSERROR_SHUTDOWN) {
+            break;
         } else if (err != NSERROR_OK) {
             fprintf(stderr, "\n=== JS PROCESS RECEIVE FAILED: error %d ===\n", (int)err);
             break;
