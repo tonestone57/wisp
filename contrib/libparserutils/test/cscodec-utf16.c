@@ -113,10 +113,10 @@ bool handle_line(const char *data, size_t datalen, void *pw)
         if (ctx->inexp) {
             /* This marks end of testcase, so run it */
 
-            if (ctx->buf[ctx->bufused - 1] == '\n')
+            if (ctx->bufused > 0 && ctx->buf[ctx->bufused - 1] == '\n')
                 ctx->bufused -= 1;
 
-            if (ctx->expused != 0 && ctx->exp[ctx->expused - 1] == '\n')
+            if (ctx->expused > 0 && ctx->exp[ctx->expused - 1] == '\n')
                 ctx->expused -= 1;
 
             run_test(ctx);
