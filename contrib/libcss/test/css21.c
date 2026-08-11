@@ -121,7 +121,7 @@ int main(int argc, char **argv)
                 css_stylesheet_destroy(import);
 
                 error = CSS_IMPORTS_PENDING;
-
+                lwc_string_unref(url);
                 free(buf);
             }
         }

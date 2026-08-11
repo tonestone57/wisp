@@ -4,7 +4,7 @@
 
 static size_t dump_css_fixed(css_fixed f, char *ptr, size_t len)
 {
-#define ABS(x) (uint32_t)((x) < 0 ? -(x) : (x))
+#define ABS(x) (uint32_t)((x) < 0 ? -((int64_t)x) : (x))
     uint32_t uintpart = FIXTOINT(ABS(f));
     /* + 500 to ensure round to nearest (division will truncate) */
     uint32_t fracpart = ((ABS(f) & 0x3ff) * 1000 + 500) / (1 << 10);
@@ -1117,6 +1117,8 @@ static void dump_computed_style(const css_computed_style *style, char *buf, size
         wrote = snprintf(ptr, *len, "color: inherit\n");
     } else if (val == CSS_COLOR_COLOR) {
         wrote = snprintf(ptr, *len, "color: #%08x\n", color);
+    } else {
+        wrote = 0;
     }
     ptr += wrote;
     *len -= wrote;
@@ -1197,6 +1199,9 @@ static void dump_computed_style(const css_computed_style *style, char *buf, size
         break;
     case CSS_COLUMN_RULE_COLOR_COLOR:
         wrote = snprintf(ptr, *len, "column-rule-color: #%08x\n", color);
+        break;
+    default:
+        wrote = 0;
         break;
     }
     ptr += wrote;
