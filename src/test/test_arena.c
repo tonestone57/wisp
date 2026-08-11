@@ -51,6 +51,62 @@ START_TEST(test_arena_destroy_normal)
 }
 END_TEST
 
+START_TEST(test_arena_merge_null)
+{
+    struct arena *a = arena_create(4096);
+    ck_assert_ptr_nonnull(a);
+
+    /* Should not crash when passing NULL */
+    arena_merge(NULL, NULL);
+    arena_merge(a, NULL);
+    arena_merge(NULL, a);
+
+    arena_destroy(a);
+}
+END_TEST
+
+START_TEST(test_arena_merge_normal)
+{
+    struct arena *m = arena_create(4096);
+    struct arena *w = arena_create(4096);
+    ck_assert_ptr_nonnull(m);
+    ck_assert_ptr_nonnull(w);
+
+    int m_dtor_calls = 0;
+    int w_dtor1_calls = 0;
+    int w_dtor2_calls = 0;
+
+    /* Register destructors in both arenas */
+    arena_register_destructor(m, &m_dtor_calls, dummy_destructor);
+    arena_register_destructor(w, &w_dtor1_calls, dummy_destructor);
+    arena_register_destructor(w, &w_dtor2_calls, dummy_destructor);
+
+    /* Allocate some memory so chunks are created */
+    void *m_ptr = arena_alloc(m, 128);
+    ck_assert_ptr_nonnull(m_ptr);
+
+    void *w_ptr1 = arena_alloc(w, 256);
+    ck_assert_ptr_nonnull(w_ptr1);
+    void *w_ptr2 = arena_alloc(w, 512);
+    ck_assert_ptr_nonnull(w_ptr2);
+
+    /* Merge worker arena into main arena */
+    arena_merge(m, w);
+
+    /* Destroy worker arena - its destructors and chunks should have been moved */
+    arena_destroy(w);
+    ck_assert_int_eq(w_dtor1_calls, 0);
+    ck_assert_int_eq(w_dtor2_calls, 0);
+    ck_assert_int_eq(m_dtor_calls, 0);
+
+    /* Destroy main arena - it should now call all destructors and free all chunks */
+    arena_destroy(m);
+    ck_assert_int_eq(m_dtor_calls, 1);
+    ck_assert_int_eq(w_dtor1_calls, 1);
+    ck_assert_int_eq(w_dtor2_calls, 1);
+}
+END_TEST
+
 static Suite *arena_suite(void)
 {
     Suite *s = suite_create("arena");
@@ -59,6 +115,8 @@ static Suite *arena_suite(void)
     tcase_add_test(tc_core, test_arena_destroy_null);
     tcase_add_test(tc_core, test_arena_destroy_unaligned);
     tcase_add_test(tc_core, test_arena_destroy_normal);
+    tcase_add_test(tc_core, test_arena_merge_null);
+    tcase_add_test(tc_core, test_arena_merge_normal);
 
     suite_add_tcase(s, tc_core);
 
