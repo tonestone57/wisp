@@ -178,6 +178,9 @@ struct content *content_factory_create_content(
     http_content_type *ct = NULL;
     nserror error;
 
+    if (effective_type == NULL)
+        return NULL;
+
     handler = content_lookup(effective_type);
     if (handler == NULL)
         return NULL;

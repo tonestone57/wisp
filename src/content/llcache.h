@@ -281,4 +281,9 @@ const char *llcache_handle_get_header(const llcache_handle *handle, const char *
  */
 bool llcache_handle_references_same_object(const llcache_handle *a, const llcache_handle *b);
 
+/* Retrieve a low-level cache handle for in-memory buffer data */
+nserror llcache_handle_retrieve_buffer(nsurl *url, const uint8_t *data, size_t len,
+    const char *mime_type, llcache_handle_callback cb, void *pw,
+    llcache_handle **result);
+
 #endif
