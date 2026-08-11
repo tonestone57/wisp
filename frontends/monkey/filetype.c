@@ -140,7 +140,8 @@ void monkey_fetch_filetype_init(const char *mimefile)
                      * the line
                      */
                     *ptr = '\0';
-                    hash_add(mime_hash, ext, type);
+                    if (*ext != '\0')
+                        hash_add(mime_hash, ext, type);
                     break;
                 }
 
@@ -213,6 +214,9 @@ const char *monkey_fetch_filetype(const char *unix_path)
     }
 
     ext = strdup(ptr + 1); /* skip the . */
+    if (ext == NULL) {
+        return "text/plain";
+    }
 
     /* the hash table only contains lower-case versions - make sure this
      * copy is lower case too.

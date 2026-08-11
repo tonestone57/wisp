@@ -55,10 +55,11 @@ static nserror nsfont_position_in_string(
     const plot_font_style_t *fstyle, const char *string, size_t length, int x, size_t *char_offset, int *actual_x)
 {
     int char_width = fstyle->size / PLOT_STYLE_SCALE;
+    if (char_width <= 0) char_width = 1;
     int spacing = fstyle->letter_spacing;
 
     if (spacing == 0) {
-        *char_offset = x / char_width;
+        *char_offset = (x < 0) ? 0 : (x / char_width);
     } else {
         /* width(N) = N * char_width + (N-1) * spacing
            width(N) = N * (char_width + spacing) - spacing
@@ -66,7 +67,9 @@ static nserror nsfont_position_in_string(
            N = (x + spacing) / (char_width + spacing) */
         if (x < 0)
             x = 0;
-        *char_offset = (x + spacing) / (char_width + spacing);
+        int denom = char_width + spacing;
+        if (denom <= 0) denom = 1;
+        *char_offset = (x + spacing) / denom;
     }
 
     if (*char_offset > length) /* Note: This compares char count to byte length, which is safe-ish for monkey but
@@ -139,6 +142,7 @@ static nserror nsfont_split(
 
     /* Re-calculate actual_x based on the final offset */
     int char_width = fstyle->size / PLOT_STYLE_SCALE;
+    if (char_width <= 0) char_width = 1;
     int spacing = fstyle->letter_spacing;
 
     if (*char_offset > 0) {

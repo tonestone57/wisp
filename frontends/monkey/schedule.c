@@ -112,6 +112,9 @@ nserror monkey_schedule(int tival, void (*callback)(void *p), void *p)
     tv.tv_usec = (tival % 1000) * 1000; /* remainder to microseconds */
 
     nscb = calloc(1, sizeof(struct nscallback));
+    if (nscb == NULL) {
+        return NSERROR_NOMEM;
+    }
 
     gettimeofday(&nscb->tv, NULL);
     timeradd(&nscb->tv, &tv, &nscb->tv);

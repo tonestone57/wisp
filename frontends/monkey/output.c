@@ -46,6 +46,9 @@ int moutf(enum monkey_output_type mout_type, const char *fmt, ...)
     if (mout_type == MOUT_ERROR || mout_type == MOUT_DIE) {
         critical_error_count++;
     }
+    if (mout_type < 0 || mout_type >= (sizeof(type_text) / sizeof(type_text[0]))) {
+        mout_type = MOUT_GENERIC;
+    }
 
     res = fprintf(stdout, "%s ", type_text[mout_type]);
 

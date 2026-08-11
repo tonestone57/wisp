@@ -1,4 +1,3 @@
-#include "wisp/plotters.h"
 /*
  * Copyright 2011 Daniel Silverstone <dsilvers@digital-scurf.org>
  *
@@ -44,7 +43,6 @@
 #include "wisp/misc.h"
 #include "wisp/wisp.h"
 #include "wisp/plotters.h"
-#include "monkey/plot.h"
 #include "monkey/plot.h"
 #include "wisp/url_db.h"
 #include "wisp/utils/sys_time.h"

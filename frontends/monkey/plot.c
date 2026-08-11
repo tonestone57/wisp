@@ -34,6 +34,7 @@
  */
 static nserror monkey_plot_clip(const struct redraw_context *ctx, const struct rect *clip)
 {
+    if (clip == NULL) return NSERROR_BAD_PARAMETER;
     moutf(MOUT_PLOT, "CLIP X0 %d Y0 %d X1 %d Y1 %d", clip->x0, clip->y0, clip->x1, clip->y1);
     return NSERROR_OK;
 }
@@ -95,6 +96,7 @@ static nserror monkey_plot_disc(const struct redraw_context *ctx, const plot_sty
  */
 static nserror monkey_plot_line(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *line)
 {
+    if (line == NULL) return NSERROR_BAD_PARAMETER;
     moutf(MOUT_PLOT, "LINE X0 %d Y0 %d X1 %d Y1 %d", line->x0, line->y0, line->x1, line->y1);
     return NSERROR_OK;
 }
@@ -116,6 +118,7 @@ static nserror monkey_plot_line(const struct redraw_context *ctx, const plot_sty
 static nserror
 monkey_plot_rectangle(const struct redraw_context *ctx, const plot_style_t *style, const struct rect *rect)
 {
+    if (rect == NULL) return NSERROR_BAD_PARAMETER;
     moutf(MOUT_PLOT, "RECT X0 %d Y0 %d X1 %d Y1 %d", rect->x0, rect->y0, rect->x1, rect->y1);
     return NSERROR_OK;
 }
@@ -159,7 +162,8 @@ monkey_plot_polygon(const struct redraw_context *ctx, const plot_style_t *style,
 static nserror monkey_plot_path(const struct redraw_context *ctx, const plot_style_t *pstyle, const float *p,
     unsigned int n, const float transform[6])
 {
-    moutf(MOUT_PLOT, "PATH VERTICIES %d WIDTH %f", n, plot_style_fixed_to_float(pstyle->stroke_width));
+    float width = pstyle ? plot_style_fixed_to_float(pstyle->stroke_width) : 0.0f;
+    moutf(MOUT_PLOT, "PATH VERTICIES %d WIDTH %f", n, width);
     return NSERROR_OK;
 }
 
@@ -219,7 +223,8 @@ static nserror monkey_plot_path_close(const struct redraw_context *ctx)
  */
 static nserror monkey_plot_path_fill(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
 {
-    moutf(MOUT_PLOT, "PATH FILL COLOUR %x", pstyle->fill_colour);
+    colour c = pstyle ? pstyle->fill_colour : 0;
+    moutf(MOUT_PLOT, "PATH FILL COLOUR %x", c);
     return NSERROR_OK;
 }
 
@@ -228,7 +233,9 @@ static nserror monkey_plot_path_fill(const struct redraw_context *ctx, const plo
  */
 static nserror monkey_plot_path_stroke(const struct redraw_context *ctx, const plot_style_t *pstyle, const float transform[6])
 {
-    moutf(MOUT_PLOT, "PATH STROKE COLOUR %x WIDTH %f", pstyle->stroke_colour, plot_style_fixed_to_float(pstyle->stroke_width));
+    colour c = pstyle ? pstyle->stroke_colour : 0;
+    float width = pstyle ? plot_style_fixed_to_float(pstyle->stroke_width) : 0.0f;
+    moutf(MOUT_PLOT, "PATH STROKE COLOUR %x WIDTH %f", c, width);
     return NSERROR_OK;
 }
 
