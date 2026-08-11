@@ -106,6 +106,7 @@ static nserror cookie_manager_walk_cb(void *ctx, void *node_data, enum treeview_
         struct cookie_manager_entry *entry = node_data;
 
         if (entry->data[COOKIE_M_NAME].value_len == tw->title_len &&
+            entry->data[COOKIE_M_NAME].value != NULL &&
             strcmp(tw->title, entry->data[COOKIE_M_NAME].value) == 0) {
             /* Found what we're looking for */
             tw->entry = entry;

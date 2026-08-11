@@ -141,7 +141,7 @@ void *hashmap_insert(hashmap_t *hashmap, void *key)
                     /* Allocation failed */
                     return NULL;
                 }
-                new_value = hashmap->params->value_alloc(entry->key);
+                new_value = hashmap->params->value_alloc(new_key);
                 if (new_value == NULL) {
                     /* Allocation failed */
                     hashmap->params->key_destroy(new_key);
