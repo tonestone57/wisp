@@ -10,6 +10,7 @@ typedef struct wisp_ipc_handle wisp_ipc_handle;
 
 typedef enum {
     WISP_IPC_MSG_INVALID = 0,
+    WISP_IPC_MSG_ERROR = 200,
     /* Network messages */
     WISP_IPC_MSG_FETCH_REQUEST = 1,
     WISP_IPC_MSG_FETCH_HEADER = 2,

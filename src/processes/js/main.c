@@ -393,6 +393,27 @@ int main(int argc, char **argv) {
                     wisp_ipc_send(ipc_main, &response);
                 }
             }
+        } else if (msg.type == WISP_IPC_MSG_DOM_REQUEST) {
+            wisp_ipc_msg response;
+            response.type = WISP_IPC_MSG_DOM_RESPONSE;
+            response.length = 0;
+            response.data = NULL;
+            wisp_ipc_send(ipc_main, &response);
+        } else if (msg.type == WISP_IPC_MSG_JS_EVENT) {
+            wisp_ipc_msg response;
+            response.type = WISP_IPC_MSG_JS_EVENT;
+            response.length = 0;
+            response.data = NULL;
+            wisp_ipc_send(ipc_main, &response);
+        } else {
+            // Unhandled types
+            wisp_ipc_msg response;
+            response.type = WISP_IPC_MSG_ERROR;
+            response.length = 4;
+            uint32_t payload = (uint32_t)msg.type;
+            response.data = (uint8_t *)&payload;
+            wisp_ipc_send(ipc_main, &response);
+            response.data = NULL;
         }
         wisp_ipc_msg_free(&msg);
     }

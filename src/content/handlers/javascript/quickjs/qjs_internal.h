@@ -109,6 +109,7 @@ struct jsthread {
     struct jsthread *next_in_heap; /* Next thread in the same heap's linked list */
     void *win_priv;
     void *doc_priv;
+    struct dom_document *strong_doc;
     char *origin;
     struct nsurl *location_url;
     char *current_script_name;

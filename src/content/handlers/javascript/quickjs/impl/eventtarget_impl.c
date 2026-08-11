@@ -6,9 +6,11 @@
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
+#include "wisp/utils/ipc.h"
 #include "JSEventTarget.gen.h"
 
 extern bool wisp_is_js_process;
+extern wisp_ipc_handle *get_js_process_handle(const char *origin);
 
 static QJSNodePrivate *get_priv_with_global(JSContext *ctx, JSValueConst val) {
     if (JS_IsUndefined(val) || JS_IsNull(val)) {
@@ -104,11 +106,31 @@ static JSValue js_eventtarget_addEventListener_manual(JSContext *ctx, JSValueCon
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
-    if (!found && !wisp_is_js_process && is_real_dom_node && priv->node != NULL) {
-        dom_string *type_dom = NULL;
-        dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
-        js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
-        dom_string_unref(type_dom);
+    if (!found && is_real_dom_node && priv->node != NULL) {
+        if (wisp_is_js_process) {
+            wisp_ipc_msg msg;
+            msg.type = WISP_IPC_MSG_JS_EVENT;
+            msg.length = 0;
+            msg.data = NULL;
+            wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
+            if (ipc_js) wisp_ipc_send(ipc_js, &msg);
+        } else {
+            dom_string *type_dom = NULL;
+            dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+
+            dom_node *target_node = NULL;
+            bool is_window = (priv == &thread->global_window_priv) || (!priv->is_dom_node && priv->node == thread->win_priv);
+            if (is_window) {
+                if (thread->strong_doc) target_node = (dom_node *)thread->strong_doc;
+            } else if (is_real_dom_node && priv->node != NULL) {
+                target_node = (dom_node *)priv->node;
+            }
+
+            if (target_node) {
+                js_dom_event_add_listener(thread, qjs_thread_get_document(thread), target_node, type_dom, argv[1]);
+            }
+            if (type_dom) dom_string_unref(type_dom);
+        }
     }
 
     JS_FreeCString(ctx, type);
@@ -168,14 +190,35 @@ static JSValue js_eventtarget_removeEventListener_manual(JSContext *ctx, JSValue
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
-    if (!wisp_is_js_process && is_real_dom_node && priv->node != NULL) {
-        const char *type = JS_ToCString(ctx, argv[0]);
-        if (type) {
-            dom_string *type_dom = NULL;
-            dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
-            js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (dom_node *)priv->node, type_dom, argv[1]);
-            dom_string_unref(type_dom);
-            JS_FreeCString(ctx, type);
+    if (is_real_dom_node && priv->node != NULL) {
+        if (wisp_is_js_process) {
+            wisp_ipc_msg msg;
+            msg.type = WISP_IPC_MSG_JS_EVENT;
+            msg.length = 0;
+            msg.data = NULL;
+            wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
+            if (ipc_js) wisp_ipc_send(ipc_js, &msg);
+        } else {
+            const char *type = JS_ToCString(ctx, argv[0]);
+            if (type) {
+                dom_string *type_dom = NULL;
+                dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+
+                dom_node *target_node = NULL;
+                bool is_window = (priv == &thread->global_window_priv) || (!priv->is_dom_node && priv->node == thread->win_priv);
+                if (is_window) {
+                    if (thread->strong_doc) target_node = (dom_node *)thread->strong_doc;
+                } else if (is_real_dom_node && priv->node != NULL) {
+                    target_node = (dom_node *)priv->node;
+                }
+
+                if (target_node) {
+                    js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), target_node, type_dom, argv[1]);
+                }
+
+                if (type_dom) dom_string_unref(type_dom);
+                JS_FreeCString(ctx, type);
+            }
         }
     }
 

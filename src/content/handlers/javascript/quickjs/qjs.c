@@ -483,6 +483,8 @@ static __thread bool thread_shm_locked = false;
 
 void qjs_on_node_destroy(void *node) {
     if (!node) return;
+    if (wisp_is_js_process) return;
+
     dom_node_type type = 0;
     dom_node_get_node_type((dom_node *)node, &type);
     bool is_doc = (type == DOM_DOCUMENT_NODE);
@@ -940,7 +942,7 @@ static void release_js_process_for_origin(const char *origin)
     pthread_mutex_unlock(&js_processes_mutex);
 }
 
-static wisp_ipc_handle *get_js_process_handle(const char *origin)
+wisp_ipc_handle *get_js_process_handle(const char *origin)
 {
     if (!origin)
         return NULL;
@@ -3415,10 +3417,13 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            globalThis.__wisp_dummy_supports_el = dummy;\n"
         "        }\n"
         "        let style = dummy.style;\n"
-        "        style.cssText = '';\n"
-        "        style[prop] = '';\n"
-        "        style[prop] = val;\n"
-        "        return style.length > 0;\n"
+        "        try {\n"
+        "            style.cssText = '';\n"
+        "            style.setProperty(prop, val);\n"
+        "            return style.length > 0;\n"
+        "        } catch(e) {\n"
+        "            return false;\n"
+        "        }\n"
         "    } else {\n"
         "        let cond = String(a).trim();\n"
         "        function evaluateCondition(text) {\n"
@@ -3638,6 +3643,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
 
+    NSLOG(wisp, INFO, "js_newthread called");
     char origin_buf[256];
     resolve_origin_from_content(win_priv, doc_priv, origin_buf, sizeof(origin_buf));
     t->origin = strdup(origin_buf);
@@ -3711,6 +3717,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
         if (doc_node) {
             dom_node_ref((dom_node *)doc_node);
             dom_document_set_mutation_hook(doc_node, qjs_lifecycle_mutation_hook, t);
+            t->strong_doc = doc_node;
+            dom_node_ref((dom_node *)doc_node);
         }
     }
 
@@ -3794,6 +3802,11 @@ void js_destroythread(jsthread *thread)
 {
     if (!thread)
         return;
+    if (thread->strong_doc) {
+        dom_node_unref((dom_node *)thread->strong_doc);
+        thread->strong_doc = NULL;
+    }
+
 
     /* Unlink thread from heap's active threads list if heap is still valid */
     if (thread->heap != NULL) {
@@ -5011,11 +5024,21 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                             resp.data = NULL;
                             wisp_ipc_send(ipc_js, &resp);
                             wisp_ipc_msg_free(&response);
+                        } else if (response.type == WISP_IPC_MSG_JS_EVENT) {
+                            wisp_ipc_msg_free(&response);
+                        } else if (response.type == WISP_IPC_MSG_ERROR) {
+                            wisp_ipc_msg_free(&response);
+                            got_response = true;
+                            break;
                         } else {
                             /* Ignore unexpected/stale message types */
                             wisp_ipc_msg_free(&response);
                         }
                     } else if (recv_err != NSERROR_NOT_FOUND) {
+                        if (recv_err == NSERROR_SHUTDOWN || recv_err == 38) {
+                            NSLOG(wisp, ERROR, "JS process gracefully shutdown during recv for origin %s", thread->origin);
+                            break;
+                        }
                         /* Socket error or EOF -> crash detected! */
                         NSLOG(wisp, ERROR, "JS process crashed during recv (error %d) for origin %s", (int)recv_err,
                             thread->origin);
@@ -5267,11 +5290,17 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
 {
     if (!thread || !node)
         return false;
-    if (node == (struct dom_node *)thread->win_priv) {
+
+    if (wisp_is_js_process) {
+        return true;
+    }
+
+    if ((void *)node == thread->win_priv) {
         node = (struct dom_node *)qjs_thread_get_document(thread);
         if (!node)
             return false;
     }
+
     struct qjs_event_listener_ctx *ctx = malloc(sizeof(*ctx));
     if (!ctx)
         return false;
@@ -5279,6 +5308,12 @@ bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, 
     ctx->func = JS_DupValue(thread->ctx, js_funcval);
     ctx->target = (struct dom_event_target *)node;
     ctx->type = event_type_dom;
+    dom_node_type node_type;
+    dom_exception exc = dom_node_get_node_type(node, &node_type);
+    if (exc != DOM_NO_ERR) {
+        free(ctx);
+        return false;
+    }
     dom_node_ref(node);
     dom_string_ref(event_type_dom);
     dom_event_listener *listener;
@@ -5301,11 +5336,21 @@ bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *documen
 {
     if (!thread || !node)
         return false;
-    if (node == (struct dom_node *)thread->win_priv) {
+
+    if (wisp_is_js_process) {
+        return true;
+    }
+
+    if ((void *)node == thread->win_priv) {
         node = (struct dom_node *)qjs_thread_get_document(thread);
         if (!node)
             return false;
     }
+
+    dom_node_type node_type;
+    dom_exception exc = dom_node_get_node_type(node, &node_type);
+    if (exc != DOM_NO_ERR) return false;
+
     struct qjs_event_listener_ctx **prev = &thread->listeners;
     struct qjs_event_listener_ctx *curr = thread->listeners;
     while (curr) {
