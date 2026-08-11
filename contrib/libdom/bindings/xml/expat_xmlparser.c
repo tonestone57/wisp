@@ -88,8 +88,9 @@ static void expat_xmlparser_start_element_handler(void *_parser, const XML_Char 
                 dom_node_unref(elem);
                 return;
             }
-        } else
-        namespace = NULL;
+        } else {
+            namespace = NULL;
+        }
         if (ns_sep == NULL)
             err = dom_string_create_interned((const uint8_t *)(*atts), strlen(*atts), &key);
         else

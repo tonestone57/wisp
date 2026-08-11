@@ -116,8 +116,7 @@ typedef enum dom_namespace {
 } dom_namespace;
 
 /* Note, these are not valid until at least one function related to DOM
- * namespaces has been called such as the creation of a Document.
- */
+ * namespaces has been called such as the creation of a Document. */
 extern dom_string *dom_namespaces[DOM_NAMESPACE_COUNT];
 
 /* Optional client-callable namespace cleanup function */

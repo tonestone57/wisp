@@ -197,12 +197,12 @@ dom_exception dom_html_image_element_set_hspace(dom_html_image_element *image, d
 
 dom_exception dom_html_image_element_get_vspace(dom_html_image_element *image, dom_ulong *vspace)
 {
-    return dom_html_element_get_dom_ulong_property(&image->base, "vspace", SLEN("cspace"), vspace);
+    return dom_html_element_get_dom_ulong_property(&image->base, "vspace", SLEN("vspace"), vspace);
 }
 
 dom_exception dom_html_image_element_set_vspace(dom_html_image_element *image, dom_ulong vspace)
 {
-    return dom_html_element_set_dom_ulong_property(&image->base, "vspace", SLEN("vsapce"), vspace);
+    return dom_html_element_set_dom_ulong_property(&image->base, "vspace", SLEN("vspace"), vspace);
 }
 
 dom_exception dom_html_image_element_get_width(dom_html_image_element *image, dom_ulong *width)
