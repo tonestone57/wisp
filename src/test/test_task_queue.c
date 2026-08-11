@@ -41,6 +41,52 @@ START_TEST(test_task_queue_destroy)
 }
 END_TEST
 
+static int execute_count = 0;
+static int execute_order[10];
+
+static void order_task(void *arg) {
+    int val = *(int*)arg;
+    if (execute_count < 10) {
+        execute_order[execute_count++] = val;
+    }
+}
+
+START_TEST(test_task_queue_execute_pending)
+{
+    /* Reset state */
+    execute_count = 0;
+
+    /* 1. Test uninitialized queue execution (should not crash) */
+    task_queue_destroy(); /* Ensure uninitialized */
+    task_queue_execute_pending();
+
+    /* 2. Test empty initialized queue execution (should not crash) */
+    ck_assert_int_eq(task_queue_init(), true);
+    task_queue_execute_pending();
+
+    /* 3. Test execution of pending tasks in FIFO order */
+    int val1 = 1, val2 = 2, val3 = 3;
+    ck_assert_int_eq(task_queue_post(order_task, &val1), true);
+    ck_assert_int_eq(task_queue_post(order_task, &val2), true);
+    ck_assert_int_eq(task_queue_post(order_task, &val3), true);
+
+    task_queue_execute_pending();
+
+    /* Verify execution */
+    ck_assert_int_eq(execute_count, 3);
+    ck_assert_int_eq(execute_order[0], 1);
+    ck_assert_int_eq(execute_order[1], 2);
+    ck_assert_int_eq(execute_order[2], 3);
+
+    /* Verify queue is empty after execution */
+    execute_count = 0;
+    task_queue_execute_pending();
+    ck_assert_int_eq(execute_count, 0);
+
+    task_queue_destroy();
+}
+END_TEST
+
 static Suite *task_queue_suite(void)
 {
     Suite *s = suite_create("task_queue");
@@ -48,6 +94,7 @@ static Suite *task_queue_suite(void)
 
     tcase_add_test(tc_core, test_task_queue_init);
     tcase_add_test(tc_core, test_task_queue_destroy);
+    tcase_add_test(tc_core, test_task_queue_execute_pending);
     suite_add_tcase(s, tc_core);
 
     return s;
