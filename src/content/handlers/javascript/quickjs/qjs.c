@@ -810,7 +810,7 @@ static void resolve_origin_from_content(void *win_priv, void *doc_priv, char *or
     /* Enforce COOP isolation if option is enabled and same-origin COOP is declared */
     if (nsoption_bool(enable_coop)) {
         struct html_content *htmlc = (struct html_content *)doc_priv;
-        if (htmlc->coop && (strcasecmp(htmlc->coop, "same-origin") == 0)) {
+        if (htmlc && htmlc->coop && (strcasecmp(htmlc->coop, "same-origin") == 0)) {
             strncat(origin_buf, "-coop-isolated", buf_len - strlen(origin_buf) - 1);
         }
     }
@@ -4124,12 +4124,14 @@ serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, uint
     dom_string *name = NULL;
     dom_node_get_node_name(node, &name);
     if (name) {
-        char *name_cstr = malloc(dom_string_byte_length(name) + 1);
+        size_t len = dom_string_byte_length(name);
+        char stack_buf[256];
+        char *name_cstr = len < sizeof(stack_buf) ? stack_buf : malloc(len + 1);
         if (name_cstr) {
-            memcpy(name_cstr, dom_string_data(name), dom_string_byte_length(name));
-            name_cstr[dom_string_byte_length(name)] = '\0';
+            memcpy(name_cstr, dom_string_data(name), len);
+            name_cstr[len] = '\0';
             sns->name = wisp_shm_alloc_string(shm, name_cstr);
-            free(name_cstr);
+            if (name_cstr != stack_buf) free(name_cstr);
         }
         dom_string_unref(name);
     }

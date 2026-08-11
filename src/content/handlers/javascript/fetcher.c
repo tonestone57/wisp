@@ -120,10 +120,13 @@ static void *fetch_javascript_setup(struct fetch *fetchh, nsurl *url, bool only_
 static void fetch_javascript_free(void *ctx)
 {
     struct fetch_javascript_context *c = ctx;
+    if (c == NULL) return;
     if (c->url != NULL) {
         nsurl_unref(c->url);
     }
-    RING_REMOVE(ring, c);
+    if (c->r_next != NULL || c->r_prev != NULL || ring == c) {
+        RING_REMOVE(ring, c);
+    }
     free(ctx);
 }
 

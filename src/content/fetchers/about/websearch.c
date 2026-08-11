@@ -86,7 +86,7 @@ bool fetch_about_websearch_handler(struct fetch_about_context *ctx)
     char *term;
 
     res = searchterm_from_query(fetch_about_get_url(ctx), &term);
-    if (res != NSERROR_OK) {
+    if (res != NSERROR_OK || term == NULL) {
         return false;
     }
 

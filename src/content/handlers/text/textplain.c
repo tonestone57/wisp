@@ -395,7 +395,7 @@ static void textplain_reformat(struct content *c, int width, int height)
      * characters for better accuracy
      */
     res = guit->layout->width(&textplain_style, "ABCDEFGH", 8, &character_width);
-    if (res != NSERROR_OK) {
+    if (res != NSERROR_OK || character_width <= 0) {
         return;
     }
 
@@ -424,8 +424,9 @@ static void textplain_reformat(struct content *c, int width, int height)
         parserutils_error perror;
 
         perror = parserutils_charset_utf8_to_ucs4((const uint8_t *)utf8_data + i, utf8_data_size - i, &chr, &csize);
-        if (perror != PARSERUTILS_OK) {
+        if (perror != PARSERUTILS_OK || csize == 0) {
             chr = 0xfffd;
+            csize = 1;
         }
 
         term = (chr == '\n' || chr == '\r');
@@ -1233,7 +1234,6 @@ static int textplain_find_line(struct content *c, unsigned offset)
     textplain_content *text = (textplain_content *)c;
     struct textplain_line *line;
     int nlines;
-    int lineno = 0;
 
     assert(c != NULL);
 
@@ -1244,15 +1244,21 @@ static int textplain_find_line(struct content *c, unsigned offset)
         return -1;
     }
 
-    /* \todo - implement binary search here */
-    while (lineno < nlines && line[lineno].start < offset) {
-        lineno++;
+    if (nlines == 0 || line == NULL) {
+        return 0;
     }
-    if (line[lineno].start > offset) {
-        lineno--;
+    int low = 0, high = nlines - 1;
+    int ans = 0;
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        if (line[mid].start <= offset) {
+            ans = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
     }
-
-    return lineno;
+    return ans;
 }
 
 
@@ -1339,23 +1345,16 @@ static void textplain_coords_from_range(struct content *c, unsigned start, unsig
 
     r->y0 = (int)(MARGIN + lineno * line_height);
 
-    if (lineno + 1 <= nlines || line[lineno + 1].start >= end) {
-        /* \todo - it may actually be more efficient just to
-         *   run forwards most of the time
-         */
-
-        /* find end */
-        lineno = textplain_find_line(c, end);
-
+    unsigned end_lineno = textplain_find_line(c, end);
+    if (lineno != end_lineno) {
         r->x0 = 0;
         r->x1 = text->formatted_width;
+        lineno = end_lineno;
     } else {
         /* single line */
-        const char *text = utf8_data + line[lineno].start;
-
-        r->x0 = textplain_coord_from_offset(text, start - line[lineno].start, line[lineno].length);
-
-        r->x1 = textplain_coord_from_offset(text, end - line[lineno].start, line[lineno].length);
+        const char *text_ptr = utf8_data + line[lineno].start;
+        r->x0 = textplain_coord_from_offset(text_ptr, start - line[lineno].start, line[lineno].length);
+        r->x1 = textplain_coord_from_offset(text_ptr, end - line[lineno].start, line[lineno].length);
     }
 
     r->y1 = (int)(MARGIN + (lineno + 1) * line_height);
@@ -1503,11 +1502,15 @@ nserror textplain_init(void)
     error = content_factory_register_handler("text/plain", &textplain_content_handler);
     if (error != NSERROR_OK) {
         lwc_string_unref(textplain_default_charset);
+        textplain_default_charset = NULL;
+        return error;
     }
 
     error = content_factory_register_handler("application/json", &textplain_content_handler);
     if (error != NSERROR_OK) {
         lwc_string_unref(textplain_default_charset);
+        textplain_default_charset = NULL;
+        return error;
     }
 
     return error;

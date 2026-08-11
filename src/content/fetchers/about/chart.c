@@ -114,6 +114,24 @@ static unsigned int colour_series[DEF_COLOUR_NUM] = {
     0x000000, /* black */
 };
 
+static void chart_cleanup(struct chart_param *chart)
+{
+    if (!chart) return;
+    free(chart->title);
+    chart->title = NULL;
+    if (chart->data.label) {
+        for (unsigned int i = 0; i < chart->data.label_len; i++) {
+            free(chart->data.label[i].title);
+        }
+        free(chart->data.label);
+        chart->data.label = NULL;
+    }
+    for (unsigned int s = 0; s < MAX_SERIES; s++) {
+        free(chart->data.series[s].value);
+        chart->data.series[s].value = NULL;
+    }
+}
+
 
 /* ensures there are labels present for every value */
 static nserror ensure_label_count(struct chart_param *chart, unsigned int count)
@@ -548,23 +566,25 @@ bool fetch_about_chart_handler(struct fetch_about_context *ctx)
 {
     nserror res;
     struct chart_param chart;
+    bool handled = false;
     memset(&chart, 0, sizeof(struct chart_param));
 
     res = chart_from_query(fetch_about_get_url(ctx), &chart);
     if (res != NSERROR_OK) {
-        goto aborted;
+        chart_cleanup(&chart);
+        return false;
     }
 
     switch (chart.type) {
     case CHART_TYPE_PIE:
-        return pie_chart(ctx, &chart);
+        handled = pie_chart(ctx, &chart);
+        break;
 
 
     default:
         break;
     }
 
-aborted:
-
-    return false;
+    chart_cleanup(&chart);
+    return handled;
 }

@@ -285,6 +285,7 @@ bool dirlist_generate_row(bool even, bool directory, nsurl *url, char *name, con
         strncpy(size_string, "", sizeof size_string);
     } else {
         unit = messages_get(dirlist_filesize_unit((unsigned long)size));
+        if (!unit) unit = "";
         snprintf(size_string, sizeof size_string, "%d", dirlist_filesize_value((unsigned long)size));
     }
 

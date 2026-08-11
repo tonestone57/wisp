@@ -342,6 +342,11 @@ static nserror xname_to_info(X509_NAME *xname, struct ns_cert_name *iname)
     int name_nid;
     char **field;
 
+    if (xname == NULL) {
+        iname->common_name = strdup("Unknown");
+        return NSERROR_OK;
+    }
+
     entrycnt = X509_NAME_entry_count(xname);
 
     for (entryidx = 0; entryidx < entrycnt; entryidx++) {
@@ -443,8 +448,10 @@ static char *bindup(unsigned char *bin, unsigned int binlen)
     unsigned int idx;
     const char hex[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
+    if (binlen == 0) return strdup("");
+
     /* allow space fox XY to expand to XX&#58;YY&#58; */
-    dst = malloc(binlen * 7);
+    dst = malloc(binlen * 7 + 1);
 
     if (dst != NULL) {
         out = dst;

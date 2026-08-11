@@ -160,7 +160,10 @@ static bool fetch_resource_data_handler(struct fetch_resource_context *ctx)
      */
 
     /* content type */
-    const char *mime_type = guit->fetch->filetype(lwc_string_data(ctx->entry->path));
+    const char *mime_type = NULL;
+    if (guit && guit->fetch && guit->fetch->filetype)
+        mime_type = guit->fetch->filetype(lwc_string_data(ctx->entry->path));
+    if (!mime_type) mime_type = "text/plain";
     NSLOG(wisp, INFO, "fetch_resource_data_handler: Sending Content-Type: %s for %s", mime_type,
         lwc_string_data(ctx->entry->path));
     if (fetch_resource_send_header(ctx, "Content-Type: %s", mime_type)) {
@@ -218,6 +221,7 @@ static bool fetch_resource_notfound_handler(struct fetch_resource_context *ctx)
 
     snprintf(key, sizeof key, "HTTP%03d", code);
     title = messages_get(key);
+    if (!title) title = "404 Not Found";
 
     snprintf(buffer, sizeof buffer,
         "<html><head>"
