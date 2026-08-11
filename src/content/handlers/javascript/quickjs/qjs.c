@@ -942,7 +942,7 @@ static void release_js_process_for_origin(const char *origin)
     pthread_mutex_unlock(&js_processes_mutex);
 }
 
-wisp_ipc_handle *get_js_process_handle(const char *origin)
+static wisp_ipc_handle *get_js_process_handle(const char *origin)
 {
     if (!origin)
         return NULL;
@@ -3643,7 +3643,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     t->win_priv = win_priv;
     JS_SetContextOpaque(t->ctx, t);
 
-    NSLOG(wisp, INFO, "js_newthread called");
     char origin_buf[256];
     resolve_origin_from_content(win_priv, doc_priv, origin_buf, sizeof(origin_buf));
     t->origin = strdup(origin_buf);
@@ -3806,7 +3805,6 @@ void js_destroythread(jsthread *thread)
         dom_node_unref((dom_node *)thread->strong_doc);
         thread->strong_doc = NULL;
     }
-
 
     /* Unlink thread from heap's active threads list if heap is still valid */
     if (thread->heap != NULL) {

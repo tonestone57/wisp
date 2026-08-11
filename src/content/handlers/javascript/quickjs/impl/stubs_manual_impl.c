@@ -55,65 +55,47 @@ extern bool js_dom_event_remove_listener(jsthread *thread, struct dom_document *
     struct dom_string *event_type_dom, JSValue js_funcval);
 
 static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name, const char *event_name, JSValue value) {
+    if (wisp_is_js_process) return;
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     if (!thread) return;
-    if (!priv) return;
-
-    bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
-
-    char prop_buf[64];
-    snprintf(prop_buf, sizeof(prop_buf), "__wisp_%s", prop_name);
+    if (!priv || (!priv->node && priv != &thread->global_window_priv)) return;
 
     JSValue wrapper;
     if (priv == &thread->global_window_priv) {
         wrapper = JS_GetGlobalObject(ctx);
     } else {
-        wrapper = JS_NULL;
+        wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
     }
 
-    if (wisp_is_js_process) {
-        if (!JS_IsNull(wrapper)) JS_SetPropertyStr(ctx, wrapper, prop_buf, JS_DupValue(ctx, value));
-        JS_FreeValue(ctx, wrapper);
-        return;
-    }
+    bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
-    if (is_real_dom_node) {
-        JSValue oldVal = JS_UNDEFINED;
-        if (!JS_IsNull(wrapper)) oldVal = JS_GetPropertyStr(ctx, wrapper, prop_buf);
+    if (JS_IsObject(wrapper)) {
+        char prop_buf[64];
+        snprintf(prop_buf, sizeof(prop_buf), "__%s_func", prop_name);
+        JSValue oldVal = JS_GetPropertyStr(ctx, wrapper, prop_buf);
 
-        dom_node *target_node = NULL;
-        bool is_window = (priv == &thread->global_window_priv) || (priv->node && (void *)priv->node == thread->win_priv);
-        if (is_window) {
-            if (thread->strong_doc) target_node = (dom_node *)thread->strong_doc;
-        } else if (is_real_dom_node && priv->node != NULL) {
-            target_node = (dom_node *)priv->node;
-        }
-
-        if (!target_node) {
-            JS_FreeValue(ctx, oldVal);
-            JS_FreeValue(ctx, wrapper);
-            return;
-        }
-
-        if (!JS_IsUndefined(oldVal) && !JS_IsNull(oldVal)) {
-            struct dom_string *type_dom = NULL;
-            dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
-            if (type_dom) {
-                js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), target_node, type_dom, oldVal);
-                dom_string_unref(type_dom);
+        if (is_real_dom_node) {
+            if (!JS_IsUndefined(oldVal) && !JS_IsNull(oldVal)) {
+                struct dom_string *type_dom = NULL;
+                dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
+                if (type_dom) {
+                    js_dom_event_remove_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, oldVal);
+                    dom_string_unref(type_dom);
+                }
             }
         }
-
         JS_FreeValue(ctx, oldVal);
 
-        if (!JS_IsNull(wrapper)) JS_SetPropertyStr(ctx, wrapper, prop_buf, JS_DupValue(ctx, value));
+        JS_SetPropertyStr(ctx, wrapper, prop_buf, JS_DupValue(ctx, value));
 
-        if (JS_IsFunction(ctx, value) || JS_IsObject(value)) {
-            struct dom_string *type_dom = NULL;
-            dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
-            if (type_dom) {
-                js_dom_event_add_listener(thread, qjs_thread_get_document(thread), target_node, type_dom, value);
-                dom_string_unref(type_dom);
+        if (is_real_dom_node) {
+            if (JS_IsFunction(ctx, value)) {
+                struct dom_string *type_dom = NULL;
+                dom_string_create((const uint8_t *)event_name, strlen(event_name), &type_dom);
+                if (type_dom) {
+                    js_dom_event_add_listener(thread, qjs_thread_get_document(thread), (struct dom_node *)priv->node, type_dom, value);
+                    dom_string_unref(type_dom);
+                }
             }
         }
     }
@@ -121,6 +103,7 @@ static void helper_set_event_handler(JSContext *ctx, QJSNodePrivate *priv, const
 }
 
 static JSValue helper_get_event_handler(JSContext *ctx, QJSNodePrivate *priv, const char *prop_name) {
+    if (wisp_is_js_process) return JS_UNDEFINED;
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     if (!thread) return JS_NULL;
     if (!priv || (!priv->node && priv != &thread->global_window_priv)) return JS_NULL;
