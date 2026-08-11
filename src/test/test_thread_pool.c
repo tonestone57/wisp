@@ -42,6 +42,39 @@ START_TEST(test_thread_pool_destroy_with_tasks) {
 }
 END_TEST
 
+START_TEST(test_thread_pool_add_task_null_pool) {
+    bool added = thread_pool_add_task(NULL, worker_func, NULL);
+    ck_assert_int_eq(added, false);
+}
+END_TEST
+
+START_TEST(test_thread_pool_add_task_null_func) {
+    thread_pool_t *pool = thread_pool_create(2);
+    ck_assert_ptr_ne(pool, NULL);
+    bool added = thread_pool_add_task(pool, NULL, NULL);
+    ck_assert_int_eq(added, false);
+    thread_pool_destroy(pool);
+}
+END_TEST
+
+START_TEST(test_thread_pool_add_task_valid) {
+    atomic_init(&counter, 0);
+    thread_pool_t *pool = thread_pool_create(2);
+    ck_assert_ptr_ne(pool, NULL);
+
+    bool added = thread_pool_add_task(pool, worker_func, NULL);
+    ck_assert_int_eq(added, true);
+
+    // Wait a bit for task to finish
+    usleep(20000);
+
+    int final_count = atomic_load(&counter);
+    ck_assert_int_eq(final_count, 1);
+
+    thread_pool_destroy(pool);
+}
+END_TEST
+
 Suite *thread_pool_suite(void) {
     Suite *s = suite_create("Thread Pool");
     TCase *tc_core = tcase_create("Core");
@@ -49,6 +82,10 @@ Suite *thread_pool_suite(void) {
     tcase_add_test(tc_core, test_thread_pool_destroy_null);
     tcase_add_test(tc_core, test_thread_pool_destroy_empty);
     tcase_add_test(tc_core, test_thread_pool_destroy_with_tasks);
+
+    tcase_add_test(tc_core, test_thread_pool_add_task_null_pool);
+    tcase_add_test(tc_core, test_thread_pool_add_task_null_func);
+    tcase_add_test(tc_core, test_thread_pool_add_task_valid);
 
     suite_add_tcase(s, tc_core);
     return s;
