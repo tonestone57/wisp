@@ -113,6 +113,7 @@ static inline void nsgtk_set_line_width(plot_style_fixed width)
  */
 static nserror nsgtk_plot_clip(const struct redraw_context *ctx, const struct rect *clip)
 {
+    if (clip == NULL || current_cr == NULL) return NSERROR_BAD_PARAMETER;
     cairo_reset_clip(current_cr);
     cairo_rectangle(current_cr, clip->x0, clip->y0, clip->x1 - clip->x0, clip->y1 - clip->y0);
     cairo_clip(current_cr);

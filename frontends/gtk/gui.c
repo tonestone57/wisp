@@ -1103,24 +1103,30 @@ static void nsgtk_main(void)
         for (int i = 0; i <= max_fd; i++) {
             if (FD_ISSET(i, &read_fd_set)) {
                 GPollFD *fd = malloc(sizeof *fd);
-                fd->fd = i;
-                fd->events = G_IO_IN | G_IO_HUP | G_IO_ERR;
-                g_main_context_add_poll(0, fd, 0);
-                fd_list[fd_count++] = fd;
+                if (fd != NULL && fd_count < 1000) {
+                    fd->fd = i;
+                    fd->events = G_IO_IN | G_IO_HUP | G_IO_ERR;
+                    g_main_context_add_poll(0, fd, 0);
+                    fd_list[fd_count++] = fd;
+                }
             }
             if (FD_ISSET(i, &write_fd_set)) {
                 GPollFD *fd = malloc(sizeof *fd);
-                fd->fd = i;
-                fd->events = G_IO_OUT | G_IO_ERR;
-                g_main_context_add_poll(0, fd, 0);
-                fd_list[fd_count++] = fd;
+                if (fd != NULL && fd_count < 1000) {
+                    fd->fd = i;
+                    fd->events = G_IO_OUT | G_IO_ERR;
+                    g_main_context_add_poll(0, fd, 0);
+                    fd_list[fd_count++] = fd;
+                }
             }
             if (FD_ISSET(i, &exc_fd_set)) {
                 GPollFD *fd = malloc(sizeof *fd);
-                fd->fd = i;
-                fd->events = G_IO_ERR;
-                g_main_context_add_poll(0, fd, 0);
-                fd_list[fd_count++] = fd;
+                if (fd != NULL && fd_count < 1000) {
+                    fd->fd = i;
+                    fd->events = G_IO_ERR;
+                    g_main_context_add_poll(0, fd, 0);
+                    fd_list[fd_count++] = fd;
+                }
             }
         }
 

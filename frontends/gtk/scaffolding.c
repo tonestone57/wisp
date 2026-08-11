@@ -614,42 +614,22 @@ static gboolean nsgtk_on_menubar_activate_menu(GtkMenuItem *widget, gpointer dat
     GtkCheckMenuItem *bmcmi; /* burger menu check */
     GtkCheckMenuItem *mbcmi; /* menu bar check */
     GtkCheckMenuItem *tbcmi; /* popup menu check */
+    gboolean active = gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(widget));
 
     bmcmi = GTK_CHECK_MENU_ITEM(gs->burger_menu->view_submenu->toolbars_submenu->menubar_menuitem);
     mbcmi = GTK_CHECK_MENU_ITEM(gs->menu_bar->view_submenu->toolbars_submenu->menubar_menuitem);
     tbcmi = GTK_CHECK_MENU_ITEM(gs->popup_menu->toolbars_submenu->menubar_menuitem);
 
-    /* ensure menubar and burger menu checkboxes are both updated */
-    if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(widget))) {
-        if (gtk_check_menu_item_get_active(bmcmi) == FALSE) {
-            gtk_check_menu_item_set_active(bmcmi, TRUE);
-        }
+    if (bmcmi && gtk_check_menu_item_get_active(bmcmi) != active)
+        gtk_check_menu_item_set_active(bmcmi, active);
+    if (mbcmi && gtk_check_menu_item_get_active(mbcmi) != active)
+        gtk_check_menu_item_set_active(mbcmi, active);
+    if (tbcmi && gtk_check_menu_item_get_active(tbcmi) != active)
+        gtk_check_menu_item_set_active(tbcmi, active);
 
-        if (gtk_check_menu_item_get_active(mbcmi) == FALSE) {
-            gtk_check_menu_item_set_active(mbcmi, TRUE);
-        }
-
-        if (gtk_check_menu_item_get_active(tbcmi) == FALSE) {
-            gtk_check_menu_item_set_active(tbcmi, TRUE);
-        }
-
-        gtk_widget_show(GTK_WIDGET(gs->menu_bar->bar_menu));
-        set_bar_show("menu", true);
-    } else {
-        if (gtk_check_menu_item_get_active(bmcmi) == TRUE) {
-            gtk_check_menu_item_set_active(bmcmi, FALSE);
-        }
-
-        if (gtk_check_menu_item_get_active(mbcmi) == TRUE) {
-            gtk_check_menu_item_set_active(mbcmi, FALSE);
-        }
-
-        if (gtk_check_menu_item_get_active(tbcmi) == TRUE) {
-            gtk_check_menu_item_set_active(tbcmi, FALSE);
-        }
-
-        gtk_widget_hide(GTK_WIDGET(gs->menu_bar->bar_menu));
-        set_bar_show("menu", false);
+    set_bar_show("menu", active);
+    if (gs->menu_bar && gs->menu_bar->bar_menu) {
+        gtk_widget_set_visible(GTK_WIDGET(gs->menu_bar->bar_menu), active);
     }
     return TRUE;
 }

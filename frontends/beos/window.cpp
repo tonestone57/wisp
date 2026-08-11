@@ -618,8 +618,16 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
         g->toplevel = true;
     }
 
-    if (!g->scaffold)
+    if (!g->scaffold) {
+        if (g->prev)
+            g->prev->next = g->next;
+        else
+            window_list = g->next;
+        if (g->next)
+            g->next->prev = g->prev;
+        delete g;
         return NULL;
+    }
 
     BRect frame(0, 0, -1, -1);
     g->view = new NSBrowserFrameView(frame, g);
@@ -1633,10 +1641,11 @@ static void gui_get_clipboard(char **buffer, size_t *length)
             const char *text;
             ssize_t textlen;
             if (clip->FindData("text/plain", B_MIME_TYPE, (const void **)&text, &textlen) >= B_OK) {
-                *buffer = (char *)malloc(textlen);
+                *buffer = (char *)malloc(textlen + 1);
                 if (*buffer != NULL) {
                     *length = textlen;
                     memcpy(*buffer, text, textlen);
+                    (*buffer)[textlen] = '\0';
                 }
             }
         }
@@ -1654,19 +1663,21 @@ static void gui_set_clipboard(const char *buffer, size_t length, nsclipboard_sty
         if (clip) {
             clip->AddData("text/plain", B_MIME_TYPE, buffer, length);
 
-            int arraySize = sizeof(text_run_array) + n_styles * sizeof(text_run);
-            text_run_array *array = (text_run_array *)malloc(arraySize);
-            if (array != NULL) {
-                array->count = n_styles;
-                for (int i = 0; i < n_styles; i++) {
-                    BFont font;
-                    nsbeos_style_to_font(font, &styles[i].style);
-                    array->runs[i].offset = styles[i].start;
-                    array->runs[i].font = font;
-                    array->runs[i].color = nsbeos_rgb_colour(styles[i].style.foreground);
+            if (n_styles > 0 && styles != NULL) {
+                int arraySize = sizeof(text_run_array) + n_styles * sizeof(text_run);
+                text_run_array *array = (text_run_array *)malloc(arraySize);
+                if (array != NULL) {
+                    array->count = n_styles;
+                    for (int i = 0; i < n_styles; i++) {
+                        BFont font;
+                        nsbeos_style_to_font(font, &styles[i].style);
+                        array->runs[i].offset = styles[i].start;
+                        array->runs[i].font = font;
+                        array->runs[i].color = nsbeos_rgb_colour(styles[i].style.foreground);
+                    }
+                    clip->AddData("application/x-vnd.Be-text_run_array", B_MIME_TYPE, array, arraySize);
+                    free(array);
                 }
-                clip->AddData("application/x-vnd.Be-text_run_array", B_MIME_TYPE, array, arraySize);
-                free(array);
             }
             be_clipboard->Commit();
         }

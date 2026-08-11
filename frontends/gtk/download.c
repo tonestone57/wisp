@@ -760,6 +760,14 @@ static nserror gui_download_window_data(struct gui_download_window *dw, const ch
  */
 static void gui_download_window_error(struct gui_download_window *dw, const char *error_msg)
 {
+    dw->speed = 0;
+    dw->time_remaining = -1;
+    nsgtk_download_change_sensitivity(dw, NSGTK_DOWNLOAD_CLEAR);
+    nsgtk_download_change_status(dw, NSGTK_DOWNLOAD_ERROR);
+    nsgtk_download_update(TRUE);
+    if (dl_ctx.window) {
+        gtk_window_present(dl_ctx.window);
+    }
 }
 
 
