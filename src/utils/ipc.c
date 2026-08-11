@@ -317,13 +317,15 @@ void wisp_ipc_set_blocking(wisp_ipc_handle *handle, bool blocking) {
 
 int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
 #ifdef _WIN32
+    if (strchr(executable, '"') || strchr(ipc_name, '"')) return -1;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
     char cmd[512];
-    snprintf(cmd, sizeof(cmd), "%s %s", executable, ipc_name);
+    int len = snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\"", executable, ipc_name);
+    if (len < 0 || (size_t)len >= sizeof(cmd)) return -1;
     if (!CreateProcess(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) return -1;
     return pi.dwProcessId;
 #else
