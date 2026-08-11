@@ -296,7 +296,7 @@ dom_string *_dom_namespace_get_xml_prefix(void)
  */
 dom_string *_dom_namespace_get_xmlns_prefix(void)
 {
-    if (xml == NULL) {
+    if (xmlns == NULL) {
         if (_dom_namespace_initialise() != DOM_NO_ERR)
             return NULL;
     }
