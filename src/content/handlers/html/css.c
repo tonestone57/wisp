@@ -115,7 +115,7 @@ static nserror html_convert_css_callback(hlcache_handle *css, const hlcache_even
         PERF(
             "CSS DONE slot %d '%s' (active=%d)", i, nsurl_access(hlcache_handle_get_url(css)), parent->base.active - 1);
         NSLOG(wisp, INFO, "done stylesheet slot %d '%s'", i, nsurl_access(hlcache_handle_get_url(css)));
-        CONTENT_ACTIVE_DEC(parent, "CSS callback DONE");
+        CONTENT_ACTIVE_DEC(&parent->base, "CSS callback DONE");
         break;
 
     case CONTENT_MSG_ERROR: {
@@ -135,7 +135,7 @@ static nserror html_convert_css_callback(hlcache_handle *css, const hlcache_even
 
         hlcache_handle_release(css);
         s->sheet = NULL;
-        CONTENT_ACTIVE_DEC(parent, "CSS callback ERROR");
+        CONTENT_ACTIVE_DEC(&parent->base, "CSS callback ERROR");
         break;
     }
 
@@ -192,12 +192,12 @@ static nserror html_stylesheet_from_domnode(html_content *c, dom_node *node, hlc
         return error;
     }
 
-    CONTENT_ACTIVE_INC(c, "inline CSS fetch start");
+    CONTENT_ACTIVE_INC(&c->base, "inline CSS fetch start");
 
     error = hlcache_handle_retrieve(
         url, 0, content_get_url(&c->base), NULL, html_convert_css_callback, c, &child, CONTENT_CSS, sheet);
     if (error != NSERROR_OK) {
-        CONTENT_ACTIVE_DEC(c, "inline CSS fetch error");
+        CONTENT_ACTIVE_DEC(&c->base, "inline CSS fetch error");
         nsurl_unref(url);
         return error;
     }
@@ -291,7 +291,7 @@ static bool html_css_process_modified_style(html_content *c, struct html_stylesh
                 break;
             default:
                 hlcache_handle_abort(s->sheet);
-                CONTENT_ACTIVE_DEC(c, "aborting modified style");
+                CONTENT_ACTIVE_DEC(&c->base, "aborting modified style");
             }
             hlcache_handle_release(s->sheet);
         }
@@ -507,7 +507,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     child.coep = htmlc->coep;
     child.parent_url = htmlc->base_url;
 
-    CONTENT_ACTIVE_INC(htmlc, "linked CSS fetch start");
+    CONTENT_ACTIVE_INC(&htmlc->base, "linked CSS fetch start");
     PERF("CSS FETCH START '%s' (active=%d)", nsurl_access(joined), htmlc->base.active);
     ns_error = hlcache_handle_retrieve(joined, 0, content_get_url(&htmlc->base), NULL, html_convert_css_callback, htmlc,
         &child, CONTENT_CSS, &htmlc->stylesheets[htmlc->stylesheet_count - 1].sheet);
@@ -517,7 +517,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     if (ns_error != NSERROR_OK) {
         /* Retrieval failed, decrement count to clean up */
         htmlc->stylesheet_count--;
-        CONTENT_ACTIVE_DEC(htmlc, "linked CSS fetch error");
+        CONTENT_ACTIVE_DEC(&htmlc->base, "linked CSS fetch error");
         NSLOG(wisp, ERROR, "hlcache_handle_retrieve failed (err: %d) (not treating as fatal document error)", ns_error);
         return false;
     }
@@ -599,7 +599,7 @@ nserror html_css_quirks_stylesheets(html_content *c)
         child.coep = c->coep;
         child.parent_url = c->base_url;
 
-        CONTENT_ACTIVE_INC(c, "quirks CSS fetch start");
+        CONTENT_ACTIVE_INC(&c->base, "quirks CSS fetch start");
         ns_error = hlcache_handle_retrieve(html_quirks_stylesheet_url, 0, content_get_url(&c->base), NULL,
             html_convert_css_callback, c, &child, CONTENT_CSS, &c->stylesheets[STYLESHEET_QUIRKS].sheet);
         if (ns_error != NSERROR_OK) {
@@ -645,11 +645,11 @@ nserror html_css_new_stylesheets(html_content *c)
     child.coep = c->coep;
     child.parent_url = c->base_url;
 
-    CONTENT_ACTIVE_INC(c, "default.css fetch start");
+    CONTENT_ACTIVE_INC(&c->base, "default.css fetch start");
     ns_error = hlcache_handle_retrieve(html_default_stylesheet_url, 0, content_get_url(&c->base), NULL,
         html_convert_css_callback, c, &child, CONTENT_CSS, &c->stylesheets[STYLESHEET_BASE].sheet);
     if (ns_error != NSERROR_OK) {
-        CONTENT_ACTIVE_DEC(c, "default.css fetch error");
+        CONTENT_ACTIVE_DEC(&c->base, "default.css fetch error");
         return ns_error;
     }
 
@@ -658,11 +658,11 @@ nserror html_css_new_stylesheets(html_content *c)
 
 
     if (nsoption_bool(block_advertisements)) {
-        CONTENT_ACTIVE_INC(c, "adblock.css fetch start");
+        CONTENT_ACTIVE_INC(&c->base, "adblock.css fetch start");
         ns_error = hlcache_handle_retrieve(html_adblock_stylesheet_url, 0, content_get_url(&c->base), NULL,
             html_convert_css_callback, c, &child, CONTENT_CSS, &c->stylesheets[STYLESHEET_ADBLOCK].sheet);
         if (ns_error != NSERROR_OK) {
-            CONTENT_ACTIVE_DEC(c, "adblock.css fetch error");
+            CONTENT_ACTIVE_DEC(&c->base, "adblock.css fetch error");
             return ns_error;
         }
 
@@ -670,11 +670,11 @@ nserror html_css_new_stylesheets(html_content *c)
         /* active count already logged by CONTENT_ACTIVE_INC */
     }
 
-    CONTENT_ACTIVE_INC(c, "user.css fetch start");
+    CONTENT_ACTIVE_INC(&c->base, "user.css fetch start");
     ns_error = hlcache_handle_retrieve(html_user_stylesheet_url, 0, content_get_url(&c->base), NULL,
         html_convert_css_callback, c, &child, CONTENT_CSS, &c->stylesheets[STYLESHEET_USER].sheet);
     if (ns_error != NSERROR_OK) {
-        CONTENT_ACTIVE_DEC(c, "user.css fetch error");
+        CONTENT_ACTIVE_DEC(&c->base, "user.css fetch error");
         return ns_error;
     }
 

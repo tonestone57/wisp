@@ -87,8 +87,12 @@ static JSContext* get_context(uint32_t id) {
         curr = curr->next;
     }
     struct js_context_node *node = malloc(sizeof(*node));
+    if (!node) return NULL;
+    struct jsthread *t = calloc(1, sizeof(*t));
+    if (!t) { free(node); return NULL; }
     node->id = id;
     node->ctx = JS_NewContext(rt);
+    if (!node->ctx) { free(t); free(node); return NULL; }
     node->thread = NULL;
     node->next = contexts;
     contexts = node;
@@ -119,7 +123,6 @@ static JSContext* get_context(uint32_t id) {
     qjs_inject_fetch_polyfill(node->ctx);
 
     /* Setup dummy jsthread for the remote context so opaque callbacks match */
-    struct jsthread *t = calloc(1, sizeof(*t));
     t->ctx = node->ctx;
     if (js_process_origin) {
         t->origin = strdup(js_process_origin);
@@ -285,7 +288,13 @@ int main(int argc, char **argv) {
                 }
 
                 JSContext *ctx = get_context(ctx_id);
+                if (!ctx) {
+                    free(script_name);
+                    wisp_ipc_msg_free(&msg);
+                    continue;
+                }
 
+                if (name_len > msg.length - 12) name_len = 0;
                 size_t offset = 12 + name_len;
                 size_t script_len = msg.length - offset;
                 char *script = NULL;

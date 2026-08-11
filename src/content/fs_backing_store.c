@@ -386,6 +386,9 @@ static char *store_fname(struct store_state *state, entry_ident_t ident, int ele
     /* directories used to separate elements */
     const char *base_dir_table[] = {"d", "m", "dblk", "mblk"};
 
+    if (elem_idx < 0 || elem_idx > 3)
+        return NULL;
+
     /* RFC4648 base32 encoding table (six bits) */
     const uint8_t encoding_table[64][3] = {
         {'A', 0, 0}, {'B', 0, 0}, /*  0 */
@@ -638,7 +641,7 @@ static nserror store_evict(struct store_state *state)
     /* allocate storage for the list */
     old_count = hashmap_count(state->entries);
     estate.ent_count = 0;
-    estate.elist = malloc(sizeof(struct state_entry *) * old_count);
+    estate.elist = malloc(sizeof(struct store_entry *) * old_count);
     if (estate.elist == NULL) {
         return NSERROR_NOMEM;
     }
@@ -655,7 +658,7 @@ static nserror store_evict(struct store_state *state)
         return NSERROR_UNKNOWN;
     }
 
-    qsort(estate.elist, estate.ent_count, sizeof(struct state_entry *), compar);
+    qsort(estate.elist, estate.ent_count, sizeof(struct store_entry *), compar);
 
     /* evict entries in listed order */
     removed = 0;

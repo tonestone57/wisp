@@ -670,8 +670,8 @@ struct fetch_multipart_data *fetch_multipart_data_clone(const struct fetch_multi
 
         clone->file = list->file;
 
-        clone->name = strdup(list->name);
-        if (clone->name == NULL) {
+        clone->name = list->name ? strdup(list->name) : NULL;
+        if (clone->name == NULL && list->name != NULL) {
             free(clone);
             if (result != NULL)
                 fetch_multipart_data_destroy(result);
@@ -679,8 +679,8 @@ struct fetch_multipart_data *fetch_multipart_data_clone(const struct fetch_multi
             return NULL;
         }
 
-        clone->value = strdup(list->value);
-        if (clone->value == NULL) {
+        clone->value = list->value ? strdup(list->value) : NULL;
+        if (clone->value == NULL && list->value != NULL) {
             free(clone->name);
             free(clone);
             if (result != NULL)
@@ -742,7 +742,7 @@ void fetch_multipart_data_destroy(struct fetch_multipart_data *list)
         free(list->name);
         free(list->value);
         if (list->file) {
-            NSLOG(fetch, DEBUG, "Freeing rawfile: %s", list->rawfile);
+            NSLOG(fetch, DEBUG, "Freeing rawfile: %s", list->rawfile ? list->rawfile : "(null)");
             free(list->rawfile);
         }
         free(list);
@@ -756,6 +756,7 @@ nserror fetch_multipart_data_new_kv(struct fetch_multipart_data **list, const ch
     struct fetch_multipart_data *newdata;
 
     assert(list);
+    if (!name || !value) return NSERROR_BAD_PARAMETER;
 
     newdata = calloc(1, sizeof(*newdata));
 
@@ -847,8 +848,11 @@ static void fetch_pipeline_callback_wrapper(const fetch_msg *msg, void *p)
     case FETCH_HEADER:
         required = ctx->response.header_len + msg->data.header_or_data.len;
         if (required > ctx->header_alloc) {
-            size_t new_alloc = ctx->header_alloc;
-            while (new_alloc < required) new_alloc *= 2;
+            size_t new_alloc = ctx->header_alloc ? ctx->header_alloc : 1024;
+            while (new_alloc < required) {
+                if (new_alloc > SIZE_MAX / 2) { new_alloc = required; break; }
+                new_alloc *= 2;
+            }
             new_ptr = realloc(ctx->header_data, new_alloc);
             if (!new_ptr) {
                 fetch_abort(ctx->f);
@@ -864,8 +868,11 @@ static void fetch_pipeline_callback_wrapper(const fetch_msg *msg, void *p)
     case FETCH_DATA:
         required = ctx->response.data_len + msg->data.header_or_data.len;
         if (required > ctx->body_alloc) {
-            size_t new_alloc = ctx->body_alloc;
-            while (new_alloc < required) new_alloc *= 2;
+            size_t new_alloc = ctx->body_alloc ? ctx->body_alloc : 4096;
+            while (new_alloc < required) {
+                if (new_alloc > SIZE_MAX / 2) { new_alloc = required; break; }
+                new_alloc *= 2;
+            }
             new_ptr = realloc(ctx->body_data, new_alloc);
             if (!new_ptr) {
                 fetch_abort(ctx->f);
@@ -905,6 +912,8 @@ nserror fetch_pipeline_start(struct fetch_request *req, fetch_pipeline_callback 
     struct fetch_pipeline_context *ctx;
     struct fetch_postdata post;
     nserror res;
+
+    if (!req || !req->url || !callback) return NSERROR_BAD_PARAMETER;
 
     ctx = calloc(1, sizeof(*ctx));
     if (!ctx) return NSERROR_NOMEM;

@@ -1448,8 +1448,8 @@ nserror content__clone(const struct content *c, struct content *nc)
         goto err_user_list;
     }
 
-    memcpy(&(nc->status_message), &(c->status_message), 120);
-    memcpy(&(nc->sub_status), &(c->sub_status), 80);
+    memcpy(&(nc->status_message), &(c->status_message), sizeof(nc->status_message));
+    memcpy(&(nc->sub_status), &(c->sub_status), sizeof(nc->sub_status));
 
     nc->locked = c->locked;
     nc->total_size = c->total_size;
@@ -1513,6 +1513,10 @@ void content_dec_bg_tasks(struct hlcache_handle *h)
 {
     struct content *c = hlcache_handle_get_content(h);
     if (c != NULL) {
+        if (c->active_bg_tasks == 0) {
+            NSLOG(wisp, ERROR, "active_bg_tasks underflow on %p", c);
+            return;
+        }
         if (__atomic_sub_fetch(&c->active_bg_tasks, 1, __ATOMIC_SEQ_CST) == 0 && c->pending_delete) {
             if (content_count_users(c) == 0) {
                 if (guit && guit->misc && guit->misc->schedule) {

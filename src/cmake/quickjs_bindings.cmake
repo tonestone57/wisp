@@ -31,7 +31,7 @@ message(STATUS "Found Python widlparser module")
 set(QUICKJS_GEN_DIR ${CMAKE_BINARY_DIR}/quickjs)
 
 # WebIDL source files
-file(GLOB WEBIDL_SOURCES ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/WebIDL/*.idl)
+file(GLOB WEBIDL_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/WebIDL/*.idl)
 
 # Get list of interfaces at configure time
 execute_process(
