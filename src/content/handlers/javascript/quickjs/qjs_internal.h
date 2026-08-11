@@ -66,6 +66,7 @@ struct qjs_timer {
     int interval;
     int id;
     bool cancelled;
+    uint64_t scheduled_time;
     struct qjs_timer *next;
 };
 
@@ -174,6 +175,7 @@ void qjs_inject_fetch_polyfill(JSContext *ctx);
 
 JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSValue arguments, bool repeat);
 JSValue wisp_timer_clear(JSContext *ctx, int32_t handle);
+uint64_t qjs_execute_timers(JSContext *ctx);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);

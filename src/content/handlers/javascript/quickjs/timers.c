@@ -1,3 +1,5 @@
+#include <stdbool.h>
+extern bool wisp_is_js_process;
 /*
  * Copyright 2025 Neosurf Contributors
  *
