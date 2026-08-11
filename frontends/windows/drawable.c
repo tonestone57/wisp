@@ -683,6 +683,10 @@ static LRESULT nsws_drawable_paint(struct gui_window *gw, HWND hwnd)
         /* Collect all tiles in the update region */
         int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
         struct win32_tile_task_t *tasks = (struct win32_tile_task_t *)malloc(sizeof(struct win32_tile_task_t) * max_tiles);
+        if (tasks == NULL) {
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
         int task_count = 0;
 
         for (int ty = y_start; ty < rect_bottom; ty += tile_size) {

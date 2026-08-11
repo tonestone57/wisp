@@ -89,8 +89,7 @@ def main():
             if use_git:
                 # git mv
                 # Note: if it's not tracked by git, git mv might fail, fallback to os.rename
-                cmd = f'git mv "{old_path}" "{new_path}"'
-                if not run_command(cmd):
+                if subprocess.call(['git', 'mv', old_path, new_path]) != 0:
                     # Fallback
                     print(f"  git mv failed, using plain mv")
                     os.rename(old_path, new_path)

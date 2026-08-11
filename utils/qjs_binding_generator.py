@@ -331,7 +331,7 @@ class QuickJSBindingGenerator:
              return f"JS_IsArrayBuffer({val})"
 
         if actual_type == "ArrayBufferView" or "Array" in actual_type or "sequence" in actual_type:
-            return f"JS_IsArray({val})"
+            return f"JS_IsArray(ctx, {val})"
 
         return "true"
 

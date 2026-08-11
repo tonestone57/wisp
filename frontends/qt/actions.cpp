@@ -267,8 +267,10 @@ void NS_Actions::update(struct nsurl *link, struct hlcache_handle *object, char 
     }
     m_selection = selection;
 
-    m_sel_search->setText(
-        QString::asprintf(messages_get("SearchProviderFor"), nsoption_charp(search_web_provider), m_selection));
+    if (m_selection != NULL) {
+        m_sel_search->setText(
+            QString::asprintf(messages_get("SearchProviderFor"), nsoption_charp(search_web_provider), m_selection));
+    }
 }
 
 /*
