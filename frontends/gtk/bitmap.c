@@ -213,6 +213,9 @@ static nserror bitmap_render(struct bitmap *bitmap, struct hlcache_handle *conte
 
     dwidth = cairo_image_surface_get_width(dsurface);
     dheight = cairo_image_surface_get_height(dsurface);
+    if (dwidth <= 0 || dheight <= 0) {
+        return NSERROR_BAD_PARAMETER;
+    }
 
     /* Calculate size of buffer to render the content into */
     /* Get the width from the content width, unless it exceeds 1024,
@@ -236,7 +239,7 @@ static nserror bitmap_render(struct bitmap *bitmap, struct hlcache_handle *conte
 
     if (cairo_surface_status(surface) != CAIRO_STATUS_SUCCESS) {
         cairo_surface_destroy(surface);
-        return false;
+        return NSERROR_NOMEM;
     }
 
     old_cr = current_cr;
