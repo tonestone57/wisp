@@ -77,7 +77,7 @@ static csp_source *parse_source(char *token) {
         src->is_unsafe_eval = true;
     } else if (strncasecmp(token, "'nonce-", 7) == 0) {
         size_t len = strlen(token);
-        if (len > 8 && token[len - 1] == '\'') {
+        if (len >= 8 && token[len - 1] == '\'') {
             src->nonce = strndup(token + 7, len - 8);
         } else {
             src->nonce = strdup(token + 7);
@@ -86,7 +86,7 @@ static csp_source *parse_source(char *token) {
         src->nonce = strdup(token + 6);
     } else if (strchr(token, ':')) {
         char *colon = strchr(token, ':');
-        if (colon[1] == '/' && colon[2] == '/') {
+        if (colon[1] != '\0' && colon[2] != '\0' && colon[1] == '/' && colon[2] == '/') {
             src->scheme = strndup(token, colon - token);
             char *host_start = colon + 3;
             char *port_start = strchr(host_start, ':');
@@ -251,6 +251,13 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
                 url_port = (int)port;
             }
             lwc_string_unref(url_port_str);
+        } else {
+            lwc_string *url_scheme = nsurl_get_component(url, NSURL_SCHEME);
+            if (url_scheme) {
+                if (strcasecmp(lwc_string_data(url_scheme), "http") == 0) url_port = 80;
+                else if (strcasecmp(lwc_string_data(url_scheme), "https") == 0) url_port = 443;
+                lwc_string_unref(url_scheme);
+            }
         }
         if (src->port != url_port) return false;
     }

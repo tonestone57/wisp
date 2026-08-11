@@ -653,7 +653,7 @@ static nserror llcache_fetch_header_cache_control(llcache_object *object, char *
             res = nsc_strntimet(value, strlen(value), &object->cache.expires);
             if (res != NSERROR_OK) {
                 NSLOG(llcache, INFO, "Processing Expires header value \"%s\" returned %d", value, res);
-                object->cache.expires = (time_t)0x7fffffff;
+                object->cache.expires = (time_t)0;
             }
         }
         break;
@@ -730,7 +730,7 @@ static nserror llcache_fetch_process_header(llcache_object *object, const uint8_
      * that we might have computed, and start again.
      */
     /** \todo Properly parse the response line */
-    if (strncmp((const char *)data, "HTTP/", SLEN("HTTP/")) == 0) {
+    if (len >= 5 && strncmp((const char *)data, "HTTP/", 5) == 0) {
         time_t req_time = object->cache.req_time;
 
         llcache_invalidate_cache_control_data(object);
@@ -2445,6 +2445,7 @@ static nserror llcache_fetch_process_data(llcache_object *object, const uint8_t 
 
     return NSERROR_OK;
 }
+
 
 
 /**

@@ -84,6 +84,9 @@ nserror content_factory_register_handler(const char *mime_type, const content_ha
     content_handler_entry *entry;
     bool match;
 
+    if (!mime_type || !handler)
+        return NSERROR_BAD_PARAMETER;
+
     lerror = lwc_intern_string(mime_type, strlen(mime_type), &imime_type);
     if (lerror != lwc_error_ok)
         return NSERROR_NOMEM;
@@ -121,6 +124,9 @@ static const content_handler *content_lookup(lwc_string *mime_type)
 {
     content_handler_entry *entry;
     bool match;
+
+    if (mime_type == NULL)
+        return NULL;
 
     for (entry = content_handlers; entry != NULL; entry = entry->next) {
         if (lwc_string_caseless_isequal(mime_type, entry->mime_type, &match) == lwc_error_ok && match) {

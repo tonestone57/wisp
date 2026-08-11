@@ -64,14 +64,21 @@ typedef struct content_handler content_handler;
 
 #define CONTENT_ACTIVE_INC(c, reason)                                                                                  \
     do {                                                                                                               \
-        (c)->base.active++;                                                                                            \
-        NSLOG(wisp, DEBUG, "ACTIVE++ → %u (%s) [content=%p]", (c)->base.active, (reason), (void *)(c));                \
+        (c)->active++;                                                                                                 \
+        NSLOG(wisp, DEBUG, "ACTIVE++   %u (%s) [content=%p]", (c)->active, (reason), (void *)(c));                      \
     } while (0)
 
 #define CONTENT_ACTIVE_DEC(c, reason)                                                                                  \
     do {                                                                                                               \
-        (c)->base.active--;                                                                                            \
-        NSLOG(wisp, DEBUG, "ACTIVE-- → %u (%s) [content=%p]", (c)->base.active, (reason), (void *)(c));                \
+        if ((c)->active == 0) {                                                                                        \
+            NSLOG(wisp, CRITICAL,                                                                                      \
+                "ACTIVE UNDERFLOW! Decrement when already 0 "                                                          \
+                "(%s) [content=%p url=%s]",                                                                            \
+                (reason), (void *)(c),                                                                                 \
+                (c)->llcache ? nsurl_access(llcache_handle_get_url((c)->llcache)) : "(no url)");                      \
+        }                                                                                                              \
+        (c)->active--;                                                                                                 \
+        NSLOG(wisp, DEBUG, "ACTIVE--   %u (%s) [content=%p]", (c)->active, (reason), (void *)(c));                      \
     } while (0)
 
 /**

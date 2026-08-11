@@ -110,13 +110,14 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         case FETCH_REDIRECT:
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
-            imsg.length = 4 + 4 + strlen(msg->data.redirect) + 1;
+            const char *redir_target = msg->data.redirect ? msg->data.redirect : "";
+            imsg.length = 4 + 4 + strlen(redir_target) + 1;
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
             uint32_t redirect_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 302;
             memcpy(imsg.data + 4, &redirect_http_code, 4);
-            memcpy((char*)imsg.data + 8, msg->data.redirect, strlen(msg->data.redirect) + 1);
+            memcpy((char*)imsg.data + 8, redir_target, strlen(redir_target) + 1);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             info->finished = true;
@@ -124,11 +125,12 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         case FETCH_ERROR:
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
-            imsg.length = 4 + strlen(msg->data.error) + 1;
+            const char *err_str = msg->data.error ? msg->data.error : "UnknownError";
+            imsg.length = 4 + strlen(err_str) + 1;
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            memcpy((char*)imsg.data + 4, msg->data.error, imsg.length - 4);
+            memcpy((char*)imsg.data + 4, err_str, imsg.length - 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             info->finished = true;
@@ -244,6 +246,18 @@ int main(int argc, char **argv) {
                                         }
                                         active_fetches_list = info->next;
                                         free(info);
+                                    }
+                                } else {
+                                    wisp_ipc_msg imsg;
+                                    imsg.type = WISP_IPC_MSG_FETCH_ERROR;
+                                    const char *err_msg = "NoMem";
+                                    imsg.length = 4 + strlen(err_msg) + 1;
+                                    imsg.data = malloc(imsg.length);
+                                    if (imsg.data) {
+                                        memcpy(imsg.data, &fetch_id, 4);
+                                        memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
+                                        wisp_ipc_send(ipc_main, &imsg);
+                                        free(imsg.data);
                                     }
                                 }
                                 nsurl_unref(url);
