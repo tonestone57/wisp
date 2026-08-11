@@ -327,6 +327,7 @@ shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server) {
             memset(shm, 0, size);
             shm->node_capacity = use_cap;
             shm->is_server = true;
+            shm->string_heap_top = 1;
             strncpy(shm->shm_name, name, sizeof(shm->shm_name) - 1);
             shm->shm_name[sizeof(shm->shm_name) - 1] = '\0';
             register_shm_handle(shm, hMap);
@@ -382,6 +383,7 @@ shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server) {
         memset(shm, 0, size);
         shm->node_capacity = use_cap;
         shm->is_server = true;
+        shm->string_heap_top = 1;
         strncpy(shm->shm_name, name, sizeof(shm->shm_name) - 1);
         shm->shm_name[sizeof(shm->shm_name) - 1] = '\0';
     } else {
