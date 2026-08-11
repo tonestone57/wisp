@@ -138,6 +138,8 @@ parserutils_error parserutils__filter_process_chunk(
 
     if (iconv(input->cd, (void *)data, len, (char **)output, outlen) == (size_t)-1) {
         switch (errno) {
+        case EINVAL:
+            return PARSERUTILS_OK;
         case E2BIG:
             return PARSERUTILS_NOMEM;
         case EILSEQ:

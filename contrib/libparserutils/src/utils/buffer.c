@@ -82,7 +82,7 @@ static inline size_t get_offset(parserutils_buffer *buffer)
 static inline void try_rebase(parserutils_buffer *buffer)
 {
     if (get_offset(buffer) >= buffer->length) {
-        memcpy(buffer->alloc, buffer->data, buffer->length);
+        memmove(buffer->alloc, buffer->data, buffer->length);
         buffer->data = buffer->alloc;
     }
 }
@@ -98,7 +98,7 @@ static inline parserutils_error ensure_space(parserutils_buffer *buffer, size_t 
 {
     try_rebase(buffer);
 
-    while (len >= buffer->allocated - buffer->length - get_offset(buffer)) {
+    while (len > buffer->allocated - buffer->length - get_offset(buffer)) {
         parserutils_error error = parserutils_buffer_grow(buffer);
         if (error != PARSERUTILS_OK)
             return error;
