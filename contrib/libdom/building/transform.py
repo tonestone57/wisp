@@ -198,13 +198,7 @@ def to_cmethod(interface, method):
         ret = prefix + "_" + special_method[method]
     else:
         # CamelCase to snake_case
-        s1 = []
-        for c in method:
-            if c.isupper():
-                s1.append("_" + c)
-            else:
-                s1.append(c)
-        method_l = "".join(s1).lower()
+        method_l = "".join(["_" + c if c.isupper() else c for c in method]).lower()
         ret = prefix + "_" + method_l
         
     ret = ret.replace("h_t_m_l", "html")
