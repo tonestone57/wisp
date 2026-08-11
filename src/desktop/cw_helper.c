@@ -54,7 +54,7 @@ nserror cw_helper_scroll_visible(struct core_window *cw_h, const struct rect *r)
         return err;
     }
 
-    guit->corewindow->get_scroll(cw_h, &x0, &y0);
+    err = guit->corewindow->get_scroll(cw_h, &x0, &y0);
     if (err != NSERROR_OK) {
         return err;
     }

@@ -324,6 +324,10 @@ nserror browser_window_destroy_iframes(struct browser_window *bw)
  */
 static void browser_window_recalculate_frameset_internal(struct browser_window *bw)
 {
+    assert(bw);
+    if (bw->cols <= 0 || bw->rows <= 0) {
+        return;
+    }
     int widths[bw->cols][bw->rows];
     int heights[bw->cols][bw->rows];
     int bw_width, bw_height;
@@ -334,8 +338,6 @@ static void browser_window_recalculate_frameset_internal(struct browser_window *
     int size, extent, applied;
     int x, y;
     int new_width, new_height;
-
-    assert(bw);
 
     /* window dimensions */
     if (!bw->parent) {

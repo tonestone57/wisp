@@ -531,7 +531,7 @@ static nserror global_history_initialise_entry_fields(void)
     label = "TreeviewLabelPeriod";
     label = messages_get(label);
     if (lwc_intern_string(label, strlen(label), &gh_ctx.fields[GH_PERIOD].field) != lwc_error_ok) {
-        return false;
+        goto error;
     }
 
     return NSERROR_OK;

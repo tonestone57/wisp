@@ -152,8 +152,9 @@ static nserror hash_add_inline_plain(struct hash_table *ht, const uint8_t *data,
                 break;
             }
         } else {
-            slen++;
-            if (slen > sizeof s) {
+            if (slen < sizeof(s) - 1) {
+                slen++;
+            } else {
                 NSLOG(wisp, WARNING, "Overlength line\n");
                 slen = 0;
             }
@@ -370,7 +371,7 @@ nserror hash_add_file(struct hash_table *ht, const char *path)
 
     while (gzgets(fp, s, sizeof s)) {
         int slen = strlen(s);
-        s[--slen] = 0; /* remove \n at end */
+        if (slen > 0 && (s[slen - 1] == '\n' || s[slen - 1] == '\r')) s[--slen] = 0;
 
         res = process_line(ht, (uint8_t *)s, slen);
         if (res != NSERROR_OK) {
