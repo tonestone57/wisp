@@ -120,7 +120,7 @@ static struct history_entry *browser_window_history__clone_entry(struct history 
     new_entry->forward_last = entry->forward_last;
 
     /* recurse for all children */
-    for (child = new_entry->forward; child != NULL; child = child->next) {
+    for (child = entry->forward; child != NULL; child = child->next) {
         new_child = browser_window_history__clone_entry(history, child);
         if (new_child == NULL) {
             nsurl_unref(new_entry->page.url);
@@ -346,7 +346,8 @@ nserror browser_window_history_add(struct browser_window *bw, struct hlcache_han
     }
 
     /* page information */
-    title = strdup(content_get_title(content));
+    const char *ctitle = content_get_title(content);
+    title = strdup(ctitle ? ctitle : "");
     if (title == NULL) {
         free(entry);
         return NSERROR_NOMEM;
@@ -414,7 +415,8 @@ nserror browser_window_history_update(struct browser_window *bw, struct hlcache_
     assert(history->current->page.url);
     assert(history->current->page.title);
 
-    title = strdup(content_get_title(content));
+    const char *ctitle = content_get_title(content);
+    title = strdup(ctitle ? ctitle : "");
     if (title == NULL) {
         return NSERROR_NOMEM;
     }

@@ -3864,7 +3864,7 @@ void browser_window_set_status(struct browser_window *bw, const char *text)
     /* find topmost window */
     while (bw->parent)
         bw = bw->parent;
-
+    if (text == NULL) text = "";
     if ((bw->status.text != NULL) && (strcmp(text, bw->status.text) == 0)) {
         /* status text is unchanged */
         bw->status.match++;
@@ -4371,7 +4371,11 @@ int browser_window_get_cookie_count(const struct browser_window *bw)
     if (cookies == NULL) {
         return 0;
     }
-
+    if (cookies[0] == '\0') {
+        free(cookies);
+        return 0;
+    }
+    count = 1;
     for (char *c = cookies; *c != '\0'; c++) {
         if (*c == ';')
             count++;

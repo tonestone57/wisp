@@ -1149,7 +1149,7 @@ static nserror hotlist_initialise_entry_fields(void)
     label = "TreeviewLabelFolder";
     label = messages_get(label);
     if (lwc_intern_string(label, strlen(label), &hl_ctx.fields[HL_FOLDER].field) != lwc_error_ok) {
-        return false;
+        goto error;
     }
 
     return NSERROR_OK;

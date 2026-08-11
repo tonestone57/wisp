@@ -163,7 +163,7 @@ nserror nscolour_update(void)
 /* Exported interface, documented in utils/nscolour.h */
 nserror nscolour_get_stylesheet(const char **stylesheet_out)
 {
-    static char buffer[640];
+    static char buffer[1024];
     int ret;
 
     assert(stylesheet_out != NULL);

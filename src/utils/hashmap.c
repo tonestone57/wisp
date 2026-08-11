@@ -108,6 +108,7 @@ void hashmap_destroy(hashmap_t *hashmap)
 /* Exported function, documented in hashmap.h */
 void *hashmap_lookup(hashmap_t *hashmap, void *key)
 {
+    if (!hashmap || !key) return NULL;
     uint32_t hash = hashmap->params->key_hash(key);
     hashmap_entry_t *entry = hashmap->buckets[hash % hashmap->bucket_count];
 
@@ -125,6 +126,7 @@ void *hashmap_lookup(hashmap_t *hashmap, void *key)
 /* Exported function, documented in hashmap.h */
 void *hashmap_insert(hashmap_t *hashmap, void *key)
 {
+    if (!hashmap || !key) return NULL;
     uint32_t hash = hashmap->params->key_hash(key);
     uint32_t bucket = hash % hashmap->bucket_count;
     hashmap_entry_t *entry = hashmap->buckets[bucket];
@@ -199,6 +201,7 @@ err:
 /* Exported function, documented in hashmap.h */
 bool hashmap_remove(hashmap_t *hashmap, void *key)
 {
+    if (!hashmap || !key) return false;
     uint32_t hash = hashmap->params->key_hash(key);
 
     hashmap_entry_t *entry = hashmap->buckets[hash % hashmap->bucket_count];

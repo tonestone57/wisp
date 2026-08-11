@@ -73,10 +73,10 @@ const char *filename_request(void)
     for (dir = root; dir; dir = dir->next) {
         if ((dir->low_used & dir->high_used) != FULL_WORD) {
             if (dir->low_used != FULL_WORD) {
-                for (i = 0; (dir->low_used & (1 << i)); i++)
+                for (i = 0; (dir->low_used & (1U << i)); i++)
                     ;
             } else {
-                for (i = 0; (dir->high_used & (1 << i)); i++)
+                for (i = 0; (dir->high_used & (1U << i)); i++)
                     ;
                 i += 32;
             }
@@ -115,13 +115,14 @@ const char *filename_request(void)
  */
 bool filename_claim(const char *filename)
 {
-    char dir_prefix[9];
+    char dir_prefix[10];
     int file;
     struct directory *dir;
 
+    if (filename == NULL || strlen(filename) < 11) return false;
     /* filename format is always '01/23/45/XX' */
-    strncpy(dir_prefix, filename, 9);
-    dir_prefix[8] = '\0';
+    memcpy(dir_prefix, filename, 9);
+    dir_prefix[9] = '\0';
     file = (filename[10] + filename[9] * 10 - START_PREFIX);
 
     /* create the directory */
@@ -154,6 +155,7 @@ void filename_release(const char *filename)
     struct directory *dir;
     int index, file;
 
+    if (filename == NULL || strlen(filename) < 11) return;
     /* filename format is always '01/23/45/XX' */
     index = ((filename[7] + filename[6] * 10 - START_PREFIX) | ((filename[4] + filename[3] * 10 - START_PREFIX) << 6) |
         ((filename[1] + filename[0] * 10 - START_PREFIX) << 12));

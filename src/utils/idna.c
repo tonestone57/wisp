@@ -876,10 +876,12 @@ nserror idna_encode(const char *host, size_t len, char **ace_host, size_t *ace_l
         label_len = idna__host_label_length(host, len);
     }
 
-    fqdn_p--;
-    *fqdn_p = '\0';
+    if (fqdn_len > 0) {
+        fqdn_p--;
+        *fqdn_p = '\0';
+    }
     *ace_host = strdup(fqdn);
-    *ace_len = fqdn_len - 1; /* last character is NULL */
+    *ace_len = fqdn_len > 0 ? fqdn_len - 1 : 0; /* last character is NULL */
 
     return NSERROR_OK;
 }
@@ -933,10 +935,12 @@ nserror idna_decode(const char *ace_host, size_t ace_len, char **host, size_t *h
         label_len = idna__host_label_length(ace_host, ace_len);
     }
 
-    fqdn_p--;
-    *fqdn_p = '\0';
+    if (fqdn_len > 0) {
+        fqdn_p--;
+        *fqdn_p = '\0';
+    }
     *host = strdup(fqdn);
-    *host_len = fqdn_len - 1; /* last character is NULL */
+    *host_len = fqdn_len > 0 ? fqdn_len - 1 : 0; /* last character is NULL */
 
     return NSERROR_OK;
 }

@@ -437,6 +437,7 @@ nserror libdom_parse_file(const char *filename, const char *encoding, dom_docume
 
     while (feof(fp) == 0) {
         size_t read = fread(buf, sizeof(buf[0]), BUF_SIZE, fp);
+        if (read == 0) break;
 
         error = dom_hubbub_parser_parse_chunk(parser, buf, read);
         if (error != DOM_HUBBUB_OK) {

@@ -572,7 +572,7 @@ static nserror cookie_manager_init_entry_fields(void)
     label = "TreeviewLabelDomainFolder";
     label = messages_get(label);
     if (lwc_intern_string(label, strlen(label), &cm_ctx.fields[COOKIE_M_DOMAIN_FOLDER].field) != lwc_error_ok) {
-        return false;
+        goto error;
     }
 
     return NSERROR_OK;

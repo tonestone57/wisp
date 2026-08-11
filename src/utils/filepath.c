@@ -171,8 +171,9 @@ char *filepath_sfinddef(char **respathv, char *filepath, const char *filename, c
     if ((ret == NULL) && (def != NULL)) {
         /* search failed, return the path specified */
         ret = filepath;
+        const char *home = getenv("HOME"); if (!home) home = "";
         if (def[0] == '~') {
-            snprintf(t, PATH_MAX, "%s/%s/%s", getenv("HOME"), def + 1, filename);
+            snprintf(t, PATH_MAX, "%s/%s/%s", home, def + 1, filename);
         } else {
             snprintf(t, PATH_MAX, "%s/%s", def, filename);
         }
@@ -198,6 +199,7 @@ char **filepath_generate(char *const *pathv, const char *const *langv)
     respath = calloc(MAX_RESPATH, sizeof(char *));
 
     while ((respath != NULL) && (pathv[pathc] != NULL)) {
+        if (respathc >= MAX_RESPATH - 2) break;
         if ((stat(pathv[pathc], &dstat) == 0) && S_ISDIR(dstat.st_mode)) {
             /* path element exists and is a directory */
             langc = 0;
@@ -269,7 +271,7 @@ static char *expand_path(const char *path, int pathlen)
             } else {
                 char *tmp;
                 envlen = strlen(envv);
-                tmp = realloc(exp, explen + envlen - replen);
+                tmp = realloc(exp, explen + envlen - replen + 1);
                 if (tmp == NULL) {
                     free(exp);
                     return NULL;

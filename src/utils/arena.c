@@ -156,6 +156,7 @@ void *arena_memdup(struct arena *a, const void *ptr, size_t size) {
 
 void arena_merge(struct arena *m, struct arena *w) {
     if (!m || !w) return;
+    if (m == w) return;
 
     pthread_mutex_lock(&m->lock);
     pthread_mutex_lock(&w->lock);
