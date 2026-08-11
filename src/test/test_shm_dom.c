@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <wisp/utils/shm_dom.h>
 
+// Do NOT define the global variables here because they are already defined in libwisp.so
+
 START_TEST(test_shm_dom_create)
 {
     const char *test_name = "/test_shm_dom_create";
@@ -20,12 +22,20 @@ START_TEST(test_shm_dom_create)
 }
 END_TEST
 
+START_TEST(test_shm_dom_destroy_null)
+{
+    // Test that destroying a NULL pointer doesn't crash
+    shm_dom_destroy(NULL, "/wisp_test_shm_dom", true);
+}
+END_TEST
+
 static Suite *shm_dom_suite(void)
 {
     Suite *s = suite_create("shm_dom");
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_shm_dom_create);
+    tcase_add_test(tc_core, test_shm_dom_destroy_null);
     suite_add_tcase(s, tc_core);
 
     return s;
