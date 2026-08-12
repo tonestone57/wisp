@@ -886,6 +886,7 @@ END_TEST
 START_TEST(urldb_reset_visit_test)
 {
     nsurl *url;
+    const struct url_data *data;
 
     url = make_url(wikipedia_url);
 
@@ -894,7 +895,11 @@ START_TEST(urldb_reset_visit_test)
     urldb_add_url(url);
 
     urldb_reset_url_visit_data(url);
-    /** \todo test needs to check results */
+
+    data = urldb_get_url_data(url);
+    ck_assert(data != NULL);
+    ck_assert(data->visits == 0);
+    ck_assert(data->last_visit == 0);
 
     nsurl_unref(url);
 }
