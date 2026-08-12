@@ -502,3 +502,8 @@ add_wisp_test(test_thread_pool
   ${CMAKE_SOURCE_DIR}/src/test/test_thread_pool.c
 )
 target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_ipc
+  ${CMAKE_SOURCE_DIR}/src/test/test_ipc.c
+)
+target_link_libraries(test_ipc PRIVATE wisp ${CHECK_LIBRARIES})
