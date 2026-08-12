@@ -113,6 +113,13 @@ add_wisp_test(test_url
   ${CMAKE_SOURCE_DIR}/src/test/test_url.c
 )
 
+add_wisp_test(test_filepath
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
+  ${CMAKE_SOURCE_DIR}/src/utils/filepath.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_filepath.c
+)
+
 add_wisp_test(csp_test
   ${CMAKE_SOURCE_DIR}/src/content/csp.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
