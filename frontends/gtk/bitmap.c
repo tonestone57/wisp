@@ -254,6 +254,10 @@ static nserror bitmap_render(struct bitmap *bitmap, struct hlcache_handle *conte
     cairo_t *cr = cairo_create(dsurface);
 
     /* Scale *before* setting the source surface (1) */
+    if (cwidth == 0 || cheight == 0) {
+        cairo_destroy(cr);
+        return NSERROR_OK;
+    }
     cairo_scale(cr, (double)dwidth / cwidth, (double)dheight / cheight);
     cairo_set_source_surface(cr, surface, 0, 0);
 

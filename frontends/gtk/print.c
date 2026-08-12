@@ -481,6 +481,10 @@ static bool nsgtk_print_plot_pixbuf(int x, int y, int width, int height, struct 
             cairo_t *cr = cairo_create(bitmap->scsurface);
 
             /* Scale *before* setting the source surface (1) */
+            if (bmwidth == 0 || bmheight == 0) {
+                cairo_destroy(cr);
+                return true;
+            }
             cairo_scale(cr, (double)width / bmwidth, (double)height / bmheight);
             cairo_set_source_surface(cr, bmsurface, 0, 0);
 
