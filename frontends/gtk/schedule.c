@@ -69,10 +69,6 @@ static gboolean nsgtk_schedule_generic_callback(gpointer data)
         pthread_mutex_unlock(&schedule_lock);
         return FALSE;
     }
-    if (cb->callback_killed) {
-        /* This callback instance has been killed. */
-        NSLOG(schedule, DEEPDEBUG, "CB at %p already dead.", cb);
-    }
     queued_callbacks = g_list_remove(queued_callbacks, cb);
     pending_callbacks = g_list_append(pending_callbacks, cb);
     pthread_mutex_unlock(&schedule_lock);
