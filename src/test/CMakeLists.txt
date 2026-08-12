@@ -534,3 +534,8 @@ add_wisp_test(test_libdom
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_libdom PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_cache_control
+  ${CMAKE_SOURCE_DIR}/src/test/test_cache_control.c
+)
+target_link_libraries(test_cache_control PRIVATE wisp ${CHECK_LIBRARIES})
