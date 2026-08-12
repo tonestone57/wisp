@@ -1,4 +1,4 @@
-const char *intl_polyfill =
+static const char *intl_polyfill =
     "if (typeof globalThis.Intl === 'undefined') {\n"
     "    globalThis.Intl = {\n"
     "        DateTimeFormat: function() {\n"
