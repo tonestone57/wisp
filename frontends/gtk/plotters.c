@@ -562,6 +562,10 @@ static nserror nsgtk_plot_bitmap(const struct redraw_context *ctx, struct bitmap
 
         /* Save cairo rendering context state before scaling */
         cairo_save(current_cr);
+        if (scale_x == 0.0 || scale_y == 0.0) {
+            cairo_restore(current_cr);
+            return NSERROR_OK;
+        }
         cairo_scale(current_cr, scale_x, scale_y);
 
         cairo_set_source_surface(current_cr, img_surface, x / scale_x, y / scale_y);

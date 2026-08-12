@@ -85,6 +85,12 @@ GdkPixbuf *nsgdk_pixbuf_get_from_surface(cairo_surface_t *surface, int scwidth, 
     cr = cairo_create(scsurface);
 
     /* Scale *before* setting the source surface */
+    if (width == 0 || height == 0) {
+        cairo_destroy(cr);
+        cairo_surface_destroy(scsurface);
+        g_object_unref(pixbuf);
+        return NULL;
+    }
     cairo_scale(cr, (double)scwidth / width, (double)scheight / height);
     cairo_set_source_surface(cr, surface, 0, 0);
 
