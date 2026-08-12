@@ -9,6 +9,8 @@ extern bool wisp_is_js_process;
 #include <wisp/utils/log.h>
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
+#include <wisp/content/csp.h>
+#include <wisp/content/handlers/html/private.h>
 #include "quickjs.h"
 #include "qjs_internal.h"
 #include "dom_bridge.h"
@@ -289,7 +291,13 @@ void qjs_timer_callback(void *p)
     } else {
         const char *code = JS_ToCString(ctx, timer->func);
         if (code) {
-            ret = JS_Eval(ctx, code, strlen(code), "<timer>", JS_EVAL_TYPE_GLOBAL);
+            struct html_content *htmlc = (t && t->win_priv && t->win_priv != t->doc_priv) ? (struct html_content *)t->doc_priv : NULL;
+            if (htmlc && htmlc->csp && !csp_check_eval(htmlc->csp)) {
+                NSLOG(wisp, WARNING, "CSP blocked dynamic script evaluation (unsafe-eval) in timer");
+                ret = JS_UNDEFINED;
+            } else {
+                ret = JS_Eval(ctx, code, strlen(code), "<timer>", JS_EVAL_TYPE_GLOBAL);
+            }
             JS_FreeValue(ctx, ret);
             JS_FreeCString(ctx, code);
         }
