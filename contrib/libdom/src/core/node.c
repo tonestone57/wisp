@@ -2347,9 +2347,9 @@ void _dom_node_mark_pending(dom_node_internal *node)
 {
     struct dom_document *doc = node->owner;
 
-    /* TODO: the pending_list is located at in dom_document, but some
+    /* The pending_list is located in dom_document, but some
      * nodes can be created without a document created, such as a
-     * dom_document_type node. For this reason, we should test whether
+     * dom_document_type node. For this reason, we test whether
      * the doc is NULL. */
     if (doc != NULL) {
         /* The node must not be in the pending list */
