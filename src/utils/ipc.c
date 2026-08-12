@@ -371,8 +371,7 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
     if (access(out_path, 0) == 0) {
         return true;
     }
-    strncpy(out_path, name, out_len - 1);
-    out_path[out_len - 1] = '\0';
+    snprintf(out_path, out_len, "%s", name);
     return true;
 #else
     // 1. Try to read /proc/self/exe (Linux)
