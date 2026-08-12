@@ -130,6 +130,9 @@ START_TEST(test_simd_streq_and_strcmp)
                                "This is a longer string to test SIMD chunk comparison across 32-byte chunks and moxe."));
 
     /* Test strcmp behaviors */
+    ck_assert_int_eq(wisp_simd_strcmp(NULL, NULL), 0);
+    ck_assert(wisp_simd_strcmp("abc", NULL) > 0);
+    ck_assert(wisp_simd_strcmp(NULL, "abc") < 0);
     ck_assert_int_eq(wisp_simd_strcmp("hello", "hello"), 0);
     ck_assert_int_eq(wisp_simd_strcmp("", ""), 0);
     ck_assert(wisp_simd_strcmp("hello", "hell_") > 0);
@@ -230,12 +233,12 @@ START_TEST(test_whitespace_skipping)
 }
 END_TEST
 
-static Suite *utf8proc_simd_suite(void)
+static Suite *utf8proc_wrapper_suite(void)
 {
     Suite *s;
     TCase *tc;
 
-    s = suite_create("utf8proc_simd");
+    s = suite_create("utf8proc_wrapper");
     tc = tcase_create("core");
 
     tcase_add_test(tc, test_ascii_detection);
@@ -257,7 +260,7 @@ int main(void)
     Suite *s;
     SRunner *sr;
 
-    s = utf8proc_simd_suite();
+    s = utf8proc_wrapper_suite();
     sr = srunner_create(s);
     srunner_run_all(sr, CK_ENV);
 

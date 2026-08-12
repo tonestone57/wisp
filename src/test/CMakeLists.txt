@@ -451,11 +451,11 @@ add_wisp_test(journal_test
 )
 target_link_libraries(journal_test PRIVATE wisp)
 
-add_wisp_test(test_utf8proc_simd
-  ${CMAKE_SOURCE_DIR}/src/test/test_utf8proc_simd.c
+add_wisp_test(test_utf8proc_wrapper
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8proc_wrapper.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
-target_link_libraries(test_utf8proc_simd PRIVATE wisp)
+target_link_libraries(test_utf8proc_wrapper PRIVATE wisp)
 
 add_wisp_test(test_utf8
   ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
