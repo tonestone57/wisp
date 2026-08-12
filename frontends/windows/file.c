@@ -36,6 +36,7 @@
 #include "wisp/utils/nsurl.h"
 #include "wisp/utils/string.h"
 #include "wisp/utils/utils.h"
+#include "utils/url.h"
 
 #include "windows/file.h"
 
@@ -205,26 +206,35 @@ static nserror windows_path_to_nsurl(const char *path, struct nsurl **url_out)
     nserror ret;
     int urllen;
     char *urlstr;
+    char *escpath; /* escaped version of the path */
     char *sidx; /* slash index */
 
     if ((path == NULL) || (url_out == NULL) || (*path == 0)) {
         return NSERROR_BAD_PARAMETER;
     }
 
+    /* escape the path so it can be placed in a url */
+    ret = url_escape(path, false, "/\\:", &escpath);
+    if (ret != NSERROR_OK) {
+        return ret;
+    }
+
     /* build url as a string for nsurl constructor */
-    urllen = strlen(path) + FILE_SCHEME_PREFIX_LEN + 5;
+    urllen = strlen(escpath) + FILE_SCHEME_PREFIX_LEN + 5;
     urlstr = malloc(urllen);
     if (urlstr == NULL) {
+        free(escpath);
         return NSERROR_NOMEM;
     }
 
-    /** @todo check if this should be url escaping the path. */
-    if (*path == '/') {
+    if (*escpath == '/') {
         /* unix style path start, so try wine Z: */
-        snprintf(urlstr, urllen, "%sZ%%3A%s", FILE_SCHEME_PREFIX, path);
+        snprintf(urlstr, urllen, "%sZ%%3A%s", FILE_SCHEME_PREFIX, escpath);
     } else {
-        snprintf(urlstr, urllen, "%s%s", FILE_SCHEME_PREFIX, path);
+        snprintf(urlstr, urllen, "%s%s", FILE_SCHEME_PREFIX, escpath);
     }
+
+    free(escpath);
 
     sidx = strrchr(urlstr, '\\');
     while (sidx != NULL) {

@@ -121,6 +121,21 @@ static const struct test_pairs url_escape_test_vec[] = {
     {&all_chars[0], SLEN(all_chars), &most_escaped_upper[0], 0},
 };
 
+static const struct test_pairs url_escape_sptoplus_test_vec[] = {
+    {"", 0, "", 0},
+    {"hello world", 11, "hello+world", 0},
+    {" ", 1, "+", 0},
+    {"   ", 3, "+++", 0},
+    {"a b c", 5, "a+b+c", 0},
+};
+
+static const struct test_pairs url_escape_escexceptions_test_vec[] = {
+    {"", 0, "", 0},
+    {"[foo]", 5, "[foo]", 0},
+    {"!#$&'()*+,/:;=?@[]", 18, "!#$&'()*+,/:;=?@[]", 0},
+    {"[hello world]", 13, "[hello%20world]", 0}, /* space is still escaped */
+};
+
 
 START_TEST(url_escape_test)
 {
@@ -129,6 +144,38 @@ START_TEST(url_escape_test)
     const struct test_pairs *tst = &url_escape_test_vec[_i];
 
     err = url_escape(tst->test, false, "", &esc_str);
+    ck_assert(err == NSERROR_OK);
+
+    /* ensure result data is correct */
+    ck_assert_str_eq(esc_str, tst->res);
+
+    free(esc_str);
+}
+END_TEST
+
+START_TEST(url_escape_sptoplus_test)
+{
+    nserror err;
+    char *esc_str;
+    const struct test_pairs *tst = &url_escape_sptoplus_test_vec[_i];
+
+    err = url_escape(tst->test, true, "", &esc_str);
+    ck_assert(err == NSERROR_OK);
+
+    /* ensure result data is correct */
+    ck_assert_str_eq(esc_str, tst->res);
+
+    free(esc_str);
+}
+END_TEST
+
+START_TEST(url_escape_escexceptions_test)
+{
+    nserror err;
+    char *esc_str;
+    const struct test_pairs *tst = &url_escape_escexceptions_test_vec[_i];
+
+    err = url_escape(tst->test, false, "!#$&'()*+,/:;=?@[]", &esc_str);
     ck_assert(err == NSERROR_OK);
 
     /* ensure result data is correct */
@@ -164,12 +211,16 @@ static TCase *url_escape_case_create(void)
     tcase_add_test(tc, url_escape_api_nullparam_test);
 
     tcase_add_loop_test(tc, url_escape_test, 0, NELEMS(url_escape_test_vec));
+    tcase_add_loop_test(tc, url_escape_sptoplus_test, 0, NELEMS(url_escape_sptoplus_test_vec));
+    tcase_add_loop_test(tc, url_escape_escexceptions_test, 0, NELEMS(url_escape_escexceptions_test_vec));
 
     return tc;
 }
 
 static const struct test_pairs url_unescape_test_vec[] = {
     {"", 0, "", 0}, /* empty string */
+    {"%", 1, "%", 1}, /* incomplete encoding (length 1) */
+    {"%2", 2, "%2", 2}, /* incomplete encoding (length 2) */
     {"%20", 3, " ", 1}, /* single character properly escaped */
     {"%0G", 3, "%0G", 3}, /* single character with bad hex value */
     {"%20%0G%20", 9, " %0G ", 5}, /* three src chars with bad hex value */

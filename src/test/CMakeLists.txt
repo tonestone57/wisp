@@ -106,11 +106,11 @@ set(URLDBTEST_SOURCES
 )
 add_wisp_test(urldbtest ${URLDBTEST_SOURCES})
 
-add_wisp_test(urlescape
+add_wisp_test(test_url
   ${CMAKE_SOURCE_DIR}/src/utils/url.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/urlescape.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_url.c
 )
 
 add_wisp_test(csp_test
@@ -456,6 +456,12 @@ add_wisp_test(test_utf8proc_simd
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
+
+add_wisp_test(test_utf8
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_utf8 PRIVATE wisp)
 add_wisp_test(test_websocket_mask
   ${CMAKE_SOURCE_DIR}/src/test/test_websocket_mask.c
 )
@@ -504,7 +510,11 @@ add_wisp_test(test_thread_pool
 target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_nscolour
+  ${CMAKE_SOURCE_DIR}/src/utils/nscolour.c
+  ${CMAKE_SOURCE_DIR}/src/desktop/system_colour.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
   ${CMAKE_SOURCE_DIR}/src/test/test_nscolour.c
 )
 target_link_libraries(test_nscolour PRIVATE wisp ${CHECK_LIBRARIES})
