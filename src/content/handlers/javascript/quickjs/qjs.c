@@ -1151,6 +1151,7 @@ void js_destroyheap(jsheap *heap)
     /* Orphans and nullifies any active threads associated with this heap */
     struct jsthread *t = heap->threads;
     while (t != NULL) {
+        t->closed = true;
         t->ctx = NULL;
         t->heap = NULL;
         t = t->next_in_heap;
@@ -1479,7 +1480,7 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            this.nodeName = '#document-fragment';\n"
         "        }\n"
         "        get children() {\n"
-        "            return this._childNodes.filter(node => node.nodeType === 1);\n"
+        "            return this._childNodes.filter(node => node && node.nodeType === 1);\n"
         "        }\n"
         "        get firstElementChild() {\n"
         "            const elements = this.children;\n"
@@ -3167,6 +3168,7 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "\n"
         "    _upgradeNode(node) {\n"
         "        if (!node || node.nodeType !== 1) return;\n"
+        "        if (!node.tagName) return;\n"
         "        const name = node.tagName.toLowerCase();\n"
         "        const definition = this._registry.get(name);\n"
         "        if (definition && !node._upgraded) {\n"
@@ -3804,6 +3806,7 @@ void js_destroythread(jsthread *thread)
 {
     if (!thread)
         return;
+    thread->closed = true;
 
     /* Unlink thread from heap's active threads list if heap is still valid */
     if (thread->heap != NULL) {
