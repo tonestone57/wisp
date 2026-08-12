@@ -106,11 +106,11 @@ set(URLDBTEST_SOURCES
 )
 add_wisp_test(urldbtest ${URLDBTEST_SOURCES})
 
-add_wisp_test(urlescape
+add_wisp_test(test_url
   ${CMAKE_SOURCE_DIR}/src/utils/url.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/urlescape.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_url.c
 )
 
 add_wisp_test(csp_test
@@ -522,3 +522,8 @@ add_wisp_test(test_ssl_certs
   ${CMAKE_SOURCE_DIR}/src/test/test_ssl_certs.c
 )
 target_link_libraries(test_ssl_certs PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_libdom
+  ${CMAKE_SOURCE_DIR}/src/test/test_libdom.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_libdom PRIVATE wisp ${CHECK_LIBRARIES})

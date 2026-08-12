@@ -99,6 +99,10 @@ nserror libdom_iterate_child_elements(dom_node *parent, libdom_iterate_cb cb, vo
     uint32_t index, num_children;
     dom_exception error;
 
+    if (parent == NULL) {
+        return NSERROR_DOM;
+    }
+
     error = dom_node_get_child_nodes(parent, &children);
     if (error != DOM_NO_ERR) {
         return dom_exception_to_nserror(error);
