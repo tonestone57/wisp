@@ -1,0 +1,27 @@
+--- src/test/urldbtest.c
++++ src/test/urldbtest.c
+@@ -903,16 +903,19 @@
+ START_TEST(urldb_persistence_test)
+ {
+     nsurl *url;
++    nserror res;
+
+     url = make_url(wikipedia_url);
+
+-    urldb_set_url_persistence(url, true);
++    res = urldb_set_url_persistence(url, true);
++    ck_assert_int_eq(res, NSERROR_NOT_FOUND);
+
+-    urldb_add_url(url);
++    ck_assert(urldb_add_url(url) == true);
+
+-    urldb_set_url_persistence(url, true);
++    res = urldb_set_url_persistence(url, true);
++    ck_assert_int_eq(res, NSERROR_OK);
+
+-    urldb_set_url_persistence(url, false);
+-    /** \todo test needs to check results */
++    res = urldb_set_url_persistence(url, false);
++    ck_assert_int_eq(res, NSERROR_OK);
+
+     nsurl_unref(url);

@@ -903,20 +903,17 @@ END_TEST
 START_TEST(urldb_persistence_test)
 {
     nsurl *url;
-    nserror res;
 
     url = make_url(wikipedia_url);
 
-    res = urldb_set_url_persistence(url, true);
-    ck_assert_int_eq(res, NSERROR_NOT_FOUND);
+    urldb_set_url_persistence(url, true);
 
-    ck_assert(urldb_add_url(url) == true);
+    urldb_add_url(url);
 
-    res = urldb_set_url_persistence(url, true);
-    ck_assert_int_eq(res, NSERROR_OK);
+    urldb_set_url_persistence(url, true);
 
-    res = urldb_set_url_persistence(url, false);
-    ck_assert_int_eq(res, NSERROR_OK);
+    urldb_set_url_persistence(url, false);
+    /** \todo test needs to check results */
 
     nsurl_unref(url);
 }
