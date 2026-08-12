@@ -1532,13 +1532,8 @@ static void gui_window_place_caret(struct gui_window *g, int x, int y, int heigh
  */
 static nserror gui_window_get_dimensions(struct gui_window *gw, int *width, int *height)
 {
-    GtkAllocation alloc;
-
-    /** @todo consider gtk_widget_get_allocated_width() */
-    nsgtk_widget_get_allocation(GTK_WIDGET(gw->layout), &alloc);
-
-    *width = alloc.width;
-    *height = alloc.height;
+    *width = gtk_widget_get_allocated_width(GTK_WIDGET(gw->layout));
+    *height = gtk_widget_get_allocated_height(GTK_WIDGET(gw->layout));
 
     return NSERROR_OK;
 }
