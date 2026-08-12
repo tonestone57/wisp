@@ -51,7 +51,6 @@ ScaffoldStyle::ScaffoldStyle(QObject *parent) : QProxyStyle()
  * horizontaly and verticaly. padding size is derived from vertical gap to
  * center of the tabbar.
  *
- * \todo cope with reverse layout
  */
 QRect ScaffoldStyle::subElementRect(SubElement subElement, const QStyleOption *option, const QWidget *widget) const
 {
@@ -60,7 +59,12 @@ QRect ScaffoldStyle::subElementRect(SubElement subElement, const QStyleOption *o
         QRect rightCornerRect = QProxyStyle::subElementRect(QStyle::SE_TabWidgetRightCorner, option, widget);
 
         int padding = (tabRect.height() - rightCornerRect.height()) / 2;
-        int x = qMin(tabRect.left() + tabRect.width() + padding, rightCornerRect.x());
+        int x;
+        if (widget && widget->layoutDirection() == Qt::RightToLeft) {
+            x = qMax(tabRect.left() - rightCornerRect.width() - padding, rightCornerRect.x());
+        } else {
+            x = qMin(tabRect.left() + tabRect.width() + padding, rightCornerRect.x());
+        }
         return QRect(x, rightCornerRect.y() - padding, rightCornerRect.width(), rightCornerRect.height());
     }
 
