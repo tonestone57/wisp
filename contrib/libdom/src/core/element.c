@@ -1589,9 +1589,16 @@ _dom_element_set_attr(struct dom_element *element, dom_string *namespace, dom_st
          * make sure the event model work as excepted. */
         if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR)
             return err;
+
+        if (err == DOM_NOT_SUPPORTED_ERR) {
+            err = DOM_NO_ERR;
+        }
+
         err = _dom_dispatch_attr_modified_event(
             doc, e, old, value, match->attr, name, DOM_MUTATION_MODIFICATION, &success);
-        dom_string_unref(old);
+        if (old != NULL) {
+            dom_string_unref(old);
+        }
         if (err != DOM_NO_ERR)
             return err;
 
@@ -1733,8 +1740,15 @@ dom_exception _dom_element_remove_attr(struct dom_element *element, dom_string *
          * make sure the event model work as excepted. */
         if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR)
             return err;
+
+        if (err == DOM_NOT_SUPPORTED_ERR) {
+            err = DOM_NO_ERR;
+        }
+
         err = _dom_dispatch_attr_modified_event(doc, e, old, NULL, a, name, DOM_MUTATION_REMOVAL, &success);
-        dom_string_unref(old);
+        if (old != NULL) {
+            dom_string_unref(old);
+        }
         /* Release the reference */
         dom_node_unref(a);
         if (err != DOM_NO_ERR)
@@ -1858,9 +1872,16 @@ dom_exception _dom_element_set_attr_node(
             dom_node_unref(old_attr);
             goto cleanup;
         }
+
+        if (err == DOM_NOT_SUPPORTED_ERR) {
+            err = DOM_NO_ERR;
+        }
+
         err = _dom_dispatch_attr_modified_event(
             doc, e, old, NULL, (dom_event_target *)old_attr, name, DOM_MUTATION_REMOVAL, &success);
-        dom_string_unref(old);
+        if (old != NULL) {
+            dom_string_unref(old);
+        }
         *result = old_attr;
         if (err != DOM_NO_ERR) {
             goto cleanup;
@@ -1896,10 +1917,17 @@ dom_exception _dom_element_set_attr_node(
         _dom_element_attr_list_node_destroy(match);
         goto cleanup;
     }
+
+    if (err == DOM_NOT_SUPPORTED_ERR) {
+        err = DOM_NO_ERR;
+    }
+
     err = _dom_dispatch_attr_modified_event(
         doc, e, NULL, new, (dom_event_target *)attr, name, DOM_MUTATION_ADDITION, &success);
     /* Cleanup */
-    dom_string_unref(new);
+    if (new != NULL) {
+        dom_string_unref(new);
+    }
     if (err != DOM_NO_ERR) {
         _dom_element_attr_list_node_destroy(match);
         goto cleanup;
@@ -2011,9 +2039,16 @@ dom_exception _dom_element_remove_attr_node(
         dom_node_unref(a);
         return err;
     }
+
+    if (err == DOM_NOT_SUPPORTED_ERR) {
+        err = DOM_NO_ERR;
+    }
+
     err = _dom_dispatch_attr_modified_event(
         doc, e, old, NULL, (dom_event_target *)a, name, DOM_MUTATION_REMOVAL, &success);
-    dom_string_unref(old);
+    if (old != NULL) {
+        dom_string_unref(old);
+    }
     if (err != DOM_NO_ERR)
         return err;
 
