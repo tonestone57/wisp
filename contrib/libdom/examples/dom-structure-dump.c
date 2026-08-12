@@ -46,7 +46,28 @@
 #include <dom/bindings/hubbub/parser.h>
 #include <dom/dom.h>
 #include <dom/walk.h>
+#include <strings.h>
 
+/**
+ * Check if the element is an HTML void element.
+ *
+ * \param name    The element name
+ * \param length  The element name length
+ * \return  true if the element is a void element, or false otherwise
+ */
+static bool is_void_element(const char *name, size_t length)
+{
+    static const char * const void_elements[] = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr", NULL
+    };
+    for (int i = 0; void_elements[i] != NULL; i++) {
+        if (length == strlen(void_elements[i]) && strncasecmp(name, void_elements[i], length) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
 
 /**
  * Generate a LibDOM document DOM from an HTML file
@@ -211,15 +232,20 @@ bool dump_dom_element(dom_node *node, int depth, bool close)
         return false;
     }
 
-    /* Print ASCII tree structure for current node */
-    dump_indent(depth);
-
     /* Get string data and print element name */
     string = dom_string_data(node_name);
     length = dom_string_byte_length(node_name);
 
-    /* TODO: Some elements don't have close tags; only print close tags for
+    /* Some elements don't have close tags; only print close tags for
      * those that do. */
+    if (close && is_void_element(string, length)) {
+        dom_string_unref(node_name);
+        return true;
+    }
+
+    /* Print ASCII tree structure for current node */
+    dump_indent(depth);
+
     printf("<%s%.*s", close ? "/" : "", (int)length, string);
 
     dom_string_unref(node_name);
