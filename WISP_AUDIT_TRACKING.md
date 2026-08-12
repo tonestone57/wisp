@@ -26,8 +26,8 @@ In a browser engine build like Wisp, the 2,995 WebIDL symbols fall into three di
 
 | Tier | Status | What it does | Goal | Count |
 |---|---|---|---|---|
-| **Tier 1: Full Spec** | ✅ Functional | Complete C logic (e.g., `putImageData_0`, `getElementById`, `addEventListener`). | Keep & Test | **1008** |
-| **Tier 2: Safe No-Ops** | ⚠️ Partial | Valid C function returning `JS_UNDEFINED` or `JS_FALSE` to prevent JS execution crashes on non-essential/minor APIs. | Upgrade to Tier 1 | **1973** |
+| **Tier 1: Full Spec** | ✅ Functional | Complete C logic (e.g., `putImageData_0`, `getElementById`, `addEventListener`). | Keep & Test | **1038** |
+| **Tier 2: Safe No-Ops** | ⚠️ Partial | Valid C function returning `JS_UNDEFINED` or `JS_FALSE` to prevent JS execution crashes on non-essential/minor APIs. | Upgrade to Tier 1 | **1943** |
 | **Tier 3: Unimplemented / Throwing** | 🚫 Missing Logic | Returns `JS_EXCEPTION` with a `DOMException("NotSupportedError")` or logs `[STUB]`. | Prioritize & Implement | **39** |
 
 ---
