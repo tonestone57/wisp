@@ -522,6 +522,12 @@ add_wisp_test(test_ssl_certs
   ${CMAKE_SOURCE_DIR}/src/test/test_ssl_certs.c
 )
 target_link_libraries(test_ssl_certs PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_challenge
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_challenge.c
+)
+target_link_libraries(test_challenge PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_libdom
   ${CMAKE_SOURCE_DIR}/src/test/test_libdom.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
