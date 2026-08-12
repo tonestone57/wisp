@@ -1703,6 +1703,9 @@ static void html_free_layout(html_content *htmlc)
 		box_unref_nodes(htmlc->layout);
 	}
 
+	/* Free style cache before destroying arena memory */
+	html_style_cache_free(htmlc);
+
 	if (htmlc->bctx != NULL) {
 		/* freeing arena context should let the entire box
 		 * set be destroyed
@@ -1711,7 +1714,6 @@ static void html_free_layout(html_content *htmlc)
 		htmlc->bctx = NULL;
 	}
 
-	html_style_cache_free(htmlc);
 	htmlc->layout = NULL;
 	/* Clear dirty rectangle and list to prevent dangling pointers */
 	htmlc->dirty_list = NULL;

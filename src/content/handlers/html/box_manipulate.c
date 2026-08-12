@@ -72,7 +72,7 @@ static void box_talloc_destructor(void *ptr)
 	}
 
 	if (b->styles != NULL) {
-		css_select_results_destroy(b->styles);
+		/* Style results are managed centrally by html_style_cache_free; clear reference to prevent double free */
 		b->styles = NULL;
 	}
 
