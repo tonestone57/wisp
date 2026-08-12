@@ -179,6 +179,11 @@ add_wisp_test(hashtable
   ${CMAKE_SOURCE_DIR}/src/test/hashtable.c
 )
 
+add_wisp_test(test_http_primitives
+  ${CMAKE_SOURCE_DIR}/src/test/test_http_primitives.c
+)
+target_link_libraries(test_http_primitives PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(utils
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/parse.c
