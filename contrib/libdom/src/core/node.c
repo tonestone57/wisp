@@ -2495,6 +2495,7 @@ dom_exception _dom_node_dispatch_event(dom_event_target *et, struct dom_event *e
     }
 
     if (evt->type == NULL || dom_string_byte_length(evt->type) == 0) {
+        evt->in_dispatch = false;
         return DOM_UNSPECIFIED_EVENT_TYPE_ERR;
     }
 
@@ -2502,6 +2503,7 @@ dom_exception _dom_node_dispatch_event(dom_event_target *et, struct dom_event *e
     if (doc == NULL) {
         /* TODO: In the progress of parsing, many Nodes in the DTD has
          * no document at all, do nothing for this kind of node */
+        evt->in_dispatch = false;
         return DOM_NO_ERR;
     }
 
@@ -2645,6 +2647,7 @@ cleanup:
         }
     }
 
+    evt->in_dispatch = false;
     return ret;
 }
 
