@@ -456,6 +456,12 @@ add_wisp_test(test_utf8proc_simd
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
+
+add_wisp_test(test_utf8
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_utf8 PRIVATE wisp)
 add_wisp_test(test_websocket_mask
   ${CMAKE_SOURCE_DIR}/src/test/test_websocket_mask.c
 )
@@ -502,3 +508,11 @@ add_wisp_test(test_thread_pool
   ${CMAKE_SOURCE_DIR}/src/test/test_thread_pool.c
 )
 target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_nscolour
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_nscolour.c
+)
+target_link_libraries(test_nscolour PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_content_disposition test_content_disposition.c)
+target_link_libraries(test_content_disposition PRIVATE wisp ${CHECK_LIBRARIES})

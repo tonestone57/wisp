@@ -845,8 +845,7 @@ static nserror nsgtk_init(int *pargc, char ***pargv, char **cache_home)
     ret = nsgtk_messages_init(respaths);
     if (ret != NSERROR_OK) {
         fprintf(stderr, "Unable to load translated messages (%s)\n", messages_get_errorcode(ret));
-        NSLOG(wisp, INFO, "Unable to load translated messages");
-        /** \todo decide if message load faliure should be fatal */
+        NSLOG(wisp, WARNING, "Unable to load translated messages");
     }
 
     /* Locate the correct user cache directory path */

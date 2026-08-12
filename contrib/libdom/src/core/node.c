@@ -2347,9 +2347,9 @@ void _dom_node_mark_pending(dom_node_internal *node)
 {
     struct dom_document *doc = node->owner;
 
-    /* TODO: the pending_list is located at in dom_document, but some
+    /* The pending_list is located in dom_document, but some
      * nodes can be created without a document created, such as a
-     * dom_document_type node. For this reason, we should test whether
+     * dom_document_type node. For this reason, we test whether
      * the doc is NULL. */
     if (doc != NULL) {
         /* The node must not be in the pending list */
@@ -2495,6 +2495,7 @@ dom_exception _dom_node_dispatch_event(dom_event_target *et, struct dom_event *e
     }
 
     if (evt->type == NULL || dom_string_byte_length(evt->type) == 0) {
+        evt->in_dispatch = false;
         return DOM_UNSPECIFIED_EVENT_TYPE_ERR;
     }
 
@@ -2502,6 +2503,7 @@ dom_exception _dom_node_dispatch_event(dom_event_target *et, struct dom_event *e
     if (doc == NULL) {
         /* TODO: In the progress of parsing, many Nodes in the DTD has
          * no document at all, do nothing for this kind of node */
+        evt->in_dispatch = false;
         return DOM_NO_ERR;
     }
 
@@ -2645,6 +2647,7 @@ cleanup:
         }
     }
 
+    evt->in_dispatch = false;
     return ret;
 }
 

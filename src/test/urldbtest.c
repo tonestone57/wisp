@@ -869,15 +869,23 @@ END_TEST
 START_TEST(urldb_update_visit_test)
 {
     nsurl *url;
+    nserror res;
+    const struct url_data *data;
 
     url = make_url(wikipedia_url);
 
-    urldb_update_url_visit_data(url);
+    res = urldb_update_url_visit_data(url);
+    ck_assert_int_eq(res, NSERROR_NOT_FOUND);
 
     urldb_add_url(url);
 
-    urldb_update_url_visit_data(url);
-    /** \todo test needs to check results */
+    res = urldb_update_url_visit_data(url);
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    data = urldb_get_url_data(url);
+    ck_assert(data != NULL);
+    ck_assert_int_eq(data->visits, 1);
+    ck_assert(data->last_visit > 0);
 
     nsurl_unref(url);
 }
@@ -886,6 +894,7 @@ END_TEST
 START_TEST(urldb_reset_visit_test)
 {
     nsurl *url;
+    const struct url_data *data;
 
     url = make_url(wikipedia_url);
 
@@ -893,8 +902,19 @@ START_TEST(urldb_reset_visit_test)
 
     urldb_add_url(url);
 
+    /* Update visit data to have non-zero values */
+    urldb_update_url_visit_data(url);
+    data = urldb_get_url_data(url);
+    ck_assert(data != NULL);
+    ck_assert_int_eq(data->visits, 1);
+
     urldb_reset_url_visit_data(url);
-    /** \todo test needs to check results */
+
+    /* Verify visit data is reset */
+    data = urldb_get_url_data(url);
+    ck_assert(data != NULL);
+    ck_assert_int_eq(data->visits, 0);
+    ck_assert_int_eq(data->last_visit, 0);
 
     nsurl_unref(url);
 }
@@ -903,17 +923,20 @@ END_TEST
 START_TEST(urldb_persistence_test)
 {
     nsurl *url;
+    nserror res;
 
     url = make_url(wikipedia_url);
 
-    urldb_set_url_persistence(url, true);
+    res = urldb_set_url_persistence(url, true);
+    ck_assert_int_eq(res, NSERROR_NOT_FOUND);
 
     urldb_add_url(url);
 
-    urldb_set_url_persistence(url, true);
+    res = urldb_set_url_persistence(url, true);
+    ck_assert_int_eq(res, NSERROR_OK);
 
-    urldb_set_url_persistence(url, false);
-    /** \todo test needs to check results */
+    res = urldb_set_url_persistence(url, false);
+    ck_assert_int_eq(res, NSERROR_OK);
 
     nsurl_unref(url);
 }
