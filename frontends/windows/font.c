@@ -1583,7 +1583,6 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
         NSLOG(wisp, INFO, "Loaded web font: CSS '%s' (weight=%d style=%d) -> internal '%s'", id->family_name,
             id->weight, id->style, internal_name);
         font_map_insert(id->family_name, internal_name);
-        free(internal_name);
     } else {
         /* No internal name found, use CSS name as-is */
         NSLOG(wisp, INFO, "Loaded web font: '%s' (weight=%d style=%d, no internal name found)", id->family_name,
@@ -1598,9 +1597,11 @@ nserror html_font_face_load_data(const struct font_variant_id *id, const uint8_t
         lf->variant.weight = id->weight;
         lf->variant.style = id->style;
         lf->handle = font_handle;
-        lf->internal_name = internal_name ? strdup(internal_name) : NULL;
+        lf->internal_name = internal_name;
         lf->next = win32_loaded_fonts;
         win32_loaded_fonts = lf;
+    } else {
+        if (internal_name != NULL) free(internal_name);
     }
 
     /* We no longer manually schedule a global repaint here. The core engine

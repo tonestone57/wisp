@@ -438,14 +438,14 @@ NS_Application::NS_Application(int &argc, char **argv, struct wisp_table *nsqt_t
         if (stat(argv[1], &fs) == 0) {
             size_t addrlen;
             char *rp = realpath(argv[1], NULL);
-            assert(rp != NULL);
-
-            /* calculate file url length including terminator */
-            addrlen = SLEN("file://") + strlen(rp) + 1;
-            addr = (char *)malloc(addrlen);
-            assert(addr != NULL);
-            snprintf(addr, addrlen, "file://%s", rp);
-            free(rp);
+            if (rp != NULL) {
+                addrlen = SLEN("file://") + strlen(rp) + 1;
+                addr = (char *)malloc(addrlen);
+                if (addr != NULL) snprintf(addr, addrlen, "file://%s", rp);
+                free(rp);
+            } else {
+                addr = strdup(argv[1]);
+            }
         } else {
             addr = strdup(argv[1]);
         }

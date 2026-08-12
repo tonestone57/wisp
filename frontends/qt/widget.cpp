@@ -273,6 +273,7 @@ void NS_Widget::paintEvent(QPaintEvent *event)
     /* Collect all tiles in the update region */
     int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
     struct qt_tile_task_t *tasks = (struct qt_tile_task_t *)malloc(sizeof(struct qt_tile_task_t) * max_tiles);
+    if (!tasks) { delete painter; return; }
     int task_count = 0;
 
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {

@@ -154,6 +154,7 @@ static int macos_tile_task_compare(const void *a, const void *b)
     /* Collect all tiles in the update region */
     int max_tiles = ((rect_right - x_start) / tile_size + 1) * ((rect_bottom - y_start) / tile_size + 1);
     macos_tile_task_t *tasks = (macos_tile_task_t *)malloc(sizeof(macos_tile_task_t) * max_tiles);
+    if (!tasks) { macos_plot_pop_context(); return; }
     int task_count = 0;
 
     for (int ty = y_start; ty < rect_bottom; ty += tile_size) {

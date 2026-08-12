@@ -1,5 +1,4 @@
 #include "wisp/utils/errors.h"
-#include "wisp/utils/errors.h"
 /*
  * Copyright 2008 Adam Blokus <adamblokus@gmail.com>
  *
