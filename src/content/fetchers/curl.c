@@ -1317,25 +1317,15 @@ static CURLcode fetch_curl_set_options(struct curl_fetch_info *f)
     }
 #endif
 
-    if (urldb_get_cert_permissions(f->url)) {
-        /* Disable certificate verification */
-        SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);
-        SETOPT(CURLOPT_SSL_VERIFYHOST, 0L);
-        if (curl_with_openssl) {
-            SETOPT(CURLOPT_SSL_CTX_FUNCTION, NULL);
-            SETOPT(CURLOPT_SSL_CTX_DATA, NULL);
-        }
-    } else {
-        /* do verification */
-        SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
-        SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
+    /* do verification */
+    SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
+    SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
 #ifdef WITH_OPENSSL
-        if (curl_with_openssl) {
-            SETOPT(CURLOPT_SSL_CTX_FUNCTION, fetch_curl_sslctxfun);
-            SETOPT(CURLOPT_SSL_CTX_DATA, f);
-        }
-#endif
+    if (curl_with_openssl) {
+        SETOPT(CURLOPT_SSL_CTX_FUNCTION, fetch_curl_sslctxfun);
+        SETOPT(CURLOPT_SSL_CTX_DATA, f);
     }
+#endif
 
     /* Dynamic HTTP/3 / QUIC configuration */
 #ifdef CURL_HTTP_VERSION_3

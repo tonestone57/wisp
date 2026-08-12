@@ -181,13 +181,20 @@ NS_Scaffold *NS_Scaffold::get_scaffold(QWidget *page, bool use_current)
 {
     NS_Scaffold *scaffold = nullptr;
     if (use_current && (page != nullptr)) {
-        /* todo check page parent is actually a scaffold */
-        scaffold = qobject_cast<NS_Scaffold *>(page->parentWidget()->parentWidget());
-    } else if ((use_current) && (current != nullptr)) {
-        scaffold = current;
-    } else {
-        scaffold = new NS_Scaffold(nullptr);
+        QWidget *parent = page->parentWidget();
+        if (parent != nullptr) {
+            scaffold = qobject_cast<NS_Scaffold *>(parent->parentWidget());
+        }
     }
+
+    if (scaffold == nullptr) {
+        if (use_current && (current != nullptr)) {
+            scaffold = current;
+        } else {
+            scaffold = new NS_Scaffold(nullptr);
+        }
+    }
+
     NSLOG(wisp, DEBUG, "page:%p use_current:%d current:%p scaffold:%p", page, use_current, current, scaffold);
     current = scaffold;
     return scaffold;
