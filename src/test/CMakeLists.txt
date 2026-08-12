@@ -537,8 +537,6 @@ target_link_libraries(test_libdom PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_talloc
   ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/utils/talloc.c
   ${CMAKE_SOURCE_DIR}/src/test/test_talloc.c
 )
 target_link_libraries(test_talloc PRIVATE wisp ${CHECK_LIBRARIES})
