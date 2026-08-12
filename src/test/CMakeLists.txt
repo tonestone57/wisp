@@ -106,11 +106,11 @@ set(URLDBTEST_SOURCES
 )
 add_wisp_test(urldbtest ${URLDBTEST_SOURCES})
 
-add_wisp_test(urlescape
+add_wisp_test(test_url
   ${CMAKE_SOURCE_DIR}/src/utils/url.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/urlescape.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_url.c
 )
 
 add_wisp_test(csp_test
