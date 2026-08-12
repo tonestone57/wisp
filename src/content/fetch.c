@@ -229,8 +229,10 @@ static bool fetch_dispatch_jobs(void)
     RING_GETSIZE(struct fetch, queue_ring, all_queued);
     RING_GETSIZE(struct fetch, fetch_ring, all_active);
 
-    NSLOG(fetch, DEBUG, "queue_ring %i, fetch_ring %i", all_queued, all_active);
-    dump_rings();
+    if (all_queued > 0 || all_active > 0) {
+        NSLOG(fetch, DEBUG, "queue_ring %i, fetch_ring %i", all_queued, all_active);
+        dump_rings();
+    }
 
     while ((all_queued != 0) && (all_active < nsoption_int(max_fetchers)) && fetch_choose_and_dispatch()) {
         all_queued--;
@@ -238,8 +240,10 @@ static bool fetch_dispatch_jobs(void)
         NSLOG(fetch, DEBUG, "%d queued, %d fetching", all_queued, all_active);
     }
 
-    NSLOG(fetch, DEBUG, "Fetch ring is now %d elements.", all_active);
-    NSLOG(fetch, DEBUG, "Queue ring is now %d elements.", all_queued);
+    if (all_queued > 0 || all_active > 0) {
+        NSLOG(fetch, DEBUG, "Fetch ring is now %d elements.", all_active);
+        NSLOG(fetch, DEBUG, "Queue ring is now %d elements.", all_queued);
+    }
 
     return (all_active > 0);
 }
@@ -388,7 +392,6 @@ nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd
     int fetcherd; /* fetcher index */
 
     if (!fetch_dispatch_jobs()) {
-        NSLOG(fetch, DEBUG, "No jobs");
         *maxfd_out = -1;
         return NSERROR_OK;
     }
@@ -813,8 +816,10 @@ void fetch_remove_from_queues(struct fetch *fetch)
     RING_GETSIZE(struct fetch, fetch_ring, all_active);
     RING_GETSIZE(struct fetch, queue_ring, all_queued);
 
-    NSLOG(fetch, DEBUG, "Fetch ring is now %d elements.", all_active);
-    NSLOG(fetch, DEBUG, "Queue ring is now %d elements.", all_queued);
+    if (all_queued > 0 || all_active > 0) {
+        NSLOG(fetch, DEBUG, "Fetch ring is now %d elements.", all_active);
+        NSLOG(fetch, DEBUG, "Queue ring is now %d elements.", all_queued);
+    }
 }
 
 

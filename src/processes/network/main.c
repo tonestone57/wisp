@@ -342,7 +342,9 @@ int main(int argc, char **argv) {
         }
 
         if (err != NSERROR_NOT_FOUND) {
-            fprintf(stderr, "WISP-NETWORK: recv returned %d\n", err);
+            if (err != NSERROR_SHUTDOWN) {
+                fprintf(stderr, "WISP-NETWORK: recv returned %d\n", err);
+            }
             break;
         }
 
