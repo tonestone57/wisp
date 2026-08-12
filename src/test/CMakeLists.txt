@@ -511,7 +511,6 @@ target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_nscolour
   ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
   ${CMAKE_SOURCE_DIR}/src/test/test_nscolour.c
 )
 target_link_libraries(test_nscolour PRIVATE wisp ${CHECK_LIBRARIES})
