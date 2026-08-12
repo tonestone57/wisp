@@ -456,6 +456,12 @@ add_wisp_test(test_utf8proc_simd
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
+
+add_wisp_test(test_utf8
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_utf8 PRIVATE wisp)
 add_wisp_test(test_websocket_mask
   ${CMAKE_SOURCE_DIR}/src/test/test_websocket_mask.c
 )
