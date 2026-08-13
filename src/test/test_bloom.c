@@ -124,10 +124,42 @@ START_TEST(bloom_insert_empty_str_test)
 }
 END_TEST
 
+/**
+ * insert hash test
+ */
+START_TEST(bloom_insert_hash_test)
+{
+    struct bloom_filter *b;
+    b = bloom_create(BLOOM_SIZE);
+    ck_assert(b != NULL);
+
+    bloom_insert_hash(b, 0x12345678);
+    ck_assert(bloom_items(b) == 1);
+    ck_assert(bloom_search_hash(b, 0x12345678) == true);
+    ck_assert(bloom_search_hash(b, 0x87654321) == false);
+
+    bloom_destroy(b);
+}
+END_TEST
 
 /**
- * Basic API creation test case
+ * search string test edge cases
  */
+START_TEST(bloom_search_str_test)
+{
+    struct bloom_filter *b;
+    b = bloom_create(BLOOM_SIZE);
+    ck_assert(b != NULL);
+
+    /* Edge cases for bloom_search_str and hash functions */
+    /* Check search on empty bloom filter (returns false) */
+    ck_assert(!bloom_search_str(b, "test", 4));
+    ck_assert(!bloom_search_hash(b, 0x12345678));
+
+    bloom_destroy(b);
+}
+END_TEST
+
 static TCase *bloom_api_case_create(void)
 {
     TCase *tc;
@@ -137,6 +169,11 @@ static TCase *bloom_api_case_create(void)
     tcase_add_test(tc, bloom_create_test);
     tcase_add_test(tc, bloom_insert_empty_str_test);
 
+
+
+
+    tcase_add_test(tc, bloom_insert_hash_test);
+    tcase_add_test(tc, bloom_search_str_test);
     return tc;
 }
 

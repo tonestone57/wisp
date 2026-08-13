@@ -181,9 +181,9 @@ add_wisp_test(http3_test
   ${CMAKE_SOURCE_DIR}/src/test/http3_test.c
 )
 
-add_wisp_test(bloom
+add_wisp_test(test_bloom
   ${CMAKE_SOURCE_DIR}/src/utils/bloom.c
-  ${CMAKE_SOURCE_DIR}/src/test/bloom.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_bloom.c
 )
 
 add_wisp_test(test_hashtable
