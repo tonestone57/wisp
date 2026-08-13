@@ -118,6 +118,11 @@ add_wisp_test(test_idna
 )
 target_link_libraries(test_idna PRIVATE wisp ${CHECK_LIBRARIES})
 
+add_wisp_test(test_punycode
+  ${CMAKE_SOURCE_DIR}/src/test/test_punycode.c
+)
+target_link_libraries(test_punycode PRIVATE wisp ${CHECK_LIBRARIES})
+
 
 
 
