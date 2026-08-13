@@ -1,4 +1,0 @@
-1. Add a test suite to cover `wisp_mkdir_all` edge cases, such as handling paths with multiple slashes, paths where directories already exist, creating deeply nested directories, and scenarios where it fails to create a directory because a file exists at the path. We will update `src/test/test_file.c` to add these tests to the test suite using standard C library functions (like `mkstemp`, `mkdtemp`, `unlink`, `rmdir`) to ensure safe execution across different test runs.
-2. Compile the codebase using `cmake --build build -j$(nproc)`.
-3. Run `export ASAN_OPTIONS=detect_odr_violation=0 && ctest --test-dir build` to verify that all the tests, including the new ones for `wisp_mkdir_all`, pass successfully.
-4. Complete pre commit steps to ensure proper testing, verification, review, and reflection are done.

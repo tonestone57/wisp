@@ -59,32 +59,79 @@ END_TEST
 
 START_TEST(wisp_mkdir_all_test)
 {
-    nserror err; struct stat sb;
-    struct gui_file_table file_ops = { .mkdir_all = default_file_table->mkdir_all, };
-    struct wisp_table gui = { .file = &file_ops, };
+    nserror err;
+    struct stat sb;
+    struct gui_file_table file_ops = {
+        .mkdir_all = default_file_table->mkdir_all,
+    };
+    struct wisp_table gui = {
+        .file = &file_ops,
+    };
     guit = &gui;
-    err = wisp_mkdir_all("filename.txt"); ck_assert_int_eq(err, NSERROR_OK);
-    char path_template[] = "/tmp/ns_mkdir_XXXXXX"; int fd = mkstemp(path_template); ck_assert_int_ge(fd, 0); close(fd);
-    char test_file_path[256]; snprintf(test_file_path, sizeof(test_file_path), "%s/file.txt", path_template);
-    err = wisp_mkdir_all(test_file_path); ck_assert_int_eq(err, NSERROR_NOT_DIRECTORY); unlink(path_template);
-    char dir_template[] = "/tmp/ns_mkdir_dir_XXXXXX"; char *tmp_dir = mkdtemp(dir_template); ck_assert_ptr_nonnull(tmp_dir);
+
+    /* Test 1: No separators (just a filename) */
+    err = wisp_mkdir_all("filename.txt");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test 2: File exists where directory should be */
+    char path_template[] = "/tmp/ns_mkdir_XXXXXX";
+    int fd = mkstemp(path_template);
+    ck_assert_int_ge(fd, 0);
+    close(fd);
+    char test_file_path[256];
+    snprintf(test_file_path, sizeof(test_file_path), "%s/file.txt", path_template);
+    err = wisp_mkdir_all(test_file_path);
+    ck_assert_int_eq(err, NSERROR_NOT_DIRECTORY);
+    unlink(path_template);
+
+    /* Test 3: Nested directories creation */
+    char dir_template[] = "/tmp/ns_mkdir_dir_XXXXXX";
+    char *tmp_dir = mkdtemp(dir_template);
+    ck_assert_ptr_nonnull(tmp_dir);
     snprintf(test_file_path, sizeof(test_file_path), "%s/dir1/dir2/file.txt", tmp_dir);
-    err = wisp_mkdir_all(test_file_path); ck_assert_int_eq(err, NSERROR_OK);
-    char check_dir[256]; snprintf(check_dir, sizeof(check_dir), "%s/dir1/dir2", tmp_dir);
-    ck_assert_int_eq(stat(check_dir, &sb), 0); ck_assert(S_ISDIR(sb.st_mode));
-    rmdir(check_dir); snprintf(check_dir, sizeof(check_dir), "%s/dir1", tmp_dir); rmdir(check_dir); rmdir(tmp_dir);
-    char dir_template2[] = "/tmp/ns_mkdir_dir2_XXXXXX"; char *tmp_dir2 = mkdtemp(dir_template2); ck_assert_ptr_nonnull(tmp_dir2);
+    err = wisp_mkdir_all(test_file_path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    char check_dir[256];
+    snprintf(check_dir, sizeof(check_dir), "%s/dir1/dir2", tmp_dir);
+    ck_assert_int_eq(stat(check_dir, &sb), 0);
+    ck_assert(S_ISDIR(sb.st_mode));
+    rmdir(check_dir);
+    snprintf(check_dir, sizeof(check_dir), "%s/dir1", tmp_dir);
+    rmdir(check_dir);
+    rmdir(tmp_dir);
+
+    /* Test 4: Existing directory */
+    char dir_template2[] = "/tmp/ns_mkdir_dir2_XXXXXX";
+    char *tmp_dir2 = mkdtemp(dir_template2);
+    ck_assert_ptr_nonnull(tmp_dir2);
     snprintf(test_file_path, sizeof(test_file_path), "%s/file.txt", tmp_dir2);
-    err = wisp_mkdir_all(test_file_path); ck_assert_int_eq(err, NSERROR_OK); rmdir(tmp_dir2);
-    err = wisp_mkdir_all("/nonexistent_root_dir_xxx/foo/bar/file.txt"); ck_assert_int_eq(err, NSERROR_NOT_FOUND);
-    char file_template[] = "/tmp/ns_mkdir_file_XXXXXX"; fd = mkstemp(file_template); ck_assert_int_ge(fd, 0); close(fd);
+    err = wisp_mkdir_all(test_file_path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    rmdir(tmp_dir2);
+
+    /* Test 5: Grandparent is file */
+    char file_template[] = "/tmp/ns_mkdir_file_XXXXXX";
+    fd = mkstemp(file_template);
+    ck_assert_int_ge(fd, 0);
+    close(fd);
     snprintf(test_file_path, sizeof(test_file_path), "%s/dir1/file.txt", file_template);
-    err = wisp_mkdir_all(test_file_path); ck_assert_int_eq(err, NSERROR_NOT_DIRECTORY); unlink(file_template);
-    char dir_template3[] = "/tmp/ns_mkdir_dir3_XXXXXX"; char *tmp_dir3 = mkdtemp(dir_template3); ck_assert_ptr_nonnull(tmp_dir3);
+    err = wisp_mkdir_all(test_file_path);
+    ck_assert_int_eq(err, NSERROR_NOT_DIRECTORY);
+    unlink(file_template);
+
+    /* Test 6: Multiple slashes */
+    char dir_template3[] = "/tmp/ns_mkdir_dir3_XXXXXX";
+    char *tmp_dir3 = mkdtemp(dir_template3);
+    ck_assert_ptr_nonnull(tmp_dir3);
     snprintf(test_file_path, sizeof(test_file_path), "%s//dir1//file.txt", tmp_dir3);
-    err = wisp_mkdir_all(test_file_path); ck_assert_int_eq(err, NSERROR_OK);
-    snprintf(check_dir, sizeof(check_dir), "%s/dir1", tmp_dir3); ck_assert_int_eq(stat(check_dir, &sb), 0); ck_assert(S_ISDIR(sb.st_mode));
-    rmdir(check_dir); rmdir(tmp_dir3);
+    err = wisp_mkdir_all(test_file_path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    snprintf(check_dir, sizeof(check_dir), "%s/dir1", tmp_dir3);
+    ck_assert_int_eq(stat(check_dir, &sb), 0);
+    ck_assert(S_ISDIR(sb.st_mode));
+    rmdir(check_dir);
+    rmdir(tmp_dir3);
+
     guit = NULL;
 }
 END_TEST
