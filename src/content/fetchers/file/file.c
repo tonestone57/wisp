@@ -95,7 +95,7 @@ static inline bool fetch_file_send_callback(const fetch_msg *msg, struct fetch_f
 static bool fetch_file_send_header(struct fetch_file_context *ctx, const char *fmt, ...)
 {
     fetch_msg msg;
-    char header[64];
+    char header[256];
     va_list ap;
     int len;
 
@@ -104,7 +104,7 @@ static bool fetch_file_send_header(struct fetch_file_context *ctx, const char *f
     va_end(ap);
 
     if (len >= (int)sizeof(header) || len < 0) {
-        return false;
+        return true; /* Treat format overflow as error/abort */
     }
 
     msg.type = FETCH_HEADER;
@@ -469,7 +469,7 @@ static char *gen_nice_title(char *path)
     }
 
     /* Set title to localised "Index of <nice_path>" */
-    snprintf(title, title_length, messages_get("FileIndex"), nice_path);
+    snprintf(title, title_length + 1, messages_get("FileIndex"), nice_path);
 
     free(nice_path);
 
@@ -533,9 +533,12 @@ process_dir_ent(struct fetch_file_context *ctx, struct dirent *ent, bool even, c
         return ret;
     }
 
+    const char *mtype = guit->fetch->filetype(urlpath);
+    if (!mtype) mtype = "text/plain";
+
     if (S_ISREG(ent_stat.st_mode)) {
         /* regular file */
-        dirlist_generate_row(even, false, url, ent->d_name, guit->fetch->filetype(urlpath), ent_stat.st_size, datebuf,
+        dirlist_generate_row(even, false, url, ent->d_name, mtype, ent_stat.st_size, datebuf,
             timebuf, buffer, buffer_len);
     } else if (S_ISDIR(ent_stat.st_mode)) {
         /* directory */

@@ -101,7 +101,7 @@ static inline bool fetch_resource_send_callback(const fetch_msg *msg, struct fet
 static bool fetch_resource_send_header(struct fetch_resource_context *ctx, const char *fmt, ...)
 {
     fetch_msg msg;
-    char header[64];
+    char header[256];
     va_list ap;
     int len;
 
@@ -110,7 +110,7 @@ static bool fetch_resource_send_header(struct fetch_resource_context *ctx, const
     va_end(ap);
 
     if (len >= (int)sizeof(header) || len < 0) {
-        return false;
+        return true; /* Treat format overflow as error/abort */
     }
 
     msg.type = FETCH_HEADER;

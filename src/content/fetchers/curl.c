@@ -138,6 +138,8 @@ static uint32_t curl_fetch_ssl_key_hash(void *key)
     lwc_string *port = nsurl_get_component(url, NSURL_PORT);
     uint32_t hash;
 
+    if (hostname == NULL) return 0;
+
     if (port == NULL)
         port = lwc_string_ref(corestring_lwc_443);
 
@@ -159,6 +161,8 @@ static bool curl_fetch_ssl_key_eq(void *key1, void *key2)
     lwc_string *port1 = nsurl_get_component(url1, NSURL_PORT);
     lwc_string *port2 = nsurl_get_component(url2, NSURL_PORT);
     bool iseq = false;
+
+    if (hostname1 == NULL || hostname2 == NULL) goto out;
 
     if (port1 == NULL)
         port1 = lwc_string_ref(corestring_lwc_443);
@@ -1263,6 +1267,7 @@ static CURLcode fetch_curl_set_options(struct curl_fetch_info *f)
         return code;
     }
 
+    free(f->cookie_string);
     f->cookie_string = urldb_get_cookie(f->url, true);
     if (f->cookie_string) {
         SETOPT(CURLOPT_COOKIE, f->cookie_string);
