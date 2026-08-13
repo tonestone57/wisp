@@ -181,11 +181,11 @@ add_wisp_test(bloom
   ${CMAKE_SOURCE_DIR}/src/test/bloom.c
 )
 
-add_wisp_test(hashtable
+add_wisp_test(test_hashtable
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/hashtable.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_hashtable.c
 )
 
 add_wisp_test(test_http_primitives

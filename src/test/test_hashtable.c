@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "utils/errors.h"
 #include "utils/hashtable.h"
@@ -266,6 +267,67 @@ START_TEST(hashtable_dict_test)
 }
 END_TEST
 
+START_TEST(hashtable_inline_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+    const char *res;
+    const char *data = "cat:meow\ndog:woof\n";
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    ret = hash_add_inline(ht, (const uint8_t *)data, strlen(data));
+    ck_assert(ret == NSERROR_OK);
+
+    res = hash_get(ht, "cat");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "meow");
+
+    res = hash_get(ht, "dog");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "woof");
+
+    hash_destroy(ht);
+}
+END_TEST
+
+START_TEST(hashtable_file_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+    const char *res;
+    char file_path[] = "/tmp/ns_test_hashtable_XXXXXX";
+    int fd;
+    FILE *fp;
+
+    fd = mkstemp(file_path);
+    ck_assert_int_ge(fd, 0);
+
+    fp = fdopen(fd, "w");
+    ck_assert(fp != NULL);
+    fputs("cat:meow\ndog:woof\n", fp);
+    fclose(fp);
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    ret = hash_add_file(ht, file_path);
+    ck_assert(ret == NSERROR_OK);
+
+    res = hash_get(ht, "cat");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "meow");
+
+    res = hash_get(ht, "dog");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "woof");
+
+    hash_destroy(ht);
+    unlink(file_path);
+}
+END_TEST
+
 /* Suite */
 
 static Suite *hashtable_suite(void)
@@ -284,6 +346,8 @@ static Suite *hashtable_suite(void)
     tcase_add_test(tc_create, hashtable_create_test);
     tcase_add_test(tc_create, hashtable_negative_test);
     tcase_add_test(tc_create, hashtable_positive_test);
+    tcase_add_test(tc_create, hashtable_inline_test);
+    tcase_add_test(tc_create, hashtable_file_test);
 
     suite_add_tcase(s, tc_create);
 
