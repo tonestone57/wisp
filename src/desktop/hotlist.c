@@ -1039,8 +1039,10 @@ nserror hotlist_export(const char *path, const char *title)
     tw.fp = fp;
     err = treeview_walk(
         hl_ctx.tree, NULL, hotlist_export_enter_cb, hotlist_export_leave_cb, &tw, TREE_NODE_ENTRY | TREE_NODE_FOLDER);
-    if (err != NSERROR_OK)
+    if (err != NSERROR_OK) {
+        fclose(fp);
         return err;
+    }
 
     fputs("</ul>\n</body>\n</html>\n", fp);
 

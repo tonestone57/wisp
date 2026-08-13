@@ -125,6 +125,7 @@ static bool fetch_data_start(void *ctx)
 static void fetch_data_free(void *ctx)
 {
     struct fetch_data_context *c = ctx;
+    if (c == NULL) return;
 
     nsurl_unref(c->url);
     free(c->data);
@@ -200,6 +201,10 @@ static bool fetch_data_process(struct fetch_data_context *c)
         c->mimetype[mlen - 7] = '\0';
     } else {
         c->base64 = false;
+    }
+    if (c->mimetype[0] == '\0') {
+        free(c->mimetype);
+        c->mimetype = strdup("text/plain;charset=US-ASCII");
     }
 
     /* URL unescape the data first, just incase some insane page

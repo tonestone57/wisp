@@ -73,14 +73,12 @@ hashmap_t *hashmap_create(hashmap_parameters_t *params)
     ret->params = params;
     ret->bucket_count = DEFAULT_HASHMAP_BUCKETS;
     ret->entry_count = 0;
-    ret->buckets = malloc(ret->bucket_count * sizeof(hashmap_entry_t *));
+    ret->buckets = calloc(ret->bucket_count, sizeof(hashmap_entry_t *));
 
     if (ret->buckets == NULL) {
         free(ret);
         return NULL;
     }
-
-    memset(ret->buckets, 0, ret->bucket_count * sizeof(hashmap_entry_t *));
 
     return ret;
 }
@@ -88,6 +86,7 @@ hashmap_t *hashmap_create(hashmap_parameters_t *params)
 /* Exported function, documented in hashmap.h */
 void hashmap_destroy(hashmap_t *hashmap)
 {
+    if (hashmap == NULL) return;
     uint32_t bucket;
     hashmap_entry_t *entry;
 
@@ -242,5 +241,6 @@ bool hashmap_iterate(hashmap_t *hashmap, hashmap_iteration_cb_t cb, void *ctx)
 /* Exported function, documented in hashmap.h */
 size_t hashmap_count(hashmap_t *hashmap)
 {
+    if (hashmap == NULL) return 0;
     return hashmap->entry_count;
 }

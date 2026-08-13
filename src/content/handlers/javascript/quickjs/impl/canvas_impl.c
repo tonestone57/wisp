@@ -21,6 +21,7 @@
 #include <wisp/plotters.h>
 #include <wisp/desktop/plot_blend2d.h>
 #include <wisp/desktop/gui_table.h>
+#include <wisp/layout.h>
 #include "utils/libdom.h"
 
 static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(ptr); }
@@ -612,12 +613,12 @@ JSValue wisp_canvasrenderingcontext2d_rotate_impl(JSContext *ctx, QJSNodePrivate
 
 JSValue wisp_canvasrenderingcontext2d_transform_impl(JSContext *ctx, QJSNodePrivate *priv, double a, double b, double c, double d, double e, double f)
 {
-    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
-    if (cpriv) {
+    CanvasContext2DPrivate *canvas_ctx = get_canvas_cpriv(priv);
+    if (!canvas_ctx) return JS_ThrowTypeError(ctx, "Invalid CanvasRenderingContext2D target");
 #ifdef WITH_BLEND2D
-        BLMatrix2D m = { a, b, c, d, e, f }; bl_context_apply_transform_op(&cpriv->bl_ctx_obj, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
+    BLMatrix2D m = { a, b, c, d, e, f };
+    bl_context_apply_transform_op(&canvas_ctx->bl_ctx_obj, BL_TRANSFORM_OP_POST_TRANSFORM, &m);
 #endif
-    }
     return JS_UNDEFINED;
 }
 
@@ -826,7 +827,20 @@ JSValue wisp_canvasrenderingcontext2d_clip_0_impl(JSContext *ctx, QJSNodePrivate
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (cpriv) {
+        bool evenodd = false;
+        if (JS_IsString(fillRule)) {
+            const char *rule = JS_ToCString(ctx, fillRule);
+            if (rule) {
+                if (strcmp(rule, "evenodd") == 0) evenodd = true;
+                JS_FreeCString(ctx, rule);
+            }
+        }
 #ifdef WITH_BLEND2D
+        if (evenodd) {
+            bl_path_set_fill_rule(&cpriv->current_path, BL_FILL_RULE_EVEN_ODD);
+        } else {
+            bl_path_set_fill_rule(&cpriv->current_path, BL_FILL_RULE_NON_ZERO);
+        }
         bl_context_clip_path_d(&cpriv->bl_ctx_obj, &cpriv->current_path);
 #endif
     }
@@ -836,7 +850,20 @@ JSValue wisp_canvasrenderingcontext2d_clip_1_impl(JSContext *ctx, QJSNodePrivate
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (cpriv && path) {
+        bool evenodd = false;
+        if (JS_IsString(fillRule)) {
+            const char *rule = JS_ToCString(ctx, fillRule);
+            if (rule) {
+                if (strcmp(rule, "evenodd") == 0) evenodd = true;
+                JS_FreeCString(ctx, rule);
+            }
+        }
 #ifdef WITH_BLEND2D
+        if (evenodd) {
+            bl_path_set_fill_rule((BLPathCore *)path, BL_FILL_RULE_EVEN_ODD);
+        } else {
+            bl_path_set_fill_rule((BLPathCore *)path, BL_FILL_RULE_NON_ZERO);
+        }
         bl_context_clip_path_d(&cpriv->bl_ctx_obj, (BLPathCore *)path);
 #endif
     }
@@ -963,8 +990,16 @@ JSValue wisp_canvasrenderingcontext2d_isPointInStroke_0_impl(JSContext *ctx, QJS
 JSValue wisp_canvasrenderingcontext2d_isPointInStroke_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, double x, double y) { return JS_FALSE; }
 JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text)
 {
+    CanvasContext2DPrivate *canvas_ctx = get_canvas_cpriv(priv);
     JSValue obj = JS_NewObject(ctx);
-    double width = (double)strlen(text) * 10.0;
+    int px_width = 0;
+    if (canvas_ctx && guit && guit->layout && guit->layout->width) {
+        struct plot_font_style style = {0};
+        guit->layout->width(&style, text, strlen(text), &px_width);
+    } else {
+        px_width = strlen(text) * 10;
+    }
+    double width = (double)px_width;
     JS_SetPropertyStr(ctx, obj, "width", JS_NewFloat64(ctx, width));
     return obj;
 }
@@ -1118,7 +1153,7 @@ JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePri
 JSValue wisp_canvasrenderingcontext2d_createLinearGradient_impl(JSContext *ctx, QJSNodePrivate *priv, double x0, double y0, double x1, double y1)
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
-    if (!cpriv) return JS_UNDEFINED;
+    if (!cpriv) return JS_ThrowTypeError(ctx, "Invalid CanvasRenderingContext2D target");
 
     CanvasGradientPrivate *grad = calloc(1, sizeof(*grad));
     if (!grad) return JS_ThrowOutOfMemory(ctx);
@@ -1162,11 +1197,11 @@ JSValue wisp_canvasrenderingcontext2d_createPattern_impl(JSContext *ctx, QJSNode
 
 JSValue wisp_canvasgradient_addColorStop_impl(JSContext *ctx, QJSNodePrivate *priv, double offset, const char * color)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid CanvasGradient target");
     CanvasGradientPrivate *grad = (CanvasGradientPrivate *)priv->node;
 
-    if (offset < 0.0 || offset > 1.0) {
-        return JS_ThrowRangeError(ctx, "IndexSizeError: offset must be between 0.0 and 1.0");
+    if (offset < 0.0 || offset > 1.0 || isnan(offset)) {
+        return JS_ThrowRangeError(ctx, "INDEX_SIZE_ERR: offset must be between 0.0 and 1.0");
     }
 
     if (!color) {
@@ -1177,6 +1212,8 @@ JSValue wisp_canvasgradient_addColorStop_impl(JSContext *ctx, QJSNodePrivate *pr
         grad->stops[grad->count].offset = offset;
         grad->stops[grad->count].color = strdup(color);
         grad->count++;
+    } else {
+        return JS_ThrowOutOfMemory(ctx);
     }
 
     return JS_UNDEFINED;

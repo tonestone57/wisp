@@ -264,8 +264,11 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                         fetch_set_http_code(fetchh, (long)http_code);
                     }
                     if (msg.length > 8) {
-                        msg.data[msg.length - 1] = '\0';
-                        fmsg.data.redirect = (char*)msg.data + 8;
+                        char *redir = strndup((char*)msg.data + 8, msg.length - 8);
+                        fmsg.data.redirect = redir ? redir : "";
+                        fetch_send_callback(&fmsg, fetchh);
+                        free(redir);
+                        break;
                     } else {
                         fmsg.data.redirect = "";
                     }
@@ -289,12 +292,14 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     fmsg.type = FETCH_ERROR;
                     if (msg.length > 4) {
                         /* Ensure received error string is safely null-terminated */
-                        msg.data[msg.length - 1] = '\0';
-                        fmsg.data.error = (char*)msg.data + 4;
+                        char *err_str = strndup((char*)msg.data + 4, msg.length - 4);
+                        fmsg.data.error = err_str ? err_str : "UnknownError";
+                        fetch_send_callback(&fmsg, fetchh);
+                        free(err_str);
                     } else {
                         fmsg.data.error = "UnknownError";
+                        fetch_send_callback(&fmsg, fetchh);
                     }
-                    fetch_send_callback(&fmsg, fetchh);
                     if (is_active_fetch_id(fetch_id)) {
                         pthread_mutex_lock(&active_fetches_mutex);
                         struct ipc_fetch_info *f_post = active_fetches;

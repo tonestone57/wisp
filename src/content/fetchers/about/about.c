@@ -358,7 +358,6 @@ static bool fetch_about_about_handler(struct fetch_about_context *ctx);
  */
 struct about_handlers about_handler_list[] = {{"credits", SLEN("credits"), NULL, fetch_about_credits_handler, false},
     {"license", SLEN("license"), NULL, fetch_about_license_handler, false},
-    {"license", SLEN("license"), NULL, fetch_about_license_handler, true},
     {"licence", SLEN("licence"), NULL, fetch_about_license_handler, true},
     {"welcome", SLEN("welcome"), NULL, fetch_about_welcome_handler, false},
     {"config", SLEN("config"), NULL, fetch_about_config_handler, false},
@@ -400,7 +399,7 @@ static bool fetch_about_about_handler(struct fetch_about_context *ctx)
 
     /* content type */
     if (fetch_about_send_header(ctx, "Content-Type: text/html; charset=utf-8"))
-        goto fetch_about_config_handler_aborted;
+        goto fetch_about_about_handler_aborted;
 
     res = fetch_about_ssenddataf(ctx,
         "<html>\n<head>\n"
@@ -412,7 +411,7 @@ static bool fetch_about_about_handler(struct fetch_about_context *ctx)
         "<h1 class =\"ns-border\">List of Wisp pages</h1>\n"
         "<ul>\n");
     if (res != NSERROR_OK) {
-        goto fetch_about_config_handler_aborted;
+        goto fetch_about_about_handler_aborted;
     }
 
     for (abt_loop = 0; abt_loop < about_handler_list_len; abt_loop++) {
@@ -424,20 +423,20 @@ static bool fetch_about_about_handler(struct fetch_about_context *ctx)
         res = fetch_about_ssenddataf(ctx, "<li><a href=\"about:%s\">about:%s</a></li>\n",
             about_handler_list[abt_loop].name, about_handler_list[abt_loop].name);
         if (res != NSERROR_OK) {
-            goto fetch_about_config_handler_aborted;
+            goto fetch_about_about_handler_aborted;
         }
     }
 
     res = fetch_about_ssenddataf(ctx, "</ul>\n</body>\n</html>\n");
     if (res != NSERROR_OK) {
-        goto fetch_about_config_handler_aborted;
+        goto fetch_about_about_handler_aborted;
     }
 
     fetch_about_send_finished(ctx);
 
     return true;
 
-fetch_about_config_handler_aborted:
+fetch_about_about_handler_aborted:
     return false;
 }
 
@@ -565,6 +564,7 @@ static void *fetch_about_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, 
 static void fetch_about_free(void *ctx)
 {
     struct fetch_about_context *c = ctx;
+    if (c == NULL) return;
     nsurl_unref(c->url);
     free(ctx);
 }

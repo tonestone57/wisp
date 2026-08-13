@@ -99,6 +99,11 @@ static nserror process_line(struct hash_table *hash, uint8_t *ln, int lnlen)
     key = ln; /* set key to start of line */
     value = ln + lnlen; /* set value to end of line */
 
+    /* Strip trailing carriage returns or newlines */
+    while (lnlen > 0 && (ln[lnlen - 1] == '\r' || ln[lnlen - 1] == '\n')) {
+        ln[--lnlen] = 0;
+    }
+
     /* skip leading whitespace */
     while ((key < value) && ((*key == ' ') || (*key == '\t'))) {
         key++;

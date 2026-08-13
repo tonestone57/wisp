@@ -214,6 +214,7 @@ int main(int argc, char **argv) {
                 curr_c = curr_c->next;
             }
             if (wait_time > 0) {
+                if (wait_time > 50) wait_time = 50;
                 usleep(wait_time * 1000);
             }
             continue;
