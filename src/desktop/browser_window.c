@@ -1084,8 +1084,8 @@ static nserror browser_window__handle_userpass_response(
     free(userpass);
 
     /**
-     * \todo QUERY - Eventually this should fill out the form *NOT* nav
-     *               to the original location
+     * NOTE: Properly storing and replaying form submissions after an auth
+     *       prompt requires a robust way to cache POST data.
      */
     /* Finally navigate to the original loading parameters */
     if (bw->loading_content != NULL) {
