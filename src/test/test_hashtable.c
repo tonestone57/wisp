@@ -289,6 +289,119 @@ START_TEST(hashtable_null_test)
 }
 END_TEST
 
+
+START_TEST(hashtable_add_inline_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+    const char *res;
+    const char *data = "key1:val1\n key2:val2\n# comment\nkey3:val3\n";
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    ret = hash_add_inline(ht, (const uint8_t *)data, strlen(data));
+    ck_assert(ret == NSERROR_OK);
+
+    res = hash_get(ht, "key1");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val1");
+
+    res = hash_get(ht, "key2");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val2");
+
+    res = hash_get(ht, "key3");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val3");
+
+    hash_destroy(ht);
+}
+END_TEST
+
+START_TEST(hashtable_add_inline_gzip_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+    const char *res;
+    /* Gzipped version of "key1:val1\n key2:val2\n# comment\nkey3:val3\n" */
+    const uint8_t gz_data[] = {
+        0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03,
+        0xcb, 0x4e, 0xad, 0x34, 0xb4, 0x2a, 0x4b, 0xcc, 0x31, 0xe4,
+        0x52, 0xc8, 0x4e, 0xad, 0x34, 0x02, 0x31, 0x8d, 0xb8, 0x94,
+        0x15, 0x92, 0xf3, 0x73, 0x73, 0x53, 0xf3, 0x4a, 0xb8, 0x80,
+        0x62, 0xc6, 0x20, 0x31, 0x63, 0x2e, 0x00, 0x71, 0x7f, 0x58,
+        0x16, 0x29, 0x00, 0x00, 0x00
+    };
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    ret = hash_add_inline(ht, gz_data, sizeof(gz_data));
+    ck_assert(ret == NSERROR_OK);
+
+    res = hash_get(ht, "key1");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val1");
+
+    res = hash_get(ht, "key2");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val2");
+
+    res = hash_get(ht, "key3");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val3");
+
+    hash_destroy(ht);
+}
+END_TEST
+
+START_TEST(hashtable_add_file_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+    const char *res;
+    char file_path[] = "/tmp/ns_test_XXXXXX";
+    int fd = mkstemp(file_path);
+    ck_assert(fd != -1);
+
+    FILE *f = fdopen(fd, "w");
+    ck_assert(f != NULL);
+    fprintf(f, "key1:val1\n key2:val2\n# comment\nkey3:val3\n");
+    fclose(f);
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    /* Test null path */
+    ret = hash_add_file(ht, NULL);
+    ck_assert(ret == NSERROR_BAD_PARAMETER);
+
+    /* Test non-existent file */
+    ret = hash_add_file(ht, "/tmp/ns_test_non_existent_file_12345");
+    ck_assert(ret == NSERROR_NOT_FOUND);
+
+    /* Test valid file */
+    ret = hash_add_file(ht, file_path);
+    ck_assert(ret == NSERROR_OK);
+
+    res = hash_get(ht, "key1");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val1");
+
+    res = hash_get(ht, "key2");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val2");
+
+    res = hash_get(ht, "key3");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val3");
+
+    hash_destroy(ht);
+    unlink(file_path);
+}
+END_TEST
+
 /* Suite */
 
 static Suite *hashtable_suite(void)
@@ -308,6 +421,9 @@ static Suite *hashtable_suite(void)
     tcase_add_test(tc_create, hashtable_negative_test);
     tcase_add_test(tc_create, hashtable_positive_test);
     tcase_add_test(tc_create, hashtable_null_test);
+    tcase_add_test(tc_create, hashtable_add_inline_test);
+    tcase_add_test(tc_create, hashtable_add_inline_gzip_test);
+    tcase_add_test(tc_create, hashtable_add_file_test);
 
     suite_add_tcase(s, tc_create);
 
