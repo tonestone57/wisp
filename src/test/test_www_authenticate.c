@@ -35,7 +35,6 @@ START_TEST(test_parse_happy_paths)
     ck_assert_ptr_nonnull(wa);
 
     cur = http_challenge_list_iterate(wa->challenges, &scheme, &params);
-    ck_assert_ptr_nonnull(cur);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 5);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
@@ -59,13 +58,11 @@ START_TEST(test_parse_happy_paths)
     ck_assert_ptr_nonnull(wa);
 
     cur = http_challenge_list_iterate(wa->challenges, &scheme, &params);
-    ck_assert_ptr_nonnull(cur);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 5);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
 
     cur = http_challenge_list_iterate(cur, &scheme, &params);
-    ck_assert_ptr_nonnull(cur);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 6);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
