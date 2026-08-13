@@ -33,6 +33,22 @@ static JSValue js_crypto_getRandomValues(JSContext *ctx, JSValueConst this_val, 
         JS_FreeValue(ctx, buffer);
         return JS_ThrowRangeError(ctx, "TypedArray offset out of bounds");
     }
+    if (byte_length > 65536) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "QuotaExceededError: Requested byte length exceeds 65536 limit");
+    }
+    if (byte_length > 65536) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "QuotaExceededError: Requested byte length exceeds 65536 limit");
+    }
+    if (byte_length > 65536) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "QuotaExceededError: Requested byte length exceeds 65536 limit");
+    }
+    if (byte_length > 65536) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "QuotaExceededError: Requested byte length exceeds 65536 limit");
+    }
     if (RAND_bytes(ptr + offset, byte_length) != 1) {
         JS_FreeValue(ctx, buffer);
         return JS_ThrowInternalError(ctx, "RAND_bytes failed");
@@ -47,13 +63,22 @@ static JSValue js_crypto_subtle_digest(JSContext *ctx, JSValueConst this_val, in
     if (argc < 2) {
         return JS_ThrowTypeError(ctx, "Expected 2 arguments");
     }
-
-    const char *algo_str = JS_ToCString(ctx, argv[0]);
+    JSValue algo_val = argv[0];
+    if (JS_IsObject(algo_val)) {
+        algo_val = JS_GetPropertyStr(ctx, argv[0], "name");
+        if (JS_IsException(algo_val)) return algo_val;
+    } else {
+        algo_val = JS_DupValue(ctx, argv[0]);
+    }
+    const char *algo_str = JS_ToCString(ctx, algo_val);
+    JS_FreeValue(ctx, algo_val);
     if (!algo_str) return JS_EXCEPTION;
 
     const EVP_MD *md = NULL;
     if (strcasecmp(algo_str, "SHA-256") == 0) {
         md = EVP_sha256();
+    } else if (strcasecmp(algo_str, "SHA-384") == 0) {
+        md = EVP_sha384();
     } else if (strcasecmp(algo_str, "SHA-1") == 0) {
         md = EVP_sha1();
     } else if (strcasecmp(algo_str, "SHA-512") == 0) {

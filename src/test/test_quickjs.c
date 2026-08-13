@@ -164,8 +164,7 @@ START_TEST(test_quickjs_event_composed_path)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     const char *code =
@@ -236,8 +235,7 @@ START_TEST(test_quickjs_predictive_layout)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     // Test 1: properties and getBoundingClientRect on elements
@@ -274,8 +272,7 @@ START_TEST(test_quickjs_custom_elements)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     const char *code =
@@ -478,8 +475,7 @@ START_TEST(test_quickjs_css_style_declaration)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *code =
         "var el = document.createElement('div');\n"
@@ -550,8 +546,7 @@ START_TEST(test_quickjs_performance_timeline)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     /* 1. Test performance base attributes and default entries */
     const char *code1 =
@@ -671,8 +666,7 @@ START_TEST(test_quickjs_tier1_apis)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     const char *code =
@@ -823,8 +817,7 @@ START_TEST(test_quickjs_webidl_stubs)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *script =
         "try {\n"
@@ -2242,8 +2235,7 @@ START_TEST(test_quickjs_node_stubs)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *script =
         "var parent = document.createElement('div');\n"
@@ -2285,8 +2277,7 @@ START_TEST(test_quickjs_dom_parser)
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
     /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test DOMParser constructor, XML parsing, HTML parsing, error handling and MIME validation */
@@ -2369,8 +2360,7 @@ START_TEST(test_quickjs_aot_cache)
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
     /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Force a clean environment for bytecode storage testing */
@@ -2419,8 +2409,7 @@ START_TEST(test_quickjs_json_simd)
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
     /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* 1. Test nested JSON objects and arrays */
@@ -2472,8 +2461,7 @@ START_TEST(test_quickjs_event_target_full)
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
     /* Release the creation reference; the thread context/DOM bridge now holds the active reference */
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test adding and dispatching on window */
@@ -2526,8 +2514,7 @@ START_TEST(test_quickjs_events_and_listeners_advanced)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     const char *code =
@@ -2625,8 +2612,7 @@ START_TEST(test_quickjs_trusted_types)
     dom_document *doc = create_test_document();
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test 1: trustedTypes exists and contains classes/methods */
@@ -2806,8 +2792,7 @@ START_TEST(test_quickjs_mutation_observer_e2e)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *code =
         "var records = [];\n"
@@ -2883,8 +2868,7 @@ START_TEST(test_quickjs_thread_create_destroy)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_ptr_nonnull(thread);
 
@@ -2917,8 +2901,7 @@ START_TEST(test_quickjs_exec_simple)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test simple expression */
@@ -2953,8 +2936,7 @@ START_TEST(test_quickjs_exec_syntax_error)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test syntax error - should return false */
@@ -2989,8 +2971,7 @@ START_TEST(test_quickjs_exec_objects)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test creating objects and arrays */
@@ -3028,8 +3009,7 @@ START_TEST(test_quickjs_exec_console_log)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test console.log - should work now that it's auto-initialized */
@@ -3064,8 +3044,7 @@ START_TEST(test_quickjs_exec_closed_thread)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Close the thread first */
@@ -3361,8 +3340,7 @@ START_TEST(test_quickjs_window_global)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test 1: window global exists */
@@ -3424,8 +3402,7 @@ START_TEST(test_quickjs_window_methods)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test that alert is a function (from Window interface) */
@@ -3509,8 +3486,7 @@ START_TEST(test_quickjs_timers)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     struct wisp_table *saved_guit = guit;
@@ -3581,8 +3557,7 @@ START_TEST(test_quickjs_navigator)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test UserAgent */
@@ -3619,8 +3594,7 @@ START_TEST(test_quickjs_location)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test location exists */
@@ -3657,8 +3631,7 @@ START_TEST(test_quickjs_document)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test document exists */
@@ -3690,8 +3663,7 @@ START_TEST(test_quickjs_storage)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test localStorage operations */
@@ -3750,8 +3722,7 @@ START_TEST(test_quickjs_event_target_basic)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test addEventListener exists on window */
@@ -3830,8 +3801,7 @@ START_TEST(test_quickjs_xhr)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test XMLHttpRequest constructor and basic state */
@@ -3882,8 +3852,7 @@ START_TEST(test_quickjs_dom_identity)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *code = "var body1 = document.body; var body2 = document.body; body1 === body2;";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_identity");
@@ -3913,8 +3882,7 @@ START_TEST(test_quickjs_crypto)
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
 
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Test crypto object exists */
@@ -3941,8 +3909,7 @@ START_TEST(test_quickjs_dom_attributes)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *code = "var el = document.createElement('div'); el.className = 'test-class'; el.setAttribute('id', 'test-id'); el.className === 'test-class' && el.getAttribute('id') === 'test-id';";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_attributes");
@@ -3967,8 +3934,7 @@ START_TEST(test_quickjs_canvas_imagedata)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *script = "if (typeof ImageData === 'undefined') throw 'ImageData missing';\n"
                          "let id = new ImageData(10, 10);\n"
@@ -4000,8 +3966,7 @@ START_TEST(test_quickjs_canvas_gradient)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     const char *script =
         "let canvas = document.createElement('canvas');\n"
@@ -4086,8 +4051,7 @@ START_TEST(test_quickjs_observers)
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
 
     /* Test MutationObserver existence and constructor */
     const char *code1 = "typeof MutationObserver === 'function' && typeof (new MutationObserver(() => {})) === 'object'";
@@ -4182,8 +4146,7 @@ START_TEST(test_quickjs_queue_microtask_order)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     const char *code1 = "window.order = [];\n"
@@ -4217,8 +4180,7 @@ START_TEST(test_quickjs_raf)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     struct wisp_table *saved_guit = guit;
@@ -4270,8 +4232,7 @@ START_TEST(test_quickjs_jit)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     /* Define a hot function with arithmetic, locals, loops (branches) and constants */
@@ -4312,8 +4273,7 @@ START_TEST(test_quickjs_fetch_streams)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     // Test 1: Headers creation and basic methods
@@ -4443,8 +4403,7 @@ START_TEST(test_quickjs_drag_drop)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     // Test 1: DataTransfer class, creation, and readwrite mode operations
@@ -4506,8 +4465,7 @@ START_TEST(test_quickjs_media_streams)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     // Test 1: MediaStream & MediaStreamTrack basic construction, properties, and async stop ended event
@@ -4566,8 +4524,7 @@ START_TEST(test_quickjs_shadow_dom)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     // Test: attachShadow, DOM manipulation, innerHTML parsing, and History routing in a single context with try/catch diagnostics
@@ -4635,8 +4592,7 @@ START_TEST(test_quickjs_ric)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
+
     ck_assert_int_eq(err, NSERROR_OK);
 
     struct wisp_table *saved_guit = guit;
