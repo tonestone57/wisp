@@ -7,9 +7,6 @@
 #include "utils/nscolour.h"
 #include "desktop/system_colour.h"
 
-extern nserror nscolour__get(const char *name_bg, const char *name_fg, unsigned bg_num, unsigned bg_den, colour *bg,
-    colour *bg_hover, colour *fg, colour *fg_subtle, colour *fg_faded, colour *fg_good, colour *fg_bad, colour *border);
-
 START_TEST(nscolour_get_edge_cases_test)
 {
     nserror res;

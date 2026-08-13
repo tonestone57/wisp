@@ -65,6 +65,13 @@ enum nscolour {
 extern colour nscolours[];
 
 /**
+ * Set some colours up from a couple of system colour entries.
+ * Exposed for testing purposes.
+ */
+nserror nscolour__get(const char *name_bg, const char *name_fg, unsigned bg_num, unsigned bg_den, colour *bg,
+    colour *bg_hover, colour *fg, colour *fg_subtle, colour *fg_faded, colour *fg_good, colour *fg_bad, colour *border);
+
+/**
  * Update the nscolour table from the current nsoptions.
  *
  * \return NSERROR_OK on success, or appropriate error otherwise.
