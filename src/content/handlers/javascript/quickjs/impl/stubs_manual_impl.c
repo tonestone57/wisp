@@ -1226,18 +1226,8 @@ JSValue wisp_htmlformelement_name_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 JSValue wisp_htmlformelement_reset_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_htmlformelement_submit_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    if (wisp_is_js_process) {
-        return JS_UNDEFINED;
-    }
-    if (!priv || !priv->node) {
-        return JS_UNDEFINED;
-    }
-
+    if (wisp_is_js_process) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLFormElement target");
     dom_node *doc = NULL;
     dom_node_get_owner_document((dom_node *)priv->node, (dom_document **)&doc);
     if (doc) {
@@ -1247,15 +1237,38 @@ JSValue wisp_htmlformelement_submit_impl(JSContext *ctx, QJSNodePrivate *priv)
         if (htmlc) {
             struct form *f = NULL;
             for (f = htmlc->forms; f != NULL; f = f->prev) {
-                if (f->node == priv->node) {
-                    break;
+                if (f->node == priv->node) break;
+            }
+            if (f && f->controls) {
+                for (struct form_control *c = f->controls; c != NULL; c = c->next) {
+                    if (c->initial_value) {
+                        form_gadget_update_value(c, c->initial_value);
+                    }
                 }
+            }
+        }
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_htmlformelement_submit_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (wisp_is_js_process) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLFormElement target");
+    dom_node *doc = NULL;
+    dom_node_get_owner_document((dom_node *)priv->node, (dom_document **)&doc);
+    if (doc) {
+        struct html_content *htmlc = NULL;
+        dom_node_get_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, (void **)&htmlc);
+        dom_node_unref((dom_node *)doc);
+        if (htmlc) {
+            struct form *f = NULL;
+            for (f = htmlc->forms; f != NULL; f = f->prev) {
+                if (f->node == priv->node) break;
             }
             if (f) {
                 struct nsurl *page_url = content_get_url((struct content *)htmlc);
-                if (page_url && htmlc->bw) {
-                    form_submit(page_url, htmlc->bw, f, NULL);
-                }
+                if (page_url && htmlc->bw) form_submit(page_url, htmlc->bw, f, NULL);
             }
         }
     }
@@ -5655,26 +5668,35 @@ JSValue wisp_htmloutputelement_setCustomValidity_impl(JSContext *ctx, QJSNodePri
 // -----------------------------------------------------------------------------
 
 JSValue wisp_htmlinputelement_stepUp_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t n) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
     double val = 0.0;
     JSValue num_val = wisp_htmlinputelement_valueAsNumber_get_impl(ctx, priv);
     JS_ToFloat64(ctx, &val, num_val);
     JS_FreeValue(ctx, num_val);
     val += n;
-    wisp_htmlinputelement_valueAsNumber_set_impl(ctx, priv, val);
-    return JS_UNDEFINED;
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", val);
+    return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
 }
 
 JSValue wisp_htmlinputelement_stepDown_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t n) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
     double val = 0.0;
     JSValue num_val = wisp_htmlinputelement_valueAsNumber_get_impl(ctx, priv);
     JS_ToFloat64(ctx, &val, num_val);
     JS_FreeValue(ctx, num_val);
     val -= n;
-    wisp_htmlinputelement_valueAsNumber_set_impl(ctx, priv, val);
-    return JS_UNDEFINED;
+
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%g", val);
+    return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
 }
 
 JSValue wisp_htmlinputelement_select_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
+    set_element_int_attr(ctx, priv, "selectionstart", 0);
+    set_element_int_attr(ctx, priv, "selectionend", 999999);
     return JS_UNDEFINED;
 }
 
@@ -5683,6 +5705,7 @@ JSValue wisp_htmlinputelement_setRangeText_impl(JSContext *ctx, QJSNodePrivate *
 }
 
 JSValue wisp_htmlinputelement_setSelectionRange_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t start, uint32_t end, const char * direction) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
     set_element_int_attr(ctx, priv, "selectionstart", start);
     set_element_int_attr(ctx, priv, "selectionend", end);
     if (direction) {
@@ -5829,7 +5852,6 @@ JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePriv
 }
 
 JSValue wisp_htmlinputelement_valueAsNumber_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
-    extern JSValue wisp_htmlinputelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value);
     char buf[64];
     snprintf(buf, sizeof(buf), "%g", value);
     return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
@@ -8216,6 +8238,7 @@ JSValue wisp_htmlinputelement_valueHigh_set_impl(JSContext *ctx, QJSNodePrivate 
 
 // 8. HTMLFormElement Implementation (9 stubs)
 JSValue wisp_htmlformelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLFormElement target");
     JSValue wrapper = qjs_wrap_node(ctx, (struct dom_node *)priv->node);
     JSValue elements = JS_GetPropertyStr(ctx, wrapper, "elements");
     JS_FreeValue(ctx, wrapper);
