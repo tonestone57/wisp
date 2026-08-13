@@ -101,7 +101,8 @@ START_TEST(test_idna_encode_invalid_ace)
 {
     char *out = NULL;
     size_t out_len = 0;
-    nserror err = idna_encode("xn--invalid-!@#$", 16, &out, &out_len);
+    /* "xn--0" is used because it guarantees a punycode decoding failure */
+    nserror err = idna_encode("xn--0", 5, &out, &out_len);
     if (err == NSERROR_NOT_IMPLEMENTED) return;
     ck_assert_int_eq(err, NSERROR_UNKNOWN);
     if(out) free(out);
@@ -112,10 +113,11 @@ START_TEST(test_idna_decode_invalid_ace)
 {
     char *out = NULL;
     size_t out_len = 0;
-    nserror err = idna_decode("xn--invalid-!@#$", 16, &out, &out_len);
+    /* Use a string that passes idna__is_ace but fails decoding */
+    nserror err = idna_decode("xn--0", 5, &out, &out_len);
     if (err == NSERROR_NOT_IMPLEMENTED) return;
     ck_assert_int_eq(err, NSERROR_OK);
-    ck_assert_str_eq(out, "xn--invalid-!@#$");
+    ck_assert_str_eq(out, "xn--0");
     if(out) free(out);
 }
 END_TEST

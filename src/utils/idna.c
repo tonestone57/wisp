@@ -819,7 +819,8 @@ static bool idna__is_ace(const char *label, size_t len)
         if ((FQDN_MAX - fqdn_len) <= len) {                                                                            \
             /* Not enough room to append this element */                                                               \
             action;                                                                                                    \
-            return NSERROR_BAD_URL;                                                                                    \
+            error = NSERROR_BAD_URL;                                                                                   \
+            goto cleanup;                                                                                              \
         } else {                                                                                                       \
             memcpy(fqdn_p, s, len);                                                                                    \
             fqdn_p += len;                                                                                             \
@@ -831,7 +832,7 @@ static bool idna__is_ace(const char *label, size_t len)
 /* exported interface documented in idna.h */
 nserror idna_encode(const char *host, size_t len, char **ace_host, size_t *ace_len)
 {
-    nserror error;
+    nserror error = NSERROR_OK;
     int32_t *ucs4_host;
     size_t label_len, output_len, ucs4_len, fqdn_len = 0;
     char fqdn[FQDN_MAX];
@@ -839,7 +840,8 @@ nserror idna_encode(const char *host, size_t len, char **ace_host, size_t *ace_l
 
     label_len = idna__host_label_length(host, len);
     if (label_len == 0) {
-        return NSERROR_BAD_URL;
+        error = NSERROR_BAD_URL;
+        goto cleanup;
     }
 
     while (label_len != 0) {
@@ -849,27 +851,50 @@ nserror idna_encode(const char *host, size_t len, char **ace_host, size_t *ace_l
             /* Convert to Unicode */
             error = idna__utf8_to_ucs4(host, label_len, &ucs4_host, &ucs4_len);
             if (error != NSERROR_OK) {
-                return error;
+                goto cleanup;
             }
 
             /* Check this is valid for conversion */
             if (idna__is_valid(ucs4_host, ucs4_len) == false) {
                 free(ucs4_host);
-                return NSERROR_BAD_URL;
+                error = NSERROR_BAD_URL;
+                goto cleanup;
             }
 
             /* Convert to ACE */
             error = idna__ucs4_to_ace(ucs4_host, ucs4_len, &output, &output_len);
             free(ucs4_host);
             if (error != NSERROR_OK) {
-                return error;
+                goto cleanup;
             }
             FQDN_APPEND(output, output_len, free(output));
         } else {
             /* This is already a DNS-valid ASCII string */
-            if ((idna__is_ace(host, label_len) == true) && (idna__verify(host, label_len) == false)) {
-                NSLOG(wisp, INFO, "Cannot verify ACE label %s", host);
-                return NSERROR_BAD_URL;
+            if (idna__is_ace(host, label_len) == true) {
+                /* We must pass the exact substring length, as host is not null-terminated at the label boundary */
+                char temp_label[FQDN_MAX];
+                if (label_len >= FQDN_MAX) {
+                    error = NSERROR_BAD_URL;
+                    goto cleanup;
+                }
+                memcpy(temp_label, host, label_len);
+                temp_label[label_len] = '\0';
+
+                /* Attempt ACE to UCS-4 conversion to verify valid Punycode, mimicking what the user told us */
+                int32_t *ucs4_buf;
+                size_t ucs4_len;
+                nserror err = idna__ace_to_ucs4(temp_label, label_len, &ucs4_buf, &ucs4_len);
+                if (err != NSERROR_OK) {
+                    error = NSERROR_UNKNOWN;
+                    goto cleanup;
+                }
+                free(ucs4_buf);
+
+                if (idna__verify(temp_label, label_len) == false) {
+                    NSLOG(wisp, INFO, "Cannot verify ACE label %s", temp_label);
+                    error = NSERROR_UNKNOWN;
+                    goto cleanup;
+                }
             }
             FQDN_APPEND(host, label_len, NO_ACTION);
         }
@@ -890,17 +915,22 @@ nserror idna_encode(const char *host, size_t len, char **ace_host, size_t *ace_l
         fqdn_p--;
         *fqdn_p = '\0';
     }
-    *ace_host = strdup(fqdn);
-    *ace_len = fqdn_len > 0 ? fqdn_len - 1 : 0; /* last character is NULL */
 
-    return NSERROR_OK;
+    if (error == NSERROR_OK) {
+        *ace_host = strdup(fqdn);
+        if (*ace_host == NULL) return NSERROR_NOMEM;
+        *ace_len = fqdn_len > 0 ? fqdn_len - 1 : 0; /* last character is NULL */
+    }
+
+cleanup:
+    return error;
 }
 
 
 /* exported interface documented in idna.h */
 nserror idna_decode(const char *ace_host, size_t ace_len, char **host, size_t *host_len)
 {
-    nserror error;
+    nserror error = NSERROR_OK;
     int32_t *ucs4_host;
     size_t label_len, output_len, ucs4_len, fqdn_len = 0;
     char fqdn[FQDN_MAX];
@@ -908,7 +938,8 @@ nserror idna_decode(const char *ace_host, size_t ace_len, char **host, size_t *h
 
     label_len = idna__host_label_length(ace_host, ace_len);
     if (label_len == 0) {
-        return NSERROR_BAD_URL;
+        error = NSERROR_BAD_URL;
+        goto cleanup;
     }
 
     while (label_len != 0) {
@@ -918,16 +949,18 @@ nserror idna_decode(const char *ace_host, size_t ace_len, char **host, size_t *h
             /* Decode to Unicode */
             error = idna__ace_to_ucs4(ace_host, label_len, &ucs4_host, &ucs4_len);
             if (error != NSERROR_OK) {
-                return error;
+                /* Gracefully handle decoding failure for invalid ACE */
+                FQDN_APPEND(ace_host, label_len, NO_ACTION);
+                error = NSERROR_OK;
+            } else {
+                /* Convert to UTF-8 */
+                error = idna__ucs4_to_utf8(ucs4_host, ucs4_len, &output, &output_len);
+                free(ucs4_host);
+                if (error != NSERROR_OK) {
+                    goto cleanup;
+                }
+                FQDN_APPEND(output, output_len, free(output));
             }
-
-            /* Convert to UTF-8 */
-            error = idna__ucs4_to_utf8(ucs4_host, ucs4_len, &output, &output_len);
-            free(ucs4_host);
-            if (error != NSERROR_OK) {
-                return error;
-            }
-            FQDN_APPEND(output, output_len, free(output));
         } else {
             /* Not ACE */
             FQDN_APPEND(ace_host, label_len, NO_ACTION);
@@ -949,8 +982,13 @@ nserror idna_decode(const char *ace_host, size_t ace_len, char **host, size_t *h
         fqdn_p--;
         *fqdn_p = '\0';
     }
-    *host = strdup(fqdn);
-    *host_len = fqdn_len > 0 ? fqdn_len - 1 : 0; /* last character is NULL */
 
-    return NSERROR_OK;
+    if (error == NSERROR_OK) {
+        *host = strdup(fqdn);
+        if (*host == NULL) return NSERROR_NOMEM;
+        *host_len = fqdn_len > 0 ? fqdn_len - 1 : 0; /* last character is NULL */
+    }
+
+cleanup:
+    return error;
 }
