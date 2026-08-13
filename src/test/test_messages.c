@@ -54,6 +54,25 @@ struct message_test_vec_s {
     const char *res;
 };
 
+struct ssl_message_test_vec_s {
+    ssl_cert_err test;
+    const char *res;
+};
+
+struct ssl_message_test_vec_s message_sslcode_test_vec[] = {
+    {SSL_CERT_ERR_OK, "SSLCertErrOk"},
+    {SSL_CERT_ERR_UNKNOWN, "SSLCertErrUnknown"},
+    {SSL_CERT_ERR_BAD_ISSUER, "SSLCertErrBadIssuer"},
+    {SSL_CERT_ERR_BAD_SIG, "SSLCertErrBadSig"},
+    {SSL_CERT_ERR_TOO_YOUNG, "SSLCertErrTooYoung"},
+    {SSL_CERT_ERR_TOO_OLD, "SSLCertErrTooOld"},
+    {SSL_CERT_ERR_SELF_SIGNED, "SSLCertErrSelfSigned"},
+    {SSL_CERT_ERR_CHAIN_SELF_SIGNED, "SSLCertErrChainSelfSigned"},
+    {SSL_CERT_ERR_REVOKED, "SSLCertErrRevoked"},
+    {SSL_CERT_ERR_HOSTNAME_MISMATCH, "SSLCertErrHostnameMismatch"},
+    {SSL_CERT_ERR_CERT_MISSING, "SSLCertErrCertMissing"},
+};
+
 struct message_test_vec_s message_errorcode_test_vec[] = {
     {NSERROR_OK, "OK"},
     {NSERROR_NOMEM, "Wisp is running out of memory. Please free some memory and try again."},
@@ -89,6 +108,44 @@ START_TEST(messages_errorcode_test)
 
     /* ensure result data is correct */
     ck_assert_str_eq(res_str, tst->res);
+
+    /* cleanup */
+    messages_destroy();
+}
+END_TEST
+
+START_TEST(messages_sslcode_test)
+{
+    const char *res_str;
+    const struct ssl_message_test_vec_s *tst = &message_sslcode_test_vec[_i];
+    nserror res;
+
+    res = messages_add_from_inline(test_data_Messages, test_data_Messages_len);
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    res_str = messages_get_sslcode(tst->test);
+
+    /* ensure result data is correct */
+    ck_assert_str_eq(res_str, tst->res);
+
+    /* cleanup */
+    messages_destroy();
+}
+END_TEST
+
+START_TEST(messages_get_test)
+{
+    nserror res;
+    const char *val;
+
+    res = messages_add_from_inline(test_data_Messages, test_data_Messages_len);
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    val = messages_get("DefinitelyNotAKey");
+    ck_assert_str_eq(val, "DefinitelyNotAKey");
+
+    val = messages_get("NoMemory");
+    ck_assert_str_eq(val, "Wisp is running out of memory. Please free some memory and try again.");
 
     /* cleanup */
     messages_destroy();
@@ -186,6 +243,8 @@ static TCase *message_session_case_create(void)
     tcase_add_loop_test(tc, messages_errorcode_test, 0, NELEMS(message_errorcode_test_vec));
     tcase_add_test(tc, message_get_buff_test);
     tcase_add_test(tc, messages_add_key_value_test);
+    tcase_add_loop_test(tc, messages_sslcode_test, 0, NELEMS(message_sslcode_test_vec));
+    tcase_add_test(tc, messages_get_test);
 
     return tc;
 }

@@ -148,12 +148,12 @@ add_wisp_test(csp_test
 # Utility Tests
 # ============================================================================
 
-add_wisp_test(messages
+add_wisp_test(test_messages
   ${CMAKE_SOURCE_DIR}/src/utils/messages.c
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/messages.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_messages.c
 )
 
 add_wisp_test(nsoption
