@@ -58,6 +58,7 @@ void browser_window_scroll_callback(void *client_data, struct scrollbar_msg_data
 
     switch (scrollbar_data->msg) {
     case SCROLLBAR_MSG_MOVED:
+        bw->user_scrolled = true;
         if (bw->browser_window_type == BROWSER_WINDOW_IFRAME) {
             if (content_get_type(bw->current_content) == CONTENT_HTML) {
                 layout_apply_sticky_clamping((struct html_content *)hlcache_handle_get_content(bw->current_content));
@@ -78,6 +79,7 @@ void browser_window_scroll_callback(void *client_data, struct scrollbar_msg_data
         }
         break;
     case SCROLLBAR_MSG_SCROLL_START: {
+        bw->user_scrolled = true;
         struct rect rect = {
             .x0 = scrollbar_data->x0, .y0 = scrollbar_data->y0, .x1 = scrollbar_data->x1, .y1 = scrollbar_data->y1};
 

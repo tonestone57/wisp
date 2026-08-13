@@ -656,6 +656,10 @@ static bool frag_scroll(struct browser_window *bw)
 {
     struct rect rect;
 
+    if (bw->user_scrolled) {
+        return true;
+    }
+
     if (bw->frag_id == NULL) {
         return false;
     }
@@ -699,7 +703,6 @@ static void browser_window_update(struct browser_window *bw, bool scroll_to_top)
         browser_window_update_extent(bw);
 
         /* if frag_id exists, then try to scroll to it */
-        /** @todo don't do this if the user has scrolled */
         if (!frag_scroll(bw)) {
             if (scroll_to_top) {
                 browser_window_set_scroll(bw, &zrect);
@@ -722,7 +725,6 @@ static void browser_window_update(struct browser_window *bw, bool scroll_to_top)
         }
 
         /* if frag_id exists, then try to scroll to it */
-        /** @todo don't do this if the user has scrolled */
         frag_scroll(bw);
 
         browser_window_invalidate_iframe(bw);
@@ -738,7 +740,6 @@ static void browser_window_update(struct browser_window *bw, bool scroll_to_top)
         }
 
         /* if frag_id exists, then try to scroll to it */
-        /** @todo don't do this if the user has scrolled */
         frag_scroll(bw);
 
         rect.x0 = scrollbar_get_offset(bw->scroll_x);
@@ -870,6 +871,8 @@ static nserror browser_window_content_ready(struct browser_window *bw)
 
         browser_window_refresh_url_bar(bw);
     }
+
+    bw->user_scrolled = false;
 
     /* new content; set scroll_to_top */
     browser_window_update(bw, true);
@@ -2221,6 +2224,8 @@ static bool browser_window_scroll_at_point_internal(struct browser_window *bw, i
 {
     assert(bw != NULL);
 
+    bw->user_scrolled = true;
+
     /* Handle (i)frame scroll offset (core-managed browser windows only) */
     x += scrollbar_get_offset(bw->scroll_x);
     y += scrollbar_get_offset(bw->scroll_y);
@@ -2941,6 +2946,7 @@ nserror browser_window_initialise_common(
     bw->refresh_interval = -1;
 
     bw->drag.type = DRAGGING_NONE;
+    bw->user_scrolled = false;
 
     bw->scroll_x = NULL;
     bw->scroll_y = NULL;
@@ -3033,6 +3039,8 @@ nserror browser_window_navigate(struct browser_window *bw, nsurl *url, nsurl *re
     assert(url);
 
     NSLOG(wisp, INFO, "bw %p, url %s", bw, nsurl_access(url));
+
+    bw->user_scrolled = false;
 
     /*
      * determine if navigation is internal url, if so, we do not
