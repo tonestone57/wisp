@@ -114,7 +114,7 @@ void hlcache_finalise(void);
  * The quirks field is ignored for child contents whose behaviour is not
  * affected by quirks mode.
  *
- * \todo The above rules should be encoded in the handler_map.
+ * NOTE: The above rules are encoded in the handler_map.
  *
  * \todo Is there any way to sensibly reduce the number of parameters here?
  */

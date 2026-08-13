@@ -88,7 +88,6 @@ typedef struct {
 static bool nscss_convert(struct content *c);
 static void nscss_destroy(struct content *c);
 static nserror nscss_clone(const struct content *old, struct content **newc);
-static bool nscss_matches_quirks(const struct content *c, bool quirks);
 static content_type nscss_content_type(void);
 
 static nserror nscss_create_css_data(
@@ -429,10 +428,7 @@ nserror nscss_clone(const struct content *old, struct content **newc)
     return NSERROR_OK;
 }
 
-bool nscss_matches_quirks(const struct content *c, bool quirks)
-{
-    return c->quirks == quirks;
-}
+
 
 /* exported interface documented in netsurf/css.h */
 css_stylesheet *nscss_get_stylesheet(struct hlcache_handle *h)
@@ -860,7 +856,7 @@ static const content_handler css_content_handler = {
     .data_complete = nscss_convert,
     .destroy = nscss_destroy,
     .clone = nscss_clone,
-    .matches_quirks = nscss_matches_quirks,
+    .affected_by_quirks = true,
     .type = nscss_content_type,
     .no_share = false,
 };

@@ -113,7 +113,7 @@ struct content_handler {
     nserror (*debug_dump)(struct content *c, FILE *f, enum content_debug op);
     nserror (*debug)(struct content *c, enum content_debug op);
     nserror (*clone)(const struct content *old, struct content **newc);
-    bool (*matches_quirks)(const struct content *c, bool quirks);
+    bool affected_by_quirks;
     const char *(*get_encoding)(const struct content *c, enum content_encoding_type op);
     content_type (*type)(void);
     void (*add_user)(struct content *c);

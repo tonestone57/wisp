@@ -2916,6 +2916,7 @@ static const content_handler html_content_handler = {
 	.debug = html_debug,
 	.clone = html_clone,
 	.get_encoding = html_encoding,
+	.affected_by_quirks = true,
 	.type = html_content_type,
 	.exec = html_exec,
 	.saw_insecure_objects = html_saw_insecure_objects,
