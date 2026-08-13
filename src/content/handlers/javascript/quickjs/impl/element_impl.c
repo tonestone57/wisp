@@ -1126,12 +1126,7 @@ extern bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const
 
 JSValue wisp_element_matches_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
 {
-    if (!selectors) {
-        return JS_ThrowTypeError(ctx, "matches requires 1 selector argument");
-    }
-    if (!priv || !priv->node) {
-        return JS_ThrowTypeError(ctx, "Invalid Element target");
-    }
+    if (!priv || !priv->node || !selectors) return JS_FALSE;
     return qjs_dom_element_matches(ctx, (struct dom_node *)priv->node, selectors) ? JS_TRUE : JS_FALSE;
 }
 

@@ -524,8 +524,8 @@ START_TEST(test_quickjs_css_style_declaration)
         "// 7. Test getComputedStyle prototype and feature detection\n"
         "var computed = window.getComputedStyle(el);\n"
         "if (!(computed instanceof CSSStyleDeclaration)) throw 'getComputedStyle should return CSSStyleDeclaration';\n"
-        "//if (!('borderRadius' in computed)) throw 'borderRadius in computed check failed';\n"
-        "//if (computed.display !== 'inline-block') throw 'computed display delegation failed';\n"
+        "if (!('borderRadius' in computed)) throw 'borderRadius in computed check failed';\n"
+        "if (computed.display !== 'inline-block') throw 'computed display delegation failed';\n"
         "1;";
 
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_css_style_declaration");
