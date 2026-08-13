@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "utils/errors.h"
 #include "utils/hashtable.h"
@@ -266,6 +267,28 @@ START_TEST(hashtable_dict_test)
 }
 END_TEST
 
+START_TEST(hashtable_null_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    ret = hash_add(NULL, "key", "value");
+    ck_assert(ret == NSERROR_BAD_PARAMETER);
+
+    ret = hash_add(ht, NULL, "value");
+    ck_assert(ret == NSERROR_BAD_PARAMETER);
+
+    ret = hash_add(ht, "key", NULL);
+    ck_assert(ret == NSERROR_BAD_PARAMETER);
+
+    hash_destroy(NULL);
+    hash_destroy(ht);
+}
+END_TEST
+
 /* Suite */
 
 static Suite *hashtable_suite(void)
@@ -284,6 +307,7 @@ static Suite *hashtable_suite(void)
     tcase_add_test(tc_create, hashtable_create_test);
     tcase_add_test(tc_create, hashtable_negative_test);
     tcase_add_test(tc_create, hashtable_positive_test);
+    tcase_add_test(tc_create, hashtable_null_test);
 
     suite_add_tcase(s, tc_create);
 
