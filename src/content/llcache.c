@@ -4051,7 +4051,7 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
 }
 
 /* See llcache.h for documentation */
-const char *llcache_handle_get_header(const llcache_handle *handle, const char *key)
+const char *llcache_handle_get_header(const llcache_handle *handle, const char *key, size_t *last_pos)
 {
     const llcache_object *object = handle->object;
     size_t i;
@@ -4059,10 +4059,16 @@ const char *llcache_handle_get_header(const llcache_handle *handle, const char *
     if (object == NULL)
         return NULL;
 
+    i = (last_pos != NULL) ? *last_pos : 0;
+
     /* About as trivial as possible */
-    for (i = 0; i < object->num_headers; i++) {
-        if (strcasecmp(key, object->headers[i].name) == 0)
+    for (; i < object->num_headers; i++) {
+        if (strcasecmp(key, object->headers[i].name) == 0) {
+            if (last_pos != NULL) {
+                *last_pos = i + 1;
+            }
             return object->headers[i].value;
+        }
     }
 
     return NULL;

@@ -719,20 +719,21 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	NSLOG(wisp, DEBUG, "<<< html_create_html_data SUCCESS, parser=%p for content %p", c->parser, c);
 
 	/* Extract and parse Content-Security-Policy header */
-	const char *csp_header = llcache_handle_get_header(c->base.llcache, "Content-Security-Policy");
-	if (csp_header != NULL) {
+	size_t csp_pos = 0;
+	const char *csp_header;
+	while ((csp_header = llcache_handle_get_header(c->base.llcache, "Content-Security-Policy", &csp_pos)) != NULL) {
 		csp_parse(csp_header, c->base_url, &c->csp);
 	}
 
 	/* Extract and parse COOP and COEP headers */
-	const char *coop_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Opener-Policy");
+	const char *coop_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Opener-Policy", NULL);
 	if (coop_header != NULL) {
 		c->coop = strdup(coop_header);
 	} else {
 		c->coop = NULL;
 	}
 
-	const char *coep_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Embedder-Policy");
+	const char *coep_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Embedder-Policy", NULL);
 	if (coep_header != NULL) {
 		c->coep = strdup(coep_header);
 	} else {

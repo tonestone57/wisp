@@ -98,7 +98,7 @@ static nserror download_context_process_headers(download_context *ctx)
     nserror error;
 
     /* Retrieve and parse Content-Type */
-    http_header = llcache_handle_get_header(ctx->llcache, "Content-Type");
+    http_header = llcache_handle_get_header(ctx->llcache, "Content-Type", NULL);
     if (http_header == NULL)
         http_header = "text/plain";
 
@@ -107,7 +107,7 @@ static nserror download_context_process_headers(download_context *ctx)
         return error;
 
     /* Retrieve and parse Content-Length */
-    http_header = llcache_handle_get_header(ctx->llcache, "Content-Length");
+    http_header = llcache_handle_get_header(ctx->llcache, "Content-Length", NULL);
     if (http_header == NULL) {
         length = 0;
     } else {
@@ -115,7 +115,7 @@ static nserror download_context_process_headers(download_context *ctx)
     }
 
     /* Retrieve and parse Content-Disposition */
-    http_header = llcache_handle_get_header(ctx->llcache, "Content-Disposition");
+    http_header = llcache_handle_get_header(ctx->llcache, "Content-Disposition", NULL);
     if (http_header != NULL) {
         lwc_string *filename_value;
         http_content_disposition *disposition;

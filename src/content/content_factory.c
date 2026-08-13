@@ -188,7 +188,7 @@ struct content *content_factory_create_content(
     assert(handler->create != NULL);
 
     /* Use the parameters from the declared Content-Type header */
-    content_type_header = llcache_handle_get_header(llcache, "Content-Type");
+    content_type_header = llcache_handle_get_header(llcache, "Content-Type", NULL);
     if (content_type_header != NULL) {
         /* We don't care if this fails */
         http_parse_content_type(content_type_header, &ct);

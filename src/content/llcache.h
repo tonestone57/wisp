@@ -268,9 +268,8 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
  * \todo Forcing the client to parse the header value seems wrong.
  *       Better would be to return the actual value part and an array of
  *       key-value pairs for any additional parameters.
- * \todo Deal with multiple headers of the same key (e.g. Set-Cookie)
  */
-const char *llcache_handle_get_header(const llcache_handle *handle, const char *key);
+const char *llcache_handle_get_header(const llcache_handle *handle, const char *key, size_t *last_pos);
 
 /**
  * Determine if the same underlying object is referenced by the given handles
