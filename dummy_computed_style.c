@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include "quickjs.h"
 
-// Forward declaration of the exact struct to avoid the parameter warning
 struct dom_node;
 
 bool wisp_dom_element_get_style_property(struct dom_node *node, const char *property, char *buf, size_t buf_size) {
