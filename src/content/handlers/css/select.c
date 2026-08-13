@@ -31,6 +31,9 @@
 #include "content/handlers/css/hints.h"
 #include "content/handlers/css/internal.h"
 #include "content/handlers/css/select.h"
+#include "content/handlers/html/box.h"
+
+#include <wisp/content/handlers/html/private.h>
 
 static css_error node_name(void *pw, void *node, css_qname *qname);
 static css_error node_classes(void *pw, void *node, lwc_string ***classes, uint32_t *n_classes);
@@ -1514,9 +1517,25 @@ css_error node_is_active(void *pw, void *node, bool *match)
  */
 css_error node_is_focus(void *pw, void *node, bool *match)
 {
-    /** \todo Support focussed nodes */
+    nscss_select_ctx *ctx = pw;
 
+    if (ctx == NULL || ctx->c == NULL) {
+        *match = false;
+        return CSS_OK;
+    }
+
+    dom_node *n = node;
     *match = false;
+
+    if (ctx->c->focus_type == HTML_FOCUS_CONTENT) {
+        if (ctx->c->focus_owner.content && ctx->c->focus_owner.content->node == n) {
+            *match = true;
+        }
+    } else if (ctx->c->focus_type == HTML_FOCUS_TEXTAREA) {
+        if (ctx->c->focus_owner.textarea && ctx->c->focus_owner.textarea->node == n) {
+            *match = true;
+        }
+    }
 
     return CSS_OK;
 }

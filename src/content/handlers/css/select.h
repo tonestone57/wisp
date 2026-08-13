@@ -27,6 +27,7 @@
 
 struct content;
 struct nsurl;
+struct html_content;
 
 /**
  * Selection context
@@ -38,6 +39,7 @@ typedef struct nscss_select_ctx {
     lwc_string *universal;
     const css_computed_style *root_style;
     const css_computed_style *parent_style;
+    struct html_content *c;
 } nscss_select_ctx;
 
 css_stylesheet *
