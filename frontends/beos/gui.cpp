@@ -241,9 +241,7 @@ char *find_resource(char *buf, const char *filename, const char *def)
     if (err >= B_OK)
         cdir = path.Path();
     if (cdir != NULL) {
-        strcpy(t, cdir);
-        strcat(t, "/");
-        strcat(t, filename);
+        snprintf(t, PATH_MAX, "%s/%s", cdir, filename);
         realpath(t, buf);
         if (access(buf, R_OK) == 0)
             return buf;
@@ -251,9 +249,7 @@ char *find_resource(char *buf, const char *filename, const char *def)
 
     cdir = getenv("HOME");
     if (cdir != NULL) {
-        strcpy(t, cdir);
-        strcat(t, "/.wisp/");
-        strcat(t, filename);
+        snprintf(t, PATH_MAX, "%s/.wisp/%s", cdir, filename);
         realpath(t, buf);
         if (access(buf, R_OK) == 0)
             return buf;
@@ -262,11 +258,15 @@ char *find_resource(char *buf, const char *filename, const char *def)
     cdir = getenv("WISPRES");
 
     if (cdir != NULL) {
-        realpath(cdir, buf);
-        strcat(buf, "/");
-        strcat(buf, filename);
-        if (access(buf, R_OK) == 0)
-            return buf;
+        if (realpath(cdir, t) != NULL) {
+            snprintf(buf, PATH_MAX, "%s/%s", t, filename);
+            if (access(buf, R_OK) == 0)
+                return buf;
+        } else {
+            snprintf(buf, PATH_MAX, "%s/%s", cdir, filename);
+            if (access(buf, R_OK) == 0)
+                return buf;
+        }
     }
 
 
@@ -274,8 +274,7 @@ char *find_resource(char *buf, const char *filename, const char *def)
 
     BPath p;
     if (f.FindPath(B_FIND_PATH_APPS_DIRECTORY, "wisp/res", p) == B_OK) {
-        strcpy(t, p.Path());
-        strcat(t, filename);
+        snprintf(t, PATH_MAX, "%s/%s", p.Path(), filename);
         realpath(t, buf);
         if (access(buf, R_OK) == 0)
             return buf;
@@ -284,16 +283,16 @@ char *find_resource(char *buf, const char *filename, const char *def)
     if (def[0] == '%') {
         snprintf(t, PATH_MAX, "%s%s", path.Path(), def + 1);
         if (realpath(t, buf) == NULL) {
-            strcpy(buf, t);
+            snprintf(buf, PATH_MAX, "%s", t);
         }
     } else if (def[0] == '~') {
         snprintf(t, PATH_MAX, "%s%s", getenv("HOME"), def + 1);
         if (realpath(t, buf) == NULL) {
-            strcpy(buf, t);
+            snprintf(buf, PATH_MAX, "%s", t);
         }
     } else {
         if (realpath(def, buf) == NULL) {
-            strcpy(buf, def);
+            snprintf(buf, PATH_MAX, "%s", def);
         }
     }
 
