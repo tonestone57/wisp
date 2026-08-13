@@ -201,8 +201,8 @@ static nserror download_callback(llcache_handle *handle, const llcache_event *ev
         }
 
         if (error == NSERROR_OK) {
-            /** \todo Lose ugly cast */
-            error = guit->download->data(ctx->window, (char *)event->data.data.buf, event->data.data.len);
+            /* NOTE: ugly cast removed */
+            error = guit->download->data(ctx->window, event->data.data.buf, event->data.data.len);
             if (error != NSERROR_OK)
                 llcache_handle_abort(handle);
         }

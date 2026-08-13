@@ -308,7 +308,7 @@ static struct gui_download_window *gui_download_window_create(download_context *
 }
 
 
-static nserror gui_download_window_data(struct gui_download_window *w, const char *data, unsigned int size)
+static nserror gui_download_window_data(struct gui_download_window *w, const uint8_t *data, unsigned int size)
 {
     if ((w == NULL) || (w->file == NULL))
         return NSERROR_SAVE_FAILED;
