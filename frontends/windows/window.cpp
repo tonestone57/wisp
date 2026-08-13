@@ -1547,14 +1547,14 @@ static void win32_window_set_title(struct gui_window *w, const char *title)
     }
 
     NSLOG(wisp, INFO, "%p, title %s", w, title);
-    fulltitle = malloc(strlen(title) + SLEN("  -  Wisp") + 1);
+    size_t fulltitle_len = strlen(title) + SLEN("  -  Wisp") + 1;
+    fulltitle = (char *)malloc(fulltitle_len);
     if (fulltitle == NULL) {
         NSLOG(wisp, ERROR, "%s", messages_get_errorcode(NSERROR_NOMEM));
         return;
     }
 
-    strcpy(fulltitle, title);
-    strcat(fulltitle, "  -  Wisp");
+    snprintf(fulltitle, fulltitle_len, "%s  -  Wisp", title);
 
     wlen = MultiByteToWideChar(CP_UTF8, 0, fulltitle, -1, NULL, 0);
     if (wlen == 0) {
