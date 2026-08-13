@@ -176,6 +176,7 @@ static void browser_window_history__free_entry(struct history_entry *entry)
         free(entry->page.title);
         if (entry->page.bitmap != NULL) {
             guit->bitmap->destroy(entry->page.bitmap);
+            entry->page.bitmap = NULL;
         }
         free(entry);
     }
@@ -365,13 +366,18 @@ nserror browser_window_history_add(struct browser_window *bw, struct hlcache_han
     /* create thumbnail for localhistory view */
     NSLOG(wisp, DEBUG, "Creating thumbnail for %s", nsurl_access(entry->page.url));
 
-    entry->page.bitmap = guit->bitmap->create(LOCAL_HISTORY_WIDTH, LOCAL_HISTORY_HEIGHT, BITMAP_CLEAR | BITMAP_OPAQUE);
-    if (entry->page.bitmap != NULL) {
-        ret = guit->bitmap->render(entry->page.bitmap, content);
-        if (ret != NSERROR_OK) {
-            /* Thumbnail render failed */
-            NSLOG(wisp, WARNING, "Thumbnail render failed");
+    const struct url_data *data = urldb_get_url_data(entry->page.url);
+    if (data != NULL && content_get_type(content) == CONTENT_HTML) {
+        entry->page.bitmap = guit->bitmap->create(LOCAL_HISTORY_WIDTH, LOCAL_HISTORY_HEIGHT, BITMAP_CLEAR | BITMAP_OPAQUE);
+        if (entry->page.bitmap != NULL) {
+            ret = guit->bitmap->render(entry->page.bitmap, content);
+            if (ret != NSERROR_OK) {
+                /* Thumbnail render failed */
+                NSLOG(wisp, WARNING, "Thumbnail render failed");
+            }
         }
+    } else {
+        entry->page.bitmap = NULL;
     }
 
     /* insert into tree */
