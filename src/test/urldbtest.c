@@ -424,7 +424,7 @@ START_TEST(urldb_original_test)
 
     /* Test use of separators in unquoted cookie value */
     ck_assert(test_urldb_set_cookie("foo=moo@foo:blah?moar\\ text\r\n", "http://example.com/", NULL));
-    verify_cookie("http://example.com/", "foo=moo@foo:blah?moar\\ text; name=value");
+    verify_cookie("http://example.com/", "foo=moo@foo:blah?moar text; name=value");
 
     /* Test use of unnecessary quotes */
     ck_assert(test_urldb_set_cookie("foo=\"hello\";Version=1,bar=bat\r\n", "http://example.com/", NULL));

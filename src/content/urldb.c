@@ -2366,9 +2366,23 @@ static bool urldb_concat_cookie(struct cookie_internal_data *c, int version, int
         if (c->value_was_quoted) {
             *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->value);
         } else {
-            /** \todo should we %XX-encode [;HT,SP] ? */
-            /** \todo Should we strip escaping backslashes? */
-            *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->value);
+            char *stripped_value = strdup(c->value);
+            if (stripped_value != NULL) {
+                size_t i, j;
+                for (i = 0, j = 0; stripped_value[i] != '\0'; i++) {
+                    if (stripped_value[i] == '\\' && stripped_value[i + 1] != '\0') {
+                        i++;
+                    }
+                    stripped_value[j++] = stripped_value[i];
+                }
+                stripped_value[j] = '\0';
+                snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", stripped_value);
+                *used += strlen(stripped_value);
+                free(stripped_value);
+            } else {
+                snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->value);
+                *used += strlen(c->value);
+            }
         }
 
         /* We don't send path/domain information -- that's what the
