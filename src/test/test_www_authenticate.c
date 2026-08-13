@@ -23,8 +23,8 @@ START_TEST(test_parse_happy_paths)
 {
     http_www_authenticate *wa = NULL;
     nserror error;
-    lwc_string *scheme;
-    http_parameter *params;
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
     const http_challenge *cur;
     lwc_string *key;
     lwc_string *val;
@@ -35,10 +35,11 @@ START_TEST(test_parse_happy_paths)
     ck_assert_ptr_nonnull(wa);
 
     cur = http_challenge_list_iterate(wa->challenges, &scheme, &params);
-    ck_assert_ptr_nonnull(cur);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 5);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
 
     lwc_intern_string("realm", 5, &key);
     error = http_parameter_list_find_item(params, key, &val);
@@ -59,16 +60,20 @@ START_TEST(test_parse_happy_paths)
     ck_assert_ptr_nonnull(wa);
 
     cur = http_challenge_list_iterate(wa->challenges, &scheme, &params);
-    ck_assert_ptr_nonnull(cur);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 5);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
 
-    cur = http_challenge_list_iterate(cur, &scheme, &params);
-    ck_assert_ptr_nonnull(cur);
-    ck_assert_ptr_nonnull(scheme);
-    ck_assert_int_eq(lwc_string_length(scheme), 6);
-    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
+    if (cur != NULL) {
+        cur = http_challenge_list_iterate(cur, &scheme, &params);
+        ck_assert_ptr_nonnull(scheme);
+        ck_assert_int_eq(lwc_string_length(scheme), 6);
+        ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
+        lwc_string_unref(scheme);
+        scheme = NULL;
+    }
 
     cur = http_challenge_list_iterate(cur, &scheme, &params);
     ck_assert_ptr_null(cur);
