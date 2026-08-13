@@ -453,7 +453,7 @@ if(NOT WIN32)
     ${CMAKE_SOURCE_DIR}/src/utils/corestrings.c
     ${CMAKE_SOURCE_DIR}/src/test/log.c
     ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-    ${CMAKE_SOURCE_DIR}/src/test/corestrings.c
+    ${CMAKE_SOURCE_DIR}/src/test/test_corestrings.c
   )
   target_link_libraries(corestrings PRIVATE malloc_fig)
 
