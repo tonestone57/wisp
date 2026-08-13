@@ -657,7 +657,7 @@ static bool frag_scroll(struct browser_window *bw)
     struct rect rect;
 
     if (bw->user_scrolled) {
-        return false;
+        return true;
     }
 
     if (bw->frag_id == NULL) {
@@ -871,6 +871,8 @@ static nserror browser_window_content_ready(struct browser_window *bw)
 
         browser_window_refresh_url_bar(bw);
     }
+
+    bw->user_scrolled = false;
 
     /* new content; set scroll_to_top */
     browser_window_update(bw, true);
