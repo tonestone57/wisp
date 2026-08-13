@@ -51,6 +51,8 @@
  * \param entry entry to clone
  * \return A cloned history entry or NULL on error
  */
+static void browser_window_history__free_entry(struct history_entry *entry);
+
 static struct history_entry *browser_window_history__clone_entry(struct history *history, struct history_entry *entry)
 {
     struct history_entry *child;
@@ -123,13 +125,14 @@ static struct history_entry *browser_window_history__clone_entry(struct history 
     for (child = entry->forward; child != NULL; child = child->next) {
         new_child = browser_window_history__clone_entry(history, child);
         if (new_child == NULL) {
+            browser_window_history__free_entry(new_entry->forward);
             nsurl_unref(new_entry->page.url);
             if (new_entry->page.frag_id) {
                 lwc_string_unref(new_entry->page.frag_id);
             }
             free(new_entry->page.title);
-            if (entry->page.bitmap != NULL) {
-                guit->bitmap->destroy(entry->page.bitmap);
+            if (new_entry->page.bitmap != NULL) {
+                guit->bitmap->destroy(new_entry->page.bitmap);
             }
             free(new_entry);
             return NULL;

@@ -56,7 +56,8 @@ struct arena *arena_create(size_t chunk_size) {
 }
 
 static void *arena_alloc_internal(struct arena *a, size_t size) {
-    size_t alloc_size = ALIGN_UP(size, 64);
+    size_t req_size = (size == 0) ? 1 : size;
+    size_t alloc_size = ALIGN_UP(req_size, 64);
     if (!a->head || ALIGN_UP(a->head->used, 64) + alloc_size > a->head->size) {
         size_t chunk_alloc = alloc_size > a->default_chunk_size ? alloc_size : a->default_chunk_size;
         arena_chunk *chunk = aligned_alloc(64, ALIGN_UP(sizeof(arena_chunk) + chunk_alloc, 64));
@@ -158,8 +159,13 @@ void arena_merge(struct arena *m, struct arena *w) {
     if (!m || !w) return;
     if (m == w) return;
 
-    pthread_mutex_lock(&m->lock);
-    pthread_mutex_lock(&w->lock);
+    if (m < w) {
+        pthread_mutex_lock(&m->lock);
+        pthread_mutex_lock(&w->lock);
+    } else {
+        pthread_mutex_lock(&w->lock);
+        pthread_mutex_lock(&m->lock);
+    }
 
     /* Merge destructors */
     if (w->destructors != NULL) {

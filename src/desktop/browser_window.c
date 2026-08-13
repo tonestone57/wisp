@@ -3885,9 +3885,12 @@ void browser_window_set_status(struct browser_window *bw, const char *text)
 
     if ((bw->status.text == NULL) || (bw->status.text_len < text_len)) {
         /* no current string allocation or it is not long enough */
-        free(bw->status.text);
-        bw->status.text = strdup(text);
-        bw->status.text_len = text_len;
+        char *ntext = strdup(text);
+        if (ntext != NULL) {
+            free(bw->status.text);
+            bw->status.text = ntext;
+            bw->status.text_len = text_len;
+        }
     } else {
         /* current allocation has enough space */
         memcpy(bw->status.text, text, text_len + 1);
