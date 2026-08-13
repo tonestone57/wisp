@@ -126,6 +126,15 @@ START_TEST(test_nslog_set_filter)
     // Test with another filter
     err = nslog_set_filter("level~DEBUG");
     ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test error conditions
+#ifdef WITH_NSLOG
+    err = nslog_set_filter("invalid_syntax!");
+    ck_assert_int_eq(err, NSERROR_INVALID);
+#else
+    err = nslog_set_filter("invalid_syntax!");
+    ck_assert_int_eq(err, NSERROR_OK);
+#endif
 }
 END_TEST
 
