@@ -723,7 +723,17 @@ dom_exception _dom_document_get_elements_by_tag_name(dom_document *doc, dom_stri
  */
 dom_exception _dom_document_import_node(dom_document *doc, dom_node *node, bool deep, dom_node **result)
 {
-    /* TODO: The DOM_INVALID_CHARACTER_ERR exception */
+    dom_node_internal *n = (dom_node_internal *) node;
+
+    if (n->type == DOM_ELEMENT_NODE ||
+        n->type == DOM_ATTRIBUTE_NODE ||
+        n->type == DOM_ENTITY_REFERENCE_NODE ||
+        n->type == DOM_ENTITY_NODE ||
+        n->type == DOM_PROCESSING_INSTRUCTION_NODE ||
+        n->type == DOM_NOTATION_NODE) {
+        if (n->name != NULL && _dom_validate_name(n->name) == false)
+            return DOM_INVALID_CHARACTER_ERR;
+    }
 
     return dom_document_dup_node(doc, node, deep, result, DOM_NODE_IMPORTED);
 }
