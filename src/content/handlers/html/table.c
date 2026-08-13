@@ -445,7 +445,7 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
             row = row->next;
         }
 
-        /** \todo can cells span row groups? */
+        /* NOTE: cells cannot span row groups according to the HTML specification */
 
         /* Row group -- consider its left border */
         b.style = css_computed_border_left_style(group->style);
@@ -619,7 +619,7 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
             row = row->next;
         }
 
-        /** \todo can cells span row groups? */
+        /* NOTE: cells cannot span row groups according to the HTML specification */
 
         /* Row group -- consider its right border */
         b.style = css_computed_border_right_style(group->style);
