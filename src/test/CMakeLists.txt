@@ -559,6 +559,12 @@ add_wisp_test(test_www_authenticate test_www_authenticate.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c)
 target_link_libraries(test_www_authenticate PRIVATE wisp ${CHECK_LIBRARIES})
 
+add_wisp_test(test_messages
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_messages.c
+)
+target_link_libraries(test_messages PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(test_talloc
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/test_talloc.c
