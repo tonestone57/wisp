@@ -874,8 +874,10 @@ nserror global_history_export(const char *path, const char *title)
     tw.fp = fp;
     err = treeview_walk(gh_ctx.tree, NULL, global_history_export_enter_cb, global_history_export_leave_cb, &tw,
         TREE_NODE_ENTRY | TREE_NODE_FOLDER);
-    if (err != NSERROR_OK)
+    if (err != NSERROR_OK) {
+        fclose(fp);
         return err;
+    }
 
     fputs("</ul>\n</body>\n</html>\n", fp);
 
