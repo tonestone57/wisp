@@ -147,9 +147,10 @@ static nserror nscss_create(const content_handler *handler, lwc_string *imime_ty
     /* Find charset specified on HTTP layer, if any */
     error = http_parameter_list_find_item(params, corestring_lwc_charset, &charset_value);
     if (error != NSERROR_OK || lwc_string_length(charset_value) == 0) {
-        /* No charset specified, use fallback, if any */
-        /** \todo libcss will take this as gospel, which is wrong */
-        charset = fallback_charset;
+        /* No charset specified on HTTP layer.
+         * We cannot pass fallback_charset to libcss here because it would
+         * treat it as dictated and override any @charset in the data. */
+        charset = NULL;
     } else {
         charset = lwc_string_data(charset_value);
     }
@@ -617,7 +618,7 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
     }
     c->imports = imports;
 
-    /** \todo fallback charset */
+    /* Cannot pass fallback charset, as libcss would treat it as dictated */
     child.charset = NULL;
     error = css_stylesheet_quirks_allowed(c->sheet, &child.quirks);
     if (error != CSS_OK) {
