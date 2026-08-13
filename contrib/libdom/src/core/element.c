@@ -1584,11 +1584,15 @@ _dom_element_set_attr(struct dom_element *element, dom_string *namespace, dom_st
         struct dom_document *doc = dom_node_get_owner(element);
         bool success = true;
         err = dom_attr_get_value(match->attr, &old);
-        /* TODO: We did not support some node type such as entity
+        /* NOTE: We did not support some node type such as entity
          * reference, in that case, we should ignore the error to
          * make sure the event model work as excepted. */
-        if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR)
+        if (err == DOM_NOT_SUPPORTED_ERR) {
+            err = DOM_NO_ERR;
+        }
+        if (err != DOM_NO_ERR) {
             return err;
+        }
         err = _dom_dispatch_attr_modified_event(
             doc, e, old, value, match->attr, name, DOM_MUTATION_MODIFICATION, &success);
         dom_string_unref(old);
@@ -1728,11 +1732,15 @@ dom_exception _dom_element_remove_attr(struct dom_element *element, dom_string *
         /* Dispatch a DOMAttrModified event */
         success = true;
         err = dom_attr_get_value(a, &old);
-        /* TODO: We did not support some node type such as entity
+        /* NOTE: We did not support some node type such as entity
          * reference, in that case, we should ignore the error to
          * make sure the event model work as excepted. */
-        if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR)
+        if (err == DOM_NOT_SUPPORTED_ERR) {
+            err = DOM_NO_ERR;
+        }
+        if (err != DOM_NO_ERR) {
             return err;
+        }
         err = _dom_dispatch_attr_modified_event(doc, e, old, NULL, a, name, DOM_MUTATION_REMOVAL, &success);
         dom_string_unref(old);
         /* Release the reference */
@@ -1851,10 +1859,13 @@ dom_exception _dom_element_set_attr_node(
         /* Dispatch a DOMAttrModified event */
         success = true;
         err = dom_attr_get_value(old_attr, &old);
-        /* TODO: We did not support some node type such as entity
+        /* NOTE: We did not support some node type such as entity
          * reference, in that case, we should ignore the error to
          * make sure the event model work as excepted. */
-        if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR) {
+        if (err == DOM_NOT_SUPPORTED_ERR) {
+            err = DOM_NO_ERR;
+        }
+        if (err != DOM_NO_ERR) {
             dom_node_unref(old_attr);
             goto cleanup;
         }
@@ -1889,10 +1900,13 @@ dom_exception _dom_element_set_attr_node(
     doc = dom_node_get_owner(element);
     success = true;
     err = dom_attr_get_value(attr, &new);
-    /* TODO: We did not support some node type such as entity reference, in
+    /* NOTE: We did not support some node type such as entity reference, in
      * that case, we should ignore the error to make sure the event model
      * work as excepted. */
-    if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR) {
+    if (err == DOM_NOT_SUPPORTED_ERR) {
+        err = DOM_NO_ERR;
+    }
+    if (err != DOM_NO_ERR) {
         _dom_element_attr_list_node_destroy(match);
         goto cleanup;
     }
@@ -2004,10 +2018,13 @@ dom_exception _dom_element_remove_attr_node(
     /* Dispatch a DOMAttrModified event */
     success = true;
     err = dom_attr_get_value(a, &old);
-    /* TODO: We did not support some node type such as entity reference, in
+    /* NOTE: We did not support some node type such as entity reference, in
      * that case, we should ignore the error to make sure the event model
      * work as excepted. */
-    if (err != DOM_NO_ERR && err != DOM_NOT_SUPPORTED_ERR) {
+    if (err == DOM_NOT_SUPPORTED_ERR) {
+        err = DOM_NO_ERR;
+    }
+    if (err != DOM_NO_ERR) {
         dom_node_unref(a);
         return err;
     }

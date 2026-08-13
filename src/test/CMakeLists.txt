@@ -113,6 +113,13 @@ add_wisp_test(test_url
   ${CMAKE_SOURCE_DIR}/src/test/test_url.c
 )
 
+add_wisp_test(test_filepath
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
+  ${CMAKE_SOURCE_DIR}/src/utils/filepath.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_filepath.c
+)
+
 add_wisp_test(csp_test
   ${CMAKE_SOURCE_DIR}/src/content/csp.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
@@ -171,6 +178,11 @@ add_wisp_test(hashtable
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
   ${CMAKE_SOURCE_DIR}/src/test/hashtable.c
 )
+
+add_wisp_test(test_http_primitives
+  ${CMAKE_SOURCE_DIR}/src/test/test_http_primitives.c
+)
+target_link_libraries(test_http_primitives PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(utils
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
@@ -509,11 +521,18 @@ add_wisp_test(test_thread_pool
 )
 target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
 
+add_wisp_test(test_file
+  ${CMAKE_SOURCE_DIR}/src/test/test_file.c
+)
+target_link_libraries(test_file PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(test_nscolour
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/test_nscolour.c
 )
 target_link_libraries(test_nscolour PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_generics test_generics.c)
+target_link_libraries(test_generics PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_content_disposition test_content_disposition.c)
 target_link_libraries(test_content_disposition PRIVATE wisp ${CHECK_LIBRARIES})
 
@@ -530,3 +549,15 @@ target_link_libraries(test_libdom PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_www_authenticate test_www_authenticate.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c)
 target_link_libraries(test_www_authenticate PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_talloc
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_talloc.c
+)
+target_link_libraries(test_talloc PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_content_type test_content_type.c)
+target_link_libraries(test_content_type PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_cache_control
+  ${CMAKE_SOURCE_DIR}/src/test/test_cache_control.c
+)
+target_link_libraries(test_cache_control PRIVATE wisp ${CHECK_LIBRARIES})
