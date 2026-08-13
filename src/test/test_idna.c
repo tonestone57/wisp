@@ -59,6 +59,67 @@ START_TEST(test_idna_decode_idn)
 }
 END_TEST
 
+START_TEST(test_idna_empty_input)
+{
+    char *out = NULL;
+    size_t out_len = 0;
+    nserror err = idna_encode("", 0, &out, &out_len);
+    if (err == NSERROR_NOT_IMPLEMENTED) return;
+    ck_assert_int_eq(err, NSERROR_BAD_URL);
+    if(out) free(out);
+
+    out = NULL;
+    out_len = 0;
+    err = idna_decode("", 0, &out, &out_len);
+    ck_assert_int_eq(err, NSERROR_BAD_URL);
+    if(out) free(out);
+}
+END_TEST
+
+START_TEST(test_idna_long_input)
+{
+    char *out = NULL;
+    size_t out_len = 0;
+    char long_host[300];
+    memset(long_host, 'a', 290);
+    long_host[290] = '\0';
+
+    nserror err = idna_encode(long_host, 290, &out, &out_len);
+    if (err == NSERROR_NOT_IMPLEMENTED) return;
+    ck_assert_int_eq(err, NSERROR_BAD_URL);
+    if(out) free(out);
+
+    out = NULL;
+    out_len = 0;
+    err = idna_decode(long_host, 290, &out, &out_len);
+    ck_assert_int_eq(err, NSERROR_BAD_URL);
+    if(out) free(out);
+}
+END_TEST
+
+START_TEST(test_idna_encode_invalid_ace)
+{
+    char *out = NULL;
+    size_t out_len = 0;
+    nserror err = idna_encode("xn--invalid-!@#$", 16, &out, &out_len);
+    if (err == NSERROR_NOT_IMPLEMENTED) return;
+    ck_assert_int_eq(err, NSERROR_UNKNOWN);
+    if(out) free(out);
+}
+END_TEST
+
+START_TEST(test_idna_decode_invalid_ace)
+{
+    char *out = NULL;
+    size_t out_len = 0;
+    nserror err = idna_decode("xn--invalid-!@#$", 16, &out, &out_len);
+    if (err == NSERROR_NOT_IMPLEMENTED) return;
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_str_eq(out, "xn--invalid-!@#$");
+    if(out) free(out);
+}
+END_TEST
+
 static Suite *idna_suite_create(void)
 {
     Suite *s = suite_create("IDNA");
@@ -67,6 +128,10 @@ static Suite *idna_suite_create(void)
     tcase_add_test(tc, test_idna_encode_idn);
     tcase_add_test(tc, test_idna_decode_basic);
     tcase_add_test(tc, test_idna_decode_idn);
+    tcase_add_test(tc, test_idna_empty_input);
+    tcase_add_test(tc, test_idna_long_input);
+    tcase_add_test(tc, test_idna_encode_invalid_ace);
+    tcase_add_test(tc, test_idna_decode_invalid_ace);
     suite_add_tcase(s, tc);
     return s;
 }
