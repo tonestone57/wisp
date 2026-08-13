@@ -607,7 +607,7 @@ static bool urldb_iterate_entries_path(const struct path_data *parent,
              * insertion code. Therefore, assert this here. */
             assert(url_callback || cookie_callback);
 
-            /** \todo handle fragments? */
+            /* NOTE: Fragments are intentionally not iterated here. They are stripped during insertion and stored in p->fragment. Clients iterating the DB expect base URLs. */
             if (url_callback) {
                 const struct url_internal_data *u = &p->urld;
 
