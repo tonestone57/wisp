@@ -2356,8 +2356,7 @@ static bool urldb_concat_cookie(struct cookie_internal_data *c, int version, int
 
     if (version == COOKIE_NETSCAPE) {
         /* Original Netscape cookie */
-        snprintf(*buf + *used - 1, *alloc - (*used - 1), "; %s=", c->name);
-        *used += 2 + strlen(c->name) + 1;
+        *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "; %s=", c->name);
 
         /* The Netscape spec doesn't mention quoting of cookie values.
          * RFC 2109 $10.1.3 indicates that values must not be quoted.
@@ -2365,61 +2364,45 @@ static bool urldb_concat_cookie(struct cookie_internal_data *c, int version, int
          * However, other browsers preserve quoting, so we should, too
          */
         if (c->value_was_quoted) {
-            snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->value);
-            *used += 1 + strlen(c->value) + 1;
+            *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->value);
         } else {
             /** \todo should we %XX-encode [;HT,SP] ? */
             /** \todo Should we strip escaping backslashes? */
-            snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->value);
-            *used += strlen(c->value);
+            *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->value);
         }
 
         /* We don't send path/domain information -- that's what the
          * Netscape spec suggests we should do, anyway. */
     } else {
         /* RFC2109 or RFC2965 cookie */
-        snprintf(*buf + *used - 1, *alloc - (*used - 1), "; %s=", c->name);
-        *used += 2 + strlen(c->name) + 1;
+        *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "; %s=", c->name);
 
         /* Value needs quoting if it contains any separator or if
          * it needs preserving from the Set-Cookie header */
         if (c->value_was_quoted || strpbrk(c->value, separators) != NULL) {
-            snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->value);
-            *used += 1 + strlen(c->value) + 1;
+            *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->value);
         } else {
-            snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->value);
-            *used += strlen(c->value);
+            *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->value);
         }
 
         if (c->path_from_set) {
             /* Path, quoted if necessary */
-            snprintf(*buf + *used - 1, *alloc - (*used - 1), "; $Path=");
-            *used += 8;
-
             if (strpbrk(c->path, separators) != NULL) {
-                snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->path);
-                *used += 1 + strlen(c->path) + 1;
+                *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "; $Path=\"%s\"", c->path);
             } else {
-                snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->path);
-                *used += strlen(c->path);
+                *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "; $Path=%s", c->path);
             }
         }
 
         if (c->domain_from_set) {
             /* Domain, quoted if necessary */
-            snprintf(*buf + *used - 1, *alloc - (*used - 1), "; $Domain=");
-            *used += 10;
-
             if (strpbrk(c->domain, separators) != NULL) {
-                snprintf(*buf + *used - 1, *alloc - (*used - 1), "\"%s\"", c->domain);
-                *used += 1 + strlen(c->domain) + 1;
+                *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "; $Domain=\"%s\"", c->domain);
             } else {
-                snprintf(*buf + *used - 1, *alloc - (*used - 1), "%s", c->domain);
-                *used += strlen(c->domain);
+                *used += snprintf(*buf + *used - 1, *alloc - (*used - 1), "; $Domain=%s", c->domain);
             }
         }
     }
-
     return true;
 }
 
