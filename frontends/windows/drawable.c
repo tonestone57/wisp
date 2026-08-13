@@ -1016,12 +1016,8 @@ static LRESULT CALLBACK nsws_window_drawable_event_callback(HWND hwnd, UINT msg,
         return 0;
 
     case WM_CLEAR:
-        /**
-         * \todo win32 clear operation deletes the contents of
-         *       the selection but ns clear selection only
-         *       removes the highlight.
-         */
-        browser_window_key_press(gw->bw, NS_KEY_CLEAR_SELECTION);
+        /* win32 clear operation deletes the contents of the selection. */
+        browser_window_key_press(gw->bw, NS_KEY_DELETE_RIGHT);
         return 0;
     }
     return DefWindowProc(hwnd, msg, wparam, lparam);
