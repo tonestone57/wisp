@@ -219,7 +219,7 @@ static struct gui_download_window *gui_download_window_create(download_context *
 }
 
 
-static nserror gui_download_window_data(struct gui_download_window *dw, const char *data, unsigned int size)
+static nserror gui_download_window_data(struct gui_download_window *dw, const uint8_t *data, unsigned int size)
 {
     dw->window->Progress(size);
 

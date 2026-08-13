@@ -732,10 +732,10 @@ static struct gui_download_window *gui_download_window_create(download_context *
 /**
  * core callback on receipt of data
  */
-static nserror gui_download_window_data(struct gui_download_window *dw, const char *data, unsigned int size)
+static nserror gui_download_window_data(struct gui_download_window *dw, const uint8_t *data, unsigned int size)
 {
     GIOStatus status;
-    status = g_io_channel_write_chars(dw->write, data, size, NULL, &dw->error);
+    status = g_io_channel_write_chars(dw->write, (const gchar *)data, size, NULL, &dw->error);
     if (status != G_IO_STATUS_NORMAL || dw->error != NULL) {
         dw->speed = 0;
         dw->time_remaining = -1;
