@@ -57,9 +57,9 @@ static struct gui_download_window *gui_download_window_create(download_context *
     return ret;
 }
 
-static nserror gui_download_window_data(struct gui_download_window *dw, const char *data, unsigned int size)
+static nserror gui_download_window_data(struct gui_download_window *dw, const uint8_t *data, unsigned int size)
 {
-    moutf(MOUT_DOWNLOAD, "DATA DWIN %u SIZE %u DATA %s", dw->dwin_num, size, data);
+    moutf(MOUT_DOWNLOAD, "DATA DWIN %u SIZE %u DATA %s", dw->dwin_num, size, (const char *)data);
     return NSERROR_OK;
 }
 

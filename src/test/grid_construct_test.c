@@ -383,12 +383,14 @@ size_t utf8_next(const char *s, size_t l, size_t o)
 #include "content/handlers/html/box_construct.c"
 extern struct wisp_table *guit;
 
+static volatile bool test_box_completed = false;
+static volatile bool test_box_success = false;
+
 static void box_complete_cb(struct html_content *c, bool status)
 {
     fprintf(stderr, "DEBUG: box_complete_cb called with status=%d\n", status);
-    c->conversion_begun = false; /* Hack to signal completion */
-    if (!status)
-        c->aborted = true; /* Reuse aborted flag for error */
+    test_box_completed = true;
+    test_box_success = status;
 }
 
 START_TEST(test_grid_construction)
@@ -450,7 +452,8 @@ START_TEST(test_grid_construction)
     /* Context Setup - Heap Alloc */
     struct html_content htmlc = {0};
     htmlc.bctx = NULL;
-    htmlc.conversion_begun = true; /* Mark as running */
+    test_box_completed = false;
+    test_box_success = true;
 
     struct box_construct_ctx *ctx = calloc(1, sizeof(*ctx));
     if (!ctx) {
@@ -519,10 +522,10 @@ START_TEST(test_grid_construction)
        So when done `ctx.n` becomes NULL.
     */
     /* Loop until finished */
-    while (htmlc.conversion_begun) {
+    while (!test_box_completed) {
         convert_xml_to_box(ctx);
     }
-    ck_assert_msg(!htmlc.aborted, "Box construction failed");
+    ck_assert_msg(test_box_success, "Box construction failed");
 
     /* VERIFY - access htmlc.layout, as ctx is freed */
     struct box *root = htmlc.layout;

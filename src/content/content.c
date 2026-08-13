@@ -112,11 +112,10 @@ static nserror content_llcache_callback(llcache_handle *llcache, const llcache_e
         break;
     case LLCACHE_EVENT_HAD_DATA:
         if (c->handler->process_data != NULL) {
-            if (c->handler->process_data(c, (const char *)event->data.data.buf, event->data.data.len) == false) {
+            error = c->handler->process_data(c, (const char *)event->data.data.buf, event->data.data.len);
+            if (error != NSERROR_OK) {
                 llcache_handle_abort(c->llcache);
                 c->status = CONTENT_STATUS_ERROR;
-                /** \todo It's not clear what error this is */
-                error = NSERROR_NOMEM;
             }
         }
         break;

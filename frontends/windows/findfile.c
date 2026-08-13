@@ -37,7 +37,8 @@
 static char *realpath(const char *path, char *resolved_path)
 {
     /* useless, but there we go */
-    return strncpy(resolved_path, path, PATH_MAX);
+    snprintf(resolved_path, PATH_MAX, "%s", path);
+    return resolved_path;
 }
 
 
@@ -61,9 +62,7 @@ char *nsws_find_resource(char *buf, const char *filename, const char *def)
 
     if (cdir != NULL) {
         NSLOG(wisp, INFO, "Found Home %s", cdir);
-        strcpy(t, cdir);
-        strcat(t, "/.wisp/");
-        strcat(t, filename);
+        snprintf(t, PATH_MAX, "%s/.wisp/%s", cdir, filename);
         if ((realpath(t, buf) != NULL) && (access(buf, R_OK) == 0))
             return buf;
     }
@@ -71,34 +70,35 @@ char *nsws_find_resource(char *buf, const char *filename, const char *def)
     cdir = getenv("WISPRES");
 
     if (cdir != NULL) {
-        if (realpath(cdir, buf) != NULL) {
-            strcat(buf, "/");
-            strcat(buf, filename);
+        snprintf(t, PATH_MAX, "%s/%s", cdir, filename);
+        if (realpath(t, buf) != NULL) {
             if (access(buf, R_OK) == 0)
                 return buf;
         }
     }
 
-    strcpy(t, WISP_WINDOWS_RESPATH);
-    strcat(t, filename);
+    snprintf(t, PATH_MAX, "%s%s", WISP_WINDOWS_RESPATH, filename);
     if ((realpath(t, buf) != NULL) && (access(buf, R_OK) == 0))
         return buf;
 
-    getcwd(t, PATH_MAX - SLEN("\\res\\") - strlen(filename));
-    strcat(t, "\\res\\");
-    strcat(t, filename);
-    NSLOG(wisp, INFO, "looking in %s", t);
-    if ((realpath(t, buf) != NULL) && (access(buf, R_OK) == 0))
-        return buf;
+    if (getcwd(t, PATH_MAX) != NULL) {
+        char temp[PATH_MAX];
+        snprintf(temp, PATH_MAX, "%s\\res\\%s", t, filename);
+        snprintf(t, PATH_MAX, "%s", temp);
+        NSLOG(wisp, INFO, "looking in %s", t);
+        if ((realpath(t, buf) != NULL) && (access(buf, R_OK) == 0))
+            return buf;
+    }
 
     if (def[0] == '~') {
-        snprintf(t, PATH_MAX, "%s%s", getenv("HOME"), def + 1);
+        const char *home = getenv("HOME");
+        snprintf(t, PATH_MAX, "%s%s", home ? home : "", def + 1);
         if (realpath(t, buf) == NULL) {
-            strcpy(buf, t);
+            snprintf(buf, PATH_MAX, "%s", t);
         }
     } else {
         if (realpath(def, buf) == NULL) {
-            strcpy(buf, def);
+            snprintf(buf, PATH_MAX, "%s", def);
         }
     }
 

@@ -196,6 +196,9 @@ struct browser_window {
     /** Current fetch is download */
     bool download;
 
+    /** Flag to indicate if the user has manually scrolled the window */
+    bool user_scrolled;
+
     /** Refresh interval (-1 if undefined) */
     int refresh_interval;
 

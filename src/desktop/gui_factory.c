@@ -260,7 +260,7 @@ static struct gui_download_window *gui_default_download_create(download_context 
     return NULL;
 }
 
-static nserror gui_default_download_data(struct gui_download_window *dw, const char *data, unsigned int size)
+static nserror gui_default_download_data(struct gui_download_window *dw, const uint8_t *data, unsigned int size)
 {
     return NSERROR_OK;
 }

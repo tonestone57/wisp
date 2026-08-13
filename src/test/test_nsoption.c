@@ -699,6 +699,47 @@ START_TEST(nsoption_api_snoptionf_no_init_test)
 END_TEST
 
 
+
+START_TEST(nsoption_set_tbl_charp_test)
+{
+    nserror ret;
+    struct nsoption_s opts[NSOPTION_LISTEND + 1];
+
+    memset(opts, 0, sizeof(opts));
+
+    /* Mock a string option */
+    opts[0].key = "mock_string_option";
+    opts[0].type = OPTION_STRING;
+    opts[0].value.s = NULL;
+
+    opts[1].key = "mock_int_option";
+    opts[1].type = OPTION_INTEGER;
+    opts[1].value.i = 42;
+
+    /* Test setting a string successfully */
+    ret = nsoption_set_tbl_charp(opts, 0, strdup("new_value"));
+    ck_assert_int_eq(ret, NSERROR_OK);
+    ck_assert_str_eq(opts[0].value.s, "new_value");
+
+    /* Test overriding an existing string */
+    ret = nsoption_set_tbl_charp(opts, 0, strdup("another_value"));
+    ck_assert_int_eq(ret, NSERROR_OK);
+    ck_assert_str_eq(opts[0].value.s, "another_value");
+
+    /* Test setting to empty string */
+    ret = nsoption_set_tbl_charp(opts, 0, strdup(""));
+    ck_assert_int_eq(ret, NSERROR_OK);
+    ck_assert_ptr_eq(opts[0].value.s, NULL);
+
+    /* Test setting a non-string option */
+    char* to_fail = strdup("should_fail");
+    ret = nsoption_set_tbl_charp(opts, 1, to_fail);
+    ck_assert_int_eq(ret, NSERROR_BAD_PARAMETER);
+    free(to_fail);
+
+    if (opts[0].value.s) free(opts[0].value.s);
+}
+END_TEST
 static TCase *nsoption_api_case_create(void)
 {
     TCase *tc;
@@ -718,6 +759,7 @@ static TCase *nsoption_api_case_create(void)
     tcase_add_test(tc, nsoption_api_init_param_test);
     tcase_add_test(tc, nsoption_api_init_failcb_test);
     tcase_add_test(tc, nsoption_api_snoptionf_no_init_test);
+    tcase_add_test(tc, nsoption_set_tbl_charp_test);
     tcase_add_test(tc, nsoption_api_snoptionf_badfmt_test);
     tcase_add_test(tc, nsoption_api_snoptionf_param_test);
 

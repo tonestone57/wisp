@@ -147,9 +147,10 @@ static nserror nscss_create(const content_handler *handler, lwc_string *imime_ty
     /* Find charset specified on HTTP layer, if any */
     error = http_parameter_list_find_item(params, corestring_lwc_charset, &charset_value);
     if (error != NSERROR_OK || lwc_string_length(charset_value) == 0) {
-        /* No charset specified, use fallback, if any */
-        /** \todo libcss will take this as gospel, which is wrong */
-        charset = fallback_charset;
+        /* No charset specified on HTTP layer.
+         * We cannot pass fallback_charset to libcss here because it would
+         * treat it as dictated and override any @charset in the data. */
+        charset = NULL;
     } else {
         charset = lwc_string_data(charset_value);
     }
@@ -248,7 +249,7 @@ static nserror nscss_create_css_data(
  * \param size  Number of bytes to process
  * \return true on success, false on failure
  */
-static bool nscss_process_data(struct content *c, const char *data, unsigned int size)
+static nserror nscss_process_data(struct content *c, const char *data, unsigned int size)
 {
     nscss_content *css = (nscss_content *)c;
     css_error error;
@@ -261,9 +262,10 @@ static bool nscss_process_data(struct content *c, const char *data, unsigned int
     if (error != CSS_OK && error != CSS_NEEDDATA) {
         NSLOG(wisp, ERROR, "nscss_process_css_data failed: %d", error);
         content_broadcast_error(c, NSERROR_CSS, NULL);
+        return NSERROR_CSS;
     }
 
-    return (error == CSS_OK || error == CSS_NEEDDATA);
+    return NSERROR_OK;
 }
 
 /**
@@ -408,9 +410,10 @@ nserror nscss_clone(const struct content *old, struct content **newc)
 
     data = content__get_source_data(&new_css->base, &size);
     if (size > 0) {
-        if (nscss_process_data(&new_css->base, (char *)data, (unsigned int)size) == false) {
+        nserror process_error = nscss_process_data(&new_css->base, (char *)data, (unsigned int)size);
+        if (process_error != NSERROR_OK) {
             content_destroy(&new_css->base);
-            return NSERROR_CLONE_FAILED;
+            return process_error;
         }
     }
 
@@ -615,7 +618,7 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
     }
     c->imports = imports;
 
-    /** \todo fallback charset */
+    /* Cannot pass fallback charset, as libcss would treat it as dictated */
     child.charset = NULL;
     error = css_stylesheet_quirks_allowed(c->sheet, &child.quirks);
     if (error != CSS_OK) {

@@ -65,6 +65,44 @@ START_TEST(test_user_agent_oom)
 END_TEST
 #endif
 
+START_TEST(test_user_agent_caching)
+{
+    const char *ua1;
+    const char *ua2;
+    ua1 = user_agent_string();
+    ua2 = user_agent_string();
+    ck_assert(ua1 != NULL);
+    ck_assert_ptr_eq(ua1, ua2);
+    free_user_agent_string();
+}
+END_TEST
+
+START_TEST(test_user_agent_rebuild_after_free)
+{
+    const char *ua1;
+    const char *ua2;
+    ua1 = user_agent_string();
+    ck_assert(ua1 != NULL);
+    free_user_agent_string();
+    ua2 = user_agent_string();
+    ck_assert(ua2 != NULL);
+    ck_assert(strlen(ua2) > 0);
+    ck_assert(strstr(ua2, "Wisp") != NULL);
+    free_user_agent_string();
+}
+END_TEST
+
+START_TEST(test_free_user_agent_string_idempotent)
+{
+    const char *ua;
+    ua = user_agent_string();
+    ck_assert(ua != NULL);
+    free_user_agent_string();
+    free_user_agent_string();
+    free_user_agent_string();
+}
+END_TEST
+
 static Suite *useragent_suite_create(void)
 {
     Suite *s;
@@ -74,6 +112,9 @@ static Suite *useragent_suite_create(void)
 
     tc_core = tcase_create("Core");
     tcase_add_test(tc_core, test_user_agent_normal);
+    tcase_add_test(tc_core, test_user_agent_caching);
+    tcase_add_test(tc_core, test_user_agent_rebuild_after_free);
+    tcase_add_test(tc_core, test_free_user_agent_string_idempotent);
 #ifndef WISP_SANITIZER_ENABLED
     tcase_add_test(tc_core, test_user_agent_oom);
 #endif

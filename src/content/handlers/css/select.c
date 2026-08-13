@@ -1530,11 +1530,56 @@ css_error node_is_focus(void *pw, void *node, bool *match)
  *
  * \post \a match with contain true if the node is enabled and false otherwise.
  */
+static css_error is_disableable_element(dom_node *node, bool *is_disableable)
+{
+    dom_node_type type;
+    dom_exception err;
+    dom_string *name;
+
+    *is_disableable = false;
+
+    err = dom_node_get_node_type(node, &type);
+    if (err != DOM_NO_ERR || type != DOM_ELEMENT_NODE) {
+        return CSS_OK;
+    }
+
+    err = dom_node_get_node_name(node, &name);
+    if (err != DOM_NO_ERR || name == NULL) {
+        return CSS_OK;
+    }
+
+    if (dom_string_caseless_lwc_isequal(name, corestring_lwc_button) ||
+        dom_string_caseless_lwc_isequal(name, corestring_lwc_input) ||
+        dom_string_caseless_lwc_isequal(name, corestring_lwc_select) ||
+        dom_string_caseless_lwc_isequal(name, corestring_lwc_textarea) ||
+        dom_string_caseless_lwc_isequal(name, corestring_lwc_optgroup) ||
+        dom_string_caseless_lwc_isequal(name, corestring_lwc_option) ||
+        dom_string_caseless_lwc_isequal(name, corestring_lwc_fieldset)) {
+        *is_disableable = true;
+    }
+
+    dom_string_unref(name);
+    return CSS_OK;
+}
+
 css_error node_is_enabled(void *pw, void *node, bool *match)
 {
-    /** \todo Support enabled nodes */
+    bool is_disableable = false;
+    bool has_disabled = false;
+    css_error err;
 
     *match = false;
+
+    err = is_disableable_element((dom_node *)node, &is_disableable);
+    if (err != CSS_OK)
+        return err;
+
+    if (is_disableable) {
+        dom_exception exc = dom_element_has_attribute((dom_element *)node, corestring_dom_disabled, &has_disabled);
+        if (exc == DOM_NO_ERR) {
+            *match = !has_disabled;
+        }
+    }
 
     return CSS_OK;
 }
@@ -1551,9 +1596,22 @@ css_error node_is_enabled(void *pw, void *node, bool *match)
  */
 css_error node_is_disabled(void *pw, void *node, bool *match)
 {
-    /** \todo Support disabled nodes */
+    bool is_disableable = false;
+    bool has_disabled = false;
+    css_error err;
 
     *match = false;
+
+    err = is_disableable_element((dom_node *)node, &is_disableable);
+    if (err != CSS_OK)
+        return err;
+
+    if (is_disableable) {
+        dom_exception exc = dom_element_has_attribute((dom_element *)node, corestring_dom_disabled, &has_disabled);
+        if (exc == DOM_NO_ERR) {
+            *match = has_disabled;
+        }
+    }
 
     return CSS_OK;
 }

@@ -253,11 +253,9 @@ static struct gui_download_window *gui_download_window_create(download_context *
         free(w);
         return NULL;
     }
-    SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, SHGFP_TYPE_CURRENT, destination);
-    if (strlen(destination) < PATH_MAX - 2)
-        strcat(destination, "/");
-    if (strlen(destination) + strlen(filename) < PATH_MAX - 1)
-        strcat(destination, filename);
+    char desktop_path[MAX_PATH];
+    SHGetFolderPath(NULL, CSIDL_DESKTOP, NULL, SHGFP_TYPE_CURRENT, desktop_path);
+    snprintf(destination, PATH_MAX, "%s/%s", desktop_path, filename);
     NSLOG(wisp, INFO, "download %s [%s] from %s to %s", filename, size, domain, destination);
     w->title = filename;
     w->domain = domain;
@@ -308,7 +306,7 @@ static struct gui_download_window *gui_download_window_create(download_context *
 }
 
 
-static nserror gui_download_window_data(struct gui_download_window *w, const char *data, unsigned int size)
+static nserror gui_download_window_data(struct gui_download_window *w, const uint8_t *data, unsigned int size)
 {
     if ((w == NULL) || (w->file == NULL))
         return NSERROR_SAVE_FAILED;

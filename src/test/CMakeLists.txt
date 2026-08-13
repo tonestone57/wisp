@@ -118,6 +118,11 @@ add_wisp_test(test_idna
 )
 target_link_libraries(test_idna PRIVATE wisp ${CHECK_LIBRARIES})
 
+add_wisp_test(test_punycode
+  ${CMAKE_SOURCE_DIR}/src/test/test_punycode.c
+)
+target_link_libraries(test_punycode PRIVATE wisp ${CHECK_LIBRARIES})
+
 
 
 
@@ -156,14 +161,14 @@ add_wisp_test(messages
   ${CMAKE_SOURCE_DIR}/src/test/messages.c
 )
 
-add_wisp_test(nsoption
+add_wisp_test(test_nsoption
   ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
   ${CMAKE_SOURCE_DIR}/src/utils/utils.c
   ${CMAKE_SOURCE_DIR}/src/utils/messages.c
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/nsoption.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_nsoption.c
 )
 
 add_wisp_test(http3_test
@@ -181,11 +186,11 @@ add_wisp_test(bloom
   ${CMAKE_SOURCE_DIR}/src/test/bloom.c
 )
 
-add_wisp_test(hashtable
+add_wisp_test(test_hashtable
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/hashtable.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_hashtable.c
 )
 
 add_wisp_test(test_http_primitives
@@ -212,11 +217,11 @@ add_wisp_test(test_ipc_partial_read
 )
 target_link_libraries(test_ipc_partial_read PRIVATE wisp)
 
-add_wisp_test(time
+add_wisp_test(test_time
   ${CMAKE_SOURCE_DIR}/src/utils/time.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/time.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_time.c
 )
 
 add_wisp_test(useragent
@@ -558,6 +563,12 @@ target_link_libraries(test_libdom PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_www_authenticate test_www_authenticate.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c)
 target_link_libraries(test_www_authenticate PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_messages
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_messages.c
+)
+target_link_libraries(test_messages PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_talloc
   ${CMAKE_SOURCE_DIR}/src/test/log.c

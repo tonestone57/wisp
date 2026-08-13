@@ -6901,16 +6901,25 @@ static char *get_clean_value(const char *val) {
     return dup;
 }
 
-static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, struct style_property *props, int count) {
+
+static char *create_style_string(struct style_property *props, int count) {
+    size_t stack_name_lens[64];
+    size_t stack_val_lens[64];
+    size_t *name_lens = count <= 64 ? stack_name_lens : malloc(count * sizeof(size_t));
+    size_t *val_lens = count <= 64 ? stack_val_lens : malloc(count * sizeof(size_t));
+
     size_t total_len = 0;
     for (int i = 0; i < count; i++) {
-        total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
+        name_lens[i] = strlen(props[i].name);
+        val_lens[i] = strlen(props[i].value);
+        total_len += name_lens[i] + 2 + val_lens[i] + 2;
     }
+
     char *buf = malloc(total_len + 1);
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
-        size_t name_len = strlen(props[i].name);
-        size_t val_len = strlen(props[i].value);
+        size_t name_len = name_lens[i];
+        size_t val_len = val_lens[i];
         memcpy(ptr, props[i].name, name_len);
         ptr += name_len;
         memcpy(ptr, ": ", 2);
@@ -6921,6 +6930,17 @@ static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, str
         ptr += 2;
     }
     *ptr = '\0';
+
+    if (count > 64) {
+        free(name_lens);
+        free(val_lens);
+    }
+
+    return buf;
+}
+
+static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, struct style_property *props, int count) {
+    char *buf = create_style_string(props, count);
     JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
     JS_FreeValue(ctx, dummy);
     free(buf);
@@ -7125,25 +7145,7 @@ JSValue wisp_cssstyledeclaration_cssText_get_impl(JSContext *ctx, QJSNodePrivate
     JS_FreeCString(ctx, style_str);
     JS_FreeValue(ctx, val);
 
-    size_t total_len = 0;
-    for (int i = 0; i < count; i++) {
-        total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
-    }
-    char *buf = malloc(total_len + 1);
-    char *ptr = buf;
-    for (int i = 0; i < count; i++) {
-        size_t name_len = strlen(props[i].name);
-        size_t val_len = strlen(props[i].value);
-        memcpy(ptr, props[i].name, name_len);
-        ptr += name_len;
-        memcpy(ptr, ": ", 2);
-        ptr += 2;
-        memcpy(ptr, props[i].value, val_len);
-        ptr += val_len;
-        memcpy(ptr, "; ", 2);
-        ptr += 2;
-    }
-    *ptr = '\0';
+    char *buf = create_style_string(props, count);
     JSValue result = JS_NewString(ctx, buf);
     free(buf);
     free_style_properties(props, count);
@@ -7156,25 +7158,7 @@ JSValue wisp_cssstyledeclaration_cssText_set_impl(JSContext *ctx, QJSNodePrivate
     struct style_property props[256];
     int count = parse_style_attribute(value ? value : "", props, 256);
 
-    size_t total_len = 0;
-    for (int i = 0; i < count; i++) {
-        total_len += strlen(props[i].name) + 2 + strlen(props[i].value) + 2;
-    }
-    char *buf = malloc(total_len + 1);
-    char *ptr = buf;
-    for (int i = 0; i < count; i++) {
-        size_t name_len = strlen(props[i].name);
-        size_t val_len = strlen(props[i].value);
-        memcpy(ptr, props[i].name, name_len);
-        ptr += name_len;
-        memcpy(ptr, ": ", 2);
-        ptr += 2;
-        memcpy(ptr, props[i].value, val_len);
-        ptr += val_len;
-        memcpy(ptr, "; ", 2);
-        ptr += 2;
-    }
-    *ptr = '\0';
+    char *buf = create_style_string(props, count);
 
     JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
     JS_FreeValue(ctx, dummy);
