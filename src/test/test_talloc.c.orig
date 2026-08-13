@@ -77,9 +77,6 @@ START_TEST(test_talloc_free_children_success)
     void *child1 = talloc_size(parent, 10);
     void *child2 = talloc_size(parent, 20);
 
-    (void)child1;
-    (void)child2;
-
     /* Test normal scenario where children can be freed */
     talloc_free_children(parent);
 
