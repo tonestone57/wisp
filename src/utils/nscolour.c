@@ -53,7 +53,7 @@ colour nscolours[NSCOLOUR__COUNT];
  * \param[out] fg_bad     Returns the bad foreground colour.
  * \param[out] border     Returns the border colour.
  */
-static nserror nscolour__get(const char *name_bg, const char *name_fg, unsigned bg_num, unsigned bg_den, colour *bg,
+nserror nscolour__get(const char *name_bg, const char *name_fg, unsigned bg_num, unsigned bg_den, colour *bg,
     colour *bg_hover, colour *fg, colour *fg_subtle, colour *fg_faded, colour *fg_good, colour *fg_bad, colour *border)
 {
     nserror res;
