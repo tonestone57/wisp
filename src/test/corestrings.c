@@ -32,6 +32,8 @@
 #include <string.h>
 
 #include "utils/corestrings.h"
+#include <dom/dom.h>
+#include "wisp/utils/nsurl.h"
 
 #include "test/malloc_fig.h"
 
@@ -63,6 +65,56 @@ START_TEST(corestrings_test)
 }
 END_TEST
 
+START_TEST(corestrings_namespaces_test)
+{
+    nserror res;
+
+    res = corestrings_init();
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    /* Validate lwc_string namespace */
+    ck_assert_ptr_nonnull(corestring_lwc_a);
+    ck_assert_int_eq(lwc_string_length(corestring_lwc_a), 1);
+    ck_assert_str_eq(lwc_string_data(corestring_lwc_a), "a");
+
+    /* Validate dom_string namespace */
+    ck_assert_ptr_nonnull(corestring_dom_a);
+    ck_assert_int_eq(dom_string_byte_length(corestring_dom_a), 1);
+
+    /* Validate nsurl namespace */
+    ck_assert_ptr_nonnull(corestring_nsurl_about_blank);
+    const char *about_blank_str = nsurl_access(corestring_nsurl_about_blank);
+    ck_assert_ptr_nonnull(about_blank_str);
+    ck_assert_str_eq(about_blank_str, "about:blank");
+
+    res = corestrings_fini();
+    ck_assert_int_eq(res, NSERROR_OK);
+}
+END_TEST
+
+START_TEST(corestrings_idempotency_test)
+{
+    nserror res;
+
+    /* First initialization */
+    res = corestrings_init();
+    ck_assert_int_eq(res, NSERROR_OK);
+    ck_assert_ptr_nonnull(corestring_lwc_a);
+
+    /* Second initialization (should be idempotent) */
+    res = corestrings_init();
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    /* Ensure state is still valid */
+    ck_assert_ptr_nonnull(corestring_lwc_a);
+    ck_assert_int_eq(lwc_string_length(corestring_lwc_a), 1);
+
+    /* Finalize */
+    res = corestrings_fini();
+    ck_assert_int_eq(res, NSERROR_OK);
+}
+END_TEST
+
 
 static TCase *corestrings_case_create(void)
 {
@@ -70,6 +122,8 @@ static TCase *corestrings_case_create(void)
     tc = tcase_create("corestrings");
 
     tcase_add_loop_test(tc, corestrings_test, CORESTRING_TEST_COUNT, CORESTRING_TEST_COUNT + 1);
+    tcase_add_test(tc, corestrings_namespaces_test);
+    tcase_add_test(tc, corestrings_idempotency_test);
 
     return tc;
 }
