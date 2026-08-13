@@ -988,12 +988,20 @@ dom_exception dom_string_tolower(dom_string *source, bool ascii_only, dom_string
         if (lwc_string_isequal(isource->data.intern, l, &equal) == lwc_error_ok && equal == true) {
             /* String is already lower case. */
             *lower = dom_string_ref(source);
+            lwc_string_unref(l);
         } else {
-            /* TODO: create dom_string wrapper around existing
-             *       lwc string. */
-            exc = dom_string_create_interned((const uint8_t *)lwc_string_data(l), lwc_string_length(l), lower);
+            dom_string_internal *ret = malloc(sizeof(*ret));
+            if (ret == NULL) {
+                exc = DOM_NO_MEM_ERR;
+                lwc_string_unref(l);
+            } else {
+                ret->data.intern = l;
+                ret->base.refcnt = 1;
+                ret->type = DOM_STRING_INTERNED;
+
+                *lower = (dom_string *)ret;
+            }
         }
-        lwc_string_unref(l);
     }
 
     return exc;
