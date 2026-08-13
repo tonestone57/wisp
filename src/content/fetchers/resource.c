@@ -274,12 +274,16 @@ static bool fetch_resource_initialise(lwc_string *scheme)
         e = &fetch_resource_map[fetch_resource_path_count];
 
         if (lwc_intern_string(fetch_resource_paths[i], strlen(fetch_resource_paths[i]), &e->path) != lwc_error_ok) {
-            while (i > 0) {
-                i--;
-                lwc_string_unref(fetch_resource_map[i].path);
-                nsurl_unref(fetch_resource_map[i].redirect_url);
+            while (fetch_resource_path_count > 0) {
+                fetch_resource_path_count--;
+                lwc_string_unref(fetch_resource_map[fetch_resource_path_count].path);
+                if (fetch_resource_map[fetch_resource_path_count].data != NULL) {
+                    guit->fetch->release_resource_data(fetch_resource_map[fetch_resource_path_count].data);
+                } else if (fetch_resource_map[fetch_resource_path_count].redirect_url != NULL) {
+                    nsurl_unref(fetch_resource_map[fetch_resource_path_count].redirect_url);
+                }
             }
-            /** \todo should this exit with an error condition? */
+            return false;
         }
 
         e->data = NULL;
