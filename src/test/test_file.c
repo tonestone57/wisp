@@ -136,6 +136,70 @@ START_TEST(wisp_mkdir_all_test)
 }
 END_TEST
 
+
+START_TEST(wisp_recursive_rm_test)
+{
+    nserror err;
+    struct stat sb;
+
+    /* Setup mock GUI table for wisp_mkpath */
+    struct gui_file_table file_ops = {
+        .mkpath = default_file_table->mkpath,
+    };
+    struct wisp_table gui = {
+        .file = &file_ops,
+    };
+    guit = &gui;
+
+    /* Test 1: Non-existent path */
+    err = wisp_recursive_rm("/tmp/nonexistent1/nonexistent2/rm_test");
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    /* Test 2: Normal empty directory */
+    char dir_template[] = "/tmp/ns_rm_empty_XXXXXX";
+    char *tmp_dir = mkdtemp(dir_template);
+    ck_assert_ptr_nonnull(tmp_dir);
+    err = wisp_recursive_rm(tmp_dir);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(stat(tmp_dir, &sb), -1);
+
+    /* Test 3: Nested directories and files */
+    char dir_template2[] = "/tmp/ns_rm_nested_XXXXXX";
+    char *tmp_dir2 = mkdtemp(dir_template2);
+    ck_assert_ptr_nonnull(tmp_dir2);
+
+    char nested_dir[256];
+    snprintf(nested_dir, sizeof(nested_dir), "%s/subdir", tmp_dir2);
+    mkdir(nested_dir, 0755);
+
+    char file1[256];
+    snprintf(file1, sizeof(file1), "%s/file1.txt", tmp_dir2);
+    FILE *f1 = fopen(file1, "w");
+    if (f1) fclose(f1);
+
+    char file2[256];
+    snprintf(file2, sizeof(file2), "%s/subdir/file2.txt", tmp_dir2);
+    FILE *f2 = fopen(file2, "w");
+    if (f2) fclose(f2);
+
+    err = wisp_recursive_rm(tmp_dir2);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(stat(tmp_dir2, &sb), -1);
+
+    /* Test 4: Attempting to delete a regular file */
+    char file_template[] = "/tmp/ns_rm_file_XXXXXX";
+    int fd = mkstemp(file_template);
+    ck_assert_int_ge(fd, 0);
+    close(fd);
+    err = wisp_recursive_rm(file_template);
+    /* Attempting to opendir a file returns ENOTDIR, leading to NSERROR_UNKNOWN in wisp_recursive_rm */
+    ck_assert_int_eq(err, NSERROR_UNKNOWN);
+    unlink(file_template);
+
+    guit = NULL;
+}
+END_TEST
+
 static Suite *file_suite_create(void)
 {
     Suite *s;
@@ -153,6 +217,10 @@ static Suite *file_suite_create(void)
     tc_mkdir = tcase_create("MkdirAll");
     tcase_add_test(tc_mkdir, wisp_mkdir_all_test);
     suite_add_tcase(s, tc_mkdir);
+
+    TCase *tc_rm = tcase_create("RecursiveRm");
+    tcase_add_test(tc_rm, wisp_recursive_rm_test);
+    suite_add_tcase(s, tc_rm);
 
     return s;
 }
