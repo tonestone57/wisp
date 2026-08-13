@@ -140,7 +140,7 @@ static uint32_t clone_virtual_node(uint32_t src_id, bool deep) {
 
 JSValue wisp_node_cloneNode_impl(JSContext *ctx, QJSNodePrivate *priv, bool deep)
 {
-    if (!priv || !priv->node) return JS_EXCEPTION;
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid Node target");
     if (wisp_is_js_process) {
         uint32_t src_id = (uint32_t)(uintptr_t)priv->node;
         uint32_t cloned_id = clone_virtual_node(src_id, deep);
@@ -149,7 +149,7 @@ JSValue wisp_node_cloneNode_impl(JSContext *ctx, QJSNodePrivate *priv, bool deep
     }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_clone_node((dom_node *)priv->node, deep, &result);
-    if (exc != DOM_NO_ERR || result == NULL) return JS_NULL;
+    if (exc != DOM_NO_ERR || result == NULL) return JS_ThrowInternalError(ctx, "Failed to clone DOM node");
     JSValue val = qjs_wrap_node(ctx, result);
     dom_node_unref(result);
     return val;
@@ -177,7 +177,8 @@ JSValue wisp_node_compareDocumentPosition_impl(JSContext *ctx, QJSNodePrivate *p
 
 JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * other)
 {
-    if (!priv || !priv->node || !other) return JS_FALSE;
+    if (!other) return JS_FALSE;
+    if (!priv || !priv->node) return JS_FALSE;
     if (wisp_is_js_process) {
         uint32_t curr_id = (uint32_t)(uintptr_t)other;
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, curr_id);
@@ -189,9 +190,22 @@ JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * oth
         }
         return JS_FALSE;
     }
-    bool result = false;
-    dom_node_contains((dom_node *)priv->node, (dom_node *)other, &result);
-    return JS_NewBool(ctx, result);
+
+    struct dom_node *target = (struct dom_node *)priv->node;
+    struct dom_node *other_node = (struct dom_node *)other;
+
+    struct dom_node *curr = dom_node_ref(other_node);
+    while (curr) {
+        if (curr == target) {
+            dom_node_unref(curr);
+            return JS_TRUE;
+        }
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node(curr, &parent);
+        dom_node_unref(curr);
+        curr = parent;
+    }
+    return JS_FALSE;
 }
 
 JSValue wisp_node_lookupPrefix_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace)

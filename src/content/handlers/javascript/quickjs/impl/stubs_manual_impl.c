@@ -3813,7 +3813,9 @@ JSValue wisp_stylesheetlist_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint
 
 JSValue wisp_childnode_remove_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) {
+        return JS_ThrowTypeError(ctx, "Invalid ChildNode target");
+    }
     if (wisp_is_js_process) {
         WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
@@ -3852,7 +3854,47 @@ JSValue wisp_childnode_remove_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_parentnode_append_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid ParentNode target");
+    struct dom_node *parent = (struct dom_node *)priv->node;
+    if (wisp_is_js_process) return JS_UNDEFINED;
+
+    struct dom_node *to_append = NULL;
+    if (JS_IsObject(nodes)) {
+        QJSNodePrivate *node_priv = qjs_get_dom_priv(ctx, nodes);
+        if (node_priv && node_priv->node) {
+            to_append = (struct dom_node *)node_priv->node;
+            dom_node_ref(to_append);
+        }
+    } else {
+        const char *str = JS_ToCString(ctx, nodes);
+        if (str) {
+            struct dom_document *doc = NULL;
+            dom_node_get_owner_document(parent, &doc);
+            if (doc) {
+                dom_string *dstr = NULL;
+                dom_string_create((const uint8_t *)str, strlen(str), &dstr);
+                if (dstr) {
+                    dom_document_create_text_node(doc, dstr, (struct dom_text **)&to_append);
+                    dom_string_unref(dstr);
+                }
+                dom_node_unref((struct dom_node *)doc);
+            }
+            JS_FreeCString(ctx, str);
+        }
+    }
+
+    if (to_append) {
+        struct dom_node *appended = NULL;
+        dom_node_append_child(parent, to_append, &appended);
+        if (appended) dom_node_unref(appended);
+        dom_node_unref(to_append);
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_parentnode_append_legacy_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes)
+{
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid ParentNode target");
     QJSNodePrivate *node_priv = qjs_get_dom_priv(ctx, nodes);
     if (node_priv && node_priv->node) {
         extern JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node);
@@ -3863,7 +3905,54 @@ JSValue wisp_parentnode_append_impl(JSContext *ctx, QJSNodePrivate *priv, JSValu
 
 JSValue wisp_parentnode_prepend_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid ParentNode target");
+    struct dom_node *parent = (struct dom_node *)priv->node;
+    if (wisp_is_js_process) return JS_UNDEFINED;
+
+    struct dom_node *first_child = NULL;
+    dom_node_get_first_child(parent, &first_child);
+
+    struct dom_node *to_insert = NULL;
+    if (JS_IsObject(nodes)) {
+        QJSNodePrivate *node_priv = qjs_get_dom_priv(ctx, nodes);
+        if (node_priv && node_priv->node) {
+            to_insert = (struct dom_node *)node_priv->node;
+            dom_node_ref(to_insert);
+        }
+    } else {
+        const char *str = JS_ToCString(ctx, nodes);
+        if (str) {
+            struct dom_document *doc = NULL;
+            dom_node_get_owner_document(parent, &doc);
+            if (doc) {
+                dom_string *dstr = NULL;
+                dom_string_create((const uint8_t *)str, strlen(str), &dstr);
+                if (dstr) {
+                    dom_document_create_text_node(doc, dstr, (struct dom_text **)&to_insert);
+                    dom_string_unref(dstr);
+                }
+                dom_node_unref((struct dom_node *)doc);
+            }
+            JS_FreeCString(ctx, str);
+        }
+    }
+
+    if (to_insert) {
+        struct dom_node *inserted = NULL;
+        dom_node_insert_before(parent, to_insert, first_child, &inserted);
+        if (inserted) dom_node_unref(inserted);
+        dom_node_unref(to_insert);
+    }
+
+    if (first_child) {
+        dom_node_unref(first_child);
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_parentnode_prepend_legacy_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes)
+{
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid ParentNode target");
     QJSNodePrivate *node_priv = qjs_get_dom_priv(ctx, nodes);
     if (node_priv && node_priv->node) {
         extern JSValue wisp_node_insertBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, void * child);
@@ -6962,14 +7051,17 @@ JSValue wisp_cssstyledeclaration_getPropertyPriority_impl(JSContext *ctx, QJSNod
     JSValue result = JS_NewString(ctx, "");
     for (int i = 0; i < count; i++) {
         if (strcasecmp(props[i].name, kebab) == 0) {
-            if (has_important_priority(props[i].value)) {
+            if (strstr(props[i].value, "!important") != NULL || strstr(props[i].value, "! important") != NULL) {
                 JS_FreeValue(ctx, result);
                 result = JS_NewString(ctx, "important");
             }
             break;
         }
     }
-    free_style_properties(props, count);
+    for (int i = 0; i < count; i++) {
+        free(props[i].name);
+        free(props[i].value);
+    }
     free(kebab);
     return result;
 }
@@ -6997,7 +7089,10 @@ JSValue wisp_cssstyledeclaration_getPropertyValue_impl(JSContext *ctx, QJSNodePr
             break;
         }
     }
-    free_style_properties(props, count);
+    for (int i = 0; i < count; i++) {
+        free(props[i].name);
+        free(props[i].value);
+    }
     free(kebab);
     return result;
 }
@@ -7043,20 +7138,40 @@ JSValue wisp_cssstyledeclaration_removeProperty_impl(JSContext *ctx, QJSNodePriv
             JS_FreeValue(ctx, removed_val);
             removed_val = JS_NewString(ctx, clean);
             free(clean);
+
             free(props[i].name);
             free(props[i].value);
-            props[i] = props[--count];
+
+            for (int j = i; j < count - 1; j++) {
+                props[j] = props[j + 1];
+            }
+            count--;
             break;
         }
     }
-    serialize_style_properties(ctx, priv, props, count);
-    free_style_properties(props, count);
+
+    char new_style[4096] = {0};
+    int current_len = 0;
+    for (int i = 0; i < count; i++) {
+        int added = snprintf(new_style + current_len, 4096 - current_len, "%s: %s; ", props[i].name, props[i].value);
+        if (added > 0) current_len += added;
+        if (current_len >= 4096) break;
+    }
+
+    for (int i = 0; i < count; i++) {
+        free(props[i].name);
+        free(props[i].value);
+    }
     free(kebab);
+
+    wisp_element_setAttribute_impl(ctx, priv, "style", new_style);
     return removed_val;
 }
 
 JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property, const char * value, const char * priority) {
-    if (!priv || !priv->node || !property) return JS_UNDEFINED;
+    if (!property || !value) return JS_ThrowTypeError(ctx, "setProperty requires at least 2 arguments (property, value)");
+    if (!priv || !priv->node) return JS_UNDEFINED;
+
     char *kebab = camel_to_kebab(property);
     JSValue style_attr = wisp_element_getAttribute_impl(ctx, priv, "style");
     const char *style_str = NULL;
@@ -7069,39 +7184,44 @@ JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate
         JS_FreeCString(ctx, style_str);
     }
     JS_FreeValue(ctx, style_attr);
-    char *final_val = NULL;
-    if (value && *value) {
-        if (priority && strcasecmp(priority, "important") == 0) {
-            size_t needed = strlen(value) + 12;
-            final_val = malloc(needed);
-            snprintf(final_val, needed, "%s !important", value);
-        } else {
-            final_val = strdup(value);
-        }
+
+    char combined_val[1024];
+    if (priority && strlen(priority) > 0) {
+        snprintf(combined_val, sizeof(combined_val), "%s !%s", value, priority);
+    } else {
+        snprintf(combined_val, sizeof(combined_val), "%s", value);
     }
+
     bool found = false;
     for (int i = 0; i < count; i++) {
         if (strcasecmp(props[i].name, kebab) == 0) {
             free(props[i].value);
-            if (final_val) {
-                props[i].value = strdup(final_val);
-            } else {
-                free(props[i].name);
-                props[i] = props[--count];
-            }
+            props[i].value = strdup(combined_val);
             found = true;
             break;
         }
     }
-    if (!found && final_val && count < 256) {
+    if (!found && count < 256) {
         props[count].name = strdup(kebab);
-        props[count].value = strdup(final_val);
+        props[count].value = strdup(combined_val);
         count++;
     }
-    serialize_style_properties(ctx, priv, props, count);
-    if (final_val) free(final_val);
-    free_style_properties(props, count);
+
+    char new_style[4096] = {0};
+    int current_len = 0;
+    for (int i = 0; i < count; i++) {
+        int added = snprintf(new_style + current_len, 4096 - current_len, "%s: %s; ", props[i].name, props[i].value);
+        if (added > 0) current_len += added;
+        if (current_len >= 4096) break;
+    }
+
+    for (int i = 0; i < count; i++) {
+        free(props[i].name);
+        free(props[i].value);
+    }
     free(kebab);
+
+    wisp_element_setAttribute_impl(ctx, priv, "style", new_style);
     return JS_UNDEFINED;
 }
 
@@ -9196,7 +9316,29 @@ JSValue wisp_element_removeAttributeNode_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: method | Element::closest();
 JSValue wisp_element_closest_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node || !selectors) return JS_NULL;
+    if (wisp_is_js_process) return JS_NULL;
+
+    struct dom_node *curr = (struct dom_node *)priv->node;
+    dom_node_ref(curr);
+
+    extern bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *selectors);
+
+    while (curr) {
+        dom_node_type type;
+        dom_node_get_node_type(curr, &type);
+        if (type == DOM_ELEMENT_NODE && qjs_dom_element_matches(ctx, curr, selectors)) {
+            JSValue res = qjs_wrap_node(ctx, curr);
+            dom_node_unref(curr);
+            return res;
+        }
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node(curr, &parent);
+        dom_node_unref(curr);
+        curr = parent;
+    }
+
+    return JS_NULL;
 }
 
 // Overrides: method | Element::getElementsByTagNameNS();
@@ -9896,7 +10038,10 @@ JSValue wisp_window_releaseEvents_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: method | Window::getComputedStyle();
 JSValue wisp_window_getComputedStyle_impl(JSContext *ctx, QJSNodePrivate *priv, void * elt, const char * pseudoElt) {
-    fprintf(stderr, "DEBUG getComputedStyle elt=%p\n", elt);
+    if (!elt) {
+        return JS_ThrowTypeError(ctx, "getComputedStyle requires an Element target");
+    }
+
     JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue get_computed_style_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_get_computed_style_internal");
     if (!JS_IsFunction(ctx, get_computed_style_fn)) {
