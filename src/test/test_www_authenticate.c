@@ -1,0 +1,128 @@
+#include <check.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+#include "utils/corestrings.h"
+#include "utils/http/www-authenticate.h"
+#include "utils/http/challenge.h"
+#include "wisp/utils/errors.h"
+
+static void setup(void)
+{
+    corestrings_init();
+}
+
+static void teardown(void)
+{
+    corestrings_fini();
+}
+
+START_TEST(test_parse_happy_paths)
+{
+    http_www_authenticate *wa = NULL;
+    nserror error;
+    lwc_string *scheme;
+    http_parameter *params;
+    const http_challenge *cur;
+    lwc_string *key;
+    lwc_string *val;
+
+    /* Test 1: Basic */
+    error = http_parse_www_authenticate("Basic realm=\"WallyWorld\"", &wa);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(wa);
+
+    cur = http_challenge_list_iterate(wa->challenges, &scheme, &params);
+    ck_assert_ptr_nonnull(cur);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+
+    lwc_intern_string("realm", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_int_eq(lwc_string_length(val), 10);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "WallyWorld", 10), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_null(cur);
+
+    http_www_authenticate_destroy(wa);
+
+    /* Test 2: Multiple challenges */
+    error = http_parse_www_authenticate("Basic realm=\"WallyWorld\", Digest realm=\"test\"", &wa);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(wa);
+
+    cur = http_challenge_list_iterate(wa->challenges, &scheme, &params);
+    ck_assert_ptr_nonnull(cur);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_nonnull(cur);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
+
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_null(cur);
+
+    http_www_authenticate_destroy(wa);
+}
+END_TEST
+
+START_TEST(test_parse_edge_cases)
+{
+    http_www_authenticate *wa = NULL;
+    nserror error;
+
+    /* Test 1: Empty string */
+    error = http_parse_www_authenticate("", &wa);
+    ck_assert_int_ne(error, NSERROR_OK);
+
+    /* Test 2: Only spaces */
+    error = http_parse_www_authenticate("   ", &wa);
+    ck_assert_int_ne(error, NSERROR_OK);
+
+    /* Test 3: Malformed parameter */
+    error = http_parse_www_authenticate("Basic realm=", &wa);
+    if (error == NSERROR_OK) {
+        http_www_authenticate_destroy(wa);
+    }
+}
+END_TEST
+
+static Suite *test_suite(void)
+{
+    Suite *s = suite_create("www-authenticate");
+    TCase *tc_core = tcase_create("Core");
+
+    tcase_add_checked_fixture(tc_core, setup, teardown);
+    tcase_add_test(tc_core, test_parse_happy_paths);
+    tcase_add_test(tc_core, test_parse_edge_cases);
+    suite_add_tcase(s, tc_core);
+
+    return s;
+}
+
+int main(int argc, char **argv)
+{
+    int number_failed;
+    Suite *s;
+    SRunner *sr;
+
+    s = test_suite();
+    sr = srunner_create(s);
+
+    srunner_run_all(sr, CK_ENV);
+    number_failed = srunner_ntests_failed(sr);
+    srunner_free(sr);
+
+    return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
+}
