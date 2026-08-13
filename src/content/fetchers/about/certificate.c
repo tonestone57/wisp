@@ -439,10 +439,7 @@ static nserror xname_to_info(X509_NAME *xname, struct ns_cert_name *iname)
 
 
 /**
- * duplicate a hex formatted string inserting the colons
- *
- * \todo only uses html entity as separator because netsurfs line breaking
- *       fails otherwise.
+ * duplicate a hex formatted string inserting colons
  */
 static char *hexdup(const char *hex)
 {
@@ -452,18 +449,14 @@ static char *hexdup(const char *hex)
     int cn = 0;
 
     hexlen = strlen(hex);
-    /* allow space fox XXYY to XX&#58;YY&#58; */
-    dst = malloc(((hexlen * 7) + 6) / 2);
+    /* allow space for XXYY to XX:YY: */
+    dst = malloc(((hexlen * 3) + 2) / 2);
 
     if (dst != NULL) {
         for (out = dst; *hex != 0; hex++) {
             if (cn == 2) {
                 cn = 0;
-                *out++ = '&';
-                *out++ = '#';
-                *out++ = '5';
-                *out++ = '8';
-                *out++ = ';';
+                *out++ = ':';
             }
             *out++ = *hex;
             cn++;
@@ -476,9 +469,6 @@ static char *hexdup(const char *hex)
 
 /**
  * create a hex formatted string inserting the colons from binary data
- *
- * \todo only uses html entity as separator because netsurfs line breaking
- *       fails otherwise.
  */
 static char *bindup(unsigned char *bin, unsigned int binlen)
 {
@@ -489,8 +479,8 @@ static char *bindup(unsigned char *bin, unsigned int binlen)
 
     if (binlen == 0) return strdup("");
 
-    /* allow space fox XY to expand to XX&#58;YY&#58; */
-    dst = malloc(binlen * 7 + 1);
+    /* allow space for XY to expand to XX:YY: */
+    dst = malloc(binlen * 3 + 1);
 
     if (dst != NULL) {
         out = dst;
@@ -498,13 +488,9 @@ static char *bindup(unsigned char *bin, unsigned int binlen)
             *out++ = hex[(bin[idx] & 0xf0) >> 4];
             *out++ = hex[bin[idx] & 0xf];
 
-            *out++ = '&';
-            *out++ = '#';
-            *out++ = '5';
-            *out++ = '8';
-            *out++ = ';';
+            *out++ = ':';
         }
-        out -= 5;
+        out -= 1;
         *out = 0;
     }
     return dst;
