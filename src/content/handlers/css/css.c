@@ -589,19 +589,12 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
     nscss_import_ctx *ctx;
     hlcache_child_context child = { 0 };
     struct nscss_import *imports;
-    const char *referer;
     css_error error;
     nserror nerror;
 
     nsurl *ns_url;
-    nsurl *ns_ref;
 
     assert(parent == c->sheet);
-
-    error = css_stylesheet_get_url(c->sheet, &referer);
-    if (error != CSS_OK) {
-        return error;
-    }
 
     ctx = malloc(sizeof(*ctx));
     if (ctx == NULL)
@@ -635,31 +628,23 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
         return CSS_NOMEM;
     }
 
-    /** \todo Constructing nsurl for referer here is silly, avoid */
-    nerror = nsurl_create(referer, &ns_ref);
-    if (nerror != NSERROR_OK) {
-        nsurl_unref(ns_url);
-        free(ctx);
-        return CSS_NOMEM;
-    }
-
     /* Avoid importing ourself */
-    if (nsurl_compare(ns_url, ns_ref, NSURL_COMPLETE)) {
+    if (c->base_url != NULL && nsurl_compare(ns_url, c->base_url, NSURL_COMPLETE)) {
         c->imports[c->import_count].c = NULL;
         /* No longer require context as we're not fetching anything */
         free(ctx);
         ctx = NULL;
     } else {
         nerror = hlcache_handle_retrieve(
-            ns_url, 0, ns_ref, NULL, nscss_import, ctx, &child, accept, &c->imports[c->import_count].c);
+            ns_url, 0, c->base_url, NULL, nscss_import, ctx, &child, accept, &c->imports[c->import_count].c);
         if (nerror != NSERROR_OK) {
+            nsurl_unref(ns_url);
             free(ctx);
             return CSS_NOMEM;
         }
     }
 
     nsurl_unref(ns_url);
-    nsurl_unref(ns_ref);
 
 #ifdef NSCSS_IMPORT_TRACE
     NSLOG(wisp, INFO, "Import %d '%s' -> (handle: %p ctx: %p)", c->import_count, lwc_string_data(url),
