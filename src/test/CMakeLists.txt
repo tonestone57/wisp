@@ -156,14 +156,14 @@ add_wisp_test(messages
   ${CMAKE_SOURCE_DIR}/src/test/messages.c
 )
 
-add_wisp_test(nsoption
+add_wisp_test(test_nsoption
   ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
   ${CMAKE_SOURCE_DIR}/src/utils/utils.c
   ${CMAKE_SOURCE_DIR}/src/utils/messages.c
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/nsoption.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_nsoption.c
 )
 
 add_wisp_test(http3_test
