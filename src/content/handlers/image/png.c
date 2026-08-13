@@ -332,10 +332,10 @@ static nserror nspng_create(const content_handler *handler, lwc_string *imime_ty
 }
 
 
-static bool nspng_process_data(struct content *c, const char *data, unsigned int size)
+static nserror nspng_process_data(struct content *c, const char *data, unsigned int size)
 {
     nspng_content *png_c = (nspng_content *)c;
-    volatile bool ret = true;
+    volatile nserror ret = NSERROR_OK;
 
     if (png_c->no_process_data) {
         return ret;
@@ -375,7 +375,7 @@ static bool nspng_process_data(struct content *c, const char *data, unsigned int
 
             content_broadcast_error(c, NSERROR_PNG_ERROR, NULL);
 
-            ret = false;
+            ret = NSERROR_PNG_ERROR;
         }
         break;
     }
@@ -687,9 +687,10 @@ static nserror nspng_clone(const struct content *old_c, struct content **new_c)
 
     data = content__get_source_data(&clone_png_c->base, &size);
     if (size > 0) {
-        if (nspng_process_data(&clone_png_c->base, (const char *)data, size) == false) {
+        nserror process_error = nspng_process_data(&clone_png_c->base, (const char *)data, size);
+        if (process_error != NSERROR_OK) {
             content_destroy(&clone_png_c->base);
-            return NSERROR_NOMEM;
+            return process_error;
         }
     }
 

@@ -307,7 +307,7 @@ static bool textplain_drain_input(textplain_content *c, parserutils_inputstream 
 /**
  * Process data for CONTENT_TEXTPLAIN.
  */
-static bool textplain_process_data(struct content *c, const char *data, unsigned int size)
+static nserror textplain_process_data(struct content *c, const char *data, unsigned int size)
 {
     textplain_content *text = (textplain_content *)c;
     parserutils_inputstream *stream = text->inputstream;
@@ -321,11 +321,11 @@ static bool textplain_process_data(struct content *c, const char *data, unsigned
     if (textplain_drain_input(text, stream, PARSERUTILS_NEEDDATA) == false)
         goto no_memory;
 
-    return true;
+    return NSERROR_OK;
 
 no_memory:
     content_broadcast_error(c, NSERROR_NOMEM, NULL);
-    return false;
+    return NSERROR_NOMEM;
 }
 
 
@@ -542,9 +542,10 @@ static nserror textplain_clone(const struct content *old, struct content **newc)
 
     data = content__get_source_data(&text->base, &size);
     if (size > 0) {
-        if (textplain_process_data(&text->base, (const char *)data, size) == false) {
+        nserror process_error = textplain_process_data(&text->base, (const char *)data, size);
+        if (process_error != NSERROR_OK) {
             content_destroy(&text->base);
-            return NSERROR_NOMEM;
+            return process_error;
         }
     }
 

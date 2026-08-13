@@ -248,7 +248,7 @@ static nserror nscss_create_css_data(
  * \param size  Number of bytes to process
  * \return true on success, false on failure
  */
-static bool nscss_process_data(struct content *c, const char *data, unsigned int size)
+static nserror nscss_process_data(struct content *c, const char *data, unsigned int size)
 {
     nscss_content *css = (nscss_content *)c;
     css_error error;
@@ -261,9 +261,10 @@ static bool nscss_process_data(struct content *c, const char *data, unsigned int
     if (error != CSS_OK && error != CSS_NEEDDATA) {
         NSLOG(wisp, ERROR, "nscss_process_css_data failed: %d", error);
         content_broadcast_error(c, NSERROR_CSS, NULL);
+        return NSERROR_CSS;
     }
 
-    return (error == CSS_OK || error == CSS_NEEDDATA);
+    return NSERROR_OK;
 }
 
 /**
@@ -408,9 +409,10 @@ nserror nscss_clone(const struct content *old, struct content **newc)
 
     data = content__get_source_data(&new_css->base, &size);
     if (size > 0) {
-        if (nscss_process_data(&new_css->base, (char *)data, (unsigned int)size) == false) {
+        nserror process_error = nscss_process_data(&new_css->base, (char *)data, (unsigned int)size);
+        if (process_error != NSERROR_OK) {
             content_destroy(&new_css->base);
-            return NSERROR_CLONE_FAILED;
+            return process_error;
         }
     }
 

@@ -377,7 +377,7 @@ static nserror nsvideo_create(const struct content_handler *handler, lwc_string 
     return NSERROR_OK;
 }
 
-static bool nsvideo_process_data(struct content *c, const char *data, unsigned int size)
+static nserror nsvideo_process_data(struct content *c, const char *data, unsigned int size)
 {
     nsvideo_content *video = (nsvideo_content *)c;
 
@@ -390,7 +390,7 @@ static bool nsvideo_process_data(struct content *c, const char *data, unsigned i
     video->buffer.size += size;
     pthread_mutex_unlock(&video->buffer.lock);
 
-    return true;
+    return NSERROR_OK;
 }
 
 static bool nsvideo_convert(struct content *c)
