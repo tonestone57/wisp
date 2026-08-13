@@ -297,6 +297,8 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/http/content-disposition.c
 	utils/http/content-type.c
 	utils/http/strict-transport-security.c
+	utils/http/www-authenticate.c
+	utils/http/challenge.c
 	utils/nsurl/nsurl.c
 	utils/nsurl/parse.c
 	# QuickJS-ng generated bindings
