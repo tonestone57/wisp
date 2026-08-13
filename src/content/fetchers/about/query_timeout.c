@@ -57,6 +57,7 @@ bool fetch_about_query_timeout_handler(struct fetch_about_context *ctx)
     curmd = fetch_about_get_multipart(ctx);
     while (curmd != NULL) {
         if (strcmp(curmd->name, "siteurl") == 0) {
+            if (siteurl) nsurl_unref(siteurl);
             res = nsurl_create(curmd->value, &siteurl);
             if (res != NSERROR_OK) {
                 return fetch_about_srverror(ctx);

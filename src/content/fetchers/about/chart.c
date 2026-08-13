@@ -449,14 +449,14 @@ static bool pie_chart(struct fetch_about_context *ctx, struct chart_param *chart
 
     /* ensure there is data to render */
     if ((chart->data.series_len < 1) || (chart->data.series[0].len < 2)) {
-        return NSERROR_BAD_PARAMETER;
+        return false;
     }
 
     /* get the first series total value */
     series_total = compute_series_total(chart, 0);
     if (series_total == 0) {
         /* dividing by zero is embarasing */
-        return NSERROR_BAD_PARAMETER;
+        return false;
     }
 
     /*

@@ -89,43 +89,81 @@ struct ns_cert_info {
 /**
  * free all resources associated with a certificate information structure
  */
-static nserror free_ns_cert_info(struct ns_cert_info *cinfo)
+/* free internal string contents of a certificate information structure */
+static void free_ns_cert_info_contents(struct ns_cert_info *cinfo)
 {
     struct ns_cert_san *san;
+    if (cinfo == NULL) return;
 
     free(cinfo->subject_name.common_name);
+    cinfo->subject_name.common_name = NULL;
     free(cinfo->subject_name.organisation);
+    cinfo->subject_name.organisation = NULL;
     free(cinfo->subject_name.organisation_unit);
+    cinfo->subject_name.organisation_unit = NULL;
     free(cinfo->subject_name.locality);
+    cinfo->subject_name.locality = NULL;
     free(cinfo->subject_name.province);
+    cinfo->subject_name.province = NULL;
     free(cinfo->subject_name.country);
+    cinfo->subject_name.country = NULL;
+
     free(cinfo->issuer_name.common_name);
+    cinfo->issuer_name.common_name = NULL;
     free(cinfo->issuer_name.organisation);
+    cinfo->issuer_name.organisation = NULL;
     free(cinfo->issuer_name.organisation_unit);
+    cinfo->issuer_name.organisation_unit = NULL;
     free(cinfo->issuer_name.locality);
+    cinfo->issuer_name.locality = NULL;
     free(cinfo->issuer_name.province);
+    cinfo->issuer_name.province = NULL;
     free(cinfo->issuer_name.country);
+    cinfo->issuer_name.country = NULL;
+
     free(cinfo->public_key.algor);
+    cinfo->public_key.algor = NULL;
     free(cinfo->public_key.modulus);
+    cinfo->public_key.modulus = NULL;
     free(cinfo->public_key.exponent);
+    cinfo->public_key.exponent = NULL;
     free(cinfo->public_key.curve);
+    cinfo->public_key.curve = NULL;
     free(cinfo->public_key.public);
+    cinfo->public_key.public = NULL;
+
     free(cinfo->not_before);
+    cinfo->not_before = NULL;
     free(cinfo->not_after);
+    cinfo->not_after = NULL;
     free(cinfo->sig_algor);
+    cinfo->sig_algor = NULL;
     free(cinfo->serialnum);
+    cinfo->serialnum = NULL;
+    free(cinfo->sha1fingerprint);
+    cinfo->sha1fingerprint = NULL;
+    free(cinfo->sha256fingerprint);
+    cinfo->sha256fingerprint = NULL;
 
     /* free san list avoiding use after free */
     san = cinfo->san;
     while (san != NULL) {
         struct ns_cert_san *next;
         next = san->next;
+        free(san->name);
         free(san);
         san = next;
     }
+    cinfo->san = NULL;
+}
 
-    free(cinfo);
-
+/* free all resources associated with a certificate information structure */
+static nserror free_ns_cert_info(struct ns_cert_info *cinfo)
+{
+    if (cinfo != NULL) {
+        free_ns_cert_info_contents(cinfo);
+        free(cinfo);
+    }
     return NSERROR_OK;
 }
 
@@ -379,6 +417,7 @@ static nserror xname_to_info(X509_NAME *xname, struct ns_cert_name *iname)
             break;
         }
         if (field != NULL) {
+            free(*field);
             *field = strdup((const char *)value_str);
             NSLOG(wisp, DEEPDEBUG, "NID:%d value: %s", name_nid, *field);
         } else {
@@ -817,6 +856,9 @@ static nserror convert_chain_to_cert_info(const struct cert_chain *chain, struct
     for (depth = 0; depth < chain->depth; depth++) {
         res = der_to_certinfo(chain->certs[depth].der, chain->certs[depth].der_length, certs + depth);
         if (res != NSERROR_OK) {
+            for (size_t i = 0; i < depth; i++) {
+                free_ns_cert_info_contents(certs + i);
+            }
             free(certs);
             return res;
         }
@@ -1172,7 +1214,8 @@ bool fetch_about_certificate_handler(struct fetch_about_context *ctx)
             size_t depth;
             res = fetch_about_ssenddataf(ctx, "<ul>\n");
             if (res != NSERROR_OK) {
-                free_ns_cert_info(cert_info);
+                for (size_t d = 0; d < chain->depth; d++) free_ns_cert_info_contents(cert_info + d);
+                free(cert_info);
                 goto fetch_about_certificate_handler_aborted;
             }
 
@@ -1180,25 +1223,29 @@ bool fetch_about_certificate_handler(struct fetch_about_context *ctx)
                 res = fetch_about_ssenddataf(ctx, "<li><a href=\"#%" PRIsizet "\">%s</a></li>\n", depth,
                     (cert_info + depth)->subject_name.common_name);
                 if (res != NSERROR_OK) {
-                    free_ns_cert_info(cert_info);
+                    for (size_t d = 0; d < chain->depth; d++) free_ns_cert_info_contents(cert_info + d);
+                    free(cert_info);
                     goto fetch_about_certificate_handler_aborted;
                 }
             }
 
             res = fetch_about_ssenddataf(ctx, "</ul>\n");
             if (res != NSERROR_OK) {
-                free_ns_cert_info(cert_info);
+                for (size_t d = 0; d < chain->depth; d++) free_ns_cert_info_contents(cert_info + d);
+                free(cert_info);
                 goto fetch_about_certificate_handler_aborted;
             }
 
             for (depth = 0; depth < chain->depth; depth++) {
                 res = format_certificate(ctx, cert_info + depth, depth);
                 if (res != NSERROR_OK) {
-                    free_ns_cert_info(cert_info);
+                    for (size_t d = 0; d < chain->depth; d++) free_ns_cert_info_contents(cert_info + d);
+                    free(cert_info);
                     goto fetch_about_certificate_handler_aborted;
                 }
             }
-            free_ns_cert_info(cert_info);
+            for (depth = 0; depth < chain->depth; depth++) free_ns_cert_info_contents(cert_info + depth);
+            free(cert_info);
 
         } else {
             res = fetch_about_ssenddataf(ctx, "<p>Invalid certificate data</p>\n");
