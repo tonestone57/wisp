@@ -150,7 +150,7 @@ static bool box_normalise_table_row(struct box *row, const struct box *root, str
 	struct box *cell = NULL;
 	css_computed_style *style;
 	unsigned int i;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	assert(row != NULL);
 	assert(row->type == BOX_TABLE_ROW);
@@ -185,6 +185,7 @@ static bool box_normalise_table_row(struct box *row, const struct box *root, str
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, row->style);
 			if (style == NULL)
@@ -281,7 +282,7 @@ box_normalise_table_row_group(struct box *row_group, const struct box *root, str
 	struct box *next_child;
 	struct box *row;
 	css_computed_style *style;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 	unsigned int group_row_count = 0;
 	unsigned int i;
 
@@ -324,6 +325,7 @@ box_normalise_table_row_group(struct box *row_group, const struct box *root, str
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, row_group->style);
 			if (style == NULL)
@@ -397,6 +399,7 @@ box_normalise_table_row_group(struct box *row_group, const struct box *root, str
 		ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 		ctx.base_url = c->base_url;
 		ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 		style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, row_group->style);
 		if (style == NULL) {
@@ -448,7 +451,7 @@ box_normalise_table_spans(struct box *table, const struct box *root, struct span
 	unsigned int rows_left = table->rows;
 	unsigned int group_rows_left;
 	unsigned int col;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	ctx.root_style = root->style;
 
@@ -515,6 +518,7 @@ box_normalise_table_spans(struct box *table, const struct box *root, struct span
 					ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 					ctx.base_url = c->base_url;
 					ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 					style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, table_row->style);
 					if (style == NULL)
@@ -583,7 +587,7 @@ static bool box_normalise_table(struct box *table, const struct box *root, html_
 	struct box *row_group;
 	css_computed_style *style;
 	struct columns col_info;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	assert(table != NULL);
 	assert(table->type == BOX_TABLE);
@@ -630,6 +634,7 @@ static bool box_normalise_table(struct box *table, const struct box *root, html_
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, table->style);
 			if (style == NULL) {
@@ -714,6 +719,7 @@ static bool box_normalise_table(struct box *table, const struct box *root, html_
 		ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 		ctx.base_url = c->base_url;
 		ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 		style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, table->style);
 		if (style == NULL) {
@@ -776,7 +782,7 @@ static bool box_normalise_flex(struct box *flex_container, const struct box *roo
 	struct box *next_child;
 	struct box *implied_flex_item;
 	css_computed_style *style;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	assert(flex_container != NULL);
 	assert(root != NULL);
@@ -826,6 +832,7 @@ static bool box_normalise_flex(struct box *flex_container, const struct box *roo
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, flex_container->style);
 			if (style == NULL)
@@ -893,6 +900,7 @@ static bool box_normalise_flex(struct box *flex_container, const struct box *roo
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, flex_container->style);
 			if (style == NULL)
@@ -949,7 +957,7 @@ static bool box_normalise_grid(struct box *grid_container, const struct box *roo
 	struct box *next_child;
 	struct box *implied_grid_item;
 	css_computed_style *style;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	assert(grid_container != NULL);
 	assert(root != NULL);
@@ -993,6 +1001,7 @@ static bool box_normalise_grid(struct box *grid_container, const struct box *roo
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, grid_container->style);
 			if (style == NULL)
@@ -1066,6 +1075,7 @@ static bool box_normalise_grid(struct box *grid_container, const struct box *roo
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, grid_container->style);
 			if (style == NULL)
@@ -1087,6 +1097,7 @@ static bool box_normalise_grid(struct box *grid_container, const struct box *roo
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, grid_container->style);
 			if (style == NULL)
@@ -1294,7 +1305,7 @@ bool box_normalise_block(struct box *block, const struct box *root, html_content
 	struct box *next_child;
 	struct box *table;
 	css_computed_style *style;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	assert(block != NULL);
 	assert(root != NULL);
@@ -1367,6 +1378,7 @@ bool box_normalise_block(struct box *block, const struct box *root, html_content
 			ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
 			ctx.base_url = c->base_url;
 			ctx.universal = c->universal;
+			ctx.c = (struct html_content *)c;
 
 			style = nscss_get_blank_style(&ctx, &c->unit_len_ctx, block->style);
 			if (style == NULL)

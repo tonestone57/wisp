@@ -732,7 +732,26 @@ static css_error snap_node_is_active(void *pw, void *node, bool *match) {
 }
 
 static css_error snap_node_is_focus(void *pw, void *node, bool *match) {
+    nscss_select_ctx *ctx = pw;
+
+    if (ctx == NULL || ctx->c == NULL) {
+        *match = false;
+        return CSS_OK;
+    }
+
+    dom_node *n = ((style_snapshot_t *)node)->node;
     *match = false;
+
+    if (ctx->c->focus_type == HTML_FOCUS_CONTENT) {
+        if (ctx->c->focus_owner.content && ctx->c->focus_owner.content->node == n) {
+            *match = true;
+        }
+    } else if (ctx->c->focus_type == HTML_FOCUS_TEXTAREA) {
+        if (ctx->c->focus_owner.textarea && ctx->c->focus_owner.textarea->node == n) {
+            *match = true;
+        }
+    }
+
     return CSS_OK;
 }
 
@@ -1155,13 +1174,14 @@ static void parallel_style_worker_cb(void *arg) {
     html_content *c = task->content;
     style_snapshot_t *snap = task->snap;
 
-    nscss_select_ctx select_ctx;
+    nscss_select_ctx select_ctx = {0};
     select_ctx.ctx = c->select_ctx;
     select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
     select_ctx.base_url = c->base_url;
     select_ctx.universal = c->universal;
     select_ctx.root_style = NULL;
     select_ctx.parent_style = NULL;
+    select_ctx.c = c;
 
     css_select_results *styles = NULL;
     pthread_mutex_lock(&dom_lock);
@@ -1181,13 +1201,14 @@ static void parallel_style_worker_cb(void *arg) {
 static void html_parallel_style_selection(html_content *c, dom_node *root) {
     if (c == NULL || root == NULL || c->select_ctx == NULL) return;
 
-    nscss_select_ctx select_ctx;
+    nscss_select_ctx select_ctx = {0};
     select_ctx.ctx = c->select_ctx;
     select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
     select_ctx.base_url = c->base_url;
     select_ctx.universal = c->universal;
     select_ctx.root_style = NULL;
     select_ctx.parent_style = NULL;
+    select_ctx.c = c;
 
     /* Perform a fast, sequential pre-pass down the DOM tree to construct a lightweight Element Property Snapshot */
     style_snapshot_t *snap_root = create_style_snapshot(c, root, NULL, &select_ctx);
@@ -1257,13 +1278,14 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
 
         /* Compose style top-down with parent style snapshot */
         if (styles->styles[CSS_PSEUDO_ELEMENT_NONE] == NULL) {
-            nscss_select_ctx select_ctx;
+            nscss_select_ctx select_ctx = {0};
             select_ctx.ctx = c->select_ctx;
             select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
             select_ctx.base_url = c->base_url;
             select_ctx.universal = c->universal;
             select_ctx.root_style = NULL;
             select_ctx.parent_style = parent_style;
+            select_ctx.c = c;
             styles->styles[CSS_PSEUDO_ELEMENT_NONE] = nscss_get_blank_style(&select_ctx, &c->unit_len_ctx, parent_style);
         } else if (parent_style != NULL) {
             css_computed_style *composed = NULL;
@@ -1287,13 +1309,14 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
                 css_computed_style *base_style = styles->styles[CSS_PSEUDO_ELEMENT_NONE];
                 css_computed_style *temp_base_style = NULL;
                 if (base_style == NULL) {
-                    nscss_select_ctx select_ctx;
+                    nscss_select_ctx select_ctx = {0};
                     select_ctx.ctx = c->select_ctx;
                     select_ctx.quirks = (c->quirks == DOM_DOCUMENT_QUIRKS_MODE_FULL);
                     select_ctx.base_url = c->base_url;
                     select_ctx.universal = c->universal;
                     select_ctx.root_style = NULL;
                     select_ctx.parent_style = parent_style;
+                    select_ctx.c = c;
                     temp_base_style = nscss_get_blank_style(&select_ctx, &c->unit_len_ctx, parent_style);
                     base_style = temp_base_style;
                 }
@@ -1346,7 +1369,7 @@ static css_select_results *box_get_style(
 	dom_string *s = NULL;
 	css_stylesheet *inline_style = NULL;
 	css_select_results *styles;
-	nscss_select_ctx ctx;
+	nscss_select_ctx ctx = {0};
 
 	/* Firstly, construct inline stylesheet, if any */
 	if (nsoption_bool(author_level_css)) {
@@ -1374,6 +1397,7 @@ static css_select_results *box_get_style(
 	ctx.universal = c->universal;
 	ctx.root_style = root_style;
 	ctx.parent_style = parent_style;
+	ctx.c = c;
 
 	/* Select style for element */
 	styles = nscss_get_style(&ctx, n, &c->media, &c->unit_len_ctx, inline_style);
