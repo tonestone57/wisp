@@ -208,28 +208,41 @@ JSValue wisp_urlsearchparams_toString_impl(JSContext *ctx, QJSNodePrivate *priv)
     struct url_search_params_data *data = priv->node;
     if (data->count == 0) return JS_NewString(ctx, "");
 
-    // Quick estimate for length
+    // Estimate length and cache strlen results
+    size_t stack_lens[64];
+    size_t *lens = stack_lens;
+    if (data->count * 2 > 64) {
+        lens = malloc(data->count * 2 * sizeof(size_t));
+        if (!lens) return JS_ThrowOutOfMemory(ctx);
+    }
+
     size_t total_len = 0;
     for (size_t i = 0; i < data->count; i++) {
-        total_len += strlen(data->params[i].name) + strlen(data->params[i].value) + 2; // '=' and '&'
+        size_t n_len = strlen(data->params[i].name);
+        size_t v_len = strlen(data->params[i].value);
+        lens[i * 2] = n_len;
+        lens[i * 2 + 1] = v_len;
+        total_len += n_len + v_len + 2; // '=' and '&'
     }
 
     char *buf = malloc(total_len + 1);
-    if (!buf) return JS_ThrowOutOfMemory(ctx);
+    if (!buf) {
+        if (lens != stack_lens) free(lens);
+        return JS_ThrowOutOfMemory(ctx);
+    }
     buf[0] = '\0';
     size_t curr = 0;
     for (size_t i = 0; i < data->count; i++) {
         if (i > 0) {
             buf[curr++] = '&';
         }
-        size_t n_len = strlen(data->params[i].name);
-        memcpy(buf + curr, data->params[i].name, n_len);
-        curr += n_len;
+        memcpy(buf + curr, data->params[i].name, lens[i * 2]);
+        curr += lens[i * 2];
         buf[curr++] = '=';
-        size_t v_len = strlen(data->params[i].value);
-        memcpy(buf + curr, data->params[i].value, v_len);
-        curr += v_len;
+        memcpy(buf + curr, data->params[i].value, lens[i * 2 + 1]);
+        curr += lens[i * 2 + 1];
     }
+    if (lens != stack_lens) free(lens);
     buf[curr] = '\0';
     JSValue res = JS_NewString(ctx, buf);
     free(buf);
