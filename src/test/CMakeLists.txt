@@ -212,11 +212,11 @@ add_wisp_test(test_ipc_partial_read
 )
 target_link_libraries(test_ipc_partial_read PRIVATE wisp)
 
-add_wisp_test(time
+add_wisp_test(test_time
   ${CMAKE_SOURCE_DIR}/src/utils/time.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
-  ${CMAKE_SOURCE_DIR}/src/test/time.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_time.c
 )
 
 add_wisp_test(useragent

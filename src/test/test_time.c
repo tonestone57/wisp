@@ -166,6 +166,46 @@ START_TEST(date_bad_string)
 END_TEST
 
 
+
+START_TEST(test_nsc_sntimet)
+{
+    char buf[64];
+    time_t t = 0; // Epoch
+    int res = nsc_sntimet(buf, sizeof(buf), &t);
+    ck_assert_int_gt(res, 0);
+    ck_assert_str_eq(buf, "0");
+}
+END_TEST
+
+START_TEST(test_nsc_snptimet)
+{
+    time_t time_out;
+    nserror res;
+
+    // valid parsing
+    res = nsc_snptimet("1234567890", 10, &time_out);
+    ck_assert(res == NSERROR_OK);
+    ck_assert(time_out == 1234567890);
+
+    // invalid parsing
+    res = nsc_snptimet("invalid", 7, &time_out);
+    ck_assert(res == NSERROR_BAD_PARAMETER);
+
+    // length 0
+    res = nsc_snptimet("123", 0, &time_out);
+    ck_assert(res == NSERROR_BAD_PARAMETER);
+}
+END_TEST
+
+START_TEST(test_rfc1123_date)
+{
+    time_t t = 0; // Epoch
+    const char *res = rfc1123_date(t);
+    ck_assert_str_eq(res, "Thu, 01 Jan 1970 00:00:00 GMT");
+}
+END_TEST
+
+
 /* suite generation */
 static Suite *time_suite(void)
 {
@@ -186,6 +226,18 @@ static Suite *time_suite(void)
 
     tcase_add_loop_test(tc_date_bad_string, date_bad_string, 0, NELEMS(date_bad_string_tests));
     suite_add_tcase(s, tc_date_bad_string);
+
+    TCase *tc_nsc_sntimet = tcase_create("nsc_sntimet");
+    tcase_add_test(tc_nsc_sntimet, test_nsc_sntimet);
+    suite_add_tcase(s, tc_nsc_sntimet);
+
+    TCase *tc_nsc_snptimet = tcase_create("nsc_snptimet");
+    tcase_add_test(tc_nsc_snptimet, test_nsc_snptimet);
+    suite_add_tcase(s, tc_nsc_snptimet);
+
+    TCase *tc_rfc1123_date = tcase_create("rfc1123_date");
+    tcase_add_test(tc_rfc1123_date, test_rfc1123_date);
+    suite_add_tcase(s, tc_rfc1123_date);
 
     return s;
 }
