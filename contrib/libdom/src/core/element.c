@@ -1590,8 +1590,9 @@ _dom_element_set_attr(struct dom_element *element, dom_string *namespace, dom_st
         if (err == DOM_NOT_SUPPORTED_ERR) {
             err = DOM_NO_ERR;
         }
-        if (err != DOM_NO_ERR)
+        if (err != DOM_NO_ERR) {
             return err;
+        }
         err = _dom_dispatch_attr_modified_event(
             doc, e, old, value, match->attr, name, DOM_MUTATION_MODIFICATION, &success);
         dom_string_unref(old);
@@ -1737,8 +1738,9 @@ dom_exception _dom_element_remove_attr(struct dom_element *element, dom_string *
         if (err == DOM_NOT_SUPPORTED_ERR) {
             err = DOM_NO_ERR;
         }
-        if (err != DOM_NO_ERR)
+        if (err != DOM_NO_ERR) {
             return err;
+        }
         err = _dom_dispatch_attr_modified_event(doc, e, old, NULL, a, name, DOM_MUTATION_REMOVAL, &success);
         dom_string_unref(old);
         /* Release the reference */
