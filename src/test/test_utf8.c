@@ -37,6 +37,97 @@ START_TEST(test_utf8_to_ucs4_empty)
 }
 END_TEST
 
+
+START_TEST(test_utf8_convert_empty)
+{
+    char *result = NULL;
+    size_t result_len = 0;
+
+    // Empty string (should bypass iconv)
+    ck_assert_int_eq(utf8_from_enc("", "ISO-8859-1", 0, &result, &result_len), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_int_eq(result_len, 0);
+    ck_assert_int_eq(result[0], '\0');
+    free(result);
+    result = NULL;
+}
+END_TEST
+
+START_TEST(test_utf8_convert_same_encoding)
+{
+    char *result = NULL;
+    size_t result_len = 0;
+
+    // Source and dest are the same (should bypass iconv)
+    ck_assert_int_eq(utf8_from_enc("Hello", "UTF-8", 5, &result, &result_len), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_int_eq(result_len, 5);
+    ck_assert_str_eq(result, "Hello");
+    free(result);
+    result = NULL;
+}
+END_TEST
+
+START_TEST(test_utf8_convert_length_zero)
+{
+    char *result = NULL;
+    size_t result_len = 0;
+
+    // slen = 0 forces strlen internal call
+    ck_assert_int_eq(utf8_from_enc("Test", "UTF-8", 0, &result, &result_len), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_int_eq(result_len, 4);
+    ck_assert_str_eq(result, "Test");
+    free(result);
+    result = NULL;
+}
+END_TEST
+
+START_TEST(test_utf8_convert_valid_conversion)
+{
+    char *result = NULL;
+    size_t result_len = 0;
+
+    // Valid conversion from ISO-8859-1 to UTF-8
+    // '¢' in ISO-8859-1 is 0xA2. In UTF-8 it's C2 A2.
+    ck_assert_int_eq(utf8_from_enc("\xA2", "ISO-8859-1", 1, &result, &result_len), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_int_eq(result_len, 2);
+    ck_assert_str_eq(result, "\xC2\xA2");
+    free(result);
+    result = NULL;
+
+    // Valid conversion from UTF-8 to ISO-8859-1
+    ck_assert_int_eq(utf8_to_enc("\xC2\xA2", "ISO-8859-1", 2, &result), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    // length is not returned by utf8_to_enc, we check the string
+    ck_assert_int_eq((unsigned char)result[0], 0xA2);
+    ck_assert_int_eq(result[1], '\0');
+    free(result);
+    result = NULL;
+}
+END_TEST
+
+START_TEST(test_utf8_convert_invalid_encoding_name)
+{
+    char *result = NULL;
+    size_t result_len = 0;
+
+    // Invalid encoding name should fail (either EINVAL->BAD_ENCODING or NOMEM)
+    nserror err = utf8_from_enc("Test", "NONEXISTENT-ENCODING", 4, &result, &result_len);
+    ck_assert(err == NSERROR_BAD_ENCODING || err == NSERROR_NOMEM);
+}
+END_TEST
+
+START_TEST(test_utf8_convert_bad_encoding_data)
+{
+    char *result = NULL;
+
+    // Invalid UTF-8 to ISO-8859-1 (0x80 is an invalid continuation byte in UTF-8 context when standing alone)
+    ck_assert_int_eq(utf8_to_enc("\x80", "ISO-8859-1", 1, &result), NSERROR_BAD_ENCODING);
+}
+END_TEST
+
 static Suite *utf8_suite(void)
 {
     Suite *s;
@@ -50,6 +141,12 @@ static Suite *utf8_suite(void)
     tcase_add_test(tc, test_utf8_to_ucs4_invalid);
     tcase_add_test(tc, test_utf8_to_ucs4_empty);
 
+    tcase_add_test(tc, test_utf8_convert_empty);
+    tcase_add_test(tc, test_utf8_convert_same_encoding);
+    tcase_add_test(tc, test_utf8_convert_length_zero);
+    tcase_add_test(tc, test_utf8_convert_valid_conversion);
+    tcase_add_test(tc, test_utf8_convert_invalid_encoding_name);
+    tcase_add_test(tc, test_utf8_convert_bad_encoding_data);
     suite_add_tcase(s, tc);
     return s;
 }
