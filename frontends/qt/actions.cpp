@@ -204,16 +204,9 @@ QToolButton *NS_Actions::QToolButtonFromQAction(QAction *action)
 
     /* iterate objects associated with action */
     for (int idx = 0; idx < widget_list.count(); idx++) {
-#ifdef BUTTON_QOBJECT_CAST
-        // @todo find out why qobject_cast fails (always null) here
-        QToolButton *button = qobject_cast<QToolButton *>(widget_list.at(idx));
-#else
-        const char *clsname = widget_list.at(idx)->metaObject()->className();
-        // NSLOG(netsurf, WARN, "%s",clsname);
-        if ((strcmp(clsname, "QToolButton") == 0) || (strcmp(clsname, "QLineEditIconButton") == 0)) {
-            return (QToolButton *)(widget_list.at(idx));
+        if (widget_list.at(idx)->inherits("QToolButton")) {
+            return static_cast<QToolButton *>(widget_list.at(idx));
         }
-#endif
     }
     return nullptr;
 }
