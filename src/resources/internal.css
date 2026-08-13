@@ -182,6 +182,7 @@ body#certificate table.info th {
 body#certificate table.info td.data {
 	font-family: monospace;
 	font-size: 90%;
+	word-break: break-all;
 }
 
 
