@@ -349,17 +349,8 @@ bool pdf_plot_arc(int x, int y, int radius, int angle1, int angle2, const plot_s
     NSLOG(wisp, INFO, "%d %d %d %d %d %X", x, y, radius, angle1, angle2, style->stroke_colour);
 #endif
 
-    DashPattern_e dash;
-    if (style->stroke_type == PLOT_OP_TYPE_DOT) {
-        dash = DashPattern_eDotted;
-    } else if (style->stroke_type == PLOT_OP_TYPE_DASH) {
-        dash = DashPattern_eDash;
-    } else {
-        dash = DashPattern_eNone;
-    }
-
-    /* Use default line width for arc stroke, but apply the requested dash pattern */
-    apply_clip_and_mode(false, NS_TRANSPARENT, style->stroke_colour, 1., dash);
+    /* Use default line width for arc stroke */
+    apply_clip_and_mode(false, NS_TRANSPARENT, style->fill_colour, 1., DashPattern_eNone);
 
     /* Normalize angles */
     angle1 %= 360;
