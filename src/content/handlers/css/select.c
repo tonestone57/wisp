@@ -1475,7 +1475,8 @@ css_error node_is_visited(void *pw, void *node, bool *match)
  */
 css_error node_is_hover(void *pw, void *node, bool *match)
 {
-    /** \todo Support hovering */
+    /* NOTE: Hover state requires tracking mouse movements and updating
+     * the layout/styling dynamically, which touches many systems. */
 
     *match = false;
 
