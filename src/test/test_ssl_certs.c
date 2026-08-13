@@ -28,6 +28,7 @@
 #include <string.h>
 
 #include <wisp/utils/errors.h>
+#include <wisp/utils/nsurl.h>
 #include "wisp/ssl_certs.h"
 
 START_TEST(cert_chain_alloc_test)
@@ -55,12 +56,116 @@ START_TEST(cert_chain_alloc_test)
 }
 END_TEST
 
+
+START_TEST(cert_chain_to_query_empty_test)
+{
+    nserror err;
+    struct cert_chain *chain;
+    struct nsurl *url;
+
+    err = cert_chain_alloc(0, &chain);
+    ck_assert(err == NSERROR_OK);
+
+    err = cert_chain_to_query(chain, &url);
+    ck_assert(err == NSERROR_OK);
+
+    const char *url_str = nsurl_access(url);
+    ck_assert_str_eq(url_str, "about:certificate");
+
+    nsurl_unref(url);
+    cert_chain_free(chain);
+}
+END_TEST
+
+START_TEST(cert_chain_to_query_single_cert_test)
+{
+    nserror err;
+    struct cert_chain *chain;
+    struct nsurl *url;
+
+    err = cert_chain_alloc(1, &chain);
+    ck_assert(err == NSERROR_OK);
+
+    chain->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(chain->certs[0].der, "ABC", 3);
+    chain->certs[0].der_length = 3;
+    chain->certs[0].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_to_query(chain, &url);
+    ck_assert(err == NSERROR_OK);
+
+    const char *url_str = nsurl_access(url);
+    ck_assert_str_eq(url_str, "about:certificate?cert=QUJD");
+
+    nsurl_unref(url);
+    cert_chain_free(chain);
+}
+END_TEST
+
+START_TEST(cert_chain_to_query_multiple_certs_with_error_test)
+{
+    nserror err;
+    struct cert_chain *chain;
+    struct nsurl *url;
+
+    err = cert_chain_alloc(2, &chain);
+    ck_assert(err == NSERROR_OK);
+
+    chain->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(chain->certs[0].der, "ABC", 3);
+    chain->certs[0].der_length = 3;
+    chain->certs[0].err = SSL_CERT_ERR_OK;
+
+    chain->certs[1].der = (uint8_t *)malloc(3);
+    memcpy(chain->certs[1].der, "DEF", 3);
+    chain->certs[1].der_length = 3;
+    chain->certs[1].err = 123;
+
+    err = cert_chain_to_query(chain, &url);
+    ck_assert(err == NSERROR_OK);
+
+    const char *url_str = nsurl_access(url);
+    ck_assert_str_eq(url_str, "about:certificate?cert=QUJD&cert=REVG&certerr=123");
+
+    nsurl_unref(url);
+    cert_chain_free(chain);
+}
+END_TEST
+
+START_TEST(cert_chain_to_query_empty_cert_data_test)
+{
+    nserror err;
+    struct cert_chain *chain;
+    struct nsurl *url;
+
+    err = cert_chain_alloc(1, &chain);
+    ck_assert(err == NSERROR_OK);
+
+    chain->certs[0].der = NULL;
+    chain->certs[0].der_length = 0;
+    chain->certs[0].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_to_query(chain, &url);
+    ck_assert(err == NSERROR_OK);
+
+    const char *url_str = nsurl_access(url);
+    ck_assert_str_eq(url_str, "about:certificate?cert=");
+
+    nsurl_unref(url);
+    cert_chain_free(chain);
+}
+END_TEST
+
 static TCase *ssl_certs_case_create(void)
 {
     TCase *tc;
     tc = tcase_create("SSL Certificates");
 
     tcase_add_test(tc, cert_chain_alloc_test);
+    tcase_add_test(tc, cert_chain_to_query_empty_test);
+    tcase_add_test(tc, cert_chain_to_query_single_cert_test);
+    tcase_add_test(tc, cert_chain_to_query_multiple_certs_with_error_test);
+    tcase_add_test(tc, cert_chain_to_query_empty_cert_data_test);
 
     return tc;
 }
