@@ -1018,23 +1018,23 @@ static void html_parse_worker(void *arg)
  * Process data for CONTENT_HTML.
  */
 
-static bool html_process_data(struct content *c, const char *data, unsigned int size)
+static nserror html_process_data(struct content *c, const char *data, unsigned int size)
 {
 	html_content *html = (html_content *)c;
 
 	if (html->parser == NULL) {
 		if (html->parse_completed) {
 			NSLOG(wisp, INFO, "Ignoring data for content %p - parsing already complete", c);
-			return true;
+			return NSERROR_OK;
 		}
 		NSLOG(wisp, ERROR,
 			"HTML parser is NULL for content %p but parsing not complete - suspected resource load failure.", c);
-		return false;
+		return NSERROR_DOM;
 	}
 
 	struct html_parse_task *task = malloc(sizeof(struct html_parse_task));
 	if (!task) {
-		return false;
+		return NSERROR_NOMEM;
 	}
 
 	task->c = c;
@@ -1042,7 +1042,7 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
 	task->data = malloc(size);
 	if (!task->data) {
 		free(task);
-		return false;
+		return NSERROR_NOMEM;
 	}
 	memcpy(task->data, data, size);
 
@@ -1061,10 +1061,10 @@ static bool html_process_data(struct content *c, const char *data, unsigned int 
 		html->base.active--;
 		__atomic_sub_fetch(&html->base.active_bg_tasks, 1, __ATOMIC_SEQ_CST);
 		html_parse_task_free(task);
-		return false;
+		return NSERROR_NOMEM;
 	}
 
-	return true;
+	return NSERROR_OK;
 }
 
 

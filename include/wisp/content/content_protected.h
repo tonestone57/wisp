@@ -93,7 +93,7 @@ struct content_handler {
         const struct http_parameter *params, struct llcache_handle *llcache, const char *fallback_charset, bool quirks,
         struct content **c);
 
-    bool (*process_data)(struct content *c, const char *data, unsigned int size);
+    nserror (*process_data)(struct content *c, const char *data, unsigned int size);
     bool (*data_complete)(struct content *c);
     void (*reformat)(struct content *c, int width, int height);
     void (*destroy)(struct content *c);
