@@ -2,6 +2,7 @@
 #include <wisp/utils/log.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <wisp/utils/nsoption.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -113,6 +114,41 @@ START_TEST(test_nslog_log_macro)
 }
 END_TEST
 
+
+START_TEST(test_nslog_set_filter)
+{
+    nserror err;
+
+    // Test with a valid filter
+    err = nslog_set_filter("level~WARNING");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test with another filter
+    err = nslog_set_filter("level~DEBUG");
+    ck_assert_int_eq(err, NSERROR_OK);
+}
+END_TEST
+
+START_TEST(test_nslog_set_filter_by_options)
+{
+    nserror err;
+    int argc = 1;
+    char *argv[] = {"wisp", NULL};
+
+    err = nsoption_init(NULL, NULL, NULL);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = nslog_set_filter_by_options();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nslog_finalise();
+    nsoption_finalise(NULL, NULL);
+}
+END_TEST
+
 Suite *log_suite(void)
 {
     Suite *s;
@@ -127,6 +163,8 @@ Suite *log_suite(void)
     tcase_add_test(tc_core, test_nslog_init_verbose_file_ensure_fail);
     tcase_add_test(tc_core, test_nslog_init_split_logs);
     tcase_add_test(tc_core, test_nslog_log_macro);
+    tcase_add_test(tc_core, test_nslog_set_filter);
+    tcase_add_test(tc_core, test_nslog_set_filter_by_options);
 
     suite_add_tcase(s, tc_core);
 
