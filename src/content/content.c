@@ -738,10 +738,10 @@ uint32_t content_count_users(struct content *c)
 /* exported interface documented in content/content.h */
 bool content_matches_quirks(struct content *c, bool quirks)
 {
-    if (c->handler->matches_quirks == NULL)
-        return true;
+    if (c->handler->affected_by_quirks)
+        return c->quirks == quirks;
 
-    return c->handler->matches_quirks(c, quirks);
+    return true;
 }
 
 
