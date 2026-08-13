@@ -166,12 +166,85 @@ START_TEST(date_bad_string)
 END_TEST
 
 
+/**
+ * Write time in seconds since epoch to a buffer
+ */
+START_TEST(test_sntimet)
+{
+    time_t t = 1234567890;
+    char buf[64];
+    int ret;
+
+    ret = nsc_sntimet(buf, sizeof(buf), &t);
+    ck_assert(ret > 0);
+    ck_assert_str_eq(buf, "1234567890");
+
+    t = 0;
+    ret = nsc_sntimet(buf, sizeof(buf), &t);
+    ck_assert(ret > 0);
+    ck_assert_str_eq(buf, "0");
+}
+END_TEST
+
+/**
+ * Parse time in seconds since epoch
+ */
+START_TEST(test_snptimet)
+{
+    const char *str = "1234567890";
+    time_t t = 0;
+    nserror res;
+
+    res = nsc_snptimet(str, strlen(str), &t);
+    ck_assert(res == NSERROR_OK);
+    ck_assert(t == 1234567890);
+
+    str = "0";
+    res = nsc_snptimet(str, strlen(str), &t);
+    ck_assert(res == NSERROR_OK);
+    ck_assert(t == 0);
+
+    /* Bad inputs */
+    str = "abc";
+    res = nsc_snptimet(str, strlen(str), &t);
+    ck_assert(res != NSERROR_OK);
+
+    str = "";
+    res = nsc_snptimet(str, 0, &t);
+    ck_assert(res != NSERROR_OK);
+}
+END_TEST
+
+/**
+ * RFC 1123 date generation
+ */
+START_TEST(test_rfc1123_date)
+{
+    time_t t;
+    const char *str;
+
+    /* Fri, 13 Feb 2009 23:31:30 GMT */
+    t = 1234567890;
+    str = rfc1123_date(t);
+    ck_assert(str != NULL);
+    ck_assert_str_eq(str, "Fri, 13 Feb 2009 23:31:30 GMT");
+
+    /* Thu, 01 Jan 1970 00:00:00 GMT */
+    t = 0;
+    str = rfc1123_date(t);
+    ck_assert(str != NULL);
+    ck_assert_str_eq(str, "Thu, 01 Jan 1970 00:00:00 GMT");
+}
+END_TEST
+
+
 /* suite generation */
 static Suite *time_suite(void)
 {
     Suite *s;
     TCase *tc_date_string_compare;
     TCase *tc_date_bad_string;
+    TCase *tc_other;
 
     s = suite_create("time");
 
@@ -181,11 +254,18 @@ static Suite *time_suite(void)
     /* date parsing: bad string handling */
     tc_date_bad_string = tcase_create("date string to time_t (bad input)");
 
+    tc_other = tcase_create("other time tests");
+
     tcase_add_loop_test(tc_date_string_compare, date_string_compare, 0, NELEMS(date_string_tests));
     suite_add_tcase(s, tc_date_string_compare);
 
     tcase_add_loop_test(tc_date_bad_string, date_bad_string, 0, NELEMS(date_bad_string_tests));
     suite_add_tcase(s, tc_date_bad_string);
+
+    tcase_add_test(tc_other, test_sntimet);
+    tcase_add_test(tc_other, test_snptimet);
+    tcase_add_test(tc_other, test_rfc1123_date);
+    suite_add_tcase(s, tc_other);
 
     return s;
 }
