@@ -837,29 +837,13 @@ static nserror browser_window_content_ready(struct browser_window *bw)
             /* This is safe as we've just added the URL */
             global_history_add(urldb_get_url(url));
         }
-        /**
-         * \todo Urldb / Thumbnails / Local history brokenness
+
+        /* ALWAYS add to local window history so Back/Forward works.
+         * Thumbnail registration is guarded in browser_window_history_add
+         * against transient/internal URLs to avoid leaks.
          *
-         * We add to local history after calling urldb_add_url rather
-         *  than in the block above.  If urldb_add_url fails (as it
-         *  will for urls like "about:about", "about:config" etc),
-         *  there would be no local history node, and later calls to
-         *  history_update will either explode or overwrite the node
-         *  for the previous URL.
-         *
-         * We call it after, rather than before urldb_add_url because
-         *  history_add calls bitmap render, which tries to register
-         *  the thumbnail with urldb.  That thumbnail registration
-         *  fails if the url doesn't exist in urldb already, and only
-         *  urldb-registered thumbnails get freed.  So if we called
-         *  history_add before urldb_add_url we would leak thumbnails
-         *  for all newly visited URLs.  With the history_add call
-         *  after, we only leak the thumbnails when urldb does not add
-         *  the URL.
-         *
-         * Also, since browser_window_history_add can create a
-         *  thumbnail (content_redraw), we need to do it after
-         *  content_reformat.
+         * Since browser_window_history_add can create a thumbnail
+         * (content_redraw), we need to do it after content_reformat.
          */
         browser_window_history_add(bw, bw->current_content, bw->frag_id);
     }
