@@ -271,8 +271,6 @@ enum punycode_status punycode_decode(
 
         /* Insert n at position i of the output: */
 
-        /* not needed for Punycode: */
-        /* if (basic(n)) return punycode_bad_input; */
         if (out >= max_out)
             return punycode_big_output;
 
