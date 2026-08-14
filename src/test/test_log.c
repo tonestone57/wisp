@@ -16,6 +16,23 @@ static bool failing_ensure(FILE *fptr) {
     return false;
 }
 
+static void cleanup_split_logs(void) {
+    const char *files[] = {
+        "wisp-logs/ns-deepdebug.txt",
+        "wisp-logs/ns-debug.txt",
+        "wisp-logs/ns-verbose.txt",
+        "wisp-logs/ns-info.txt",
+        "wisp-logs/ns-warning.txt",
+        "wisp-logs/ns-error.txt",
+        "wisp-logs/ns-critical.txt",
+    };
+    for (int i = 0; i < 7; i++) {
+        remove(files[i]);
+    }
+    remove("wisp-logs");
+}
+
+
 START_TEST(test_nslog_init_basic)
 {
     int argc = 1;
@@ -93,7 +110,7 @@ START_TEST(test_nslog_init_split_logs)
 
     // Check if wisp-logs directory was created and contains files
     ck_assert_int_eq(access("wisp-logs/ns-info.txt", F_OK), 0);
-    system("rm -rf wisp-logs");
+    cleanup_split_logs();
 }
 END_TEST
 
@@ -172,7 +189,7 @@ START_TEST(test_nslog_log_output_split)
     ck_assert_ptr_nonnull(strstr(buffer, "Test output split working"));
 
     fclose(f);
-    system("rm -rf wisp-logs");
+    cleanup_split_logs();
 }
 END_TEST
 
@@ -241,7 +258,7 @@ END_TEST
 START_TEST(test_nslog_init_args_shift)
 {
     int argc = 4;
-    char *argv[] = {"wisp", "-v", "extra_arg", "another_arg"};
+    char *argv[] = {"wisp", "-v", "extra_arg", "another_arg", NULL};
     nserror err;
 
     err = nslog_init(NULL, &argc, argv);
@@ -258,7 +275,7 @@ END_TEST
 START_TEST(test_nslog_init_args_shift_V)
 {
     int argc = 5;
-    char *argv[] = {"wisp", "-V", "test_log_output.txt", "extra_arg", "another_arg"};
+    char *argv[] = {"wisp", "-V", "test_log_output.txt", "extra_arg", "another_arg", NULL};
     nserror err;
 
     err = nslog_init(NULL, &argc, argv);
@@ -276,7 +293,7 @@ END_TEST
 START_TEST(test_nslog_init_args_shift_split)
 {
     int argc = 4;
-    char *argv[] = {"wisp", "-split-logs", "extra_arg", "another_arg"};
+    char *argv[] = {"wisp", "-split-logs", "extra_arg", "another_arg", NULL};
     nserror err;
 
     err = nslog_init(NULL, &argc, argv);
@@ -287,7 +304,7 @@ START_TEST(test_nslog_init_args_shift_split)
     ck_assert_str_eq(argv[2], "another_arg");
 
     nslog_finalise();
-    system("rm -rf wisp-logs");
+    cleanup_split_logs();
 }
 END_TEST
 
