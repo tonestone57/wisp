@@ -27,6 +27,7 @@
 #ifndef WISP_CONTENT_CONTENT_PROTECTED_H_
 #define WISP_CONTENT_CONTENT_PROTECTED_H_
 
+struct hlcache_handle;
 #include <libwapcaplet/libwapcaplet.h>
 #include <stdio.h>
 
@@ -660,5 +661,7 @@ struct content *content_clone(struct content *c);
  * \return NSERROR_OK on success, otherwise appropriate error
  */
 nserror content_abort(struct content *c);
+
+struct content *hlcache_handle_get_content(const struct hlcache_handle *handle);
 
 #endif

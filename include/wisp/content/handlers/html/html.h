@@ -224,4 +224,7 @@ void html_destroy_thread(struct content *c);
  */
 void html_parser_pool_shutdown(void);
 
+
+void html_set_media_type_print(struct content *c);
+
 #endif

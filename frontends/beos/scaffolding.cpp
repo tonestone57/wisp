@@ -408,18 +408,18 @@ void NSBaseView::MessageReceived(BMessage *message)
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(fScaffolding->top_level->bw);
             if (c) {
-                if (nsvideo_is_paused(c)) nsvideo_play(c);
-                else nsvideo_pause(c);
+                if (content_video_is_paused(c)) content_video_play(c);
+                else content_video_pause(c);
             }
         }
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(fScaffolding->top_level->bw);
             int32 val = 0;
-            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+            if (c && message->FindInt32("be:value", &val) == B_OK) content_video_seek_to(c, (double)val / 100.0 * content_video_get_duration(c));
         }
         break;
     case B_SIMPLE_DATA:
@@ -673,18 +673,18 @@ void NSBrowserWindow::DispatchMessage(BMessage *message, BHandler *handler)
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(fScaffolding->top_level->bw);
             if (c) {
-                if (nsvideo_is_paused(c)) nsvideo_play(c);
-                else nsvideo_pause(c);
+                if (content_video_is_paused(c)) content_video_play(c);
+                else content_video_pause(c);
             }
         }
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(fScaffolding->top_level->bw);
             int32 val = 0;
-            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+            if (c && message->FindInt32("be:value", &val) == B_OK) content_video_seek_to(c, (double)val / 100.0 * content_video_get_duration(c));
         }
         break;
     case B_UI_SETTINGS_CHANGED:
@@ -701,18 +701,18 @@ void NSBrowserWindow::MessageReceived(BMessage *message)
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(fScaffolding->top_level->bw);
             if (c) {
-                if (nsvideo_is_paused(c)) nsvideo_play(c);
-                else nsvideo_pause(c);
+                if (content_video_is_paused(c)) content_video_play(c);
+                else content_video_pause(c);
             }
         }
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(fScaffolding->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(fScaffolding->top_level->bw);
             int32 val = 0;
-            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+            if (c && message->FindInt32("be:value", &val) == B_OK) content_video_seek_to(c, (double)val / 100.0 * content_video_get_duration(c));
         }
         break;
     case B_ARGV_RECEIVED:
@@ -826,18 +826,18 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
     switch (message->what) {
     case NS_MEDIA_PLAY:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(scaffold->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(scaffold->top_level->bw);
             if (c) {
-                if (nsvideo_is_paused(c)) nsvideo_play(c);
-                else nsvideo_pause(c);
+                if (content_video_is_paused(c)) content_video_play(c);
+                else content_video_pause(c);
             }
         }
         break;
     case NS_MEDIA_SEEK:
         {
-            struct content *c = hlcache_handle_get_content(browser_window_get_content(scaffold->top_level->bw));
+            struct hlcache_handle *c = browser_window_get_content(scaffold->top_level->bw);
             int32 val = 0;
-            if (c && message->FindInt32("be:value", &val) == B_OK) nsvideo_seek_to(c, (double)val / 100.0 * nsvideo_get_duration(c));
+            if (c && message->FindInt32("be:value", &val) == B_OK) content_video_seek_to(c, (double)val / 100.0 * content_video_get_duration(c));
         }
         break;
     case B_QUIT_REQUESTED:
