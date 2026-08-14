@@ -2011,6 +2011,11 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
         fetch_curl_report_certs_upstream(f);
     }
 
+    if (!f->http_code) {
+        curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
+        fetch_set_http_code(f->fetch_handle, f->http_code);
+    }
+
     msg.type = FETCH_HEADER;
     msg.data.header_or_data.buf = (const uint8_t *)data;
     msg.data.header_or_data.len = size;
