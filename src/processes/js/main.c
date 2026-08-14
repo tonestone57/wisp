@@ -10,16 +10,22 @@
 #include "quickjs.h"
 #include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
-#include "js_process.h"
 
 extern JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
 extern JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque);
 extern char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque);
 
-JSRuntime *rt;
-char *js_process_origin = NULL;
+static JSRuntime *rt;
+static char *js_process_origin = NULL;
 
-struct js_context_node *contexts = NULL;
+struct js_context_node {
+    uint32_t id;
+    JSContext *ctx;
+    struct jsthread *thread;
+    struct js_context_node *next;
+};
+
+static struct js_context_node *contexts = NULL;
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
@@ -48,7 +54,7 @@ extern int qjs_init_imagedata(JSContext *ctx);
 extern int qjs_init_canvas(JSContext *ctx);
 extern int qjs_init_trusted_types(JSContext *ctx);
 
-JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (t) {
@@ -74,7 +80,7 @@ JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSV
     return JS_UNDEFINED;
 }
 
-JSContext* get_context(uint32_t id) {
+static JSContext* get_context(uint32_t id) {
     struct js_context_node *curr = contexts;
     while (curr) {
         if (curr->id == id) return curr->ctx;
@@ -168,7 +174,6 @@ JSContext* get_context(uint32_t id) {
     return node->ctx;
 }
 
-#ifndef WISP_JS_TESTING
 int main(int argc, char **argv) {
     if (argc < 2) return 1;
     const char *ipc_name = argv[1];
@@ -470,4 +475,3 @@ int main(int argc, char **argv) {
     fprintf(stderr, "\n=== JS PROCESS EXITING NORMALLY ===\n");
     return 0;
 }
-#endif

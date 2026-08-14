@@ -15,7 +15,7 @@
 #include "utils/utils.h"
 
 extern struct wisp_table *guit;
-bool verbose_log = true;
+extern bool verbose_log;
 
 static void setup_mock_gui(void) {
     static struct gui_file_table file_ops;
