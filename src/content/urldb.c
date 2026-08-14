@@ -605,17 +605,17 @@ static bool urldb_iterate_entries_path(const struct path_data *parent,
              * cookies attached to them. If this is not the case, it
              * indicates that there's a bug in the file loader/URL
              * insertion code. Therefore, assert this here. */
-            assert(url_callback || cookie_callback);
+            assert(p->url || p->cookies);
 
             /* NOTE: Fragments are intentionally not iterated here. They are stripped during insertion and stored in p->fragment. Clients iterating the DB expect base URLs. */
-            if (url_callback) {
+            if (url_callback && p->url) {
                 const struct url_internal_data *u = &p->urld;
-
-                assert(p->url);
 
                 if (!url_callback(p->url, (const struct url_data *)u))
                     return false;
-            } else {
+            }
+
+            if (cookie_callback && p->cookies) {
                 c = (const struct cookie_data *)p->cookies;
                 for (; c != NULL; c = c->next) {
                     if (!cookie_callback(c))
