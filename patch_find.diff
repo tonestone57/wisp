@@ -1,0 +1,85 @@
+<<<<<<< SEARCH
+static struct cookie_internal_data *urldb_find_cookie_internal(const char *domain, const char *path, const char *name)
+{
+    const struct host_part *host;
+    struct path_data *p;
+    struct cookie_internal_data *c;
+
+    if (domain[0] == '.') {
+        host = urldb_search_find(urldb_get_search_tree(&domain[1]), domain + 1);
+    } else {
+        host = urldb_search_find(urldb_get_search_tree(domain), domain);
+    }
+    if (!host)
+        return NULL;
+
+    p = urldb_find_path_exact((struct host_part *)host, path);
+    if (!p)
+        return NULL;
+
+    for (c = p->cookies; c; c = c->next) {
+        if (strcmp(c->domain, domain) == 0 && strcmp(c->path, path) == 0 && strcmp(c->name, name) == 0) {
+            return c;
+        }
+    }
+    return NULL;
+}
+=======
+static struct cookie_internal_data *urldb_find_cookie_paths(const char *domain, const char *path, const char *name, struct path_data *parent)
+{
+    struct cookie_internal_data *c;
+    struct path_data *p = parent;
+
+    assert(parent);
+
+    do {
+        for (c = p->cookies; c; c = c->next) {
+            if (strcmp(c->domain, domain) == 0 && strcmp(c->path, path) == 0 && strcmp(c->name, name) == 0) {
+                return c;
+            }
+        }
+
+        if (p->children) {
+            p = p->children;
+        } else {
+            while (p != parent) {
+                if (p->next != NULL) {
+                    p = p->next;
+                    break;
+                }
+
+                p = p->parent;
+            }
+        }
+    } while (p != parent);
+
+    return NULL;
+}
+
+static struct cookie_internal_data *urldb_find_cookie_hosts(const char *domain, const char *path, const char *name, struct host_part *parent)
+{
+    struct host_part *h;
+    struct cookie_internal_data *c;
+
+    assert(parent);
+
+    c = urldb_find_cookie_paths(domain, path, name, &parent->paths);
+    if (c != NULL) {
+        return c;
+    }
+
+    for (h = parent->children; h; h = h->next) {
+        c = urldb_find_cookie_hosts(domain, path, name, h);
+        if (c != NULL) {
+            return c;
+        }
+    }
+
+    return NULL;
+}
+
+static struct cookie_internal_data *urldb_find_cookie_internal(const char *domain, const char *path, const char *name)
+{
+    return urldb_find_cookie_hosts(domain, path, name, &db_root);
+}
+>>>>>>> REPLACE

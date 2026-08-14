@@ -716,24 +716,21 @@ static nserror cookie_manager_tree_node_entry_cb(struct treeview_node_msg msg, v
             const char *new_text = msg.data.node_edit.text;
             time_t exp_time = 0;
 
-            if (strcasecmp(new_text, "Session") != 0 && strcasecmp(new_text, messages_get("CookieManagerSession")) != 0 && strcmp(new_text, "0") != 0 && strlen(new_text) > 0) {
+            if (strcasecmp(new_text, "Session") != 0 && strcasecmp(new_text, messages_get("CookieManagerSession")) != 0 && strlen(new_text) > 0) {
                 exp_time = curl_getdate(new_text, NULL);
                 if (exp_time == (time_t)-1) {
                     /* Invalid date format: reject edit */
                     break;
                 }
             } else {
-                exp_time = 0; /* Session cookie */
+                exp_time = -1; /* Session cookie */
             }
 
             if (urldb_update_cookie(domain, path, name, NULL, &exp_time) == NSERROR_OK) {
                 const char *old_text = e->data[COOKIE_M_EXPIRES].value;
-                if (exp_time == 0) {
-                    char *dup_text = strdup(messages_get("CookieManagerSession"));
-                    if (dup_text != NULL) {
-                        e->data[COOKIE_M_EXPIRES].value = dup_text;
-                        e->data[COOKIE_M_EXPIRES].value_len = strlen(e->data[COOKIE_M_EXPIRES].value);
-                    }
+                if (exp_time == -1) {
+                    e->data[COOKIE_M_EXPIRES].value = strdup(messages_get("CookieManagerSession"));
+                    e->data[COOKIE_M_EXPIRES].value_len = strlen(e->data[COOKIE_M_EXPIRES].value);
                 } else {
                     /* Format canonical string for UI consistency */
                     struct tm *ftime;
@@ -746,10 +743,8 @@ static nserror cookie_manager_tree_node_entry_cb(struct treeview_node_msg msg, v
                         }
                     }
                 }
-                if (e->data[COOKIE_M_EXPIRES].value != old_text) {
-                    treeview_update_node_entry(cm_ctx.tree, e->entry, e->data, e);
-                    free((void *)old_text);
-                }
+                treeview_update_node_entry(cm_ctx.tree, e->entry, e->data, e);
+                free((void *)old_text);
             }
         }
         break;

@@ -1,0 +1,46 @@
+--- src/content/urldb.c
++++ src/content/urldb.c
+@@ -2429,6 +2429,43 @@
+  * \param name The cookie name
+  * \param parent The url data of the cookie
+  */
++static struct cookie_internal_data *urldb_find_cookie_internal(
++        const char *domain,
++        const char *path,
++        const char *name,
++        struct path_data **out_path_data,
++        struct cookie_internal_data ***out_prev_link)
++{
++    const struct host_part *host = urldb_search_find(
++            urldb_get_search_tree(domain), domain);
++    if (!host)
++        return NULL;
++
++    struct path_data *p = urldb_find_path_exact((struct host_part *)host, path);
++    if (!p)
++        return NULL;
++
++    if (out_path_data)
++        *out_path_data = p;
++
++    struct cookie_internal_data *c = p->cookies;
++    struct cookie_internal_data **curr = &p->cookies;
++
++    while (c) {
++        if (strcmp(c->domain, domain) == 0 && strcmp(c->path, path) == 0 && strcmp(c->name, name) == 0) {
++            if (out_prev_link)
++                *out_prev_link = curr;
++            return c;
++        }
++        curr = &c->next;
++        c = c->next;
++    }
++
++    return NULL;
++}
++
++
++/**
++ * Deletes cookie paths
++ *
++ * \param domain the cookie domain

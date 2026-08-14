@@ -1,0 +1,123 @@
+--- src/desktop/cookie_manager.c
++++ src/desktop/cookie_manager.c
+@@ -723,13 +723,13 @@
+                     /* Invalid date format: reject edit */
+                     break;
+                 }
+             } else {
+-                exp_time = -1; /* Session cookie */
++                exp_time = 0; /* Session cookie */
+             }
+
+             if (urldb_update_cookie(domain, path, name, NULL, &exp_time) == NSERROR_OK) {
+                 const char *old_text = e->data[COOKIE_M_EXPIRES].value;
+-                if (exp_time == -1) {
++                if (exp_time == 0) {
+                     e->data[COOKIE_M_EXPIRES].value = strdup(messages_get("CookieManagerSession"));
+                     e->data[COOKIE_M_EXPIRES].value_len = strlen(e->data[COOKIE_M_EXPIRES].value);
+                 } else {
+                     /* Format canonical string for UI consistency */
+                     struct tm *ftime;
+                     if ((ftime = localtime(&exp_time)) != NULL) {
+                         const size_t vsize = 256;
+                         char *value = malloc(vsize);
+                         if (value != NULL) {
+                             e->data[COOKIE_M_EXPIRES].value = value;
+                             e->data[COOKIE_M_EXPIRES].value_len = strftime(value, vsize, "%a %b %e %H:%M:%S %Y", ftime);
+                         }
+                     }
+                 }
+-                treeview_update_node_entry(cm_ctx.tree, e->entry, e->data, e);
+-                free((void *)old_text);
++                if (e->data[COOKIE_M_EXPIRES].value != old_text) {
++                    treeview_update_node_entry(cm_ctx.tree, e->entry, e->data, e);
++                    free((void *)old_text);
++                }
+             }
+         }
+         break;
+--- src/content/urldb.c
++++ src/content/urldb.c
+@@ -2472,61 +2472,28 @@
+ }
+
+
+-static struct cookie_internal_data *urldb_find_cookie_paths(const char *domain, const char *path, const char *name, struct path_data *parent)
+-{
+-    struct cookie_internal_data *c;
+-    struct path_data *p = parent;
+-
+-    assert(parent);
+-
+-    do {
+-        for (c = p->cookies; c; c = c->next) {
+-            if (strcmp(c->domain, domain) == 0 && strcmp(c->path, path) == 0 && strcmp(c->name, name) == 0) {
+-                return c;
+-            }
+-        }
+-
+-        if (p->children) {
+-            p = p->children;
+-        } else {
+-            while (p != parent) {
+-                if (p->next != NULL) {
+-                    p = p->next;
+-                    break;
+-                }
+-
+-                p = p->parent;
+-            }
+-        }
+-    } while (p != parent);
+-
+-    return NULL;
+-}
+-
+-static struct cookie_internal_data *urldb_find_cookie_hosts(const char *domain, const char *path, const char *name, struct host_part *parent)
+-{
+-    struct host_part *h;
+-    struct cookie_internal_data *c;
+-
+-    assert(parent);
+-
+-    c = urldb_find_cookie_paths(domain, path, name, &parent->paths);
+-    if (c != NULL) {
+-        return c;
+-    }
+-
+-    for (h = parent->children; h; h = h->next) {
+-        c = urldb_find_cookie_hosts(domain, path, name, h);
+-        if (c != NULL) {
+-            return c;
+-        }
+-    }
+-
+-    return NULL;
+-}
+-
+ static struct cookie_internal_data *urldb_find_cookie_internal(const char *domain, const char *path, const char *name)
+ {
+-    return urldb_find_cookie_hosts(domain, path, name, &db_root);
++    const struct host_part *host;
++    struct path_data *p;
++    struct cookie_internal_data *c;
++
++    if (domain[0] == '.') {
++        host = urldb_search_find(urldb_get_search_tree(&domain[1]), domain + 1);
++    } else {
++        host = urldb_search_find(urldb_get_search_tree(domain), domain);
++    }
++    if (!host)
++        return NULL;
++
++    p = urldb_find_path_exact((struct host_part *)host, path);
++    if (!p)
++        return NULL;
++
++    for (c = p->cookies; c; c = c->next) {
++        if (strcmp(c->domain, domain) == 0 && strcmp(c->path, path) == 0 && strcmp(c->name, name) == 0) {
++            return c;
++        }
++    }
++    return NULL;
+ }
