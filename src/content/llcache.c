@@ -173,6 +173,7 @@ struct llcache_object {
 
     nsurl *url; /**< Post-redirect URL for object */
     core_buffer source_data; /**< Source data for object */
+    size_t source_len; /**< Total byte length of object */
 
     struct cert_chain *chain; /**< Certificate chain from the fetch */
 
@@ -1024,6 +1025,9 @@ static nserror llcache_object_destroy(llcache_object *object)
     if (object->source_data.data != NULL) {
         if (object->store_state == LLCACHE_STATE_DISC) {
             guit->llcache->release(object->url, BACKING_STORE_NONE);
+            object->source_data.data = NULL;
+            object->source_data.length = 0;
+            object->source_data.allocated = 0;
         } else {
             core_buffer_destroy(&object->source_data);
         }
@@ -1248,7 +1252,7 @@ static nserror llcache_retrieve_persisted_data(llcache_object *object)
 
     /* Source data for the object may be in the persistent store */
     NSLOG(wisp, DEBUG, "PROFILER: START Cache retrieve %p", object);
-    nserror ret = guit->llcache->fetch(object->url, BACKING_STORE_NONE, &object->source_data.data, &object->source_data.length);
+    nserror ret = guit->llcache->fetch(object->url, BACKING_STORE_NONE, &object->source_data.data, &object->source_len);
     NSLOG(wisp, DEBUG, "PROFILER: STOP Cache retrieve %p", object);
     return ret;
 }
@@ -1328,7 +1332,7 @@ static nserror llcache_serialise_metadata(llcache_object *object, uint8_t **data
     datasize -= use;
 
     /* object size */
-    use = snprintf(op, datasize, "%" PRIsizet, object->source_data.length);
+    use = snprintf(op, datasize, "%" PRIsizet, object->source_len);
     if (use < 0) {
         goto operror;
     }
@@ -1674,7 +1678,7 @@ skip_ssl_certificates:
     guit->llcache->release(object->url, BACKING_STORE_META);
 
     /* update object on successful parse of metadata  */
-    object->source_data.length = source_length;
+    object->source_len = source_length;
 
     object->cache.req_time = request_time;
     object->cache.res_time = response_time;
@@ -2425,7 +2429,11 @@ static nserror llcache_fetch_process_data(llcache_object *object, const uint8_t 
         object->fetch.state = LLCACHE_FETCH_DATA;
     }
 
-    return core_buffer_append(&object->source_data, data, len);
+    nserror buf_err = core_buffer_append(&object->source_data, data, len);
+    if (buf_err == NSERROR_OK) {
+        object->source_len += len;
+    }
+    return buf_err;
 }
 
 nserror llcache_handle_retrieve_buffer(nsurl *url, const uint8_t *data, size_t len, const char *mime_type,
@@ -2444,6 +2452,7 @@ nserror llcache_handle_retrieve_buffer(nsurl *url, const uint8_t *data, size_t l
         llcache_object_destroy(obj);
         return buf_err;
     }
+    obj->source_len = len;
     obj->fetch.state = LLCACHE_FETCH_COMPLETE;
     obj->store_state = LLCACHE_STATE_RAM;
 
@@ -2749,7 +2758,7 @@ static nserror write_backing_store(struct llcache_object *object, size_t *writte
     nsu_getmonotonic_ms(&startms);
 
     /* put object data in backing store */
-    ret = guit->llcache->store(object->url, BACKING_STORE_NONE, object->source_data.data, object->source_data.length);
+    ret = guit->llcache->store(object->url, BACKING_STORE_NONE, object->source_data.data, object->source_len);
     if (ret != NSERROR_OK) {
         /* unable to put source data in backing store */
         return ret;
@@ -2777,7 +2786,7 @@ static nserror write_backing_store(struct llcache_object *object, size_t *writte
 
     object->store_state = LLCACHE_STATE_DISC;
 
-    *written_out = object->source_data.length + metadatasize;
+    *written_out = object->source_len + metadatasize;
 
     /* by ignoring the overflow this assumes the writeout took
      * less than 5 weeks.
@@ -3337,13 +3346,13 @@ static nserror llcache_object_notify_users(llcache_object *object)
 
         /* User: DATA, Obj: DATA, COMPLETE, more source available */
         if (handle->state == LLCACHE_FETCH_DATA && objstate >= LLCACHE_FETCH_DATA &&
-            object->source_data.length > handle->bytes) {
+            object->source_len > handle->bytes) {
             size_t orig_handle_read;
 
             /* Construct HAD_DATA event */
             event.type = LLCACHE_EVENT_HAD_DATA;
             event.data.data.buf = object->source_data.data + handle->bytes;
-            event.data.data.len = object->source_data.length - handle->bytes;
+            event.data.data.len = object->source_len - handle->bytes;
 
             /* Update record of last byte emitted */
             if (object->fetch.flags & LLCACHE_RETRIEVE_STREAM_DATA) {
@@ -3352,10 +3361,10 @@ static nserror llcache_object_notify_users(llcache_object *object)
                  * Additionally, we don't support replay
                  * when streaming. */
                 orig_handle_read = 0;
-                handle->bytes = object->source_data.length = 0;
+                handle->bytes = object->source_len = 0;
             } else {
                 orig_handle_read = handle->bytes;
-                handle->bytes = object->source_data.length;
+                handle->bytes = object->source_len;
             }
 
             /* Emit event */
@@ -3451,9 +3460,11 @@ static nserror llcache_object_snapshot(llcache_object *object, llcache_object **
     if (error != NSERROR_OK)
         return error;
 
+    newobj->source_len = object->source_len;
     core_buffer_init(&newobj->source_data);
-    if (object->source_data.length > 0) {
-        nserror buf_err = core_buffer_append(&newobj->source_data, object->source_data.data, object->source_data.length);
+
+    if (object->source_len > 0) {
+        nserror buf_err = core_buffer_append(&newobj->source_data, object->source_data.data, object->source_len);
         if (buf_err != NSERROR_OK) {
             llcache_object_destroy(newobj);
             return buf_err;
@@ -3509,7 +3520,7 @@ static inline uint32_t total_object_size(llcache_object *object)
     tot += nsurl_length(object->url);
 
     if (object->source_data.data != NULL) {
-        tot += object->source_data.length;
+        tot += object->source_len;
     }
 
     tot += sizeof(llcache_header) * object->num_headers;
@@ -3656,10 +3667,13 @@ void llcache_clean(bool purge)
             (object->store_state == LLCACHE_STATE_DISC)) {
             guit->llcache->release(object->url, BACKING_STORE_NONE);
 
-            core_buffer_destroy(&object->source_data);
-            llcache_size -= object->source_data.length;
+            llcache_size -= object->source_len;
 
-            NSLOG(llcache, DEBUG, "Freeing source data for %p len:%" PRIsizet, object, object->source_data.length);
+            NSLOG(llcache, DEBUG, "Freeing source data for %p len:%" PRIsizet, object, object->source_len);
+
+            object->source_data.data = NULL;
+            object->source_data.length = 0;
+            object->source_data.allocated = 0;
         }
     }
 
@@ -3671,7 +3685,7 @@ void llcache_clean(bool purge)
         next = object->next;
         if ((object->users == NULL) && (object->candidate_count == 0) && (object->fetch.fetch == NULL) &&
             (object->store_state == LLCACHE_STATE_DISC) && (object->source_data.data == NULL)) {
-            NSLOG(llcache, DEBUG, "discarding backed object len:%" PRIsizet " age:%ld (%p) %s", object->source_data.length,
+            NSLOG(llcache, DEBUG, "discarding backed object len:%" PRIsizet " age:%ld (%p) %s", object->source_len,
                 (long)(time(NULL) - object->last_used), object, nsurl_access(object->url));
 
             llcache_size -= total_object_size(object);
@@ -3691,10 +3705,10 @@ void llcache_clean(bool purge)
 
         if ((object->users == NULL) && (object->candidate_count == 0) && (object->fetch.fetch == NULL) &&
             (object->store_state == LLCACHE_STATE_RAM)) {
-            NSLOG(llcache, DEBUG, "discarding fresh object len:%" PRIsizet " age:%ld (%p) %s", object->source_data.length,
+            NSLOG(llcache, DEBUG, "discarding fresh object len:%" PRIsizet " age:%ld (%p) %s", object->source_len,
                 (long)(time(NULL) - object->last_used), object, nsurl_access(object->url));
 
-            llcache_size -= object->source_data.length + sizeof(*object);
+            llcache_size -= object->source_len + sizeof(*object);
 
             llcache_object_remove_from_list(object, &llcache->cached_objects);
             llcache_object_destroy(object);
@@ -4011,7 +4025,7 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
 {
     if (handle->object != NULL) {
         (void)llcache_retrieve_persisted_data(handle->object);
-        *size = handle->object->source_data.length;
+        *size = handle->object->source_len;
         return handle->object->source_data.data;
     }
     *size = 0;
