@@ -77,11 +77,13 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     switch (msg->type) {
         case FETCH_HEADER:
             imsg.type = WISP_IPC_MSG_FETCH_HEADER;
-            imsg.length = 4 + msg->data.header_or_data.len;
+            imsg.length = 8 + msg->data.header_or_data.len;
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            memcpy(imsg.data + 4, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            uint32_t header_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
+            memcpy(imsg.data + 4, &header_http_code, 4);
+            memcpy(imsg.data + 8, msg->data.header_or_data.buf, msg->data.header_or_data.len);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;

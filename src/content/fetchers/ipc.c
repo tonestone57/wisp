@@ -225,8 +225,15 @@ static void fetch_ipc_poll(lwc_string *scheme) {
             switch (msg.type) {
                 case WISP_IPC_MSG_FETCH_HEADER:
                     fmsg.type = FETCH_HEADER;
-                    fmsg.data.header_or_data.buf = msg.data + 4;
-                    fmsg.data.header_or_data.len = msg.length - 4;
+                    if (msg.length >= 8) {
+                        uint32_t http_code;
+                        memcpy(&http_code, msg.data + 4, 4);
+                        if (http_code > 0) {
+                            fetch_set_http_code(fetchh, (long)http_code);
+                        }
+                        fmsg.data.header_or_data.buf = msg.data + 8;
+                        fmsg.data.header_or_data.len = msg.length - 8;
+                    }
                     fetch_send_callback(&fmsg, fetchh);
                     break;
                 case WISP_IPC_MSG_FETCH_DATA:
