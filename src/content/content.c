@@ -151,8 +151,8 @@ static nserror content_llcache_callback(llcache_handle *llcache, const llcache_e
         content_broadcast(c, CONTENT_MSG_STATUS, &msg_data);
         break;
     case LLCACHE_EVENT_REDIRECT:
-        msg_data.redirect.from = event->data.redirect.from;
-        msg_data.redirect.to = event->data.redirect.to;
+        msg_data.redirect.from = nsurl_ref(event->data.redirect.from);
+        msg_data.redirect.to = nsurl_ref(event->data.redirect.to);
         content_broadcast(c, CONTENT_MSG_REDIRECT, &msg_data);
         break;
     }

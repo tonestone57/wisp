@@ -82,7 +82,6 @@ typedef struct fetch_msg {
 
         const char *error;
 
-        /** \todo Use nsurl */
         nsurl *redirect;
 
         struct {
