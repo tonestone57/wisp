@@ -2473,6 +2473,65 @@ static void urldb_delete_cookie_paths(const char *domain, const char *path, cons
 }
 
 
+static struct cookie_internal_data *urldb_find_cookie_paths(const char *domain, const char *path, const char *name, struct path_data *parent)
+{
+    struct cookie_internal_data *c;
+    struct path_data *p = parent;
+
+    assert(parent);
+
+    do {
+        for (c = p->cookies; c; c = c->next) {
+            if (strcmp(c->domain, domain) == 0 && strcmp(c->path, path) == 0 && strcmp(c->name, name) == 0) {
+                return c;
+            }
+        }
+
+        if (p->children) {
+            p = p->children;
+        } else {
+            while (p != parent) {
+                if (p->next != NULL) {
+                    p = p->next;
+                    break;
+                }
+
+                p = p->parent;
+            }
+        }
+    } while (p != parent);
+
+    return NULL;
+}
+
+static struct cookie_internal_data *urldb_find_cookie_hosts(const char *domain, const char *path, const char *name, struct host_part *parent)
+{
+    struct host_part *h;
+    struct cookie_internal_data *c;
+
+    assert(parent);
+
+    c = urldb_find_cookie_paths(domain, path, name, &parent->paths);
+    if (c != NULL) {
+        return c;
+    }
+
+    for (h = parent->children; h; h = h->next) {
+        c = urldb_find_cookie_hosts(domain, path, name, h);
+        if (c != NULL) {
+            return c;
+        }
+    }
+
+    return NULL;
+}
+
+static struct cookie_internal_data *urldb_find_cookie_internal(const char *domain, const char *path, const char *name)
+{
+    return urldb_find_cookie_hosts(domain, path, name, &db_root);
+}
+
+
 /**
  * Deletes cookie hosts and their assoicated paths
  *
@@ -4221,6 +4280,35 @@ char *urldb_get_cookie(nsurl *url, bool include_http_only)
 void urldb_delete_cookie(const char *domain, const char *path, const char *name)
 {
     urldb_delete_cookie_hosts(domain, path, name, &db_root);
+}
+
+
+/* exported interface documented in content/urldb.h */
+nserror urldb_update_cookie(const char *domain, const char *path, const char *name, const char *new_value, const time_t *new_expires)
+{
+    struct cookie_internal_data *c;
+
+    assert(domain != NULL && path != NULL && name != NULL);
+
+    c = urldb_find_cookie_internal(domain, path, name);
+    if (!c) {
+        return NSERROR_NOT_FOUND;
+    }
+
+    if (new_value != NULL) {
+        char *val_dup = strdup(new_value);
+        if (!val_dup) {
+            return NSERROR_NOMEM;
+        }
+        free(c->value);
+        c->value = val_dup;
+    }
+
+    if (new_expires != NULL) {
+        c->expires = *new_expires;
+    }
+
+    return NSERROR_OK;
 }
 
 

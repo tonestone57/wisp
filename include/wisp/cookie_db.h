@@ -26,6 +26,7 @@
 
 #include <stdbool.h>
 #include <time.h>
+#include <wisp/utils/errors.h>
 
 /**
  * Version of cookie
@@ -74,6 +75,18 @@ void urldb_iterate_cookies(bool (*callback)(const struct cookie_data *cookie));
  * \param name The cookie's name
  */
 void urldb_delete_cookie(const char *domain, const char *path, const char *name);
+
+/**
+ * Update a cookie
+ *
+ * \param domain The cookie's domain
+ * \param path The cookie's path
+ * \param name The cookie's name
+ * \param new_value The cookie's new value (NULL to keep unchanged)
+ * \param new_expires The cookie's new expiry time (NULL to keep unchanged)
+ * \return NSERROR_OK on success, appropriate error otherwise
+ */
+nserror urldb_update_cookie(const char *domain, const char *path, const char *name, const char *new_value, const time_t *new_expires);
 
 /**
  * Load a cookie file into the database

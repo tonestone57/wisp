@@ -42,6 +42,7 @@
 
 #include <wisp/desktop/cookie_manager.h>
 #include "desktop/treeview.h"
+#include <curl/curl.h>
 
 enum cookie_manager_field {
     COOKIE_M_NAME,
@@ -520,7 +521,7 @@ static nserror cookie_manager_init_entry_fields(void)
         goto error;
     }
 
-    cm_ctx.fields[COOKIE_M_CONTENT].flags = TREE_FLAG_SHOW_NAME;
+    cm_ctx.fields[COOKIE_M_CONTENT].flags = TREE_FLAG_SHOW_NAME | TREE_FLAG_ALLOW_EDIT;
     label = "TreeviewLabelContent";
     label = messages_get(label);
     if (lwc_intern_string(label, strlen(label), &cm_ctx.fields[COOKIE_M_CONTENT].field) != lwc_error_ok) {
@@ -541,7 +542,7 @@ static nserror cookie_manager_init_entry_fields(void)
         goto error;
     }
 
-    cm_ctx.fields[COOKIE_M_EXPIRES].flags = TREE_FLAG_SHOW_NAME;
+    cm_ctx.fields[COOKIE_M_EXPIRES].flags = TREE_FLAG_SHOW_NAME | TREE_FLAG_ALLOW_EDIT;
     label = "TreeviewLabelExpires";
     label = messages_get(label);
     if (lwc_intern_string(label, strlen(label), &cm_ctx.fields[COOKIE_M_EXPIRES].field) != lwc_error_ok) {
@@ -682,6 +683,7 @@ static nserror cookie_manager_tree_node_folder_cb(struct treeview_node_msg msg, 
 static nserror cookie_manager_tree_node_entry_cb(struct treeview_node_msg msg, void *data)
 {
     struct cookie_manager_entry *e = data;
+    bool match;
 
     switch (msg.msg) {
     case TREE_MSG_NODE_DELETE:
@@ -691,6 +693,65 @@ static nserror cookie_manager_tree_node_entry_cb(struct treeview_node_msg msg, v
         break;
 
     case TREE_MSG_NODE_EDIT:
+        if (lwc_string_isequal(cm_ctx.fields[COOKIE_M_CONTENT].field, msg.data.node_edit.field, &match) == lwc_error_ok && match == true) {
+            const char *domain = e->data[COOKIE_M_DOMAIN].value;
+            const char *path = e->data[COOKIE_M_PATH].value;
+            const char *name = e->data[COOKIE_M_NAME].value;
+            const char *new_text = msg.data.node_edit.text;
+
+            if (urldb_update_cookie(domain, path, name, new_text, NULL) == NSERROR_OK) {
+                const char *old_text = e->data[COOKIE_M_CONTENT].value;
+                char *dup_text = strdup(new_text);
+                if (dup_text != NULL) {
+                    e->data[COOKIE_M_CONTENT].value = dup_text;
+                    e->data[COOKIE_M_CONTENT].value_len = strlen(dup_text);
+                    treeview_update_node_entry(cm_ctx.tree, e->entry, e->data, e);
+                    free((void *)old_text);
+                }
+            }
+        } else if (lwc_string_isequal(cm_ctx.fields[COOKIE_M_EXPIRES].field, msg.data.node_edit.field, &match) == lwc_error_ok && match == true) {
+            const char *domain = e->data[COOKIE_M_DOMAIN].value;
+            const char *path = e->data[COOKIE_M_PATH].value;
+            const char *name = e->data[COOKIE_M_NAME].value;
+            const char *new_text = msg.data.node_edit.text;
+            time_t exp_time = 0;
+
+            if (strcasecmp(new_text, "Session") != 0 && strcasecmp(new_text, messages_get("CookieManagerSession")) != 0 && strcmp(new_text, "0") != 0 && strlen(new_text) > 0) {
+                exp_time = curl_getdate(new_text, NULL);
+                if (exp_time == (time_t)-1) {
+                    /* Invalid date format: reject edit */
+                    break;
+                }
+            } else {
+                exp_time = 0; /* Session cookie */
+            }
+
+            if (urldb_update_cookie(domain, path, name, NULL, &exp_time) == NSERROR_OK) {
+                const char *old_text = e->data[COOKIE_M_EXPIRES].value;
+                if (exp_time == 0) {
+                    char *dup_text = strdup(messages_get("CookieManagerSession"));
+                    if (dup_text != NULL) {
+                        e->data[COOKIE_M_EXPIRES].value = dup_text;
+                        e->data[COOKIE_M_EXPIRES].value_len = strlen(e->data[COOKIE_M_EXPIRES].value);
+                    }
+                } else {
+                    /* Format canonical string for UI consistency */
+                    struct tm *ftime;
+                    if ((ftime = localtime(&exp_time)) != NULL) {
+                        const size_t vsize = 256;
+                        char *value = malloc(vsize);
+                        if (value != NULL) {
+                            e->data[COOKIE_M_EXPIRES].value = value;
+                            e->data[COOKIE_M_EXPIRES].value_len = strftime(value, vsize, "%a %b %e %H:%M:%S %Y", ftime);
+                        }
+                    }
+                }
+                if (e->data[COOKIE_M_EXPIRES].value != old_text) {
+                    treeview_update_node_entry(cm_ctx.tree, e->entry, e->data, e);
+                    free((void *)old_text);
+                }
+            }
+        }
         break;
 
     case TREE_MSG_NODE_LAUNCH:
