@@ -145,6 +145,85 @@ START_TEST(test_talloc_free_children_destructor_fail_with_ref)
 }
 END_TEST
 
+START_TEST(test_talloc_unlink_null_ptr)
+{
+    void *ctx = talloc_new(NULL);
+    ck_assert_int_eq(talloc_unlink(ctx, NULL), -1);
+    talloc_free(ctx);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_unknown_context)
+{
+    void *ctx = talloc_new(NULL);
+    void *ctx2 = talloc_new(NULL);
+    void *ptr = talloc_size(ctx, 10);
+    ck_assert_int_eq(talloc_unlink(ctx2, ptr), -1);
+    talloc_free(ctx);
+    talloc_free(ctx2);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_null_context_with_parent)
+{
+    void *ctx = talloc_new(NULL);
+    void *ptr = talloc_size(ctx, 10);
+    ck_assert_int_eq(talloc_unlink(NULL, ptr), -1);
+    talloc_free(ctx);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_reference)
+{
+    void *ctx = talloc_new(NULL);
+    void *ctx2 = talloc_new(NULL);
+    void *ptr = talloc_size(ctx, 10);
+    talloc_reference(ctx2, ptr);
+    ck_assert_int_eq(talloc_unlink(ctx2, ptr), 0);
+    talloc_free(ctx);
+    talloc_free(ctx2);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_parent_no_refs)
+{
+    void *ctx = talloc_new(NULL);
+    void *ptr = talloc_size(ctx, 10);
+    ck_assert_int_eq(talloc_unlink(ctx, ptr), 0);
+    talloc_free(ctx);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_parent_with_refs)
+{
+    void *ctx = talloc_new(NULL);
+    void *ctx2 = talloc_new(NULL);
+    void *ptr = talloc_size(ctx, 10);
+    talloc_reference(ctx2, ptr);
+    ck_assert_int_eq(talloc_unlink(ctx, ptr), 0);
+    talloc_free(ctx);
+    talloc_free(ctx2);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_parent_fail_destructor)
+{
+    void *ctx = talloc_new(NULL);
+    void *ptr = talloc_size(ctx, 10);
+    talloc_set_destructor(ptr, fail_destructor);
+    ck_assert_int_eq(talloc_unlink(ctx, ptr), -1);
+    talloc_set_destructor(ptr, NULL);
+    talloc_free(ctx);
+}
+END_TEST
+
+START_TEST(test_talloc_unlink_null_context_no_parent)
+{
+    void *ptr = talloc_size(NULL, 10);
+    ck_assert_int_eq(talloc_unlink(NULL, ptr), 0);
+}
+END_TEST
+
 static TCase *talloc_case_create(void)
 {
     TCase *tc;
@@ -157,6 +236,14 @@ static TCase *talloc_case_create(void)
     tcase_add_test(tc, test_talloc_free_children_destructor_fail_with_grandparent);
     tcase_add_test(tc, test_talloc_free_children_destructor_fail_no_parent);
     tcase_add_test(tc, test_talloc_free_children_destructor_fail_with_ref);
+    tcase_add_test(tc, test_talloc_unlink_null_ptr);
+    tcase_add_test(tc, test_talloc_unlink_unknown_context);
+    tcase_add_test(tc, test_talloc_unlink_null_context_with_parent);
+    tcase_add_test(tc, test_talloc_unlink_reference);
+    tcase_add_test(tc, test_talloc_unlink_parent_no_refs);
+    tcase_add_test(tc, test_talloc_unlink_parent_with_refs);
+    tcase_add_test(tc, test_talloc_unlink_parent_fail_destructor);
+    tcase_add_test(tc, test_talloc_unlink_null_context_no_parent);
     return tc;
 }
 
