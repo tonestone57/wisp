@@ -590,9 +590,11 @@ static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_
     APPEND(fetch->headers,
         "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8");
 
-    /* when doing a POST libcurl sends Expect: 100-continue" by default
-     * which fails with lighttpd, so disable it (see bug 1429054) */
-    APPEND(fetch->headers, "Expect:");
+    if (postdata != NULL && postdata->type != FETCH_POSTDATA_NONE) {
+        /* when doing a POST libcurl sends Expect: 100-continue" by default
+         * which fails with lighttpd, so disable it (see bug 1429054) */
+        APPEND(fetch->headers, "Expect:");
+    }
 
     if ((nsoption_charp(accept_language) != NULL) && (nsoption_charp(accept_language)[0] != '\0')) {
         char s[80];
