@@ -92,17 +92,44 @@ css_error css__cascade_quotes(uint32_t opv, css_style *style, css_select_state *
 
 css_error css__set_quotes_from_hint(const css_hint *hint, css_computed_style *style)
 {
-    lwc_string **item;
     css_error error;
 
-    error = set_quotes(style, hint->status, hint->data.strings);
+    if (hint->status == CSS_QUOTES_STRING && hint->data.strings != NULL) {
+        lwc_string **item;
+        lwc_string **quotes_copy;
+        size_t count = 0;
+        size_t i;
 
-    for (item = hint->data.strings; item != NULL && (*item) != NULL; item++) {
-        lwc_string_unref(*item);
+        /* 1. Count strings in the NULL-terminated array */
+        for (item = hint->data.strings; *item != NULL; item++) {
+            count++;
+        }
+
+        /* 2. Allocate an owned heap buffer for css_computed_style */
+        quotes_copy = malloc((count + 1) * sizeof(lwc_string *));
+        if (quotes_copy == NULL) {
+            return CSS_NOMEM;
+        }
+
+        /* 3. Deep-copy each string and take a reference */
+        for (i = 0; i < count; i++) {
+            quotes_copy[i] = lwc_string_ref(hint->data.strings[i]);
+        }
+        quotes_copy[count] = NULL;
+
+        /* 4. Assign owned buffer to style */
+        error = set_quotes(style, hint->status, quotes_copy);
+        if (error != CSS_OK) {
+            for (i = 0; i < count; i++) {
+                lwc_string_unref(quotes_copy[i]);
+            }
+            free(quotes_copy);
+            return error;
+        }
+    } else {
+        /* CSS_QUOTES_NONE, CSS_QUOTES_INHERIT, etc. */
+        error = set_quotes(style, hint->status, NULL);
     }
-
-    if (error != CSS_OK && hint->data.strings != NULL)
-        free(hint->data.strings);
 
     return error;
 }
