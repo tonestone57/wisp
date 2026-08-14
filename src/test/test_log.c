@@ -16,6 +16,23 @@ static bool failing_ensure(FILE *fptr) {
     return false;
 }
 
+static void cleanup_split_logs(void) {
+    const char *files[] = {
+        "wisp-logs/ns-deepdebug.txt",
+        "wisp-logs/ns-debug.txt",
+        "wisp-logs/ns-verbose.txt",
+        "wisp-logs/ns-info.txt",
+        "wisp-logs/ns-warning.txt",
+        "wisp-logs/ns-error.txt",
+        "wisp-logs/ns-critical.txt",
+    };
+    for (int i = 0; i < 7; i++) {
+        remove(files[i]);
+    }
+    remove("wisp-logs");
+}
+
+
 START_TEST(test_nslog_init_basic)
 {
     int argc = 1;
@@ -93,7 +110,7 @@ START_TEST(test_nslog_init_split_logs)
 
     // Check if wisp-logs directory was created and contains files
     ck_assert_int_eq(access("wisp-logs/ns-info.txt", F_OK), 0);
-    system("rm -rf wisp-logs");
+    cleanup_split_logs();
 }
 END_TEST
 
@@ -114,6 +131,67 @@ START_TEST(test_nslog_log_macro)
 }
 END_TEST
 
+
+
+START_TEST(test_nslog_log_output)
+{
+    char file_path[] = "/tmp/ns_test_XXXXXX";
+    int fd = mkstemp(file_path);
+    ck_assert_int_ge(fd, 0);
+    close(fd);
+
+    int argc = 3;
+    char *argv[] = {"wisp", "-V", file_path, NULL};
+    nserror err;
+
+    err = nslog_init(test_ensure, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(verbose_log);
+
+    NSLOG(wisp, INFO, "Test output %s", "working");
+
+    nslog_finalise();
+
+    FILE *f = fopen(file_path, "r");
+    ck_assert_ptr_nonnull(f);
+
+    char buffer[1024] = {0};
+    size_t read_bytes = fread(buffer, 1, sizeof(buffer) - 1, f);
+    ck_assert_int_gt(read_bytes, 0);
+
+    ck_assert_ptr_nonnull(strstr(buffer, "Test output working"));
+
+    fclose(f);
+    unlink(file_path);
+}
+END_TEST
+
+START_TEST(test_nslog_log_output_split)
+{
+    int argc = 2;
+    char *argv[] = {"wisp", "-split-logs", NULL};
+    nserror err;
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    NSLOG(wisp, INFO, "Test output split %s", "working");
+
+    nslog_finalise();
+
+    FILE *f = fopen("wisp-logs/ns-info.txt", "r");
+    ck_assert_ptr_nonnull(f);
+
+    char buffer[1024] = {0};
+    size_t read_bytes = fread(buffer, 1, sizeof(buffer) - 1, f);
+    ck_assert_int_gt(read_bytes, 0);
+
+    ck_assert_ptr_nonnull(strstr(buffer, "Test output split working"));
+
+    fclose(f);
+    cleanup_split_logs();
+}
+END_TEST
 
 START_TEST(test_nslog_set_filter)
 {
@@ -158,6 +236,98 @@ START_TEST(test_nslog_set_filter_by_options)
 }
 END_TEST
 
+
+
+START_TEST(test_nslog_init_verbose_file_invalid)
+{
+    int argc = 3;
+    char *argv[] = {"wisp", "-V", "/invalid/path/that/cannot/be/written.txt", NULL};
+    nserror err;
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+    ck_assert(!verbose_log);
+
+    // Ensure we can still log without a crash due to stderr fallback
+    NSLOG(wisp, INFO, "Test fallback logging %s", "working");
+
+    nslog_finalise();
+}
+END_TEST
+
+START_TEST(test_nslog_init_args_shift)
+{
+    int argc = 4;
+    char *argv[] = {"wisp", "-v", "extra_arg", "another_arg", NULL};
+    nserror err;
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(argc, 3);
+    ck_assert_str_eq(argv[0], "wisp");
+    ck_assert_str_eq(argv[1], "extra_arg");
+    ck_assert_str_eq(argv[2], "another_arg");
+
+    nslog_finalise();
+}
+END_TEST
+
+START_TEST(test_nslog_init_args_shift_V)
+{
+    int argc = 5;
+    char *argv[] = {"wisp", "-V", "test_log_output.txt", "extra_arg", "another_arg", NULL};
+    nserror err;
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(argc, 3);
+    ck_assert_str_eq(argv[0], "wisp");
+    ck_assert_str_eq(argv[1], "extra_arg");
+    ck_assert_str_eq(argv[2], "another_arg");
+
+    nslog_finalise();
+    unlink("test_log_output.txt");
+}
+END_TEST
+
+START_TEST(test_nslog_init_args_shift_split)
+{
+    int argc = 4;
+    char *argv[] = {"wisp", "-split-logs", "extra_arg", "another_arg", NULL};
+    nserror err;
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(argc, 3);
+    ck_assert_str_eq(argv[0], "wisp");
+    ck_assert_str_eq(argv[1], "extra_arg");
+    ck_assert_str_eq(argv[2], "another_arg");
+
+    nslog_finalise();
+    cleanup_split_logs();
+}
+END_TEST
+
+START_TEST(test_nslog_set_filter_by_options_verbose)
+{
+    nserror err;
+    int argc = 2;
+    char *argv[] = {"wisp", "-v", NULL};
+
+    err = nsoption_init(NULL, NULL, NULL);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = nslog_set_filter_by_options();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nslog_finalise();
+    nsoption_finalise(NULL, NULL);
+}
+END_TEST
+
 Suite *log_suite(void)
 {
     Suite *s;
@@ -172,8 +342,17 @@ Suite *log_suite(void)
     tcase_add_test(tc_core, test_nslog_init_verbose_file_ensure_fail);
     tcase_add_test(tc_core, test_nslog_init_split_logs);
     tcase_add_test(tc_core, test_nslog_log_macro);
+    tcase_add_test(tc_core, test_nslog_log_output);
+    tcase_add_test(tc_core, test_nslog_log_output_split);
+
     tcase_add_test(tc_core, test_nslog_set_filter);
     tcase_add_test(tc_core, test_nslog_set_filter_by_options);
+    tcase_add_test(tc_core, test_nslog_set_filter_by_options_verbose);
+    tcase_add_test(tc_core, test_nslog_init_verbose_file_invalid);
+    tcase_add_test(tc_core, test_nslog_init_args_shift);
+    tcase_add_test(tc_core, test_nslog_init_args_shift_V);
+    tcase_add_test(tc_core, test_nslog_init_args_shift_split);
+
 
     suite_add_tcase(s, tc_core);
 

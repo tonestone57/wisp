@@ -475,6 +475,7 @@ nserror nslog_init(nslog_ensure_t *ensure, int *pargc, char **argv)
             /* could not open log file for output */
             ret = NSERROR_NOT_FOUND;
             verbose_log = false;
+            logfile = stderr; /* reset logfile if it failed to open */
         } else {
 
             /* ensure we actually show logging */
