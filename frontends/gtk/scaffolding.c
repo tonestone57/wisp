@@ -1224,7 +1224,7 @@ void nsgtk_scaffolding_set_top_level(struct gui_window *gw)
  */
 void nsgtk_scaffolding_update_tab_sensitivities(struct nsgtk_scaffolding *g)
 {
-    GtkNotebook *notebook = g->notebook;
+    GtkNotebook *notebook = GTK_NOTEBOOK(g->notebook);
     gint n_pages = gtk_notebook_get_n_pages(notebook);
     gint current = gtk_notebook_get_current_page(notebook);
 
