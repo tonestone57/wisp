@@ -306,7 +306,6 @@ static guint nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaf
 /**
  * make edit actions sensitive
  *
- * \todo toolbar sensitivity
  *
  * \param g The scaffolding context.
  */
@@ -368,8 +367,6 @@ static gboolean nsgtk_window_popup_menu_hidden(GtkWidget *widget, struct nsgtk_s
 /**
  * Update the menus when the number of tabs changes.
  *
- * \todo toolbar sensitivity
- * \todo next/previous tab ought to only be visible if there is such a tab
  *
  * \param notebook The notebook all the tabs are in
  * \param page The newly added page container widget
@@ -382,18 +379,13 @@ static void nsgtk_window_tabs_add(GtkNotebook *notebook, GtkWidget *page, guint 
     g_object_set(g->menu_bar->view_submenu->tabs_menuitem, "visible", visible, NULL);
     g_object_set(g->burger_menu->view_submenu->tabs_menuitem, "visible", visible, NULL);
 
-    g->menus[NEXTTAB_BUTTON].sensitivity = visible;
-    g->menus[PREVTAB_BUTTON].sensitivity = visible;
-    g->menus[CLOSETAB_BUTTON].sensitivity = visible;
-
-    nsgtk_scaffolding_set_sensitivity(g);
+    nsgtk_scaffolding_update_tab_sensitivities(g);
 }
 
 
 /**
  * Update the menus when the number of tabs changes.
  *
- * \todo toolbar sensitivity
  *
  * \param notebook The notebook all the tabs are in
  * \param page The page container widget being removed
@@ -423,11 +415,7 @@ nsgtk_window_tabs_remove(GtkNotebook *notebook, GtkWidget *page, guint page_num,
     g_object_set(gs->menu_bar->view_submenu->tabs_menuitem, "visible", visible, NULL);
     g_object_set(gs->burger_menu->view_submenu->tabs_menuitem, "visible", visible, NULL);
 
-    gs->menus[NEXTTAB_BUTTON].sensitivity = visible;
-    gs->menus[PREVTAB_BUTTON].sensitivity = visible;
-    gs->menus[CLOSETAB_BUTTON].sensitivity = visible;
-
-    nsgtk_scaffolding_set_sensitivity(gs);
+    nsgtk_scaffolding_update_tab_sensitivities(gs);
 }
 
 
@@ -1230,9 +1218,30 @@ void nsgtk_scaffolding_set_top_level(struct gui_window *gw)
 
 
 /* exported interface documented in scaffolding.h */
+
+/**
+ * Update the sensitivity of tab-related actions based on current notebook state.
+ */
+void nsgtk_scaffolding_update_tab_sensitivities(struct nsgtk_scaffolding *g)
+{
+    GtkNotebook *notebook = g->notebook;
+    gint n_pages = gtk_notebook_get_n_pages(notebook);
+    gint current = gtk_notebook_get_current_page(notebook);
+
+    bool has_prev = (n_pages > 1 && current > 0);
+    bool has_next = (n_pages > 1 && current >= 0 && current < n_pages - 1);
+    bool can_close = (n_pages > 1);
+
+    g->menus[PREVTAB_BUTTON].sensitivity = has_prev;
+    g->menus[NEXTTAB_BUTTON].sensitivity = has_next;
+    g->menus[CLOSETAB_BUTTON].sensitivity = can_close;
+
+    nsgtk_scaffolding_set_sensitivity(g);
+}
+
 void nsgtk_scaffolding_set_sensitivity(struct nsgtk_scaffolding *g)
 {
-    int i;
+    nsgtk_toolbar_button i;
 #define SENSITIVITY(q)                                                                                                 \
     i = q##_BUTTON;                                                                                                    \
     if (g->menus[i].main != NULL)                                                                                      \
@@ -1240,7 +1249,9 @@ void nsgtk_scaffolding_set_sensitivity(struct nsgtk_scaffolding *g)
     if (g->menus[i].burger != NULL)                                                                                    \
         gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].burger), g->menus[i].sensitivity);                             \
     if (g->menus[i].popup != NULL)                                                                                     \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].popup), g->menus[i].sensitivity);
+        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].popup), g->menus[i].sensitivity);                              \
+    if (g->top_level != NULL)                                                                                          \
+        nsgtk_window_set_toolbar_sensitivity(g->top_level, i, g->menus[i].sensitivity);
 
     SENSITIVITY(STOP)
     SENSITIVITY(RELOAD)

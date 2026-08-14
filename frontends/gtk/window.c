@@ -1808,6 +1808,15 @@ nserror nsgtk_window_search_toggle(struct gui_window *gw)
 
 
 /* exported interface documented in window.h */
+
+/* exported interface documented in gtk/window.h */
+void nsgtk_window_set_toolbar_sensitivity(struct gui_window *gw, nsgtk_toolbar_button itemid, bool sensitive)
+{
+    if (gw != NULL && gw->toolbar != NULL) {
+        nsgtk_toolbar_set_sensitive(gw->toolbar, itemid, sensitive);
+    }
+}
+
 nserror nsgtk_window_item_activate(struct gui_window *gw, nsgtk_toolbar_button itemid)
 {
     return nsgtk_toolbar_item_activate(gw->toolbar, itemid);

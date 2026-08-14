@@ -95,6 +95,16 @@ GtkLayout *nsgtk_window_get_layout(struct gui_window *gw);
  * \param gw The gui window handle
  * \param itemid The id of the item to activate
  */
+
+/**
+ * set the sensitivity of an item in a toolbar of a gui window
+ *
+ * \param gw The gui window handle
+ * \param itemid The id of the item to set
+ * \param sensitive whether the item should be sensitive
+ */
+void nsgtk_window_set_toolbar_sensitivity(struct gui_window *gw, nsgtk_toolbar_button itemid, bool sensitive);
+
 nserror nsgtk_window_item_activate(struct gui_window *gw, nsgtk_toolbar_button itemid);
 
 /**

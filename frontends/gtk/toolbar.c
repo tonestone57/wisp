@@ -3385,6 +3385,17 @@ nserror nsgtk_toolbar_item_activate(struct nsgtk_toolbar *tb, nsgtk_toolbar_butt
 
 
 /* exported interface documented in toolbar.h */
+
+/* exported interface documented in toolbar.h */
+nserror nsgtk_toolbar_set_sensitive(struct nsgtk_toolbar *tb, nsgtk_toolbar_button itemid, bool sensitive)
+{
+    if ((itemid < BACK_BUTTON) || (itemid >= PLACEHOLDER_BUTTON)) {
+        return NSERROR_BAD_PARAMETER;
+    }
+
+    return set_item_sensitivity(&tb->items[itemid], sensitive);
+}
+
 nserror nsgtk_toolbar_show(struct nsgtk_toolbar *tb, bool show)
 {
     if (show) {
