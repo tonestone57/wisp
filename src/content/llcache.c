@@ -714,6 +714,7 @@ static nserror llcache_fetch_process_header(llcache_object *object, const uint8_
     nserror res;
     char *name, *value;
     llcache_header *temp;
+    bool is_response_line = false;
 
     /**
      * \note The headers for multiple HTTP responses may be
@@ -727,8 +728,22 @@ static nserror llcache_fetch_process_header(llcache_object *object, const uint8_
      * must discard any headers we've read so far, reset the cache data
      * that we might have computed, and start again.
      */
-    /** \todo Properly parse the response line */
     if (len >= 5 && strncmp((const char *)data, "HTTP/", 5) == 0) {
+        /* Check if it looks like an HTTP status line: "HTTP/1.1 200 OK" or "HTTP/2 200" */
+        size_t idx = 5;
+        while (idx < len && ((data[idx] >= '0' && data[idx] <= '9') || data[idx] == '.')) {
+            idx++;
+        }
+        if (idx > 5 && idx + 4 <= len && data[idx] == ' ' &&
+            data[idx+1] >= '0' && data[idx+1] <= '9' &&
+            data[idx+2] >= '0' && data[idx+2] <= '9' &&
+            data[idx+3] >= '0' && data[idx+3] <= '9' &&
+            (idx + 4 == len || data[idx+4] == ' ' || data[idx+4] == '\r' || data[idx+4] == '\n')) {
+            is_response_line = true;
+        }
+    }
+
+    if (is_response_line) {
         time_t req_time = object->cache.req_time;
 
         llcache_invalidate_cache_control_data(object);
@@ -737,6 +752,12 @@ static nserror llcache_fetch_process_header(llcache_object *object, const uint8_
         object->cache.req_time = req_time;
 
         llcache_destroy_headers(object);
+
+        /* Set fetch response time */
+        object->cache.res_time = time(NULL);
+
+        /* Response lines are not valid HTTP headers, so we are done here */
+        return NSERROR_OK;
     }
 
     /* Set fetch response time if not already set */
