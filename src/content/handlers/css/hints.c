@@ -398,7 +398,7 @@ bool nscss_parse_colour(const char *data, css_color *result)
     while (buf_len == 0 || (buf_len % 3) != 0) {
         p[buf_len++] = '0';
     }
-    p[buf_len] = '\\0';
+    p[buf_len] = '\0';
 
     size_t comp_len = buf_len / 3;
     char *c1 = p;
