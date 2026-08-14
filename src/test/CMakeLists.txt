@@ -496,6 +496,19 @@ add_wisp_test(test_utf8proc_simd
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
 
+add_wisp_test(test_js_main
+  ${CMAKE_SOURCE_DIR}/src/test/test_js_main.c
+  ${CMAKE_SOURCE_DIR}/src/processes/js/main.c
+)
+add_dependencies(test_js_main quickjs_bindings)
+target_include_directories(test_js_main PRIVATE
+  ${CMAKE_SOURCE_DIR}/contrib
+  ${CMAKE_BINARY_DIR}
+  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
+  ${CMAKE_SOURCE_DIR}/src
+)
+target_compile_definitions(test_js_main PRIVATE WISP_JS_TESTING)
+target_link_libraries(test_js_main PRIVATE qjs nsutils wisp)
 add_wisp_test(test_utf8proc_wrapper
   ${CMAKE_SOURCE_DIR}/src/test/test_utf8proc_wrapper.c
 )
