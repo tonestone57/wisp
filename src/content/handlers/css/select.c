@@ -1728,9 +1728,16 @@ css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint)
             break;
         }
     } else if (property == CSS_PROP_QUOTES) {
-        /** \todo Not exactly useful :) */
-        hint->data.strings = NULL;
-        hint->status = CSS_QUOTES_NONE;
+        static lwc_string *default_quotes[5];
+        if (default_quotes[0] == NULL) {
+            default_quotes[0] = corestring_lwc_open_double_quote;
+            default_quotes[1] = corestring_lwc_close_double_quote;
+            default_quotes[2] = corestring_lwc_open_single_quote;
+            default_quotes[3] = corestring_lwc_close_single_quote;
+            default_quotes[4] = NULL;
+        }
+        hint->data.strings = default_quotes;
+        hint->status = CSS_QUOTES_STRING;
     } else if (property == CSS_PROP_VOICE_FAMILY) {
         /** \todo Fix this when we have voice-family done */
         hint->data.strings = NULL;
