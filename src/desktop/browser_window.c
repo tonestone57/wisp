@@ -875,6 +875,12 @@ static nserror browser_window_content_ready(struct browser_window *bw)
         res = guit->window->event(root->window, GW_EVENT_PAGE_INFO_CHANGE);
     }
 
+    if (bw->window == NULL) {
+        /* Updated browser window's scrollbars. */
+        browser_window_reformat(bw, true, bw->width, bw->height);
+        browser_window_handle_scrollbars(bw);
+    }
+
     return res;
 }
 
@@ -888,16 +894,6 @@ static nserror browser_window_content_done(struct browser_window *bw)
     struct rect rect;
     int scrollx;
     int scrolly;
-
-    if (bw->window == NULL) {
-        /* Updated browser window's scrollbars. */
-        /**
-         * \todo update browser window scrollbars before
-         * CONTENT_MSG_DONE
-         */
-        browser_window_reformat(bw, true, bw->width, bw->height);
-        browser_window_handle_scrollbars(bw);
-    }
 
     browser_window_update(bw, false);
     browser_window_set_status(bw, content_get_status_message(bw->current_content));
