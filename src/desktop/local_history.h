@@ -127,7 +127,8 @@ nserror local_history_get_size(struct local_history_session *session, int *width
 /**
  * get url of entry at position in local history content area.
  *
- * \todo the returned url should be a referenced nsurl.
+ * The returned nsurl has its reference count incremented; the caller takes
+ * ownership and is responsible for calling nsurl_unref().
  *
  * \param[in] session The local history session context.
  * \param[in] x The x coordinate to get url of.
