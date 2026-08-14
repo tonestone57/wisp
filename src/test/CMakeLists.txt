@@ -509,6 +509,11 @@ target_include_directories(test_js_main PRIVATE
 )
 target_compile_definitions(test_js_main PRIVATE WISP_JS_TESTING)
 target_link_libraries(test_js_main PRIVATE qjs nsutils wisp)
+add_wisp_test(test_utf8proc_wrapper
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8proc_wrapper.c
+)
+target_link_libraries(test_utf8proc_wrapper PRIVATE wisp)
+
 
 add_wisp_test(test_utf8
   ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
@@ -623,3 +628,6 @@ add_wisp_test(test_ipc
   ${CMAKE_SOURCE_DIR}/src/test/test_ipc.c
 )
 target_link_libraries(test_ipc PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_network_main test_network_main.c)
+target_link_libraries(test_network_main PRIVATE wisp ${CHECK_LIBRARIES})
