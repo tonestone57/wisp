@@ -110,7 +110,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         case FETCH_REDIRECT:
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
-            const char *redir_target = msg->data.redirect ? msg->data.redirect : "";
+            const char *redir_target = msg->data.redirect ? nsurl_access(msg->data.redirect) : "";
             imsg.length = 4 + 4 + strlen(redir_target) + 1;
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;

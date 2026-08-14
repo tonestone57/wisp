@@ -1618,10 +1618,18 @@ static bool fetch_curl_process_headers(struct curl_fetch_info *f)
 
     /* handle HTTP redirects (3xx response codes) */
     if (300 <= http_code && http_code < 400 && f->location != 0 && f->location[0] != '\0') {
+        nserror err;
         NSLOG(wisp, INFO, "FETCH_REDIRECT, '%s'", f->location);
-        msg.type = FETCH_REDIRECT;
-        msg.data.redirect = f->location;
-        fetch_send_callback(&msg, f->fetch_handle);
+        err = nsurl_create(f->location, &msg.data.redirect);
+        if (err == NSERROR_OK) {
+            msg.type = FETCH_REDIRECT;
+            fetch_send_callback(&msg, f->fetch_handle);
+            nsurl_unref(msg.data.redirect);
+        } else {
+            msg.type = FETCH_ERROR;
+            msg.data.error = "Failed to parse redirect URL";
+            fetch_send_callback(&msg, f->fetch_handle);
+        }
         return true;
     }
 

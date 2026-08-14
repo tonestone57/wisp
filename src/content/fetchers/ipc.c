@@ -265,14 +265,28 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                     }
                     if (msg.length > 8) {
                         char *redir = strndup((char*)msg.data + 8, msg.length - 8);
-                        fmsg.data.redirect = redir ? redir : "";
-                        fetch_send_callback(&fmsg, fetchh);
+                        nserror err = nsurl_create(redir ? redir : "", &fmsg.data.redirect);
+                        if (err == NSERROR_OK) {
+                            fetch_send_callback(&fmsg, fetchh);
+                            nsurl_unref(fmsg.data.redirect);
+                        } else {
+                            fmsg.type = FETCH_ERROR;
+                            fmsg.data.error = "Failed to parse redirect URL";
+                            fetch_send_callback(&fmsg, fetchh);
+                        }
                         free(redir);
                         break;
                     } else {
-                        fmsg.data.redirect = "";
+                        nserror err = nsurl_create("", &fmsg.data.redirect);
+                        if (err == NSERROR_OK) {
+                            fetch_send_callback(&fmsg, fetchh);
+                            nsurl_unref(fmsg.data.redirect);
+                        } else {
+                            fmsg.type = FETCH_ERROR;
+                            fmsg.data.error = "Failed to parse redirect URL";
+                            fetch_send_callback(&fmsg, fetchh);
+                        }
                     }
-                    fetch_send_callback(&fmsg, fetchh);
                     if (is_active_fetch_id(fetch_id)) {
                         pthread_mutex_lock(&active_fetches_mutex);
                         struct ipc_fetch_info *f_post = active_fetches;

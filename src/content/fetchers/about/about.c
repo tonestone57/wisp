@@ -252,14 +252,24 @@ bool fetch_about_srverror(struct fetch_about_context *ctx)
 bool fetch_about_redirect(struct fetch_about_context *ctx, const char *target)
 {
     fetch_msg msg;
+    nserror err;
+    bool ret = true;
 
     /* content is going to return redirect */
     fetch_set_http_code(ctx->fetchh, 302);
 
-    msg.type = FETCH_REDIRECT;
-    msg.data.redirect = target;
+    err = nsurl_create(target, &msg.data.redirect);
+    if (err == NSERROR_OK) {
+        msg.type = FETCH_REDIRECT;
+        ret = fetch_about_send_callback(&msg, ctx);
+        nsurl_unref(msg.data.redirect);
+    } else {
+        msg.type = FETCH_ERROR;
+        msg.data.error = "Failed to parse redirect URL";
+        ret = fetch_about_send_callback(&msg, ctx);
+    }
 
-    return fetch_about_send_callback(&msg, ctx);
+    return ret;
 }
 
 /**
@@ -271,14 +281,21 @@ bool fetch_about_redirect(struct fetch_about_context *ctx, const char *target)
 static bool fetch_about_credits_handler(struct fetch_about_context *ctx)
 {
     fetch_msg msg;
+    nserror err;
 
     /* content is going to return redirect */
     fetch_set_http_code(ctx->fetchh, 302);
 
-    msg.type = FETCH_REDIRECT;
-    msg.data.redirect = "resource:credits.html";
-
-    fetch_about_send_callback(&msg, ctx);
+    err = nsurl_create("resource:credits.html", &msg.data.redirect);
+    if (err == NSERROR_OK) {
+        msg.type = FETCH_REDIRECT;
+        fetch_about_send_callback(&msg, ctx);
+        nsurl_unref(msg.data.redirect);
+    } else {
+        msg.type = FETCH_ERROR;
+        msg.data.error = "Failed to parse redirect URL";
+        fetch_about_send_callback(&msg, ctx);
+    }
 
     return true;
 }
@@ -293,14 +310,21 @@ static bool fetch_about_credits_handler(struct fetch_about_context *ctx)
 static bool fetch_about_license_handler(struct fetch_about_context *ctx)
 {
     fetch_msg msg;
+    nserror err;
 
     /* content is going to return redirect */
     fetch_set_http_code(ctx->fetchh, 302);
 
-    msg.type = FETCH_REDIRECT;
-    msg.data.redirect = "resource:license.html";
-
-    fetch_about_send_callback(&msg, ctx);
+    err = nsurl_create("resource:license.html", &msg.data.redirect);
+    if (err == NSERROR_OK) {
+        msg.type = FETCH_REDIRECT;
+        fetch_about_send_callback(&msg, ctx);
+        nsurl_unref(msg.data.redirect);
+    } else {
+        msg.type = FETCH_ERROR;
+        msg.data.error = "Failed to parse redirect URL";
+        fetch_about_send_callback(&msg, ctx);
+    }
 
     return true;
 }
@@ -315,14 +339,21 @@ static bool fetch_about_license_handler(struct fetch_about_context *ctx)
 static bool fetch_about_logo_handler(struct fetch_about_context *ctx)
 {
     fetch_msg msg;
+    nserror err;
 
     /* content is going to return redirect */
     fetch_set_http_code(ctx->fetchh, 302);
 
-    msg.type = FETCH_REDIRECT;
-    msg.data.redirect = "resource:wisp.png";
-
-    fetch_about_send_callback(&msg, ctx);
+    err = nsurl_create("resource:wisp.png", &msg.data.redirect);
+    if (err == NSERROR_OK) {
+        msg.type = FETCH_REDIRECT;
+        fetch_about_send_callback(&msg, ctx);
+        nsurl_unref(msg.data.redirect);
+    } else {
+        msg.type = FETCH_ERROR;
+        msg.data.error = "Failed to parse redirect URL";
+        fetch_about_send_callback(&msg, ctx);
+    }
 
     return true;
 }
@@ -337,14 +368,21 @@ static bool fetch_about_logo_handler(struct fetch_about_context *ctx)
 static bool fetch_about_welcome_handler(struct fetch_about_context *ctx)
 {
     fetch_msg msg;
+    nserror err;
 
     /* content is going to return redirect */
     fetch_set_http_code(ctx->fetchh, 302);
 
-    msg.type = FETCH_REDIRECT;
-    msg.data.redirect = "resource:welcome.html";
-
-    fetch_about_send_callback(&msg, ctx);
+    err = nsurl_create("resource:welcome.html", &msg.data.redirect);
+    if (err == NSERROR_OK) {
+        msg.type = FETCH_REDIRECT;
+        fetch_about_send_callback(&msg, ctx);
+        nsurl_unref(msg.data.redirect);
+    } else {
+        msg.type = FETCH_ERROR;
+        msg.data.error = "Failed to parse redirect URL";
+        fetch_about_send_callback(&msg, ctx);
+    }
 
     return true;
 }
