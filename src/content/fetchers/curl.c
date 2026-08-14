@@ -1626,7 +1626,7 @@ static bool fetch_curl_process_headers(struct curl_fetch_info *f)
     }
 
     /* handle HTTP 401 (Authentication errors) */
-    if (http_code == 401) {
+    if (http_code == 401 && f->realm != NULL) {
         msg.type = FETCH_AUTH;
         msg.data.auth.realm = f->realm;
         fetch_send_callback(&msg, f->fetch_handle);
@@ -1947,8 +1947,9 @@ static size_t fetch_curl_data(char *data, size_t size, size_t nmemb, void *_f)
 
     /* ignore body if this is a 401 reply by skipping it and reset
      * the HTTP response code to enable follow up fetches.
+     * Only do this if a realm was provided, otherwise we want to process the body.
      */
-    if (f->http_code == 401) {
+    if (f->http_code == 401 && f->realm != NULL) {
         f->http_code = 0;
         return size * nmemb;
     }
