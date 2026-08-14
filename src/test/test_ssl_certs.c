@@ -156,7 +156,181 @@ START_TEST(cert_chain_to_query_empty_cert_data_test)
 }
 END_TEST
 
+
+START_TEST(cert_chain_dup_into_increase_depth)
+{
+    nserror err;
+    struct cert_chain *src;
+    struct cert_chain *dst;
+
+    err = cert_chain_alloc(2, &src);
+    ck_assert(err == NSERROR_OK);
+    src->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(src->certs[0].der, "ABC", 3);
+    src->certs[0].der_length = 3;
+    src->certs[0].err = SSL_CERT_ERR_OK;
+    src->certs[1].der = (uint8_t *)malloc(3);
+    memcpy(src->certs[1].der, "DEF", 3);
+    src->certs[1].der_length = 3;
+    src->certs[1].err = 123;
+
+    err = cert_chain_alloc(1, &dst);
+    ck_assert(err == NSERROR_OK);
+    dst->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[0].der, "XYZ", 3);
+    dst->certs[0].der_length = 3;
+    dst->certs[0].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_dup_into(src, dst);
+    ck_assert(err == NSERROR_OK);
+
+    ck_assert_int_eq(dst->depth, 2);
+    ck_assert_int_eq(dst->certs[0].der_length, 3);
+    ck_assert_mem_eq(dst->certs[0].der, "ABC", 3);
+    ck_assert_int_eq(dst->certs[0].err, SSL_CERT_ERR_OK);
+    ck_assert_int_eq(dst->certs[1].der_length, 3);
+    ck_assert_mem_eq(dst->certs[1].der, "DEF", 3);
+    ck_assert_int_eq(dst->certs[1].err, 123);
+
+    cert_chain_free(src);
+    cert_chain_free(dst);
+}
+END_TEST
+
+START_TEST(cert_chain_dup_into_decrease_depth)
+{
+    nserror err;
+    struct cert_chain *src;
+    struct cert_chain *dst;
+
+    err = cert_chain_alloc(1, &src);
+    ck_assert(err == NSERROR_OK);
+    src->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(src->certs[0].der, "ABC", 3);
+    src->certs[0].der_length = 3;
+    src->certs[0].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_alloc(2, &dst);
+    ck_assert(err == NSERROR_OK);
+    dst->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[0].der, "XYZ", 3);
+    dst->certs[0].der_length = 3;
+    dst->certs[0].err = SSL_CERT_ERR_OK;
+    dst->certs[1].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[1].der, "UVW", 3);
+    dst->certs[1].der_length = 3;
+    dst->certs[1].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_dup_into(src, dst);
+    ck_assert(err == NSERROR_OK);
+
+    ck_assert_int_eq(dst->depth, 1);
+    ck_assert_int_eq(dst->certs[0].der_length, 3);
+    ck_assert_mem_eq(dst->certs[0].der, "ABC", 3);
+    ck_assert_int_eq(dst->certs[0].err, SSL_CERT_ERR_OK);
+
+    cert_chain_free(src);
+    cert_chain_free(dst);
+}
+END_TEST
+
+START_TEST(cert_chain_dup_into_same_depth)
+{
+    nserror err;
+    struct cert_chain *src;
+    struct cert_chain *dst;
+
+    err = cert_chain_alloc(1, &src);
+    ck_assert(err == NSERROR_OK);
+    src->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(src->certs[0].der, "ABC", 3);
+    src->certs[0].der_length = 3;
+    src->certs[0].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_alloc(1, &dst);
+    ck_assert(err == NSERROR_OK);
+    dst->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[0].der, "XYZ", 3);
+    dst->certs[0].der_length = 3;
+    dst->certs[0].err = 999;
+
+    err = cert_chain_dup_into(src, dst);
+    ck_assert(err == NSERROR_OK);
+
+    ck_assert_int_eq(dst->depth, 1);
+    ck_assert_int_eq(dst->certs[0].der_length, 3);
+    ck_assert_mem_eq(dst->certs[0].der, "ABC", 3);
+    ck_assert_int_eq(dst->certs[0].err, SSL_CERT_ERR_OK);
+
+    cert_chain_free(src);
+    cert_chain_free(dst);
+}
+END_TEST
+
+START_TEST(cert_chain_dup_into_null_der)
+{
+    nserror err;
+    struct cert_chain *src;
+    struct cert_chain *dst;
+
+    err = cert_chain_alloc(1, &src);
+    ck_assert(err == NSERROR_OK);
+    src->certs[0].der = NULL;
+    src->certs[0].der_length = 0;
+    src->certs[0].err = 123;
+
+    err = cert_chain_alloc(1, &dst);
+    ck_assert(err == NSERROR_OK);
+    dst->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[0].der, "XYZ", 3);
+    dst->certs[0].der_length = 3;
+    dst->certs[0].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_dup_into(src, dst);
+    ck_assert(err == NSERROR_OK);
+
+    ck_assert_int_eq(dst->depth, 1);
+    ck_assert_ptr_null(dst->certs[0].der);
+    ck_assert_int_eq(dst->certs[0].der_length, 0);
+    ck_assert_int_eq(dst->certs[0].err, 123);
+
+    cert_chain_free(src);
+    cert_chain_free(dst);
+}
+END_TEST
+
+START_TEST(cert_chain_dup_into_from_empty)
+{
+    nserror err;
+    struct cert_chain *src;
+    struct cert_chain *dst;
+
+    err = cert_chain_alloc(0, &src);
+    ck_assert(err == NSERROR_OK);
+
+    err = cert_chain_alloc(2, &dst);
+    ck_assert(err == NSERROR_OK);
+    dst->certs[0].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[0].der, "XYZ", 3);
+    dst->certs[0].der_length = 3;
+    dst->certs[0].err = SSL_CERT_ERR_OK;
+    dst->certs[1].der = (uint8_t *)malloc(3);
+    memcpy(dst->certs[1].der, "UVW", 3);
+    dst->certs[1].der_length = 3;
+    dst->certs[1].err = SSL_CERT_ERR_OK;
+
+    err = cert_chain_dup_into(src, dst);
+    ck_assert(err == NSERROR_OK);
+
+    ck_assert_int_eq(dst->depth, 0);
+
+    cert_chain_free(src);
+    cert_chain_free(dst);
+}
+END_TEST
+
 static TCase *ssl_certs_case_create(void)
+
 {
     TCase *tc;
     tc = tcase_create("SSL Certificates");
@@ -166,6 +340,12 @@ static TCase *ssl_certs_case_create(void)
     tcase_add_test(tc, cert_chain_to_query_single_cert_test);
     tcase_add_test(tc, cert_chain_to_query_multiple_certs_with_error_test);
     tcase_add_test(tc, cert_chain_to_query_empty_cert_data_test);
+    tcase_add_test(tc, cert_chain_dup_into_increase_depth);
+    tcase_add_test(tc, cert_chain_dup_into_decrease_depth);
+    tcase_add_test(tc, cert_chain_dup_into_same_depth);
+    tcase_add_test(tc, cert_chain_dup_into_null_der);
+    tcase_add_test(tc, cert_chain_dup_into_from_empty);
+
 
     return tc;
 }
