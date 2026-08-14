@@ -2162,7 +2162,7 @@ static nserror llcache_hsts_update_policy(llcache_object *object)
  * \param replacement  Pointer to location to receive replacement object
  * \return NSERROR_OK on success, appropriate error otherwise
  */
-static nserror llcache_fetch_redirect(llcache_object *object, const char *target, llcache_object **replacement)
+static nserror llcache_fetch_redirect(llcache_object *object, nsurl *target, llcache_object **replacement)
 {
     nserror error;
     llcache_object *dest;
@@ -2202,7 +2202,7 @@ static nserror llcache_fetch_redirect(llcache_object *object, const char *target
 #undef REDIRECT_LIMIT
 
     /* Make target absolute */
-    error = nsurl_join(object->url, target, &url);
+    error = nsurl_join(object->url, nsurl_access(target), &url);
     if (error != NSERROR_OK)
         return error;
 
