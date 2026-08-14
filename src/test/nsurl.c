@@ -730,7 +730,11 @@ START_TEST(nsurl_get_scheme_type_test)
     ck_assert_int_eq(nsurl_get_scheme_type(url), tst->expected);
 
     nsurl_unref(url);
+}
+END_TEST
 
+START_TEST(nsurl_get_scheme_type_null_test)
+{
     /* Test NULL parameter defensively */
     ck_assert_int_eq(nsurl_get_scheme_type(NULL), NSURL_SCHEME_OTHER);
 }
@@ -1559,6 +1563,7 @@ static Suite *nsurl_suite(void)
     TCase *tc_get_scheme_type = tcase_create("Get Scheme Type");
     tcase_add_unchecked_fixture(tc_get_scheme_type, corestring_create, corestring_teardown);
     tcase_add_loop_test(tc_get_scheme_type, nsurl_get_scheme_type_test, 0, NELEMS(get_scheme_type_tests));
+    tcase_add_test(tc_get_scheme_type, nsurl_get_scheme_type_null_test);
     suite_add_tcase(s, tc_get_scheme_type);
 
     /* access log */
