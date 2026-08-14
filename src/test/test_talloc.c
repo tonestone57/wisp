@@ -55,12 +55,108 @@ START_TEST(test_talloc_set_destructor_fail)
 }
 END_TEST
 
+
+START_TEST(test_talloc_free_children_null)
+{
+    /* Should just return and not crash */
+    talloc_free_children(NULL);
+}
+END_TEST
+
+START_TEST(test_talloc_free_children_no_children)
+{
+    void *ctx = talloc_new(NULL);
+    talloc_free_children(ctx);
+    talloc_free(ctx);
+}
+END_TEST
+
+START_TEST(test_talloc_free_children_success)
+{
+    void *parent = talloc_new(NULL);
+    void *child1 = talloc_size(parent, 10);
+    void *child2 = talloc_size(parent, 20);
+
+    (void)child1;
+    (void)child2;
+
+    /* Test normal scenario where children can be freed */
+    talloc_free_children(parent);
+
+    talloc_free(parent);
+}
+END_TEST
+
+START_TEST(test_talloc_free_children_destructor_fail_with_grandparent)
+{
+    void *grandparent = talloc_new(NULL);
+    void *parent = talloc_new(grandparent);
+    void *child = talloc_size(parent, 10);
+
+    talloc_set_destructor(child, fail_destructor);
+
+    talloc_free_children(parent);
+
+    /* child should now be reparented to grandparent */
+    ck_assert_ptr_eq(talloc_parent(child), grandparent);
+
+    talloc_set_destructor(child, NULL);
+    talloc_free(grandparent);
+}
+END_TEST
+
+START_TEST(test_talloc_free_children_destructor_fail_no_parent)
+{
+    void *parent = talloc_new(NULL);
+    void *child = talloc_size(parent, 10);
+
+    talloc_set_destructor(child, fail_destructor);
+
+    talloc_free_children(parent);
+
+    /* child should now be reparented to null_context */
+    ck_assert_ptr_eq(talloc_parent(child), NULL);
+
+    talloc_set_destructor(child, NULL);
+    talloc_free(child);
+    talloc_free(parent);
+}
+END_TEST
+
+START_TEST(test_talloc_free_children_destructor_fail_with_ref)
+{
+    void *ref_ctx = talloc_new(NULL);
+    void *parent = talloc_new(NULL);
+    void *child = talloc_size(parent, 10);
+
+    /* create a reference */
+    talloc_reference(ref_ctx, child);
+
+    talloc_set_destructor(child, fail_destructor);
+
+    talloc_free_children(parent);
+
+    /* child should now be reparented to ref_ctx */
+    ck_assert_ptr_eq(talloc_parent(child), ref_ctx);
+
+    talloc_set_destructor(child, NULL);
+    talloc_free(ref_ctx);
+    talloc_free(parent);
+}
+END_TEST
+
 static TCase *talloc_case_create(void)
 {
     TCase *tc;
     tc = tcase_create("Talloc");
     tcase_add_test(tc, test_talloc_set_destructor_success);
     tcase_add_test(tc, test_talloc_set_destructor_fail);
+    tcase_add_test(tc, test_talloc_free_children_null);
+    tcase_add_test(tc, test_talloc_free_children_no_children);
+    tcase_add_test(tc, test_talloc_free_children_success);
+    tcase_add_test(tc, test_talloc_free_children_destructor_fail_with_grandparent);
+    tcase_add_test(tc, test_talloc_free_children_destructor_fail_no_parent);
+    tcase_add_test(tc, test_talloc_free_children_destructor_fail_with_ref);
     return tc;
 }
 
