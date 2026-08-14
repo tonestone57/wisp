@@ -3090,7 +3090,6 @@ static void toolbar_destroy_cb(GtkWidget *widget, gpointer data)
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_create(GtkBuilder *builder, struct browser_window *(*get_bw)(void *ctx), void *get_ctx,
     bool want_location_focus, struct nsgtk_toolbar **tb_out)
 {
@@ -3139,7 +3138,6 @@ nserror nsgtk_toolbar_create(GtkBuilder *builder, struct browser_window *(*get_b
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_restyle(struct nsgtk_toolbar *tb)
 {
     /*
@@ -3177,7 +3175,6 @@ nserror nsgtk_toolbar_restyle(struct nsgtk_toolbar *tb)
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_throbber(struct nsgtk_toolbar *tb, bool active)
 {
     nserror res;
@@ -3231,7 +3228,6 @@ nserror nsgtk_toolbar_throbber(struct nsgtk_toolbar *tb, bool active)
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_page_info_change(struct nsgtk_toolbar *tb)
 {
     GtkEntry *url_entry;
@@ -3284,7 +3280,6 @@ nserror nsgtk_toolbar_page_info_change(struct nsgtk_toolbar *tb)
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_set_url(struct nsgtk_toolbar *tb, nsurl *url)
 {
     size_t idn_url_l;
@@ -3332,7 +3327,6 @@ nserror nsgtk_toolbar_set_url(struct nsgtk_toolbar *tb, nsurl *url)
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_set_websearch_image(struct nsgtk_toolbar *tb, GdkPixbuf *pixbuf)
 {
     GtkWidget *entry;
@@ -3354,7 +3348,6 @@ nserror nsgtk_toolbar_set_websearch_image(struct nsgtk_toolbar *tb, GdkPixbuf *p
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_item_activate(struct nsgtk_toolbar *tb, nsgtk_toolbar_button itemid)
 {
     GtkWidget *widget;
@@ -3384,9 +3377,7 @@ nserror nsgtk_toolbar_item_activate(struct nsgtk_toolbar *tb, nsgtk_toolbar_butt
 }
 
 
-/* exported interface documented in toolbar.h */
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_set_sensitive(struct nsgtk_toolbar *tb, nsgtk_toolbar_button itemid, bool sensitive)
 {
     if ((itemid < BACK_BUTTON) || (itemid >= PLACEHOLDER_BUTTON)) {
@@ -3407,7 +3398,6 @@ nserror nsgtk_toolbar_show(struct nsgtk_toolbar *tb, bool show)
 }
 
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_update(struct nsgtk_toolbar *tb)
 {
     nserror res;
@@ -3489,7 +3479,6 @@ nserror nsgtk_toolbar_position_page_info(struct nsgtk_toolbar *tb, struct nsgtk_
     return NSERROR_OK;
 }
 
-/* exported interface documented in toolbar.h */
 nserror nsgtk_toolbar_position_local_history(struct nsgtk_toolbar *tb)
 {
     nserror res;

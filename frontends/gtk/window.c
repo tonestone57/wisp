@@ -1779,37 +1779,31 @@ static struct gui_window_table window_table = {
 struct gui_window_table *nsgtk_window_table = &window_table;
 
 
-/* exported interface documented in window.h */
 struct nsgtk_scaffolding *nsgtk_get_scaffold(struct gui_window *g)
 {
     return g->scaffold;
 }
 
 
-/* exported interface documented in window.h */
 struct browser_window *nsgtk_get_browser_window(struct gui_window *g)
 {
     return g->bw;
 }
 
 
-/* exported interface documented in window.h */
 GtkLayout *nsgtk_window_get_layout(struct gui_window *g)
 {
     return g->layout;
 }
 
 
-/* exported interface documented in window.h */
 nserror nsgtk_window_search_toggle(struct gui_window *gw)
 {
     return nsgtk_search_toggle_visibility(gw->search);
 }
 
 
-/* exported interface documented in window.h */
 
-/* exported interface documented in gtk/window.h */
 void nsgtk_window_set_toolbar_sensitivity(struct gui_window *gw, nsgtk_toolbar_button itemid, bool sensitive)
 {
     if (gw != NULL && gw->toolbar != NULL) {
@@ -1823,7 +1817,6 @@ nserror nsgtk_window_item_activate(struct gui_window *gw, nsgtk_toolbar_button i
 }
 
 
-/* exported interface documented in window.h */
 void nsgtk_window_destroy_browser(struct gui_window *gw)
 {
     /* remove tab */
@@ -1831,7 +1824,6 @@ void nsgtk_window_destroy_browser(struct gui_window *gw)
 }
 
 
-/* exported interface documented in window.h */
 nserror nsgtk_window_update_all(void)
 {
     struct gui_window *gw;
@@ -1845,7 +1837,6 @@ nserror nsgtk_window_update_all(void)
 }
 
 
-/* exported interface documented in window.h */
 nserror nsgtk_window_toolbar_show(struct nsgtk_scaffolding *gs, bool show)
 {
     struct gui_window *gw;
@@ -1858,7 +1849,6 @@ nserror nsgtk_window_toolbar_show(struct nsgtk_scaffolding *gs, bool show)
 }
 
 
-/* exported interface documented in window.h */
 nserror nsgtk_window_toolbar_update(void)
 {
     struct gui_window *gw;
@@ -1868,13 +1858,11 @@ nserror nsgtk_window_toolbar_update(void)
     return NSERROR_OK;
 }
 
-/* exported interface documented in window.h */
 nserror nsgtk_window_position_page_info(struct gui_window *gw, struct nsgtk_pi_window *win)
 {
     return nsgtk_toolbar_position_page_info(gw->toolbar, win);
 }
 
-/* exported interface documented in window.h */
 nserror nsgtk_window_position_local_history(struct gui_window *gw)
 {
     return nsgtk_toolbar_position_local_history(gw->toolbar);

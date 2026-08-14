@@ -217,9 +217,11 @@ static void nsgtk_tab_switch_page_after(GtkNotebook *notebook, GtkWidget *selpag
         NSLOG(wisp, INFO, "Failed to open new tab.");
     }
 
-    struct nsgtk_scaffolding *gs = nsgtk_scaffolding_from_notebook(notebook);
-    if (gs != NULL) {
-        nsgtk_scaffolding_update_tab_sensitivities(gs);
+    if (gw != NULL) {
+        struct nsgtk_scaffolding *gs = nsgtk_get_scaffold(gw);
+        if (gs != NULL) {
+            nsgtk_scaffolding_update_tab_sensitivities(gs);
+        }
     }
 }
 
