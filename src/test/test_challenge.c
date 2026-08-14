@@ -32,9 +32,7 @@ START_TEST(test_parse_happy_path)
 
     lwc_string *scheme = NULL;
     http_parameter *params = NULL;
-    const http_challenge *next_cur;
-
-    next_cur = http_challenge_list_iterate(challenge, &scheme, &params);
+    http_challenge_list_iterate(challenge, &scheme, &params);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 5);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
