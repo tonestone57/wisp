@@ -3882,8 +3882,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 	/* handle vertical-align by adjusting box y values */
 	/** \todo  proper vertical alignment handling */
 	for (d = first; d != b; d = d->next) {
-		if ((d->type == BOX_INLINE && d->inline_end) || d->type == BOX_BR || d->type == BOX_TEXT ||
-			d->type == BOX_INLINE_END) {
+		if (d->type == BOX_INLINE || d->type == BOX_BR || d->type == BOX_TEXT ||
+			d->type == BOX_INLINE_END ||
+			d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
 			css_fixed value = 0;
 			css_unit unit = CSS_UNIT_PX;
 			switch (css_computed_vertical_align(d->style, &value, &unit)) {
