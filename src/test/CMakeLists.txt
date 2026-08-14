@@ -600,6 +600,31 @@ add_wisp_test(test_strict_transport_security
 )
 target_link_libraries(test_strict_transport_security PRIVATE wisp ${CHECK_LIBRARIES})
 
+set(TEST_GLOBAL_HISTORY_SOURCES
+  ${CMAKE_SOURCE_DIR}/src/desktop/global_history.c
+  ${CMAKE_SOURCE_DIR}/src/desktop/treeview.c
+  ${CMAKE_SOURCE_DIR}/src/content/urldb.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsurl/parse.c
+  ${CMAKE_SOURCE_DIR}/src/utils/idna.c
+  ${CMAKE_SOURCE_DIR}/src/utils/punycode.c
+  ${CMAKE_SOURCE_DIR}/src/utils/bloom.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
+  ${CMAKE_SOURCE_DIR}/src/utils/corestrings.c
+  ${CMAKE_SOURCE_DIR}/src/utils/time.c
+  ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
+  ${CMAKE_SOURCE_DIR}/src/utils/messages.c
+  ${CMAKE_SOURCE_DIR}/src/utils/utils.c
+  ${CMAKE_SOURCE_DIR}/src/utils/http/primitives.c
+  ${CMAKE_SOURCE_DIR}/src/utils/http/generics.c
+  ${CMAKE_SOURCE_DIR}/src/utils/http/strict-transport-security.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_global_history.c
+)
+add_wisp_test(test_global_history ${TEST_GLOBAL_HISTORY_SOURCES})
+target_link_libraries(test_global_history PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(test_log
   ${CMAKE_SOURCE_DIR}/src/test/test_log.c
 )
