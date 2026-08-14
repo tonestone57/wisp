@@ -137,7 +137,7 @@ static bool save_complete_ctx_has_content(save_complete_ctx *ctx, struct hlcache
     save_complete_entry *entry;
 
     for (entry = ctx->list; entry != NULL; entry = entry->next) {
-        if (hlcache_handle_get_content(entry->content) == hlcache_handle_get_content(content))
+        if (content_is_same(entry->content, content))
             return true;
     }
 

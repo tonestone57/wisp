@@ -2991,3 +2991,11 @@ void html_destroy_thread(struct content *c)
 		html->jsthread = NULL;
 	}
 }
+
+void html_set_media_type_print(struct content *c)
+{
+    html_content *htmlc = (html_content *)c;
+    if (htmlc != NULL) {
+        htmlc->media.type = CSS_MEDIA_PRINT;
+    }
+}

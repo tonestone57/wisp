@@ -40,6 +40,9 @@
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
 #include "content/content_debug.h"
+#include "content/handlers/javascript/js.h"
+#include "content/handlers/html/html.h"
+#include "content/handlers/html/layout.h"
 #include "content/textsearch.h"
 #include "content/urldb.h"
 
@@ -1544,4 +1547,80 @@ bool content_is_searchable(struct hlcache_handle *h)
         return false;
     type = content_get_type(h);
     return (type == CONTENT_HTML || type == CONTENT_TEXTPLAIN);
+}
+
+bool content_is_same(struct hlcache_handle *h1, struct hlcache_handle *h2)
+{
+    return hlcache_handle_get_content(h1) == hlcache_handle_get_content(h2);
+}
+nserror content_js_newthread(struct hlcache_handle *h, void *jsheap, void *win_priv, void **thread)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c == NULL) return NSERROR_BAD_PARAMETER;
+    return js_newthread(jsheap, win_priv, c, (jsthread **)thread);
+}
+void content_destroy_js_thread(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL && content_get_type(h) == CONTENT_HTML) {
+        html_destroy_thread(c);
+    }
+}
+void content_setup_for_print(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL && content_get_type(h) == CONTENT_HTML) {
+        html_set_media_type_print(c);
+    }
+}
+void content_apply_sticky_clamping(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL && content_get_type(h) == CONTENT_HTML) {
+        layout_apply_sticky_clamping((struct html_content *)c);
+    }
+}
+
+#include "content/handlers/image/video.h"
+
+bool content_video_is_paused(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        return nsvideo_is_paused(c);
+    }
+    return true;
+}
+
+void content_video_play(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        nsvideo_play(c);
+    }
+}
+
+void content_video_pause(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        nsvideo_pause(c);
+    }
+}
+
+double content_video_get_duration(struct hlcache_handle *h)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        return nsvideo_get_duration(c);
+    }
+    return 0.0;
+}
+
+void content_video_seek_to(struct hlcache_handle *h, double time)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c != NULL) {
+        nsvideo_seek_to(c, time);
+    }
 }
