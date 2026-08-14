@@ -469,6 +469,11 @@ static void svg_reformat(struct content *c, int width, int height)
          * calculation.
          */
         svg->parsed = true;
+    } else if (code == svgtiny_SVG_ERROR) {
+        /* Allow partial SVGs (e.g. ones with unsupported gradients) to render
+         * anyway instead of showing nothing.
+         */
+        svg->parsed = true;
     }
 
     c->width = svg->diagram->width;
