@@ -20,6 +20,7 @@
 #include <strings.h>
 
 #include <wisp/utils/corestrings.h>
+#include <wisp/utils/utf8.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/nsurl.h>
@@ -343,37 +344,97 @@ bool nscss_parse_colour(const char *data, css_color *result)
     if (parse_named_colour(data, result))
         return true;
 
-    /** \todo Implement HTML5's utterly insane legacy colour parsing */
+    /* 5 - Handle "#rgb" */
+    if (len == 4 && data[0] == '#' && isHex(data[1]) && isHex(data[2]) && isHex(data[3])) {
+        r = charToHex(data[1]);
+        g = charToHex(data[2]);
+        b = charToHex(data[3]);
 
-    if (data[0] == '#') {
-        data++;
-        len--;
-    }
-
-    if (len == 3 && isHex(data[0]) && isHex(data[1]) && isHex(data[2])) {
-        r = charToHex(data[0]);
-        g = charToHex(data[1]);
-        b = charToHex(data[2]);
-
-        r |= (r << 4);
-        g |= (g << 4);
-        b |= (b << 4);
+        r *= 17;
+        g *= 17;
+        b *= 17;
 
         *result = ((uint32_t)0xff << 24) | (r << 16) | (g << 8) | b;
-
-        return true;
-    } else if (len == 6 && isHex(data[0]) && isHex(data[1]) && isHex(data[2]) && isHex(data[3]) && isHex(data[4]) &&
-        isHex(data[5])) {
-        r = (charToHex(data[0]) << 4) | charToHex(data[1]);
-        g = (charToHex(data[2]) << 4) | charToHex(data[3]);
-        b = (charToHex(data[4]) << 4) | charToHex(data[5]);
-
-        *result = ((uint32_t)0xff << 24) | (r << 16) | (g << 8) | b;
-
         return true;
     }
 
-    return false;
+    /* 6 - 19: HTML5 legacy colour parsing */
+    char buf[128 * 2 + 3]; /* Buffer large enough for code points */
+    size_t buf_len = 0;
+    size_t offset = 0;
+
+    /* 6, 7: Replace > U+FFFF with "00", and truncate to 128 characters */
+    /* If a character becomes "00", it counts as two characters towards the 128 limit. */
+    while (offset < len && buf_len < 128) {
+        size_t next_offset = utf8_next(data, len, offset);
+        uint32_t cp = utf8_to_ucs4(data + offset, next_offset - offset);
+
+        if (cp > 0xFFFF) {
+            buf[buf_len++] = '0';
+            if (buf_len < 128) {
+                buf[buf_len++] = '0';
+            }
+        } else {
+            buf[buf_len++] = (cp < 128 && isHex((char)cp)) ? (char)cp : '0';
+        }
+        offset = next_offset;
+    }
+
+    /* 8. Remove leading # */
+    char *p = buf;
+    if (buf_len > 0 && p[0] == '#') {
+        p++;
+        buf_len--;
+    }
+
+    /* 9. Replace any character that is not ASCII hex digit with '0' */
+    for (size_t i = 0; i < buf_len; i++) {
+        if (!isHex(p[i])) {
+            p[i] = '0';
+        }
+    }
+
+    /* 10. pad to multiple of 3 */
+    while (buf_len == 0 || (buf_len % 3) != 0) {
+        p[buf_len++] = '0';
+    }
+    p[buf_len] = '\0';
+
+    size_t comp_len = buf_len / 3;
+    char *c1 = p;
+    char *c2 = p + comp_len;
+    char *c3 = p + 2 * comp_len;
+
+    /* 12. If length > 8, remove leading length-8 characters */
+    if (comp_len > 8) {
+        c1 += comp_len - 8;
+        c2 += comp_len - 8;
+        c3 += comp_len - 8;
+        comp_len = 8;
+    }
+
+    /* 13. while length > 2 and first character in each component is 0, remove that character */
+    while (comp_len > 2 && c1[0] == '0' && c2[0] == '0' && c3[0] == '0') {
+        c1++;
+        c2++;
+        c3++;
+        comp_len--;
+    }
+
+    /* 14. if length is still greater than 2, truncate each component, leaving only the first two characters */
+    if (comp_len > 2) {
+        comp_len = 2;
+    }
+
+    uint32_t lr = 0, lg = 0, lb = 0;
+    for (size_t i = 0; i < comp_len; i++) {
+        lr = (lr << 4) | charToHex(c1[i]);
+        lg = (lg << 4) | charToHex(c2[i]);
+        lb = (lb << 4) | charToHex(c3[i]);
+    }
+
+    *result = ((uint32_t)0xff << 24) | (lr << 16) | (lg << 8) | lb;
+    return true;
 }
 
 /**
