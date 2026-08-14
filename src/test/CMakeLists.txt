@@ -573,6 +573,11 @@ add_wisp_test(test_libdom
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_libdom PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_challenge test_challenge.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_challenge PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(test_www_authenticate test_www_authenticate.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c)
 target_link_libraries(test_www_authenticate PRIVATE wisp ${CHECK_LIBRARIES})
