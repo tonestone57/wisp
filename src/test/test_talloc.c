@@ -145,6 +145,86 @@ START_TEST(test_talloc_free_children_destructor_fail_with_ref)
 }
 END_TEST
 
+
+START_TEST(test_talloc_free_null)
+{
+    int ret = talloc_free(NULL);
+    ck_assert_int_eq(ret, -1);
+}
+END_TEST
+
+START_TEST(test_talloc_free_ref_not_child)
+{
+    void *ctx1 = talloc_new(NULL);
+    void *ctx2 = talloc_new(NULL);
+
+    talloc_reference(ctx1, ctx2);
+
+    /* talloc_free(ctx2) should fail (-1) because it has references and the reference is not from a child */
+    int ret = talloc_free(ctx2);
+    ck_assert_int_eq(ret, -1);
+
+    /* Freeing ctx1 removes the reference, so we can free ctx2 afterwards */
+    talloc_free(ctx1);
+    talloc_free(ctx2);
+}
+END_TEST
+
+START_TEST(test_talloc_free_ref_child)
+{
+    void *parent = talloc_new(NULL);
+    void *child = talloc_new(parent);
+
+    talloc_reference(child, parent);
+
+    /* Freeing parent while referenced by child.
+       Since child is a child of parent, talloc_free(parent) should succeed and free both. */
+    int ret = talloc_free(parent);
+    ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
+static void *global_parent_ctx = NULL;
+
+static int child_loop_destructor(void *ptr)
+{
+    if (global_parent_ctx) {
+        /* Should return 0 due to TALLOC_FLAG_LOOP stop */
+        int ret = talloc_free(global_parent_ctx);
+        ck_assert_int_eq(ret, 0);
+    }
+    return 0;
+}
+
+START_TEST(test_talloc_free_loop_child)
+{
+    global_parent_ctx = talloc_new(NULL);
+    void *child = talloc_new(global_parent_ctx);
+    talloc_set_destructor(child, child_loop_destructor);
+
+    int ret = talloc_free(global_parent_ctx);
+    ck_assert_int_eq(ret, 0);
+    global_parent_ctx = NULL;
+}
+END_TEST
+
+static int self_free_destructor(void *ptr)
+{
+    int ret = talloc_free(ptr);
+    ck_assert_int_eq(ret, -1);
+    return 0;
+}
+
+START_TEST(test_talloc_free_self_destructor)
+{
+    void *ctx = talloc_new(NULL);
+    talloc_set_destructor(ctx, self_free_destructor);
+
+    int ret = talloc_free(ctx);
+    ck_assert_int_eq(ret, 0);
+}
+END_TEST
+
 static TCase *talloc_case_create(void)
 {
     TCase *tc;
@@ -157,7 +237,14 @@ static TCase *talloc_case_create(void)
     tcase_add_test(tc, test_talloc_free_children_destructor_fail_with_grandparent);
     tcase_add_test(tc, test_talloc_free_children_destructor_fail_no_parent);
     tcase_add_test(tc, test_talloc_free_children_destructor_fail_with_ref);
+
+    tcase_add_test(tc, test_talloc_free_null);
+    tcase_add_test(tc, test_talloc_free_ref_not_child);
+    tcase_add_test(tc, test_talloc_free_ref_child);
+    tcase_add_test(tc, test_talloc_free_loop_child);
+    tcase_add_test(tc, test_talloc_free_self_destructor);
     return tc;
+
 }
 
 static Suite *talloc_suite_create(void)
