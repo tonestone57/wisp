@@ -32,6 +32,8 @@
 #include <string.h>
 
 #include "utils/corestrings.h"
+#include "utils/utils.h"
+#include <unistd.h>
 #include "utils/string.h"
 
 static void test_lwc_iterator(lwc_string *str, void *pw)
@@ -415,7 +417,174 @@ static TCase *snstrjoin_case_create(void)
     return tc;
 }
 
+/* ns_strto tests */
+START_TEST(ns_strtoint_test)
+{
+    int res;
+    nserror err;
 
+    err = ns_strtoint("123", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 123);
+
+    err = ns_strtoint("-456", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, -456);
+
+    err = ns_strtoint("0x1A", 16, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 26);
+
+    err = ns_strtoint("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtoint("", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+}
+END_TEST
+
+START_TEST(ns_strtouint_test)
+{
+    unsigned int res;
+    nserror err;
+
+    err = ns_strtouint("123", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 123);
+
+    err = ns_strtouint("0x1A", 16, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 26);
+
+    /* strtoul parses -456 as (ULONG_MAX + 1 - 456), but might be accepted.
+     * Actually, strtoul accepts minus sign and negates the value. */
+
+    err = ns_strtouint("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+}
+END_TEST
+
+START_TEST(ns_strtoll_test)
+{
+    long long res;
+    nserror err;
+
+    err = ns_strtoll("1234567890123", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 1234567890123LL);
+
+    err = ns_strtoll("-1234567890123", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, -1234567890123LL);
+
+    err = ns_strtoll("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+}
+END_TEST
+
+START_TEST(ns_strtoull_test)
+{
+    unsigned long long res;
+    nserror err;
+
+    err = ns_strtoull("1234567890123", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 1234567890123ULL);
+
+    err = ns_strtoull("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+}
+END_TEST
+
+static TCase *ns_strto_case_create(void)
+{
+    TCase *tc;
+    tc = tcase_create("ns_strto");
+
+    tcase_add_test(tc, ns_strtoint_test);
+    tcase_add_test(tc, ns_strtouint_test);
+    tcase_add_test(tc, ns_strtoll_test);
+    tcase_add_test(tc, ns_strtoull_test);
+
+    return tc;
+}
+
+/* stable_sort tests */
+struct sort_item {
+    int key;
+    int val;
+};
+
+static int sort_cmp(const void *a, const void *b)
+{
+    const struct sort_item *ia = a;
+    const struct sort_item *ib = b;
+    return ia->key - ib->key;
+}
+
+START_TEST(stable_sort_test)
+{
+    struct sort_item arr[] = {
+        {3, 1},
+        {2, 1},
+        {3, 2},
+        {1, 1},
+        {2, 2},
+        {3, 3}
+    };
+
+    stable_sort(arr, 6, sizeof(struct sort_item), sort_cmp);
+
+    ck_assert_int_eq(arr[0].key, 1); ck_assert_int_eq(arr[0].val, 1);
+    ck_assert_int_eq(arr[1].key, 2); ck_assert_int_eq(arr[1].val, 1);
+    ck_assert_int_eq(arr[2].key, 2); ck_assert_int_eq(arr[2].val, 2);
+    ck_assert_int_eq(arr[3].key, 3); ck_assert_int_eq(arr[3].val, 1);
+    ck_assert_int_eq(arr[4].key, 3); ck_assert_int_eq(arr[4].val, 2);
+    ck_assert_int_eq(arr[5].key, 3); ck_assert_int_eq(arr[5].val, 3);
+}
+END_TEST
+
+static TCase *stable_sort_case_create(void)
+{
+    TCase *tc;
+    tc = tcase_create("stable_sort");
+
+    tcase_add_test(tc, stable_sort_test);
+
+    return tc;
+}
+
+/* is_dir tests */
+START_TEST(is_dir_test)
+{
+    char dir_template[] = "/tmp/ns_test_dir_XXXXXX";
+    char file_template[] = "/tmp/ns_test_file_XXXXXX";
+
+    char *dname = mkdtemp(dir_template);
+    ck_assert(dname != NULL);
+
+    int fd = mkstemp(file_template);
+    ck_assert_int_ne(fd, -1);
+    close(fd);
+
+    ck_assert(is_dir(dname));
+    ck_assert(!is_dir(file_template));
+    ck_assert(!is_dir("/tmp/nonexistent_dir_ns_test_12345/foo"));
+
+    rmdir(dname);
+    unlink(file_template);
+}
+END_TEST
+
+static TCase *is_dir_case_create(void)
+{
+    TCase *tc;
+    tc = tcase_create("is_dir");
+
+    tcase_add_test(tc, is_dir_test);
+
+    return tc;
+}
 /*
  * Utility test suite creation
  */
@@ -429,6 +598,9 @@ static Suite *utils_suite_create(void)
     suite_add_tcase(s, corestrings_case_create());
     suite_add_tcase(s, snstrjoin_case_create());
     suite_add_tcase(s, string_utils_case_create());
+    suite_add_tcase(s, ns_strto_case_create());
+    suite_add_tcase(s, stable_sort_case_create());
+    suite_add_tcase(s, is_dir_case_create());
 
     return s;
 }
