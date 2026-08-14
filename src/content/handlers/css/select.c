@@ -675,7 +675,10 @@ css_error sibling_node(void *pw, void *node, void **sibling)
     }
 
     if (n != NULL) {
-        /** \todo Sort out reference counting */
+        /**
+         * The returned node is unreferenced and borrowed;
+         * the caller does not own it as the DOM tree retains ownership.
+         */
         dom_node_unref(n);
 
         *sibling = n;
