@@ -2516,10 +2516,10 @@ static nserror llcache_fetch_auth(llcache_object *object, const char *realm)
     /* Destroy headers */
     llcache_destroy_headers(object);
 
-    /* If there was no realm, then default to the URL */
-    /** \todo If there was no WWW-Authenticate header, use response body */
-    if (realm == NULL)
-        realm = nsurl_access(object->url);
+    assert(realm != NULL);
+    if (realm == NULL) {
+        return NSERROR_BAD_AUTH;
+    }
 
     auth = urldb_get_auth_details(object->url, realm);
 
