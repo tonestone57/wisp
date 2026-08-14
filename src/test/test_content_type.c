@@ -103,8 +103,41 @@ START_TEST(test_parse_edge_cases)
     ck_assert_int_ne(error, NSERROR_OK);
 
     /* Test 5: Malformed parameter */
+    /* NetSurf currently treats malformed parameters (where no item could be parsed)
+     * by ignoring the error (returning NSERROR_NOT_FOUND which is not an error)
+     * and continuing to create the content type without parameters. */
     error = http_parse_content_type("text/html; charset=", &ct);
+    ck_assert_int_eq(error, NSERROR_OK);
     if (error == NSERROR_OK) {
+        ck_assert_ptr_nonnull(ct);
+        ck_assert_ptr_null(ct->parameters);
+        http_content_type_destroy(ct);
+    }
+
+    /* Test 6: Missing type before slash */
+    error = http_parse_content_type("/html", &ct);
+    ck_assert_int_ne(error, NSERROR_OK);
+    if (error == NSERROR_OK) {
+        http_content_type_destroy(ct);
+    }
+
+    /* Test 7: Trailing whitespace */
+    error = http_parse_content_type("text/html   ", &ct);
+    ck_assert_int_eq(error, NSERROR_OK);
+    if (error == NSERROR_OK) {
+        ck_assert_ptr_nonnull(ct);
+        ck_assert_int_eq(lwc_string_length(ct->media_type), 9);
+        ck_assert_int_eq(strncmp(lwc_string_data(ct->media_type), "text/html", 9), 0);
+        http_content_type_destroy(ct);
+    }
+
+    /* Test 8: Whitespace around slash */
+    error = http_parse_content_type("text / html", &ct);
+    ck_assert_int_eq(error, NSERROR_OK);
+    if (error == NSERROR_OK) {
+        ck_assert_ptr_nonnull(ct);
+        ck_assert_int_eq(lwc_string_length(ct->media_type), 9);
+        ck_assert_int_eq(strncmp(lwc_string_data(ct->media_type), "text/html", 9), 0);
         http_content_type_destroy(ct);
     }
 }

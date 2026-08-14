@@ -13,3 +13,5 @@ test_cache/
 *.log
 build-cov/
 build-cov2/
+coverage.info
+coverage_report/
