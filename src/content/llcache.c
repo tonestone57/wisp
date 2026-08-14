@@ -2531,9 +2531,8 @@ static nserror llcache_fetch_auth(llcache_object *object, const char *realm)
 
         /* Inform client(s) that object fetch failed */
         event.type = LLCACHE_EVENT_ERROR;
-        /** \todo More appropriate error message */
         event.data.error.code = NSERROR_BAD_AUTH;
-        event.data.error.msg = realm;
+        event.data.error.msg = messages_get("BadAuth");
 
         error = llcache_send_event_to_users(object, &event);
     } else {
