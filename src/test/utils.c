@@ -557,8 +557,25 @@ static TCase *stable_sort_case_create(void)
 /* is_dir tests */
 START_TEST(is_dir_test)
 {
-    char dir_template[] = "/tmp/ns_test_dir_XXXXXX";
-    char file_template[] = "/tmp/ns_test_file_XXXXXX";
+    const char *tmp_dir = getenv("TMPDIR");
+    if (!tmp_dir) {
+#ifdef _WIN32
+        tmp_dir = getenv("TEMP");
+        if (!tmp_dir) tmp_dir = ".";
+#else
+        tmp_dir = "/tmp";
+#endif
+    }
+
+    char dir_template[256];
+    snprintf(dir_template, sizeof(dir_template), "%s/ns_test_dir_XXXXXX", tmp_dir);
+
+    char file_template[256];
+    snprintf(file_template, sizeof(file_template), "%s/ns_test_file_XXXXXX", tmp_dir);
+
+    char nonexistent_path[256];
+    snprintf(nonexistent_path, sizeof(nonexistent_path), "%s/nonexistent_dir_ns_test_12345/foo", tmp_dir);
+
 
     char *dname = mkdtemp(dir_template);
     ck_assert(dname != NULL);
@@ -569,7 +586,7 @@ START_TEST(is_dir_test)
 
     ck_assert(is_dir(dname));
     ck_assert(!is_dir(file_template));
-    ck_assert(!is_dir("/tmp/nonexistent_dir_ns_test_12345/foo"));
+    ck_assert(!is_dir(nonexistent_path));
 
     rmdir(dname);
     unlink(file_template);
