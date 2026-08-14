@@ -609,3 +609,6 @@ add_wisp_test(test_ipc
   ${CMAKE_SOURCE_DIR}/src/test/test_ipc.c
 )
 target_link_libraries(test_ipc PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_network_main test_network_main.c)
+target_link_libraries(test_network_main PRIVATE wisp ${CHECK_LIBRARIES})
