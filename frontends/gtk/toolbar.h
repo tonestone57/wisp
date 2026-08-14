@@ -104,6 +104,17 @@ nserror nsgtk_toolbar_set_websearch_image(struct nsgtk_toolbar *tb, GdkPixbuf *p
  * \param itemid the id of the item to activate
  * \return NSERROR_OK on success
  */
+
+/**
+ * set the sensitivity of a toolbar item
+ *
+ * \param tb A toolbar returned from a creation
+ * \param itemid the id of the item to set
+ * \param sensitive whether the item should be sensitive
+ * \return NSERROR_OK on success
+ */
+nserror nsgtk_toolbar_set_sensitive(struct nsgtk_toolbar *tb, nsgtk_toolbar_button itemid, bool sensitive);
+
 nserror nsgtk_toolbar_item_activate(struct nsgtk_toolbar *tb, nsgtk_toolbar_button itemid);
 
 /**
