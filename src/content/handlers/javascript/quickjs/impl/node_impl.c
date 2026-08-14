@@ -451,6 +451,7 @@ JSValue wisp_node_nodeType_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     if (wisp_is_js_process) {
+        if ((uint64_t)(uintptr_t)priv->node == 0) return JS_NewInt32(ctx, 9); /* DOM_DOCUMENT_NODE */
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn) return JS_NewInt32(ctx, sn->node_type);
         return JS_NULL;
@@ -523,20 +524,16 @@ JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
     if (wisp_is_js_process) {
+        if ((uint64_t)(uintptr_t)priv->node == 0) return JS_NULL;
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn && sn->node_type == DOM_DOCUMENT_NODE) {
-            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)priv->node);
+            return JS_NULL;
         }
-        // Scan for the document node
-        if (wisp_shm_dom) {
-            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
-            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
-                if (nodes_arr[i].node_type == 9) {
-                    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i);
-                }
-            }
-        }
-        return JS_NULL;
+        // Return global document object to avoid wrapper duplication
+        JSValue global = JS_GetGlobalObject(ctx);
+        JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+        JS_FreeValue(ctx, global);
+        return doc;
     }
     struct dom_document *doc = NULL;
     dom_node_get_owner_document((dom_node *)priv->node, &doc);
