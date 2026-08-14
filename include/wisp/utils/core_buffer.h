@@ -53,4 +53,39 @@ void core_buffer_destroy(core_buffer *buffer);
  */
 nserror core_buffer_shrink(core_buffer *buffer);
 
+
+/**
+ * Wrap an external unowned buffer.
+ * Note: core_buffer_destroy will not free data if allocated is 0.
+ *
+ * \param buffer The buffer to setup
+ * \param data The external data pointer
+ * \param length The length of the external data
+ */
+nserror core_buffer_wrap_external(core_buffer *buffer, uint8_t *data, size_t length);
+
+/**
+ * Get pointer to the buffer data.
+ *
+ * \param buffer The buffer
+ * \return pointer to the data or NULL
+ */
+const uint8_t *core_buffer_data(const core_buffer *buffer);
+
+/**
+ * Get current length of the buffer data.
+ *
+ * \param buffer The buffer
+ * \return the length of the data
+ */
+size_t core_buffer_length(const core_buffer *buffer);
+
+
+/**
+ * Truncate the buffer length to 0 without freeing memory.
+ *
+ * \param buffer The buffer
+ */
+void core_buffer_clear(core_buffer *buffer);
+
 #endif /* WISP_UTILS_CORE_BUFFER_H_ */
