@@ -157,6 +157,12 @@ CORESTRING_LWC_VALUE(query_timeout, "query/timeout");
 CORESTRING_LWC_VALUE(query_fetcherror, "query/fetcherror");
 CORESTRING_LWC_VALUE(x_ns_css, "x-ns-css");
 
+/* quotes */
+CORESTRING_LWC_VALUE(open_double_quote, "\xe2\x80\x9c");
+CORESTRING_LWC_VALUE(close_double_quote, "\xe2\x80\x9d");
+CORESTRING_LWC_VALUE(open_single_quote, "\xe2\x80\x98");
+CORESTRING_LWC_VALUE(close_single_quote, "\xe2\x80\x99");
+
 /* mime types */
 CORESTRING_LWC_VALUE(multipart_form_data, "multipart/form-data");
 CORESTRING_LWC_VALUE(text_css, "text/css");
