@@ -79,6 +79,22 @@ START_TEST(test_nslog_init_verbose_file)
 }
 END_TEST
 
+
+START_TEST(test_nslog_init_invalid_file)
+{
+    int argc = 3;
+    char *argv[] = {"wisp", "-V", "/tmp/nonexistent1/nonexistent2/log.txt", NULL};
+    nserror err;
+
+    err = nslog_init(NULL, &argc, argv);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+    ck_assert_int_eq(argc, 1);
+    ck_assert(!verbose_log);
+
+    nslog_finalise();
+}
+END_TEST
+
 START_TEST(test_nslog_init_verbose_file_ensure_fail)
 {
     int argc = 3;
@@ -339,6 +355,7 @@ Suite *log_suite(void)
     tcase_add_test(tc_core, test_nslog_init_basic);
     tcase_add_test(tc_core, test_nslog_init_verbose);
     tcase_add_test(tc_core, test_nslog_init_verbose_file);
+    tcase_add_test(tc_core, test_nslog_init_invalid_file);
     tcase_add_test(tc_core, test_nslog_init_verbose_file_ensure_fail);
     tcase_add_test(tc_core, test_nslog_init_split_logs);
     tcase_add_test(tc_core, test_nslog_log_macro);
