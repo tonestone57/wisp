@@ -85,6 +85,19 @@ set(NSURL_SOURCES
 )
 add_wisp_test(nsurl ${NSURL_SOURCES})
 
+set(NSURL_PARSE_SOURCES
+  ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
+  ${CMAKE_SOURCE_DIR}/src/utils/nsurl/parse.c
+  ${CMAKE_SOURCE_DIR}/src/utils/idna.c
+  ${CMAKE_SOURCE_DIR}/src/utils/punycode.c
+  ${CMAKE_SOURCE_DIR}/src/utils/corestrings.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_nsurl_parse.c
+)
+add_wisp_test(test_nsurl_parse ${NSURL_PARSE_SOURCES})
+
+
 set(URLDBTEST_SOURCES
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/nsurl.c
   ${CMAKE_SOURCE_DIR}/src/utils/nsurl/parse.c
