@@ -496,6 +496,12 @@ add_wisp_test(test_utf8proc_simd
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
 
+add_wisp_test(test_utf8proc_wrapper
+  ${CMAKE_SOURCE_DIR}/src/test/test_utf8proc_wrapper.c
+)
+target_link_libraries(test_utf8proc_wrapper PRIVATE wisp)
+
+
 add_wisp_test(test_utf8
   ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
@@ -615,3 +621,5 @@ add_wisp_test(test_parameter
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_parameter PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(test_network_main test_network_main.c)
+target_link_libraries(test_network_main PRIVATE wisp ${CHECK_LIBRARIES})

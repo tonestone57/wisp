@@ -2644,8 +2644,8 @@ void browser_window_set_drag_type(struct browser_window *bw, browser_drag_type t
 
         switch (type) {
         case DRAGGING_SELECTION:
-            /** \todo tell front end */
-            return;
+            gtype = GDRAGGING_SELECTION;
+            break;
         case DRAGGING_SCR_X:
         case DRAGGING_SCR_Y:
         case DRAGGING_CONTENT_SCROLLBAR:
