@@ -128,6 +128,60 @@ START_TEST(test_utf8_convert_bad_encoding_data)
 }
 END_TEST
 
+
+START_TEST(test_utf8_to_html_empty)
+{
+    char *result = NULL;
+    ck_assert_int_eq(utf8_to_html("", "UTF-8", 0, &result), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_str_eq(result, "");
+    free(result);
+
+    ck_assert_int_eq(utf8_to_html("test", "UTF-8", 0, &result), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_str_eq(result, "test");
+    free(result);
+}
+END_TEST
+
+START_TEST(test_utf8_to_html_no_escape)
+{
+    char *result = NULL;
+    ck_assert_int_eq(utf8_to_html("Hello World", "UTF-8", 0, &result), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_str_eq(result, "Hello World");
+    free(result);
+}
+END_TEST
+
+START_TEST(test_utf8_to_html_escape_basic)
+{
+    char *result = NULL;
+    ck_assert_int_eq(utf8_to_html("a < b & c > d", "UTF-8", 0, &result), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_str_eq(result, "a &#x00003c; b &#x000026; c &#x00003e; d");
+    free(result);
+}
+END_TEST
+
+START_TEST(test_utf8_to_html_escape_unrepresentable)
+{
+    char *result = NULL;
+    ck_assert_int_eq(utf8_to_html("Price: \xc2\xa2", "US-ASCII", 0, &result), NSERROR_OK);
+    ck_assert_ptr_nonnull(result);
+    ck_assert_str_eq(result, "Price: &#x0000a2;");
+    free(result);
+}
+END_TEST
+
+START_TEST(test_utf8_to_html_bad_encoding)
+{
+    char *result = NULL;
+    nserror err = utf8_to_html("test", "NONEXISTENT-ENCODING", 0, &result);
+    ck_assert(err == NSERROR_BAD_ENCODING || err == NSERROR_NOMEM);
+}
+END_TEST
+
 static Suite *utf8_suite(void)
 {
     Suite *s;
@@ -147,6 +201,12 @@ static Suite *utf8_suite(void)
     tcase_add_test(tc, test_utf8_convert_valid_conversion);
     tcase_add_test(tc, test_utf8_convert_invalid_encoding_name);
     tcase_add_test(tc, test_utf8_convert_bad_encoding_data);
+
+    tcase_add_test(tc, test_utf8_to_html_empty);
+    tcase_add_test(tc, test_utf8_to_html_no_escape);
+    tcase_add_test(tc, test_utf8_to_html_escape_basic);
+    tcase_add_test(tc, test_utf8_to_html_escape_unrepresentable);
+    tcase_add_test(tc, test_utf8_to_html_bad_encoding);
     suite_add_tcase(s, tc);
     return s;
 }
