@@ -110,6 +110,63 @@ START_TEST(test_http_parse_quoted_string)
 }
 END_TEST
 
+
+
+START_TEST(test_http_parse_token_invalid)
+{
+    const char *input;
+    const char *pos;
+    lwc_string *value = NULL;
+    nserror err;
+
+    // Invalid token char (< 32 or > 126 or in separator list)
+    input = "inv@lid";
+    pos = input;
+    err = http__parse_token(&pos, &value);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(value, NULL);
+    size_t len = lwc_string_length(value);
+    const char *data = lwc_string_data(value);
+    ck_assert_int_eq(len, 3);
+    ck_assert_int_eq(strncmp(data, "inv", 3), 0);
+    lwc_string_unref(value);
+    ck_assert_str_eq(pos, "@lid");
+
+    // Control char token
+    input = "\x1F" "token";
+    pos = input;
+    err = http__parse_token(&pos, &value);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    // High char token
+    input = "\x7F" "token";
+    pos = input;
+    err = http__parse_token(&pos, &value);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+}
+END_TEST
+
+START_TEST(test_http_parse_quoted_string_edge)
+{
+    const char *input;
+    const char *pos;
+    lwc_string *value = NULL;
+    nserror err;
+
+    // Escape at end of string
+    input = "\"escaped \\";
+    pos = input;
+    err = http__parse_quoted_string(&pos, &value);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    // Break loop in quotes string with a character not allowed
+    input = "\"test\x19\"";
+    pos = input;
+    err = http__parse_quoted_string(&pos, &value);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+}
+END_TEST
+
 static Suite *http_primitives_suite(void)
 {
     Suite *s = suite_create("http_primitives");
@@ -118,6 +175,8 @@ static Suite *http_primitives_suite(void)
     tcase_add_test(tc_core, test_http_skip_LWS);
     tcase_add_test(tc_core, test_http_parse_token);
     tcase_add_test(tc_core, test_http_parse_quoted_string);
+    tcase_add_test(tc_core, test_http_parse_token_invalid);
+    tcase_add_test(tc_core, test_http_parse_quoted_string_edge);
 
     suite_add_tcase(s, tc_core);
     return s;

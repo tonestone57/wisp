@@ -520,4 +520,18 @@ bool content_exec(struct hlcache_handle *h, const char *src, size_t srclen);
  */
 bool content_saw_insecure_objects(struct hlcache_handle *h);
 
+
+bool content_is_same(struct hlcache_handle *h1, struct hlcache_handle *h2);
+nserror content_js_newthread(struct hlcache_handle *h, void *jsheap, void *win_priv, void **thread);
+void content_destroy_js_thread(struct hlcache_handle *h);
+void content_setup_for_print(struct hlcache_handle *h);
+void content_apply_sticky_clamping(struct hlcache_handle *h);
+
+// Video specific veneers
+bool content_video_is_paused(struct hlcache_handle *h);
+void content_video_play(struct hlcache_handle *h);
+void content_video_pause(struct hlcache_handle *h);
+double content_video_get_duration(struct hlcache_handle *h);
+void content_video_seek_to(struct hlcache_handle *h, double time);
+
 #endif

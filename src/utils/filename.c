@@ -95,9 +95,9 @@ const char *filename_request(void)
     }
 
     if (i < 32)
-        dir->low_used |= (1 << i);
+        dir->low_used |= (1U << i);
     else
-        dir->high_used |= (1 << (i - 32));
+        dir->high_used |= (1U << (i - 32));
 
     i = i % 99;
 
@@ -132,13 +132,13 @@ bool filename_claim(const char *filename)
 
     /* update the entry */
     if (file < 32) {
-        if (dir->low_used & (1 << file))
+        if (dir->low_used & (1U << file))
             return false;
-        dir->low_used |= (1 << file);
+        dir->low_used |= (1U << file);
     } else {
-        if (dir->high_used & (1 << (file - 32)))
+        if (dir->high_used & (1U << (file - 32)))
             return false;
-        dir->high_used |= (1 << (file - 32));
+        dir->high_used |= (1U << (file - 32));
     }
 
     return true;
@@ -165,9 +165,9 @@ void filename_release(const char *filename)
     for (dir = root; dir; dir = dir->next) {
         if (dir->numeric_prefix == index) {
             if (file < 32)
-                dir->low_used &= ~(1 << file);
+                dir->low_used &= ~(1U << file);
             else
-                dir->high_used &= ~(1 << (file - 32));
+                dir->high_used &= ~(1U << (file - 32));
             return;
         }
     }
@@ -319,9 +319,9 @@ bool filename_flush_directory(const char *folder, int depth)
                 if (depth == 3) {
                     /* File: delete if not in bitfield */
                     if (number < 32)
-                        del = !(dir->low_used & (1 << number));
+                        del = !(dir->low_used & (1U << number));
                     else
-                        del = !(dir->high_used & (1 << (number - 32)));
+                        del = !(dir->high_used & (1U << (number - 32)));
                 } else {
                     /* Directory: delete unless in list */
                     del = true;

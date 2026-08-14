@@ -1512,7 +1512,7 @@ static nserror browser_window_callback(hlcache_handle *c, const hlcache_event *e
         jsthread *thread;
         assert(bw->loading_content == c);
 
-        if (js_newthread(bw->jsheap, bw, hlcache_handle_get_content(c), &thread) == NSERROR_OK) {
+        if (content_js_newthread(c, bw->jsheap, bw, (void **)&thread) == NSERROR_OK) {
             /* The content which is requesting the thread
              * is required to keep hold of it and
              * to destroy it when it is finished with it.
@@ -1746,10 +1746,7 @@ nserror browser_window_destroy_internal(struct browser_window *bw)
     }
 
     if (bw->loading_content != NULL) {
-        struct content *c = hlcache_handle_get_content(bw->loading_content);
-        if (c != NULL && content_get_type(bw->loading_content) == CONTENT_HTML) {
-            html_destroy_thread(c);
-        }
+        content_destroy_js_thread(bw->loading_content);
         hlcache_handle_abort(bw->loading_content);
         hlcache_handle_release(bw->loading_content);
         bw->loading_content = NULL;
@@ -2644,8 +2641,8 @@ void browser_window_set_drag_type(struct browser_window *bw, browser_drag_type t
 
         switch (type) {
         case DRAGGING_SELECTION:
-            /** \todo tell front end */
-            return;
+            gtype = GDRAGGING_SELECTION;
+            break;
         case DRAGGING_SCR_X:
         case DRAGGING_SCR_Y:
         case DRAGGING_CONTENT_SCROLLBAR:
@@ -3764,10 +3761,7 @@ void browser_window_stop(struct browser_window *bw)
     int children, index;
 
     if (bw->loading_content != NULL) {
-        struct content *c = hlcache_handle_get_content(bw->loading_content);
-        if (c != NULL && content_get_type(bw->loading_content) == CONTENT_HTML) {
-            html_destroy_thread(c);
-        }
+        content_destroy_js_thread(bw->loading_content);
         hlcache_handle_abort(bw->loading_content);
         hlcache_handle_release(bw->loading_content);
         bw->loading_content = NULL;

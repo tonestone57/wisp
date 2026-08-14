@@ -6,6 +6,7 @@
 #include "wisp/utils/errors.h"
 #include "wisp/utils/corestrings.h"
 #include "utils/http/cache-control.h"
+#include <limits.h>
 
 START_TEST(test_cache_control_parse)
 {
@@ -64,6 +65,46 @@ START_TEST(test_cache_control_parse)
 
     err = http_parse_cache_control("no-cache, no-cache", &cc);
     ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    err = http_parse_cache_control("public, max-age=3600", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), true);
+    ck_assert_int_eq(http_cache_control_max_age(cc), 3600);
+    ck_assert_int_eq(http_cache_control_no_cache(cc), false);
+    ck_assert_int_eq(http_cache_control_no_store(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    err = http_parse_cache_control("private=\"foo\", no-cache", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), false);
+    ck_assert_int_eq(http_cache_control_no_cache(cc), true);
+    ck_assert_int_eq(http_cache_control_no_store(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    err = http_parse_cache_control("max-age=", &cc);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    err = http_parse_cache_control("max-age=4294967296", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), true);
+    ck_assert_int_eq(http_cache_control_max_age(cc), UINT_MAX);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    err = http_parse_cache_control("  max-age  =  3600  ,  no-cache  ", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), true);
+    ck_assert_int_eq(http_cache_control_max_age(cc), 3600);
+    ck_assert_int_eq(http_cache_control_no_cache(cc), true);
+    ck_assert_int_eq(http_cache_control_no_store(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
 
     corestrings_fini();
 }
