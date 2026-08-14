@@ -590,6 +590,8 @@ add_wisp_test(test_talloc
 target_link_libraries(test_talloc PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_content_type test_content_type.c)
 target_link_libraries(test_content_type PRIVATE wisp ${CHECK_LIBRARIES})
+add_wisp_test(content_disposition content_disposition.c)
+target_link_libraries(content_disposition PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_cache_control
   ${CMAKE_SOURCE_DIR}/src/test/test_cache_control.c
 )
