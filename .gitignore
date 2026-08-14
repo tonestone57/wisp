@@ -11,3 +11,5 @@ contrib/libavif/*
 !contrib/libavif/README.md
 test_cache/
 *.log
+build-cov/
+build-cov2/
