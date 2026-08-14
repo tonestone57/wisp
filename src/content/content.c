@@ -44,6 +44,7 @@
 #include "content/handlers/html/html.h"
 #include "content/handlers/html/layout.h"
 #include "content/textsearch.h"
+#include "content/handlers/image/video.h"
 #include "content/urldb.h"
 
 #define URL_FMT_SPC "%.140s"
@@ -1581,7 +1582,6 @@ void content_apply_sticky_clamping(struct hlcache_handle *h)
     }
 }
 
-#include "content/handlers/image/video.h"
 
 bool content_video_is_paused(struct hlcache_handle *h)
 {
