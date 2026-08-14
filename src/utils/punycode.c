@@ -140,8 +140,6 @@ enum punycode_status punycode_encode(size_t input_length_orig, const punycode_ui
         /* handled already.  Find the next larger one: */
 
         for (m = maxint, j = 0; j < input_length; ++j) {
-            /* if (basic(input[j])) continue; */
-            /* (not needed for Punycode) */
             if (input[j] >= n && input[j] < m)
                 m = input[j];
         }
