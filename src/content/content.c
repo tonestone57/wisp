@@ -1235,10 +1235,7 @@ const uint8_t *content_get_source_data(hlcache_handle *h, size_t *size)
 const uint8_t *content__get_source_data(struct content *c, size_t *size)
 {
     assert(size != NULL);
-
-    /** \todo check if the content check should be an assert */
-    if (c == NULL)
-        return NULL;
+    assert(c != NULL);
 
     return llcache_handle_get_source_data(c->llcache, size);
 }
