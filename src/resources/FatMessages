@@ -9341,3 +9341,4 @@ en.all.piNoDomain:<No domain>
 en.all.piCert:Certificate:
 en.all.piCookies:Cookies:
 en.all.piCookiesInUse:(%u in use)
+en.all.BadAuth:Authentication Failed
