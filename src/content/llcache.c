@@ -25,8 +25,6 @@
  * stores source objects in memory and may use a persistent backing
  * store to extend their lifetime.
  *
- * \todo fix writeout conditions and ordering.
- *
  * \todo instrument and (auto)tune
  *
  */
@@ -2685,6 +2683,24 @@ static nserror llcache_fetch_timeout(llcache_object *object)
 }
 
 
+static int build_candidate_list_cmp(const void *a, const void *b)
+{
+    const struct llcache_object *obj_a = *(const struct llcache_object **)a;
+    const struct llcache_object *obj_b = *(const struct llcache_object **)b;
+    int lifetime_a = llcache_object_rfc2616_remaining_lifetime(&obj_a->cache);
+    int lifetime_b = llcache_object_rfc2616_remaining_lifetime(&obj_b->cache);
+
+    if (lifetime_a != lifetime_b) {
+        return (lifetime_b > lifetime_a) ? 1 : -1;
+    }
+
+    if (obj_a->source_len != obj_b->source_len) {
+        return (obj_b->source_len > obj_a->source_len) ? 1 : -1;
+    }
+
+    return 0;
+}
+
 /**
  * Construct a sorted list of objects available for writeout operation.
  *
@@ -2692,8 +2708,6 @@ static nserror llcache_fetch_timeout(llcache_object *object)
  * pending fetches. Any objects with a remaining lifetime less than
  * the configured minimum lifetime are simply not considered, they will
  * become stale before pushing to backing store is worth the cost.
- *
- * \todo calculate useful cost metrics to improve sorting.
  *
  * \param[out] lst_out list of candidate objects.
  * \param[out] lst_len_out Number of candidate objects in result.
@@ -2742,7 +2756,7 @@ static nserror build_candidate_list(struct llcache_object ***lst_out, int *lst_l
         return NSERROR_NOT_FOUND;
     }
 
-    /** \todo sort list here */
+    qsort(lst, lst_len, sizeof(struct llcache_object *), build_candidate_list_cmp);
 
     *lst_len_out = lst_len;
     *lst_out = lst;
