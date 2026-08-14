@@ -643,3 +643,9 @@ add_wisp_test(test_parameter
 target_link_libraries(test_parameter PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_network_main test_network_main.c)
 target_link_libraries(test_network_main PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_filename
+  ${CMAKE_SOURCE_DIR}/src/test/test_filename.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_filename PRIVATE wisp ${CHECK_LIBRARIES})
