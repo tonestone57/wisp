@@ -530,12 +530,14 @@ static void gui_init(int argc, char **argv)
     if (be_plain_font != NULL) {
         be_plain_font->GetFamilyAndStyle(&plain_family, NULL);
     } else {
-        snprintf(plain_family, sizeof(plain_family), "DejaVu Sans");
+        strncpy(plain_family, "DejaVu Sans", sizeof(plain_family) - 1);
+        plain_family[sizeof(plain_family) - 1] = '\0';
     }
     if (be_fixed_font != NULL) {
         be_fixed_font->GetFamilyAndStyle(&fixed_family, NULL);
     } else {
-        snprintf(fixed_family, sizeof(fixed_family), "DejaVu Mono");
+        strncpy(fixed_family, "DejaVu Mono", sizeof(fixed_family) - 1);
+        fixed_family[sizeof(fixed_family) - 1] = '\0';
     }
     SETFONTDEFAULT(font_sans, plain_family);
     SETFONTDEFAULT(font_serif, plain_family);
