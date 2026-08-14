@@ -2678,8 +2678,11 @@ static int build_candidate_list_cmp(const void *a, const void *b)
         return (lifetime_b > lifetime_a) ? 1 : -1;
     }
 
-    if (core_buffer_length(&obj_a->source_data) != core_buffer_length(&obj_b->source_data)) {
-        return (core_buffer_length(&obj_b->source_data) > core_buffer_length(&obj_a->source_data)) ? 1 : -1;
+    size_t len_a = core_buffer_length(&obj_a->source_data);
+    size_t len_b = core_buffer_length(&obj_b->source_data);
+
+    if (len_a != len_b) {
+        return (len_b > len_a) ? 1 : -1;
     }
 
     return 0;
