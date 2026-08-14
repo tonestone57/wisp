@@ -486,6 +486,20 @@ END_TEST
 /**
  * query replacement tests
  */
+
+/**
+ * scheme replacement tests
+ */
+static const struct test_triplets replace_scheme_tests[] = {
+    { "http://test.com/path", "https", "https://test.com/path" },
+    { "http://test.com/path", "https:", "https:://test.com/path" },
+    { "http://test.com/path", "ftp", "ftp://test.com/path" },
+    { "https://test.com/path", "http", "http://test.com/path" },
+    { "file:///path", "http", "http:///path" },
+    { "http://user:pass@test.com:8080/path?q=1#frag", "https", "https://user:pass@test.com:8080/path?q=1#frag" },
+    { "http://user:pass@test.com:8080/path?q=1#frag", "https:", "https:://user:pass@test.com:8080/path?q=1#frag" },
+};
+
 static const struct test_triplets replace_query_tests[] = {
     {"http://wispbrowser.com/?magical=true", "magical=true&result=win",
         "http://wispbrowser.com/?magical=true&result=win"},
@@ -505,6 +519,36 @@ static const struct test_triplets replace_query_tests[] = {
 /**
  * replace query
  */
+
+/**
+ * replace scheme
+ */
+START_TEST(nsurl_replace_scheme_test)
+{
+    nserror err;
+    nsurl *res_url;
+    nsurl *joined;
+    lwc_string *scheme;
+    const struct test_triplets *tst = &replace_scheme_tests[_i];
+
+    err = nsurl_create(tst->test1, &res_url);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = lwc_intern_string(tst->test2, strlen(tst->test2), &scheme);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = nsurl_replace_scheme(res_url, scheme, &joined);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    lwc_string_unref(scheme);
+
+    ck_assert_str_eq(nsurl_access(joined), tst->res);
+
+    nsurl_unref(res_url);
+    nsurl_unref(joined);
+}
+END_TEST
+
 START_TEST(nsurl_replace_query_test)
 {
     nserror err;
@@ -657,6 +701,61 @@ static const struct test_compare component_tests[] = {
 /**
  * get component
  */
+
+struct test_scheme_type {
+    const char *url;
+    enum nsurl_scheme_type expected;
+};
+
+static const struct test_scheme_type get_scheme_type_tests[] = {
+    { "http://test.com", NSURL_SCHEME_HTTP },
+    { "https://test.com", NSURL_SCHEME_HTTPS },
+    { "file:///path", NSURL_SCHEME_FILE },
+    { "ftp://test.com", NSURL_SCHEME_FTP },
+    { "mailto:test@test.com", NSURL_SCHEME_MAILTO },
+    { "data:text/plain,test", NSURL_SCHEME_DATA },
+    { "about:blank", NSURL_SCHEME_OTHER },
+    { "custom://test", NSURL_SCHEME_OTHER },
+};
+
+START_TEST(nsurl_get_scheme_type_test)
+{
+    nserror err;
+    nsurl *url;
+    const struct test_scheme_type *tst = &get_scheme_type_tests[_i];
+
+    err = nsurl_create(tst->url, &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    ck_assert_int_eq(nsurl_get_scheme_type(url), tst->expected);
+
+    nsurl_unref(url);
+
+    /* Test NULL parameter defensively */
+    ck_assert_int_eq(nsurl_get_scheme_type(NULL), NSURL_SCHEME_OTHER);
+}
+END_TEST
+
+START_TEST(nsurl_access_log_test)
+{
+    nserror err;
+    nsurl *url;
+    const char *log_res;
+
+    err = nsurl_create("http://test.com", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    log_res = nsurl_access_log(url);
+    ck_assert_str_eq(log_res, "http://test.com/");
+    nsurl_unref(url);
+
+    err = nsurl_create("data:text/plain,Hello World", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    log_res = nsurl_access_log(url);
+    ck_assert_str_eq(log_res, "[data url]");
+    nsurl_unref(url);
+}
+END_TEST
+
 START_TEST(nsurl_get_component_test)
 {
     nserror err;
@@ -1154,6 +1253,41 @@ START_TEST(nsurl_api_assert_replace_query3_test)
 }
 END_TEST
 
+START_TEST(nsurl_api_assert_replace_scheme1_test)
+{
+    nserror err;
+    nsurl *res;
+    lwc_string *scheme;
+    err = lwc_intern_string("https", 5, &scheme);
+    err = nsurl_replace_scheme(NULL, scheme, &res);
+    lwc_string_unref(scheme);
+}
+END_TEST
+
+START_TEST(nsurl_api_assert_replace_scheme2_test)
+{
+    nserror err;
+    nsurl *url;
+    nsurl *res;
+    err = nsurl_create("http://test.com", &url);
+    err = nsurl_replace_scheme(url, NULL, &res);
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(nsurl_api_assert_replace_scheme3_test)
+{
+    nserror err;
+    nsurl *url;
+    lwc_string *scheme;
+    err = nsurl_create("http://test.com", &url);
+    err = lwc_intern_string("https", 5, &scheme);
+    err = nsurl_replace_scheme(url, scheme, NULL);
+    lwc_string_unref(scheme);
+    nsurl_unref(url);
+}
+END_TEST
+
 /**
  * check nice asserts on NULL parameter
  */
@@ -1360,6 +1494,10 @@ static Suite *nsurl_suite(void)
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_query1_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_query2_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_query3_test, 6);
+    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_scheme1_test, 6);
+    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_scheme2_test, 6);
+    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_scheme3_test, 6);
+
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_nice_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_parent_test, 6);
 
@@ -1410,6 +1548,25 @@ static Suite *nsurl_suite(void)
 
     tcase_add_loop_test(tc_replace_query, nsurl_replace_query_test, 0, NELEMS(replace_query_tests));
     suite_add_tcase(s, tc_replace_query);
+
+    /* replace scheme */
+    TCase *tc_replace_scheme = tcase_create("Replace Scheme");
+    tcase_add_unchecked_fixture(tc_replace_scheme, corestring_create, corestring_teardown);
+    tcase_add_loop_test(tc_replace_scheme, nsurl_replace_scheme_test, 0, NELEMS(replace_scheme_tests));
+    suite_add_tcase(s, tc_replace_scheme);
+
+    /* get scheme type */
+    TCase *tc_get_scheme_type = tcase_create("Get Scheme Type");
+    tcase_add_unchecked_fixture(tc_get_scheme_type, corestring_create, corestring_teardown);
+    tcase_add_loop_test(tc_get_scheme_type, nsurl_get_scheme_type_test, 0, NELEMS(get_scheme_type_tests));
+    suite_add_tcase(s, tc_get_scheme_type);
+
+    /* access log */
+    TCase *tc_access_log = tcase_create("Access Log");
+    tcase_add_unchecked_fixture(tc_access_log, corestring_create, corestring_teardown);
+    tcase_add_test(tc_access_log, nsurl_access_log_test);
+    suite_add_tcase(s, tc_access_log);
+
 
     /* url join */
     tc_join = tcase_create("Join");
