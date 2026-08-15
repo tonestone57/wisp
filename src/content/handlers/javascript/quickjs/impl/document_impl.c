@@ -745,11 +745,13 @@ JSValue wisp_document_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, c
             JSValue arr = wisp_document_getElementsByClassName_impl(ctx, priv, selectors + 1);
             JSValue first = JS_GetPropertyUint32(ctx, arr, 0);
             JS_FreeValue(ctx, arr);
+            if (JS_IsUndefined(first)) return JS_NULL;
             return first;
         }
         JSValue arr = wisp_document_getElementsByTagName_impl(ctx, priv, selectors);
         JSValue first = JS_GetPropertyUint32(ctx, arr, 0);
         JS_FreeValue(ctx, arr);
+        if (JS_IsUndefined(first)) return JS_NULL;
         return first;
     }
     return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, false);
