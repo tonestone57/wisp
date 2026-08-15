@@ -15207,8 +15207,9 @@ JSValue wisp_sharedworker_constructor_impl(JSContext *ctx, const char * scriptUR
 }
 
 // Overrides: StorageEvent | constructor
+// Overrides: StorageEvent | constructor
 JSValue wisp_storageevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
-    return JS_UNDEFINED;
+    return JS_NewObject(ctx);
 }
 
 // Overrides: Text | constructor
