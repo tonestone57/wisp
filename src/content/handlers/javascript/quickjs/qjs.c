@@ -1309,11 +1309,21 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 }
 
 #include "polyfill_intl_c.h"
+#include "dataset_polyfill.h"
 
 void qjs_inject_fetch_polyfill(JSContext *ctx)
 {
 
     JSValue val_intl = JS_Eval(ctx, intl_polyfill, strlen(intl_polyfill), "<intl-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JSValue val_dataset = JS_Eval(ctx, dataset_polyfill, strlen(dataset_polyfill), "<dataset-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val_dataset)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+        NSLOG(wisp, WARNING, "Error evaluating dataset polyfill: %s", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
+    JS_FreeValue(ctx, val_dataset);
     JS_FreeValue(ctx, val_intl);
 
     const char *fetch_polyfill =

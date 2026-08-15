@@ -7276,7 +7276,7 @@ JSValue wisp_htmlelement_contextMenu_set_impl(JSContext *ctx, QJSNodePrivate *pr
 }
 
 JSValue wisp_htmlelement_dataset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return get_element_str_attr(ctx, priv, "dataset", "");
+    return JS_UNDEFINED;
 }
 
 JSValue wisp_htmlelement_draggable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
