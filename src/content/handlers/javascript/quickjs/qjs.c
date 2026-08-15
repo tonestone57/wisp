@@ -1309,12 +1309,16 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 }
 
 #include "polyfill_intl_c.h"
+#include "polyfill_cssom_c.h"
 
 void qjs_inject_fetch_polyfill(JSContext *ctx)
 {
 
     JSValue val_intl = JS_Eval(ctx, intl_polyfill, strlen(intl_polyfill), "<intl-polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val_intl);
+
+    JSValue val_cssom = JS_Eval(ctx, cssom_polyfill, strlen(cssom_polyfill), "<cssom-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, val_cssom);
 
     const char *fetch_polyfill =
         "if (typeof globalThis.Headers === 'undefined') {\n"

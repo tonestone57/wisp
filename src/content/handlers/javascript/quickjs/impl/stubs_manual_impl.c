@@ -8990,19 +8990,6 @@ JSValue wisp_cssnamespacerule_prefix_get_impl(JSContext *ctx, QJSNodePrivate *pr
     return JS_NewString(ctx, "");
 }
 
-// 43. CSSStyleSheet Implementation (4 stubs)
-JSValue wisp_cssstylesheet_deleteRule_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
-    return JS_UNDEFINED;
-}
-JSValue wisp_cssstylesheet_insertRule_impl(JSContext *ctx, QJSNodePrivate *priv, const char * rule, uint32_t index) {
-    return JS_NewInt32(ctx, index);
-}
-JSValue wisp_cssstylesheet_cssRules_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return qjs_new_cssrulelist(ctx, NULL, false);
-}
-JSValue wisp_cssstylesheet_ownerRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
 // =============================================================================
 // AUTOMATICALLY GENERATED WEBIDL STUB OVERRIDES (165 STUBS)
 // =============================================================================
