@@ -74,6 +74,13 @@ static bool html_css_fetcher_initialise(lwc_string *scheme)
 static void html_css_fetcher_finalise(lwc_string *scheme)
 {
     NSLOG(wisp, INFO, "html_css_fetcher_finalise called for %s", lwc_string_data(scheme));
+	while (items != NULL) {
+		html_css_fetcher_item *item = items;
+		RING_REMOVE(items, item);
+		nsurl_unref(item->base_url);
+		dom_string_unref(item->data);
+		free(item);
+	}
 }
 
 static bool html_css_fetcher_can_fetch(const nsurl *url)

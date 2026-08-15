@@ -384,6 +384,8 @@ static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html
 				/* no self-references */
 				if (nsurl_compare(content->base_url, url, NSURL_COMPLETE) == false)
 					frame->url = url;
+				else
+					nsurl_unref(url);
 				url = NULL;
 			}
 
@@ -2042,6 +2044,11 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
 								dom_string_unref(s);
 							}
 						}
+						if (url != NULL) {
+							dom_string_unref(tag_name);
+							dom_node_unref(c);
+							break;
+						}
 					}
 					dom_string_unref(tag_name);
 				}
@@ -2217,12 +2224,13 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
 
 								if (free_xml)
 									free(svg_xml);
-							} else {
-								NSLOG(wisp, WARNING, "SVG: Inline SVG node not found in cache list");
 							}
+						} else {
+							NSLOG(wisp, WARNING, "SVG: Inline SVG node not found in cache list");
 						}
 					}
 					dom_string_unref(tag_name);
+					res = true;
 				}
 			}
 			res = true;
