@@ -8,7 +8,30 @@
 #include <openssl/rand.h>
 #include <openssl/evp.h>
 #include <string.h>
+#include <stdio.h>
 #include <wisp/utils/log.h>
+
+static JSValue js_crypto_randomUUID(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    uint8_t bytes[16];
+    if (RAND_bytes(bytes, sizeof(bytes)) != 1) {
+        return JS_ThrowInternalError(ctx, "Failed to generate cryptographically secure random bytes");
+    }
+
+    /* RFC 4122 Section 4.4: Set version 4 (0100) and variant 1 (10xx) */
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    char uuid[37];
+    snprintf(uuid, sizeof(uuid),
+             "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+             bytes[0], bytes[1], bytes[2], bytes[3],
+             bytes[4], bytes[5], bytes[6], bytes[7],
+             bytes[8], bytes[9], bytes[10], bytes[11],
+             bytes[12], bytes[13], bytes[14], bytes[15]);
+
+    return JS_NewString(ctx, uuid);
+}
 
 static JSValue js_crypto_getRandomValues(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
@@ -29,6 +52,10 @@ static JSValue js_crypto_getRandomValues(JSContext *ctx, JSValueConst this_val, 
         return JS_ThrowTypeError(ctx, "Failed to get ArrayBuffer pointer");
     }
 
+    if (byte_length > 65536) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "QuotaExceededError: byte length exceeds 65536 bytes");
+    }
     if (offset + byte_length > buf_len) {
         JS_FreeValue(ctx, buffer);
         return JS_ThrowRangeError(ctx, "TypedArray offset out of bounds");
@@ -120,6 +147,7 @@ static const JSCFunctionListEntry js_crypto_subtle_funcs[] = {
 
 static const JSCFunctionListEntry js_crypto_funcs[] = {
     JS_CFUNC_DEF("getRandomValues", 1, js_crypto_getRandomValues),
+    JS_CFUNC_DEF("randomUUID", 0, js_crypto_randomUUID),
 };
 
 int qjs_init_crypto(JSContext *ctx)
