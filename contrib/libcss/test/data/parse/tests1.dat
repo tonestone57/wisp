@@ -44,3 +44,11 @@
 | 1 *
 |   0x02000003 PTR(foo.png) 0x00000818
 #reset
+
+#data
+* { background-color: #ffd73a; background: -webkit-linear-gradient(top, rgba(0,0,0,0.5), rgba(0,0,0,0.1)); color: #000; }
+#errors
+#expected
+| 1 *
+|   0x02000002 0xffffd73a 0x02000018 0xff000000
+#reset

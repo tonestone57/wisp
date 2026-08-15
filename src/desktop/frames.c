@@ -61,12 +61,12 @@ void browser_window_scroll_callback(void *client_data, struct scrollbar_msg_data
         bw->user_scrolled = true;
         if (bw->browser_window_type == BROWSER_WINDOW_IFRAME) {
             if (content_get_type(bw->current_content) == CONTENT_HTML) {
-                layout_apply_sticky_clamping((struct html_content *)hlcache_handle_get_content(bw->current_content));
+                content_apply_sticky_clamping(bw->current_content);
             }
             html_redraw_a_box(bw->parent->current_content, bw->box);
         } else {
             if (content_get_type(bw->current_content) == CONTENT_HTML) {
-                layout_apply_sticky_clamping((struct html_content *)hlcache_handle_get_content(bw->current_content));
+                content_apply_sticky_clamping(bw->current_content);
             }
             struct rect rect;
 

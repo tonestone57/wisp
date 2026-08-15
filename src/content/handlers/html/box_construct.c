@@ -828,8 +828,9 @@ static css_error snap_ua_default_for_property(void *pw, uint32_t property, css_h
             break;
         }
     } else if (property == CSS_PROP_QUOTES) {
-        hint->data.strings = NULL;
-        hint->status = CSS_QUOTES_NONE;
+        extern void *wisp_get_default_quotes_ptr(void);
+        hint->data.strings = wisp_get_default_quotes_ptr();
+        hint->status = CSS_QUOTES_STRING;
     } else if (property == CSS_PROP_VOICE_FAMILY) {
         hint->data.strings = NULL;
         hint->status = 0;
@@ -1339,6 +1340,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         /* Save the updated libcss_node_data back to the original dom_node's user data */
         if (set_libcss_node_data != NULL) {
             set_libcss_node_data(&select_ctx, n, snap->libcss_node_data);
+            snap->libcss_node_data = NULL;
         }
 
         /* Cache pre-computed style results on the DOM node */
@@ -3383,4 +3385,18 @@ bool box_extract_link(const html_content *content, const dom_string *dsrel, nsur
 	}
 
 	return true;
+}
+
+void *wisp_get_default_quotes_ptr(void) {
+    static lwc_string *default_quotes[5];
+    static bool init_quotes = false;
+    if (!init_quotes) {
+        default_quotes[0] = corestring_lwc_open_double_quote;
+        default_quotes[1] = corestring_lwc_close_double_quote;
+        default_quotes[2] = corestring_lwc_open_single_quote;
+        default_quotes[3] = corestring_lwc_close_single_quote;
+        default_quotes[4] = NULL;
+        init_quotes = true;
+    }
+    return default_quotes;
 }

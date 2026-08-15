@@ -1726,9 +1726,9 @@ css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint)
             break;
         }
     } else if (property == CSS_PROP_QUOTES) {
-        /** \todo Not exactly useful :) */
-        hint->data.strings = NULL;
-        hint->status = CSS_QUOTES_NONE;
+        extern void *wisp_get_default_quotes_ptr(void);
+        hint->data.strings = wisp_get_default_quotes_ptr();
+        hint->status = CSS_QUOTES_STRING;
     } else if (property == CSS_PROP_VOICE_FAMILY) {
         /** \todo Fix this when we have voice-family done */
         hint->data.strings = NULL;

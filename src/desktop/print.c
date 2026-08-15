@@ -121,11 +121,7 @@ static bool print_apply_settings(hlcache_handle *content, struct print_settings 
                               FIXTOFLT(FSUB(settings->margins[MARGINTOP], settings->margins[MARGINBOTTOM]))) /
         settings->scale;
 
-    struct content *c = hlcache_handle_get_content(content);
-    if (c != NULL && content_get_type(content) == CONTENT_HTML) {
-        html_content *htmlc = (html_content *)c;
-        htmlc->media.type = CSS_MEDIA_PRINT;
-    }
+    content_setup_for_print(content);
 
     content_reformat(content, false, page_content_width, 0);
 

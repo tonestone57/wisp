@@ -59,6 +59,10 @@ struct dom_string *corestring_dom_colspan;
 struct dom_string *corestring_dom_rowspan;
 struct dom_string *corestring_dom___ns_key_box_node_data;
 struct dom_string *corestring_dom___ns_key_style_cache_data;
+lwc_string *corestring_lwc_open_double_quote = NULL;
+lwc_string *corestring_lwc_close_double_quote = NULL;
+lwc_string *corestring_lwc_open_single_quote = NULL;
+lwc_string *corestring_lwc_close_single_quote = NULL;
 
 /* Mock nsoption */
 struct nsoption_s nsoptions_storage[1000];
