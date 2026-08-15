@@ -28,92 +28,9 @@ static JSValue js_crypto_randomUUID(JSContext *ctx, JSValueConst this_val, int a
     return JS_NewString(ctx, uuid);
 }
 
-/* 2. window.matchMedia stub */
-static JSValue js_window_matchMedia(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
-    const char *query = "";
-    if (argc > 0 && !JS_IsUndefined(argv[0])) {
-        query = JS_ToCString(ctx, argv[0]);
-    }
 
-    JSValue obj = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, obj, "matches", JS_NewBool(ctx, 0));
-    JS_SetPropertyStr(ctx, obj, "media", JS_NewString(ctx, query ? query : ""));
-    JS_SetPropertyStr(ctx, obj, "onchange", JS_NULL);
-
-    JSValue noop_func = JS_NewCFunction(ctx, wisp_qjs_noop, "noop", 0);
-    JS_SetPropertyStr(ctx, obj, "addListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "removeListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "addEventListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "removeEventListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "dispatchEvent", JS_NewCFunction(ctx, wisp_qjs_noop, "dispatchEvent", 1));
-    JS_FreeValue(ctx, noop_func);
-
-    if (argc > 0 && !JS_IsUndefined(argv[0])) JS_FreeCString(ctx, query);
-    return obj;
-}
-
-/* 3. ResizeObserver stub */
-static JSValue js_ResizeObserver_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv) {
-    JSValue obj = JS_NewObject(ctx);
-    JSValue noop_func = JS_NewCFunction(ctx, wisp_qjs_noop, "noop", 0);
-    JS_SetPropertyStr(ctx, obj, "observe", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "unobserve", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "disconnect", JS_DupValue(ctx, noop_func));
-    JS_FreeValue(ctx, noop_func);
-    return obj;
-}
 
 /* 4. Register polyfills on the document's JSContext */
-void wisp_qjs_register_core_polyfills(JSContext *ctx) {
-    JSValue global = JS_GetGlobalObject(ctx);
-
-    // Bind matchMedia
-    JS_SetPropertyStr(ctx, global, "matchMedia",
-                      JS_NewCFunction(ctx, js_window_matchMedia, "matchMedia", 1));
-
-    // Bind ResizeObserver
-    JSValue ro_ctor = JS_NewCFunction2(ctx, js_ResizeObserver_constructor, "ResizeObserver", 1, JS_CFUNC_constructor, 0);
-    JS_SetPropertyStr(ctx, global, "ResizeObserver", ro_ctor);
-
-    // Bind crypto.randomUUID
-    JSValue crypto = JS_GetPropertyStr(ctx, global, "crypto");
-    if (JS_IsUndefined(crypto) || JS_IsNull(crypto)) {
-        crypto = JS_NewObject(ctx);
-        JS_SetPropertyStr(ctx, global, "crypto", JS_DupValue(ctx, crypto));
-    }
-    JS_SetPropertyStr(ctx, crypto, "randomUUID",
-                      JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
-    JS_FreeValue(ctx, crypto);
-
-    // Try to bind window/self aliases if missing, but be careful not to overwrite the real window if it's an exotic object.
-    JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
-    if (JS_IsUndefined(window_val)) {
-        JS_SetPropertyStr(ctx, global, "window", JS_DupValue(ctx, global));
-    } else {
-        // If window already exists, mirror properties to it.
-        JS_SetPropertyStr(ctx, window_val, "matchMedia", JS_NewCFunction(ctx, js_window_matchMedia, "matchMedia", 1));
-        JSValue ro_ctor_window = JS_NewCFunction2(ctx, js_ResizeObserver_constructor, "ResizeObserver", 1, JS_CFUNC_constructor, 0);
-        JS_SetPropertyStr(ctx, window_val, "ResizeObserver", ro_ctor_window);
-
-        JSValue window_crypto = JS_GetPropertyStr(ctx, window_val, "crypto");
-        if (JS_IsUndefined(window_crypto) || JS_IsNull(window_crypto)) {
-            window_crypto = JS_NewObject(ctx);
-            JS_SetPropertyStr(ctx, window_val, "crypto", JS_DupValue(ctx, window_crypto));
-        }
-        JS_SetPropertyStr(ctx, window_crypto, "randomUUID", JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
-        JS_FreeValue(ctx, window_crypto);
-    }
-    JS_FreeValue(ctx, window_val);
-
-
-    JSValue globalThis_val = JS_GetPropertyStr(ctx, global, "globalThis");
-    if (JS_IsUndefined(globalThis_val)) {
-        JS_SetPropertyStr(ctx, global, "globalThis", JS_DupValue(ctx, global));
-    }
-    JS_FreeValue(ctx, globalThis_val);
-
-    JS_FreeValue(ctx, global);
-}
 
 /*
  * This file is part of NetSurf, http://www.netsurf-browser.org/
@@ -132,6 +49,7 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
 #include <wisp/utils/utf8proc_wrapper.h>
 #include <wisp/content/csp.h>
 
+
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
@@ -144,6 +62,10 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
 #include "wisp_subsystem.h"
 #include "crypto.h"
 #include "dom_bridge.h"
+
+void wisp_qjs_register_core_polyfills(JSContext *ctx);
+#include "polyfills_c_str.h"
+
 
 dom_string *g_qjs_node_key = NULL;
 
@@ -5649,4 +5571,64 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
         }
         obs = obs->next;
     }
+}
+
+
+void wisp_qjs_register_core_polyfills(JSContext *ctx) {
+    JSValue global = JS_GetGlobalObject(ctx);
+
+    // Bind crypto.randomUUID
+    JSValue crypto = JS_GetPropertyStr(ctx, global, "crypto");
+    if (JS_IsUndefined(crypto) || JS_IsNull(crypto)) {
+        crypto = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, global, "crypto", JS_DupValue(ctx, crypto));
+    }
+    JS_SetPropertyStr(ctx, crypto, "randomUUID",
+                      JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
+    JS_FreeValue(ctx, crypto);
+
+    // Try to bind window/self aliases if missing, but be careful not to overwrite the real window if it's an exotic object.
+    JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
+    if (JS_IsUndefined(window_val)) {
+        JS_SetPropertyStr(ctx, global, "window", JS_DupValue(ctx, global));
+    } else {
+        JSValue window_crypto = JS_GetPropertyStr(ctx, window_val, "crypto");
+        if (JS_IsUndefined(window_crypto) || JS_IsNull(window_crypto)) {
+            window_crypto = JS_NewObject(ctx);
+            JS_SetPropertyStr(ctx, window_val, "crypto", JS_DupValue(ctx, window_crypto));
+        }
+        JS_SetPropertyStr(ctx, window_crypto, "randomUUID", JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
+        JS_FreeValue(ctx, window_crypto);
+    }
+    JS_FreeValue(ctx, window_val);
+
+
+    JSValue globalThis_val = JS_GetPropertyStr(ctx, global, "globalThis");
+    if (JS_IsUndefined(globalThis_val)) {
+        JS_SetPropertyStr(ctx, global, "globalThis", JS_DupValue(ctx, global));
+    }
+    JS_FreeValue(ctx, globalThis_val);
+
+    JS_FreeValue(ctx, global);
+
+    // Evaluate the new Tier 1 core JS polyfills
+    JSValue val = JS_Eval(ctx, wisp_core_polyfills_js, strlen(wisp_core_polyfills_js), "wisp_core_polyfills.js", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+
+        JSValue stack_val = JS_GetPropertyStr(ctx, exc, "stack");
+        const char *stack_str = NULL;
+        if (!JS_IsUndefined(stack_val)) {
+            stack_str = JS_ToCString(ctx, stack_val);
+        }
+
+        NSLOG(wisp, WARNING, "Error evaluating wisp_core_polyfills.js: %s\nStack: %s", exc_str ? exc_str : "unknown", stack_str ? stack_str : "no stack");
+
+        if (stack_str) JS_FreeCString(ctx, stack_str);
+        JS_FreeValue(ctx, stack_val);
+        if (exc_str) JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
+    JS_FreeValue(ctx, val);
 }
