@@ -558,7 +558,7 @@ void box_coords(struct box *box, int *x, int *y)
             assert(box->abs_containing_block != NULL &&
                 "Absolute/fixed positioned box must have abs_containing_block set");
 
-            NSLOG(wisp, INFO, "box_coords ABS entry: box=%p box.y=%d cb=%p cb.y=%d", (void *)orig, orig->y,
+            NSLOG(wisp, DEBUG, "box_coords ABS entry: box=%p box.y=%d cb=%p cb.y=%d", (void *)orig, orig->y,
                 (void *)box->abs_containing_block, box->abs_containing_block->y);
 
             /* Jump directly to the containing block and walk from there */
@@ -566,7 +566,7 @@ void box_coords(struct box *box, int *x, int *y)
             *x += box->x + box->sticky_x - scrollbar_get_offset(box->scroll_x);
             *y += box->y + box->sticky_y - scrollbar_get_offset(box->scroll_y);
 
-            NSLOG(wisp, INFO, "box_coords after CB: y=%d", *y);
+            NSLOG(wisp, DEBUG, "box_coords after CB: y=%d", *y);
         }
     }
 
