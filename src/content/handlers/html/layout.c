@@ -1,3 +1,4 @@
+#include <wisp/utils/overflow.h>
 /*
  * Copyright 2005 Richard Wilson <info@tinct.net>
  * Copyright 2006 James Bursa <bursa@users.sourceforge.net>
@@ -3896,11 +3897,11 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			case CSS_VERTICAL_ALIGN_SUB:
 			case CSS_VERTICAL_ALIGN_BOTTOM:
 			case CSS_VERTICAL_ALIGN_TEXT_BOTTOM:
-				d->y += used_height - d->height;
+				d->y = safe_add_int(d->y, safe_sub_int(used_height, d->height));
 				break;
 			default:
 			case CSS_VERTICAL_ALIGN_BASELINE:
-				d->y += 0.75 * (used_height - d->height);
+				d->y = safe_add_int(d->y, safe_scale_sub_int(used_height, d->height, 0.75));
 				break;
 			}
 		}

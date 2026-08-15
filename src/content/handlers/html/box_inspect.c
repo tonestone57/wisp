@@ -1,3 +1,4 @@
+#include <wisp/utils/overflow.h>
 /*
  * Copyright 2008 Michael Drake <tlsa@netsurf-browser.org>
  * Copyright 2020 Vincent Sanders <vince@netsurf-browser.org>
@@ -595,8 +596,8 @@ void box_bounds(struct box *box, struct rect *r)
     width = box->padding[LEFT] + box->width + box->padding[RIGHT];
     height = box->padding[TOP] + box->height + box->padding[BOTTOM];
 
-    r->x1 = r->x0 + width;
-    r->y1 = r->y0 + height;
+    r->x1 = safe_add_int(r->x0, width);
+    r->y1 = safe_add_int(r->y0, height);
 }
 
 
