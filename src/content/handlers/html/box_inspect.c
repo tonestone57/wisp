@@ -39,6 +39,7 @@
 #include <wisp/content/handlers/html/private.h>
 
 #define AUTO INT_MIN
+#define UNKNOWN_HEIGHT INT_MAX
 
 /**
  * Direction to move in a box-tree walk
@@ -183,7 +184,7 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
 {
     struct box *rb = NULL;
 
-    if (b && (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_WIDTH)) {
+    if (b && (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_HEIGHT)) {
         return NULL;
     }
 
@@ -599,7 +600,7 @@ void box_bounds(struct box *box, struct rect *r)
     box_coords(box, &r->x0, &r->y0);
 
     width = box->padding[LEFT] + (box->width == AUTO || box->width == UNKNOWN_WIDTH ? 0 : box->width) + box->padding[RIGHT];
-    height = box->padding[TOP] + (box->height == AUTO || box->height == UNKNOWN_WIDTH ? 0 : box->height) + box->padding[BOTTOM];
+    height = box->padding[TOP] + (box->height == AUTO || box->height == UNKNOWN_HEIGHT ? 0 : box->height) + box->padding[BOTTOM];
 
     r->x1 = r->x0 + width;
     r->y1 = r->y0 + height;
