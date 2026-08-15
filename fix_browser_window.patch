@@ -1,0 +1,15 @@
+<<<<<<< SEARCH
+    case CONTENT_MSG_SELECTION:
+        browser_window_set_selection(bw, event->data.selection.selection, event->data.selection.read_only);
+        if (bw->window != NULL) {
+            struct gui_window *gw = bw->window;
+            if (gw->scaffold != NULL) {
+                nsgtk_scaffolding_update_edit_actions_sensitivity(gw->scaffold);
+            }
+        }
+        break;
+=======
+    case CONTENT_MSG_SELECTION:
+        browser_window_set_selection(bw, event->data.selection.selection, event->data.selection.read_only);
+        break;
+>>>>>>> REPLACE

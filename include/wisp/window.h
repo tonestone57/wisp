@@ -118,6 +118,11 @@ enum gui_window_event {
     GW_EVENT_START_SELECTION,
 
     /**
+     * Selection changed in the core browser window.
+     */
+    GW_EVENT_SELECTION_CHANGE,
+
+    /**
      * Page status has changed and so the padlock should be
      * updated.
      */

@@ -1667,6 +1667,12 @@ static nserror gui_window_event(struct gui_window *gw, enum gui_window_event eve
         gui_window_start_selection(gw);
         break;
 
+    case GW_EVENT_SELECTION_CHANGE:
+        if (gw->scaffold != NULL) {
+            nsgtk_scaffolding_update_edit_actions_sensitivity(gw->scaffold);
+        }
+        break;
+
     case GW_EVENT_START_THROBBER:
         throbber(gw, true);
         break;

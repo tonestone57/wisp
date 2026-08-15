@@ -1628,6 +1628,12 @@ static nserror browser_window_callback(hlcache_handle *c, const hlcache_event *e
 
     case CONTENT_MSG_SELECTION:
         browser_window_set_selection(bw, event->data.selection.selection, event->data.selection.read_only);
+        {
+            struct browser_window *top = browser_window_get_root(bw);
+            if (top != NULL && top->window != NULL && guit->window->event != NULL) {
+                guit->window->event(top->window, GW_EVENT_SELECTION_CHANGE);
+            }
+        }
         break;
 
     case CONTENT_MSG_SELECTMENU:

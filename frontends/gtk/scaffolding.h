@@ -136,6 +136,7 @@ void nsgtk_scaffolding_set_top_level(struct gui_window *g);
  *   closetab
  */
 void nsgtk_scaffolding_set_sensitivity(struct nsgtk_scaffolding *g);
+void nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaffolding *g);
 
 /**
  * update the sensitivity of tab-related UI elements

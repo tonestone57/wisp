@@ -270,24 +270,28 @@ static void scaffolding_update_context(struct nsgtk_scaffolding *g)
 }
 
 
+static void
+nsgtk_scaffolding_set_focus_cb(GtkWindow *window,
+                              GtkWidget *widget,
+                              gpointer user_data);
+
 /**
  * edit the sensitivity of focused widget
  *
- * \todo this needs to update toolbar sensitivity
- *
  * \param g The scaffolding context.
  */
-static guint nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaffolding *g)
+void nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaffolding *g)
 {
     GtkWidget *widget = gtk_window_get_focus(g->window);
 
-    if (GTK_IS_EDITABLE(widget)) {
+    if (widget != NULL && GTK_IS_EDITABLE(widget)) {
         gboolean has_selection;
         has_selection = gtk_editable_get_selection_bounds(GTK_EDITABLE(widget), NULL, NULL);
+        gboolean is_editable = gtk_editable_get_editable(GTK_EDITABLE(widget));
         g->menus[COPY_BUTTON].sensitivity = has_selection;
-        g->menus[CUT_BUTTON].sensitivity = has_selection;
-        g->menus[PASTE_BUTTON].sensitivity = true;
-    } else {
+        g->menus[CUT_BUTTON].sensitivity = has_selection && is_editable;
+        g->menus[PASTE_BUTTON].sensitivity = is_editable;
+    } else if (g->top_level != NULL) {
         struct browser_window *bw = nsgtk_get_browser_window(g->top_level);
         browser_editor_flags edit_f = browser_window_get_editor_flags(bw);
 
@@ -297,9 +301,6 @@ static guint nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaf
     }
 
     nsgtk_scaffolding_set_sensitivity(g);
-
-    return ((g->menus[COPY_BUTTON].sensitivity) | (g->menus[CUT_BUTTON].sensitivity) |
-        (g->menus[PASTE_BUTTON].sensitivity));
 }
 
 
@@ -1075,7 +1076,21 @@ static nserror nsgtk_menus_create(struct nsgtk_scaffolding *gs)
     nsgtk_menu_connect_signals(gs);
     nsgtk_menu_set_sensitivity(gs);
 
+    g_signal_connect(G_OBJECT(gs->window), "set-focus",
+                     G_CALLBACK(nsgtk_scaffolding_set_focus_cb), gs);
+
     return NSERROR_OK;
+}
+
+static void
+nsgtk_scaffolding_set_focus_cb(GtkWindow *window,
+                              GtkWidget *widget,
+                              gpointer user_data)
+{
+    struct nsgtk_scaffolding *g = user_data;
+
+    /* Update menu and toolbar edit action sensitivities */
+    nsgtk_scaffolding_update_edit_actions_sensitivity(g);
 }
 
 
