@@ -1,3 +1,4 @@
+#include <wisp/utils/overflow.h>
 
 #include <quickjs.h>
 #include <stdlib.h>
@@ -27,92 +28,9 @@ static JSValue js_crypto_randomUUID(JSContext *ctx, JSValueConst this_val, int a
     return JS_NewString(ctx, uuid);
 }
 
-/* 2. window.matchMedia stub */
-static JSValue js_window_matchMedia(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
-    const char *query = "";
-    if (argc > 0 && !JS_IsUndefined(argv[0])) {
-        query = JS_ToCString(ctx, argv[0]);
-    }
 
-    JSValue obj = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, obj, "matches", JS_NewBool(ctx, 0));
-    JS_SetPropertyStr(ctx, obj, "media", JS_NewString(ctx, query ? query : ""));
-    JS_SetPropertyStr(ctx, obj, "onchange", JS_NULL);
-
-    JSValue noop_func = JS_NewCFunction(ctx, wisp_qjs_noop, "noop", 0);
-    JS_SetPropertyStr(ctx, obj, "addListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "removeListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "addEventListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "removeEventListener", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "dispatchEvent", JS_NewCFunction(ctx, wisp_qjs_noop, "dispatchEvent", 1));
-    JS_FreeValue(ctx, noop_func);
-
-    if (argc > 0 && !JS_IsUndefined(argv[0])) JS_FreeCString(ctx, query);
-    return obj;
-}
-
-/* 3. ResizeObserver stub */
-static JSValue js_ResizeObserver_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv) {
-    JSValue obj = JS_NewObject(ctx);
-    JSValue noop_func = JS_NewCFunction(ctx, wisp_qjs_noop, "noop", 0);
-    JS_SetPropertyStr(ctx, obj, "observe", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "unobserve", JS_DupValue(ctx, noop_func));
-    JS_SetPropertyStr(ctx, obj, "disconnect", JS_DupValue(ctx, noop_func));
-    JS_FreeValue(ctx, noop_func);
-    return obj;
-}
 
 /* 4. Register polyfills on the document's JSContext */
-void wisp_qjs_register_core_polyfills(JSContext *ctx) {
-    JSValue global = JS_GetGlobalObject(ctx);
-
-    // Bind matchMedia
-    JS_SetPropertyStr(ctx, global, "matchMedia",
-                      JS_NewCFunction(ctx, js_window_matchMedia, "matchMedia", 1));
-
-    // Bind ResizeObserver
-    JSValue ro_ctor = JS_NewCFunction2(ctx, js_ResizeObserver_constructor, "ResizeObserver", 1, JS_CFUNC_constructor, 0);
-    JS_SetPropertyStr(ctx, global, "ResizeObserver", ro_ctor);
-
-    // Bind crypto.randomUUID
-    JSValue crypto = JS_GetPropertyStr(ctx, global, "crypto");
-    if (JS_IsUndefined(crypto) || JS_IsNull(crypto)) {
-        crypto = JS_NewObject(ctx);
-        JS_SetPropertyStr(ctx, global, "crypto", JS_DupValue(ctx, crypto));
-    }
-    JS_SetPropertyStr(ctx, crypto, "randomUUID",
-                      JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
-    JS_FreeValue(ctx, crypto);
-
-    // Try to bind window/self aliases if missing, but be careful not to overwrite the real window if it's an exotic object.
-    JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
-    if (JS_IsUndefined(window_val)) {
-        JS_SetPropertyStr(ctx, global, "window", JS_DupValue(ctx, global));
-    } else {
-        // If window already exists, mirror properties to it.
-        JS_SetPropertyStr(ctx, window_val, "matchMedia", JS_NewCFunction(ctx, js_window_matchMedia, "matchMedia", 1));
-        JSValue ro_ctor_window = JS_NewCFunction2(ctx, js_ResizeObserver_constructor, "ResizeObserver", 1, JS_CFUNC_constructor, 0);
-        JS_SetPropertyStr(ctx, window_val, "ResizeObserver", ro_ctor_window);
-
-        JSValue window_crypto = JS_GetPropertyStr(ctx, window_val, "crypto");
-        if (JS_IsUndefined(window_crypto) || JS_IsNull(window_crypto)) {
-            window_crypto = JS_NewObject(ctx);
-            JS_SetPropertyStr(ctx, window_val, "crypto", JS_DupValue(ctx, window_crypto));
-        }
-        JS_SetPropertyStr(ctx, window_crypto, "randomUUID", JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
-        JS_FreeValue(ctx, window_crypto);
-    }
-    JS_FreeValue(ctx, window_val);
-
-
-    JSValue globalThis_val = JS_GetPropertyStr(ctx, global, "globalThis");
-    if (JS_IsUndefined(globalThis_val)) {
-        JS_SetPropertyStr(ctx, global, "globalThis", JS_DupValue(ctx, global));
-    }
-    JS_FreeValue(ctx, globalThis_val);
-
-    JS_FreeValue(ctx, global);
-}
 
 /*
  * This file is part of NetSurf, http://www.netsurf-browser.org/
@@ -131,6 +49,7 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
 #include <wisp/utils/utf8proc_wrapper.h>
 #include <wisp/content/csp.h>
 
+
 #include <wisp/utils/errors.h>
 #include <wisp/utils/log.h>
 #include "utils/libdom.h"
@@ -143,6 +62,10 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
 #include "wisp_subsystem.h"
 #include "crypto.h"
 #include "dom_bridge.h"
+
+void wisp_qjs_register_core_polyfills(JSContext *ctx);
+#include "polyfills_c_str.h"
+
 
 dom_string *g_qjs_node_key = NULL;
 
@@ -1308,12 +1231,19 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 }
 
 #include "polyfill_intl_c.h"
+#include "polyfill_ui_events_c.h"
+#include "polyfill_forms_c.h"
 
 void qjs_inject_fetch_polyfill(JSContext *ctx)
 {
 
     JSValue val_intl = JS_Eval(ctx, intl_polyfill, strlen(intl_polyfill), "<intl-polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val_intl);
+
+    JSValue val_ui = JS_Eval(ctx, ui_events_polyfill, strlen(ui_events_polyfill), "<ui-events-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, val_ui);
+    JSValue val_forms = JS_Eval(ctx, forms_polyfill, strlen(forms_polyfill), "<forms-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, val_forms);
 
     const char *fetch_polyfill =
         "if (typeof globalThis.Headers === 'undefined') {\n"
@@ -2830,6 +2760,142 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "    };\n"
         "}\n"
         "\n"
+        "/* ==========================================================================\n"
+        "   MODULE 7: HTMLMEDIAELEMENT & TIMERANGES\n"
+        "   ========================================================================== */\n"
+        "(function() {\n"
+        "    'use strict';\n"
+        "    const global = globalThis;\n"
+        "\n"
+        "    class TimeRanges {\n"
+        "        constructor(ranges = []) {\n"
+        "            this._ranges = ranges; // array of [start, end]\n"
+        "        }\n"
+        "\n"
+        "        get length() {\n"
+        "            return this._ranges.length;\n"
+        "        }\n"
+        "\n"
+        "        start(index) {\n"
+        "            if (index < 0 || index >= this._ranges.length) {\n"
+        "                throw new DOMException(\"Failed to execute 'start' on 'TimeRanges': The index provided is outside the range.\", \"IndexSizeError\");\n"
+        "            }\n"
+        "            return this._ranges[index][0];\n"
+        "        }\n"
+        "\n"
+        "        end(index) {\n"
+        "            if (index < 0 || index >= this._ranges.length) {\n"
+        "                throw new DOMException(\"Failed to execute 'end' on 'TimeRanges': The index provided is outside the range.\", \"IndexSizeError\");\n"
+        "            }\n"
+        "            return this._ranges[index][1];\n"
+        "        }\n"
+        "    }\n"
+        "\n"
+        "    if (global.HTMLMediaElement && HTMLMediaElement.prototype) {\n"
+        "        const proto = HTMLMediaElement.prototype;\n"
+        "\n"
+        "        proto.HAVE_NOTHING = 0;\n"
+        "        proto.HAVE_METADATA = 1;\n"
+        "        proto.HAVE_CURRENT_DATA = 2;\n"
+        "        proto.HAVE_FUTURE_DATA = 3;\n"
+        "        proto.HAVE_ENOUGH_DATA = 4;\n"
+        "\n"
+        "        proto.NETWORK_EMPTY = 0;\n"
+        "        proto.NETWORK_IDLE = 1;\n"
+        "        proto.NETWORK_LOADING = 2;\n"
+        "        proto.NETWORK_NO_SOURCE = 3;\n"
+        "\n"
+        "        Object.defineProperty(proto, 'buffered', {\n"
+        "            get() {\n"
+        "                return new TimeRanges([[0, this.duration || 0]]);\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'played', {\n"
+        "            get() {\n"
+        "                return new TimeRanges([[0, this.currentTime || 0]]);\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'seekable', {\n"
+        "            get() {\n"
+        "                return new TimeRanges([[0, this.duration || 0]]);\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'currentTime', {\n"
+        "            get() { return this._currentTime || 0; },\n"
+        "            set(val) {\n"
+        "                this._currentTime = Math.max(0, Number(val) || 0);\n"
+        "                this.dispatchEvent(new Event('timeupdate'));\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'duration', {\n"
+        "            get() { return isNaN(this._duration) ? 0 : this._duration; },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'paused', {\n"
+        "            get() { return this._paused !== undefined ? this._paused : true; },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'playbackRate', {\n"
+        "            get() { return this._playbackRate || 1.0; },\n"
+        "            set(val) {\n"
+        "                this._playbackRate = Number(val) || 1.0;\n"
+        "                this.dispatchEvent(new Event('ratechange'));\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'volume', {\n"
+        "            get() { return this._volume !== undefined ? this._volume : 1.0; },\n"
+        "            set(val) {\n"
+        "                val = Number(val);\n"
+        "                if (val < 0 || val > 1) {\n"
+        "                    throw new DOMException(\"Failed to set 'volume' on 'HTMLMediaElement': The volume provided is outside the range [0.0, 1.0].\", \"IndexSizeError\");\n"
+        "                }\n"
+        "                this._volume = val;\n"
+        "                this.dispatchEvent(new Event('volumechange'));\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        proto.play = function() {\n"
+        "            this._paused = false;\n"
+        "            this.dispatchEvent(new Event('play'));\n"
+        "            this.dispatchEvent(new Event('playing'));\n"
+        "            return Promise.resolve();\n"
+        "        };\n"
+        "\n"
+        "        proto.pause = function() {\n"
+        "            this._paused = true;\n"
+        "            this.dispatchEvent(new Event('pause'));\n"
+        "        };\n"
+        "\n"
+        "        proto.canPlayType = function(type) {\n"
+        "            type = String(type).toLowerCase();\n"
+        "            if (type.includes('audio/mpeg') || type.includes('audio/ogg') || type.includes('audio/wav') ||\n"
+        "                type.includes('video/mp4') || type.includes('video/webm')) {\n"
+        "                return 'probably';\n"
+        "            }\n"
+        "            return '';\n"
+        "        };\n"
+        "\n"
+        "        proto.fastSeek = function(time) {\n"
+        "            this.currentTime = time;\n"
+        "        };\n"
+        "    }\n"
+        "\n"
+        "    global.TimeRanges = TimeRanges;\n"
+        "})();\n"
+        "\n"
         "if (globalThis.HTMLMediaElement) {\n"
         "    Object.defineProperty(globalThis.HTMLMediaElement.prototype, 'srcObject', {\n"
         "        get() { return this._srcObject || null; },\n"
@@ -3707,6 +3773,79 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        Object.defineProperty(globalThis, '$', {\n"
         "            get() { return _dollar || _jQuery; },\n"
         "            set(v) { _dollar = v; if (v && !_jQuery) _jQuery = v; },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "    }\n"
+        "})();\n"
+        "/* ========================================================================== */\n"
+        "/* MODULE 3: DIALOG & DETAILS SPECIFICATION                                   */\n"
+        "/* ========================================================================== */\n"
+        "(function() {\n"
+        "    'use strict';\n"
+        "    const global = globalThis;\n"
+        "\n"
+        "    if (global.HTMLDialogElement && HTMLDialogElement.prototype) {\n"
+        "        const proto = HTMLDialogElement.prototype;\n"
+        "\n"
+        "        Object.defineProperty(proto, 'open', {\n"
+        "            get() { return this.hasAttribute('open'); },\n"
+        "            set(val) {\n"
+        "                if (val) this.setAttribute('open', '');\n"
+        "                else this.removeAttribute('open');\n"
+        "            },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        Object.defineProperty(proto, 'returnValue', {\n"
+        "            get() { return this._returnValue || ''; },\n"
+        "            set(val) { this._returnValue = String(val); },\n"
+        "            configurable: true, enumerable: true\n"
+        "        });\n"
+        "\n"
+        "        proto.show = function() {\n"
+        "            if (this.open) return;\n"
+        "            this.open = true;\n"
+        "            this.style.display = 'block';\n"
+        "        };\n"
+        "\n"
+        "        proto.showModal = function() {\n"
+        "            if (this.open) {\n"
+        "                throw new DOMException(\"Failed to execute 'showModal' on 'HTMLDialogElement': The element is already open.\", \"InvalidStateError\");\n"
+        "            }\n"
+        "            this.open = true;\n"
+        "            this.style.display = 'block';\n"
+        "            this.style.position = 'fixed';\n"
+        "            this.style.top = '50%';\n"
+        "            this.style.left = '50%';\n"
+        "            this.style.transform = 'translate(-50%, -50%)';\n"
+        "            this.style.zIndex = '2147483647';\n"
+        "        };\n"
+        "\n"
+        "        proto.close = function(returnValue) {\n"
+        "            if (!this.open) return;\n"
+        "            if (returnValue !== undefined) {\n"
+        "                this.returnValue = returnValue;\n"
+        "            }\n"
+        "            this.open = false;\n"
+        "            this.style.display = 'none';\n"
+        "            const evt = new Event('close', { bubbles: false, cancelable: false });\n"
+        "            this.dispatchEvent(evt);\n"
+        "        };\n"
+        "    }\n"
+        "\n"
+        "    if (global.HTMLDetailsElement && HTMLDetailsElement.prototype) {\n"
+        "        const proto = HTMLDetailsElement.prototype;\n"
+        "\n"
+        "        Object.defineProperty(proto, 'open', {\n"
+        "            get() { return this.hasAttribute('open'); },\n"
+        "            set(val) {\n"
+        "                const hadAttr = this.hasAttribute('open');\n"
+        "                if (val) this.setAttribute('open', '');\n"
+        "                else this.removeAttribute('open');\n"
+        "                if (hadAttr !== !!val) {\n"
+        "                    this.dispatchEvent(new Event('toggle', { bubbles: false, cancelable: false }));\n"
+        "                }\n"
+        "            },\n"
         "            configurable: true, enumerable: true\n"
         "        });\n"
         "    }\n"
@@ -4918,8 +5057,8 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
 
                 lc->x = r.x0;
                 lc->y = r.y0;
-                lc->width = r.x1 - r.x0;
-                lc->height = r.y1 - r.y0;
+                lc->width = safe_sub_int(r.x1, r.x0);
+                lc->height = safe_sub_int(r.y1, r.y0);
                 lc->layout_dirty = 0;
 
                 __atomic_store_n(&lc->seq_version, seq + 2, __ATOMIC_RELEASE);
@@ -5648,4 +5787,64 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
         }
         obs = obs->next;
     }
+}
+
+
+void wisp_qjs_register_core_polyfills(JSContext *ctx) {
+    JSValue global = JS_GetGlobalObject(ctx);
+
+    // Bind crypto.randomUUID
+    JSValue crypto = JS_GetPropertyStr(ctx, global, "crypto");
+    if (JS_IsUndefined(crypto) || JS_IsNull(crypto)) {
+        crypto = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, global, "crypto", JS_DupValue(ctx, crypto));
+    }
+    JS_SetPropertyStr(ctx, crypto, "randomUUID",
+                      JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
+    JS_FreeValue(ctx, crypto);
+
+    // Try to bind window/self aliases if missing, but be careful not to overwrite the real window if it's an exotic object.
+    JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
+    if (JS_IsUndefined(window_val)) {
+        JS_SetPropertyStr(ctx, global, "window", JS_DupValue(ctx, global));
+    } else {
+        JSValue window_crypto = JS_GetPropertyStr(ctx, window_val, "crypto");
+        if (JS_IsUndefined(window_crypto) || JS_IsNull(window_crypto)) {
+            window_crypto = JS_NewObject(ctx);
+            JS_SetPropertyStr(ctx, window_val, "crypto", JS_DupValue(ctx, window_crypto));
+        }
+        JS_SetPropertyStr(ctx, window_crypto, "randomUUID", JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
+        JS_FreeValue(ctx, window_crypto);
+    }
+    JS_FreeValue(ctx, window_val);
+
+
+    JSValue globalThis_val = JS_GetPropertyStr(ctx, global, "globalThis");
+    if (JS_IsUndefined(globalThis_val)) {
+        JS_SetPropertyStr(ctx, global, "globalThis", JS_DupValue(ctx, global));
+    }
+    JS_FreeValue(ctx, globalThis_val);
+
+    JS_FreeValue(ctx, global);
+
+    // Evaluate the new Tier 1 core JS polyfills
+    JSValue val = JS_Eval(ctx, wisp_core_polyfills_js, strlen(wisp_core_polyfills_js), "wisp_core_polyfills.js", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+
+        JSValue stack_val = JS_GetPropertyStr(ctx, exc, "stack");
+        const char *stack_str = NULL;
+        if (!JS_IsUndefined(stack_val)) {
+            stack_str = JS_ToCString(ctx, stack_val);
+        }
+
+        NSLOG(wisp, WARNING, "Error evaluating wisp_core_polyfills.js: %s\nStack: %s", exc_str ? exc_str : "unknown", stack_str ? stack_str : "no stack");
+
+        if (stack_str) JS_FreeCString(ctx, stack_str);
+        JS_FreeValue(ctx, stack_val);
+        if (exc_str) JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
+    JS_FreeValue(ctx, val);
 }

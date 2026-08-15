@@ -1,3 +1,4 @@
+#include <wisp/utils/overflow.h>
 /*
  * Copyright 2005 Richard Wilson <info@tinct.net>
  * Copyright 2006 James Bursa <bursa@users.sourceforge.net>

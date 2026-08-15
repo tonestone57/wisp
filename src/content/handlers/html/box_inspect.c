@@ -1,3 +1,4 @@
+#include <wisp/utils/overflow.h>
 /*
  * Copyright 2008 Michael Drake <tlsa@netsurf-browser.org>
  * Copyright 2020 Vincent Sanders <vince@netsurf-browser.org>
@@ -564,7 +565,7 @@ void box_coords(struct box *box, int *x, int *y)
             assert(box->abs_containing_block != NULL &&
                 "Absolute/fixed positioned box must have abs_containing_block set");
 
-            NSLOG(wisp, INFO, "box_coords ABS entry: box=%p box.y=%d cb=%p cb.y=%d", (void *)orig, orig->y,
+            NSLOG(wisp, DEBUG, "box_coords ABS entry: box=%p box.y=%d cb=%p cb.y=%d", (void *)orig, orig->y,
                 (void *)box->abs_containing_block, box->abs_containing_block->y);
 
             /* Jump directly to the containing block and walk from there */
@@ -572,7 +573,7 @@ void box_coords(struct box *box, int *x, int *y)
             *x += box->x + box->sticky_x - scrollbar_get_offset(box->scroll_x);
             *y += box->y + box->sticky_y - scrollbar_get_offset(box->scroll_y);
 
-            NSLOG(wisp, INFO, "box_coords after CB: y=%d", *y);
+            NSLOG(wisp, DEBUG, "box_coords after CB: y=%d", *y);
         }
     }
 
@@ -602,8 +603,8 @@ void box_bounds(struct box *box, struct rect *r)
     width = box->padding[LEFT] + (box->width == AUTO || box->width == UNKNOWN_WIDTH ? 0 : box->width) + box->padding[RIGHT];
     height = box->padding[TOP] + (box->height == AUTO || box->height == UNKNOWN_HEIGHT ? 0 : box->height) + box->padding[BOTTOM];
 
-    r->x1 = r->x0 + width;
-    r->y1 = r->y0 + height;
+    r->x1 = safe_add_int(r->x0, width);
+    r->y1 = safe_add_int(r->y0, height);
 }
 
 

@@ -6447,7 +6447,7 @@ JSValue wisp_mouseevent_metaKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 }
 
 JSValue wisp_mouseevent_region_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "");
 }
 
 JSValue wisp_mouseevent_relatedTarget_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -6487,7 +6487,7 @@ JSValue wisp_keyboardevent_charCode_get_impl(JSContext *ctx, QJSNodePrivate *pri
 }
 
 JSValue wisp_keyboardevent_code_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "");
 }
 
 JSValue wisp_keyboardevent_ctrlKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -6499,7 +6499,7 @@ JSValue wisp_keyboardevent_isComposing_get_impl(JSContext *ctx, QJSNodePrivate *
 }
 
 JSValue wisp_keyboardevent_key_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "");
 }
 
 JSValue wisp_keyboardevent_keyCode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -6507,7 +6507,7 @@ JSValue wisp_keyboardevent_keyCode_get_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 JSValue wisp_keyboardevent_location_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewInt32(ctx, 0);
 }
 
 JSValue wisp_keyboardevent_metaKey_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -15208,7 +15208,7 @@ JSValue wisp_sharedworker_constructor_impl(JSContext *ctx, const char * scriptUR
 
 // Overrides: StorageEvent | constructor
 JSValue wisp_storageevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
-    return JS_UNDEFINED;
+    return JS_NewObject(ctx);
 }
 
 // Overrides: Text | constructor
