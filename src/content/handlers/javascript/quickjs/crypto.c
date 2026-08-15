@@ -1,3 +1,9 @@
+/*
+ * Copyright 2026 Wisp Contributors
+ *
+ * This file is part of Wisp, http://www.netsurf-browser.org/
+ */
+
 #include "crypto.h"
 #include <openssl/rand.h>
 #include <openssl/evp.h>
