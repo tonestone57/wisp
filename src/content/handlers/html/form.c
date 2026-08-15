@@ -1160,6 +1160,7 @@ static nserror form__select_process_selection(html_content *html, struct form_co
         }
     }
 
+    talloc_free(inline_box->text);
     inline_box->text = 0;
 
     if (control->data.select.num_selected == 0) {

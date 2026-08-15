@@ -253,7 +253,7 @@ static struct html_stylesheet *html_create_style_element(html_content *c, dom_no
     /* Extend array */
     stylesheets = realloc(c->stylesheets, sizeof(struct html_stylesheet) * (c->stylesheet_count + 1));
     if (stylesheets == NULL) {
-        free(media_str);
+
         content_broadcast_error(&c->base, NSERROR_NOMEM, NULL);
         return false;
     }
@@ -466,10 +466,8 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
 
     /* href='...' */
     exc = dom_element_get_attribute(node, corestring_dom_href, &href);
-    if (exc != DOM_NO_ERR || href == NULL) {
-        free(media_str);
+    if (exc != DOM_NO_ERR || href == NULL)
         return true;
-    }
 
     /* Load linked stylesheet (HTML4 14.3, HTML5 4.8.4) */
 

@@ -251,13 +251,10 @@ clean1:
     dom_string_unref(name);
 
 fail:
-    if (*result == NULL) {
-        if (element != NULL)
-            dom_node_unref(element);
+    if (*result == NULL)
         return HUBBUB_UNKNOWN;
-    } else {
+    else
         return HUBBUB_OK;
-    }
 }
 
 static hubbub_error create_text(void *parser, const hubbub_string *data, void **result)

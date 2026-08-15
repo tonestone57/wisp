@@ -91,10 +91,6 @@ dom_exception dom_html_legend_element_get_form(dom_html_legend_element *legend, 
 {
     dom_html_document *doc = (dom_html_document *)((dom_node_internal *)legend)->owner;
     dom_node_internal *field_set = ((dom_node_internal *)legend)->parent;
-    if (doc == NULL || doc->elements == NULL) {
-        *form = NULL;
-        return DOM_NO_ERR;
-    }
 
     /* Search ancestor chain for FIELDSET element */
     while (field_set != NULL) {
@@ -208,9 +204,6 @@ dom_exception dom_html_legend_element_get_align(dom_html_legend_element *legend,
 {
     dom_exception err;
     dom_html_document *doc = (dom_html_document *)((dom_node_internal *)legend)->owner;
-    if (doc == NULL || doc->memoised == NULL) {
-        return DOM_INVALID_STATE_ERR;
-    }
     err = dom_element_get_attribute(legend, doc->memoised[hds_align], align);
     if (err != DOM_NO_ERR)
         return err;

@@ -188,6 +188,11 @@ bool _dom_html_document_finalise(dom_html_document *doc)
 {
     int sidx;
     bool success;
+
+    /* Check if the base document finalisation can be completed first.
+     * If there are pending nodes, finalisation is aborted and we must NOT
+     * prematurely free/unref elements or memoised arrays to avoid corrupting
+     * the document state and leaking strings. */
     success = _dom_document_finalise(&doc->base);
     if (success == false) {
         return false;
@@ -974,7 +979,6 @@ dom_exception _dom_html_document_get_body(dom_html_document *doc, struct dom_htm
             }
             if (len == 0) {
                 dom_nodelist_unref(nodes);
-                *body = NULL;
                 return DOM_NO_ERR;
             }
         }
