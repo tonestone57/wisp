@@ -31,7 +31,7 @@ static const char *dataset_polyfill =
 "                    element.removeAttribute(attr);\n"
 "                    return true;\n"
 "                }\n"
-"                return false;\n"
+"                return true;\n"
 "            },\n"
 "            has(target, prop) {\n"
 "                if (typeof prop === 'symbol') return false;\n"
