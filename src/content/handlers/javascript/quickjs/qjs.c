@@ -1,5 +1,6 @@
-
 #include <quickjs.h>
+#include "qjs_css.h"
+
 #include <stdlib.h>
 
 static JSValue wisp_qjs_noop(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
@@ -84,6 +85,16 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
                       JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
     JS_FreeValue(ctx, crypto);
 
+    // Bind CSS.escape
+    JSValue css_obj = JS_GetPropertyStr(ctx, global, "CSS");
+    if (JS_IsUndefined(css_obj) || JS_IsNull(css_obj)) {
+        css_obj = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, global, "CSS", JS_DupValue(ctx, css_obj));
+    }
+    JS_SetPropertyStr(ctx, css_obj, "escape",
+                      JS_NewCFunction(ctx, js_css_escape, "escape", 1));
+    JS_FreeValue(ctx, css_obj);
+
     // Try to bind window/self aliases if missing, but be careful not to overwrite the real window if it's an exotic object.
     JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
     if (JS_IsUndefined(window_val)) {
@@ -101,9 +112,17 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
         }
         JS_SetPropertyStr(ctx, window_crypto, "randomUUID", JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
         JS_FreeValue(ctx, window_crypto);
+
+        JSValue window_css = JS_GetPropertyStr(ctx, window_val, "CSS");
+        if (JS_IsUndefined(window_css) || JS_IsNull(window_css)) {
+            window_css = JS_NewObject(ctx);
+            JS_SetPropertyStr(ctx, window_val, "CSS", JS_DupValue(ctx, window_css));
+        }
+        JS_SetPropertyStr(ctx, window_css, "escape", JS_NewCFunction(ctx, js_css_escape, "escape", 1));
+        JS_FreeValue(ctx, window_css);
+
     }
     JS_FreeValue(ctx, window_val);
-
 
     JSValue globalThis_val = JS_GetPropertyStr(ctx, global, "globalThis");
     if (JS_IsUndefined(globalThis_val)) {
@@ -3596,9 +3615,6 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        }\n"
         "        return evaluateCondition(cond);\n"
         "    }\n"
-        "};\n"
-        "globalThis.CSS.escape = globalThis.CSS.escape || function(ident) {\n"
-        "    return String(ident);\n"
         "};\n"
         "\n"
         "(function() {\n"
