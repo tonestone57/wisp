@@ -544,9 +544,7 @@ JSValue wisp_document_createEvent_impl(JSContext *ctx, QJSNodePrivate *priv, con
         } else {
             obj = qjs_new_event(ctx, evt, false);
         }
-        if (!wisp_is_js_process) {
-            dom_event_unref(evt);
-        }
+        dom_event_unref(evt);
         return obj;
     }
     return JS_NULL;
