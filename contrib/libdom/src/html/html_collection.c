@@ -93,10 +93,11 @@ void _dom_html_collection_finalise(struct dom_html_collection *col)
 void _dom_html_collection_destroy(struct dom_html_collection *col)
 {
     struct dom_html_document *doc = col->doc;
+    struct arena *arena = (doc != NULL) ? ((struct dom_document *)doc)->arena : NULL;
 
     _dom_html_collection_finalise(col);
 
-    if (doc == NULL || ((struct dom_document *)doc)->arena == NULL) {
+    if (arena == NULL) {
         free(col);
     }
 }
@@ -205,7 +206,7 @@ dom_exception dom_html_collection_item(dom_html_collection *col, uint32_t index,
 dom_exception dom_html_collection_named_item(dom_html_collection *col, dom_string *name, struct dom_node **node)
 {
     struct dom_node_internal *n = col->root;
-    dom_html_document *doc = (dom_html_document *)dom_node_get_owner(n);
+    dom_html_document *doc = col->doc;
     dom_exception err;
 
     while (n != NULL) {

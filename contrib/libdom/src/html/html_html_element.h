@@ -37,7 +37,7 @@ _dom_html_html_element_parse_attribute(dom_element *ele, dom_string *name, dom_s
 void _dom_virtual_html_html_element_destroy(dom_node_internal *node);
 dom_exception _dom_html_html_element_copy(dom_node_internal *old, dom_node_internal **copy);
 
-#define DOM_HTML_HTML_ELEMENT_PROTECT_VTABLE _dom_element_parse_attribute
+#define DOM_HTML_HTML_ELEMENT_PROTECT_VTABLE _dom_html_html_element_parse_attribute
 
 #define DOM_NODE_PROTECT_VTABLE_HTML_HTML_ELEMENT _dom_virtual_html_html_element_destroy, _dom_html_html_element_copy
 
