@@ -1513,7 +1513,10 @@ css_error parseDeclaration(css_parser *parser)
         parserutils_vector_dump(parser->tokens, __func__, tprinter);
 #endif
         error = emit(parser, CSS_PARSER_DECLARATION, parser->tokens, true);
-        if (error != CSS_OK) {
+        if (error == CSS_INVALID) {
+            parser_state to = {sMalformedDecl, Initial};
+            return transitionNoRet(parser, to);
+        } else if (error != CSS_OK) {
             return error;
         }
         break;
@@ -2033,89 +2036,73 @@ css_error parseMalformedDeclaration(css_parser *parser)
     const css_token *token = NULL;
     css_error error;
 
-    /* Malformed declaration: read everything up to the next ; or }
-     * We must ensure that pairs of {}, (), [], are balanced */
-
     switch (state->substate) {
     case Initial: {
-        /* Clear stack of open items */
         while (parserutils_stack_pop(parser->open_items, NULL) == PARSERUTILS_OK)
             ;
-
         state->substate = Go;
     }
     /* Fall through */
     case Go:
         while (1) {
-            char want;
-            char *match;
-            const char *data;
-            size_t len;
-
             error = getToken(parser, &token);
-            if (error != CSS_OK)
-                return error;
+            if (error != CSS_OK) return error;
 
-            if (token->type == CSS_TOKEN_EOF)
-                break;
-
-            if (token->type != CSS_TOKEN_CHAR)
-                continue;
-
-            len = lwc_string_length(token->idata);
-            data = lwc_string_data(token->idata);
-
-            if (len != 1 ||
-                (data[0] != '{' && data[0] != '}' && data[0] != '[' && data[0] != ']' && data[0] != '(' &&
-                    data[0] != ')' && data[0] != ';'))
-                continue;
-
-            match = parserutils_stack_get_current(parser->open_items);
-
-            /* If the stack is empty, then we're done if we've got
-             * either a ';' or '}' */
-            if (match == NULL) {
-                if (data[0] == ';' || data[0] == '}')
-                    break;
+            if (token->type == CSS_TOKEN_EOF) {
+                error = pushBack(parser, token);
+                if (error != CSS_OK) return error;
+                discard_tokens(parser);
+                return done(parser);
             }
 
-            /* Regardless, if we've got a semicolon, ignore it */
-            if (data[0] == ';')
+            if (token->type == CSS_TOKEN_FUNCTION) {
+                char open = '(';
+                error = parserutils_stack_push(parser->open_items, &open);
+                if (error != CSS_OK) return error;
                 continue;
-
-            /* Get corresponding start tokens for end tokens */
-            switch (data[0]) {
-            case '}':
-                want = '{';
-                break;
-            case ']':
-                want = '[';
-                break;
-            case ')':
-                want = '(';
-                break;
-            default:
-                want = 0;
-                break;
             }
 
-            /* Either pop off the stack, if we've matched the
-             * current item, or push the start token on */
-            if (match != NULL && *match == want) {
-                parserutils_stack_pop(parser->open_items, NULL);
-            } else if (want == 0) {
-                parserutils_stack_push(parser->open_items, &data[0]);
+            if (token->type != CSS_TOKEN_CHAR) continue;
+
+            if (lwc_string_length(token->idata) != 1) continue;
+            char c = lwc_string_data(token->idata)[0];
+
+            if (c == '{' || c == '(' || c == '[') {
+                error = parserutils_stack_push(parser->open_items, &c);
+                if (error != CSS_OK) return error;
+            } else if (c == '}' || c == ')' || c == ']') {
+                char *match = parserutils_stack_get_current(parser->open_items);
+                if (match == NULL) {
+                    if (c == '}') {
+                        error = pushBack(parser, token);
+                        if (error != CSS_OK) return error;
+                        discard_tokens(parser);
+                        return done(parser);
+                    }
+                    continue;
+                }
+
+                char want = 0;
+                switch (c) {
+                case '}': want = '{'; break;
+                case ']': want = '['; break;
+                case ')': want = '('; break;
+                }
+
+                if (*match == want) {
+                    parserutils_stack_pop(parser->open_items, NULL);
+                }
+            } else if (c == ';') {
+                char *match = parserutils_stack_get_current(parser->open_items);
+                if (match == NULL) {
+                    error = pushBack(parser, token);
+                    if (error != CSS_OK) return error;
+                    discard_tokens(parser);
+                    return done(parser);
+                }
             }
         }
     }
-
-    /* Push the last token (';', '}' or EOF) back */
-    error = pushBack(parser, token);
-    if (error != CSS_OK)
-        return error;
-
-    /* Discard the tokens we've read */
-    discard_tokens(parser);
 
     return done(parser);
 }
@@ -2248,6 +2235,11 @@ css_error parseMalformedAtRule(css_parser *parser)
 
             len = lwc_string_length(token->idata);
             data = lwc_string_data(token->idata);
+
+            if (token->type == CSS_TOKEN_FUNCTION) {
+                parserutils_stack_push(parser->open_items, &"("[0]);
+                continue;
+            }
 
             if (len != 1 ||
                 (data[0] != '{' && data[0] != '}' && data[0] != '[' && data[0] != ']' && data[0] != '(' &&
