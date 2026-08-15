@@ -161,9 +161,7 @@ JSValue wisp_customevent_constructor_impl(JSContext *ctx, const char * type, JSV
     }
 
     JSValue obj = qjs_new_customevent(ctx, evt, false);
-    if (!wisp_is_js_process) {
-        dom_event_unref(evt);
-    }
+    dom_event_unref(evt);
     return obj;
 }
 
