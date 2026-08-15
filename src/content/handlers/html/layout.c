@@ -3907,9 +3907,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 				}
 
 			switch (css_computed_vertical_align(d->style, &value, &unit)) {
-				case CSS_VERTICAL_ALIGN_BASELINE:
-					d->y += (int)(0.75 * (used_height - d_height));
-					break;
 				case CSS_VERTICAL_ALIGN_MIDDLE:
 					d->y += (used_height - d_height) / 2;
 					break;
@@ -3929,6 +3926,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					d->y += (used_height - d_height);
 				break;
 			default:
+			case CSS_VERTICAL_ALIGN_BASELINE:
 					d->y += (int)(0.75 * (used_height - d_height));
 				break;
 			}

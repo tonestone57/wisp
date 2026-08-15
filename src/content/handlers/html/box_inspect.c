@@ -191,6 +191,7 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
 #endif
         if (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_WIDTH) {
             /* If properties are sentinels, ignore it instead of asserting */
+            return NULL;
         } else {
             assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in children walk");
             assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in children walk");
@@ -231,6 +232,7 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
                 break;
             if (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_WIDTH) {
                 /* If properties are sentinels, ignore it instead of asserting */
+                continue;
             } else {
                 assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in sibling walk");
                 assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in sibling walk");
