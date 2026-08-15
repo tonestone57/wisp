@@ -19,6 +19,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define UNKNOWN_HEIGHT INT_MAX
+
 /**
  * \file
  * HTML layout implementation.
@@ -3886,7 +3888,7 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			d->type == BOX_INLINE_END ||
 			d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
 			int d_height = 0;
-			if (d->height != AUTO && d->height != UNKNOWN_WIDTH) {
+			if (d->height != AUTO && d->height != UNKNOWN_HEIGHT) {
 				d_height = d->height;
 			} else {
 				if (d->type == BOX_INLINE && d->style) {
