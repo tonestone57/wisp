@@ -21,9 +21,7 @@ static void js_event_finalizer(JSRuntime *rt, JSValue val)
                 t = JS_GetContextOpaque(priv->ctx);
             }
             if (!t || !js_event_cleanup(t, (struct dom_event *)priv->node)) {
-                if (!wisp_is_js_process) {
-                    dom_event_unref((dom_event *)priv->node);
-                }
+                dom_event_unref((dom_event *)priv->node);
             }
         }
         free(priv);
@@ -40,7 +38,7 @@ JSValue qjs_new_event(JSContext *ctx, void *node, bool is_dom_node)
     if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
     priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->ctx = ctx;
     priv->is_dom_node = false;
-    if (node && !wisp_is_js_process) dom_event_ref((dom_event *)node);
+    if (node) dom_event_ref((dom_event *)node);
     JS_SetOpaque(obj, priv); return obj;
 }
 
@@ -61,9 +59,7 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
     JS_FreeCString(ctx, type);
     if (!evt) return JS_ThrowInternalError(ctx, "Failed to create event");
     JSValue obj = qjs_new_event(ctx, evt, false);
-    if (!wisp_is_js_process) {
-        dom_event_unref(evt);
-    }
+    dom_event_unref(evt);
     return obj;
 }
 

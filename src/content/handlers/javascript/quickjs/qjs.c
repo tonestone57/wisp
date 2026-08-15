@@ -1,3 +1,4 @@
+#include <wisp/utils/overflow.h>
 
 #include <quickjs.h>
 #include <stdlib.h>
@@ -4918,8 +4919,8 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
 
                 lc->x = r.x0;
                 lc->y = r.y0;
-                lc->width = r.x1 - r.x0;
-                lc->height = r.y1 - r.y0;
+                lc->width = safe_sub_int(r.x1, r.x0);
+                lc->height = safe_sub_int(r.y1, r.y0);
                 lc->layout_dirty = 0;
 
                 __atomic_store_n(&lc->seq_version, seq + 2, __ATOMIC_RELEASE);
