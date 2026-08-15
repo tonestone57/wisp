@@ -3022,7 +3022,11 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
             object->candidate = NULL;
         }
 
-        error = llcache_fetch_redirect(object, msg->data.redirect, &object);
+        {
+            nsurl *redirect_url = nsurl_ref(msg->data.redirect);
+            error = llcache_fetch_redirect(object, redirect_url, &object);
+            nsurl_unref(redirect_url);
+        }
         break;
 
     case FETCH_NOTMODIFIED:
