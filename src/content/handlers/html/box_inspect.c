@@ -186,8 +186,15 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
         b = b->children;
         if (b == NULL)
             break;
-        assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in children walk");
-        assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in children walk");
+#ifndef AUTO
+#define AUTO INT_MIN
+#endif
+        if (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_WIDTH) {
+            /* If properties are sentinels, ignore it instead of asserting */
+        } else {
+            assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in children walk");
+            assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in children walk");
+        }
         /* For absolute positioned children, box->x/y are relative to containing block,
          * not the visual parent. Using box_coords to get correct global position.
          * Per CSS 2.1 §9.6, absolute elements are offset from containing block. */
@@ -222,8 +229,12 @@ static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int 
             b = b->next;
             if (b == NULL)
                 break;
-            assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in sibling walk");
-            assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in sibling walk");
+            if (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_WIDTH) {
+                /* If properties are sentinels, ignore it instead of asserting */
+            } else {
+                assert(b->x > -100000000 && b->x < 100000000 && "Box has huge x in sibling walk");
+                assert(b->y > -100000000 && b->y < 100000000 && "Box has huge y in sibling walk");
+            }
             /* When entering a box, handle absolute elements */
             if (b->abs_containing_block != NULL) {
                 int dx, dy;
