@@ -973,10 +973,10 @@ dom_exception _dom_html_document_get_body(dom_html_document *doc, struct dom_htm
                 return exc;
             }
             if (len == 0) {
-            dom_nodelist_unref(nodes);
-            *body = NULL;
-            return DOM_NO_ERR;
-        }
+                dom_nodelist_unref(nodes);
+                *body = NULL;
+                return DOM_NO_ERR;
+            }
         }
 
         exc = dom_nodelist_item(nodes, 0, (void *)&node);
