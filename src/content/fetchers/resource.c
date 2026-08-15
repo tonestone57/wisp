@@ -132,8 +132,9 @@ static bool fetch_resource_redirect_handler(struct fetch_resource_context *ctx)
     fetch_set_http_code(ctx->fetchh, 302);
 
     msg.type = FETCH_REDIRECT;
-    msg.data.redirect = ctx->entry->redirect_url;
+    msg.data.redirect = nsurl_ref(ctx->entry->redirect_url);
     fetch_resource_send_callback(&msg, ctx);
+    nsurl_unref(msg.data.redirect);
 
     return true;
 }
