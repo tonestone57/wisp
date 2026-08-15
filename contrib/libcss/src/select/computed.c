@@ -166,11 +166,18 @@ css_error css_computed_style_destroy(css_computed_style *style)
     if (style->quotes != NULL) {
         lwc_string **s;
 
-        for (s = style->quotes; *s != NULL; s++) {
-            lwc_string_unref(*s);
-        }
+        /* Check if quotes is the static default array provided by Wisp user agent handler.
+         * The Wisp libcss Default Property Hints specifies that we should not free the static default array pointer.
+         */
+        #pragma weak wisp_get_default_quotes_ptr
+        extern void *wisp_get_default_quotes_ptr(void);
 
-        free(style->quotes);
+        if (wisp_get_default_quotes_ptr == NULL || (void*)style->quotes != wisp_get_default_quotes_ptr()) {
+            for (s = style->quotes; *s != NULL; s++) {
+                lwc_string_unref(*s);
+            }
+            free(style->quotes);
+        }
     }
 
     // TODO can these be NULL ?
