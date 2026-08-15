@@ -166,13 +166,247 @@ JSValue wisp_node_isEqualNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
     return JS_NewBool(ctx, result);
 }
 
-JSValue wisp_node_compareDocumentPosition_impl(JSContext *ctx, QJSNodePrivate *priv, void * other)
+/* WHATWG DOM Bitmask Flags */
+enum {
+    DOCUMENT_POSITION_DISCONNECTED            = 0x01,
+    DOCUMENT_POSITION_PRECEDING               = 0x02,
+    DOCUMENT_POSITION_FOLLOWING               = 0x04,
+    DOCUMENT_POSITION_CONTAINS                = 0x08,
+    DOCUMENT_POSITION_CONTAINED_BY            = 0x10,
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC = 0x20
+};
+
+static bool dom_node_is_ancestor(struct dom_node *ancestor, struct dom_node *descendant)
 {
-    if (!priv || !priv->node || !other) return JS_NewInt32(ctx, 0);
-    if (wisp_is_js_process) return JS_NewInt32(ctx, 0);
-    uint16_t result = 0;
-    dom_node_compare_document_position((dom_node *)priv->node, (dom_node *)other, &result);
-    return JS_NewInt32(ctx, result);
+    if (!ancestor || !descendant) return false;
+    struct dom_node *curr = descendant;
+    dom_node_ref(curr);
+    while (curr) {
+        if (curr == ancestor) {
+            dom_node_unref(curr);
+            return true;
+        }
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node(curr, &parent);
+        dom_node_unref(curr);
+        curr = parent;
+    }
+    return false;
+}
+
+JSValue wisp_node_compareDocumentPosition_impl(JSContext *ctx, QJSNodePrivate *this_p, void * other)
+{
+    if (!this_p || !this_p->node) return JS_ThrowTypeError(ctx, "Invalid this node");
+    if (!other) return JS_ThrowTypeError(ctx, "Expected Node");
+
+
+    if (wisp_is_js_process) {
+        uint32_t id1 = (uint32_t)(uintptr_t)this_p->node;
+        uint32_t id2 = (uint32_t)(uintptr_t)other;
+        if (id1 == id2) return JS_NewInt32(ctx, 0);
+
+        // Check if n1 contains n2
+        uint32_t curr = id2;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, curr);
+        bool n1_contains_n2 = false;
+        while (sn) {
+            if (curr == id1) {
+                n1_contains_n2 = true;
+                break;
+            }
+            if (sn->parent_id == 0) break;
+            curr = sn->parent_id;
+            sn = find_shm_node(wisp_shm_dom, curr);
+        }
+        if (n1_contains_n2) {
+            return JS_NewInt32(ctx, DOCUMENT_POSITION_CONTAINED_BY | DOCUMENT_POSITION_FOLLOWING);
+        }
+
+        // Check if n2 contains n1
+        curr = id1;
+        sn = find_shm_node(wisp_shm_dom, curr);
+        bool n2_contains_n1 = false;
+        while (sn) {
+            if (curr == id2) {
+                n2_contains_n1 = true;
+                break;
+            }
+            if (sn->parent_id == 0) break;
+            curr = sn->parent_id;
+            sn = find_shm_node(wisp_shm_dom, curr);
+        }
+        if (n2_contains_n1) {
+            return JS_NewInt32(ctx, DOCUMENT_POSITION_CONTAINS | DOCUMENT_POSITION_PRECEDING);
+        }
+
+        // Find roots
+        uint32_t root1 = id1;
+        sn = find_shm_node(wisp_shm_dom, root1);
+        while (sn && sn->parent_id != 0) {
+            root1 = sn->parent_id;
+            sn = find_shm_node(wisp_shm_dom, root1);
+        }
+
+        uint32_t root2 = id2;
+        sn = find_shm_node(wisp_shm_dom, root2);
+        while (sn && sn->parent_id != 0) {
+            root2 = sn->parent_id;
+            sn = find_shm_node(wisp_shm_dom, root2);
+        }
+
+        if (root1 != root2) {
+            uint32_t flags = DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC;
+            flags |= (id1 < id2) ? DOCUMENT_POSITION_FOLLOWING : DOCUMENT_POSITION_PRECEDING;
+            return JS_NewInt32(ctx, flags);
+        }
+
+        // Tree traversal
+        curr = root1;
+        bool found_n1 = false, found_n2 = false;
+
+        while (curr != 0) {
+            if (curr == id1) found_n1 = true;
+            if (curr == id2) found_n2 = true;
+
+            if (found_n1 && !found_n2) {
+                return JS_NewInt32(ctx, DOCUMENT_POSITION_FOLLOWING);
+            }
+            if (found_n2 && !found_n1) {
+                return JS_NewInt32(ctx, DOCUMENT_POSITION_PRECEDING);
+            }
+
+            WispCompactNode *curr_sn = find_shm_node(wisp_shm_dom, curr);
+            if (!curr_sn) break;
+
+            if (curr_sn->first_child_id != 0) {
+                curr = curr_sn->first_child_id;
+                continue;
+            }
+
+            if (curr_sn->next_sibling_id != 0) {
+                curr = curr_sn->next_sibling_id;
+                continue;
+            }
+
+            while (curr != 0) {
+                WispCompactNode *walker_sn = find_shm_node(wisp_shm_dom, curr);
+                if (!walker_sn || walker_sn->parent_id == 0) {
+                    curr = 0;
+                    break;
+                }
+                WispCompactNode *parent_sn = find_shm_node(wisp_shm_dom, walker_sn->parent_id);
+                if (parent_sn && parent_sn->next_sibling_id != 0) {
+                    curr = parent_sn->next_sibling_id;
+                    break;
+                }
+                curr = walker_sn->parent_id;
+            }
+        }
+        return JS_NewInt32(ctx, DOCUMENT_POSITION_FOLLOWING);
+    }
+
+
+    struct dom_node *n1 = (struct dom_node *)this_p->node;
+    struct dom_node *n2 = (struct dom_node *)other;
+
+    if (n1 == n2) return JS_NewInt32(ctx, 0);
+
+    if (dom_node_is_ancestor(n1, n2)) {
+        return JS_NewInt32(ctx, DOCUMENT_POSITION_CONTAINED_BY | DOCUMENT_POSITION_FOLLOWING);
+    }
+    if (dom_node_is_ancestor(n2, n1)) {
+        return JS_NewInt32(ctx, DOCUMENT_POSITION_CONTAINS | DOCUMENT_POSITION_PRECEDING);
+    }
+
+    /* Compute root ancestors */
+    struct dom_node *r1 = n1;
+    dom_node_ref(r1);
+    while (true) {
+        struct dom_node *p = NULL;
+        dom_node_get_parent_node(r1, &p);
+        if (!p) break;
+        dom_node_unref(r1);
+        r1 = p;
+    }
+
+    struct dom_node *r2 = n2;
+    dom_node_ref(r2);
+    while (true) {
+        struct dom_node *p = NULL;
+        dom_node_get_parent_node(r2, &p);
+        if (!p) break;
+        dom_node_unref(r2);
+        r2 = p;
+    }
+
+    if (r1 != r2) {
+        dom_node_unref(r1);
+        dom_node_unref(r2);
+        uint32_t flags = DOCUMENT_POSITION_DISCONNECTED | DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC;
+        flags |= ((uintptr_t)n1 < (uintptr_t)n2) ? DOCUMENT_POSITION_FOLLOWING : DOCUMENT_POSITION_PRECEDING;
+        return JS_NewInt32(ctx, flags);
+    }
+
+    dom_node_unref(r1);
+    dom_node_unref(r2);
+
+    /* Tree depth-first order traversal determination */
+    struct dom_node *curr = NULL;
+    dom_node_get_owner_document(n1, (struct dom_document **)&curr);
+    if (!curr) curr = n1;
+    else dom_node_unref(curr);
+
+    bool found_n1 = false, found_n2 = false;
+    struct dom_node *walker = curr;
+    dom_node_ref(walker);
+
+    while (walker) {
+        if (walker == n1) found_n1 = true;
+        if (walker == n2) found_n2 = true;
+
+        if (found_n1 && !found_n2) {
+            dom_node_unref(walker);
+            return JS_NewInt32(ctx, DOCUMENT_POSITION_FOLLOWING);
+        }
+        if (found_n2 && !found_n1) {
+            dom_node_unref(walker);
+            return JS_NewInt32(ctx, DOCUMENT_POSITION_PRECEDING);
+        }
+
+        struct dom_node *next = NULL;
+        dom_node_get_first_child(walker, &next);
+        if (next) {
+            dom_node_unref(walker);
+            walker = next;
+            continue;
+        }
+
+        dom_node_get_next_sibling(walker, &next);
+        if (next) {
+            dom_node_unref(walker);
+            walker = next;
+            continue;
+        }
+
+        while (walker) {
+            struct dom_node *parent = NULL;
+            dom_node_get_parent_node(walker, &parent);
+            dom_node_unref(walker);
+            if (!parent) {
+                walker = NULL;
+                break;
+            }
+            dom_node_get_next_sibling(parent, &next);
+            if (next) {
+                dom_node_unref(parent);
+                walker = next;
+                break;
+            }
+            walker = parent;
+        }
+    }
+
+    return JS_NewInt32(ctx, DOCUMENT_POSITION_FOLLOWING);
 }
 
 JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * other)
@@ -189,9 +423,7 @@ JSValue wisp_node_contains_impl(JSContext *ctx, QJSNodePrivate *priv, void * oth
         }
         return JS_FALSE;
     }
-    bool result = false;
-    dom_node_contains((dom_node *)priv->node, (dom_node *)other, &result);
-    return JS_NewBool(ctx, result);
+    return JS_NewBool(ctx, dom_node_is_ancestor((struct dom_node *)priv->node, (struct dom_node *)other));
 }
 
 JSValue wisp_node_lookupPrefix_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace)
