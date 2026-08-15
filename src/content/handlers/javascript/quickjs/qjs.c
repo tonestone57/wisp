@@ -1309,12 +1309,16 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 }
 
 #include "polyfill_intl_c.h"
+#include "polyfill_ui_events_c.h"
 
 void qjs_inject_fetch_polyfill(JSContext *ctx)
 {
 
     JSValue val_intl = JS_Eval(ctx, intl_polyfill, strlen(intl_polyfill), "<intl-polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val_intl);
+
+    JSValue val_ui = JS_Eval(ctx, ui_events_polyfill, strlen(ui_events_polyfill), "<ui-events-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, val_ui);
 
     const char *fetch_polyfill =
         "if (typeof globalThis.Headers === 'undefined') {\n"
