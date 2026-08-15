@@ -147,6 +147,10 @@ dom_exception dom_html_field_set_element_get_form(dom_html_field_set_element *fi
 {
     dom_html_document *doc = (dom_html_document *)((dom_node_internal *)field_set)->owner;
     dom_node_internal *form_tmp = ((dom_node_internal *)field_set)->parent;
+    if (doc == NULL || doc->elements == NULL) {
+        *form = NULL;
+        return DOM_NO_ERR;
+    }
 
     /* Search ancestor chain for FIELDSET element */
     while (form_tmp != NULL) {

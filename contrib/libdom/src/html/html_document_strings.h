@@ -46,7 +46,7 @@ HTML_DOCUMENT_STRINGS_ACTION1(target)
 HTML_DOCUMENT_STRINGS_ACTION1(type)
 /* Useful attributes used by HTMLMetaElement */
 HTML_DOCUMENT_STRINGS_ACTION1(content)
-HTML_DOCUMENT_STRINGS_ACTION(http_equiv, http - equiv)
+HTML_DOCUMENT_STRINGS_ACTION(http_equiv, http-equiv)
 HTML_DOCUMENT_STRINGS_ACTION1(name)
 HTML_DOCUMENT_STRINGS_ACTION1(scheme)
 /* HTMLBodyElement attributes */
@@ -57,7 +57,7 @@ HTML_DOCUMENT_STRINGS_ACTION1(background)
 HTML_DOCUMENT_STRINGS_ACTION1(link)
 HTML_DOCUMENT_STRINGS_ACTION1(text)
 /* Useful attributes used by HTMLFormElement */
-HTML_DOCUMENT_STRINGS_ACTION(accept_charset, accept - charset)
+HTML_DOCUMENT_STRINGS_ACTION(accept_charset, accept-charset)
 HTML_DOCUMENT_STRINGS_ACTION1(action)
 HTML_DOCUMENT_STRINGS_ACTION1(enctype)
 HTML_DOCUMENT_STRINGS_ACTION1(method)
@@ -135,8 +135,8 @@ HTML_DOCUMENT_STRINGS_ACTION1(label)
 HTML_DOCUMENT_STRINGS_ACTION1(selected)
 /* HTML_DOCUMENT_STRINGS_ACTION1(value) */
 /* HTMLSelectElement strings */
-HTML_DOCUMENT_STRINGS_ACTION(select_multiple, select - multiple)
-HTML_DOCUMENT_STRINGS_ACTION(select_one, select - one)
+HTML_DOCUMENT_STRINGS_ACTION(select_multiple, select-multiple)
+HTML_DOCUMENT_STRINGS_ACTION(select_one, select-one)
 /* Some event strings for later */
 HTML_DOCUMENT_STRINGS_ACTION1(blur)
 HTML_DOCUMENT_STRINGS_ACTION1(focus)
