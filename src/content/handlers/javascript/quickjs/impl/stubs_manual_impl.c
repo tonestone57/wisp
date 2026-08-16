@@ -8981,51 +8981,7 @@ JSValue wisp_compositionevent_data_get_impl(JSContext *ctx, QJSNodePrivate *priv
 // Overrides: getter | CSSMarginRule::style(user);
 
 
-// Overrides: getter | CSSImportRule::href(string);
-JSValue wisp_cssimportrule_href_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
 
-// Overrides: getter | CSSImportRule::media(user);
-JSValue wisp_cssimportrule_media_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-
-// Overrides: getter | CSSImportRule::styleSheet(user);
-JSValue wisp_cssimportrule_styleSheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-
-// Overrides: getter | CSSStyleRule::selectorText(string);
-
-// Overrides: setter | CSSStyleRule::selectorText(string);
-
-// Overrides: getter | CSSStyleRule::style(user);
-
-// Overrides: method | CSSRuleList::item();
-JSValue wisp_cssrulelist_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CSSRuleList::length(unsigned long);
-JSValue wisp_cssrulelist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
-}
-
-// Overrides: getter | StyleSheet::type(string);
-JSValue wisp_stylesheet_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-
-// Overrides: getter | StyleSheet::href(string);
-JSValue wisp_stylesheet_href_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-
-// Overrides: getter | StyleSheet::ownerNode(multiple);
-JSValue wisp_stylesheet_ownerNode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
 
 // Overrides: getter | StyleSheet::parentStyleSheet(user);
 JSValue wisp_stylesheet_parentStyleSheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
