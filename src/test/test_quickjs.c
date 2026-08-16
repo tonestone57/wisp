@@ -150,7 +150,6 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
-
 START_TEST(test_quickjs_event_composed_path)
 {
     jsheap *heap = NULL;
@@ -465,6 +464,32 @@ START_TEST(test_quickjs_svds_32bit_indices)
     // Cleanup
     free(shm);
     dom_node_unref((dom_node *)doc);
+}
+END_TEST
+
+START_TEST(test_quickjs_css_escape)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+
+    const char *code = "if (typeof CSS === 'undefined' || typeof CSS.escape !== 'function') throw new Error('no escape');"
+                       "if (CSS.escape('foo') !== 'foo') throw new Error('foo');"
+                       "1;";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_css_escape");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
 }
 END_TEST
 
@@ -3133,7 +3158,6 @@ START_TEST(test_quickjs_multiple_threads)
 }
 END_TEST
 
-
 /*
  * Console binding tests - test the QuickJS console directly
  */
@@ -3955,7 +3979,6 @@ START_TEST(test_quickjs_dom_attributes)
     js_finalise();
 }
 END_TEST
-
 
 START_TEST(test_quickjs_canvas_imagedata)
 {
@@ -4910,6 +4933,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_node_stubs);
     tcase_add_test(tc_window, test_quickjs_webidl_stubs);
+    tcase_add_test(tc_window, test_quickjs_css_escape);
     tcase_add_test(tc_window, test_quickjs_css_style_declaration);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_canvas_gradient);
