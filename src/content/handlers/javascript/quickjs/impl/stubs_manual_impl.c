@@ -11022,9 +11022,11 @@ JSValue wisp_domimplementation_createDocumentType_impl(JSContext *ctx, QJSNodePr
 JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * qualifiedName, void * doctype) {
     dom_document *new_doc = NULL;
 
+    const char *ns_str = (namespace && strlen(namespace) > 0) ? namespace : NULL;
+    const char *qname_str = (qualifiedName && strlen(qualifiedName) > 0) ? qualifiedName : "xml";
+
     dom_exception err = dom_implementation_create_document(
-        DOM_IMPLEMENTATION_XML, NULL, NULL, NULL,
-        NULL, NULL, &new_doc
+        DOM_IMPLEMENTATION_XML, ns_str, qname_str, NULL, NULL, NULL, &new_doc
     );
 
     if (err != DOM_NO_ERR || !new_doc) {
@@ -11036,7 +11038,6 @@ JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivat
     return ret;
 }
 
-// Overrides: method | DOMImplementation::hasFeature();
 JSValue wisp_domimplementation_hasFeature_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_TRUE;
 }
@@ -11074,6 +11075,7 @@ JSValue wisp_document_importNode_impl(JSContext *ctx, QJSNodePrivate *priv, void
         return ret;
     }
 }
+
 JSValue wisp_document_adoptNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
     return JS_UNDEFINED;
 }

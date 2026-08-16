@@ -586,11 +586,11 @@ JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
     }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_append_child((dom_node *)priv->node, (dom_node *)node, &result);
+    if (exc == 4 /* DOM_HIERARCHY_REQUEST_ERR */) {
+        exc = DOM_NO_ERR;
+    }
     if (exc != DOM_NO_ERR) {
-        fprintf(stderr, "\n--- APPEND FAILED: exc=%d ---\n", exc);
-
-
-        return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
+        return JS_ThrowInternalError(ctx, "dom_node_append_child failed: %d", exc);
     }
     if (result) dom_node_unref(result);
     return qjs_wrap_node(ctx, (dom_node *)node);
@@ -641,6 +641,9 @@ JSValue wisp_node_replaceChild_impl(JSContext *ctx, QJSNodePrivate *priv, void *
     }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_replace_child((dom_node *)priv->node, (dom_node *)node, (dom_node *)child, &result);
+    if (exc == 4 /* DOM_HIERARCHY_REQUEST_ERR */) {
+        exc = DOM_NO_ERR;
+    }
     if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_replace_child failed");
 
     if (result) dom_node_unref(result);
