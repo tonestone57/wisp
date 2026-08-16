@@ -468,25 +468,12 @@ JSValue wisp_element_attributes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return val;
 }
 
-
-
-
 JSValue wisp_htmlelement_style_get_impl(JSContext *ctx, QJSNodePrivate *priv);
 JSValue wisp_elementcssinlinestyle_style_get_impl(JSContext *ctx, QJSNodePrivate *priv);
 
 JSValue wisp_elementcssinlinestyle_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return wisp_htmlelement_style_get_impl(ctx, priv);
-}
-
-
-static JSValue instantiate_cssstyledeclaration(JSContext *ctx) {
-    JSValue global_obj = JS_GetGlobalObject(ctx);
-    JSValue ctor = JS_GetPropertyStr(ctx, global_obj, "CSSStyleDeclaration");
-    JSValue initial_style = JS_CallConstructor(ctx, ctor, 0, NULL);
-    JS_FreeValue(ctx, ctor);
-    JS_FreeValue(ctx, global_obj);
-    return initial_style;
 }
 
 JSValue wisp_htmlelement_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -496,7 +483,8 @@ JSValue wisp_htmlelement_style_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     if (JS_IsObject(wrapper)) {
         JSValue style = JS_GetPropertyStr(ctx, wrapper, "__wisp_style_cached");
         if (JS_IsUndefined(style)) {
-            JSValue initial_style = instantiate_cssstyledeclaration(ctx);
+            extern JSValue qjs_new_cssstyledeclaration(JSContext *ctx, void *node, bool is_dom_node);
+            JSValue initial_style = qjs_new_cssstyledeclaration(ctx, priv->node, true);
             JSValue global_obj = JS_GetGlobalObject(ctx);
             JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
             if (JS_IsFunction(ctx, make_proxy_fn)) {
@@ -661,7 +649,8 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
 }
 
 static JSValue wisp_create_fallback_style_proxy(JSContext *ctx) {
-    JSValue initial_style = instantiate_cssstyledeclaration(ctx);
+    extern JSValue qjs_new_cssstyledeclaration(JSContext *ctx, void *node, bool is_dom_node);
+    JSValue initial_style = qjs_new_cssstyledeclaration(ctx, NULL, true);
     JSValue global_obj = JS_GetGlobalObject(ctx);
     JSValue make_proxy_fn = JS_GetPropertyStr(ctx, global_obj, "__wisp_make_style_proxy");
     if (JS_IsFunction(ctx, make_proxy_fn)) {
@@ -692,7 +681,8 @@ static JSValue js_new_cssstyledeclaration_global(JSContext *ctx, JSValueConst th
     if (argc < 1) return JS_NULL;
     QJSNodePrivate *priv = qjs_get_dom_priv(ctx, argv[0]);
     if (!priv || !priv->node) return JS_NULL;
-    return instantiate_cssstyledeclaration(ctx);
+    extern JSValue qjs_new_cssstyledeclaration(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_cssstyledeclaration(ctx, priv->node, true);
 }
 
 int qjs_init_element(JSContext *ctx) {
