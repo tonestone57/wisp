@@ -586,8 +586,12 @@ JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
     }
     struct dom_node *result = NULL;
     dom_exception exc = dom_node_append_child((dom_node *)priv->node, (dom_node *)node, &result);
-    if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
+    if (exc != DOM_NO_ERR) {
+        fprintf(stderr, "\n--- APPEND FAILED: exc=%d ---\n", exc);
 
+
+        return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
+    }
     if (result) dom_node_unref(result);
     return qjs_wrap_node(ctx, (dom_node *)node);
 }

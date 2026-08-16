@@ -11020,7 +11020,20 @@ JSValue wisp_domimplementation_createDocumentType_impl(JSContext *ctx, QJSNodePr
 
 // Overrides: method | DOMImplementation::createDocument();
 JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * qualifiedName, void * doctype) {
-    return JS_UNDEFINED;
+    dom_document *new_doc = NULL;
+
+    dom_exception err = dom_implementation_create_document(
+        DOM_IMPLEMENTATION_XML, NULL, NULL, NULL,
+        NULL, NULL, &new_doc
+    );
+
+    if (err != DOM_NO_ERR || !new_doc) {
+        return JS_ThrowInternalError(ctx, "dom_implementation_create_document failed: %d", err);
+    }
+
+    JSValue ret = qjs_wrap_node(ctx, (dom_node *)new_doc);
+    dom_node_unref((dom_node *)new_doc);
+    return ret;
 }
 
 // Overrides: method | DOMImplementation::hasFeature();
@@ -11040,10 +11053,27 @@ JSValue wisp_document_createProcessingInstruction_impl(JSContext *ctx, QJSNodePr
 
 // Overrides: method | Document::importNode();
 JSValue wisp_document_importNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, bool deep) {
-    return JS_FALSE;
-}
+    if (!priv || !priv->node || !node) {
+        return JS_ThrowTypeError(ctx, "Failed to execute 'importNode': invalid arguments.");
+    }
 
-// Overrides: method | Document::adoptNode();
+    if (wisp_is_js_process) {
+        return qjs_wrap_node(ctx, node);
+    } else {
+        dom_document *target_doc = (dom_document *)priv->node;
+        dom_node *src_node = (dom_node *)node;
+
+        dom_node *imported = NULL;
+        dom_exception err = dom_document_import_node(target_doc, src_node, deep, &imported);
+        if (err != DOM_NO_ERR || !imported) {
+            return JS_ThrowInternalError(ctx, "dom_document_import_node failed: error code %d", err);
+        }
+
+        JSValue ret = qjs_wrap_node(ctx, imported);
+        dom_node_unref(imported);
+        return ret;
+    }
+}
 JSValue wisp_document_adoptNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
     return JS_UNDEFINED;
 }
@@ -12601,25 +12631,18 @@ JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv,
 extern JSValue qjs_new_domimplementation(JSContext *ctx, void *node, bool is_dom_node);
 
 // Overrides: attribute get | Document::implementation (getter);
+#include "JSDOMImplementation.gen.h"
+
+// Overrides: attribute | Document::implementation
 JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!priv || !priv->node) return JS_NULL;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (JS_IsObject(wrapper)) {
-        JSValue impl = JS_GetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached");
-        if (JS_IsUndefined(impl)) {
-            impl = qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
-            JS_SetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached", JS_DupValue(ctx, impl));
-        }
-        JS_FreeValue(ctx, wrapper);
-        return impl;
-    }
-    JS_FreeValue(ctx, wrapper);
-    return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
-}
+    dom_document *doc = (dom_document *)priv->node;
+    dom_implementation *impl = NULL;
+    dom_document_get_implementation(doc, &impl);
+    if (!impl) return JS_NULL;
 
-// Overrides: attribute get | Document::location (getter);
-JSValue wisp_document_location_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    // Create the DOMImplementation wrapper
+    return qjs_new_domimplementation(ctx, (void *)impl, false);
 }
 
 // Overrides: attribute get | Document::onabort (getter);
