@@ -2332,7 +2332,7 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "            }\n"
         "            if (typeof prop === 'string') {\n"
         "                let kebab = prop.replace(/([A-Z])/g, '-$1').toLowerCase();\n"
-        "                const val = target.getPropertyValue(kebab);\n"
+        "                const val = (typeof target.getPropertyValue === 'function') ? target.getPropertyValue(kebab) : undefined;\n"
         "                if (val !== undefined && val !== '') return val;\n"
         "                if (prop === 'display') return 'block';\n"
         "                if (prop === 'width') return '1024px';\n"

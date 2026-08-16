@@ -181,7 +181,7 @@ static const char *cssom_polyfill =
     "    global.CSSStyleRule = CSSStyleRule;\n"
     "    global.CSSRuleList = CSSRuleList;\n"
     "    global.CSSStyleSheet = CSSStyleSheet;\n"
-    "    // global.CSSStyleDeclaration is kept as native C bindings, so we DO NOT overwrite it here.\n"
+    "    global.CSSStyleDeclaration = CSSStyleDeclarationImpl;\n"
     "})();\n";
 
 #endif /* WISP_POLYFILL_CSSOM_H */

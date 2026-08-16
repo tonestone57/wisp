@@ -61,26 +61,12 @@ ProcessingInstruction implements LinkStyle;
 
 
 
-interface CSSStyleDeclaration  {
-  attribute DOMString cssText;
-  readonly attribute unsigned long length;
-  getter DOMString item(unsigned long index );
-  DOMString getPropertyValue(DOMString property );
-  DOMString getPropertyPriority(DOMString property );
-  void setProperty(DOMString property , [TreatNullAs=EmptyString] DOMString value , [TreatNullAs=EmptyString] optional DOMString priority  = "");
-  void setPropertyValue(DOMString property , [TreatNullAs=EmptyString] DOMString value );
-  void setPropertyPriority(DOMString property , [TreatNullAs=EmptyString] DOMString priority );
-  DOMString removeProperty(DOMString property );
-  readonly attribute CSSRule? parentRule;
-  [TreatNullAs=EmptyString] attribute DOMString cssFloat;
-};
 
-partial interface CSSStyleDeclaration {
-  [TreatNullAs=EmptyString] attribute DOMString _dashed_attribute ;
-};
+
+
 
 [NoInterfaceObject]interface ElementCSSInlineStyle  {
-  [SameObject, PutForwards=cssText] readonly attribute CSSStyleDeclaration style;
+  [SameObject, PutForwards=cssText] readonly attribute object style;
 };
 
 HTMLElement implements ElementCSSInlineStyle;
@@ -92,10 +78,10 @@ partial interface Window {
 };
 
 [NoInterfaceObject]interface GetStyleUtils  {
-  [SameObject] readonly attribute CSSStyleDeclaration cascadedStyle;
-  [SameObject] readonly attribute CSSStyleDeclaration defaultStyle;
-  [SameObject] readonly attribute CSSStyleDeclaration rawComputedStyle;
-  [SameObject] readonly attribute CSSStyleDeclaration usedStyle;
+  [SameObject] readonly attribute object cascadedStyle;
+  [SameObject] readonly attribute object defaultStyle;
+  [SameObject] readonly attribute object rawComputedStyle;
+  [SameObject] readonly attribute object usedStyle;
 };
 
 partial interface Element {

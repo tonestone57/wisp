@@ -8917,22 +8917,6 @@ JSValue wisp_popstateevent_state_get_impl(JSContext *ctx, QJSNodePrivate *priv) 
     return JS_NULL;
 }
 
-// 38. CSSRule Implementation (5 stubs)
-JSValue wisp_cssrule_cssText_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-JSValue wisp_cssrule_cssText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-JSValue wisp_cssrule_parentRule_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-JSValue wisp_cssrule_parentStyleSheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-JSValue wisp_cssrule_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
-}
 
 // 39. CSSGroupingRule Implementation (3 stubs)
 JSValue wisp_cssgroupingrule_deleteRule_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
@@ -9079,44 +9063,12 @@ JSValue wisp_cssimportrule_styleSheet_get_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 // Overrides: getter | CSSStyleRule::selectorText(string);
-JSValue wisp_cssstylerule_selectorText_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
 
 // Overrides: setter | CSSStyleRule::selectorText(string);
-JSValue wisp_cssstylerule_selectorText_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: getter | CSSStyleRule::style(user);
-JSValue wisp_cssstylerule_style_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return qjs_create_style_proxy(ctx);
-}
 
 // Overrides: method | CSSRuleList::item();
-JSValue wisp_cssrulelist_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CSSRuleList::length(unsigned long);
-JSValue wisp_cssrulelist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
-}
-
-// Overrides: getter | StyleSheet::type(string);
-JSValue wisp_stylesheet_type_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-
-// Overrides: getter | StyleSheet::href(string);
-JSValue wisp_stylesheet_href_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
-}
-
-// Overrides: getter | StyleSheet::ownerNode(multiple);
-JSValue wisp_stylesheet_ownerNode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
 
 // Overrides: getter | StyleSheet::parentStyleSheet(user);
 JSValue wisp_stylesheet_parentStyleSheet_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
