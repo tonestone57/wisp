@@ -11023,8 +11023,9 @@ JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivat
     dom_document *new_doc = NULL;
 
     const char *ns_str = (namespace && strlen(namespace) > 0) ? namespace : NULL;
-    const char *qname_str = (qualifiedName && strlen(qualifiedName) > 0) ? qualifiedName : "xml";
+    const char *qname_str = (qualifiedName && strlen(qualifiedName) > 0) ? qualifiedName : NULL;
 
+    // Explicitly pass NULL if qname_str is not provided (or empty), to create a true empty document.
     dom_exception err = dom_implementation_create_document(
         DOM_IMPLEMENTATION_XML, ns_str, qname_str, NULL, NULL, NULL, &new_doc
     );
@@ -11038,6 +11039,7 @@ JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivat
     return ret;
 }
 
+// Overrides: method | DOMImplementation::hasFeature();
 JSValue wisp_domimplementation_hasFeature_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_TRUE;
 }
@@ -11076,6 +11078,7 @@ JSValue wisp_document_importNode_impl(JSContext *ctx, QJSNodePrivate *priv, void
     }
 }
 
+// Overrides: method | Document::adoptNode();
 JSValue wisp_document_adoptNode_impl(JSContext *ctx, QJSNodePrivate *priv, void * node) {
     return JS_UNDEFINED;
 }
@@ -12633,18 +12636,25 @@ JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv,
 extern JSValue qjs_new_domimplementation(JSContext *ctx, void *node, bool is_dom_node);
 
 // Overrides: attribute get | Document::implementation (getter);
-#include "JSDOMImplementation.gen.h"
-
-// Overrides: attribute | Document::implementation
 JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!priv || !priv->node) return JS_NULL;
-    dom_document *doc = (dom_document *)priv->node;
-    dom_implementation *impl = NULL;
-    dom_document_get_implementation(doc, &impl);
-    if (!impl) return JS_NULL;
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (JS_IsObject(wrapper)) {
+        JSValue impl = JS_GetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached");
+        if (JS_IsUndefined(impl)) {
+            impl = qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
+            JS_SetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached", JS_DupValue(ctx, impl));
+        }
+        JS_FreeValue(ctx, wrapper);
+        return impl;
+    }
+    JS_FreeValue(ctx, wrapper);
+    return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
+}
 
-    // Create the DOMImplementation wrapper
-    return qjs_new_domimplementation(ctx, (void *)impl, false);
+// Overrides: attribute get | Document::location (getter);
+JSValue wisp_document_location_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NULL;
 }
 
 // Overrides: attribute get | Document::onabort (getter);

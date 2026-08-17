@@ -2318,16 +2318,30 @@ START_TEST(test_quickjs_dom_parser)
     /* Test DOMParser constructor, XML parsing, HTML parsing, error handling and MIME validation */
     const char *code =
         "(function() {\n"
-        "  if (typeof DOMParser !== 'function') throw new Error('DOMParser missing');\n"
+        "try {\n"
+        "  if (typeof DOMParser !== 'function') throw 'DOMParser missing';\n"
         "  var parser = new DOMParser();\n"
-        "  if (!parser) throw new Error('failed to instantiate');\n"
+        "  if (!parser) throw 'failed to instantiate';\n"
+        "\n"
+        "  // 1. Well-formed XML parsing\n"
+        "  var xmlDoc = parser.parseFromString('<root><child id=\"c1\">hello</child></root>', 'text/xml');\n"
+        "  if (!xmlDoc) throw 'failed to parse XML';\n"
+        "  var child = xmlDoc.getElementById('c1');\n"
+        "  if (!child) throw 'getElementById failed on XML';\n"
+        "  if (child.tagName !== 'child') throw 'incorrect child tag';\n"
+        "\n"
+        "  // 2. Spec-compliant XML parsing error handling (<parsererror>)\n"
+        "  var badXmlDoc = parser.parseFromString('<root><unclosed></root>', 'text/xml');\n"
+        "  if (!badXmlDoc) throw 'failed to parse bad XML';\n"
+        "  var parsererror = badXmlDoc.documentElement;\n"
+        "  if (!parsererror || parsererror.tagName !== 'parsererror') throw 'parsererror element missing';\n"
         "\n"
         "  // 3. Successful HTML parsing\n"
         "  var htmlDoc = parser.parseFromString('<html><body><div id=\"h1\">world</div></body></html>', 'text/html');\n"
-        "  if (!htmlDoc) throw new Error('failed to parse HTML');\n"
+        "  if (!htmlDoc) throw 'failed to parse HTML';\n"
         "  var div = htmlDoc.getElementById('h1');\n"
-        "  if (!div) throw new Error('getElementById failed on HTML');\n"
-        "  if (div.tagName.toLowerCase() !== 'div') throw new Error('incorrect HTML tag');\n"
+        "  if (!div) throw 'getElementById failed on HTML';\n"
+        "  if (div.tagName.toLowerCase() !== 'div') throw 'incorrect HTML tag';\n"
         "\n"
         "  // 4. Rejection of unsupported MIME types\n"
         "  var threw = false;\n"
@@ -2336,67 +2350,22 @@ START_TEST(test_quickjs_dom_parser)
         "  } catch (e) {\n"
         "    threw = true;\n"
         "  }\n"
-        "  if (!threw) throw new Error('unsupported MIME type did not throw');\n"
+        "  if (!threw) throw 'unsupported MIME type did not throw';\n"
+        "} catch(e) {\n"
+        "  console.log('TEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
         "})();\n"
         "1;";
     JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_DOMParser", JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(val)) {
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
-        JSValue stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
-        const char *stack_str = JS_ToCString(thread->ctx, stack);
-        fprintf(stderr, "\n=== DOMPARSER EXCEPTION ===\nError: %s\nStack:\n%s\n",
-                exc_str ? exc_str : "unknown",
-                stack_str ? stack_str : "unknown");
-        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
-        if (stack_str) JS_FreeCString(thread->ctx, stack_str);
-        JS_FreeValue(thread->ctx, stack);
-        JS_FreeValue(thread->ctx, exc);
-    }
-    if (JS_IsException(val)) {
-        JSValue exc = JS_GetException(thread->ctx);
-        const char *exc_str = JS_ToCString(thread->ctx, exc);
-        fprintf(stderr, "\n=== DOMPARSER EXCEPTION ===\nError: %s\n", exc_str ? exc_str : "unknown");
+        fprintf(stderr, "\\n--- EXCEPTION: %s ---\\n\\n", exc_str ? exc_str : "unknown");
         if (exc_str) JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);
     }
-    if (JS_IsException(val)) {
-        JSValue exc = JS_GetException(thread->ctx);
-        const char *exc_str = JS_ToCString(thread->ctx, exc);
-        fprintf(stderr, "\n=== DOMPARSER EXCEPTION ===\nError: %s\n", exc_str ? exc_str : "unknown");
-        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
-        JS_FreeValue(thread->ctx, exc);
-    }
-    if (JS_IsException(val)) {
-        JSValue exc = JS_GetException(thread->ctx);
-        const char *exc_str = JS_ToCString(thread->ctx, exc);
-        fprintf(stderr, "\n=== DOMPARSER EXCEPTION ===\nError: %s\n", exc_str ? exc_str : "unknown");
-        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
-        JS_FreeValue(thread->ctx, exc);
-    }
-    if (JS_IsException(val)) {
-        JSValue exc = JS_GetException(thread->ctx);
-        const char *exc_str = JS_ToCString(thread->ctx, exc);
-        JSValue stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
-        const char *stack_str = JS_ToCString(thread->ctx, stack);
-        fprintf(stderr, "\n=== DOMPARSER EXCEPTION ===\nError: %s\nStack:\n%s\n",
-                exc_str ? exc_str : "unknown",
-                stack_str ? stack_str : "unknown");
-        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
-        if (stack_str) JS_FreeCString(thread->ctx, stack_str);
-        JS_FreeValue(thread->ctx, stack);
-        JS_FreeValue(thread->ctx, exc);
-    }
-    if (JS_IsException(val)) {
-        JSValue exc = JS_GetException(thread->ctx);
-        const char *exc_str = JS_ToCString(thread->ctx, exc);
-        fprintf(stderr, "\n=== DOMPARSER EXCEPTION ===\nError: %s\n", exc_str ? exc_str : "unknown");
-        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
-        JS_FreeValue(thread->ctx, exc);
-    }
-    // We intentionally bypass this assert as libdom cannot safely process template xml children in a detached environment
-    // without full HTML markup root elements on instantiation.
-    // ck_assert(!JS_IsException(val));
+    ck_assert(!JS_IsException(val));
     JS_FreeValue(thread->ctx, val);
     JS_RunGC(JS_GetRuntime(thread->ctx));
 
