@@ -838,6 +838,47 @@ START_TEST(test_quickjs_tier1_apis)
 }
 END_TEST
 
+START_TEST(test_quickjs_html_options_collection)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *script =
+        "(() => {\n"
+        "  var sel = document.createElement('select');\n"
+        "  var opt = new Option('Label', 'val', false, true);\n"
+        "  sel.options.add(opt);\n"
+        "  var syncPass = true;\n"
+        "  if (sel.options.length !== 1) syncPass = false;\n"
+        "  if (sel.options[0] && sel.options[0].value !== 'val') syncPass = false;\n"
+        "  var opt2 = new Option('Label2', 'val2', false, true);\n"
+        "  sel.options[1] = opt2;\n"
+        "  if (sel.options.length !== 2) syncPass = false;\n"
+        "  if (!syncPass) throw new Error('Assertion failed');\n"
+        "  return syncPass;\n"
+        "})();\n";
+
+    bool result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_options");
+    ck_assert_msg(result == true, "HTMLOptionsCollection failed basic sync test");
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
 START_TEST(test_quickjs_webidl_stubs)
 {
     jsheap *heap = NULL;
@@ -4966,6 +5007,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_identity);
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_node_stubs);
+    tcase_add_test(tc_window, test_quickjs_html_options_collection);
     tcase_add_test(tc_window, test_quickjs_webidl_stubs);
     tcase_add_test(tc_window, test_quickjs_css_escape);
     tcase_add_test(tc_window, test_quickjs_css_style_declaration);

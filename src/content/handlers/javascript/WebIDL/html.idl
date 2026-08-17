@@ -25,15 +25,6 @@ interface RadioNodeList : NodeList {
   attribute DOMString value;
 };
 
-interface HTMLOptionsCollection : HTMLCollection {
-  // inherits item(), namedItem()
-  attribute unsigned long length; // shadows inherited length
-  setter void (unsigned long index, HTMLOptionElement? option);
-  void add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
-  void remove(long index);
-  attribute long selectedIndex;
-};
-
 [OverrideBuiltins, Exposed=(Window,Worker)]
 interface DOMStringMap {
   getter DOMString (DOMString name);
@@ -831,18 +822,10 @@ interface HTMLSelectElement : HTMLElement {
 
   readonly attribute DOMString type;
 
-  readonly attribute HTMLOptionsCollection options;
-  attribute unsigned long length;
-  getter Element? item(unsigned long index);
-  HTMLOptionElement? namedItem(DOMString name);
-  void add((HTMLOptionElement or HTMLOptGroupElement) element, optional (HTMLElement or long)? before = null);
   void remove(); // ChildNode overload
-  void remove(long index);
   setter void (unsigned long index, HTMLOptionElement? option);
 
   readonly attribute HTMLCollection selectedOptions;
-  attribute long selectedIndex;
-  attribute DOMString value;
 
   readonly attribute boolean willValidate;
   readonly attribute ValidityState validity;
@@ -868,11 +851,7 @@ interface HTMLOptionElement : HTMLElement {
   attribute boolean disabled;
   readonly attribute HTMLFormElement? form;
   attribute DOMString label;
-  attribute boolean defaultSelected;
-  attribute boolean selected;
-  attribute DOMString value;
 
-  attribute DOMString text;
   readonly attribute long index;
 };
 
