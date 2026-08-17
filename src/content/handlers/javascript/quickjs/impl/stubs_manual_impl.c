@@ -11025,9 +11025,12 @@ JSValue wisp_domimplementation_createDocument_impl(JSContext *ctx, QJSNodePrivat
     const char *ns_str = (namespace && strlen(namespace) > 0) ? namespace : NULL;
     const char *qname_str = (qualifiedName && strlen(qualifiedName) > 0) ? qualifiedName : NULL;
 
-    // Explicitly pass NULL if qname_str is not provided (or empty), to create a true empty document.
+    if (!qname_str) {
+        ns_str = NULL;
+    }
+
     dom_exception err = dom_implementation_create_document(
-        DOM_IMPLEMENTATION_XML, ns_str, qname_str, NULL, NULL, NULL, &new_doc
+        DOM_IMPLEMENTATION_HTML, ns_str, qname_str, NULL, NULL, NULL, &new_doc
     );
 
     if (err != DOM_NO_ERR || !new_doc) {
