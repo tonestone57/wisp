@@ -828,22 +828,26 @@ START_TEST(test_quickjs_html_options_collection)
     dom_document *doc = create_test_document();
 
     err = js_newthread(heap, (void*)doc, doc, &thread);
-
     ck_assert_int_eq(err, NSERROR_OK);
 
+    // Evaluate our test using the standard environment
     const char *script =
         "(() => {\n"
         "  var sel = document.createElement('select');\n"
-        "  if (typeof HTMLOptionsCollection === 'undefined') throw new Error('HTMLOptionsCollection missing');\n"
         "  var opt = new Option('Label', 'val', false, true);\n"
-        "  if (opt.text !== 'Label') throw new Error('Option text wrong');\n"
-        "  if (opt.value !== 'val') throw new Error('Option value wrong');\n"
-        "  if (sel.options === undefined) throw new Error('options undefined');\n"
-        "  return true;\n"
+        "  sel.options.add(opt);\n"
+        "  var syncPass = true;\n"
+        "  if (sel.options.length !== 1) syncPass = false;\n"
+        "  if (sel.options[0] && sel.options[0].value !== 'val') syncPass = false;\n"
+        "  var opt2 = new Option('Label2', 'val2', false, true);\n"
+        "  sel.options[1] = opt2;\n"
+        "  if (sel.options.length !== 2) syncPass = false;\n"
+        "  if (!syncPass) throw new Error('Assertion failed');\n"
+        "  return syncPass;\n"
         "})()\n";
 
     bool result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_options");
-    ck_assert_msg(result == true, "HTMLOptionsCollection failed basic sync test, exception thrown");
+    ck_assert_msg(result == true, "HTMLOptionsCollection failed basic sync test");
 
     js_closethread(thread);
     js_destroythread(thread);
