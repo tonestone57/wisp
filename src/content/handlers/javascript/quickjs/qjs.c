@@ -1329,8 +1329,9 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 #include "polyfill_intl_c.h"
 #include "dataset_polyfill.h"
 #include "polyfill_cssom_c.h"
+#include "new_polyfills.h"
 
-void qjs_inject_fetch_polyfill(JSContext *ctx)
+void qjs_inject_dom_polyfills(JSContext *ctx)
 {
 
     JSValue val_intl = JS_Eval(ctx, intl_polyfill, strlen(intl_polyfill), "<intl-polyfill>", JS_EVAL_TYPE_GLOBAL);
@@ -1347,6 +1348,16 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
 
     JSValue val_cssom = JS_Eval(ctx, cssom_polyfill, strlen(cssom_polyfill), "<cssom-polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val_cssom);
+
+    JSValue val_new = JS_Eval(ctx, new_polyfills_js, strlen(new_polyfills_js), "<new-polyfills>", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val_new)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+        NSLOG(wisp, WARNING, "Error evaluating new polyfill: %s", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
+    JS_FreeValue(ctx, val_new);
 
     const char *fetch_polyfill =
         "if (typeof globalThis.Headers === 'undefined') {\n"
@@ -3929,7 +3940,7 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     }
 
     JS_FreeValue(t->ctx, global_obj);
-    qjs_inject_fetch_polyfill(t->ctx);
+    qjs_inject_dom_polyfills(t->ctx);
     qjs_apply_csp_eval_restrictions(t->ctx);
 
     /* Link thread into the heap's active threads list */
@@ -3994,7 +4005,7 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     JS_DefinePropertyValueStr(t->ctx, global, "self", JS_DupValue(t->ctx, global), JS_PROP_C_W_E);
     JS_FreeValue(t->ctx, global);
 
-    qjs_inject_fetch_polyfill(t->ctx);
+    qjs_inject_dom_polyfills(t->ctx);
 
     *thread_out = t;
     return NSERROR_OK;

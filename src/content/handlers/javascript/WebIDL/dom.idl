@@ -216,7 +216,6 @@ interface Node : EventTarget {
 [Constructor,
  Exposed=Window]
 interface Document : Node {
-  [SameObject] readonly attribute DOMImplementation implementation;
   readonly attribute DOMString URL;
   readonly attribute DOMString documentURI;
   readonly attribute DOMString origin;
@@ -238,9 +237,6 @@ interface Document : Node {
   [NewObject] Comment createComment(DOMString data);
   [NewObject] ProcessingInstruction createProcessingInstruction(DOMString target, DOMString data);
 
-  [NewObject] Node importNode(Node node, optional boolean deep = false);
-  Node adoptNode(Node node);
-
   [NewObject] Attr createAttribute(DOMString localName);
   [NewObject] Attr createAttributeNS(DOMString? namespace, DOMString name);
 
@@ -255,15 +251,6 @@ interface Document : Node {
 
 [Exposed=Window]
 interface XMLDocument : Document {};
-
-[Exposed=Window]
-interface DOMImplementation {
-  [NewObject] DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
-  [NewObject] XMLDocument createDocument(DOMString? namespace, [TreatNullAs=EmptyString] DOMString qualifiedName, optional DocumentType? doctype = null);
-  [NewObject] Document createHTMLDocument(optional DOMString title);
-
-  boolean hasFeature(); // useless; always returns true
-};
 
 [Constructor,
  Exposed=Window]

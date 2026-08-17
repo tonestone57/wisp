@@ -114,7 +114,7 @@ JSContext* get_context(uint32_t id) {
     qjs_init_canvas(node->ctx);
     qjs_init_trusted_types(node->ctx);
 
-    qjs_inject_fetch_polyfill(node->ctx);
+    qjs_inject_dom_polyfills(node->ctx);
 
     /* Setup dummy jsthread for the remote context so opaque callbacks match */
     t->ctx = node->ctx;
