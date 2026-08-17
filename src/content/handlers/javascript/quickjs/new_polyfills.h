@@ -1,3 +1,6 @@
+#ifndef WISP_NEW_POLYFILLS_H
+#define WISP_NEW_POLYFILLS_H
+
 static const char *new_polyfills_js =
 " \n"
 "/* ==========================================================================  \n"
@@ -413,3 +416,5 @@ static const char *new_polyfills_js =
 "    }  \n"
 "})(); \n"
 ;
+
+#endif /* WISP_NEW_POLYFILLS_H */
