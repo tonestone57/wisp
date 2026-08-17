@@ -1,4 +1,3 @@
-#include <wisp/utils/overflow.h>
 /*
  * Copyright 2008 Michael Drake <tlsa@netsurf-browser.org>
  * Copyright 2020 Vincent Sanders <vince@netsurf-browser.org>
@@ -38,6 +37,9 @@
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/box_inspect.h>
 #include <wisp/content/handlers/html/private.h>
+
+#define AUTO INT_MIN
+#define UNKNOWN_HEIGHT INT_MAX
 
 /**
  * Direction to move in a box-tree walk
@@ -181,6 +183,10 @@ static inline void box_offset_to_containing_block(struct box *b, int *dx, int *d
 static inline struct box *box_move_xy(struct box *b, enum box_walk_dir dir, int *x, int *y)
 {
     struct box *rb = NULL;
+
+    if (b && (b->x == AUTO || b->x == UNKNOWN_WIDTH || b->y == AUTO || b->y == UNKNOWN_HEIGHT)) {
+        return NULL;
+    }
 
     switch (dir) {
     case BOX_WALK_CHILDREN:
@@ -593,11 +599,11 @@ void box_bounds(struct box *box, struct rect *r)
 
     box_coords(box, &r->x0, &r->y0);
 
-    width = box->padding[LEFT] + box->width + box->padding[RIGHT];
-    height = box->padding[TOP] + box->height + box->padding[BOTTOM];
+    width = box->padding[LEFT] + (box->width == AUTO || box->width == UNKNOWN_WIDTH ? 0 : box->width) + box->padding[RIGHT];
+    height = box->padding[TOP] + (box->height == AUTO || box->height == UNKNOWN_HEIGHT ? 0 : box->height) + box->padding[BOTTOM];
 
-    r->x1 = safe_add_int(r->x0, width);
-    r->y1 = safe_add_int(r->y0, height);
+    r->x1 = r->x0 + width;
+    r->y1 = r->y0 + height;
 }
 
 

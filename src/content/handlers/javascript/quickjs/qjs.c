@@ -1,6 +1,6 @@
-#include <wisp/utils/overflow.h>
-
 #include <quickjs.h>
+#include "qjs_css.h"
+
 #include <stdlib.h>
 
 static JSValue wisp_qjs_noop(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
@@ -85,6 +85,16 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
                       JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
     JS_FreeValue(ctx, crypto);
 
+    // Bind CSS.escape
+    JSValue css_obj = JS_GetPropertyStr(ctx, global, "CSS");
+    if (JS_IsUndefined(css_obj) || JS_IsNull(css_obj)) {
+        css_obj = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, global, "CSS", JS_DupValue(ctx, css_obj));
+    }
+    JS_SetPropertyStr(ctx, css_obj, "escape",
+                      JS_NewCFunction(ctx, js_css_escape, "escape", 1));
+    JS_FreeValue(ctx, css_obj);
+
     // Try to bind window/self aliases if missing, but be careful not to overwrite the real window if it's an exotic object.
     JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
     if (JS_IsUndefined(window_val)) {
@@ -102,9 +112,17 @@ void wisp_qjs_register_core_polyfills(JSContext *ctx) {
         }
         JS_SetPropertyStr(ctx, window_crypto, "randomUUID", JS_NewCFunction(ctx, js_crypto_randomUUID, "randomUUID", 0));
         JS_FreeValue(ctx, window_crypto);
+
+        JSValue window_css = JS_GetPropertyStr(ctx, window_val, "CSS");
+        if (JS_IsUndefined(window_css) || JS_IsNull(window_css)) {
+            window_css = JS_NewObject(ctx);
+            JS_SetPropertyStr(ctx, window_val, "CSS", JS_DupValue(ctx, window_css));
+        }
+        JS_SetPropertyStr(ctx, window_css, "escape", JS_NewCFunction(ctx, js_css_escape, "escape", 1));
+        JS_FreeValue(ctx, window_css);
+
     }
     JS_FreeValue(ctx, window_val);
-
 
     JSValue globalThis_val = JS_GetPropertyStr(ctx, global, "globalThis");
     if (JS_IsUndefined(globalThis_val)) {
@@ -1310,6 +1328,7 @@ static void qjs_apply_csp_eval_restrictions(JSContext *ctx)
 
 #include "polyfill_intl_c.h"
 #include "dataset_polyfill.h"
+#include "polyfill_cssom_c.h"
 
 void qjs_inject_fetch_polyfill(JSContext *ctx)
 {
@@ -1325,6 +1344,9 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
     }
     JS_FreeValue(ctx, val_dataset);
     JS_FreeValue(ctx, val_intl);
+
+    JSValue val_cssom = JS_Eval(ctx, cssom_polyfill, strlen(cssom_polyfill), "<cssom-polyfill>", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, val_cssom);
 
     const char *fetch_polyfill =
         "if (typeof globalThis.Headers === 'undefined') {\n"
@@ -3608,9 +3630,6 @@ void qjs_inject_fetch_polyfill(JSContext *ctx)
         "        return evaluateCondition(cond);\n"
         "    }\n"
         "};\n"
-        "globalThis.CSS.escape = globalThis.CSS.escape || function(ident) {\n"
-        "    return String(ident);\n"
-        "};\n"
         "\n"
         "(function() {\n"
         "    function setupHandler(proto, prop, eventName) {\n"
@@ -4929,8 +4948,8 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
 
                 lc->x = r.x0;
                 lc->y = r.y0;
-                lc->width = safe_sub_int(r.x1, r.x0);
-                lc->height = safe_sub_int(r.y1, r.y0);
+                lc->width = r.x1 - r.x0;
+                lc->height = r.y1 - r.y0;
                 lc->layout_dirty = 0;
 
                 __atomic_store_n(&lc->seq_version, seq + 2, __ATOMIC_RELEASE);

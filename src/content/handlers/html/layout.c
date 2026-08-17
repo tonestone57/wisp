@@ -1,4 +1,3 @@
-#include <wisp/utils/overflow.h>
 /*
  * Copyright 2005 Richard Wilson <info@tinct.net>
  * Copyright 2006 James Bursa <bursa@users.sourceforge.net>
@@ -19,6 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#define UNKNOWN_HEIGHT INT_MAX
 
 /**
  * \file
@@ -3886,22 +3887,34 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 		if (d->type == BOX_INLINE || d->type == BOX_BR || d->type == BOX_TEXT ||
 			d->type == BOX_INLINE_END ||
 			d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
+			int d_height = 0;
+			if (d->height != AUTO && d->height != UNKNOWN_HEIGHT) {
+				d_height = d->height;
+			} else {
+				if (d->type == BOX_INLINE && d->style) {
+					d_height = line_height(&content->unit_len_ctx, d->style);
+				} else {
+					d_height = 0;
+				}
+			}
 			css_fixed value = 0;
 			css_unit unit = CSS_UNIT_PX;
 			switch (css_computed_vertical_align(d->style, &value, &unit)) {
 			case CSS_VERTICAL_ALIGN_SUPER:
 			case CSS_VERTICAL_ALIGN_TOP:
 			case CSS_VERTICAL_ALIGN_TEXT_TOP:
-				/* already at top */
 				break;
 			case CSS_VERTICAL_ALIGN_SUB:
 			case CSS_VERTICAL_ALIGN_BOTTOM:
 			case CSS_VERTICAL_ALIGN_TEXT_BOTTOM:
-				d->y = safe_add_int(d->y, safe_sub_int(used_height, d->height));
+				d->y += used_height - d_height;
+				break;
+			case CSS_VERTICAL_ALIGN_MIDDLE:
+				d->y += (used_height - d_height) / 2;
 				break;
 			default:
 			case CSS_VERTICAL_ALIGN_BASELINE:
-				d->y = safe_add_int(d->y, safe_scale_sub_int(used_height, d->height, 0.75));
+				d->y += 0.75 * (used_height - d_height);
 				break;
 			}
 		}
