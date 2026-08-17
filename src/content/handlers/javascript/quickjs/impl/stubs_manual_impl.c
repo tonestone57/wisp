@@ -12454,23 +12454,9 @@ JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv,
     return wisp_document_createElement_impl(ctx, priv, qualifiedName);
 }
 
-extern JSValue qjs_new_domimplementation(JSContext *ctx, void *node, bool is_dom_node);
-
 // Overrides: attribute get | Document::implementation (getter);
 JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv || !priv->node) return JS_NULL;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (JS_IsObject(wrapper)) {
-        JSValue impl = JS_GetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached");
-        if (JS_IsUndefined(impl)) {
-            impl = qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
-            JS_SetPropertyStr(ctx, wrapper, "__wisp_dom_implementation_cached", JS_DupValue(ctx, impl));
-        }
-        JS_FreeValue(ctx, wrapper);
-        return impl;
-    }
-    JS_FreeValue(ctx, wrapper);
-    return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
+    return JS_UNDEFINED;
 }
 
 // Overrides: attribute get | Document::location (getter);

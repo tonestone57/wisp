@@ -631,20 +631,6 @@ interface HTMLAreaElement : HTMLElement {
 HTMLAreaElement implements URLUtils;
 
 interface HTMLTableElement : HTMLElement {
-  attribute HTMLTableCaptionElement? caption;
-  HTMLElement createCaption();
-  void deleteCaption();
-  attribute HTMLTableSectionElement? tHead;
-  HTMLElement createTHead();
-  void deleteTHead();
-  attribute HTMLTableSectionElement? tFoot;
-  HTMLElement createTFoot();
-  void deleteTFoot();
-  readonly attribute HTMLCollection tBodies;
-  HTMLElement createTBody();
-  readonly attribute HTMLCollection rows;
-  HTMLElement insertRow(optional long index = -1);
-  void deleteRow(long index);
   attribute boolean sortable;
   void stopSorting();
 
@@ -662,19 +648,11 @@ interface HTMLTableColElement : HTMLElement {
 };
 
 interface HTMLTableSectionElement : HTMLElement {
-  readonly attribute HTMLCollection rows;
-  HTMLElement insertRow(optional long index = -1);
-  void deleteRow(long index);
 
   // also has obsolete members
 };
 
 interface HTMLTableRowElement : HTMLElement {
-  readonly attribute long rowIndex;
-  readonly attribute long sectionRowIndex;
-  readonly attribute HTMLCollection cells;
-  HTMLElement insertCell(optional long index = -1);
-  void deleteCell(long index);
 
   // also has obsolete members
 };
@@ -694,7 +672,6 @@ interface HTMLTableCellElement : HTMLElement {
   attribute unsigned long colSpan;
   attribute unsigned long rowSpan;
   [PutForwards=value] readonly attribute DOMSettableTokenList headers;
-  readonly attribute long cellIndex;
 
   // also has obsolete members
 };
