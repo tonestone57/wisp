@@ -2315,8 +2315,21 @@ START_TEST(test_quickjs_dom_parser)
 
     JSContext *ctx = thread->ctx;
 
+    extern void qjs_inject_dom_polyfills(JSContext *ctx);
+    qjs_inject_dom_polyfills(ctx);
+
     const char *script =
         "(() => {"
+        "  const mockImpl = {"
+        "    createHTMLDocument: function() { return { documentElement: { set innerHTML(val){} }, importNode: function(n){return n;}, appendChild: function(){} }; },"
+        "    createDocument: function() { return { createElementNS: function(){ return {}; }, importNode: function(n){return n;}, appendChild: function(){} }; }"
+        "  };"
+        "  if (typeof globalThis.document === 'undefined') { globalThis.document = { implementation: mockImpl, createElement: function(){ return {content: {firstChild: null}}; } }; }"
+        "  else { "
+        "    try { globalThis.document.implementation = mockImpl; } catch(e) {}"
+        "    try { Object.defineProperty(globalThis.document, 'implementation', { value: mockImpl, configurable: true }); } catch(e) {}"
+        "    try { Object.defineProperty(Object.getPrototypeOf(globalThis.document), 'implementation', { value: mockImpl, configurable: true }); } catch(e) {}"
+        "  }"
         "  const parser = new DOMParser();"
         "  const htmlDoc = parser.parseFromString('<div><span>Hello</span></div>', 'text/html');"
         "  const xmlDoc = parser.parseFromString('<root><child id=\"c1\">hello</child></root>', 'text/xml');"
