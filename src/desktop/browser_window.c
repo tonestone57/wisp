@@ -3256,8 +3256,9 @@ static nserror navigate_internal_real(struct browser_window *bw, struct browser_
         break;
 
     case NSERROR_NO_FETCH_HANDLER: /* no handler for this type */
-        /** \todo does this always try and download even
-         * unverifiable content?
+        /* For unhandled URL schemes, delegate to the frontend/system external
+         * handler via launch_url (e.g. mailto:, tel:, or external helper),
+         * regardless of whether the fetch was marked verifiable or unverifiable.
          */
         res = guit->misc->launch_url(params->url);
         break;
