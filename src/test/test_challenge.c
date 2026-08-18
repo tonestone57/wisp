@@ -8,7 +8,6 @@
 #include "utils/http/challenge_internal.h"
 #include "wisp/utils/errors.h"
 
-
 static void setup(void)
 {
     corestrings_init();
@@ -29,10 +28,12 @@ START_TEST(test_parse_happy_path)
     error = http__parse_challenge(&pos, &challenge);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(challenge);
+    ck_assert_ptr_eq(pos, input + strlen(input));
 
     lwc_string *scheme = NULL;
     http_parameter *params = NULL;
-    http_challenge_list_iterate(challenge, &scheme, &params);
+    const http_challenge *next = http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_null(next);
     ck_assert_ptr_nonnull(scheme);
     ck_assert_int_eq(lwc_string_length(scheme), 5);
     ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
@@ -54,11 +55,48 @@ START_TEST(test_parse_happy_path)
     http_challenge_list_destroy(challenge);
 }
 END_TEST
+
+START_TEST(test_parse_tab_separator)
+{
+    http_challenge *challenge = NULL;
+    nserror error;
+    const char *input = "Bearer\t token=\"xyz123\"";
+    const char *pos = input;
+
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+    http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Bearer", 6), 0);
+    lwc_string_unref(scheme);
+
+    ck_assert_ptr_nonnull(params);
+
+    lwc_string *key;
+    lwc_string *val;
+    lwc_intern_string("token", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "xyz123", 6), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    http_challenge_list_destroy(challenge);
+}
+END_TEST
+
 START_TEST(test_parse_multiple_parameters)
 {
     http_challenge *challenge = NULL;
     nserror error;
-    const char *input = "Digest realm=\"testrealm\", qop=\"auth\"";
+    const char *input = "Digest realm=\"testrealm\", qop=\"auth\", nonce=\"12345678\"";
     const char *pos = input;
 
     error = http__parse_challenge(&pos, &challenge);
@@ -99,9 +137,58 @@ START_TEST(test_parse_multiple_parameters)
     lwc_string_unref(key);
     lwc_string_unref(val);
 
+    /* Check for nonce */
+    lwc_intern_string("nonce", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 8);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "12345678", 8), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
     http_challenge_list_destroy(challenge);
 }
 END_TEST
+
+START_TEST(test_parse_trailing_comma)
+{
+    http_challenge *challenge = NULL;
+    nserror error;
+    const char *input = "Basic realm=\"example\",";
+    const char *pos = input;
+
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+    http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+
+    http_challenge_list_destroy(challenge);
+}
+END_TEST
+
+START_TEST(test_null_and_boundary_handling)
+{
+    lwc_string *scheme = (lwc_string *)0xdeadbeef;
+    http_parameter *params = (http_parameter *)0xdeadbeef;
+
+    const http_challenge *iter = http_challenge_list_iterate(NULL, &scheme, &params);
+    ck_assert_ptr_null(iter);
+    /* Scheme and params should remain untouched when cur is NULL */
+    ck_assert_ptr_eq(scheme, (lwc_string *)0xdeadbeef);
+    ck_assert_ptr_eq(params, (http_parameter *)0xdeadbeef);
+
+    /* Destroying NULL challenge list should not crash */
+    http_challenge_list_destroy(NULL);
+}
+END_TEST
+
 START_TEST(test_parse_edge_cases)
 {
     http_challenge *challenge = NULL;
@@ -109,7 +196,7 @@ START_TEST(test_parse_edge_cases)
     const char *input;
     const char *pos;
 
-    /* Missing space after scheme */
+    /* Missing space or tab after scheme */
     input = "Basicrealm=\"example\"";
     pos = input;
     error = http__parse_challenge(&pos, &challenge);
@@ -124,21 +211,36 @@ START_TEST(test_parse_edge_cases)
     ck_assert_ptr_null(challenge);
 
     /* Only spaces */
-    input = "   ";
+    input = "   \t  ";
     pos = input;
     error = http__parse_challenge(&pos, &challenge);
     ck_assert_int_ne(error, NSERROR_OK);
     ck_assert_ptr_null(challenge);
 
-    /* Malformed parameter */
+    /* Scheme containing invalid token characters */
+    input = "B@sic realm=\"example\"";
+    pos = input;
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_ne(error, NSERROR_OK);
+    ck_assert_ptr_null(challenge);
+
+    /* Malformed first parameter */
     input = "Basic realm=";
     pos = input;
     error = http__parse_challenge(&pos, &challenge);
     ck_assert_int_ne(error, NSERROR_OK);
+    ck_assert_ptr_null(challenge);
+
+    /* Malformed second parameter: list parsing stops at comma on NOT_FOUND, preserving first valid param */
+    input = "Digest realm=\"test\", qop=";
+    pos = input;
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+    ck_assert_int_eq(strncmp(pos, "qop=", 4), 0);
+    http_challenge_list_destroy(challenge);
 }
 END_TEST
-
-
 
 static Suite *test_suite(void)
 {
@@ -147,7 +249,10 @@ static Suite *test_suite(void)
 
     tcase_add_checked_fixture(tc_core, setup, teardown);
     tcase_add_test(tc_core, test_parse_happy_path);
+    tcase_add_test(tc_core, test_parse_tab_separator);
     tcase_add_test(tc_core, test_parse_multiple_parameters);
+    tcase_add_test(tc_core, test_parse_trailing_comma);
+    tcase_add_test(tc_core, test_null_and_boundary_handling);
     tcase_add_test(tc_core, test_parse_edge_cases);
     suite_add_tcase(s, tc_core);
 
