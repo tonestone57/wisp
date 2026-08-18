@@ -76,13 +76,19 @@ static void mutation_callback(const struct dom_mutation_notification *notificati
                 if (notification->type == DOM_MUTATION_NOTIFICATION_CHILD_LIST) {
                     record->type = strdup("childList");
                     if (notification->added_node) {
-                        record->numAddedNodes = 1;
                         record->addedNodes = malloc(sizeof(struct dom_node *));
-                        record->addedNodes[0] = notification->added_node; dom_node_ref(notification->added_node);
+                        if (record->addedNodes) {
+                            record->numAddedNodes = 1;
+                            record->addedNodes[0] = notification->added_node;
+                            dom_node_ref(notification->added_node);
+                        }
                     } else if (notification->removed_node) {
-                        record->numRemovedNodes = 1;
                         record->removedNodes = malloc(sizeof(struct dom_node *));
-                        record->removedNodes[0] = notification->removed_node; dom_node_ref(notification->removed_node);
+                        if (record->removedNodes) {
+                            record->numRemovedNodes = 1;
+                            record->removedNodes[0] = notification->removed_node;
+                            dom_node_ref(notification->removed_node);
+                        }
                     }
                     if (notification->previous_sibling) {
                         record->previousSibling = notification->previous_sibling;

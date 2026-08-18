@@ -1191,6 +1191,11 @@ JSValue wisp_canvasrenderingcontext2d_createPattern_impl(JSContext *ctx, QJSNode
 
     pat->image = JS_DupValue(ctx, image);
     pat->repetition = repetition ? strdup(repetition) : strdup("repeat");
+    if (!pat->repetition) {
+        JS_FreeValue(ctx, pat->image);
+        free(pat);
+        return JS_ThrowOutOfMemory(ctx);
+    }
 
     return qjs_new_canvaspattern(ctx, pat, false);
 }
@@ -1209,8 +1214,10 @@ JSValue wisp_canvasgradient_addColorStop_impl(JSContext *ctx, QJSNodePrivate *pr
     }
 
     if (grad->count < 32) {
+        char *col_copy = strdup(color);
+        if (!col_copy) return JS_ThrowOutOfMemory(ctx);
         grad->stops[grad->count].offset = offset;
-        grad->stops[grad->count].color = strdup(color);
+        grad->stops[grad->count].color = col_copy;
         grad->count++;
     } else {
         return JS_ThrowOutOfMemory(ctx);

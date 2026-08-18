@@ -230,6 +230,7 @@ static void xhr_callback(const struct fetch_msg *msg, void *p)
                                     p++;
                                     free(xhr->statusText);
                                     xhr->statusText = strdup(p);
+                                    if (!xhr->statusText) xhr->statusText = strdup("");
                                 }
                             }
                             free(status_line);

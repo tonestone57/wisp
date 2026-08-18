@@ -62,8 +62,16 @@ JSValue wisp_urlsearchparams_constructor_impl(JSContext *ctx, JSValue init)
                     char *value = strndup(eq + 1, amp - (eq + 1));
                     if (name && value) {
                         if (data->count >= data->capacity) {
-                            data->capacity = data->capacity ? data->capacity * 2 : 8;
-                            data->params = realloc(data->params, data->capacity * sizeof(struct url_param));
+                            size_t new_cap = data->capacity ? data->capacity * 2 : 8;
+                            struct url_param *new_params = realloc(data->params, new_cap * sizeof(struct url_param));
+                            if (!new_params) {
+                                free(name); free(value);
+                                JS_FreeCString(ctx, str);
+                                free(data->params); free(data);
+                                return JS_ThrowOutOfMemory(ctx);
+                            }
+                            data->params = new_params;
+                            data->capacity = new_cap;
                         }
                         data->params[data->count].name = name;
                         data->params[data->count].value = value;
@@ -77,8 +85,16 @@ JSValue wisp_urlsearchparams_constructor_impl(JSContext *ctx, JSValue init)
                     char *value = strdup("");
                     if (name && value) {
                         if (data->count >= data->capacity) {
-                            data->capacity = data->capacity ? data->capacity * 2 : 8;
-                            data->params = realloc(data->params, data->capacity * sizeof(struct url_param));
+                            size_t new_cap = data->capacity ? data->capacity * 2 : 8;
+                            struct url_param *new_params = realloc(data->params, new_cap * sizeof(struct url_param));
+                            if (!new_params) {
+                                free(name); free(value);
+                                JS_FreeCString(ctx, str);
+                                free(data->params); free(data);
+                                return JS_ThrowOutOfMemory(ctx);
+                            }
+                            data->params = new_params;
+                            data->capacity = new_cap;
                         }
                         data->params[data->count].name = name;
                         data->params[data->count].value = value;
@@ -105,11 +121,20 @@ JSValue wisp_urlsearchparams_append_impl(JSContext *ctx, QJSNodePrivate *priv, c
     struct url_search_params_data *data = priv->node;
     if (name && value) {
         if (data->count >= data->capacity) {
-            data->capacity = data->capacity ? data->capacity * 2 : 8;
-            data->params = realloc(data->params, data->capacity * sizeof(struct url_param));
+            size_t new_cap = data->capacity ? data->capacity * 2 : 8;
+            struct url_param *new_params = realloc(data->params, new_cap * sizeof(struct url_param));
+            if (!new_params) return JS_ThrowOutOfMemory(ctx);
+            data->params = new_params;
+            data->capacity = new_cap;
         }
-        data->params[data->count].name = strdup(name);
-        data->params[data->count].value = strdup(value);
+        char *n = strdup(name);
+        char *v = strdup(value);
+        if (!n || !v) {
+            free(n); free(v);
+            return JS_ThrowOutOfMemory(ctx);
+        }
+        data->params[data->count].name = n;
+        data->params[data->count].value = v;
         data->count++;
     }
     return JS_UNDEFINED;
