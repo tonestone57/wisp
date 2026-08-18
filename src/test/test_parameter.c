@@ -44,6 +44,7 @@ START_TEST(test_http_parse_parameter)
     err = http__parse_parameter(&pos, &param);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_ptr_nonnull(param);
+    ck_assert_str_eq(pos, ", next");
 
     name = NULL;
     val = NULL;
@@ -55,6 +56,29 @@ START_TEST(test_http_parse_parameter)
 
     ck_assert_int_eq(lwc_string_length(val), 17);
     ck_assert_int_eq(strncmp(lwc_string_data(val), "value with spaces", 17), 0);
+
+    lwc_string_unref(name);
+    lwc_string_unref(val);
+    http_parameter_list_destroy((http_parameter *)param);
+    param = NULL;
+
+    // Test with escaped characters inside quoted string
+    input = "title=\"hello \\\"world\\\"\"";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(param);
+
+    name = NULL;
+    val = NULL;
+    iter = http_parameter_list_iterate((const http_parameter *)param, &name, &val);
+    ck_assert_ptr_null(iter);
+
+    ck_assert_int_eq(lwc_string_length(name), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(name), "title", 5), 0);
+
+    ck_assert_int_eq(lwc_string_length(val), 13);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "hello \"world\"", 13), 0);
 
     lwc_string_unref(name);
     lwc_string_unref(val);
@@ -95,6 +119,24 @@ START_TEST(test_http_parse_parameter)
     pos = input;
     err = http__parse_parameter(&pos, &param);
     ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    // Test unclosed quoted string
+    input = "key=\"unclosed";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_ne(err, NSERROR_OK);
+
+    // Test invalid token start (starts with '=')
+    input = "=value";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_ne(err, NSERROR_OK);
+
+    // Test invalid token start (starts with '@')
+    input = "@key=value";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_ne(err, NSERROR_OK);
 }
 END_TEST
 
@@ -145,6 +187,12 @@ START_TEST(test_http_parameter_list_find)
     ck_assert_int_eq(err, NSERROR_NOT_FOUND);
     lwc_string_unref(name_to_find);
 
+    // Find on NULL list
+    lwc_intern_string("charset", 7, &name_to_find);
+    err = http_parameter_list_find_item(NULL, name_to_find, &found_val);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+    lwc_string_unref(name_to_find);
+
     http_parameter_list_destroy((http_parameter *)param1);
 }
 END_TEST
@@ -180,7 +228,18 @@ START_TEST(test_http_parameter_list_iterate)
     lwc_string_unref(name);
     lwc_string_unref(val);
 
+    // Iterate on NULL pointer
+    const http_parameter *null_iter = http_parameter_list_iterate(NULL, &name, &val);
+    ck_assert_ptr_null(null_iter);
+
     http_parameter_list_destroy((http_parameter *)param1);
+}
+END_TEST
+
+START_TEST(test_http_parameter_list_destroy_null)
+{
+    // Test that destroying NULL list does not crash
+    http_parameter_list_destroy(NULL);
 }
 END_TEST
 
@@ -195,6 +254,7 @@ static Suite *parameter_suite_create(void)
     tcase_add_test(tc, test_http_parse_parameter);
     tcase_add_test(tc, test_http_parameter_list_find);
     tcase_add_test(tc, test_http_parameter_list_iterate);
+    tcase_add_test(tc, test_http_parameter_list_destroy_null);
 
     suite_add_tcase(s, tc);
 
