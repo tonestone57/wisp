@@ -271,6 +271,29 @@ static void scaffolding_update_context(struct nsgtk_scaffolding *g)
 
 
 /**
+ * Update GTK menu items and toolbar button sensitivity for a single action item.
+ *
+ * \param g The scaffolding context.
+ * \param itemid The toolbar item ID.
+ */
+static void nsgtk_scaffolding_set_item_sensitivity(struct nsgtk_scaffolding *g, nsgtk_toolbar_button itemid)
+{
+    if (g->menus[itemid].main != NULL) {
+        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[itemid].main), g->menus[itemid].sensitivity);
+    }
+    if (g->menus[itemid].burger != NULL) {
+        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[itemid].burger), g->menus[itemid].sensitivity);
+    }
+    if (g->menus[itemid].popup != NULL) {
+        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[itemid].popup), g->menus[itemid].sensitivity);
+    }
+    if (g->top_level != NULL) {
+        nsgtk_window_set_toolbar_sensitivity(g->top_level, itemid, g->menus[itemid].sensitivity);
+    }
+}
+
+
+/**
  * edit the sensitivity of focused widget
  *
  * \param g The scaffolding context.
@@ -294,22 +317,9 @@ static guint nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaf
         g->menus[PASTE_BUTTON].sensitivity = edit_f & BW_EDITOR_CAN_PASTE;
     }
 
-    nsgtk_toolbar_button i;
-#define SENSITIVITY(q)                                                                                                 \
-    i = q##_BUTTON;                                                                                                    \
-    if (g->menus[i].main != NULL)                                                                                      \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].main), g->menus[i].sensitivity);                               \
-    if (g->menus[i].burger != NULL)                                                                                    \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].burger), g->menus[i].sensitivity);                             \
-    if (g->menus[i].popup != NULL)                                                                                     \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].popup), g->menus[i].sensitivity);                              \
-    if (g->top_level != NULL)                                                                                          \
-        nsgtk_window_set_toolbar_sensitivity(g->top_level, i, g->menus[i].sensitivity);
-
-    SENSITIVITY(CUT)
-    SENSITIVITY(COPY)
-    SENSITIVITY(PASTE)
-#undef SENSITIVITY
+    nsgtk_scaffolding_set_item_sensitivity(g, CUT_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, COPY_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, PASTE_BUTTON);
 
     return ((g->menus[COPY_BUTTON].sensitivity) | (g->menus[CUT_BUTTON].sensitivity) |
         (g->menus[PASTE_BUTTON].sensitivity));
@@ -328,22 +338,9 @@ static void nsgtk_scaffolding_enable_edit_actions_sensitivity(struct nsgtk_scaff
     g->menus[COPY_BUTTON].sensitivity = true;
     g->menus[CUT_BUTTON].sensitivity = true;
 
-    nsgtk_toolbar_button i;
-#define SENSITIVITY(q)                                                                                                 \
-    i = q##_BUTTON;                                                                                                    \
-    if (g->menus[i].main != NULL)                                                                                      \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].main), g->menus[i].sensitivity);                               \
-    if (g->menus[i].burger != NULL)                                                                                    \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].burger), g->menus[i].sensitivity);                             \
-    if (g->menus[i].popup != NULL)                                                                                     \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].popup), g->menus[i].sensitivity);                              \
-    if (g->top_level != NULL)                                                                                          \
-        nsgtk_window_set_toolbar_sensitivity(g->top_level, i, g->menus[i].sensitivity);
-
-    SENSITIVITY(CUT)
-    SENSITIVITY(COPY)
-    SENSITIVITY(PASTE)
-#undef SENSITIVITY
+    nsgtk_scaffolding_set_item_sensitivity(g, CUT_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, COPY_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, PASTE_BUTTON);
 
     popup_menu_show(g->popup_menu, false, true);
 }
@@ -1020,17 +1017,8 @@ static nserror nsgtk_menu_initialise(struct nsgtk_scaffolding *g)
 
 static void nsgtk_menu_set_sensitivity(struct nsgtk_scaffolding *g)
 {
-
     for (int i = BACK_BUTTON; i < PLACEHOLDER_BUTTON; i++) {
-        if (g->menus[i].main != NULL) {
-            gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].main), g->menus[i].sensitivity);
-        }
-        if (g->menus[i].burger != NULL) {
-            gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].burger), g->menus[i].sensitivity);
-        }
-        if (g->menus[i].popup != NULL) {
-            gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].popup), g->menus[i].sensitivity);
-        }
+        nsgtk_scaffolding_set_item_sensitivity(g, i);
     }
 }
 
@@ -1270,29 +1258,16 @@ void nsgtk_scaffolding_update_tab_sensitivities(struct nsgtk_scaffolding *g)
 
 void nsgtk_scaffolding_set_sensitivity(struct nsgtk_scaffolding *g)
 {
-    nsgtk_toolbar_button i;
-#define SENSITIVITY(q)                                                                                                 \
-    i = q##_BUTTON;                                                                                                    \
-    if (g->menus[i].main != NULL)                                                                                      \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].main), g->menus[i].sensitivity);                               \
-    if (g->menus[i].burger != NULL)                                                                                    \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].burger), g->menus[i].sensitivity);                             \
-    if (g->menus[i].popup != NULL)                                                                                     \
-        gtk_widget_set_sensitive(GTK_WIDGET(g->menus[i].popup), g->menus[i].sensitivity);                              \
-    if (g->top_level != NULL)                                                                                          \
-        nsgtk_window_set_toolbar_sensitivity(g->top_level, i, g->menus[i].sensitivity);
-
-    SENSITIVITY(STOP)
-    SENSITIVITY(RELOAD)
-    SENSITIVITY(CUT)
-    SENSITIVITY(COPY)
-    SENSITIVITY(PASTE)
-    SENSITIVITY(BACK)
-    SENSITIVITY(FORWARD)
-    SENSITIVITY(NEXTTAB)
-    SENSITIVITY(PREVTAB)
-    SENSITIVITY(CLOSETAB)
-#undef SENSITIVITY
+    nsgtk_scaffolding_set_item_sensitivity(g, STOP_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, RELOAD_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, CUT_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, COPY_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, PASTE_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, BACK_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, FORWARD_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, NEXTTAB_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, PREVTAB_BUTTON);
+    nsgtk_scaffolding_set_item_sensitivity(g, CLOSETAB_BUTTON);
 }
 
 
