@@ -675,9 +675,6 @@ css_error sibling_node(void *pw, void *node, void **sibling)
     }
 
     if (n != NULL) {
-        /** \todo Sort out reference counting */
-        dom_node_unref(n);
-
         *sibling = n;
     }
 
