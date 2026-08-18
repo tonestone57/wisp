@@ -4071,17 +4071,45 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
 }
 
 /* See llcache.h for documentation */
-const char *llcache_handle_get_header(const llcache_handle *handle, const char *key)
+const char *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key)
 {
-    const llcache_object *object = handle->object;
+    const llcache_object *object;
+    const char *header_name;
     size_t i;
 
-    if (object == NULL)
+    if (handle == NULL || handle->object == NULL)
         return NULL;
 
-    /* About as trivial as possible */
+    switch (key) {
+    case LLCACHE_HEADER_CONTENT_TYPE:
+        header_name = "Content-Type";
+        break;
+    case LLCACHE_HEADER_CONTENT_LENGTH:
+        header_name = "Content-Length";
+        break;
+    case LLCACHE_HEADER_CONTENT_DISPOSITION:
+        header_name = "Content-Disposition";
+        break;
+    case LLCACHE_HEADER_X_NS_BASE:
+        header_name = "X-NS-Base";
+        break;
+    case LLCACHE_HEADER_CONTENT_SECURITY_POLICY:
+        header_name = "Content-Security-Policy";
+        break;
+    case LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY:
+        header_name = "Cross-Origin-Opener-Policy";
+        break;
+    case LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY:
+        header_name = "Cross-Origin-Embedder-Policy";
+        break;
+    default:
+        return NULL;
+    }
+
+    object = handle->object;
+
     for (i = 0; i < object->num_headers; i++) {
-        if (strcasecmp(key, object->headers[i].name) == 0)
+        if (strcasecmp(header_name, object->headers[i].name) == 0)
             return object->headers[i].value;
     }
 
