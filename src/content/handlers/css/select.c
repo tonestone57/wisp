@@ -427,8 +427,7 @@ css_error node_id(void *pw, void *node, lwc_string **id)
 
     *id = NULL;
 
-    /** \todo Assumes an HTML DOM */
-    err = dom_html_element_get_id(n, &attr);
+    err = dom_element_get_attribute(n, corestring_dom_id, &attr);
     if (err != DOM_NO_ERR)
         return CSS_NOMEM;
 
@@ -759,8 +758,7 @@ css_error node_has_id(void *pw, void *node, lwc_string *name, bool *match)
 
     *match = false;
 
-    /** \todo Assumes an HTML DOM */
-    err = dom_html_element_get_id(n, &attr);
+    err = dom_element_get_attribute(n, corestring_dom_id, &attr);
     if (err != DOM_NO_ERR)
         return CSS_OK;
 
