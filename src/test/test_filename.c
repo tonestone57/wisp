@@ -50,6 +50,91 @@ START_TEST(filename_initialise_test)
 }
 END_TEST
 
+START_TEST(filename_request_rollover_test)
+{
+    setup_mock_gui();
+
+    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    filename_initialise();
+
+    char first_dir_files[64][32];
+
+    /* Fill all 64 slots in the first directory */
+    for (int i = 0; i < 64; i++) {
+        const char *req = filename_request();
+        ck_assert_ptr_nonnull(req);
+        strncpy(first_dir_files[i], req, sizeof(first_dir_files[i]));
+
+        /* Verify all 64 files share the exact same 9-char directory prefix */
+        ck_assert_int_eq(strncmp(first_dir_files[i], first_dir_files[0], 9), 0);
+    }
+
+    /* Request 65th file: should create a new directory prefix */
+    const char *req65 = filename_request();
+    ck_assert_ptr_nonnull(req65);
+    char file65[32];
+    strncpy(file65, req65, sizeof(file65));
+
+    /* Verify file65 prefix is different from first directory */
+    ck_assert_str_ne(file65, first_dir_files[0]);
+
+    /* Test slot reuse: release slot 15 from first directory */
+    filename_release(first_dir_files[15]);
+
+    /* Next request should reuse slot 15 in first directory */
+    const char *req_reused = filename_request();
+    ck_assert_ptr_nonnull(req_reused);
+    ck_assert_str_eq(req_reused, first_dir_files[15]);
+
+    /* Test out-of-order claims for directory sorting */
+    ck_assert_int_eq(filename_claim("00/00/05/00"), true);
+    ck_assert_int_eq(filename_claim("00/00/03/00"), true);
+
+    teardown_mock_gui();
+}
+END_TEST
+
+START_TEST(filename_claim_release_boundary_test)
+{
+    setup_mock_gui();
+
+    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    filename_initialise();
+
+    /* Input validation tests */
+    ck_assert_int_eq(filename_claim(NULL), false);
+    ck_assert_int_eq(filename_claim(""), false);
+    ck_assert_int_eq(filename_claim("01/23/45"), false); /* 8 chars < 11 */
+
+    /* Releasing invalid or non-existent filenames should be safe (no-op) */
+    filename_release(NULL);
+    filename_release("short");
+    filename_release("99/99/99/00");
+
+    /* Low bitfield boundary claims (slots 0 and 31) */
+    ck_assert_int_eq(filename_claim("02/00/00/00"), true);
+    ck_assert_int_eq(filename_claim("02/00/00/00"), false); /* duplicate claim */
+    ck_assert_int_eq(filename_claim("02/00/00/31"), true);
+    ck_assert_int_eq(filename_claim("02/00/00/31"), false); /* duplicate claim */
+
+    /* High bitfield boundary claims (slots 32 and 63) */
+    ck_assert_int_eq(filename_claim("02/00/00/32"), true);
+    ck_assert_int_eq(filename_claim("02/00/00/32"), false); /* duplicate claim */
+    ck_assert_int_eq(filename_claim("02/00/00/63"), true);
+    ck_assert_int_eq(filename_claim("02/00/00/63"), false); /* duplicate claim */
+
+    /* Release high bitfield slot and re-claim */
+    filename_release("02/00/00/32");
+    ck_assert_int_eq(filename_claim("02/00/00/32"), true);
+
+    /* Release low bitfield slot and re-claim */
+    filename_release("02/00/00/00");
+    ck_assert_int_eq(filename_claim("02/00/00/00"), true);
+
+    teardown_mock_gui();
+}
+END_TEST
+
 START_TEST(filename_request_test)
 {
     setup_mock_gui();
@@ -94,6 +179,15 @@ START_TEST(filename_claim_release_test)
 }
 END_TEST
 
+static void create_dummy_file(const char *path)
+{
+    FILE *f = fopen(path, "w");
+    if (f) {
+        fputs("test content", f);
+        fclose(f);
+    }
+}
+
 START_TEST(filename_flush_test)
 {
     setup_mock_gui();
@@ -102,6 +196,76 @@ START_TEST(filename_flush_test)
     filename_initialise();
 
     filename_flush(); /* Shouldn't crash */
+
+    teardown_mock_gui();
+}
+END_TEST
+
+START_TEST(filename_flush_disk_test)
+{
+    setup_mock_gui();
+
+    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    filename_initialise();
+
+    /* 1. Claim a valid file */
+    ck_assert_int_eq(filename_claim("03/00/00/00"), true);
+
+    /* 2. Create disk structure under TEMP_FILENAME_PREFIX */
+    system("mkdir -p " TEMP_FILENAME_PREFIX "/03/00/00");
+    system("mkdir -p " TEMP_FILENAME_PREFIX "/03/00/00/unexpected_dir");
+    system("mkdir -p " TEMP_FILENAME_PREFIX "/99");
+
+    /* Claimed file (should be retained) */
+    char claimed_path[256];
+    snprintf(claimed_path, sizeof(claimed_path), "%s/03/00/00/00", TEMP_FILENAME_PREFIX);
+    create_dummy_file(claimed_path);
+
+    /* Unclaimed file (should be deleted) */
+    char unclaimed_path[256];
+    snprintf(unclaimed_path, sizeof(unclaimed_path), "%s/03/00/00/01", TEMP_FILENAME_PREFIX);
+    create_dummy_file(unclaimed_path);
+
+    /* Invalid file name (should be deleted) */
+    char invalid_path[256];
+    snprintf(invalid_path, sizeof(invalid_path), "%s/03/00/00/invalid.txt", TEMP_FILENAME_PREFIX);
+    create_dummy_file(invalid_path);
+
+    /* Unexpected directory (should be deleted) */
+    char unexp_dir_path[256];
+    snprintf(unexp_dir_path, sizeof(unexp_dir_path), "%s/03/00/00/unexpected_dir", TEMP_FILENAME_PREFIX);
+
+    /* Unexpected top directory (should be deleted) */
+    char unexp_top_path[256];
+    snprintf(unexp_top_path, sizeof(unexp_top_path), "%s/99", TEMP_FILENAME_PREFIX);
+
+    /* Verify files exist before flush */
+    struct stat sb;
+    ck_assert_int_eq(stat(claimed_path, &sb), 0);
+    ck_assert_int_eq(stat(unclaimed_path, &sb), 0);
+    ck_assert_int_eq(stat(invalid_path, &sb), 0);
+    ck_assert_int_eq(stat(unexp_dir_path, &sb), 0);
+    ck_assert_int_eq(stat(unexp_top_path, &sb), 0);
+
+    /* 3. Execute filename_flush */
+    filename_flush();
+
+    /* 4. Assert post-conditions */
+    /* Claimed file must remain */
+    ck_assert_int_eq(stat(claimed_path, &sb), 0);
+
+    /* Unclaimed, invalid, and unexpected paths must be deleted */
+    ck_assert_int_eq(stat(unclaimed_path, &sb), -1);
+    ck_assert_int_eq(errno, ENOENT);
+
+    ck_assert_int_eq(stat(invalid_path, &sb), -1);
+    ck_assert_int_eq(errno, ENOENT);
+
+    ck_assert_int_eq(stat(unexp_dir_path, &sb), -1);
+    ck_assert_int_eq(errno, ENOENT);
+
+    ck_assert_int_eq(stat(unexp_top_path, &sb), -1);
+    ck_assert_int_eq(errno, ENOENT);
 
     teardown_mock_gui();
 }
@@ -117,8 +281,11 @@ static Suite *filename_suite_create(void)
 
     tcase_add_test(tc, filename_initialise_test);
     tcase_add_test(tc, filename_request_test);
+    tcase_add_test(tc, filename_request_rollover_test);
     tcase_add_test(tc, filename_claim_release_test);
+    tcase_add_test(tc, filename_claim_release_boundary_test);
     tcase_add_test(tc, filename_flush_test);
+    tcase_add_test(tc, filename_flush_disk_test);
 
     suite_add_tcase(s, tc);
 

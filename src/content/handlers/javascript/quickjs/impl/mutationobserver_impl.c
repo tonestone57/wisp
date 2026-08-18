@@ -72,6 +72,7 @@ static void mutation_callback(const struct dom_mutation_notification *notificati
             }
             if (interested) {
                 WispMutationRecord *record = calloc(1, sizeof(WispMutationRecord));
+                if (!record) continue;
                 if (notification->type == DOM_MUTATION_NOTIFICATION_CHILD_LIST) {
                     record->type = strdup("childList");
                     if (notification->added_node) {
@@ -170,6 +171,7 @@ JSValue wisp_mutationobserver_observe_impl(JSContext *ctx, QJSNodePrivate *priv,
 {
     WispMutationObserver *observer = priv->node;
     MutationObserverTarget *ot = calloc(1, sizeof(MutationObserverTarget));
+    if (!ot) return JS_ThrowOutOfMemory(ctx);
     ot->node = target;
     if (!wisp_is_js_process) dom_node_ref(target);
 

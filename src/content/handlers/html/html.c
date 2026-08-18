@@ -719,20 +719,20 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	NSLOG(wisp, DEBUG, "<<< html_create_html_data SUCCESS, parser=%p for content %p", c->parser, c);
 
 	/* Extract and parse Content-Security-Policy header */
-	const char *csp_header = llcache_handle_get_header(c->base.llcache, "Content-Security-Policy");
+	const char *csp_header = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CONTENT_SECURITY_POLICY);
 	if (csp_header != NULL) {
 		csp_parse(csp_header, c->base_url, &c->csp);
 	}
 
 	/* Extract and parse COOP and COEP headers */
-	const char *coop_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Opener-Policy");
+	const char *coop_header = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY);
 	if (coop_header != NULL) {
 		c->coop = strdup(coop_header);
 	} else {
 		c->coop = NULL;
 	}
 
-	const char *coep_header = llcache_handle_get_header(c->base.llcache, "Cross-Origin-Embedder-Policy");
+	const char *coep_header = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY);
 	if (coep_header != NULL) {
 		c->coep = strdup(coep_header);
 	} else {

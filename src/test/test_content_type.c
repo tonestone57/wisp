@@ -78,6 +78,25 @@ START_TEST(test_parse_happy_paths)
     lwc_string_unref(val);
 
     http_content_type_destroy(ct);
+
+    /* Test 4: Media type case canonicalization and LWS tolerance */
+    error = http_parse_content_type("  TEXT / HTML ; CHARSET = UTF-8  ", &ct);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(ct);
+    ck_assert_ptr_nonnull(ct->media_type);
+    ck_assert_int_eq(lwc_string_length(ct->media_type), 9);
+    ck_assert_int_eq(strncmp(lwc_string_data(ct->media_type), "TEXT/HTML", 9), 0);
+    ck_assert_ptr_nonnull(ct->parameters);
+
+    lwc_intern_string("CHARSET", 7, &key);
+    error = http_parameter_list_find_item(ct->parameters, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_int_eq(lwc_string_length(val), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "UTF-8", 5), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    http_content_type_destroy(ct);
 }
 END_TEST
 
@@ -103,9 +122,6 @@ START_TEST(test_parse_edge_cases)
     ck_assert_int_ne(error, NSERROR_OK);
 
     /* Test 5: Malformed parameter */
-    /* NetSurf currently treats malformed parameters (where no item could be parsed)
-     * by ignoring the error (returning NSERROR_NOT_FOUND which is not an error)
-     * and continuing to create the content type without parameters. */
     error = http_parse_content_type("text/html; charset=", &ct);
     ck_assert_int_eq(error, NSERROR_OK);
     if (error == NSERROR_OK) {
@@ -117,11 +133,8 @@ START_TEST(test_parse_edge_cases)
     /* Test 6: Missing type before slash */
     error = http_parse_content_type("/html", &ct);
     ck_assert_int_ne(error, NSERROR_OK);
-    if (error == NSERROR_OK) {
-        http_content_type_destroy(ct);
-    }
 
-    /* Test 7: Trailing whitespace */
+    /* Test 7: Trailing whitespace without parameters */
     error = http_parse_content_type("text/html   ", &ct);
     ck_assert_int_eq(error, NSERROR_OK);
     if (error == NSERROR_OK) {
@@ -138,6 +151,14 @@ START_TEST(test_parse_edge_cases)
         ck_assert_ptr_nonnull(ct);
         ck_assert_int_eq(lwc_string_length(ct->media_type), 9);
         ck_assert_int_eq(strncmp(lwc_string_data(ct->media_type), "text/html", 9), 0);
+        http_content_type_destroy(ct);
+    }
+
+    /* Test 9: Multiple semicolons */
+    error = http_parse_content_type("text/html;;", &ct);
+    ck_assert_int_eq(error, NSERROR_OK);
+    if (error == NSERROR_OK) {
+        ck_assert_ptr_nonnull(ct);
         http_content_type_destroy(ct);
     }
 }

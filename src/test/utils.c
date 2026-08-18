@@ -417,12 +417,50 @@ static TCase *snstrjoin_case_create(void)
     return tc;
 }
 
+/* nsfmt_float tests */
+START_TEST(nsfmt_float_test)
+{
+    char buf[64];
+    int len;
+
+    len = nsfmt_float(buf, sizeof(buf), "%.2f", 3.14159);
+    ck_assert_int_gt(len, 0);
+    ck_assert_str_eq(buf, "3.14");
+
+    len = nsfmt_float(buf, sizeof(buf), "%.1f", -12.34);
+    ck_assert_int_gt(len, 0);
+    ck_assert_str_eq(buf, "-12.3");
+
+    len = nsfmt_float(buf, sizeof(buf), "%.0f", 0.0);
+    ck_assert_int_gt(len, 0);
+    ck_assert_str_eq(buf, "0");
+}
+END_TEST
+
+static TCase *nsfmt_float_case_create(void)
+{
+    TCase *tc;
+    tc = tcase_create("nsfmt_float");
+
+    tcase_add_test(tc, nsfmt_float_test);
+
+    return tc;
+}
+
 /* ns_strto tests */
 START_TEST(ns_strtoint_test)
 {
-    int res;
+    int res = 0;
     nserror err;
 
+    /* Parameter validation */
+    err = ns_strtoint(NULL, 10, &res);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    err = ns_strtoint("123", 10, NULL);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    /* Valid values */
     err = ns_strtoint("123", 10, &res);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, 123);
@@ -435,19 +473,43 @@ START_TEST(ns_strtoint_test)
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, 26);
 
+    /* Trailing whitespace */
+    err = ns_strtoint("  789 \t\n", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 789);
+
+    /* Invalid input */
     err = ns_strtoint("123abc", 10, &res);
     ck_assert_int_eq(err, NSERROR_INVALID);
 
     err = ns_strtoint("", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtoint("  ", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    /* Overflow / Underflow */
+    err = ns_strtoint("99999999999999999999999", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtoint("-99999999999999999999999", 10, &res);
     ck_assert_int_eq(err, NSERROR_INVALID);
 }
 END_TEST
 
 START_TEST(ns_strtouint_test)
 {
-    unsigned int res;
+    unsigned int res = 0;
     nserror err;
 
+    /* Parameter validation */
+    err = ns_strtouint(NULL, 10, &res);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    err = ns_strtouint("123", 10, NULL);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    /* Valid values */
     err = ns_strtouint("123", 10, &res);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, 123);
@@ -456,19 +518,37 @@ START_TEST(ns_strtouint_test)
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, 26);
 
-    /* strtoul parses -456 as (ULONG_MAX + 1 - 456), but might be accepted.
-     * Actually, strtoul accepts minus sign and negates the value. */
+    /* Trailing whitespace */
+    err = ns_strtouint(" 456 \t", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 456);
 
+    /* Invalid input */
     err = ns_strtouint("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtouint("", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    /* Overflow */
+    err = ns_strtouint("99999999999999999999999", 10, &res);
     ck_assert_int_eq(err, NSERROR_INVALID);
 }
 END_TEST
 
 START_TEST(ns_strtoll_test)
 {
-    long long res;
+    long long res = 0;
     nserror err;
 
+    /* Parameter validation */
+    err = ns_strtoll(NULL, 10, &res);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    err = ns_strtoll("123", 10, NULL);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    /* Valid values */
     err = ns_strtoll("1234567890123", 10, &res);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, 1234567890123LL);
@@ -477,21 +557,58 @@ START_TEST(ns_strtoll_test)
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, -1234567890123LL);
 
+    /* Trailing whitespace */
+    err = ns_strtoll(" 9876543210 \n", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 9876543210LL);
+
+    /* Invalid input */
     err = ns_strtoll("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtoll("", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    /* Overflow / Underflow */
+    err = ns_strtoll("99999999999999999999999999999999", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtoll("-99999999999999999999999999999999", 10, &res);
     ck_assert_int_eq(err, NSERROR_INVALID);
 }
 END_TEST
 
 START_TEST(ns_strtoull_test)
 {
-    unsigned long long res;
+    unsigned long long res = 0;
     nserror err;
 
+    /* Parameter validation */
+    err = ns_strtoull(NULL, 10, &res);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    err = ns_strtoull("123", 10, NULL);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+
+    /* Valid values */
     err = ns_strtoull("1234567890123", 10, &res);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_int_eq(res, 1234567890123ULL);
 
+    /* Trailing whitespace */
+    err = ns_strtoull(" 1234567890123 \t", 10, &res);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(res, 1234567890123ULL);
+
+    /* Invalid input */
     err = ns_strtoull("123abc", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    err = ns_strtoull("", 10, &res);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    /* Overflow */
+    err = ns_strtoull("99999999999999999999999999999999", 10, &res);
     ck_assert_int_eq(err, NSERROR_INVALID);
 }
 END_TEST
@@ -544,12 +661,83 @@ START_TEST(stable_sort_test)
 }
 END_TEST
 
+START_TEST(stable_sort_edge_cases_test)
+{
+    struct sort_item single[] = { {5, 1} };
+    struct sort_item sorted[] = { {1, 1}, {2, 1}, {3, 1} };
+    struct sort_item reversed[] = { {3, 1}, {2, 1}, {1, 1} };
+    struct sort_item equal[] = { {2, 1}, {2, 2}, {2, 3} };
+
+    /* 0 and 1 element array handled safely without crashing */
+    stable_sort(NULL, 0, sizeof(struct sort_item), sort_cmp);
+    stable_sort(single, 1, sizeof(struct sort_item), sort_cmp);
+    ck_assert_int_eq(single[0].key, 5);
+
+    /* Already sorted */
+    stable_sort(sorted, 3, sizeof(struct sort_item), sort_cmp);
+    ck_assert_int_eq(sorted[0].key, 1);
+    ck_assert_int_eq(sorted[1].key, 2);
+    ck_assert_int_eq(sorted[2].key, 3);
+
+    /* Reversed array */
+    stable_sort(reversed, 3, sizeof(struct sort_item), sort_cmp);
+    ck_assert_int_eq(reversed[0].key, 1);
+    ck_assert_int_eq(reversed[1].key, 2);
+    ck_assert_int_eq(reversed[2].key, 3);
+
+    /* Equal keys preserve relative order */
+    stable_sort(equal, 3, sizeof(struct sort_item), sort_cmp);
+    ck_assert_int_eq(equal[0].val, 1);
+    ck_assert_int_eq(equal[1].val, 2);
+    ck_assert_int_eq(equal[2].val, 3);
+}
+END_TEST
+
 static TCase *stable_sort_case_create(void)
 {
     TCase *tc;
     tc = tcase_create("stable_sort");
 
     tcase_add_test(tc, stable_sort_test);
+    tcase_add_test(tc, stable_sort_edge_cases_test);
+
+    return tc;
+}
+
+/* Macro tests */
+START_TEST(utils_macros_test)
+{
+    int arr[5] = {10, 20, 30, 40, 50};
+    const char str[] = "hello";
+
+    ck_assert_int_eq(NOF_ELEMENTS(arr), 5);
+    ck_assert_int_eq(N_ELEMENTS(arr), 5);
+
+    ck_assert_int_eq(ABS(5), 5);
+    ck_assert_int_eq(ABS(-5), 5);
+    ck_assert_int_eq(ABS(0), 0);
+
+    ck_assert_int_eq(min(10, 20), 10);
+    ck_assert_int_eq(min(20, 10), 10);
+
+    ck_assert_int_eq(max(10, 20), 20);
+    ck_assert_int_eq(max(20, 10), 20);
+
+    ck_assert_int_eq(clamp(15, 10, 20), 15);
+    ck_assert_int_eq(clamp(5, 10, 20), 10);
+    ck_assert_int_eq(clamp(25, 10, 20), 20);
+
+    ck_assert_int_eq(SLEN("test"), 4);
+    ck_assert_int_eq(SLEN(str), 5);
+}
+END_TEST
+
+static TCase *utils_macros_case_create(void)
+{
+    TCase *tc;
+    tc = tcase_create("utils_macros");
+
+    tcase_add_test(tc, utils_macros_test);
 
     return tc;
 }
@@ -615,9 +803,11 @@ static Suite *utils_suite_create(void)
     suite_add_tcase(s, corestrings_case_create());
     suite_add_tcase(s, snstrjoin_case_create());
     suite_add_tcase(s, string_utils_case_create());
+    suite_add_tcase(s, nsfmt_float_case_create());
     suite_add_tcase(s, ns_strto_case_create());
     suite_add_tcase(s, stable_sort_case_create());
     suite_add_tcase(s, is_dir_case_create());
+    suite_add_tcase(s, utils_macros_case_create());
 
     return s;
 }

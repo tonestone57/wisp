@@ -138,6 +138,7 @@ JSValue wisp_htmlimageelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv,
     if (JS_IsObject(wrapper)) {
         JSValue onload_val = JS_GetPropertyStr(ctx, wrapper, "__onload_func");
         if (JS_IsUndefined(onload_val)) {
+            JS_FreeValue(ctx, onload_val);
             onload_val = JS_GetPropertyStr(ctx, wrapper, "onload");
         }
 
@@ -224,6 +225,7 @@ JSValue wisp_htmlimageelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv,
         } else if (!supported) {
             JSValue onerror_val = JS_GetPropertyStr(ctx, wrapper, "__onerror_func");
             if (JS_IsUndefined(onerror_val)) {
+                JS_FreeValue(ctx, onerror_val);
                 onerror_val = JS_GetPropertyStr(ctx, wrapper, "onerror");
             }
             if (JS_IsFunction(ctx, onerror_val)) {

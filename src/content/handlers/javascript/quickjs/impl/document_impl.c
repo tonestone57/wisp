@@ -259,7 +259,7 @@ JSValue wisp_document_applets_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_document_firstElementChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
         WispCompactNode *parent = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
@@ -295,7 +295,7 @@ JSValue wisp_document_firstElementChild_get_impl(JSContext *ctx, QJSNodePrivate 
 
 JSValue wisp_document_lastElementChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
         WispCompactNode *parent = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);

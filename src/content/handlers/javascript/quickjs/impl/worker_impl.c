@@ -71,6 +71,10 @@ JSValue wisp_worker_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv_node, 
     uint8_t *data = JS_WriteObject(ctx, &size, message, JS_WRITE_OBJ_SAB | JS_WRITE_OBJ_REFERENCE);
     if (!data) return JS_Throw(ctx, JS_NewString(ctx, "DataCloneError"));
     WispMessage *msg = calloc(1, sizeof(*msg));
+    if (!msg) {
+        js_free(ctx, data);
+        return JS_ThrowOutOfMemory(ctx);
+    }
     msg->type = WISP_MSG_TYPE_DATA; msg->data = data; msg->size = size;
     wisp_message_queue_push(&priv->handle->to_worker, msg);
     return JS_UNDEFINED;

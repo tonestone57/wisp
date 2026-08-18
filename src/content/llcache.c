@@ -23,9 +23,11 @@
  *
  * This is the implementation of the low level cache. This cache
  * stores source objects in memory and may use a persistent backing
- * store to extend their lifetime.
+ * store to extend their lifetime via scheduled background writeout.
  *
- * \todo instrument and (auto)tune
+ * Writeout candidates are selected from fresh in-RAM cacheable objects
+ * based on remaining lifetime and size, and written to the backing store
+ * subject to time quantum and bandwidth constraints.
  *
  */
 
@@ -2712,15 +2714,17 @@ static int build_candidate_list_cmp(const void *a, const void *b)
 /**
  * Construct a sorted list of objects available for writeout operation.
  *
- * The list contains fresh cacheable objects held in RAM with no
- * pending fetches. Any objects with a remaining lifetime less than
- * the configured minimum lifetime are simply not considered, they will
- * become stale before pushing to backing store is worth the cost.
+ * The list contains fresh cacheable HTTP(S) objects held in RAM with no
+ * candidate references or pending fetches. Any objects with a remaining
+ * RFC 2616 lifetime less than or equal to the configured minimum lifetime
+ * are omitted as they would become stale before persistent caching provides
+ * value. Candidates are ordered by descending remaining lifetime, and
+ * secondarily by descending object size.
  *
- * \param[out] lst_out list of candidate objects.
- * \param[out] lst_len_out Number of candidate objects in result.
- * \return NSERROR_OK with \a lst_out and \a lst_len_out updated or
- *         error code.
+ * \param[out] lst_out Pointer to receive dynamically allocated array of candidate objects.
+ * \param[out] lst_len_out Pointer to receive number of candidate objects in array.
+ * \return NSERROR_OK on success with \a lst_out and \a lst_len_out updated,
+ *         NSERROR_NOT_FOUND if no candidates exist, or NSERROR_NOMEM on allocation failure.
  */
 static nserror build_candidate_list(struct llcache_object ***lst_out, int *lst_len_out)
 {
@@ -2775,12 +2779,17 @@ static nserror build_candidate_list(struct llcache_object ***lst_out, int *lst_l
 }
 
 /**
- * Write an object to the backing store.
+ * Write a cache object's source data and metadata to the backing store.
  *
- * \param object The object to put in the backing store.
- * \param written_out The amount of data written out.
- * \param elapsed The time in ms it took to complete the write to backing store.
- * \return NSERROR_OK on success or appropriate error code.
+ * Stores the object source payload and serialised metadata in the persistent
+ * backing store, updating the object's store state to LLCACHE_STATE_DISC upon
+ * success. If metadata serialisation or storage fails, any partial backing store
+ * entry is invalidated.
+ *
+ * \param object The cache object to persist.
+ * \param[out] written_out Pointer to receive total bytes written (data plus metadata).
+ * \param[out] elapsed Pointer to receive write duration in milliseconds (at least 1 ms).
+ * \return NSERROR_OK on success, or appropriate error code on failure.
  */
 static nserror write_backing_store(struct llcache_object *object, size_t *written_out, unsigned long *elapsed)
 {
@@ -2867,9 +2876,16 @@ static void llcache_persist_slowcheck(void *p)
 }
 
 /**
- * Possibly write objects data to backing store.
+ * Main persistent writeout loop and scheduler callback.
  *
- * \param p The context pointer passed to the callback.
+ * Evaluates candidates for persistent backing store writeout, persisting
+ * objects sequentially until candidate objects are exhausted, or writeout
+ * time quantum / bandwidth limits are reached. Calculates write throughput
+ * and reschedules the callback (`llcache_persist`) or slow-performance check
+ * (`llcache_persist_slowcheck`) according to elapsed time and configured
+ * minimum/maximum bandwidth thresholds.
+ *
+ * \param p The context pointer passed to the callback (unused).
  */
 static void llcache_persist(void *p)
 {
@@ -4071,17 +4087,45 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
 }
 
 /* See llcache.h for documentation */
-const char *llcache_handle_get_header(const llcache_handle *handle, const char *key)
+const char *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key)
 {
-    const llcache_object *object = handle->object;
+    const llcache_object *object;
+    const char *header_name;
     size_t i;
 
-    if (object == NULL)
+    if (handle == NULL || handle->object == NULL)
         return NULL;
 
-    /* About as trivial as possible */
+    switch (key) {
+    case LLCACHE_HEADER_CONTENT_TYPE:
+        header_name = "Content-Type";
+        break;
+    case LLCACHE_HEADER_CONTENT_LENGTH:
+        header_name = "Content-Length";
+        break;
+    case LLCACHE_HEADER_CONTENT_DISPOSITION:
+        header_name = "Content-Disposition";
+        break;
+    case LLCACHE_HEADER_X_NS_BASE:
+        header_name = "X-NS-Base";
+        break;
+    case LLCACHE_HEADER_CONTENT_SECURITY_POLICY:
+        header_name = "Content-Security-Policy";
+        break;
+    case LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY:
+        header_name = "Cross-Origin-Opener-Policy";
+        break;
+    case LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY:
+        header_name = "Cross-Origin-Embedder-Policy";
+        break;
+    default:
+        return NULL;
+    }
+
+    object = handle->object;
+
     for (i = 0; i < object->num_headers; i++) {
-        if (strcasecmp(key, object->headers[i].name) == 0)
+        if (strcasecmp(header_name, object->headers[i].name) == 0)
             return object->headers[i].value;
     }
 

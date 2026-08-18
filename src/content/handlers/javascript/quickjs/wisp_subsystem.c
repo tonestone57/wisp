@@ -790,10 +790,12 @@ void* wisp_web_worker_routine(void *arg) {
             }
             const char *msg_str = JS_ToCString(t->ctx, exc);
             WispMessage *errMsg = calloc(1, sizeof(*errMsg));
-            errMsg->type = WISP_MSG_TYPE_ERROR;
-            errMsg->error_message = strdup(msg_str ? msg_str : "Unknown error");
-            wisp_message_queue_push(&h->from_worker, errMsg);
-            wisp_worker_notify_main_thread(h);
+            if (errMsg) {
+                errMsg->type = WISP_MSG_TYPE_ERROR;
+                errMsg->error_message = strdup(msg_str ? msg_str : "Unknown error");
+                wisp_message_queue_push(&h->from_worker, errMsg);
+                wisp_worker_notify_main_thread(h);
+            }
             JS_FreeCString(t->ctx, msg_str); JS_FreeValue(t->ctx, stack); JS_FreeValue(t->ctx, exc);
         }
         JS_FreeValue(t->ctx, res);
@@ -833,10 +835,12 @@ void* wisp_web_worker_routine(void *arg) {
                     JSValue exc = JS_GetException(t->ctx);
                     const char *exc_str = JS_ToCString(t->ctx, exc);
                     WispMessage *errMsg = calloc(1, sizeof(*errMsg));
-                    errMsg->type = WISP_MSG_TYPE_ERROR;
-                    errMsg->error_message = strdup(exc_str ? exc_str : "Unknown error");
-                    wisp_message_queue_push(&h->from_worker, errMsg);
-                    wisp_worker_notify_main_thread(h);
+                    if (errMsg) {
+                        errMsg->type = WISP_MSG_TYPE_ERROR;
+                        errMsg->error_message = strdup(exc_str ? exc_str : "Unknown error");
+                        wisp_message_queue_push(&h->from_worker, errMsg);
+                        wisp_worker_notify_main_thread(h);
+                    }
                     JS_FreeCString(t->ctx, exc_str); JS_FreeValue(t->ctx, exc);
                 }
                 JS_FreeValue(t->ctx, ret);

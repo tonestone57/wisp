@@ -522,7 +522,7 @@ JSValue wisp_node_baseURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         if ((uint64_t)(uintptr_t)priv->node == 0) return JS_NULL;
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
@@ -547,7 +547,7 @@ JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_parentNode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn && sn->parent_id != 0) {
@@ -567,7 +567,7 @@ JSValue wisp_node_parentNode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_parentElement_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         while (sn && sn->parent_id != 0) {
@@ -639,7 +639,7 @@ JSValue wisp_node_childNodes_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn && sn->first_child_id != 0) {
@@ -659,7 +659,7 @@ JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_lastChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn && sn->first_child_id != 0) {
@@ -688,7 +688,7 @@ JSValue wisp_node_lastChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_previousSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn && sn->prev_sibling_id != 0) {
@@ -708,7 +708,7 @@ JSValue wisp_node_previousSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_node_nextSibling_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
         if (sn && sn->next_sibling_id != 0) {

@@ -257,20 +257,30 @@ nsurl *llcache_handle_get_url(const llcache_handle *handle);
  */
 const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size_t *size);
 
+/** Header keys for low-level cache retrieval */
+typedef enum llcache_header_key {
+    LLCACHE_HEADER_CONTENT_TYPE,
+    LLCACHE_HEADER_CONTENT_LENGTH,
+    LLCACHE_HEADER_CONTENT_DISPOSITION,
+    LLCACHE_HEADER_X_NS_BASE,
+    LLCACHE_HEADER_CONTENT_SECURITY_POLICY,
+    LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY,
+    LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY
+} llcache_header_key;
+
 /**
  * Retrieve a header value associated with a low-level cache object
  *
  * \param handle  Handle to retrieve header from
- * \param key     Header name
+ * \param key     Header key enum
  * \return Header value, or NULL if header does not exist
  *
- * \todo Make the key an enumeration, to avoid needless string comparisons
  * \todo Forcing the client to parse the header value seems wrong.
  *       Better would be to return the actual value part and an array of
  *       key-value pairs for any additional parameters.
  * \todo Deal with multiple headers of the same key (e.g. Set-Cookie)
  */
-const char *llcache_handle_get_header(const llcache_handle *handle, const char *key);
+const char *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key);
 
 /**
  * Determine if the same underlying object is referenced by the given handles
