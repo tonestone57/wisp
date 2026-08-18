@@ -9084,9 +9084,6 @@ JSValue wisp_element_getElementsByTagNameNS_impl(JSContext *ctx, QJSNodePrivate 
 }
 
 // Overrides: method | Element::insertAdjacentHTML();
-JSValue wisp_element_insertAdjacentHTML_impl(JSContext *ctx, QJSNodePrivate *priv, const char * position, const char * text) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: method | Element::pseudo();
 JSValue wisp_element_pseudo_impl(JSContext *ctx, QJSNodePrivate *priv, const char * pseudoElt) {
@@ -13309,9 +13306,6 @@ JSValue wisp_element_append_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue n
 }
 
 // Overrides: Element | outerHTML (setter)
-JSValue wisp_element_outerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: Element | prepend()
 JSValue wisp_element_prepend_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue nodes) {
