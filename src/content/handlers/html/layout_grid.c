@@ -128,6 +128,10 @@ static grid_placement_phase_t get_placement_phase(int col_start, int row_start)
  */
 static bool ensure_array_capacity(int **array, int *capacity, int required_index)
 {
+	if (required_index < 0) {
+		return false;
+	}
+
 	if (*array != NULL && required_index < *capacity) {
 		return true; /* Already have capacity */
 	}
@@ -135,7 +139,14 @@ static bool ensure_array_capacity(int **array, int *capacity, int required_index
 	int new_cap = *capacity;
 	if (new_cap <= 0) new_cap = 4;
 	while (new_cap <= required_index) {
+		if (new_cap > INT_MAX / 2) {
+			return false;
+		}
 		new_cap *= 2;
+	}
+
+	if ((size_t)new_cap > SIZE_MAX / sizeof(int)) {
+		return false;
 	}
 
 	int *new_array = realloc(*array, new_cap * sizeof(int));
@@ -179,6 +190,10 @@ static bool ensure_col_capacity(int **col_widths, int *capacity, int required_co
  */
 static bool ensure_occupied_capacity(bool **occupied, int *current_rows, int *current_cols, int required_rows, int required_cols)
 {
+	if (required_rows < 0 || required_cols < 0) {
+		return false;
+	}
+
 	if (*occupied != NULL && required_rows <= *current_rows && required_cols <= *current_cols) {
 		return true;
 	}
@@ -189,10 +204,21 @@ static bool ensure_occupied_capacity(bool **occupied, int *current_rows, int *cu
 	if (new_rows <= 0) new_rows = 8;
 	if (new_cols <= 0) new_cols = 8;
 
-	while (new_rows < required_rows) new_rows *= 2;
-	while (new_cols < required_cols) new_cols *= 2;
+	while (new_rows < required_rows) {
+		if (new_rows > INT_MAX / 2) return false;
+		new_rows *= 2;
+	}
+	while (new_cols < required_cols) {
+		if (new_cols > INT_MAX / 2) return false;
+		new_cols *= 2;
+	}
 
-	bool *new_occupied = calloc(new_rows * new_cols, sizeof(bool));
+	if ((size_t)new_rows > SIZE_MAX / (size_t)new_cols ||
+	    (size_t)new_rows * (size_t)new_cols > SIZE_MAX / sizeof(bool)) {
+		return false;
+	}
+
+	bool *new_occupied = calloc((size_t)new_rows * (size_t)new_cols, sizeof(bool));
 	if (!new_occupied) {
 		return false;
 	}

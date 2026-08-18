@@ -142,6 +142,10 @@ static nserror idna__ace_to_ucs4(const char *ace_label, size_t ace_len, int32_t 
     /* The header should always have been checked before calling */
     assert((ace_label[0] == 'x') && (ace_label[1] == 'n') && (ace_label[2] == '-') && (ace_label[3] == '-'));
 
+    if (output_length > SIZE_MAX / 4) {
+        return NSERROR_BAD_SIZE;
+    }
+
     ucs4 = malloc(output_length * 4);
     if (ucs4 == NULL) {
         return NSERROR_NOMEM;
@@ -390,6 +394,10 @@ static nserror idna__utf8_to_ucs4(const char *utf8_label, size_t len, int32_t **
     int32_t *nfc_label;
     ssize_t nfc_size;
 
+    if (len > SIZE_MAX / 4) {
+        return NSERROR_BAD_SIZE;
+    }
+
     nfc_label = malloc(len * 4);
     if (nfc_label == NULL) {
         return NSERROR_NOMEM;
@@ -430,6 +438,10 @@ static nserror idna__ucs4_to_utf8(const int32_t *ucs4_label, size_t ucs4_len, ch
 {
     int32_t *nfc_label;
     ssize_t nfc_size = ucs4_len;
+
+    if (ucs4_len > (SIZE_MAX - 1) / 4) {
+        return NSERROR_BAD_SIZE;
+    }
 
     nfc_label = malloc(1 + ucs4_len * 4);
     if (nfc_label == NULL) {

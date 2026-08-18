@@ -2219,8 +2219,14 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
 	assert(table->type == BOX_TABLE);
 	assert(style);
-	assert(table->children && table->children->children);
-	assert(columns);
+
+	if (columns == 0) {
+		return true;
+	}
+
+	if (columns > 65536 || (table->children == NULL || table->children->children == NULL)) {
+		return false;
+	}
 
 	/* allocate working buffers */
 	col = malloc(columns * sizeof col[0]);
