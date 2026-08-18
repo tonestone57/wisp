@@ -34,6 +34,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -138,6 +139,9 @@ nserror url_escape(const char *unescaped, bool sptoplus, const char *escexceptio
     }
 
     len = strlen(unescaped);
+    if (len > (SIZE_MAX - 1) / 3) {
+        return NSERROR_BAD_SIZE;
+    }
 
     escaped = malloc(len * 3 + 1);
     if (escaped == NULL) {

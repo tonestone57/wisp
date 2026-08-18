@@ -275,18 +275,27 @@ static bool bridge_cleanup_ctx_cb(void *key, void *val, void *pw)
     bridge_key_t *k = key;
     if (k->ctx == cleanup->ctx) {
         if (cleanup->count == cleanup->capacity) {
-            cleanup->capacity = cleanup->capacity ? cleanup->capacity * 2 : 16;
-            struct dom_node **new_nodes = realloc(cleanup->nodes, cleanup->capacity * sizeof(struct dom_node *));
+            size_t new_cap = cleanup->capacity ? cleanup->capacity * 2 : 16;
+            struct dom_node **new_nodes = realloc(cleanup->nodes, new_cap * sizeof(struct dom_node *));
             if (!new_nodes) return true;
+
+            dom_node_type *new_types = realloc(cleanup->types, new_cap * sizeof(dom_node_type));
+            if (!new_types) {
+                cleanup->nodes = new_nodes;
+                return true;
+            }
+
+            bool *new_has_types = realloc(cleanup->has_types, new_cap * sizeof(bool));
+            if (!new_has_types) {
+                cleanup->nodes = new_nodes;
+                cleanup->types = new_types;
+                return true;
+            }
+
             cleanup->nodes = new_nodes;
-
-            dom_node_type *new_types = realloc(cleanup->types, cleanup->capacity * sizeof(dom_node_type));
-            if (!new_types) return true;
             cleanup->types = new_types;
-
-            bool *new_has_types = realloc(cleanup->has_types, cleanup->capacity * sizeof(bool));
-            if (!new_has_types) return true;
             cleanup->has_types = new_has_types;
+            cleanup->capacity = new_cap;
         }
         cleanup->nodes[cleanup->count] = k->node;
         cleanup->has_types[cleanup->count] = qjs_get_node_type(k->node, &cleanup->types[cleanup->count]);
@@ -354,6 +363,7 @@ static const char *qjs_selector_skip_ws(const char *s)
 
 static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
 {
+    if (!selector_str) return NULL;
     qjs_selector_root_t *root = calloc(1, sizeof(qjs_selector_root_t));
     if (!root) return NULL;
 
@@ -365,8 +375,18 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
         const char *comma = strchr(p, ',');
         size_t group_len = comma ? (size_t)(comma - p) : strlen(p);
         char *group_str = strndup(p, group_len);
+        if (!group_str) {
+            qjs_selector_root_free(root);
+            return NULL;
+        }
 
-        root->groups = realloc(root->groups, (root->group_count + 1) * sizeof(qjs_selector_group_t));
+        qjs_selector_group_t *new_groups = realloc(root->groups, (root->group_count + 1) * sizeof(qjs_selector_group_t));
+        if (!new_groups) {
+            free(group_str);
+            qjs_selector_root_free(root);
+            return NULL;
+        }
+        root->groups = new_groups;
         qjs_selector_group_t *group = &root->groups[root->group_count++];
         memset(group, 0, sizeof(*group));
 
@@ -375,7 +395,13 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
             gp = qjs_selector_skip_ws(gp);
             if (!*gp) break;
 
-            group->components = realloc(group->components, (group->component_count + 1) * sizeof(qjs_selector_component_t));
+            qjs_selector_component_t *new_comps = realloc(group->components, (group->component_count + 1) * sizeof(qjs_selector_component_t));
+            if (!new_comps) {
+                free(group_str);
+                qjs_selector_root_free(root);
+                return NULL;
+            }
+            group->components = new_comps;
             qjs_selector_component_t *comp = &group->components[group->component_count++];
             memset(comp, 0, sizeof(*comp));
 
@@ -385,6 +411,11 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
 
             size_t comp_len = (size_t)(cp - gp);
             char *comp_str = strndup(gp, comp_len);
+            if (!comp_str) {
+                free(group_str);
+                qjs_selector_root_free(root);
+                return NULL;
+            }
 
             /* Parse compound selector part */
             const char *csp = comp_str;
@@ -398,7 +429,14 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
                 } else if (*csp == '.') {
                     const char *class_start = ++csp;
                     while (*csp && !strchr("#.", *csp)) csp++;
-                    comp->compound.classes = realloc(comp->compound.classes, (comp->compound.class_count + 1) * sizeof(char *));
+                    char **new_classes = realloc(comp->compound.classes, (comp->compound.class_count + 1) * sizeof(char *));
+                    if (!new_classes) {
+                        free(comp_str);
+                        free(group_str);
+                        qjs_selector_root_free(root);
+                        return NULL;
+                    }
+                    comp->compound.classes = new_classes;
                     comp->compound.classes[comp->compound.class_count++] = strndup(class_start, (size_t)(csp - class_start));
                 } else {
                     const char *tag_start = csp;

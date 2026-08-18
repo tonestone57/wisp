@@ -450,8 +450,19 @@ HPDF_Image pdf_extract_image(struct bitmap *bitmap)
         img_height = bitmap_get_height(bitmap);
         img_rowstride = bitmap_get_rowstride(bitmap);
 
-        rgb_buffer = (unsigned char *)malloc(3 * img_width * img_height);
-        alpha_buffer = (unsigned char *)malloc(img_width * img_height);
+        if (!img_buffer || img_width <= 0 || img_height <= 0 || img_width > 100000 || img_height > 100000) {
+            NSLOG(wisp, ERROR, "Invalid bitmap parameters for PDF extraction");
+            return NULL;
+        }
+
+        size_t pixels = (size_t)img_width * (size_t)img_height;
+        if (pixels > SIZE_MAX / 3) {
+            NSLOG(wisp, ERROR, "Bitmap pixel allocation size overflow");
+            return NULL;
+        }
+
+        rgb_buffer = (unsigned char *)malloc(3 * pixels);
+        alpha_buffer = (unsigned char *)malloc(pixels);
         if (rgb_buffer == NULL || alpha_buffer == NULL) {
             NSLOG(wisp, ERROR, "Not enough memory to create RGB buffer");
             free(rgb_buffer);

@@ -6814,6 +6814,7 @@ static char *camel_to_kebab(const char *str) {
     if (!str) return NULL;
     size_t len = strlen(str);
     char *res = malloc(len * 2 + 1);
+    if (!res) return NULL;
     size_t j = 0;
     for (size_t i = 0; i < len; i++) {
         if (isupper((unsigned char)str[i])) {
@@ -6925,29 +6926,50 @@ static char *get_clean_value(const char *val) {
 
 
 static char *create_style_string(struct style_property *props, int count) {
+    if (count <= 0 || !props) return strdup("");
     size_t stack_name_lens[64];
     size_t stack_val_lens[64];
     size_t *name_lens = count <= 64 ? stack_name_lens : malloc(count * sizeof(size_t));
     size_t *val_lens = count <= 64 ? stack_val_lens : malloc(count * sizeof(size_t));
 
+    if (!name_lens || !val_lens) {
+        if (count > 64) {
+            free(name_lens);
+            free(val_lens);
+        }
+        return NULL;
+    }
+
     size_t total_len = 0;
     for (int i = 0; i < count; i++) {
-        name_lens[i] = strlen(props[i].name);
-        val_lens[i] = strlen(props[i].value);
+        name_lens[i] = props[i].name ? strlen(props[i].name) : 0;
+        val_lens[i] = props[i].value ? strlen(props[i].value) : 0;
         total_len += name_lens[i] + 2 + val_lens[i] + 2;
     }
 
     char *buf = malloc(total_len + 1);
+    if (!buf) {
+        if (count > 64) {
+            free(name_lens);
+            free(val_lens);
+        }
+        return NULL;
+    }
+
     char *ptr = buf;
     for (int i = 0; i < count; i++) {
         size_t name_len = name_lens[i];
         size_t val_len = val_lens[i];
-        memcpy(ptr, props[i].name, name_len);
-        ptr += name_len;
+        if (props[i].name && name_len > 0) {
+            memcpy(ptr, props[i].name, name_len);
+            ptr += name_len;
+        }
         memcpy(ptr, ": ", 2);
         ptr += 2;
-        memcpy(ptr, props[i].value, val_len);
-        ptr += val_len;
+        if (props[i].value && val_len > 0) {
+            memcpy(ptr, props[i].value, val_len);
+            ptr += val_len;
+        }
         memcpy(ptr, "; ", 2);
         ptr += 2;
     }
@@ -6963,9 +6985,11 @@ static char *create_style_string(struct style_property *props, int count) {
 
 static void serialize_style_properties(JSContext *ctx, QJSNodePrivate *priv, struct style_property *props, int count) {
     char *buf = create_style_string(props, count);
-    JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
-    JS_FreeValue(ctx, dummy);
-    free(buf);
+    if (buf) {
+        JSValue dummy = wisp_element_setAttribute_impl(ctx, priv, "style", buf);
+        JS_FreeValue(ctx, dummy);
+        free(buf);
+    }
 }
 
 JSValue wisp_cssstyledeclaration_getPropertyPriority_impl(JSContext *ctx, QJSNodePrivate *priv, const char * property) {
