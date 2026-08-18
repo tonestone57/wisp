@@ -317,6 +317,7 @@ static guint nsgtk_scaffolding_update_edit_actions_sensitivity(struct nsgtk_scaf
         g->menus[PASTE_BUTTON].sensitivity = edit_f & BW_EDITOR_CAN_PASTE;
     }
 
+    nsgtk_scaffolding_set_sensitivity(g);
     nsgtk_scaffolding_set_item_sensitivity(g, CUT_BUTTON);
     nsgtk_scaffolding_set_item_sensitivity(g, COPY_BUTTON);
     nsgtk_scaffolding_set_item_sensitivity(g, PASTE_BUTTON);
@@ -338,6 +339,7 @@ static void nsgtk_scaffolding_enable_edit_actions_sensitivity(struct nsgtk_scaff
     g->menus[COPY_BUTTON].sensitivity = true;
     g->menus[CUT_BUTTON].sensitivity = true;
 
+    nsgtk_scaffolding_set_sensitivity(g);
     nsgtk_scaffolding_set_item_sensitivity(g, CUT_BUTTON);
     nsgtk_scaffolding_set_item_sensitivity(g, COPY_BUTTON);
     nsgtk_scaffolding_set_item_sensitivity(g, PASTE_BUTTON);
