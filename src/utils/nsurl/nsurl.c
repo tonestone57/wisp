@@ -849,6 +849,7 @@ nserror nsurl_parent(const nsurl *url, nsurl **new_url)
     /* Find the length of new_url */
     len = url->length;
     if (url->components.query != NULL) {
+        len -= 1; /* ? */
         len -= lwc_string_length(url->components.query);
     }
     if (url->components.fragment != NULL) {
