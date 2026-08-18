@@ -412,6 +412,14 @@ const char *messages_get_errorcode(nserror code)
     case NSERROR_PAUSED:
         /* Operation paused */
         return messages_get_ctx("Paused", messages_hash);
+
+    case NSERROR_CSP_BLOCKED:
+        /* Resource blocked by CSP */
+        return messages_get_ctx("CSPBlocked", messages_hash);
+
+    case NSERROR_SHUTDOWN:
+        /* Connection shut down or EOF reached */
+        return messages_get_ctx("Shutdown", messages_hash);
     }
 
     return messages_get_ctx("MiscError", messages_hash);

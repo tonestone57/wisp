@@ -11176,7 +11176,7 @@ JSValue wisp_documenttype_systemId_get_impl(JSContext *ctx, QJSNodePrivate *priv
 
 // Overrides: method | DocumentFragment::getElementById();
 JSValue wisp_documentfragment_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * elementId) {
-    return JS_UNDEFINED;
+    return JS_NULL;
 }
 
 // Overrides: method | DocumentFragment::query();
@@ -11191,7 +11191,7 @@ JSValue wisp_documentfragment_queryAll_impl(JSContext *ctx, QJSNodePrivate *priv
 
 // Overrides: method | DocumentFragment::querySelector();
 JSValue wisp_documentfragment_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
-    return JS_UNDEFINED;
+    return JS_NULL;
 }
 
 // Overrides: method | DocumentFragment::querySelectorAll();
@@ -14993,7 +14993,7 @@ JSValue wisp_navigatorstorageutils_yieldForStorageUpdates_impl(JSContext *ctx, Q
 
 // Overrides: NonElementParentNode | getElementById()
 JSValue wisp_nonelementparentnode_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * elementId) {
-    return JS_UNDEFINED;
+    return JS_NULL;
 }
 
 // Overrides: ParentNode | childElementCount (getter)
@@ -15028,7 +15028,7 @@ JSValue wisp_parentnode_queryAll_impl(JSContext *ctx, QJSNodePrivate *priv, cons
 
 // Overrides: ParentNode | querySelector()
 JSValue wisp_parentnode_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
-    return JS_UNDEFINED;
+    return JS_NULL;
 }
 
 // Overrides: ParentNode | querySelectorAll()
