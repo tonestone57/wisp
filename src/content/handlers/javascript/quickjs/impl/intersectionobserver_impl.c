@@ -65,6 +65,7 @@ JSValue wisp_intersectionobserver_observe_impl(JSContext *ctx, QJSNodePrivate *p
 {
     WispIntersectionObserver *observer = priv->node;
     IntersectionObserverTarget *ot = calloc(1, sizeof(IntersectionObserverTarget));
+    if (!ot) return JS_ThrowOutOfMemory(ctx);
     ot->node = target;
     if (!wisp_is_js_process) dom_node_ref(target);
     ot->lastRatio = -1.0;
