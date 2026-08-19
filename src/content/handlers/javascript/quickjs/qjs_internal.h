@@ -172,6 +172,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
 void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc);
 
 void qjs_inject_dom_polyfills(JSContext *ctx);
+void wisp_qjs_register_core_polyfills(JSContext *ctx);
 
 JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSValue arguments, bool repeat);
 JSValue wisp_timer_clear(JSContext *ctx, int32_t handle);

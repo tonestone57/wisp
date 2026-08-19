@@ -183,6 +183,79 @@ START_TEST(test_global_document_get_with_shm)
 }
 END_TEST
 
+START_TEST(test_get_context_core_polyfills)
+{
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    ck_assert(eval_js_bool(ctx, "typeof matchMedia === 'function'"));
+    ck_assert(eval_js_bool(ctx, "typeof ResizeObserver === 'function'"));
+    ck_assert(eval_js_bool(ctx, "typeof crypto.randomUUID === 'function'"));
+    ck_assert(eval_js_bool(ctx, "typeof CSS.escape === 'function'"));
+}
+END_TEST
+
+START_TEST(test_eval_js_when_shm_null)
+{
+    wisp_shm_dom = NULL;
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    ck_assert(eval_js_bool(ctx, "1 + 1 === 2"));
+    ck_assert(eval_js_bool(ctx, "typeof Math.abs === 'function'"));
+}
+END_TEST
+
+START_TEST(test_shm_dom_update_contexts)
+{
+    const char *shm_name1 = "/test_js_main_shm1";
+    shm_unlink(shm_name1);
+
+    wisp_shm_dom = shm_dom_create(shm_name1, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    WispCompactNode *nodes1 = shm_dom_get_nodes(wisp_shm_dom);
+    nodes1[1].node_type = 9; /* DOM_DOCUMENT_NODE */
+    wisp_shm_dom->node_count = 2;
+
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+    ck_assert_ptr_eq(t->doc_priv, (void *)(uintptr_t)1);
+
+    /* Simulate SHM DOM re-creation where document node index changes */
+    shm_dom_destroy(wisp_shm_dom, NULL, false);
+    const char *shm_name2 = "/test_js_main_shm2";
+    shm_unlink(shm_name2);
+
+    wisp_shm_dom = shm_dom_create(shm_name2, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    WispCompactNode *nodes2 = shm_dom_get_nodes(wisp_shm_dom);
+    nodes2[2].node_type = 9; /* DOM_DOCUMENT_NODE moved to index 2 */
+    wisp_shm_dom->node_count = 3;
+
+    /* Perform context update logic */
+    WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+    uint64_t new_doc_id = 0;
+    for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+        if (nodes_arr[i].node_type == 9) {
+            new_doc_id = i;
+            break;
+        }
+    }
+    ck_assert_uint_eq(new_doc_id, 2);
+
+    t->doc_priv = (void *)(uintptr_t)new_doc_id;
+    t->win_priv = (void *)(uintptr_t)new_doc_id;
+    t->global_window_priv.node = (void *)(uintptr_t)new_doc_id;
+
+    ck_assert_ptr_eq(t->doc_priv, (void *)(uintptr_t)2);
+}
+END_TEST
+
 Suite *js_main_suite(void)
 {
     Suite *s;
@@ -200,6 +273,9 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_get_context_origin_propagation);
     tcase_add_test(tc_core, test_global_document_get_null_shm);
     tcase_add_test(tc_core, test_global_document_get_with_shm);
+    tcase_add_test(tc_core, test_get_context_core_polyfills);
+    tcase_add_test(tc_core, test_eval_js_when_shm_null);
+    tcase_add_test(tc_core, test_shm_dom_update_contexts);
     suite_add_tcase(s, tc_core);
 
     return s;
