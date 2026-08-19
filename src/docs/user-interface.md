@@ -31,7 +31,7 @@ The native Haiku/BeOS frontend utilizing `libbe` (BView). It has been updated to
 
 ## framebuffer
 
-There is a basic user guide for the [framebuffer](docs/using-framebuffer.md)
+There is a basic user guide for the [framebuffer](using-framebuffer.md)
 
 ## gtk
 
@@ -41,7 +41,7 @@ Frontend that uses the GTK+2 or GTK+3 toolkit
 
 This is the internal unit test frontend.
 
-There is a basic user guide [monkey](docs/using-monkey.md)
+There is a basic user guide [monkey](using-monkey.md)
 
 ## riscos
 
@@ -58,7 +58,7 @@ Wisp has unified its rendering architecture around **Blend2D** across all platfo
 # User configuration
 
 The behaviour of the browser can be changed from the defaults with a
-configuration file. The [core user options](docs/wisp-options.md)
+configuration file. The [core user options](wisp-options.md)
 of the browser are common to all versions and are augmented by each
 frontend in a specific manner.
 
