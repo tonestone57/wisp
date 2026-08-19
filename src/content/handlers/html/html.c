@@ -746,6 +746,10 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 			c->parser, c);
 		dom_hubbub_parser_destroy(c->parser);
 		c->parser = NULL;
+		if (c->document != NULL) {
+			dom_node_unref(c->document);
+			c->document = NULL;
+		}
 		nsurl_unref(c->base_url);
 		c->base_url = NULL;
 
@@ -1816,6 +1820,22 @@ static void html_destroy(struct content *c)
 	 * can properly unref DOM nodes */
 	html_free_layout(html);
 
+	/* Free stylesheets, scripts, SVGs and objects BEFORE destroying document
+	 * so all dom_node_ref references held by sub-objects are unref'd first. */
+	html_css_free_stylesheets(html);
+
+	/* Free scripts */
+	html_script_free(html);
+
+	/* Free SVG symbol registry */
+	html_free_svg_symbols(html);
+
+	/* Free pre-serialized inline SVG list */
+	html_free_inline_svgs(html);
+
+	/* Free objects */
+	html_object_free_objects(html);
+
 	if (html->parser != NULL) {
 		NSLOG(wisp, DEBUG, "html_destroy: destroying parser %p for content %p", html->parser, c);
 		dom_hubbub_parser_destroy(html->parser);
@@ -1878,21 +1898,6 @@ static void html_destroy(struct content *c)
 		lwc_string_unref(html->media.prefers_color_scheme);
 		html->media.prefers_color_scheme = NULL;
 	}
-
-	/* Free stylesheets */
-	html_css_free_stylesheets(html);
-
-	/* Free scripts */
-	html_script_free(html);
-
-	/* Free SVG symbol registry */
-	html_free_svg_symbols(html);
-
-	/* Free pre-serialized inline SVG list */
-	html_free_inline_svgs(html);
-
-	/* Free objects */
-	html_object_free_objects(html);
 
 	if (html->dirty_grid) {
 		hashset_destroy(html->dirty_grid);
