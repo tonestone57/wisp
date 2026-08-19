@@ -4,6 +4,7 @@
 
 #include "utils/http/parameter.h"
 #include "utils/http/parameter_internal.h"
+#include "utils/http/primitives.h"
 #include <wisp/utils/corestrings.h>
 
 START_TEST(test_http_parse_parameter)
@@ -85,6 +86,29 @@ START_TEST(test_http_parse_parameter)
     http_parameter_list_destroy((http_parameter *)param);
     param = NULL;
 
+    // Test with escaped backslash in quoted string
+    input = "path=\"C:\\\\Program Files\\\\Wisp\"";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(param);
+
+    name = NULL;
+    val = NULL;
+    iter = http_parameter_list_iterate((const http_parameter *)param, &name, &val);
+    ck_assert_ptr_null(iter);
+
+    ck_assert_int_eq(lwc_string_length(name), 4);
+    ck_assert_int_eq(strncmp(lwc_string_data(name), "path", 4), 0);
+
+    ck_assert_int_eq(lwc_string_length(val), 21);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "C:\\Program Files\\Wisp", 21), 0);
+
+    lwc_string_unref(name);
+    lwc_string_unref(val);
+    http_parameter_list_destroy((http_parameter *)param);
+    param = NULL;
+
     // Test with LWS, parameter parse expects pos to point directly to token
     input = "foo \t =  bar  ";
     pos = input;
@@ -137,6 +161,59 @@ START_TEST(test_http_parse_parameter)
     pos = input;
     err = http__parse_parameter(&pos, &param);
     ck_assert_int_ne(err, NSERROR_OK);
+}
+END_TEST
+
+START_TEST(test_http_parse_sequential_parameters)
+{
+    const char *input = "param1=val1; param2=\"val2\"; param3=val3";
+    const char *pos = input;
+
+    http__item *head = NULL;
+    http__item **tail = &head;
+    http__item *item = NULL;
+    nserror err;
+
+    while (*pos != '\0') {
+        err = http__parse_parameter(&pos, &item);
+        ck_assert_int_eq(err, NSERROR_OK);
+        ck_assert_ptr_nonnull(item);
+
+        *tail = item;
+        tail = &item->next;
+
+        http__skip_LWS(&pos);
+        if (*pos == ';') {
+            pos++;
+            http__skip_LWS(&pos);
+        }
+    }
+
+    // Verify 3 items parsed
+    lwc_string *name = NULL;
+    lwc_string *val = NULL;
+
+    const http_parameter *cur = (const http_parameter *)head;
+    cur = http_parameter_list_iterate(cur, &name, &val);
+    ck_assert_int_eq(strncmp(lwc_string_data(name), "param1", 6), 0);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "val1", 4), 0);
+    lwc_string_unref(name);
+    lwc_string_unref(val);
+
+    cur = http_parameter_list_iterate(cur, &name, &val);
+    ck_assert_int_eq(strncmp(lwc_string_data(name), "param2", 6), 0);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "val2", 4), 0);
+    lwc_string_unref(name);
+    lwc_string_unref(val);
+
+    cur = http_parameter_list_iterate(cur, &name, &val);
+    ck_assert_ptr_null(cur);
+    ck_assert_int_eq(strncmp(lwc_string_data(name), "param3", 6), 0);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "val3", 4), 0);
+    lwc_string_unref(name);
+    lwc_string_unref(val);
+
+    http_parameter_list_destroy((http_parameter *)head);
 }
 END_TEST
 
@@ -252,6 +329,7 @@ static Suite *parameter_suite_create(void)
     tc = tcase_create("Core");
 
     tcase_add_test(tc, test_http_parse_parameter);
+    tcase_add_test(tc, test_http_parse_sequential_parameters);
     tcase_add_test(tc, test_http_parameter_list_find);
     tcase_add_test(tc, test_http_parameter_list_iterate);
     tcase_add_test(tc, test_http_parameter_list_destroy_null);

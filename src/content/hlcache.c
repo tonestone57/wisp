@@ -608,53 +608,7 @@ void hlcache_finalise(void)
     hlcache_entry *entry;
     hlcache_retrieval_ctx *ctx, *next;
 
-    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown.
-     * We use a two-pass destruction process to prevent heap-use-after-free crashes when destroying
-     * nested resources (e.g. stylesheet imports unreferencing handles that point to other entries). */
-
-    /* Pass 1: Destroy all remaining content objects */
-    entry = hlcache->content_list;
-    while (entry != NULL) {
-        if (entry->content != NULL) {
-            struct content *c = entry->content;
-
-            /* Reset deferred deletion flags to allow immediate destruction */
-            __atomic_store_n(&c->active_bg_tasks, 0, __ATOMIC_SEQ_CST);
-            c->pending_delete = false;
-
-            /* Free any remaining content_user structures in user_list EXCEPT the sentinel to prevent leaks.
-             * This ensures that content_count_users() (called inside content_destroy()) can still safely
-             * query the list and determine that user count is 0, permitting immediate destruction.
-             * content_actually_destroy() will subsequently free the sentinel itself. */
-            if (c->user_list != NULL) {
-                struct content_user *u = c->user_list->next;
-                while (u != NULL) {
-                    struct content_user *next_u = u->next;
-                    free(u);
-                    u = next_u;
-                }
-                c->user_list->next = NULL;
-            }
-
-            /* Clear entry->content BEFORE calling content_destroy to prevent re-entrant/late releases
-             * from accessing already destroyed content. */
-            entry->content = NULL;
-
-            content_destroy(c);
-        }
-        entry = entry->next;
-    }
-
-    /* Pass 2: Free all hlcache_entry structures */
-    entry = hlcache->content_list;
-    while (entry != NULL) {
-        hlcache_entry *next_entry = entry->next;
-        free(entry);
-        entry = next_entry;
-    }
-    hlcache->content_list = NULL;
-
-    /* Clean up retrieval contexts */
+    /* Clean up retrieval contexts first so pending fetches do not migrate or reference contents */
     if (hlcache->retrieval_ctx_ring != NULL) {
         ctx = hlcache->retrieval_ctx_ring;
 
@@ -677,6 +631,54 @@ void hlcache_finalise(void)
 
         hlcache->retrieval_ctx_ring = NULL;
     }
+
+    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown.
+     * We restart from hlcache->content_list in case destroying a content object modifies or prepends to the list. */
+    while (hlcache->content_list != NULL) {
+        bool found = false;
+        for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
+            if (entry->content != NULL) {
+                struct content *c = entry->content;
+
+                /* Clear entry->content BEFORE calling content_destroy to prevent re-entrant/late releases
+                 * from accessing already destroyed content. */
+                entry->content = NULL;
+
+                /* Reset deferred deletion flags to allow immediate destruction */
+                __atomic_store_n(&c->active_bg_tasks, 0, __ATOMIC_SEQ_CST);
+                c->pending_delete = false;
+
+                /* Free any remaining content_user structures in user_list EXCEPT the sentinel to prevent leaks.
+                 * This ensures that content_count_users() (called inside content_destroy()) can still safely
+                 * query the list and determine that user count is 0, permitting immediate destruction.
+                 * content_actually_destroy() will subsequently free the sentinel itself. */
+                if (c->user_list != NULL) {
+                    struct content_user *u = c->user_list->next;
+                    while (u != NULL) {
+                        struct content_user *next_u = u->next;
+                        free(u);
+                        u = next_u;
+                    }
+                    c->user_list->next = NULL;
+                }
+
+                content_destroy(c);
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            break;
+    }
+
+    /* Free all hlcache_entry structures */
+    entry = hlcache->content_list;
+    while (entry != NULL) {
+        hlcache_entry *next_entry = entry->next;
+        free(entry);
+        entry = next_entry;
+    }
+    hlcache->content_list = NULL;
 
     NSLOG(wisp, INFO, "hit/miss %d/%d", hlcache->hit_count, hlcache->miss_count);
 

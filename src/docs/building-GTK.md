@@ -1,12 +1,7 @@
 Build Instructions for GTK Wisp
 ==================================
 
-This document provides instructions for building the GTK version of Wisp
-and provides guidance on obtaining Wisp's build dependencies.
-
-GTK Wisp has been tested on Debian, Ubuntu, Fedora 8, FreeBSD, NetBSD and
-Solaris 10.  Wisp requires at minimum GTK 2.12.
-
+This document provides instructions for building the GTK version of Wisp using CMake and provides guidance on obtaining Wisp's build dependencies.
 
 Quick Start
 -----------
@@ -175,38 +170,46 @@ Run Wisp by executing "nsgtk3":
 
     $ ./nsgtk3
 
+### Build Dependencies
 
-### Builtin resources
+#### Debian / Ubuntu
+```bash
+sudo apt-get install build-essential cmake ninja-build pkg-config gperf \
+    python3 python3-pip libgtk-3-dev libcurl4-openssl-dev libxml2-dev \
+    libpng-dev libjpeg-dev libwebp-dev libssl-dev libpsl-dev libutf8proc-dev \
+    ffmpeg libavcodec-dev libavformat-dev libswscale-dev zlib1g-dev
+pip3 install widlparser
+```
 
-There are numerous resources that accompany Wisp, such as the
-image files for icons, cursors and the ui builder files that
-construct the browsers interface.
+#### Fedora
+```bash
+sudo dnf install gcc gcc-c++ cmake ninja-build pkgconf gperf python3 python3-pip \
+    gtk3-devel libcurl-devel libxml2-devel libpng-devel libjpeg-turbo-devel \
+    libwebp-devel openssl-devel libpsl-devel utf8proc-devel ffmpeg-devel zlib-devel
+pip3 install widlparser
+```
 
-Some of these resources can be compiled into the browser executable
-removing the need to install these resources separately. The GLib
-library on which GTK is based provides this functionality to
-Wisp.
+Building
+--------
 
-Up until GLib version 2.32 only the GDK pixbuf could be integrated
-in this way and is controlled with the WISP_USE_INLINE_PIXBUF
-variable (set in makefile.config).
+### 1. Configure
+Create build directory and configure with CMake enabling the GTK frontend:
 
-Glib version 2.32 and later integrated support for any file to be a
-resource while depreciating the old inline pixbuf interface. Wisp
-gtk executables can integrate many resources using this interface,
-configuration is controlled with the WISP_USE_GRESOURCE variable.
+```bash
+cmake -B build -GNinja -DWISP_BUILD_GTK_FRONTEND=ON -DCMAKE_BUILD_TYPE=Release
+```
 
-Loading from file is the fallback if a resource has not been
-compiled in, because of this if both of these features are
-unavailable (or disabled) Wisp will automatically fall back to
-loading all its resources from files.
+### 2. Compile
+```bash
+cmake --build build
+```
 
-The resource initialisation within the browser ensures it can access
-all the resources at start time, however it does not verify the
-resources are valid so failures could still occur subsequently. This
-is especially true for file based resources as they can become
-inaccessible after initialisation.
+### 3. Execution
+Run the compiled GTK binary:
 
+```bash
+./build/frontends/gtk/wisp-gtk
+```
 
 Note for packagers
 ------------------

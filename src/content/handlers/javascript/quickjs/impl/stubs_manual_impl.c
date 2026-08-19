@@ -8479,7 +8479,8 @@ JSValue wisp_processinginstruction_target_get_impl(JSContext *ctx, QJSNodePrivat
 
 // 19. XMLSerializer Implementation (1 stub + constructor)
 JSValue wisp_xmlserializer_constructor_impl(JSContext *ctx) {
-    return JS_NewObject(ctx);
+    extern JSValue qjs_new_xmlserializer(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_xmlserializer(ctx, NULL, false);
 }
 JSValue wisp_xmlserializer_serializeToString_impl(JSContext *ctx, QJSNodePrivate *priv, void * root) {
     return JS_NewString(ctx, "");
