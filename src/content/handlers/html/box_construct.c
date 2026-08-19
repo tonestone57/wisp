@@ -959,7 +959,7 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
 
     /* 2. Element ID */
     dom_string *id_dom = NULL;
-    if (dom_html_element_get_id(node, &id_dom) == DOM_NO_ERR && id_dom != NULL) {
+    if (dom_element_get_attribute(node, corestring_dom_id, &id_dom) == DOM_NO_ERR && id_dom != NULL) {
         dom_string_intern(id_dom, &snap->id);
         dom_string_unref(id_dom);
     }

@@ -1,31 +1,37 @@
 --------------------------------------------------------------------------------
-  Build Instructions for Framebuffer Wisp                     16 March 2014
+  Build Instructions for Framebuffer Wisp
 --------------------------------------------------------------------------------
 
   This document provides instructions for building the Framebuffer version of 
-  Wisp and provides guidance on obtaining Wisp's build dependencies.
+  Wisp using CMake.
 
-  Framebuffer Wisp has been tested on Ubuntu and Debian.
-
-  Depending on the framebuffer frontend selected the build may need specific
-  libraries installed, e.g. the SDL port requires SDL1.2 or later
-
-  There are two ways to get Wisp building.  The QUICK-START (recommended),
-  and the manual build.  Whichever you choose, you should read both the
-  "Fonts", and "Selecting a frontend and appropriate options" sections below.
+  Framebuffer Wisp is primarily intended for kiosk and embedded applications.
 
 
-  Quick Start
-=============
+Dependencies
+============
 
-  See the QUICK-START document, which provides a simple environment with
-  which you can fetch, build and install Wisp and its dependencies.
+  Debian / Ubuntu:
+  ```bash
+  sudo apt-get install build-essential cmake ninja-build pkg-config gperf \
+      python3 python3-pip libcurl4-openssl-dev libxml2-dev libpng-dev \
+      libjpeg-dev libwebp-dev libssl-dev libpsl-dev libutf8proc-dev \
+      ffmpeg libavcodec-dev libavformat-dev libswscale-dev zlib1g-dev
+  pip3 install widlparser
+  ```
 
-  The QUICK-START is the recommended way to build Wisp.
 
+Building with CMake
+===================
+
+  To build the Framebuffer frontend with CMake:
+
+  ```bash
+  cmake -B build -GNinja -DWISP_BUILD_FRAMEBUFFER_FRONTEND=ON -DCMAKE_BUILD_TYPE=Release
+  cmake --build build
+  ```
 
   Manual building
-=================
 
   If you can't follow the quick start instructions, you will have to build
   Wisp manually.  The instructions for doing this are given below.
@@ -199,7 +205,6 @@
 
 
   Fonts
-=======
 
   The framebuffer port currently has two choices for font
   handling. The font handler may be selected at compile time by using
@@ -274,7 +279,6 @@
 
 
 Index: framebuffer/font_freetype.c
-===================================================================
 --- framebuffer/font_freetype.c	(revision 6750)
 +++ framebuffer/font_freetype.c	(working copy)
 @@ -311,6 +311,7 @@
@@ -320,7 +324,6 @@ Index: framebuffer/font_freetype.c
 
 
   Selecting a frontend and appropriate options
-==============================================
 
   The framebuffer port interfaces to its input and output devices
   using the Wisp Framebuffer library (libnsfb). This library
@@ -347,4 +350,9 @@ Index: framebuffer/font_freetype.c
 
   The documentation of libnsfb should be consulted for futher
   information about supported frontends and their configuration.
+  Run the binary:
+  ```bash
+  ./build/frontends/framebuffer/wisp-fb
+  ```
 
+  For usage details, refer to the [usage guide](using-framebuffer.md).

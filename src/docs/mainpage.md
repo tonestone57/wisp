@@ -6,10 +6,10 @@ Wisp web browser
 [CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1037)
 
 
-[Project](docs/project.md)
+[Project](project.md)
 
-[Architectural Boundaries](docs/architectural-boundaries.md)
+[Architectural Boundaries](architectural-boundaries.md)
 
-[User Interface](docs/user-interface.md)
+[User Interface](user-interface.md)
 
-[Development](docs/development.md)
+[Development](development.md)
