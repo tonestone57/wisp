@@ -179,6 +179,7 @@ out:
             free(doc->elements);
             doc->elements = NULL;
         }
+        _dom_document_finalise(&doc->base);
     }
     return error;
 }
