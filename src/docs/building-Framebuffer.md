@@ -31,9 +31,6 @@ Building with CMake
   cmake --build build
   ```
 
-  Run the binary:
-  ```bash
-  ./build/frontends/framebuffer/wisp-fb
-  ```
+  Manual building
 
   For usage details, refer to the [usage guide](using-framebuffer.md).
