@@ -245,8 +245,8 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                         if (JS_IsException(ret)) {
                             JSValue exception = JS_GetException(ctx);
                             const char *err_msg = JS_ToCString(ctx, exception);
-                            NSLOG(wisp, WARNING, "Error in event listener: %s", err_msg);
-                            JS_FreeCString(ctx, err_msg);
+                            NSLOG(wisp, WARNING, "Error in event listener: %s", err_msg ? err_msg : "unknown");
+                            if (err_msg) JS_FreeCString(ctx, err_msg);
                             JS_FreeValue(ctx, exception);
                         }
                         JS_FreeValue(ctx, ret);
@@ -257,8 +257,8 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                             if (JS_IsException(ret)) {
                                 JSValue exception = JS_GetException(ctx);
                                 const char *err_msg = JS_ToCString(ctx, exception);
-                                NSLOG(wisp, WARNING, "Error in event listener handleEvent: %s", err_msg);
-                                JS_FreeCString(ctx, err_msg);
+                                NSLOG(wisp, WARNING, "Error in event listener handleEvent: %s", err_msg ? err_msg : "unknown");
+                                if (err_msg) JS_FreeCString(ctx, err_msg);
                                 JS_FreeValue(ctx, exception);
                             }
                             JS_FreeValue(ctx, ret);

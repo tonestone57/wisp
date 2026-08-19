@@ -3969,6 +3969,23 @@ START_TEST(test_quickjs_crypto)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_crypto_exists");
     ck_assert(result == true);
 
+    /* Test getRandomValues valid quota (<= 65536 bytes) */
+    const char *code2 = "var arr = new Uint8Array(100); crypto.getRandomValues(arr); arr[0] !== 0 || arr[1] !== 0 || arr[2] !== 0;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_crypto_getRandomValues_valid");
+    ck_assert(result == true);
+
+    /* Test getRandomValues quota exceeded (> 65536 bytes) throws RangeError */
+    const char *code3 = "var threwQuota = false;\n"
+                        "try {\n"
+                        "    var bigArr = new Uint8Array(65537);\n"
+                        "    crypto.getRandomValues(bigArr);\n"
+                        "} catch (e) {\n"
+                        "    if (e instanceof RangeError && e.message.includes('QuotaExceededError')) threwQuota = true;\n"
+                        "}\n"
+                        "threwQuota === true;";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_crypto_getRandomValues_quota");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);

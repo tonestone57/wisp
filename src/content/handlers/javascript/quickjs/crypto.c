@@ -33,6 +33,10 @@ static JSValue js_crypto_getRandomValues(JSContext *ctx, JSValueConst this_val, 
         JS_FreeValue(ctx, buffer);
         return JS_ThrowRangeError(ctx, "TypedArray offset out of bounds");
     }
+    if (byte_length > 65536) {
+        JS_FreeValue(ctx, buffer);
+        return JS_ThrowRangeError(ctx, "QuotaExceededError: byteLength exceeds 65536 bytes");
+    }
     if (RAND_bytes(ptr + offset, byte_length) != 1) {
         JS_FreeValue(ctx, buffer);
         return JS_ThrowInternalError(ctx, "RAND_bytes failed");
