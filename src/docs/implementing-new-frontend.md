@@ -11,7 +11,7 @@ interface around common core functionality.
 Each frontend is a distinct implementation for a specific GUI toolkit.
 
 The existing frontends are covered in the [user
-interface](user-interface.md) documentation.
+interface](docs/user-interface.md) documentation.
 
 Note implementing a new frontend implies using a toolkit distinct from
 one of those already implemented and is distinct from porting Wisp
@@ -19,7 +19,7 @@ to a new operating system platform.
 
 It is recommend, in the strongest terms, that if the prospective
 developer is porting to both a new platform and toolkit that they
-*start* by getting the [monkey](using-monkey.md) frontend
+*start* by getting the [monkey](docs/using-monkey.md) frontend
 building and passing at least the basic integration tests on their
 platform.
 
@@ -51,7 +51,7 @@ very small.
 
 Wisp provides a great deal of generic functionality for things like
 cookie, bookmark, history windows which require only minimal frontend
-support with the [core window API](core-window-interface.md).
+support with the [core window API](docs/core-window-interface.md).
 
 A frontend developer is free to implement any and all of this generic
 functionality themselves in a manner more integrated into a toolkit.
@@ -395,7 +395,7 @@ perceived functionality.
 
 ## Implementing corewindow
 
-The [core window interface](core-window-interface.md) allows a
+The [core window interface](docs/core-window-interface.md) allows a
 frontend to use inbuilt rendering for several interfaces gaining a
 great deal of functionality for very little code. This one interface
 set gives a cookie viewer,a local and global history viewer and a

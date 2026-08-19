@@ -204,10 +204,12 @@ char *realpath(const char *f, char *buf)
 {
     BPath path(f, NULL, true);
     if (path.InitCheck() < 0) {
-        strncpy(buf, f, MAXPATHLEN);
+        strncpy(buf, f, MAXPATHLEN - 1);
+        buf[MAXPATHLEN - 1] = '\0';
         return NULL;
     }
-    strncpy(buf, path.Path(), MAXPATHLEN);
+    strncpy(buf, path.Path(), MAXPATHLEN - 1);
+    buf[MAXPATHLEN - 1] = '\0';
     return buf;
 }
 #endif
@@ -530,14 +532,12 @@ static void gui_init(int argc, char **argv)
     if (be_plain_font != NULL) {
         be_plain_font->GetFamilyAndStyle(&plain_family, NULL);
     } else {
-        strncpy(plain_family, "DejaVu Sans", sizeof(plain_family) - 1);
-        plain_family[sizeof(plain_family) - 1] = '\0';
+        snprintf(plain_family, sizeof(plain_family), "%s", "DejaVu Sans");
     }
     if (be_fixed_font != NULL) {
         be_fixed_font->GetFamilyAndStyle(&fixed_family, NULL);
     } else {
-        strncpy(fixed_family, "DejaVu Mono", sizeof(fixed_family) - 1);
-        fixed_family[sizeof(fixed_family) - 1] = '\0';
+        snprintf(fixed_family, sizeof(fixed_family), "%s", "DejaVu Mono");
     }
     SETFONTDEFAULT(font_sans, plain_family);
     SETFONTDEFAULT(font_serif, plain_family);

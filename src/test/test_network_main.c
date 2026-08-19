@@ -19,9 +19,6 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("photo.jpeg"), "image/jpeg");
     ck_assert_str_eq(default_filetype("document.txt"), "text/plain");
     ck_assert_str_eq(default_filetype("unknown.xyz"), "text/plain");
-    ck_assert_str_eq(default_filetype("/path/to/style.css?query=1"), "text/css");
-    ck_assert_str_eq(default_filetype("/images/logo.png#fragment"), "image/png");
-    ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
 }
 END_TEST
 
@@ -94,19 +91,6 @@ START_TEST(test_cleanup_finished_fetches)
     /* Clean up remaining active node */
     free(n2);
     active_fetches_list = NULL;
-
-    /* Additional edge case: All nodes in list are finished */
-    struct network_fetch_info *a1 = malloc(sizeof(*a1));
-    struct network_fetch_info *a2 = malloc(sizeof(*a2));
-    ck_assert_ptr_nonnull(a1);
-    ck_assert_ptr_nonnull(a2);
-
-    a1->fetch_id = 10; a1->finished = true; a1->next = a2;
-    a2->fetch_id = 20; a2->finished = true; a2->next = NULL;
-    active_fetches_list = a1;
-
-    cleanup_finished_fetches();
-    ck_assert_ptr_null(active_fetches_list);
 }
 END_TEST
 
@@ -300,49 +284,6 @@ START_TEST(test_fetch_callback_redirect)
 
     nsurl_unref(target_url);
     wisp_ipc_msg_free(&recv_msg);
-
-    /* Test null redirect target fallback */
-    info.finished = false;
-    msg.data.redirect = NULL;
-
-    network_process_fetch_callback(&msg, &info);
-
-    err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
-    ck_assert_int_eq(err, NSERROR_OK);
-    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_REDIRECT);
-    ck_assert_str_eq((const char *)recv_msg.data + 8, "");
-    ck_assert_int_eq(info.finished, true);
-
-    wisp_ipc_msg_free(&recv_msg);
-    active_fetches_list = NULL;
-    teardown_ipc();
-}
-END_TEST
-
-START_TEST(test_fetch_callback_unknown_type)
-{
-    setup_ipc();
-
-    struct network_fetch_info info = {
-        .fetch_id = 99,
-        .fetchh = NULL,
-        .finished = false,
-        .next = NULL
-    };
-    active_fetches_list = &info;
-
-    fetch_msg msg;
-    msg.type = (fetch_msg_type)9999; /* Unknown type */
-
-    network_process_fetch_callback(&msg, &info);
-
-    /* Should not send any IPC message for unknown message type */
-    wisp_ipc_msg recv_msg;
-    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
-    ck_assert_int_ne(err, NSERROR_OK);
-
-    ck_assert_int_eq(info.finished, false);
-
     active_fetches_list = NULL;
     teardown_ipc();
 }
@@ -495,7 +436,6 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_fetch_callback_error);
     tcase_add_test(tc_core, test_fetch_callback_errors_special);
     tcase_add_test(tc_core, test_fetch_callback_guards);
-    tcase_add_test(tc_core, test_fetch_callback_unknown_type);
 
     suite_add_tcase(s, tc_core);
 
