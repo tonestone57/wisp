@@ -32,41 +32,46 @@ are published as a convenience.
 
 ## Quick setup
 
-The [quick start guide](quick-start.md) can be used to get a
-development environment setup quickly with CMake.
+The [quick start guide](docs/quick-start.md) can be used to get a
+development environment setup quickly and uses the
+[env.sh](env_8sh_source.html) script the core team utilises.
 
 ## Manual setup
 
 The Manual environment setup and compilation method is covered by the
-details in the [wisp libraries](wisp-libraries.md) document
+details in the [wisp libraries](docs/wisp-libraries.md) document
 for the core libraries and then one of the building documents for the
 specific frontend.
 
-- [Framebuffer](building-Framebuffer.md)
-- [GTK](building-GTK.md)
-- [Haiku (BeOS)](building-Haiku.md)
-- [Windows Win32](building-Windows.md)
+- [Amiga Os cross](docs/building-AmigaCross.md) and [Amiga OS](docs/building-AmigaOS.md)
+- [Framebuffer](docs/building-Framebuffer.md)
+- [GTK](docs/building-GTK.md)
+- [Haiku (BeOS)](docs/building-Haiku.md)
+- [Windows Win32](docs/building-Windows.md)
+
+These documents are sometimes not completely up to
+date and the env.sh script should be considered canonical.
 
 # Logging
 
-The [logging](logging.md) interface controls debug and error
+The [logging](docs/logging.md) interface controls debug and error
 messages not output through the GUI.
 
 # Unit testing
 
-Wisp [unit tests](unit-testing.md) provide basic test coverage
+Wisp [unit tests](docs/unit-testing.md) provide basic test coverage
 of many core parts of the browser code such as url parsing and utility
 functions.
 
 # Integration testing
 
-Wisp [integration tests](integration-testing.md) use the
+Wisp [integration tests](docs/integration-testing.md) use the
 monkey frontend to operate the browser as a whole. These tests open
 windows, navigate to websites and render contents as a user might.
 
 # New frontend development
 
-[Implementing a new frontend](implementing-new-frontend.md) for a
+[Implementing a new frotend](docs/implementing-new-frontend.md) for a
 toolkit can be challenging and this guide provides an overview and
 worked example.
 
@@ -79,18 +84,18 @@ codebase and APIs.
 
 ## Rendering Architecture
 
-The [rendering architecture](rendering.md) document details the
+The [rendering architecture](docs/rendering.md) document details the
 unification around Blend2D and the fixed-tile redraw strategy.
 
 ## Core window
 
-The [core window API](core-window-interface.md) allows frontends
+The [core window API](docs/core-window-interface.md) allows frontends
 to use generic core code for user interface elements beyond the
 browser render.
 
 ## Source object caching
 
-The [source object caching](source-object-backing-store.md)
+The [source object caching](docs/source-object-backing-store.md)
 provides a way for downloaded content to be kept on a persistent
 storage medium such as hard disc to make future retrieval of that
 content quickly.
@@ -109,7 +114,7 @@ JavaScript is provided by integrating the **QuickJS-ng (v0.15.1)** engine. This 
 
 ## Interface binding
 
-In order for javascript programs to interact with the page contents
+In order for javascript programs to to interact with the page contents
 it must use the Document Object Model (DOM) and Cascading Style Sheet
 Object Model (CSSOM) API.
 
@@ -118,6 +123,7 @@ Language (IDL) within the relevant specifications
 (e.g. https://dom.spec.whatwg.org/).
 
 Each interface described by the webIDL must be bound (connected) to
-the browsers internal representation for the DOM or CSS, etc. Details on QuickJS bindings and WebIDL integration are documented in [QuickJS Bindings](QuickJSBindings.md).
+the browsers internal representation for the DOM or CSS, etc. The
+process of [writing bindings](docs/jsbinding.md) is ongoing.
 
-For a detailed assessment of the challenges and boundaries of running modern Javascript web frameworks on Wisp, see the [Architectural Boundaries](architectural-boundaries.md) document.
+For a detailed assessment of the challenges and boundaries of running modern Javascript web frameworks on Wisp, see the [Architectural Boundaries](docs/architectural-boundaries.md) document.
