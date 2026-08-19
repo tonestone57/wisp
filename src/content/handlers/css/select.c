@@ -755,6 +755,7 @@ css_error node_has_id(void *pw, void *node, lwc_string *name, bool *match)
 
     *match = false;
 
+    /* Retrieve element ID using generic dom_element_get_attribute instead of dom_html_element_get_id */
     err = dom_element_get_attribute(n, corestring_dom_id, &attr);
     if (err != DOM_NO_ERR)
         return CSS_OK;
