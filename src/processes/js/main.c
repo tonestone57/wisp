@@ -75,9 +75,19 @@ JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSV
 }
 
 JSContext* get_context(uint32_t id) {
+    static struct js_context_node *last_accessed_ctx = NULL;
+    if (!contexts) {
+        last_accessed_ctx = NULL;
+    } else if (last_accessed_ctx && last_accessed_ctx->id == id && last_accessed_ctx->ctx) {
+        return last_accessed_ctx->ctx;
+    }
+
     struct js_context_node *curr = contexts;
     while (curr) {
-        if (curr->id == id) return curr->ctx;
+        if (curr->id == id) {
+            last_accessed_ctx = curr;
+            return curr->ctx;
+        }
         curr = curr->next;
     }
     struct js_context_node *node = malloc(sizeof(*node));
@@ -143,6 +153,7 @@ JSContext* get_context(uint32_t id) {
 
     JS_SetContextOpaque(node->ctx, t);
     node->thread = t;
+    last_accessed_ctx = node;
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -334,20 +345,20 @@ int main(int argc, char **argv) {
 
                 if (script) {
                     if (wisp_shm_dom) {
-                        // Query the capacity safely, remapping if necessary, but under write lock or fine-grained lock.
-                        // Actually, wisp_shm_dom has fine-grained locks. We should not hold a read lock across
-                        // the entire script execution. Instead, if capacity has grown, let's remap under a write lock.
-                        shm_dom_lock_write(wisp_shm_dom);
+                        // Query capacity safely; avoid write lock if capacity has not changed.
                         if (wisp_shm_capacity < wisp_shm_dom->node_capacity) {
-                            uint32_t new_cap = wisp_shm_dom->node_capacity;
-                            wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
-                            if (wisp_shm_dom) {
-                                wisp_shm_capacity = new_cap;
-                            } else {
-                                wisp_shm_capacity = 0;
+                            shm_dom_lock_write(wisp_shm_dom);
+                            if (wisp_shm_capacity < wisp_shm_dom->node_capacity) {
+                                uint32_t new_cap = wisp_shm_dom->node_capacity;
+                                wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
+                                if (wisp_shm_dom) {
+                                    wisp_shm_capacity = new_cap;
+                                } else {
+                                    wisp_shm_capacity = 0;
+                                }
                             }
+                            shm_dom_unlock_write(wisp_shm_dom);
                         }
-                        shm_dom_unlock_write(wisp_shm_dom);
                     }
 
                     JSValue val = JS_UNDEFINED;
