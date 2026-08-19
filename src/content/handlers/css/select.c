@@ -352,7 +352,7 @@ nscss_get_blank_style(nscss_select_ctx *ctx, const css_unit_ctx *unit_len_ctx, c
 /**
  * Callback to retrieve a node's name.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Pointer to location to receive node name
  * \return CSS_OK on success,
@@ -683,7 +683,7 @@ css_error sibling_node(void *pw, void *node, void **sibling)
 /**
  * Callback to determine if a node has the given name.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param match  Pointer to location to receive result
@@ -716,7 +716,7 @@ css_error node_has_name(void *pw, void *node, const css_qname *qname, bool *matc
 /**
  * Callback to determine if a node has the given class.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param name   Name to match
  * \param match  Pointer to location to receive result
@@ -739,7 +739,7 @@ css_error node_has_class(void *pw, void *node, lwc_string *name, bool *match)
 /**
  * Callback to determine if a node has the given id.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param name   Name to match
  * \param match  Pointer to location to receive result
@@ -755,6 +755,7 @@ css_error node_has_id(void *pw, void *node, lwc_string *name, bool *match)
 
     *match = false;
 
+    /* Retrieve element ID using generic dom_element_get_attribute instead of dom_html_element_get_id */
     err = dom_element_get_attribute(n, corestring_dom_id, &attr);
     if (err != DOM_NO_ERR)
         return CSS_OK;
@@ -771,7 +772,7 @@ css_error node_has_id(void *pw, void *node, lwc_string *name, bool *match)
 /**
  * Callback to determine if a node has an attribute with the given name.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param match  Pointer to location to receive result
@@ -805,7 +806,7 @@ css_error node_has_attribute(void *pw, void *node, const css_qname *qname, bool 
 /**
  * Callback to determine if a node has an attribute with given name and value.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param value  Value to match
@@ -854,7 +855,7 @@ css_error node_has_attribute_equal(void *pw, void *node, const css_qname *qname,
  * Callback to determine if a node has an attribute with the given name whose
  * value dashmatches that given.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param value  Value to match
@@ -915,7 +916,7 @@ css_error node_has_attribute_dashmatch(void *pw, void *node, const css_qname *qn
  * Callback to determine if a node has an attribute with the given name whose
  * value includes that given.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param value  Value to match
@@ -980,7 +981,7 @@ css_error node_has_attribute_includes(void *pw, void *node, const css_qname *qna
  * Callback to determine if a node has an attribute with the given name whose
  * value has the prefix given.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param value  Value to match
@@ -1040,7 +1041,7 @@ css_error node_has_attribute_prefix(void *pw, void *node, const css_qname *qname
  * Callback to determine if a node has an attribute with the given name whose
  * value has the suffix given.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param value  Value to match
@@ -1102,7 +1103,7 @@ css_error node_has_attribute_suffix(void *pw, void *node, const css_qname *qname
  * Callback to determine if a node has an attribute with the given name whose
  * value contains the substring given.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param qname  Name to match
  * \param value  Value to match
@@ -1170,7 +1171,7 @@ css_error node_has_attribute_substring(void *pw, void *node, const css_qname *qn
 /**
  * Callback to determine if a node is the root node of the document.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1308,7 +1309,7 @@ css_error node_count_siblings(void *pw, void *n, bool same_name, bool after, int
 /**
  * Callback to determine if a node is empty.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1356,7 +1357,7 @@ css_error node_is_empty(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is a linking element.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param n      DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1394,7 +1395,7 @@ css_error node_is_link(void *pw, void *n, bool *match)
  * Callback to determine if a node is a linking element whose target has been
  * visited.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1462,7 +1463,7 @@ css_error node_is_visited(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is currently being hovered over.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1482,7 +1483,7 @@ css_error node_is_hover(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is currently activated.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1501,7 +1502,7 @@ css_error node_is_active(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node has the input focus.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1536,7 +1537,7 @@ css_error node_is_focus(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is enabled.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1600,7 +1601,7 @@ css_error node_is_enabled(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is disabled.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1632,7 +1633,7 @@ css_error node_is_disabled(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is checked.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1651,7 +1652,7 @@ css_error node_is_checked(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node is the target of the document URL.
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param match  Pointer to location to receive result
  * \return CSS_OK.
@@ -1670,7 +1671,7 @@ css_error node_is_target(void *pw, void *node, bool *match)
 /**
  * Callback to determine if a node has the given language
  *
- * \param pw     HTML document
+ * \param pw     DOM document
  * \param node   DOM node
  * \param lang   Language specifier to match
  * \param match  Pointer to location to receive result
