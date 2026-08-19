@@ -53,21 +53,31 @@ JSValue wisp_storage_setItem_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
     StorageStore *store = (StorageStore *)priv->node;
     for (uint32_t i = 0; i < store->count; i++) {
         if (strcmp(store->entries[i].key, key) == 0) {
+            char *new_val = strdup(value);
+            if (!new_val) return JS_ThrowOutOfMemory(ctx);
             free(store->entries[i].value);
-            store->entries[i].value = strdup(value);
+            store->entries[i].value = new_val;
             return JS_UNDEFINED;
         }
     }
 
     if (store->count >= store->capacity) {
-        store->capacity = store->capacity ? store->capacity * 2 : 4;
-        StorageEntry *new_entries = realloc(store->entries, store->capacity * sizeof(StorageEntry));
+        uint32_t new_cap = store->capacity ? store->capacity * 2 : 4;
+        StorageEntry *new_entries = realloc(store->entries, new_cap * sizeof(StorageEntry));
         if (!new_entries) return JS_ThrowOutOfMemory(ctx);
         store->entries = new_entries;
+        store->capacity = new_cap;
     }
 
-    store->entries[store->count].key = strdup(key);
-    store->entries[store->count].value = strdup(value);
+    char *k = strdup(key);
+    char *v = strdup(value);
+    if (!k || !v) {
+        free(k);
+        free(v);
+        return JS_ThrowOutOfMemory(ctx);
+    }
+    store->entries[store->count].key = k;
+    store->entries[store->count].value = v;
     store->count++;
     return JS_UNDEFINED;
 }
@@ -161,10 +171,18 @@ int qjs_init_storage(JSContext *ctx)
     JS_FreeValue(ctx, proto);
 
     StorageStore *local_s = calloc(1, sizeof(StorageStore));
+    if (!local_s) {
+        JS_FreeValue(ctx, global_obj);
+        return -1;
+    }
     JSValue localStorage = qjs_new_storage(ctx, local_s, false);
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_localStorage", localStorage, 0);
 
     StorageStore *session_s = calloc(1, sizeof(StorageStore));
+    if (!session_s) {
+        JS_FreeValue(ctx, global_obj);
+        return -1;
+    }
     JSValue sessionStorage = qjs_new_storage(ctx, session_s, false);
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_sessionStorage", sessionStorage, 0);
 

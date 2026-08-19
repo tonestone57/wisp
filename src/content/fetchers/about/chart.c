@@ -154,6 +154,9 @@ static nserror ensure_label_count(struct chart_param *chart, unsigned int count)
 
     for (lidx = chart->data.label_len; lidx < count; lidx++) {
         chart->data.label[lidx].title = calloc(1, 20);
+        if (chart->data.label[lidx].title == NULL) {
+            return NSERROR_NOMEM;
+        }
         snprintf(chart->data.label[lidx].title, 19, "item %u", lidx + 1);
         chart->data.label[lidx].colour = colour_series[lidx % DEF_COLOUR_NUM];
     }
@@ -265,7 +268,11 @@ static nserror extract_series_labels(struct chart_param *chart, const char *vals
             vallen++;
         }
 
+        free(chart->data.label[valcur].title);
         chart->data.label[valcur].title = strndup(valstr + valstart, vallen);
+        if (chart->data.label[valcur].title == NULL) {
+            return NSERROR_NOMEM;
+        }
         vallen++; /* account for , separator */
     }
     return NSERROR_OK;
@@ -303,7 +310,11 @@ static nserror process_query_section(const char *str, size_t len, struct chart_p
         /* figure has key */
         chart->key = strtoul(str + 4, NULL, 10);
     } else if ((len > 6) && (strncmp(str, "title=", 6) == 0)) {
+        free(chart->title);
         chart->title = strndup(str + 6, len - 6);
+        if (chart->title == NULL) {
+            res = NSERROR_NOMEM;
+        }
     } else if ((len > 5) && (strncmp(str, "type=", 5) == 0)) {
         if (strncmp(str + 5, "pie", len - 5) == 0) {
             chart->type = CHART_TYPE_PIE;

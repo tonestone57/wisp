@@ -177,6 +177,11 @@ JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callb
             JS_FreeValue(ctx, js_len);
             if (len > 0) {
                 thresholds = calloc(len, sizeof(double));
+                if (!thresholds) {
+                    free(root_margin_str);
+                    JS_FreeValue(ctx, js_threshold);
+                    return JS_ThrowOutOfMemory(ctx);
+                }
                 num_thresholds = len;
                 for (uint32_t i = 0; i < len; i++) {
                     JSValue val = JS_GetPropertyUint32(ctx, js_threshold, i);
@@ -211,6 +216,11 @@ JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callb
                 return JS_ThrowRangeError(ctx, "Threshold bounds must be between 0 and 1");
             }
             thresholds = malloc(sizeof(double));
+            if (!thresholds) {
+                free(root_margin_str);
+                JS_FreeValue(ctx, js_threshold);
+                return JS_ThrowOutOfMemory(ctx);
+            }
             thresholds[0] = d;
             num_thresholds = 1;
         }
@@ -218,8 +228,16 @@ JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callb
     }
 
     if (!root_margin_str) root_margin_str = strdup("0px");
+    if (!root_margin_str) {
+        free(thresholds);
+        return JS_ThrowOutOfMemory(ctx);
+    }
     if (!thresholds) {
         thresholds = calloc(1, sizeof(double));
+        if (!thresholds) {
+            free(root_margin_str);
+            return JS_ThrowOutOfMemory(ctx);
+        }
         thresholds[0] = 0.0;
         num_thresholds = 1;
     }

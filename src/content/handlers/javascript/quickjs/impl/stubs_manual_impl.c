@@ -6837,7 +6837,9 @@ JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate
         if (priority && strcasecmp(priority, "important") == 0) {
             size_t needed = strlen(value) + 12;
             final_val = malloc(needed);
-            snprintf(final_val, needed, "%s !important", value);
+            if (final_val) {
+                snprintf(final_val, needed, "%s !important", value);
+            }
         } else {
             final_val = strdup(value);
         }
@@ -6849,6 +6851,7 @@ JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate
             if (final_val) {
                 props[i].value = strdup(final_val);
             } else {
+                props[i].value = NULL;
                 free(props[i].name);
                 props[i] = props[--count];
             }
@@ -6857,9 +6860,16 @@ JSValue wisp_cssstyledeclaration_setProperty_impl(JSContext *ctx, QJSNodePrivate
         }
     }
     if (!found && final_val && count < 256) {
-        props[count].name = strdup(kebab);
-        props[count].value = strdup(final_val);
-        count++;
+        char *pname = strdup(kebab);
+        char *pval = strdup(final_val);
+        if (pname && pval) {
+            props[count].name = pname;
+            props[count].value = pval;
+            count++;
+        } else {
+            free(pname);
+            free(pval);
+        }
     }
     serialize_style_properties(ctx, priv, props, count);
     if (final_val) free(final_val);

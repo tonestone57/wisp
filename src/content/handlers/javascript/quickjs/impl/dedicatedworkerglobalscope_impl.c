@@ -58,6 +58,9 @@ JSValue wisp_dedicatedworkerglobalscope_postMessage_impl(JSContext *ctx, QJSNode
     uint8_t *data = (uint8_t *)strdup(cstr);
     JS_FreeCString(ctx, cstr);
     JS_FreeValue(ctx, json_str);
+    if (!data) {
+        return JS_ThrowOutOfMemory(ctx);
+    }
 
     WispMessage *msg = calloc(1, sizeof(*msg));
     if (!msg) {
