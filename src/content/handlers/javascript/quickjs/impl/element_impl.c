@@ -254,7 +254,7 @@ static void serialize_node_to_html(dom_node *node, HTMLBuffer *b)
     }
 }
 
-static void request_synchronous_layout_from_main(void);
+void request_synchronous_layout_from_main(void);
 
 static void serialize_shm_node_to_html(uint64_t node_id, HTMLBuffer *b)
 {
@@ -537,7 +537,7 @@ static uint64_t get_us(void) {
 bool wisp_in_microtask = false;
 wisp_ipc_handle *ipc_main = NULL;
 
-static void request_synchronous_layout_from_main(void) {
+void request_synchronous_layout_from_main(void) {
     if (!ipc_main) return;
 
     extern void bbmq_flush(void);

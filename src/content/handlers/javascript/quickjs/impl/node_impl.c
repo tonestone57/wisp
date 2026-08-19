@@ -645,6 +645,14 @@ JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
         if (sn && sn->first_child_id != 0) {
             return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->first_child_id);
         }
+        /* If not found in SHM cache yet (e.g. innerHTML mutation queued but not flushed/re-serialized),
+         * request synchronous DOM layout / flush from main process. */
+        extern void request_synchronous_layout_from_main(void);
+        request_synchronous_layout_from_main();
+        sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        if (sn && sn->first_child_id != 0) {
+            return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->first_child_id);
+        }
         return JS_NULL;
     }
     struct dom_node *child = NULL;
