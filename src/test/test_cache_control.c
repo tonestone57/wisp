@@ -212,6 +212,109 @@ START_TEST(test_cache_control_parse_syntax_and_quoted)
 }
 END_TEST
 
+START_TEST(test_cache_control_quoted_max_age)
+{
+    nserror err;
+    http_cache_control *cc = NULL;
+
+    err = corestrings_init();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Quoted max-age value e.g. max-age="3600" */
+    err = http_parse_cache_control("max-age=\"3600\"", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), true);
+    ck_assert_int_eq(http_cache_control_max_age(cc), 3600);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    corestrings_fini();
+}
+END_TEST
+
+START_TEST(test_cache_control_invalid_max_age)
+{
+    nserror err;
+    http_cache_control *cc = NULL;
+
+    err = corestrings_init();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Negative max-age value */
+    err = http_parse_cache_control("max-age=-5", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    /* Decimal max-age value */
+    err = http_parse_cache_control("max-age=1.5", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    /* Trailing non-digits */
+    err = http_parse_cache_control("max-age=100s", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    corestrings_fini();
+}
+END_TEST
+
+START_TEST(test_cache_control_malformed_headers)
+{
+    nserror err;
+    http_cache_control *cc = NULL;
+
+    err = corestrings_init();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Unterminated string literal */
+    err = http_parse_cache_control("max-age=\"3600", &cc);
+    ck_assert_int_ne(err, NSERROR_OK);
+
+    /* Invalid token character in directive name */
+    err = http_parse_cache_control("max-age=@123", &cc);
+    ck_assert_int_ne(err, NSERROR_OK);
+
+    /* Invalid equals syntax without value token */
+    err = http_parse_cache_control("no-cache==", &cc);
+    ck_assert_int_ne(err, NSERROR_OK);
+
+    corestrings_fini();
+}
+END_TEST
+
+START_TEST(test_cache_control_complex_directives)
+{
+    nserror err;
+    http_cache_control *cc = NULL;
+
+    err = corestrings_init();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* no-cache with field name list and private with field name list */
+    err = http_parse_cache_control("no-cache=\"Set-Cookie\", private=\"location\", no-transform, stale-while-revalidate=60", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_no_cache(cc), true);
+    ck_assert_int_eq(http_cache_control_no_store(cc), false);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), false);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    corestrings_fini();
+}
+END_TEST
+
 static Suite *cache_control_suite_create(void)
 {
     Suite *s;
@@ -225,6 +328,10 @@ static Suite *cache_control_suite_create(void)
     tcase_add_test(tc, test_cache_control_parse_case_insensitivity);
     tcase_add_test(tc, test_cache_control_parse_duplicates);
     tcase_add_test(tc, test_cache_control_parse_syntax_and_quoted);
+    tcase_add_test(tc, test_cache_control_quoted_max_age);
+    tcase_add_test(tc, test_cache_control_invalid_max_age);
+    tcase_add_test(tc, test_cache_control_malformed_headers);
+    tcase_add_test(tc, test_cache_control_complex_directives);
 
     suite_add_tcase(s, tc);
 
