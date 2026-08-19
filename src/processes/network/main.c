@@ -159,7 +159,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
     }
 
-    if (msg->type >= FETCH_FINISHED && msg->type <= FETCH_SSL_ERR && msg->type != (fetch_msg_type)9999) {
+    if (msg->type >= FETCH_FINISHED && msg->type <= FETCH_SSL_ERR) {
         info->finished = true;
         info->fetchh = NULL;
     }
