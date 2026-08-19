@@ -64,6 +64,20 @@ static void cleanup_finished_fetches(void) {
     }
 }
 
+static void free_all_active_fetches(void) {
+    struct network_fetch_info *curr = active_fetches_list;
+    while (curr != NULL) {
+        struct network_fetch_info *next = curr->next;
+        if (curr->fetchh) {
+            fetch_abort(curr->fetchh);
+            curr->fetchh = NULL;
+        }
+        free(curr);
+        curr = next;
+    }
+    active_fetches_list = NULL;
+}
+
 static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     wisp_ipc_msg imsg;
     struct network_fetch_info *info = p;
@@ -107,8 +121,6 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy(imsg.data + 4, &http_code, 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            info->finished = true;
-            info->fetchh = NULL;
             break;
         case FETCH_REDIRECT:
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
@@ -122,8 +134,6 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy((char*)imsg.data + 8, redir_target, strlen(redir_target) + 1);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            info->finished = true;
-            info->fetchh = NULL;
             break;
         case FETCH_ERROR:
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
@@ -135,8 +145,6 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy((char*)imsg.data + 4, err_str, imsg.length - 4);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            info->finished = true;
-            info->fetchh = NULL;
             break;
         case FETCH_TIMEDOUT:
         case FETCH_CERT_ERR:
@@ -151,14 +159,13 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
-            info->finished = true;
-            info->fetchh = NULL;
             break;
         }
         default:
             break;
     }
 
+    /* Memory safety note: FETCH_SSL_ERR is the upper bound of terminal fetch message types */
     if (msg->type >= FETCH_FINISHED && msg->type <= FETCH_SSL_ERR) {
         info->finished = true;
         info->fetchh = NULL;
@@ -199,12 +206,12 @@ int main(int argc, char **argv) {
 
     fprintf(stderr, "WISP-NETWORK: Process started, connecting...\n");
     while (1) {
-        struct timeval tv = {0, 10000}; // 10ms
-
         wisp_ipc_msg msg;
         nserror err;
+        bool had_work = false;
 
         while ((err = wisp_ipc_recv(ipc_main, &msg)) == NSERROR_OK) {
+            had_work = true;
             fprintf(stderr, "WISP-NETWORK: Received message of type %d, length %d\n", msg.type, msg.length);
             if (msg.type == WISP_IPC_MSG_FETCH_REQUEST) {
                 uint32_t fetch_id;
@@ -352,12 +359,21 @@ int main(int argc, char **argv) {
 
         fetch_poll_all();
         cleanup_finished_fetches();
+
+        if (active_fetches_list != NULL) {
+            had_work = true;
+        }
+
+        if (!had_work) {
 #ifdef _WIN32
-        Sleep(10);
+            Sleep(5);
 #else
-        usleep(10000);
+            usleep(5000);
 #endif
+        }
     }
+
+    free_all_active_fetches();
 
     if (ipc_main) {
         wisp_ipc_handle *to_destroy = ipc_main;
