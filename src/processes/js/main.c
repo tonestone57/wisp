@@ -48,20 +48,25 @@ extern int qjs_init_imagedata(JSContext *ctx);
 extern int qjs_init_canvas(JSContext *ctx);
 extern int qjs_init_trusted_types(JSContext *ctx);
 
+static uint64_t find_shm_doc_node_id(void)
+{
+    if (!wisp_shm_dom) return 0;
+    WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+    for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
+        if (nodes_arr[i].node_type == 9) { /* DOM_DOCUMENT_NODE is 9 */
+            return (uint64_t)i;
+        }
+    }
+    return 0;
+}
+
 JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (t) {
         /* If doc_priv is not set, try to find it in the shm dom */
         if (!t->doc_priv && wisp_shm_dom) {
-            uint64_t doc_node_id = 0;
-            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
-            for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-                if (nodes_arr[i].node_type == 9) { /* DOM_DOCUMENT_NODE is 9 */
-                    doc_node_id = i;
-                    break;
-                }
-            }
+            uint64_t doc_node_id = find_shm_doc_node_id();
             if (doc_node_id != 0) {
                 t->doc_priv = (void*)(uintptr_t)doc_node_id;
             }
@@ -125,6 +130,7 @@ JSContext* get_context(uint32_t id) {
     qjs_init_trusted_types(node->ctx);
 
     qjs_inject_dom_polyfills(node->ctx);
+    wisp_qjs_register_core_polyfills(node->ctx);
 
     /* Setup dummy jsthread for the remote context so opaque callbacks match */
     t->ctx = node->ctx;
@@ -133,16 +139,7 @@ JSContext* get_context(uint32_t id) {
     }
 
     /* Find document node ID in shm_dom to set up as the root */
-    uint64_t doc_node_id = 0;
-    if (wisp_shm_dom) {
-        WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
-        for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
-            if (nodes_arr[i].node_type == 9) { /* DOM_DOCUMENT_NODE is 9 */
-                doc_node_id = i;
-                break;
-            }
-        }
-    }
+    uint64_t doc_node_id = find_shm_doc_node_id();
 
     t->doc_priv = (void*)(uintptr_t)doc_node_id;
     t->win_priv = (void*)(uintptr_t)doc_node_id;
@@ -237,25 +234,33 @@ int main(int argc, char **argv) {
                 memcpy(payload, msg.data, msg.length);
                 payload[msg.length] = '\0';
 
+                if (wisp_shm_dom) {
+                    shm_dom_destroy(wisp_shm_dom, NULL, false);
+                }
+
+                char *shm_name = payload;
+                char *origin = NULL;
                 char *delim = strchr(payload, '|');
                 if (delim) {
                     *delim = '\0';
-                    char *shm_name = payload;
-                    char *origin = delim + 1;
+                    origin = delim + 1;
+                }
 
-                    if (wisp_shm_dom) {
-                        shm_dom_destroy(wisp_shm_dom, NULL, false);
-                    }
-                    wisp_shm_dom = shm_dom_create(shm_name, 0, false);
-                    wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
+                wisp_shm_dom = shm_dom_create(shm_name, 0, false);
+                wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
 
+                if (origin) {
                     if (js_process_origin) free(js_process_origin);
                     js_process_origin = strdup(origin);
+                }
 
-                    /* Update any already-created contexts */
-                    struct js_context_node *curr_c = contexts;
-                    while (curr_c) {
-                        if (curr_c->thread) {
+                uint64_t new_doc_id = find_shm_doc_node_id();
+
+                /* Update any already-created contexts */
+                struct js_context_node *curr_c = contexts;
+                while (curr_c) {
+                    if (curr_c->thread) {
+                        if (origin) {
                             if (curr_c->thread->origin) free(curr_c->thread->origin);
                             curr_c->thread->origin = strdup(origin);
                             if (curr_c->thread->location_url) {
@@ -263,14 +268,11 @@ int main(int argc, char **argv) {
                                 curr_c->thread->location_url = NULL;
                             }
                         }
-                        curr_c = curr_c->next;
+                        curr_c->thread->doc_priv = (void*)(uintptr_t)new_doc_id;
+                        curr_c->thread->win_priv = (void*)(uintptr_t)new_doc_id;
+                        curr_c->thread->global_window_priv.node = (void*)(uintptr_t)new_doc_id;
                     }
-                } else {
-                    if (wisp_shm_dom) {
-                        shm_dom_destroy(wisp_shm_dom, NULL, false);
-                    }
-                    wisp_shm_dom = shm_dom_create(payload, 0, false);
-                    wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
+                    curr_c = curr_c->next;
                 }
                 free(payload);
             }
@@ -307,6 +309,7 @@ int main(int argc, char **argv) {
                 size_t offset = 12 + name_len;
                 size_t script_len = msg.length - offset;
                 char *script = NULL;
+                bool file_load_failed = false;
                 if (script_len >= 7 && strncmp((const char *)(msg.data + offset), "file://", 7) == 0) {
                     char file_path[512];
                     size_t path_len = script_len - 7;
@@ -327,15 +330,24 @@ int main(int argc, char **argv) {
                                     } else {
                                         free(script);
                                         script = NULL;
+                                        file_load_failed = true;
                                     }
+                                } else {
+                                    file_load_failed = true;
                                 }
+                            } else {
+                                file_load_failed = true;
                             }
                             fclose(f);
+                        } else {
+                            file_load_failed = true;
                         }
+                    } else {
+                        file_load_failed = true;
                     }
                 }
 
-                if (!script) {
+                if (!script && !file_load_failed) {
                     script = malloc(script_len + 1);
                     if (script) {
                         memcpy(script, msg.data + offset, script_len);
@@ -366,9 +378,7 @@ int main(int argc, char **argv) {
                     if (t) {
                         t->current_script_name = script_name;
                     }
-                    if (wisp_shm_dom) {
-                        val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, script_name, eval_flags);
-                    }
+                    val = js_eval_with_aot_cache(ctx, (const uint8_t *)script, script_len, script_name, eval_flags);
                     if (t) {
                         t->current_script_name = NULL;
                     }
@@ -445,15 +455,23 @@ int main(int argc, char **argv) {
     struct js_context_node *curr = contexts;
     while (curr) {
         if (curr->ctx) {
+            if (curr->thread) {
+                qjs_cleanup_mutation_observer(curr->thread);
+            }
             qjs_finalise_dom_bridge(rt, curr->ctx);
             JS_SetContextOpaque(curr->ctx, NULL);
             JS_FreeContext(curr->ctx);
+            curr->ctx = NULL;
         }
         curr = curr->next;
     }
 
     qjs_bridge_cleanup(rt);
-    JS_FreeRuntime(rt);
+    if (rt) {
+        JS_RunGC(rt);
+        JS_RunGC(rt);
+        JS_FreeRuntime(rt);
+    }
 
     curr = contexts;
     while (curr) {
