@@ -110,6 +110,34 @@ START_TEST(test_cleanup_finished_fetches)
 }
 END_TEST
 
+START_TEST(test_free_all_active_fetches)
+{
+    active_fetches_list = NULL;
+    free_all_active_fetches();
+    ck_assert_ptr_null(active_fetches_list);
+
+    struct network_fetch_info *f1 = malloc(sizeof(*f1));
+    struct network_fetch_info *f2 = malloc(sizeof(*f2));
+    ck_assert_ptr_nonnull(f1);
+    ck_assert_ptr_nonnull(f2);
+
+    f1->fetch_id = 100;
+    f1->fetchh = NULL;
+    f1->finished = false;
+    f1->next = f2;
+
+    f2->fetch_id = 200;
+    f2->fetchh = NULL;
+    f2->finished = true;
+    f2->next = NULL;
+
+    active_fetches_list = f1;
+
+    free_all_active_fetches();
+    ck_assert_ptr_null(active_fetches_list);
+}
+END_TEST
+
 static wisp_ipc_handle *test_ipc_server = NULL;
 static wisp_ipc_handle *test_ipc_accepted = NULL;
 
@@ -488,6 +516,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_default_filetype);
     tcase_add_test(tc_core, test_is_active_fetch);
     tcase_add_test(tc_core, test_cleanup_finished_fetches);
+    tcase_add_test(tc_core, test_free_all_active_fetches);
     tcase_add_test(tc_core, test_fetch_callback_header);
     tcase_add_test(tc_core, test_fetch_callback_data);
     tcase_add_test(tc_core, test_fetch_callback_finished);
