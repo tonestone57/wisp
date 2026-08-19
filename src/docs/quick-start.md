@@ -3,145 +3,78 @@ Quick Build Steps for Wisp
 
 Last Updated: August 2026
 
-This document provides steps for building Wisp.
+This document provides steps for building Wisp using CMake.
 
-These instructions use a shell script to perform several operations.
-  This script has only been tested with the bash and zsh bourne style
-  shell interpreters. The latest version of this script should be
-  retrieved from the official Wisp source repository.
+Build Requirements
+==================
 
-This shell script is used by the Wisp Developers but you should
-  satisfy yourself that the script is not malicious. It should be noted
-  that building the browser will also be executing shell code and
-  requires a similar level of trust.
+To build Wisp, you will need:
 
+*   **Compiler**: A C99 and C++17 compliant compiler (GCC 9+, Clang 10+, or MSVC 2019+).
+*   **Build Tools**: Python 3.x, CMake 3.20+, Ninja, gperf, pkg-config
+*   **Python Modules**: `widlparser` (`pip install widlparser`)
+*   **Libraries**: libxml2, libcurl, OpenSSL/LibreSSL, libjpeg, libpng, libwebp, FFmpeg, libpsl, libutf8proc, zlib
 
-Native build
-============
+Building Wisp
+=============
 
-Grab a temporary env.sh
------------------------
+Wisp uses **CMake** as its primary build system across all platforms.
 
-     $ wget https://git.wisp-browser.org/wisp.git/plain/docs/env.sh
-     $ unset HOST
-     $ source env.sh
+### 1. Clone the Repository
 
+```bash
+git clone https://github.com/wisp-browser/wisp.git
+cd wisp
+```
 
-Install any packages you need
------------------------------
+### 2. Configure and Build
 
-The package install helper installs all packages required to build Wisp
-  and the Wisp project libraries. By *default* no libraries for a graphical
-  toolkit are installed.
+#### Linux (GTK Frontend)
+```bash
+cmake -B build -GNinja -DWISP_BUILD_GTK_FRONTEND=ON
+cmake --build build
+```
+Run executable:
+```bash
+./build/frontends/gtk/wisp-gtk
+```
 
-     $ ns-package-install
+#### Linux / Embedded (Framebuffer Frontend)
+```bash
+cmake -B build -GNinja -DWISP_BUILD_FRAMEBUFFER_FRONTEND=ON
+cmake --build build
+```
+Run executable:
+```bash
+./build/frontends/framebuffer/wisp-fb
+```
+More detailed documentation on using the [framebuffer](using-framebuffer.md) frontend is available.
 
-If Wisp is to be built to target a graphical toolkit the development
-  packages for that toolkit can be installed by setting the TARGET_TOOLKIT
-  variable to one of framebuffer, gtk2, gtk3 or qt6
+#### Windows (Direct2D or GDI Frontend)
+Using MSYS2 / MinGW-w64 or MSVC:
+```bash
+cmake -B build -GNinja -DWISP_BUILD_WINDOWS_FRONTEND=ON
+cmake --build build
+```
 
-     $ TARGET_TOOLKIT=qt6 ns-package-install
+#### macOS (Cocoa Frontend)
+```bash
+cmake -B build -GNinja -DWISP_BUILD_MACOS_FRONTEND=ON
+cmake --build build
+```
 
-If your package manager is not supported, you will have to install third
-  party packages manually.
+#### Haiku / BeOS
+Native BeOS/Haiku frontend auto-detected:
+```bash
+cmake -B build -GNinja
+cmake --build build
+```
 
+Documentation
+=============
 
-Update the environment settings after package installation
-----------------------------------------------------------
-
-     $ unset HOST
-     $ source env.sh
-
-
-Get the Wisp project source code from Git
---------------------------------------------
-
-All the sources for the browser and support libraries is available
-  from the public git server.
-
-Local copies may be easily obtained with the ns-clone command.
-
-     $ ns-clone
-
-
-Build and install Wisp project libraries
--------------------------------------------
-
-Updates Wisp project library sources to latest, builds and installs them.
-
-      $ ns-pull-install
-
-
-Switch to new Wisp workspace
--------------------------------
-
-Remove the bootstrap script and use the newly installed one
-
-      $ rm env.sh
-      $ cd ~/dev-wisp/workspace
-      $ source env.sh
-
-
-Build and run Wisp
----------------------
-
-      $ cd wisp
-
-To build the native front end (the GTK front end on Linux, BSDs, etc)
-  you could do:
-
-      $ make
-      $ ./nsgtk3
-
-To build the framebuffer front end, you could do:
-
-      $ make TARGET=framebuffer
-      $ ./nsfb
-
-More detailed documentation on using the [framebuffer](docs/using-framebuffer.md)
-  frontend are available.
-
-Cross Compiling
-===============
-
-If you are cross compiling, you can follow the above steps, but when
-  sourcing env.sh, you should set HOST environment variable to the
-  appropriate triplet for your cross compiler. For example, to cross
-  compile for RISC OS:
-
-      $ HOST=arm-unknown-riscos source env.sh
-
-After that, the commands such as `ns-package-install` and
-  `ns-pull-install` will do what is appropriate for the platform you are
-  building for.
-
-To do the final build of Wisp, pass the appropriate TARGET to
-  make. For example, to cross compile for RISC OS:
-
-      $ make TARGET=riscos
-
-Finally, you can package up your build to transfer to the system you
-  are developing for.  For example, to produce a package for RISC OS:
-
-      $ make TARGET=riscos package
-
-Getting a cross compiler set up
--------------------------------
-
-We maintain cross compilation environments and an SDK for a number of
-  platforms.  These may be found in our toolchains repository.
-
-      $ git clone git://git.wisp-browser.org/toolchains
-
-Pre-built versions of the toolchains for 64bit x86 Debian systems are
-  available via our [automated build and test
-  infrastructure](https://ci.wisp-browser.org/builds/toolchains/)
-
-
-Not working?
-============
-
-If the above steps are inapplicable, or don't work, you can build
-  manually. Follow the instructions in the BUILDING-* documents in the
-  docs/ directory the Wisp browser source tree.
-
+For detailed build instructions per platform, see:
+- [GTK Build Guide](building-GTK.md)
+- [Framebuffer Build Guide](building-Framebuffer.md)
+- [Haiku Build Guide](building-Haiku.md)
+- [Windows Build Guide](building-Windows.md)
