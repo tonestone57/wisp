@@ -6,6 +6,7 @@
 #include "utils/corestrings.h"
 #include "utils/http/challenge.h"
 #include "utils/http/challenge_internal.h"
+#include "utils/http/generics.h"
 #include "wisp/utils/errors.h"
 
 static void setup(void)
@@ -203,6 +204,13 @@ START_TEST(test_parse_edge_cases)
     ck_assert_int_eq(error, NSERROR_NOT_FOUND);
     ck_assert_ptr_null(challenge);
 
+    /* Scheme at EOF with no trailing space or parameter */
+    input = "Basic";
+    pos = input;
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_NOT_FOUND);
+    ck_assert_ptr_null(challenge);
+
     /* Empty string */
     input = "";
     pos = input;
@@ -242,6 +250,80 @@ START_TEST(test_parse_edge_cases)
 }
 END_TEST
 
+START_TEST(test_challenge_list_iteration_multiple)
+{
+    http_challenge *c1 = NULL;
+    http_challenge *c2 = NULL;
+    nserror error;
+
+    const char *input1 = "Basic realm=\"realm1\"";
+    const char *pos1 = input1;
+    error = http__parse_challenge(&pos1, &c1);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(c1);
+
+    const char *input2 = "Bearer token=\"token2\"";
+    const char *pos2 = input2;
+    error = http__parse_challenge(&pos2, &c2);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(c2);
+
+    /* Link c2 after c1 */
+    ((http__item *)c1)->next = (http__item *)c2;
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+
+    /* First iteration */
+    const http_challenge *next = http_challenge_list_iterate(c1, &scheme, &params);
+    ck_assert_ptr_eq(next, c2);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+    ck_assert_ptr_nonnull(params);
+
+    /* Second iteration */
+    next = http_challenge_list_iterate(next, &scheme, &params);
+    ck_assert_ptr_null(next);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Bearer", 6), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+    ck_assert_ptr_nonnull(params);
+
+    /* Destroying head of list cleans up whole chain */
+    http_challenge_list_destroy(c1);
+}
+END_TEST
+
+START_TEST(test_parse_challenge_lws_variations)
+{
+    http_challenge *challenge = NULL;
+    nserror error;
+    const char *input = "CustomScheme \t  key=\"value\" \t ";
+    const char *pos = input;
+
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+    http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 12);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "CustomScheme", 12), 0);
+    lwc_string_unref(scheme);
+
+    ck_assert_ptr_nonnull(params);
+
+    http_challenge_list_destroy(challenge);
+}
+END_TEST
+
 static Suite *test_suite(void)
 {
     Suite *s = suite_create("http-challenge");
@@ -254,6 +336,8 @@ static Suite *test_suite(void)
     tcase_add_test(tc_core, test_parse_trailing_comma);
     tcase_add_test(tc_core, test_null_and_boundary_handling);
     tcase_add_test(tc_core, test_parse_edge_cases);
+    tcase_add_test(tc_core, test_challenge_list_iteration_multiple);
+    tcase_add_test(tc_core, test_parse_challenge_lws_variations);
     suite_add_tcase(s, tc_core);
 
     return s;
