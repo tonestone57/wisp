@@ -169,6 +169,7 @@ installing the dependencies.
 Run Wisp by executing "nsgtk3":
 
     $ ./nsgtk3
+Wisp uses CMake as its primary build system.
 
 ### Build Dependencies
 
