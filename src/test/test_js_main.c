@@ -100,6 +100,28 @@ START_TEST(test_get_context_creates_multiple)
 }
 END_TEST
 
+START_TEST(test_get_context_mru_cache)
+{
+    JSContext *ctx1 = get_context(10);
+    ck_assert_ptr_nonnull(ctx1);
+
+    JSContext *ctx2 = get_context(20);
+    ck_assert_ptr_nonnull(ctx2);
+
+    /* Context 20 is MRU. Accessing 20 again should hit MRU cache */
+    JSContext *ctx2_repeat = get_context(20);
+    ck_assert_ptr_eq(ctx2, ctx2_repeat);
+
+    /* Accessing 10 should find 10 in list and update MRU */
+    JSContext *ctx1_repeat = get_context(10);
+    ck_assert_ptr_eq(ctx1, ctx1_repeat);
+
+    /* Repeated access to 10 should hit MRU cache */
+    JSContext *ctx1_mru = get_context(10);
+    ck_assert_ptr_eq(ctx1, ctx1_mru);
+}
+END_TEST
+
 START_TEST(test_get_context_global_properties)
 {
     JSContext *ctx = get_context(1);
@@ -173,6 +195,7 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_get_context_creates_new);
     tcase_add_test(tc_core, test_get_context_returns_existing);
     tcase_add_test(tc_core, test_get_context_creates_multiple);
+    tcase_add_test(tc_core, test_get_context_mru_cache);
     tcase_add_test(tc_core, test_get_context_global_properties);
     tcase_add_test(tc_core, test_get_context_origin_propagation);
     tcase_add_test(tc_core, test_global_document_get_null_shm);
