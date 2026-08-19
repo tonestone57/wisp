@@ -125,7 +125,7 @@ Configuring
    "Choices" file. This file is a simple key:value list and by default
    is located in "${HOME}/.wisp/Choices".
 
-  The standard [core user options](docs/wisp-options.md) are
+  The standard [core user options](wisp-options.md) are
    available. In addition to the core options there are a number of
    values to control specific aspects of the framebuffer version.
 
