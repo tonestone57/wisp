@@ -14,13 +14,21 @@ START_TEST(test_default_filetype)
 {
     ck_assert_str_eq(default_filetype("style.css"), "text/css");
     ck_assert_str_eq(default_filetype("page.html"), "text/html");
+    ck_assert_str_eq(default_filetype("page.htm"), "text/html");
+    ck_assert_str_eq(default_filetype("script.js"), "application/javascript");
+    ck_assert_str_eq(default_filetype("module.mjs"), "application/javascript");
+    ck_assert_str_eq(default_filetype("data.json"), "application/json");
+    ck_assert_str_eq(default_filetype("icon.svg"), "image/svg+xml");
     ck_assert_str_eq(default_filetype("image.png"), "image/png");
     ck_assert_str_eq(default_filetype("photo.jpg"), "image/jpeg");
     ck_assert_str_eq(default_filetype("photo.jpeg"), "image/jpeg");
+    ck_assert_str_eq(default_filetype("anim.gif"), "image/gif");
+    ck_assert_str_eq(default_filetype("pic.webp"), "image/webp");
+    ck_assert_str_eq(default_filetype("font.woff2"), "font/woff2");
     ck_assert_str_eq(default_filetype("document.txt"), "text/plain");
     ck_assert_str_eq(default_filetype("unknown.xyz"), "text/plain");
-    ck_assert_str_eq(default_filetype("/path/to/style.css?query=1"), "text/css");
-    ck_assert_str_eq(default_filetype("/images/logo.png#fragment"), "image/png");
+    ck_assert_str_eq(default_filetype("/path/to/style.CSS?query=1"), "text/css");
+    ck_assert_str_eq(default_filetype("/images/logo.PNG#fragment"), "image/png");
     ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
 }
 END_TEST
@@ -206,6 +214,44 @@ START_TEST(test_fetch_callback_header)
     ck_assert_mem_eq(recv_msg.data + 8, hdr, strlen(hdr));
 
     ck_assert_int_eq(info.finished, false);
+
+    wisp_ipc_msg_free(&recv_msg);
+    active_fetches_list = NULL;
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_fetch_callback_notmodified)
+{
+    setup_ipc();
+
+    struct network_fetch_info info = {
+        .fetch_id = 444,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    active_fetches_list = &info;
+
+    fetch_msg msg;
+    msg.type = FETCH_NOTMODIFIED;
+
+    network_process_fetch_callback(&msg, &info);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_FINISHED);
+    ck_assert_int_eq(recv_msg.length, 8);
+
+    uint32_t recv_fid, recv_code;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    memcpy(&recv_code, recv_msg.data + 4, 4);
+    ck_assert_int_eq(recv_fid, 444);
+    ck_assert_int_eq(recv_code, 304);
+
+    ck_assert_int_eq(info.finished, true);
+    ck_assert_ptr_null(info.fetchh);
 
     wisp_ipc_msg_free(&recv_msg);
     active_fetches_list = NULL;
@@ -520,6 +566,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_fetch_callback_header);
     tcase_add_test(tc_core, test_fetch_callback_data);
     tcase_add_test(tc_core, test_fetch_callback_finished);
+    tcase_add_test(tc_core, test_fetch_callback_notmodified);
     tcase_add_test(tc_core, test_fetch_callback_redirect);
     tcase_add_test(tc_core, test_fetch_callback_error);
     tcase_add_test(tc_core, test_fetch_callback_errors_special);
