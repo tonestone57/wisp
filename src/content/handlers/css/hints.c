@@ -578,9 +578,6 @@ static void css_hint_table_cell_border_padding(nscss_select_ctx *ctx, dom_node *
     if (tablenode == NULL) {
         return;
     }
-    /* No need to unref tablenode, named_ancestor_node does not
-     * return a reffed node to the CSS
-     */
 
     exc = dom_element_get_attribute(tablenode, corestring_dom_border, &attr);
 
@@ -644,6 +641,8 @@ static void css_hint_table_cell_border_padding(nscss_select_ctx *ctx, dom_node *
         }
         dom_string_unref(attr);
     }
+
+    dom_node_unref(tablenode);
 }
 
 static void css_hint_vertical_align_table_cells(nscss_select_ctx *ctx, dom_node *node)
@@ -1166,8 +1165,10 @@ static void css_hint_anchor_color(nscss_select_ctx *ctx, dom_node *node)
     }
 
     error = node_is_visited(ctx, node, &is_visited);
-    if (error != CSS_OK)
+    if (error != CSS_OK) {
+        dom_node_unref(bodynode);
         return;
+    }
 
     if (is_visited) {
         err = dom_element_get_attribute(bodynode, corestring_dom_vlink, &color);
@@ -1183,6 +1184,8 @@ static void css_hint_anchor_color(nscss_select_ctx *ctx, dom_node *node)
         }
         dom_string_unref(color);
     }
+
+    dom_node_unref(bodynode);
 }
 
 static void css_hint_body_color(nscss_select_ctx *ctx, dom_node *node)

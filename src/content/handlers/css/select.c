@@ -457,7 +457,6 @@ css_error node_id(void *pw, void *node, lwc_string **id)
 css_error named_ancestor_node(void *pw, void *node, const css_qname *qname, void **ancestor)
 {
     dom_element_named_ancestor_node(node, qname->name, (struct dom_element **)ancestor);
-    dom_node_unref(*ancestor);
 
     return CSS_OK;
 }
@@ -476,7 +475,6 @@ css_error named_ancestor_node(void *pw, void *node, const css_qname *qname, void
 css_error named_parent_node(void *pw, void *node, const css_qname *qname, void **parent)
 {
     dom_element_named_parent_node(node, qname->name, (struct dom_element **)parent);
-    dom_node_unref(*parent);
 
     return CSS_OK;
 }
@@ -536,10 +534,10 @@ css_error named_sibling_node(void *pw, void *node, const css_qname *qname, void 
             return CSS_OK;
         }
 
-        dom_node_unref(n);
-
         if (dom_string_caseless_lwc_isequal(name, qname->name)) {
             *sibling = n;
+        } else {
+            dom_node_unref(n);
         }
 
         dom_string_unref(name);
@@ -590,7 +588,6 @@ css_error named_generic_sibling_node(void *pw, void *node, const css_qname *qnam
 
             if (dom_string_caseless_lwc_isequal(name, qname->name)) {
                 dom_string_unref(name);
-                dom_node_unref(n);
                 *sibling = n;
                 break;
             }
@@ -623,7 +620,6 @@ css_error named_generic_sibling_node(void *pw, void *node, const css_qname *qnam
 css_error parent_node(void *pw, void *node, void **parent)
 {
     dom_element_parent_node(node, (struct dom_element **)parent);
-    dom_node_unref(*parent);
 
     return CSS_OK;
 }
