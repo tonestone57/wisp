@@ -12,6 +12,7 @@
 
 START_TEST(test_default_filetype)
 {
+    ck_assert_str_eq(default_filetype(NULL), "text/plain");
     ck_assert_str_eq(default_filetype("style.css"), "text/css");
     ck_assert_str_eq(default_filetype("page.html"), "text/html");
     ck_assert_str_eq(default_filetype("page.htm"), "text/html");
@@ -30,6 +31,27 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("/path/to/style.CSS?query=1"), "text/css");
     ck_assert_str_eq(default_filetype("/images/logo.PNG#fragment"), "image/png");
     ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
+}
+END_TEST
+
+START_TEST(test_send_fetch_error_handling)
+{
+    setup_ipc();
+
+    send_fetch_error(500, "Blocked");
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
+
+    uint32_t recv_fid;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 500);
+    ck_assert_str_eq((const char *)recv_msg.data + 4, "Blocked");
+
+    wisp_ipc_msg_free(&recv_msg);
+    teardown_ipc();
 }
 END_TEST
 
@@ -560,6 +582,7 @@ static Suite *network_main_suite(void)
     tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_default_filetype);
+    tcase_add_test(tc_core, test_send_fetch_error_handling);
     tcase_add_test(tc_core, test_is_active_fetch);
     tcase_add_test(tc_core, test_cleanup_finished_fetches);
     tcase_add_test(tc_core, test_free_all_active_fetches);
