@@ -316,6 +316,46 @@ static void process_one_ipc_msg(void) {
                     free(url_str);
                 }
             }
+        } else if (msg.type == WISP_IPC_MSG_DNS_PREFETCH_REQUEST) {
+            uint32_t url_len;
+            if (msg.length >= 4) {
+                memcpy(&url_len, msg.data, 4);
+                if (url_len <= msg.length - 4) {
+                    char *url_str = malloc(url_len + 1);
+                    if (url_str) {
+                        memcpy(url_str, msg.data + 4, url_len);
+                        url_str[url_len] = '\0';
+                        nsurl *url = NULL;
+                        if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                            lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+                            if (host_lwc) {
+                                fetch_curl_dns_prefetch(lwc_string_data(host_lwc));
+                                lwc_string_unref(host_lwc);
+                            }
+                            nsurl_unref(url);
+                        }
+                        free(url_str);
+                    }
+                }
+            }
+        } else if (msg.type == WISP_IPC_MSG_PRECONNECT_REQUEST) {
+            uint32_t url_len;
+            if (msg.length >= 4) {
+                memcpy(&url_len, msg.data, 4);
+                if (url_len <= msg.length - 4) {
+                    char *url_str = malloc(url_len + 1);
+                    if (url_str) {
+                        memcpy(url_str, msg.data + 4, url_len);
+                        url_str[url_len] = '\0';
+                        nsurl *url = NULL;
+                        if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                            fetch_curl_preconnect(url_str);
+                            nsurl_unref(url);
+                        }
+                        free(url_str);
+                    }
+                }
+            }
         }
         wisp_ipc_msg_free(&msg);
     }
@@ -844,6 +884,99 @@ START_TEST(test_fetch_abort_handling)
 }
 END_TEST
 
+START_TEST(test_dns_prefetch_request)
+{
+    setup_ipc();
+
+    const char *url_str = "http://example.com/test";
+    uint32_t url_len = strlen(url_str);
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_DNS_PREFETCH_REQUEST;
+    msg.length = 4 + url_len;
+    msg.data = malloc(msg.length);
+    ck_assert_ptr_nonnull(msg.data);
+    memcpy(msg.data, &url_len, 4);
+    memcpy(msg.data + 4, url_str, url_len);
+
+    nserror send_res = wisp_ipc_send(test_ipc_accepted, &msg);
+    ck_assert_int_eq(send_res, NSERROR_OK);
+    free(msg.data);
+
+    process_one_ipc_msg();
+
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_preconnect_request)
+{
+    setup_ipc();
+
+    const char *url_str = "https://example.com/api";
+    uint32_t url_len = strlen(url_str);
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_PRECONNECT_REQUEST;
+    msg.length = 4 + url_len;
+    msg.data = malloc(msg.length);
+    ck_assert_ptr_nonnull(msg.data);
+    memcpy(msg.data, &url_len, 4);
+    memcpy(msg.data + 4, url_str, url_len);
+
+    nserror send_res = wisp_ipc_send(test_ipc_accepted, &msg);
+    ck_assert_int_eq(send_res, NSERROR_OK);
+    free(msg.data);
+
+    process_one_ipc_msg();
+
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_fetch_callback_null_buffers)
+{
+    setup_ipc();
+
+    struct network_fetch_info info = {
+        .fetch_id = 333,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    active_fetches_list = &info;
+
+    /* FETCH_HEADER with NULL buf and len 0 */
+    fetch_msg msg;
+    msg.type = FETCH_HEADER;
+    msg.data.header_or_data.buf = NULL;
+    msg.data.header_or_data.len = 0;
+
+    network_process_fetch_callback(&msg, &info);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_HEADER);
+    ck_assert_int_eq(recv_msg.length, 8);
+    wisp_ipc_msg_free(&recv_msg);
+
+    /* FETCH_DATA with NULL buf and len 0 */
+    msg.type = FETCH_DATA;
+    msg.data.header_or_data.buf = NULL;
+    msg.data.header_or_data.len = 0;
+
+    network_process_fetch_callback(&msg, &info);
+
+    err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_DATA);
+    ck_assert_int_eq(recv_msg.length, 4);
+    wisp_ipc_msg_free(&recv_msg);
+
+    active_fetches_list = NULL;
+    teardown_ipc();
+}
+END_TEST
+
 static Suite *network_main_suite(void)
 {
     Suite *s;
@@ -871,6 +1004,9 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_fetch_callback_guards);
     tcase_add_test(tc_core, test_fetch_callback_unknown_type);
     tcase_add_test(tc_core, test_fetch_abort_handling);
+    tcase_add_test(tc_core, test_dns_prefetch_request);
+    tcase_add_test(tc_core, test_preconnect_request);
+    tcase_add_test(tc_core, test_fetch_callback_null_buffers);
 
     suite_add_tcase(s, tc_core);
 

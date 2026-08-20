@@ -112,7 +112,9 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             memcpy(imsg.data, &fetch_id, 4);
             uint32_t header_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
             memcpy(imsg.data + 4, &header_http_code, 4);
-            memcpy(imsg.data + 8, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            if (msg->data.header_or_data.buf && msg->data.header_or_data.len > 0) {
+                memcpy(imsg.data + 8, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            }
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
@@ -136,7 +138,9 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            memcpy(imsg.data + 4, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            if (msg->data.header_or_data.buf && msg->data.header_or_data.len > 0) {
+                memcpy(imsg.data + 4, msg->data.header_or_data.buf, msg->data.header_or_data.len);
+            }
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
@@ -174,7 +178,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             imsg.data = malloc(imsg.length);
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            memcpy((char*)imsg.data + 4, err_str, imsg.length - 4);
+            memcpy((char*)imsg.data + 4, err_str, strlen(err_str) + 1);
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
