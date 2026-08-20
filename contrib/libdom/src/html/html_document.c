@@ -190,25 +190,28 @@ bool _dom_html_document_finalise(dom_html_document *doc)
     int sidx;
     bool success;
 
-    /* Check if the base document finalisation can be completed first.
-     * If there are pending nodes, finalisation is aborted and we must NOT
-     * prematurely free/unref elements or memoised arrays to avoid corrupting
-     * the document state and leaking strings. */
     success = _dom_document_finalise(&doc->base);
-    if (success == false) {
-        return false;
-    }
 
-    if (doc->cookie != NULL)
+    if (doc->cookie != NULL) {
         dom_string_unref(doc->cookie);
-    if (doc->url != NULL)
+        doc->cookie = NULL;
+    }
+    if (doc->url != NULL) {
         dom_string_unref(doc->url);
-    if (doc->domain != NULL)
+        doc->url = NULL;
+    }
+    if (doc->domain != NULL) {
         dom_string_unref(doc->domain);
-    if (doc->referrer != NULL)
+        doc->domain = NULL;
+    }
+    if (doc->referrer != NULL) {
         dom_string_unref(doc->referrer);
-    if (doc->title != NULL)
+        doc->referrer = NULL;
+    }
+    if (doc->title != NULL) {
         dom_string_unref(doc->title);
+        doc->title = NULL;
+    }
 
     if (doc->memoised != NULL) {
         for (sidx = 0; sidx < hds_COUNT; ++sidx) {
@@ -230,7 +233,7 @@ bool _dom_html_document_finalise(dom_html_document *doc)
         doc->elements = NULL;
     }
 
-    return true;
+    return success;
 }
 
 /* Destroy a HTMLDocument */
