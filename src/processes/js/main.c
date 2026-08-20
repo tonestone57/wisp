@@ -103,7 +103,7 @@ JSContext* get_context(uint32_t id) {
         curr = curr->hash_next;
     }
 
-    struct js_context_node *node = malloc(sizeof(*node));
+    struct js_context_node *node = calloc(1, sizeof(*node));
     if (!node) return NULL;
     struct jsthread *t = calloc(1, sizeof(*t));
     if (!t) { free(node); return NULL; }
@@ -374,7 +374,6 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                                 shm_dom_unlock_write(wisp_shm_dom);
                             } else {
                                 wisp_shm_capacity = 0;
-                                shm_dom_unlock_write(old_shm);
                             }
                             struct js_context_node *curr_c = contexts;
                             while (curr_c) {
@@ -503,6 +502,7 @@ int js_process_main(int argc, char **argv) {
                 if (curr_c->ctx) {
                     JSContext *ctx1;
                     int job_ret;
+                    wisp_in_microtask = true;
                     while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(curr_c->ctx), &ctx1)) != 0) {
                         wait_time = 0;
                         did_work = true;
@@ -510,10 +510,21 @@ int js_process_main(int argc, char **argv) {
                             JSValue exc = JS_GetException(ctx1);
                             const char *exc_str = JS_ToCString(ctx1, exc);
                             fprintf(stderr, "\n=== IDLE MICROTASK JS Error: %s ===\n", exc_str ? exc_str : "unknown");
+                            JSValue stack = JS_UNDEFINED;
+                            if (JS_IsObject(exc)) {
+                                stack = JS_GetPropertyStr(ctx1, exc, "stack");
+                            }
+                            const char *stack_str = JS_ToCString(ctx1, stack);
+                            if (stack_str) {
+                                fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                                JS_FreeCString(ctx1, stack_str);
+                            }
+                            JS_FreeValue(ctx1, stack);
                             if (exc_str) JS_FreeCString(ctx1, exc_str);
                             JS_FreeValue(ctx1, exc);
                         }
                     }
+                    wisp_in_microtask = false;
                     uint64_t ctx_wait = qjs_execute_timers(curr_c->ctx);
                     if (ctx_wait == 0) did_work = true;
                     if (ctx_wait < wait_time) {
