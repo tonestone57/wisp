@@ -52,6 +52,7 @@ static uint64_t find_shm_doc_node_id(void)
 {
     if (!wisp_shm_dom) return 0;
     WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+    if (!nodes_arr) return 0;
     for (uint32_t i = 0; i < wisp_shm_dom->node_count; i++) {
         if (nodes_arr[i].node_type == 9) { /* DOM_DOCUMENT_NODE is 9 */
             return (uint64_t)i;
@@ -82,9 +83,9 @@ JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSV
 #define JS_CTX_HASH_SIZE 64
 
 static struct js_context_node *ctx_hash_table[JS_CTX_HASH_SIZE];
+static struct js_context_node *last_accessed_ctx = NULL;
 
 JSContext* get_context(uint32_t id) {
-    static struct js_context_node *last_accessed_ctx = NULL;
     if (!contexts) {
         last_accessed_ctx = NULL;
         memset(ctx_hash_table, 0, sizeof(ctx_hash_table));
@@ -164,6 +165,7 @@ JSContext* get_context(uint32_t id) {
                 if (p) p->hash_next = node->hash_next;
             }
             if (last_accessed_ctx == node) last_accessed_ctx = NULL;
+            qjs_finalise_dom_bridge(rt, node->ctx);
             JS_FreeContext(node->ctx);
             free(t);
             free(node);
@@ -213,9 +215,12 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
     if (!msg) return;
 
     if (msg->type == WISP_IPC_MSG_SHM_INIT) {
+        if (!msg->data && msg->length > 0) return;
         char *payload = malloc(msg->length + 1);
         if (payload) {
-            memcpy(payload, msg->data, msg->length);
+            if (msg->length > 0) {
+                memcpy(payload, msg->data, msg->length);
+            }
             payload[msg->length] = '\0';
 
             if (wisp_shm_dom) {
@@ -236,6 +241,11 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             if (origin) {
                 if (js_process_origin) free(js_process_origin);
                 js_process_origin = strdup(origin);
+            } else {
+                if (js_process_origin) {
+                    free(js_process_origin);
+                    js_process_origin = NULL;
+                }
             }
 
             uint64_t new_doc_id = find_shm_doc_node_id();
@@ -262,7 +272,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
         }
     } else if (msg->type == WISP_IPC_MSG_JS_EXEC) {
         /* Format: [ctx_id(4)][eval_flags(4)][name_len(4)][name...][script...] */
-        if (msg->length >= 12) {
+        if (msg->length >= 12 && msg->data) {
             uint32_t ctx_id;
             uint32_t eval_flags;
             uint32_t name_len;
@@ -270,8 +280,17 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             memcpy(&eval_flags, msg->data + 4, 4);
             memcpy(&name_len, msg->data + 8, 4);
 
+            if (name_len > msg->length - 12) {
+                wisp_ipc_msg response;
+                response.type = WISP_IPC_MSG_JS_EXEC;
+                response.length = 0;
+                response.data = NULL;
+                wisp_ipc_send(ipc_main, &response);
+                return;
+            }
+
             char *script_name = NULL;
-            if (name_len > 0 && name_len <= msg->length - 12) {
+            if (name_len > 0) {
                 script_name = malloc(name_len + 1);
                 if (script_name) {
                     memcpy(script_name, msg->data + 12, name_len);
@@ -293,7 +312,6 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                 return;
             }
 
-            if (name_len > msg->length - 12) name_len = 0;
             size_t offset = 12 + name_len;
             size_t script_len = msg->length - offset;
             char *script = NULL;
@@ -515,6 +533,7 @@ int js_process_main(int argc, char **argv) {
     }
 
     /* Cleanup */
+    last_accessed_ctx = NULL;
     struct js_context_node *curr = contexts;
     while (curr) {
         struct js_context_node *next = curr->next;
