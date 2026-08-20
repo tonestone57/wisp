@@ -4649,6 +4649,13 @@ it.gtk.preferencesSearchURLBar:Cerca da barra URL
 nl.gtk.preferencesSearchURLBar:Standaardzoekmachine
 zh_CN.gtk.preferencesSearchURLBar:从地址栏搜索
 
+en.gtk.preferencesSearchNewTab:Open web search in new tab
+de.gtk.preferencesSearchNewTab:Websuche in neuem Tab öffnen
+fr.gtk.preferencesSearchNewTab:Ouvrir la recherche Web dans un nouvel onglet
+it.gtk.preferencesSearchNewTab:Apri la ricerca web in una nuova scheda
+nl.gtk.preferencesSearchNewTab:Open zoekopdrachten in nieuw tabblad
+zh_CN.gtk.preferencesSearchNewTab:在新建标签页中打开网络搜索
+
 en.gtk.preferencesSearchProvider:Provider:
 de.gtk.preferencesSearchProvider:Anbieter:
 fr.gtk.preferencesSearchProvider:Fournisseur :

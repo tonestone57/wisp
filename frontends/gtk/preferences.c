@@ -744,6 +744,9 @@ G_MODULE_EXPORT void nsgtk_preferences_setDefaultPage_clicked(GtkButton *button,
 /* Url Search widget */
 TOGGLEBUTTON_SIGNALS(checkUrlSearch, search_url_bar)
 
+/* Open web search in new tab widget */
+TOGGLEBUTTON_SIGNALS(checkSearchNewTab, search_web_new_tab)
+
 /* provider combo */
 G_MODULE_EXPORT void nsgtk_preferences_comboSearch_changed(GtkComboBox *widget, struct ppref *priv)
 {

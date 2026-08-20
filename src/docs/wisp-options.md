@@ -60,6 +60,7 @@ General Options
  homepage_url         | string | NULL      | Home page location               
  search_url_bar       | bool   | false     | search web from url bar          
  search_provider      | int    | 0         | default web search provider      
+ search_web_new_tab   | bool   | true      | open web search results in new tab
  url_suggestion       | bool   | true      | URL completion in url bar        
  window_x             | int    | 0         | default x position of new windows 
  window_y             | int    | 0         | default y position of new windows 
