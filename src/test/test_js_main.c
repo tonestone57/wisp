@@ -157,6 +157,73 @@ START_TEST(test_get_context_global_properties)
 }
 END_TEST
 
+START_TEST(test_global_document_get_property_lookup)
+{
+    const char *shm_name = "/test_js_main_shm_prop";
+    shm_unlink(shm_name);
+
+    wisp_shm_dom = shm_dom_create(shm_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+    nodes[1].node_type = 9; /* DOM_DOCUMENT_NODE */
+    wisp_shm_dom->node_count = 2;
+
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    ck_assert(eval_js_bool(ctx, "window.document === document"));
+    ck_assert(eval_js_bool(ctx, "self.document === document"));
+    ck_assert(eval_js_bool(ctx, "top.document === document"));
+    ck_assert(eval_js_bool(ctx, "typeof document.nodeType === 'number'"));
+}
+END_TEST
+
+START_TEST(test_context_isolation_and_state)
+{
+    JSContext *ctx1 = get_context(100);
+    JSContext *ctx2 = get_context(200);
+
+    ck_assert_ptr_nonnull(ctx1);
+    ck_assert_ptr_nonnull(ctx2);
+
+    /* Define variable in ctx1 */
+    ck_assert(eval_js_bool(ctx1, "var mySecretVar = 42; mySecretVar === 42"));
+
+    /* Ensure ctx2 does not see variable from ctx1 */
+    ck_assert(eval_js_bool(ctx2, "typeof mySecretVar === 'undefined'"));
+
+    /* Define same variable name with different value in ctx2 */
+    ck_assert(eval_js_bool(ctx2, "var mySecretVar = 100; mySecretVar === 100"));
+
+    /* Verify ctx1 retains its original value */
+    ck_assert(eval_js_bool(ctx1, "mySecretVar === 42"));
+}
+END_TEST
+
+START_TEST(test_pending_jobs_and_microtasks)
+{
+    JSContext *ctx = get_context(300);
+    ck_assert_ptr_nonnull(ctx);
+
+    /* Evaluate code that creates a resolved Promise */
+    ck_assert(eval_js_bool(ctx, "globalThis.promiseValue = 0; Promise.resolve(42).then(v => { globalThis.promiseValue = v; }); true"));
+
+    /* Before executing pending jobs, value is 0 */
+    ck_assert(eval_js_bool(ctx, "globalThis.promiseValue === 0"));
+
+    /* Execute pending jobs */
+    JSContext *pctx;
+    int job_ret;
+    while ((job_ret = JS_ExecutePendingJob(rt, &pctx)) != 0) {
+        ck_assert_int_ge(job_ret, 0);
+    }
+
+    /* After microtask execution, promiseValue should be updated to 42 */
+    ck_assert(eval_js_bool(ctx, "globalThis.promiseValue === 42"));
+}
+END_TEST
+
 START_TEST(test_get_context_origin_propagation)
 {
     js_process_origin = strdup("https://example.com");
@@ -177,6 +244,58 @@ START_TEST(test_global_document_get_null_shm)
     ck_assert_ptr_nonnull(ctx);
 
     ck_assert(eval_js_bool(ctx, "document === undefined"));
+}
+END_TEST
+
+START_TEST(test_find_shm_doc_node_id_no_document)
+{
+    const char *shm_name = "/test_js_main_shm_nodoc";
+    shm_unlink(shm_name);
+
+    wisp_shm_dom = shm_dom_create(shm_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    /* Populate nodes with non-document node types (e.g. element type 1) */
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+    nodes[0].node_type = 1;
+    nodes[1].node_type = 1;
+    wisp_shm_dom->node_count = 2;
+
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+    ck_assert_ptr_eq(t->doc_priv, (void *)(uintptr_t)0);
+
+    ck_assert(eval_js_bool(ctx, "document === undefined"));
+}
+END_TEST
+
+START_TEST(test_find_shm_doc_node_id_at_index)
+{
+    const char *shm_name = "/test_js_main_shm_idx5";
+    shm_unlink(shm_name);
+
+    wisp_shm_dom = shm_dom_create(shm_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+    for (int i = 0; i < 5; i++) {
+        nodes[i].node_type = 1;
+    }
+    nodes[5].node_type = 9; /* DOM_DOCUMENT_NODE placed at index 5 */
+    wisp_shm_dom->node_count = 6;
+
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+    ck_assert_ptr_eq(t->doc_priv, (void *)(uintptr_t)5);
+
+    ck_assert(eval_js_bool(ctx, "typeof document === 'object'"));
+    ck_assert(eval_js_bool(ctx, "document !== null"));
 }
 END_TEST
 
@@ -292,8 +411,13 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_get_context_mru_cache);
     tcase_add_test(tc_core, test_get_context_hash_collision_and_many_contexts);
     tcase_add_test(tc_core, test_get_context_global_properties);
+    tcase_add_test(tc_core, test_global_document_get_property_lookup);
+    tcase_add_test(tc_core, test_context_isolation_and_state);
+    tcase_add_test(tc_core, test_pending_jobs_and_microtasks);
     tcase_add_test(tc_core, test_get_context_origin_propagation);
     tcase_add_test(tc_core, test_global_document_get_null_shm);
+    tcase_add_test(tc_core, test_find_shm_doc_node_id_no_document);
+    tcase_add_test(tc_core, test_find_shm_doc_node_id_at_index);
     tcase_add_test(tc_core, test_global_document_get_with_shm);
     tcase_add_test(tc_core, test_get_context_core_polyfills);
     tcase_add_test(tc_core, test_eval_js_when_shm_null);
