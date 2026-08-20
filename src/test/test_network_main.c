@@ -35,6 +35,9 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("unknown.xyz"), "text/plain");
     ck_assert_str_eq(default_filetype("/path/to/style.CSS?query=1"), "text/css");
     ck_assert_str_eq(default_filetype("/images/logo.PNG#fragment"), "image/png");
+    ck_assert_str_eq(default_filetype("/assets/v1/font.woff2?v=2#font"), "font/woff2");
+    ck_assert_str_eq(default_filetype("site.v2.html"), "text/html");
+    ck_assert_str_eq(default_filetype("bundle.min.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
     ck_assert_str_eq(default_filetype("/path.with.dots/filename"), "text/plain");
 }
@@ -671,6 +674,46 @@ START_TEST(test_fetch_callback_guards)
 }
 END_TEST
 
+START_TEST(test_fetch_abort_handling)
+{
+    struct network_fetch_info info1 = {
+        .fetch_id = 101,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    struct network_fetch_info info2 = {
+        .fetch_id = 102,
+        .fetchh = NULL,
+        .finished = false,
+        .next = &info1
+    };
+
+    active_fetches_list = &info2;
+
+    /* Simulate FETCH_ABORT message processing for fetch_id 101 */
+    uint32_t target_id = 101;
+    struct network_fetch_info *curr = active_fetches_list;
+    while (curr && curr->fetch_id != target_id) {
+        curr = curr->next;
+    }
+    ck_assert_ptr_nonnull(curr);
+    ck_assert_ptr_eq(curr, &info1);
+    if (curr && !curr->finished) {
+        if (curr->fetchh) {
+            fetch_abort(curr->fetchh);
+            curr->fetchh = NULL;
+        }
+        curr->finished = true;
+    }
+
+    ck_assert_int_eq(info1.finished, true);
+    ck_assert_int_eq(info2.finished, false);
+
+    active_fetches_list = NULL;
+}
+END_TEST
+
 static Suite *network_main_suite(void)
 {
     Suite *s;
@@ -695,6 +738,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_fetch_callback_errors_special);
     tcase_add_test(tc_core, test_fetch_callback_guards);
     tcase_add_test(tc_core, test_fetch_callback_unknown_type);
+    tcase_add_test(tc_core, test_fetch_abort_handling);
 
     suite_add_tcase(s, tc_core);
 
