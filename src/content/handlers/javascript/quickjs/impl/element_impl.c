@@ -403,15 +403,9 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
 
     if (err == DOM_HUBBUB_OK && fragment != NULL) {
         /* 3. Append children from fragment to element */
-        dom_node *f_child = NULL;
-        while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
-            dom_node *result = NULL;
-            /* dom_node_append_child on a fragment moves nodes from the fragment to the element */
-            dom_node_append_child(element, f_child, &result);
-            if (result) dom_node_unref(result);
-            dom_node_unref(f_child);
-            f_child = NULL;
-        }
+        dom_node *result = NULL;
+        dom_node_append_child(element, (dom_node *)fragment, &result);
+        if (result) dom_node_unref(result);
     }
 
     if (fragment) dom_node_unref((dom_node *)fragment);
