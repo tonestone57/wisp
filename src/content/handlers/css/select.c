@@ -514,8 +514,25 @@ css_error named_sibling_node(void *pw, void *node, const css_qname *qname, void 
             return CSS_OK;
         }
 
-        if (type == DOM_ELEMENT_NODE)
+        if (type == DOM_ELEMENT_NODE) {
+            dom_string *name;
+
+            err = dom_node_get_node_name(n, &name);
+            if (err != DOM_NO_ERR) {
+                dom_node_unref(n);
+                return CSS_OK;
+            }
+
+            if (dom_string_caseless_lwc_isequal(name, qname->name)) {
+                dom_string_unref(name);
+                *sibling = n;
+                break;
+            }
+
+            dom_string_unref(name);
+            dom_node_unref(n);
             break;
+        }
 
         err = dom_node_get_previous_sibling(n, &prev);
         if (err != DOM_NO_ERR) {
@@ -525,24 +542,6 @@ css_error named_sibling_node(void *pw, void *node, const css_qname *qname, void 
 
         dom_node_unref(n);
         n = prev;
-    }
-
-    if (n != NULL) {
-        dom_string *name;
-
-        err = dom_node_get_node_name(n, &name);
-        if (err != DOM_NO_ERR) {
-            dom_node_unref(n);
-            return CSS_OK;
-        }
-
-        dom_node_unref(n);
-
-        if (dom_string_caseless_lwc_isequal(name, qname->name)) {
-            *sibling = n;
-        }
-
-        dom_string_unref(name);
     }
 
     return CSS_OK;
@@ -590,7 +589,6 @@ css_error named_generic_sibling_node(void *pw, void *node, const css_qname *qnam
 
             if (dom_string_caseless_lwc_isequal(name, qname->name)) {
                 dom_string_unref(name);
-                dom_node_unref(n);
                 *sibling = n;
                 break;
             }
