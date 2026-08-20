@@ -637,25 +637,28 @@ void hlcache_finalise(void)
         hlcache->retrieval_ctx_ring = NULL;
     }
 
+    struct hlcache_s *old_hlcache = hlcache;
+    hlcache = NULL;
+
     /* Clean up and destroy any remaining content entries */
-    entry = hlcache->content_list;
-    while (entry != NULL) {
-        hlcache_entry *next_entry = entry->next;
+    while (old_hlcache->content_list != NULL) {
+        hlcache_entry *entry = old_hlcache->content_list;
+        old_hlcache->content_list = entry->next;
+        if (old_hlcache->content_list != NULL) {
+            old_hlcache->content_list->prev = NULL;
+        }
         if (entry->content != NULL) {
             content_destroy(entry->content);
         }
         free(entry);
-        entry = next_entry;
     }
-    hlcache->content_list = NULL;
 
-    NSLOG(wisp, INFO, "hit/miss %d/%d", hlcache->hit_count, hlcache->miss_count);
+    NSLOG(wisp, INFO, "hit/miss %d/%d", old_hlcache->hit_count, old_hlcache->miss_count);
 
     /* De-schedule ourselves */
     guit->misc->schedule(-1, hlcache_clean, NULL);
 
-    free(hlcache);
-    hlcache = NULL;
+    free(old_hlcache);
 
     NSLOG(wisp, INFO, "Finalising low-level cache");
     llcache_finalise();

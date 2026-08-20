@@ -4788,15 +4788,15 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
             }
             dom_node *node = (dom_node *)raw_ptr;
             bool is_valid = (node == (dom_node *)doc);
-            if (!is_valid && thread && thread->ctx) {
+            if (!is_valid && !wisp_is_js_process) {
+                /* In multiprocess main browser process (wisp-gtk),
+                 * JS wrappers exist in wisp-js process, not thread->ctx in wisp-gtk.
+                 * Always serialize valid non-null raw_ptrs in SHM DOM ptrs array. */
+                is_valid = true;
+            } else if (!is_valid && thread && thread->ctx) {
                 /* Detached node. Serialize it if it has an active JS wrapper in the thread context,
                  * which guarantees it is alive and valid. This prevents use-after-free crashes. */
                 is_valid = qjs_bridge_has_node(thread->ctx, node);
-            } else if (!is_valid) {
-                /* In multiprocess mode, thread->ctx is NULL in the main browser process (wisp-gtk),
-                 * but raw_ptr points to a valid libdom node in the main process's heap.
-                 * Always serialize valid non-null raw_ptrs when thread->ctx is NULL. */
-                is_valid = true;
             }
             if (!is_valid) {
                 continue;
@@ -5117,15 +5117,10 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
                     err = dom_hubbub_parser_completed(parser);
                 }
                 if (err == DOM_HUBBUB_OK && fragment != NULL) {
-                    dom_node *f_child = NULL;
-                    while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
-                        dom_node *result = NULL;
-                        dom_node_append_child(target, f_child, &result);
-                        if (result)
-                            dom_node_unref(result);
-                        dom_node_unref(f_child);
-                        f_child = NULL;
-                    }
+                    dom_node *result = NULL;
+                    dom_node_append_child(target, (dom_node *)fragment, &result);
+                    if (result)
+                        dom_node_unref(result);
                 }
                 if (fragment)
                     dom_node_unref((dom_node *)fragment);
