@@ -405,7 +405,8 @@ void wisp_dnd_dispatch_native_event(
     JSValue js_mimes = JS_NewArray(ctx);
     if (payload && payload->mime_types) {
         for (size_t i = 0; i < payload->type_count; i++) {
-            JS_SetPropertyUint32(ctx, js_mimes, i, JS_NewString(ctx, payload->mime_types[i]));
+            const char *mtype = payload->mime_types[i] ? payload->mime_types[i] : "";
+            JS_SetPropertyUint32(ctx, js_mimes, i, JS_NewString(ctx, mtype));
         }
     }
 
