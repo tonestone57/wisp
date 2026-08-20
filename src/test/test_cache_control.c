@@ -305,6 +305,21 @@ START_TEST(test_cache_control_complex_directives)
 }
 END_TEST
 
+START_TEST(test_cache_control_empty_header)
+{
+    nserror err;
+    http_cache_control *cc = NULL;
+
+    /* Empty header string */
+    err = http_parse_cache_control("", &cc);
+    ck_assert_int_ne(err, NSERROR_OK);
+
+    /* Whitespace-only header string */
+    err = http_parse_cache_control("   ", &cc);
+    ck_assert_int_ne(err, NSERROR_OK);
+}
+END_TEST
+
 static Suite *cache_control_suite_create(void)
 {
     Suite *s;
@@ -325,6 +340,7 @@ static Suite *cache_control_suite_create(void)
     tcase_add_test(tc, test_cache_control_invalid_max_age);
     tcase_add_test(tc, test_cache_control_malformed_headers);
     tcase_add_test(tc, test_cache_control_complex_directives);
+    tcase_add_test(tc, test_cache_control_empty_header);
 
     suite_add_tcase(s, tc);
 
