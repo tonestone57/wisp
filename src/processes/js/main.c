@@ -111,6 +111,32 @@ JSContext* get_context(uint32_t id) {
     node->ctx = JS_NewContext(rt);
     if (!node->ctx) { free(t); free(node); return NULL; }
     node->thread = t;
+    t->ctx = node->ctx;
+    JS_SetContextOpaque(node->ctx, t);
+
+    /* Find document node ID in shm_dom to set up as the root */
+    uint64_t doc_node_id = find_shm_doc_node_id();
+
+    t->doc_priv = (void*)(uintptr_t)doc_node_id;
+    t->win_priv = (void*)(uintptr_t)doc_node_id;
+    t->global_window_priv.magic = QJS_DOM_MAGIC;
+    t->global_window_priv.node = (void*)(uintptr_t)doc_node_id;
+    t->global_window_priv.ctx = node->ctx;
+    t->global_window_priv.is_dom_node = false;
+    t->shm_dom = wisp_shm_dom;
+    t->shm_capacity = wisp_shm_capacity;
+
+    if (js_process_origin) {
+        t->origin = strdup(js_process_origin);
+        if (!t->origin) {
+            JS_SetContextOpaque(node->ctx, NULL);
+            qjs_finalise_dom_bridge(rt, node->ctx);
+            JS_FreeContext(node->ctx);
+            free(t);
+            free(node);
+            return NULL;
+        }
+    }
 
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
@@ -137,33 +163,6 @@ JSContext* get_context(uint32_t id) {
 
     qjs_inject_dom_polyfills(node->ctx);
     wisp_qjs_register_core_polyfills(node->ctx);
-
-    /* Setup dummy jsthread for the remote context so opaque callbacks match */
-    t->ctx = node->ctx;
-    if (js_process_origin) {
-        t->origin = strdup(js_process_origin);
-        if (!t->origin) {
-            qjs_finalise_dom_bridge(rt, node->ctx);
-            JS_FreeContext(node->ctx);
-            free(t);
-            free(node);
-            return NULL;
-        }
-    }
-
-    /* Find document node ID in shm_dom to set up as the root */
-    uint64_t doc_node_id = find_shm_doc_node_id();
-
-    t->doc_priv = (void*)(uintptr_t)doc_node_id;
-    t->win_priv = (void*)(uintptr_t)doc_node_id;
-    t->global_window_priv.magic = QJS_DOM_MAGIC;
-    t->global_window_priv.node = (void*)(uintptr_t)doc_node_id;
-    t->global_window_priv.ctx = node->ctx;
-    t->global_window_priv.is_dom_node = false;
-    t->shm_dom = wisp_shm_dom;
-    t->shm_capacity = wisp_shm_capacity;
-
-    JS_SetContextOpaque(node->ctx, t);
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -256,6 +255,10 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                         if (curr_c->thread->origin) {
                             free(curr_c->thread->origin);
                             curr_c->thread->origin = NULL;
+                        }
+                        if (curr_c->thread->location_url) {
+                            nsurl_unref(curr_c->thread->location_url);
+                            curr_c->thread->location_url = NULL;
                         }
                     }
                     curr_c->thread->doc_priv = (void*)(uintptr_t)new_doc_id;
@@ -408,6 +411,18 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                         JSValue exc = JS_GetException(ctx1);
                         const char *exc_str = JS_ToCString(ctx1, exc);
                         fprintf(stderr, "\n=== MICROTASK JS Error: %s ===\n", exc_str ? exc_str : "unknown");
+                        JSValue stack = JS_UNDEFINED;
+                        if (JS_IsObject(exc)) {
+                            stack = JS_GetPropertyStr(ctx1, exc, "stack");
+                        }
+                        if (!JS_IsUndefined(stack) && !JS_IsNull(stack)) {
+                            const char *stack_str = JS_ToCString(ctx1, stack);
+                            if (stack_str) {
+                                fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                                JS_FreeCString(ctx1, stack_str);
+                            }
+                        }
+                        JS_FreeValue(ctx1, stack);
                         if (exc_str) JS_FreeCString(ctx1, exc_str);
                         JS_FreeValue(ctx1, exc);
                     }
@@ -428,10 +443,12 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     if (JS_IsObject(exc)) {
                         stack = JS_GetPropertyStr(ctx, exc, "stack");
                     }
-                    const char *stack_str = JS_ToCString(ctx, stack);
-                    if (stack_str) {
-                        fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
-                        JS_FreeCString(ctx, stack_str);
+                    if (!JS_IsUndefined(stack) && !JS_IsNull(stack)) {
+                        const char *stack_str = JS_ToCString(ctx, stack);
+                        if (stack_str) {
+                            fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                            JS_FreeCString(ctx, stack_str);
+                        }
                     }
                     JS_FreeValue(ctx, stack);
                     if (exc_str) JS_FreeCString(ctx, exc_str);
@@ -439,13 +456,21 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     response.length = 0;
                     response.data = NULL;
                 } else {
-                    const char *res_str = JS_ToCString(ctx, val);
+                    size_t res_len = 0;
+                    const char *res_str = JS_ToCStringLen(ctx, &res_len, val);
                     if (res_str) {
-                        response.data = (uint8_t*)strdup(res_str);
-                        if (response.data) {
-                            response.length = strlen(res_str);
+                        if (res_len > 0) {
+                            response.data = malloc(res_len);
+                            if (response.data) {
+                                memcpy(response.data, res_str, res_len);
+                                response.length = res_len;
+                            } else {
+                                response.length = 0;
+                                response.data = NULL;
+                            }
                         } else {
                             response.length = 0;
+                            response.data = NULL;
                         }
                         JS_FreeCString(ctx, res_str);
                     } else {
@@ -514,10 +539,12 @@ int js_process_main(int argc, char **argv) {
                             if (JS_IsObject(exc)) {
                                 stack = JS_GetPropertyStr(ctx1, exc, "stack");
                             }
-                            const char *stack_str = JS_ToCString(ctx1, stack);
-                            if (stack_str) {
-                                fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
-                                JS_FreeCString(ctx1, stack_str);
+                            if (!JS_IsUndefined(stack) && !JS_IsNull(stack)) {
+                                const char *stack_str = JS_ToCString(ctx1, stack);
+                                if (stack_str) {
+                                    fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                                    JS_FreeCString(ctx1, stack_str);
+                                }
                             }
                             JS_FreeValue(ctx1, stack);
                             if (exc_str) JS_FreeCString(ctx1, exc_str);

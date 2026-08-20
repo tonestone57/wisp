@@ -488,6 +488,91 @@ START_TEST(test_ipc_shm_init_with_origin)
 }
 END_TEST
 
+START_TEST(test_ipc_js_exec_binary_string_embedded_nulls)
+{
+    setup_ipc();
+
+    uint32_t ctx_id = 1;
+    uint32_t eval_flags = JS_EVAL_TYPE_GLOBAL;
+    uint32_t name_len = 0;
+    const char *script = "'hello\\0world'";
+    uint32_t script_len = strlen(script);
+
+    uint32_t total_len = 12 + script_len;
+    uint8_t *data = malloc(total_len);
+    memcpy(data, &ctx_id, 4);
+    memcpy(data + 4, &eval_flags, 4);
+    memcpy(data + 8, &name_len, 4);
+    memcpy(data + 12, script, script_len);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_JS_EXEC,
+        .length = total_len,
+        .data = data
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_JS_EXEC);
+    ck_assert_int_eq(recv_msg.length, 11);
+    ck_assert_mem_eq(recv_msg.data, "hello\0world", 11);
+
+    wisp_ipc_msg_free(&recv_msg);
+    free(data);
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_get_context_opaque_available_during_init)
+{
+    JSContext *ctx = get_context(777);
+    ck_assert_ptr_nonnull(ctx);
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+    ck_assert_ptr_eq(t->ctx, ctx);
+}
+END_TEST
+
+START_TEST(test_ipc_js_exec_string_exception)
+{
+    setup_ipc();
+
+    uint32_t ctx_id = 1;
+    uint32_t eval_flags = JS_EVAL_TYPE_GLOBAL;
+    uint32_t name_len = 0;
+    const char *script = "throw 'primitive string exception';";
+    uint32_t script_len = strlen(script);
+
+    uint32_t total_len = 12 + script_len;
+    uint8_t *data = malloc(total_len);
+    memcpy(data, &ctx_id, 4);
+    memcpy(data + 4, &eval_flags, 4);
+    memcpy(data + 8, &name_len, 4);
+    memcpy(data + 12, script, script_len);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_JS_EXEC,
+        .length = total_len,
+        .data = data
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_JS_EXEC);
+    ck_assert_int_eq(recv_msg.length, 0);
+
+    wisp_ipc_msg_free(&recv_msg);
+    free(data);
+    teardown_ipc();
+}
+END_TEST
+
 START_TEST(test_get_context_deferred_linking_on_origin_failure)
 {
     /* Set origin to non-null value */
@@ -1183,6 +1268,9 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_get_context_calloc_zero_init);
     tcase_add_test(tc_core, test_ipc_js_exec_idle_microtask_error);
     tcase_add_test(tc_core, test_ipc_js_exec_shm_dom_remap_failure_safety);
+    tcase_add_test(tc_core, test_ipc_js_exec_binary_string_embedded_nulls);
+    tcase_add_test(tc_core, test_get_context_opaque_available_during_init);
+    tcase_add_test(tc_core, test_ipc_js_exec_string_exception);
     suite_add_tcase(s, tc_core);
 
     return s;
