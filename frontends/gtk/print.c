@@ -49,7 +49,7 @@
 cairo_t *gtk_print_current_cr;
 static struct print_settings *settings;
 struct hlcache_handle *content_to_print;
-static GdkRectangle cliprect;
+static struct rect cliprect;
 
 static inline void nsgtk_print_set_colour(colour c)
 {
@@ -154,10 +154,10 @@ static nserror nsgtk_print_plot_clip(const struct redraw_context *ctx, const str
     cairo_rectangle(gtk_print_current_cr, clip_x0, clip_y0, clip_x1 - clip_x0, clip_y1 - clip_y0);
     cairo_clip(gtk_print_current_cr);
 
-    cliprect.x = clip_x0;
-    cliprect.y = clip_y0;
-    cliprect.width = clip_x1 - clip_x0;
-    cliprect.height = clip_y1 - clip_y0;
+    cliprect.x0 = clip_x0;
+    cliprect.y0 = clip_y0;
+    cliprect.x1 = clip_x1;
+    cliprect.y1 = clip_y1;
 
     return NSERROR_OK;
 }
@@ -414,17 +414,17 @@ static bool nsgtk_print_plot_pixbuf(int x, int y, int width, int height, struct 
     if (width == 0 || height == 0)
         /* Nothing to plot */
         return true;
-    if ((x > (cliprect.x + cliprect.width)) || ((x + width) < cliprect.x) || (y > (cliprect.y + cliprect.height)) ||
-        ((y + height) < cliprect.y)) {
+    if ((x > cliprect.x1) || ((x + width) < cliprect.x0) || (y > cliprect.y1) ||
+        ((y + height) < cliprect.y0)) {
         /* Image completely outside clip region */
         return true;
     }
 
     /* Get clip rectangle / image rectangle edge differences */
-    x0 = cliprect.x - x;
-    y0 = cliprect.y - y;
-    x1 = (x + width) - (cliprect.x + cliprect.width);
-    y1 = (y + height) - (cliprect.y + cliprect.height);
+    x0 = cliprect.x0 - x;
+    y0 = cliprect.y0 - y;
+    x1 = (x + width) - cliprect.x1;
+    y1 = (y + height) - cliprect.y1;
 
     /* Set initial draw geometry */
     dsrcx = x;
@@ -558,20 +558,20 @@ static nserror nsgtk_print_plot_bitmap(const struct redraw_context *ctx, struct 
         /* Nothing to plot */
         return true;
 
-    if (y > cliprect.y) {
-        doneheight = (cliprect.y - height) + ((y - cliprect.y) % height);
+    if (y > cliprect.y0) {
+        doneheight = (cliprect.y0 - height) + ((y - cliprect.y0) % height);
     } else {
         doneheight = y;
     }
 
-    while (doneheight < (cliprect.y + cliprect.height)) {
-        if (x > cliprect.x) {
-            donewidth = (cliprect.x - width) + ((x - cliprect.x) % width);
+    while (doneheight < cliprect.y1) {
+        if (x > cliprect.x0) {
+            donewidth = (cliprect.x0 - width) + ((x - cliprect.x0) % width);
         } else {
             donewidth = x;
         }
 
-        while (donewidth < (cliprect.x + cliprect.width)) {
+        while (donewidth < cliprect.x1) {
             nsgtk_print_plot_pixbuf(donewidth, doneheight, width, height, bitmap, bg);
             donewidth += width;
             if (!repeat_x)
