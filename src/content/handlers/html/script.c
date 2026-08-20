@@ -427,13 +427,15 @@ static void html_execute_pending_sync_scripts(html_content *parent)
         s->already_started = true;
 
         script_handler = select_script_handler(content_get_type(s->data.handle));
-        if (script_handler != NULL && parent->jsthread != NULL) {
+        if (script_handler != NULL) {
             const uint8_t *data;
             size_t size;
             data = content_get_source_data(s->data.handle, &size);
 
             doc_rwlock_wrlock(&parent->doc_mutex);
-            script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
+            if (parent->jsthread != NULL) {
+                script_handler(parent->jsthread, data, size, nsurl_access(hlcache_handle_get_url(s->data.handle)));
+            }
             doc_rwlock_wrunlock(&parent->doc_mutex);
         }
     }
@@ -853,7 +855,7 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
 
     if (!allowed) {
         NSLOG(wisp, INFO, "CSP BLOCKED inline script execution");
-    } else if (script_handler != NULL) {
+    } else if (script_handler != NULL && c->jsthread != NULL) {
         NSLOG(
             wisp, INFO, "exec_inline_script: calling script_handler with %zu bytes", dom_string_byte_length(script));
         script_handler(

@@ -4730,6 +4730,12 @@ static inline void host_ensure_shm_capacity(struct jsthread *thread)
             }
             thread->shm_dom = new_shm;
             thread->shm_capacity = new_cap;
+        } else {
+            if (current_thread_shm == old_shm) {
+                current_thread_shm = NULL;
+            }
+            thread->shm_dom = NULL;
+            thread->shm_capacity = 0;
         }
     }
 }
