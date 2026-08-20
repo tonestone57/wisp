@@ -663,6 +663,44 @@ START_TEST(test_ipc_js_exec_file_url_script)
 }
 END_TEST
 
+START_TEST(test_ipc_js_exec_short_script)
+{
+    setup_ipc();
+
+    uint32_t ctx_id = 1;
+    uint32_t eval_flags = JS_EVAL_TYPE_GLOBAL;
+    uint32_t name_len = 0;
+    const char *script = "1+1"; /* length 3, < 7 */
+    uint32_t script_len = strlen(script);
+
+    uint32_t total_len = 12 + script_len;
+    uint8_t *data = malloc(total_len);
+    memcpy(data, &ctx_id, 4);
+    memcpy(data + 4, &eval_flags, 4);
+    memcpy(data + 8, &name_len, 4);
+    memcpy(data + 12, script, script_len);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_JS_EXEC,
+        .length = total_len,
+        .data = data
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_JS_EXEC);
+    ck_assert_int_eq(recv_msg.length, 1);
+    ck_assert_mem_eq(recv_msg.data, "2", 1);
+
+    wisp_ipc_msg_free(&recv_msg);
+    free(data);
+    teardown_ipc();
+}
+END_TEST
+
 START_TEST(test_ipc_js_exec_file_url_nonexistent)
 {
     setup_ipc();
@@ -856,6 +894,7 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_ipc_js_exec_default_script_name);
     tcase_add_test(tc_core, test_ipc_js_exec_invalid_length);
     tcase_add_test(tc_core, test_ipc_js_exec_file_url_script);
+    tcase_add_test(tc_core, test_ipc_js_exec_short_script);
     tcase_add_test(tc_core, test_ipc_js_exec_file_url_nonexistent);
     tcase_add_test(tc_core, test_ipc_js_exec_exception);
     tcase_add_test(tc_core, test_ipc_js_exec_microtask_and_bbmq);
