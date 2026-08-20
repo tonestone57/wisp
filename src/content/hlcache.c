@@ -139,13 +139,15 @@ static void hlcache_clean(void *force_clean_flag)
          */
 
         /* Remove entry from cache */
-        if (entry->prev == NULL)
+        if (entry->prev == NULL) {
             hlcache->content_list = entry->next;
-        else
+        } else {
             entry->prev->next = entry->next;
+        }
 
-        if (entry->next != NULL)
+        if (entry->next != NULL) {
             entry->next->prev = entry->prev;
+        }
 
         /* Destroy content */
         content_destroy(entry->content);
@@ -635,49 +637,13 @@ void hlcache_finalise(void)
         hlcache->retrieval_ctx_ring = NULL;
     }
 
-    /* Forcibly clean and destroy any remaining content entries to prevent memory leaks at shutdown.
-     * We restart from hlcache->content_list in case destroying a content object modifies or prepends to the list. */
-    while (hlcache->content_list != NULL) {
-        bool found = false;
-        for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            if (entry->content != NULL) {
-                struct content *c = entry->content;
-
-                /* Clear entry->content BEFORE calling content_destroy to prevent re-entrant/late releases
-                 * from accessing already destroyed content. */
-                entry->content = NULL;
-
-                /* Reset deferred deletion flags to allow immediate destruction */
-                __atomic_store_n(&c->active_bg_tasks, 0, __ATOMIC_SEQ_CST);
-                c->pending_delete = false;
-
-                /* Free any remaining content_user structures in user_list EXCEPT the sentinel to prevent leaks.
-                 * This ensures that content_count_users() (called inside content_destroy()) can still safely
-                 * query the list and determine that user count is 0, permitting immediate destruction.
-                 * content_actually_destroy() will subsequently free the sentinel itself. */
-                if (c->user_list != NULL) {
-                    struct content_user *u = c->user_list->next;
-                    while (u != NULL) {
-                        struct content_user *next_u = u->next;
-                        free(u);
-                        u = next_u;
-                    }
-                    c->user_list->next = NULL;
-                }
-
-                content_destroy(c);
-                found = true;
-                break;
-            }
-        }
-        if (!found)
-            break;
-    }
-
-    /* Free all hlcache_entry structures */
+    /* Clean up and destroy any remaining content entries */
     entry = hlcache->content_list;
     while (entry != NULL) {
         hlcache_entry *next_entry = entry->next;
+        if (entry->content != NULL) {
+            content_destroy(entry->content);
+        }
         free(entry);
         entry = next_entry;
     }
