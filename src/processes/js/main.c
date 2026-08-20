@@ -8,7 +8,6 @@
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/nsurl.h>
 #include "quickjs.h"
-#include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
 #include "js_process.h"
 
@@ -48,6 +47,25 @@ extern int qjs_init_imagedata(JSContext *ctx);
 extern int qjs_init_canvas(JSContext *ctx);
 extern int qjs_init_trusted_types(JSContext *ctx);
 
+static void url_decode_inplace(char *str) {
+    if (!str) return;
+    char *src = str, *dst = str;
+    while (*src) {
+        if (*src == '%' && src[1] && src[2]) {
+            int h1 = src[1], h2 = src[2];
+            int v1 = (h1 >= '0' && h1 <= '9') ? h1 - '0' : (h1 >= 'a' && h1 <= 'f') ? h1 - 'a' + 10 : (h1 >= 'A' && h1 <= 'F') ? h1 - 'A' + 10 : -1;
+            int v2 = (h2 >= '0' && h2 <= '9') ? h2 - '0' : (h2 >= 'a' && h2 <= 'f') ? h2 - 'a' + 10 : (h2 >= 'A' && h2 <= 'F') ? h2 - 'A' + 10 : -1;
+            if (v1 != -1 && v2 != -1) {
+                *dst++ = (char)((v1 << 4) | v2);
+                src += 3;
+                continue;
+            }
+        }
+        *dst++ = *src++;
+    }
+    *dst = '\0';
+}
+
 static uint64_t find_shm_doc_node_id(void)
 {
     if (!wisp_shm_dom) return 0;
@@ -70,6 +88,8 @@ JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSV
             uint64_t doc_node_id = find_shm_doc_node_id();
             if (doc_node_id != 0) {
                 t->doc_priv = (void*)(uintptr_t)doc_node_id;
+                t->win_priv = (void*)(uintptr_t)doc_node_id;
+                t->global_window_priv.node = (void*)(uintptr_t)doc_node_id;
             }
         }
         struct dom_document *doc_node = qjs_thread_get_document(t);
@@ -112,6 +132,7 @@ JSContext* get_context(uint32_t id) {
     if (!node->ctx) { free(t); free(node); return NULL; }
     node->thread = t;
 
+    /* Set thread context and opaque early so callbacks during binding/polyfill setup have opaque access */
     t->ctx = node->ctx;
     JS_SetContextOpaque(node->ctx, t);
 
@@ -247,6 +268,11 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                         if (new_thread_orig) {
                             if (curr_c->thread->origin) free(curr_c->thread->origin);
                             curr_c->thread->origin = new_thread_orig;
+                        } else {
+                            if (curr_c->thread->origin) {
+                                free(curr_c->thread->origin);
+                                curr_c->thread->origin = NULL;
+                            }
                         }
                         if (curr_c->thread->location_url) {
                             nsurl_unref(curr_c->thread->location_url);
@@ -284,6 +310,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
 
             if (name_len > msg->length - 12) {
                 wisp_ipc_msg response;
+                memset(&response, 0, sizeof(response));
                 response.type = WISP_IPC_MSG_JS_EXEC;
                 response.length = 0;
                 response.data = NULL;
@@ -307,6 +334,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             if (!ctx) {
                 free(script_name);
                 wisp_ipc_msg response;
+                memset(&response, 0, sizeof(response));
                 response.type = WISP_IPC_MSG_JS_EXEC;
                 response.length = 0;
                 response.data = NULL;
@@ -324,6 +352,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                 if (file_path) {
                     memcpy(file_path, msg->data + offset + 7, path_len);
                     file_path[path_len] = '\0';
+                    url_decode_inplace(file_path);
                     FILE *f = fopen(file_path, "rb");
                     if (f) {
                         fseek(f, 0, SEEK_END);
@@ -423,6 +452,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                 bbmq_flush();
 
                 wisp_ipc_msg response;
+                memset(&response, 0, sizeof(response));
                 response.type = WISP_IPC_MSG_JS_EXEC;
                 if (JS_IsException(val)) {
                     JSValue exc = JS_GetException(ctx);
@@ -432,10 +462,12 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     if (JS_IsObject(exc)) {
                         stack = JS_GetPropertyStr(ctx, exc, "stack");
                     }
-                    const char *stack_str = JS_ToCString(ctx, stack);
-                    if (stack_str) {
-                        fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
-                        JS_FreeCString(ctx, stack_str);
+                    if (!JS_IsUndefined(stack) && !JS_IsNull(stack)) {
+                        const char *stack_str = JS_ToCString(ctx, stack);
+                        if (stack_str) {
+                            fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                            JS_FreeCString(ctx, stack_str);
+                        }
                     }
                     JS_FreeValue(ctx, stack);
                     if (exc_str) JS_FreeCString(ctx, exc_str);
@@ -446,11 +478,9 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     size_t res_len = 0;
                     const char *res_str = JS_ToCStringLen(ctx, &res_len, val);
                     if (res_str) {
-                        response.data = malloc(res_len > 0 ? res_len : 1);
+                        response.data = (uint8_t *)malloc(res_len ? res_len : 1);
                         if (response.data) {
-                            if (res_len > 0) {
-                                memcpy(response.data, res_str, res_len);
-                            }
+                            if (res_len > 0) memcpy(response.data, res_str, res_len);
                             response.length = res_len;
                         } else {
                             response.length = 0;
@@ -469,6 +499,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             } else {
                 free(script_name);
                 wisp_ipc_msg response;
+                memset(&response, 0, sizeof(response));
                 response.type = WISP_IPC_MSG_JS_EXEC;
                 response.length = 0;
                 response.data = NULL;
@@ -476,6 +507,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             }
         } else {
             wisp_ipc_msg response;
+            memset(&response, 0, sizeof(response));
             response.type = WISP_IPC_MSG_JS_EXEC;
             response.length = 0;
             response.data = NULL;
@@ -522,10 +554,12 @@ int js_process_main(int argc, char **argv) {
                             if (JS_IsObject(exc)) {
                                 stack = JS_GetPropertyStr(ctx1, exc, "stack");
                             }
-                            const char *stack_str = JS_ToCString(ctx1, stack);
-                            if (stack_str) {
-                                fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
-                                JS_FreeCString(ctx1, stack_str);
+                            if (!JS_IsUndefined(stack) && !JS_IsNull(stack)) {
+                                const char *stack_str = JS_ToCString(ctx1, stack);
+                                if (stack_str) {
+                                    fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                                    JS_FreeCString(ctx1, stack_str);
+                                }
                             }
                             JS_FreeValue(ctx1, stack);
                             if (exc_str) JS_FreeCString(ctx1, exc_str);
