@@ -637,13 +637,20 @@ void hlcache_finalise(void)
         hlcache->retrieval_ctx_ring = NULL;
     }
 
-    /* Clean up and destroy any remaining content entries */
-    entry = hlcache->content_list;
-    while (entry != NULL) {
-        hlcache_entry *next_entry = entry->next;
+    /* Clean up and destroy any remaining content entries.
+     * Destroy contents in a first pass before freeing hlcache_entry nodes,
+     * because destroying a content (e.g., an HTML document) may release handles
+     * pointing to other cache entries and access their hlcache_entry structs. */
+    for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
         if (entry->content != NULL) {
             content_destroy(entry->content);
         }
+    }
+
+    /* Free the cache entries */
+    entry = hlcache->content_list;
+    while (entry != NULL) {
+        hlcache_entry *next_entry = entry->next;
         free(entry);
         entry = next_entry;
     }
