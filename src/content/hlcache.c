@@ -41,8 +41,6 @@
 #include <wisp/utils/nsoption.h>
 #include <wisp/utils/corestrings.h>
 #include "content/mimesniff.h"
-// Note, this is *ONLY* so that we can abort cleanly during shutdown of the
-// cache
 #include <wisp/content/content_protected.h>
 #include "content/content_factory.h"
 
@@ -131,9 +129,6 @@ static void hlcache_clean(void *force_clean_flag)
         if (content__get_status(entry->content) == CONTENT_STATUS_LOADING) {
             if (force_clean == false)
                 continue;
-            NSLOG(wisp, DEBUG, "Forcing content cleanup during shutdown");
-            content_abort(entry->content);
-            content_set_error(entry->content);
         }
 
         /** \todo This is over-zealous: all unused contents
