@@ -161,6 +161,40 @@ START_TEST(test_http_parse_parameter)
     pos = input;
     err = http__parse_parameter(&pos, &param);
     ck_assert_int_ne(err, NSERROR_OK);
+
+    // Test empty quoted string value
+    input = "empty=\"\"";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(param);
+
+    name = NULL;
+    val = NULL;
+    iter = http_parameter_list_iterate((const http_parameter *)param, &name, &val);
+    ck_assert_ptr_null(iter);
+
+    ck_assert_int_eq(lwc_string_length(name), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(name), "empty", 5), 0);
+
+    ck_assert_int_eq(lwc_string_length(val), 0);
+
+    lwc_string_unref(name);
+    lwc_string_unref(val);
+    http_parameter_list_destroy((http_parameter *)param);
+    param = NULL;
+
+    // Test invalid token value after '=' (starts with separator '@')
+    input = "key=@invalid";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    // Test invalid quoted string value after '=' (unclosed quote after '=')
+    input = "key=\"unclosed";
+    pos = input;
+    err = http__parse_parameter(&pos, &param);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
 }
 END_TEST
 
