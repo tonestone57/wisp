@@ -1803,9 +1803,6 @@ static void url_entry_icon_release_cb(GtkEntry *entry, GtkEntryIconPosition icon
  *
  * handler connected to web search entry widget for the activate signal
  *
- * \todo make this user selectable to switch between opening in new
- *   and navigating current window. Possibly improve core search_web interfaces
- *
  * \param widget The widget the signal is being delivered to.
  * \param data The toolbar context passed when the signal was connected
  * \return TRUE
@@ -1821,7 +1818,11 @@ static gboolean websearch_entry_activate_cb(GtkWidget *widget, gpointer data)
     if (res == NSERROR_OK) {
         bw = tb->get_bw(tb->get_ctx);
 
-        res = browser_window_create(BW_CREATE_HISTORY | BW_CREATE_TAB | BW_CREATE_FOREGROUND, url, NULL, bw, NULL);
+        if (nsoption_bool(search_web_new_tab)) {
+            res = browser_window_create(BW_CREATE_HISTORY | BW_CREATE_TAB | BW_CREATE_FOREGROUND, url, NULL, bw, NULL);
+        } else {
+            res = browser_window_navigate(bw, url, NULL, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
+        }
         nsurl_unref(url);
     }
     if (res != NSERROR_OK) {

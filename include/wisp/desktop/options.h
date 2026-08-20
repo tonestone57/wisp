@@ -164,6 +164,9 @@ NSOPTION_BOOL(search_url_bar, true)
 /** default web search provider */
 NSOPTION_STRING(search_web_provider, "DuckDuckGo")
 
+/** open web search results in new tab */
+NSOPTION_BOOL(search_web_new_tab, true)
+
 /** URL completion in url bar */
 NSOPTION_BOOL(url_suggestion, true)
 

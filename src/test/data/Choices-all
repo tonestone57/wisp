@@ -38,6 +38,7 @@ cookie_jar:/home/vince/.wisp/Cookies
 homepage_url:about:welcome
 search_url_bar:0
 search_web_provider:DuckDuckGo
+search_web_new_tab:1
 url_suggestion:1
 window_x:0
 window_y:0
