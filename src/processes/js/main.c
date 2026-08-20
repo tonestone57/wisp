@@ -112,6 +112,9 @@ JSContext* get_context(uint32_t id) {
     if (!node->ctx) { free(t); free(node); return NULL; }
     node->thread = t;
 
+    t->ctx = node->ctx;
+    JS_SetContextOpaque(node->ctx, t);
+
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
     wisp_js_register_all_bindings(node->ctx);
@@ -138,12 +141,11 @@ JSContext* get_context(uint32_t id) {
     qjs_inject_dom_polyfills(node->ctx);
     wisp_qjs_register_core_polyfills(node->ctx);
 
-    /* Setup dummy jsthread for the remote context so opaque callbacks match */
-    t->ctx = node->ctx;
     if (js_process_origin) {
         t->origin = strdup(js_process_origin);
         if (!t->origin) {
             qjs_finalise_dom_bridge(rt, node->ctx);
+            JS_SetContextOpaque(node->ctx, NULL);
             JS_FreeContext(node->ctx);
             free(t);
             free(node);
@@ -162,8 +164,6 @@ JSContext* get_context(uint32_t id) {
     t->global_window_priv.is_dom_node = false;
     t->shm_dom = wisp_shm_dom;
     t->shm_capacity = wisp_shm_capacity;
-
-    JS_SetContextOpaque(node->ctx, t);
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -256,6 +256,10 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                         if (curr_c->thread->origin) {
                             free(curr_c->thread->origin);
                             curr_c->thread->origin = NULL;
+                        }
+                        if (curr_c->thread->location_url) {
+                            nsurl_unref(curr_c->thread->location_url);
+                            curr_c->thread->location_url = NULL;
                         }
                     }
                     curr_c->thread->doc_priv = (void*)(uintptr_t)new_doc_id;
@@ -440,11 +444,15 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     response.length = 0;
                     response.data = NULL;
                 } else {
-                    const char *res_str = JS_ToCString(ctx, val);
+                    size_t res_len = 0;
+                    const char *res_str = JS_ToCStringLen(ctx, &res_len, val);
                     if (res_str) {
-                        response.data = (uint8_t*)strdup(res_str);
+                        response.data = malloc(res_len > 0 ? res_len : 1);
                         if (response.data) {
-                            response.length = strlen(res_str);
+                            if (res_len > 0) {
+                                memcpy(response.data, res_str, res_len);
+                            }
+                            response.length = res_len;
                         } else {
                             response.length = 0;
                         }
