@@ -292,7 +292,12 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                         info->fetchh = NULL;
                         info->finished = false;
                         info->next = active_fetches_list;
+                        info->hash_next = NULL;
                         active_fetches_list = info;
+                        unsigned int h_idx = hash_fetch_info(info);
+                        info->hash_next = active_fetches_hash[h_idx];
+                        active_fetches_hash[h_idx] = info;
+
                         struct fetch *f_out = NULL;
                         if (fetch_start(url, NULL, network_process_fetch_callback, info,
                                         only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
@@ -307,6 +312,7 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                                 }
                                 pcurr = &(*pcurr)->next;
                             }
+                            remove_active_fetch_hash(info);
                             send_fetch_error(fetch_id, "Blocked");
                             free(info);
                         }
@@ -488,130 +494,6 @@ int main(int argc, char **argv) {
         while ((err = wisp_ipc_recv(ipc_main, &msg)) == NSERROR_OK) {
             had_work = true;
             NSLOG(wisp, DEBUG, "WISP-NETWORK: Received message of type %d, length %d", msg.type, msg.length);
-            if (msg.type == WISP_IPC_MSG_FETCH_REQUEST) {
-                uint32_t fetch_id = 0;
-                uint32_t url_len = 0;
-                if (msg.length >= 4) {
-                    memcpy(&fetch_id, msg.data, 4);
-                }
-                if (msg.length >= 8) {
-                    memcpy(&url_len, msg.data + 4, 4);
-                }
-                if (msg.length < 10 || url_len > msg.length - 10) {
-                    if (msg.length >= 4) {
-                        send_fetch_error(fetch_id, "InvalidURL");
-                    }
-                } else {
-                    char *url_str = malloc(url_len + 1);
-                    if (!url_str) {
-                        send_fetch_error(fetch_id, "NoMem");
-                    } else {
-                        memcpy(url_str, msg.data + 8, url_len);
-                        url_str[url_len] = '\0';
-                        nsurl *url = NULL;
-                        if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
-                            bool only_2xx = (msg.data[8 + url_len] != 0);
-                            bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
-                            struct network_fetch_info *info = malloc(sizeof(*info));
-                            if (info) {
-                                info->fetch_id = fetch_id;
-                                info->fetchh = NULL;
-                                info->finished = false;
-                                info->next = active_fetches_list;
-                                info->hash_next = NULL;
-                                active_fetches_list = info;
-                                unsigned int h_idx = hash_fetch_info(info);
-                                info->hash_next = active_fetches_hash[h_idx];
-                                active_fetches_hash[h_idx] = info;
-
-                                struct fetch *f_out = NULL;
-                                if (fetch_start(url, NULL, network_process_fetch_callback, info,
-                                                only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
-                                    info->fetchh = f_out;
-                                } else {
-                                    /* Unlink info from active_fetches_list before error sending/freeing to prevent use-after-free */
-                                    struct network_fetch_info **pcurr = &active_fetches_list;
-                                    while (*pcurr) {
-                                        if (*pcurr == info) {
-                                            *pcurr = info->next;
-                                            break;
-                                        }
-                                        pcurr = &(*pcurr)->next;
-                                    }
-                                    remove_active_fetch_hash(info);
-                                    send_fetch_error(fetch_id, "Blocked");
-                                    free(info);
-                                }
-                            } else {
-                                send_fetch_error(fetch_id, "NoMem");
-                            }
-                            nsurl_unref(url);
-                        } else {
-                            /* Immediately report error to avoid hanging the browser fetcher */
-                            send_fetch_error(fetch_id, "InvalidURL");
-                        }
-                        free(url_str);
-                    }
-                }
-            } else if (msg.type == WISP_IPC_MSG_DNS_PREFETCH_REQUEST) {
-                uint32_t url_len;
-                if (msg.length >= 4) {
-                    memcpy(&url_len, msg.data, 4);
-                    /* Use overflow-safe checks to validate bounds */
-                    if (url_len <= msg.length - 4) {
-                        char *url_str = malloc(url_len + 1);
-                        if (url_str) {
-                            memcpy(url_str, msg.data + 4, url_len);
-                            url_str[url_len] = '\0';
-                            nsurl *url = NULL;
-                            if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
-                                lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
-                                if (host_lwc) {
-                                    fetch_curl_dns_prefetch(lwc_string_data(host_lwc));
-                                    lwc_string_unref(host_lwc);
-                                }
-                                nsurl_unref(url);
-                            }
-                            free(url_str);
-                        }
-                    }
-                }
-            } else if (msg.type == WISP_IPC_MSG_PRECONNECT_REQUEST) {
-                uint32_t url_len;
-                if (msg.length >= 4) {
-                    memcpy(&url_len, msg.data, 4);
-                    /* Use overflow-safe checks to validate bounds */
-                    if (url_len <= msg.length - 4) {
-                        char *url_str = malloc(url_len + 1);
-                        if (url_str) {
-                            memcpy(url_str, msg.data + 4, url_len);
-                            url_str[url_len] = '\0';
-                            nsurl *url = NULL;
-                            if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
-                                fetch_curl_preconnect(url_str);
-                                nsurl_unref(url);
-                            }
-                            free(url_str);
-                        }
-                    }
-                }
-            } else if (msg.type == WISP_IPC_MSG_FETCH_ABORT) {
-                uint32_t fetch_id;
-                if (msg.length >= 4) {
-                    memcpy(&fetch_id, msg.data, 4);
-                    struct network_fetch_info *info = active_fetches_list;
-                    while (info && info->fetch_id != fetch_id) {
-                        info = info->next;
-                    }
-                    if (info && !info->finished) {
-                        if (info->fetchh) {
-                            fetch_abort(info->fetchh);
-                            info->fetchh = NULL;
-                        }
-                        info->finished = true;
-                    }
-                }
-            }
             network_process_ipc_msg(&msg);
             wisp_ipc_msg_free(&msg);
         }
