@@ -1888,58 +1888,6 @@ static void browser_window_find_target_internal(struct browser_window *bw, const
 
 
 /**
- * Handles the end of a drag operation in a browser window.
- *
- * \param  bw	  browser window
- * \param  mouse  state of mouse buttons and modifier keys
- * \param  x	  coordinate of mouse
- * \param  y	  coordinate of mouse
- *
- * \todo Remove this function, once these things are associated with content,
- *       rather than bw.
- */
-static void browser_window_mouse_drag_end(struct browser_window *bw, browser_mouse_state mouse, int x, int y)
-{
-    int scr_x, scr_y;
-
-    switch (bw->drag.type) {
-    case DRAGGING_SELECTION:
-    case DRAGGING_OTHER:
-    case DRAGGING_CONTENT_SCROLLBAR:
-        /* Drag handled by content handler */
-        break;
-
-    case DRAGGING_SCR_X:
-
-        browser_window_get_scrollbar_pos(bw, true, &scr_x, &scr_y);
-
-        scr_x = x - scr_x - scrollbar_get_offset(bw->scroll_x);
-        scr_y = y - scr_y - scrollbar_get_offset(bw->scroll_y);
-
-        scrollbar_mouse_drag_end(bw->scroll_x, mouse, scr_x, scr_y);
-
-        bw->drag.type = DRAGGING_NONE;
-        break;
-
-    case DRAGGING_SCR_Y:
-
-        browser_window_get_scrollbar_pos(bw, false, &scr_x, &scr_y);
-
-        scr_x = x - scr_x - scrollbar_get_offset(bw->scroll_x);
-        scr_y = y - scr_y - scrollbar_get_offset(bw->scroll_y);
-
-        scrollbar_mouse_drag_end(bw->scroll_y, mouse, scr_x, scr_y);
-
-        bw->drag.type = DRAGGING_NONE;
-        break;
-
-    default:
-        browser_window_set_drag_type(bw, DRAGGING_NONE, NULL);
-        break;
-    }
-}
-
-/**
  * Process mouse click event
  *
  * \param bw The browsing context receiving the event
@@ -2114,10 +2062,6 @@ static void browser_window_mouse_track_internal(struct browser_window *bw, brows
 
     if (c == NULL && bw->drag.type != DRAGGING_FRAME) {
         return;
-    }
-
-    if (bw->drag.type != DRAGGING_NONE && !mouse) {
-        browser_window_mouse_drag_end(bw, mouse, x, y);
     }
 
     /* Browser window's horizontal scrollbar */
