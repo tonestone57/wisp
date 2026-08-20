@@ -130,7 +130,8 @@ JSValue wisp_urlsearchparams_append_impl(JSContext *ctx, QJSNodePrivate *priv, c
         char *n = strdup(name);
         char *v = strdup(value);
         if (!n || !v) {
-            free(n); free(v);
+            free(n);
+            free(v);
             return JS_ThrowOutOfMemory(ctx);
         }
         data->params[data->count].name = n;

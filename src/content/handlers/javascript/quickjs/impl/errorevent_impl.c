@@ -48,6 +48,13 @@ JSValue qjs_new_errorevent_manual(JSContext *ctx, const char *msg, const char *f
     priv->is_dom_node = false;
     priv->message = strdup(msg ? msg : "");
     priv->filename = strdup(file ? file : "");
+    if (!priv->message || !priv->filename) {
+        free(priv->message);
+        free(priv->filename);
+        free(priv);
+        JS_FreeValue(ctx, obj);
+        return JS_ThrowOutOfMemory(ctx);
+    }
     priv->lineno = line;
     priv->colno = col;
     priv->error = JS_NULL;
@@ -80,12 +87,12 @@ JSValue wisp_errorevent_constructor_impl(JSContext *ctx, const char * type, JSVa
 
 JSValue wisp_errorevent_message_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {
     QJSErrorEventPrivate *priv = (QJSErrorEventPrivate *)priv_node;
-    return priv ? JS_NewString(ctx, priv->message) : JS_UNDEFINED;
+    return (priv && priv->message) ? JS_NewString(ctx, priv->message) : JS_UNDEFINED;
 }
 
 JSValue wisp_errorevent_filename_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {
     QJSErrorEventPrivate *priv = (QJSErrorEventPrivate *)priv_node;
-    return priv ? JS_NewString(ctx, priv->filename) : JS_UNDEFINED;
+    return (priv && priv->filename) ? JS_NewString(ctx, priv->filename) : JS_UNDEFINED;
 }
 
 JSValue wisp_errorevent_lineno_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {

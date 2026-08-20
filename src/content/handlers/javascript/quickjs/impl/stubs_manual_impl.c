@@ -6549,6 +6549,7 @@ static int parse_style_attribute(const char *style_str, struct style_property *p
     if (!style_str) return 0;
     int count = 0;
     char *str = strdup(style_str);
+    if (!str) return 0;
     char *saveptr1 = NULL;
     char *decl = strtok_r(str, ";", &saveptr1);
     while (decl && count < max_props) {
@@ -6571,9 +6572,16 @@ static int parse_style_attribute(const char *style_str, struct style_property *p
             }
             if (*name && *val) {
                 for (char *p = name; *p; p++) *p = tolower((unsigned char)*p);
-                props[count].name = strdup(name);
-                props[count].value = strdup(val);
-                count++;
+                char *prop_name = strdup(name);
+                char *prop_val = strdup(val);
+                if (prop_name && prop_val) {
+                    props[count].name = prop_name;
+                    props[count].value = prop_val;
+                    count++;
+                } else {
+                    free(prop_name);
+                    free(prop_val);
+                }
             }
         }
         decl = strtok_r(NULL, ";", &saveptr1);
@@ -6611,6 +6619,7 @@ static bool has_important_priority(const char *val) {
 static char *get_clean_value(const char *val) {
     if (!val) return NULL;
     char *dup = strdup(val);
+    if (!dup) return NULL;
     char *p = dup;
     while (*p) {
         if (*p == '!') {
