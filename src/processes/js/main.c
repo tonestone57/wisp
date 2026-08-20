@@ -76,7 +76,7 @@ JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSV
             return qjs_wrap_node(ctx, (dom_node *)doc_node);
         }
     }
-    return JS_UNDEFINED;
+    return JS_NULL;
 }
 
 #define JS_CTX_HASH_SIZE 64
@@ -328,14 +328,18 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                         shm_dom_lock_write(wisp_shm_dom);
                         if (wisp_shm_capacity < wisp_shm_dom->node_capacity) {
                             uint32_t new_cap = wisp_shm_dom->node_capacity;
+                            shm_dom_t *old_shm = wisp_shm_dom;
                             wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
                             if (wisp_shm_dom) {
                                 wisp_shm_capacity = new_cap;
+                                shm_dom_unlock_write(wisp_shm_dom);
                             } else {
                                 wisp_shm_capacity = 0;
+                                shm_dom_unlock_write(old_shm);
                             }
+                        } else {
+                            shm_dom_unlock_write(wisp_shm_dom);
                         }
-                        shm_dom_unlock_write(wisp_shm_dom);
                     }
                 }
 
@@ -447,23 +451,30 @@ int js_process_main(int argc, char **argv) {
         if (err == NSERROR_NOT_FOUND) {
             struct js_context_node *curr_c = contexts;
             uint64_t wait_time = 1000;
+            bool did_work = false;
             while (curr_c) {
                 if (curr_c->ctx) {
                     JSContext *ctx1;
                     int job_ret;
                     while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(curr_c->ctx), &ctx1)) != 0) {
                         wait_time = 0;
+                        did_work = true;
                         if (job_ret < 0) {
                             JSValue exc = JS_GetException(ctx1);
                             JS_FreeValue(ctx1, exc);
                         }
                     }
                     uint64_t ctx_wait = qjs_execute_timers(curr_c->ctx);
+                    if (ctx_wait == 0) did_work = true;
                     if (ctx_wait < wait_time) {
                         wait_time = ctx_wait;
                     }
                 }
                 curr_c = curr_c->next;
+            }
+            if (did_work) {
+                extern void bbmq_flush(void);
+                bbmq_flush();
             }
             if (wait_time > 0) {
                 if (wait_time > 50) wait_time = 50;
@@ -484,17 +495,22 @@ int js_process_main(int argc, char **argv) {
     /* Cleanup */
     struct js_context_node *curr = contexts;
     while (curr) {
-        if (curr->ctx) {
-            if (curr->thread) {
-                qjs_cleanup_mutation_observer(curr->thread);
-            }
+        struct js_context_node *next = curr->next;
+        if (curr->thread) {
+            js_destroythread(curr->thread);
+            curr->thread = NULL;
+            curr->ctx = NULL;
+        } else if (curr->ctx) {
             qjs_finalise_dom_bridge(rt, curr->ctx);
             JS_SetContextOpaque(curr->ctx, NULL);
             JS_FreeContext(curr->ctx);
             curr->ctx = NULL;
         }
-        curr = curr->next;
+        free(curr);
+        curr = next;
     }
+    contexts = NULL;
+    memset(ctx_hash_table, 0, sizeof(ctx_hash_table));
 
     qjs_bridge_cleanup(rt);
     if (rt) {
@@ -503,21 +519,6 @@ int js_process_main(int argc, char **argv) {
         JS_FreeRuntime(rt);
         rt = NULL;
     }
-
-    curr = contexts;
-    while (curr) {
-        struct js_context_node *next = curr->next;
-        if (curr->thread) {
-            if (curr->thread->location_url) {
-                nsurl_unref(curr->thread->location_url);
-            }
-            if (curr->thread->origin) free(curr->thread->origin);
-            free(curr->thread);
-        }
-        free(curr);
-        curr = next;
-    }
-    contexts = NULL;
     if (wisp_shm_dom) {
         shm_dom_destroy(wisp_shm_dom, NULL, false);
         wisp_shm_dom = NULL;

@@ -4041,7 +4041,7 @@ static JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int ar
             return qjs_wrap_node(ctx, (dom_node *)doc_node);
         }
     }
-    return JS_UNDEFINED;
+    return JS_NULL;
 }
 
 nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **thread)
@@ -4261,6 +4261,7 @@ void js_destroythread(jsthread *thread)
         }
         if (thread->ctx) {
             JS_FreeValue(thread->ctx, tim->func);
+            JS_FreeValue(thread->ctx, tim->arguments);
         }
         free(tim);
         tim = next;
@@ -4298,13 +4299,15 @@ void js_destroythread(jsthread *thread)
     thread->listeners = NULL;
     while (l) {
         struct qjs_event_listener_ctx *next = l->next;
-        dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
-        dom_node_unref((struct dom_node *)l->target);
-        dom_string_unref(l->type);
+        if (!wisp_is_js_process && l->target) {
+            dom_event_target_remove_event_listener(l->target, l->type, l->listener, false);
+            dom_node_unref((struct dom_node *)l->target);
+            dom_string_unref(l->type);
+            dom_event_listener_unref(l->listener);
+        }
         if (thread->ctx) {
             JS_FreeValue(thread->ctx, l->func);
         }
-        dom_event_listener_unref(l->listener);
         free(l);
         l = next;
     }
@@ -4316,7 +4319,9 @@ void js_destroythread(jsthread *thread)
         if (thread->ctx) {
             JS_FreeValue(thread->ctx, e->js_evt);
         }
-        dom_event_unref(e->evt);
+        if (!wisp_is_js_process && e->evt) {
+            dom_event_unref(e->evt);
+        }
         free(e);
         e = next;
     }
@@ -4385,14 +4390,18 @@ void js_destroythread(jsthread *thread)
 
     struct dom_document *doc_node = qjs_thread_get_document(thread);
     if (doc_node) {
-        dom_document_set_mutation_hook(doc_node, NULL, NULL);
-        dom_node_unref((dom_node *)doc_node);
+        if (!wisp_is_js_process) {
+            dom_document_set_mutation_hook(doc_node, NULL, NULL);
+            dom_node_unref((dom_node *)doc_node);
+        }
     }
     if (thread->location_url) {
         nsurl_unref(thread->location_url);
     }
     if (thread->origin) {
-        release_js_process_for_origin(thread->origin);
+        if (!wisp_is_js_process) {
+            release_js_process_for_origin(thread->origin);
+        }
         free(thread->origin);
     }
     if (thread->shm_dom) {

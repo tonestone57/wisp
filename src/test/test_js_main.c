@@ -44,16 +44,15 @@ static void teardown(void)
     struct js_context_node *curr = contexts;
     while (curr) {
         struct js_context_node *next = curr->next;
-        if (curr->ctx) {
+        if (curr->thread) {
+            js_destroythread(curr->thread);
+            curr->thread = NULL;
+            curr->ctx = NULL;
+        } else if (curr->ctx) {
             qjs_finalise_dom_bridge(rt, curr->ctx);
             JS_SetContextOpaque(curr->ctx, NULL);
             JS_FreeContext(curr->ctx);
-        }
-        if (curr->thread) {
-            if (curr->thread->origin) {
-                free(curr->thread->origin);
-            }
-            free(curr->thread);
+            curr->ctx = NULL;
         }
         free(curr);
         curr = next;
@@ -248,7 +247,7 @@ START_TEST(test_global_document_get_null_shm)
     JSContext *ctx = get_context(1);
     ck_assert_ptr_nonnull(ctx);
 
-    ck_assert(eval_js_bool(ctx, "document === undefined"));
+    ck_assert(eval_js_bool(ctx, "document === null"));
 }
 END_TEST
 
@@ -273,7 +272,7 @@ START_TEST(test_find_shm_doc_node_id_no_document)
     ck_assert_ptr_nonnull(t);
     ck_assert_ptr_eq(t->doc_priv, (void *)(uintptr_t)0);
 
-    ck_assert(eval_js_bool(ctx, "document === undefined"));
+    ck_assert(eval_js_bool(ctx, "document === null"));
 }
 END_TEST
 
