@@ -319,9 +319,9 @@ int main(int argc, char **argv) {
                                                     only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
                                         info->fetchh = f_out;
                                     } else {
-                                        /* Immediately report error to avoid hanging the browser fetcher */
-                                        send_fetch_error(fetch_id, "Blocked");
+                                        /* Unlink info from active_fetches_list before error sending/freeing to prevent use-after-free */
                                         active_fetches_list = info->next;
+                                        send_fetch_error(fetch_id, "Blocked");
                                         free(info);
                                     }
                                 } else {
