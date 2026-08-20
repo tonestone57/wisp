@@ -147,6 +147,28 @@ JSContext* get_context(uint32_t id) {
     t->ctx = node->ctx;
     if (js_process_origin) {
         t->origin = strdup(js_process_origin);
+        if (!t->origin) {
+            /* Unchain node from contexts list and hash table slot */
+            if (contexts == node) {
+                contexts = node->next;
+            } else {
+                struct js_context_node *p = contexts;
+                while (p && p->next != node) p = p->next;
+                if (p) p->next = node->next;
+            }
+            if (ctx_hash_table[slot] == node) {
+                ctx_hash_table[slot] = node->hash_next;
+            } else {
+                struct js_context_node *p = ctx_hash_table[slot];
+                while (p && p->hash_next != node) p = p->hash_next;
+                if (p) p->hash_next = node->hash_next;
+            }
+            if (last_accessed_ctx == node) last_accessed_ctx = NULL;
+            JS_FreeContext(node->ctx);
+            free(t);
+            free(node);
+            return NULL;
+        }
     }
 
     /* Find document node ID in shm_dom to set up as the root */
