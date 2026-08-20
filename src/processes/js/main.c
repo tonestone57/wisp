@@ -110,13 +110,7 @@ JSContext* get_context(uint32_t id) {
     node->id = id;
     node->ctx = JS_NewContext(rt);
     if (!node->ctx) { free(t); free(node); return NULL; }
-    node->thread = NULL;
-    node->next = contexts;
-    contexts = node;
-
-    /* Insert at head of hash table slot chain */
-    node->hash_next = ctx_hash_table[slot];
-    ctx_hash_table[slot] = node;
+    node->thread = t;
 
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
@@ -149,22 +143,6 @@ JSContext* get_context(uint32_t id) {
     if (js_process_origin) {
         t->origin = strdup(js_process_origin);
         if (!t->origin) {
-            /* Unchain node from contexts list and hash table slot */
-            if (contexts == node) {
-                contexts = node->next;
-            } else {
-                struct js_context_node *p = contexts;
-                while (p && p->next != node) p = p->next;
-                if (p) p->next = node->next;
-            }
-            if (ctx_hash_table[slot] == node) {
-                ctx_hash_table[slot] = node->hash_next;
-            } else {
-                struct js_context_node *p = ctx_hash_table[slot];
-                while (p && p->hash_next != node) p = p->hash_next;
-                if (p) p->hash_next = node->hash_next;
-            }
-            if (last_accessed_ctx == node) last_accessed_ctx = NULL;
             qjs_finalise_dom_bridge(rt, node->ctx);
             JS_FreeContext(node->ctx);
             free(t);
@@ -182,10 +160,10 @@ JSContext* get_context(uint32_t id) {
     t->global_window_priv.node = (void*)(uintptr_t)doc_node_id;
     t->global_window_priv.ctx = node->ctx;
     t->global_window_priv.is_dom_node = false;
+    t->shm_dom = wisp_shm_dom;
+    t->shm_capacity = wisp_shm_capacity;
 
     JS_SetContextOpaque(node->ctx, t);
-    node->thread = t;
-    last_accessed_ctx = node;
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -207,6 +185,13 @@ JSContext* get_context(uint32_t id) {
     JS_FreeAtom(node->ctx, doc_atom);
 
     JS_FreeValue(node->ctx, global_obj);
+
+    /* Link into contexts list and hash table slot */
+    node->next = contexts;
+    contexts = node;
+    node->hash_next = ctx_hash_table[slot];
+    ctx_hash_table[slot] = node;
+    last_accessed_ctx = node;
 
     return node->ctx;
 }
@@ -239,8 +224,11 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
 
             if (origin) {
-                if (js_process_origin) free(js_process_origin);
-                js_process_origin = strdup(origin);
+                char *new_orig = strdup(origin);
+                if (new_orig) {
+                    if (js_process_origin) free(js_process_origin);
+                    js_process_origin = new_orig;
+                }
             } else {
                 if (js_process_origin) {
                     free(js_process_origin);
@@ -255,16 +243,26 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             while (curr_c) {
                 if (curr_c->thread) {
                     if (origin) {
-                        if (curr_c->thread->origin) free(curr_c->thread->origin);
-                        curr_c->thread->origin = strdup(origin);
+                        char *new_thread_orig = strdup(origin);
+                        if (new_thread_orig) {
+                            if (curr_c->thread->origin) free(curr_c->thread->origin);
+                            curr_c->thread->origin = new_thread_orig;
+                        }
                         if (curr_c->thread->location_url) {
                             nsurl_unref(curr_c->thread->location_url);
                             curr_c->thread->location_url = NULL;
+                        }
+                    } else {
+                        if (curr_c->thread->origin) {
+                            free(curr_c->thread->origin);
+                            curr_c->thread->origin = NULL;
                         }
                     }
                     curr_c->thread->doc_priv = (void*)(uintptr_t)new_doc_id;
                     curr_c->thread->win_priv = (void*)(uintptr_t)new_doc_id;
                     curr_c->thread->global_window_priv.node = (void*)(uintptr_t)new_doc_id;
+                    curr_c->thread->shm_dom = wisp_shm_dom;
+                    curr_c->thread->shm_capacity = wisp_shm_capacity;
                 }
                 curr_c = curr_c->next;
             }
@@ -317,9 +315,9 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             char *script = NULL;
             bool file_load_failed = false;
             if (script_len >= 7 && strncmp((const char *)(msg->data + offset), "file://", 7) == 0) {
-                char file_path[512];
                 size_t path_len = script_len - 7;
-                if (path_len < sizeof(file_path)) {
+                char *file_path = malloc(path_len + 1);
+                if (file_path) {
                     memcpy(file_path, msg->data + offset + 7, path_len);
                     file_path[path_len] = '\0';
                     FILE *f = fopen(file_path, "rb");
@@ -348,6 +346,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     } else {
                         file_load_failed = true;
                     }
+                    free(file_path);
                 } else {
                     file_load_failed = true;
                 }
@@ -376,6 +375,14 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                             } else {
                                 wisp_shm_capacity = 0;
                                 shm_dom_unlock_write(old_shm);
+                            }
+                            struct js_context_node *curr_c = contexts;
+                            while (curr_c) {
+                                if (curr_c->thread) {
+                                    curr_c->thread->shm_dom = wisp_shm_dom;
+                                    curr_c->thread->shm_capacity = wisp_shm_capacity;
+                                }
+                                curr_c = curr_c->next;
                             }
                         } else {
                             shm_dom_unlock_write(wisp_shm_dom);
@@ -501,6 +508,9 @@ int js_process_main(int argc, char **argv) {
                         did_work = true;
                         if (job_ret < 0) {
                             JSValue exc = JS_GetException(ctx1);
+                            const char *exc_str = JS_ToCString(ctx1, exc);
+                            fprintf(stderr, "\n=== IDLE MICROTASK JS Error: %s ===\n", exc_str ? exc_str : "unknown");
+                            if (exc_str) JS_FreeCString(ctx1, exc_str);
                             JS_FreeValue(ctx1, exc);
                         }
                     }
@@ -517,7 +527,7 @@ int js_process_main(int argc, char **argv) {
                 bbmq_flush();
             }
             if (wait_time > 0) {
-                if (wait_time > 50) wait_time = 50;
+                if (wait_time > 5) wait_time = 5;
                 usleep(wait_time * 1000);
             }
             continue;

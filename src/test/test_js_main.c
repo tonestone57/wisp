@@ -488,6 +488,63 @@ START_TEST(test_ipc_shm_init_with_origin)
 }
 END_TEST
 
+START_TEST(test_get_context_deferred_linking_on_origin_failure)
+{
+    /* Set origin to non-null value */
+    js_process_origin = strdup("https://test-origin.org");
+
+    /* get_context(50) should succeed */
+    JSContext *ctx = get_context(50);
+    ck_assert_ptr_nonnull(ctx);
+    ck_assert_ptr_nonnull(contexts);
+    ck_assert_int_eq(contexts->id, 50);
+}
+END_TEST
+
+START_TEST(test_ipc_shm_init_origin_memory_safety)
+{
+    setup_ipc();
+
+    JSContext *ctx1 = get_context(10);
+    JSContext *ctx2 = get_context(20);
+    ck_assert_ptr_nonnull(ctx1);
+    ck_assert_ptr_nonnull(ctx2);
+
+    const char *shm_name = "/test_js_ipc_shm_memsafety";
+    shm_unlink(shm_name);
+    shm_dom_t *server_shm = shm_dom_create(shm_name, 100, true);
+    ck_assert_ptr_nonnull(server_shm);
+
+    char payload[256];
+    snprintf(payload, sizeof(payload), "%s|https://origin1.org", shm_name);
+
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_SHM_INIT;
+    msg.length = strlen(payload);
+    msg.data = (uint8_t *)payload;
+
+    js_process_handle_ipc_msg(&msg);
+
+    struct jsthread *t1 = JS_GetContextOpaque(ctx1);
+    struct jsthread *t2 = JS_GetContextOpaque(ctx2);
+    ck_assert_ptr_nonnull(t1);
+    ck_assert_ptr_nonnull(t2);
+    ck_assert_str_eq(t1->origin, "https://origin1.org");
+    ck_assert_str_eq(t2->origin, "https://origin1.org");
+
+    snprintf(payload, sizeof(payload), "%s|https://origin2.org", shm_name);
+    msg.length = strlen(payload);
+
+    js_process_handle_ipc_msg(&msg);
+
+    ck_assert_str_eq(t1->origin, "https://origin2.org");
+    ck_assert_str_eq(t2->origin, "https://origin2.org");
+
+    shm_dom_destroy(server_shm, NULL, false);
+    teardown_ipc();
+}
+END_TEST
+
 START_TEST(test_ipc_js_exec_corrupt_name_len)
 {
     setup_ipc();
@@ -542,21 +599,97 @@ START_TEST(test_ipc_shm_init_without_origin)
 {
     setup_ipc();
 
+    /* Create context and set origin first */
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+
     const char *shm_name = "/test_js_ipc_shm_no_orig";
     shm_unlink(shm_name);
     shm_dom_t *server_shm = shm_dom_create(shm_name, 100, true);
     ck_assert_ptr_nonnull(server_shm);
 
-    wisp_ipc_msg msg;
-    msg.type = WISP_IPC_MSG_SHM_INIT;
+    /* First init with origin */
+    char payload[256];
+    snprintf(payload, sizeof(payload), "%s|https://example.com", shm_name);
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_SHM_INIT,
+        .length = strlen(payload),
+        .data = (uint8_t *)payload
+    };
+    js_process_handle_ipc_msg(&msg);
+
+    ck_assert_ptr_nonnull(t->origin);
+    ck_assert_str_eq(t->origin, "https://example.com");
+
+    /* Now init without origin */
     msg.length = strlen(shm_name);
     msg.data = (uint8_t *)shm_name;
-
     js_process_handle_ipc_msg(&msg);
 
     ck_assert_ptr_nonnull(wisp_shm_dom);
+    ck_assert_ptr_null(js_process_origin);
+    ck_assert_ptr_null(t->origin);
+    ck_assert_ptr_eq(t->shm_dom, wisp_shm_dom);
+    ck_assert_uint_eq(t->shm_capacity, wisp_shm_capacity);
 
     shm_dom_destroy(server_shm, NULL, false);
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_ipc_js_exec_file_url_long_path)
+{
+    setup_ipc();
+
+    /* Create temporary JS script file in nested long directory path */
+    char long_dir[600];
+    memset(long_dir, 'a', sizeof(long_dir) - 1);
+    long_dir[sizeof(long_dir) - 1] = '\0';
+
+    char tmp_path[700];
+    snprintf(tmp_path, sizeof(tmp_path), "/tmp/wisp_long_path_%s.js", long_dir + 500);
+
+    FILE *f = fopen(tmp_path, "wb");
+    ck_assert_ptr_nonnull(f);
+    const char *js_code = "7 * 8;";
+    fwrite(js_code, 1, strlen(js_code), f);
+    fclose(f);
+
+    char file_url[800];
+    snprintf(file_url, sizeof(file_url), "file://%s", tmp_path);
+
+    uint32_t ctx_id = 1;
+    uint32_t eval_flags = JS_EVAL_TYPE_GLOBAL;
+    uint32_t name_len = 0;
+    uint32_t script_len = strlen(file_url);
+
+    uint32_t total_len = 12 + script_len;
+    uint8_t *data = malloc(total_len);
+    memcpy(data, &ctx_id, 4);
+    memcpy(data + 4, &eval_flags, 4);
+    memcpy(data + 8, &name_len, 4);
+    memcpy(data + 12, file_url, script_len);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_JS_EXEC,
+        .length = total_len,
+        .data = data
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_JS_EXEC);
+    ck_assert_int_eq(recv_msg.length, 2);
+    ck_assert_mem_eq(recv_msg.data, "56", 2);
+
+    unlink(tmp_path);
+    wisp_ipc_msg_free(&recv_msg);
+    free(data);
     teardown_ipc();
 }
 END_TEST
@@ -940,12 +1073,15 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_js_process_main_invalid_args);
     tcase_add_test(tc_core, test_ipc_shm_init_with_origin);
     tcase_add_test(tc_core, test_ipc_shm_init_without_origin);
+    tcase_add_test(tc_core, test_get_context_deferred_linking_on_origin_failure);
+    tcase_add_test(tc_core, test_ipc_shm_init_origin_memory_safety);
     tcase_add_test(tc_core, test_ipc_js_exec_normal_script);
     tcase_add_test(tc_core, test_ipc_js_exec_default_script_name);
     tcase_add_test(tc_core, test_ipc_js_exec_invalid_length);
     tcase_add_test(tc_core, test_ipc_js_exec_corrupt_name_len);
     tcase_add_test(tc_core, test_ipc_shm_init_null_data);
     tcase_add_test(tc_core, test_ipc_js_exec_file_url_script);
+    tcase_add_test(tc_core, test_ipc_js_exec_file_url_long_path);
     tcase_add_test(tc_core, test_ipc_js_exec_short_script);
     tcase_add_test(tc_core, test_ipc_js_exec_file_url_nonexistent);
     tcase_add_test(tc_core, test_ipc_js_exec_exception);
