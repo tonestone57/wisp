@@ -104,7 +104,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     uint32_t fetch_id = info->fetch_id;
 
     switch (msg->type) {
-        case FETCH_HEADER:
+        case FETCH_HEADER: {
             imsg.type = WISP_IPC_MSG_FETCH_HEADER;
             imsg.length = 8 + msg->data.header_or_data.len;
             imsg.data = malloc(imsg.length);
@@ -116,7 +116,8 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
-        case FETCH_NOTMODIFIED:
+        }
+        case FETCH_NOTMODIFIED: {
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
             imsg.length = 8;
             imsg.data = malloc(8);
@@ -128,7 +129,8 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
-        case FETCH_DATA:
+        }
+        case FETCH_DATA: {
             imsg.type = WISP_IPC_MSG_FETCH_DATA;
             imsg.length = 4 + msg->data.header_or_data.len;
             imsg.data = malloc(imsg.length);
@@ -138,7 +140,8 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
-        case FETCH_FINISHED:
+        }
+        case FETCH_FINISHED: {
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
             imsg.length = 8;
             imsg.data = malloc(8);
@@ -149,7 +152,8 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
-        case FETCH_REDIRECT:
+        }
+        case FETCH_REDIRECT: {
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
             const char *redir_target = msg->data.redirect ? nsurl_access(msg->data.redirect) : "";
             imsg.length = 4 + 4 + strlen(redir_target) + 1;
@@ -162,7 +166,8 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
-        case FETCH_ERROR:
+        }
+        case FETCH_ERROR: {
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
             const char *err_str = msg->data.error ? msg->data.error : "UnknownError";
             imsg.length = 4 + strlen(err_str) + 1;
@@ -173,6 +178,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             wisp_ipc_send(ipc_main, &imsg);
             free(imsg.data);
             break;
+        }
         case FETCH_TIMEDOUT:
         case FETCH_CERT_ERR:
         case FETCH_SSL_ERR: {
@@ -258,9 +264,14 @@ static const char *default_filetype(const char *unix_path) {
     return "text/plain";
 }
 
+static char *default_mimetype(const char *path) {
+    const char *type = default_filetype(path);
+    return type ? strdup(type) : NULL;
+}
+
 static struct gui_fetch_table network_fetch_table = {
     .filetype = default_filetype,
-    .mimetype = (void*)default_filetype,
+    .mimetype = default_mimetype,
 };
 
 int main(int argc, char **argv) {

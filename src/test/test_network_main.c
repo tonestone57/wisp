@@ -10,6 +10,20 @@
 #include "../processes/network/main.c"
 #undef main
 
+START_TEST(test_default_mimetype)
+{
+    char *mt = default_mimetype("style.css");
+    ck_assert_ptr_nonnull(mt);
+    ck_assert_str_eq(mt, "text/css");
+    free(mt);
+
+    mt = default_mimetype(NULL);
+    ck_assert_ptr_nonnull(mt);
+    ck_assert_str_eq(mt, "text/plain");
+    free(mt);
+}
+END_TEST
+
 START_TEST(test_default_filetype)
 {
     ck_assert_str_eq(default_filetype(NULL), "text/plain");
@@ -838,6 +852,7 @@ static Suite *network_main_suite(void)
     s = suite_create("NetworkMain");
     tc_core = tcase_create("Core");
 
+    tcase_add_test(tc_core, test_default_mimetype);
     tcase_add_test(tc_core, test_default_filetype);
     tcase_add_test(tc_core, test_send_fetch_error);
     tcase_add_test(tc_core, test_fetch_callback_http_codes);
