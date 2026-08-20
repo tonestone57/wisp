@@ -30,6 +30,7 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("style.css"), "text/css");
     ck_assert_str_eq(default_filetype("page.html"), "text/html");
     ck_assert_str_eq(default_filetype("page.htm"), "text/html");
+    ck_assert_str_eq(default_filetype("doc.xhtml"), "application/xhtml+xml");
     ck_assert_str_eq(default_filetype("script.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("module.mjs"), "application/javascript");
     ck_assert_str_eq(default_filetype("data.json"), "application/json");
@@ -45,6 +46,14 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("font.woff2"), "font/woff2");
     ck_assert_str_eq(default_filetype("font.ttf"), "font/ttf");
     ck_assert_str_eq(default_filetype("font.otf"), "font/otf");
+    ck_assert_str_eq(default_filetype("module.wasm"), "application/wasm");
+    ck_assert_str_eq(default_filetype("paper.pdf"), "application/pdf");
+    ck_assert_str_eq(default_filetype("video.mp4"), "video/mp4");
+    ck_assert_str_eq(default_filetype("clip.webm"), "video/webm");
+    ck_assert_str_eq(default_filetype("song.mp3"), "audio/mpeg");
+    ck_assert_str_eq(default_filetype("sound.wav"), "audio/wav");
+    ck_assert_str_eq(default_filetype("audio.ogg"), "audio/ogg");
+    ck_assert_str_eq(default_filetype("track.aac"), "audio/aac");
     ck_assert_str_eq(default_filetype("document.txt"), "text/plain");
     ck_assert_str_eq(default_filetype("unknown.xyz"), "text/plain");
     ck_assert_str_eq(default_filetype("/path/to/style.CSS?query=1"), "text/css");

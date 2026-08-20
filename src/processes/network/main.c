@@ -60,21 +60,15 @@ static bool is_active_fetch(struct network_fetch_info *info) {
 }
 
 static void cleanup_finished_fetches(void) {
-    struct network_fetch_info *curr = active_fetches_list;
-    struct network_fetch_info *prev = NULL;
-    while (curr != NULL) {
-        struct network_fetch_info *next = curr->next;
-        if (curr->finished) {
-            if (prev == NULL) {
-                active_fetches_list = next;
-            } else {
-                prev->next = next;
-            }
-            free(curr);
+    struct network_fetch_info **curr = &active_fetches_list;
+    while (*curr != NULL) {
+        struct network_fetch_info *entry = *curr;
+        if (entry->finished) {
+            *curr = entry->next;
+            free(entry);
         } else {
-            prev = curr;
+            curr = &entry->next;
         }
-        curr = next;
     }
 }
 
@@ -249,6 +243,7 @@ static const char *default_filetype(const char *unix_path) {
     ext_buf[ext_len] = '\0';
 
     if (strcmp(ext_buf, ".html") == 0 || strcmp(ext_buf, ".htm") == 0) return "text/html";
+    if (strcmp(ext_buf, ".xhtml") == 0) return "application/xhtml+xml";
     if (strcmp(ext_buf, ".css") == 0) return "text/css";
     if (strcmp(ext_buf, ".js") == 0 || strcmp(ext_buf, ".mjs") == 0) return "application/javascript";
     if (strcmp(ext_buf, ".json") == 0) return "application/json";
@@ -263,6 +258,14 @@ static const char *default_filetype(const char *unix_path) {
     if (strcmp(ext_buf, ".woff2") == 0) return "font/woff2";
     if (strcmp(ext_buf, ".ttf") == 0) return "font/ttf";
     if (strcmp(ext_buf, ".otf") == 0) return "font/otf";
+    if (strcmp(ext_buf, ".wasm") == 0) return "application/wasm";
+    if (strcmp(ext_buf, ".pdf") == 0) return "application/pdf";
+    if (strcmp(ext_buf, ".mp4") == 0) return "video/mp4";
+    if (strcmp(ext_buf, ".webm") == 0) return "video/webm";
+    if (strcmp(ext_buf, ".mp3") == 0) return "audio/mpeg";
+    if (strcmp(ext_buf, ".wav") == 0) return "audio/wav";
+    if (strcmp(ext_buf, ".ogg") == 0) return "audio/ogg";
+    if (strcmp(ext_buf, ".aac") == 0) return "audio/aac";
     if (strcmp(ext_buf, ".txt") == 0) return "text/plain";
 
     return "text/plain";
@@ -444,6 +447,8 @@ int main(int argc, char **argv) {
     }
 
     free_all_active_fetches();
+    fetcher_quit();
+    corestrings_fini();
 
     if (ipc_main) {
         wisp_ipc_handle *to_destroy = ipc_main;
