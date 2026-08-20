@@ -324,6 +324,121 @@ START_TEST(test_parse_challenge_lws_variations)
 }
 END_TEST
 
+START_TEST(test_parse_unquoted_parameter_value)
+{
+    http_challenge *challenge = NULL;
+    nserror error;
+    const char *input = "Digest algorithm=MD5, qop=\"auth\"";
+    const char *pos = input;
+
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+    http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
+    lwc_string_unref(scheme);
+
+    ck_assert_ptr_nonnull(params);
+
+    lwc_string *key;
+    lwc_string *val;
+    lwc_intern_string("algorithm", 9, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 3);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "MD5", 3), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    lwc_intern_string("qop", 3, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 4);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "auth", 4), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    http_challenge_list_destroy(challenge);
+}
+END_TEST
+
+START_TEST(test_parse_escaped_quoted_string)
+{
+    http_challenge *challenge = NULL;
+    nserror error;
+    const char *input = "Basic realm=\"foo\\\"bar\\\\baz\"";
+    const char *pos = input;
+
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+    http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+
+    ck_assert_ptr_nonnull(params);
+
+    lwc_string *key;
+    lwc_string *val;
+    lwc_intern_string("realm", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 11);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "foo\"bar\\baz", 11), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    http_challenge_list_destroy(challenge);
+}
+END_TEST
+
+START_TEST(test_parse_whitespace_around_commas)
+{
+    http_challenge *challenge = NULL;
+    nserror error;
+    const char *input = "Basic realm=\"test\" \t , \t param2=\"val2\"";
+    const char *pos = input;
+
+    error = http__parse_challenge(&pos, &challenge);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(challenge);
+
+    lwc_string *scheme = NULL;
+    http_parameter *params = NULL;
+    http_challenge_list_iterate(challenge, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+
+    ck_assert_ptr_nonnull(params);
+
+    lwc_string *key;
+    lwc_string *val;
+    lwc_intern_string("param2", 6, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 4);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "val2", 4), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    http_challenge_list_destroy(challenge);
+}
+END_TEST
+
 static Suite *test_suite(void)
 {
     Suite *s = suite_create("http-challenge");
@@ -338,6 +453,9 @@ static Suite *test_suite(void)
     tcase_add_test(tc_core, test_parse_edge_cases);
     tcase_add_test(tc_core, test_challenge_list_iteration_multiple);
     tcase_add_test(tc_core, test_parse_challenge_lws_variations);
+    tcase_add_test(tc_core, test_parse_unquoted_parameter_value);
+    tcase_add_test(tc_core, test_parse_escaped_quoted_string);
+    tcase_add_test(tc_core, test_parse_whitespace_around_commas);
     suite_add_tcase(s, tc_core);
 
     return s;
