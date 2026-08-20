@@ -39,12 +39,17 @@ static void send_fetch_error(uint32_t fetch_id, const char *err_msg) {
     wisp_ipc_msg imsg;
     imsg.type = WISP_IPC_MSG_FETCH_ERROR;
     imsg.length = 4 + strlen(err_msg) + 1;
-    imsg.data = malloc(imsg.length);
+    uint8_t stack_buf[256];
+    if (imsg.length <= sizeof(stack_buf)) {
+        imsg.data = stack_buf;
+    } else {
+        imsg.data = malloc(imsg.length);
+    }
     if (imsg.data) {
         memcpy(imsg.data, &fetch_id, 4);
         memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
         wisp_ipc_send(ipc_main, &imsg);
-        free(imsg.data);
+        if (imsg.data != stack_buf) free(imsg.data);
     }
 }
 
@@ -102,12 +107,17 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     }
 
     uint32_t fetch_id = info->fetch_id;
+    uint8_t stack_buf[512];
 
     switch (msg->type) {
         case FETCH_HEADER: {
             imsg.type = WISP_IPC_MSG_FETCH_HEADER;
             imsg.length = 8 + msg->data.header_or_data.len;
-            imsg.data = malloc(imsg.length);
+            if (imsg.length <= sizeof(stack_buf)) {
+                imsg.data = stack_buf;
+            } else {
+                imsg.data = malloc(imsg.length);
+            }
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
             uint32_t header_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
@@ -116,71 +126,79 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
                 memcpy(imsg.data + 8, msg->data.header_or_data.buf, msg->data.header_or_data.len);
             }
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
+            if (imsg.data != stack_buf) free(imsg.data);
             break;
         }
         case FETCH_NOTMODIFIED: {
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
             imsg.length = 8;
-            imsg.data = malloc(8);
-            if (!imsg.data) return;
+            imsg.data = stack_buf;
             memcpy(imsg.data, &fetch_id, 4);
             uint32_t notmod_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 304;
             if (notmod_http_code == 0) notmod_http_code = 304;
             memcpy(imsg.data + 4, &notmod_http_code, 4);
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
             break;
         }
         case FETCH_DATA: {
             imsg.type = WISP_IPC_MSG_FETCH_DATA;
             imsg.length = 4 + msg->data.header_or_data.len;
-            imsg.data = malloc(imsg.length);
+            if (imsg.length <= sizeof(stack_buf)) {
+                imsg.data = stack_buf;
+            } else {
+                imsg.data = malloc(imsg.length);
+            }
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
             if (msg->data.header_or_data.buf && msg->data.header_or_data.len > 0) {
                 memcpy(imsg.data + 4, msg->data.header_or_data.buf, msg->data.header_or_data.len);
             }
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
+            if (imsg.data != stack_buf) free(imsg.data);
             break;
         }
         case FETCH_FINISHED: {
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
             imsg.length = 8;
-            imsg.data = malloc(8);
-            if (!imsg.data) return;
+            imsg.data = stack_buf;
             memcpy(imsg.data, &fetch_id, 4);
             uint32_t http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
             memcpy(imsg.data + 4, &http_code, 4);
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
             break;
         }
         case FETCH_REDIRECT: {
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
             const char *redir_target = msg->data.redirect ? nsurl_access(msg->data.redirect) : "";
             imsg.length = 4 + 4 + strlen(redir_target) + 1;
-            imsg.data = malloc(imsg.length);
+            if (imsg.length <= sizeof(stack_buf)) {
+                imsg.data = stack_buf;
+            } else {
+                imsg.data = malloc(imsg.length);
+            }
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
             uint32_t redirect_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 302;
             memcpy(imsg.data + 4, &redirect_http_code, 4);
             memcpy((char*)imsg.data + 8, redir_target, strlen(redir_target) + 1);
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
+            if (imsg.data != stack_buf) free(imsg.data);
             break;
         }
         case FETCH_ERROR: {
             imsg.type = WISP_IPC_MSG_FETCH_ERROR;
             const char *err_str = msg->data.error ? msg->data.error : "UnknownError";
             imsg.length = 4 + strlen(err_str) + 1;
-            imsg.data = malloc(imsg.length);
+            if (imsg.length <= sizeof(stack_buf)) {
+                imsg.data = stack_buf;
+            } else {
+                imsg.data = malloc(imsg.length);
+            }
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
             memcpy((char*)imsg.data + 4, err_str, strlen(err_str) + 1);
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
+            if (imsg.data != stack_buf) free(imsg.data);
             break;
         }
         case FETCH_TIMEDOUT:
@@ -190,12 +208,16 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             const char *err_msg = (msg->type == FETCH_TIMEDOUT) ? "Timeout" :
                                   (msg->type == FETCH_SSL_ERR) ? "SSLError" : "CertError";
             imsg.length = 4 + strlen(err_msg) + 1;
-            imsg.data = malloc(imsg.length);
+            if (imsg.length <= sizeof(stack_buf)) {
+                imsg.data = stack_buf;
+            } else {
+                imsg.data = malloc(imsg.length);
+            }
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
             memcpy((char*)imsg.data + 4, err_msg, strlen(err_msg) + 1);
             wisp_ipc_send(ipc_main, &imsg);
-            free(imsg.data);
+            if (imsg.data != stack_buf) free(imsg.data);
             break;
         }
         default:
@@ -258,11 +280,20 @@ static const char *default_filetype(const char *unix_path) {
     if (strcmp(ext_buf, ".jpg") == 0 || strcmp(ext_buf, ".jpeg") == 0) return "image/jpeg";
     if (strcmp(ext_buf, ".gif") == 0) return "image/gif";
     if (strcmp(ext_buf, ".webp") == 0) return "image/webp";
+    if (strcmp(ext_buf, ".avif") == 0) return "image/avif";
     if (strcmp(ext_buf, ".ico") == 0) return "image/x-icon";
     if (strcmp(ext_buf, ".woff") == 0) return "font/woff";
     if (strcmp(ext_buf, ".woff2") == 0) return "font/woff2";
     if (strcmp(ext_buf, ".ttf") == 0) return "font/ttf";
     if (strcmp(ext_buf, ".otf") == 0) return "font/otf";
+    if (strcmp(ext_buf, ".eot") == 0) return "application/vnd.ms-fontobject";
+    if (strcmp(ext_buf, ".mp4") == 0) return "video/mp4";
+    if (strcmp(ext_buf, ".webm") == 0) return "video/webm";
+    if (strcmp(ext_buf, ".ogg") == 0) return "audio/ogg";
+    if (strcmp(ext_buf, ".mp3") == 0) return "audio/mpeg";
+    if (strcmp(ext_buf, ".wav") == 0) return "audio/wav";
+    if (strcmp(ext_buf, ".wasm") == 0) return "application/wasm";
+    if (strcmp(ext_buf, ".pdf") == 0) return "application/pdf";
     if (strcmp(ext_buf, ".txt") == 0) return "text/plain";
 
     return "text/plain";
@@ -343,7 +374,14 @@ int main(int argc, char **argv) {
                                     info->fetchh = f_out;
                                 } else {
                                     /* Unlink info from active_fetches_list before error sending/freeing to prevent use-after-free */
-                                    active_fetches_list = info->next;
+                                    struct network_fetch_info **pcurr = &active_fetches_list;
+                                    while (*pcurr) {
+                                        if (*pcurr == info) {
+                                            *pcurr = info->next;
+                                            break;
+                                        }
+                                        pcurr = &(*pcurr)->next;
+                                    }
                                     send_fetch_error(fetch_id, "Blocked");
                                     free(info);
                                 }
