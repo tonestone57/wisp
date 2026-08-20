@@ -536,10 +536,10 @@ css_error named_sibling_node(void *pw, void *node, const css_qname *qname, void 
             return CSS_OK;
         }
 
-        dom_node_unref(n);
-
         if (dom_string_caseless_lwc_isequal(name, qname->name)) {
             *sibling = n;
+        } else {
+            dom_node_unref(n);
         }
 
         dom_string_unref(name);
@@ -590,7 +590,6 @@ css_error named_generic_sibling_node(void *pw, void *node, const css_qname *qnam
 
             if (dom_string_caseless_lwc_isequal(name, qname->name)) {
                 dom_string_unref(name);
-                dom_node_unref(n);
                 *sibling = n;
                 break;
             }
