@@ -800,6 +800,9 @@ nserror nsurl_nice(const nsurl *url, char **result, bool remove_extensions)
 
     if (url->components.host != NULL) {
         name = strdup(lwc_string_data(url->components.host));
+        if (name == NULL) {
+            return NSERROR_NOMEM;
+        }
 
         for (pos = 0; name[pos] != '\0'; pos++) {
             if (name[pos] == '.') {

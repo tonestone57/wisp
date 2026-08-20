@@ -148,8 +148,11 @@ typedef struct {
 
 static void html_buf_append(HTMLBuffer *b, const char *str, size_t len) {
     if (b->len + len >= b->alloc) {
-        b->alloc = b->alloc ? b->alloc * 2 + len : len + 1024;
-        b->buf = realloc(b->buf, b->alloc);
+        size_t new_alloc = b->alloc ? b->alloc * 2 + len : len + 1024;
+        char *new_buf = realloc(b->buf, new_alloc);
+        if (!new_buf) return;
+        b->buf = new_buf;
+        b->alloc = new_alloc;
     }
     memcpy(b->buf + b->len, str, len);
     b->len += len;

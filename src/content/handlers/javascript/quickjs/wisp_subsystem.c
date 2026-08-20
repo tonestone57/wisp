@@ -732,8 +732,12 @@ void wisp_worker_fetch_cb(void *p) {
             const uint8_t *data = content_get_source_data(h, &req->out_len);
             if (data) {
                 req->out_buffer = malloc(req->out_len);
-                memcpy(req->out_buffer, data, req->out_len);
-                req->success = true;
+                if (req->out_buffer) {
+                    memcpy(req->out_buffer, data, req->out_len);
+                    req->success = true;
+                } else {
+                    req->success = false;
+                }
             }
             hlcache_handle_release(h);
         }

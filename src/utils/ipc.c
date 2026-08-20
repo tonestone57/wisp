@@ -50,7 +50,13 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
     if (!h) return NULL;
     h->is_server = true;
-    h->name = strdup(name);
+    if (name) {
+        h->name = strdup(name);
+        if (!h->name) {
+            free(h);
+            return NULL;
+        }
+    }
 
 #ifdef _WIN32
     static bool wsa_init = false;
@@ -76,9 +82,12 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     int len = sizeof(sin);
     if (getsockname((SOCKET)h->fd, (struct sockaddr *)&sin, &len) == 0) {
         unsigned short port = ntohs(sin.sin_port);
-        free(h->name);
-        h->name = malloc(16);
-        snprintf(h->name, 16, "%u", port);
+        char *new_name = malloc(16);
+        if (new_name) {
+            free(h->name);
+            h->name = new_name;
+            snprintf(h->name, 16, "%u", port);
+        }
     }
 
     listen((SOCKET)h->fd, 5);
