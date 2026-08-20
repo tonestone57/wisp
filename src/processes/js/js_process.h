@@ -9,6 +9,7 @@ struct js_context_node {
     JSContext *ctx;
     struct jsthread *thread;
     struct js_context_node *next;
+    struct js_context_node *hash_next;
 };
 
 extern struct js_context_node *contexts;

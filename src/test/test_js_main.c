@@ -112,13 +112,34 @@ START_TEST(test_get_context_mru_cache)
     JSContext *ctx2_repeat = get_context(20);
     ck_assert_ptr_eq(ctx2, ctx2_repeat);
 
-    /* Accessing 10 should find 10 in list and update MRU */
+    /* Accessing 10 should find 10 in list/hash table and update MRU */
     JSContext *ctx1_repeat = get_context(10);
     ck_assert_ptr_eq(ctx1, ctx1_repeat);
 
     /* Repeated access to 10 should hit MRU cache */
     JSContext *ctx1_mru = get_context(10);
     ck_assert_ptr_eq(ctx1, ctx1_mru);
+}
+END_TEST
+
+START_TEST(test_get_context_hash_collision_and_many_contexts)
+{
+    /* Test creating contexts that map to the same hash bucket (e.g. 1 and 1 + 64) */
+    JSContext *c1 = get_context(1);
+    JSContext *c65 = get_context(65);
+    JSContext *c129 = get_context(129);
+
+    ck_assert_ptr_nonnull(c1);
+    ck_assert_ptr_nonnull(c65);
+    ck_assert_ptr_nonnull(c129);
+
+    ck_assert_ptr_ne(c1, c65);
+    ck_assert_ptr_ne(c65, c129);
+
+    /* Fast lookups should retrieve the correct contexts */
+    ck_assert_ptr_eq(get_context(1), c1);
+    ck_assert_ptr_eq(get_context(65), c65);
+    ck_assert_ptr_eq(get_context(129), c129);
 }
 END_TEST
 
@@ -269,6 +290,7 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_get_context_returns_existing);
     tcase_add_test(tc_core, test_get_context_creates_multiple);
     tcase_add_test(tc_core, test_get_context_mru_cache);
+    tcase_add_test(tc_core, test_get_context_hash_collision_and_many_contexts);
     tcase_add_test(tc_core, test_get_context_global_properties);
     tcase_add_test(tc_core, test_get_context_origin_propagation);
     tcase_add_test(tc_core, test_global_document_get_null_shm);
