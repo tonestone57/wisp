@@ -785,16 +785,16 @@ gadget_mouse_action(html_content *html, browser_mouse_state mouse, int x, int y,
         /* This falls through to SUBMIT */
         if (mouse & BROWSER_MOUSE_CLICK_1) {
             struct image_input_coords *coords, *oldcoords;
-            /** \todo Find a way to not ignore errors */
             coords = calloc(1, sizeof(*coords));
             if (coords == NULL) {
-                return NSERROR_OK;
+                return NSERROR_NOMEM;
             }
             coords->x = x - mas->gadget.box_x;
             coords->y = y - mas->gadget.box_y;
             if (dom_node_set_user_data(mas->gadget.control->node, corestring_dom___ns_key_image_coords_node_data,
                     coords, html__image_coords_dom_user_data_handler, &oldcoords) != DOM_NO_ERR) {
-                return NSERROR_OK;
+                free(coords);
+                return NSERROR_NOMEM;
             }
             free(oldcoords);
         }
