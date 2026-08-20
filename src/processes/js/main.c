@@ -79,22 +79,29 @@ JSValue global_document_get(JSContext *ctx, JSValueConst this_val, int argc, JSV
     return JS_UNDEFINED;
 }
 
+#define JS_CTX_HASH_SIZE 64
+
+static struct js_context_node *ctx_hash_table[JS_CTX_HASH_SIZE];
+
 JSContext* get_context(uint32_t id) {
     static struct js_context_node *last_accessed_ctx = NULL;
     if (!contexts) {
         last_accessed_ctx = NULL;
+        memset(ctx_hash_table, 0, sizeof(ctx_hash_table));
     } else if (last_accessed_ctx && last_accessed_ctx->id == id && last_accessed_ctx->ctx) {
         return last_accessed_ctx->ctx;
     }
 
-    struct js_context_node *curr = contexts;
+    uint32_t slot = id % JS_CTX_HASH_SIZE;
+    struct js_context_node *curr = ctx_hash_table[slot];
     while (curr) {
         if (curr->id == id) {
             last_accessed_ctx = curr;
             return curr->ctx;
         }
-        curr = curr->next;
+        curr = curr->hash_next;
     }
+
     struct js_context_node *node = malloc(sizeof(*node));
     if (!node) return NULL;
     struct jsthread *t = calloc(1, sizeof(*t));
@@ -105,6 +112,10 @@ JSContext* get_context(uint32_t id) {
     node->thread = NULL;
     node->next = contexts;
     contexts = node;
+
+    /* Insert at head of hash table slot chain */
+    node->hash_next = ctx_hash_table[slot];
+    ctx_hash_table[slot] = node;
 
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
@@ -301,6 +312,11 @@ int main(int argc, char **argv) {
                 JSContext *ctx = get_context(ctx_id);
                 if (!ctx) {
                     free(script_name);
+                    wisp_ipc_msg response;
+                    response.type = WISP_IPC_MSG_JS_EXEC;
+                    response.length = 0;
+                    response.data = NULL;
+                    wisp_ipc_send(ipc_main, &response);
                     wisp_ipc_msg_free(&msg);
                     continue;
                 }
@@ -425,9 +441,13 @@ int main(int argc, char **argv) {
                     } else {
                         const char *res_str = JS_ToCString(ctx, val);
                         if (res_str) {
-                            response.length = strlen(res_str);
                             response.data = (uint8_t*)strdup(res_str);
-                            if (res_str) JS_FreeCString(ctx, res_str);
+                            if (response.data) {
+                                response.length = strlen(res_str);
+                            } else {
+                                response.length = 0;
+                            }
+                            JS_FreeCString(ctx, res_str);
                         } else {
                             response.length = 0;
                             response.data = NULL;
@@ -446,6 +466,12 @@ int main(int argc, char **argv) {
                     response.data = NULL;
                     wisp_ipc_send(ipc_main, &response);
                 }
+            } else {
+                wisp_ipc_msg response;
+                response.type = WISP_IPC_MSG_JS_EXEC;
+                response.length = 0;
+                response.data = NULL;
+                wisp_ipc_send(ipc_main, &response);
             }
         }
         wisp_ipc_msg_free(&msg);
