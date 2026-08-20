@@ -122,6 +122,31 @@ START_TEST(test_cache_control_parse_flags)
 }
 END_TEST
 
+START_TEST(test_cache_control_leading_zero_and_spaces)
+{
+    nserror err;
+    http_cache_control *cc = NULL;
+
+    /* Max-age with leading zeros */
+    err = http_parse_cache_control("max-age=007200", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), true);
+    ck_assert_int_eq(http_cache_control_max_age(cc), 7200);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+
+    /* Max-age with whitespace around equals */
+    err = http_parse_cache_control("max-age = 1800", &cc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(cc);
+    ck_assert_int_eq(http_cache_control_has_max_age(cc), true);
+    ck_assert_int_eq(http_cache_control_max_age(cc), 1800);
+    http_cache_control_destroy(cc);
+    cc = NULL;
+}
+END_TEST
+
 START_TEST(test_cache_control_parse_case_insensitivity)
 {
     nserror err;
@@ -296,6 +321,7 @@ static Suite *cache_control_suite_create(void)
     tcase_add_test(tc, test_cache_control_parse_duplicates);
     tcase_add_test(tc, test_cache_control_parse_syntax_and_quoted);
     tcase_add_test(tc, test_cache_control_quoted_max_age);
+    tcase_add_test(tc, test_cache_control_leading_zero_and_spaces);
     tcase_add_test(tc, test_cache_control_invalid_max_age);
     tcase_add_test(tc, test_cache_control_malformed_headers);
     tcase_add_test(tc, test_cache_control_complex_directives);
