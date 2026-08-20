@@ -11,6 +11,7 @@
 #include "content/handlers/javascript/quickjs/qjs_internal.h"
 #include <wisp/utils/ipc.h>
 #include <wisp/utils/shm_dom.h>
+#include <wisp/utils/nsurl.h>
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
@@ -1137,6 +1138,156 @@ START_TEST(test_ipc_js_exec_shm_dom_remap_failure_safety)
 }
 END_TEST
 
+START_TEST(test_ipc_js_exec_binary_string_with_null_bytes)
+{
+    setup_ipc();
+
+    uint32_t ctx_id = 1;
+    uint32_t eval_flags = JS_EVAL_TYPE_GLOBAL;
+    uint32_t name_len = 0;
+    const char *script = "String.fromCharCode(65, 0, 66, 0, 67)"; /* 'A\0B\0C' */
+    uint32_t script_len = strlen(script);
+
+    uint32_t total_len = 12 + script_len;
+    uint8_t *data = malloc(total_len);
+    memcpy(data, &ctx_id, 4);
+    memcpy(data + 4, &eval_flags, 4);
+    memcpy(data + 8, &name_len, 4);
+    memcpy(data + 12, script, script_len);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_JS_EXEC,
+        .length = total_len,
+        .data = data
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_JS_EXEC);
+    ck_assert_int_eq(recv_msg.length, 5);
+    ck_assert_mem_eq(recv_msg.data, "A\0B\0C", 5);
+
+    wisp_ipc_msg_free(&recv_msg);
+    free(data);
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_ipc_shm_init_origin_reset_unref_location_url)
+{
+    setup_ipc();
+
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+
+    nsurl *url = NULL;
+    ck_assert_int_eq(nsurl_create("https://example.com/test", &url), NSERROR_OK);
+    t->location_url = url;
+
+    const char *shm_name = "/test_js_ipc_shm_unref_loc";
+    shm_unlink(shm_name);
+    shm_dom_t *server_shm = shm_dom_create(shm_name, 100, true);
+    ck_assert_ptr_nonnull(server_shm);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_SHM_INIT,
+        .length = strlen(shm_name),
+        .data = (uint8_t *)shm_name
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    ck_assert_ptr_null(t->origin);
+    ck_assert_ptr_null(t->location_url);
+
+    shm_dom_destroy(server_shm, NULL, false);
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_global_document_get_updates_win_priv)
+{
+    const char *shm_name = "/test_js_main_shm_win_priv";
+    shm_unlink(shm_name);
+
+    wisp_shm_dom = shm_dom_create(shm_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+    nodes[2].node_type = 9; /* DOM_DOCUMENT_NODE at index 2 */
+    wisp_shm_dom->node_count = 3;
+
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    ck_assert_ptr_nonnull(t);
+
+    JSValue doc_val = global_document_get(ctx, JS_UNDEFINED, 0, NULL);
+    JS_FreeValue(ctx, doc_val);
+
+    ck_assert_ptr_eq(t->doc_priv, (void *)(uintptr_t)2);
+    ck_assert_ptr_eq(t->win_priv, (void *)(uintptr_t)2);
+    ck_assert_ptr_eq(t->global_window_priv.node, (void *)(uintptr_t)2);
+}
+END_TEST
+
+START_TEST(test_ipc_js_exec_file_url_percent_encoded_path)
+{
+    setup_ipc();
+
+    /* Create file with space in filename */
+    const char *tmp_file = "/tmp/wisp_test%20space.js";
+    const char *real_path = "/tmp/wisp_test space.js";
+
+    FILE *f = fopen(real_path, "wb");
+    ck_assert_ptr_nonnull(f);
+    const char *js_code = "10 * 10;";
+    fwrite(js_code, 1, strlen(js_code), f);
+    fclose(f);
+
+    char file_url[512];
+    snprintf(file_url, sizeof(file_url), "file://%s", tmp_file);
+
+    uint32_t ctx_id = 1;
+    uint32_t eval_flags = JS_EVAL_TYPE_GLOBAL;
+    uint32_t name_len = 0;
+    uint32_t script_len = strlen(file_url);
+
+    uint32_t total_len = 12 + script_len;
+    uint8_t *data = malloc(total_len);
+    memcpy(data, &ctx_id, 4);
+    memcpy(data + 4, &eval_flags, 4);
+    memcpy(data + 8, &name_len, 4);
+    memcpy(data + 12, file_url, script_len);
+
+    wisp_ipc_msg msg = {
+        .type = WISP_IPC_MSG_JS_EXEC,
+        .length = total_len,
+        .data = data
+    };
+
+    js_process_handle_ipc_msg(&msg);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_JS_EXEC);
+    ck_assert_int_eq(recv_msg.length, 3);
+    ck_assert_mem_eq(recv_msg.data, "100", 3);
+
+    unlink(real_path);
+    wisp_ipc_msg_free(&recv_msg);
+    free(data);
+    teardown_ipc();
+}
+END_TEST
+
 Suite *js_main_suite(void)
 {
     Suite *s;
@@ -1183,6 +1334,10 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_get_context_calloc_zero_init);
     tcase_add_test(tc_core, test_ipc_js_exec_idle_microtask_error);
     tcase_add_test(tc_core, test_ipc_js_exec_shm_dom_remap_failure_safety);
+    tcase_add_test(tc_core, test_ipc_js_exec_binary_string_with_null_bytes);
+    tcase_add_test(tc_core, test_ipc_shm_init_origin_reset_unref_location_url);
+    tcase_add_test(tc_core, test_global_document_get_updates_win_priv);
+    tcase_add_test(tc_core, test_ipc_js_exec_file_url_percent_encoded_path);
     suite_add_tcase(s, tc_core);
 
     return s;
