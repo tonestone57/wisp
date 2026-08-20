@@ -65,10 +65,6 @@
 #include <blend2d/blend2d.h>
 #endif
 
-
-/** \todo QUERY - Remove this import later */
-#include "desktop/browser_private.h"
-
 /** speculative pre-conversion small image size
  *
  * Experimenting by visiting every page from default page in order and
