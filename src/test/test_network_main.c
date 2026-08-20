@@ -958,6 +958,47 @@ START_TEST(test_network_process_ipc_msg_null)
 }
 END_TEST
 
+START_TEST(test_ipc_msg_fetch_request_hash_insertion)
+{
+    setup_ipc();
+    corestrings_init();
+    nsoption_init(NULL, NULL, NULL);
+    fetcher_init();
+
+    active_fetches_list = NULL;
+    memset(active_fetches_hash, 0, sizeof(active_fetches_hash));
+
+    const char *url_str = "http://example.com/test";
+    uint32_t fetch_id = 999;
+    uint32_t url_len = strlen(url_str);
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_FETCH_REQUEST;
+    msg.length = 8 + url_len + 2;
+    msg.data = calloc(1, msg.length);
+    ck_assert_ptr_nonnull(msg.data);
+    memcpy(msg.data, &fetch_id, 4);
+    memcpy(msg.data + 4, &url_len, 4);
+    memcpy(msg.data + 8, url_str, url_len);
+
+    network_process_ipc_msg(&msg);
+    free(msg.data);
+
+    ck_assert_ptr_nonnull(active_fetches_list);
+    ck_assert_int_eq(active_fetches_list->fetch_id, 999);
+    ck_assert_int_eq(is_active_fetch(active_fetches_list), true);
+
+    /* Verify it is present in active_fetches_hash */
+    unsigned int h_idx = hash_fetch_info(active_fetches_list);
+    ck_assert_ptr_nonnull(active_fetches_hash[h_idx]);
+    ck_assert_ptr_eq(active_fetches_hash[h_idx], active_fetches_list);
+
+    free_all_active_fetches();
+    fetcher_quit();
+    corestrings_fini();
+    teardown_ipc();
+}
+END_TEST
+
 static Suite *network_main_suite(void)
 {
     Suite *s;
@@ -990,6 +1031,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_fetch_callback_null_buffers);
     tcase_add_test(tc_core, test_fetch_ipc_abort_msg);
     tcase_add_test(tc_core, test_network_process_ipc_msg_null);
+    tcase_add_test(tc_core, test_ipc_msg_fetch_request_hash_insertion);
 
     suite_add_tcase(s, tc_core);
 
