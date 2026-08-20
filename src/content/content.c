@@ -135,10 +135,9 @@ static nserror content_llcache_callback(llcache_handle *llcache, const llcache_e
         content_convert(c);
     } break;
     case LLCACHE_EVENT_ERROR:
-        /** \todo Error page? */
         c->status = CONTENT_STATUS_ERROR;
         NSLOG(wisp, INFO, "LLCACHE_EVENT_ERROR in content. Code: %d, Msg: %s", event->data.error.code,
-            event->data.error.msg);
+            event->data.error.msg ? event->data.error.msg : "NULL");
         msg_data.errordata.errorcode = event->data.error.code;
         /* DEBUG: Log if we see NSERROR_OK here, because this is where
          * "Fetch error: OK" likely originates. */
@@ -146,7 +145,8 @@ static nserror content_llcache_callback(llcache_handle *llcache, const llcache_e
             NSLOG(wisp, ERROR, "CONTENT_LLCACHE_CALLBACK: Received LLCACHE_EVENT_ERROR with NSERROR_OK from llcache %p",
                 llcache);
         }
-        msg_data.errordata.errormsg = event->data.error.msg;
+        msg_data.errordata.errormsg = event->data.error.msg != NULL ?
+            event->data.error.msg : messages_get_errorcode(event->data.error.code);
         content_broadcast(c, CONTENT_MSG_ERROR, &msg_data);
         break;
     case LLCACHE_EVENT_PROGRESS:
