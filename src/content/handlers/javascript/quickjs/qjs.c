@@ -4408,7 +4408,9 @@ void js_destroythread(jsthread *thread)
         if (current_thread_shm == thread->shm_dom) {
             current_thread_shm = NULL;
         }
-        shm_dom_destroy(thread->shm_dom, thread->shm_dom_name, true);
+        if (!wisp_is_js_process) {
+            shm_dom_destroy(thread->shm_dom, thread->shm_dom_name, true);
+        }
     }
     free(thread);
 }
