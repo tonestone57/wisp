@@ -24,8 +24,16 @@
 #ifndef WISP_HTML_TEXTSELECTION_H
 #define WISP_HTML_TEXTSELECTION_H
 
+#include <stdbool.h>
+#include <stddef.h>
+#include <wisp/desktop/save_text.h>
+
 struct content;
 struct selection;
+struct box;
+
+void save_text_solve_whitespace(struct box *box, bool *first, save_text_whitespace *before,
+    const char **whitespace_text, size_t *whitespace_length);
 
 nserror html_textselection_redraw(struct content *c, unsigned start_idx, unsigned end_idx);
 
