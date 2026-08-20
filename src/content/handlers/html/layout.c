@@ -1195,12 +1195,7 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 
 	if (block->object) {
 		if (content_get_type(block->object) == CONTENT_HTML) {
-			html_content *obj_c = (html_content *)hlcache_handle_get_content(block->object);
-			if (obj_c != NULL && obj_c->layout != NULL) {
-				layout_minmax_block(obj_c->layout, font_func, content);
-				min = obj_c->layout->min_width.value;
-				max = obj_c->layout->max_width;
-			}
+			html_get_minmax_width(block->object, font_func, content, &min, &max);
 		} else {
 			/* Use constrained intrinsic width, respecting
 			 * max-height/max-width via aspect-ratio scaling */
@@ -1557,6 +1552,20 @@ void layout_minmax_box(struct box *box, const struct gui_layout_table *font_func
 	}
 }
 
+/* Exported interface documented in layout.h */
+bool html_get_minmax_width(struct hlcache_handle *h, const struct gui_layout_table *font_func,
+	const html_content *content, int *min, int *max)
+{
+	html_content *c = (html_content *)hlcache_handle_get_content(h);
+
+	if (c == NULL || c->layout == NULL)
+		return false;
+
+	layout_minmax_block(c->layout, font_func, content);
+	if (min) *min = c->layout->min_width.value;
+	if (max) *max = c->layout->max_width;
+	return true;
+}
 
 /**
  * Check if a box is out of normal flow (absolute or fixed positioned).

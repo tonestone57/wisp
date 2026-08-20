@@ -539,6 +539,11 @@ struct box {
 	int computed_num_cols;
 };
 
+#include <wisp/desktop/save_text.h>
+
+void save_text_solve_whitespace(struct box *box, bool *first, save_text_whitespace *before,
+    const char **whitespace_text, size_t *whitespace_length);
+
 void wisp_transition_stop_for_box(struct box *box);
 
 

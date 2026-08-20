@@ -33,6 +33,20 @@
 struct box;
 struct html_content;
 struct gui_layout_table;
+struct hlcache_handle;
+
+/**
+ * Calculate minimum and maximum width of an HTML object content.
+ *
+ * \param h         HTML object handle
+ * \param font_func Font layout table
+ * \param content   Containing HTML content
+ * \param min       Updated to minimum width
+ * \param max       Updated to maximum width
+ * \return true on success
+ */
+bool html_get_minmax_width(struct hlcache_handle *h, const struct gui_layout_table *font_func,
+    const struct html_content *content, int *min, int *max);
 
 /**
  * Calculate positions of boxes in a document.
