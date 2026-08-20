@@ -2590,8 +2590,8 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
             }
             if (caret == ta->show->len - 1)
                 break;
-            if (strchr(sep, ta->show->data[caret]) != NULL && caret < ta->show->len - 1) {
-                while (strchr(sep, ta->show->data[caret]) != NULL && caret < ta->show->len - 1) {
+            if (caret < ta->show->len - 1 && strchr(sep, ta->show->data[caret]) != NULL) {
+                while (caret < ta->show->len - 1 && strchr(sep, ta->show->data[caret]) != NULL) {
                     caret++;
                 }
                 break;
@@ -2600,7 +2600,7 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
                 if (strchr(sep, ta->show->data[caret]) != NULL)
                     break;
             }
-            while (strchr(sep, ta->show->data[caret]) != NULL && caret < ta->show->len - 1)
+            while (caret < ta->show->len - 1 && strchr(sep, ta->show->data[caret]) != NULL)
                 caret++;
             break;
         case NS_KEY_DELETE_WORD_RIGHT:
@@ -2623,7 +2623,7 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
 
             /* caret_copy goes right until a non-separator is
              * encountered */
-            while (strchr(sep, ta->show->data[caret_copy]) != NULL && caret_copy < ta->show->len - 1)
+            while (caret_copy < ta->show->len - 1 && strchr(sep, ta->show->data[caret_copy]) != NULL)
                 caret_copy++;
 
             /* caret_copy goes right until a separator is

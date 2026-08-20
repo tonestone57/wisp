@@ -1227,6 +1227,10 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
 
     /* Flat concurrent-write results array */
     css_select_results **out_styles = calloc(count, sizeof(css_select_results *));
+    if (out_styles == NULL) {
+        free_style_snapshot(snap_root);
+        return;
+    }
 
     struct wisp_wait_group wg;
     wisp_wait_group_init(&wg, count);
