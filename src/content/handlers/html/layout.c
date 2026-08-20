@@ -1195,9 +1195,12 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 
 	if (block->object) {
 		if (content_get_type(block->object) == CONTENT_HTML) {
-			layout_minmax_block(html_get_box_tree(block->object), font_func, content);
-			min = html_get_box_tree(block->object)->min_width.value;
-			max = html_get_box_tree(block->object)->max_width;
+			html_content *obj_c = (html_content *)hlcache_handle_get_content(block->object);
+			if (obj_c != NULL && obj_c->layout != NULL) {
+				layout_minmax_block(obj_c->layout, font_func, content);
+				min = obj_c->layout->min_width.value;
+				max = obj_c->layout->max_width;
+			}
 		} else {
 			/* Use constrained intrinsic width, respecting
 			 * max-height/max-width via aspect-ratio scaling */

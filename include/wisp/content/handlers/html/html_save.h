@@ -27,16 +27,23 @@
 #ifndef WISP_HTML_HTML_SAVE_H
 #define WISP_HTML_HTML_SAVE_H
 
+#include <stdbool.h>
+#include <wisp/desktop/save_text.h>
+
+struct dom_document;
+struct hlcache_handle;
+struct nsurl;
+
 /**
  * get the dom document of a html content from a handle
  */
 dom_document *html_get_document(struct hlcache_handle *h);
 
-
 /**
- * get the render box tree of a html content from a handle
+ * extract text representation from an html content handle
  */
-struct box *html_get_box_tree(struct hlcache_handle *h);
+void html_extract_text(struct hlcache_handle *h, bool *first,
+		save_text_whitespace *before, struct save_text_state *save);
 
 /**
  * get the base url of an html content from a handle
