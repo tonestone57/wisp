@@ -22,7 +22,6 @@
  * GTK and Cairo plotter implementations.
  *
  * Uses Cairo drawing primitives to render browser output.
- * \todo remove the use of the gdk structure for clipping
  */
 
 #include <gdk/gdk.h>
@@ -46,7 +45,7 @@
 
 cairo_t *current_cr;
 
-static GdkRectangle cliprect;
+static struct rect cliprect;
 
 /**
  * Set cairo context colour to nsgtk colour.
@@ -118,10 +117,7 @@ static nserror nsgtk_plot_clip(const struct redraw_context *ctx, const struct re
     cairo_rectangle(current_cr, clip->x0, clip->y0, clip->x1 - clip->x0, clip->y1 - clip->y0);
     cairo_clip(current_cr);
 
-    cliprect.x = clip->x0;
-    cliprect.y = clip->y0;
-    cliprect.width = clip->x1 - clip->x0;
-    cliprect.height = clip->y1 - clip->y0;
+    cliprect = *clip;
 
     return NSERROR_OK;
 }
@@ -497,7 +493,7 @@ static nserror nsgtk_plot_bitmap(const struct redraw_context *ctx, struct bitmap
 {
     bool repeat_x = (flags & BITMAPF_REPEAT_X);
     bool repeat_y = (flags & BITMAPF_REPEAT_Y);
-    GdkRectangle cliprect_bitmap;
+    struct rect cliprect_bitmap;
     cairo_surface_t *img_surface;
     int img_width, img_height;
 
@@ -512,26 +508,24 @@ static nserror nsgtk_plot_bitmap(const struct redraw_context *ctx, struct bitmap
 
     /* Constrain bitmap plot rectangle for any lack of tiling */
     if (!repeat_x) {
-        if (cliprect_bitmap.width > width) {
-            cliprect_bitmap.width = width;
+        if (cliprect_bitmap.x1 > x + width) {
+            cliprect_bitmap.x1 = x + width;
         }
-        if (cliprect_bitmap.x < x) {
-            cliprect_bitmap.x = x;
-            cliprect_bitmap.width -= x - cliprect_bitmap.x;
+        if (cliprect_bitmap.x0 < x) {
+            cliprect_bitmap.x0 = x;
         }
     }
     if (!repeat_y) {
-        if (cliprect_bitmap.height > height) {
-            cliprect_bitmap.height = height;
+        if (cliprect_bitmap.y1 > y + height) {
+            cliprect_bitmap.y1 = y + height;
         }
-        if (cliprect_bitmap.y < y) {
-            cliprect_bitmap.y = y;
-            cliprect_bitmap.height -= y - cliprect_bitmap.y;
+        if (cliprect_bitmap.y0 < y) {
+            cliprect_bitmap.y0 = y;
         }
     }
 
     /* Bail early if we can */
-    if (cliprect_bitmap.width <= 0 || cliprect_bitmap.height <= 0) {
+    if (cliprect_bitmap.x1 <= cliprect_bitmap.x0 || cliprect_bitmap.y1 <= cliprect_bitmap.y0) {
         /* Nothing to plot */
         return NSERROR_OK;
     }
@@ -552,8 +546,8 @@ static nserror nsgtk_plot_bitmap(const struct redraw_context *ctx, struct bitmap
         }
 
         /* Render the bitmap */
-        cairo_rectangle(
-            current_cr, cliprect_bitmap.x, cliprect_bitmap.y, cliprect_bitmap.width, cliprect_bitmap.height);
+        cairo_rectangle(current_cr, cliprect_bitmap.x0, cliprect_bitmap.y0,
+            cliprect_bitmap.x1 - cliprect_bitmap.x0, cliprect_bitmap.y1 - cliprect_bitmap.y0);
         cairo_fill(current_cr);
     } else {
         /* Scaled rendering */
@@ -576,8 +570,9 @@ static nserror nsgtk_plot_bitmap(const struct redraw_context *ctx, struct bitmap
         }
 
         /* Render the bitmap */
-        cairo_rectangle(current_cr, cliprect_bitmap.x / scale_x, cliprect_bitmap.y / scale_y,
-            cliprect_bitmap.width / scale_x, cliprect_bitmap.height / scale_y);
+        cairo_rectangle(current_cr, cliprect_bitmap.x0 / scale_x, cliprect_bitmap.y0 / scale_y,
+            (cliprect_bitmap.x1 - cliprect_bitmap.x0) / scale_x,
+            (cliprect_bitmap.y1 - cliprect_bitmap.y0) / scale_y);
         cairo_fill(current_cr);
 
         /* Restore pre-scaling cairo rendering state */
