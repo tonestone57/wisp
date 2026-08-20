@@ -30,9 +30,31 @@ struct network_fetch_info {
     struct fetch *fetchh;
     bool finished;
     struct network_fetch_info *next;
+    struct network_fetch_info *hash_next;
 };
 
 static struct network_fetch_info *active_fetches_list = NULL;
+
+#define ACTIVE_FETCH_HASH_SIZE 64
+static struct network_fetch_info *active_fetches_hash[ACTIVE_FETCH_HASH_SIZE];
+
+static inline unsigned int hash_fetch_info(const struct network_fetch_info *info) {
+    uintptr_t ptr = (uintptr_t)info;
+    return (unsigned int)((ptr ^ (ptr >> 6)) % ACTIVE_FETCH_HASH_SIZE);
+}
+
+static void remove_active_fetch_hash(struct network_fetch_info *info) {
+    if (!info) return;
+    unsigned int idx = hash_fetch_info(info);
+    struct network_fetch_info **curr = &active_fetches_hash[idx];
+    while (*curr) {
+        if (*curr == info) {
+            *curr = info->hash_next;
+            break;
+        }
+        curr = &(*curr)->hash_next;
+    }
+}
 
 static void send_fetch_error(uint32_t fetch_id, const char *err_msg) {
     if (!err_msg) err_msg = "UnknownError";
@@ -54,7 +76,17 @@ static void send_fetch_error(uint32_t fetch_id, const char *err_msg) {
 }
 
 static bool is_active_fetch(struct network_fetch_info *info) {
-    struct network_fetch_info *curr = active_fetches_list;
+    if (!info) return false;
+    unsigned int idx = hash_fetch_info(info);
+    struct network_fetch_info *curr = active_fetches_hash[idx];
+    while (curr) {
+        if (curr == info) {
+            return true;
+        }
+        curr = curr->hash_next;
+    }
+    /* Fallback scan in case active_fetches_list was assigned directly */
+    curr = active_fetches_list;
     while (curr) {
         if (curr == info) {
             return true;
@@ -70,6 +102,7 @@ static void cleanup_finished_fetches(void) {
         struct network_fetch_info *entry = *curr;
         if (entry->finished) {
             *curr = entry->next;
+            remove_active_fetch_hash(entry);
             free(entry);
         } else {
             curr = &entry->next;
@@ -80,6 +113,7 @@ static void cleanup_finished_fetches(void) {
 static void free_all_active_fetches(void) {
     struct network_fetch_info *curr = active_fetches_list;
     active_fetches_list = NULL;
+    memset(active_fetches_hash, 0, sizeof(active_fetches_hash));
     while (curr != NULL) {
         struct network_fetch_info *next = curr->next;
         curr->finished = true;
@@ -230,34 +264,27 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
 static const char *default_filetype(const char *unix_path) {
     if (!unix_path) return "text/plain";
 
-    /* Find base path without query (?) or fragment (#) */
-    const char *qmark = strchr(unix_path, '?');
-    const char *hash = strchr(unix_path, '#');
-    size_t path_len = strlen(unix_path);
-    if (qmark && (size_t)(qmark - unix_path) < path_len) {
-        path_len = qmark - unix_path;
-    }
-    if (hash && (size_t)(hash - unix_path) < path_len) {
-        path_len = hash - unix_path;
-    }
+    /* Find base path length without query (?) or fragment (#) */
+    size_t path_len = strcspn(unix_path, "?#");
 
     /* Extract dot extension within path_len */
     const char *ext = NULL;
     for (size_t i = path_len; i > 0; i--) {
-        if (unix_path[i - 1] == '.') {
+        char c = unix_path[i - 1];
+        if (c == '.') {
             ext = &unix_path[i - 1];
             break;
         }
-        if (unix_path[i - 1] == '/' || unix_path[i - 1] == '\\') {
+        if (c == '/' || c == '\\') {
             break;
         }
     }
 
     if (!ext) return "text/plain";
 
-    size_t ext_len = path_len - (ext - unix_path);
+    size_t ext_len = path_len - (size_t)(ext - unix_path);
     char ext_buf[16];
-    if (ext_len >= sizeof(ext_buf)) return "text/plain";
+    if (ext_len == 0 || ext_len >= sizeof(ext_buf)) return "text/plain";
 
     for (size_t i = 0; i < ext_len; i++) {
         ext_buf[i] = (char)tolower((unsigned char)ext[i]);
@@ -362,7 +389,12 @@ int main(int argc, char **argv) {
                                 info->fetchh = NULL;
                                 info->finished = false;
                                 info->next = active_fetches_list;
+                                info->hash_next = NULL;
                                 active_fetches_list = info;
+                                unsigned int h_idx = hash_fetch_info(info);
+                                info->hash_next = active_fetches_hash[h_idx];
+                                active_fetches_hash[h_idx] = info;
+
                                 struct fetch *f_out = NULL;
                                 if (fetch_start(url, NULL, network_process_fetch_callback, info,
                                                 only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
@@ -377,6 +409,7 @@ int main(int argc, char **argv) {
                                         }
                                         pcurr = &(*pcurr)->next;
                                     }
+                                    remove_active_fetch_hash(info);
                                     send_fetch_error(fetch_id, "Blocked");
                                     free(info);
                                 }
