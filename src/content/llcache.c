@@ -190,8 +190,13 @@ struct llcache_object {
                                * candidate for
                                */
 
+#define LLCACHE_HEADER_KEY_COUNT 7
+
     llcache_header *headers; /**< Fetch headers */
     size_t num_headers; /**< Number of fetch headers */
+
+    llcache_header_value parsed_headers[LLCACHE_HEADER_KEY_COUNT];
+    bool parsed_headers_valid[LLCACHE_HEADER_KEY_COUNT];
 
     /* Instrumentation. These elements are strictly for information
      * to improve the cache performance and to provide performance
@@ -674,6 +679,29 @@ static nserror llcache_fetch_header_cache_control(llcache_object *object, char *
  *
  * \param object The object to destroy headers within.
  */
+static void llcache_free_parsed_headers(llcache_object *object)
+{
+    size_t k;
+    for (k = 0; k < LLCACHE_HEADER_KEY_COUNT; k++) {
+        if (object->parsed_headers_valid[k]) {
+            llcache_header_value *hv = &object->parsed_headers[k];
+            for (size_t i = 0; i < hv->count; i++) {
+                free(hv->entries[i].raw_value);
+                free(hv->entries[i].value);
+                for (size_t j = 0; j < hv->entries[i].num_params; j++) {
+                    free(hv->entries[i].params[j].key);
+                    free(hv->entries[i].params[j].value);
+                }
+                free(hv->entries[i].params);
+            }
+            free(hv->entries);
+            hv->entries = NULL;
+            hv->count = 0;
+            object->parsed_headers_valid[k] = false;
+        }
+    }
+}
+
 static inline void llcache_destroy_headers(llcache_object *object)
 {
     while (object->num_headers > 0) {
@@ -684,6 +712,7 @@ static inline void llcache_destroy_headers(llcache_object *object)
     }
     free(object->headers);
     object->headers = NULL;
+    llcache_free_parsed_headers(object);
 }
 
 /**
@@ -1073,11 +1102,7 @@ static nserror llcache_object_destroy(llcache_object *object)
 
     free(object->cache.etag);
 
-    for (i = 0; i < object->num_headers; i++) {
-        free(object->headers[i].name);
-        free(object->headers[i].value);
-    }
-    free(object->headers);
+    llcache_destroy_headers(object);
 
     free(object);
 
@@ -4086,15 +4111,121 @@ const uint8_t *llcache_handle_get_source_data(const llcache_handle *handle, size
     return NULL;
 }
 
-/* See llcache.h for documentation */
-const char *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key)
+static char *llcache_trim_whitespace(const char *str, size_t len)
 {
-    const llcache_object *object;
-    const char *header_name;
-    size_t i;
-
-    if (handle == NULL || handle->object == NULL)
+    while (len > 0 && (str[0] == ' ' || str[0] == '\t' || str[0] == '\r' || str[0] == '\n')) {
+        str++;
+        len--;
+    }
+    while (len > 0 && (str[len - 1] == ' ' || str[len - 1] == '\t' || str[len - 1] == '\r' || str[len - 1] == '\n')) {
+        len--;
+    }
+    char *res = malloc(len + 1);
+    if (res == NULL)
         return NULL;
+    memcpy(res, str, len);
+    res[len] = '\0';
+    return res;
+}
+
+static void llcache_parse_single_header_entry(const char *raw_str, llcache_header_entry *entry)
+{
+    memset(entry, 0, sizeof(*entry));
+    entry->raw_value = strdup(raw_str ? raw_str : "");
+
+    if (raw_str == NULL) {
+        entry->value = strdup("");
+        return;
+    }
+
+    const char *semicolon = strchr(raw_str, ';');
+    if (semicolon == NULL) {
+        entry->value = llcache_trim_whitespace(raw_str, strlen(raw_str));
+        entry->num_params = 0;
+        entry->params = NULL;
+        return;
+    }
+
+    entry->value = llcache_trim_whitespace(raw_str, semicolon - raw_str);
+
+    const char *pos = semicolon + 1;
+    size_t param_cap = 0;
+
+    while (*pos != '\0') {
+        const char *next_semi = strchr(pos, ';');
+        size_t part_len = next_semi ? (size_t)(next_semi - pos) : strlen(pos);
+
+        const char *part_start = pos;
+        while (part_len > 0 && (*part_start == ' ' || *part_start == '\t' || *part_start == '\r' || *part_start == '\n')) {
+            part_start++;
+            part_len--;
+        }
+        while (part_len > 0 && (part_start[part_len - 1] == ' ' || part_start[part_len - 1] == '\t' || part_start[part_len - 1] == '\r' || part_start[part_len - 1] == '\n')) {
+            part_len--;
+        }
+
+        if (part_len > 0) {
+            char *key_str = NULL;
+            char *val_str = NULL;
+            const char *eq = memchr(part_start, '=', part_len);
+
+            if (eq != NULL) {
+                size_t klen = eq - part_start;
+                size_t vlen = (part_start + part_len) - (eq + 1);
+                key_str = llcache_trim_whitespace(part_start, klen);
+
+                const char *vstart = eq + 1;
+                while (vlen > 0 && (*vstart == ' ' || *vstart == '\t' || *vstart == '\r' || *vstart == '\n')) {
+                    vstart++;
+                    vlen--;
+                }
+                while (vlen > 0 && (vstart[vlen - 1] == ' ' || vstart[vlen - 1] == '\t' || vstart[vlen - 1] == '\r' || vstart[vlen - 1] == '\n')) {
+                    vlen--;
+                }
+
+                if (vlen >= 2 && vstart[0] == '"' && vstart[vlen - 1] == '"') {
+                    vstart++;
+                    vlen -= 2;
+                }
+                val_str = llcache_trim_whitespace(vstart, vlen);
+            } else {
+                key_str = llcache_trim_whitespace(part_start, part_len);
+                val_str = strdup("");
+            }
+
+            if (key_str != NULL && val_str != NULL) {
+                if (entry->num_params >= param_cap) {
+                    size_t new_cap = param_cap == 0 ? 4 : param_cap * 2;
+                    llcache_header_param *new_p = realloc(entry->params, new_cap * sizeof(llcache_header_param));
+                    if (new_p != NULL) {
+                        entry->params = new_p;
+                        param_cap = new_cap;
+                    }
+                }
+                if (entry->num_params < param_cap) {
+                    entry->params[entry->num_params].key = key_str;
+                    entry->params[entry->num_params].value = val_str;
+                    entry->num_params++;
+                } else {
+                    free(key_str);
+                    free(val_str);
+                }
+            } else {
+                free(key_str);
+                free(val_str);
+            }
+        }
+
+        if (next_semi == NULL)
+            break;
+        pos = next_semi + 1;
+    }
+}
+
+static void llcache_parse_header_key(llcache_object *object, enum llcache_header_key key)
+{
+    const char *header_name;
+    size_t i, match_count = 0;
 
     switch (key) {
     case LLCACHE_HEADER_CONTENT_TYPE:
@@ -4119,17 +4250,67 @@ const char *llcache_handle_get_header(const llcache_handle *handle, enum llcache
         header_name = "Cross-Origin-Embedder-Policy";
         break;
     default:
-        return NULL;
+        object->parsed_headers[key].count = 0;
+        object->parsed_headers[key].entries = NULL;
+        object->parsed_headers_valid[key] = true;
+        return;
     }
+
+    for (i = 0; i < object->num_headers; i++) {
+        if (object->headers[i].name != NULL && strcasecmp(header_name, object->headers[i].name) == 0) {
+            match_count++;
+        }
+    }
+
+    if (match_count == 0) {
+        object->parsed_headers[key].count = 0;
+        object->parsed_headers[key].entries = NULL;
+        object->parsed_headers_valid[key] = true;
+        return;
+    }
+
+    llcache_header_entry *entries = calloc(match_count, sizeof(llcache_header_entry));
+    if (entries == NULL) {
+        object->parsed_headers[key].count = 0;
+        object->parsed_headers[key].entries = NULL;
+        object->parsed_headers_valid[key] = true;
+        return;
+    }
+
+    size_t idx = 0;
+    for (i = 0; i < object->num_headers; i++) {
+        if (object->headers[i].name != NULL && strcasecmp(header_name, object->headers[i].name) == 0) {
+            llcache_parse_single_header_entry(object->headers[i].value, &entries[idx]);
+            idx++;
+        }
+    }
+
+    object->parsed_headers[key].count = match_count;
+    object->parsed_headers[key].entries = entries;
+    object->parsed_headers_valid[key] = true;
+}
+
+/* See llcache.h for documentation */
+const llcache_header_value *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key)
+{
+    llcache_object *object;
+
+    if (handle == NULL || handle->object == NULL)
+        return NULL;
+
+    if ((int)key < 0 || key >= LLCACHE_HEADER_KEY_COUNT)
+        return NULL;
 
     object = handle->object;
 
-    for (i = 0; i < object->num_headers; i++) {
-        if (strcasecmp(header_name, object->headers[i].name) == 0)
-            return object->headers[i].value;
+    if (!object->parsed_headers_valid[key]) {
+        llcache_parse_header_key(object, key);
     }
 
-    return NULL;
+    if (object->parsed_headers[key].count == 0)
+        return NULL;
+
+    return &object->parsed_headers[key];
 }
 
 nsurl *llcache_handle_get_referer(const llcache_handle *handle)

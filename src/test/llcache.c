@@ -307,6 +307,41 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /* Test header parsing and parameter extraction */
+    {
+        nsurl *turl;
+        llcache_handle *th;
+        bool tdone = false;
+
+        if (nsurl_create("wisp-inline://test-header", &turl) == NSERROR_OK) {
+            error = llcache_handle_retrieve_buffer(turl, (const uint8_t *)"test", 4,
+                "text/html; charset=utf-8; foo=\"bar baz\"", event_handler, &tdone, &th);
+            if (error == NSERROR_OK) {
+                const llcache_header_value *hdr = llcache_handle_get_header(th, LLCACHE_HEADER_CONTENT_TYPE);
+                if (hdr != NULL && hdr->count == 1 &&
+                    strcmp(hdr->entries[0].value, "text/html") == 0 &&
+                    hdr->entries[0].num_params == 2 &&
+                    strcmp(hdr->entries[0].params[0].key, "charset") == 0 &&
+                    strcmp(hdr->entries[0].params[0].value, "utf-8") == 0 &&
+                    strcmp(hdr->entries[0].params[1].key, "foo") == 0 &&
+                    strcmp(hdr->entries[0].params[1].value, "bar baz") == 0) {
+                    fprintf(stdout, "llcache_handle_get_header test PASSED\n");
+                } else {
+                    fprintf(stderr, "llcache_handle_get_header test FAILED\n");
+                    return 1;
+                }
+
+                if (llcache_handle_get_header(th, LLCACHE_HEADER_CONTENT_DISPOSITION) != NULL) {
+                    fprintf(stderr, "llcache_handle_get_header missing header test FAILED\n");
+                    return 1;
+                }
+
+                llcache_handle_release(th);
+            }
+            nsurl_unref(turl);
+        }
+    }
+
     if (nsurl_create("http://www.wispbrowser.com", &url) != NSERROR_OK) {
         fprintf(stderr, "Failed creating url\n");
         return 1;

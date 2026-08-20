@@ -444,6 +444,14 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
  * \param pw	  Pointer to client-specific data
  * \return NSERROR_OK on success, appropriate error otherwise
  */
+static const char *hlcache_get_content_type_raw(const llcache_handle *handle)
+{
+    const llcache_header_value *hdr = llcache_handle_get_header(handle, LLCACHE_HEADER_CONTENT_TYPE);
+    if (hdr != NULL && hdr->count > 0)
+        return hdr->entries[0].raw_value;
+    return NULL;
+}
+
 static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_event *event, void *pw)
 {
     hlcache_retrieval_ctx *ctx = pw;
@@ -465,7 +473,7 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
         }
         break;
     case LLCACHE_EVENT_HAD_HEADERS:
-        error = mimesniff_compute_effective_type(llcache_handle_get_header(handle, LLCACHE_HEADER_CONTENT_TYPE), NULL, 0,
+        error = mimesniff_compute_effective_type(hlcache_get_content_type_raw(handle), NULL, 0,
             ctx->flags & HLCACHE_RETRIEVE_SNIFF_TYPE, ctx->accepted_types == CONTENT_IMAGE, &effective_type);
         if (error == NSERROR_OK || error == NSERROR_NOT_FOUND) {
             /* If the sniffer was successful or failed to find
@@ -486,7 +494,7 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
 
         break;
     case LLCACHE_EVENT_HAD_DATA:
-        error = mimesniff_compute_effective_type(llcache_handle_get_header(handle, LLCACHE_HEADER_CONTENT_TYPE),
+        error = mimesniff_compute_effective_type(hlcache_get_content_type_raw(handle),
             event->data.data.buf, event->data.data.len, ctx->flags & HLCACHE_RETRIEVE_SNIFF_TYPE,
             ctx->accepted_types == CONTENT_IMAGE, &effective_type);
         if (error != NSERROR_OK) {
@@ -504,7 +512,7 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
         /* DONE event before we could determine the effective MIME type.
          */
         error = mimesniff_compute_effective_type(
-            llcache_handle_get_header(handle, LLCACHE_HEADER_CONTENT_TYPE), NULL, 0, false, false, &effective_type);
+            hlcache_get_content_type_raw(handle), NULL, 0, false, false, &effective_type);
         if (error == NSERROR_OK || error == NSERROR_NOT_FOUND) {
             error = hlcache_migrate_ctx(ctx, effective_type);
 

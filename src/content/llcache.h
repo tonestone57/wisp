@@ -268,19 +268,34 @@ typedef enum llcache_header_key {
     LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY
 } llcache_header_key;
 
+/** Parameter key-value pair attached to a header value */
+typedef struct llcache_header_param {
+    char *key;   /**< Parameter key name */
+    char *value; /**< Parameter value string */
+} llcache_header_param;
+
+/** Representation of a single parsed header entry */
+typedef struct llcache_header_entry {
+    char *raw_value;              /**< Full raw header value string */
+    char *value;                  /**< Main value part before any ';' parameters */
+    size_t num_params;            /**< Number of parameters */
+    llcache_header_param *params; /**< Array of key-value parameter pairs */
+} llcache_header_entry;
+
+/** Representation of parsed headers for a given header key */
+typedef struct llcache_header_value {
+    size_t count;                 /**< Number of matching headers */
+    llcache_header_entry *entries;/**< Array of parsed header entries */
+} llcache_header_value;
+
 /**
- * Retrieve a header value associated with a low-level cache object
+ * Retrieve parsed header value(s) associated with a low-level cache object
  *
  * \param handle  Handle to retrieve header from
  * \param key     Header key enum
- * \return Header value, or NULL if header does not exist
- *
- * \todo Forcing the client to parse the header value seems wrong.
- *       Better would be to return the actual value part and an array of
- *       key-value pairs for any additional parameters.
- * \todo Deal with multiple headers of the same key (e.g. Set-Cookie)
+ * \return Pointer to parsed header value structure, or NULL if header does not exist
  */
-const char *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key);
+const llcache_header_value *llcache_handle_get_header(const llcache_handle *handle, enum llcache_header_key key);
 
 /**
  * Determine if the same underlying object is referenced by the given handles

@@ -92,56 +92,43 @@ static char *download_default_filename(nsurl *url)
  */
 static nserror download_context_process_headers(download_context *ctx)
 {
-    const char *http_header;
-    http_content_type *content_type;
-    unsigned long long int length;
-    nserror error;
+    const llcache_header_value *hdr;
+    const char *mime_str = "text/plain";
+    unsigned long long int length = 0;
+    lwc_string *imime;
 
-    /* Retrieve and parse Content-Type */
-    http_header = llcache_handle_get_header(ctx->llcache, LLCACHE_HEADER_CONTENT_TYPE);
-    if (http_header == NULL)
-        http_header = "text/plain";
-
-    error = http_parse_content_type(http_header, &content_type);
-    if (error != NSERROR_OK)
-        return error;
-
-    /* Retrieve and parse Content-Length */
-    http_header = llcache_handle_get_header(ctx->llcache, LLCACHE_HEADER_CONTENT_LENGTH);
-    if (http_header == NULL) {
-        length = 0;
-    } else {
-        length = strtoull(http_header, NULL, 10);
+    /* Retrieve Content-Type */
+    hdr = llcache_handle_get_header(ctx->llcache, LLCACHE_HEADER_CONTENT_TYPE);
+    if (hdr != NULL && hdr->count > 0 && hdr->entries[0].value != NULL && hdr->entries[0].value[0] != '\0') {
+        mime_str = hdr->entries[0].value;
     }
 
-    /* Retrieve and parse Content-Disposition */
-    http_header = llcache_handle_get_header(ctx->llcache, LLCACHE_HEADER_CONTENT_DISPOSITION);
-    if (http_header != NULL) {
-        lwc_string *filename_value;
-        http_content_disposition *disposition;
+    if (lwc_intern_string(mime_str, strlen(mime_str), &imime) != lwc_error_ok)
+        return NSERROR_NOMEM;
 
-        error = http_parse_content_disposition(http_header, &disposition);
-        if (error != NSERROR_OK) {
-            http_content_type_destroy(content_type);
-            return error;
-        }
-
-        error = http_parameter_list_find_item(disposition->parameters, corestring_lwc_filename, &filename_value);
-        if (error == NSERROR_OK) {
-            ctx->filename = download_parse_filename(lwc_string_data(filename_value));
-            lwc_string_unref(filename_value);
-        }
-
-        http_content_disposition_destroy(disposition);
+    /* Retrieve Content-Length */
+    hdr = llcache_handle_get_header(ctx->llcache, LLCACHE_HEADER_CONTENT_LENGTH);
+    if (hdr != NULL && hdr->count > 0 && hdr->entries[0].value != NULL) {
+        length = strtoull(hdr->entries[0].value, NULL, 10);
     }
 
-    ctx->mime_type = lwc_string_ref(content_type->media_type);
+    /* Retrieve Content-Disposition */
+    hdr = llcache_handle_get_header(ctx->llcache, LLCACHE_HEADER_CONTENT_DISPOSITION);
+    if (hdr != NULL && hdr->count > 0) {
+        size_t p;
+        for (p = 0; p < hdr->entries[0].num_params; p++) {
+            if (strcasecmp(hdr->entries[0].params[p].key, "filename") == 0) {
+                ctx->filename = download_parse_filename(hdr->entries[0].params[p].value);
+                break;
+            }
+        }
+    }
+
+    ctx->mime_type = imime;
     ctx->total_length = length;
     if (ctx->filename == NULL) {
         ctx->filename = download_default_filename(llcache_handle_get_url(ctx->llcache));
     }
-
-    http_content_type_destroy(content_type);
 
     if (ctx->filename == NULL) {
         lwc_string_unref(ctx->mime_type);
