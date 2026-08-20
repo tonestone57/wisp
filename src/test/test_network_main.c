@@ -72,30 +72,42 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("bundle.min.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
     ck_assert_str_eq(default_filetype("/path.with.dots/filename"), "text/plain");
+    ck_assert_str_eq(default_filetype("page.html?a=1#fragment"), "text/html");
+    ck_assert_str_eq(default_filetype("page.html#fragment?a=1"), "text/html");
+    ck_assert_str_eq(default_filetype("folder.with.dot/"), "text/plain");
+    ck_assert_str_eq(default_filetype("style.css?query=val#hash"), "text/css");
 }
 END_TEST
 
 START_TEST(test_is_active_fetch)
 {
-    struct network_fetch_info f1 = { .fetch_id = 1, .finished = false, .next = NULL };
-    struct network_fetch_info f2 = { .fetch_id = 2, .finished = false, .next = NULL };
-    struct network_fetch_info f3 = { .fetch_id = 3, .finished = false, .next = NULL };
+    struct network_fetch_info f1 = { .fetch_id = 1, .finished = false, .next = NULL, .hash_next = NULL };
+    struct network_fetch_info f2 = { .fetch_id = 2, .finished = false, .next = NULL, .hash_next = NULL };
+    struct network_fetch_info f3 = { .fetch_id = 3, .finished = false, .next = NULL, .hash_next = NULL };
 
     active_fetches_list = NULL;
+    memset(active_fetches_hash, 0, sizeof(active_fetches_hash));
     ck_assert_int_eq(is_active_fetch(&f1), false);
 
-    active_fetches_list = &f1;
-    f1.next = &f2;
-    f2.next = &f3;
+    /* Test hash table lookup */
+    unsigned int idx1 = hash_fetch_info(&f1);
+    f1.hash_next = active_fetches_hash[idx1];
+    active_fetches_hash[idx1] = &f1;
 
     ck_assert_int_eq(is_active_fetch(&f1), true);
+
+    /* Test fallback list scan lookup */
+    active_fetches_list = &f2;
+    f2.next = &f3;
+
     ck_assert_int_eq(is_active_fetch(&f2), true);
     ck_assert_int_eq(is_active_fetch(&f3), true);
 
-    struct network_fetch_info unlisted = { .fetch_id = 99, .finished = false, .next = NULL };
+    struct network_fetch_info unlisted = { .fetch_id = 99, .finished = false, .next = NULL, .hash_next = NULL };
     ck_assert_int_eq(is_active_fetch(&unlisted), false);
 
     active_fetches_list = NULL;
+    memset(active_fetches_hash, 0, sizeof(active_fetches_hash));
 }
 END_TEST
 
