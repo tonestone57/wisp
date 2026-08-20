@@ -71,7 +71,7 @@
 static browser_pointer_shape get_pointer_shape(struct box *box, bool imagemap)
 {
     browser_pointer_shape pointer;
-    css_computed_style *style;
+    const css_computed_style *style;
     enum css_cursor_e cursor;
     lwc_string **cursor_uris;
 

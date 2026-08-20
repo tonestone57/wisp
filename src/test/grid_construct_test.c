@@ -183,7 +183,7 @@ css_error css_select_results_destroy(css_select_results *results)
 typedef struct nsurl nsurl;
 
 /* Box Functions */
-struct box *box_create(struct html_content *content, css_select_results *styles, css_computed_style *style, bool style_owned, struct nsurl *href,
+struct box *box_create(struct html_content *content, css_select_results *styles, const css_computed_style *style, bool style_owned, struct nsurl *href,
     const char *target, const char *title, lwc_string *id, void *context)
 {
     struct box *b = calloc(1, sizeof(struct box));

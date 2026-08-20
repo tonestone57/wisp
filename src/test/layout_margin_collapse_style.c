@@ -120,6 +120,6 @@ void style_set_min_height(css_computed_style *s, int px)
 
 void destroy_mock_style(css_computed_style *s)
 {
-    if(s->calc) css_calculator_unref(s->calc);
+    if (s && s->calc) css_calculator_unref(s->calc);
     free(s);
 }

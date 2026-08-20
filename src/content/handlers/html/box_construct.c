@@ -1447,7 +1447,7 @@ static struct box *create_content_box(
 		if (text_len == 0)
 			return NULL;
 
-		box = box_create(ctx->content, NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+		box = box_create(ctx->content, NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 		if (box == NULL)
 			return NULL;
 
@@ -1476,7 +1476,7 @@ static struct box *create_content_box(
 		}
 
 		/* Create box to hold the image object */
-		box = box_create(ctx->content, NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+		box = box_create(ctx->content, NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 		if (box == NULL) {
 			nsurl_unref(url);
 			break;
@@ -1526,7 +1526,7 @@ static struct box *create_content_box(
 		css_error err = css_computed_format_list_style(style, value, buf, sizeof(buf), &len);
 
 		if (err == CSS_OK && len > 0 && len < sizeof(buf)) {
-			box = box_create(ctx->content, NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+			box = box_create(ctx->content, NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 			if (box != NULL) {
 				box->type = BOX_TEXT;
 				box->text = talloc_strndup(ctx->bctx, buf, len);
@@ -1587,7 +1587,7 @@ static struct box *create_content_box(
 		}
 
 		if (err == CSS_OK && len > 0 && len < sizeof(buf)) {
-			box = box_create(ctx->content, NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+			box = box_create(ctx->content, NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 			if (box != NULL) {
 				box->type = BOX_TEXT;
 				box->text = talloc_strndup(ctx->bctx, buf, len);
@@ -1619,7 +1619,7 @@ static struct box *create_content_box(
 
 					if (text_len > 0) {
 						box = box_create(ctx->content,
-							NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+							NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 						if (box != NULL) {
 							box->type = BOX_TEXT;
 							box->text = arena_strndup(ctx->bctx, text_data, text_len);
@@ -1653,7 +1653,7 @@ static struct box *create_content_box(
 
 		if (is_insert) {
 			size_t quote_len = strlen(quote);
-			box = box_create(ctx->content, NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+			box = box_create(ctx->content, NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 			if (box != NULL) {
 				box->type = BOX_TEXT;
 				box->text = talloc_strndup(ctx->bctx, quote, quote_len);
@@ -1862,8 +1862,7 @@ static void box_construct_generate(dom_node *n, struct box_construct_ctx *ctx, s
 	/* create box for this element */
 	computed_display = ns_computed_display(style, box_is_root(n));
 
-	/** \todo Not wise to drop const from the computed style */
-	gen = box_create(ctx->content, NULL, (css_computed_style *)style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+	gen = box_create(ctx->content, NULL, style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 	if (gen == NULL) {
 		return;
 	}
@@ -2485,12 +2484,12 @@ static void box__handle_first_letter(struct box *block, struct box_construct_ctx
 
 	/* Create wrapper inline box for the first letter */
 	const css_computed_style *fl_style = block->styles->styles[CSS_PSEUDO_ELEMENT_FIRST_LETTER];
-	struct box *fl_inline = box_create(ctx->content, NULL, (css_computed_style *)fl_style, false, text_box->href, text_box->target, text_box->title, NULL, ctx->bctx);
+	struct box *fl_inline = box_create(ctx->content, NULL, fl_style, false, text_box->href, text_box->target, text_box->title, NULL, ctx->bctx);
 	if (fl_inline == NULL) return;
 	fl_inline->type = BOX_INLINE;
 
 	/* Create new text box for the first letter */
-	struct box *fl_text = box_create(ctx->content, NULL, (css_computed_style *)fl_style, false, text_box->href, text_box->target, text_box->title, NULL, ctx->bctx);
+	struct box *fl_text = box_create(ctx->content, NULL, fl_style, false, text_box->href, text_box->target, text_box->title, NULL, ctx->bctx);
 	if (fl_text == NULL) return;
 	fl_text->type = BOX_TEXT;
 	fl_text->text = talloc_strndup(ctx->bctx, text_box->text, split_pos);
@@ -2571,7 +2570,7 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
 		if (content_type != CSS_CONTENT_NORMAL && content_type != CSS_CONTENT_NONE && c_item != NULL) {
 			/* Create BOX_INLINE wrapper - this gets margins/padding from the style */
 			struct box *pseudo_box = box_create(ctx->content,
-				NULL, (css_computed_style *)before_style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+				NULL, before_style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 
 			if (pseudo_box != NULL) {
 				pseudo_box->type = BOX_INLINE;
@@ -2625,7 +2624,7 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
 		if (content_type != CSS_CONTENT_NORMAL && content_type != CSS_CONTENT_NONE && c_item != NULL) {
 			/* Create BOX_INLINE wrapper - this gets margins/padding from the style */
 			struct box *pseudo_box = box_create(ctx->content,
-				NULL, (css_computed_style *)after_style, false, NULL, NULL, NULL, NULL, ctx->bctx);
+				NULL, after_style, false, NULL, NULL, NULL, NULL, ctx->bctx);
 
 			if (pseudo_box != NULL) {
 				pseudo_box->type = BOX_INLINE;
@@ -2968,8 +2967,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 			box_add_child(props.containing_block, props.inline_container);
 		}
 
-		/** \todo Dropping const here is not clever */
-		box = box_create(ctx->content, NULL, (css_computed_style *)props.parent_style, false, props.href, props.target, props.title,
+		box = box_create(ctx->content, NULL, props.parent_style, false, props.href, props.target, props.title,
 			NULL, ctx->bctx);
 		if (box == NULL) {
 			free(text);
@@ -3069,8 +3067,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 			}
 
 			if (len > 0) {
-				/** \todo Dropping const isn't clever */
-				box = box_create(ctx->content, NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
+				box = box_create(ctx->content, NULL, props.parent_style, false, props.href, props.target,
 					props.title, NULL, ctx->bctx);
 				if (box == NULL) {
 					free(text);
@@ -3098,7 +3095,7 @@ static bool box_construct_text(struct box_construct_ctx *ctx)
 				int32_t tab_size = 8;
 				css_computed_tab_size(props.parent_style, &tab_size);
 
-				box = box_create(ctx->content, NULL, (css_computed_style *)props.parent_style, false, props.href, props.target,
+				box = box_create(ctx->content, NULL, props.parent_style, false, props.href, props.target,
 					props.title, NULL, ctx->bctx);
 				if (box == NULL) {
 					free(text);

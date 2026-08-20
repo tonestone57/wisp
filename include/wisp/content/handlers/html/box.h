@@ -237,13 +237,13 @@ struct box {
 	 *  except for implied boxes, where it is a pointer to an
 	 *  owned computed style.
 	 */
-	css_computed_style *style;
+	const css_computed_style *style;
 
 	/**
 	 * Original style for this box, used to restore after
 	 * temporary pseudo-element style overrides (like ::first-line).
 	 */
-	css_computed_style *original_style;
+	const css_computed_style *original_style;
 
 	/**
 	 *  value of id attribute (or name for anchors)
