@@ -103,7 +103,7 @@ JSContext* get_context(uint32_t id) {
         curr = curr->hash_next;
     }
 
-    struct js_context_node *node = malloc(sizeof(*node));
+    struct js_context_node *node = calloc(1, sizeof(*node));
     if (!node) return NULL;
     struct jsthread *t = calloc(1, sizeof(*t));
     if (!t) { free(node); return NULL; }
@@ -111,6 +111,9 @@ JSContext* get_context(uint32_t id) {
     node->ctx = JS_NewContext(rt);
     if (!node->ctx) { free(t); free(node); return NULL; }
     node->thread = t;
+
+    t->ctx = node->ctx;
+    JS_SetContextOpaque(node->ctx, t);
 
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
@@ -138,12 +141,11 @@ JSContext* get_context(uint32_t id) {
     qjs_inject_dom_polyfills(node->ctx);
     wisp_qjs_register_core_polyfills(node->ctx);
 
-    /* Setup dummy jsthread for the remote context so opaque callbacks match */
-    t->ctx = node->ctx;
     if (js_process_origin) {
         t->origin = strdup(js_process_origin);
         if (!t->origin) {
             qjs_finalise_dom_bridge(rt, node->ctx);
+            JS_SetContextOpaque(node->ctx, NULL);
             JS_FreeContext(node->ctx);
             free(t);
             free(node);
@@ -162,8 +164,6 @@ JSContext* get_context(uint32_t id) {
     t->global_window_priv.is_dom_node = false;
     t->shm_dom = wisp_shm_dom;
     t->shm_capacity = wisp_shm_capacity;
-
-    JS_SetContextOpaque(node->ctx, t);
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -256,6 +256,10 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                         if (curr_c->thread->origin) {
                             free(curr_c->thread->origin);
                             curr_c->thread->origin = NULL;
+                        }
+                        if (curr_c->thread->location_url) {
+                            nsurl_unref(curr_c->thread->location_url);
+                            curr_c->thread->location_url = NULL;
                         }
                     }
                     curr_c->thread->doc_priv = (void*)(uintptr_t)new_doc_id;
@@ -374,7 +378,6 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                                 shm_dom_unlock_write(wisp_shm_dom);
                             } else {
                                 wisp_shm_capacity = 0;
-                                shm_dom_unlock_write(old_shm);
                             }
                             struct js_context_node *curr_c = contexts;
                             while (curr_c) {
@@ -440,11 +443,15 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                     response.length = 0;
                     response.data = NULL;
                 } else {
-                    const char *res_str = JS_ToCString(ctx, val);
+                    size_t res_len = 0;
+                    const char *res_str = JS_ToCStringLen(ctx, &res_len, val);
                     if (res_str) {
-                        response.data = (uint8_t*)strdup(res_str);
+                        response.data = malloc(res_len > 0 ? res_len : 1);
                         if (response.data) {
-                            response.length = strlen(res_str);
+                            if (res_len > 0) {
+                                memcpy(response.data, res_str, res_len);
+                            }
+                            response.length = res_len;
                         } else {
                             response.length = 0;
                         }
@@ -503,6 +510,7 @@ int js_process_main(int argc, char **argv) {
                 if (curr_c->ctx) {
                     JSContext *ctx1;
                     int job_ret;
+                    wisp_in_microtask = true;
                     while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(curr_c->ctx), &ctx1)) != 0) {
                         wait_time = 0;
                         did_work = true;
@@ -510,10 +518,21 @@ int js_process_main(int argc, char **argv) {
                             JSValue exc = JS_GetException(ctx1);
                             const char *exc_str = JS_ToCString(ctx1, exc);
                             fprintf(stderr, "\n=== IDLE MICROTASK JS Error: %s ===\n", exc_str ? exc_str : "unknown");
+                            JSValue stack = JS_UNDEFINED;
+                            if (JS_IsObject(exc)) {
+                                stack = JS_GetPropertyStr(ctx1, exc, "stack");
+                            }
+                            const char *stack_str = JS_ToCString(ctx1, stack);
+                            if (stack_str) {
+                                fprintf(stderr, "Stack Trace:\n%s\n", stack_str);
+                                JS_FreeCString(ctx1, stack_str);
+                            }
+                            JS_FreeValue(ctx1, stack);
                             if (exc_str) JS_FreeCString(ctx1, exc_str);
                             JS_FreeValue(ctx1, exc);
                         }
                     }
+                    wisp_in_microtask = false;
                     uint64_t ctx_wait = qjs_execute_timers(curr_c->ctx);
                     if (ctx_wait == 0) did_work = true;
                     if (ctx_wait < wait_time) {

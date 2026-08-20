@@ -638,18 +638,38 @@ void hlcache_finalise(void)
     }
 
     struct hlcache_s *old_hlcache = hlcache;
-    hlcache = NULL;
+hlcache = NULL;
 
-    /* Clean up and destroy any remaining content entries */
-    while (old_hlcache->content_list != NULL) {
-        hlcache_entry *entry = old_hlcache->content_list;
-        old_hlcache->content_list = entry->next;
-        if (old_hlcache->content_list != NULL) {
-            old_hlcache->content_list->prev = NULL;
-        }
-        if (entry->content != NULL) {
-            content_destroy(entry->content);
-        }
+if (old_hlcache == NULL) {
+    return;
+}
+
+/* Pass 1: Destroy all content objects while the entire entry list remains intact.
+ * Destroying a content object (e.g., an HTML document) may release handles to
+ * other entries, requiring all hlcache_entry nodes to remain valid in memory. */
+for (hlcache_entry *entry = old_hlcache->content_list; entry != NULL; entry = entry->next) {
+    if (entry->content != NULL) {
+        content_destroy(entry->content);
+        entry->content = NULL;
+    }
+}
+
+/* Pass 2: Unlink and free the hlcache_entry structs now that all contents
+ * have cleanly shut down. */
+while (old_hlcache->content_list != NULL) {
+    hlcache_entry *entry = old_hlcache->content_list;
+    old_hlcache->content_list = entry->next;
+    
+    /* Clear references and free entry allocation */
+    free(entry);
+}
+
+free(old_hlcache);
+
+    /* Free the cache entries */
+    entry = hlcache->content_list;
+    while (entry != NULL) {
+        hlcache_entry *next_entry = entry->next;
         free(entry);
     }
 
