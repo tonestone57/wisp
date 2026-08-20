@@ -4910,6 +4910,45 @@ START_TEST(test_quickjs_shm_remap_and_dangling)
 END_TEST
 
 
+START_TEST(test_quickjs_jquery_init)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var b = document.createElement('div');\n"
+        "b.innerHTML = '  <link/><table></table><a href=\"/a\">a</a><input type=\"checkbox\"/>';\n"
+        "if (!b.firstChild) throw new Error('b.firstChild is null');\n"
+        "if (typeof b.firstChild.nodeType !== 'number') throw new Error('b.firstChild.nodeType is not a number');\n"
+        "1;";
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_jquery_init", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_css_stylesheet)
 {
     jsheap *heap = NULL;
@@ -5021,6 +5060,7 @@ Suite *quickjs_suite(void)
     /* MutationObserver test case */
     TCase *tc_mutation = tcase_create("MutationObserver");
     tcase_add_test(tc_mutation, test_quickjs_mutation_observer_e2e);
+    tcase_add_test(tc_mutation, test_quickjs_jquery_init);
     suite_add_tcase(s, tc_mutation);
 
     /* Event Loop & Microtask Queue Resolution test case */

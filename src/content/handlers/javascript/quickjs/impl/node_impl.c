@@ -641,7 +641,8 @@ JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
     if (wisp_is_js_process) {
-        WispCompactNode *sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        uint64_t nid = (uint64_t)(uintptr_t)priv->node;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, nid);
         if (sn && sn->first_child_id != 0) {
             return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->first_child_id);
         }
@@ -649,7 +650,7 @@ JSValue wisp_node_firstChild_get_impl(JSContext *ctx, QJSNodePrivate *priv)
          * request synchronous DOM layout / flush from main process. */
         extern void request_synchronous_layout_from_main(void);
         request_synchronous_layout_from_main();
-        sn = find_shm_node(wisp_shm_dom, (uint64_t)(uintptr_t)priv->node);
+        sn = find_shm_node(wisp_shm_dom, nid);
         if (sn && sn->first_child_id != 0) {
             return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)sn->first_child_id);
         }

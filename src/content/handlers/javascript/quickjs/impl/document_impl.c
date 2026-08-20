@@ -656,14 +656,9 @@ JSValue wisp_document_write_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue t
         
         if (err == DOM_HUBBUB_OK && fragment != NULL) {
             // Append children from fragment to target (body)
-            dom_node *f_child = NULL;
-            while (dom_node_get_first_child((dom_node *)fragment, &f_child) == DOM_NO_ERR && f_child != NULL) {
-                dom_node *appended = NULL;
-                dom_node_append_child(target, f_child, &appended);
-                if (appended) dom_node_unref(appended);
-                dom_node_unref(f_child);
-                f_child = NULL;
-            }
+            dom_node *appended = NULL;
+            dom_node_append_child(target, (dom_node *)fragment, &appended);
+            if (appended) dom_node_unref(appended);
         }
     }
     

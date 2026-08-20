@@ -637,32 +637,48 @@ void hlcache_finalise(void)
         hlcache->retrieval_ctx_ring = NULL;
     }
 
-    /* Clean up and destroy any remaining content entries.
-     * Destroy contents in a first pass before freeing hlcache_entry nodes,
-     * because destroying a content (e.g., an HTML document) may release handles
-     * pointing to other cache entries and access their hlcache_entry structs. */
-    for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        if (entry->content != NULL) {
-            content_destroy(entry->content);
-        }
+    struct hlcache_s *old_hlcache = hlcache;
+hlcache = NULL;
+
+if (old_hlcache == NULL) {
+    return;
+}
+
+/* Pass 1: Destroy all content objects while the entire entry list remains intact.
+ * Destroying a content object (e.g., an HTML document) may release handles to
+ * other entries, requiring all hlcache_entry nodes to remain valid in memory. */
+for (hlcache_entry *entry = old_hlcache->content_list; entry != NULL; entry = entry->next) {
+    if (entry->content != NULL) {
+        content_destroy(entry->content);
+        entry->content = NULL;
     }
+}
+
+/* Pass 2: Unlink and free the hlcache_entry structs now that all contents
+ * have cleanly shut down. */
+while (old_hlcache->content_list != NULL) {
+    hlcache_entry *entry = old_hlcache->content_list;
+    old_hlcache->content_list = entry->next;
+    
+    /* Clear references and free entry allocation */
+    free(entry);
+}
+
+free(old_hlcache);
 
     /* Free the cache entries */
     entry = hlcache->content_list;
     while (entry != NULL) {
         hlcache_entry *next_entry = entry->next;
         free(entry);
-        entry = next_entry;
     }
-    hlcache->content_list = NULL;
 
-    NSLOG(wisp, INFO, "hit/miss %d/%d", hlcache->hit_count, hlcache->miss_count);
+    NSLOG(wisp, INFO, "hit/miss %d/%d", old_hlcache->hit_count, old_hlcache->miss_count);
 
     /* De-schedule ourselves */
     guit->misc->schedule(-1, hlcache_clean, NULL);
 
-    free(hlcache);
-    hlcache = NULL;
+    free(old_hlcache);
 
     NSLOG(wisp, INFO, "Finalising low-level cache");
     llcache_finalise();
