@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
             strncat(target_path, "\\dummy_ipc_target.exe", sizeof(target_path) - strlen(target_path) - 1);
         }
     } else {
-        strcpy(target_path, "dummy_ipc_target.exe");
+        snprintf(target_path, sizeof(target_path), "%s", "dummy_ipc_target.exe");
     }
 #else
     if (get_self_path(target_path, sizeof(target_path)) > 0) {
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
             strncat(target_path, "/dummy_ipc_target", sizeof(target_path) - strlen(target_path) - 1);
         }
     } else {
-        strcpy(target_path, "./dummy_ipc_target");
+        snprintf(target_path, sizeof(target_path), "%s", "./dummy_ipc_target");
     }
 #endif
 
