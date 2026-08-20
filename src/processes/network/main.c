@@ -30,9 +30,31 @@ struct network_fetch_info {
     struct fetch *fetchh;
     bool finished;
     struct network_fetch_info *next;
+    struct network_fetch_info *hash_next;
 };
 
 static struct network_fetch_info *active_fetches_list = NULL;
+
+#define ACTIVE_FETCH_HASH_SIZE 64
+static struct network_fetch_info *active_fetches_hash[ACTIVE_FETCH_HASH_SIZE];
+
+static inline unsigned int hash_fetch_info(const struct network_fetch_info *info) {
+    uintptr_t ptr = (uintptr_t)info;
+    return (unsigned int)((ptr ^ (ptr >> 6)) % ACTIVE_FETCH_HASH_SIZE);
+}
+
+static void remove_active_fetch_hash(struct network_fetch_info *info) {
+    if (!info) return;
+    unsigned int idx = hash_fetch_info(info);
+    struct network_fetch_info **curr = &active_fetches_hash[idx];
+    while (*curr) {
+        if (*curr == info) {
+            *curr = info->hash_next;
+            break;
+        }
+        curr = &(*curr)->hash_next;
+    }
+}
 
 static void send_fetch_error(uint32_t fetch_id, const char *err_msg) {
     if (!err_msg) err_msg = "UnknownError";
@@ -54,7 +76,17 @@ static void send_fetch_error(uint32_t fetch_id, const char *err_msg) {
 }
 
 static bool is_active_fetch(struct network_fetch_info *info) {
-    struct network_fetch_info *curr = active_fetches_list;
+    if (!info) return false;
+    unsigned int idx = hash_fetch_info(info);
+    struct network_fetch_info *curr = active_fetches_hash[idx];
+    while (curr) {
+        if (curr == info) {
+            return true;
+        }
+        curr = curr->hash_next;
+    }
+    /* Fallback scan in case active_fetches_list was assigned directly */
+    curr = active_fetches_list;
     while (curr) {
         if (curr == info) {
             return true;
@@ -70,6 +102,7 @@ static void cleanup_finished_fetches(void) {
         struct network_fetch_info *entry = *curr;
         if (entry->finished) {
             *curr = entry->next;
+            remove_active_fetch_hash(entry);
             free(entry);
         } else {
             curr = &entry->next;
@@ -80,6 +113,7 @@ static void cleanup_finished_fetches(void) {
 static void free_all_active_fetches(void) {
     struct network_fetch_info *curr = active_fetches_list;
     active_fetches_list = NULL;
+    memset(active_fetches_hash, 0, sizeof(active_fetches_hash));
     while (curr != NULL) {
         struct network_fetch_info *next = curr->next;
         curr->finished = true;
@@ -225,39 +259,156 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     }
 }
 
+static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
+    if (!msg) return;
+
+    if (msg->type == WISP_IPC_MSG_FETCH_REQUEST) {
+        uint32_t fetch_id = 0;
+        uint32_t url_len = 0;
+        if (msg->length >= 4) {
+            memcpy(&fetch_id, msg->data, 4);
+        }
+        if (msg->length >= 8) {
+            memcpy(&url_len, msg->data + 4, 4);
+        }
+        if (msg->length < 10 || url_len > msg->length - 10) {
+            if (msg->length >= 4) {
+                send_fetch_error(fetch_id, "InvalidURL");
+            }
+        } else {
+            char *url_str = malloc(url_len + 1);
+            if (!url_str) {
+                send_fetch_error(fetch_id, "NoMem");
+            } else {
+                memcpy(url_str, msg->data + 8, url_len);
+                url_str[url_len] = '\0';
+                nsurl *url = NULL;
+                if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                    bool only_2xx = (msg->data[8 + url_len] != 0);
+                    bool downgrade_tls = (msg->data[8 + url_len + 1] != 0);
+                    struct network_fetch_info *info = malloc(sizeof(*info));
+                    if (info) {
+                        info->fetch_id = fetch_id;
+                        info->fetchh = NULL;
+                        info->finished = false;
+                        info->next = active_fetches_list;
+                        active_fetches_list = info;
+                        struct fetch *f_out = NULL;
+                        if (fetch_start(url, NULL, network_process_fetch_callback, info,
+                                        only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
+                            info->fetchh = f_out;
+                        } else {
+                            /* Unlink info from active_fetches_list before error sending/freeing to prevent use-after-free */
+                            struct network_fetch_info **pcurr = &active_fetches_list;
+                            while (*pcurr) {
+                                if (*pcurr == info) {
+                                    *pcurr = info->next;
+                                    break;
+                                }
+                                pcurr = &(*pcurr)->next;
+                            }
+                            send_fetch_error(fetch_id, "Blocked");
+                            free(info);
+                        }
+                    } else {
+                        send_fetch_error(fetch_id, "NoMem");
+                    }
+                    nsurl_unref(url);
+                } else {
+                    /* Immediately report error to avoid hanging the browser fetcher */
+                    send_fetch_error(fetch_id, "InvalidURL");
+                }
+                free(url_str);
+            }
+        }
+    } else if (msg->type == WISP_IPC_MSG_DNS_PREFETCH_REQUEST) {
+        uint32_t url_len;
+        if (msg->length >= 4) {
+            memcpy(&url_len, msg->data, 4);
+            /* Use overflow-safe checks to validate bounds */
+            if (url_len <= msg->length - 4) {
+                char *url_str = malloc(url_len + 1);
+                if (url_str) {
+                    memcpy(url_str, msg->data + 4, url_len);
+                    url_str[url_len] = '\0';
+                    nsurl *url = NULL;
+                    if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                        lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
+                        if (host_lwc) {
+                            fetch_curl_dns_prefetch(lwc_string_data(host_lwc));
+                            lwc_string_unref(host_lwc);
+                        }
+                        nsurl_unref(url);
+                    }
+                    free(url_str);
+                }
+            }
+        }
+    } else if (msg->type == WISP_IPC_MSG_PRECONNECT_REQUEST) {
+        uint32_t url_len;
+        if (msg->length >= 4) {
+            memcpy(&url_len, msg->data, 4);
+            /* Use overflow-safe checks to validate bounds */
+            if (url_len <= msg->length - 4) {
+                char *url_str = malloc(url_len + 1);
+                if (url_str) {
+                    memcpy(url_str, msg->data + 4, url_len);
+                    url_str[url_len] = '\0';
+                    nsurl *url = NULL;
+                    if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                        fetch_curl_preconnect(url_str);
+                        nsurl_unref(url);
+                    }
+                    free(url_str);
+                }
+            }
+        }
+    } else if (msg->type == WISP_IPC_MSG_FETCH_ABORT) {
+        uint32_t fetch_id;
+        if (msg->length >= 4) {
+            memcpy(&fetch_id, msg->data, 4);
+            struct network_fetch_info *info = active_fetches_list;
+            while (info && info->fetch_id != fetch_id) {
+                info = info->next;
+            }
+            if (info && !info->finished) {
+                info->finished = true;
+                if (info->fetchh) {
+                    struct fetch *f = info->fetchh;
+                    info->fetchh = NULL;
+                    fetch_abort(f);
+                }
+            }
+        }
+    }
+}
+
 #include <ctype.h>
 
 static const char *default_filetype(const char *unix_path) {
     if (!unix_path) return "text/plain";
 
-    /* Find base path without query (?) or fragment (#) */
-    const char *qmark = strchr(unix_path, '?');
-    const char *hash = strchr(unix_path, '#');
-    size_t path_len = strlen(unix_path);
-    if (qmark && (size_t)(qmark - unix_path) < path_len) {
-        path_len = qmark - unix_path;
-    }
-    if (hash && (size_t)(hash - unix_path) < path_len) {
-        path_len = hash - unix_path;
-    }
+    /* Find base path length without query (?) or fragment (#) */
+    size_t path_len = strcspn(unix_path, "?#");
 
     /* Extract dot extension within path_len */
     const char *ext = NULL;
     for (size_t i = path_len; i > 0; i--) {
-        if (unix_path[i - 1] == '.') {
+        char c = unix_path[i - 1];
+        if (c == '.') {
             ext = &unix_path[i - 1];
             break;
         }
-        if (unix_path[i - 1] == '/' || unix_path[i - 1] == '\\') {
+        if (c == '/' || c == '\\') {
             break;
         }
     }
 
     if (!ext) return "text/plain";
 
-    size_t ext_len = path_len - (ext - unix_path);
+    size_t ext_len = path_len - (size_t)(ext - unix_path);
     char ext_buf[16];
-    if (ext_len >= sizeof(ext_buf)) return "text/plain";
+    if (ext_len == 0 || ext_len >= sizeof(ext_buf)) return "text/plain";
 
     for (size_t i = 0; i < ext_len; i++) {
         ext_buf[i] = (char)tolower((unsigned char)ext[i]);
@@ -267,8 +418,8 @@ static const char *default_filetype(const char *unix_path) {
     if (strcmp(ext_buf, ".html") == 0 || strcmp(ext_buf, ".htm") == 0) return "text/html";
     if (strcmp(ext_buf, ".xhtml") == 0) return "application/xhtml+xml";
     if (strcmp(ext_buf, ".css") == 0) return "text/css";
-    if (strcmp(ext_buf, ".js") == 0 || strcmp(ext_buf, ".mjs") == 0) return "application/javascript";
-    if (strcmp(ext_buf, ".json") == 0) return "application/json";
+    if (strcmp(ext_buf, ".js") == 0 || strcmp(ext_buf, ".mjs") == 0 || strcmp(ext_buf, ".cjs") == 0) return "application/javascript";
+    if (strcmp(ext_buf, ".json") == 0 || strcmp(ext_buf, ".map") == 0) return "application/json";
     if (strcmp(ext_buf, ".xml") == 0) return "text/xml";
     if (strcmp(ext_buf, ".svg") == 0) return "image/svg+xml";
     if (strcmp(ext_buf, ".png") == 0) return "image/png";
@@ -276,6 +427,7 @@ static const char *default_filetype(const char *unix_path) {
     if (strcmp(ext_buf, ".gif") == 0) return "image/gif";
     if (strcmp(ext_buf, ".webp") == 0) return "image/webp";
     if (strcmp(ext_buf, ".avif") == 0) return "image/avif";
+    if (strcmp(ext_buf, ".bmp") == 0) return "image/bmp";
     if (strcmp(ext_buf, ".ico") == 0) return "image/x-icon";
     if (strcmp(ext_buf, ".woff") == 0) return "font/woff";
     if (strcmp(ext_buf, ".woff2") == 0) return "font/woff2";
@@ -283,11 +435,15 @@ static const char *default_filetype(const char *unix_path) {
     if (strcmp(ext_buf, ".otf") == 0) return "font/otf";
     if (strcmp(ext_buf, ".wasm") == 0) return "application/wasm";
     if (strcmp(ext_buf, ".pdf") == 0) return "application/pdf";
-    if (strcmp(ext_buf, ".mp4") == 0) return "video/mp4";
+    if (strcmp(ext_buf, ".mp4") == 0 || strcmp(ext_buf, ".m4v") == 0) return "video/mp4";
     if (strcmp(ext_buf, ".webm") == 0) return "video/webm";
+    if (strcmp(ext_buf, ".ogv") == 0) return "video/ogg";
     if (strcmp(ext_buf, ".mp3") == 0) return "audio/mpeg";
+    if (strcmp(ext_buf, ".m4a") == 0) return "audio/mp4";
     if (strcmp(ext_buf, ".wav") == 0) return "audio/wav";
     if (strcmp(ext_buf, ".ogg") == 0) return "audio/ogg";
+    if (strcmp(ext_buf, ".opus") == 0) return "audio/opus";
+    if (strcmp(ext_buf, ".flac") == 0) return "audio/flac";
     if (strcmp(ext_buf, ".aac") == 0) return "audio/aac";
     if (strcmp(ext_buf, ".txt") == 0) return "text/plain";
 
@@ -362,7 +518,12 @@ int main(int argc, char **argv) {
                                 info->fetchh = NULL;
                                 info->finished = false;
                                 info->next = active_fetches_list;
+                                info->hash_next = NULL;
                                 active_fetches_list = info;
+                                unsigned int h_idx = hash_fetch_info(info);
+                                info->hash_next = active_fetches_hash[h_idx];
+                                active_fetches_hash[h_idx] = info;
+
                                 struct fetch *f_out = NULL;
                                 if (fetch_start(url, NULL, network_process_fetch_callback, info,
                                                 only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
@@ -377,6 +538,7 @@ int main(int argc, char **argv) {
                                         }
                                         pcurr = &(*pcurr)->next;
                                     }
+                                    remove_active_fetch_hash(info);
                                     send_fetch_error(fetch_id, "Blocked");
                                     free(info);
                                 }
@@ -450,6 +612,7 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+            network_process_ipc_msg(&msg);
             wisp_ipc_msg_free(&msg);
         }
 
