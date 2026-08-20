@@ -2606,8 +2606,8 @@ static bool save_text_add_to_buffer(const char *text, size_t length, struct box 
 	if (box->space > 0)
 		space = 1;
 
-	if (whitespace_text)
-		length += whitespace_length;
+	if (!whitespace_text)
+		whitespace_length = 0;
 
 	new_length = save->length + whitespace_length + length + space;
 	if (new_length >= save->alloc) {
@@ -2624,10 +2624,11 @@ static bool save_text_add_to_buffer(const char *text, size_t length, struct box 
 		save->block = new_block;
 		save->alloc = new_alloc;
 	}
-	if (whitespace_text) {
+	if (whitespace_text && whitespace_length > 0) {
 		memcpy(save->block + save->length, whitespace_text, whitespace_length);
+		save->length += whitespace_length;
 	}
-	memcpy(save->block + save->length + whitespace_length, text, length);
+	memcpy(save->block + save->length, text, length);
 	save->length += length;
 
 	if (space == 1)
