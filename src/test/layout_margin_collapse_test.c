@@ -144,7 +144,7 @@ static void free_box_tree(struct box *box)
         child = next;
     }
     if (box->style)
-        destroy_mock_style(box->style);
+        destroy_mock_style((css_computed_style *)box->style);
     free(box);
 }
 
@@ -160,14 +160,14 @@ START_TEST(test_sibling_both_positive)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 20, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(b->style, 10, 0, 0, 0);
+    style_set_margins((css_computed_style *)b->style, 10, 0, 0, 0);
 
     add_child(block, a);
     add_child(block, b);
@@ -190,14 +190,14 @@ START_TEST(test_sibling_both_negative)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, -5, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, -5, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(b->style, -10, 0, 0, 0);
+    style_set_margins((css_computed_style *)b->style, -10, 0, 0, 0);
 
     add_child(block, a);
     add_child(block, b);
@@ -220,14 +220,14 @@ START_TEST(test_sibling_pos_neg)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 20, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(b->style, -5, 0, 0, 0);
+    style_set_margins((css_computed_style *)b->style, -5, 0, 0, 0);
 
     add_child(block, a);
     add_child(block, b);
@@ -250,11 +250,11 @@ START_TEST(test_sibling_no_margin)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -282,18 +282,18 @@ START_TEST(test_collapse_through_empty)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     /* Empty box: CSS height:0, no padding, no border.
      * Must NOT have MAKE_HEIGHT — it should collapse through. */
     struct box *empty = create_box_with_style(200);
-    style_set_height_px(empty->style, 0);
-    style_set_margins(empty->style, 5, 0, 15, 0);
+    style_set_height_px((css_computed_style *)empty->style, 0);
+    style_set_margins((css_computed_style *)empty->style, 5, 0, 15, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -318,17 +318,17 @@ START_TEST(test_no_collapse_through_height)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     struct box *mid = create_box_with_style(200);
-    style_set_height_px(mid->style, 10);
+    style_set_height_px((css_computed_style *)mid->style, 10);
     mid->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(mid->style, 5, 0, 15, 0);
+    style_set_margins((css_computed_style *)mid->style, 5, 0, 15, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -366,9 +366,9 @@ START_TEST(test_parent_child_no_separator)
     /* parent has auto height — computed from children */
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 20, 0, 0, 0);
+    style_set_margins((css_computed_style *)c->style, 20, 0, 0, 0);
 
     add_child(root, p);
     add_child(p, c);
@@ -400,12 +400,12 @@ START_TEST(test_parent_child_with_border)
 
     struct box *p = create_box_with_style(200);
     /* parent has border-top → blocks collapse */
-    style_set_border_top(p->style, 1);
+    style_set_border_top((css_computed_style *)p->style, 1);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 20, 0, 0, 0);
+    style_set_margins((css_computed_style *)c->style, 20, 0, 0, 0);
 
     add_child(root, p);
     add_child(p, c);
@@ -432,12 +432,12 @@ START_TEST(test_parent_child_with_padding)
 
     struct box *p = create_box_with_style(200);
     /* parent has padding-top → blocks collapse */
-    style_set_padding_top(p->style, 5);
+    style_set_padding_top((css_computed_style *)p->style, 5);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 20, 0, 0, 0);
+    style_set_margins((css_computed_style *)c->style, 20, 0, 0, 0);
 
     add_child(root, p);
     add_child(p, c);
@@ -467,19 +467,19 @@ START_TEST(test_three_siblings_cascade)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(b->style, 20, 0, 15, 0);
+    style_set_margins((css_computed_style *)b->style, 20, 0, 15, 0);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 5, 0, 0, 0);
+    style_set_margins((css_computed_style *)c->style, 5, 0, 0, 0);
 
     add_child(block, a);
     add_child(block, b);
@@ -510,21 +510,21 @@ START_TEST(test_no_collapse_abspos_skipped)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 20, 0);
 
     /* Abspos box — should be completely skipped in normal flow */
     struct box *absbox = create_box_with_style(200);
-    style_set_height_px(absbox->style, 10);
+    style_set_height_px((css_computed_style *)absbox->style, 10);
     absbox->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_position_absolute(absbox->style);
-    style_set_margins(absbox->style, 100, 0, 100, 0);
+    style_set_position_absolute((css_computed_style *)absbox->style);
+    style_set_margins((css_computed_style *)absbox->style, 100, 0, 100, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(b->style, 10, 0, 0, 0);
+    style_set_margins((css_computed_style *)b->style, 10, 0, 0, 0);
 
     add_child(block, a);
     add_child(block, absbox);
@@ -550,12 +550,12 @@ START_TEST(test_no_collapse_overflow_hidden)
 
     /* Parent with overflow:hidden — creates new BFC */
     struct box *p = create_box_with_style(200);
-    style_set_overflow_hidden(p->style);
+    style_set_overflow_hidden((css_computed_style *)p->style);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 20, 0, 0, 0);
+    style_set_margins((css_computed_style *)c->style, 20, 0, 0, 0);
 
     add_child(root, p);
     add_child(p, c);
@@ -588,12 +588,12 @@ START_TEST(test_last_child_auto_height)
     /* auto height, no bottom border/padding → last-child collapse allowed */
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
@@ -622,17 +622,17 @@ START_TEST(test_last_child_fixed_height)
     struct box *root = create_box_with_style(200);
 
     struct box *p = create_box_with_style(200);
-    style_set_height_px(p->style, 100);
+    style_set_height_px((css_computed_style *)p->style, 100);
     p->flags |= HAS_HEIGHT | MAKE_HEIGHT;
     /* fixed height → last-child margin does NOT propagate */
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
@@ -658,15 +658,15 @@ START_TEST(test_last_child_with_border_bottom)
 
     struct box *p = create_box_with_style(200);
     /* auto height BUT has border-bottom → blocks last-child collapse */
-    style_set_border_bottom(p->style, 1);
+    style_set_border_bottom((css_computed_style *)p->style, 1);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
@@ -699,21 +699,21 @@ START_TEST(test_nested_collapse_through)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     /* Two consecutive empty boxes — both should collapse through */
     struct box *e1 = create_box_with_style(200);
-    style_set_height_px(e1->style, 0);
-    style_set_margins(e1->style, 5, 0, 8, 0);
+    style_set_height_px((css_computed_style *)e1->style, 0);
+    style_set_margins((css_computed_style *)e1->style, 5, 0, 8, 0);
 
     struct box *e2 = create_box_with_style(200);
-    style_set_height_px(e2->style, 0);
-    style_set_margins(e2->style, 12, 0, 3, 0);
+    style_set_height_px((css_computed_style *)e2->style, 0);
+    style_set_margins((css_computed_style *)e2->style, 12, 0, 3, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -765,14 +765,14 @@ START_TEST(test_collapse_through_abspos_children)
 
     /* Box A: normal block with height, margin-bottom 10 */
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     /* Label: empty block with margin-bottom 7, height 0 */
     struct box *label = create_box_with_style(200);
-    style_set_height_px(label->style, 0);
-    style_set_margins(label->style, 0, 0, 7, 0);
+    style_set_height_px((css_computed_style *)label->style, 0);
+    style_set_margins((css_computed_style *)label->style, 0, 0, 7, 0);
     /* Do NOT set MAKE_HEIGHT — label is empty */
 
     /* Abspos block child inside label.
@@ -784,15 +784,15 @@ START_TEST(test_collapse_through_abspos_children)
      * label's children, finds only abspos children, and must walk back up —
      * where the label's margin[BOTTOM] must be accumulated. */
     struct box *abspos_child = create_box_with_style(200);
-    style_set_position_absolute(abspos_child->style);
-    style_set_height_px(abspos_child->style, 1);
+    style_set_position_absolute((css_computed_style *)abspos_child->style);
+    style_set_height_px((css_computed_style *)abspos_child->style, 1);
     abspos_child->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(label, abspos_child);
 
     /* Input: normal block with height */
     struct box *input = create_box_with_style(200);
-    style_set_height_px(input->style, 10);
+    style_set_height_px((css_computed_style *)input->style, 10);
     input->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -842,22 +842,22 @@ START_TEST(test_collapse_through_skips_abspos_next_sibling)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     struct box *label = create_box_with_style(200);
-    style_set_height_px(label->style, 0);
-    style_set_margins(label->style, 0, 0, 7, 0);
+    style_set_height_px((css_computed_style *)label->style, 0);
+    style_set_margins((css_computed_style *)label->style, 0, 0, 7, 0);
 
     struct box *absbox = create_box_with_style(200);
-    style_set_position_absolute(absbox->style);
-    style_set_height_px(absbox->style, 1);
+    style_set_position_absolute((css_computed_style *)absbox->style);
+    style_set_height_px((css_computed_style *)absbox->style, 1);
     absbox->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(absbox->style, 100, 0, 100, 0);
+    style_set_margins((css_computed_style *)absbox->style, 100, 0, 100, 0);
 
     struct box *input = create_box_with_style(200);
-    style_set_height_px(input->style, 10);
+    style_set_height_px((css_computed_style *)input->style, 10);
     input->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -903,14 +903,14 @@ START_TEST(test_collapse_through_empty_ic)
 
     /* Box A: normal block with height 10, margin-bottom 10 */
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     /* Label: empty block with margin-bottom 7, no height */
     struct box *label = create_box_with_style(200);
-    style_set_height_px(label->style, 0);
-    style_set_margins(label->style, 0, 0, 7, 0);
+    style_set_height_px((css_computed_style *)label->style, 0);
+    style_set_margins((css_computed_style *)label->style, 0, 0, 7, 0);
     /* Do NOT set MAKE_HEIGHT — label has no content */
 
     /* Empty inline container inside label.
@@ -927,7 +927,7 @@ START_TEST(test_collapse_through_empty_ic)
 
     /* Input: normal block with height */
     struct box *input = create_box_with_style(200);
-    style_set_height_px(input->style, 10);
+    style_set_height_px((css_computed_style *)input->style, 10);
     input->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -970,16 +970,16 @@ START_TEST(test_parent_child_abspos)
 
     /* Abspos child — should be skipped, doesn't participate in collapse */
     struct box *abs_c = create_box_with_style(200);
-    style_set_height_px(abs_c->style, 10);
+    style_set_height_px((css_computed_style *)abs_c->style, 10);
     abs_c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_position_absolute(abs_c->style);
-    style_set_margins(abs_c->style, 50, 0, 0, 0);
+    style_set_position_absolute((css_computed_style *)abs_c->style);
+    style_set_margins((css_computed_style *)abs_c->style, 50, 0, 0, 0);
 
     /* Normal child — its margin should collapse with parent */
     struct box *norm_c = create_box_with_style(200);
-    style_set_height_px(norm_c->style, 10);
+    style_set_height_px((css_computed_style *)norm_c->style, 10);
     norm_c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(norm_c->style, 20, 0, 0, 0);
+    style_set_margins((css_computed_style *)norm_c->style, 20, 0, 0, 0);
 
     add_child(root, p);
     add_child(p, abs_c);
@@ -1015,20 +1015,20 @@ START_TEST(test_no_collapse_through_border)
     struct box *block = create_box_with_style(200);
 
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 0, 0, 10, 0);
+    style_set_margins((css_computed_style *)a->style, 0, 0, 10, 0);
 
     /* Empty box WITH border-top — should NOT collapse through.
      * Border separates its top and bottom margins. */
     struct box *bordered = create_box_with_style(200);
-    style_set_height_px(bordered->style, 0);
+    style_set_height_px((css_computed_style *)bordered->style, 0);
     bordered->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_border_top(bordered->style, 1);
-    style_set_margins(bordered->style, 5, 0, 15, 0);
+    style_set_border_top((css_computed_style *)bordered->style, 1);
+    style_set_margins((css_computed_style *)bordered->style, 5, 0, 15, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -1064,12 +1064,12 @@ START_TEST(test_first_child_margin_top)
 
     /* First child has margin-top — should create space above it */
     struct box *a = create_box_with_style(200);
-    style_set_height_px(a->style, 10);
+    style_set_height_px((css_computed_style *)a->style, 10);
     a->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(a->style, 15, 0, 0, 0);
+    style_set_margins((css_computed_style *)a->style, 15, 0, 0, 0);
 
     struct box *b = create_box_with_style(200);
-    style_set_height_px(b->style, 10);
+    style_set_height_px((css_computed_style *)b->style, 10);
     b->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(block, a);
@@ -1100,15 +1100,15 @@ START_TEST(test_last_child_with_padding_bottom)
 
     struct box *p = create_box_with_style(200);
     /* auto height, has padding-bottom → blocks last-child collapse */
-    style_set_padding_bottom(p->style, 5);
+    style_set_padding_bottom((css_computed_style *)p->style, 5);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
@@ -1137,15 +1137,15 @@ START_TEST(test_last_child_parent_has_mb)
 
     struct box *p = create_box_with_style(200);
     /* auto height, no separator, parent has mb=15 */
-    style_set_margins(p->style, 0, 0, 15, 0);
+    style_set_margins((css_computed_style *)p->style, 0, 0, 15, 0);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
@@ -1176,15 +1176,15 @@ START_TEST(test_last_child_parent_mb_larger)
 
     struct box *p = create_box_with_style(200);
     /* auto height, no separator, parent has mb=30 > c.mb=20 */
-    style_set_margins(p->style, 0, 0, 30, 0);
+    style_set_margins((css_computed_style *)p->style, 0, 0, 30, 0);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
@@ -1215,15 +1215,15 @@ START_TEST(test_last_child_min_height_blocks)
 
     struct box *p = create_box_with_style(200);
     /* auto height BUT min-height > 0 → blocks last-child collapse per spec */
-    style_set_min_height(p->style, 20);
+    style_set_min_height((css_computed_style *)p->style, 20);
 
     struct box *c = create_box_with_style(200);
-    style_set_height_px(c->style, 10);
+    style_set_height_px((css_computed_style *)c->style, 10);
     c->flags |= HAS_HEIGHT | MAKE_HEIGHT;
-    style_set_margins(c->style, 0, 0, 20, 0);
+    style_set_margins((css_computed_style *)c->style, 0, 0, 20, 0);
 
     struct box *next = create_box_with_style(200);
-    style_set_height_px(next->style, 10);
+    style_set_height_px((css_computed_style *)next->style, 10);
     next->flags |= HAS_HEIGHT | MAKE_HEIGHT;
 
     add_child(root, p);
