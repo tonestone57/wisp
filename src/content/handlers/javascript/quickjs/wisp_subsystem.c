@@ -800,7 +800,7 @@ void* wisp_web_worker_routine(void *arg) {
                 wisp_message_queue_push(&h->from_worker, errMsg);
                 wisp_worker_notify_main_thread(h);
             }
-            JS_FreeCString(t->ctx, msg_str); JS_FreeValue(t->ctx, stack); JS_FreeValue(t->ctx, exc);
+            if (msg_str) JS_FreeCString(t->ctx, msg_str); JS_FreeValue(t->ctx, stack); JS_FreeValue(t->ctx, exc);
         }
         JS_FreeValue(t->ctx, res);
         free(req.out_buffer);
@@ -845,7 +845,7 @@ void* wisp_web_worker_routine(void *arg) {
                         wisp_message_queue_push(&h->from_worker, errMsg);
                         wisp_worker_notify_main_thread(h);
                     }
-                    JS_FreeCString(t->ctx, exc_str); JS_FreeValue(t->ctx, exc);
+                    if (exc_str) JS_FreeCString(t->ctx, exc_str); JS_FreeValue(t->ctx, exc);
                 }
                 JS_FreeValue(t->ctx, ret);
             }

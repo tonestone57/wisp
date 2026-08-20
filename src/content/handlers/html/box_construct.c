@@ -1238,14 +1238,19 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
     /* Dispatch styling tasks in parallel to workers */
     for (int i = 0; i < count; i++) {
         struct parallel_style_task_data *task = malloc(sizeof(struct parallel_style_task_data));
-        task->content = c;
-        task->snap = snap_elements[i];
-        task->out_results = out_styles;
-        task->index = i;
-        task->wg = &wg;
+        if (task != NULL) {
+            task->content = c;
+            task->snap = snap_elements[i];
+            task->out_results = out_styles;
+            task->index = i;
+            task->wg = &wg;
 
-        if (!wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f)) {
-            parallel_style_worker_cb(task);
+            if (!wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f)) {
+                parallel_style_worker_cb(task);
+            }
+        } else {
+            out_styles[i] = NULL;
+            wisp_wait_group_done(&wg);
         }
     }
 

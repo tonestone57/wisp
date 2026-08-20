@@ -637,6 +637,8 @@ nserror content_textsearch(struct hlcache_handle *h, void *context, search_flags
 
         res = content_textsearch_create(c, context, &c->textsearch.context);
         if (res != NSERROR_OK) {
+            free(c->textsearch.string);
+            c->textsearch.string = NULL;
             return res;
         }
 

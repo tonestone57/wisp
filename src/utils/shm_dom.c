@@ -525,18 +525,19 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     if (wisp_is_js_process && !wisp_shm_dom) return;
 
     if (wisp_is_js_process) {
-        shm_dom_lock_read(wisp_shm_dom);
         extern uint32_t wisp_shm_capacity;
         if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
             uint32_t new_cap = wisp_shm_dom->node_capacity;
             wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
             if (wisp_shm_dom) {
                 wisp_shm_capacity = new_cap;
-                shm = wisp_shm_dom;
             } else {
                 wisp_shm_capacity = 0;
-                shm = NULL;
             }
+        }
+        shm = wisp_shm_dom;
+        if (shm) {
+            shm_dom_lock_read(shm);
         }
     } else {
         shm_dom_lock_read(shm);
@@ -695,13 +696,11 @@ WispCompactNode* find_shm_node(shm_dom_t *shm, uint64_t id) {
     if (wisp_is_js_process && shm == wisp_shm_dom) {
         extern uint32_t wisp_shm_capacity;
         if (wisp_shm_dom && wisp_shm_capacity < wisp_shm_dom->node_capacity) {
-            shm_dom_lock_read(wisp_shm_dom);
             uint32_t new_cap = wisp_shm_dom->node_capacity;
             wisp_shm_dom = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
             if (wisp_shm_dom) {
                 wisp_shm_capacity = new_cap;
                 shm = wisp_shm_dom;
-                shm_dom_unlock_read(wisp_shm_dom);
             } else {
                 wisp_shm_capacity = 0;
                 shm = NULL;
