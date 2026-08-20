@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include <libwapcaplet/libwapcaplet.h>
 #include <dom/dom.h>
 #include "wisp/utils/errors.h"
 #include "utils/libdom.h"
@@ -117,6 +118,71 @@ START_TEST(test_libdom_iterate_with_children)
 }
 END_TEST
 
+START_TEST(test_libdom_has_class_quirks_vs_standards)
+{
+    dom_document *doc = NULL;
+    dom_element *root_el = NULL;
+    dom_string *class_attr_name = NULL;
+    dom_string *class_attr_val = NULL;
+    lwc_string *target_exact = NULL;
+    lwc_string *target_lower = NULL;
+    nserror err;
+    dom_exception exc;
+    bool match = false;
+
+    err = libdom_parse_file("src/test/data/test_empty.html", "UTF-8", &doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(doc);
+
+    exc = dom_document_get_document_element(doc, &root_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(root_el);
+
+    exc = dom_string_create_interned((const uint8_t *)"class", 5, &class_attr_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"FooBar", 6, &class_attr_val);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_element_set_attribute(root_el, class_attr_name, class_attr_val);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    ck_assert_int_eq(lwc_intern_string("FooBar", 6, &target_exact), lwc_error_ok);
+    ck_assert_int_eq(lwc_intern_string("foobar", 6, &target_lower), lwc_error_ok);
+
+    /* Test Standards mode: case-sensitive matching */
+    exc = dom_document_set_quirks_mode(doc, DOM_DOCUMENT_QUIRKS_MODE_NONE);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_element_has_class(root_el, target_exact, &match);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_int_eq(match, true);
+
+    exc = dom_element_has_class(root_el, target_lower, &match);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_int_eq(match, false);
+
+    /* Test Quirks mode: case-insensitive matching */
+    exc = dom_document_set_quirks_mode(doc, DOM_DOCUMENT_QUIRKS_MODE_FULL);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_element_has_class(root_el, target_exact, &match);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_int_eq(match, true);
+
+    exc = dom_element_has_class(root_el, target_lower, &match);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_int_eq(match, true);
+
+    /* Cleanup */
+    lwc_string_unref(target_exact);
+    lwc_string_unref(target_lower);
+    dom_string_unref(class_attr_name);
+    dom_string_unref(class_attr_val);
+    dom_node_unref(root_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 static Suite *libdom_suite(void)
 {
     Suite *s = suite_create("libdom");
@@ -126,6 +192,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_iterate_null_parent);
     tcase_add_test(tc_core, test_libdom_iterate_no_children);
     tcase_add_test(tc_core, test_libdom_iterate_with_children);
+    tcase_add_test(tc_core, test_libdom_has_class_quirks_vs_standards);
     suite_add_tcase(s, tc_core);
 
     return s;
