@@ -34,27 +34,6 @@ START_TEST(test_default_filetype)
 }
 END_TEST
 
-START_TEST(test_send_fetch_error_handling)
-{
-    setup_ipc();
-
-    send_fetch_error(500, "Blocked");
-
-    wisp_ipc_msg recv_msg;
-    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
-    ck_assert_int_eq(err, NSERROR_OK);
-    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
-
-    uint32_t recv_fid;
-    memcpy(&recv_fid, recv_msg.data, 4);
-    ck_assert_int_eq(recv_fid, 500);
-    ck_assert_str_eq((const char *)recv_msg.data + 4, "Blocked");
-
-    wisp_ipc_msg_free(&recv_msg);
-    teardown_ipc();
-}
-END_TEST
-
 START_TEST(test_is_active_fetch)
 {
     struct network_fetch_info f1 = { .fetch_id = 1, .finished = false, .next = NULL };
@@ -201,6 +180,27 @@ static void teardown_ipc(void)
         test_ipc_server = NULL;
     }
 }
+
+START_TEST(test_send_fetch_error_handling)
+{
+    setup_ipc();
+
+    send_fetch_error(500, "Blocked");
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
+
+    uint32_t recv_fid;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 500);
+    ck_assert_str_eq((const char *)recv_msg.data + 4, "Blocked");
+
+    wisp_ipc_msg_free(&recv_msg);
+    teardown_ipc();
+}
+END_TEST
 
 START_TEST(test_fetch_callback_header)
 {
