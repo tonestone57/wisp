@@ -33,7 +33,9 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("doc.xhtml"), "application/xhtml+xml");
     ck_assert_str_eq(default_filetype("script.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("module.mjs"), "application/javascript");
+    ck_assert_str_eq(default_filetype("common.cjs"), "application/javascript");
     ck_assert_str_eq(default_filetype("data.json"), "application/json");
+    ck_assert_str_eq(default_filetype("bundle.js.map"), "application/json");
     ck_assert_str_eq(default_filetype("feed.xml"), "text/xml");
     ck_assert_str_eq(default_filetype("icon.svg"), "image/svg+xml");
     ck_assert_str_eq(default_filetype("image.png"), "image/png");
@@ -42,6 +44,7 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("anim.gif"), "image/gif");
     ck_assert_str_eq(default_filetype("pic.webp"), "image/webp");
     ck_assert_str_eq(default_filetype("pic.avif"), "image/avif");
+    ck_assert_str_eq(default_filetype("bitmap.bmp"), "image/bmp");
     ck_assert_str_eq(default_filetype("favicon.ico"), "image/x-icon");
     ck_assert_str_eq(default_filetype("font.woff"), "font/woff");
     ck_assert_str_eq(default_filetype("font.woff2"), "font/woff2");
@@ -49,10 +52,15 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("font.otf"), "font/otf");
     ck_assert_str_eq(default_filetype("track.aac"), "audio/aac");
     ck_assert_str_eq(default_filetype("video.mp4"), "video/mp4");
+    ck_assert_str_eq(default_filetype("video.m4v"), "video/mp4");
     ck_assert_str_eq(default_filetype("video.webm"), "video/webm");
+    ck_assert_str_eq(default_filetype("video.ogv"), "video/ogg");
     ck_assert_str_eq(default_filetype("audio.ogg"), "audio/ogg");
     ck_assert_str_eq(default_filetype("audio.mp3"), "audio/mpeg");
+    ck_assert_str_eq(default_filetype("audio.m4a"), "audio/mp4");
     ck_assert_str_eq(default_filetype("audio.wav"), "audio/wav");
+    ck_assert_str_eq(default_filetype("audio.opus"), "audio/opus");
+    ck_assert_str_eq(default_filetype("audio.flac"), "audio/flac");
     ck_assert_str_eq(default_filetype("module.wasm"), "application/wasm");
     ck_assert_str_eq(default_filetype("document.pdf"), "application/pdf");
     ck_assert_str_eq(default_filetype("document.txt"), "text/plain");
@@ -288,97 +296,7 @@ static void process_one_ipc_msg(void) {
     wisp_ipc_msg msg;
     nserror err = wisp_ipc_recv(ipc_main, &msg);
     if (err == NSERROR_OK) {
-        if (msg.type == WISP_IPC_MSG_FETCH_REQUEST) {
-            uint32_t fetch_id = 0;
-            uint32_t url_len = 0;
-            if (msg.length >= 4) {
-                memcpy(&fetch_id, msg.data, 4);
-            }
-            if (msg.length >= 8) {
-                memcpy(&url_len, msg.data + 4, 4);
-            }
-            if (msg.length < 10 || url_len > msg.length - 10) {
-                if (msg.length >= 4) {
-                    send_fetch_error(fetch_id, "InvalidURL");
-                }
-            } else {
-                char *url_str = malloc(url_len + 1);
-                if (!url_str) {
-                    send_fetch_error(fetch_id, "NoMem");
-                } else {
-                    memcpy(url_str, msg.data + 8, url_len);
-                    url_str[url_len] = '\0';
-                    nsurl *url = NULL;
-                    if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
-                        bool only_2xx = (msg.data[8 + url_len] != 0);
-                        bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
-                        struct network_fetch_info *info = malloc(sizeof(*info));
-                        if (info) {
-                            info->fetch_id = fetch_id;
-                            info->fetchh = NULL;
-                            info->finished = false;
-                            info->next = active_fetches_list;
-                            active_fetches_list = info;
-                            struct fetch *f_out = NULL;
-                            if (fetch_start(url, NULL, network_process_fetch_callback, info,
-                                            only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
-                                info->fetchh = f_out;
-                            } else {
-                                active_fetches_list = info->next;
-                                send_fetch_error(fetch_id, "Blocked");
-                                free(info);
-                            }
-                        } else {
-                            send_fetch_error(fetch_id, "NoMem");
-                        }
-                        nsurl_unref(url);
-                    } else {
-                        send_fetch_error(fetch_id, "InvalidURL");
-                    }
-                    free(url_str);
-                }
-            }
-        } else if (msg.type == WISP_IPC_MSG_DNS_PREFETCH_REQUEST) {
-            uint32_t url_len;
-            if (msg.length >= 4) {
-                memcpy(&url_len, msg.data, 4);
-                if (url_len <= msg.length - 4) {
-                    char *url_str = malloc(url_len + 1);
-                    if (url_str) {
-                        memcpy(url_str, msg.data + 4, url_len);
-                        url_str[url_len] = '\0';
-                        nsurl *url = NULL;
-                        if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
-                            lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
-                            if (host_lwc) {
-                                fetch_curl_dns_prefetch(lwc_string_data(host_lwc));
-                                lwc_string_unref(host_lwc);
-                            }
-                            nsurl_unref(url);
-                        }
-                        free(url_str);
-                    }
-                }
-            }
-        } else if (msg.type == WISP_IPC_MSG_PRECONNECT_REQUEST) {
-            uint32_t url_len;
-            if (msg.length >= 4) {
-                memcpy(&url_len, msg.data, 4);
-                if (url_len <= msg.length - 4) {
-                    char *url_str = malloc(url_len + 1);
-                    if (url_str) {
-                        memcpy(url_str, msg.data + 4, url_len);
-                        url_str[url_len] = '\0';
-                        nsurl *url = NULL;
-                        if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
-                            fetch_curl_preconnect(url_str);
-                            nsurl_unref(url);
-                        }
-                        free(url_str);
-                    }
-                }
-            }
-        }
+        network_process_ipc_msg(&msg);
         wisp_ipc_msg_free(&msg);
     }
 }
@@ -999,6 +917,47 @@ START_TEST(test_fetch_callback_null_buffers)
 }
 END_TEST
 
+START_TEST(test_fetch_ipc_abort_msg)
+{
+    setup_ipc();
+
+    struct network_fetch_info info = {
+        .fetch_id = 555,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    active_fetches_list = &info;
+
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_FETCH_ABORT;
+    msg.length = 4;
+    msg.data = malloc(4);
+    ck_assert_ptr_nonnull(msg.data);
+    uint32_t fid = 555;
+    memcpy(msg.data, &fid, 4);
+
+    nserror send_res = wisp_ipc_send(test_ipc_accepted, &msg);
+    ck_assert_int_eq(send_res, NSERROR_OK);
+    free(msg.data);
+
+    process_one_ipc_msg();
+
+    ck_assert_int_eq(info.finished, true);
+    ck_assert_ptr_null(info.fetchh);
+
+    active_fetches_list = NULL;
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_network_process_ipc_msg_null)
+{
+    network_process_ipc_msg(NULL);
+    ck_assert_int_eq(1, 1);
+}
+END_TEST
+
 static Suite *network_main_suite(void)
 {
     Suite *s;
@@ -1029,6 +988,8 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_dns_prefetch_request);
     tcase_add_test(tc_core, test_preconnect_request);
     tcase_add_test(tc_core, test_fetch_callback_null_buffers);
+    tcase_add_test(tc_core, test_fetch_ipc_abort_msg);
+    tcase_add_test(tc_core, test_network_process_ipc_msg_null);
 
     suite_add_tcase(s, tc_core);
 
