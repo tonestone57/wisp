@@ -130,7 +130,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
     wisp_ipc_msg imsg;
     struct network_fetch_info *info = p;
 
-    if (!is_active_fetch(info) || info->finished) {
+    if (!msg || !is_active_fetch(info) || info->finished) {
         return;
     }
 
