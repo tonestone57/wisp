@@ -140,8 +140,7 @@ static bool imagemap_add(html_content *c, dom_string *key, struct mapentry *list
     if (map == NULL)
         return false;
 
-    /* \todo Stop relying on NULL termination of dom_string */
-    map->key = strdup(dom_string_data(key));
+    map->key = strndup(dom_string_data(key), dom_string_byte_length(key));
     if (map->key == NULL) {
         free(map);
         return false;
