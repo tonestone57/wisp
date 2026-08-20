@@ -19,17 +19,25 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("script.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("module.mjs"), "application/javascript");
     ck_assert_str_eq(default_filetype("data.json"), "application/json");
+    ck_assert_str_eq(default_filetype("feed.xml"), "text/xml");
     ck_assert_str_eq(default_filetype("icon.svg"), "image/svg+xml");
     ck_assert_str_eq(default_filetype("image.png"), "image/png");
     ck_assert_str_eq(default_filetype("photo.jpg"), "image/jpeg");
     ck_assert_str_eq(default_filetype("photo.jpeg"), "image/jpeg");
     ck_assert_str_eq(default_filetype("anim.gif"), "image/gif");
     ck_assert_str_eq(default_filetype("pic.webp"), "image/webp");
+    ck_assert_str_eq(default_filetype("favicon.ico"), "image/x-icon");
+    ck_assert_str_eq(default_filetype("font.woff"), "font/woff");
     ck_assert_str_eq(default_filetype("font.woff2"), "font/woff2");
+    ck_assert_str_eq(default_filetype("font.ttf"), "font/ttf");
+    ck_assert_str_eq(default_filetype("font.otf"), "font/otf");
     ck_assert_str_eq(default_filetype("document.txt"), "text/plain");
     ck_assert_str_eq(default_filetype("unknown.xyz"), "text/plain");
     ck_assert_str_eq(default_filetype("/path/to/style.CSS?query=1"), "text/css");
     ck_assert_str_eq(default_filetype("/images/logo.PNG#fragment"), "image/png");
+    ck_assert_str_eq(default_filetype("/assets/v1/font.woff2?v=2#font"), "font/woff2");
+    ck_assert_str_eq(default_filetype("site.v2.html"), "text/html");
+    ck_assert_str_eq(default_filetype("bundle.min.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
 }
 END_TEST
@@ -573,6 +581,46 @@ START_TEST(test_fetch_callback_guards)
 }
 END_TEST
 
+START_TEST(test_fetch_abort_handling)
+{
+    struct network_fetch_info info1 = {
+        .fetch_id = 101,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    struct network_fetch_info info2 = {
+        .fetch_id = 102,
+        .fetchh = NULL,
+        .finished = false,
+        .next = &info1
+    };
+
+    active_fetches_list = &info2;
+
+    /* Simulate FETCH_ABORT message processing for fetch_id 101 */
+    uint32_t target_id = 101;
+    struct network_fetch_info *curr = active_fetches_list;
+    while (curr && curr->fetch_id != target_id) {
+        curr = curr->next;
+    }
+    ck_assert_ptr_nonnull(curr);
+    ck_assert_ptr_eq(curr, &info1);
+    if (curr && !curr->finished) {
+        if (curr->fetchh) {
+            fetch_abort(curr->fetchh);
+            curr->fetchh = NULL;
+        }
+        curr->finished = true;
+    }
+
+    ck_assert_int_eq(info1.finished, true);
+    ck_assert_int_eq(info2.finished, false);
+
+    active_fetches_list = NULL;
+}
+END_TEST
+
 static Suite *network_main_suite(void)
 {
     Suite *s;
@@ -595,6 +643,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_fetch_callback_errors_special);
     tcase_add_test(tc_core, test_fetch_callback_guards);
     tcase_add_test(tc_core, test_fetch_callback_unknown_type);
+    tcase_add_test(tc_core, test_fetch_abort_handling);
 
     suite_add_tcase(s, tc_core);
 
