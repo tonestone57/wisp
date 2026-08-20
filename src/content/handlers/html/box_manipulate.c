@@ -63,10 +63,10 @@ static void box_talloc_destructor(void *ptr)
 
 	if ((b->flags & STYLE_OWNED)) {
 		if (b->original_style != NULL) {
-			css_computed_style_destroy(b->original_style);
+			css_computed_style_destroy((css_computed_style *)b->original_style);
 			b->original_style = NULL;
 		} else if (b->style != NULL) {
-			css_computed_style_destroy(b->style);
+			css_computed_style_destroy((css_computed_style *)b->style);
 		}
 		b->style = NULL;
 	}
@@ -115,7 +115,7 @@ static void box_talloc_destructor(void *ptr)
 
 
 /* Exported function documented in html/box.h */
-struct box *box_create(struct html_content *content, css_select_results *styles, css_computed_style *style, bool style_owned, nsurl *href,
+struct box *box_create(struct html_content *content, css_select_results *styles, const css_computed_style *style, bool style_owned, nsurl *href,
 	const char *target, const char *title, lwc_string *id, void *context)
 {
 	unsigned int i;
