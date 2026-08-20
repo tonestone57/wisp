@@ -708,7 +708,7 @@ static void html_object_refresh(void *p)
     content_invalidate_reuse_data(object->content);
 
     if (!html_replace_object(object, refresh_url)) {
-        /** \todo handle memory exhaustion */
+        NSLOG(wisp, ERROR, "Failed to replace HTML object on refresh due to memory exhaustion");
     }
 }
 
