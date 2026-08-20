@@ -248,6 +248,122 @@ START_TEST(test_send_fetch_error_handling)
 }
 END_TEST
 
+static void process_one_ipc_msg(void) {
+    wisp_ipc_msg msg;
+    nserror err = wisp_ipc_recv(ipc_main, &msg);
+    if (err == NSERROR_OK) {
+        if (msg.type == WISP_IPC_MSG_FETCH_REQUEST) {
+            uint32_t fetch_id = 0;
+            uint32_t url_len = 0;
+            if (msg.length >= 4) {
+                memcpy(&fetch_id, msg.data, 4);
+            }
+            if (msg.length >= 8) {
+                memcpy(&url_len, msg.data + 4, 4);
+            }
+            if (msg.length < 10 || url_len > msg.length - 10) {
+                if (msg.length >= 4) {
+                    send_fetch_error(fetch_id, "InvalidURL");
+                }
+            } else {
+                char *url_str = malloc(url_len + 1);
+                if (!url_str) {
+                    send_fetch_error(fetch_id, "NoMem");
+                } else {
+                    memcpy(url_str, msg.data + 8, url_len);
+                    url_str[url_len] = '\0';
+                    nsurl *url = NULL;
+                    if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
+                        bool only_2xx = (msg.data[8 + url_len] != 0);
+                        bool downgrade_tls = (msg.data[8 + url_len + 1] != 0);
+                        struct network_fetch_info *info = malloc(sizeof(*info));
+                        if (info) {
+                            info->fetch_id = fetch_id;
+                            info->fetchh = NULL;
+                            info->finished = false;
+                            info->next = active_fetches_list;
+                            active_fetches_list = info;
+                            struct fetch *f_out = NULL;
+                            if (fetch_start(url, NULL, network_process_fetch_callback, info,
+                                            only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
+                                info->fetchh = f_out;
+                            } else {
+                                active_fetches_list = info->next;
+                                send_fetch_error(fetch_id, "Blocked");
+                                free(info);
+                            }
+                        } else {
+                            send_fetch_error(fetch_id, "NoMem");
+                        }
+                        nsurl_unref(url);
+                    } else {
+                        send_fetch_error(fetch_id, "InvalidURL");
+                    }
+                    free(url_str);
+                }
+            }
+        }
+        wisp_ipc_msg_free(&msg);
+    }
+}
+
+START_TEST(test_fetch_request_invalid_url_and_bounds)
+{
+    setup_ipc();
+
+    /* 1. Short message (< 10 bytes but >= 4 bytes, e.g. 6 bytes): sends InvalidURL for fetch_id */
+    uint32_t fetch_id = 88;
+    wisp_ipc_msg msg;
+    msg.type = WISP_IPC_MSG_FETCH_REQUEST;
+    msg.length = 6;
+    msg.data = malloc(msg.length);
+    ck_assert_ptr_nonnull(msg.data);
+    memcpy(msg.data, &fetch_id, 4);
+
+    nserror send_res = wisp_ipc_send(test_ipc_accepted, &msg);
+    ck_assert_int_eq(send_res, NSERROR_OK);
+    free(msg.data);
+
+    /* Process the message via actual IPC handling routine */
+    process_one_ipc_msg();
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
+    uint32_t recv_fid;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 88);
+    ck_assert_str_eq((const char *)recv_msg.data + 4, "InvalidURL");
+    wisp_ipc_msg_free(&recv_msg);
+
+    /* 2. Excess url_len (> msg.length - 10): sends InvalidURL */
+    fetch_id = 89;
+    uint32_t url_len = 50; /* claims 50 bytes, but msg.length is only 15 */
+    msg.length = 15;
+    msg.data = malloc(msg.length);
+    ck_assert_ptr_nonnull(msg.data);
+    memcpy(msg.data, &fetch_id, 4);
+    memcpy(msg.data + 4, &url_len, 4);
+
+    send_res = wisp_ipc_send(test_ipc_accepted, &msg);
+    ck_assert_int_eq(send_res, NSERROR_OK);
+    free(msg.data);
+
+    process_one_ipc_msg();
+
+    err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 89);
+    ck_assert_str_eq((const char *)recv_msg.data + 4, "InvalidURL");
+    wisp_ipc_msg_free(&recv_msg);
+
+    teardown_ipc();
+}
+END_TEST
+
 START_TEST(test_fetch_callback_http_codes)
 {
     setup_ipc();
@@ -726,6 +842,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_send_fetch_error);
     tcase_add_test(tc_core, test_fetch_callback_http_codes);
     tcase_add_test(tc_core, test_send_fetch_error_handling);
+    tcase_add_test(tc_core, test_fetch_request_invalid_url_and_bounds);
     tcase_add_test(tc_core, test_is_active_fetch);
     tcase_add_test(tc_core, test_cleanup_finished_fetches);
     tcase_add_test(tc_core, test_free_all_active_fetches);
