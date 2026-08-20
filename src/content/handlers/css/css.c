@@ -155,8 +155,10 @@ static nserror nscss_create(const content_handler *handler, lwc_string *imime_ty
     }
 
     /* Compute base URL for stylesheet */
-    xnsbase = llcache_handle_get_header(llcache, LLCACHE_HEADER_X_NS_BASE);
-    if (xnsbase == NULL) {
+    const llcache_header_value *xnsbase_hdr = llcache_handle_get_header(llcache, LLCACHE_HEADER_X_NS_BASE);
+    if (xnsbase_hdr != NULL && xnsbase_hdr->count > 0 && xnsbase_hdr->entries[0].value != NULL) {
+        xnsbase = xnsbase_hdr->entries[0].value;
+    } else {
         xnsbase = nsurl_access(content_get_url(&result->base));
     }
 

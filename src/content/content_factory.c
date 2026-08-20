@@ -173,7 +173,6 @@ struct content *content_factory_create_content(
     llcache_handle *llcache, const char *fallback_charset, bool quirks, lwc_string *effective_type)
 {
     struct content *c;
-    const char *content_type_header;
     const content_handler *handler;
     http_content_type *ct = NULL;
     nserror error;
@@ -187,11 +186,13 @@ struct content *content_factory_create_content(
 
     assert(handler->create != NULL);
 
+    const llcache_header_value *ct_hdr;
+
     /* Use the parameters from the declared Content-Type header */
-    content_type_header = llcache_handle_get_header(llcache, LLCACHE_HEADER_CONTENT_TYPE);
-    if (content_type_header != NULL) {
+    ct_hdr = llcache_handle_get_header(llcache, LLCACHE_HEADER_CONTENT_TYPE);
+    if (ct_hdr != NULL && ct_hdr->count > 0 && ct_hdr->entries[0].raw_value != NULL) {
         /* We don't care if this fails */
-        http_parse_content_type(content_type_header, &ct);
+        http_parse_content_type(ct_hdr->entries[0].raw_value, &ct);
     }
 
     error = handler->create(

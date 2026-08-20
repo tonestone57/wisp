@@ -719,22 +719,26 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	NSLOG(wisp, DEBUG, "<<< html_create_html_data SUCCESS, parser=%p for content %p", c->parser, c);
 
 	/* Extract and parse Content-Security-Policy header */
-	const char *csp_header = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CONTENT_SECURITY_POLICY);
-	if (csp_header != NULL) {
-		csp_parse(csp_header, c->base_url, &c->csp);
+	const llcache_header_value *csp_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CONTENT_SECURITY_POLICY);
+	if (csp_hdr != NULL) {
+		for (size_t i = 0; i < csp_hdr->count; i++) {
+			if (csp_hdr->entries[i].raw_value != NULL) {
+				csp_parse(csp_hdr->entries[i].raw_value, c->base_url, &c->csp);
+			}
+		}
 	}
 
 	/* Extract and parse COOP and COEP headers */
-	const char *coop_header = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY);
-	if (coop_header != NULL) {
-		c->coop = strdup(coop_header);
+	const llcache_header_value *coop_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY);
+	if (coop_hdr != NULL && coop_hdr->count > 0 && coop_hdr->entries[0].raw_value != NULL) {
+		c->coop = strdup(coop_hdr->entries[0].raw_value);
 	} else {
 		c->coop = NULL;
 	}
 
-	const char *coep_header = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY);
-	if (coep_header != NULL) {
-		c->coep = strdup(coep_header);
+	const llcache_header_value *coep_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY);
+	if (coep_hdr != NULL && coep_hdr->count > 0 && coep_hdr->entries[0].raw_value != NULL) {
+		c->coep = strdup(coep_hdr->entries[0].raw_value);
 	} else {
 		c->coep = NULL;
 	}
