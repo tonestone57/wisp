@@ -19,18 +19,24 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("script.js"), "application/javascript");
     ck_assert_str_eq(default_filetype("module.mjs"), "application/javascript");
     ck_assert_str_eq(default_filetype("data.json"), "application/json");
+    ck_assert_str_eq(default_filetype("feed.xml"), "text/xml");
     ck_assert_str_eq(default_filetype("icon.svg"), "image/svg+xml");
     ck_assert_str_eq(default_filetype("image.png"), "image/png");
     ck_assert_str_eq(default_filetype("photo.jpg"), "image/jpeg");
     ck_assert_str_eq(default_filetype("photo.jpeg"), "image/jpeg");
     ck_assert_str_eq(default_filetype("anim.gif"), "image/gif");
     ck_assert_str_eq(default_filetype("pic.webp"), "image/webp");
+    ck_assert_str_eq(default_filetype("favicon.ico"), "image/x-icon");
+    ck_assert_str_eq(default_filetype("font.woff"), "font/woff");
     ck_assert_str_eq(default_filetype("font.woff2"), "font/woff2");
+    ck_assert_str_eq(default_filetype("font.ttf"), "font/ttf");
+    ck_assert_str_eq(default_filetype("font.otf"), "font/otf");
     ck_assert_str_eq(default_filetype("document.txt"), "text/plain");
     ck_assert_str_eq(default_filetype("unknown.xyz"), "text/plain");
     ck_assert_str_eq(default_filetype("/path/to/style.CSS?query=1"), "text/css");
     ck_assert_str_eq(default_filetype("/images/logo.PNG#fragment"), "image/png");
     ck_assert_str_eq(default_filetype("no_extension"), "text/plain");
+    ck_assert_str_eq(default_filetype("/path.with.dots/filename"), "text/plain");
 }
 END_TEST
 
@@ -181,6 +187,43 @@ static void teardown_ipc(void)
     }
 }
 
+START_TEST(test_send_fetch_error)
+{
+    setup_ipc();
+
+    /* Test standard error message */
+    send_fetch_error(123, "NetworkFailed");
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
+    ck_assert_int_eq(recv_msg.length, 4 + strlen("NetworkFailed") + 1);
+
+    uint32_t recv_fid;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 123);
+    ck_assert_str_eq((const char *)recv_msg.data + 4, "NetworkFailed");
+
+    wisp_ipc_msg_free(&recv_msg);
+
+    /* Test NULL error message fallback to "UnknownError" */
+    send_fetch_error(124, NULL);
+
+    err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_ERROR);
+    ck_assert_int_eq(recv_msg.length, 4 + strlen("UnknownError") + 1);
+
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 124);
+    ck_assert_str_eq((const char *)recv_msg.data + 4, "UnknownError");
+
+    wisp_ipc_msg_free(&recv_msg);
+    teardown_ipc();
+}
+END_TEST
+
 START_TEST(test_send_fetch_error_handling)
 {
     setup_ipc();
@@ -198,6 +241,61 @@ START_TEST(test_send_fetch_error_handling)
     ck_assert_str_eq((const char *)recv_msg.data + 4, "Blocked");
 
     wisp_ipc_msg_free(&recv_msg);
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_fetch_callback_http_codes)
+{
+    setup_ipc();
+
+    struct network_fetch_info info = {
+        .fetch_id = 77,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    active_fetches_list = &info;
+
+    /* FETCH_HEADER with NULL fetchh (returns http code 0) */
+    fetch_msg msg;
+    msg.type = FETCH_HEADER;
+    const char *hdr = "HTTP/1.1 200 OK\r\n";
+    msg.data.header_or_data.buf = (const uint8_t *)hdr;
+    msg.data.header_or_data.len = strlen(hdr);
+
+    network_process_fetch_callback(&msg, &info);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_HEADER);
+
+    uint32_t recv_fid, recv_code;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    memcpy(&recv_code, recv_msg.data + 4, 4);
+    ck_assert_int_eq(recv_fid, 77);
+    ck_assert_int_eq(recv_code, 0);
+
+    wisp_ipc_msg_free(&recv_msg);
+
+    /* FETCH_NOTMODIFIED with NULL fetchh (returns http code 304 fallback) */
+    info.finished = false;
+    msg.type = FETCH_NOTMODIFIED;
+
+    network_process_fetch_callback(&msg, &info);
+
+    err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_FINISHED);
+
+    memcpy(&recv_fid, recv_msg.data, 4);
+    memcpy(&recv_code, recv_msg.data + 4, 4);
+    ck_assert_int_eq(recv_fid, 77);
+    ck_assert_int_eq(recv_code, 304);
+
+    wisp_ipc_msg_free(&recv_msg);
+    active_fetches_list = NULL;
     teardown_ipc();
 }
 END_TEST
@@ -582,6 +680,8 @@ static Suite *network_main_suite(void)
     tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_default_filetype);
+    tcase_add_test(tc_core, test_send_fetch_error);
+    tcase_add_test(tc_core, test_fetch_callback_http_codes);
     tcase_add_test(tc_core, test_send_fetch_error_handling);
     tcase_add_test(tc_core, test_is_active_fetch);
     tcase_add_test(tc_core, test_cleanup_finished_fetches);
