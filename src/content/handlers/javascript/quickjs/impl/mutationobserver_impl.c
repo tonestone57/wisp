@@ -75,6 +75,7 @@ static void mutation_callback(const struct dom_mutation_notification *notificati
                 if (!record) continue;
                 if (notification->type == DOM_MUTATION_NOTIFICATION_CHILD_LIST) {
                     record->type = strdup("childList");
+                    if (!record->type) { free(record); continue; }
                     if (notification->added_node) {
                         record->addedNodes = malloc(sizeof(struct dom_node *));
                         if (record->addedNodes) {
@@ -100,11 +101,13 @@ static void mutation_callback(const struct dom_mutation_notification *notificati
                     }
                 } else if (notification->type == DOM_MUTATION_NOTIFICATION_ATTRIBUTES) {
                     record->type = strdup("attributes");
+                    if (!record->type) { free(record); continue; }
                     if (notification->attr_name) record->attributeName = dom_string_to_c(notification->attr_name);
                     if (notification->attr_namespace) record->attributeNamespace = dom_string_to_c(notification->attr_namespace);
                     if (ot->attributeOldValue && notification->old_value) record->oldValue = dom_string_to_c(notification->old_value);
                 } else if (notification->type == DOM_MUTATION_NOTIFICATION_CHARACTER_DATA) {
                     record->type = strdup("characterData");
+                    if (!record->type) { free(record); continue; }
                     if (ot->characterDataOldValue && notification->old_value) record->oldValue = dom_string_to_c(notification->old_value);
                 }
                 record->target = notification->target; dom_node_ref(notification->target);

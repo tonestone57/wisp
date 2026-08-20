@@ -165,6 +165,11 @@ JSValue wisp_intersectionobserver_constructor_impl(JSContext *ctx, JSValue callb
             if (margin_cstr) {
                 root_margin_str = strdup(margin_cstr);
                 JS_FreeCString(ctx, margin_cstr);
+                if (!root_margin_str) {
+                    JS_FreeValue(ctx, js_margin);
+                    JS_FreeValue(ctx, js_root);
+                    return JS_ThrowOutOfMemory(ctx);
+                }
             }
         }
         JS_FreeValue(ctx, js_margin);

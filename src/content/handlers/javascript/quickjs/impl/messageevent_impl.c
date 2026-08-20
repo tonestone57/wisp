@@ -47,6 +47,14 @@ JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data) {
     priv->data = JS_DupValue(ctx, data);
     priv->origin = strdup("");
     priv->lastEventId = strdup("");
+    if (!priv->origin || !priv->lastEventId) {
+        JS_FreeValue(ctx, priv->data);
+        free(priv->origin);
+        free(priv->lastEventId);
+        free(priv);
+        JS_FreeValue(ctx, obj);
+        return JS_ThrowOutOfMemory(ctx);
+    }
 
     JS_SetOpaque(obj, priv);
     return obj;
@@ -82,12 +90,12 @@ JSValue wisp_messageevent_data_get_impl(JSContext *ctx, QJSNodePrivate *priv_nod
 
 JSValue wisp_messageevent_origin_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {
     QJSMessageEventPrivate *priv = (QJSMessageEventPrivate *)priv_node;
-    return priv ? JS_NewString(ctx, priv->origin) : JS_UNDEFINED;
+    return (priv && priv->origin) ? JS_NewString(ctx, priv->origin) : JS_UNDEFINED;
 }
 
 JSValue wisp_messageevent_lastEventId_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {
     QJSMessageEventPrivate *priv = (QJSMessageEventPrivate *)priv_node;
-    return priv ? JS_NewString(ctx, priv->lastEventId) : JS_UNDEFINED;
+    return (priv && priv->lastEventId) ? JS_NewString(ctx, priv->lastEventId) : JS_UNDEFINED;
 }
 
 JSValue wisp_messageevent_source_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) { return JS_NULL; }
