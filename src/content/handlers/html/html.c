@@ -2532,7 +2532,7 @@ dom_document *html_get_document(hlcache_handle *h)
 	return c->document;
 }
 
-static void save_text_solve_whitespace(
+void save_text_solve_whitespace(
 	struct box *box, bool *first, save_text_whitespace *before, const char **whitespace_text, size_t *whitespace_length)
 {
 	/* work out what whitespace should be placed before the next bit of
