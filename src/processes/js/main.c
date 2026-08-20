@@ -110,13 +110,7 @@ JSContext* get_context(uint32_t id) {
     node->id = id;
     node->ctx = JS_NewContext(rt);
     if (!node->ctx) { free(t); free(node); return NULL; }
-    node->thread = NULL;
-    node->next = contexts;
-    contexts = node;
-
-    /* Insert at head of hash table slot chain */
-    node->hash_next = ctx_hash_table[slot];
-    ctx_hash_table[slot] = node;
+    node->thread = t;
 
     /* Initialize bindings */
     qjs_init_dom_bridge(node->ctx);
@@ -149,22 +143,6 @@ JSContext* get_context(uint32_t id) {
     if (js_process_origin) {
         t->origin = strdup(js_process_origin);
         if (!t->origin) {
-            /* Unchain node from contexts list and hash table slot */
-            if (contexts == node) {
-                contexts = node->next;
-            } else {
-                struct js_context_node *p = contexts;
-                while (p && p->next != node) p = p->next;
-                if (p) p->next = node->next;
-            }
-            if (ctx_hash_table[slot] == node) {
-                ctx_hash_table[slot] = node->hash_next;
-            } else {
-                struct js_context_node *p = ctx_hash_table[slot];
-                while (p && p->hash_next != node) p = p->hash_next;
-                if (p) p->hash_next = node->hash_next;
-            }
-            if (last_accessed_ctx == node) last_accessed_ctx = NULL;
             qjs_finalise_dom_bridge(rt, node->ctx);
             JS_FreeContext(node->ctx);
             free(t);
@@ -184,8 +162,6 @@ JSContext* get_context(uint32_t id) {
     t->global_window_priv.is_dom_node = false;
 
     JS_SetContextOpaque(node->ctx, t);
-    node->thread = t;
-    last_accessed_ctx = node;
 
     /* Setup window/document on global object */
     JSValue global_obj = JS_GetGlobalObject(node->ctx);
@@ -207,6 +183,13 @@ JSContext* get_context(uint32_t id) {
     JS_FreeAtom(node->ctx, doc_atom);
 
     JS_FreeValue(node->ctx, global_obj);
+
+    /* Link into contexts list and hash table slot */
+    node->next = contexts;
+    contexts = node;
+    node->hash_next = ctx_hash_table[slot];
+    ctx_hash_table[slot] = node;
+    last_accessed_ctx = node;
 
     return node->ctx;
 }
@@ -239,8 +222,11 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             wisp_shm_capacity = wisp_shm_dom ? wisp_shm_dom->node_capacity : 0;
 
             if (origin) {
-                if (js_process_origin) free(js_process_origin);
-                js_process_origin = strdup(origin);
+                char *new_orig = strdup(origin);
+                if (new_orig) {
+                    if (js_process_origin) free(js_process_origin);
+                    js_process_origin = new_orig;
+                }
             } else {
                 if (js_process_origin) {
                     free(js_process_origin);
@@ -255,8 +241,11 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             while (curr_c) {
                 if (curr_c->thread) {
                     if (origin) {
-                        if (curr_c->thread->origin) free(curr_c->thread->origin);
-                        curr_c->thread->origin = strdup(origin);
+                        char *new_thread_orig = strdup(origin);
+                        if (new_thread_orig) {
+                            if (curr_c->thread->origin) free(curr_c->thread->origin);
+                            curr_c->thread->origin = new_thread_orig;
+                        }
                         if (curr_c->thread->location_url) {
                             nsurl_unref(curr_c->thread->location_url);
                             curr_c->thread->location_url = NULL;
