@@ -367,7 +367,8 @@ static inline dom_html_element_type _dom_html_document_get_element_type(dom_html
             DOM_HTML_ELEMENT_TYPE_OUTPUT) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_SOURCE) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_STRONG) else RETURN_IF_MATCH(upper,
-            DOM_HTML_ELEMENT_TYPE_SPACER) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_STRIKE) break;
+            DOM_HTML_ELEMENT_TYPE_SPACER) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_STRIKE);
+        break;
     case 7:
         RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_CAPTION)
         else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_ISINDEX) else RETURN_IF_MATCH(

@@ -90,12 +90,12 @@ JSValue wisp_messageevent_data_get_impl(JSContext *ctx, QJSNodePrivate *priv_nod
 
 JSValue wisp_messageevent_origin_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {
     QJSMessageEventPrivate *priv = (QJSMessageEventPrivate *)priv_node;
-    return (priv && priv->origin) ? JS_NewString(ctx, priv->origin) : JS_UNDEFINED;
+    return JS_NewString(ctx, (priv && priv->origin) ? priv->origin : "");
 }
 
 JSValue wisp_messageevent_lastEventId_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) {
     QJSMessageEventPrivate *priv = (QJSMessageEventPrivate *)priv_node;
-    return (priv && priv->lastEventId) ? JS_NewString(ctx, priv->lastEventId) : JS_UNDEFINED;
+    return JS_NewString(ctx, (priv && priv->lastEventId) ? priv->lastEventId : "");
 }
 
 JSValue wisp_messageevent_source_get_impl(JSContext *ctx, QJSNodePrivate *priv_node) { return JS_NULL; }
