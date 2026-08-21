@@ -1264,6 +1264,7 @@ START_TEST(nsurl_api_assert_replace_scheme1_test)
     lwc_string *scheme;
     err = lwc_intern_string("https", 5, &scheme);
     err = nsurl_replace_scheme(NULL, scheme, &res);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
     lwc_string_unref(scheme);
 }
 END_TEST
@@ -1275,6 +1276,7 @@ START_TEST(nsurl_api_assert_replace_scheme2_test)
     nsurl *res;
     err = nsurl_create("http://test.com", &url);
     err = nsurl_replace_scheme(url, NULL, &res);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
     nsurl_unref(url);
 }
 END_TEST
@@ -1287,6 +1289,7 @@ START_TEST(nsurl_api_assert_replace_scheme3_test)
     err = nsurl_create("http://test.com", &url);
     err = lwc_intern_string("https", 5, &scheme);
     err = nsurl_replace_scheme(url, scheme, NULL);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
     lwc_string_unref(scheme);
     nsurl_unref(url);
 }
@@ -1498,9 +1501,9 @@ static Suite *nsurl_suite(void)
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_query1_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_query2_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_query3_test, 6);
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_scheme1_test, 6);
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_scheme2_test, 6);
-    tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_replace_scheme3_test, 6);
+    tcase_add_test(tc_api_assert, nsurl_api_assert_replace_scheme1_test);
+    tcase_add_test(tc_api_assert, nsurl_api_assert_replace_scheme2_test);
+    tcase_add_test(tc_api_assert, nsurl_api_assert_replace_scheme3_test);
 
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_nice_test, 6);
     tcase_add_test_raise_signal(tc_api_assert, nsurl_api_assert_parent_test, 6);
