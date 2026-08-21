@@ -610,68 +610,69 @@ void hlcache_stop(void)
 /* See hlcache.h for documentation */
 void hlcache_finalise(void)
 {
-    hlcache_retrieval_ctx *ctx, *next;
-
     if (hlcache == NULL) {
         return;
     }
 
-    struct hlcache_s *old_hlcache = hlcache;
-    hlcache = NULL;
+    struct hlcache_s *cache = hlcache;
 
-    /* Clean up retrieval contexts first so pending fetches do not migrate or reference contents */
-    if (old_hlcache->retrieval_ctx_ring != NULL) {
-        ctx = old_hlcache->retrieval_ctx_ring;
+    /* De-schedule background clean job */
+    guit->misc->schedule(-1, hlcache_clean, NULL);
 
-        do {
-            next = ctx->r_next;
+    /* 1. Tear down active retrieval contexts (breaking the ring safely) */
+    if (cache->retrieval_ctx_ring != NULL) {
+        hlcache_retrieval_ctx *ctx = cache->retrieval_ctx_ring;
+        hlcache_retrieval_ctx *head = ctx;
 
-            if (ctx->llcache != NULL)
+        /* Break circular reference into a NULL-terminated list */
+        hlcache_retrieval_ctx *prev = ctx;
+        while (prev->r_next != head) {
+            prev = prev->r_next;
+        }
+        prev->r_next = NULL;
+        cache->retrieval_ctx_ring = NULL;
+
+        while (ctx != NULL) {
+            hlcache_retrieval_ctx *next = ctx->r_next;
+
+            if (ctx->llcache != NULL) {
                 llcache_handle_release(ctx->llcache);
-
-            if (ctx->handle != NULL)
+            }
+            if (ctx->handle != NULL) {
                 free(ctx->handle);
-
-            if (ctx->child.charset != NULL)
+            }
+            if (ctx->child.charset != NULL) {
                 free((char *)ctx->child.charset);
+            }
 
             free(ctx);
-
             ctx = next;
-        } while (ctx != old_hlcache->retrieval_ctx_ring);
-
-        old_hlcache->retrieval_ctx_ring = NULL;
+        }
     }
 
-    /* Pass 1: Destroy all content objects while the entire entry list remains intact.
-     * Destroying a content object (e.g., an HTML document) may release handles to
-     * other entries, requiring all hlcache_entry nodes to remain valid in memory. */
-    for (hlcache_entry *entry = old_hlcache->content_list; entry != NULL; entry = entry->next) {
+    /* 2. Destroy cached content while the cache context remains valid.
+     * Use a safe extraction loop so callbacks unlinking entries don't corrupt iteration. */
+    while (cache->content_list != NULL) {
+        hlcache_entry *entry = cache->content_list;
+        cache->content_list = entry->next;
+
         if (entry->content != NULL) {
             content_destroy(entry->content);
             entry->content = NULL;
         }
-    }
 
-    /* Pass 2: Unlink and free the hlcache_entry structs now that all contents
-     * have cleanly shut down. */
-    while (old_hlcache->content_list != NULL) {
-        hlcache_entry *entry = old_hlcache->content_list;
-        old_hlcache->content_list = entry->next;
-
-        /* Clear references and free entry allocation */
         free(entry);
     }
 
-    NSLOG(wisp, INFO, "hit/miss %d/%d", old_hlcache->hit_count, old_hlcache->miss_count);
+    NSLOG(wisp, INFO, "hit/miss %d/%d", cache->hit_count, cache->miss_count);
 
-    /* De-schedule ourselves */
-    guit->misc->schedule(-1, hlcache_clean, NULL);
-
-    free(old_hlcache);
-
+    /* 3. Finalise the low-level cache layer */
     NSLOG(wisp, INFO, "Finalising low-level cache");
     llcache_finalise();
+
+    /* 4. Free the cache context and reset global pointer */
+    free(cache);
+    hlcache = NULL;
 }
 
 /* See hlcache.h for documentation */
