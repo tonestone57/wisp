@@ -1803,10 +1803,13 @@ static void html_destroy(struct content *c)
 	/* At this point we can be moderately confident the JS is offline
 	 * so we destroy the JS thread.
 	 */
+	doc_rwlock_wrlock(&html->doc_mutex);
 	if (html->jsthread != NULL) {
-		js_destroythread(html->jsthread);
+		jsthread *t = html->jsthread;
 		html->jsthread = NULL;
+		js_destroythread(t);
 	}
+	doc_rwlock_wrunlock(&html->doc_mutex);
 
 	/* Free iframes and framesets BEFORE freeing layout - they are allocated
 	 * within the box context (bctx) which gets freed by html_free_layout */
@@ -1968,15 +1971,18 @@ static nserror html_close(struct content *c)
 	/* remove all object references from the html content */
 	html_object_close_objects(htmlc);
 
+	doc_rwlock_wrlock(&htmlc->doc_mutex);
 	if (htmlc->jsthread != NULL) {
 		/* Destroy the JS thread now while the browser window's jsheap
 		 * is still valid. This must happen in close (not destroy)
 		 * because the content may outlive the browser window due to
 		 * hlcache reference counting.
 		 */
-		js_destroythread(htmlc->jsthread);
+		jsthread *t = htmlc->jsthread;
 		htmlc->jsthread = NULL;
+		js_destroythread(t);
 	}
+	doc_rwlock_wrunlock(&htmlc->doc_mutex);
 
 	htmlc->dirty_rect_count = 0;
 	htmlc->dirty_use_union = false;
@@ -2995,9 +3001,14 @@ error:
 void html_destroy_thread(struct content *c)
 {
 	html_content *html = (html_content *)c;
-	if (html && html->jsthread != NULL) {
-		js_destroythread(html->jsthread);
-		html->jsthread = NULL;
+	if (html) {
+		doc_rwlock_wrlock(&html->doc_mutex);
+		if (html->jsthread != NULL) {
+			jsthread *t = html->jsthread;
+			html->jsthread = NULL;
+			js_destroythread(t);
+		}
+		doc_rwlock_wrunlock(&html->doc_mutex);
 	}
 }
 
