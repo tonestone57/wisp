@@ -462,6 +462,9 @@ nserror utf8_to_html(const char *string, const char *encname, size_t len, char *
     result = realloc(origout, origoutlen - outlen);
     if (result == NULL) {
         free(origout);
+        if (last_cd.cd)
+            iconv_close(last_cd.cd);
+        utf8_clear_cd_cache();
         return NSERROR_NOMEM;
     }
     *result_out = result;
