@@ -367,6 +367,33 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
                         }
                     }
                 }
+            } else if ((ctx->accepted_types & CONTENT_IMAGE) && ctx->handle != NULL) {
+                const char *url_str = nsurl_access(hlcache_handle_get_url(ctx->handle));
+                if (url_str != NULL) {
+                    const char *query = strchr(url_str, '?');
+                    const char *fragment = strchr(url_str, '#');
+                    const char *end = url_str + strlen(url_str);
+                    if (query && query < end) end = query;
+                    if (fragment && fragment < end) end = fragment;
+
+                    const char *img_mime = NULL;
+                    size_t path_len = end - url_str;
+                    if (path_len >= 4 && strncasecmp(end - 4, ".ico", 4) == 0) img_mime = "image/x-icon";
+                    else if (path_len >= 4 && strncasecmp(end - 4, ".png", 4) == 0) img_mime = "image/png";
+                    else if (path_len >= 4 && strncasecmp(end - 4, ".jpg", 4) == 0) img_mime = "image/jpeg";
+                    else if (path_len >= 5 && strncasecmp(end - 5, ".jpeg", 5) == 0) img_mime = "image/jpeg";
+                    else if (path_len >= 4 && strncasecmp(end - 4, ".gif", 4) == 0) img_mime = "image/gif";
+                    else if (path_len >= 4 && strncasecmp(end - 4, ".svg", 4) == 0) img_mime = "image/svg+xml";
+                    else if (path_len >= 5 && strncasecmp(end - 5, ".webp", 5) == 0) img_mime = "image/webp";
+                    else if (path_len >= 5 && strncasecmp(end - 5, ".avif", 5) == 0) img_mime = "image/avif";
+                    else if (path_len >= 4 && strncasecmp(end - 4, ".bmp", 4) == 0) img_mime = "image/bmp";
+
+                    if (img_mime != NULL) {
+                        if (lwc_intern_string(img_mime, strlen(img_mime), &actual_type) == lwc_error_ok) {
+                            free_actual_type = true;
+                        }
+                    }
+                }
             }
         }
     }
