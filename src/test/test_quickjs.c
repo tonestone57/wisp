@@ -3642,6 +3642,23 @@ START_TEST(test_quickjs_navigator)
     result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_cookieEnabled");
     ck_assert(result == true);
 
+    /* Test navigator.plugins and mimeTypes objects */
+    const char *code3 =
+        "try {\n"
+        "  if (typeof navigator.plugins !== 'object' || navigator.plugins === null) throw new Error('plugins not an object');\n"
+        "  if (typeof navigator.mimeTypes !== 'object' || navigator.mimeTypes === null) throw new Error('mimeTypes not an object');\n"
+        "  if ('Shockwave Flash' in navigator.plugins) { /* should evaluate without throwing TypeError */ }\n"
+        "  if (navigator.language !== 'en-US') throw new Error('language mismatch: ' + navigator.language);\n"
+        "  if (!Array.isArray(navigator.languages) || navigator.languages[0] !== 'en-US') throw new Error('languages mismatch');\n"
+        "  if (navigator.appName !== 'Netscape') throw new Error('appName mismatch');\n"
+        "  window.navResult = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.navResult = e.message;\n"
+        "}\n"
+        "window.navResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_navigator_plugins");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);

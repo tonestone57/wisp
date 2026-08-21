@@ -7410,6 +7410,16 @@ JSValue wisp_mimetypearray_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NewInt32(ctx, 0);
 }
 
+// Forward declarations of navigator functions
+extern JSValue wisp_navigator_cookieEnabled_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_userAgent_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_appCodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_appName_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_appVersion_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_platform_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_product_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+extern JSValue wisp_navigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+
 // -----------------------------------------------------------------------------
 // NavigatorPlugins Implementation (3 stubs)
 // -----------------------------------------------------------------------------
@@ -7419,11 +7429,17 @@ JSValue wisp_navigatorplugins_javaEnabled_get_impl(JSContext *ctx, QJSNodePrivat
 }
 
 JSValue wisp_navigatorplugins_mimeTypes_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern int qjs_init_mimetypearray(JSContext *ctx);
+    extern JSValue qjs_new_mimetypearray(JSContext *ctx, void *node, bool is_dom_node);
+    qjs_init_mimetypearray(ctx);
+    return qjs_new_mimetypearray(ctx, NULL, false);
 }
 
 JSValue wisp_navigatorplugins_plugins_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern int qjs_init_pluginarray(JSContext *ctx);
+    extern JSValue qjs_new_pluginarray(JSContext *ctx, void *node, bool is_dom_node);
+    qjs_init_pluginarray(ctx);
+    return qjs_new_pluginarray(ctx, NULL, false);
 }
 
 // -----------------------------------------------------------------------------
@@ -8941,42 +8957,42 @@ JSValue wisp_workernavigator_taintEnabled_impl(JSContext *ctx, QJSNodePrivate *p
 
 // Overrides: getter | WorkerNavigator::appCodeName(string);
 JSValue wisp_workernavigator_appCodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigator_appCodeName_get_impl(ctx, priv);
 }
 
 // Overrides: getter | WorkerNavigator::appName(string);
 JSValue wisp_workernavigator_appName_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigator_appName_get_impl(ctx, priv);
 }
 
 // Overrides: getter | WorkerNavigator::appVersion(string);
 JSValue wisp_workernavigator_appVersion_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_appVersion_get_impl(ctx, priv);
 }
 
 // Overrides: getter | WorkerNavigator::platform(string);
 JSValue wisp_workernavigator_platform_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigator_platform_get_impl(ctx, priv);
 }
 
 // Overrides: getter | WorkerNavigator::product(string);
 JSValue wisp_workernavigator_product_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigator_product_get_impl(ctx, priv);
 }
 
 // Overrides: getter | WorkerNavigator::productSub(string);
 JSValue wisp_workernavigator_productSub_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return JS_NewString(ctx, "20030107");
 }
 
 // Overrides: getter | WorkerNavigator::userAgent(string);
 JSValue wisp_workernavigator_userAgent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigator_userAgent_get_impl(ctx, priv);
 }
 
 // Overrides: getter | WorkerNavigator::vendor(string);
 JSValue wisp_workernavigator_vendor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return JS_NewString(ctx, "Google Inc.");
 }
 
 // Overrides: getter | WorkerNavigator::vendorSub(string);
@@ -8986,7 +9002,9 @@ JSValue wisp_workernavigator_vendorSub_get_impl(JSContext *ctx, QJSNodePrivate *
 
 // Overrides: getter | WorkerNavigator::languages(string);
 JSValue wisp_workernavigator_languages_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    JSValue arr = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, arr, 0, JS_NewString(ctx, "en-US"));
+    return arr;
 }
 
 // Overrides: getter | WorkerNavigator::onLine(boolean);
@@ -9328,12 +9346,12 @@ JSValue wisp_navigator_onLine_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: getter | Navigator::plugins(user);
 JSValue wisp_navigator_plugins_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigatorplugins_plugins_get_impl(ctx, priv);
 }
 
 // Overrides: getter | Navigator::mimeTypes(user);
 JSValue wisp_navigator_mimeTypes_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    return wisp_navigatorplugins_mimeTypes_get_impl(ctx, priv);
 }
 
 // Overrides: method | ApplicationCache::update();
@@ -14593,32 +14611,34 @@ JSValue wisp_mutationobserver_constructor_impl(JSContext *ctx, JSValue callback)
 
 // Overrides: Navigator | javaEnabled (getter)
 JSValue wisp_navigator_javaEnabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_FALSE;
 }
 
 // Overrides: Navigator | languages (getter)
 JSValue wisp_navigator_languages_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue arr = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, arr, 0, JS_NewString(ctx, "en-US"));
+    return arr;
 }
 
 // Overrides: Navigator | productSub (getter)
 JSValue wisp_navigator_productSub_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "20030107");
 }
 
 // Overrides: Navigator | taintEnabled()
 JSValue wisp_navigator_taintEnabled_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    return JS_FALSE;
 }
 
 // Overrides: Navigator | vendor (getter)
 JSValue wisp_navigator_vendor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "Google Inc.");
 }
 
 // Overrides: Navigator | vendorSub (getter)
 JSValue wisp_navigator_vendorSub_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: NavigatorContentUtils | isContentHandlerRegistered()
@@ -14653,62 +14673,64 @@ JSValue wisp_navigatorcontentutils_unregisterProtocolHandler_impl(JSContext *ctx
 
 // Overrides: NavigatorID | appCodeName (getter)
 JSValue wisp_navigatorid_appCodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_appCodeName_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorID | appName (getter)
 JSValue wisp_navigatorid_appName_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_appName_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorID | appVersion (getter)
 JSValue wisp_navigatorid_appVersion_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_appVersion_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorID | platform (getter)
 JSValue wisp_navigatorid_platform_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_platform_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorID | product (getter)
 JSValue wisp_navigatorid_product_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_product_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorID | productSub (getter)
 JSValue wisp_navigatorid_productSub_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "20030107");
 }
 
 // Overrides: NavigatorID | taintEnabled()
 JSValue wisp_navigatorid_taintEnabled_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    return JS_FALSE;
 }
 
 // Overrides: NavigatorID | userAgent (getter)
 JSValue wisp_navigatorid_userAgent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_userAgent_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorID | vendor (getter)
 JSValue wisp_navigatorid_vendor_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "Google Inc.");
 }
 
 // Overrides: NavigatorID | vendorSub (getter)
 JSValue wisp_navigatorid_vendorSub_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: NavigatorLanguage | language (getter)
 JSValue wisp_navigatorlanguage_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_language_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorLanguage | languages (getter)
 JSValue wisp_navigatorlanguage_languages_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue arr = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, arr, 0, JS_NewString(ctx, "en-US"));
+    return arr;
 }
 
 // Overrides: NavigatorOnLine | onLine (getter)
@@ -14718,7 +14740,7 @@ JSValue wisp_navigatoronline_onLine_get_impl(JSContext *ctx, QJSNodePrivate *pri
 
 // Overrides: NavigatorStorageUtils | cookieEnabled (getter)
 JSValue wisp_navigatorstorageutils_cookieEnabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_cookieEnabled_get_impl(ctx, priv);
 }
 
 // Overrides: NavigatorStorageUtils | yieldForStorageUpdates()
@@ -15966,7 +15988,7 @@ JSValue wisp_windowtimers_setTimeout_1_impl(JSContext *ctx, QJSNodePrivate *priv
 
 // Overrides: WorkerNavigator | language (getter)
 JSValue wisp_workernavigator_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_navigator_language_get_impl(ctx, priv);
 }
 
 
