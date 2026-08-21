@@ -74,14 +74,16 @@ int qjs_init_errorevent(JSContext *ctx) {
 }
 
 JSValue wisp_errorevent_constructor_impl(JSContext *ctx, const char * type, JSValue eventInitDict) {
-    const char *msg = "";
+    const char *msg = NULL;
     if (JS_IsObject(eventInitDict)) {
         JSValue v = JS_GetPropertyStr(ctx, eventInitDict, "message");
-        msg = JS_ToCString(ctx, v);
+        if (!JS_IsUndefined(v) && !JS_IsNull(v)) {
+            msg = JS_ToCString(ctx, v);
+        }
         JS_FreeValue(ctx, v);
     }
-    JSValue obj = qjs_new_errorevent_manual(ctx, msg, "", 0, 0);
-    if (msg && msg[0]) JS_FreeCString(ctx, msg);
+    JSValue obj = qjs_new_errorevent_manual(ctx, msg ? msg : "", "", 0, 0);
+    if (msg) JS_FreeCString(ctx, msg);
     return obj;
 }
 

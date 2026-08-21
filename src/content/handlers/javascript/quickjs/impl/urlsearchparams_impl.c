@@ -49,7 +49,11 @@ JSValue wisp_urlsearchparams_constructor_impl(JSContext *ctx, JSValue init)
 
     if (JS_IsString(init)) {
         const char *str = JS_ToCString(ctx, init);
-        if (str) {
+        if (!str) {
+            free(data);
+            return JS_ThrowOutOfMemory(ctx);
+        }
+        {
             const char *p = str;
             if (*p == '?') p++;
             while (*p) {
