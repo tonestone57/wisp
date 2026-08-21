@@ -236,7 +236,7 @@ static struct html_stylesheet *html_create_style_element(html_content *c, dom_no
     exc = dom_element_get_attribute(style, corestring_dom_media, &val);
     if (exc == DOM_NO_ERR && val != NULL) {
         if (dom_string_length(val) > 0) {
-            media_str = strdup(dom_string_data(val));
+            media_str = strndup(dom_string_data(val), dom_string_byte_length(val));
         }
         dom_string_unref(val);
     }
@@ -456,7 +456,7 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     exc = dom_element_get_attribute(node, corestring_dom_media, &media);
     if (exc == DOM_NO_ERR && media != NULL) {
         if (dom_string_length(media) > 0) {
-            media_str = strdup(dom_string_data(media));
+            media_str = strndup(dom_string_data(media), dom_string_byte_length(media));
         }
         dom_string_unref(media);
     }
