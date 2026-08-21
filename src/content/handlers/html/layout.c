@@ -4489,11 +4489,15 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 					struct wisp_layout_wait_group wg;
 					wisp_layout_wait_group_init(&wg, 1);
 					struct parallel_layout_task_data *task = malloc(sizeof(struct parallel_layout_task_data));
-					task->box = box;
-					task->content = content;
-					task->wg = &wg;
-					if (!wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f)) {
-						parallel_layout_worker_cb(task);
+					if (task != NULL) {
+						task->box = box;
+						task->content = content;
+						task->wg = &wg;
+						if (!wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f)) {
+							parallel_layout_worker_cb(task);
+						}
+					} else {
+						wisp_layout_wait_group_done(&wg);
 					}
 					wisp_layout_wait_group_wait(&wg);
 					wisp_layout_wait_group_destroy(&wg);
