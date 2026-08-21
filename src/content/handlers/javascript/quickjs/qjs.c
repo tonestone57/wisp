@@ -5456,6 +5456,33 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                             resp.data = NULL;
                             wisp_ipc_send(ipc_js, &resp);
                             wisp_ipc_msg_free(&response);
+                        } else if (response.type == WISP_IPC_MSG_NAVIGATE) {
+                            if (response.data && response.length > 0 && thread->win_priv) {
+                                struct browser_window *bw = (struct browser_window *)thread->win_priv;
+                                const char *url_str = (const char *)response.data;
+                                struct nsurl *base_url = NULL;
+                                if (thread->doc_priv && thread->win_priv != thread->doc_priv) {
+                                    base_url = content_get_url((struct content *)thread->doc_priv);
+                                }
+                                struct nsurl *target_url = NULL;
+                                nserror err = NSERROR_BAD_URL;
+                                if (base_url) {
+                                    err = nsurl_join(base_url, url_str, &target_url);
+                                }
+                                if (err != NSERROR_OK) {
+                                    err = nsurl_create(url_str, &target_url);
+                                }
+                                if (err == NSERROR_OK && target_url) {
+                                    browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
+                                    nsurl_unref(target_url);
+                                }
+                            }
+                            wisp_ipc_msg resp;
+                            resp.type = WISP_IPC_MSG_DOM_RESPONSE;
+                            resp.length = 0;
+                            resp.data = NULL;
+                            wisp_ipc_send(ipc_js, &resp);
+                            wisp_ipc_msg_free(&response);
                         } else {
                             /* Ignore unexpected/stale message types */
                             wisp_ipc_msg_free(&response);

@@ -27,6 +27,7 @@ typedef enum {
     WISP_IPC_MSG_DOM_REQUEST = 102,
     WISP_IPC_MSG_DOM_RESPONSE = 103,
     WISP_IPC_MSG_SHM_INIT = 104,
+    WISP_IPC_MSG_NAVIGATE = 105,
 } wisp_ipc_msg_type;
 
 typedef struct {

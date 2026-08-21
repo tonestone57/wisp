@@ -97,7 +97,7 @@ JSValue wisp_window_navigator_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     JSValue global = JS_GetGlobalObject(ctx);
-    JSValue loc = JS_GetPropertyStr(ctx, global, "location");
+    JSValue loc = JS_GetPropertyStr(ctx, global, "__wisp_location_cached");
     JS_FreeValue(ctx, global);
     return loc;
 }

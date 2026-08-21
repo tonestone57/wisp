@@ -338,6 +338,8 @@ JSValue wisp_xmlhttprequest_responseText_get_impl(JSContext *ctx, QJSNodePrivate
     return JS_NewStringLen(ctx, (const char *)xhr->response_buf, xhr->response_len);
 }
 
+extern struct nsurl *get_location_nsurl(JSContext *ctx);
+
 JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, const char * method, const char * url)
 {
     WispXHR *xhr = priv ? priv->node : NULL;
@@ -346,9 +348,17 @@ JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, cons
     char *new_method = strdup(method);
     if (!new_method) return JS_ThrowOutOfMemory(ctx);
 
+    struct nsurl *base_url = get_location_nsurl(ctx);
     nsurl *new_url = NULL;
-    nserror err = nsurl_create(url, &new_url);
+    nserror err = NSERROR_BAD_URL;
+    if (base_url) {
+        err = nsurl_join(base_url, url, &new_url);
+    }
     if (err != NSERROR_OK) {
+        err = nsurl_create(url, &new_url);
+    }
+
+    if (err != NSERROR_OK || !new_url) {
         free(new_method);
         return JS_ThrowInternalError(ctx, "Invalid URL: %s", url);
     }
