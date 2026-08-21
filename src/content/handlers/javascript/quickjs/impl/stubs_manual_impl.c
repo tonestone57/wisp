@@ -13,10 +13,14 @@
 #include <wisp/utils/corestrings.h>
 #include <wisp/content/handlers/html/private.h>
 #include <wisp/content/handlers/html/form_internal.h>
+#include <wisp/browser_window.h>
+#include <wisp/utils/ipc.h>
 
 struct nsurl;
 extern const char *nsurl_access(const struct nsurl *url);
 extern nserror nsurl_create(const char *const url_s, struct nsurl **url);
+extern struct nsurl *get_location_nsurl(JSContext *ctx);
+extern JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv);
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
@@ -2432,18 +2436,68 @@ JSValue wisp_history_state_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 // Location Implementation (Methods)
 // -----------------------------------------------------------------------------
 
-JSValue wisp_location_reload_impl(JSContext *ctx, QJSNodePrivate *priv)
-{
-    return JS_UNDEFINED;
-}
-
 JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url)
 {
+    if (!url || strlen(url) == 0) return JS_UNDEFINED;
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return JS_UNDEFINED;
+
+    if (!wisp_is_js_process) {
+        if (t->win_priv) {
+            struct browser_window *bw = (struct browser_window *)t->win_priv;
+            struct nsurl *base_url = get_location_nsurl(ctx);
+            struct nsurl *target_url = NULL;
+            nserror err = NSERROR_BAD_URL;
+            if (base_url) {
+                err = nsurl_join(base_url, url, &target_url);
+            }
+            if (err != NSERROR_OK) {
+                err = nsurl_create(url, &target_url);
+            }
+            if (err == NSERROR_OK && target_url) {
+                browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
+                nsurl_unref(target_url);
+            }
+        }
+    } else {
+        extern wisp_ipc_handle *ipc_main;
+        if (ipc_main) {
+            wisp_ipc_msg req;
+            req.type = WISP_IPC_MSG_NAVIGATE;
+            req.length = (uint32_t)strlen(url) + 1;
+            req.data = (uint8_t *)strdup(url);
+            if (req.data) {
+                wisp_ipc_send(ipc_main, &req);
+                free(req.data);
+
+                wisp_ipc_set_blocking(ipc_main, true);
+                wisp_ipc_msg resp;
+                while (wisp_ipc_recv(ipc_main, &resp) == NSERROR_OK) {
+                    if (resp.type == WISP_IPC_MSG_DOM_RESPONSE) {
+                        wisp_ipc_msg_free(&resp);
+                        break;
+                    }
+                    wisp_ipc_msg_free(&resp);
+                }
+                wisp_ipc_set_blocking(ipc_main, false);
+            }
+        }
+    }
     return JS_UNDEFINED;
 }
 
 JSValue wisp_location_replace_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url)
 {
+    return wisp_location_assign_impl(ctx, priv, url);
+}
+
+JSValue wisp_location_reload_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    struct nsurl *url = get_location_nsurl(ctx);
+    if (url) {
+        const char *url_str = nsurl_access(url);
+        return wisp_location_assign_impl(ctx, priv, url_str);
+    }
     return JS_UNDEFINED;
 }
 
@@ -12235,7 +12289,7 @@ JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: attribute get | Document::location (getter);
 JSValue wisp_document_location_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_window_location_get_impl(ctx, priv);
 }
 
 // Overrides: attribute get | Document::onabort (getter);

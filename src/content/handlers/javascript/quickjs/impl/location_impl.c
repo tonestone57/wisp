@@ -16,7 +16,7 @@ extern nserror nsurl_create(const char *const url_s, struct nsurl **url);
 
 extern bool wisp_is_js_process;
 
-static struct nsurl *get_location_nsurl(JSContext *ctx)
+struct nsurl *get_location_nsurl(JSContext *ctx)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return NULL;
@@ -287,6 +287,25 @@ static JSValue js_location_href_set(JSContext *ctx, JSValueConst this_val, int a
     return JS_UNDEFINED;
 }
 
+static JSValue js_window_location_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    extern JSValue wisp_window_location_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+    return wisp_window_location_get_impl(ctx, priv);
+}
+
+static JSValue js_window_location_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (argc > 0) {
+        const char *url_str = JS_ToCString(ctx, argv[0]);
+        if (url_str) {
+            extern JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url);
+            wisp_location_assign_impl(ctx, priv, url_str);
+            JS_FreeCString(ctx, url_str);
+        }
+    }
+    return JS_UNDEFINED;
+}
+
 static JSValue js_location_constructor(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
 {
     return qjs_new_location(ctx, NULL, false);
@@ -328,7 +347,16 @@ int qjs_init_location(JSContext *ctx)
     JS_SetConstructor(ctx, ctor, proto);
     JS_FreeValue(ctx, ctor);
     JS_FreeValue(ctx, proto);
-    JS_DefinePropertyValueStr(ctx, global_obj, "location", loc, JS_PROP_C_W_E);
+
+    /* Store cached location instance on global object */
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_location_cached", loc, 0);
+
+    /* Define window.location as accessor property (getter & setter) */
+    JSAtom loc_atom = JS_NewAtom(ctx, "location");
+    JSValue w_getter = JS_NewCFunction2(ctx, (JSCFunction *)js_window_location_get, "get_location", 0, JS_CFUNC_generic, 0);
+    JSValue w_setter = JS_NewCFunction2(ctx, (JSCFunction *)js_window_location_set, "set_location", 1, JS_CFUNC_generic, 0);
+    JS_DefinePropertyGetSet(ctx, global_obj, loc_atom, w_getter, w_setter, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+    JS_FreeAtom(ctx, loc_atom);
 
     /* Mark as initialized */
     JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_location_init", JS_TRUE, 0);
