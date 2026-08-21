@@ -480,8 +480,10 @@ void SearchSettings::categoryRealize()
 void SearchSettings::categoryApply()
 {
     char *provider = strdup(m_provider->currentText().toUtf8().data());
-    search_web_select_provider(provider);
-    nsoption_set_charp(search_web_provider, provider);
+    if (provider) {
+        search_web_select_provider(provider);
+        nsoption_set_charp(search_web_provider, provider);
+    }
 }
 
 

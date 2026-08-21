@@ -224,6 +224,7 @@ image_id nsbeos_find_app_path(char *path)
             if (path) {
                 memset(path, 0, B_PATH_NAME_LENGTH);
                 strncpy(path, info.name, B_PATH_NAME_LENGTH - 1);
+                path[B_PATH_NAME_LENGTH - 1] = '\0';
             }
             return info.id;
         }

@@ -570,8 +570,7 @@ char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *n
     }
     size_t flen = strlen(filename);
     if (flen < (size_t)cap) {
-        strncpy(filename + flen, r, cap - flen - 1);
-        filename[cap - 1] = '\0';
+        snprintf(filename + flen, cap - flen, "%s", r);
     }
     return filename;
 }
