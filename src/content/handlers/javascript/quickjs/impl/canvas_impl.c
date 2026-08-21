@@ -275,13 +275,8 @@ JSValue wisp_htmlcanvaselement_width_get_impl(JSContext *ctx, QJSNodePrivate *pr
 JSValue wisp_htmlcanvaselement_width_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    if (corestring_dom_width != NULL) {
-        char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
-        dom_string *w_dom = NULL; dom_string_create((const uint8_t *)buf, strlen(buf), &w_dom);
-        dom_element_set_attribute((dom_element *)priv->node, corestring_dom_width, w_dom);
-        dom_string_unref(w_dom);
-    }
-    return JS_UNDEFINED;
+    char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
+    return wisp_element_setAttribute_impl(ctx, priv, "width", buf);
 }
 
 JSValue wisp_htmlcanvaselement_height_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -299,13 +294,8 @@ JSValue wisp_htmlcanvaselement_height_get_impl(JSContext *ctx, QJSNodePrivate *p
 JSValue wisp_htmlcanvaselement_height_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
 {
     if (!priv || !priv->node) return JS_UNDEFINED;
-    if (corestring_dom_height != NULL) {
-        char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
-        dom_string *h_dom = NULL; dom_string_create((const uint8_t *)buf, strlen(buf), &h_dom);
-        dom_element_set_attribute((dom_element *)priv->node, corestring_dom_height, h_dom);
-        dom_string_unref(h_dom);
-    }
-    return JS_UNDEFINED;
+    char buf[32]; snprintf(buf, sizeof(buf), "%u", value);
+    return wisp_element_setAttribute_impl(ctx, priv, "height", buf);
 }
 
 JSValue wisp_canvasrenderingcontext2d_fillStyle_get_impl(JSContext *ctx, QJSNodePrivate *priv)

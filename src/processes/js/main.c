@@ -541,6 +541,7 @@ int js_process_main(int argc, char **argv) {
 
     ipc_main = wisp_ipc_connect(ipc_name);
     if (!ipc_main) return 1;
+    wisp_ipc_set_blocking(ipc_main, false);
 
     corestrings_init();
     rt = JS_NewRuntime();

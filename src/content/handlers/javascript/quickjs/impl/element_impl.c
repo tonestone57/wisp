@@ -365,7 +365,46 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
     if (wisp_is_js_process) {
-        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_INNER_HTML, (uint64_t)(uintptr_t)priv->node, 0, 0, NULL, value);
+        uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
+        WispCompactNode *parent_sn = find_shm_node(wisp_shm_dom, parent_id);
+        if (parent_sn) {
+            uint32_t child_id = parent_sn->first_child_id;
+            while (child_id != 0) {
+                WispCompactNode *child_sn = find_shm_node(wisp_shm_dom, child_id);
+                uint32_t next_id = child_sn ? child_sn->next_sibling_id : 0;
+                if (child_sn) {
+                    child_sn->parent_id = 0;
+                    child_sn->next_sibling_id = 0;
+                    child_sn->prev_sibling_id = 0;
+                }
+                child_id = next_id;
+            }
+            parent_sn->first_child_id = 0;
+        }
+
+        shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_SET_INNER_HTML, parent_id, 0, 0, NULL, value);
+
+        JSValue global = JS_GetGlobalObject(ctx);
+        JSValue parse_fn = JS_GetPropertyStr(ctx, global, "__wisp_parse_html_fragment");
+        JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
+        if (JS_IsFunction(ctx, parse_fn)) {
+            JSValue str_val = JS_NewString(ctx, value);
+            JSValue args[2] = { doc_val, str_val };
+            JSValue frag = JS_Call(ctx, parse_fn, JS_UNDEFINED, 2, args);
+            JS_FreeValue(ctx, str_val);
+
+            if (!JS_IsException(frag) && JS_IsObject(frag)) {
+                QJSNodePrivate *frag_priv = qjs_get_dom_priv(ctx, frag);
+                if (frag_priv && frag_priv->node) {
+                    wisp_node_appendChild_impl(ctx, priv, frag_priv->node);
+                }
+            }
+            JS_FreeValue(ctx, frag);
+        }
+        JS_FreeValue(ctx, doc_val);
+        JS_FreeValue(ctx, parse_fn);
+        JS_FreeValue(ctx, global);
+
         request_synchronous_layout_from_main();
         return JS_UNDEFINED;
     }
