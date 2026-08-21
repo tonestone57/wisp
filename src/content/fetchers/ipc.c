@@ -362,8 +362,8 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
     }
 
     if (wisp_network_pid > 0) {
-        /* Wait up to 500ms for the network process to exit cleanly on its own */
-        int retries = 50;
+        /* Wait up to 1000ms for the network process to exit cleanly on its own */
+        int retries = 100;
         bool exited = false;
         while (retries-- > 0) {
 #ifdef _WIN32
@@ -392,7 +392,7 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
 
         /* If the child process didn't exit cleanly on its own, terminate it forcefully */
         if (!exited) {
-            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 500ms, sending forceful termination", wisp_network_pid);
+            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 1000ms, sending forceful termination", wisp_network_pid);
 #ifdef _WIN32
             HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, wisp_network_pid);
             if (hProcess) {

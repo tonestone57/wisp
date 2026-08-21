@@ -2843,7 +2843,7 @@ static nserror write_backing_store(struct llcache_object *object, size_t *writte
     }
 
     ret = guit->llcache->store(object->url, BACKING_STORE_META, metadata, metadatasize);
-    guit->llcache->release(object->url, BACKING_STORE_META);
+    free(metadata);
     if (ret != NSERROR_OK) {
         /* There has been an error putting the metadata in the
          * backing store. Ensure the data object is invalidated.

@@ -1527,7 +1527,7 @@ static nserror set_store_entry(
     elem = &se->elem[elem_idx];
 
     /* check if the element has storage already allocated */
-    if ((elem->flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0) {
+    if ((elem->flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0 && elem->ref > 0) {
         /* this entry cannot be removed as it has associated
          * allocation.
          */
@@ -2682,6 +2682,11 @@ static nserror store(nsurl *url, enum backing_store_flags bsflags, uint8_t *data
         /* separate file in backing store */
         ret = store_write_file(storestate, bse, elem_idx);
     }
+
+    /* Clean up temporary store buffer pointer and flags so element is not marked as in-RAM allocated */
+    bse->elem[elem_idx].data = NULL;
+    bse->elem[elem_idx].ref = 0;
+    bse->elem[elem_idx].flags &= ~(ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP);
 
     return ret;
 }
