@@ -613,14 +613,16 @@ static bool textarea_select_fragment(struct textarea *ta)
     }
 
     /* Compute byte offset of caret position */
-    for (sel_start = (caret_pos > 0 ? caret_pos - 1 : caret_pos); sel_start > 0; sel_start--) {
-        /* Cache the character offset of the last separator */
+    for (sel_start = (caret_pos > 0 ? caret_pos - 1 : caret_pos); ; ) {
         if (strchr(sep, ta->show->data[sel_start]) != NULL) {
-            /* Found start,
-             * add one to start to skip over separator */
-            sel_start++;
+            if (sel_start < (size_t)caret_pos) {
+                sel_start++;
+            }
             break;
         }
+        if (sel_start == 0)
+            break;
+        sel_start--;
     }
 
     /* Search for next separator, if any */
@@ -2536,12 +2538,8 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
             caret--;
             while (caret > 0 && strchr(sep, ta->show->data[caret]) != NULL)
                 caret--;
-            for (; caret > 0; caret--) {
-                if (strchr(sep, ta->show->data[caret]) != NULL) {
-                    caret++;
-                    break;
-                }
-            }
+            while (caret > 0 && strchr(sep, ta->show->data[caret - 1]) == NULL)
+                caret--;
             break;
         case NS_KEY_DELETE_WORD_LEFT:
             if (readonly)
@@ -2568,12 +2566,8 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
                 caret--;
 
             /* caret goes left until a separator is encountered */
-            for (; caret > 0; caret--) {
-                if (strchr(sep, ta->show->data[caret]) != NULL) {
-                    caret++;
-                    break;
-                }
-            }
+            while (caret > 0 && strchr(sep, ta->show->data[caret - 1]) == NULL)
+                caret--;
 
             /* Remove the characters from new caret position to
              * original caret position */

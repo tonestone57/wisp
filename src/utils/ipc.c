@@ -98,6 +98,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, name, sizeof(addr.sun_path) - 1);
+    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
     unlink(name);
     if (bind(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(h->fd);
@@ -138,6 +139,7 @@ wisp_ipc_handle* wisp_ipc_connect(const char *name) {
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, name, sizeof(addr.sun_path) - 1);
+    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
     if (connect(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(h->fd);
         free(h);
