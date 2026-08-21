@@ -46,6 +46,7 @@
 #include <wisp/content/hlcache.h>
 #include <wisp/wisp.h>
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/desktop/save_text.h>
 #include <wisp/desktop/textarea.h>
 #include <wisp/keypress.h>
 #include <wisp/layout.h>
@@ -2541,22 +2542,164 @@ dom_document *html_get_document(hlcache_handle *h)
 	return c->document;
 }
 
+static void save_text_solve_whitespace(
+	struct box *box, bool *first, save_text_whitespace *before, const char **whitespace_text, size_t *whitespace_length)
+{
+	/* work out what whitespace should be placed before the next bit of
+	 * text */
+	if (*before < WHITESPACE_TWO_NEW_LINES &&
+		/* significant box type */
+		(box->type == BOX_BLOCK || box->type == BOX_TABLE || box->type == BOX_FLOAT_LEFT ||
+			box->type == BOX_FLOAT_RIGHT) &&
+		/* and not a list element */
+		!box->list_marker &&
+		/* and not a marker... */
+		(!(box->parent && box->parent->list_marker == box) ||
+			/* ...unless marker follows WHITESPACE_TAB */
+			((box->parent && box->parent->list_marker == box) && *before == WHITESPACE_TAB))) {
+		*before = WHITESPACE_TWO_NEW_LINES;
+	} else if (*before <= WHITESPACE_ONE_NEW_LINE &&
+		(box->type == BOX_TABLE_ROW || box->type == BOX_BR ||
+			(box->type != BOX_INLINE && (box->parent && box->parent->list_marker == box)) ||
+			(box->parent && box->parent->style &&
+				(css_computed_white_space(box->parent->style) == CSS_WHITE_SPACE_PRE ||
+					css_computed_white_space(box->parent->style) == CSS_WHITE_SPACE_PRE_WRAP) &&
+				box->type == BOX_INLINE_CONTAINER))) {
+		if (*before == WHITESPACE_ONE_NEW_LINE)
+			*before = WHITESPACE_TWO_NEW_LINES;
+		else
+			*before = WHITESPACE_ONE_NEW_LINE;
+	} else if (*before < WHITESPACE_TAB && (box->type == BOX_TABLE_CELL || box->list_marker)) {
+		*before = WHITESPACE_TAB;
+	}
+
+	if (*first) {
+		/* before the first bit of text to be saved; there is
+		 * no preceding whitespace */
+		*whitespace_text = "";
+		*whitespace_length = 0;
+	} else {
+		/* set the whitespace that has been decided on */
+		switch (*before) {
+		case WHITESPACE_TWO_NEW_LINES:
+			*whitespace_text = "\n\n";
+			*whitespace_length = 2;
+			break;
+		case WHITESPACE_ONE_NEW_LINE:
+			*whitespace_text = "\n";
+			*whitespace_length = 1;
+			break;
+		case WHITESPACE_TAB:
+			*whitespace_text = "\t";
+			*whitespace_length = 1;
+			break;
+		case WHITESPACE_NONE:
+			*whitespace_text = "";
+			*whitespace_length = 0;
+			break;
+		default:
+			*whitespace_text = "";
+			*whitespace_length = 0;
+			break;
+		}
+	}
+}
+
+static bool save_text_add_to_buffer(const char *text, size_t length, struct box *box, const char *whitespace_text,
+	size_t whitespace_length, struct save_text_state *save)
+{
+	size_t new_length;
+	int space = 0;
+
+	assert(save);
+
+	if (box->space > 0)
+		space = 1;
+
+	if (!whitespace_text)
+		whitespace_length = 0;
+
+	new_length = save->length + whitespace_length + length + space;
+	if (new_length >= save->alloc) {
+		size_t new_alloc = save->alloc + (save->alloc / 4);
+		char *new_block;
+
+		if (new_alloc < new_length)
+			new_alloc = new_length;
+
+		new_block = realloc(save->block, new_alloc);
+		if (!new_block)
+			return false;
+
+		save->block = new_block;
+		save->alloc = new_alloc;
+	}
+	if (whitespace_text && whitespace_length > 0) {
+		memcpy(save->block + save->length, whitespace_text, whitespace_length);
+		save->length += whitespace_length;
+	}
+	memcpy(save->block + save->length, text, length);
+	save->length += length;
+
+	if (space == 1)
+		save->block[save->length++] = ' ';
+
+	return true;
+}
+
+static void extract_text(struct box *box, bool *first, save_text_whitespace *before, struct save_text_state *save)
+{
+	struct box *child;
+	const char *whitespace_text = "";
+	size_t whitespace_length = 0;
+
+	assert(box);
+
+	/* If box has a list marker */
+	if (box->list_marker) {
+		/* do the marker box before continuing with the rest of the
+		 * list element */
+		extract_text(box->list_marker, first, before, save);
+	}
+
+	/* read before calling the handler in case it modifies the tree */
+	child = box->children;
+
+	save_text_solve_whitespace(box, first, before, &whitespace_text, &whitespace_length);
+
+	if (box->type != BOX_BR && !((box->type == BOX_FLOAT_LEFT || box->type == BOX_FLOAT_RIGHT) && !box->text) &&
+		box->length > 0 && box->text) {
+		/* Box meets criteria for export; add text to buffer */
+		save_text_add_to_buffer(box->text, box->length, box, whitespace_text, whitespace_length, save);
+		*first = false;
+		*before = WHITESPACE_NONE;
+	}
+
+	/* Work though the children of this box, extracting any text */
+	while (child) {
+		extract_text(child, first, before, save);
+		child = child->next;
+	}
+
+	return;
+}
+
 /**
- * Retrieve box tree
+ * Extract text representation from an HTML content handle.
  *
- * \param h  HTML content to retrieve tree from
- * \return Pointer to box tree
- *
- * \todo This API must die, as must all use of the box tree outside of
- *         HTML content handler
+ * \param h       HTML content handle
+ * \param first   Whether this is the first text block
+ * \param before  Whitespace state before next text
+ * \param save    Save state buffer
  */
-struct box *html_get_box_tree(hlcache_handle *h)
+void html_extract_text(hlcache_handle *h, bool *first, save_text_whitespace *before, struct save_text_state *save)
 {
 	html_content *c = (html_content *)hlcache_handle_get_content(h);
 
-	assert(c != NULL);
+	if (c == NULL || c->layout == NULL)
+		return;
 
-	return c->layout;
+	extract_text(c->layout, first, before, save);
 }
 
 /**
@@ -2660,7 +2803,11 @@ bool html_get_id_offset(hlcache_handle *h, lwc_string *frag_id, int *x, int *y)
 	if (content_get_type(h) != CONTENT_HTML)
 		return false;
 
-	layout = html_get_box_tree(h);
+	html_content *c = (html_content *)hlcache_handle_get_content(h);
+	if (c == NULL || c->layout == NULL)
+		return false;
+
+	layout = c->layout;
 
 	if ((pos = box_find_by_id(layout, frag_id)) != 0) {
 		box_coords(pos, x, y);

@@ -23,11 +23,11 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <dom/dom.h>
 
-#include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/html_save.h>
 #include <wisp/utils/config.h>
 #include <wisp/utils/log.h>
@@ -38,11 +38,6 @@
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/desktop/save_text.h>
 #include "wisp/utf8.h"
-
-static void extract_text(struct box *box, bool *first, save_text_whitespace *before, struct save_text_state *save);
-static bool save_text_add_to_buffer(const char *text, size_t length, struct box *box, const char *whitespace_text,
-    size_t whitespace_length, struct save_text_state *save);
-
 
 /**
  * Extract the text from an HTML content and save it as a text file. Text is
@@ -65,7 +60,7 @@ void save_as_text(struct hlcache_handle *c, char *path)
         return;
     }
 
-    extract_text(html_get_box_tree(c), &first, &before, &save);
+    html_extract_text(c, &first, &before, &save);
     if (!save.block)
         return;
 
@@ -97,194 +92,5 @@ void save_as_text(struct hlcache_handle *c, char *path)
 }
 
 
-/**
- * Decide what whitespace to place before the next bit of content-related text
- * that is saved. Any existing whitespace is overridden if the whitespace for
- * this box is more "significant".
- *
- * \param  box		Pointer to box.
- * \param  first	Whether this is before the first bit of content-related
- *			text to be saved.
- * \param  before	Type of whitespace currently intended to be placed
- *			before the next bit of content-related text to be saved.
- *			Updated if this box is worthy of more significant
- *			whitespace.
- * \param  whitespace_text    Whitespace to place before next bit of
- *			      content-related text to be saved.
- *			      Updated if this box is worthy of more significant
- *			      whitespace.
- * \param  whitespace_length  Length of whitespace_text.
- *			      Updated if this box is worthy of more significant
- *			      whitespace.
- */
-
-void save_text_solve_whitespace(
-    struct box *box, bool *first, save_text_whitespace *before, const char **whitespace_text, size_t *whitespace_length)
-{
-    /* work out what whitespace should be placed before the next bit of
-     * text */
-    if (*before < WHITESPACE_TWO_NEW_LINES &&
-        /* significant box type */
-        (box->type == BOX_BLOCK || box->type == BOX_TABLE || box->type == BOX_FLOAT_LEFT ||
-            box->type == BOX_FLOAT_RIGHT) &&
-        /* and not a list element */
-        !box->list_marker &&
-        /* and not a marker... */
-        (!(box->parent && box->parent->list_marker == box) ||
-            /* ...unless marker follows WHITESPACE_TAB */
-            ((box->parent && box->parent->list_marker == box) && *before == WHITESPACE_TAB))) {
-        *before = WHITESPACE_TWO_NEW_LINES;
-    } else if (*before <= WHITESPACE_ONE_NEW_LINE &&
-        (box->type == BOX_TABLE_ROW || box->type == BOX_BR ||
-            (box->type != BOX_INLINE && (box->parent && box->parent->list_marker == box)) ||
-            (box->parent && box->parent->style &&
-                (css_computed_white_space(box->parent->style) == CSS_WHITE_SPACE_PRE ||
-                    css_computed_white_space(box->parent->style) == CSS_WHITE_SPACE_PRE_WRAP) &&
-                box->type == BOX_INLINE_CONTAINER))) {
-        if (*before == WHITESPACE_ONE_NEW_LINE)
-            *before = WHITESPACE_TWO_NEW_LINES;
-        else
-            *before = WHITESPACE_ONE_NEW_LINE;
-    } else if (*before < WHITESPACE_TAB && (box->type == BOX_TABLE_CELL || box->list_marker)) {
-        *before = WHITESPACE_TAB;
-    }
-
-    if (*first) {
-        /* before the first bit of text to be saved; there is
-         * no preceding whitespace */
-        *whitespace_text = "";
-        *whitespace_length = 0;
-    } else {
-        /* set the whitespace that has been decided on */
-        switch (*before) {
-        case WHITESPACE_TWO_NEW_LINES:
-            *whitespace_text = "\n\n";
-            *whitespace_length = 2;
-            break;
-        case WHITESPACE_ONE_NEW_LINE:
-            *whitespace_text = "\n";
-            *whitespace_length = 1;
-            break;
-        case WHITESPACE_TAB:
-            *whitespace_text = "\t";
-            *whitespace_length = 1;
-            break;
-        case WHITESPACE_NONE:
-            *whitespace_text = "";
-            *whitespace_length = 0;
-            break;
-        default:
-            *whitespace_text = "";
-            *whitespace_length = 0;
-            break;
-        }
-    }
-}
 
 
-/**
- * Traverse though the box tree and add all text to a save buffer.
- *
- * \param  box		Pointer to box.
- * \param  first	Whether this is before the first bit of content-related
- *			text to be saved.
- * \param  before	Type of whitespace currently intended to be placed
- *			before the next bit of content-related text to be saved.
- *			Updated if this box is worthy of more significant
- *			whitespace.
- * \param  save		our save_text_state workspace pointer
- * \return true iff the file writing succeeded and traversal should continue.
- */
-
-void extract_text(struct box *box, bool *first, save_text_whitespace *before, struct save_text_state *save)
-{
-    struct box *child;
-    const char *whitespace_text = "";
-    size_t whitespace_length = 0;
-
-    assert(box);
-
-    /* If box has a list marker */
-    if (box->list_marker) {
-        /* do the marker box before continuing with the rest of the
-         * list element */
-        extract_text(box->list_marker, first, before, save);
-    }
-
-    /* read before calling the handler in case it modifies the tree */
-    child = box->children;
-
-    save_text_solve_whitespace(box, first, before, &whitespace_text, &whitespace_length);
-
-    if (box->type != BOX_BR && !((box->type == BOX_FLOAT_LEFT || box->type == BOX_FLOAT_RIGHT) && !box->text) &&
-        box->length > 0 && box->text) {
-        /* Box meets criteria for export; add text to buffer */
-        save_text_add_to_buffer(box->text, box->length, box, whitespace_text, whitespace_length, save);
-        *first = false;
-        *before = WHITESPACE_NONE;
-    }
-
-    /* Work though the children of this box, extracting any text */
-    while (child) {
-        extract_text(child, first, before, save);
-        child = child->next;
-    }
-
-    return;
-}
-
-
-/**
- * Add text to save text buffer. Any preceding whitespace or following space is
- * also added to the buffer.
- *
- * \param  text		Pointer to text being added.
- * \param  length	Length of text to be appended (bytes).
- * \param  box		Pointer to text box.
- * \param  whitespace_text    Whitespace to place before text for formatting
- *                            may be NULL.
- * \param  whitespace_length  Length of whitespace_text.
- * \param  save		Our save_text_state workspace pointer.
- * \return true iff the file writing succeeded and traversal should continue.
- */
-
-bool save_text_add_to_buffer(const char *text, size_t length, struct box *box, const char *whitespace_text,
-    size_t whitespace_length, struct save_text_state *save)
-{
-    size_t new_length;
-    int space = 0;
-
-    assert(save);
-
-    if (box->space > 0)
-        space = 1;
-
-    if (whitespace_text)
-        length += whitespace_length;
-
-    new_length = save->length + whitespace_length + length + space;
-    if (new_length >= save->alloc) {
-        size_t new_alloc = save->alloc + (save->alloc / 4);
-        char *new_block;
-
-        if (new_alloc < new_length)
-            new_alloc = new_length;
-
-        new_block = realloc(save->block, new_alloc);
-        if (!new_block)
-            return false;
-
-        save->block = new_block;
-        save->alloc = new_alloc;
-    }
-    if (whitespace_text) {
-        memcpy(save->block + save->length, whitespace_text, whitespace_length);
-    }
-    memcpy(save->block + save->length + whitespace_length, text, length);
-    save->length += length;
-
-    if (space == 1)
-        save->block[save->length++] = ' ';
-
-    return true;
-}

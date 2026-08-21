@@ -43,6 +43,69 @@ struct rdw_info {
     struct rect r;
 };
 
+static void textselection_solve_whitespace(
+    struct box *box, bool *first, save_text_whitespace *before, const char **whitespace_text, size_t *whitespace_length)
+{
+    /* work out what whitespace should be placed before the next bit of
+     * text */
+    if (*before < WHITESPACE_TWO_NEW_LINES &&
+        /* significant box type */
+        (box->type == BOX_BLOCK || box->type == BOX_TABLE || box->type == BOX_FLOAT_LEFT ||
+            box->type == BOX_FLOAT_RIGHT) &&
+        /* and not a list element */
+        !box->list_marker &&
+        /* and not a marker... */
+        (!(box->parent && box->parent->list_marker == box) ||
+            /* ...unless marker follows WHITESPACE_TAB */
+            ((box->parent && box->parent->list_marker == box) && *before == WHITESPACE_TAB))) {
+        *before = WHITESPACE_TWO_NEW_LINES;
+    } else if (*before <= WHITESPACE_ONE_NEW_LINE &&
+        (box->type == BOX_TABLE_ROW || box->type == BOX_BR ||
+            (box->type != BOX_INLINE && (box->parent && box->parent->list_marker == box)) ||
+            (box->parent && box->parent->style &&
+                (css_computed_white_space(box->parent->style) == CSS_WHITE_SPACE_PRE ||
+                    css_computed_white_space(box->parent->style) == CSS_WHITE_SPACE_PRE_WRAP) &&
+                box->type == BOX_INLINE_CONTAINER))) {
+        if (*before == WHITESPACE_ONE_NEW_LINE)
+            *before = WHITESPACE_TWO_NEW_LINES;
+        else
+            *before = WHITESPACE_ONE_NEW_LINE;
+    } else if (*before < WHITESPACE_TAB && (box->type == BOX_TABLE_CELL || box->list_marker)) {
+        *before = WHITESPACE_TAB;
+    }
+
+    if (*first) {
+        /* before the first bit of text to be saved; there is
+         * no preceding whitespace */
+        *whitespace_text = "";
+        *whitespace_length = 0;
+    } else {
+        /* set the whitespace that has been decided on */
+        switch (*before) {
+        case WHITESPACE_TWO_NEW_LINES:
+            *whitespace_text = "\n\n";
+            *whitespace_length = 2;
+            break;
+        case WHITESPACE_ONE_NEW_LINE:
+            *whitespace_text = "\n";
+            *whitespace_length = 1;
+            break;
+        case WHITESPACE_TAB:
+            *whitespace_text = "\t";
+            *whitespace_length = 1;
+            break;
+        case WHITESPACE_NONE:
+            *whitespace_text = "";
+            *whitespace_length = 0;
+            break;
+        default:
+            *whitespace_text = "";
+            *whitespace_length = 0;
+            break;
+        }
+    }
+}
+
 
 /**
  * Tests whether a text box lies partially within the given range of
@@ -313,7 +376,7 @@ static nserror selection_copy(struct box *box, const css_unit_ctx *unit_len_ctx,
     /* If nicely formatted output of the selected text is required, work
      * out what whitespace should be placed before the next bit of text */
     if (before) {
-        save_text_solve_whitespace(box, first, before, &whitespace_text, &whitespace_length);
+        textselection_solve_whitespace(box, first, before, &whitespace_text, &whitespace_length);
     } else {
         whitespace_text = NULL;
     }

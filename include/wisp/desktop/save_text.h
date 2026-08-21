@@ -27,7 +27,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-struct box;
 struct hlcache_handle;
 
 /* text currently being saved */
@@ -45,7 +44,5 @@ typedef enum {
 } save_text_whitespace;
 
 void save_as_text(struct hlcache_handle *c, char *path);
-void save_text_solve_whitespace(struct box *box, bool *first, save_text_whitespace *before,
-    const char **whitespace_text, size_t *whitespace_length);
 
 #endif
