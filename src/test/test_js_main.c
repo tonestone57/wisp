@@ -435,6 +435,29 @@ static void teardown_ipc(void)
     }
 }
 
+START_TEST(test_process_timers_and_raf_execution)
+{
+    JSContext *ctx = get_context(888);
+    ck_assert_ptr_nonnull(ctx);
+
+    ck_assert(eval_js_bool(ctx, "globalThis.timerRan = false; globalThis.rafRan = false; globalThis.idleRan = false; true"));
+    ck_assert(eval_js_bool(ctx, "setTimeout(() => { globalThis.timerRan = true; }, 0); true"));
+    ck_assert(eval_js_bool(ctx, "requestAnimationFrame(() => { globalThis.rafRan = true; }); true"));
+    ck_assert(eval_js_bool(ctx, "requestIdleCallback(() => { globalThis.idleRan = true; }); true"));
+
+    /* Wait 60ms for rAF (16ms) and rIC (50ms) delays */
+    usleep(60000);
+
+    /* Execute qjs_execute_timers in loop to drain all due callbacks */
+    while (qjs_execute_timers(ctx) == 0);
+
+    /* Verify callbacks executed */
+    ck_assert(eval_js_bool(ctx, "globalThis.timerRan === true"));
+    ck_assert(eval_js_bool(ctx, "globalThis.rafRan === true"));
+    ck_assert(eval_js_bool(ctx, "globalThis.idleRan === true"));
+}
+END_TEST
+
 START_TEST(test_js_process_main_invalid_args)
 {
     char *argv[] = { "wisp-js" };
@@ -1502,6 +1525,7 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_ipc_js_exec_binary_string_embedded_nulls);
     tcase_add_test(tc_core, test_get_context_opaque_available_during_init);
     tcase_add_test(tc_core, test_ipc_js_exec_string_exception);
+    tcase_add_test(tc_core, test_process_timers_and_raf_execution);
     suite_add_tcase(s, tc_core);
 
     return s;

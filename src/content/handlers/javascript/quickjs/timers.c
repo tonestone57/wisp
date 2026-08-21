@@ -388,6 +388,10 @@ JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSVa
             free(timer);
             return JS_ThrowInternalError(ctx, "Failed to schedule timer");
         }
+    } else if (wisp_is_js_process) {
+        uint64_t now = 0;
+        nsu_getmonotonic_ms(&now);
+        timer->scheduled_time = now + timeout;
     } else {
         NSLOG(wisp, WARNING, "No GUI scheduler available for timers");
         t->timers = timer->next;
@@ -494,6 +498,10 @@ static JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, i
             free(raf);
             return JS_ThrowInternalError(ctx, "Failed to schedule requestAnimationFrame");
         }
+    } else if (wisp_is_js_process) {
+        uint64_t now = 0;
+        nsu_getmonotonic_ms(&now);
+        raf->scheduled_time = now + 16;
     } else {
         NSLOG(wisp, WARNING, "No GUI scheduler available for requestAnimationFrame");
         t->raf_callbacks = raf->next;
@@ -581,6 +589,10 @@ static JSValue js_requestIdleCallback(JSContext *ctx, JSValueConst this_val, int
             free(idle);
             return JS_ThrowInternalError(ctx, "Failed to schedule requestIdleCallback");
         }
+    } else if (wisp_is_js_process) {
+        uint64_t now = 0;
+        nsu_getmonotonic_ms(&now);
+        idle->scheduled_time = now + delay;
     } else {
         NSLOG(wisp, WARNING, "No GUI scheduler available for requestIdleCallback");
         t->idle_callbacks = idle->next;
@@ -655,21 +667,52 @@ uint64_t qjs_execute_timers(JSContext *ctx) {
     uint64_t now;
     nsu_getmonotonic_ms(&now);
 
-    struct qjs_timer *curr = t->timers;
     uint64_t min_wait = 1000;
 
-    while (curr) {
-        if (!curr->cancelled) {
-            if (now >= curr->scheduled_time) {
-                qjs_timer_callback(curr);
+    struct qjs_timer *curr_t = t->timers;
+    while (curr_t) {
+        if (!curr_t->cancelled) {
+            if (now >= curr_t->scheduled_time) {
+                qjs_timer_callback(curr_t);
                 min_wait = 0; // execute microtasks immediately
                 break;
             } else {
-                uint64_t wait = curr->scheduled_time - now;
+                uint64_t wait = curr_t->scheduled_time - now;
                 if (wait < min_wait) min_wait = wait;
             }
         }
-        curr = curr->next;
+        curr_t = curr_t->next;
     }
+
+    struct qjs_raf_callback *curr_raf = t->raf_callbacks;
+    while (curr_raf) {
+        if (!curr_raf->cancelled) {
+            if (now >= curr_raf->scheduled_time) {
+                qjs_raf_callback_fn(curr_raf);
+                min_wait = 0;
+                break;
+            } else {
+                uint64_t wait = curr_raf->scheduled_time - now;
+                if (wait < min_wait) min_wait = wait;
+            }
+        }
+        curr_raf = curr_raf->next;
+    }
+
+    struct qjs_idle_callback *curr_idle = t->idle_callbacks;
+    while (curr_idle) {
+        if (!curr_idle->cancelled) {
+            if (now >= curr_idle->scheduled_time) {
+                qjs_idle_callback_fn(curr_idle);
+                min_wait = 0;
+                break;
+            } else {
+                uint64_t wait = curr_idle->scheduled_time - now;
+                if (wait < min_wait) min_wait = wait;
+            }
+        }
+        curr_idle = curr_idle->next;
+    }
+
     return min_wait;
 }
