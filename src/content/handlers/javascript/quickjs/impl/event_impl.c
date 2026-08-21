@@ -69,6 +69,17 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
     JS_FreeCString(ctx, type);
     if (!evt) return JS_ThrowInternalError(ctx, "Failed to create event");
     JSValue obj = qjs_new_event(ctx, evt, false);
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    if (thread) {
+        struct qjs_event_map *new_map = malloc(sizeof(*new_map));
+        if (new_map) {
+            dom_event_ref(evt);
+            new_map->evt = evt;
+            new_map->js_evt = JS_DupValue(ctx, obj);
+            new_map->next = thread->events;
+            thread->events = new_map;
+        }
+    }
     dom_event_unref(evt);
     return obj;
 }

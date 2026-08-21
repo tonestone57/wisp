@@ -3097,7 +3097,7 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "\n"
         "    const OriginalEvent = globalThis.Event;\n"
         "    globalThis.Event = function(type, options = {}) {\n"
-        "        const evt = new OriginalEvent(type);\n"
+        "        const evt = new OriginalEvent(type, options);\n"
         "        evt._composed = !!options.composed;\n"
         "        Object.defineProperty(evt, 'bubbles', { value: !!options.bubbles, configurable: true, enumerable: true });\n"
         "        Object.defineProperty(evt, 'cancelable', { value: !!options.cancelable, configurable: true, enumerable: true });\n"

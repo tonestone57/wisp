@@ -242,14 +242,6 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
                     JSValue cb = JS_GetPropertyStr(ctx, item, "callback");
                     if (JS_IsFunction(ctx, cb)) {
                         JSValue ret = JS_Call(ctx, cb, actual_this, 1, argv);
-                        if (JS_IsBool(ret) && !JS_ToBool(ctx, ret)) {
-                            JSValue pd = JS_GetPropertyStr(ctx, argv[0], "preventDefault");
-                            if (JS_IsFunction(ctx, pd)) {
-                                JSValue pdr = JS_Call(ctx, pd, argv[0], 0, NULL);
-                                JS_FreeValue(ctx, pdr);
-                            }
-                            JS_FreeValue(ctx, pd);
-                        }
                         if (JS_IsException(ret)) {
                             JSValue exception = JS_GetException(ctx);
                             const char *err_msg = JS_ToCString(ctx, exception);
@@ -288,24 +280,38 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
 
     const char *type = NULL;
     JSValue type_val = JS_UNDEFINED;
-    bool cancelable = true;
     if (JS_IsObject(argv[0])) {
         type_val = JS_GetPropertyStr(ctx, argv[0], "type");
         if (JS_IsString(type_val)) {
             type = JS_ToCString(ctx, type_val);
         }
-        JSValue c_val = JS_GetPropertyStr(ctx, argv[0], "cancelable");
-        if (!JS_IsUndefined(c_val) && !JS_IsNull(c_val)) {
-            cancelable = JS_ToBool(ctx, c_val);
-        }
-        JS_FreeValue(ctx, c_val);
     }
     if (!type && JS_IsString(argv[0])) {
         type = JS_ToCString(ctx, argv[0]);
     }
 
-    extern bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target, bool cancelable);
-    bool success = js_fire_event_with_cancelable(thread, type ? type : "click", qjs_thread_get_document(thread), (dom_node *)priv->node, cancelable);
+    dom_node *target = (dom_node *)priv->node;
+    if (target == (dom_node *)thread->win_priv) {
+        target = (dom_node *)qjs_thread_get_document(thread);
+    }
+
+    bool success = false;
+    QJSNodePrivate *evt_priv = JS_IsObject(argv[0]) ? JS_GetOpaque(argv[0], qjs_event_class_id) : NULL;
+    if (evt_priv && evt_priv->node && target) {
+        dom_event_target_dispatch_event((dom_event_target *)target, (dom_event *)evt_priv->node, &success);
+    } else {
+        bool cancelable = true;
+        if (JS_IsObject(argv[0])) {
+            JSValue c_val = JS_GetPropertyStr(ctx, argv[0], "cancelable");
+            if (!JS_IsUndefined(c_val) && !JS_IsNull(c_val)) {
+                cancelable = JS_ToBool(ctx, c_val);
+            }
+            JS_FreeValue(ctx, c_val);
+        }
+
+        extern bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target, bool cancelable);
+        success = js_fire_event_with_cancelable(thread, type ? type : "click", qjs_thread_get_document(thread), target ? target : (dom_node *)priv->node, cancelable);
+    }
 
     if (type) JS_FreeCString(ctx, (char *)type);
     JS_FreeValue(ctx, type_val);
