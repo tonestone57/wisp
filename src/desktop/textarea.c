@@ -2534,7 +2534,7 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
             if (caret == 0)
                 break;
             caret--;
-            while (strchr(sep, ta->show->data[caret]) != NULL && caret > 0)
+            while (caret > 0 && strchr(sep, ta->show->data[caret]) != NULL)
                 caret--;
             for (; caret > 0; caret--) {
                 if (strchr(sep, ta->show->data[caret]) != NULL) {
@@ -2564,7 +2564,7 @@ bool textarea_keypress(struct textarea *ta, uint32_t key)
             /* caret goes left until a non-separator is
              * encountered */
             caret--;
-            while (strchr(sep, ta->show->data[caret]) != NULL && caret > 0)
+            while (caret > 0 && strchr(sep, ta->show->data[caret]) != NULL)
                 caret--;
 
             /* caret goes left until a separator is encountered */

@@ -123,8 +123,8 @@ void nsbeos_style_to_font(BFont &font, const struct plot_font_style *fstyle)
     /* Not in cache, create new */
     if (family) {
         font_family beos_family;
-        strncpy(beos_family, family, B_FONT_FAMILY_LENGTH);
-        beos_family[B_FONT_FAMILY_LENGTH] = '\0';
+        strncpy(beos_family, family, sizeof(beos_family) - 1);
+        beos_family[sizeof(beos_family) - 1] = '\0';
         font.SetFamilyAndFace(beos_family, face);
     } else {
         font = be_plain_font;
