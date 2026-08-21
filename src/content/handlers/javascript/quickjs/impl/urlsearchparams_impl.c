@@ -67,6 +67,10 @@ JSValue wisp_urlsearchparams_constructor_impl(JSContext *ctx, JSValue init)
                             if (!new_params) {
                                 free(name); free(value);
                                 JS_FreeCString(ctx, str);
+                                for (size_t k = 0; k < data->count; k++) {
+                                    free(data->params[k].name);
+                                    free(data->params[k].value);
+                                }
                                 free(data->params); free(data);
                                 return JS_ThrowOutOfMemory(ctx);
                             }
@@ -90,6 +94,10 @@ JSValue wisp_urlsearchparams_constructor_impl(JSContext *ctx, JSValue init)
                             if (!new_params) {
                                 free(name); free(value);
                                 JS_FreeCString(ctx, str);
+                                for (size_t k = 0; k < data->count; k++) {
+                                    free(data->params[k].name);
+                                    free(data->params[k].value);
+                                }
                                 free(data->params); free(data);
                                 return JS_ThrowOutOfMemory(ctx);
                             }
@@ -207,8 +215,10 @@ JSValue wisp_urlsearchparams_set_impl(JSContext *ctx, QJSNodePrivate *priv, cons
     for (size_t i = 0; i < data->count; i++) {
         if (strcmp(data->params[i].name, name) == 0) {
             if (!found) {
+                char *new_val = strdup(value);
+                if (!new_val) return JS_ThrowOutOfMemory(ctx);
                 free(data->params[i].value);
-                data->params[i].value = strdup(value);
+                data->params[i].value = new_val;
                 found = true;
             } else {
                 // Delete duplicate keys if we set again

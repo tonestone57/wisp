@@ -3898,6 +3898,7 @@ static JSValue table_delete_row_helper(JSContext *ctx, JSValue parent, int32_t i
         JSValue target_parent = JS_GetPropertyStr(ctx, target_row, "parentNode");
         call_js_method_1(ctx, target_parent, "removeChild", target_row);
         JS_FreeValue(ctx, target_parent);
+        JS_FreeValue(ctx, target_row);
     }
     JS_FreeValue(ctx, rows);
     return JS_UNDEFINED;
@@ -3945,6 +3946,7 @@ static JSValue section_delete_row_helper(JSContext *ctx, JSValue section, int32_
     if (target_idx >= 0 && target_idx < (int32_t)num_rows) {
         JSValue target_row = JS_GetPropertyUint32(ctx, rows, target_idx);
         call_js_method_1(ctx, section, "removeChild", target_row);
+        JS_FreeValue(ctx, target_row);
     }
     JS_FreeValue(ctx, rows);
     return JS_UNDEFINED;
@@ -3992,6 +3994,7 @@ static JSValue row_delete_cell_helper(JSContext *ctx, JSValue row, int32_t index
     if (target_idx >= 0 && target_idx < (int32_t)num_cells) {
         JSValue target_cell = JS_GetPropertyUint32(ctx, cells, target_idx);
         call_js_method_1(ctx, row, "removeChild", target_cell);
+        JS_FreeValue(ctx, target_cell);
     }
     JS_FreeValue(ctx, cells);
     return JS_UNDEFINED;
@@ -4001,6 +4004,7 @@ static int32_t get_cell_index_helper(JSContext *ctx, JSValue cell)
 {
     JSValue parent = JS_GetPropertyStr(ctx, cell, "parentNode");
     if (JS_IsException(parent) || JS_IsNull(parent) || JS_IsUndefined(parent)) {
+        JS_FreeValue(ctx, parent);
         return -1;
     }
     JSValue cells = get_children_by_tags(ctx, parent, (const char *[]){"TD", "TH"}, 2);
@@ -4045,6 +4049,7 @@ static int32_t get_row_index_helper(JSContext *ctx, JSValue row)
     }
 
     if (JS_IsNull(table) || JS_IsUndefined(table)) {
+        JS_FreeValue(ctx, table);
         return -1;
     }
 
@@ -4073,6 +4078,7 @@ static int32_t get_section_row_index_helper(JSContext *ctx, JSValue row)
 {
     JSValue section = JS_GetPropertyStr(ctx, row, "parentNode");
     if (JS_IsNull(section) || JS_IsUndefined(section)) {
+        JS_FreeValue(ctx, section);
         return -1;
     }
 

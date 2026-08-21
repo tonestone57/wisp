@@ -443,18 +443,24 @@ JSValue wisp_xmlhttprequest_setRequestHeader_impl(JSContext *ctx, QJSNodePrivate
 JSValue wisp_xmlhttprequest_getResponseHeader_impl(JSContext *ctx, QJSNodePrivate *priv, const char * header)
 {
     WispXHR *xhr = priv ? priv->node : NULL;
-    if (!xhr || !xhr->response_headers) return JS_NULL;
-    char *found = strcasestr(xhr->response_headers, header);
-    if (found) {
-        char *end = strchr(found, '\r');
-        if (!end) end = strchr(found, '\n');
-        char *colon = strchr(found, ':');
-        if (colon && (end == NULL || colon < end)) {
-            colon++;
-            while (*colon == ' ') colon++;
-            int len = end ? (int)(end - colon) : (int)strlen(colon);
-            return JS_NewStringLen(ctx, colon, len);
+    if (!xhr || !xhr->response_headers || !header || !*header) return JS_NULL;
+    size_t header_len = strlen(header);
+    const char *p = xhr->response_headers;
+    while (*p) {
+        if (strncasecmp(p, header, header_len) == 0) {
+            const char *colon = p + header_len;
+            while (*colon == ' ' || *colon == '\t') colon++;
+            if (*colon == ':') {
+                colon++;
+                while (*colon == ' ' || *colon == '\t') colon++;
+                const char *end = strpbrk(colon, "\r\n");
+                int len = end ? (int)(end - colon) : (int)strlen(colon);
+                return JS_NewStringLen(ctx, colon, len);
+            }
         }
+        const char *next_line = strchr(p, '\n');
+        if (!next_line) break;
+        p = next_line + 1;
     }
     return JS_NULL;
 }
