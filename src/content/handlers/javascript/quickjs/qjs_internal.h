@@ -75,6 +75,7 @@ struct qjs_raf_callback {
     JSValue func;
     int id;
     bool cancelled;
+    uint64_t scheduled_time;
     struct qjs_raf_callback *next;
 };
 
