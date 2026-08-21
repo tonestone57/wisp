@@ -1120,6 +1120,43 @@ JSValue wisp_htmlelement_blur_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_htmlelement_click_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
+    if (!priv) return JS_UNDEFINED;
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    if (!thread) return JS_UNDEFINED;
+
+    if (wisp_is_js_process || !priv->is_dom_node || !priv->node) {
+        JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+        if (JS_IsObject(wrapper)) {
+            JSValue dispatch = JS_GetPropertyStr(ctx, wrapper, "dispatchEvent");
+            if (JS_IsFunction(ctx, dispatch)) {
+                JSValue evt_ctor = JS_GetPropertyStr(ctx, wrapper, "Event");
+                if (JS_IsUndefined(evt_ctor)) {
+                    JSValue global = JS_GetGlobalObject(ctx);
+                    evt_ctor = JS_GetPropertyStr(ctx, global, "Event");
+                    JS_FreeValue(ctx, global);
+                }
+                JSValue init = JS_NewObject(ctx);
+                JS_SetPropertyStr(ctx, init, "bubbles", JS_TRUE);
+                JS_SetPropertyStr(ctx, init, "cancelable", JS_TRUE);
+                JSValue type_val = JS_NewString(ctx, "click");
+                JSValue args[2] = { type_val, init };
+                JSValue evt = JS_CallConstructor(ctx, evt_ctor, 2, args);
+                JS_FreeValue(ctx, type_val);
+                JS_FreeValue(ctx, init);
+                JS_FreeValue(ctx, evt_ctor);
+                if (!JS_IsException(evt)) {
+                    JSValue ret = JS_Call(ctx, dispatch, wrapper, 1, &evt);
+                    JS_FreeValue(ctx, ret);
+                    JS_FreeValue(ctx, evt);
+                }
+            }
+            JS_FreeValue(ctx, dispatch);
+        }
+        JS_FreeValue(ctx, wrapper);
+        return JS_UNDEFINED;
+    }
+
+    js_fire_event(thread, "click", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
     return JS_UNDEFINED;
 }
 

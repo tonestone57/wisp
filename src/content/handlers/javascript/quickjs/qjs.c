@@ -641,8 +641,13 @@ void qjs_on_node_destroy(void *node) {
                     if (entry_ptr == (uintptr_t)node) {
                         shm_dom_get_dom_ptrs(shm)[i] = 0;
                     } else if (is_doc && entry_ptr != 0 && (entry_ptr % sizeof(void *)) == 0) {
+                        dom_node *e = (dom_node *)entry_ptr;
+                        if (!e->vtable) {
+                            shm_dom_get_dom_ptrs(shm)[i] = 0;
+                            continue;
+                        }
                         struct dom_document *owner = NULL;
-                        dom_node_get_owner_document((dom_node *)entry_ptr, &owner);
+                        dom_node_get_owner_document(e, &owner);
                         if (owner == (struct dom_document *)node) {
                             shm_dom_get_dom_ptrs(shm)[i] = 0;
                             /* Decrement refcnt directly to balance the ref added by
@@ -4793,6 +4798,10 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
                 continue;
             }
             dom_node *node = (dom_node *)raw_ptr;
+            if (!node->vtable) {
+                shm_dom_get_dom_ptrs(shm)[i] = 0;
+                continue;
+            }
             bool is_valid = (node == (dom_node *)doc);
             if (!is_valid && !wisp_is_js_process) {
                 /* In multiprocess main browser process (wisp-gtk),
@@ -5724,7 +5733,7 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
     dom_event_create(&evt);
     bool success = false;
     if (evt) {
-        dom_event_init(evt, type_str, false, false);
+        dom_event_init(evt, type_str, true, true);
         dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
         dom_event_unref(evt);
     } else {
