@@ -5684,6 +5684,10 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         ret = JS_UNDEFINED;
     }
 
+    if (JS_IsBool(ret) && !JS_ToBool(jsctx, ret)) {
+        dom_event_prevent_default(evt);
+    }
+
     if (thread && thread->heap) {
         thread->heap->deadline_ms = old_deadline;
         thread->heap->last_yield_ms = old_last_yield;
@@ -5716,7 +5720,7 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     JS_FreeValue(jsctx, global);
 }
 
-bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
+bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target, bool cancelable)
 {
     if (!thread || !doc)
         return false;
@@ -5733,7 +5737,7 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
     dom_event_create(&evt);
     bool success = false;
     if (evt) {
-        dom_event_init(evt, type_str, true, true);
+        dom_event_init(evt, type_str, true, cancelable);
         dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
         dom_event_unref(evt);
     } else {
@@ -5741,6 +5745,11 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
     }
     dom_string_unref(type_str);
     return success;
+}
+
+bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target)
+{
+    return js_fire_event_with_cancelable(thread, type, doc, target, true);
 }
 
 bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
