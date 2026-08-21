@@ -92,7 +92,7 @@ static bool html_process_inserted_base(html_content *htmlc, dom_node *node)
             dom_string_caseless_lwc_isequal(atr_string, corestring_lwc__self) ||
             dom_string_caseless_lwc_isequal(atr_string, corestring_lwc__parent) ||
             dom_string_caseless_lwc_isequal(atr_string, corestring_lwc__top)) {
-            htmlc->base_target = strdup(dom_string_data(atr_string));
+            htmlc->base_target = strndup(dom_string_data(atr_string), dom_string_byte_length(atr_string));
         }
         dom_string_unref(atr_string);
     }
