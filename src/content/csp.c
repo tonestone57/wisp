@@ -67,6 +67,8 @@ static csp_source *parse_source(char *token) {
     csp_source *src = calloc(1, sizeof(csp_source));
     if (!src) return NULL;
 
+    bool alloc_failed = false;
+
     if (strcasecmp(token, "'self'") == 0) {
         src->is_self = true;
     } else if (strcasecmp(token, "'none'") == 0) {
@@ -82,17 +84,21 @@ static csp_source *parse_source(char *token) {
         } else {
             src->nonce = strdup(token + 7);
         }
+        if (!src->nonce) alloc_failed = true;
     } else if (strncasecmp(token, "nonce-", 6) == 0) {
         src->nonce = strdup(token + 6);
+        if (!src->nonce) alloc_failed = true;
     } else if (strchr(token, ':')) {
         char *colon = strchr(token, ':');
         if (colon[1] != '\0' && colon[2] != '\0' && colon[1] == '/' && colon[2] == '/') {
             src->scheme = strndup(token, colon - token);
+            if (!src->scheme) alloc_failed = true;
             char *host_start = colon + 3;
             char *port_start = strchr(host_start, ':');
             char *slash = strchr(host_start, '/');
             if (port_start && (!slash || port_start < slash)) {
                 src->host = strndup(host_start, port_start - host_start);
+                if (!src->host) alloc_failed = true;
                 char *endptr;
                 long port = strtol(port_start + 1, &endptr, 10);
                 if (endptr != port_start + 1 && port >= 0 && port <= 65535) {
@@ -104,6 +110,7 @@ static csp_source *parse_source(char *token) {
                 } else {
                     src->host = strdup(host_start);
                 }
+                if (!src->host) alloc_failed = true;
             }
         } else {
             /* If colon is not followed by //, it might be host:port or scheme:
@@ -112,6 +119,7 @@ static csp_source *parse_source(char *token) {
              */
             if (colon[1] >= '0' && colon[1] <= '9') {
                 src->host = strndup(token, colon - token);
+                if (!src->host) alloc_failed = true;
                 char *endptr;
                 long port = strtol(colon + 1, &endptr, 10);
                 if (endptr != colon + 1 && port >= 0 && port <= 65535) {
@@ -119,6 +127,7 @@ static csp_source *parse_source(char *token) {
                 }
             } else {
                 src->scheme = strndup(token, colon - token);
+                if (!src->scheme) alloc_failed = true;
             }
         }
     } else {
@@ -128,7 +137,17 @@ static csp_source *parse_source(char *token) {
         } else {
             src->host = strdup(token);
         }
+        if (!src->host) alloc_failed = true;
     }
+
+    if (alloc_failed) {
+        free(src->scheme);
+        free(src->host);
+        free(src->nonce);
+        free(src);
+        return NULL;
+    }
+
     return src;
 }
 

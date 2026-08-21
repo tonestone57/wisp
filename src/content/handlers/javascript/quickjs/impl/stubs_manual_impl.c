@@ -6950,7 +6950,7 @@ JSValue wisp_cssstyledeclaration_setPropertyPriority_impl(JSContext *ctx, QJSNod
     JSValue current_val = wisp_cssstyledeclaration_getPropertyValue_impl(ctx, priv, property);
     const char *val_str = JS_ToCString(ctx, current_val);
     wisp_cssstyledeclaration_setProperty_impl(ctx, priv, property, val_str, priority);
-    JS_FreeCString(ctx, val_str);
+    if (val_str) JS_FreeCString(ctx, val_str);
     JS_FreeValue(ctx, current_val);
     return JS_UNDEFINED;
 }
@@ -6960,7 +6960,7 @@ JSValue wisp_cssstyledeclaration_setPropertyValue_impl(JSContext *ctx, QJSNodePr
     JSValue current_pri = wisp_cssstyledeclaration_getPropertyPriority_impl(ctx, priv, property);
     const char *pri_str = JS_ToCString(ctx, current_pri);
     wisp_cssstyledeclaration_setProperty_impl(ctx, priv, property, value, pri_str);
-    JS_FreeCString(ctx, pri_str);
+    if (pri_str) JS_FreeCString(ctx, pri_str);
     JS_FreeValue(ctx, current_pri);
     return JS_UNDEFINED;
 }

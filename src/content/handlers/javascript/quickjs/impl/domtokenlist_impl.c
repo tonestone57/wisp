@@ -220,9 +220,12 @@ JSValue wisp_domtokenlist_add_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue
                 }
             }
             if (!found && tl.count < MAX_TOKENS) {
-                tl.tokens[tl.count] = strdup(token);
-                tl.count++;
-                changed = true;
+                char *dup_tok = strdup(token);
+                if (dup_tok) {
+                    tl.tokens[tl.count] = dup_tok;
+                    tl.count++;
+                    changed = true;
+                }
             }
         }
         if (token) JS_FreeCString(ctx, token);
