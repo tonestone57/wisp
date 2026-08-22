@@ -72,6 +72,9 @@ struct hlcache_handle {
 
     hlcache_handle_callback cb; /**< Client callback */
     void *pw; /**< Client data */
+
+    int refcount; /**< Reference count for callback reentrancy safety */
+    bool released; /**< Set if handle was released while delivering a callback */
 };
 
 /** Entry in high-level cache */
@@ -116,6 +119,10 @@ static void hlcache_clean(void *force_clean_flag)
 {
     hlcache_entry *entry, *next;
     bool force_clean = (force_clean_flag != NULL);
+
+    if (hlcache == NULL) {
+        return;
+    }
 
     for (entry = hlcache->content_list; entry != NULL; entry = next) {
         next = entry->next;
@@ -198,12 +205,23 @@ static void hlcache_content_callback(struct content *c, content_msg msg, const u
         .type = msg,
     };
 
+    if (handle == NULL) {
+        return;
+    }
+
     if (data != NULL) {
         event.data = *data;
     }
 
-    if (handle->cb != NULL)
+    if (handle->cb != NULL && !handle->released) {
+        handle->refcount++;
         error = handle->cb(handle, &event, handle->pw);
+        handle->refcount--;
+        if (handle->refcount == 0) {
+            free(handle);
+            return;
+        }
+    }
 
     if (error != NSERROR_OK)
         NSLOG(wisp, WARNING, "Error in callback: %d", error);
@@ -283,10 +301,19 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
         /* Signal to caller that we created a content */
         error = NSERROR_NEED_DATA;
 
+        /* No longer need retrieval llcache handle */
+        if (ctx->llcache != NULL) {
+            llcache_handle_release(ctx->llcache);
+            ctx->llcache = NULL;
+        }
+
         hlcache->miss_count++;
     } else {
         /* Found a suitable content: no longer need low-level handle */
-        llcache_handle_release(ctx->llcache);
+        if (ctx->llcache != NULL) {
+            llcache_handle_release(ctx->llcache);
+            ctx->llcache = NULL;
+        }
         hlcache->hit_count++;
     }
 
@@ -298,8 +325,9 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
     ctx->handle->entry = entry;
 
     /* Catch handle up with state of content */
-    if (ctx->handle->cb != NULL) {
+    if (ctx->handle->cb != NULL && !ctx->handle->released) {
         content_status status = content_get_status(ctx->handle);
+        ctx->handle->refcount++;
 
         if (status == CONTENT_STATUS_LOADING) {
             event.type = CONTENT_MSG_LOADING;
@@ -308,7 +336,7 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
             event.type = CONTENT_MSG_LOADING;
             ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
 
-            if (ctx->handle->cb != NULL) {
+            if (ctx->handle->cb != NULL && !ctx->handle->released) {
                 event.type = CONTENT_MSG_READY;
                 ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
             }
@@ -316,15 +344,20 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
             event.type = CONTENT_MSG_LOADING;
             ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
 
-            if (ctx->handle->cb != NULL) {
+            if (ctx->handle->cb != NULL && !ctx->handle->released) {
                 event.type = CONTENT_MSG_READY;
                 ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
             }
 
-            if (ctx->handle->cb != NULL) {
+            if (ctx->handle->cb != NULL && !ctx->handle->released) {
                 event.type = CONTENT_MSG_DONE;
                 ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
             }
+        }
+
+        ctx->handle->refcount--;
+        if (ctx->handle->refcount == 0) {
+            free(ctx->handle);
         }
     }
 
@@ -346,6 +379,11 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
     nserror error = NSERROR_OK;
     lwc_string *actual_type = effective_type;
     bool free_actual_type = false;
+    hlcache_handle *handle = ctx->handle;
+
+    if (handle != NULL) {
+        handle->refcount++;
+    }
 
     if (effective_type != NULL) {
         bool match_octet = false;
@@ -361,8 +399,22 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
                     const char *end = url_str + strlen(url_str);
                     if (query && query < end) end = query;
                     if (fragment && fragment < end) end = fragment;
-                    if (end - url_str >= 3 && strncmp(end - 3, ".js", 3) == 0) {
+                    if (end - url_str >= 3 && strncasecmp(end - 3, ".js", 3) == 0) {
                         if (lwc_intern_string("application/javascript", 22, &actual_type) == lwc_error_ok) {
+                            free_actual_type = true;
+                        }
+                    }
+                }
+            } else if ((ctx->accepted_types & CONTENT_CSS) && ctx->handle != NULL) {
+                const char *url_str = nsurl_access(hlcache_handle_get_url(ctx->handle));
+                if (url_str != NULL) {
+                    const char *query = strchr(url_str, '?');
+                    const char *fragment = strchr(url_str, '#');
+                    const char *end = url_str + strlen(url_str);
+                    if (query && query < end) end = query;
+                    if (fragment && fragment < end) end = fragment;
+                    if (end - url_str >= 4 && strncasecmp(end - 4, ".css", 4) == 0) {
+                        if (lwc_intern_string("text/css", 8, &actual_type) == lwc_error_ok) {
                             free_actual_type = true;
                         }
                     }
@@ -379,11 +431,14 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
                     const char *img_mime = NULL;
                     size_t path_len = end - url_str;
                     if (path_len >= 4 && strncasecmp(end - 4, ".ico", 4) == 0) img_mime = "image/x-icon";
+                    else if (path_len >= 4 && strncasecmp(end - 4, ".cur", 4) == 0) img_mime = "image/x-icon";
                     else if (path_len >= 4 && strncasecmp(end - 4, ".png", 4) == 0) img_mime = "image/png";
                     else if (path_len >= 4 && strncasecmp(end - 4, ".jpg", 4) == 0) img_mime = "image/jpeg";
                     else if (path_len >= 5 && strncasecmp(end - 5, ".jpeg", 5) == 0) img_mime = "image/jpeg";
+                    else if (path_len >= 5 && strncasecmp(end - 5, ".jfif", 5) == 0) img_mime = "image/jpeg";
                     else if (path_len >= 4 && strncasecmp(end - 4, ".gif", 4) == 0) img_mime = "image/gif";
                     else if (path_len >= 4 && strncasecmp(end - 4, ".svg", 4) == 0) img_mime = "image/svg+xml";
+                    else if (path_len >= 5 && strncasecmp(end - 5, ".svgz", 5) == 0) img_mime = "image/svg+xml";
                     else if (path_len >= 5 && strncasecmp(end - 5, ".webp", 5) == 0) img_mime = "image/webp";
                     else if (path_len >= 5 && strncasecmp(end - 5, ".avif", 5) == 0) img_mime = "image/avif";
                     else if (path_len >= 4 && strncasecmp(end - 4, ".bmp", 4) == 0) img_mime = "image/bmp";
@@ -403,7 +458,7 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
     if ((actual_type != NULL) && hlcache_type_is_acceptable(actual_type, ctx->accepted_types, &type)) {
         error = hlcache_find_content(ctx, actual_type);
         if (error != NSERROR_OK && error != NSERROR_NEED_DATA) {
-            if (ctx->handle->cb != NULL) {
+            if (ctx->handle->cb != NULL && !ctx->handle->released) {
                 hlcache_event hlevent;
 
                 hlevent.type = CONTENT_MSG_ERROR;
@@ -413,14 +468,17 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
                 ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
             }
 
-            llcache_handle_abort(ctx->llcache);
-            llcache_handle_release(ctx->llcache);
+            if (ctx->llcache != NULL) {
+                llcache_handle_abort(ctx->llcache);
+                llcache_handle_release(ctx->llcache);
+                ctx->llcache = NULL;
+            }
         }
     } else if (type == CONTENT_NONE && (ctx->flags & HLCACHE_RETRIEVE_MAY_DOWNLOAD)) {
         /* Unknown type, and we can download, so convert */
         llcache_handle_force_stream(ctx->llcache);
 
-        if (ctx->handle->cb != NULL) {
+        if (ctx->handle->cb != NULL && !ctx->handle->released) {
             hlcache_event hlevent;
 
             hlevent.type = CONTENT_MSG_DOWNLOAD;
@@ -437,7 +495,7 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
             nsurl_access(hlcache_handle_get_url(ctx->handle)),
             actual_type ? lwc_string_data(actual_type) : "NULL", ctx->accepted_types);
 
-        if (ctx->handle->cb != NULL) {
+        if (ctx->handle->cb != NULL && !ctx->handle->released) {
             hlcache_event hlevent;
 
             hlevent.type = CONTENT_MSG_ERROR;
@@ -447,8 +505,11 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
             ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
         }
 
-        llcache_handle_abort(ctx->llcache);
-        llcache_handle_release(ctx->llcache);
+        if (ctx->llcache != NULL) {
+            llcache_handle_abort(ctx->llcache);
+            llcache_handle_release(ctx->llcache);
+            ctx->llcache = NULL;
+        }
     }
 
     ctx->migrate_target = false;
@@ -460,6 +521,13 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
 
     if (free_actual_type) {
         lwc_string_unref(actual_type);
+    }
+
+    if (handle != NULL) {
+        handle->refcount--;
+        if (handle->refcount == 0) {
+            free(handle);
+        }
     }
 
     return error;
@@ -690,8 +758,8 @@ void hlcache_finalise(void)
             entry->content = NULL;
 
             if (c->user_list != NULL) {
-                struct content_user *user = c->user_list;
-                c->user_list = NULL;
+                struct content_user *user = c->user_list->next;
+                c->user_list->next = NULL;
                 while (user != NULL) {
                     struct content_user *next_user = user->next;
                     free(user);
@@ -730,7 +798,9 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     hlcache_retrieval_ctx *ctx;
     nserror error;
 
-    assert(cb != NULL);
+    if (url == NULL || cb == NULL || result == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
 
     /* Check against Content Security Policy */
     if (child != NULL && child->csp != NULL) {
@@ -749,10 +819,10 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         if (!exempt) {
             csp_directive dir = CSP_DEFAULT_SRC;
 
-            if (accepted_types == CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
-            else if (accepted_types == CONTENT_IMAGE) dir = CSP_IMG_SRC;
-            else if (accepted_types == CONTENT_CSS) dir = CSP_STYLE_SRC;
-            else if (accepted_types == CONTENT_HTML) dir = CSP_FRAME_SRC;
+            if (accepted_types & CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
+            else if (accepted_types & CONTENT_IMAGE) dir = CSP_IMG_SRC;
+            else if (accepted_types & CONTENT_CSS) dir = CSP_STYLE_SRC;
+            else if (accepted_types & CONTENT_HTML) dir = CSP_FRAME_SRC;
 
             if (!csp_check_url(child->csp, dir, url)) {
                 *result = NULL;
@@ -810,6 +880,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                 handle->entry = entry;
                 handle->cb = cb;
                 handle->pw = pw;
+                handle->refcount = 1;
 
                 if (content_add_user(entry->content, hlcache_content_callback, handle) == false) {
                     free(handle);
@@ -819,9 +890,10 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                 *result = handle;
 
                 /* Notify callback of current state */
-                if (handle->cb != NULL) {
+                if (handle->cb != NULL && !handle->released) {
                     content_status status = content_get_status(handle);
                     hlcache_event event;
+                    handle->refcount++;
 
                     if (status == CONTENT_STATUS_LOADING) {
                         event.type = CONTENT_MSG_LOADING;
@@ -829,15 +901,29 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     } else if (status == CONTENT_STATUS_READY) {
                         event.type = CONTENT_MSG_LOADING;
                         handle->cb(handle, &event, handle->pw);
-                        event.type = CONTENT_MSG_READY;
-                        handle->cb(handle, &event, handle->pw);
+
+                        if (handle->cb != NULL && !handle->released) {
+                            event.type = CONTENT_MSG_READY;
+                            handle->cb(handle, &event, handle->pw);
+                        }
                     } else if (status == CONTENT_STATUS_DONE) {
                         event.type = CONTENT_MSG_LOADING;
                         handle->cb(handle, &event, handle->pw);
-                        event.type = CONTENT_MSG_READY;
-                        handle->cb(handle, &event, handle->pw);
-                        event.type = CONTENT_MSG_DONE;
-                        handle->cb(handle, &event, handle->pw);
+
+                        if (handle->cb != NULL && !handle->released) {
+                            event.type = CONTENT_MSG_READY;
+                            handle->cb(handle, &event, handle->pw);
+                        }
+
+                        if (handle->cb != NULL && !handle->released) {
+                            event.type = CONTENT_MSG_DONE;
+                            handle->cb(handle, &event, handle->pw);
+                        }
+                    }
+
+                    handle->refcount--;
+                    if (handle->refcount == 0) {
+                        free(handle);
                     }
                 }
 
@@ -882,6 +968,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     new_ctx->accepted_types = accepted_types;
                     new_ctx->handle->cb = cb;
                     new_ctx->handle->pw = pw;
+                    new_ctx->handle->refcount = 1;
                     /* Share the low-level cache handle */
                     if (llcache_handle_clone(ictx->llcache, &new_ctx->llcache) != NSERROR_OK) {
                         free(new_ctx->handle);
@@ -937,6 +1024,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 
     ctx->handle->cb = cb;
     ctx->handle->pw = pw;
+    ctx->handle->refcount = 1;
 
     NSLOG(wisp, DEBUG, "FETCH: cache MISS (new fetch) '%s'", nsurl_access(url));
     error = llcache_handle_retrieve(url, flags, referer, post, hlcache_llcache_callback, ctx, &ctx->llcache);
@@ -958,7 +1046,13 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
 nserror hlcache_handle_release(hlcache_handle *handle)
 {
     if (hlcache == NULL) {
-        free(handle);
+        if (handle != NULL) {
+            free(handle);
+        }
+        return NSERROR_OK;
+    }
+
+    if (handle == NULL) {
         return NSERROR_OK;
     }
 
@@ -972,8 +1066,11 @@ nserror hlcache_handle_release(hlcache_handle *handle)
             if (ictx->handle == handle && ictx->migrate_target == false) {
                 /* This is the nascent context for us,
                  * so abort the fetch */
-                llcache_handle_abort(ictx->llcache);
-                llcache_handle_release(ictx->llcache);
+                if (ictx->llcache != NULL) {
+                    llcache_handle_abort(ictx->llcache);
+                    llcache_handle_release(ictx->llcache);
+                    ictx->llcache = NULL;
+                }
                 /* Remove us from the ring */
                 RING_REMOVE(hlcache->retrieval_ctx_ring, ictx);
                 /* Throw us away */
@@ -988,8 +1085,15 @@ nserror hlcache_handle_release(hlcache_handle *handle)
 
     handle->cb = NULL;
     handle->pw = NULL;
+    handle->released = true;
 
-    free(handle);
+    if (handle->refcount > 0) {
+        handle->refcount--;
+    }
+
+    if (handle->refcount == 0) {
+        free(handle);
+    }
 
     return NSERROR_OK;
 }
@@ -997,11 +1101,11 @@ nserror hlcache_handle_release(hlcache_handle *handle)
 /* See hlcache.h for documentation */
 struct content *hlcache_handle_get_content(const hlcache_handle *handle)
 {
-    if (hlcache == NULL) {
+    if (hlcache == NULL || handle == NULL) {
         return NULL;
     }
 
-    if ((handle != NULL) && (handle->entry != NULL)) {
+    if (handle->entry != NULL) {
         return handle->entry->content;
     }
 
@@ -1012,6 +1116,10 @@ struct content *hlcache_handle_get_content(const hlcache_handle *handle)
 nserror hlcache_handle_abort(hlcache_handle *handle)
 {
     if (hlcache == NULL) {
+        return NSERROR_OK;
+    }
+
+    if (handle == NULL) {
         return NSERROR_OK;
     }
 
@@ -1029,8 +1137,11 @@ nserror hlcache_handle_abort(hlcache_handle *handle)
             if (ictx->handle == handle && ictx->migrate_target == false) {
                 /* This is the nascent context for us,
                  * so abort the fetch */
-                llcache_handle_abort(ictx->llcache);
-                llcache_handle_release(ictx->llcache);
+                if (ictx->llcache != NULL) {
+                    llcache_handle_abort(ictx->llcache);
+                    llcache_handle_release(ictx->llcache);
+                    ictx->llcache = NULL;
+                }
                 /* Remove us from the ring */
                 RING_REMOVE(hlcache->retrieval_ctx_ring, ictx);
                 /* Throw us away */
@@ -1046,6 +1157,9 @@ nserror hlcache_handle_abort(hlcache_handle *handle)
     }
 
     c = entry->content;
+    if (c == NULL) {
+        return NSERROR_OK;
+    }
 
     if (content_count_users(c) > 1) {
         /* We are not the only user of 'c' so clone it. */
@@ -1086,6 +1200,10 @@ nserror hlcache_handle_abort(hlcache_handle *handle)
 /* See hlcache.h for documentation */
 nserror hlcache_handle_replace_callback(hlcache_handle *handle, hlcache_handle_callback cb, void *pw)
 {
+    if (handle == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
+
     handle->cb = cb;
     handle->pw = pw;
 
@@ -1096,7 +1214,9 @@ nserror hlcache_handle_clone(hlcache_handle *handle, hlcache_handle **result)
 {
     hlcache_handle *nh;
 
-    assert(handle != NULL);
+    if (handle == NULL || result == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
 
     nh = calloc(1, sizeof(hlcache_handle));
     if (nh == NULL) {
@@ -1106,6 +1226,7 @@ nserror hlcache_handle_clone(hlcache_handle *handle, hlcache_handle **result)
     nh->entry = handle->entry;
     nh->cb = handle->cb;
     nh->pw = handle->pw;
+    nh->refcount = 1;
 
     if (nh->entry != NULL) {
         /* Handle is already associated with content */
@@ -1175,20 +1296,22 @@ nsurl *hlcache_handle_get_url(const hlcache_handle *handle)
 {
     nsurl *result = NULL;
 
-    if (hlcache == NULL) {
+    if (hlcache == NULL || handle == NULL) {
         return NULL;
     }
 
-    assert(handle != NULL);
-
     if (handle->entry != NULL) {
-        result = content_get_url(handle->entry->content);
+        if (handle->entry->content != NULL) {
+            result = content_get_url(handle->entry->content);
+        }
     } else {
         RING_ITERATE_START(struct hlcache_retrieval_ctx, hlcache->retrieval_ctx_ring, ictx)
         {
             if (ictx->handle == handle) {
                 /* This is the nascent context for us */
-                result = llcache_handle_get_url(ictx->llcache);
+                if (ictx->llcache != NULL) {
+                    result = llcache_handle_get_url(ictx->llcache);
+                }
 
                 /* And stop */
                 RING_ITERATE_STOP(hlcache->retrieval_ctx_ring, ictx);
@@ -1224,9 +1347,9 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     nsurl *url = NULL;
     char url_buf[64];
 
-    assert(data != NULL);
-    assert(len > 0);
-    assert(cb != NULL);
+    if (data == NULL || cb == NULL || result == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
 
     /* Generate a content-hash URL for deduplication */
     uint32_t hash = hlcache_fnv1a(data, len);
@@ -1261,6 +1384,7 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
             handle->entry = entry;
             handle->cb = cb;
             handle->pw = pw;
+            handle->refcount = 1;
 
             if (content_add_user(entry->content, hlcache_content_callback, handle) == false) {
                 free(handle);
@@ -1272,15 +1396,41 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
             nsurl_unref(url);
 
             /* Fire state catch-up callbacks */
-            content_status status = content_get_status(handle);
-            hlcache_event event;
-            if (status == CONTENT_STATUS_DONE) {
-                event.type = CONTENT_MSG_LOADING;
-                handle->cb(handle, &event, handle->pw);
-                event.type = CONTENT_MSG_READY;
-                handle->cb(handle, &event, handle->pw);
-                event.type = CONTENT_MSG_DONE;
-                handle->cb(handle, &event, handle->pw);
+            if (handle->cb != NULL && !handle->released) {
+                content_status status = content_get_status(handle);
+                hlcache_event event;
+                handle->refcount++;
+
+                if (status == CONTENT_STATUS_LOADING) {
+                    event.type = CONTENT_MSG_LOADING;
+                    handle->cb(handle, &event, handle->pw);
+                } else if (status == CONTENT_STATUS_READY) {
+                    event.type = CONTENT_MSG_LOADING;
+                    handle->cb(handle, &event, handle->pw);
+
+                    if (handle->cb != NULL && !handle->released) {
+                        event.type = CONTENT_MSG_READY;
+                        handle->cb(handle, &event, handle->pw);
+                    }
+                } else if (status == CONTENT_STATUS_DONE) {
+                    event.type = CONTENT_MSG_LOADING;
+                    handle->cb(handle, &event, handle->pw);
+
+                    if (handle->cb != NULL && !handle->released) {
+                        event.type = CONTENT_MSG_READY;
+                        handle->cb(handle, &event, handle->pw);
+                    }
+
+                    if (handle->cb != NULL && !handle->released) {
+                        event.type = CONTENT_MSG_DONE;
+                        handle->cb(handle, &event, handle->pw);
+                    }
+                }
+
+                handle->refcount--;
+                if (handle->refcount == 0) {
+                    free(handle);
+                }
             }
 
             return NSERROR_OK;
@@ -1320,6 +1470,7 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     ctx->accepted_types = accepted_types;
     ctx->handle->cb = cb;
     ctx->handle->pw = pw;
+    ctx->handle->refcount = 1;
     /* Create synthetic llcache entry with the raw data */
     error = llcache_handle_retrieve_buffer(url, data, len, mime_type, hlcache_llcache_callback, ctx, &ctx->llcache);
     nsurl_unref(url);

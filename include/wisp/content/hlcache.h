@@ -158,6 +158,15 @@ nserror hlcache_handle_replace_callback(hlcache_handle *handle, hlcache_handle_c
  *
  * just call the functions with impugnity.
  */
+struct content *hlcache_handle_get_content(const hlcache_handle *handle);
+
+/**
+ * Get the URL associated with a high level cache handle
+ *
+ * \param handle  Cache handle
+ * \return URL of object, or NULL if none
+ */
+struct nsurl *hlcache_handle_get_url(const hlcache_handle *handle);
 
 /**
  * Clone a high level cache handle.

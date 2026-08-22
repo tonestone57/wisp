@@ -689,3 +689,9 @@ add_wisp_test(test_filename
   ${CMAKE_SOURCE_DIR}/src/test/log.c
 )
 target_link_libraries(test_filename PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(hlcache_test
+  ${CMAKE_SOURCE_DIR}/src/test/hlcache_test.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(hlcache_test PRIVATE wisp ${CHECK_LIBRARIES})
