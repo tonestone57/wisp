@@ -150,6 +150,88 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_user_interaction)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: contentEditable & isContentEditable
+    const char *code1 =
+        "var div = document.createElement('div');\n"
+        "if (!('contentEditable' in div)) throw new Error('contentEditable missing on div');\n"
+        "if (!('isContentEditable' in div)) throw new Error('isContentEditable missing on div');\n"
+        "if (typeof div.isContentEditable !== 'boolean') throw new Error('isContentEditable should be boolean');\n"
+        "div.contentEditable = 'true';\n"
+        "if (div.contentEditable !== 'true') throw new Error('contentEditable set true failed');\n"
+        "div.contentEditable = 'false';\n"
+        "if (div.contentEditable !== 'false') throw new Error('contentEditable set false failed');\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_contenteditable");
+    ck_assert(result == true);
+
+    // Test 2: designMode & execCommand APIs
+    const char *code2 =
+        "if (document.designMode !== 'off') throw new Error('default designMode should be off');\n"
+        "document.designMode = 'on';\n"
+        "if (document.designMode !== 'on') throw new Error('designMode set on failed');\n"
+        "document.designMode = 'off';\n"
+        "if (document.designMode !== 'off') throw new Error('designMode set off failed');\n"
+        "if (!('execCommand' in document)) throw new Error('execCommand not in document');\n"
+        "if (!document.queryCommandSupported('bold')) throw new Error('bold should be supported');\n"
+        "if (!document.queryCommandEnabled('bold')) throw new Error('bold should be enabled');\n"
+        "if (document.queryCommandIndeterm('bold') !== false) throw new Error('queryCommandIndeterm failed');\n"
+        "if (document.queryCommandState('bold') !== false) throw new Error('queryCommandState failed');\n"
+        "if (document.queryCommandValue('bold') !== '') throw new Error('queryCommandValue failed');\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_designmode");
+    ck_assert(result == true);
+
+    // Test 3: draggable attribute & window.DataTransfer
+    const char *code3 =
+        "var div = document.createElement('div');\n"
+        "if (div.draggable !== false) throw new Error('div draggable should be false by default');\n"
+        "div.draggable = true;\n"
+        "if (div.draggable !== true) throw new Error('div draggable set true failed');\n"
+        "div.draggable = false;\n"
+        "if (div.draggable !== false) throw new Error('div draggable set false failed');\n"
+        "var a = document.createElement('a');\n"
+        "if (a.draggable !== false) throw new Error('a without href draggable should be false');\n"
+        "a.setAttribute('href', 'https://example.com');\n"
+        "if (a.draggable !== true) throw new Error('a with href draggable should be true');\n"
+        "var img = document.createElement('img');\n"
+        "if (img.draggable !== false) throw new Error('img without src draggable should be false');\n"
+        "img.setAttribute('src', 'test.png');\n"
+        "if (img.draggable !== true) throw new Error('img with src draggable should be true');\n"
+        "if (typeof DataTransfer !== 'function' && typeof window.DataTransfer !== 'function') throw new Error('window.DataTransfer constructor missing');\n"
+        "var dt = new DataTransfer();\n"
+        "if (!dt) throw new Error('DataTransfer instance creation failed');\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_draggable");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_parsing_doctype)
 {
     jsheap *heap = NULL;
@@ -5225,6 +5307,7 @@ Suite *quickjs_suite(void)
 
     /* Window binding test case */
     tc_window = tcase_create("Window");
+    tcase_add_test(tc_window, test_quickjs_user_interaction);
     tcase_add_test(tc_window, test_quickjs_window_global);
     tcase_add_test(tc_window, test_quickjs_window_methods);
     tcase_add_test(tc_window, test_quickjs_timers);
