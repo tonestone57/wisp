@@ -941,12 +941,36 @@ JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv
     if (JS_IsNull(val) || JS_IsUndefined(val)) {
         return JS_NewString(ctx, "text");
     }
+    if (JS_IsString(val)) {
+        const char *str = JS_ToCString(ctx, val);
+        if (str) {
+            static const char *valid_types[] = {
+                "button", "checkbox", "color", "date", "datetime-local", "email",
+                "file", "hidden", "image", "month", "number", "password",
+                "radio", "range", "reset", "search", "submit", "tel", "text",
+                "time", "url", "week"
+            };
+            size_t num_types = sizeof(valid_types) / sizeof(valid_types[0]);
+            bool is_valid = false;
+            for (size_t i = 0; i < num_types; i++) {
+                if (strcasecmp(str, valid_types[i]) == 0) {
+                    is_valid = true;
+                    JS_FreeCString(ctx, str);
+                    JS_FreeValue(ctx, val);
+                    return JS_NewString(ctx, valid_types[i]);
+                }
+            }
+            JS_FreeCString(ctx, str);
+            JS_FreeValue(ctx, val);
+            return JS_NewString(ctx, "text");
+        }
+    }
     return val;
 }
 
 JSValue wisp_htmlinputelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
-    return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+    return wisp_element_setAttribute_impl(ctx, priv, "type", value ? value : "text");
 }
 
 JSValue wisp_htmlinputelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -5641,23 +5665,78 @@ JSValue wisp_htmlinputelement_step_set_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 JSValue wisp_htmlinputelement_valueAsDate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue val = wisp_htmlinputelement_value_get_impl(ctx, priv);
+    if (!JS_IsString(val)) {
+        JS_FreeValue(ctx, val);
+        return JS_NULL;
+    }
+    const char *str = JS_ToCString(ctx, val);
+    if (!str || str[0] == '\0') {
+        if (str) JS_FreeCString(ctx, str);
+        JS_FreeValue(ctx, val);
+        return JS_NULL;
+    }
+    int year = 0, month = 0, day = 0;
+    if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+        JS_FreeCString(ctx, str);
+        JS_FreeValue(ctx, val);
+        struct tm tm = {0};
+        tm.tm_year = year - 1900;
+        tm.tm_mon = month - 1;
+        tm.tm_mday = day;
+        time_t t = timegm(&tm);
+        double epoch_ms = (double)t * 1000.0;
+        return JS_NewDate(ctx, epoch_ms);
+    }
+    JS_FreeCString(ctx, str);
+    JS_FreeValue(ctx, val);
     return JS_NULL;
 }
 
 JSValue wisp_htmlinputelement_valueAsDate_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (JS_IsNull(value) || JS_IsUndefined(value)) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
+    double epoch_ms = 0.0;
+    if (JS_ToFloat64(ctx, &epoch_ms, value) < 0 || isnan(epoch_ms)) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
+    time_t sec = (time_t)(epoch_ms / 1000.0);
+    struct tm tm;
+    if (gmtime_r(&sec, &tm) == NULL) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+    return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
 }
 
 JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    extern JSValue wisp_htmlinputelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+    if (!priv || !priv->node) return JS_NewFloat64(ctx, NAN);
     JSValue val = wisp_htmlinputelement_value_get_impl(ctx, priv);
-    double d = 0.0;
+    double d = NAN;
     if (JS_IsString(val)) {
         const char *str = JS_ToCString(ctx, val);
-        if (str && strlen(str) > 0) {
-            d = atof(str);
-        } else {
-            JS_ToFloat64(ctx, &d, val);
+        if (str && str[0] != '\0') {
+            int year = 0, month = 0, day = 0;
+            if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+                struct tm tm = {0};
+                tm.tm_year = year - 1900;
+                tm.tm_mon = month - 1;
+                tm.tm_mday = day;
+                time_t t = timegm(&tm);
+                d = (double)t * 1000.0;
+            } else {
+                char *endptr = NULL;
+                double parsed_d = strtod(str, &endptr);
+                if (endptr && *endptr == '\0') {
+                    d = parsed_d;
+                } else {
+                    d = NAN;
+                }
+            }
         }
         if (str) JS_FreeCString(ctx, str);
     }
@@ -5666,6 +5745,10 @@ JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePriv
 }
 
 JSValue wisp_htmlinputelement_valueAsNumber_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (isnan(value)) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
     char buf[64];
     snprintf(buf, sizeof(buf), "%g", value);
     return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
@@ -6499,7 +6582,8 @@ JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate
 }
 
 JSValue wisp_htmlmeterelement_high_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "high", 0.0));
+    double max_val = get_element_double_attr(ctx, priv, "max", 1.0);
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "high", max_val));
 }
 
 JSValue wisp_htmlmeterelement_high_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6508,11 +6592,14 @@ JSValue wisp_htmlmeterelement_high_set_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 JSValue wisp_htmlmeterelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_nodelist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_nodelist(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmlmeterelement_low_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "low", 0.0));
+    double min_val = get_element_double_attr(ctx, priv, "min", 0.0);
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "low", min_val));
 }
 
 JSValue wisp_htmlmeterelement_low_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6521,7 +6608,7 @@ JSValue wisp_htmlmeterelement_low_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 JSValue wisp_htmlmeterelement_max_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "max", 0.0));
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "max", 1.0));
 }
 
 JSValue wisp_htmlmeterelement_max_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6539,7 +6626,9 @@ JSValue wisp_htmlmeterelement_min_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 JSValue wisp_htmlmeterelement_optimum_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "optimum", 0.0));
+    double min_val = get_element_double_attr(ctx, priv, "min", 0.0);
+    double max_val = get_element_double_attr(ctx, priv, "max", 1.0);
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "optimum", (min_val + max_val) / 2.0));
 }
 
 JSValue wisp_htmlmeterelement_optimum_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6557,11 +6646,19 @@ JSValue wisp_htmlmeterelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pri
 }
 
 JSValue wisp_htmlprogresselement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_nodelist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_nodelist(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmlprogresselement_position_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "position", 0.0));
+    double max_val = get_element_double_attr(ctx, priv, "max", 1.0);
+    double val = get_element_double_attr(ctx, priv, "value", 0.0);
+    if (max_val <= 0.0) return JS_NewFloat64(ctx, -1.0);
+    double pos = val / max_val;
+    if (pos < 0.0) pos = 0.0;
+    if (pos > 1.0) pos = 1.0;
+    return JS_NewFloat64(ctx, pos);
 }
 
 JSValue wisp_htmltrackelement_default_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -8169,6 +8266,19 @@ JSValue wisp_htmlformelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate 
 }
 JSValue wisp_htmlformelement_requestAutocomplete_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_UNDEFINED;
+}
+JSValue wisp_htmlformelement_requestSubmit_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue submitter) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLFormElement target");
+    JSValue valid = wisp_htmlformelement_checkValidity_impl(ctx, priv);
+    bool is_valid = true;
+    if (JS_IsBool(valid)) {
+        is_valid = JS_ToBool(ctx, valid);
+    }
+    JS_FreeValue(ctx, valid);
+    if (!is_valid) {
+        return JS_UNDEFINED;
+    }
+    return wisp_htmlformelement_submit_impl(ctx, priv);
 }
 JSValue wisp_htmlformelement_autocomplete_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "autocomplete", "");
