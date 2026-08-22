@@ -150,6 +150,59 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_media_source)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = js_newthread(heap, NULL, NULL, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (!('MediaSource' in window)) throw new Error('MediaSource not in window');\n"
+        "if (!('SourceBuffer' in window)) throw new Error('SourceBuffer not in window');\n"
+        "if (!('SourceBufferList' in window)) throw new Error('SourceBufferList not in window');\n"
+        "if (typeof MediaSource.isTypeSupported !== 'function') throw new Error('isTypeSupported not a function');\n"
+        "if (!MediaSource.isTypeSupported('video/mp4; codecs=\"avc1.42E01E\"')) throw new Error('isTypeSupported returned false');\n"
+        "var ms = new MediaSource();\n"
+        "if (!(ms instanceof MediaSource)) throw new Error('ms not instance of MediaSource');\n"
+        "if (!(ms instanceof EventTarget)) throw new Error('ms not instance of EventTarget');\n"
+        "if (ms.readyState !== 'open') throw new Error('readyState initial mismatch');\n"
+        "if (!(ms.sourceBuffers instanceof SourceBufferList)) throw new Error('sourceBuffers not instance of SourceBufferList');\n"
+        "if (!(ms.activeSourceBuffers instanceof SourceBufferList)) throw new Error('activeSourceBuffers not instance of SourceBufferList');\n"
+        "if (ms.sourceBuffers.length !== 0) throw new Error('sourceBuffers initial length non-zero');\n"
+        "var sb = ms.addSourceBuffer('video/mp4');\n"
+        "if (!(sb instanceof SourceBuffer)) throw new Error('addSourceBuffer did not return SourceBuffer');\n"
+        "if (!(sb instanceof EventTarget)) throw new Error('sb not instance of EventTarget');\n"
+        "if (typeof sb.appendBuffer !== 'function') throw new Error('appendBuffer failed');\n"
+        "if (typeof sb.remove !== 'function') throw new Error('remove failed');\n"
+        "if (typeof sb.abort !== 'function') throw new Error('abort failed');\n"
+        "if (typeof sb.changeType !== 'function') throw new Error('changeType failed');\n"
+        "if (sb.mode !== 'segments') throw new Error('mode default mismatch');\n"
+        "if (ms.sourceBuffers.length !== 1 || ms.sourceBuffers.item(0) !== sb) throw new Error('sourceBuffers lookup failed');\n"
+        "if (ms.sourceBuffers[0] !== sb) throw new Error('sourceBuffers index lookup failed');\n"
+        "ms.removeSourceBuffer(sb);\n"
+        "if (ms.sourceBuffers.length !== 0) throw new Error('removeSourceBuffer failed');\n"
+        "ms.endOfStream();\n"
+        "if (ms.readyState !== 'ended') throw new Error('endOfStream readyState mismatch');\n"
+        "true;\n";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_media_source");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_browseraudit_chartjs_full)
 {
     jsheap *heap = NULL;
@@ -2422,6 +2475,10 @@ START_TEST(test_quickjs_webidl_stubs)
         "    if (d_val.getUTCFullYear() !== 2026 || d_val.getUTCMonth() !== 2 || d_val.getUTCDate() !== 31) {\n"
         "        throw new Error('HTMLInputElement valueAsDate date fields mismatch: ' + d_val.toISOString());\n"
         "    }\n"
+        "    date_inp.valueAsDate = new Date(Date.UTC(2026, 4, 15));\n"
+        "    if (date_inp.value !== '2026-05-15') throw new Error('HTMLInputElement valueAsDate setter failed: ' + date_inp.value);\n"
+        "    date_inp.valueAsDate = null;\n"
+        "    if (date_inp.value !== '') throw new Error('HTMLInputElement valueAsDate null setter failed: ' + date_inp.value);\n"
         "\n"
         "    var num_inp = document.createElement('input');\n"
         "    num_inp.type = 'number';\n"
@@ -2429,6 +2486,18 @@ START_TEST(test_quickjs_webidl_stubs)
         "    if (!isNaN(num_inp.valueAsNumber)) throw new Error('HTMLInputElement valueAsNumber NaN check failed');\n"
         "    num_inp.value = '42.5';\n"
         "    if (num_inp.valueAsNumber !== 42.5) throw new Error('HTMLInputElement valueAsNumber parsed failed');\n"
+        "\n"
+        "    var label_inp = document.createElement('input');\n"
+        "    label_inp.id = 'labeled_input_test';\n"
+        "    var label_el = document.createElement('label');\n"
+        "    label_el.setAttribute('for', 'labeled_input_test');\n"
+        "    if (document.body) {\n"
+        "        document.body.appendChild(label_inp);\n"
+        "        document.body.appendChild(label_el);\n"
+        "    }\n"
+        "    if (!label_inp.labels || label_inp.labels.length !== 1 || label_inp.labels[0] !== label_el) {\n"
+        "        throw new Error('HTMLInputElement.labels association check failed');\n"
+        "    }\n"
         "\n"
         "    var meter_el = document.createElement('meter');\n"
         "    meter_el.min = 0;\n"
@@ -2468,6 +2537,18 @@ START_TEST(test_quickjs_webidl_stubs)
         "    if (video.canPlayType('video/vp9') !== 'maybe') throw new Error('video.canPlayType vp9 mime failed');\n"
         "    if (video.canPlayType('video/mp4; codecs=\"av01.0.08M.08\"') !== 'probably') throw new Error('video.canPlayType av1 failed');\n"
         "    if (video.canPlayType('video/mp4; codecs=\"av02.0.08M.08\"') !== 'probably') throw new Error('video.canPlayType av2 failed');\n"
+        "    var audio = document.createElement('audio');\n"
+        "    if (!audio || typeof audio.canPlayType !== 'function') throw new Error('audio element or canPlayType missing');\n"
+        "    if (audio.canPlayType('audio/mpeg') === '') throw new Error('audio/mpeg failed');\n"
+        "    if (audio.canPlayType('audio/aac') === '') throw new Error('audio/aac failed');\n"
+        "    if (audio.canPlayType('audio/wav') === '') throw new Error('audio/wav failed');\n"
+        "    if (audio.canPlayType('audio/opus') === '') throw new Error('audio/opus failed');\n"
+        "    if (audio.canPlayType('audio/flac') === '') throw new Error('audio/flac failed');\n"
+        "    if (audio.canPlayType('audio/m4a; codecs=\"mp4a.40.2\"') !== 'probably') throw new Error('audio/m4a mp4a codec failed');\n"
+        "    if (audio.canPlayType('audio/ogg; codecs=\"flac\"') !== 'probably') throw new Error('audio/ogg flac codec failed');\n"
+        "    var audioObj = new Audio('test.mp3');\n"
+        "    if (!audioObj || typeof audioObj.canPlayType !== 'function') throw new Error('new Audio() constructor or canPlayType failed');\n"
+        "    if (audioObj.src !== 'test.mp3' && !audioObj.src.endsWith('test.mp3')) throw new Error('new Audio() src attribute failed');\n"
         "    video.load();\n"
         "    video.play();\n"
         "    video.pause();\n"
@@ -5289,6 +5370,123 @@ START_TEST(test_quickjs_media_streams)
 }
 END_TEST
 
+START_TEST(test_quickjs_input_devices)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code1 =
+        "try {\n"
+        "  if (typeof window.PointerEvent !== 'function') throw new Error('PointerEvent missing');\n"
+        "  var pe = new PointerEvent('pointerdown', {\n"
+        "    pointerId: 42,\n"
+        "    width: 10,\n"
+        "    height: 20,\n"
+        "    pressure: 0.5,\n"
+        "    tangentialPressure: 0.1,\n"
+        "    tiltX: 15,\n"
+        "    tiltY: 25,\n"
+        "    twist: 180,\n"
+        "    pointerType: 'pen',\n"
+        "    isPrimary: true\n"
+        "  });\n"
+        "  if (pe.pointerId !== 42) throw new Error('pe.pointerId mismatch');\n"
+        "  if (pe.width !== 10) throw new Error('pe.width mismatch');\n"
+        "  if (pe.height !== 20) throw new Error('pe.height mismatch');\n"
+        "  if (pe.pressure !== 0.5) throw new Error('pe.pressure mismatch');\n"
+        "  if (pe.tangentialPressure !== 0.1) throw new Error('pe.tangentialPressure mismatch');\n"
+        "  if (pe.tiltX !== 15) throw new Error('pe.tiltX mismatch');\n"
+        "  if (pe.tiltY !== 25) throw new Error('pe.tiltY mismatch');\n"
+        "  if (pe.twist !== 180) throw new Error('pe.twist mismatch');\n"
+        "  if (pe.pointerType !== 'pen') throw new Error('pe.pointerType mismatch');\n"
+        "  if (pe.isPrimary !== true) throw new Error('pe.isPrimary mismatch');\n"
+        "\n"
+        "  var el = document.createElement('div');\n"
+        "  if (typeof el.setPointerCapture !== 'function') throw new Error('setPointerCapture missing');\n"
+        "  if (typeof el.releasePointerCapture !== 'function') throw new Error('releasePointerCapture missing');\n"
+        "  if (typeof el.hasPointerCapture !== 'function') throw new Error('hasPointerCapture missing');\n"
+        "  if (el.hasPointerCapture(42) !== false) throw new Error('hasPointerCapture before capture should be false');\n"
+        "  el.setPointerCapture(42);\n"
+        "  if (el.hasPointerCapture(42) !== true) throw new Error('hasPointerCapture after capture should be true');\n"
+        "  el.releasePointerCapture(42);\n"
+        "  if (el.hasPointerCapture(42) !== false) throw new Error('hasPointerCapture after release should be false');\n"
+        "\n"
+        "  if (typeof window.Touch !== 'function') throw new Error('Touch missing');\n"
+        "  if (typeof window.TouchList !== 'function') throw new Error('TouchList missing');\n"
+        "  if (typeof window.TouchEvent !== 'function') throw new Error('TouchEvent missing');\n"
+        "\n"
+        "  var touch = new Touch({\n"
+        "    identifier: 1,\n"
+        "    target: el,\n"
+        "    screenX: 100,\n"
+        "    screenY: 200,\n"
+        "    clientX: 50,\n"
+        "    clientY: 60,\n"
+        "    pageX: 50,\n"
+        "    pageY: 60,\n"
+        "    radiusX: 5,\n"
+        "    radiusY: 5,\n"
+        "    rotationAngle: 45,\n"
+        "    force: 0.8\n"
+        "  });\n"
+        "  if (touch.identifier !== 1 || touch.target !== el || touch.screenX !== 100 || touch.screenY !== 200 || touch.clientX !== 50 || touch.clientY !== 60 || touch.force !== 0.8) {\n"
+        "    throw new Error('Touch init mismatch');\n"
+        "  }\n"
+        "\n"
+        "  var touchList = new TouchList(touch);\n"
+        "  if (touchList.length !== 1 || touchList.item(0) !== touch || touchList[0] !== touch) {\n"
+        "    throw new Error('TouchList init mismatch');\n"
+        "  }\n"
+        "\n"
+        "  var te = new TouchEvent('touchstart', {\n"
+        "    touches: touchList,\n"
+        "    targetTouches: [touch],\n"
+        "    changedTouches: touchList,\n"
+        "    altKey: true\n"
+        "  });\n"
+        "  if (te.touches.length !== 1 || te.targetTouches.length !== 1 || te.changedTouches.length !== 1 || te.altKey !== true) {\n"
+        "    throw new Error('TouchEvent init mismatch');\n"
+        "  }\n"
+        "\n"
+        "  if (typeof document.createTouch !== 'function') throw new Error('document.createTouch missing');\n"
+        "  if (typeof document.createTouchList !== 'function') throw new Error('document.createTouchList missing');\n"
+        "  var dt = document.createTouch(window, el, 2, 10, 20, 30, 40, 50, 60, 2, 2, 0, 1);\n"
+        "  if (dt.identifier !== 2 || dt.target !== el) throw new Error('createTouch failed');\n"
+        "  var dtl = document.createTouchList(dt);\n"
+        "  if (dtl.length !== 1 || dtl[0] !== dt) throw new Error('createTouchList failed');\n"
+        "\n"
+        "  if (!('ontouchstart' in window) || !('ontouchstart' in document) || !('ontouchstart' in el)) throw new Error('ontouchstart property missing');\n"
+        "  if (!('onpointerdown' in window) || !('onpointerdown' in document) || !('onpointerdown' in el)) throw new Error('onpointerdown property missing');\n"
+        "  window.testRes = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.testRes = e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.testRes === 'OK';";
+
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_input_devices");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_location_and_sensors)
 {
     jsheap *heap = NULL;
@@ -6029,7 +6227,9 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_custom_elements);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_media_source);
     tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
+    tcase_add_test(tc_event_loop, test_quickjs_input_devices);
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
