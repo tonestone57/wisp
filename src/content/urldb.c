@@ -3406,8 +3406,11 @@ void urldb_set_auth_details(nsurl *url, const char *realm, const char *auth)
 
     if (space != NULL) {
         /* Overrule existing auth. */
-        free(space->auth);
-        space->auth = strdup(auth);
+        char *new_auth = strdup(auth);
+        if (new_auth != NULL) {
+            free(space->auth);
+            space->auth = new_auth;
+        }
     } else {
         /* Create a new protection space. */
         space = space_alloc = malloc(sizeof(struct prot_space_data));

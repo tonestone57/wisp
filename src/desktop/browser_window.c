@@ -4072,6 +4072,9 @@ browser_window_find_target(struct browser_window *bw, const char *target, browse
      * that begin with an underscore. */
     if (target[0] != '_') {
         bw_target->name = strdup(target);
+        if (bw_target->name == NULL) {
+            NSLOG(wisp, WARNING, "Failed to allocate memory for window target name '%s'", target);
+        }
     }
     return bw_target;
 }
