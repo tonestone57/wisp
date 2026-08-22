@@ -267,8 +267,6 @@ START_TEST(test_quickjs_other_apis)
 
     dom_document *doc = create_test_document();
     err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
 
     const char *code =
