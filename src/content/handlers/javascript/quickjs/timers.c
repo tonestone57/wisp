@@ -695,5 +695,18 @@ uint64_t qjs_execute_timers(JSContext *ctx) {
         curr_idle = curr_idle->next;
     }
 
+    /* Process microtasks/pending jobs on every tick */
+    JSContext *ctx1;
+    int job_ret;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+        if (job_ret < 0) {
+            JSValue exc = JS_GetException(ctx1);
+            const char *exc_str = JS_ToCString(ctx1, exc);
+            NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+            if (exc_str) JS_FreeCString(ctx1, exc_str);
+            JS_FreeValue(ctx1, exc);
+        }
+    }
+
     return min_wait;
 }
