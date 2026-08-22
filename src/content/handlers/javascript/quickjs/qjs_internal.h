@@ -47,6 +47,7 @@ typedef struct WispXHR {
     char *response_headers;
     struct fetch_multipart_data *out_headers;
     struct dom_document *response_xml;
+    char *response_type;
     struct WispXHR *next;
 } WispXHR;
 
