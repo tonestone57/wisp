@@ -1299,6 +1299,8 @@ void js_destroyheap(jsheap *heap)
         /* Clean up the DOM bridge first while the runtime opaque is still valid.
          * qjs_bridge_cleanup will set the opaque to NULL when finished. */
         qjs_bridge_cleanup(heap->rt);
+        JS_RunGC(heap->rt);
+        JS_RunGC(heap->rt);
         JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_FreeRuntime(heap->rt);
     }
