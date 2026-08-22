@@ -388,7 +388,7 @@ JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSVa
             free(timer);
             return JS_ThrowInternalError(ctx, "Failed to schedule timer");
         }
-    } else if (wisp_is_js_process) {
+    } else if (wisp_is_js_process || guit == NULL || guit->misc == NULL) {
         uint64_t now = 0;
         nsu_getmonotonic_ms(&now);
         timer->scheduled_time = now + timeout;
@@ -498,7 +498,7 @@ static JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, i
             free(raf);
             return JS_ThrowInternalError(ctx, "Failed to schedule requestAnimationFrame");
         }
-    } else if (wisp_is_js_process) {
+    } else if (wisp_is_js_process || guit == NULL || guit->misc == NULL) {
         uint64_t now = 0;
         nsu_getmonotonic_ms(&now);
         raf->scheduled_time = now + 16;

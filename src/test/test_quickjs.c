@@ -5179,6 +5179,119 @@ START_TEST(test_quickjs_css_stylesheet)
 }
 END_TEST
 
+START_TEST(test_quickjs_chartjs_canvas_integration)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var cvs = document.createElement('canvas');\n"
+        "if (!cvs) throw new Error('canvas element creation failed');\n"
+        "cvs.width = 400;\n"
+        "cvs.height = 200;\n"
+        "if (cvs.width !== 400 || cvs.height !== 200) throw new Error('canvas dimensions mismatch');\n"
+        "if (cvs.clientWidth !== 400 || cvs.clientHeight !== 200) throw new Error('canvas layout dimensions mismatch');\n"
+        "var ctx = cvs.getContext('2d');\n"
+        "if (!ctx) throw new Error('canvas getContext 2d failed');\n"
+        "ctx.font = '16px Arial';\n"
+        "ctx.textAlign = 'center';\n"
+        "ctx.textBaseline = 'middle';\n"
+        "if (ctx.font !== '16px Arial') throw new Error('ctx.font mismatch: ' + ctx.font);\n"
+        "if (ctx.textAlign !== 'center') throw new Error('ctx.textAlign mismatch: ' + ctx.textAlign);\n"
+        "if (ctx.textBaseline !== 'middle') throw new Error('ctx.textBaseline mismatch: ' + ctx.textBaseline);\n"
+        "ctx.save();\n"
+        "ctx.font = '24px Bold';\n"
+        "ctx.textAlign = 'right';\n"
+        "if (ctx.font !== '24px Bold') throw new Error('ctx.font save mismatch');\n"
+        "ctx.restore();\n"
+        "if (ctx.font !== '16px Arial') throw new Error('ctx.font restore mismatch');\n"
+        "if (ctx.textAlign !== 'center') throw new Error('ctx.textAlign restore mismatch');\n"
+        "ctx.setLineDash([5, 10]);\n"
+        "var dash = ctx.getLineDash();\n"
+        "if (!Array.isArray(dash)) throw new Error('getLineDash is not array');\n"
+        "var metrics = ctx.measureText('BrowserAudit Chart');\n"
+        "if (typeof metrics.width !== 'number' || metrics.width <= 0) throw new Error('measureText width invalid');\n"
+        "if (typeof metrics.actualBoundingBoxLeft !== 'number') throw new Error('measureText actualBoundingBoxLeft invalid');\n"
+        "var dataUrl = cvs.toDataURL();\n"
+        "if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) throw new Error('toDataURL invalid');\n"
+        "var blobCalled = false;\n"
+        "cvs.toBlob(function(b) { if (b) blobCalled = true; }, 'image/png');\n"
+        "if (!blobCalled) throw new Error('toBlob callback failed');\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_chartjs_canvas", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_chartjs_canvas: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_browseraudit_xhr_and_window_hierarchy)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (window.top !== window) throw new Error('window.top mismatch');\n"
+        "if (window.parent !== window) throw new Error('window.parent mismatch');\n"
+        "if (window.self !== window) throw new Error('window.self mismatch');\n"
+        "if (window.frameElement !== null) throw new Error('window.frameElement mismatch');\n"
+        "if (typeof devicePixelRatio !== 'number') throw new Error('devicePixelRatio missing');\n"
+        "var xhr = new XMLHttpRequest();\n"
+        "if (!xhr) throw new Error('XHR instantiation failed');\n"
+        "xhr.withCredentials = true;\n"
+        "if (xhr.withCredentials !== true) throw new Error('xhr.withCredentials mismatch');\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_browseraudit_xhr", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_browseraudit_xhr: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -5254,6 +5367,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_performance_timeline);
     tcase_add_test(tc_window, test_quickjs_trusted_types);
+    tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
+    tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */

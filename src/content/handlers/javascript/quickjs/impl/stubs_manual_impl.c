@@ -6469,11 +6469,19 @@ JSValue wisp_htmlcanvaselement_setContext_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 JSValue wisp_htmlcanvaselement_toBlob_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue callback, const char * type, JSValue arguments) {
+    if (JS_IsFunction(ctx, callback)) {
+        JSValue blob = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, blob, "size", JS_NewInt32(ctx, 0));
+        JS_SetPropertyStr(ctx, blob, "type", JS_NewString(ctx, type ? type : "image/png"));
+        JSValue ret = JS_Call(ctx, callback, JS_UNDEFINED, 1, &blob);
+        JS_FreeValue(ctx, ret);
+        JS_FreeValue(ctx, blob);
+    }
     return JS_UNDEFINED;
 }
 
 JSValue wisp_htmlcanvaselement_toDataURL_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue arguments) {
-    return JS_NewString(ctx, "data:image/png;base64,");
+    return JS_NewString(ctx, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
 }
 
 JSValue wisp_htmlcanvaselement_transferControlToProxy_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -9976,65 +9984,6 @@ JSValue wisp_path2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x,
 }
 
 
-// Overrides: method | CanvasRenderingContext2D::setLineDash();
-JSValue wisp_canvasrenderingcontext2d_setLineDash_impl(JSContext *ctx, QJSNodePrivate *priv, double segments) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | CanvasRenderingContext2D::getLineDash();
-JSValue wisp_canvasrenderingcontext2d_getLineDash_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::lineDashOffset(double);
-JSValue wisp_canvasrenderingcontext2d_lineDashOffset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::lineDashOffset(double);
-JSValue wisp_canvasrenderingcontext2d_lineDashOffset_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::font(string);
-JSValue wisp_canvasrenderingcontext2d_font_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::font(string);
-JSValue wisp_canvasrenderingcontext2d_font_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::textAlign(string);
-JSValue wisp_canvasrenderingcontext2d_textAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::textAlign(string);
-JSValue wisp_canvasrenderingcontext2d_textAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::textBaseline(string);
-JSValue wisp_canvasrenderingcontext2d_textBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::textBaseline(string);
-JSValue wisp_canvasrenderingcontext2d_textBaseline_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::direction(string);
-JSValue wisp_canvasrenderingcontext2d_direction_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::direction(string);
-JSValue wisp_canvasrenderingcontext2d_direction_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: method | CanvasProxy::setContext();
 JSValue wisp_canvasproxy_setContext_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue context) {
