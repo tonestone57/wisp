@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "quickjs.h"
+#include "timers.h"
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
@@ -10442,12 +10443,17 @@ JSValue wisp_window_showModalDialog_impl(JSContext *ctx, QJSNodePrivate *priv, c
 
 // Overrides: method | Window::requestAnimationFrame();
 JSValue wisp_window_requestAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue callback) {
-    return JS_UNDEFINED;
+    JSValueConst argv[1] = { callback };
+    return js_requestAnimationFrame(ctx, JS_UNDEFINED, 1, argv);
 }
 
 // Overrides: method | Window::cancelAnimationFrame();
 JSValue wisp_window_cancelAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t handle) {
-    return JS_UNDEFINED;
+    JSValue handle_val = JS_NewUint32(ctx, handle);
+    JSValueConst argv[1] = { handle_val };
+    JSValue res = js_cancelAnimationFrame(ctx, JS_UNDEFINED, 1, argv);
+    JS_FreeValue(ctx, handle_val);
+    return res;
 }
 
 // Overrides: method | Window::postMessage();
@@ -13241,7 +13247,35 @@ extern JSValue wisp_document_createElement_impl(JSContext *ctx, QJSNodePrivate *
 
 // Overrides: method | Document::createElementNS();
 JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv, const char * namespace, const char * qualifiedName) {
-    return wisp_document_createElement_impl(ctx, priv, qualifiedName);
+    JSValue elem = wisp_document_createElement_impl(ctx, priv, qualifiedName);
+    if (JS_IsObject(elem) && namespace) {
+        if (strcmp(namespace, "http://www.w3.org/2000/svg") == 0) {
+            JS_DefinePropertyValueStr(ctx, elem, "namespaceURI", JS_NewString(ctx, namespace), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+            JSValue global = JS_GetGlobalObject(ctx);
+            JSValue ctor = JS_UNDEFINED;
+            if (qualifiedName && strcasecmp(qualifiedName, "foreignObject") == 0) {
+                ctor = JS_GetPropertyStr(ctx, global, "SVGForeignObjectElement");
+            } else if (qualifiedName && strcasecmp(qualifiedName, "svg") == 0) {
+                ctor = JS_GetPropertyStr(ctx, global, "SVGSVGElement");
+            } else {
+                ctor = JS_GetPropertyStr(ctx, global, "SVGElement");
+            }
+            if (JS_IsFunction(ctx, ctor)) {
+                JSValue proto = JS_GetPropertyStr(ctx, ctor, "prototype");
+                if (JS_IsObject(proto)) {
+                    JS_SetPrototype(ctx, elem, proto);
+                    JS_FreeValue(ctx, proto);
+                } else {
+                    JS_FreeValue(ctx, proto);
+                }
+            }
+            JS_FreeValue(ctx, ctor);
+            JS_FreeValue(ctx, global);
+        } else if (strcmp(namespace, "http://www.w3.org/1998/Math/MathML") == 0) {
+            JS_DefinePropertyValueStr(ctx, elem, "namespaceURI", JS_NewString(ctx, namespace), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+        }
+    }
+    return elem;
 }
 
 // Overrides: attribute get | Document::implementation (getter);

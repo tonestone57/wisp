@@ -462,13 +462,13 @@ static JSValue js_clearInterval(JSContext *ctx, JSValueConst this_val, int argc,
     return js_clearTimeout(ctx, this_val, argc, argv);
 }
 
-static JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return JS_EXCEPTION;
 
     if (argc < 1 || !JS_IsFunction(ctx, argv[0])) {
-        return JS_ThrowTypeError(ctx, "Expected function as first argument");
+        return JS_UNDEFINED;
     }
 
     struct qjs_raf_callback *raf = malloc(sizeof(*raf));
@@ -500,7 +500,7 @@ static JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, i
     return JS_NewInt32(ctx, raf->id);
 }
 
-static JSValue js_cancelAnimationFrame(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+JSValue js_cancelAnimationFrame(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return JS_UNDEFINED;

@@ -361,6 +361,36 @@ JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return val;
 }
 
+static void append_fragment_children(dom_node *element, dom_node *parent)
+{
+    dom_node *c = NULL;
+    while (dom_node_get_first_child(parent, &c) == DOM_NO_ERR && c != NULL) {
+        dom_node_type type;
+        dom_node_get_node_type(c, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            dom_string *tag = NULL;
+            dom_node_get_node_name(c, &tag);
+            if (tag) {
+                const char *tag_cstr = (const char *)dom_string_data(tag);
+                if (strcasecmp(tag_cstr, "html") == 0 || strcasecmp(tag_cstr, "head") == 0 || strcasecmp(tag_cstr, "body") == 0) {
+                    dom_string_unref(tag);
+                    append_fragment_children(element, c);
+                    dom_node_remove_child(parent, c, NULL);
+                    dom_node_unref(c);
+                    c = NULL;
+                    continue;
+                }
+                dom_string_unref(tag);
+            }
+        }
+        dom_node *appended = NULL;
+        dom_node_append_child(element, c, &appended);
+        if (appended) dom_node_unref(appended);
+        dom_node_unref(c);
+        c = NULL;
+    }
+}
+
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
@@ -440,18 +470,14 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
         err = dom_hubbub_parser_completed(parser);
     }
 
-    if (err == DOM_HUBBUB_OK && fragment != NULL) {
-        /* 3. Append children from fragment to element */
-        dom_node *result = NULL;
-        dom_node_append_child(element, (dom_node *)fragment, &result);
-        if (result) dom_node_unref(result);
+    if (fragment != NULL) {
+        /* 3. Append children from fragment (unwrapping html/body wrappers if present) */
+        append_fragment_children(element, (dom_node *)fragment);
     }
 
     if (fragment) dom_node_unref((dom_node *)fragment);
     dom_hubbub_parser_destroy(parser);
     dom_node_unref((dom_node *)doc);
-
-    if (err != DOM_HUBBUB_OK) return JS_ThrowInternalError(ctx, "Hubbub parsing failed");
 
     return JS_UNDEFINED;
 }
@@ -691,6 +717,21 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         if (strcasecmp(tag, "html") == 0 || strcasecmp(tag, "body") == 0) {
             rw = 1024;
             rh = 768;
+        } else if (strcasecmp(tag, "svg") == 0 || strcasecmp(tag, "img") == 0 || strcasecmp(tag, "canvas") == 0) {
+            JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
+            JSValue hv = wisp_element_getAttribute_impl(ctx, priv, "height");
+            if (JS_IsString(wv)) {
+                const char *ws = JS_ToCString(ctx, wv);
+                if (ws) { rw = atoi(ws); JS_FreeCString(ctx, ws); }
+            }
+            if (JS_IsString(hv)) {
+                const char *hs = JS_ToCString(ctx, hv);
+                if (hs) { rh = atoi(hs); JS_FreeCString(ctx, hs); }
+            }
+            JS_FreeValue(ctx, wv);
+            JS_FreeValue(ctx, hv);
+            if (rw <= 0) rw = 300;
+            if (rh <= 0) rh = 150;
         } else {
             rw = 100;
             rh = 30;
@@ -1443,6 +1484,27 @@ JSValue wisp_element_localName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 JSValue wisp_element_namespaceURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
+    if (!priv || !priv->node) return JS_NewString(ctx, "http://www.w3.org/1999/xhtml");
+
+    JSValue tag = wisp_element_tagName_get_impl(ctx, priv);
+    if (JS_IsString(tag)) {
+        const char *str = JS_ToCString(ctx, tag);
+        if (str) {
+            if (strcasecmp(str, "svg") == 0) {
+                JS_FreeCString(ctx, str);
+                JS_FreeValue(ctx, tag);
+                return JS_NewString(ctx, "http://www.w3.org/2000/svg");
+            }
+            if (strcasecmp(str, "math") == 0) {
+                JS_FreeCString(ctx, str);
+                JS_FreeValue(ctx, tag);
+                return JS_NewString(ctx, "http://www.w3.org/1998/Math/MathML");
+            }
+            JS_FreeCString(ctx, str);
+        }
+    }
+    JS_FreeValue(ctx, tag);
+
     return JS_NewString(ctx, "http://www.w3.org/1999/xhtml");
 }
 
