@@ -116,7 +116,7 @@ static GtkWidget *nsgtk_tab_label_setup(GtkWidget *page, const char *title, GdkP
     /* construct a close button  */
     button = gtk_button_new();
 
-    close = nsgtk_image_new_from_stock(NSGTK_STOCK_CLOSE, GTK_ICON_SIZE_LARGE_TOOLBAR);
+    close = nsgtk_image_new_from_stock(NSGTK_STOCK_CLOSE, GTK_ICON_SIZE_MENU);
     gtk_container_add(GTK_CONTAINER(button), close);
     nsgtk_button_set_focus_on_click(GTK_BUTTON(button), FALSE);
     gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
@@ -287,7 +287,7 @@ static GtkWidget *nsgtk_tab_add_newtab(GtkNotebook *notebook)
     tablabel = nsgtk_hbox_new(FALSE, 1);
     tabcontents = nsgtk_hbox_new(FALSE, 1);
 
-    add = gtk_image_new_from_icon_name(NSGTK_STOCK_ADD, GTK_ICON_SIZE_LARGE_TOOLBAR);
+    add = gtk_image_new_from_icon_name(NSGTK_STOCK_ADD, GTK_ICON_SIZE_MENU);
     gtk_widget_set_tooltip_text(add, "New Tab");
 
     gtk_box_pack_start(GTK_BOX(tablabel), add, FALSE, FALSE, 0);
