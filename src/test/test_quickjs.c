@@ -251,6 +251,68 @@ START_TEST(test_quickjs_browseraudit_chartjs_full)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_other_apis)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (typeof history === 'undefined' || typeof history.pushState !== 'function' || typeof history.replaceState !== 'function') {\n"
+        "  throw new Error('history pushState / replaceState missing');\n"
+        "}\n"
+        "history.pushState({ page: 1 }, 'Title 1', '/page1');\n"
+        "history.replaceState({ page: 2 }, 'Title 2', '/page2');\n"
+        "if (!('hidden' in document) || document.hidden !== false) {\n"
+        "  throw new Error('document.hidden check failed');\n"
+        "}\n"
+        "if (!('visibilityState' in document) || document.visibilityState !== 'visible') {\n"
+        "  throw new Error('document.visibilityState check failed');\n"
+        "}\n"
+        "if (typeof window.getSelection !== 'function') {\n"
+        "  throw new Error('window.getSelection missing');\n"
+        "}\n"
+        "var sel = window.getSelection();\n"
+        "if (!sel || typeof sel.removeAllRanges !== 'function') {\n"
+        "  throw new Error('window.getSelection return invalid');\n"
+        "}\n"
+        "if (typeof document.getSelection !== 'function') {\n"
+        "  throw new Error('document.getSelection missing');\n"
+        "}\n"
+        "var div = document.createElement('div');\n"
+        "if (typeof div.scrollIntoView !== 'function') {\n"
+        "  throw new Error('Element.prototype.scrollIntoView missing');\n"
+        "}\n"
+        "div.scrollIntoView(true);\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_other_apis", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_other_apis: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
     if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
     corestrings_fini();
@@ -6282,6 +6344,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
     tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
     tcase_add_test(tc_window, test_quickjs_browseraudit_chartjs_full);
+    tcase_add_test(tc_window, test_quickjs_other_apis);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */

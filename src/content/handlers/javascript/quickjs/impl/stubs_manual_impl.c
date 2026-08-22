@@ -6232,6 +6232,14 @@ JSValue wisp_document_hasFocus_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_TRUE;
 }
 
+JSValue wisp_document_hidden_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_FALSE;
+}
+
+JSValue wisp_document_visibilityState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    return JS_NewString(ctx, "visible");
+}
+
 // -----------------------------------------------------------------------------
 // HTMLDataListElement Implementation
 // -----------------------------------------------------------------------------

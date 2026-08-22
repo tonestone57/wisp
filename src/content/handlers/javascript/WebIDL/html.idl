@@ -53,6 +53,8 @@ partial /*sealed*/ interface Document {
   attribute DOMString cookie;
   readonly attribute DOMString lastModified;
   readonly attribute DocumentReadyState readyState;
+  readonly attribute boolean hidden;
+  readonly attribute DOMString visibilityState;
 
   // DOM tree accessors
   getter object (DOMString name);
