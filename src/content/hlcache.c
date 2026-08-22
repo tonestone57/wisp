@@ -678,16 +678,23 @@ void hlcache_finalise(void)
     }
 
     /* 2. Destroy cached content while the cache context remains valid.
-     * Use a safe extraction loop so callbacks unlinking entries don't corrupt iteration. */
+     * First pass: Destroy all content objects and set entry->content = NULL.
+     * Setting entry->content = NULL before content_destroy prevents nested
+     * hlcache_handle_release calls from dereferencing handle->entry->content
+     * or accessing freed content memory during teardown. */
+    for (hlcache_entry *entry = cache->content_list; entry != NULL; entry = entry->next) {
+        if (entry->content != NULL) {
+            struct content *c = entry->content;
+            entry->content = NULL;
+            content_destroy(c);
+        }
+    }
+
+    /* Second pass: Free the hlcache_entry structures after all content objects
+     * and their associated handles/callbacks have been cleaned up. */
     while (cache->content_list != NULL) {
         hlcache_entry *entry = cache->content_list;
         cache->content_list = entry->next;
-
-        if (entry->content != NULL) {
-            content_destroy(entry->content);
-            entry->content = NULL;
-        }
-
         free(entry);
     }
 
