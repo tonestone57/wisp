@@ -953,6 +953,7 @@ START_TEST(test_quickjs_css_escape)
     jsthread *thread = NULL;
     bool result;
 
+    corestrings_init();
     js_initialise();
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
@@ -979,6 +980,7 @@ START_TEST(test_quickjs_css_style_declaration)
     jsthread *thread = NULL;
     bool result;
 
+    corestrings_init();
     js_initialise();
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
@@ -1365,6 +1367,7 @@ START_TEST(test_quickjs_webidl_stubs)
     jsthread *thread = NULL;
     bool result;
 
+    corestrings_init();
     js_initialise();
     js_newheap(5, &heap);
     dom_document *doc = create_test_document();
