@@ -5945,6 +5945,7 @@ START_TEST(test_quickjs_read_write_selectors)
 
     jsthread *thread;
     ck_assert_int_eq(js_newthread(heap, doc, doc, &thread), NSERROR_OK);
+    dom_node_unref((dom_node *)doc);
 
     const char *code =
         "function ck_assert(val) { if (!val) throw new Error('Assertion failed'); }\n"
