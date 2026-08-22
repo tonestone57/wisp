@@ -150,6 +150,103 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_output_and_devices)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: MediaDevices & enumerateDevices
+    const char *code1 = "try {\n"
+                        "  if (!(navigator.mediaDevices instanceof MediaDevices)) throw new Error('mediaDevices not instance of MediaDevices');\n"
+                        "  if (typeof navigator.mediaDevices.enumerateDevices !== 'function') throw new Error('enumerateDevices not a function');\n"
+                        "  window.devicesResult = 'PENDING';\n"
+                        "  navigator.mediaDevices.enumerateDevices().then(function(devs) {\n"
+                        "    if (!Array.isArray(devs) || devs.length === 0) throw new Error('enumerateDevices returned empty array');\n"
+                        "    if (!devs[0].kind || !devs[0].label) throw new Error('device object missing kind/label');\n"
+                        "    window.devicesResult = 'OK';\n"
+                        "  }).catch(function(err) {\n"
+                        "    window.devicesResult = 'ERROR: ' + err.message;\n"
+                        "  });\n"
+                        "  window.testRes1 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes1 = e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "window.testRes1 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_enumerate_devices");
+    ck_assert(result == true);
+
+    // Drain microtasks / timers
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *verify_devs = "window.devicesResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)verify_devs, strlen(verify_devs), "verify_enumerate_devices");
+    ck_assert(result == true);
+
+    // Test 2: SpeechSynthesis & SpeechSynthesisUtterance APIs
+    const char *code2 = "try {\n"
+                        "  if (typeof window.SpeechSynthesis === 'undefined') throw new Error('SpeechSynthesis missing');\n"
+                        "  if (typeof window.SpeechSynthesisUtterance === 'undefined') throw new Error('SpeechSynthesisUtterance missing');\n"
+                        "  if (typeof window.speechSynthesis === 'undefined') throw new Error('speechSynthesis missing');\n"
+                        "  if (!(window.speechSynthesis instanceof SpeechSynthesis)) throw new Error('speechSynthesis not instance of SpeechSynthesis');\n"
+                        "\n"
+                        "  var voices = speechSynthesis.getVoices();\n"
+                        "  if (!Array.isArray(voices) || voices.length === 0) throw new Error('getVoices returned empty array');\n"
+                        "  if (!voices[0].name || !voices[0].lang) throw new Error('voice object missing name/lang');\n"
+                        "\n"
+                        "  var utt = new SpeechSynthesisUtterance('Hello Wisp Engine');\n"
+                        "  if (utt.text !== 'Hello Wisp Engine') throw new Error('Utterance text mismatch: ' + utt.text);\n"
+                        "  if (!(utt instanceof SpeechSynthesisUtterance)) throw new Error('utt not instance of SpeechSynthesisUtterance');\n"
+                        "\n"
+                        "  window.speechResult = 'PENDING';\n"
+                        "  utt.onstart = function(e) {\n"
+                        "    window.speechStart = true;\n"
+                        "  };\n"
+                        "  utt.onend = function(e) {\n"
+                        "    if (window.speechStart) window.speechResult = 'OK';\n"
+                        "    else window.speechResult = 'start_not_fired';\n"
+                        "  };\n"
+                        "  speechSynthesis.speak(utt);\n"
+                        "  window.testRes2 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes2 = e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "window.testRes2 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_speech_synthesis");
+    ck_assert(result == true);
+
+    // Drain microtasks / timers
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_data;
+    run_mock_tasks();
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+    run_mock_tasks();
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+    guit = saved_guit;
+
+    const char *verify_speech = "window.speechResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)verify_speech, strlen(verify_speech), "verify_speech");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_parsing_doctype)
 {
     jsheap *heap = NULL;
@@ -5274,6 +5371,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_custom_elements);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
