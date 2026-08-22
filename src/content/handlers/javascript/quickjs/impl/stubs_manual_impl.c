@@ -6518,7 +6518,7 @@ JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue self_val = qjs_wrap_node(ctx, (dom_node *)priv->node);
     JSValue cached = JS_GetPropertyStr(ctx, self_val, "__wisp_template_content_cached");
-    if (!JS_IsUndefined(cached)) {
+    if (!JS_IsUndefined(cached) && !JS_IsNull(cached)) {
         JS_FreeValue(ctx, self_val);
         JS_FreeValue(ctx, global);
         return cached;
@@ -6538,40 +6538,65 @@ JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate
     JS_FreeValue(ctx, doc_val);
 
     if (JS_IsObject(frag_val)) {
-        // Append all children of the template element to the fragment
-        JSValue childNodes = JS_GetPropertyStr(ctx, self_val, "childNodes");
-        if (JS_IsObject(childNodes)) {
-            JSValue length_val = JS_GetPropertyStr(ctx, childNodes, "length");
-            int len = 0;
-            JS_ToInt32(ctx, &len, length_val);
-            JS_FreeValue(ctx, length_val);
+        if (!wisp_is_js_process) {
+            // Direct LibDOM node operations: reparent child nodes from template element to fragment
+            extern JSClassID qjs_documentfragment_class_id;
+            dom_node *template_node = (dom_node *)priv->node;
+            dom_node *frag_node = NULL;
+            QJSNodePrivate *frag_priv = (QJSNodePrivate *)JS_GetOpaque(frag_val, qjs_documentfragment_class_id);
+            if (!frag_priv) {
+                frag_priv = (QJSNodePrivate *)JS_GetOpaque(frag_val, qjs_node_class_id);
+            }
+            if (frag_priv && frag_priv->node) {
+                frag_node = (dom_node *)frag_priv->node;
+            }
 
-            JSValue appendChild = JS_GetPropertyStr(ctx, frag_val, "appendChild");
-            if (JS_IsFunction(ctx, appendChild)) {
-                // Since appendChild moves the node, we can repeatedly move childNodes[0]
-                while (len > 0) {
-                    JSValue first_child = JS_GetPropertyUint32(ctx, childNodes, 0);
-                    if (JS_IsObject(first_child)) {
-                        JSValue res = JS_Call(ctx, appendChild, frag_val, 1, &first_child);
-                        JS_FreeValue(ctx, res);
-                    }
-                    JS_FreeValue(ctx, first_child);
-
-                    // Recalculate length in case moving nodes reduces childNodes.length
-                    JSValue new_len_val = JS_GetPropertyStr(ctx, childNodes, "length");
-                    int new_len = 0;
-                    JS_ToInt32(ctx, &new_len, new_len_val);
-                    JS_FreeValue(ctx, new_len_val);
-                    if (new_len >= len) {
-                        // Prevent infinite loop if appendChild did not actually move the node
-                        break;
-                    }
-                    len = new_len;
+            if (frag_node && template_node) {
+                dom_node *child = NULL;
+                dom_node_get_first_child(template_node, &child);
+                while (child != NULL) {
+                    dom_node *next = NULL;
+                    dom_node_get_next_sibling(child, &next);
+                    dom_node *appended = NULL;
+                    dom_node_append_child(frag_node, child, &appended);
+                    if (appended) dom_node_unref(appended);
+                    dom_node_unref(child);
+                    child = next;
                 }
             }
-            JS_FreeValue(ctx, appendChild);
+        } else {
+            // JS process (SHM DOM) mode: move child nodes using JS DOM methods
+            JSValue childNodes = JS_GetPropertyStr(ctx, self_val, "childNodes");
+            if (JS_IsObject(childNodes)) {
+                JSValue length_val = JS_GetPropertyStr(ctx, childNodes, "length");
+                int len = 0;
+                JS_ToInt32(ctx, &len, length_val);
+                JS_FreeValue(ctx, length_val);
+
+                JSValue appendChild = JS_GetPropertyStr(ctx, frag_val, "appendChild");
+                if (JS_IsFunction(ctx, appendChild)) {
+                    while (len > 0) {
+                        JSValue first_child = JS_GetPropertyUint32(ctx, childNodes, 0);
+                        if (JS_IsObject(first_child)) {
+                            JSValue res = JS_Call(ctx, appendChild, frag_val, 1, &first_child);
+                            JS_FreeValue(ctx, res);
+                        }
+                        JS_FreeValue(ctx, first_child);
+
+                        JSValue new_len_val = JS_GetPropertyStr(ctx, childNodes, "length");
+                        int new_len = 0;
+                        JS_ToInt32(ctx, &new_len, new_len_val);
+                        JS_FreeValue(ctx, new_len_val);
+                        if (new_len >= len) {
+                            break;
+                        }
+                        len = new_len;
+                    }
+                }
+                JS_FreeValue(ctx, appendChild);
+            }
+            JS_FreeValue(ctx, childNodes);
         }
-        JS_FreeValue(ctx, childNodes);
 
         // Cache the fragment on the template element
         JS_SetPropertyStr(ctx, self_val, "__wisp_template_content_cached", JS_DupValue(ctx, frag_val));
