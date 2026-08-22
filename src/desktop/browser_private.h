@@ -162,6 +162,8 @@ struct browser_window {
     bool history_add;
     /** Internal navigation, do not update URL etc */
     bool internal_nav;
+    /** Navigation triggered by JS window.location assignment */
+    bool js_navigated;
 
     /** Fragment identifier for current_content. */
     lwc_string *frag_id;

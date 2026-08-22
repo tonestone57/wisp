@@ -150,6 +150,141 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_browseraudit_chartjs_full)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var Chart = function(ctx, config) {\n"
+        "    this.ctx = ctx;\n"
+        "    this.config = config;\n"
+        "    if (ctx && ctx.canvas) {\n"
+        "        this.canvas = ctx.canvas;\n"
+        "    }\n"
+        "};\n"
+        "var cvs = document.createElement('canvas');\n"
+        "var ctx = cvs.getContext('2d');\n"
+        "var chart = new Chart(ctx, {\n"
+        "    type: 'line',\n"
+        "    data: { labels: ['Jan', 'Feb'], datasets: [{ data: [1, 2] }] }\n"
+        "});\n"
+        "if (!chart || !chart.ctx) throw new Error('Chart instantiation failed');\n"
+        "if (chart.canvas !== cvs) throw new Error('Chart canvas property mismatch');\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_chartjs", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_chartjs: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+    corestrings_fini();
+}
+END_TEST
+
+START_TEST(test_quickjs_webgl_support)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    bool result;
+
+    corestrings_init();
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+
+    const char *script =
+        "if (!('WebGLRenderingContext' in window)) throw 'WebGLRenderingContext not in window';\n"
+        "if (!('WebGL2RenderingContext' in window)) throw 'WebGL2RenderingContext not in window';\n"
+        "if (!('WebGLBuffer' in window)) throw 'WebGLBuffer not in window';\n"
+        "if (!('WebGLShader' in window)) throw 'WebGLShader not in window';\n"
+        "if (!('WebGLProgram' in window)) throw 'WebGLProgram not in window';\n"
+        "if (!('WebGLTexture' in window)) throw 'WebGLTexture not in window';\n"
+        "if (!('WebGLFramebuffer' in window)) throw 'WebGLFramebuffer not in window';\n"
+        "if (!('WebGLRenderbuffer' in window)) throw 'WebGLRenderbuffer not in window';\n"
+        "if (!('WebGLUniformLocation' in window)) throw 'WebGLUniformLocation not in window';\n"
+        "if (!('WebGLActiveInfo' in window)) throw 'WebGLActiveInfo not in window';\n"
+        "if (!('WebGLShaderPrecisionFormat' in window)) throw 'WebGLShaderPrecisionFormat not in window';\n"
+        "\n"
+        "let canvas = document.createElement('canvas');\n"
+        "let gl = canvas.getContext('webgl');\n"
+        "if (!gl) throw 'getContext webgl failed';\n"
+        "if (!(gl instanceof WebGLRenderingContext)) throw 'not instanceof WebGLRenderingContext';\n"
+        "if (gl.canvas !== canvas) throw 'gl.canvas mismatch';\n"
+        "\n"
+        "let gl_exp = canvas.getContext('experimental-webgl');\n"
+        "if (gl_exp !== gl) throw 'experimental-webgl caching mismatch';\n"
+        "\n"
+        "let gl2 = canvas.getContext('webgl2');\n"
+        "if (!gl2) throw 'getContext webgl2 failed';\n"
+        "if (!(gl2 instanceof WebGL2RenderingContext)) throw 'not instanceof WebGL2RenderingContext';\n"
+        "if (!(gl2 instanceof WebGLRenderingContext)) throw 'webgl2 not extending WebGLRenderingContext';\n"
+        "if (gl2.canvas !== canvas) throw 'gl2.canvas mismatch';\n"
+        "\n"
+        "// Test core WebGL constants\n"
+        "if (WebGLRenderingContext.COLOR_BUFFER_BIT !== 0x4000) throw 'COLOR_BUFFER_BIT fail';\n"
+        "if (WebGLRenderingContext.DEPTH_BUFFER_BIT !== 0x100) throw 'DEPTH_BUFFER_BIT fail';\n"
+        "if (WebGLRenderingContext.TRIANGLES !== 4) throw 'TRIANGLES fail';\n"
+        "if (WebGLRenderingContext.FLOAT !== 0x1406) throw 'FLOAT fail';\n"
+        "if (gl.COLOR_BUFFER_BIT !== 0x4000) throw 'instance COLOR_BUFFER_BIT fail';\n"
+        "\n"
+        "// Test basic methods\n"
+        "let buf = gl.createBuffer();\n"
+        "if (!(buf instanceof WebGLBuffer)) throw 'createBuffer fail';\n"
+        "gl.bindBuffer(gl.ARRAY_BUFFER, buf);\n"
+        "gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 1, 1]), gl.STATIC_DRAW);\n"
+        "\n"
+        "let vshader = gl.createShader(gl.VERTEX_SHADER);\n"
+        "if (!(vshader instanceof WebGLShader)) throw 'createShader fail';\n"
+        "gl.shaderSource(vshader, 'void main() {}');\n"
+        "gl.compileShader(vshader);\n"
+        "if (!gl.getShaderParameter(vshader, gl.COMPILE_STATUS)) throw 'compileShader status fail';\n"
+        "\n"
+        "let prog = gl.createProgram();\n"
+        "if (!(prog instanceof WebGLProgram)) throw 'createProgram fail';\n"
+        "gl.attachShader(prog, vshader);\n"
+        "gl.linkProgram(prog);\n"
+        "if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw 'linkProgram status fail';\n"
+        "gl.useProgram(prog);\n"
+        "gl.clear(gl.COLOR_BUFFER_BIT);\n"
+        "gl.drawArrays(gl.TRIANGLES, 0, 3);\n"
+        "1;";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_webgl_support");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_output_and_devices)
 {
     jsheap *heap = NULL;
@@ -1712,6 +1847,30 @@ START_TEST(test_quickjs_webidl_stubs)
         "    var timeEl = document.createElement(\'time\');\n"
         "    timeEl.dateTime = \'2023-12-31\';\n"
         "    if (timeEl.dateTime !== \'2023-12-31\') throw new Error(\'HTMLTimeElement dateTime failed\');\n"
+        "\n"
+        "    // HTML5 Element Prototypes and instanceof tests\n"
+        "    var sectionEl = document.createElement(\'section\');\n"
+        "    if (!(sectionEl instanceof HTMLSectionElement)) throw new Error(\'section element not instanceof HTMLSectionElement\');\n"
+        "    if (!(sectionEl instanceof HTMLElement)) throw new Error(\'section element not instanceof HTMLElement\');\n"
+        "\n"
+        "    var navEl = document.createElement(\'nav\');\n"
+        "    if (!(navEl instanceof HTMLNavElement)) throw new Error(\'nav element not instanceof HTMLNavElement\');\n"
+        "\n"
+        "    var articleEl = document.createElement(\'article\');\n"
+        "    if (!(articleEl instanceof HTMLArticleElement)) throw new Error(\'article element not instanceof HTMLArticleElement\');\n"
+        "\n"
+        "    var pictureEl = document.createElement(\'picture\');\n"
+        "    if (!(pictureEl instanceof HTMLPictureElement)) throw new Error(\'picture element not instanceof HTMLPictureElement\');\n"
+        "\n"
+        "    var templateEl = document.createElement(\'template\');\n"
+        "    if (!(templateEl instanceof HTMLTemplateElement)) throw new Error(\'template element not instanceof HTMLTemplateElement\');\n"
+        "\n"
+        "    if (!(dataEl instanceof HTMLDataElement)) throw new Error(\'data element not instanceof HTMLDataElement\');\n"
+        "    if (!(timeEl instanceof HTMLTimeElement)) throw new Error(\'time element not instanceof HTMLTimeElement\');\n"
+        "\n"
+        "    var markEl = document.createElement(\'mark\');\n"
+        "    if (!(markEl instanceof HTMLElement)) throw new Error(\'mark element not instanceof HTMLElement\');\n"
+        "    if (markEl instanceof HTMLUnknownElement) throw new Error(\'mark element should not be HTMLUnknownElement\');\n"
         "\n"
         "    // HTMLLabelElement\n"
         "    var labelEl = document.createElement(\'label\');\n"
@@ -5825,11 +5984,13 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_css_stylesheet);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_canvas_gradient);
+    tcase_add_test(tc_window, test_quickjs_webgl_support);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_performance_timeline);
     tcase_add_test(tc_window, test_quickjs_trusted_types);
     tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
     tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
+    tcase_add_test(tc_window, test_quickjs_browseraudit_chartjs_full);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */

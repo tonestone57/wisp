@@ -187,6 +187,10 @@ interface HTMLBodyElement : HTMLElement {
 };
 HTMLBodyElement implements WindowEventHandlers;
 
+interface HTMLSectionElement : HTMLElement {};
+interface HTMLNavElement : HTMLElement {};
+interface HTMLArticleElement : HTMLElement {};
+
 interface HTMLHeadingElement : HTMLElement {
   // also has obsolete members
 };

@@ -681,11 +681,24 @@ void hlcache_finalise(void)
      * First pass: Destroy all content objects and set entry->content = NULL.
      * Setting entry->content = NULL before content_destroy prevents nested
      * hlcache_handle_release calls from dereferencing handle->entry->content
-     * or accessing freed content memory during teardown. */
+     * or accessing freed content memory during teardown.
+     * We also detach all remaining users (including sentinel) from c so that
+     * content_destroy executes immediately rather than deferring destruction. */
     for (hlcache_entry *entry = cache->content_list; entry != NULL; entry = entry->next) {
         if (entry->content != NULL) {
             struct content *c = entry->content;
             entry->content = NULL;
+
+            if (c->user_list != NULL) {
+                struct content_user *user = c->user_list;
+                c->user_list = NULL;
+                while (user != NULL) {
+                    struct content_user *next_user = user->next;
+                    free(user);
+                    user = next_user;
+                }
+            }
+            c->pending_delete = false;
             content_destroy(c);
         }
     }
