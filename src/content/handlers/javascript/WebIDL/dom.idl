@@ -213,9 +213,18 @@ interface Node : EventTarget {
   Node removeChild(Node child);
 };
 
+[Exposed=Window]
+interface DOMImplementation {
+  [NewObject] DocumentType createDocumentType(DOMString qualifiedName, DOMString publicId, DOMString systemId);
+  [NewObject] XMLDocument createDocument(DOMString? namespace, DOMString qualifiedName, optional DocumentType? doctype = null);
+  [NewObject] Document createHTMLDocument(optional DOMString title);
+  boolean hasFeature();
+};
+
 [Constructor,
  Exposed=Window]
 interface Document : Node {
+  readonly attribute DOMImplementation implementation;
   readonly attribute DOMString URL;
   readonly attribute DOMString documentURI;
   readonly attribute DOMString origin;
