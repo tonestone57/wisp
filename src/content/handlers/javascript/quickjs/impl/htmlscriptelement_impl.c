@@ -123,6 +123,22 @@ JSValue wisp_htmlscriptelement_defer_set_impl(JSContext *ctx, QJSNodePrivate *pr
     }
 }
 
+JSValue wisp_htmlscriptelement_noModule_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_FALSE;
+    return wisp_element_hasAttribute_impl(ctx, priv, "nomodule");
+}
+
+JSValue wisp_htmlscriptelement_noModule_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "nomodule", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "nomodule");
+    }
+}
+
 JSValue wisp_htmlscriptelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     return wisp_node_textContent_get_impl(ctx, priv);

@@ -1037,6 +1037,7 @@ interface HTMLScriptElement : HTMLElement {
   attribute DOMString charset;
   attribute boolean async;
   attribute boolean defer;
+  attribute boolean noModule;
   attribute DOMString? crossOrigin;
   attribute DOMString text;
   attribute DOMString nonce;
