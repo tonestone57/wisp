@@ -39,6 +39,7 @@ typedef struct WispXHR {
     char *method;
     struct nsurl *url;
     bool async;
+    bool withCredentials;
     struct fetch *fetch_handle;
     uint8_t *response_buf;
     size_t response_len;
