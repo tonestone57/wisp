@@ -1467,6 +1467,178 @@ JSValue wisp_element_hasAttributes_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NewBool(ctx, has_attrs);
 }
 
+extern JSValue qjs_new_htmlanchorelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlappletelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlareaelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlaudioelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlbaseelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlbodyelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlbrelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlbuttonelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltablecaptionelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltablecolelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldataelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldatalistelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldetailselement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldialogelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldirectoryelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldivelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmldlistelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlembedelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlfieldsetelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlfontelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlformelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlframeelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlframesetelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlhrelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlheadelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlheadingelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlhtmlelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmliframeelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlinputelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlkeygenelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmllabelelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmllegendelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmllielement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmllinkelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmapelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmarqueeelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmenuelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmenuitemelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmetaelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmeterelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlmodelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlobjectelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlolistelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmloptgroupelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmloptionelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmloutputelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlparagraphelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlparamelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlpictureelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlpreelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlprogresselement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlquoteelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlselectelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlsourceelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlspanelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlstyleelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltableelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltablesectionelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltabledatacellelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltableheadercellelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltablerowelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltemplateelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltextareaelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltimeelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltitleelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmltrackelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlulistelement(JSContext *ctx, void *node, bool is_dom_node);
+extern JSValue qjs_new_htmlvideoelement(JSContext *ctx, void *node, bool is_dom_node);
+
+static JSValue qjs_new_element_by_tag(JSContext *ctx, void *node, bool is_dom_node, const char *tag)
+{
+    if (!tag || !*tag) return qjs_new_htmlelement(ctx, node, is_dom_node);
+
+    if (strcasecmp(tag, "a") == 0) return qjs_new_htmlanchorelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "applet") == 0) return qjs_new_htmlappletelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "area") == 0) return qjs_new_htmlareaelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "audio") == 0) return qjs_new_htmlaudioelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "base") == 0) return qjs_new_htmlbaseelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "body") == 0) return qjs_new_htmlbodyelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "br") == 0) return qjs_new_htmlbrelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "button") == 0) return qjs_new_htmlbuttonelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "canvas") == 0) return qjs_new_htmlcanvaselement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "caption") == 0) return qjs_new_htmltablecaptionelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "col") == 0 || strcasecmp(tag, "colgroup") == 0) return qjs_new_htmltablecolelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "data") == 0) return qjs_new_htmldataelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "datalist") == 0) return qjs_new_htmldatalistelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "details") == 0) return qjs_new_htmldetailselement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "dialog") == 0) return qjs_new_htmldialogelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "dir") == 0) return qjs_new_htmldirectoryelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "div") == 0) return qjs_new_htmldivelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "dl") == 0) return qjs_new_htmldlistelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "embed") == 0) return qjs_new_htmlembedelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "fieldset") == 0) return qjs_new_htmlfieldsetelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "font") == 0) return qjs_new_htmlfontelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "form") == 0) return qjs_new_htmlformelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "frame") == 0) return qjs_new_htmlframeelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "frameset") == 0) return qjs_new_htmlframesetelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "h1") == 0 || strcasecmp(tag, "h2") == 0 || strcasecmp(tag, "h3") == 0 ||
+        strcasecmp(tag, "h4") == 0 || strcasecmp(tag, "h5") == 0 || strcasecmp(tag, "h6") == 0)
+        return qjs_new_htmlheadingelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "head") == 0) return qjs_new_htmlheadelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "hr") == 0) return qjs_new_htmlhrelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "html") == 0) return qjs_new_htmlhtmlelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "iframe") == 0) return qjs_new_htmliframeelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "img") == 0) return qjs_new_htmlimageelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "input") == 0) return qjs_new_htmlinputelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "keygen") == 0) return qjs_new_htmlkeygenelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "label") == 0) return qjs_new_htmllabelelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "legend") == 0) return qjs_new_htmllegendelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "li") == 0) return qjs_new_htmllielement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "link") == 0) return qjs_new_htmllinkelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "map") == 0) return qjs_new_htmlmapelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "marquee") == 0) return qjs_new_htmlmarqueeelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "menu") == 0) return qjs_new_htmlmenuelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "menuitem") == 0) return qjs_new_htmlmenuitemelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "meta") == 0) return qjs_new_htmlmetaelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "meter") == 0) return qjs_new_htmlmeterelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "del") == 0 || strcasecmp(tag, "ins") == 0) return qjs_new_htmlmodelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "object") == 0) return qjs_new_htmlobjectelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "ol") == 0) return qjs_new_htmlolistelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "optgroup") == 0) return qjs_new_htmloptgroupelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "option") == 0) return qjs_new_htmloptionelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "output") == 0) return qjs_new_htmloutputelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "p") == 0) return qjs_new_htmlparagraphelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "param") == 0) return qjs_new_htmlparamelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "picture") == 0) return qjs_new_htmlpictureelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "pre") == 0) return qjs_new_htmlpreelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "progress") == 0) return qjs_new_htmlprogresselement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "q") == 0 || strcasecmp(tag, "blockquote") == 0) return qjs_new_htmlquoteelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "script") == 0) return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "select") == 0) return qjs_new_htmlselectelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "source") == 0) return qjs_new_htmlsourceelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "span") == 0) return qjs_new_htmlspanelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "style") == 0) return qjs_new_htmlstyleelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "table") == 0) return qjs_new_htmltableelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "tbody") == 0 || strcasecmp(tag, "tfoot") == 0 || strcasecmp(tag, "thead") == 0)
+        return qjs_new_htmltablesectionelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "td") == 0) return qjs_new_htmltabledatacellelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "th") == 0) return qjs_new_htmltableheadercellelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "template") == 0) return qjs_new_htmltemplateelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "textarea") == 0) return qjs_new_htmltextareaelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "time") == 0) return qjs_new_htmltimeelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "title") == 0) return qjs_new_htmltitleelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "tr") == 0) return qjs_new_htmltablerowelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "track") == 0) return qjs_new_htmltrackelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "ul") == 0) return qjs_new_htmlulistelement(ctx, node, is_dom_node);
+    if (strcasecmp(tag, "video") == 0) return qjs_new_htmlvideoelement(ctx, node, is_dom_node);
+
+    /* Generic HTML elements without a unique interface (inherit directly from HTMLElement) */
+    if (strcasecmp(tag, "abbr") == 0 || strcasecmp(tag, "address") == 0 || strcasecmp(tag, "article") == 0 ||
+        strcasecmp(tag, "aside") == 0 || strcasecmp(tag, "b") == 0 || strcasecmp(tag, "bdi") == 0 ||
+        strcasecmp(tag, "bdo") == 0 || strcasecmp(tag, "cite") == 0 || strcasecmp(tag, "code") == 0 ||
+        strcasecmp(tag, "dd") == 0 || strcasecmp(tag, "dfn") == 0 || strcasecmp(tag, "dt") == 0 ||
+        strcasecmp(tag, "em") == 0 || strcasecmp(tag, "figcaption") == 0 || strcasecmp(tag, "figure") == 0 ||
+        strcasecmp(tag, "footer") == 0 || strcasecmp(tag, "header") == 0 || strcasecmp(tag, "hgroup") == 0 ||
+        strcasecmp(tag, "i") == 0 || strcasecmp(tag, "kbd") == 0 || strcasecmp(tag, "main") == 0 ||
+        strcasecmp(tag, "mark") == 0 || strcasecmp(tag, "nav") == 0 || strcasecmp(tag, "noscript") == 0 ||
+        strcasecmp(tag, "rp") == 0 || strcasecmp(tag, "rt") == 0 || strcasecmp(tag, "ruby") == 0 ||
+        strcasecmp(tag, "s") == 0 || strcasecmp(tag, "samp") == 0 || strcasecmp(tag, "section") == 0 ||
+        strcasecmp(tag, "slot") == 0 || strcasecmp(tag, "small") == 0 || strcasecmp(tag, "strong") == 0 ||
+        strcasecmp(tag, "sub") == 0 || strcasecmp(tag, "summary") == 0 || strcasecmp(tag, "sup") == 0 ||
+        strcasecmp(tag, "u") == 0 || strcasecmp(tag, "var") == 0 || strcasecmp(tag, "wbr") == 0) {
+        return qjs_new_htmlelement(ctx, node, is_dom_node);
+    }
+
+    return qjs_new_htmlelement(ctx, node, is_dom_node);
+}
+
 JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
 {
     if (!node) return JS_NULL;
@@ -1478,132 +1650,18 @@ JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
         if (sn && type == DOM_ELEMENT_NODE) {
             WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[(uint64_t)(uintptr_t)node];
             const char *tag = wisp_string_ref_data(wisp_shm_dom, sns->tag_name);
-            if (strcasecmp(tag, "script") == 0) {
-                extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "template") == 0) {
-                extern JSValue qjs_new_htmltemplateelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltemplateelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "img") == 0) {
-                extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlimageelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "select") == 0) {
-                extern JSValue qjs_new_htmlselectelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlselectelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "input") == 0) {
-                extern JSValue qjs_new_htmlinputelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlinputelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "textarea") == 0) {
-                extern JSValue qjs_new_htmltextareaelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltextareaelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "button") == 0) {
-                extern JSValue qjs_new_htmlbuttonelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlbuttonelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "form") == 0) {
-                extern JSValue qjs_new_htmlformelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlformelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "option") == 0) {
-                extern JSValue qjs_new_htmloptionelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmloptionelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "canvas") == 0) {
-                extern JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlcanvaselement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "table") == 0) {
-                extern JSValue qjs_new_htmltableelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltableelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "tr") == 0) {
-                extern JSValue qjs_new_htmltablerowelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltablerowelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "td") == 0) {
-                extern JSValue qjs_new_htmltabledatacellelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltabledatacellelement(ctx, node, is_dom_node);
-            }
-            if (strcasecmp(tag, "th") == 0) {
-                extern JSValue qjs_new_htmltableheadercellelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltableheadercellelement(ctx, node, is_dom_node);
-            }
+            return qjs_new_element_by_tag(ctx, node, is_dom_node, tag);
         }
     } else {
-        dom_html_element_type tag_type;
-        dom_exception exc = dom_html_element_get_tag_type((dom_html_element *)node, &tag_type);
-        if (exc == DOM_NO_ERR) {
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_SCRIPT) {
-                extern JSValue qjs_new_htmlscriptelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlscriptelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_TEMPLATE) {
-                extern JSValue qjs_new_htmltemplateelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltemplateelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_IMG) {
-                extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlimageelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_SELECT) {
-                extern JSValue qjs_new_htmlselectelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlselectelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_INPUT) {
-                extern JSValue qjs_new_htmlinputelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlinputelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_TEXTAREA) {
-                extern JSValue qjs_new_htmltextareaelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltextareaelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_BUTTON) {
-                extern JSValue qjs_new_htmlbuttonelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlbuttonelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_FORM) {
-                extern JSValue qjs_new_htmlformelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlformelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_OPTION) {
-                extern JSValue qjs_new_htmloptionelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmloptionelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_CANVAS) {
-                extern JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmlcanvaselement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_TABLE) {
-                extern JSValue qjs_new_htmltableelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltableelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_TR) {
-                extern JSValue qjs_new_htmltablerowelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltablerowelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_TD) {
-                extern JSValue qjs_new_htmltabledatacellelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltabledatacellelement(ctx, node, is_dom_node);
-            }
-            if (tag_type == DOM_HTML_ELEMENT_TYPE_TH) {
-                extern JSValue qjs_new_htmltableheadercellelement(JSContext *ctx, void *node, bool is_dom_node);
-                return qjs_new_htmltableheadercellelement(ctx, node, is_dom_node);
-            }
+        dom_string *name_dom = NULL;
+        dom_exception exc = dom_element_get_tag_name((dom_element *)node, &name_dom);
+        if (exc == DOM_NO_ERR && name_dom != NULL) {
+            const char *tag = (const char *)dom_string_data(name_dom);
+            JSValue val = qjs_new_element_by_tag(ctx, node, is_dom_node, tag);
+            dom_string_unref(name_dom);
+            return val;
         }
     }
 
-    JSValue obj = JS_NewObjectClass(ctx, qjs_element_class_id);
-    if (JS_IsException(obj)) return obj;
-    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
-    if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
-    priv->magic = QJS_DOM_MAGIC; priv->node = node; priv->is_dom_node = is_dom_node; priv->ctx = ctx;
-    if (!wisp_is_js_process && is_dom_node && node) dom_node_ref((dom_node *)node);
-    JS_SetOpaque(obj, priv);
-    return obj;
+    return qjs_new_htmlelement(ctx, node, is_dom_node);
 }

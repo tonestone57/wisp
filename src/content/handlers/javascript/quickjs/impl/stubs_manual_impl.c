@@ -15,6 +15,7 @@
 #include <wisp/content/handlers/html/private.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/browser_window.h>
+#include "desktop/browser_private.h"
 #include <wisp/utils/ipc.h>
 
 struct nsurl;
@@ -35,23 +36,10 @@ JSValue wisp_element_setAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 JSValue wisp_element_removeAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
 JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName);
 
-// Helper to retrieve document base URL (copied from location_impl.c)
+// Helper to retrieve document base URL
 static struct nsurl *get_doc_base_url(JSContext *ctx)
 {
-    struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (!t) return NULL;
-
-    if (wisp_is_js_process) {
-        if (!t->location_url && t->origin) {
-            nsurl_create(t->origin, &t->location_url);
-        }
-        return t->location_url;
-    }
-
-    if (t->doc_priv) {
-        return content_get_url((void *)t->doc_priv);
-    }
-    return NULL;
+    return get_location_nsurl(ctx);
 }
 
 extern bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
@@ -172,8 +160,17 @@ static struct nsurl *get_anchor_resolved_url(JSContext *ctx, QJSNodePrivate *pri
     struct nsurl *resolved_url = NULL;
     if (base_url) {
         nsurl_join(base_url, href_str, &resolved_url);
-    } else {
+    }
+    if (!resolved_url && (strstr(href_str, "://") || strncmp(href_str, "about:", 6) == 0 || strncmp(href_str, "data:", 5) == 0 || strncmp(href_str, "javascript:", 11) == 0 || strncmp(href_str, "mailto:", 7) == 0 || strncmp(href_str, "tel:", 4) == 0)) {
         nsurl_create(href_str, &resolved_url);
+    }
+    if (!resolved_url) {
+        struct nsurl *fallback_base = NULL;
+        nsurl_create("http://localhost/", &fallback_base);
+        if (fallback_base) {
+            nsurl_join(fallback_base, href_str, &resolved_url);
+            nsurl_unref(fallback_base);
+        }
     }
 
     if (free_href) {
@@ -2507,7 +2504,7 @@ JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
     if (!t) return JS_UNDEFINED;
 
     if (!wisp_is_js_process) {
-        if (t->win_priv) {
+        if (t->win_priv && t->win_priv != t->doc_priv) {
             struct browser_window *bw = (struct browser_window *)t->win_priv;
             struct nsurl *base_url = get_location_nsurl(ctx);
             struct nsurl *target_url = NULL;
@@ -2515,11 +2512,20 @@ JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
             if (base_url) {
                 err = nsurl_join(base_url, url, &target_url);
             }
-            if (err != NSERROR_OK) {
+            if (err != NSERROR_OK && (strstr(url, "://") || strncmp(url, "about:", 6) == 0 || strncmp(url, "data:", 5) == 0 || strncmp(url, "javascript:", 11) == 0 || strncmp(url, "mailto:", 7) == 0 || strncmp(url, "tel:", 4) == 0)) {
                 err = nsurl_create(url, &target_url);
             }
+            if (err != NSERROR_OK) {
+                struct nsurl *fallback_base = NULL;
+                if (nsurl_create("http://localhost/", &fallback_base) == NSERROR_OK && fallback_base) {
+                    err = nsurl_join(fallback_base, url, &target_url);
+                    nsurl_unref(fallback_base);
+                }
+            }
             if (err == NSERROR_OK && target_url) {
-                browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
+                if (bw->history != NULL && bw->history->current != NULL) {
+                    browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
+                }
                 nsurl_unref(target_url);
             }
         }
