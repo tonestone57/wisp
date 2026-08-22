@@ -1262,7 +1262,9 @@ JSValue wisp_htmliframeelement_name_set_impl(JSContext *ctx, QJSNodePrivate *pri
 
 JSValue wisp_htmliframeelement_sandbox_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return get_element_str_attr(ctx, priv, "sandbox", "");
+    extern JSValue qjs_new_domtokenlist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_domtokenlist(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmliframeelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -6655,11 +6657,19 @@ JSValue wisp_htmlcanvaselement_setContext_impl(JSContext *ctx, QJSNodePrivate *p
 }
 
 JSValue wisp_htmlcanvaselement_toBlob_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue callback, const char * type, JSValue arguments) {
+    if (JS_IsFunction(ctx, callback)) {
+        JSValue blob = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, blob, "size", JS_NewInt32(ctx, 0));
+        JS_SetPropertyStr(ctx, blob, "type", JS_NewString(ctx, type ? type : "image/png"));
+        JSValue ret = JS_Call(ctx, callback, JS_UNDEFINED, 1, &blob);
+        JS_FreeValue(ctx, ret);
+        JS_FreeValue(ctx, blob);
+    }
     return JS_UNDEFINED;
 }
 
 JSValue wisp_htmlcanvaselement_toDataURL_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue arguments) {
-    return JS_NewString(ctx, "data:image/png;base64,");
+    return JS_NewString(ctx, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
 }
 
 JSValue wisp_htmlcanvaselement_transferControlToProxy_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -8350,8 +8360,48 @@ JSValue wisp_messageport_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 // 4. BroadcastChannel Implementation (5 stubs + constructor)
+typedef struct WispBroadcastChannelPrivate {
+    char *name;
+} WispBroadcastChannelPrivate;
+
+extern JSClassID qjs_broadcastchannel_class_id;
+static void js_broadcastchannel_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_broadcastchannel_class_id);
+    if (priv) {
+        if (priv->node) {
+            WispBroadcastChannelPrivate *bcp = (WispBroadcastChannelPrivate *)priv->node;
+            free(bcp->name);
+            free(bcp);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_broadcastchannel_class_manual = {
+    "BroadcastChannel",
+    .finalizer = js_broadcastchannel_finalizer_manual,
+};
+
+int qjs_init_broadcastchannel(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_broadcastchannel_class_id == 0) JS_NewClassID(rt, &qjs_broadcastchannel_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_broadcastchannel_class_id)) {
+        JS_NewClass(rt, qjs_broadcastchannel_class_id, &js_broadcastchannel_class_manual);
+    }
+    extern int qjs_init_broadcastchannel_gen(JSContext *ctx);
+    return qjs_init_broadcastchannel_gen(ctx);
+}
+
+extern JSValue qjs_new_broadcastchannel(JSContext *ctx, void *node, bool is_dom_node);
+
 JSValue wisp_broadcastchannel_constructor_impl(JSContext *ctx, const char * name) {
-    return JS_NewObject(ctx);
+    WispBroadcastChannelPrivate *bcp = calloc(1, sizeof(WispBroadcastChannelPrivate));
+    if (bcp && name) {
+        bcp->name = strdup(name);
+    }
+    return qjs_new_broadcastchannel(ctx, bcp, false);
 }
 JSValue wisp_broadcastchannel_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_UNDEFINED;
@@ -8360,7 +8410,9 @@ JSValue wisp_broadcastchannel_postMessage_impl(JSContext *ctx, QJSNodePrivate *p
     return JS_UNDEFINED;
 }
 JSValue wisp_broadcastchannel_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispBroadcastChannelPrivate *bcp = (WispBroadcastChannelPrivate *)priv->node;
+    return JS_NewString(ctx, bcp->name ? bcp->name : "");
 }
 JSValue wisp_broadcastchannel_onmessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return helper_get_event_handler(ctx, priv, "onmessage");
@@ -9433,7 +9485,17 @@ JSValue wisp_workernavigator_onLine_get_impl(JSContext *ctx, QJSNodePrivate *pri
 
 // Overrides: getter | SharedWorker::port(user);
 JSValue wisp_sharedworker_port_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue port_ctor = JS_GetPropertyStr(ctx, global, "MessagePort");
+    JS_FreeValue(ctx, global);
+    JSValue port = JS_UNDEFINED;
+    if (JS_IsFunction(ctx, port_ctor)) {
+        port = JS_CallConstructor(ctx, port_ctor, 0, NULL);
+    } else {
+        port = JS_NewObject(ctx);
+    }
+    JS_FreeValue(ctx, port_ctor);
+    return port;
 }
 
 // Overrides: getter | SharedWorker::onerror(user);
@@ -9581,14 +9643,91 @@ JSValue wisp_websocket_send_3_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue
     return JS_UNDEFINED;
 }
 
+typedef struct WispWebSocketPrivate {
+    char *url;
+    char *binaryType;
+    uint16_t readyState;
+} WispWebSocketPrivate;
+
+extern JSClassID qjs_websocket_class_id;
+static void js_websocket_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_websocket_class_id);
+    if (priv) {
+        if (priv->node) {
+            WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+            free(wsp->url);
+            free(wsp->binaryType);
+            free(wsp);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_websocket_class_manual = {
+    "WebSocket",
+    .finalizer = js_websocket_finalizer_manual,
+};
+
+int qjs_init_websocket(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_websocket_class_id == 0) JS_NewClassID(rt, &qjs_websocket_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_websocket_class_id)) {
+        JS_NewClass(rt, qjs_websocket_class_id, &js_websocket_class_manual);
+    }
+    extern int qjs_init_websocket_gen(JSContext *ctx);
+    return qjs_init_websocket_gen(ctx);
+}
+
+typedef struct WispEventSourcePrivate {
+    char *url;
+    uint16_t readyState;
+    bool withCredentials;
+} WispEventSourcePrivate;
+
+extern JSClassID qjs_eventsource_class_id;
+static void js_eventsource_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_eventsource_class_id);
+    if (priv) {
+        if (priv->node) {
+            WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+            free(esp->url);
+            free(esp);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_eventsource_class_manual = {
+    "EventSource",
+    .finalizer = js_eventsource_finalizer_manual,
+};
+
+int qjs_init_eventsource(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_eventsource_class_id == 0) JS_NewClassID(rt, &qjs_eventsource_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_eventsource_class_id)) {
+        JS_NewClass(rt, qjs_eventsource_class_id, &js_eventsource_class_manual);
+    }
+    extern int qjs_init_eventsource_gen(JSContext *ctx);
+    return qjs_init_eventsource_gen(ctx);
+}
+
 // Overrides: getter | WebSocket::url(string);
 JSValue wisp_websocket_url_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewString(ctx, wsp->url ? wsp->url : "");
 }
 
 // Overrides: getter | WebSocket::readyState(unsigned short);
 JSValue wisp_websocket_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewInt32(ctx, wsp->readyState);
 }
 
 // Overrides: getter | WebSocket::bufferedAmount(unsigned long);
@@ -9652,32 +9791,54 @@ JSValue wisp_websocket_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv, 
 
 // Overrides: getter | WebSocket::binaryType(user);
 JSValue wisp_websocket_binaryType_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "blob");
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewString(ctx, wsp->binaryType ? wsp->binaryType : "blob");
 }
 
 // Overrides: setter | WebSocket::binaryType(user);
 JSValue wisp_websocket_binaryType_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    const char *str = JS_ToCString(ctx, value);
+    if (str) {
+        if (strcmp(str, "blob") == 0 || strcmp(str, "arraybuffer") == 0) {
+            free(wsp->binaryType);
+            wsp->binaryType = strdup(str);
+        }
+        JS_FreeCString(ctx, str);
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: method | EventSource::close();
 JSValue wisp_eventsource_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (priv && priv->node) {
+        WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+        esp->readyState = 2; // CLOSED
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | EventSource::url(string);
 JSValue wisp_eventsource_url_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+    return JS_NewString(ctx, esp->url ? esp->url : "");
 }
 
 // Overrides: getter | EventSource::withCredentials(boolean);
 JSValue wisp_eventsource_withCredentials_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+    if (!priv || !priv->node) return JS_FALSE;
+    WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+    return esp->withCredentials ? JS_TRUE : JS_FALSE;
 }
 
 // Overrides: getter | EventSource::readyState(unsigned short);
 JSValue wisp_eventsource_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+    return JS_NewInt32(ctx, esp->readyState);
 }
 
 // Overrides: getter | EventSource::onopen(user);
@@ -10162,65 +10323,6 @@ JSValue wisp_path2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x,
 }
 
 
-// Overrides: method | CanvasRenderingContext2D::setLineDash();
-JSValue wisp_canvasrenderingcontext2d_setLineDash_impl(JSContext *ctx, QJSNodePrivate *priv, double segments) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | CanvasRenderingContext2D::getLineDash();
-JSValue wisp_canvasrenderingcontext2d_getLineDash_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::lineDashOffset(double);
-JSValue wisp_canvasrenderingcontext2d_lineDashOffset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::lineDashOffset(double);
-JSValue wisp_canvasrenderingcontext2d_lineDashOffset_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::font(string);
-JSValue wisp_canvasrenderingcontext2d_font_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::font(string);
-JSValue wisp_canvasrenderingcontext2d_font_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::textAlign(string);
-JSValue wisp_canvasrenderingcontext2d_textAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::textAlign(string);
-JSValue wisp_canvasrenderingcontext2d_textAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::textBaseline(string);
-JSValue wisp_canvasrenderingcontext2d_textBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::textBaseline(string);
-JSValue wisp_canvasrenderingcontext2d_textBaseline_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: getter | CanvasRenderingContext2D::direction(string);
-JSValue wisp_canvasrenderingcontext2d_direction_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
-}
-
-// Overrides: setter | CanvasRenderingContext2D::direction(string);
-JSValue wisp_canvasrenderingcontext2d_direction_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: method | CanvasProxy::setContext();
 JSValue wisp_canvasproxy_setContext_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue context) {
@@ -13742,8 +13844,22 @@ JSValue wisp_event_constructor_impl(JSContext *ctx, const char * type, JSValue e
 }
 
 // Overrides: EventSource | constructor
+extern JSValue qjs_new_eventsource(JSContext *ctx, void *node, bool is_dom_node);
+
 JSValue wisp_eventsource_constructor_impl(JSContext *ctx, const char * url, JSValue eventSourceInitDict) {
-    return JS_UNDEFINED;
+    WispEventSourcePrivate *esp = calloc(1, sizeof(WispEventSourcePrivate));
+    if (esp) {
+        if (url) esp->url = strdup(url);
+        esp->readyState = 0; // CONNECTING
+        if (JS_IsObject(eventSourceInitDict)) {
+            JSValue wc = JS_GetPropertyStr(ctx, eventSourceInitDict, "withCredentials");
+            if (JS_ToBool(ctx, wc)) {
+                esp->withCredentials = true;
+            }
+            JS_FreeValue(ctx, wc);
+        }
+    }
+    return qjs_new_eventsource(ctx, esp, false);
 }
 
 // Overrides: GetStyleUtils | cascadedStyle (getter)
@@ -15494,7 +15610,31 @@ JSValue wisp_range_toString_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: SharedWorker | constructor
 JSValue wisp_sharedworker_constructor_impl(JSContext *ctx, const char * scriptURL, const char * name) {
-    return JS_UNDEFINED;
+    extern JSClassID qjs_sharedworker_class_id;
+    JSValue obj = JS_NewObjectClass(ctx, qjs_sharedworker_class_id);
+    if (JS_IsException(obj)) return obj;
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC; priv->is_dom_node = false; priv->ctx = ctx;
+    JS_SetOpaque(obj, priv);
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue port_ctor = JS_GetPropertyStr(ctx, global, "MessagePort");
+    JS_FreeValue(ctx, global);
+
+    JSValue port = JS_UNDEFINED;
+    if (JS_IsFunction(ctx, port_ctor)) {
+        port = JS_CallConstructor(ctx, port_ctor, 0, NULL);
+    }
+    JS_FreeValue(ctx, port_ctor);
+
+    if (JS_IsUndefined(port) || JS_IsException(port)) {
+        JS_FreeValue(ctx, port);
+        port = JS_NewObject(ctx);
+    }
+
+    JS_SetPropertyStr(ctx, obj, "_port", port);
+    return obj;
 }
 
 // Overrides: StorageEvent | constructor
@@ -15697,8 +15837,16 @@ JSValue wisp_videotracklist___getter___impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 // Overrides: WebSocket | constructor
+extern JSValue qjs_new_websocket(JSContext *ctx, void *node, bool is_dom_node);
+
 JSValue wisp_websocket_constructor_impl(JSContext *ctx, const char * url, JSValue protocols) {
-    return JS_UNDEFINED;
+    WispWebSocketPrivate *wsp = calloc(1, sizeof(WispWebSocketPrivate));
+    if (wsp) {
+        if (url) wsp->url = strdup(url);
+        wsp->binaryType = strdup("blob");
+        wsp->readyState = 0; // CONNECTING
+    }
+    return qjs_new_websocket(ctx, wsp, false);
 }
 
 // Overrides: Window | __getter__()

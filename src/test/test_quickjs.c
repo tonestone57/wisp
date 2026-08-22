@@ -247,6 +247,76 @@ START_TEST(test_quickjs_output_and_devices)
 }
 END_TEST
 
+START_TEST(test_quickjs_blob_file_filereader_indexeddb)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  // 1. Blob Tests\n"
+        "  if (typeof Blob !== 'function') throw new Error('Blob missing');\n"
+        "  var b = new Blob(['hello', ' ', 'world'], { type: 'text/plain' });\n"
+        "  if (b.size !== 11) throw new Error('Blob size mismatch: ' + b.size);\n"
+        "  if (b.type !== 'text/plain') throw new Error('Blob type mismatch: ' + b.type);\n"
+        "  var sliced = b.slice(0, 5);\n"
+        "  if (sliced.size !== 5) throw new Error('Blob slice size mismatch: ' + sliced.size);\n"
+        "\n"
+        "  // 2. File Tests\n"
+        "  if (typeof File !== 'function') throw new Error('File missing');\n"
+        "  var f = new File(['file_content'], 'doc.txt', { type: 'text/plain' });\n"
+        "  if (f.name !== 'doc.txt') throw new Error('File name mismatch: ' + f.name);\n"
+        "  if (f.size !== 12) throw new Error('File size mismatch: ' + f.size);\n"
+        "  if (typeof f.lastModified !== 'number') throw new Error('File lastModified mismatch');\n"
+        "\n"
+        "  // 3. FileReader Tests\n"
+        "  if (typeof FileReader !== 'function') throw new Error('FileReader missing');\n"
+        "  var reader = new FileReader();\n"
+        "  if (!('readAsDataURL' in reader)) throw new Error('FileReader readAsDataURL missing');\n"
+        "  if (!('readAsArrayBuffer' in reader)) throw new Error('FileReader readAsArrayBuffer missing');\n"
+        "\n"
+        "  // 4. IndexedDB Subsystem Tests\n"
+        "  if (typeof indexedDB !== 'object' || indexedDB === null) throw new Error('window.indexedDB missing');\n"
+        "  if (typeof IDBFactory !== 'function') throw new Error('IDBFactory missing');\n"
+        "  if (typeof IDBOpenDBRequest !== 'function') throw new Error('IDBOpenDBRequest missing');\n"
+        "  if (typeof IDBDatabase !== 'function') throw new Error('IDBDatabase missing');\n"
+        "  if (typeof IDBTransaction !== 'function') throw new Error('IDBTransaction missing');\n"
+        "  if (typeof IDBObjectStore !== 'function') throw new Error('IDBObjectStore missing');\n"
+        "\n"
+        "  var req = indexedDB.open('test_db', 1);\n"
+        "  if (!req || typeof req.onsuccess === 'undefined') throw new Error('indexedDB.open request invalid');\n"
+        "\n"
+        "  window.storageFilesResult = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.storageFilesResult = 'ERROR: ' + e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.storageFilesResult === 'OK';";
+
+    bool result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_blob_file_filereader_indexeddb");
+    if (!result) {
+        const char *diag = "window.storageFilesResult;";
+        js_exec(thread, (const uint8_t *)diag, strlen(diag), "get_diag");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_parsing_doctype)
 {
     jsheap *heap = NULL;
@@ -1366,9 +1436,13 @@ START_TEST(test_quickjs_webidl_stubs)
         "    var ifr = document.createElement('iframe');\n"
         "    ifr.name = 'my_iframe';\n"
         "    if (ifr.name !== 'my_iframe') throw new Error('HTMLIFrameElement name failed');\n"
-        "    if (ifr.sandbox !== '') throw new Error('HTMLIFrameElement sandbox default failed');\n"
+        "    if (typeof ifr.sandbox !== 'object' || typeof ifr.sandbox.contains !== 'function') throw new Error('HTMLIFrameElement sandbox tokenlist failed');\n"
         "    ifr.setAttribute('sandbox', 'allow-scripts');\n"
-        "    if (ifr.sandbox !== 'allow-scripts') throw new Error('HTMLIFrameElement sandbox get failed');\n"
+        "    if (!ifr.sandbox.contains('allow-scripts')) throw new Error('HTMLIFrameElement sandbox contains failed');\n"
+        "    ifr.sandbox.add('allow-same-origin');\n"
+        "    if (!ifr.sandbox.contains('allow-same-origin')) throw new Error('HTMLIFrameElement sandbox add failed');\n"
+        "    ifr.srcdoc = '<h1>Hello</h1>';\n"
+        "    if (ifr.srcdoc !== '<h1>Hello</h1>') throw new Error('HTMLIFrameElement srcdoc failed');\n"
         "    if (ifr.contentDocument !== null) throw new Error('HTMLIFrameElement contentDocument default failed');\n"
         "    if (ifr.contentWindow !== null) throw new Error('HTMLIFrameElement contentWindow default failed');\n"
         "\n"
@@ -2391,9 +2465,37 @@ START_TEST(test_quickjs_webidl_stubs)
         "        // 5. BroadcastChannel Tests\n"
         "        var bc = new BroadcastChannel(\'test-channel\');\n"
         "        bc.postMessage(\'hello\');\n"
-        "        if (bc.name !== \'\') throw new Error(\'BroadcastChannel name failed\');\n"
+        "        if (bc.name !== 'test-channel') throw new Error('BroadcastChannel name failed');\n"
         "        if (bc.onmessage !== null) throw new Error(\'BroadcastChannel onmessage failed\');\n"
         "        bc.close();\n"
+        "    \n"
+        "        // 6. EventSource Tests\n"
+        "        var es = new EventSource('http://example.com/sse');\n"
+        "        if (es.url !== 'http://example.com/sse') throw new Error('EventSource url failed');\n"
+        "        if (es.readyState !== 0) throw new Error('EventSource readyState failed');\n"
+        "        if (es.withCredentials !== false) throw new Error('EventSource withCredentials failed');\n"
+        "        if (EventSource.CONNECTING !== 0 || EventSource.OPEN !== 1 || EventSource.CLOSED !== 2) throw new Error('EventSource constants failed');\n"
+        "        es.close();\n"
+        "    \n"
+        "        // 7. WebSocket Tests\n"
+        "        var ws = new WebSocket('ws://example.com/socket');\n"
+        "        if (ws.url !== 'ws://example.com/socket') throw new Error('WebSocket url failed');\n"
+        "        if (ws.binaryType !== 'blob') throw new Error('WebSocket default binaryType failed');\n"
+        "        ws.binaryType = 'arraybuffer';\n"
+        "        if (ws.binaryType !== 'arraybuffer') throw new Error('WebSocket binaryType setter failed');\n"
+        "        if (ws.readyState !== 0) throw new Error('WebSocket readyState failed');\n"
+        "        if (WebSocket.CONNECTING !== 0 || WebSocket.OPEN !== 1 || WebSocket.CLOSING !== 2 || WebSocket.CLOSED !== 3) throw new Error('WebSocket constants failed');\n"
+        "        ws.close();\n"
+        "    \n"
+        "        // 8. WebRTC & DataChannel Tests\n"
+        "        if (!window.RTCPeerConnection || !window.webkitRTCPeerConnection) throw new Error('RTCPeerConnection window availability failed');\n"
+        "        var pc = new RTCPeerConnection(null);\n"
+        "        if (typeof pc.createOffer !== 'function') throw new Error('RTCPeerConnection createOffer failed');\n"
+        "        if (typeof pc.createDataChannel !== 'function') throw new Error('RTCPeerConnection createDataChannel failed');\n"
+        "        var dc = pc.createDataChannel('test-dc');\n"
+        "        if (dc.label !== 'test-dc') throw new Error('RTCDataChannel label failed');\n"
+        "        if (dc.binaryType !== 'blob') throw new Error('RTCDataChannel binaryType failed');\n"
+        "        pc.close();\n"
         "    \n"
         "        // 6. HTMLButtonElement Tests\n"
         "        var btn = document.createElement(\'button\');\n"
@@ -4284,6 +4386,35 @@ START_TEST(test_quickjs_crypto)
     result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_crypto_getRandomValues_quota");
     ck_assert(result == true);
 
+    /* Test SubtleCrypto digest, generateKey, exportKey, importKey, encrypt, decrypt, sign, verify */
+    const char *code4 =
+        "var testSubtle = async function() {\n"
+        "    var data = new Uint8Array([1, 2, 3, 4, 5]);\n"
+        "    var hash = await crypto.subtle.digest('SHA-256', data);\n"
+        "    if (!(hash instanceof ArrayBuffer) || hash.byteLength !== 32) return false;\n"
+        "    var key = await crypto.subtle.generateKey({ name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']);\n"
+        "    if (!key || key.type !== 'secret') return false;\n"
+        "    var rawKey = await crypto.subtle.exportKey('raw', key);\n"
+        "    if (!(rawKey instanceof ArrayBuffer) || rawKey.byteLength !== 16) return false;\n"
+        "    var importedKey = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-CBC' }, true, ['encrypt', 'decrypt']);\n"
+        "    if (!importedKey || importedKey.type !== 'secret') return false;\n"
+        "    var iv = new Uint8Array(16);\n"
+        "    var cipher = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: iv }, key, data);\n"
+        "    if (!(cipher instanceof ArrayBuffer) || cipher.byteLength === 0) return false;\n"
+        "    var decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, key, cipher);\n"
+        "    if (!(decrypted instanceof ArrayBuffer) || decrypted.byteLength !== 5) return false;\n"
+        "    var hmacKey = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);\n"
+        "    var sig = await crypto.subtle.sign({ name: 'HMAC' }, hmacKey, data);\n"
+        "    if (!(sig instanceof ArrayBuffer) || sig.byteLength !== 32) return false;\n"
+        "    var verified = await crypto.subtle.verify({ name: 'HMAC' }, hmacKey, sig, data);\n"
+        "    return verified === true;\n"
+        "};\n"
+        "var passed = false;\n"
+        "testSubtle().then(function(res) { passed = res; });\n"
+        "passed;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_crypto_subtle_full");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
@@ -4914,6 +5045,107 @@ START_TEST(test_quickjs_media_streams)
 }
 END_TEST
 
+START_TEST(test_quickjs_location_and_sensors)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: Synchronous checks for Geolocation, Orientation/Motion, Gamepads, Vibrate, Battery APIs
+    const char *code1 = "try {\n"
+                        "  if (!navigator.geolocation) throw new Error('navigator.geolocation missing');\n"
+                        "  if (typeof navigator.geolocation.getCurrentPosition !== 'function') throw new Error('getCurrentPosition missing');\n"
+                        "  if (typeof navigator.geolocation.watchPosition !== 'function') throw new Error('watchPosition missing');\n"
+                        "  if (typeof navigator.geolocation.clearWatch !== 'function') throw new Error('clearWatch missing');\n"
+                        "  if (GeolocationPositionError.PERMISSION_DENIED !== 1) throw new Error('PositionError constant missing');\n"
+                        "\n"
+                        "  if (typeof window.DeviceOrientationEvent !== 'function') throw new Error('DeviceOrientationEvent missing');\n"
+                        "  var orientEvt = new DeviceOrientationEvent('deviceorientation', { alpha: 45, beta: 90, gamma: 180, absolute: true });\n"
+                        "  if (orientEvt.alpha !== 45 || orientEvt.beta !== 90 || orientEvt.gamma !== 180 || orientEvt.absolute !== true) throw new Error('DeviceOrientationEvent init mismatch');\n"
+                        "\n"
+                        "  if (typeof window.DeviceMotionEvent !== 'function') throw new Error('DeviceMotionEvent missing');\n"
+                        "  var motionEvt = new DeviceMotionEvent('devicemotion', { acceleration: { x: 1, y: 2, z: 3 }, interval: 16 });\n"
+                        "  if (!motionEvt.acceleration || motionEvt.acceleration.x !== 1 || motionEvt.interval !== 16) throw new Error('DeviceMotionEvent init mismatch');\n"
+                        "\n"
+                        "  if (typeof navigator.getGamepads !== 'function') throw new Error('navigator.getGamepads missing');\n"
+                        "  var gamepads = navigator.getGamepads();\n"
+                        "  if (!Array.isArray(gamepads)) throw new Error('getGamepads did not return an array');\n"
+                        "\n"
+                        "  if (typeof navigator.vibrate !== 'function') throw new Error('navigator.vibrate missing');\n"
+                        "  if (navigator.vibrate(200) !== true) throw new Error('vibrate(200) failed');\n"
+                        "  if (navigator.vibrate([100, 200, 100]) !== true) throw new Error('vibrate pattern failed');\n"
+                        "\n"
+                        "  if (typeof navigator.getBattery !== 'function') throw new Error('navigator.getBattery missing');\n"
+                        "  window.testRes1 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes1 = e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "window.testRes1 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_location_sensors_sync");
+    ck_assert(result == true);
+
+    // Test 2: Async Geolocation and Battery promises execution
+    const char *code2 = "try {\n"
+                        "  window.geoRes = 'PENDING';\n"
+                        "  navigator.geolocation.getCurrentPosition(function(pos) {\n"
+                        "    if (pos && pos.coords && typeof pos.coords.latitude === 'number' && pos.timestamp > 0) {\n"
+                        "      window.geoRes = 'OK';\n"
+                        "    } else {\n"
+                        "      window.geoRes = 'invalid_pos';\n"
+                        "    }\n"
+                        "  });\n"
+                        "\n"
+                        "  window.watchRes = 'PENDING';\n"
+                        "  var wId = navigator.geolocation.watchPosition(function(pos) {\n"
+                        "    if (pos && pos.coords) window.watchRes = 'OK';\n"
+                        "  });\n"
+                        "  if (typeof wId !== 'number' || wId <= 0) window.watchRes = 'invalid_watch_id';\n"
+                        "  navigator.geolocation.clearWatch(wId);\n"
+                        "\n"
+                        "  window.batteryRes = 'PENDING';\n"
+                        "  navigator.getBattery().then(function(batt) {\n"
+                        "    if (batt && batt.charging === true && batt.level === 1.0 && typeof batt.addEventListener === 'function') {\n"
+                        "      window.batteryRes = 'OK';\n"
+                        "    } else {\n"
+                        "      window.batteryRes = 'invalid_battery';\n"
+                        "    }\n"
+                        "  });\n"
+                        "  window.testRes2 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes2 = e.message;\n"
+                        "}\n"
+                        "window.testRes2 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_location_sensors_async");
+    ck_assert(result == true);
+
+    // Drain pending microtasks / timers
+    qjs_execute_timers(thread->ctx);
+    JSContext *ctx;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx) != 0);
+    qjs_execute_timers(thread->ctx);
+
+    const char *codeVerify = "window.geoRes === 'OK' && window.watchRes === 'OK' && window.batteryRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)codeVerify, strlen(codeVerify), "test_location_sensors_verify");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_shadow_dom)
 {
     jsheap *heap = NULL;
@@ -4982,6 +5214,42 @@ START_TEST(test_quickjs_shadow_dom)
     js_finalise();
 }
 END_TEST
+
+START_TEST(test_quickjs_performance_and_workers)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var hasWorker = typeof Worker === 'function';\n"
+        "var hasSharedWorker = typeof SharedWorker === 'function';\n"
+        "var sw = new SharedWorker('mock.js');\n"
+        "var hasPort = sw && sw.port && typeof sw.port === 'object';\n"
+        "var hasRIC = typeof requestIdleCallback === 'function' && typeof cancelIdleCallback === 'function';\n"
+        "var hasPerfNow = performance && typeof performance.now === 'function' && performance.now() >= 0;\n"
+        "var hasObserver = typeof PerformanceObserver === 'function';\n"
+        "hasWorker && hasSharedWorker && hasPort && hasRIC && hasPerfNow && hasObserver;";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_performance_and_workers");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
 
 START_TEST(test_quickjs_ric)
 {
@@ -5280,6 +5548,119 @@ START_TEST(test_quickjs_css_stylesheet)
 }
 END_TEST
 
+START_TEST(test_quickjs_chartjs_canvas_integration)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var cvs = document.createElement('canvas');\n"
+        "if (!cvs) throw new Error('canvas element creation failed');\n"
+        "cvs.width = 400;\n"
+        "cvs.height = 200;\n"
+        "if (cvs.width !== 400 || cvs.height !== 200) throw new Error('canvas dimensions mismatch');\n"
+        "if (cvs.clientWidth !== 400 || cvs.clientHeight !== 200) throw new Error('canvas layout dimensions mismatch');\n"
+        "var ctx = cvs.getContext('2d');\n"
+        "if (!ctx) throw new Error('canvas getContext 2d failed');\n"
+        "ctx.font = '16px Arial';\n"
+        "ctx.textAlign = 'center';\n"
+        "ctx.textBaseline = 'middle';\n"
+        "if (ctx.font !== '16px Arial') throw new Error('ctx.font mismatch: ' + ctx.font);\n"
+        "if (ctx.textAlign !== 'center') throw new Error('ctx.textAlign mismatch: ' + ctx.textAlign);\n"
+        "if (ctx.textBaseline !== 'middle') throw new Error('ctx.textBaseline mismatch: ' + ctx.textBaseline);\n"
+        "ctx.save();\n"
+        "ctx.font = '24px Bold';\n"
+        "ctx.textAlign = 'right';\n"
+        "if (ctx.font !== '24px Bold') throw new Error('ctx.font save mismatch');\n"
+        "ctx.restore();\n"
+        "if (ctx.font !== '16px Arial') throw new Error('ctx.font restore mismatch');\n"
+        "if (ctx.textAlign !== 'center') throw new Error('ctx.textAlign restore mismatch');\n"
+        "ctx.setLineDash([5, 10]);\n"
+        "var dash = ctx.getLineDash();\n"
+        "if (!Array.isArray(dash)) throw new Error('getLineDash is not array');\n"
+        "var metrics = ctx.measureText('BrowserAudit Chart');\n"
+        "if (typeof metrics.width !== 'number' || metrics.width <= 0) throw new Error('measureText width invalid');\n"
+        "if (typeof metrics.actualBoundingBoxLeft !== 'number') throw new Error('measureText actualBoundingBoxLeft invalid');\n"
+        "var dataUrl = cvs.toDataURL();\n"
+        "if (!dataUrl || !dataUrl.startsWith('data:image/png;base64,')) throw new Error('toDataURL invalid');\n"
+        "var blobCalled = false;\n"
+        "cvs.toBlob(function(b) { if (b) blobCalled = true; }, 'image/png');\n"
+        "if (!blobCalled) throw new Error('toBlob callback failed');\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_chartjs_canvas", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_chartjs_canvas: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_browseraudit_xhr_and_window_hierarchy)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (window.top !== window) throw new Error('window.top mismatch');\n"
+        "if (window.parent !== window) throw new Error('window.parent mismatch');\n"
+        "if (window.self !== window) throw new Error('window.self mismatch');\n"
+        "if (window.frameElement !== null) throw new Error('window.frameElement mismatch');\n"
+        "if (typeof devicePixelRatio !== 'number') throw new Error('devicePixelRatio missing');\n"
+        "var xhr = new XMLHttpRequest();\n"
+        "if (!xhr) throw new Error('XHR instantiation failed');\n"
+        "xhr.withCredentials = true;\n"
+        "if (xhr.withCredentials !== true) throw new Error('xhr.withCredentials mismatch');\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_browseraudit_xhr", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_browseraudit_xhr: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -5335,6 +5716,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_parsing_doctype);
     tcase_add_test(tc_window, test_quickjs_quirks_mode);
     tcase_add_test(tc_window, test_quickjs_storage);
+    tcase_add_test(tc_window, test_quickjs_blob_file_filereader_indexeddb);
     tcase_add_test(tc_window, test_quickjs_dom_parser);
     tcase_add_test(tc_window, test_quickjs_event_target_basic);
     tcase_add_test(tc_window, test_quickjs_event_target_full);
@@ -5355,6 +5737,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_performance_timeline);
     tcase_add_test(tc_window, test_quickjs_trusted_types);
+    tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
+    tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */
@@ -5368,6 +5752,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
+    tcase_add_test(tc_event_loop, test_quickjs_performance_and_workers);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
     tcase_add_test(tc_event_loop, test_quickjs_tier1_apis);
     tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
@@ -5376,6 +5761,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
+    tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);

@@ -66,6 +66,22 @@ typedef struct CanvasState {
     float line_width;
     JSValue fill_style_val;
     JSValue stroke_style_val;
+    char font[128];
+    char textAlign[32];
+    char textBaseline[32];
+    char direction[32];
+    char lineCap[32];
+    char lineJoin[32];
+    double miterLimit;
+    double lineDashOffset;
+    double line_dash[16];
+    int line_dash_count;
+    char shadowColor[64];
+    double shadowBlur;
+    double shadowOffsetX;
+    double shadowOffsetY;
+    char globalCompositeOperation[64];
+    char filter[64];
     struct CanvasState *next;
 } CanvasState;
 
@@ -89,6 +105,23 @@ typedef struct CanvasContext2DPrivate {
 
     JSValue fill_style_val;
     JSValue stroke_style_val;
+
+    char font[128];
+    char textAlign[32];
+    char textBaseline[32];
+    char direction[32];
+    char lineCap[32];
+    char lineJoin[32];
+    double miterLimit;
+    double lineDashOffset;
+    double line_dash[16];
+    int line_dash_count;
+    char shadowColor[64];
+    double shadowBlur;
+    double shadowOffsetX;
+    double shadowOffsetY;
+    char globalCompositeOperation[64];
+    char filter[64];
 } CanvasContext2DPrivate;
 
 /* Internal helper to extract our private data from QJSNodePrivate */
@@ -96,7 +129,6 @@ static inline CanvasContext2DPrivate *get_canvas_cpriv(QJSNodePrivate *priv) {
     if (!priv || !priv->node) return NULL;
     CanvasContext2DPrivate *cpriv = (CanvasContext2DPrivate *)priv->node;
     if (cpriv->magic != QJS_CANVAS_CONTEXT_MAGIC) return NULL;
-    if (wisp_is_js_process) return NULL;
     return cpriv;
 }
 
@@ -164,6 +196,28 @@ static void canvas_bitmap_handler(dom_node_operation operation, dom_string *key,
     }
 }
 
+static void init_canvas_cpriv_defaults(CanvasContext2DPrivate *cpriv) {
+    cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
+    cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
+    cpriv->fill_style_val = JS_UNDEFINED;
+    cpriv->stroke_style_val = JS_UNDEFINED;
+    snprintf(cpriv->font, sizeof(cpriv->font), "10px sans-serif");
+    snprintf(cpriv->textAlign, sizeof(cpriv->textAlign), "start");
+    snprintf(cpriv->textBaseline, sizeof(cpriv->textBaseline), "alphabetic");
+    snprintf(cpriv->direction, sizeof(cpriv->direction), "inherit");
+    snprintf(cpriv->lineCap, sizeof(cpriv->lineCap), "butt");
+    snprintf(cpriv->lineJoin, sizeof(cpriv->lineJoin), "miter");
+    cpriv->miterLimit = 10.0;
+    cpriv->lineDashOffset = 0.0;
+    cpriv->line_dash_count = 0;
+    snprintf(cpriv->shadowColor, sizeof(cpriv->shadowColor), "rgba(0, 0, 0, 0)");
+    cpriv->shadowBlur = 0.0;
+    cpriv->shadowOffsetX = 0.0;
+    cpriv->shadowOffsetY = 0.0;
+    snprintf(cpriv->globalCompositeOperation, sizeof(cpriv->globalCompositeOperation), "source-over");
+    snprintf(cpriv->filter, sizeof(cpriv->filter), "none");
+}
+
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
     if (!priv || !priv->node) return JS_NULL;
@@ -185,10 +239,7 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
         cpriv->canvas_node = (struct dom_node *)priv->node;
         if (!wisp_is_js_process) dom_node_ref(cpriv->canvas_node);
         cpriv->bitmap = NULL;
-        cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
-        cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
-        cpriv->fill_style_val = JS_UNDEFINED;
-        cpriv->stroke_style_val = JS_UNDEFINED;
+        init_canvas_cpriv_defaults(cpriv);
 
         JSValue context_obj = qjs_new_canvasrenderingcontext2d(ctx, cpriv, false);
         JS_SetPropertyStr(ctx, element_obj, "__canvas_context_2d", JS_DupValue(ctx, context_obj));
@@ -225,10 +276,7 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
     cpriv->canvas_node = (struct dom_node *)priv->node;
     if (!wisp_is_js_process) dom_node_ref(cpriv->canvas_node);
     cpriv->bitmap = bitmap;
-    cpriv->fill_colour = 0xFF000000; cpriv->stroke_colour = 0xFF000000;
-    cpriv->global_alpha = 1.0f; cpriv->line_width = 1.0f;
-    cpriv->fill_style_val = JS_UNDEFINED;
-    cpriv->stroke_style_val = JS_UNDEFINED;
+    init_canvas_cpriv_defaults(cpriv);
 
 #ifdef WITH_BLEND2D
     bl_context_init(&cpriv->bl_ctx_obj);
@@ -262,13 +310,18 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
 
 JSValue wisp_htmlcanvaselement_width_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 300);
+    JSValue attr = wisp_element_getAttribute_impl(ctx, priv, "width");
     int width = 300;
-    dom_string *w_attr = NULL;
-    if (corestring_dom_width != NULL) {
-        dom_element_get_attribute((dom_element *)priv->node, corestring_dom_width, &w_attr);
+    if (JS_IsString(attr)) {
+        const char *str = JS_ToCString(ctx, attr);
+        if (str && *str) {
+            width = atoi(str);
+            if (width <= 0) width = 300;
+        }
+        if (str) JS_FreeCString(ctx, str);
     }
-    if (w_attr) { ns_strtoint((const char *)dom_string_data(w_attr), 10, &width); dom_string_unref(w_attr); }
+    JS_FreeValue(ctx, attr);
     return JS_NewInt32(ctx, width);
 }
 
@@ -281,13 +334,18 @@ JSValue wisp_htmlcanvaselement_width_set_impl(JSContext *ctx, QJSNodePrivate *pr
 
 JSValue wisp_htmlcanvaselement_height_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 150);
+    JSValue attr = wisp_element_getAttribute_impl(ctx, priv, "height");
     int height = 150;
-    dom_string *h_attr = NULL;
-    if (corestring_dom_height != NULL) {
-        dom_element_get_attribute((dom_element *)priv->node, corestring_dom_height, &h_attr);
+    if (JS_IsString(attr)) {
+        const char *str = JS_ToCString(ctx, attr);
+        if (str && *str) {
+            height = atoi(str);
+            if (height <= 0) height = 150;
+        }
+        if (str) JS_FreeCString(ctx, str);
     }
-    if (h_attr) { ns_strtoint((const char *)dom_string_data(h_attr), 10, &height); dom_string_unref(h_attr); }
+    JS_FreeValue(ctx, attr);
     return JS_NewInt32(ctx, height);
 }
 
@@ -402,6 +460,22 @@ JSValue wisp_canvasrenderingcontext2d_save_impl(JSContext *ctx, QJSNodePrivate *
     s->global_alpha = cpriv->global_alpha; s->line_width = cpriv->line_width;
     s->fill_style_val = JS_DupValue(ctx, cpriv->fill_style_val);
     s->stroke_style_val = JS_DupValue(ctx, cpriv->stroke_style_val);
+    snprintf(s->font, sizeof(s->font), "%s", cpriv->font);
+    snprintf(s->textAlign, sizeof(s->textAlign), "%s", cpriv->textAlign);
+    snprintf(s->textBaseline, sizeof(s->textBaseline), "%s", cpriv->textBaseline);
+    snprintf(s->direction, sizeof(s->direction), "%s", cpriv->direction);
+    snprintf(s->lineCap, sizeof(s->lineCap), "%s", cpriv->lineCap);
+    snprintf(s->lineJoin, sizeof(s->lineJoin), "%s", cpriv->lineJoin);
+    s->miterLimit = cpriv->miterLimit;
+    s->lineDashOffset = cpriv->lineDashOffset;
+    s->line_dash_count = cpriv->line_dash_count;
+    memcpy(s->line_dash, cpriv->line_dash, sizeof(cpriv->line_dash));
+    snprintf(s->shadowColor, sizeof(s->shadowColor), "%s", cpriv->shadowColor);
+    s->shadowBlur = cpriv->shadowBlur;
+    s->shadowOffsetX = cpriv->shadowOffsetX;
+    s->shadowOffsetY = cpriv->shadowOffsetY;
+    snprintf(s->globalCompositeOperation, sizeof(s->globalCompositeOperation), "%s", cpriv->globalCompositeOperation);
+    snprintf(s->filter, sizeof(s->filter), "%s", cpriv->filter);
     s->next = cpriv->state_stack; cpriv->state_stack = s;
 #ifdef WITH_BLEND2D
     bl_context_save(&cpriv->bl_ctx_obj, NULL);
@@ -422,6 +496,23 @@ JSValue wisp_canvasrenderingcontext2d_restore_impl(JSContext *ctx, QJSNodePrivat
 
     JS_FreeValue(ctx, cpriv->stroke_style_val);
     cpriv->stroke_style_val = s->stroke_style_val; // transfers ownership
+
+    snprintf(cpriv->font, sizeof(cpriv->font), "%s", s->font);
+    snprintf(cpriv->textAlign, sizeof(cpriv->textAlign), "%s", s->textAlign);
+    snprintf(cpriv->textBaseline, sizeof(cpriv->textBaseline), "%s", s->textBaseline);
+    snprintf(cpriv->direction, sizeof(cpriv->direction), "%s", s->direction);
+    snprintf(cpriv->lineCap, sizeof(cpriv->lineCap), "%s", s->lineCap);
+    snprintf(cpriv->lineJoin, sizeof(cpriv->lineJoin), "%s", s->lineJoin);
+    cpriv->miterLimit = s->miterLimit;
+    cpriv->lineDashOffset = s->lineDashOffset;
+    cpriv->line_dash_count = s->line_dash_count;
+    memcpy(cpriv->line_dash, s->line_dash, sizeof(s->line_dash));
+    snprintf(cpriv->shadowColor, sizeof(cpriv->shadowColor), "%s", s->shadowColor);
+    cpriv->shadowBlur = s->shadowBlur;
+    cpriv->shadowOffsetX = s->shadowOffsetX;
+    cpriv->shadowOffsetY = s->shadowOffsetY;
+    snprintf(cpriv->globalCompositeOperation, sizeof(cpriv->globalCompositeOperation), "%s", s->globalCompositeOperation);
+    snprintf(cpriv->filter, sizeof(cpriv->filter), "%s", s->filter);
 
 #ifdef WITH_BLEND2D
     bl_context_restore(&cpriv->bl_ctx_obj, NULL);
@@ -679,12 +770,6 @@ JSValue wisp_canvasrenderingcontext2d_canvas_get_impl(JSContext *ctx, QJSNodePri
     return qjs_wrap_node(ctx, cpriv->canvas_node);
 }
 
-JSValue wisp_canvasrenderingcontext2d_lineCap_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "butt"); }
-JSValue wisp_canvasrenderingcontext2d_lineCap_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_lineJoin_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "miter"); }
-JSValue wisp_canvasrenderingcontext2d_lineJoin_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
-JSValue wisp_canvasrenderingcontext2d_miterLimit_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewFloat64(ctx, 10.0); }
-JSValue wisp_canvasrenderingcontext2d_miterLimit_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_quadraticCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cpx, double cpy, double x, double y)
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
@@ -974,8 +1059,106 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
     JS_FreeValue(ctx, array);
     return ret;
 }
-JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "source-over"); }
-JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_font_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->font[0]) ? cpriv->font : "10px sans-serif");
+}
+JSValue wisp_canvasrenderingcontext2d_font_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->font, sizeof(cpriv->font), "%s", value); }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_textAlign_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->textAlign[0]) ? cpriv->textAlign : "start");
+}
+JSValue wisp_canvasrenderingcontext2d_textAlign_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->textAlign, sizeof(cpriv->textAlign), "%s", value); }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_textBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->textBaseline[0]) ? cpriv->textBaseline : "alphabetic");
+}
+JSValue wisp_canvasrenderingcontext2d_textBaseline_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->textBaseline, sizeof(cpriv->textBaseline), "%s", value); }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_direction_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->direction[0]) ? cpriv->direction : "inherit");
+}
+JSValue wisp_canvasrenderingcontext2d_direction_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->direction, sizeof(cpriv->direction), "%s", value); }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_lineCap_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->lineCap[0]) ? cpriv->lineCap : "butt");
+}
+JSValue wisp_canvasrenderingcontext2d_lineCap_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->lineCap, sizeof(cpriv->lineCap), "%s", value); }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_lineJoin_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->lineJoin[0]) ? cpriv->lineJoin : "miter");
+}
+JSValue wisp_canvasrenderingcontext2d_lineJoin_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->lineJoin, sizeof(cpriv->lineJoin), "%s", value); }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_miterLimit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewFloat64(ctx, cpriv ? cpriv->miterLimit : 10.0);
+}
+JSValue wisp_canvasrenderingcontext2d_miterLimit_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv) { cpriv->miterLimit = value; }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_lineDashOffset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewFloat64(ctx, cpriv ? cpriv->lineDashOffset : 0.0);
+}
+JSValue wisp_canvasrenderingcontext2d_lineDashOffset_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv) { cpriv->lineDashOffset = value; }
+    return JS_UNDEFINED;
+}
+JSValue wisp_canvasrenderingcontext2d_getLineDash_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    JSValue arr = JS_NewArray(ctx);
+    if (cpriv) {
+        for (int i = 0; i < cpriv->line_dash_count; i++) {
+            JS_SetPropertyUint32(ctx, arr, i, JS_NewFloat64(ctx, cpriv->line_dash[i]));
+        }
+    }
+    return arr;
+}
+JSValue wisp_canvasrenderingcontext2d_setLineDash_impl(JSContext *ctx, QJSNodePrivate *priv, double segments) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv) {
+        cpriv->line_dash[0] = segments;
+        cpriv->line_dash_count = (segments > 0) ? 1 : 0;
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    return JS_NewString(ctx, (cpriv && cpriv->globalCompositeOperation[0]) ? cpriv->globalCompositeOperation : "source-over");
+}
+JSValue wisp_canvasrenderingcontext2d_globalCompositeOperation_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && value) { snprintf(cpriv->globalCompositeOperation, sizeof(cpriv->globalCompositeOperation), "%s", value); }
+    return JS_UNDEFINED;
+}
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingEnabled_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_TRUE; }
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingEnabled_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) { return JS_UNDEFINED; }
 JSValue wisp_canvasrenderingcontext2d_imageSmoothingQuality_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "low"); }
@@ -987,14 +1170,24 @@ JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePr
     CanvasContext2DPrivate *canvas_ctx = get_canvas_cpriv(priv);
     JSValue obj = JS_NewObject(ctx);
     int px_width = 0;
-    if (canvas_ctx && guit && guit->layout && guit->layout->width) {
-        struct plot_font_style style = {0};
-        guit->layout->width(&style, text, strlen(text), &px_width);
-    } else {
-        px_width = strlen(text) * 10;
+    if (text) {
+        if (canvas_ctx && guit && guit->layout && guit->layout->width) {
+            struct plot_font_style style = {0};
+            guit->layout->width(&style, text, strlen(text), &px_width);
+        } else {
+            px_width = (int)strlen(text) * 10;
+        }
     }
     double width = (double)px_width;
     JS_SetPropertyStr(ctx, obj, "width", JS_NewFloat64(ctx, width));
+    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxLeft", JS_NewFloat64(ctx, 0.0));
+    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxRight", JS_NewFloat64(ctx, width));
+    JS_SetPropertyStr(ctx, obj, "fontBoundingBoxAscent", JS_NewFloat64(ctx, 10.0));
+    JS_SetPropertyStr(ctx, obj, "fontBoundingBoxDescent", JS_NewFloat64(ctx, 2.0));
+    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxAscent", JS_NewFloat64(ctx, 10.0));
+    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxDescent", JS_NewFloat64(ctx, 2.0));
+    JS_SetPropertyStr(ctx, obj, "emHeightAscent", JS_NewFloat64(ctx, 10.0));
+    JS_SetPropertyStr(ctx, obj, "emHeightDescent", JS_NewFloat64(ctx, 2.0));
     return obj;
 }
 
