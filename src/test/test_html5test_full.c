@@ -128,7 +128,7 @@ START_TEST(test_html5test_full_execution)
         "    isDevice: function() { return false; },\n"
         "    isOs: function() { return false; },\n"
         "    isBrowser: function() { return false; },\n"
-        "    isType: function() { return false; }\n"
+        "    isType: function(t) { return t === 'desktop'; }\n"
         "  };\n"
         "}\n"
         "window.loadWhichBrowser = function(cb) { if (cb) cb(); };\n";

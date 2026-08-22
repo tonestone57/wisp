@@ -5397,7 +5397,41 @@ JSValue wisp_validitystate_tooShort_get_impl(JSContext *ctx, QJSNodePrivate *pri
 }
 
 JSValue wisp_validitystate_typeMismatch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+    if (!priv || !priv->node) return JS_FALSE;
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    if (!JS_IsString(type_val)) {
+        JS_FreeValue(ctx, type_val);
+        return JS_FALSE;
+    }
+    const char *type_str = JS_ToCString(ctx, type_val);
+    JS_FreeValue(ctx, type_val);
+    if (!type_str) return JS_FALSE;
+
+    JSValue val_val = wisp_htmlinputelement_value_get_impl(ctx, priv);
+    if (!JS_IsString(val_val)) {
+        JS_FreeCString(ctx, type_str);
+        JS_FreeValue(ctx, val_val);
+        return JS_FALSE;
+    }
+    const char *val_str = JS_ToCString(ctx, val_val);
+    JS_FreeValue(ctx, val_val);
+
+    bool mismatch = false;
+    if (val_str && val_str[0] != '\0') {
+        if (strcasecmp(type_str, "url") == 0) {
+            if (strstr(val_str, "://") == NULL) {
+                mismatch = true;
+            }
+        } else if (strcasecmp(type_str, "email") == 0) {
+            if (strchr(val_str, '@') == NULL) {
+                mismatch = true;
+            }
+        }
+    }
+
+    if (val_str) JS_FreeCString(ctx, val_str);
+    JS_FreeCString(ctx, type_str);
+    return JS_NewBool(ctx, mismatch);
 }
 
 
@@ -5428,6 +5462,10 @@ JSValue wisp_validitystate_valueMissing_get_impl(JSContext *ctx, QJSNodePrivate 
 JSValue wisp_validitystate_valid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (check_value_missing(ctx, priv)) return JS_FALSE;
     if (check_custom_error(ctx, priv)) return JS_FALSE;
+    JSValue tm = wisp_validitystate_typeMismatch_get_impl(ctx, priv);
+    bool is_tm = JS_ToBool(ctx, tm);
+    JS_FreeValue(ctx, tm);
+    if (is_tm) return JS_FALSE;
     return JS_TRUE;
 }
 
