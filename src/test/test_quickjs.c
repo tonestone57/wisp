@@ -4882,6 +4882,42 @@ START_TEST(test_quickjs_shadow_dom)
 }
 END_TEST
 
+START_TEST(test_quickjs_performance_and_workers)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var hasWorker = typeof Worker === 'function';\n"
+        "var hasSharedWorker = typeof SharedWorker === 'function';\n"
+        "var sw = new SharedWorker('mock.js');\n"
+        "var hasPort = sw && sw.port && typeof sw.port === 'object';\n"
+        "var hasRIC = typeof requestIdleCallback === 'function' && typeof cancelIdleCallback === 'function';\n"
+        "var hasPerfNow = performance && typeof performance.now === 'function' && performance.now() >= 0;\n"
+        "var hasObserver = typeof PerformanceObserver === 'function';\n"
+        "hasWorker && hasSharedWorker && hasPort && hasRIC && hasPerfNow && hasObserver;";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_performance_and_workers");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+
 START_TEST(test_quickjs_ric)
 {
     jsheap *heap = NULL;
@@ -5267,6 +5303,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
+    tcase_add_test(tc_event_loop, test_quickjs_performance_and_workers);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
     tcase_add_test(tc_event_loop, test_quickjs_tier1_apis);
     tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
