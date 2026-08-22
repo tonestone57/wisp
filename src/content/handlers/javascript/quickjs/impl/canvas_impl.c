@@ -222,7 +222,7 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
 {
     if (!priv || !priv->node) return JS_NULL;
     if (strcmp(contextId, "webgl") == 0 || strcmp(contextId, "experimental-webgl") == 0 ||
-        strcmp(contextId, "webgl2") == 0 || strcmp(contextId, "bitmaprenderer") == 0) {
+        strcmp(contextId, "bitmaprenderer") == 0) {
         
         JSValue element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
         JSValue existing = JS_GetPropertyStr(ctx, element_obj, "__webgl_context");
