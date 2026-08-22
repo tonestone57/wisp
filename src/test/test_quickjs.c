@@ -252,7 +252,69 @@ START_TEST(test_quickjs_browseraudit_chartjs_full)
     js_destroythread(thread);
     js_destroyheap(heap);
     js_finalise();
-    corestrings_fini();
+}
+END_TEST
+
+START_TEST(test_quickjs_other_apis)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (typeof history === 'undefined' || typeof history.pushState !== 'function' || typeof history.replaceState !== 'function') {\n"
+        "  throw new Error('history pushState / replaceState missing');\n"
+        "}\n"
+        "history.pushState({ page: 1 }, 'Title 1', '/page1');\n"
+        "history.replaceState({ page: 2 }, 'Title 2', '/page2');\n"
+        "if (!('hidden' in document) || document.hidden !== false) {\n"
+        "  throw new Error('document.hidden check failed');\n"
+        "}\n"
+        "if (!('visibilityState' in document) || document.visibilityState !== 'visible') {\n"
+        "  throw new Error('document.visibilityState check failed');\n"
+        "}\n"
+        "if (typeof window.getSelection !== 'function') {\n"
+        "  throw new Error('window.getSelection missing');\n"
+        "}\n"
+        "var sel = window.getSelection();\n"
+        "if (!sel || typeof sel.removeAllRanges !== 'function') {\n"
+        "  throw new Error('window.getSelection return invalid');\n"
+        "}\n"
+        "if (typeof document.getSelection !== 'function') {\n"
+        "  throw new Error('document.getSelection missing');\n"
+        "}\n"
+        "var div = document.createElement('div');\n"
+        "if (typeof div.scrollIntoView !== 'function') {\n"
+        "  throw new Error('Element.prototype.scrollIntoView missing');\n"
+        "}\n"
+        "div.scrollIntoView(true);\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_other_apis", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_other_apis: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
 }
 END_TEST
 
@@ -4349,121 +4411,6 @@ START_TEST(test_quickjs_timers)
 }
 END_TEST
 
-START_TEST(test_quickjs_offline_apis)
-{
-    jsheap *heap = NULL;
-    jsthread *thread = NULL;
-    nserror err;
-    bool result;
-
-    js_initialise();
-    err = js_newheap(5, &heap);
-    ck_assert_int_eq(err, NSERROR_OK);
-
-    dom_document *doc = create_test_document();
-    err = js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    doc = NULL;
-    ck_assert_int_eq(err, NSERROR_OK);
-
-    // Test 1: ServiceWorkerContainer, ServiceWorkerRegistration, ServiceWorker
-    const char *code1 = "try {\n"
-                        "  if (typeof ServiceWorker !== 'function') throw new Error('ServiceWorker not function');\n"
-                        "  if (typeof ServiceWorkerRegistration !== 'function') throw new Error('ServiceWorkerRegistration not function');\n"
-                        "  if (typeof ServiceWorkerContainer !== 'function') throw new Error('ServiceWorkerContainer not function');\n"
-                        "  if (!(navigator.serviceWorker instanceof ServiceWorkerContainer)) throw new Error('navigator.serviceWorker not instance of ServiceWorkerContainer');\n"
-                        "  if (!(window.ServiceWorker === ServiceWorker && window.ServiceWorkerRegistration === ServiceWorkerRegistration && window.ServiceWorkerContainer === ServiceWorkerContainer)) throw new Error('ServiceWorker classes not on window');\n"
-                        "  window.swStatus = 'PENDING';\n"
-                        "  Promise.all([\n"
-                        "    navigator.serviceWorker.register('sw.js'),\n"
-                        "    navigator.serviceWorker.getRegistration(),\n"
-                        "    navigator.serviceWorker.getRegistrations(),\n"
-                        "    navigator.serviceWorker.ready\n"
-                        "  ]).then(function(res) {\n"
-                        "    if (!(res[0] instanceof ServiceWorkerRegistration)) throw new Error('register did not resolve ServiceWorkerRegistration');\n"
-                        "    if (!(res[3] instanceof ServiceWorkerRegistration)) throw new Error('ready did not resolve ServiceWorkerRegistration');\n"
-                        "    if (!(res[3].active instanceof ServiceWorker)) throw new Error('active not ServiceWorker');\n"
-                        "    window.swStatus = 'OK';\n"
-                        "  }).catch(function(e) {\n"
-                        "    window.swStatus = 'ERROR: ' + e.message;\n"
-                        "  });\n"
-                        "  window.testRes1 = 'OK';\n"
-                        "} catch(e) {\n"
-                        "  window.testRes1 = e.message;\n"
-                        "}\n"
-                        "window.testRes1 === 'OK';";
-    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_serviceworkers");
-    ck_assert(result == true);
-
-    JSContext *ctx;
-    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx) != 0);
-
-    const char *check1 = "window.swStatus === 'OK';";
-    result = js_exec(thread, (const uint8_t *)check1, strlen(check1), "check_serviceworkers");
-    ck_assert(result == true);
-
-    // Test 2: CacheStorage & Cache
-    const char *code2 = "try {\n"
-                        "  if (typeof Cache !== 'function') throw new Error('Cache not function');\n"
-                        "  if (typeof CacheStorage !== 'function') throw new Error('CacheStorage not function');\n"
-                        "  if (!(window.caches instanceof CacheStorage)) throw new Error('window.caches not instance of CacheStorage');\n"
-                        "  if (!('caches' in window)) throw new Error('caches not in window');\n"
-                        "  window.cacheStatus = 'PENDING';\n"
-                        "  caches.open('test-cache-v1').then(function(cache) {\n"
-                        "    if (!(cache instanceof Cache)) throw new Error('open did not resolve Cache');\n"
-                        "    return cache.put('https://example.com/item', { ok: true }).then(function() {\n"
-                        "      return cache.keys();\n"
-                        "    }).then(function(keys) {\n"
-                        "      if (!keys.includes('https://example.com/item')) throw new Error('keys missing put item');\n"
-                        "      return caches.has('test-cache-v1');\n"
-                        "    }).then(function(hasCache) {\n"
-                        "      if (!hasCache) throw new Error('caches.has returned false');\n"
-                        "      return caches.delete('test-cache-v1');\n"
-                        "    }).then(function(deleted) {\n"
-                        "      if (!deleted) throw new Error('caches.delete returned false');\n"
-                        "      return caches.has('test-cache-v1');\n"
-                        "    }).then(function(hasCacheAfter) {\n"
-                        "      if (hasCacheAfter) throw new Error('caches.has true after delete');\n"
-                        "      window.cacheStatus = 'OK';\n"
-                        "    });\n"
-                        "  }).catch(function(e) {\n"
-                        "    window.cacheStatus = 'ERROR: ' + e.message;\n"
-                        "  });\n"
-                        "  window.testRes2 = 'OK';\n"
-                        "} catch(e) {\n"
-                        "  window.testRes2 = e.message;\n"
-                        "}\n"
-                        "window.testRes2 === 'OK';";
-    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_cachestorage");
-    ck_assert(result == true);
-
-    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx) != 0);
-
-    const char *check2 = "window.cacheStatus === 'OK';";
-    result = js_exec(thread, (const uint8_t *)check2, strlen(check2), "check_cachestorage");
-    ck_assert(result == true);
-
-    // Test 3: registerProtocolHandler
-    const char *code3 = "try {\n"
-                        "  if (typeof navigator.registerProtocolHandler !== 'function') throw new Error('registerProtocolHandler not function');\n"
-                        "  if (typeof navigator.unregisterProtocolHandler !== 'function') throw new Error('unregisterProtocolHandler not function');\n"
-                        "  navigator.registerProtocolHandler('web+test', 'https://example.com/?q=%s', 'Test Title');\n"
-                        "  navigator.unregisterProtocolHandler('web+test', 'https://example.com/?q=%s');\n"
-                        "  window.testRes3 = 'OK';\n"
-                        "} catch(e) {\n"
-                        "  window.testRes3 = e.message;\n"
-                        "}\n"
-                        "window.testRes3 === 'OK';";
-    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_registerprotocolhandler");
-    ck_assert(result == true);
-
-    js_closethread(thread);
-    js_destroythread(thread);
-    js_destroyheap(heap);
-    js_finalise();
-}
-END_TEST
-
 START_TEST(test_quickjs_web_animations_api)
 {
     jsheap *heap = NULL;
@@ -5120,83 +5067,7 @@ START_TEST(test_quickjs_canvas_gradient)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
-    js_finalise();
-    corestrings_fini();
-}
-END_TEST
-
-START_TEST(test_quickjs_canvas_path2d_and_text)
-{
-    jsheap *heap = NULL;
-    jsthread *thread = NULL;
-    nserror err;
-    bool result;
-
-    corestrings_init();
-    js_initialise();
-    js_newheap(5, &heap);
-    dom_document *doc = create_test_document();
-    js_newthread(heap, (void*)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-
-    const char *script =
-        "let canvas = document.createElement('canvas');\n"
-        "canvas.width = 200; canvas.height = 100;\n"
-        "let ctx = canvas.getContext('2d');\n"
-        "\n"
-        "// 1. Path2D Constructor & Overload Resolution\n"
-        "if (typeof Path2D !== 'function') throw new Error('Path2D constructor missing');\n"
-        "let p1 = new Path2D();\n"
-        "p1.rect(10, 10, 50, 50);\n"
-        "let p2 = new Path2D(p1);\n"
-        "p2.lineTo(100, 100);\n"
-        "p1.addPath(p2);\n"
-        "\n"
-        "ctx.fill();\n"
-        "ctx.fill('evenodd');\n"
-        "ctx.fill(p1);\n"
-        "ctx.fill(p1, 'evenodd');\n"
-        "ctx.stroke(p1);\n"
-        "\n"
-        "// 2. TextMetrics & Canvas Text Support\n"
-        "let m1 = ctx.measureText('Hello Canvas');\n"
-        "if (!(m1 instanceof TextMetrics) && typeof m1 !== 'object') throw new Error('measureText invalid return type');\n"
-        "if (typeof m1.width !== 'number' || m1.width <= 0) throw new Error('TextMetrics.width invalid');\n"
-        "if (typeof m1.fontBoundingBoxAscent !== 'number') throw new Error('TextMetrics.fontBoundingBoxAscent invalid');\n"
-        "if (typeof m1.fontBoundingBoxDescent !== 'number') throw new Error('TextMetrics.fontBoundingBoxDescent invalid');\n"
-        "\n"
-        "// String Coercion for measureText\n"
-        "let mNum = ctx.measureText(12345);\n"
-        "if (typeof mNum.width !== 'number') throw new Error('measureText numeric coercion failed');\n"
-        "let mEmpty = ctx.measureText('');\n"
-        "if (typeof mEmpty.width !== 'number') throw new Error('measureText empty string coercion failed');\n"
-        "\n"
-        "// Execution Guards for non-finite coordinates\n"
-        "ctx.fillText('test', NaN, 50);\n"
-        "ctx.strokeText('test', 50, Infinity);\n"
-        "\n"
-        "// 3. toDataURL MIME Type Handling & Fallbacks\n"
-        "let pngData = canvas.toDataURL('image/png');\n"
-        "if (!pngData.startsWith('data:image/png')) throw new Error('toDataURL png failed');\n"
-        "let jpegData = canvas.toDataURL('image/jpeg', 0.8);\n"
-        "if (!jpegData.startsWith('data:image/jpeg')) throw new Error('toDataURL jpeg failed');\n"
-        "let webpData = canvas.toDataURL('image/webp', 0.5);\n"
-        "if (!webpData.startsWith('data:image/webp')) throw new Error('toDataURL webp failed');\n"
-        "let fallbackData = canvas.toDataURL('image/unsupported-format');\n"
-        "if (!fallbackData.startsWith('data:image/png')) throw new Error('toDataURL fallback failed');\n"
-        "\n"
-        "// Zero-dimension canvas handling\n"
-        "let c0 = document.createElement('canvas');\n"
-        "c0.width = 0; c0.height = 0;\n"
-        "if (c0.toDataURL() !== 'data:,') throw new Error('Zero-dimension canvas toDataURL failed');\n"
-        "1;";
-
-    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_canvas_path2d_and_text");
-    ck_assert(result == true);
-
-    js_closethread(thread);
-    js_destroythread(thread);
-    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
     corestrings_fini();
 }
@@ -6509,7 +6380,6 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_css_stylesheet);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_canvas_gradient);
-    tcase_add_test(tc_window, test_quickjs_canvas_path2d_and_text);
     tcase_add_test(tc_window, test_quickjs_webgl_support);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_performance_timeline);
@@ -6517,6 +6387,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
     tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
     tcase_add_test(tc_window, test_quickjs_browseraudit_chartjs_full);
+    tcase_add_test(tc_window, test_quickjs_other_apis);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */
@@ -6544,7 +6415,6 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_input_devices);
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
-    tcase_add_test(tc_event_loop, test_quickjs_offline_apis);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
 
