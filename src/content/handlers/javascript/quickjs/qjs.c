@@ -5725,14 +5725,15 @@ bool js_fire_event(jsthread *thread, const char *type, struct dom_document *doc,
     dom_event *evt = NULL;
     dom_event_create(&evt);
     bool success = false;
-    if (evt) {
+    if (evt && type_str) {
         dom_event_init(evt, type_str, true, true);
         dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
         dom_event_unref(evt);
     } else {
         NSLOG(wisp, ERROR, "js_fire_event: Failed to create dom_event");
     }
-    dom_string_unref(type_str);
+    if (type_str)
+        dom_string_unref(type_str);
     return success;
 }
 

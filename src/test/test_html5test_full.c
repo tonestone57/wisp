@@ -200,9 +200,11 @@ START_TEST(test_html5test_full_execution)
     for (int i = 0; i < 1500; i++) {
         qjs_execute_timers(thread->ctx);
         usleep(10000); /* 10ms */
-        JSValue is_done_val = JS_GetPropertyStr(thread->ctx, JS_GetGlobalObject(thread->ctx), "html5testFinished");
+        JSValue global_obj = JS_GetGlobalObject(thread->ctx);
+        JSValue is_done_val = JS_GetPropertyStr(thread->ctx, global_obj, "html5testFinished");
         bool is_done = JS_ToBool(thread->ctx, is_done_val);
         JS_FreeValue(thread->ctx, is_done_val);
+        JS_FreeValue(thread->ctx, global_obj);
         if (is_done) {
             break;
         }
