@@ -460,6 +460,9 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
                                 if (c_len == 4 && strncasecmp((const char *)c_data, "body", 4) == 0) {
                                     target_parent = curr;
                                     dom_string_unref(c_name);
+                                    dom_node *rem_res = NULL;
+                                    dom_node_remove_child(html_child, target_parent, &rem_res);
+                                    if (rem_res) dom_node_unref(rem_res);
                                     break;
                                 }
                                 dom_string_unref(c_name);
@@ -491,6 +494,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
                 dom_node_unref(c);
                 c = NULL;
             }
+            dom_node_unref(target_parent);
             if (html_child) dom_node_unref(html_child);
         }
     }
