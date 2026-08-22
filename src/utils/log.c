@@ -382,16 +382,14 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
 #endif
 
     if (verbose_log) {
-        fprintf(logfile, "%s %s:%i %s: ", time_buf, file, ln, func);
-
-        va_start(ap, format);
-
-        vfprintf(logfile, format, ap);
-
-        va_end(ap);
-
-        fputc('\n', logfile);
         if (logfile != NULL) {
+            fprintf(logfile, "%s %s:%i %s: ", time_buf, file, ln, func);
+
+            va_start(ap, format);
+            vfprintf(logfile, format, ap);
+            va_end(ap);
+
+            fputc('\n', logfile);
             fflush(logfile);
         }
     }
