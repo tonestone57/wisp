@@ -472,7 +472,59 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
 
     if (fragment != NULL) {
         /* 3. Append children from fragment (unwrapping html/body wrappers if present) */
-        append_fragment_children(element, (dom_node *)fragment);
+        dom_node *target_parent = (dom_node *)fragment;
+        dom_node *html_child = NULL;
+        if (dom_node_get_first_child((dom_node *)fragment, &html_child) == DOM_NO_ERR && html_child != NULL) {
+            dom_string *node_name = NULL;
+            if (dom_node_get_node_name(html_child, &node_name) == DOM_NO_ERR && node_name != NULL) {
+                const uint8_t *data = dom_string_data(node_name);
+                uint32_t len = dom_string_byte_length(node_name);
+                if (len == 4 && strncasecmp((const char *)data, "html", 4) == 0) {
+                    dom_node *curr = NULL;
+                    if (dom_node_get_first_child(html_child, &curr) == DOM_NO_ERR && curr != NULL) {
+                        while (curr != NULL) {
+                            dom_string *c_name = NULL;
+                            if (dom_node_get_node_name(curr, &c_name) == DOM_NO_ERR && c_name != NULL) {
+                                const uint8_t *c_data = dom_string_data(c_name);
+                                uint32_t c_len = dom_string_byte_length(c_name);
+                                if (c_len == 4 && strncasecmp((const char *)c_data, "body", 4) == 0) {
+                                    target_parent = curr;
+                                    dom_string_unref(c_name);
+                                    dom_node *rem_res = NULL;
+                                    dom_node_remove_child(html_child, target_parent, &rem_res);
+                                    if (rem_res) dom_node_unref(rem_res);
+                                    break;
+                                }
+                                dom_string_unref(c_name);
+                            }
+                            dom_node *next = NULL;
+                            dom_node_get_next_sibling(curr, &next);
+                            dom_node_unref(curr);
+                            curr = next;
+                        }
+                    }
+                }
+                dom_string_unref(node_name);
+            }
+            if (target_parent == (dom_node *)fragment) {
+                dom_node_unref(html_child);
+            }
+        }
+
+        if (target_parent == (dom_node *)fragment) {
+            append_fragment_children(element, (dom_node *)fragment);
+        } else {
+            dom_node *c = NULL;
+            while (dom_node_get_first_child(target_parent, &c) == DOM_NO_ERR && c != NULL) {
+                dom_node *res = NULL;
+                dom_node_append_child(element, c, &res);
+                if (res) dom_node_unref(res);
+                dom_node_unref(c);
+                c = NULL;
+            }
+            dom_node_unref(target_parent);
+            if (html_child) dom_node_unref(html_child);
+        }
     }
 
     if (fragment) dom_node_unref((dom_node *)fragment);
@@ -656,6 +708,17 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
                     JS_FreeCString(ctx, prop);
                     return JS_NewInt32(ctx, h > 0 ? h : 150);
                 }
+            } else if (tag_str && strcasecmp(tag_str, "details") == 0) {
+                JS_FreeCString(ctx, tag_str);
+                JS_FreeValue(ctx, tag_val);
+                if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "offsetHeight") == 0 || strcmp(prop, "scrollHeight") == 0) {
+                    bool is_open = false;
+                    JSValue open_val = JS_GetPropertyStr(ctx, argv[0], "open");
+                    if (JS_IsBool(open_val)) is_open = JS_ToBool(ctx, open_val);
+                    JS_FreeValue(ctx, open_val);
+                    JS_FreeCString(ctx, prop);
+                    return JS_NewInt32(ctx, is_open ? 50 : 20);
+                }
             } else if (tag_str) {
                 JS_FreeCString(ctx, tag_str);
             }
@@ -664,8 +727,8 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
 
         JS_FreeCString(ctx, prop);
         // Default stubs
-        if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "scrollWidth") == 0) return JS_NewInt32(ctx, 1024);
-        if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "scrollHeight") == 0) return JS_NewInt32(ctx, 768);
+        if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "scrollWidth") == 0 || strcmp(prop, "offsetWidth") == 0) return JS_NewInt32(ctx, 1024);
+        if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "scrollHeight") == 0 || strcmp(prop, "offsetHeight") == 0) return JS_NewInt32(ctx, 768);
         return JS_NewInt32(ctx, 0);
     }
 
@@ -714,7 +777,14 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
     if (rw <= 0 || rh <= 0) {
         WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[node_id];
         const char *tag = wisp_string_ref_data(wisp_shm_dom, sns->tag_name);
-        if (strcasecmp(tag, "html") == 0 || strcasecmp(tag, "body") == 0) {
+        if (strcasecmp(tag, "details") == 0) {
+            bool is_open = false;
+            JSValue open_val = JS_GetPropertyStr(ctx, argv[0], "open");
+            if (JS_IsBool(open_val)) is_open = JS_ToBool(ctx, open_val);
+            JS_FreeValue(ctx, open_val);
+            rw = 100;
+            rh = is_open ? 50 : 20;
+        } else if (strcasecmp(tag, "html") == 0 || strcasecmp(tag, "body") == 0) {
             rw = 1024;
             rh = 768;
         } else if (strcasecmp(tag, "svg") == 0 || strcasecmp(tag, "img") == 0 || strcasecmp(tag, "canvas") == 0) {
