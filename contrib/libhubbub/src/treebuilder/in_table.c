@@ -179,6 +179,19 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
         } else if (!tainted && type == INPUT) {
             err = process_input_in_table(treebuilder, token);
             handled = (err == HUBBUB_OK);
+        } else if (type == FORM) {
+            if (treebuilder->context.form_element == NULL) {
+                void *node, *appended;
+                hubbub_error e = treebuilder->tree_handler->create_element(treebuilder->tree_handler->ctx, &token->data.tag, &node);
+                if (e == HUBBUB_OK) {
+                    e = treebuilder->tree_handler->append_child(treebuilder->tree_handler->ctx,
+                        treebuilder->context.element_stack[treebuilder->context.current_node].node, node, &appended);
+                    treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, node);
+                    if (e == HUBBUB_OK) {
+                        treebuilder->context.form_element = appended;
+                    }
+                }
+            }
         } else {
             handled = false;
         }
@@ -192,6 +205,12 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
             element_stack_pop_until(treebuilder, TABLE);
 
             reset_insertion_mode(treebuilder);
+        } else if (type == FORM) {
+            if (treebuilder->context.form_element != NULL) {
+                treebuilder->tree_handler->unref_node(
+                    treebuilder->tree_handler->ctx, treebuilder->context.form_element);
+                treebuilder->context.form_element = NULL;
+            }
         } else if (type == BODY || type == CAPTION || type == COL || type == COLGROUP || type == HTML ||
             type == TBODY || type == TD || type == TFOOT || type == TH || type == THEAD || type == TR) {
             /** \todo parse error */

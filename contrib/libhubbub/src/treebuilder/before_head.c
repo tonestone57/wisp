@@ -28,7 +28,11 @@ hubbub_error handle_before_head(hubbub_treebuilder *treebuilder, const hubbub_to
 
     switch (token->type) {
     case HUBBUB_TOKEN_CHARACTER:
-        err = process_characters_expect_whitespace(treebuilder, token, false);
+        if (treebuilder->context.is_fragment) {
+            err = HUBBUB_REPROCESS;
+        } else {
+            err = process_characters_expect_whitespace(treebuilder, token, false);
+        }
         break;
     case HUBBUB_TOKEN_COMMENT:
         err = process_comment_append(
