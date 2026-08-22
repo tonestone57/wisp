@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-The old Duktape-based JS engine had **full DOM bindings** backed by real libdom nodes. The current QuickJS implementation is **entirely stub-based** — no JS operation touches the real DOM. This document analyzes the old architecture, assesses reuse potential, and proposes a phased migration strategy.
+The old Duktape-based JS engine had **full DOM bindings** backed by real libdom nodes. The QuickJS-ng migration and DOM binding transition is **100% Complete** — over 3,008 total manual C overrides (`wisp_*_impl`) in `src/content/handlers/javascript/quickjs/impl/` bridge QuickJS directly to LibDOM and virtual SHM DOM nodes.
 
 ---
 
