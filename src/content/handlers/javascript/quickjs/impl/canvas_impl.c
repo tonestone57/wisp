@@ -221,6 +221,13 @@ static void init_canvas_cpriv_defaults(CanvasContext2DPrivate *cpriv) {
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
     if (!priv || !priv->node) return JS_NULL;
+    if (strcmp(contextId, "webgl") == 0 || strcmp(contextId, "experimental-webgl") == 0 ||
+        strcmp(contextId, "webgl2") == 0 || strcmp(contextId, "bitmaprenderer") == 0) {
+        JSValue element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
+        JSValue ctx_obj = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, ctx_obj, "canvas", element_obj);
+        return ctx_obj;
+    }
     if (strcmp(contextId, "2d") != 0) return JS_NULL;
 
     JSValue element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
@@ -1038,7 +1045,7 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
             }
         }
     } else {
-        memset(data, 0, size);
+        memset(data, 255, size);
     }
 
     JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);

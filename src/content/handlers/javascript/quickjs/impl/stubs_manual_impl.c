@@ -38,20 +38,7 @@ JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
 // Helper to retrieve document base URL (copied from location_impl.c)
 static struct nsurl *get_doc_base_url(JSContext *ctx)
 {
-    struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (!t) return NULL;
-
-    if (wisp_is_js_process) {
-        if (!t->location_url && t->origin) {
-            nsurl_create(t->origin, &t->location_url);
-        }
-        return t->location_url;
-    }
-
-    if (t->doc_priv) {
-        return content_get_url((void *)t->doc_priv);
-    }
-    return NULL;
+    return get_location_nsurl(ctx);
 }
 
 extern bool js_dom_event_add_listener(jsthread *thread, struct dom_document *document, struct dom_node *node,
@@ -169,11 +156,24 @@ static struct nsurl *get_anchor_resolved_url(JSContext *ctx, QJSNodePrivate *pri
     }
 
     struct nsurl *base_url = get_doc_base_url(ctx);
+    struct nsurl *fallback_base = NULL;
+    if (!base_url) {
+        nsurl_create("http://localhost/", &fallback_base);
+        base_url = fallback_base;
+    }
+
     struct nsurl *resolved_url = NULL;
     if (base_url) {
-        nsurl_join(base_url, href_str, &resolved_url);
+        nserror err = nsurl_join(base_url, href_str, &resolved_url);
+        if (err != NSERROR_OK || !resolved_url) {
+            nsurl_create("http://localhost/", &resolved_url);
+        }
     } else {
-        nsurl_create(href_str, &resolved_url);
+        nsurl_create("http://localhost/", &resolved_url);
+    }
+
+    if (fallback_base) {
+        nsurl_unref(fallback_base);
     }
 
     if (free_href) {
@@ -1059,6 +1059,32 @@ static void set_element_bool_attr(JSContext *ctx, QJSNodePrivate *priv, const ch
 static JSValue get_element_form_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
+    JSValue form_attr = get_element_str_attr(ctx, priv, "form", NULL);
+    if (JS_IsString(form_attr)) {
+        const char *form_id = JS_ToCString(ctx, form_attr);
+        if (form_id && form_id[0] != '\0') {
+            JSValue global = JS_GetGlobalObject(ctx);
+            JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
+            JSValue get_el = JS_GetPropertyStr(ctx, doc_val, "getElementById");
+            JSValue id_str = JS_NewString(ctx, form_id);
+            JSValue target = JS_Call(ctx, get_el, doc_val, 1, &id_str);
+            JS_FreeValue(ctx, id_str);
+            JS_FreeValue(ctx, get_el);
+            JS_FreeValue(ctx, doc_val);
+            JS_FreeValue(ctx, global);
+            JS_FreeCString(ctx, form_id);
+            JS_FreeValue(ctx, form_attr);
+            if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
+                return target;
+            }
+            JS_FreeValue(ctx, target);
+        } else {
+            if (form_id) JS_FreeCString(ctx, form_id);
+            JS_FreeValue(ctx, form_attr);
+        }
+    } else {
+        JS_FreeValue(ctx, form_attr);
+    }
     if (wisp_is_js_process) {
         if (wisp_shm_dom) {
             uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
@@ -4942,8 +4968,96 @@ JSValue wisp_htmltimeelement_dateTime_set_impl(JSContext *ctx, QJSNodePrivate *p
 // HTMLLabelElement Implementation (4 stubs)
 // -----------------------------------------------------------------------------
 
+static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewArray(ctx);
+    JSValue labels_arr = JS_NewArray(ctx);
+    uint32_t idx = 0;
+    JSValue id_val = get_element_str_attr(ctx, priv, "id", NULL);
+    if (JS_IsString(id_val)) {
+        const char *id_str = JS_ToCString(ctx, id_val);
+        if (id_str && id_str[0] != '\0') {
+            JSValue global = JS_GetGlobalObject(ctx);
+            JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
+            JSValue qsa = JS_GetPropertyStr(ctx, doc_val, "querySelectorAll");
+            if (JS_IsFunction(ctx, qsa)) {
+                size_t sel_len = strlen(id_str) + 32;
+                char *sel = malloc(sel_len);
+                if (sel) {
+                    snprintf(sel, sel_len, "label[for=\"%s\"]", id_str);
+                    JSValue sel_val = JS_NewString(ctx, sel);
+                    JSValue matched = JS_Call(ctx, qsa, doc_val, 1, &sel_val);
+                    JS_FreeValue(ctx, sel_val);
+                    free(sel);
+                    if (!JS_IsException(matched) && JS_IsObject(matched)) {
+                        JSValue len_val = JS_GetPropertyStr(ctx, matched, "length");
+                        int32_t len = 0;
+                        if (JS_IsNumber(len_val)) JS_ToInt32(ctx, &len, len_val);
+                        JS_FreeValue(ctx, len_val);
+                        for (int i = 0; i < len; i++) {
+                            JSValue item = JS_GetPropertyUint32(ctx, matched, i);
+                            JS_SetPropertyUint32(ctx, labels_arr, idx++, item);
+                        }
+                    }
+                    JS_FreeValue(ctx, matched);
+                }
+            }
+            JS_FreeValue(ctx, qsa);
+            JS_FreeValue(ctx, doc_val);
+            JS_FreeValue(ctx, global);
+            JS_FreeCString(ctx, id_str);
+        } else if (id_str) {
+            JS_FreeCString(ctx, id_str);
+        }
+    }
+    JS_FreeValue(ctx, id_val);
+    return labels_arr;
+}
+
 JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue for_val = get_element_str_attr(ctx, priv, "for", NULL);
+    if (JS_IsString(for_val)) {
+        const char *for_str = JS_ToCString(ctx, for_val);
+        if (for_str && for_str[0] != '\0') {
+            JSValue global = JS_GetGlobalObject(ctx);
+            JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
+            JSValue get_el = JS_GetPropertyStr(ctx, doc_val, "getElementById");
+            JSValue id_str = JS_NewString(ctx, for_str);
+            JSValue target = JS_Call(ctx, get_el, doc_val, 1, &id_str);
+            JS_FreeValue(ctx, id_str);
+            JS_FreeValue(ctx, get_el);
+            JS_FreeValue(ctx, doc_val);
+            JS_FreeValue(ctx, global);
+            JS_FreeCString(ctx, for_str);
+            JS_FreeValue(ctx, for_val);
+            if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
+                return target;
+            }
+            JS_FreeValue(ctx, target);
+        } else {
+            if (for_str) JS_FreeCString(ctx, for_str);
+            JS_FreeValue(ctx, for_val);
+        }
+    } else {
+        JS_FreeValue(ctx, for_val);
+    }
+    JSValue label_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    JSValue qs = JS_GetPropertyStr(ctx, label_obj, "querySelector");
+    if (JS_IsFunction(ctx, qs)) {
+        JSValue sel = JS_NewString(ctx, "input, select, textarea, button");
+        JSValue target = JS_Call(ctx, qs, label_obj, 1, &sel);
+        JS_FreeValue(ctx, sel);
+        JS_FreeValue(ctx, qs);
+        JS_FreeValue(ctx, label_obj);
+        if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
+            return target;
+        }
+        JS_FreeValue(ctx, target);
+    } else {
+        JS_FreeValue(ctx, qs);
+        JS_FreeValue(ctx, label_obj);
+    }
     return JS_NULL;
 }
 
@@ -15265,7 +15379,7 @@ JSValue wisp_htmlinputelement_defaultValue_set_impl(JSContext *ctx, QJSNodePriva
 
 // Overrides: HTMLInputElement | labels (getter)
 JSValue wisp_htmlinputelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return get_element_labels_impl(ctx, priv);
 }
 
 // Overrides: HTMLInputElement | setRangeText()
