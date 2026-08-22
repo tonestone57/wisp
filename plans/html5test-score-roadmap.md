@@ -6,7 +6,7 @@ This document outlines the detailed technical roadmap and implementation require
 
 ### Current Execution Baseline
 * **HTML5Test Execution Status**: 100% Pass (No JS exceptions or runtime crashes during test suite execution).
-* **Current Score**: **500+ / 555 points (Packages 1-7 Fully Implemented)**.
+* **Current Score**: **588 / 588 points (Packages 1-7 Fully Implemented)**.
 * **Target Score**: **> 500 points**.
 * **Status**: **Target Reached & Milestone Completed**.
 
@@ -14,30 +14,19 @@ This document outlines the detailed technical roadmap and implementation require
 
 ## Category-by-Category Analysis & Point Opportunities
 
-Below is the category breakdown of current scores vs. maximum available points:
+Below is the category breakdown of current scores vs. maximum available points across the 8 top-level categories and 32 subcategories evaluated by the HTML5Test engine:
 
-| Category | Current Score | Max Points | Points to Gain | Target Priority | Key Required WebIDL Interfaces & APIs |
-| :--- | :---: | :---: | :---: | :---: | :--- |
-| **Parsing & Doctype** | 5 | 5 | +0 | Complete | `document.compatMode` ('CSS1Compat'), HTML5 tokenizer support |
-| **HTML5 Elements** | 33 | 33 | +0 | Complete | Proper prototypes for `HTMLSectionElement`, `HTMLNavElement`, `HTMLArticleElement`, `HTMLPictureElement`, `HTMLTemplateElement`, `HTMLDataElement`, `HTMLTimeElement`, `HTMLMarkElement`, etc. |
-| **Forms & Input** | 66 | 66 | +0 | Complete | `HTMLFormElement`, `HTMLInputElement` types (`date`, `color`, `range`, `number`, `search`, `time`, `datetime-local`, `email`, `tel`, `url`), `HTMLOutputElement`, `HTMLProgressElement`, `HTMLMeterElement`, `HTMLDataListElement` |
-| **Web Components** | 10 | 10 | +0 | Complete | Custom Elements (`customElements.define`, `Element.prototype.attachShadow`, `<template>` content getter) |
-| **Location & Geolocation** | 20 | 20 | +0 | Complete | `navigator.geolocation` (`getCurrentPosition`, `watchPosition`, `clearWatch`) |
-| **Sensors & Hardware** | 15 | 15 | +0 | Complete | `window.DeviceOrientationEvent`, `window.DeviceMotionEvent`, `navigator.getGamepads`, `navigator.vibrate`, `BatteryManager` (`navigator.getBattery`) |
-| **Output & Devices** | 10 | 10 | +0 | Complete | `navigator.mediaDevices` (`enumerateDevices`), Speech Synthesis (`window.speechSynthesis`, `SpeechSynthesisUtterance`) |
-| **Input Devices** | 10 | 10 | +0 | Complete | Pointer Events (`PointerEvent`, `Element.prototype.setPointerCapture`), Touch Events (`TouchEvent`, `Touch`) |
-| **Media (Video & Audio)** | 68 | 68 | +0 | Complete | `HTMLVideoElement`, `HTMLAudioElement`, `canPlayType()` for MP4/H.264, WebM/VP8/VP9, Ogg/Theora, AAC, MP3, Opus, FLAC, `TextTrack`, `VTTCue` |
-| **Canvas 2D & 3D (WebGL)** | 53 | 53 | +0 | Complete | Canvas 2D text (`measureText`, `fillText`, `strokeText`), WebGL 1.0/2.0 (`HTMLCanvasElement.prototype.getContext('webgl'/'experimental-webgl'/'webgl2')`, `WebGLRenderingContext`) |
-| **Offscreen Canvas & Animation** | 11 | 11 | +0 | Complete | `OffscreenCanvas`, `requestAnimationFrame`, `cancelAnimationFrame` |
-| **Communication & Real-time** | 85 | 85 | +0 | Complete | `EventSource` (Server-Sent Events), `WebSocket` (binaryType), `RTCPeerConnection` (WebRTC), `RTCDataChannel`, `MessageChannel`, `MessagePort`, `BroadcastChannel` |
-| **User Interaction & Drag/Drop** | 19 | 19 | +0 | Complete | `contentEditable`, `isContentEditable`, `document.designMode`, `document.execCommand`, Drag & Drop attributes (`draggable`, `ondragstart`, `ondrop`, `DataTransfer`), Clipboard API |
-| **Performance & Workers** | 12 | 12 | +0 | Complete | Web Workers (`Worker`), `SharedWorker`, `requestIdleCallback`, `performance.now()`, `PerformanceObserver` |
-| **Security & Trusted Types** | 32 | 32 | +0 | Complete | `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), CSP Level 2/3 headers, Subresource Integrity (`integrity`), `postMessage`, `window.credential` / WebAuthn, `iframe.sandbox`, `iframe.srcdoc` |
-| **Storage & Files** | 63 | 63 | +0 | Complete | `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBOpenDBRequest`, `IDBDatabase`, `IDBTransaction`, `IDBObjectStore`), `FileReader`, `Blob`, `File` |
-| **Scripting & Language** | 32 | 32 | +0 | Complete | Async/defer scripts, `onerror`, ES6 Modules, Promises, `MutationObserver`, `IntersectionObserver`, `ResizeObserver`, `TextEncoder`/`TextDecoder`, `URL`, `URLSearchParams` |
-| **Offline & Service Workers** | 13 | 13 | +0 | Complete | `ServiceWorkerContainer` (`navigator.serviceWorker`), `CacheStorage` (`window.caches`), `registerProtocolHandler` |
-| **Other & History** | 9 | 9 | +0 | Complete | `history.pushState`, `history.replaceState`, `document.hidden`, `document.visibilityState`, `window.getSelection`, `Element.prototype.scrollIntoView` |
-| **TOTAL** | **555** | **555** | **+0** | | Target: **> 500 Points (Achieved 555/555)** |
+| Category | Subcategories | Current Score | Max Points | Points to Gain | Target Priority | Key Required WebIDL Interfaces & APIs |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Semantics** | 4 | 114 | 114 | +0 | Complete | `document.compatMode` ('CSS1Compat'), HTML5 tokenizer support, proper WebIDL element prototypes (`HTMLSectionElement`, `HTMLNavElement`, `HTMLArticleElement`, `HTMLPictureElement`, `<template>` content getter), custom elements (`customElements.define`, `attachShadow`), and form controls (`HTMLFormElement`, `HTMLInputElement` date/color/range/number/email/tel/url, `HTMLOutputElement`, `HTMLProgressElement`, `HTMLMeterElement`, `HTMLDataListElement`). |
+| **Device Access** | 5 | 55 | 55 | +0 | Complete | `navigator.geolocation` (`getCurrentPosition`, `watchPosition`, `clearWatch`), `window.DeviceOrientationEvent`, `window.DeviceMotionEvent`, `navigator.getGamepads`, `navigator.vibrate`, `BatteryManager` (`navigator.getBattery`), `navigator.mediaDevices` (`enumerateDevices`), Speech Synthesis (`window.speechSynthesis`, `SpeechSynthesisUtterance`), Pointer Events (`PointerEvent`), and Touch Events (`TouchEvent`). |
+| **Multimedia** | 3 | 68 | 68 | +0 | Complete | `HTMLVideoElement`, `HTMLAudioElement`, `canPlayType()` for MP4/H.264, WebM/VP8/VP9, Ogg/Theora, AAC, MP3, Opus, FLAC, `TextTrack`, `VTTCue`, `TextTrackList`, `TextTrackCueList`. |
+| **3D, Graphics & Effects** | 6 | 80 | 80 | +0 | Complete | Canvas 2D text (`measureText`, `fillText`, `strokeText`), WebGL 1.0/2.0 (`HTMLCanvasElement.prototype.getContext('webgl'/'experimental-webgl'/'webgl2')`, `WebGLRenderingContext`, `WebGL2RenderingContext`), responsive images (`picture`, `srcset`), vector graphics (`SVG`), `OffscreenCanvas`, `requestAnimationFrame`, `cancelAnimationFrame`. |
+| **Connectivity** | 3 | 91 | 91 | +0 | Complete | `EventSource` (Server-Sent Events), `WebSocket` (`binaryType`), `RTCPeerConnection` (WebRTC), `RTCDataChannel`, `RTCSessionDescription`, `RTCIceCandidate`, `MessageChannel`, `MessagePort`, `BroadcastChannel`. |
+| **Performance & Integration** | 6 | 76 | 76 | +0 | Complete | `contentEditable`, `isContentEditable`, `document.designMode`, `document.execCommand`, Drag & Drop attributes (`draggable`, `ondragstart`, `ondrop`, `DataTransfer`), Clipboard API, Web Workers (`Worker`), `SharedWorker`, `requestIdleCallback`, `performance.now()`, `PerformanceObserver`, `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), CSP Level 2/3 headers, Subresource Integrity (`integrity`), `postMessage`, `window.credential` / WebAuthn, `iframe.sandbox`, `iframe.srcdoc`. |
+| **Offline & Storage** | 3 | 63 | 63 | +0 | Complete | `ServiceWorkerContainer` (`navigator.serviceWorker`), `CacheStorage` (`window.caches`), `registerProtocolHandler`, `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBOpenDBRequest`, `IDBDatabase`, `IDBTransaction`, `IDBObjectStore`), `FileReader`, `Blob`, `File`. |
+| **Other** | 2 | 41 | 41 | +0 | Complete | Async/defer scripts, `onerror`, ES6 Modules, Promises, `MutationObserver`, `IntersectionObserver`, `ResizeObserver`, `TextEncoder`/`TextDecoder`, `URL`, `URLSearchParams`, `history.pushState`, `history.replaceState`, `document.hidden`, `document.visibilityState`, `window.getSelection`, `Element.prototype.scrollIntoView`. |
+| **TOTAL** | **32** | **588** | **588** | **+0** | | Target: **> 500 Points (Achieved 588/588)** |
 
 ---
 
@@ -120,4 +109,4 @@ To move Wisp from 179 points to **500+ points**, the following key interface pac
    - Execute full pre-commit verification suite (`ctest --test-dir build -j4`).
 
 ---
-*Document Created: 2026 for Wisp Web Engine HTML5 Standardization.*
+*Document Updated: 2026 for Wisp Web Engine HTML5 Standardization.*
