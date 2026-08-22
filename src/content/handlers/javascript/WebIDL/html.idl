@@ -585,6 +585,11 @@ interface TextTrackCue : EventTarget {
   attribute EventHandler onexit;
 };
 
+[Constructor(double startTime, double endTime, DOMString text)]
+interface VTTCue : TextTrackCue {
+  attribute DOMString text;
+};
+
 interface TimeRanges {
   readonly attribute unsigned long length;
   double start(unsigned long index);

@@ -1015,26 +1015,30 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
     uint8_t *data = malloc(size);
     if (!data) return JS_ThrowOutOfMemory(ctx);
 
-    uint8_t *src_buf = guit->bitmap->get_buffer(cpriv->bitmap);
-    int src_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
-    int src_w = guit->bitmap->get_width(cpriv->bitmap);
-    int src_h = guit->bitmap->get_height(cpriv->bitmap);
+    if (guit && guit->bitmap && cpriv->bitmap) {
+        uint8_t *src_buf = guit->bitmap->get_buffer(cpriv->bitmap);
+        int src_stride = guit->bitmap->get_rowstride(cpriv->bitmap);
+        int src_w = guit->bitmap->get_width(cpriv->bitmap);
+        int src_h = guit->bitmap->get_height(cpriv->bitmap);
 
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-            int cur_x = (int)sx + x;
-            int cur_y = (int)sy + y;
-            if (cur_x >= 0 && cur_x < src_w && cur_y >= 0 && cur_y < src_h) {
-                uint32_t *pixel = (uint32_t *)(src_buf + cur_y * src_stride + cur_x * 4);
-                uint32_t rgba = *pixel;
-                data[(y * w + x) * 4 + 0] = (rgba >> 16) & 0xFF;
-                data[(y * w + x) * 4 + 1] = (rgba >> 8) & 0xFF;
-                data[(y * w + x) * 4 + 2] = rgba & 0xFF;
-                data[(y * w + x) * 4 + 3] = (rgba >> 24) & 0xFF;
-            } else {
-                memset(data + (y * w + x) * 4, 0, 4);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int cur_x = (int)sx + x;
+                int cur_y = (int)sy + y;
+                if (cur_x >= 0 && cur_x < src_w && cur_y >= 0 && cur_y < src_h) {
+                    uint32_t *pixel = (uint32_t *)(src_buf + cur_y * src_stride + cur_x * 4);
+                    uint32_t rgba = *pixel;
+                    data[(y * w + x) * 4 + 0] = (rgba >> 16) & 0xFF;
+                    data[(y * w + x) * 4 + 1] = (rgba >> 8) & 0xFF;
+                    data[(y * w + x) * 4 + 2] = rgba & 0xFF;
+                    data[(y * w + x) * 4 + 3] = (rgba >> 24) & 0xFF;
+                } else {
+                    memset(data + (y * w + x) * 4, 0, 4);
+                }
             }
         }
+    } else {
+        memset(data, 0, size);
     }
 
     JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);

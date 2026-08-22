@@ -388,17 +388,10 @@ JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSVa
             free(timer);
             return JS_ThrowInternalError(ctx, "Failed to schedule timer");
         }
-    } else if (wisp_is_js_process || guit == NULL || guit->misc == NULL) {
+    } else {
         uint64_t now = 0;
         nsu_getmonotonic_ms(&now);
         timer->scheduled_time = now + timeout;
-    } else {
-        NSLOG(wisp, WARNING, "No GUI scheduler available for timers");
-        t->timers = timer->next;
-        JS_FreeValue(ctx, timer->func);
-        JS_FreeValue(ctx, timer->arguments);
-        free(timer);
-        return JS_UNDEFINED;
     }
 
     return JS_NewInt32(ctx, timer->id);
@@ -498,16 +491,10 @@ static JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, i
             free(raf);
             return JS_ThrowInternalError(ctx, "Failed to schedule requestAnimationFrame");
         }
-    } else if (wisp_is_js_process || guit == NULL || guit->misc == NULL) {
+    } else {
         uint64_t now = 0;
         nsu_getmonotonic_ms(&now);
         raf->scheduled_time = now + 16;
-    } else {
-        NSLOG(wisp, WARNING, "No GUI scheduler available for requestAnimationFrame");
-        t->raf_callbacks = raf->next;
-        JS_FreeValue(ctx, raf->func);
-        free(raf);
-        return JS_UNDEFINED;
     }
 
     return JS_NewInt32(ctx, raf->id);
@@ -589,16 +576,10 @@ static JSValue js_requestIdleCallback(JSContext *ctx, JSValueConst this_val, int
             free(idle);
             return JS_ThrowInternalError(ctx, "Failed to schedule requestIdleCallback");
         }
-    } else if (wisp_is_js_process) {
+    } else {
         uint64_t now = 0;
         nsu_getmonotonic_ms(&now);
         idle->scheduled_time = now + delay;
-    } else {
-        NSLOG(wisp, WARNING, "No GUI scheduler available for requestIdleCallback");
-        t->idle_callbacks = idle->next;
-        JS_FreeValue(ctx, idle->func);
-        free(idle);
-        return JS_UNDEFINED;
     }
 
     return JS_NewInt32(ctx, idle->id);

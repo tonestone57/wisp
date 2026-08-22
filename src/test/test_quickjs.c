@@ -150,6 +150,103 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_output_and_devices)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: MediaDevices & enumerateDevices
+    const char *code1 = "try {\n"
+                        "  if (!(navigator.mediaDevices instanceof MediaDevices)) throw new Error('mediaDevices not instance of MediaDevices');\n"
+                        "  if (typeof navigator.mediaDevices.enumerateDevices !== 'function') throw new Error('enumerateDevices not a function');\n"
+                        "  window.devicesResult = 'PENDING';\n"
+                        "  navigator.mediaDevices.enumerateDevices().then(function(devs) {\n"
+                        "    if (!Array.isArray(devs) || devs.length === 0) throw new Error('enumerateDevices returned empty array');\n"
+                        "    if (!devs[0].kind || !devs[0].label) throw new Error('device object missing kind/label');\n"
+                        "    window.devicesResult = 'OK';\n"
+                        "  }).catch(function(err) {\n"
+                        "    window.devicesResult = 'ERROR: ' + err.message;\n"
+                        "  });\n"
+                        "  window.testRes1 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes1 = e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "window.testRes1 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_enumerate_devices");
+    ck_assert(result == true);
+
+    // Drain microtasks / timers
+    JSContext *ctx1;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+
+    const char *verify_devs = "window.devicesResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)verify_devs, strlen(verify_devs), "verify_enumerate_devices");
+    ck_assert(result == true);
+
+    // Test 2: SpeechSynthesis & SpeechSynthesisUtterance APIs
+    const char *code2 = "try {\n"
+                        "  if (typeof window.SpeechSynthesis === 'undefined') throw new Error('SpeechSynthesis missing');\n"
+                        "  if (typeof window.SpeechSynthesisUtterance === 'undefined') throw new Error('SpeechSynthesisUtterance missing');\n"
+                        "  if (typeof window.speechSynthesis === 'undefined') throw new Error('speechSynthesis missing');\n"
+                        "  if (!(window.speechSynthesis instanceof SpeechSynthesis)) throw new Error('speechSynthesis not instance of SpeechSynthesis');\n"
+                        "\n"
+                        "  var voices = speechSynthesis.getVoices();\n"
+                        "  if (!Array.isArray(voices) || voices.length === 0) throw new Error('getVoices returned empty array');\n"
+                        "  if (!voices[0].name || !voices[0].lang) throw new Error('voice object missing name/lang');\n"
+                        "\n"
+                        "  var utt = new SpeechSynthesisUtterance('Hello Wisp Engine');\n"
+                        "  if (utt.text !== 'Hello Wisp Engine') throw new Error('Utterance text mismatch: ' + utt.text);\n"
+                        "  if (!(utt instanceof SpeechSynthesisUtterance)) throw new Error('utt not instance of SpeechSynthesisUtterance');\n"
+                        "\n"
+                        "  window.speechResult = 'PENDING';\n"
+                        "  utt.onstart = function(e) {\n"
+                        "    window.speechStart = true;\n"
+                        "  };\n"
+                        "  utt.onend = function(e) {\n"
+                        "    if (window.speechStart) window.speechResult = 'OK';\n"
+                        "    else window.speechResult = 'start_not_fired';\n"
+                        "  };\n"
+                        "  speechSynthesis.speak(utt);\n"
+                        "  window.testRes2 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes2 = e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "window.testRes2 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_speech_synthesis");
+    ck_assert(result == true);
+
+    // Drain microtasks / timers
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_data;
+    run_mock_tasks();
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+    run_mock_tasks();
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1) != 0);
+    guit = saved_guit;
+
+    const char *verify_speech = "window.speechResult === 'OK';";
+    result = js_exec(thread, (const uint8_t *)verify_speech, strlen(verify_speech), "verify_speech");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_parsing_doctype)
 {
     jsheap *heap = NULL;
@@ -2049,6 +2146,10 @@ START_TEST(test_quickjs_webidl_stubs)
         "    video.playbackRate = 1.5;\n"
         "    if (video.playbackRate !== 1.5) throw new Error('video.playbackRate failed');\n"
         "    if (video.canPlayType('video/mp4') !== 'maybe') throw new Error('video.canPlayType failed');\n"
+        "    if (video.canPlayType('video/vp8') !== 'maybe') throw new Error('video.canPlayType vp8 mime failed');\n"
+        "    if (video.canPlayType('video/vp9') !== 'maybe') throw new Error('video.canPlayType vp9 mime failed');\n"
+        "    if (video.canPlayType('video/mp4; codecs=\"av01.0.08M.08\"') !== 'probably') throw new Error('video.canPlayType av1 failed');\n"
+        "    if (video.canPlayType('video/mp4; codecs=\"av02.0.08M.08\"') !== 'probably') throw new Error('video.canPlayType av2 failed');\n"
         "    video.load();\n"
         "    video.play();\n"
         "    video.pause();\n"
@@ -2290,9 +2391,37 @@ START_TEST(test_quickjs_webidl_stubs)
         "        // 5. BroadcastChannel Tests\n"
         "        var bc = new BroadcastChannel(\'test-channel\');\n"
         "        bc.postMessage(\'hello\');\n"
-        "        if (bc.name !== \'\') throw new Error(\'BroadcastChannel name failed\');\n"
+        "        if (bc.name !== 'test-channel') throw new Error('BroadcastChannel name failed');\n"
         "        if (bc.onmessage !== null) throw new Error(\'BroadcastChannel onmessage failed\');\n"
         "        bc.close();\n"
+        "    \n"
+        "        // 6. EventSource Tests\n"
+        "        var es = new EventSource('http://example.com/sse');\n"
+        "        if (es.url !== 'http://example.com/sse') throw new Error('EventSource url failed');\n"
+        "        if (es.readyState !== 0) throw new Error('EventSource readyState failed');\n"
+        "        if (es.withCredentials !== false) throw new Error('EventSource withCredentials failed');\n"
+        "        if (EventSource.CONNECTING !== 0 || EventSource.OPEN !== 1 || EventSource.CLOSED !== 2) throw new Error('EventSource constants failed');\n"
+        "        es.close();\n"
+        "    \n"
+        "        // 7. WebSocket Tests\n"
+        "        var ws = new WebSocket('ws://example.com/socket');\n"
+        "        if (ws.url !== 'ws://example.com/socket') throw new Error('WebSocket url failed');\n"
+        "        if (ws.binaryType !== 'blob') throw new Error('WebSocket default binaryType failed');\n"
+        "        ws.binaryType = 'arraybuffer';\n"
+        "        if (ws.binaryType !== 'arraybuffer') throw new Error('WebSocket binaryType setter failed');\n"
+        "        if (ws.readyState !== 0) throw new Error('WebSocket readyState failed');\n"
+        "        if (WebSocket.CONNECTING !== 0 || WebSocket.OPEN !== 1 || WebSocket.CLOSING !== 2 || WebSocket.CLOSED !== 3) throw new Error('WebSocket constants failed');\n"
+        "        ws.close();\n"
+        "    \n"
+        "        // 8. WebRTC & DataChannel Tests\n"
+        "        if (!window.RTCPeerConnection || !window.webkitRTCPeerConnection) throw new Error('RTCPeerConnection window availability failed');\n"
+        "        var pc = new RTCPeerConnection(null);\n"
+        "        if (typeof pc.createOffer !== 'function') throw new Error('RTCPeerConnection createOffer failed');\n"
+        "        if (typeof pc.createDataChannel !== 'function') throw new Error('RTCPeerConnection createDataChannel failed');\n"
+        "        var dc = pc.createDataChannel('test-dc');\n"
+        "        if (dc.label !== 'test-dc') throw new Error('RTCDataChannel label failed');\n"
+        "        if (dc.binaryType !== 'blob') throw new Error('RTCDataChannel binaryType failed');\n"
+        "        pc.close();\n"
         "    \n"
         "        // 6. HTMLButtonElement Tests\n"
         "        var btn = document.createElement(\'button\');\n"
@@ -4882,6 +5011,42 @@ START_TEST(test_quickjs_shadow_dom)
 }
 END_TEST
 
+START_TEST(test_quickjs_performance_and_workers)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var hasWorker = typeof Worker === 'function';\n"
+        "var hasSharedWorker = typeof SharedWorker === 'function';\n"
+        "var sw = new SharedWorker('mock.js');\n"
+        "var hasPort = sw && sw.port && typeof sw.port === 'object';\n"
+        "var hasRIC = typeof requestIdleCallback === 'function' && typeof cancelIdleCallback === 'function';\n"
+        "var hasPerfNow = performance && typeof performance.now === 'function' && performance.now() >= 0;\n"
+        "var hasObserver = typeof PerformanceObserver === 'function';\n"
+        "hasWorker && hasSharedWorker && hasPort && hasRIC && hasPerfNow && hasObserver;";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_performance_and_workers");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+
 START_TEST(test_quickjs_ric)
 {
     jsheap *heap = NULL;
@@ -5382,6 +5547,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
     tcase_add_test(tc_event_loop, test_quickjs_raf);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
+    tcase_add_test(tc_event_loop, test_quickjs_performance_and_workers);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
     tcase_add_test(tc_event_loop, test_quickjs_tier1_apis);
     tcase_add_test(tc_event_loop, test_quickjs_shadow_dom);
@@ -5389,6 +5555,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_custom_elements);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
