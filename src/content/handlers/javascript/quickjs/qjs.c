@@ -1289,15 +1289,11 @@ void js_destroyheap(jsheap *heap)
     }
     pthread_mutex_unlock(&global_heaps_mutex);
 
-    /* Orphans and nullifies any active threads associated with this heap */
-    struct jsthread *t = heap->threads;
-    while (t != NULL) {
-        t->closed = true;
-        t->ctx = NULL;
-        t->heap = NULL;
-        t = t->next_in_heap;
+    /* Safely destroy remaining active threads associated with this heap */
+    while (heap->threads != NULL) {
+        struct jsthread *t = heap->threads;
+        js_destroythread(t);
     }
-    heap->threads = NULL;
 
     if (heap->rt) {
         /* Clean up the DOM bridge first while the runtime opaque is still valid.
@@ -1305,8 +1301,6 @@ void js_destroyheap(jsheap *heap)
         qjs_bridge_cleanup(heap->rt);
         JS_RunGC(heap->rt);
         JS_RunGC(heap->rt);
-        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
-         * Explicitly free GC objects that might be pending after bridge cleanup. */
         JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_FreeRuntime(heap->rt);
     }
@@ -5746,14 +5740,15 @@ bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct do
     dom_event *evt = NULL;
     dom_event_create(&evt);
     bool success = false;
-    if (evt) {
-        dom_event_init(evt, type_str, true, cancelable);
+    if (evt && type_str) {
+        dom_event_init(evt, type_str, true, true);
         dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
         dom_event_unref(evt);
     } else {
         NSLOG(wisp, ERROR, "js_fire_event: Failed to create dom_event");
     }
-    dom_string_unref(type_str);
+    if (type_str)
+        dom_string_unref(type_str);
     return success;
 }
 
