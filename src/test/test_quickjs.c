@@ -251,7 +251,6 @@ START_TEST(test_quickjs_browseraudit_chartjs_full)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
-    if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
     corestrings_fini();
 }
@@ -5077,7 +5076,83 @@ START_TEST(test_quickjs_canvas_gradient)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
-    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+    corestrings_fini();
+}
+END_TEST
+
+START_TEST(test_quickjs_canvas_path2d_and_text)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    corestrings_init();
+    js_initialise();
+    js_newheap(5, &heap);
+    dom_document *doc = create_test_document();
+    js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+
+    const char *script =
+        "let canvas = document.createElement('canvas');\n"
+        "canvas.width = 200; canvas.height = 100;\n"
+        "let ctx = canvas.getContext('2d');\n"
+        "\n"
+        "// 1. Path2D Constructor & Overload Resolution\n"
+        "if (typeof Path2D !== 'function') throw new Error('Path2D constructor missing');\n"
+        "let p1 = new Path2D();\n"
+        "p1.rect(10, 10, 50, 50);\n"
+        "let p2 = new Path2D(p1);\n"
+        "p2.lineTo(100, 100);\n"
+        "p1.addPath(p2);\n"
+        "\n"
+        "ctx.fill();\n"
+        "ctx.fill('evenodd');\n"
+        "ctx.fill(p1);\n"
+        "ctx.fill(p1, 'evenodd');\n"
+        "ctx.stroke(p1);\n"
+        "\n"
+        "// 2. TextMetrics & Canvas Text Support\n"
+        "let m1 = ctx.measureText('Hello Canvas');\n"
+        "if (!(m1 instanceof TextMetrics) && typeof m1 !== 'object') throw new Error('measureText invalid return type');\n"
+        "if (typeof m1.width !== 'number' || m1.width <= 0) throw new Error('TextMetrics.width invalid');\n"
+        "if (typeof m1.fontBoundingBoxAscent !== 'number') throw new Error('TextMetrics.fontBoundingBoxAscent invalid');\n"
+        "if (typeof m1.fontBoundingBoxDescent !== 'number') throw new Error('TextMetrics.fontBoundingBoxDescent invalid');\n"
+        "\n"
+        "// String Coercion for measureText\n"
+        "let mNum = ctx.measureText(12345);\n"
+        "if (typeof mNum.width !== 'number') throw new Error('measureText numeric coercion failed');\n"
+        "let mEmpty = ctx.measureText('');\n"
+        "if (typeof mEmpty.width !== 'number') throw new Error('measureText empty string coercion failed');\n"
+        "\n"
+        "// Execution Guards for non-finite coordinates\n"
+        "ctx.fillText('test', NaN, 50);\n"
+        "ctx.strokeText('test', 50, Infinity);\n"
+        "\n"
+        "// 3. toDataURL MIME Type Handling & Fallbacks\n"
+        "let pngData = canvas.toDataURL('image/png');\n"
+        "if (!pngData.startsWith('data:image/png')) throw new Error('toDataURL png failed');\n"
+        "let jpegData = canvas.toDataURL('image/jpeg', 0.8);\n"
+        "if (!jpegData.startsWith('data:image/jpeg')) throw new Error('toDataURL jpeg failed');\n"
+        "let webpData = canvas.toDataURL('image/webp', 0.5);\n"
+        "if (!webpData.startsWith('data:image/webp')) throw new Error('toDataURL webp failed');\n"
+        "let fallbackData = canvas.toDataURL('image/unsupported-format');\n"
+        "if (!fallbackData.startsWith('data:image/png')) throw new Error('toDataURL fallback failed');\n"
+        "\n"
+        "// Zero-dimension canvas handling\n"
+        "let c0 = document.createElement('canvas');\n"
+        "c0.width = 0; c0.height = 0;\n"
+        "if (c0.toDataURL() !== 'data:,') throw new Error('Zero-dimension canvas toDataURL failed');\n"
+        "1;";
+
+    result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_canvas_path2d_and_text");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
     js_finalise();
     corestrings_fini();
 }
@@ -6390,6 +6465,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_css_stylesheet);
     tcase_add_test(tc_window, test_quickjs_canvas_imagedata);
     tcase_add_test(tc_window, test_quickjs_canvas_gradient);
+    tcase_add_test(tc_window, test_quickjs_canvas_path2d_and_text);
     tcase_add_test(tc_window, test_quickjs_webgl_support);
     tcase_add_test(tc_window, test_quickjs_observers);
     tcase_add_test(tc_window, test_quickjs_performance_timeline);
