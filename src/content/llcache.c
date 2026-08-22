@@ -2518,6 +2518,7 @@ nserror llcache_handle_retrieve_buffer(nsurl *url, const uint8_t *data, size_t l
 
     llcache_object_add_user(obj, user);
     llcache_object_add_to_list(obj, &llcache->uncached_objects);
+    llcache_users_not_caught_up();
     *result = user->handle;
     return NSERROR_OK;
 }
