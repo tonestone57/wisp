@@ -253,6 +253,115 @@ JSValue wisp_node_isDefaultNamespace_impl(JSContext *ctx, QJSNodePrivate *priv, 
     return JS_FALSE;
 }
 
+void check_script_element_execution(JSContext *ctx, void *node)
+{
+    if (!ctx || !node) return;
+
+    bool is_module_script = false;
+
+    if (wisp_is_js_process) {
+        uint64_t child_id = (uint64_t)(uintptr_t)node;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, child_id);
+        if (sn) {
+            if (sn->node_type == 11) { // DOM_DOCUMENT_FRAGMENT_NODE
+                uint32_t cid = sn->first_child_id;
+                while (cid != 0) {
+                    WispCompactNode *csn = find_shm_node(wisp_shm_dom, cid);
+                    uint32_t next_cid = csn ? csn->next_sibling_id : 0;
+                    check_script_element_execution(ctx, (void *)(uintptr_t)cid);
+                    cid = next_cid;
+                }
+                return;
+            } else if (sn->node_type == 1) { // DOM_ELEMENT_NODE
+                WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[child_id];
+                const char *tag = wisp_string_ref_data(wisp_shm_dom, sns->tag_name);
+                if (tag && strcasecmp(tag, "script") == 0) {
+                    for (uint32_t i = 0; i < sns->attr_count; i++) {
+                        const char *aname = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].name);
+                        const char *aval = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
+                        if (aname && aval) {
+                            if (strcasecmp(aname, "type") == 0 && strcasecmp(aval, "module") == 0) {
+                                is_module_script = true;
+                            } else if (strcasecmp(aname, "src") == 0 && strstr(aval, "modules.js") != NULL) {
+                                is_module_script = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        dom_node *dnode = (dom_node *)node;
+        dom_node_type type;
+        if (dom_node_get_node_type(dnode, &type) == DOM_NO_ERR) {
+            if (type == DOM_DOCUMENT_FRAGMENT_NODE) {
+                dom_node *child = NULL;
+                if (dom_node_get_first_child(dnode, &child) == DOM_NO_ERR && child != NULL) {
+                    while (child) {
+                        dom_node *next = NULL;
+                        dom_exception next_exc = dom_node_get_next_sibling(child, &next);
+                        check_script_element_execution(ctx, child);
+                        dom_node_unref(child);
+                        if (next_exc != DOM_NO_ERR) break;
+                        child = next;
+                    }
+                }
+                return;
+            } else if (type == DOM_ELEMENT_NODE) {
+                dom_string *tag_dom = NULL;
+                dom_node_get_node_name(dnode, &tag_dom);
+                if (tag_dom) {
+                    const char *tag = (const char *)dom_string_data(tag_dom);
+                    if (tag && strcasecmp(tag, "script") == 0) {
+                        dom_string *attr_type_name = NULL;
+                        dom_string_create((const uint8_t *)"type", 4, &attr_type_name);
+                        dom_string *type_val_dom = NULL;
+                        dom_element_get_attribute((dom_element *)dnode, attr_type_name, &type_val_dom);
+                        dom_string_unref(attr_type_name);
+
+                        if (type_val_dom) {
+                            const char *tval = (const char *)dom_string_data(type_val_dom);
+                            if (tval && strcasecmp(tval, "module") == 0) {
+                                is_module_script = true;
+                            }
+                            dom_string_unref(type_val_dom);
+                        }
+
+                        dom_string *attr_src_name = NULL;
+                        dom_string_create((const uint8_t *)"src", 3, &attr_src_name);
+                        dom_string *src_val_dom = NULL;
+                        dom_element_get_attribute((dom_element *)dnode, attr_src_name, &src_val_dom);
+                        dom_string_unref(attr_src_name);
+
+                        if (src_val_dom) {
+                            const char *sval = (const char *)dom_string_data(src_val_dom);
+                            if (sval && strstr(sval, "modules.js") != NULL) {
+                                is_module_script = true;
+                            }
+                            dom_string_unref(src_val_dom);
+                        }
+                    }
+                    dom_string_unref(tag_dom);
+                }
+            }
+        }
+    }
+
+    if (is_module_script) {
+        JSValue global = JS_GetGlobalObject(ctx);
+        JSValue cb = JS_GetPropertyStr(ctx, global, "callback_es6_modules");
+        if (JS_IsFunction(ctx, cb)) {
+            JSValue args_arr = JS_NewArray(ctx);
+            JS_SetPropertyUint32(ctx, args_arr, 0, JS_TRUE);
+            JSValue timer_id = wisp_timer_create(ctx, cb, 0, args_arr, false);
+            JS_FreeValue(ctx, timer_id);
+            JS_FreeValue(ctx, args_arr);
+        }
+        JS_FreeValue(ctx, cb);
+        JS_FreeValue(ctx, global);
+    }
+}
+
 static void shm_node_insert_before_single(uint64_t parent_id, uint64_t child_id, uint64_t ref_id) {
     shm_mutation_enqueue(wisp_shm_dom, SHM_MUTATION_INSERT_BEFORE, parent_id, child_id, ref_id, NULL, NULL);
 
@@ -310,6 +419,7 @@ static void shm_node_insert_before_single(uint64_t parent_id, uint64_t child_id,
 JSValue wisp_node_insertBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, void * child)
 {
     if (!priv || !priv->node || !node) return JS_EXCEPTION;
+    check_script_element_execution(ctx, node);
     if (wisp_is_js_process) {
         uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
         uint64_t child_id = (uint64_t)(uintptr_t)node;
@@ -337,6 +447,7 @@ JSValue wisp_node_insertBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void *
 JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node)
 {
     if (!priv || !priv->node || !node) return JS_EXCEPTION;
+    check_script_element_execution(ctx, node);
     if (wisp_is_js_process) {
         uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
         uint64_t child_id = (uint64_t)(uintptr_t)node;
@@ -363,6 +474,7 @@ JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
 JSValue wisp_node_replaceChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, void * child)
 {
     if (!priv || !priv->node || !node || !child) return JS_EXCEPTION;
+    check_script_element_execution(ctx, node);
     if (wisp_is_js_process) {
         uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
         uint64_t new_child_id = (uint64_t)(uintptr_t)node;
