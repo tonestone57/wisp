@@ -374,6 +374,19 @@ static JSValue custom_domtokenlist_toggle(JSContext *ctx, JSValueConst this_val,
     return JS_NewBool(ctx, result_present);
 }
 
+JSValue wisp_domtokenlist_supports_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type)
+{
+    (void)priv;
+    if (!type) return JS_FALSE;
+    if (strcasecmp(type, "preload") == 0 ||
+        strcasecmp(type, "prefetch") == 0 ||
+        strcasecmp(type, "dns-prefetch") == 0 ||
+        strcasecmp(type, "preconnect") == 0) {
+        return JS_TRUE;
+    }
+    return JS_FALSE;
+}
+
 JSValue qjs_new_domtokenlist(JSContext *ctx, void *node, bool is_dom_node)
 {
     JSValue obj = JS_NewObjectClass(ctx, qjs_domtokenlist_class_id);
