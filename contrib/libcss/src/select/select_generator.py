@@ -740,7 +740,7 @@ class CSSGroup:
                         vt, vn = shift_star(v.type, v.name + v.suffix)
                         # For calc-enabled values, need cast for union type
                         if v.calc:
-                            default_val = '(css_fixed_or_calc)0'
+                            default_val = '(css_fixed_or_calc){ 0 }'
                         else:
                             default_val = v.defaults if v.defaults and v.defaults != 'NULL' else '0'
                         t.append('{} = {};'.format(vn, default_val))
@@ -943,7 +943,7 @@ class CSSGroup:
 
     def print_destroy(self, t, p):
         if p.has_calc:
-            t.append("set_{}(style, 0, (css_fixed_or_calc)0, CSS_UNIT_PX);".format(p.name))
+            t.append("set_{}(style, 0, (css_fixed_or_calc){{ 0 }}, CSS_UNIT_PX);".format(p.name))
         else:
             t.append("/* set_{}(style, 0, 0, CSS_UNIT_PX); */".format(p.name))
 

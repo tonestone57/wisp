@@ -1243,7 +1243,7 @@ static inline css_error set_flex_basis(css_computed_style *style, uint8_t type,
 
 	/* Normalize value fields for consistent memcmp in arena */
 	if (((uint32_t)type & 0x3) != CSS_FLEX_BASIS_SET) {
-		length = (css_fixed_or_calc)0;
+		length = (css_fixed_or_calc){ 0 };
 		unit = CSS_UNIT_PX;
 	}
 
@@ -2965,7 +2965,7 @@ static inline css_error set_width(css_computed_style *style, uint8_t type,
 
 	/* Normalize value fields for consistent memcmp in arena */
 	if (((uint32_t)type & 0x3) != CSS_WIDTH_SET) {
-		length = (css_fixed_or_calc)0;
+		length = (css_fixed_or_calc){ 0 };
 		unit = CSS_UNIT_PX;
 	}
 
