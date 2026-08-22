@@ -6067,12 +6067,47 @@ JSValue wisp_document_lastModified_get_impl(JSContext *ctx, QJSNodePrivate *priv
 
 JSValue wisp_document_designMode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!priv || !priv->node) return JS_NewString(ctx, "off");
-    return get_element_str_attr(ctx, priv, "designMode", "off");
+    JSValue doc_elem = wisp_document_documentElement_get_impl(ctx, priv);
+    if (JS_IsObject(doc_elem)) {
+        QJSNodePrivate *elem_priv = qjs_get_dom_priv(ctx, doc_elem);
+        if (elem_priv) {
+            JSValue val = wisp_element_getAttribute_impl(ctx, elem_priv, "designMode");
+            if (JS_IsString(val)) {
+                const char *str = JS_ToCString(ctx, val);
+                JS_FreeValue(ctx, val);
+                if (str) {
+                    bool is_on = (strcasecmp(str, "on") == 0);
+                    JS_FreeCString(ctx, str);
+                    JS_FreeValue(ctx, doc_elem);
+                    return JS_NewString(ctx, is_on ? "on" : "off");
+                }
+            } else {
+                JS_FreeValue(ctx, val);
+            }
+        }
+        JS_FreeValue(ctx, doc_elem);
+    } else {
+        JS_FreeValue(ctx, doc_elem);
+    }
+    return JS_NewString(ctx, "off");
 }
 
 JSValue wisp_document_designMode_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
-    set_element_str_attr(ctx, priv, "designMode", value);
+    JSValue doc_elem = wisp_document_documentElement_get_impl(ctx, priv);
+    if (JS_IsObject(doc_elem)) {
+        QJSNodePrivate *elem_priv = qjs_get_dom_priv(ctx, doc_elem);
+        if (elem_priv) {
+            if (strcasecmp(value, "on") == 0) {
+                wisp_element_setAttribute_impl(ctx, elem_priv, "designMode", "on");
+            } else if (strcasecmp(value, "off") == 0) {
+                wisp_element_setAttribute_impl(ctx, elem_priv, "designMode", "off");
+            }
+        }
+        JS_FreeValue(ctx, doc_elem);
+    } else {
+        JS_FreeValue(ctx, doc_elem);
+    }
     return JS_UNDEFINED;
 }
 
@@ -7438,11 +7473,39 @@ JSValue wisp_htmlelement_commandType_get_impl(JSContext *ctx, QJSNodePrivate *pr
 }
 
 JSValue wisp_htmlelement_contentEditable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return get_element_str_attr(ctx, priv, "contenteditable", "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "inherit");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "contenteditable");
+    if (!JS_IsString(val)) {
+        JS_FreeValue(ctx, val);
+        return JS_NewString(ctx, "inherit");
+    }
+    const char *str = JS_ToCString(ctx, val);
+    JS_FreeValue(ctx, val);
+    if (!str) return JS_NewString(ctx, "inherit");
+
+    JSValue res;
+    if (strcasecmp(str, "true") == 0 || str[0] == '\0' || strcasecmp(str, "contenteditable") == 0) {
+        res = JS_NewString(ctx, "true");
+    } else if (strcasecmp(str, "false") == 0) {
+        res = JS_NewString(ctx, "false");
+    } else {
+        res = JS_NewString(ctx, "inherit");
+    }
+    JS_FreeCString(ctx, str);
+    return res;
 }
 
 JSValue wisp_htmlelement_contentEditable_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
-    set_element_str_attr(ctx, priv, "contenteditable", value);
+    if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    if (strcasecmp(value, "inherit") == 0) {
+        wisp_element_removeAttribute_impl(ctx, priv, "contenteditable");
+    } else if (strcasecmp(value, "true") == 0 || value[0] == '\0') {
+        set_element_str_attr(ctx, priv, "contenteditable", "true");
+    } else if (strcasecmp(value, "false") == 0) {
+        set_element_str_attr(ctx, priv, "contenteditable", "false");
+    } else {
+        return JS_ThrowSyntaxError(ctx, "The contentEditable attribute value must be 'true', 'false', or 'inherit'");
+    }
     return JS_UNDEFINED;
 }
 
@@ -7460,11 +7523,59 @@ JSValue wisp_htmlelement_dataset_get_impl(JSContext *ctx, QJSNodePrivate *priv) 
 }
 
 JSValue wisp_htmlelement_draggable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return get_element_bool_attr(ctx, priv, "draggable");
+    if (!priv || !priv->node) return JS_FALSE;
+
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "draggable");
+    if (JS_IsString(val)) {
+        const char *str = JS_ToCString(ctx, val);
+        JS_FreeValue(ctx, val);
+        if (str) {
+            if (strcasecmp(str, "true") == 0) {
+                JS_FreeCString(ctx, str);
+                return JS_TRUE;
+            }
+            if (strcasecmp(str, "false") == 0) {
+                JS_FreeCString(ctx, str);
+                return JS_FALSE;
+            }
+            JS_FreeCString(ctx, str);
+        }
+    } else {
+        JS_FreeValue(ctx, val);
+    }
+
+    // Default 'auto' behavior: true for <a> with href or <img> with src
+    JSValue tag_val = wisp_element_tagName_get_impl(ctx, priv);
+    if (JS_IsString(tag_val)) {
+        const char *tag = JS_ToCString(ctx, tag_val);
+        JS_FreeValue(ctx, tag_val);
+        if (tag) {
+            if (strcasecmp(tag, "A") == 0) {
+                JS_FreeCString(ctx, tag);
+                JSValue href_val = wisp_element_getAttribute_impl(ctx, priv, "href");
+                bool has_href = JS_IsString(href_val) && !JS_IsNull(href_val);
+                JS_FreeValue(ctx, href_val);
+                return has_href ? JS_TRUE : JS_FALSE;
+            }
+            if (strcasecmp(tag, "IMG") == 0) {
+                JS_FreeCString(ctx, tag);
+                JSValue src_val = wisp_element_getAttribute_impl(ctx, priv, "src");
+                bool has_src = JS_IsString(src_val) && !JS_IsNull(src_val);
+                JS_FreeValue(ctx, src_val);
+                return has_src ? JS_TRUE : JS_FALSE;
+            }
+            JS_FreeCString(ctx, tag);
+        }
+    } else {
+        JS_FreeValue(ctx, tag_val);
+    }
+
+    return JS_FALSE;
 }
 
 JSValue wisp_htmlelement_draggable_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
-    set_element_bool_attr(ctx, priv, "draggable", value);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    set_element_str_attr(ctx, priv, "draggable", value ? "true" : "false");
     return JS_UNDEFINED;
 }
 
@@ -7473,7 +7584,79 @@ JSValue wisp_htmlelement_dropzone_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 }
 
 JSValue wisp_htmlelement_isContentEditable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return get_element_str_attr(ctx, priv, "iscontenteditable", "");
+    if (!priv || !priv->node) return JS_FALSE;
+
+    QJSNodePrivate *curr = priv;
+    JSValue curr_val = JS_UNDEFINED;
+
+    while (curr && curr->node) {
+        JSValue val = wisp_element_getAttribute_impl(ctx, curr, "contenteditable");
+        if (JS_IsString(val)) {
+            const char *str = JS_ToCString(ctx, val);
+            JS_FreeValue(ctx, val);
+            if (str) {
+                if (strcasecmp(str, "true") == 0 || str[0] == '\0' || strcasecmp(str, "contenteditable") == 0) {
+                    JS_FreeCString(ctx, str);
+                    JS_FreeValue(ctx, curr_val);
+                    return JS_TRUE;
+                }
+                if (strcasecmp(str, "false") == 0) {
+                    JS_FreeCString(ctx, str);
+                    JS_FreeValue(ctx, curr_val);
+                    return JS_FALSE;
+                }
+                JS_FreeCString(ctx, str);
+            }
+        } else {
+            JS_FreeValue(ctx, val);
+        }
+
+        // Get parent element
+        JSValue next_parent_val = wisp_node_parentElement_get_impl(ctx, curr);
+        JS_FreeValue(ctx, curr_val);
+        curr_val = next_parent_val;
+
+        if (JS_IsNull(curr_val) || JS_IsUndefined(curr_val)) {
+            JS_FreeValue(ctx, curr_val);
+            curr_val = JS_UNDEFINED;
+            break;
+        }
+
+        curr = qjs_get_dom_priv(ctx, curr_val);
+        if (!curr) {
+            JS_FreeValue(ctx, curr_val);
+            curr_val = JS_UNDEFINED;
+            break;
+        }
+    }
+    JS_FreeValue(ctx, curr_val);
+
+    // Check document designMode
+    JSValue doc_val = wisp_node_ownerDocument_get_impl(ctx, priv);
+    if (JS_IsObject(doc_val)) {
+        QJSNodePrivate *doc_priv = qjs_get_dom_priv(ctx, doc_val);
+        if (doc_priv) {
+            JSValue dm_val = wisp_document_designMode_get_impl(ctx, doc_priv);
+            if (JS_IsString(dm_val)) {
+                const char *dm_str = JS_ToCString(ctx, dm_val);
+                JS_FreeValue(ctx, dm_val);
+                if (dm_str) {
+                    bool is_on = (strcasecmp(dm_str, "on") == 0);
+                    JS_FreeCString(ctx, dm_str);
+                    JS_FreeValue(ctx, doc_val);
+                    if (is_on) return JS_TRUE;
+                    return JS_FALSE;
+                }
+            } else {
+                JS_FreeValue(ctx, dm_val);
+            }
+        }
+        JS_FreeValue(ctx, doc_val);
+    } else {
+        JS_FreeValue(ctx, doc_val);
+    }
+
+    return JS_FALSE;
 }
 
 JSValue wisp_htmlelement_spellcheck_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -11392,32 +11575,58 @@ JSValue wisp_document_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: method | Document::execCommand();
 JSValue wisp_document_execCommand_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId, bool showUI, const char * value) {
+    if (!commandId) return JS_FALSE;
+    if (strcasecmp(commandId, "styleWithCSS") == 0 ||
+        strcasecmp(commandId, "useCSS") == 0 ||
+        strcasecmp(commandId, "insertHTML") == 0 ||
+        strcasecmp(commandId, "insertText") == 0 ||
+        strcasecmp(commandId, "bold") == 0 ||
+        strcasecmp(commandId, "italic") == 0) {
+        return JS_TRUE;
+    }
     return JS_FALSE;
 }
 
 // Overrides: method | Document::queryCommandEnabled();
 JSValue wisp_document_queryCommandEnabled_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
-    return JS_UNDEFINED;
+    if (!commandId) return JS_FALSE;
+    return JS_TRUE;
 }
 
 // Overrides: method | Document::queryCommandIndeterm();
 JSValue wisp_document_queryCommandIndeterm_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
-    return JS_UNDEFINED;
+    return JS_FALSE;
 }
 
 // Overrides: method | Document::queryCommandState();
 JSValue wisp_document_queryCommandState_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
-    return JS_UNDEFINED;
+    return JS_FALSE;
 }
 
 // Overrides: method | Document::queryCommandSupported();
 JSValue wisp_document_queryCommandSupported_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
-    return JS_UNDEFINED;
+    if (!commandId) return JS_FALSE;
+    if (strcasecmp(commandId, "bold") == 0 ||
+        strcasecmp(commandId, "italic") == 0 ||
+        strcasecmp(commandId, "underline") == 0 ||
+        strcasecmp(commandId, "copy") == 0 ||
+        strcasecmp(commandId, "cut") == 0 ||
+        strcasecmp(commandId, "paste") == 0 ||
+        strcasecmp(commandId, "selectAll") == 0 ||
+        strcasecmp(commandId, "undo") == 0 ||
+        strcasecmp(commandId, "redo") == 0 ||
+        strcasecmp(commandId, "insertHTML") == 0 ||
+        strcasecmp(commandId, "insertText") == 0 ||
+        strcasecmp(commandId, "styleWithCSS") == 0 ||
+        strcasecmp(commandId, "useCSS") == 0) {
+        return JS_TRUE;
+    }
+    return JS_FALSE;
 }
 
 // Overrides: method | Document::queryCommandValue();
 JSValue wisp_document_queryCommandValue_impl(JSContext *ctx, QJSNodePrivate *priv, const char * commandId) {
-    return JS_UNDEFINED;
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: method | Document::clear();
