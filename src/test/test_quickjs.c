@@ -166,14 +166,31 @@ START_TEST(test_quickjs_media_source)
 
     const char *code =
         "if (!('MediaSource' in window)) throw new Error('MediaSource not in window');\n"
+        "if (!('SourceBuffer' in window)) throw new Error('SourceBuffer not in window');\n"
+        "if (!('SourceBufferList' in window)) throw new Error('SourceBufferList not in window');\n"
         "if (typeof MediaSource.isTypeSupported !== 'function') throw new Error('isTypeSupported not a function');\n"
         "if (!MediaSource.isTypeSupported('video/mp4; codecs=\"avc1.42E01E\"')) throw new Error('isTypeSupported returned false');\n"
         "var ms = new MediaSource();\n"
         "if (!(ms instanceof MediaSource)) throw new Error('ms not instance of MediaSource');\n"
         "if (!(ms instanceof EventTarget)) throw new Error('ms not instance of EventTarget');\n"
+        "if (ms.readyState !== 'open') throw new Error('readyState initial mismatch');\n"
+        "if (!(ms.sourceBuffers instanceof SourceBufferList)) throw new Error('sourceBuffers not instance of SourceBufferList');\n"
+        "if (!(ms.activeSourceBuffers instanceof SourceBufferList)) throw new Error('activeSourceBuffers not instance of SourceBufferList');\n"
+        "if (ms.sourceBuffers.length !== 0) throw new Error('sourceBuffers initial length non-zero');\n"
         "var sb = ms.addSourceBuffer('video/mp4');\n"
-        "if (!sb || typeof sb.appendBuffer !== 'function') throw new Error('addSourceBuffer failed');\n"
+        "if (!(sb instanceof SourceBuffer)) throw new Error('addSourceBuffer did not return SourceBuffer');\n"
+        "if (!(sb instanceof EventTarget)) throw new Error('sb not instance of EventTarget');\n"
+        "if (typeof sb.appendBuffer !== 'function') throw new Error('appendBuffer failed');\n"
+        "if (typeof sb.remove !== 'function') throw new Error('remove failed');\n"
+        "if (typeof sb.abort !== 'function') throw new Error('abort failed');\n"
+        "if (typeof sb.changeType !== 'function') throw new Error('changeType failed');\n"
+        "if (sb.mode !== 'segments') throw new Error('mode default mismatch');\n"
+        "if (ms.sourceBuffers.length !== 1 || ms.sourceBuffers.item(0) !== sb) throw new Error('sourceBuffers lookup failed');\n"
+        "if (ms.sourceBuffers[0] !== sb) throw new Error('sourceBuffers index lookup failed');\n"
+        "ms.removeSourceBuffer(sb);\n"
+        "if (ms.sourceBuffers.length !== 0) throw new Error('removeSourceBuffer failed');\n"
         "ms.endOfStream();\n"
+        "if (ms.readyState !== 'ended') throw new Error('endOfStream readyState mismatch');\n"
         "true;\n";
 
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_media_source");
