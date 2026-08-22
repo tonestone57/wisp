@@ -31,7 +31,7 @@ Below is the category breakdown of current scores vs. maximum available points a
 | **Audio** (`audio`) | 2 | 30 | +28 | High | `HTMLAudioElement`, `canPlayType()` for AAC, MP3, Opus, FLAC, WAV |
 | **Streaming** (`streaming`) | 0 | 5 | +5 | Medium | `MediaSource` / MSE support |
 | **Responsive Images** (`responsive`) | 15 | 15 | +0 | Complete | `srcset` and `<picture>` support |
-| **Vector Graphics** (`svg`) | 0 | 4 | +4 | Low | Inline SVG & `SVGElement` prototypes |
+| **Vector Graphics** (`svg`) | 4 | 4 | +0 | Complete | Inline SVG & `SVGElement` prototypes |
 | **2D Graphics** (`canvas`) | 20 | 25 | +5 | High | Canvas 2D text (`measureText`, `fillText`, `strokeText`), path support |
 | **3D & VR** (`3d`) | 20 | 25 | +5 | High | WebGL 1.0/2.0 context stubs & methods (`WebGLRenderingContext`, `WebGL2RenderingContext`) |
 | **Offscreen Canvas** (`offscreen`) | 2 | 3 | +1 | Low | `OffscreenCanvas` rendering context |
