@@ -6220,10 +6220,12 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
     bool is_wav = (strcmp(mime, "audio/wav") == 0 || strcmp(mime, "audio/x-wav") == 0);
     bool is_opus = (strcmp(mime, "audio/opus") == 0);
     bool is_flac = (strcmp(mime, "audio/flac") == 0);
+    bool is_vp8 = (strcmp(mime, "video/vp8") == 0 || strcmp(mime, "video/x-vp8") == 0 || is_webm || is_ogg);
+    bool is_vp9 = (strcmp(mime, "video/vp9") == 0 || strcmp(mime, "video/x-vp9") == 0 || is_webm || is_mp4);
     bool is_av1 = (strcmp(mime, "video/av1") == 0 || strcmp(mime, "video/x-av1") == 0 || is_mp4 || is_webm);
     bool is_av2 = (strcmp(mime, "video/av2") == 0 || strcmp(mime, "video/x-av2") == 0 || is_mp4 || is_webm);
 
-    if (!is_mp4 && !is_webm && !is_ogg && !is_mp3 && !is_aac && !is_wav && !is_opus && !is_flac && !is_av1 && !is_av2) {
+    if (!is_mp4 && !is_webm && !is_ogg && !is_mp3 && !is_aac && !is_wav && !is_opus && !is_flac && !is_vp8 && !is_vp9 && !is_av1 && !is_av2) {
         return JS_NewString(ctx, "");
     }
 
@@ -6257,8 +6259,8 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
         bool ok = false;
         if (strncmp(token, "avc1", 4) == 0 || strncmp(token, "avc3", 4) == 0 || strcmp(token, "h264") == 0) ok = is_mp4;
         else if (strncmp(token, "mp4a", 4) == 0 || strcmp(token, "aac") == 0) ok = (is_mp4 || is_aac);
-        else if (strncmp(token, "vp8", 3) == 0) ok = (is_webm || is_ogg);
-        else if (strncmp(token, "vp9", 3) == 0) ok = (is_webm || is_mp4);
+        else if (strncmp(token, "vp8", 3) == 0 || strncmp(token, "vp08", 4) == 0) ok = is_vp8;
+        else if (strncmp(token, "vp9", 3) == 0 || strncmp(token, "vp09", 4) == 0) ok = is_vp9;
         else if (strncmp(token, "av01", 4) == 0 || strcmp(token, "av1") == 0) ok = is_av1;
         else if (strncmp(token, "av02", 4) == 0 || strcmp(token, "av2") == 0) ok = is_av2;
         else if (strcmp(token, "theora") == 0) ok = is_ogg;

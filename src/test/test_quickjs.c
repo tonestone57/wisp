@@ -1953,6 +1953,8 @@ START_TEST(test_quickjs_webidl_stubs)
         "    video.playbackRate = 1.5;\n"
         "    if (video.playbackRate !== 1.5) throw new Error('video.playbackRate failed');\n"
         "    if (video.canPlayType('video/mp4') !== 'maybe') throw new Error('video.canPlayType failed');\n"
+        "    if (video.canPlayType('video/vp8') !== 'maybe') throw new Error('video.canPlayType vp8 mime failed');\n"
+        "    if (video.canPlayType('video/vp9') !== 'maybe') throw new Error('video.canPlayType vp9 mime failed');\n"
         "    if (video.canPlayType('video/mp4; codecs=\"av01.0.08M.08\"') !== 'probably') throw new Error('video.canPlayType av1 failed');\n"
         "    if (video.canPlayType('video/mp4; codecs=\"av02.0.08M.08\"') !== 'probably') throw new Error('video.canPlayType av2 failed');\n"
         "    video.load();\n"
