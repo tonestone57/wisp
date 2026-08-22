@@ -358,10 +358,13 @@ static JSValue custom_domtokenlist_toggle(JSContext *ctx, JSValueConst this_val,
         } else {
             // add it
             if (tl.count < MAX_TOKENS) {
-                tl.tokens[tl.count] = strdup(token);
-                tl.count++;
-                result_present = true;
-                set_tokens((dom_element *)priv->node, &tl);
+                char *dup_tok = strdup(token);
+                if (dup_tok) {
+                    tl.tokens[tl.count] = dup_tok;
+                    tl.count++;
+                    result_present = true;
+                    set_tokens((dom_element *)priv->node, &tl);
+                }
             }
         }
     }
