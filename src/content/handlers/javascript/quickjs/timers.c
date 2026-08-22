@@ -645,6 +645,19 @@ uint64_t qjs_execute_timers(JSContext *ctx) {
     struct jsthread *t = JS_GetContextOpaque(ctx);
     if (!t) return 1000;
 
+    /* Process pending microtasks before timers */
+    JSContext *ctx0;
+    int job_r;
+    while ((job_r = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx0)) != 0) {
+        if (job_r < 0) {
+            JSValue exc = JS_GetException(ctx0);
+            const char *exc_str = JS_ToCString(ctx0, exc);
+            NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+            if (exc_str) JS_FreeCString(ctx0, exc_str);
+            JS_FreeValue(ctx0, exc);
+        }
+    }
+
     uint64_t now;
     nsu_getmonotonic_ms(&now);
 
