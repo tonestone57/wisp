@@ -15,6 +15,7 @@
 #include <wisp/content/handlers/html/private.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/browser_window.h>
+#include "desktop/browser_private.h"
 #include <wisp/utils/ipc.h>
 
 struct nsurl;
@@ -2519,6 +2520,7 @@ JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
                 err = nsurl_create(url, &target_url);
             }
             if (err == NSERROR_OK && target_url) {
+                bw->js_navigated = true;
                 browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
                 nsurl_unref(target_url);
             }

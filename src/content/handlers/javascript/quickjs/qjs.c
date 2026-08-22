@@ -5872,6 +5872,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                                     err = nsurl_create(url_str, &target_url);
                                 }
                                 if (err == NSERROR_OK && target_url) {
+                                    bw->js_navigated = true;
                                     browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
                                     nsurl_unref(target_url);
                                 }
