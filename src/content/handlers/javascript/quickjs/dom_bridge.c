@@ -100,6 +100,11 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
             case DOM_DOCUMENT_NODE:
                 wrapper = qjs_new_document(ctx, node, true);
                 break;
+            case DOM_DOCUMENT_TYPE_NODE: {
+                extern JSValue qjs_new_documenttype(JSContext *ctx, void *node, bool is_dom_node);
+                wrapper = qjs_new_documenttype(ctx, node, true);
+                break;
+            }
             case DOM_TEXT_NODE:
                 wrapper = qjs_new_text(ctx, node, true);
                 break;

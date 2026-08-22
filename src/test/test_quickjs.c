@@ -150,6 +150,91 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_parsing_doctype)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  if (document.compatMode !== 'CSS1Compat') throw 'compatMode fail: ' + document.compatMode;\n"
+        "  const dt = document.implementation.createDocumentType('html', 'pub1', 'sys1');\n"
+        "  if (!dt) throw 'createDocumentType returned null';\n"
+        "  if (dt.name !== 'html') throw 'dt.name fail: ' + dt.name;\n"
+        "  if (dt.publicId !== 'pub1') throw 'dt.publicId fail: ' + dt.publicId;\n"
+        "  if (dt.systemId !== 'sys1') throw 'dt.systemId fail: ' + dt.systemId;\n"
+        "  if (dt.nodeType !== 10) throw 'dt.nodeType fail: ' + dt.nodeType;\n"
+        "} catch(e) {\n"
+        "  console.log('DOCTYPETEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_parsing_doctype");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_quirks_mode)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    dom_document_set_quirks_mode(doc, DOM_DOCUMENT_QUIRKS_MODE_FULL);
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  if (document.compatMode !== 'BackCompat') throw 'quirks compatMode fail: ' + document.compatMode;\n"
+        "} catch(e) {\n"
+        "  console.log('QUIRKSTEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_quirks_mode");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_event_composed_path)
 {
     jsheap *heap = NULL;
@@ -5095,6 +5180,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_navigator);
     tcase_add_test(tc_window, test_quickjs_location);
     tcase_add_test(tc_window, test_quickjs_document);
+    tcase_add_test(tc_window, test_quickjs_parsing_doctype);
+    tcase_add_test(tc_window, test_quickjs_quirks_mode);
     tcase_add_test(tc_window, test_quickjs_storage);
     tcase_add_test(tc_window, test_quickjs_dom_parser);
     tcase_add_test(tc_window, test_quickjs_event_target_basic);

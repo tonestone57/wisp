@@ -7,6 +7,7 @@
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include "JSDOMImplementation.gen.h"
 #include <wisp/utils/nsurl.h>
 #include <libwapcaplet/libwapcaplet.h>
 #include <wisp/utils/shm_dom.h>
@@ -10742,7 +10743,33 @@ JSValue wisp_characterdata_nextElementSibling_get_impl(JSContext *ctx, QJSNodePr
 
 // Overrides: method | DOMImplementation::createDocumentType();
 JSValue wisp_domimplementation_createDocumentType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * publicId, const char * systemId) {
-    return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        extern uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *value);
+        uint64_t virtual_id = allocate_virtual_shm_node(10, qualifiedName ? qualifiedName : "html", NULL);
+        if (virtual_id == 0) return JS_NULL;
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            strings_arr[virtual_id].tag_name = wisp_shm_alloc_string(wisp_shm_dom, qualifiedName ? qualifiedName : "html");
+            strings_arr[virtual_id].attrs[0].name = wisp_shm_alloc_string(wisp_shm_dom, "publicId");
+            strings_arr[virtual_id].attrs[0].value = wisp_shm_alloc_string(wisp_shm_dom, publicId ? publicId : "");
+            strings_arr[virtual_id].attrs[1].name = wisp_shm_alloc_string(wisp_shm_dom, "systemId");
+            strings_arr[virtual_id].attrs[1].value = wisp_shm_alloc_string(wisp_shm_dom, systemId ? systemId : "");
+            strings_arr[virtual_id].attr_count = 2;
+        }
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)virtual_id);
+    }
+    struct dom_document_type *dt = NULL;
+    dom_exception err = dom_implementation_create_document_type(
+        qualifiedName ? qualifiedName : "html",
+        publicId,
+        systemId,
+        &dt);
+    if (err == DOM_NO_ERR && dt) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)dt);
+        dom_node_unref((dom_node *)dt);
+        return val;
+    }
+    return JS_NULL;
 }
 
 // Overrides: method | DOMImplementation::createDocument();
@@ -11011,17 +11038,74 @@ JSValue wisp_documenttype_replaceWith_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: getter | DocumentType::name(string);
 JSValue wisp_documenttype_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            WispNodeID id = (WispNodeID)(uintptr_t)priv->node;
+            if (id < wisp_shm_dom->node_count) {
+                const char *name = wisp_string_ref_data(wisp_shm_dom, strings_arr[id].tag_name);
+                return JS_NewString(ctx, name ? name : "");
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
+    dom_string *name = NULL;
+    dom_node_get_node_name((dom_node *)priv->node, &name);
+    if (name) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(name), dom_string_byte_length(name));
+        dom_string_unref(name);
+        return val;
+    }
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: getter | DocumentType::publicId(string);
 JSValue wisp_documenttype_publicId_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            WispNodeID id = (WispNodeID)(uintptr_t)priv->node;
+            if (id < wisp_shm_dom->node_count) {
+                const char *pub = wisp_string_ref_data(wisp_shm_dom, strings_arr[id].attrs[0].value);
+                return JS_NewString(ctx, pub ? pub : "");
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
+    dom_string *pub = NULL;
+    dom_document_type_get_public_id((dom_document_type *)priv->node, &pub);
+    if (pub) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(pub), dom_string_byte_length(pub));
+        dom_string_unref(pub);
+        return val;
+    }
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: getter | DocumentType::systemId(string);
 JSValue wisp_documenttype_systemId_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            WispNodeID id = (WispNodeID)(uintptr_t)priv->node;
+            if (id < wisp_shm_dom->node_count) {
+                const char *sys = wisp_string_ref_data(wisp_shm_dom, strings_arr[id].attrs[1].value);
+                return JS_NewString(ctx, sys ? sys : "");
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
+    dom_string *sys = NULL;
+    dom_document_type_get_system_id((dom_document_type *)priv->node, &sys);
+    if (sys) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(sys), dom_string_byte_length(sys));
+        dom_string_unref(sys);
+        return val;
+    }
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: method | DocumentFragment::getElementById();
@@ -12327,7 +12411,8 @@ JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: attribute get | Document::implementation (getter);
 JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
 }
 
 // Overrides: attribute get | Document::location (getter);
