@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "quickjs.h"
+#include "timers.h"
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
@@ -10409,12 +10410,17 @@ JSValue wisp_window_showModalDialog_impl(JSContext *ctx, QJSNodePrivate *priv, c
 
 // Overrides: method | Window::requestAnimationFrame();
 JSValue wisp_window_requestAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue callback) {
-    return JS_UNDEFINED;
+    JSValueConst argv[1] = { callback };
+    return js_requestAnimationFrame(ctx, JS_UNDEFINED, 1, argv);
 }
 
 // Overrides: method | Window::cancelAnimationFrame();
 JSValue wisp_window_cancelAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t handle) {
-    return JS_UNDEFINED;
+    JSValue handle_val = JS_NewUint32(ctx, handle);
+    JSValueConst argv[1] = { handle_val };
+    JSValue res = js_cancelAnimationFrame(ctx, JS_UNDEFINED, 1, argv);
+    JS_FreeValue(ctx, handle_val);
+    return res;
 }
 
 // Overrides: method | Window::postMessage();

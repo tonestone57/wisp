@@ -8,4 +8,7 @@
  */
 int qjs_init_timers(JSContext *ctx);
 
+JSValue js_requestAnimationFrame(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+JSValue js_cancelAnimationFrame(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+
 #endif /* WISP_QUICKJS_TIMERS_H */
