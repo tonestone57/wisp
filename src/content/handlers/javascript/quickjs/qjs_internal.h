@@ -28,21 +28,6 @@ typedef struct ImageDataPrivate {
     JSValue data; /* Uint8ClampedArray */
 } ImageDataPrivate;
 
-typedef struct TextMetricsPrivate {
-    double width;
-    double actualBoundingBoxLeft;
-    double actualBoundingBoxRight;
-    double fontBoundingBoxAscent;
-    double fontBoundingBoxDescent;
-    double actualBoundingBoxAscent;
-    double actualBoundingBoxDescent;
-    double emHeightAscent;
-    double emHeightDescent;
-    double alphabeticBaseline;
-    double hangingBaseline;
-    double ideographicBaseline;
-} TextMetricsPrivate;
-
 #define QJS_DOM_MAGIC 0x57495350
 
 typedef struct WispXHR {
