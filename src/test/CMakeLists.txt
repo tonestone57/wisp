@@ -37,6 +37,7 @@ function(add_wisp_test name)
     WISP_BUILTIN_VERBOSE_FILTER=\"level:DEBUG\"
     WITH_UTF8PROC
     WISP_TEST_DATA_DIR=\"${CMAKE_SOURCE_DIR}/src/test/data\"
+  HTML5TEST_DATA_DIR=\"${CMAKE_SOURCE_DIR}/src/test/data/html5test\"
   )
   target_link_libraries(${name} PUBLIC ${WISP_COMMON_LIBS} ${CHECK_LIBRARIES})
   add_test(NAME ${name} COMMAND ${name})
@@ -413,6 +414,19 @@ target_include_directories(test_html5test_runner PRIVATE
   ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
 )
 target_link_libraries(test_html5test_runner PRIVATE qjs nsutils wisp)
+
+add_wisp_test(test_html5test_full
+  ${CMAKE_SOURCE_DIR}/src/test/test_html5test_full.c
+)
+add_dependencies(test_html5test_full quickjs_bindings)
+target_include_directories(test_html5test_full PRIVATE
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/contrib/quickjs-ng
+  ${CMAKE_SOURCE_DIR}/contrib/libnsutils/include
+  ${CMAKE_BINARY_DIR}/quickjs
+  ${CMAKE_SOURCE_DIR}/src/content/handlers/javascript/quickjs
+)
+target_link_libraries(test_html5test_full PRIVATE qjs nsutils wisp)
 
 add_wisp_test(test_wisp_subsystem_pools
   ${CMAKE_SOURCE_DIR}/src/test/test_wisp_subsystem_pools.c

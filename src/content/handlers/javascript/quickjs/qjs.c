@@ -1289,24 +1289,16 @@ void js_destroyheap(jsheap *heap)
     }
     pthread_mutex_unlock(&global_heaps_mutex);
 
-    /* Orphans and nullifies any active threads associated with this heap */
-    struct jsthread *t = heap->threads;
-    while (t != NULL) {
-        t->closed = true;
-        t->ctx = NULL;
-        t->heap = NULL;
-        t = t->next_in_heap;
+    /* Safely destroy remaining active threads associated with this heap */
+    while (heap->threads != NULL) {
+        struct jsthread *t = heap->threads;
+        js_destroythread(t);
     }
-    heap->threads = NULL;
 
     if (heap->rt) {
         /* Clean up the DOM bridge first while the runtime opaque is still valid.
          * qjs_bridge_cleanup will set the opaque to NULL when finished. */
         qjs_bridge_cleanup(heap->rt);
-        JS_RunGC(heap->rt);
-        JS_RunGC(heap->rt);
-        /* QuickJS-ng: list_empty(&rt->gc_obj_list) assertion fix.
-         * Explicitly free GC objects that might be pending after bridge cleanup. */
         JS_SetRuntimeOpaque(heap->rt, NULL);
         JS_FreeRuntime(heap->rt);
     }

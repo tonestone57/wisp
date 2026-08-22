@@ -220,7 +220,6 @@ void qjs_bridge_cleanup(JSRuntime *rt)
                 JSClassID class_id = 0;
                 QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
                 if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.keys[i].node) {
-                    if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
                     priv->node = NULL;
                     priv->magic = 0;
                 }
@@ -243,7 +242,6 @@ void qjs_bridge_cleanup(JSRuntime *rt)
                 JSClassID class_id = 0;
                 QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
                 if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.keys[i].node) {
-                    if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
                     priv->node = NULL;
                     priv->magic = 0;
                 }
@@ -481,7 +479,7 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
         } else return false;
     }
 
-    if (comp->id) {
+    if (comp->id && corestring_dom_id) {
         dom_string *id = NULL;
         dom_element_get_attribute((dom_element *)node, corestring_dom_id, &id);
         if (id) {
@@ -494,7 +492,7 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
         } else return false;
     }
 
-    for (uint32_t i = 0; i < comp->class_count; i++) {
+    for (uint32_t i = 0; comp->class_count > 0 && corestring_dom_class && i < comp->class_count; i++) {
         dom_string *cls = NULL;
         dom_element_get_attribute((dom_element *)node, corestring_dom_class, &cls);
         if (cls) {
