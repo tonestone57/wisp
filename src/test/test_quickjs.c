@@ -4975,6 +4975,107 @@ START_TEST(test_quickjs_media_streams)
 }
 END_TEST
 
+START_TEST(test_quickjs_location_and_sensors)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: Synchronous checks for Geolocation, Orientation/Motion, Gamepads, Vibrate, Battery APIs
+    const char *code1 = "try {\n"
+                        "  if (!navigator.geolocation) throw new Error('navigator.geolocation missing');\n"
+                        "  if (typeof navigator.geolocation.getCurrentPosition !== 'function') throw new Error('getCurrentPosition missing');\n"
+                        "  if (typeof navigator.geolocation.watchPosition !== 'function') throw new Error('watchPosition missing');\n"
+                        "  if (typeof navigator.geolocation.clearWatch !== 'function') throw new Error('clearWatch missing');\n"
+                        "  if (GeolocationPositionError.PERMISSION_DENIED !== 1) throw new Error('PositionError constant missing');\n"
+                        "\n"
+                        "  if (typeof window.DeviceOrientationEvent !== 'function') throw new Error('DeviceOrientationEvent missing');\n"
+                        "  var orientEvt = new DeviceOrientationEvent('deviceorientation', { alpha: 45, beta: 90, gamma: 180, absolute: true });\n"
+                        "  if (orientEvt.alpha !== 45 || orientEvt.beta !== 90 || orientEvt.gamma !== 180 || orientEvt.absolute !== true) throw new Error('DeviceOrientationEvent init mismatch');\n"
+                        "\n"
+                        "  if (typeof window.DeviceMotionEvent !== 'function') throw new Error('DeviceMotionEvent missing');\n"
+                        "  var motionEvt = new DeviceMotionEvent('devicemotion', { acceleration: { x: 1, y: 2, z: 3 }, interval: 16 });\n"
+                        "  if (!motionEvt.acceleration || motionEvt.acceleration.x !== 1 || motionEvt.interval !== 16) throw new Error('DeviceMotionEvent init mismatch');\n"
+                        "\n"
+                        "  if (typeof navigator.getGamepads !== 'function') throw new Error('navigator.getGamepads missing');\n"
+                        "  var gamepads = navigator.getGamepads();\n"
+                        "  if (!Array.isArray(gamepads)) throw new Error('getGamepads did not return an array');\n"
+                        "\n"
+                        "  if (typeof navigator.vibrate !== 'function') throw new Error('navigator.vibrate missing');\n"
+                        "  if (navigator.vibrate(200) !== true) throw new Error('vibrate(200) failed');\n"
+                        "  if (navigator.vibrate([100, 200, 100]) !== true) throw new Error('vibrate pattern failed');\n"
+                        "\n"
+                        "  if (typeof navigator.getBattery !== 'function') throw new Error('navigator.getBattery missing');\n"
+                        "  window.testRes1 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes1 = e.message + '\\n' + e.stack;\n"
+                        "}\n"
+                        "window.testRes1 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_location_sensors_sync");
+    ck_assert(result == true);
+
+    // Test 2: Async Geolocation and Battery promises execution
+    const char *code2 = "try {\n"
+                        "  window.geoRes = 'PENDING';\n"
+                        "  navigator.geolocation.getCurrentPosition(function(pos) {\n"
+                        "    if (pos && pos.coords && typeof pos.coords.latitude === 'number' && pos.timestamp > 0) {\n"
+                        "      window.geoRes = 'OK';\n"
+                        "    } else {\n"
+                        "      window.geoRes = 'invalid_pos';\n"
+                        "    }\n"
+                        "  });\n"
+                        "\n"
+                        "  window.watchRes = 'PENDING';\n"
+                        "  var wId = navigator.geolocation.watchPosition(function(pos) {\n"
+                        "    if (pos && pos.coords) window.watchRes = 'OK';\n"
+                        "  });\n"
+                        "  if (typeof wId !== 'number' || wId <= 0) window.watchRes = 'invalid_watch_id';\n"
+                        "  navigator.geolocation.clearWatch(wId);\n"
+                        "\n"
+                        "  window.batteryRes = 'PENDING';\n"
+                        "  navigator.getBattery().then(function(batt) {\n"
+                        "    if (batt && batt.charging === true && batt.level === 1.0 && typeof batt.addEventListener === 'function') {\n"
+                        "      window.batteryRes = 'OK';\n"
+                        "    } else {\n"
+                        "      window.batteryRes = 'invalid_battery';\n"
+                        "    }\n"
+                        "  });\n"
+                        "  window.testRes2 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes2 = e.message;\n"
+                        "}\n"
+                        "window.testRes2 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_location_sensors_async");
+    ck_assert(result == true);
+
+    // Drain pending microtasks / timers
+    qjs_execute_timers(thread->ctx);
+    JSContext *ctx;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx) != 0);
+    qjs_execute_timers(thread->ctx);
+
+    const char *codeVerify = "window.geoRes === 'OK' && window.watchRes === 'OK' && window.batteryRes === 'OK';";
+    result = js_exec(thread, (const uint8_t *)codeVerify, strlen(codeVerify), "test_location_sensors_verify");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_shadow_dom)
 {
     jsheap *heap = NULL;
@@ -5589,6 +5690,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
+    tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
