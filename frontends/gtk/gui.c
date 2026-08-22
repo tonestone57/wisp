@@ -979,7 +979,13 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
 
     /* Default favicon */
     res = nsgdk_pixbuf_new_from_resname("favicon.png", &favicon_pixbuf);
-    if (res != NSERROR_OK) {
+    if (res == NSERROR_OK && favicon_pixbuf != NULL) {
+        GdkPixbuf *scaled = gdk_pixbuf_scale_simple(favicon_pixbuf, 16, 16, GDK_INTERP_BILINEAR);
+        if (scaled != NULL) {
+            g_object_unref(favicon_pixbuf);
+            favicon_pixbuf = scaled;
+        }
+    } else if (favicon_pixbuf == NULL) {
         favicon_pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, false, 8, 16, 16);
     }
 

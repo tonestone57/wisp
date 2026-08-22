@@ -102,7 +102,17 @@ static GtkWidget *nsgtk_tab_label_setup(GtkWidget *page, const char *title, GdkP
     /* construct a favicon */
     favicon = gtk_image_new();
     if (icon_pixbuf != NULL) {
-        gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), icon_pixbuf);
+        if (gdk_pixbuf_get_width(icon_pixbuf) > 16 || gdk_pixbuf_get_height(icon_pixbuf) > 16) {
+            GdkPixbuf *scaled = gdk_pixbuf_scale_simple(icon_pixbuf, 16, 16, GDK_INTERP_BILINEAR);
+            if (scaled != NULL) {
+                gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), scaled);
+                g_object_unref(scaled);
+            } else {
+                gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), icon_pixbuf);
+            }
+        } else {
+            gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), icon_pixbuf);
+        }
     }
 
     /* construct a label */
@@ -430,6 +440,15 @@ nserror nsgtk_tab_set_icon(GtkWidget *page, GdkPixbuf *pixbuf)
     }
 
     favicon = GTK_IMAGE(g_object_get_data(G_OBJECT(tab_label), "favicon"));
+
+    if (pixbuf != NULL && (gdk_pixbuf_get_width(pixbuf) > 16 || gdk_pixbuf_get_height(pixbuf) > 16)) {
+        GdkPixbuf *scaled = gdk_pixbuf_scale_simple(pixbuf, 16, 16, GDK_INTERP_BILINEAR);
+        if (scaled != NULL) {
+            gtk_image_set_from_pixbuf(favicon, scaled);
+            g_object_unref(scaled);
+            return NSERROR_OK;
+        }
+    }
 
     gtk_image_set_from_pixbuf(favicon, pixbuf);
 
