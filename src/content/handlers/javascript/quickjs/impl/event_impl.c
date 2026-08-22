@@ -84,18 +84,22 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
     return obj;
 }
 
-JSValue wisp_event_stopPropagation_impl(JSContext *ctx, QJSNodePrivate *priv) { dom_event_stop_propagation(priv->node); return JS_UNDEFINED; }
-JSValue wisp_event_stopImmediatePropagation_impl(JSContext *ctx, QJSNodePrivate *priv) { dom_event_stop_propagation(priv->node); return JS_UNDEFINED; }
-JSValue wisp_event_preventDefault_impl(JSContext *ctx, QJSNodePrivate *priv) { dom_event_prevent_default(priv->node); return JS_UNDEFINED; }
+JSValue wisp_event_stopPropagation_impl(JSContext *ctx, QJSNodePrivate *priv) { if (priv && priv->node) dom_event_stop_propagation(priv->node); return JS_UNDEFINED; }
+JSValue wisp_event_stopImmediatePropagation_impl(JSContext *ctx, QJSNodePrivate *priv) { if (priv && priv->node) dom_event_stop_propagation(priv->node); return JS_UNDEFINED; }
+JSValue wisp_event_preventDefault_impl(JSContext *ctx, QJSNodePrivate *priv) { if (priv && priv->node) dom_event_prevent_default(priv->node); return JS_UNDEFINED; }
 
 JSValue wisp_event_initEvent_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, bool bubbles, bool cancelable) {
-    dom_string *type_dom = NULL; dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
-    dom_event_init(priv->node, type_dom, bubbles, cancelable);
-    dom_string_unref(type_dom); return JS_UNDEFINED;
+    if (priv && priv->node) {
+        dom_string *type_dom = NULL; dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
+        dom_event_init(priv->node, type_dom, bubbles, cancelable);
+        dom_string_unref(type_dom);
+    }
+    return JS_UNDEFINED;
 }
 
 JSValue wisp_event_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
+    if (!priv || !priv->node) return JS_UNDEFINED;
     dom_string *type_dom = NULL; dom_event_get_type(priv->node, &type_dom);
     if (!type_dom) return JS_NewString(ctx, "");
     JSValue res = JS_NewStringLen(ctx, (const char *)dom_string_data(type_dom), dom_string_byte_length(type_dom));
@@ -103,6 +107,7 @@ JSValue wisp_event_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 }
 
 JSValue wisp_event_target_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
     dom_event_target *target = NULL; dom_event_get_target(priv->node, &target);
     if (target) { JSValue val = qjs_wrap_node(ctx, (dom_node *)target);
     dom_node_unref((dom_node *)target); return val; }
@@ -110,6 +115,7 @@ JSValue wisp_event_target_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 }
 
 JSValue wisp_event_currentTarget_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
     dom_event_target *target = NULL;
     dom_event_get_current_target(priv->node, &target);
     if (target) { JSValue val = qjs_wrap_node(ctx, (dom_node *)target);
@@ -118,12 +124,19 @@ JSValue wisp_event_currentTarget_get_impl(JSContext *ctx, QJSNodePrivate *priv) 
 }
 
 JSValue wisp_event_eventPhase_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
     dom_event_flow_phase phase; dom_event_get_event_phase(priv->node, &phase);
     return JS_NewInt32(ctx, phase);
 }
 
-JSValue wisp_event_bubbles_get_impl(JSContext *ctx, QJSNodePrivate *priv) { bool res; dom_event_get_bubbles(priv->node, &res); return JS_NewBool(ctx, res); }
-JSValue wisp_event_cancelable_get_impl(JSContext *ctx, QJSNodePrivate *priv) { bool res; dom_event_get_cancelable(priv->node, &res); return JS_NewBool(ctx, res); }
+JSValue wisp_event_bubbles_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_FALSE;
+    bool res; dom_event_get_bubbles(priv->node, &res); return JS_NewBool(ctx, res);
+}
+JSValue wisp_event_cancelable_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_FALSE;
+    bool res; dom_event_get_cancelable(priv->node, &res); return JS_NewBool(ctx, res);
+}
 JSValue wisp_event_defaultPrevented_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!priv || !priv->node) return JS_FALSE;
     bool prevented = false;
