@@ -6088,11 +6088,198 @@ JSValue wisp_htmldatalistelement_options_get_impl(JSContext *ctx, QJSNodePrivate
 JSValue wisp_mediaerror_code_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NewInt32(ctx, 4);
 }
+typedef struct WispVTTCue {
+    double startTime;
+    double endTime;
+    char *text;
+    char *id;
+    bool pauseOnExit;
+    struct WispTextTrack *track;
+} WispVTTCue;
+
+typedef struct WispTextTrackCueList {
+    WispVTTCue **cues;
+    uint32_t count;
+    uint32_t capacity;
+} WispTextTrackCueList;
+
+typedef struct WispTextTrack {
+    char *kind;
+    char *label;
+    char *language;
+    char *id;
+    char *mode;
+    WispTextTrackCueList *cues;
+} WispTextTrack;
+
+typedef struct WispTextTrackList {
+    WispTextTrack **tracks;
+    uint32_t count;
+    uint32_t capacity;
+} WispTextTrackList;
+
+typedef struct WispMediaTracksEntry {
+    void *node;
+    WispTextTrackList *track_list;
+    struct WispMediaTracksEntry *next;
+} WispMediaTracksEntry;
+
+static WispMediaTracksEntry *g_media_tracks_head = NULL;
+
+static WispTextTrackList *get_or_create_media_tracks(void *node) {
+    if (!node) return NULL;
+    WispMediaTracksEntry *curr = g_media_tracks_head;
+    while (curr) {
+        if (curr->node == node) return curr->track_list;
+        curr = curr->next;
+    }
+    WispMediaTracksEntry *entry = calloc(1, sizeof(WispMediaTracksEntry));
+    if (!entry) return NULL;
+    entry->node = node;
+    entry->track_list = calloc(1, sizeof(WispTextTrackList));
+    entry->next = g_media_tracks_head;
+    g_media_tracks_head = entry;
+    return entry->track_list;
+}
+
+JSValue wisp_htmlmediaelement_textTracks_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
+    WispTextTrackList *tl = get_or_create_media_tracks(priv->node);
+    if (!tl) return JS_NULL;
+    extern JSValue qjs_new_texttracklist(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_texttracklist(ctx, tl, false);
+}
+
 JSValue wisp_htmlmediaelement_addTextTrack_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue kind, const char * label, const char * language) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
+    WispTextTrackList *tl = get_or_create_media_tracks(priv->node);
+    if (!tl) return JS_NULL;
+
+    WispTextTrack *track = calloc(1, sizeof(WispTextTrack));
+    if (!track) return JS_NULL;
+
+    const char *kind_str = "subtitles";
+    const char *allocated_kind = NULL;
+    if (JS_IsString(kind)) {
+        allocated_kind = JS_ToCString(ctx, kind);
+        if (allocated_kind) kind_str = allocated_kind;
+    }
+
+    track->kind = strdup(kind_str);
+    if (allocated_kind) JS_FreeCString(ctx, allocated_kind);
+
+    track->label = strdup(label ? label : "");
+    track->language = strdup(language ? language : "");
+    track->id = strdup("");
+    track->mode = strdup("showing");
+    track->cues = calloc(1, sizeof(WispTextTrackCueList));
+
+    if (tl->count >= tl->capacity) {
+        uint32_t new_cap = tl->capacity ? tl->capacity * 2 : 4;
+        WispTextTrack **new_tracks = realloc(tl->tracks, new_cap * sizeof(WispTextTrack *));
+        if (new_tracks) {
+            tl->tracks = new_tracks;
+            tl->capacity = new_cap;
+        }
+    }
+    if (tl->count < tl->capacity) {
+        tl->tracks[tl->count++] = track;
+    }
+
+    extern JSValue qjs_new_texttrack(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_texttrack(ctx, track, false);
 }
 
 JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type) {
+    if (!type || !*type) {
+        return JS_NewString(ctx, "");
+    }
+
+    char mime[128] = {0};
+    const char *semicolon = strchr(type, ';');
+    size_t mime_len = semicolon ? (size_t)(semicolon - type) : strlen(type);
+    if (mime_len >= sizeof(mime)) mime_len = sizeof(mime) - 1;
+    strncpy(mime, type, mime_len);
+    mime[mime_len] = '\0';
+
+    // Trim trailing whitespace from mime
+    while (mime_len > 0 && (mime[mime_len - 1] == ' ' || mime[mime_len - 1] == '\t')) {
+        mime[--mime_len] = '\0';
+    }
+
+    // Convert mime to lowercase
+    for (size_t i = 0; mime[i]; i++) {
+        if (mime[i] >= 'A' && mime[i] <= 'Z') mime[i] += 32;
+    }
+
+    bool is_mp4 = (strcmp(mime, "video/mp4") == 0 || strcmp(mime, "audio/mp4") == 0 || strcmp(mime, "audio/x-m4a") == 0 || strcmp(mime, "audio/m4a") == 0);
+    bool is_webm = (strcmp(mime, "video/webm") == 0 || strcmp(mime, "audio/webm") == 0);
+    bool is_ogg = (strcmp(mime, "video/ogg") == 0 || strcmp(mime, "audio/ogg") == 0 || strcmp(mime, "application/ogg") == 0);
+    bool is_mp3 = (strcmp(mime, "audio/mpeg") == 0 || strcmp(mime, "audio/mp3") == 0);
+    bool is_aac = (strcmp(mime, "audio/aac") == 0);
+    bool is_wav = (strcmp(mime, "audio/wav") == 0 || strcmp(mime, "audio/x-wav") == 0);
+    bool is_opus = (strcmp(mime, "audio/opus") == 0);
+    bool is_flac = (strcmp(mime, "audio/flac") == 0);
+    bool is_av1 = (strcmp(mime, "video/av1") == 0 || strcmp(mime, "video/x-av1") == 0 || is_mp4 || is_webm);
+    bool is_av2 = (strcmp(mime, "video/av2") == 0 || strcmp(mime, "video/x-av2") == 0 || is_mp4 || is_webm);
+
+    if (!is_mp4 && !is_webm && !is_ogg && !is_mp3 && !is_aac && !is_wav && !is_opus && !is_flac && !is_av1 && !is_av2) {
+        return JS_NewString(ctx, "");
+    }
+
+    // Check for codecs parameter
+    const char *codecs_ptr = strstr(type, "codecs=");
+    if (!codecs_ptr) {
+        return JS_NewString(ctx, "maybe");
+    }
+
+    codecs_ptr += 7; // skip "codecs="
+    if (*codecs_ptr == '"' || *codecs_ptr == '\'') codecs_ptr++;
+
+    char codecs_buf[256] = {0};
+    size_t c_idx = 0;
+    while (*codecs_ptr && *codecs_ptr != '"' && *codecs_ptr != '\'' && *codecs_ptr != ';' && c_idx < sizeof(codecs_buf) - 1) {
+        codecs_buf[c_idx++] = *codecs_ptr++;
+    }
+    codecs_buf[c_idx] = '\0';
+
+    // Parse comma-separated codecs
+    char *token = strtok(codecs_buf, ", ");
+    bool all_codecs_ok = true;
+    int codec_count = 0;
+
+    while (token) {
+        codec_count++;
+        for (size_t i = 0; token[i]; i++) {
+            if (token[i] >= 'A' && token[i] <= 'Z') token[i] += 32;
+        }
+
+        bool ok = false;
+        if (strncmp(token, "avc1", 4) == 0 || strncmp(token, "avc3", 4) == 0 || strcmp(token, "h264") == 0) ok = is_mp4;
+        else if (strncmp(token, "mp4a", 4) == 0 || strcmp(token, "aac") == 0) ok = (is_mp4 || is_aac);
+        else if (strncmp(token, "vp8", 3) == 0) ok = (is_webm || is_ogg);
+        else if (strncmp(token, "vp9", 3) == 0) ok = (is_webm || is_mp4);
+        else if (strncmp(token, "av01", 4) == 0 || strcmp(token, "av1") == 0) ok = is_av1;
+        else if (strncmp(token, "av02", 4) == 0 || strcmp(token, "av2") == 0) ok = is_av2;
+        else if (strcmp(token, "theora") == 0) ok = is_ogg;
+        else if (strcmp(token, "vorbis") == 0) ok = (is_webm || is_ogg);
+        else if (strcmp(token, "opus") == 0) ok = (is_webm || is_ogg || is_opus || is_mp4);
+        else if (strcmp(token, "flac") == 0) ok = (is_flac || is_ogg || is_mp4);
+        else if (strcmp(token, "mp3") == 0) ok = (is_mp3 || is_mp4);
+
+        if (!ok) {
+            all_codecs_ok = false;
+            break;
+        }
+        token = strtok(NULL, ", ");
+    }
+
+    if (codec_count > 0 && all_codecs_ok) {
+        return JS_NewString(ctx, "probably");
+    } else if (codec_count > 0 && !all_codecs_ok) {
+        return JS_NewString(ctx, "");
+    }
+
     return JS_NewString(ctx, "maybe");
 }
 
@@ -6290,9 +6477,6 @@ JSValue wisp_htmlmediaelement_srcObject_set_impl(JSContext *ctx, QJSNodePrivate 
     return JS_UNDEFINED;
 }
 
-JSValue wisp_htmlmediaelement_textTracks_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return get_element_str_attr(ctx, priv, "texttracks", "");
-}
 
 JSValue wisp_htmlmediaelement_videoTracks_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "videotracks", "");
@@ -10060,48 +10244,97 @@ JSValue wisp_htmltabledatacellelement_abbr_set_impl(JSContext *ctx, QJSNodePriva
     return JS_UNDEFINED;
 }
 
+// VTTCue Implementation
+JSValue wisp_vttcue_constructor_impl(JSContext *ctx, double startTime, double endTime, const char * text) {
+    WispVTTCue *cue = calloc(1, sizeof(WispVTTCue));
+    if (!cue) return JS_ThrowOutOfMemory(ctx);
+    cue->startTime = startTime;
+    cue->endTime = endTime;
+    cue->text = strdup(text ? text : "");
+    cue->id = strdup("");
+    cue->pauseOnExit = false;
+    cue->track = NULL;
+
+    extern JSValue qjs_new_vttcue(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_vttcue(ctx, cue, false);
+}
+
+JSValue wisp_vttcue_text_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    return JS_NewString(ctx, (cue && cue->text) ? cue->text : "");
+}
+
+JSValue wisp_vttcue_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    if (cue) {
+        free(cue->text);
+        cue->text = strdup(value ? value : "");
+    }
+    return JS_UNDEFINED;
+}
+
 // Overrides: getter | TextTrackCue::track(user);
 JSValue wisp_texttrackcue_track_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    if (cue && cue->track) {
+        extern JSValue qjs_new_texttrack(JSContext *ctx, void *node, bool is_dom_node);
+        return qjs_new_texttrack(ctx, cue->track, false);
+    }
     return JS_NULL;
 }
 
 // Overrides: getter | TextTrackCue::id(string);
 JSValue wisp_texttrackcue_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    return JS_NewString(ctx, (cue && cue->id) ? cue->id : "");
 }
 
 // Overrides: setter | TextTrackCue::id(string);
 JSValue wisp_texttrackcue_id_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    if (cue) {
+        free(cue->id);
+        cue->id = strdup(value ? value : "");
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | TextTrackCue::startTime(double);
 JSValue wisp_texttrackcue_startTime_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    return JS_NewFloat64(ctx, cue ? cue->startTime : 0.0);
 }
 
 // Overrides: setter | TextTrackCue::startTime(double);
 JSValue wisp_texttrackcue_startTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    if (cue) cue->startTime = value;
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | TextTrackCue::endTime(double);
 JSValue wisp_texttrackcue_endTime_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    return JS_NewFloat64(ctx, cue ? cue->endTime : 0.0);
 }
 
 // Overrides: setter | TextTrackCue::endTime(double);
 JSValue wisp_texttrackcue_endTime_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    if (cue) cue->endTime = value;
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | TextTrackCue::pauseOnExit(boolean);
 JSValue wisp_texttrackcue_pauseOnExit_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    return JS_NewBool(ctx, cue ? cue->pauseOnExit : false);
 }
 
 // Overrides: setter | TextTrackCue::pauseOnExit(boolean);
 JSValue wisp_texttrackcue_pauseOnExit_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) {
+    WispVTTCue *cue = priv ? (WispVTTCue *)priv->node : NULL;
+    if (cue) cue->pauseOnExit = value;
     return JS_UNDEFINED;
 }
 
@@ -10129,67 +10362,132 @@ JSValue wisp_texttrackcue_onexit_set_impl(JSContext *ctx, QJSNodePrivate *priv, 
 
 // Overrides: method | TextTrackCueList::getCueById();
 JSValue wisp_texttrackcuelist_getCueById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) {
-    return JS_UNDEFINED;
+    WispTextTrackCueList *cl = priv ? (WispTextTrackCueList *)priv->node : NULL;
+    if (cl && id) {
+        for (uint32_t i = 0; i < cl->count; i++) {
+            if (cl->cues[i]->id && strcmp(cl->cues[i]->id, id) == 0) {
+                extern JSValue qjs_new_vttcue(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_vttcue(ctx, cl->cues[i], false);
+            }
+        }
+    }
+    return JS_NULL;
 }
 
 // Overrides: getter | TextTrackCueList::length(unsigned long);
 JSValue wisp_texttrackcuelist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrackCueList *cl = priv ? (WispTextTrackCueList *)priv->node : NULL;
+    return JS_NewInt32(ctx, cl ? cl->count : 0);
 }
 
 // Overrides: method | TextTrack::addCue();
-JSValue wisp_texttrack_addCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * cue) {
+JSValue wisp_texttrack_addCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * cue_ptr) {
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    WispVTTCue *cue = (WispVTTCue *)cue_ptr;
+    if (!track || !cue) return JS_UNDEFINED;
+
+    if (!track->cues) {
+        track->cues = calloc(1, sizeof(WispTextTrackCueList));
+    }
+    cue->track = track;
+
+    WispTextTrackCueList *cl = track->cues;
+    for (uint32_t i = 0; i < cl->count; i++) {
+        if (cl->cues[i] == cue) return JS_UNDEFINED;
+    }
+    if (cl->count >= cl->capacity) {
+        uint32_t new_cap = cl->capacity ? cl->capacity * 2 : 4;
+        WispVTTCue **new_cues = realloc(cl->cues, new_cap * sizeof(WispVTTCue *));
+        if (!new_cues) return JS_UNDEFINED;
+        cl->cues = new_cues;
+        cl->capacity = new_cap;
+    }
+    cl->cues[cl->count++] = cue;
     return JS_UNDEFINED;
 }
 
 // Overrides: method | TextTrack::removeCue();
-JSValue wisp_texttrack_removeCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * cue) {
+JSValue wisp_texttrack_removeCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * cue_ptr) {
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    WispVTTCue *cue = (WispVTTCue *)cue_ptr;
+    if (!track || !cue || !track->cues) return JS_UNDEFINED;
+
+    if (cue->track == track) cue->track = NULL;
+
+    WispTextTrackCueList *cl = track->cues;
+    for (uint32_t i = 0; i < cl->count; i++) {
+        if (cl->cues[i] == cue) {
+            memmove(&cl->cues[i], &cl->cues[i + 1], (cl->count - i - 1) * sizeof(WispVTTCue *));
+            cl->count--;
+            break;
+        }
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | TextTrack::kind(user);
 JSValue wisp_texttrack_kind_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    return JS_NewString(ctx, (track && track->kind) ? track->kind : "subtitles");
 }
 
 // Overrides: getter | TextTrack::label(string);
 JSValue wisp_texttrack_label_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    return JS_NewString(ctx, (track && track->label) ? track->label : "");
 }
 
 // Overrides: getter | TextTrack::language(string);
 JSValue wisp_texttrack_language_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    return JS_NewString(ctx, (track && track->language) ? track->language : "");
 }
 
 // Overrides: getter | TextTrack::id(string);
 JSValue wisp_texttrack_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    return JS_NewString(ctx, (track && track->id) ? track->id : "");
 }
 
 // Overrides: getter | TextTrack::inBandMetadataTrackDispatchType(string);
 JSValue wisp_texttrack_inBandMetadataTrackDispatchType_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: getter | TextTrack::mode(user);
 JSValue wisp_texttrack_mode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    return JS_NewString(ctx, (track && track->mode) ? track->mode : "showing");
 }
 
 // Overrides: setter | TextTrack::mode(user);
 JSValue wisp_texttrack_mode_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    if (track && JS_IsString(value)) {
+        const char *s = JS_ToCString(ctx, value);
+        if (s) {
+            free(track->mode);
+            track->mode = strdup(s);
+            JS_FreeCString(ctx, s);
+        }
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | TextTrack::cues(user);
 JSValue wisp_texttrack_cues_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrack *track = priv ? (WispTextTrack *)priv->node : NULL;
+    if (!track) return JS_NULL;
+    if (!track->cues) {
+        track->cues = calloc(1, sizeof(WispTextTrackCueList));
+    }
+    extern JSValue qjs_new_texttrackcuelist(JSContext *ctx, void *node, bool is_dom_node);
+    return qjs_new_texttrackcuelist(ctx, track->cues, false);
 }
 
 // Overrides: getter | TextTrack::activeCues(user);
 JSValue wisp_texttrack_activeCues_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return wisp_texttrack_cues_get_impl(ctx, priv);
 }
 
 // Overrides: getter | TextTrack::oncuechange(user);
@@ -10205,12 +10503,22 @@ JSValue wisp_texttrack_oncuechange_set_impl(JSContext *ctx, QJSNodePrivate *priv
 
 // Overrides: method | TextTrackList::getTrackById();
 JSValue wisp_texttracklist_getTrackById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * id) {
-    return JS_UNDEFINED;
+    WispTextTrackList *tl = priv ? (WispTextTrackList *)priv->node : NULL;
+    if (tl && id) {
+        for (uint32_t i = 0; i < tl->count; i++) {
+            if (tl->tracks[i]->id && strcmp(tl->tracks[i]->id, id) == 0) {
+                extern JSValue qjs_new_texttrack(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_texttrack(ctx, tl->tracks[i], false);
+            }
+        }
+    }
+    return JS_NULL;
 }
 
 // Overrides: getter | TextTrackList::length(unsigned long);
 JSValue wisp_texttracklist_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    WispTextTrackList *tl = priv ? (WispTextTrackList *)priv->node : NULL;
+    return JS_NewInt32(ctx, tl ? tl->count : 0);
 }
 
 // Overrides: getter | TextTrackList::onchange(user);
@@ -13428,7 +13736,54 @@ JSValue wisp_htmlanchorelement_target_set_impl(JSContext *ctx, QJSNodePrivate *p
 
 // Overrides: HTMLAudioElement | Audio
 JSValue wisp_htmlaudioelement_Audio_impl(JSContext *ctx, const char * src) {
-    return JS_UNDEFINED;
+    extern bool wisp_is_js_process;
+    if (wisp_is_js_process) {
+        extern JSValue qjs_new_htmlaudioelement(JSContext *ctx, void *node, bool is_dom_node);
+        static uint32_t next_dummy_audio_id = 0xf2000000;
+        uint32_t dummy_id = next_dummy_audio_id++;
+        JSValue val = qjs_new_htmlaudioelement(ctx, (void*)(uintptr_t)dummy_id, false);
+        QJSNodePrivate *priv = JS_GetOpaque(val, qjs_htmlaudioelement_class_id);
+        if (priv && src && *src) {
+            wisp_element_setAttribute_impl(ctx, priv, "src", src);
+            wisp_element_setAttribute_impl(ctx, priv, "preload", "auto");
+        }
+        return val;
+    }
+
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t) return JS_NULL;
+    struct dom_document *doc = qjs_thread_get_document(t);
+    if (!doc) return JS_NULL;
+
+    dom_string *name_dom = NULL;
+    dom_string_create((const uint8_t *)"audio", 5, &name_dom);
+    struct dom_element *result = NULL;
+    dom_document_create_element(doc, name_dom, &result);
+    dom_string_unref(name_dom);
+
+    if (result) {
+        if (src && *src) {
+            dom_string *attr_name = NULL;
+            dom_string_create((const uint8_t *)"src", 3, &attr_name);
+            dom_string *attr_val = NULL;
+            dom_string_create((const uint8_t *)src, strlen(src), &attr_val);
+            dom_element_set_attribute(result, attr_name, attr_val);
+            dom_string_unref(attr_name);
+            dom_string_unref(attr_val);
+
+            dom_string *pl_name = NULL;
+            dom_string_create((const uint8_t *)"preload", 7, &pl_name);
+            dom_string *pl_val = NULL;
+            dom_string_create((const uint8_t *)"auto", 4, &pl_val);
+            dom_element_set_attribute(result, pl_name, pl_val);
+            dom_string_unref(pl_name);
+            dom_string_unref(pl_val);
+        }
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)result);
+        dom_node_unref((dom_node *)result);
+        return val;
+    }
+    return JS_NULL;
 }
 
 // Overrides: HTMLButtonElement | labels (getter)
@@ -15042,11 +15397,21 @@ JSValue wisp_text_constructor_impl(JSContext *ctx, const char * data) {
 
 // Overrides: TextTrackCueList | __getter__()
 JSValue wisp_texttrackcuelist___getter___impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    WispTextTrackCueList *cl = priv ? (WispTextTrackCueList *)priv->node : NULL;
+    if (cl && index < cl->count) {
+        extern JSValue qjs_new_vttcue(JSContext *ctx, void *node, bool is_dom_node);
+        return qjs_new_vttcue(ctx, cl->cues[index], false);
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: TextTrackList | __getter__()
 JSValue wisp_texttracklist___getter___impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) {
+    WispTextTrackList *tl = priv ? (WispTextTrackList *)priv->node : NULL;
+    if (tl && index < tl->count) {
+        extern JSValue qjs_new_texttrack(JSContext *ctx, void *node, bool is_dom_node);
+        return qjs_new_texttrack(ctx, tl->tracks[index], false);
+    }
     return JS_UNDEFINED;
 }
 
