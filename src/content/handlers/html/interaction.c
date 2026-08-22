@@ -1215,12 +1215,17 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
         content_broadcast(c, CONTENT_MSG_POINTER, &msg_data);
     }
 
-    /* fire dom click event */
+    /* fire dom click event BEFORE deferred actions, so JS click handlers (e.g. e.preventDefault() or location changes) execute first */
+    bool default_prevented = false;
     if (mouse & BROWSER_MOUSE_CLICK_1) {
         html_content *htmlc = (html_content *)c;
         doc_rwlock_wrlock(&htmlc->doc_mutex);
-        fire_generic_dom_event(corestring_dom_click, mas.node, true, true);
+        default_prevented = !fire_generic_dom_event(corestring_dom_click, mas.node, true, true);
         doc_rwlock_wrunlock(&htmlc->doc_mutex);
+    }
+
+    if (default_prevented) {
+        return NSERROR_OK;
     }
 
     /* deferred actions that can cause this browser_window to be destroyed

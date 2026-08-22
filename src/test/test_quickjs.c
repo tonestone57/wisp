@@ -3823,6 +3823,50 @@ START_TEST(test_quickjs_event_target_basic)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_addEventListener");
     ck_assert(result == true);
 
+    /* Test preventDefault & defaultPrevented on click events */
+    const char *code_prevent =
+        "(function() {\n"
+        "  // 1. Prevented Navigation check\n"
+        "  var a1 = document.createElement('a');\n"
+        "  a1.setAttribute('href', '/target1');\n"
+        "  a1.addEventListener('click', function(e) { e.preventDefault(); });\n"
+        "  var evt1 = new Event('click', { cancelable: true });\n"
+        "  a1.dispatchEvent(evt1);\n"
+        "  if (evt1.defaultPrevented !== true) throw new Error('preventDefault() failed on link click');\n"
+        "  \n"
+        "  // 2. Unprevented Navigation check\n"
+        "  var a2 = document.createElement('a');\n"
+        "  a2.setAttribute('href', '/target2');\n"
+        "  var evt2 = new Event('click', { cancelable: true });\n"
+        "  a2.dispatchEvent(evt2);\n"
+        "  if (evt2.defaultPrevented !== false) throw new Error('defaultPrevented should be false for unprevented click');\n"
+        "  \n"
+        "  // 3. Nested elements & bubbling preventDefault check\n"
+        "  var parentA = document.createElement('a');\n"
+        "  parentA.setAttribute('href', '/target4');\n"
+        "  var span = document.createElement('span');\n"
+        "  var strong = document.createElement('strong');\n"
+        "  span.appendChild(strong);\n"
+        "  parentA.appendChild(span);\n"
+        "  parentA.addEventListener('click', function(e) { e.preventDefault(); });\n"
+        "  var evt4 = new Event('click', { bubbles: true, cancelable: true });\n"
+        "  strong.dispatchEvent(evt4);\n"
+        "  if (evt4.defaultPrevented !== true) throw new Error('preventDefault on parent link during bubbling failed');\n"
+        "  \n"
+        "  // 4. Decoupling of stopPropagation and preventDefault\n"
+        "  var parentA2 = document.createElement('a');\n"
+        "  parentA2.setAttribute('href', '/target5');\n"
+        "  var span2 = document.createElement('span');\n"
+        "  parentA2.appendChild(span2);\n"
+        "  span2.addEventListener('click', function(e) { e.stopPropagation(); });\n"
+        "  var evt5 = new Event('click', { bubbles: true, cancelable: true });\n"
+        "  span2.dispatchEvent(evt5);\n"
+        "  if (evt5.defaultPrevented !== false) throw new Error('stopPropagation alone should not prevent default');\n"
+        "  return true;\n"
+        "})()";
+    result = js_exec(thread, (const uint8_t *)code_prevent, strlen(code_prevent), "test_prevent_default_regression");
+    ck_assert(result == true);
+
     /* Test bare and null/undefined contexts on eventtarget methods */
     const char *code2 =
         "(function() {\n"
