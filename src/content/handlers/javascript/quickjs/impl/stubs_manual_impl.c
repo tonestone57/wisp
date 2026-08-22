@@ -8350,8 +8350,48 @@ JSValue wisp_messageport_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 // 4. BroadcastChannel Implementation (5 stubs + constructor)
+typedef struct WispBroadcastChannelPrivate {
+    char *name;
+} WispBroadcastChannelPrivate;
+
+extern JSClassID qjs_broadcastchannel_class_id;
+static void js_broadcastchannel_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_broadcastchannel_class_id);
+    if (priv) {
+        if (priv->node) {
+            WispBroadcastChannelPrivate *bcp = (WispBroadcastChannelPrivate *)priv->node;
+            free(bcp->name);
+            free(bcp);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_broadcastchannel_class_manual = {
+    "BroadcastChannel",
+    .finalizer = js_broadcastchannel_finalizer_manual,
+};
+
+int qjs_init_broadcastchannel(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_broadcastchannel_class_id == 0) JS_NewClassID(rt, &qjs_broadcastchannel_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_broadcastchannel_class_id)) {
+        JS_NewClass(rt, qjs_broadcastchannel_class_id, &js_broadcastchannel_class_manual);
+    }
+    extern int qjs_init_broadcastchannel_gen(JSContext *ctx);
+    return qjs_init_broadcastchannel_gen(ctx);
+}
+
+extern JSValue qjs_new_broadcastchannel(JSContext *ctx, void *node, bool is_dom_node);
+
 JSValue wisp_broadcastchannel_constructor_impl(JSContext *ctx, const char * name) {
-    return JS_NewObject(ctx);
+    WispBroadcastChannelPrivate *bcp = calloc(1, sizeof(WispBroadcastChannelPrivate));
+    if (bcp && name) {
+        bcp->name = strdup(name);
+    }
+    return qjs_new_broadcastchannel(ctx, bcp, false);
 }
 JSValue wisp_broadcastchannel_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_UNDEFINED;
@@ -8360,7 +8400,9 @@ JSValue wisp_broadcastchannel_postMessage_impl(JSContext *ctx, QJSNodePrivate *p
     return JS_UNDEFINED;
 }
 JSValue wisp_broadcastchannel_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispBroadcastChannelPrivate *bcp = (WispBroadcastChannelPrivate *)priv->node;
+    return JS_NewString(ctx, bcp->name ? bcp->name : "");
 }
 JSValue wisp_broadcastchannel_onmessage_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return helper_get_event_handler(ctx, priv, "onmessage");
@@ -9581,14 +9623,91 @@ JSValue wisp_websocket_send_3_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue
     return JS_UNDEFINED;
 }
 
+typedef struct WispWebSocketPrivate {
+    char *url;
+    char *binaryType;
+    uint16_t readyState;
+} WispWebSocketPrivate;
+
+extern JSClassID qjs_websocket_class_id;
+static void js_websocket_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_websocket_class_id);
+    if (priv) {
+        if (priv->node) {
+            WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+            free(wsp->url);
+            free(wsp->binaryType);
+            free(wsp);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_websocket_class_manual = {
+    "WebSocket",
+    .finalizer = js_websocket_finalizer_manual,
+};
+
+int qjs_init_websocket(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_websocket_class_id == 0) JS_NewClassID(rt, &qjs_websocket_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_websocket_class_id)) {
+        JS_NewClass(rt, qjs_websocket_class_id, &js_websocket_class_manual);
+    }
+    extern int qjs_init_websocket_gen(JSContext *ctx);
+    return qjs_init_websocket_gen(ctx);
+}
+
+typedef struct WispEventSourcePrivate {
+    char *url;
+    uint16_t readyState;
+    bool withCredentials;
+} WispEventSourcePrivate;
+
+extern JSClassID qjs_eventsource_class_id;
+static void js_eventsource_finalizer_manual(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_eventsource_class_id);
+    if (priv) {
+        if (priv->node) {
+            WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+            free(esp->url);
+            free(esp);
+        }
+        free(priv);
+    }
+}
+
+static JSClassDef js_eventsource_class_manual = {
+    "EventSource",
+    .finalizer = js_eventsource_finalizer_manual,
+};
+
+int qjs_init_eventsource(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_eventsource_class_id == 0) JS_NewClassID(rt, &qjs_eventsource_class_id);
+    if (!JS_IsRegisteredClass(rt, qjs_eventsource_class_id)) {
+        JS_NewClass(rt, qjs_eventsource_class_id, &js_eventsource_class_manual);
+    }
+    extern int qjs_init_eventsource_gen(JSContext *ctx);
+    return qjs_init_eventsource_gen(ctx);
+}
+
 // Overrides: getter | WebSocket::url(string);
 JSValue wisp_websocket_url_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewString(ctx, wsp->url ? wsp->url : "");
 }
 
 // Overrides: getter | WebSocket::readyState(unsigned short);
 JSValue wisp_websocket_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewInt32(ctx, wsp->readyState);
 }
 
 // Overrides: getter | WebSocket::bufferedAmount(unsigned long);
@@ -9652,32 +9771,54 @@ JSValue wisp_websocket_onmessage_set_impl(JSContext *ctx, QJSNodePrivate *priv, 
 
 // Overrides: getter | WebSocket::binaryType(user);
 JSValue wisp_websocket_binaryType_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "blob");
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewString(ctx, wsp->binaryType ? wsp->binaryType : "blob");
 }
 
 // Overrides: setter | WebSocket::binaryType(user);
 JSValue wisp_websocket_binaryType_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    const char *str = JS_ToCString(ctx, value);
+    if (str) {
+        if (strcmp(str, "blob") == 0 || strcmp(str, "arraybuffer") == 0) {
+            free(wsp->binaryType);
+            wsp->binaryType = strdup(str);
+        }
+        JS_FreeCString(ctx, str);
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: method | EventSource::close();
 JSValue wisp_eventsource_close_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (priv && priv->node) {
+        WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+        esp->readyState = 2; // CLOSED
+    }
     return JS_UNDEFINED;
 }
 
 // Overrides: getter | EventSource::url(string);
 JSValue wisp_eventsource_url_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+    return JS_NewString(ctx, esp->url ? esp->url : "");
 }
 
 // Overrides: getter | EventSource::withCredentials(boolean);
 JSValue wisp_eventsource_withCredentials_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+    if (!priv || !priv->node) return JS_FALSE;
+    WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+    return esp->withCredentials ? JS_TRUE : JS_FALSE;
 }
 
 // Overrides: getter | EventSource::readyState(unsigned short);
 JSValue wisp_eventsource_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewInt32(ctx, 0);
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    WispEventSourcePrivate *esp = (WispEventSourcePrivate *)priv->node;
+    return JS_NewInt32(ctx, esp->readyState);
 }
 
 // Overrides: getter | EventSource::onopen(user);
@@ -13742,8 +13883,22 @@ JSValue wisp_event_constructor_impl(JSContext *ctx, const char * type, JSValue e
 }
 
 // Overrides: EventSource | constructor
+extern JSValue qjs_new_eventsource(JSContext *ctx, void *node, bool is_dom_node);
+
 JSValue wisp_eventsource_constructor_impl(JSContext *ctx, const char * url, JSValue eventSourceInitDict) {
-    return JS_UNDEFINED;
+    WispEventSourcePrivate *esp = calloc(1, sizeof(WispEventSourcePrivate));
+    if (esp) {
+        if (url) esp->url = strdup(url);
+        esp->readyState = 0; // CONNECTING
+        if (JS_IsObject(eventSourceInitDict)) {
+            JSValue wc = JS_GetPropertyStr(ctx, eventSourceInitDict, "withCredentials");
+            if (JS_ToBool(ctx, wc)) {
+                esp->withCredentials = true;
+            }
+            JS_FreeValue(ctx, wc);
+        }
+    }
+    return qjs_new_eventsource(ctx, esp, false);
 }
 
 // Overrides: GetStyleUtils | cascadedStyle (getter)
@@ -15697,8 +15852,16 @@ JSValue wisp_videotracklist___getter___impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 // Overrides: WebSocket | constructor
+extern JSValue qjs_new_websocket(JSContext *ctx, void *node, bool is_dom_node);
+
 JSValue wisp_websocket_constructor_impl(JSContext *ctx, const char * url, JSValue protocols) {
-    return JS_UNDEFINED;
+    WispWebSocketPrivate *wsp = calloc(1, sizeof(WispWebSocketPrivate));
+    if (wsp) {
+        if (url) wsp->url = strdup(url);
+        wsp->binaryType = strdup("blob");
+        wsp->readyState = 0; // CONNECTING
+    }
+    return qjs_new_websocket(ctx, wsp, false);
 }
 
 // Overrides: Window | __getter__()
