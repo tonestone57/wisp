@@ -292,7 +292,7 @@ hubbub_error process_start_tag(hubbub_treebuilder *treebuilder, const hubbub_tok
     } else if (type == OPTGROUP || type == OPTION) {
         err = process_opt_in_body(treebuilder, token);
     } else if (type == RP || type == RT) {
-        /** \todo ruby */
+        err = process_container_in_body(treebuilder, token);
     } else if (type == MATH || type == SVG) {
         hubbub_tag tag = token->data.tag;
 
