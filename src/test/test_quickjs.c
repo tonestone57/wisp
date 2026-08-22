@@ -5933,6 +5933,52 @@ START_TEST(test_quickjs_ric)
 }
 END_TEST
 
+START_TEST(test_quickjs_read_write_selectors)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(10, &heap), NSERROR_OK);
+
+    struct dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    jsthread *thread;
+    ck_assert_int_eq(js_newthread(heap, doc, doc, &thread), NSERROR_OK);
+
+    const char *code =
+        "function ck_assert(val) { if (!val) throw new Error('Assertion failed'); }\n"
+        "var input = document.createElement('input');\n"
+        "input.id = 'testFormInput';\n"
+        "input.setAttribute('type', 'text');\n"
+        "document.body.appendChild(input);\n"
+        "var rwInput = document.querySelector('#testFormInput:read-write');\n"
+        "ck_assert(rwInput === input);\n"
+        "input.setAttribute('readonly', 'readonly');\n"
+        "var roInput = document.querySelector('#testFormInput:read-only');\n"
+        "ck_assert(roInput === input);\n"
+        "document.body.removeChild(input);\n"
+        "var div = document.createElement('div');\n"
+        "div.id = 'testDivElement';\n"
+        "div.contentEditable = true;\n"
+        "document.body.appendChild(div);\n"
+        "var rwDiv = document.querySelector('#testDivElement:read-write');\n"
+        "ck_assert(rwDiv === div);\n"
+        "var nested = document.createElement('div');\n"
+        "nested.id = 'testDivNested';\n"
+        "nested.contentEditable = false;\n"
+        "div.appendChild(nested);\n"
+        "var roNested = document.querySelector('#testDivNested:read-only');\n"
+        "ck_assert(roNested === nested);\n";
+
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)code, strlen(code), "test_read_write"), true);
+
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_bbmq_circular_queue)
 {
     // Save original state
@@ -6416,6 +6462,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
+    tcase_add_test(tc_event_loop, test_quickjs_read_write_selectors);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

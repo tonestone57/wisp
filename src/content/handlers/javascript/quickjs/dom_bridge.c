@@ -320,6 +320,8 @@ typedef struct {
     char *id;
     char **classes;
     uint32_t class_count;
+    char **pseudos;
+    uint32_t pseudo_count;
     bool universal;
 } qjs_compound_selector_t;
 
@@ -351,6 +353,10 @@ static void qjs_selector_root_free(qjs_selector_root_t *root)
                 free(comp->compound.classes[k]);
             }
             free(comp->compound.classes);
+            for (uint32_t k = 0; k < comp->compound.pseudo_count; k++) {
+                free(comp->compound.pseudos[k]);
+            }
+            free(comp->compound.pseudos);
         }
         free(group->components);
     }
@@ -426,12 +432,12 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
             while (*csp) {
                 if (*csp == '#') {
                     const char *id_start = ++csp;
-                    while (*csp && !strchr("#.", *csp)) csp++;
+                    while (*csp && !strchr("#.:", *csp)) csp++;
                     if (comp->compound.id) free(comp->compound.id);
                     comp->compound.id = strndup(id_start, (size_t)(csp - id_start));
                 } else if (*csp == '.') {
                     const char *class_start = ++csp;
-                    while (*csp && !strchr("#.", *csp)) csp++;
+                    while (*csp && !strchr("#.:", *csp)) csp++;
                     char **new_classes = realloc(comp->compound.classes, (comp->compound.class_count + 1) * sizeof(char *));
                     if (!new_classes) {
                         free(comp_str);
@@ -441,9 +447,23 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
                     }
                     comp->compound.classes = new_classes;
                     comp->compound.classes[comp->compound.class_count++] = strndup(class_start, (size_t)(csp - class_start));
+                } else if (*csp == ':') {
+                    csp++;
+                    if (*csp == ':') csp++;
+                    const char *pseudo_start = csp;
+                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    char **new_pseudos = realloc(comp->compound.pseudos, (comp->compound.pseudo_count + 1) * sizeof(char *));
+                    if (!new_pseudos) {
+                        free(comp_str);
+                        free(group_str);
+                        qjs_selector_root_free(root);
+                        return NULL;
+                    }
+                    comp->compound.pseudos = new_pseudos;
+                    comp->compound.pseudos[comp->compound.pseudo_count++] = strndup(pseudo_start, (size_t)(csp - pseudo_start));
                 } else {
                     const char *tag_start = csp;
-                    while (*csp && !strchr("#.", *csp)) csp++;
+                    while (*csp && !strchr("#.:", *csp)) csp++;
                     if (comp->compound.tag) free(comp->compound.tag);
                     comp->compound.tag = strndup(tag_start, (size_t)(csp - tag_start));
                 }
@@ -461,6 +481,89 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
         if (comma) p = comma + 1; else break;
     }
     return root;
+}
+
+static char *qjs_libdom_get_attr(struct dom_node *node, const char *attr_name)
+{
+    dom_string *attr_name_dom = NULL;
+    dom_string_create((const uint8_t *)attr_name, strlen(attr_name), &attr_name_dom);
+    if (!attr_name_dom) return NULL;
+    dom_string *val = NULL;
+    dom_element_get_attribute((dom_element *)node, attr_name_dom, &val);
+    dom_string_unref(attr_name_dom);
+    if (!val) return NULL;
+    const char *data = dom_string_data(val);
+    size_t len = dom_string_byte_length(val);
+    char *res = strndup(data, len);
+    dom_string_unref(val);
+    return res;
+}
+
+static bool qjs_libdom_has_attr(struct dom_node *node, const char *attr_name)
+{
+    dom_string *attr_name_dom = NULL;
+    dom_string_create((const uint8_t *)attr_name, strlen(attr_name), &attr_name_dom);
+    if (!attr_name_dom) return false;
+    bool has = false;
+    dom_element_has_attribute((dom_element *)node, attr_name_dom, &has);
+    dom_string_unref(attr_name_dom);
+    return has;
+}
+
+static char *qjs_libdom_get_tag_name(struct dom_node *node)
+{
+    dom_string *tag = NULL;
+    dom_element_get_tag_name((dom_element *)node, &tag);
+    if (!tag) return NULL;
+    const char *data = dom_string_data(tag);
+    size_t len = dom_string_byte_length(tag);
+    char *res = strndup(data, len);
+    dom_string_unref(tag);
+    return res;
+}
+
+static bool qjs_is_element_read_write(struct dom_node *node)
+{
+    char *tag = qjs_libdom_get_tag_name(node);
+    if (tag) {
+        if (strcasecmp(tag, "input") == 0 || strcasecmp(tag, "textarea") == 0) {
+            bool disabled = qjs_libdom_has_attr(node, "disabled");
+            bool readonly = qjs_libdom_has_attr(node, "readonly");
+            free(tag);
+            if (!disabled && !readonly) {
+                return true;
+            }
+            return false;
+        }
+        free(tag);
+    }
+
+    struct dom_node *curr = dom_node_ref(node);
+    while (curr) {
+        dom_node_type type;
+        dom_node_get_node_type(curr, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            char *ce = qjs_libdom_get_attr(curr, "contenteditable");
+            if (ce) {
+                if (strcasecmp(ce, "true") == 0 || ce[0] == '\0' || strcasecmp(ce, "contenteditable") == 0) {
+                    free(ce);
+                    dom_node_unref(curr);
+                    return true;
+                } else if (strcasecmp(ce, "false") == 0) {
+                    free(ce);
+                    dom_node_unref(curr);
+                    return false;
+                }
+                free(ce);
+            }
+        }
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node(curr, &parent);
+        dom_node_unref(curr);
+        curr = parent;
+    }
+
+    return false;
 }
 
 static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compound_selector_t *comp)
@@ -519,6 +622,55 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
             dom_string_unref(cls);
             if (!found) return false;
         } else return false;
+    }
+
+    for (uint32_t i = 0; i < comp->pseudo_count; i++) {
+        const char *pseudo = comp->pseudos[i];
+        if (strcasecmp(pseudo, "read-write") == 0 || strcasecmp(pseudo, "-moz-read-write") == 0) {
+            if (!qjs_is_element_read_write(node)) return false;
+        } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) {
+            if (qjs_is_element_read_write(node)) return false;
+        } else if (strcasecmp(pseudo, "required") == 0) {
+            if (!qjs_libdom_has_attr(node, "required")) return false;
+        } else if (strcasecmp(pseudo, "optional") == 0) {
+            if (qjs_libdom_has_attr(node, "required")) return false;
+        } else if (strcasecmp(pseudo, "valid") == 0) {
+            char *cv = qjs_libdom_get_attr(node, "__customValidity");
+            if (cv) {
+                bool is_invalid = (cv[0] != '\0');
+                free(cv);
+                if (is_invalid) return false;
+            }
+        } else if (strcasecmp(pseudo, "invalid") == 0) {
+            char *cv = qjs_libdom_get_attr(node, "__customValidity");
+            if (cv) {
+                bool is_invalid = (cv[0] != '\0');
+                free(cv);
+                if (!is_invalid) return false;
+            } else return false;
+        } else if (strcasecmp(pseudo, "in-range") == 0) {
+            char *val_str = qjs_libdom_get_attr(node, "value");
+            char *min_str = qjs_libdom_get_attr(node, "min");
+            char *max_str = qjs_libdom_get_attr(node, "max");
+            double val = val_str ? atof(val_str) : 0.0;
+            double min = min_str ? atof(min_str) : -1e9;
+            double max = max_str ? atof(max_str) : 1e9;
+            if (val_str) free(val_str);
+            if (min_str) free(min_str);
+            if (max_str) free(max_str);
+            if (val < min || val > max) return false;
+        } else if (strcasecmp(pseudo, "out-of-range") == 0) {
+            char *val_str = qjs_libdom_get_attr(node, "value");
+            char *min_str = qjs_libdom_get_attr(node, "min");
+            char *max_str = qjs_libdom_get_attr(node, "max");
+            double val = val_str ? atof(val_str) : 0.0;
+            double min = min_str ? atof(min_str) : -1e9;
+            double max = max_str ? atof(max_str) : 1e9;
+            if (val_str) free(val_str);
+            if (min_str) free(min_str);
+            if (max_str) free(max_str);
+            if (val >= min && val <= max) return false;
+        }
     }
 
     return true;
@@ -680,6 +832,68 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
     free(cleanup.has_types);
 }
 
+static const char *qjs_shm_get_attr(uint32_t node_id, const char *attr_name)
+{
+    if (!wisp_shm_dom || node_id == 0) return NULL;
+    WispNodeStrings *strings = shm_dom_get_node_strings(wisp_shm_dom);
+    WispNodeStrings *sns = &strings[node_id];
+    uint32_t limit = sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
+    for (uint32_t i = 0; i < limit; i++) {
+        const char *an = wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].name);
+        if (an && strcasecmp(an, attr_name) == 0) {
+            return wisp_string_ref_data(wisp_shm_dom, sns->attrs[i].value);
+        }
+    }
+    return NULL;
+}
+
+static bool qjs_shm_has_attr(uint32_t node_id, const char *attr_name)
+{
+    return qjs_shm_get_attr(node_id, attr_name) != NULL;
+}
+
+static const char *qjs_shm_get_tag_name(uint32_t node_id)
+{
+    if (!wisp_shm_dom || node_id == 0) return NULL;
+    WispNodeStrings *strings = shm_dom_get_node_strings(wisp_shm_dom);
+    return wisp_string_ref_data(wisp_shm_dom, strings[node_id].tag_name);
+}
+
+static bool qjs_is_element_read_write_shm(uint32_t node_id)
+{
+    if (!wisp_shm_dom || node_id == 0) return false;
+    WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+
+    const char *tag = qjs_shm_get_tag_name(node_id);
+    if (tag) {
+        if (strcasecmp(tag, "input") == 0 || strcasecmp(tag, "textarea") == 0) {
+            bool disabled = qjs_shm_has_attr(node_id, "disabled");
+            bool readonly = qjs_shm_has_attr(node_id, "readonly");
+            if (!disabled && !readonly) {
+                return true;
+            }
+            return false;
+        }
+    }
+
+    uint32_t curr = node_id;
+    while (curr != 0) {
+        if (nodes[curr].node_type == 1) { // ELEMENT
+            const char *ce = qjs_shm_get_attr(curr, "contenteditable");
+            if (ce) {
+                if (strcasecmp(ce, "true") == 0 || ce[0] == '\0' || strcasecmp(ce, "contenteditable") == 0) {
+                    return true;
+                } else if (strcasecmp(ce, "false") == 0) {
+                    return false;
+                }
+            }
+        }
+        curr = nodes[curr].parent_id;
+    }
+
+    return false;
+}
+
 static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compound_selector_t *comp)
 {
     if (!wisp_shm_dom || node_id == 0) return false;
@@ -738,6 +952,41 @@ static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compou
             }
         }
         if (!found) return false;
+    }
+
+    for (uint32_t i = 0; i < comp->pseudo_count; i++) {
+        const char *pseudo = comp->pseudos[i];
+        if (strcasecmp(pseudo, "read-write") == 0 || strcasecmp(pseudo, "-moz-read-write") == 0) {
+            if (!qjs_is_element_read_write_shm(node_id)) return false;
+        } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) {
+            if (qjs_is_element_read_write_shm(node_id)) return false;
+        } else if (strcasecmp(pseudo, "required") == 0) {
+            if (!qjs_shm_has_attr(node_id, "required")) return false;
+        } else if (strcasecmp(pseudo, "optional") == 0) {
+            if (qjs_shm_has_attr(node_id, "required")) return false;
+        } else if (strcasecmp(pseudo, "valid") == 0) {
+            const char *cv = qjs_shm_get_attr(node_id, "__customValidity");
+            if (cv && cv[0] != '\0') return false;
+        } else if (strcasecmp(pseudo, "invalid") == 0) {
+            const char *cv = qjs_shm_get_attr(node_id, "__customValidity");
+            if (!cv || cv[0] == '\0') return false;
+        } else if (strcasecmp(pseudo, "in-range") == 0) {
+            const char *val_str = qjs_shm_get_attr(node_id, "value");
+            const char *min_str = qjs_shm_get_attr(node_id, "min");
+            const char *max_str = qjs_shm_get_attr(node_id, "max");
+            double val = val_str ? atof(val_str) : 0.0;
+            double min = min_str ? atof(min_str) : -1e9;
+            double max = max_str ? atof(max_str) : 1e9;
+            if (val < min || val > max) return false;
+        } else if (strcasecmp(pseudo, "out-of-range") == 0) {
+            const char *val_str = qjs_shm_get_attr(node_id, "value");
+            const char *min_str = qjs_shm_get_attr(node_id, "min");
+            const char *max_str = qjs_shm_get_attr(node_id, "max");
+            double val = val_str ? atof(val_str) : 0.0;
+            double min = min_str ? atof(min_str) : -1e9;
+            double max = max_str ? atof(max_str) : 1e9;
+            if (val >= min && val <= max) return false;
+        }
     }
 
     return true;
