@@ -9475,7 +9475,17 @@ JSValue wisp_workernavigator_onLine_get_impl(JSContext *ctx, QJSNodePrivate *pri
 
 // Overrides: getter | SharedWorker::port(user);
 JSValue wisp_sharedworker_port_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue port_ctor = JS_GetPropertyStr(ctx, global, "MessagePort");
+    JS_FreeValue(ctx, global);
+    JSValue port = JS_UNDEFINED;
+    if (JS_IsFunction(ctx, port_ctor)) {
+        port = JS_CallConstructor(ctx, port_ctor, 0, NULL);
+    } else {
+        port = JS_NewObject(ctx);
+    }
+    JS_FreeValue(ctx, port_ctor);
+    return port;
 }
 
 // Overrides: getter | SharedWorker::onerror(user);
@@ -15649,7 +15659,31 @@ JSValue wisp_range_toString_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: SharedWorker | constructor
 JSValue wisp_sharedworker_constructor_impl(JSContext *ctx, const char * scriptURL, const char * name) {
-    return JS_UNDEFINED;
+    extern JSClassID qjs_sharedworker_class_id;
+    JSValue obj = JS_NewObjectClass(ctx, qjs_sharedworker_class_id);
+    if (JS_IsException(obj)) return obj;
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC; priv->is_dom_node = false; priv->ctx = ctx;
+    JS_SetOpaque(obj, priv);
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue port_ctor = JS_GetPropertyStr(ctx, global, "MessagePort");
+    JS_FreeValue(ctx, global);
+
+    JSValue port = JS_UNDEFINED;
+    if (JS_IsFunction(ctx, port_ctor)) {
+        port = JS_CallConstructor(ctx, port_ctor, 0, NULL);
+    }
+    JS_FreeValue(ctx, port_ctor);
+
+    if (JS_IsUndefined(port) || JS_IsException(port)) {
+        JS_FreeValue(ctx, port);
+        port = JS_NewObject(ctx);
+    }
+
+    JS_SetPropertyStr(ctx, obj, "_port", port);
+    return obj;
 }
 
 // Overrides: StorageEvent | constructor
