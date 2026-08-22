@@ -203,24 +203,24 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
     struct jsthread *thread = JS_GetContextOpaque(ctx);
     bool is_real_dom_node = priv->is_dom_node || (thread && priv == &thread->global_window_priv);
 
-    if (wisp_is_js_process || !is_real_dom_node || priv->node == NULL) {
-        const char *type = NULL;
-        JSValue type_val = JS_UNDEFINED;
-        if (JS_IsObject(argv[0])) {
-            type_val = JS_GetPropertyStr(ctx, argv[0], "type");
-            if (JS_IsString(type_val)) {
-                type = JS_ToCString(ctx, type_val);
-            }
+    const char *type = NULL;
+    JSValue type_val = JS_UNDEFINED;
+    if (JS_IsObject(argv[0])) {
+        type_val = JS_GetPropertyStr(ctx, argv[0], "type");
+        if (JS_IsString(type_val)) {
+            type = JS_ToCString(ctx, type_val);
         }
-        if (!type && JS_IsString(argv[0])) {
-            type = JS_ToCString(ctx, argv[0]);
-        }
-        if (!type) {
-            JS_FreeValue(ctx, type_val);
-            JS_FreeValue(ctx, global_ref);
-            return JS_FALSE;
-        }
+    }
+    if (!type && JS_IsString(argv[0])) {
+        type = JS_ToCString(ctx, argv[0]);
+    }
+    if (!type) {
+        JS_FreeValue(ctx, type_val);
+        JS_FreeValue(ctx, global_ref);
+        return JS_FALSE;
+    }
 
+    if (wisp_is_js_process || !is_real_dom_node || priv->node == NULL) {
         JSValue listeners = JS_GetPropertyStr(ctx, actual_this, "__wisp_listeners");
         if (!JS_IsUndefined(listeners)) {
             JSValue list = JS_GetPropertyStr(ctx, listeners, type);
@@ -274,18 +274,6 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
         JS_FreeValue(ctx, type_val);
         JS_FreeValue(ctx, global_ref);
         return JS_TRUE;
-    }
-
-    const char *type = NULL;
-    JSValue type_val = JS_UNDEFINED;
-    if (JS_IsObject(argv[0])) {
-        type_val = JS_GetPropertyStr(ctx, argv[0], "type");
-        if (JS_IsString(type_val)) {
-            type = JS_ToCString(ctx, type_val);
-        }
-    }
-    if (!type && JS_IsString(argv[0])) {
-        type = JS_ToCString(ctx, argv[0]);
     }
 
     dom_node *target = (dom_node *)priv->node;

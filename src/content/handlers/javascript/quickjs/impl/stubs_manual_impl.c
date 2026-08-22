@@ -10419,6 +10419,61 @@ JSValue wisp_window_cancelAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: method | Window::postMessage();
 JSValue wisp_window_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue message, const char * targetOrigin, JSValue transfer) {
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue window_val = JS_GetPropertyStr(ctx, global, "window");
+    if (!JS_IsObject(window_val)) {
+        JS_FreeValue(ctx, window_val);
+        window_val = JS_DupValue(ctx, global);
+    }
+
+    JSValue evt = JS_UNDEFINED;
+    JSValue msg_ctor = JS_GetPropertyStr(ctx, global, "MessageEvent");
+    if (JS_IsFunction(ctx, msg_ctor)) {
+        JSValue init = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, init, "data", JS_DupValue(ctx, message));
+        if (targetOrigin) {
+            JS_SetPropertyStr(ctx, init, "origin", JS_NewString(ctx, targetOrigin));
+        }
+        JSValue type_val = JS_NewString(ctx, "message");
+        JSValue args[2] = { type_val, init };
+        evt = JS_CallConstructor(ctx, msg_ctor, 2, args);
+        JS_FreeValue(ctx, type_val);
+        JS_FreeValue(ctx, init);
+    }
+    JS_FreeValue(ctx, msg_ctor);
+
+    if (JS_IsException(evt) || JS_IsUndefined(evt)) {
+        JSValue evt_ctor = JS_GetPropertyStr(ctx, global, "Event");
+        if (JS_IsFunction(ctx, evt_ctor)) {
+            JSValue type_val = JS_NewString(ctx, "message");
+            evt = JS_CallConstructor(ctx, evt_ctor, 1, &type_val);
+            JS_FreeValue(ctx, type_val);
+            if (!JS_IsException(evt) && !JS_IsUndefined(evt)) {
+                JS_SetPropertyStr(ctx, evt, "data", JS_DupValue(ctx, message));
+            }
+        }
+        JS_FreeValue(ctx, evt_ctor);
+    }
+
+    if (!JS_IsException(evt) && !JS_IsUndefined(evt)) {
+        JSValue onmsg = JS_GetPropertyStr(ctx, window_val, "onmessage");
+        if (JS_IsFunction(ctx, onmsg)) {
+            JSValue ret = JS_Call(ctx, onmsg, window_val, 1, &evt);
+            JS_FreeValue(ctx, ret);
+        }
+        JS_FreeValue(ctx, onmsg);
+
+        JSValue dispatch = JS_GetPropertyStr(ctx, window_val, "dispatchEvent");
+        if (JS_IsFunction(ctx, dispatch)) {
+            JSValue ret = JS_Call(ctx, dispatch, window_val, 1, &evt);
+            JS_FreeValue(ctx, ret);
+        }
+        JS_FreeValue(ctx, dispatch);
+    }
+
+    JS_FreeValue(ctx, evt);
+    JS_FreeValue(ctx, window_val);
+    JS_FreeValue(ctx, global);
     return JS_UNDEFINED;
 }
 
