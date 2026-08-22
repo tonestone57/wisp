@@ -213,7 +213,24 @@ START_TEST(test_html5test_full_execution)
     }
 
     const char *print_err =
-        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nPoints details: ' + JSON.stringify(window.html5testResults);\n"
+        "var report = [];\n"
+        "function walk(data) {\n"
+        "  if (!data) return;\n"
+        "  for (var i = 0; i < data.length; i++) {\n"
+        "    if (data[i].key) {\n"
+        "      var res = 0;\n"
+        "      try {\n"
+        "        if (window.html5testCalc) {\n"
+        "          res = window.html5testCalc.getResult(data[i].key);\n"
+        "        }\n"
+        "      } catch(e) { res = e.message; }\n"
+        "      report.push(data[i].key + ': value=' + JSON.stringify(data[i].value) + ' res=' + res);\n"
+        "    }\n"
+        "    if (data[i].items) walk(data[i].items);\n"
+        "  }\n"
+        "}\n"
+        "if (typeof tests !== 'undefined') walk(tests);\n"
+        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nPoints details: ' + JSON.stringify(window.html5testResults) + '\\nREPORT:\\n' + report.join('\\n');\n"
         "res;\n";
 
     JSValue val = JS_Eval(thread->ctx, print_err, strlen(print_err), "print_err", JS_EVAL_TYPE_GLOBAL);
