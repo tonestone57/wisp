@@ -5641,6 +5641,11 @@ START_TEST(test_quickjs_browseraudit_xhr_and_window_hierarchy)
         "if (!xhr) throw new Error('XHR instantiation failed');\n"
         "xhr.withCredentials = true;\n"
         "if (xhr.withCredentials !== true) throw new Error('xhr.withCredentials mismatch');\n"
+        "function MockURI(path) { this.path = path; }\n"
+        "MockURI.prototype.toString = function() { return 'https://browseraudit.com' + this.path; };\n"
+        "var mockUri = new MockURI('/test');\n"
+        "window.location = mockUri;\n"
+        "if (window.location.href !== 'https://browseraudit.com/test') throw new Error('location object assignment failed: ' + window.location.href);\n"
         "1;";
 
     JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_browseraudit_xhr", JS_EVAL_TYPE_GLOBAL);

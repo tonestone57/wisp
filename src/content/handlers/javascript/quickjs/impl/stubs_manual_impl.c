@@ -2507,7 +2507,7 @@ JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
     if (!t) return JS_UNDEFINED;
 
     if (!wisp_is_js_process) {
-        if (t->win_priv) {
+        if (t->win_priv && t->win_priv != t->doc_priv) {
             struct browser_window *bw = (struct browser_window *)t->win_priv;
             struct nsurl *base_url = get_location_nsurl(ctx);
             struct nsurl *target_url = NULL;
@@ -2522,6 +2522,12 @@ JSValue wisp_location_assign_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
                 browser_window_navigate(bw, target_url, base_url, BW_NAVIGATE_HISTORY, NULL, NULL, NULL);
                 nsurl_unref(target_url);
             }
+        } else {
+            if (t->location_url) {
+                nsurl_unref(t->location_url);
+                t->location_url = NULL;
+            }
+            nsurl_create(url, &t->location_url);
         }
     } else {
         extern wisp_ipc_handle *ipc_main;
