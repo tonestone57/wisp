@@ -4067,6 +4067,11 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     char origin_buf[256];
     resolve_origin_from_content(win_priv, doc_priv, origin_buf, sizeof(origin_buf));
     t->origin = strdup(origin_buf);
+    if (!t->origin) {
+        JS_FreeContext(t->ctx);
+        free(t);
+        return NSERROR_NOMEM;
+    }
     ensure_js_process_for_origin(t->origin);
 
     /* Map shared memory segment for the thread context */
@@ -4189,6 +4194,12 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     pthread_mutex_unlock(&js_processes_mutex);
     snprintf(origin_buf, sizeof(origin_buf), "null-worker-%u", val);
     t->origin = strdup(origin_buf);
+    if (!t->origin) {
+        JS_FreeContext(t->ctx);
+        JS_FreeRuntime(rt);
+        free(t);
+        return NSERROR_NOMEM;
+    }
     ensure_js_process_for_origin(t->origin);
 
     JS_SetRuntimeOpaque(rt, t);
