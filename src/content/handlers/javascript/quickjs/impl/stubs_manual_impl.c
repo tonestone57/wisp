@@ -9197,7 +9197,9 @@ JSValue wisp_htmlanchorelement_password_set_impl(JSContext *ctx, QJSNodePrivate 
     return JS_UNDEFINED;
 }
 JSValue wisp_htmlanchorelement_relList_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_domtokenlist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_domtokenlist(ctx, priv->node, priv->is_dom_node);
 }
 
 // 13. HTMLLinkElement Implementation (5 stubs)
@@ -9209,7 +9211,9 @@ JSValue wisp_htmllinkelement_crossOrigin_set_impl(JSContext *ctx, QJSNodePrivate
     return JS_UNDEFINED;
 }
 JSValue wisp_htmllinkelement_relList_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_domtokenlist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_domtokenlist(ctx, priv->node, priv->is_dom_node);
 }
 JSValue wisp_htmllinkelement_sizes_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
