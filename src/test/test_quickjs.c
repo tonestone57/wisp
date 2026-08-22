@@ -4306,6 +4306,121 @@ START_TEST(test_quickjs_timers)
 }
 END_TEST
 
+START_TEST(test_quickjs_offline_apis)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    // Test 1: ServiceWorkerContainer, ServiceWorkerRegistration, ServiceWorker
+    const char *code1 = "try {\n"
+                        "  if (typeof ServiceWorker !== 'function') throw new Error('ServiceWorker not function');\n"
+                        "  if (typeof ServiceWorkerRegistration !== 'function') throw new Error('ServiceWorkerRegistration not function');\n"
+                        "  if (typeof ServiceWorkerContainer !== 'function') throw new Error('ServiceWorkerContainer not function');\n"
+                        "  if (!(navigator.serviceWorker instanceof ServiceWorkerContainer)) throw new Error('navigator.serviceWorker not instance of ServiceWorkerContainer');\n"
+                        "  if (!(window.ServiceWorker === ServiceWorker && window.ServiceWorkerRegistration === ServiceWorkerRegistration && window.ServiceWorkerContainer === ServiceWorkerContainer)) throw new Error('ServiceWorker classes not on window');\n"
+                        "  window.swStatus = 'PENDING';\n"
+                        "  Promise.all([\n"
+                        "    navigator.serviceWorker.register('sw.js'),\n"
+                        "    navigator.serviceWorker.getRegistration(),\n"
+                        "    navigator.serviceWorker.getRegistrations(),\n"
+                        "    navigator.serviceWorker.ready\n"
+                        "  ]).then(function(res) {\n"
+                        "    if (!(res[0] instanceof ServiceWorkerRegistration)) throw new Error('register did not resolve ServiceWorkerRegistration');\n"
+                        "    if (!(res[3] instanceof ServiceWorkerRegistration)) throw new Error('ready did not resolve ServiceWorkerRegistration');\n"
+                        "    if (!(res[3].active instanceof ServiceWorker)) throw new Error('active not ServiceWorker');\n"
+                        "    window.swStatus = 'OK';\n"
+                        "  }).catch(function(e) {\n"
+                        "    window.swStatus = 'ERROR: ' + e.message;\n"
+                        "  });\n"
+                        "  window.testRes1 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes1 = e.message;\n"
+                        "}\n"
+                        "window.testRes1 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_serviceworkers");
+    ck_assert(result == true);
+
+    JSContext *ctx;
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx) != 0);
+
+    const char *check1 = "window.swStatus === 'OK';";
+    result = js_exec(thread, (const uint8_t *)check1, strlen(check1), "check_serviceworkers");
+    ck_assert(result == true);
+
+    // Test 2: CacheStorage & Cache
+    const char *code2 = "try {\n"
+                        "  if (typeof Cache !== 'function') throw new Error('Cache not function');\n"
+                        "  if (typeof CacheStorage !== 'function') throw new Error('CacheStorage not function');\n"
+                        "  if (!(window.caches instanceof CacheStorage)) throw new Error('window.caches not instance of CacheStorage');\n"
+                        "  if (!('caches' in window)) throw new Error('caches not in window');\n"
+                        "  window.cacheStatus = 'PENDING';\n"
+                        "  caches.open('test-cache-v1').then(function(cache) {\n"
+                        "    if (!(cache instanceof Cache)) throw new Error('open did not resolve Cache');\n"
+                        "    return cache.put('https://example.com/item', { ok: true }).then(function() {\n"
+                        "      return cache.keys();\n"
+                        "    }).then(function(keys) {\n"
+                        "      if (!keys.includes('https://example.com/item')) throw new Error('keys missing put item');\n"
+                        "      return caches.has('test-cache-v1');\n"
+                        "    }).then(function(hasCache) {\n"
+                        "      if (!hasCache) throw new Error('caches.has returned false');\n"
+                        "      return caches.delete('test-cache-v1');\n"
+                        "    }).then(function(deleted) {\n"
+                        "      if (!deleted) throw new Error('caches.delete returned false');\n"
+                        "      return caches.has('test-cache-v1');\n"
+                        "    }).then(function(hasCacheAfter) {\n"
+                        "      if (hasCacheAfter) throw new Error('caches.has true after delete');\n"
+                        "      window.cacheStatus = 'OK';\n"
+                        "    });\n"
+                        "  }).catch(function(e) {\n"
+                        "    window.cacheStatus = 'ERROR: ' + e.message;\n"
+                        "  });\n"
+                        "  window.testRes2 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes2 = e.message;\n"
+                        "}\n"
+                        "window.testRes2 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_cachestorage");
+    ck_assert(result == true);
+
+    while (JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx) != 0);
+
+    const char *check2 = "window.cacheStatus === 'OK';";
+    result = js_exec(thread, (const uint8_t *)check2, strlen(check2), "check_cachestorage");
+    ck_assert(result == true);
+
+    // Test 3: registerProtocolHandler
+    const char *code3 = "try {\n"
+                        "  if (typeof navigator.registerProtocolHandler !== 'function') throw new Error('registerProtocolHandler not function');\n"
+                        "  if (typeof navigator.unregisterProtocolHandler !== 'function') throw new Error('unregisterProtocolHandler not function');\n"
+                        "  navigator.registerProtocolHandler('web+test', 'https://example.com/?q=%s', 'Test Title');\n"
+                        "  navigator.unregisterProtocolHandler('web+test', 'https://example.com/?q=%s');\n"
+                        "  window.testRes3 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes3 = e.message;\n"
+                        "}\n"
+                        "window.testRes3 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_registerprotocolhandler");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_web_animations_api)
 {
     jsheap *heap = NULL;
@@ -6309,6 +6424,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_input_devices);
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
+    tcase_add_test(tc_event_loop, test_quickjs_offline_apis);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
 
