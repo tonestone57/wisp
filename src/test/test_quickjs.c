@@ -4271,6 +4271,51 @@ START_TEST(test_quickjs_timers)
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_web_animations_api)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *test_script =
+        "var id = window.requestAnimationFrame(function() {});\n"
+        "if (typeof id !== 'number' || id <= 0) throw new Error('window.requestAnimationFrame failed: ' + id);\n"
+        "window.cancelAnimationFrame(id);\n"
+        "if (typeof window.webkitRequestAnimationFrame !== 'function') throw new Error('webkitRequestAnimationFrame missing');\n"
+        "if (typeof window.mozRequestAnimationFrame !== 'function') throw new Error('mozRequestAnimationFrame missing');\n"
+        "if (typeof globalThis.Animation !== 'function') throw new Error('Animation constructor missing');\n"
+        "if (typeof globalThis.KeyframeEffect !== 'function') throw new Error('KeyframeEffect constructor missing');\n"
+        "if (typeof globalThis.AnimationEffect !== 'function') throw new Error('AnimationEffect constructor missing');\n"
+        "if (typeof globalThis.DocumentTimeline !== 'function') throw new Error('DocumentTimeline constructor missing');\n"
+        "if (!document.timeline) throw new Error('document.timeline missing');\n"
+        "var div = document.createElement('div');\n"
+        "var anim = div.animate([{ opacity: 0 }, { opacity: 1 }], 1000);\n"
+        "if (!anim || anim.playState !== 'running') throw new Error('div.animate failed');\n"
+        "if (!Array.isArray(div.getAnimations())) throw new Error('div.getAnimations failed');\n"
+        "if (!Array.isArray(document.getAnimations())) throw new Error('document.getAnimations failed');\n"
+        "true;\n";
+
+    result = js_exec(thread, (const uint8_t *)test_script, strlen(test_script), "test_web_animations");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
     if (doc) dom_node_unref((dom_node *)doc);
     js_finalise();
 }
@@ -6218,6 +6263,7 @@ Suite *quickjs_suite(void)
     TCase *tc_event_loop = tcase_create("EventLoop");
     tcase_add_test(tc_event_loop, test_quickjs_queue_microtask_order);
     tcase_add_test(tc_event_loop, test_quickjs_raf);
+    tcase_add_test(tc_event_loop, test_quickjs_web_animations_api);
     tcase_add_test(tc_event_loop, test_quickjs_ric);
     tcase_add_test(tc_event_loop, test_quickjs_performance_and_workers);
     tcase_add_test(tc_event_loop, test_quickjs_fetch_streams);
