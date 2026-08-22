@@ -668,6 +668,7 @@ target_link_libraries(test_strict_transport_security PRIVATE wisp ${CHECK_LIBRAR
 add_wisp_test(test_log
   ${CMAKE_SOURCE_DIR}/src/test/test_log.c
 )
+target_compile_definitions(test_log PRIVATE WISP_DISABLE_LOGGING=0)
 target_link_libraries(test_log PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_ipc

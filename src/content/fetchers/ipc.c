@@ -90,23 +90,46 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
     uint32_t url_len = strlen(url_access);
     msg.length = 4 + 4 + url_len + 1 + 1;
     msg.data = malloc(msg.length);
-    if (msg.data) {
-        memcpy(msg.data, &f->id, 4);
-        memcpy(msg.data + 4, &url_len, 4);
-        memcpy(msg.data + 8, url_access, url_len);
-        msg.data[8 + url_len] = only_2xx ? 1 : 0;
-        msg.data[8 + url_len + 1] = downgrade_tls ? 1 : 0;
-        pthread_mutex_lock(&ipc_send_mutex);
-        nserror send_err = wisp_ipc_send(ipc_network, &msg);
-        pthread_mutex_unlock(&ipc_send_mutex);
-        if (send_err != NSERROR_OK) {
-            NSLOG(wisp, ERROR, "wisp_ipc_send failed with error %d", send_err);
+    if (!msg.data) {
+        pthread_mutex_lock(&active_fetches_mutex);
+        if (active_fetches == f) {
+            active_fetches = f->next;
         } else {
-            NSLOG(wisp, DEBUG, "wisp_ipc_send succeeded for fetch_id %u", f->id);
+            struct ipc_fetch_info *curr = active_fetches;
+            while (curr && curr->next != f) curr = curr->next;
+            if (curr) curr->next = f->next;
         }
-        free(msg.data);
+        pthread_mutex_unlock(&active_fetches_mutex);
+        free(f);
+        return NULL;
     }
 
+    memcpy(msg.data, &f->id, 4);
+    memcpy(msg.data + 4, &url_len, 4);
+    memcpy(msg.data + 8, url_access, url_len);
+    msg.data[8 + url_len] = only_2xx ? 1 : 0;
+    msg.data[8 + url_len + 1] = downgrade_tls ? 1 : 0;
+    pthread_mutex_lock(&ipc_send_mutex);
+    nserror send_err = wisp_ipc_send(ipc_network, &msg);
+    pthread_mutex_unlock(&ipc_send_mutex);
+    free(msg.data);
+
+    if (send_err != NSERROR_OK) {
+        NSLOG(wisp, ERROR, "wisp_ipc_send failed with error %d", send_err);
+        pthread_mutex_lock(&active_fetches_mutex);
+        if (active_fetches == f) {
+            active_fetches = f->next;
+        } else {
+            struct ipc_fetch_info *curr = active_fetches;
+            while (curr && curr->next != f) curr = curr->next;
+            if (curr) curr->next = f->next;
+        }
+        pthread_mutex_unlock(&active_fetches_mutex);
+        free(f);
+        return NULL;
+    }
+
+    NSLOG(wisp, DEBUG, "wisp_ipc_send succeeded for fetch_id %u", f->id);
     return f;
 }
 

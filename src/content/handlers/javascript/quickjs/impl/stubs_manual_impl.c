@@ -7,6 +7,7 @@
 #include "dom_bridge.h"
 #include "qjs_internal.h"
 #include <wisp/utils/log.h>
+#include "JSDOMImplementation.gen.h"
 #include <wisp/utils/nsurl.h>
 #include <libwapcaplet/libwapcaplet.h>
 #include <wisp/utils/shm_dom.h>
@@ -941,12 +942,36 @@ JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv
     if (JS_IsNull(val) || JS_IsUndefined(val)) {
         return JS_NewString(ctx, "text");
     }
+    if (JS_IsString(val)) {
+        const char *str = JS_ToCString(ctx, val);
+        if (str) {
+            static const char *valid_types[] = {
+                "button", "checkbox", "color", "date", "datetime-local", "email",
+                "file", "hidden", "image", "month", "number", "password",
+                "radio", "range", "reset", "search", "submit", "tel", "text",
+                "time", "url", "week"
+            };
+            size_t num_types = sizeof(valid_types) / sizeof(valid_types[0]);
+            bool is_valid = false;
+            for (size_t i = 0; i < num_types; i++) {
+                if (strcasecmp(str, valid_types[i]) == 0) {
+                    is_valid = true;
+                    JS_FreeCString(ctx, str);
+                    JS_FreeValue(ctx, val);
+                    return JS_NewString(ctx, valid_types[i]);
+                }
+            }
+            JS_FreeCString(ctx, str);
+            JS_FreeValue(ctx, val);
+            return JS_NewString(ctx, "text");
+        }
+    }
     return val;
 }
 
 JSValue wisp_htmlinputelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
-    return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+    return wisp_element_setAttribute_impl(ctx, priv, "type", value ? value : "text");
 }
 
 JSValue wisp_htmlinputelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -5641,23 +5666,78 @@ JSValue wisp_htmlinputelement_step_set_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 JSValue wisp_htmlinputelement_valueAsDate_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue val = wisp_htmlinputelement_value_get_impl(ctx, priv);
+    if (!JS_IsString(val)) {
+        JS_FreeValue(ctx, val);
+        return JS_NULL;
+    }
+    const char *str = JS_ToCString(ctx, val);
+    if (!str || str[0] == '\0') {
+        if (str) JS_FreeCString(ctx, str);
+        JS_FreeValue(ctx, val);
+        return JS_NULL;
+    }
+    int year = 0, month = 0, day = 0;
+    if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+        JS_FreeCString(ctx, str);
+        JS_FreeValue(ctx, val);
+        struct tm tm = {0};
+        tm.tm_year = year - 1900;
+        tm.tm_mon = month - 1;
+        tm.tm_mday = day;
+        time_t t = timegm(&tm);
+        double epoch_ms = (double)t * 1000.0;
+        return JS_NewDate(ctx, epoch_ms);
+    }
+    JS_FreeCString(ctx, str);
+    JS_FreeValue(ctx, val);
     return JS_NULL;
 }
 
 JSValue wisp_htmlinputelement_valueAsDate_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (JS_IsNull(value) || JS_IsUndefined(value)) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
+    double epoch_ms = 0.0;
+    if (JS_ToFloat64(ctx, &epoch_ms, value) < 0 || isnan(epoch_ms)) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
+    time_t sec = (time_t)(epoch_ms / 1000.0);
+    struct tm tm;
+    if (gmtime_r(&sec, &tm) == NULL) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%04d-%02d-%02d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+    return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
 }
 
 JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    extern JSValue wisp_htmlinputelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv);
+    if (!priv || !priv->node) return JS_NewFloat64(ctx, NAN);
     JSValue val = wisp_htmlinputelement_value_get_impl(ctx, priv);
-    double d = 0.0;
+    double d = NAN;
     if (JS_IsString(val)) {
         const char *str = JS_ToCString(ctx, val);
-        if (str && strlen(str) > 0) {
-            d = atof(str);
-        } else {
-            JS_ToFloat64(ctx, &d, val);
+        if (str && str[0] != '\0') {
+            int year = 0, month = 0, day = 0;
+            if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+                struct tm tm = {0};
+                tm.tm_year = year - 1900;
+                tm.tm_mon = month - 1;
+                tm.tm_mday = day;
+                time_t t = timegm(&tm);
+                d = (double)t * 1000.0;
+            } else {
+                char *endptr = NULL;
+                double parsed_d = strtod(str, &endptr);
+                if (endptr && *endptr == '\0') {
+                    d = parsed_d;
+                } else {
+                    d = NAN;
+                }
+            }
         }
         if (str) JS_FreeCString(ctx, str);
     }
@@ -5666,6 +5746,10 @@ JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePriv
 }
 
 JSValue wisp_htmlinputelement_valueAsNumber_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    if (isnan(value)) {
+        return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
+    }
     char buf[64];
     snprintf(buf, sizeof(buf), "%g", value);
     return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
@@ -6435,7 +6519,7 @@ JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate
     JSValue global = JS_GetGlobalObject(ctx);
     JSValue self_val = qjs_wrap_node(ctx, (dom_node *)priv->node);
     JSValue cached = JS_GetPropertyStr(ctx, self_val, "__wisp_template_content_cached");
-    if (!JS_IsUndefined(cached)) {
+    if (!JS_IsUndefined(cached) && !JS_IsNull(cached)) {
         JS_FreeValue(ctx, self_val);
         JS_FreeValue(ctx, global);
         return cached;
@@ -6455,40 +6539,65 @@ JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate
     JS_FreeValue(ctx, doc_val);
 
     if (JS_IsObject(frag_val)) {
-        // Append all children of the template element to the fragment
-        JSValue childNodes = JS_GetPropertyStr(ctx, self_val, "childNodes");
-        if (JS_IsObject(childNodes)) {
-            JSValue length_val = JS_GetPropertyStr(ctx, childNodes, "length");
-            int len = 0;
-            JS_ToInt32(ctx, &len, length_val);
-            JS_FreeValue(ctx, length_val);
+        if (!wisp_is_js_process) {
+            // Direct LibDOM node operations: reparent child nodes from template element to fragment
+            extern JSClassID qjs_documentfragment_class_id;
+            dom_node *template_node = (dom_node *)priv->node;
+            dom_node *frag_node = NULL;
+            QJSNodePrivate *frag_priv = (QJSNodePrivate *)JS_GetOpaque(frag_val, qjs_documentfragment_class_id);
+            if (!frag_priv) {
+                frag_priv = (QJSNodePrivate *)JS_GetOpaque(frag_val, qjs_node_class_id);
+            }
+            if (frag_priv && frag_priv->node) {
+                frag_node = (dom_node *)frag_priv->node;
+            }
 
-            JSValue appendChild = JS_GetPropertyStr(ctx, frag_val, "appendChild");
-            if (JS_IsFunction(ctx, appendChild)) {
-                // Since appendChild moves the node, we can repeatedly move childNodes[0]
-                while (len > 0) {
-                    JSValue first_child = JS_GetPropertyUint32(ctx, childNodes, 0);
-                    if (JS_IsObject(first_child)) {
-                        JSValue res = JS_Call(ctx, appendChild, frag_val, 1, &first_child);
-                        JS_FreeValue(ctx, res);
-                    }
-                    JS_FreeValue(ctx, first_child);
-
-                    // Recalculate length in case moving nodes reduces childNodes.length
-                    JSValue new_len_val = JS_GetPropertyStr(ctx, childNodes, "length");
-                    int new_len = 0;
-                    JS_ToInt32(ctx, &new_len, new_len_val);
-                    JS_FreeValue(ctx, new_len_val);
-                    if (new_len >= len) {
-                        // Prevent infinite loop if appendChild did not actually move the node
-                        break;
-                    }
-                    len = new_len;
+            if (frag_node && template_node) {
+                dom_node *child = NULL;
+                dom_node_get_first_child(template_node, &child);
+                while (child != NULL) {
+                    dom_node *next = NULL;
+                    dom_node_get_next_sibling(child, &next);
+                    dom_node *appended = NULL;
+                    dom_node_append_child(frag_node, child, &appended);
+                    if (appended) dom_node_unref(appended);
+                    dom_node_unref(child);
+                    child = next;
                 }
             }
-            JS_FreeValue(ctx, appendChild);
+        } else {
+            // JS process (SHM DOM) mode: move child nodes using JS DOM methods
+            JSValue childNodes = JS_GetPropertyStr(ctx, self_val, "childNodes");
+            if (JS_IsObject(childNodes)) {
+                JSValue length_val = JS_GetPropertyStr(ctx, childNodes, "length");
+                int len = 0;
+                JS_ToInt32(ctx, &len, length_val);
+                JS_FreeValue(ctx, length_val);
+
+                JSValue appendChild = JS_GetPropertyStr(ctx, frag_val, "appendChild");
+                if (JS_IsFunction(ctx, appendChild)) {
+                    while (len > 0) {
+                        JSValue first_child = JS_GetPropertyUint32(ctx, childNodes, 0);
+                        if (JS_IsObject(first_child)) {
+                            JSValue res = JS_Call(ctx, appendChild, frag_val, 1, &first_child);
+                            JS_FreeValue(ctx, res);
+                        }
+                        JS_FreeValue(ctx, first_child);
+
+                        JSValue new_len_val = JS_GetPropertyStr(ctx, childNodes, "length");
+                        int new_len = 0;
+                        JS_ToInt32(ctx, &new_len, new_len_val);
+                        JS_FreeValue(ctx, new_len_val);
+                        if (new_len >= len) {
+                            break;
+                        }
+                        len = new_len;
+                    }
+                }
+                JS_FreeValue(ctx, appendChild);
+            }
+            JS_FreeValue(ctx, childNodes);
         }
-        JS_FreeValue(ctx, childNodes);
 
         // Cache the fragment on the template element
         JS_SetPropertyStr(ctx, self_val, "__wisp_template_content_cached", JS_DupValue(ctx, frag_val));
@@ -6499,7 +6608,8 @@ JSValue wisp_htmltemplateelement_content_get_impl(JSContext *ctx, QJSNodePrivate
 }
 
 JSValue wisp_htmlmeterelement_high_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "high", 0.0));
+    double max_val = get_element_double_attr(ctx, priv, "max", 1.0);
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "high", max_val));
 }
 
 JSValue wisp_htmlmeterelement_high_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6508,11 +6618,14 @@ JSValue wisp_htmlmeterelement_high_set_impl(JSContext *ctx, QJSNodePrivate *priv
 }
 
 JSValue wisp_htmlmeterelement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_nodelist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_nodelist(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmlmeterelement_low_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "low", 0.0));
+    double min_val = get_element_double_attr(ctx, priv, "min", 0.0);
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "low", min_val));
 }
 
 JSValue wisp_htmlmeterelement_low_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6521,7 +6634,7 @@ JSValue wisp_htmlmeterelement_low_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 JSValue wisp_htmlmeterelement_max_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "max", 0.0));
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "max", 1.0));
 }
 
 JSValue wisp_htmlmeterelement_max_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6539,7 +6652,9 @@ JSValue wisp_htmlmeterelement_min_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 JSValue wisp_htmlmeterelement_optimum_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "optimum", 0.0));
+    double min_val = get_element_double_attr(ctx, priv, "min", 0.0);
+    double max_val = get_element_double_attr(ctx, priv, "max", 1.0);
+    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "optimum", (min_val + max_val) / 2.0));
 }
 
 JSValue wisp_htmlmeterelement_optimum_set_impl(JSContext *ctx, QJSNodePrivate *priv, double value) {
@@ -6557,11 +6672,19 @@ JSValue wisp_htmlmeterelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pri
 }
 
 JSValue wisp_htmlprogresselement_labels_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    extern JSValue qjs_new_nodelist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_nodelist(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmlprogresselement_position_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, get_element_double_attr(ctx, priv, "position", 0.0));
+    double max_val = get_element_double_attr(ctx, priv, "max", 1.0);
+    double val = get_element_double_attr(ctx, priv, "value", 0.0);
+    if (max_val <= 0.0) return JS_NewFloat64(ctx, -1.0);
+    double pos = val / max_val;
+    if (pos < 0.0) pos = 0.0;
+    if (pos > 1.0) pos = 1.0;
+    return JS_NewFloat64(ctx, pos);
 }
 
 JSValue wisp_htmltrackelement_default_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -8169,6 +8292,19 @@ JSValue wisp_htmlformelement_reportValidity_impl(JSContext *ctx, QJSNodePrivate 
 }
 JSValue wisp_htmlformelement_requestAutocomplete_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_UNDEFINED;
+}
+JSValue wisp_htmlformelement_requestSubmit_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue submitter) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLFormElement target");
+    JSValue valid = wisp_htmlformelement_checkValidity_impl(ctx, priv);
+    bool is_valid = true;
+    if (JS_IsBool(valid)) {
+        is_valid = JS_ToBool(ctx, valid);
+    }
+    JS_FreeValue(ctx, valid);
+    if (!is_valid) {
+        return JS_UNDEFINED;
+    }
+    return wisp_htmlformelement_submit_impl(ctx, priv);
 }
 JSValue wisp_htmlformelement_autocomplete_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "autocomplete", "");
@@ -10742,7 +10878,33 @@ JSValue wisp_characterdata_nextElementSibling_get_impl(JSContext *ctx, QJSNodePr
 
 // Overrides: method | DOMImplementation::createDocumentType();
 JSValue wisp_domimplementation_createDocumentType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * qualifiedName, const char * publicId, const char * systemId) {
-    return JS_UNDEFINED;
+    if (wisp_is_js_process) {
+        extern uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *value);
+        uint64_t virtual_id = allocate_virtual_shm_node(10, qualifiedName ? qualifiedName : "html", NULL);
+        if (virtual_id == 0) return JS_NULL;
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            strings_arr[virtual_id].tag_name = wisp_shm_alloc_string(wisp_shm_dom, qualifiedName ? qualifiedName : "html");
+            strings_arr[virtual_id].attrs[0].name = wisp_shm_alloc_string(wisp_shm_dom, "publicId");
+            strings_arr[virtual_id].attrs[0].value = wisp_shm_alloc_string(wisp_shm_dom, publicId ? publicId : "");
+            strings_arr[virtual_id].attrs[1].name = wisp_shm_alloc_string(wisp_shm_dom, "systemId");
+            strings_arr[virtual_id].attrs[1].value = wisp_shm_alloc_string(wisp_shm_dom, systemId ? systemId : "");
+            strings_arr[virtual_id].attr_count = 2;
+        }
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)virtual_id);
+    }
+    struct dom_document_type *dt = NULL;
+    dom_exception err = dom_implementation_create_document_type(
+        qualifiedName ? qualifiedName : "html",
+        publicId,
+        systemId,
+        &dt);
+    if (err == DOM_NO_ERR && dt) {
+        JSValue val = qjs_wrap_node(ctx, (dom_node *)dt);
+        dom_node_unref((dom_node *)dt);
+        return val;
+    }
+    return JS_NULL;
 }
 
 // Overrides: method | DOMImplementation::createDocument();
@@ -11011,17 +11173,74 @@ JSValue wisp_documenttype_replaceWith_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: getter | DocumentType::name(string);
 JSValue wisp_documenttype_name_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            WispNodeID id = (WispNodeID)(uintptr_t)priv->node;
+            if (id < wisp_shm_dom->node_count) {
+                const char *name = wisp_string_ref_data(wisp_shm_dom, strings_arr[id].tag_name);
+                return JS_NewString(ctx, name ? name : "");
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
+    dom_string *name = NULL;
+    dom_node_get_node_name((dom_node *)priv->node, &name);
+    if (name) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(name), dom_string_byte_length(name));
+        dom_string_unref(name);
+        return val;
+    }
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: getter | DocumentType::publicId(string);
 JSValue wisp_documenttype_publicId_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            WispNodeID id = (WispNodeID)(uintptr_t)priv->node;
+            if (id < wisp_shm_dom->node_count) {
+                const char *pub = wisp_string_ref_data(wisp_shm_dom, strings_arr[id].attrs[0].value);
+                return JS_NewString(ctx, pub ? pub : "");
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
+    dom_string *pub = NULL;
+    dom_document_type_get_public_id((dom_document_type *)priv->node, &pub);
+    if (pub) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(pub), dom_string_byte_length(pub));
+        dom_string_unref(pub);
+        return val;
+    }
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: getter | DocumentType::systemId(string);
 JSValue wisp_documenttype_systemId_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            WispNodeID id = (WispNodeID)(uintptr_t)priv->node;
+            if (id < wisp_shm_dom->node_count) {
+                const char *sys = wisp_string_ref_data(wisp_shm_dom, strings_arr[id].attrs[1].value);
+                return JS_NewString(ctx, sys ? sys : "");
+            }
+        }
+        return JS_NewString(ctx, "");
+    }
+    dom_string *sys = NULL;
+    dom_document_type_get_system_id((dom_document_type *)priv->node, &sys);
+    if (sys) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(sys), dom_string_byte_length(sys));
+        dom_string_unref(sys);
+        return val;
+    }
+    return JS_NewString(ctx, "");
 }
 
 // Overrides: method | DocumentFragment::getElementById();
@@ -12327,7 +12546,8 @@ JSValue wisp_document_createElementNS_impl(JSContext *ctx, QJSNodePrivate *priv,
 
 // Overrides: attribute get | Document::implementation (getter);
 JSValue wisp_document_implementation_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_NULL;
+    return qjs_new_domimplementation(ctx, priv->node, priv->is_dom_node);
 }
 
 // Overrides: attribute get | Document::location (getter);

@@ -47,18 +47,39 @@ static JSValue js_event_constructor(JSContext *ctx, JSValueConst new_target, int
     if (argc < 1) return JS_ThrowTypeError(ctx, "Event type required");
     const char *type = JS_ToCString(ctx, argv[0]);
     if (!type) return JS_EXCEPTION;
+    bool bubbles = false;
+    bool cancelable = false;
+    if (argc >= 2 && JS_IsObject(argv[1])) {
+        JSValue b_val = JS_GetPropertyStr(ctx, argv[1], "bubbles");
+        if (!JS_IsUndefined(b_val) && !JS_IsNull(b_val)) bubbles = JS_ToBool(ctx, b_val);
+        JS_FreeValue(ctx, b_val);
+        JSValue c_val = JS_GetPropertyStr(ctx, argv[1], "cancelable");
+        if (!JS_IsUndefined(c_val) && !JS_IsNull(c_val)) cancelable = JS_ToBool(ctx, c_val);
+        JS_FreeValue(ctx, c_val);
+    }
     dom_string *type_dom = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_dom);
     dom_event *evt = NULL;
     dom_event_create(&evt);
     if (evt) {
-        dom_event_init(evt, type_dom, false, false);
+        dom_event_init(evt, type_dom, bubbles, cancelable);
         dom_event_set_is_trusted(evt, false);
     }
     dom_string_unref(type_dom);
     JS_FreeCString(ctx, type);
     if (!evt) return JS_ThrowInternalError(ctx, "Failed to create event");
     JSValue obj = qjs_new_event(ctx, evt, false);
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    if (thread) {
+        struct qjs_event_map *new_map = malloc(sizeof(*new_map));
+        if (new_map) {
+            dom_event_ref(evt);
+            new_map->evt = evt;
+            new_map->js_evt = JS_DupValue(ctx, obj);
+            new_map->next = thread->events;
+            thread->events = new_map;
+        }
+    }
     dom_event_unref(evt);
     return obj;
 }

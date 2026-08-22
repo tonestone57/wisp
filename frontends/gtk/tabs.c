@@ -102,7 +102,17 @@ static GtkWidget *nsgtk_tab_label_setup(GtkWidget *page, const char *title, GdkP
     /* construct a favicon */
     favicon = gtk_image_new();
     if (icon_pixbuf != NULL) {
-        gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), icon_pixbuf);
+        if (gdk_pixbuf_get_width(icon_pixbuf) > 16 || gdk_pixbuf_get_height(icon_pixbuf) > 16) {
+            GdkPixbuf *scaled = gdk_pixbuf_scale_simple(icon_pixbuf, 16, 16, GDK_INTERP_BILINEAR);
+            if (scaled != NULL) {
+                gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), scaled);
+                g_object_unref(scaled);
+            } else {
+                gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), icon_pixbuf);
+            }
+        } else {
+            gtk_image_set_from_pixbuf(GTK_IMAGE(favicon), icon_pixbuf);
+        }
     }
 
     /* construct a label */
@@ -116,7 +126,7 @@ static GtkWidget *nsgtk_tab_label_setup(GtkWidget *page, const char *title, GdkP
     /* construct a close button  */
     button = gtk_button_new();
 
-    close = nsgtk_image_new_from_stock(NSGTK_STOCK_CLOSE, GTK_ICON_SIZE_LARGE_TOOLBAR);
+    close = nsgtk_image_new_from_stock(NSGTK_STOCK_CLOSE, GTK_ICON_SIZE_MENU);
     gtk_container_add(GTK_CONTAINER(button), close);
     nsgtk_button_set_focus_on_click(GTK_BUTTON(button), FALSE);
     gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
@@ -287,7 +297,7 @@ static GtkWidget *nsgtk_tab_add_newtab(GtkNotebook *notebook)
     tablabel = nsgtk_hbox_new(FALSE, 1);
     tabcontents = nsgtk_hbox_new(FALSE, 1);
 
-    add = gtk_image_new_from_icon_name(NSGTK_STOCK_ADD, GTK_ICON_SIZE_LARGE_TOOLBAR);
+    add = gtk_image_new_from_icon_name(NSGTK_STOCK_ADD, GTK_ICON_SIZE_MENU);
     gtk_widget_set_tooltip_text(add, "New Tab");
 
     gtk_box_pack_start(GTK_BOX(tablabel), add, FALSE, FALSE, 0);
@@ -430,6 +440,15 @@ nserror nsgtk_tab_set_icon(GtkWidget *page, GdkPixbuf *pixbuf)
     }
 
     favicon = GTK_IMAGE(g_object_get_data(G_OBJECT(tab_label), "favicon"));
+
+    if (pixbuf != NULL && (gdk_pixbuf_get_width(pixbuf) > 16 || gdk_pixbuf_get_height(pixbuf) > 16)) {
+        GdkPixbuf *scaled = gdk_pixbuf_scale_simple(pixbuf, 16, 16, GDK_INTERP_BILINEAR);
+        if (scaled != NULL) {
+            gtk_image_set_from_pixbuf(favicon, scaled);
+            g_object_unref(scaled);
+            return NSERROR_OK;
+        }
+    }
 
     gtk_image_set_from_pixbuf(favicon, pixbuf);
 

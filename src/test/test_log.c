@@ -171,6 +171,9 @@ START_TEST(test_nslog_log_output)
     FILE *f = fopen(file_path, "r");
     ck_assert_ptr_nonnull(f);
 
+    /* Ensure log output is flushed from stdio buffer */
+    fflush(NULL);
+
     char buffer[1024] = {0};
     size_t read_bytes = fread(buffer, 1, sizeof(buffer) - 1, f);
     ck_assert_int_gt(read_bytes, 0);
@@ -197,6 +200,9 @@ START_TEST(test_nslog_log_output_split)
 
     FILE *f = fopen("wisp-logs/ns-info.txt", "r");
     ck_assert_ptr_nonnull(f);
+
+    /* Ensure log output is flushed from stdio buffer */
+    fflush(NULL);
 
     char buffer[1024] = {0};
     size_t read_bytes = fread(buffer, 1, sizeof(buffer) - 1, f);

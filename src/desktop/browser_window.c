@@ -3097,14 +3097,32 @@ nserror browser_window_navigate(struct browser_window *bw, nsurl *url, nsurl *re
 
     if (post_urlenc != NULL) {
         params.post_urlenc = strdup(post_urlenc);
+        if (params.post_urlenc == NULL) {
+            browser_window__free_fetch_parameters(&params);
+            nsurl_unref(url);
+            if (referrer != NULL) nsurl_unref(referrer);
+            return NSERROR_NOMEM;
+        }
     }
 
     if (post_multipart != NULL) {
         params.post_multipart = fetch_multipart_data_clone(post_multipart);
+        if (params.post_multipart == NULL) {
+            browser_window__free_fetch_parameters(&params);
+            nsurl_unref(url);
+            if (referrer != NULL) nsurl_unref(referrer);
+            return NSERROR_NOMEM;
+        }
     }
 
-    if (parent != NULL) {
+    if (parent != NULL && child.charset != NULL) {
         params.parent_charset = strdup(child.charset);
+        if (params.parent_charset == NULL) {
+            browser_window__free_fetch_parameters(&params);
+            nsurl_unref(url);
+            if (referrer != NULL) nsurl_unref(referrer);
+            return NSERROR_NOMEM;
+        }
         params.parent_quirks = child.quirks;
     }
 
@@ -4054,6 +4072,9 @@ browser_window_find_target(struct browser_window *bw, const char *target, browse
      * that begin with an underscore. */
     if (target[0] != '_') {
         bw_target->name = strdup(target);
+        if (bw_target->name == NULL) {
+            NSLOG(wisp, WARNING, "Failed to allocate memory for window target name '%s'", target);
+        }
     }
     return bw_target;
 }

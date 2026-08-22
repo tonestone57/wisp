@@ -123,7 +123,7 @@ extern void nslog_log(enum nslog_level level, const char *file, const char *func
 
 #define LINK_WARNING(msg) __attribute__((deprecated(msg)))
 
-#ifdef WISP_DISABLE_LOGGING
+#if defined(WISP_DISABLE_LOGGING) && WISP_DISABLE_LOGGING != 0
 #define NSLOG(catname, level, logmsg, args...)                                                                         \
     do {                                                                                                               \
     } while (0)

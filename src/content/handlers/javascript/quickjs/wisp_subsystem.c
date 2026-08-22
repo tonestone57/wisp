@@ -797,8 +797,12 @@ void* wisp_web_worker_routine(void *arg) {
             if (errMsg) {
                 errMsg->type = WISP_MSG_TYPE_ERROR;
                 errMsg->error_message = strdup(msg_str ? msg_str : "Unknown error");
-                wisp_message_queue_push(&h->from_worker, errMsg);
-                wisp_worker_notify_main_thread(h);
+                if (!errMsg->error_message) {
+                    free(errMsg);
+                } else {
+                    wisp_message_queue_push(&h->from_worker, errMsg);
+                    wisp_worker_notify_main_thread(h);
+                }
             }
             if (msg_str) JS_FreeCString(t->ctx, msg_str); JS_FreeValue(t->ctx, stack); JS_FreeValue(t->ctx, exc);
         }
@@ -842,8 +846,12 @@ void* wisp_web_worker_routine(void *arg) {
                     if (errMsg) {
                         errMsg->type = WISP_MSG_TYPE_ERROR;
                         errMsg->error_message = strdup(exc_str ? exc_str : "Unknown error");
-                        wisp_message_queue_push(&h->from_worker, errMsg);
-                        wisp_worker_notify_main_thread(h);
+                        if (!errMsg->error_message) {
+                            free(errMsg);
+                        } else {
+                            wisp_message_queue_push(&h->from_worker, errMsg);
+                            wisp_worker_notify_main_thread(h);
+                        }
                     }
                     if (exc_str) JS_FreeCString(t->ctx, exc_str); JS_FreeValue(t->ctx, exc);
                 }

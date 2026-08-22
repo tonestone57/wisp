@@ -439,12 +439,25 @@ static nserror nsoption_dup(struct nsoption_s *src, struct nsoption_s **pdst)
 
     /* duplicate string contents for string-typed options */
     scan = src;
+    struct nsoption_s *dst_scan = dst;
     while (scan->key != NULL) {
         if ((scan->type == OPTION_STRING) && (scan->value.s != NULL)) {
-            dst->value.s = strdup(scan->value.s);
+            dst_scan->value.s = strdup(scan->value.s);
+            if (dst_scan->value.s == NULL) {
+                struct nsoption_s *clean = dst;
+                while (clean < dst_scan) {
+                    if ((clean->type == OPTION_STRING) && (clean->value.s != NULL)) {
+                        free(clean->value.s);
+                    }
+                    clean++;
+                }
+                free(dst);
+                *pdst = NULL;
+                return NSERROR_NOMEM;
+            }
         }
         scan++;
-        dst++;
+        dst_scan++;
     }
 
     return NSERROR_OK;

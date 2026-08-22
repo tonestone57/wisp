@@ -150,6 +150,91 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_parsing_doctype)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  if (document.compatMode !== 'CSS1Compat') throw 'compatMode fail: ' + document.compatMode;\n"
+        "  const dt = document.implementation.createDocumentType('html', 'pub1', 'sys1');\n"
+        "  if (!dt) throw 'createDocumentType returned null';\n"
+        "  if (dt.name !== 'html') throw 'dt.name fail: ' + dt.name;\n"
+        "  if (dt.publicId !== 'pub1') throw 'dt.publicId fail: ' + dt.publicId;\n"
+        "  if (dt.systemId !== 'sys1') throw 'dt.systemId fail: ' + dt.systemId;\n"
+        "  if (dt.nodeType !== 10) throw 'dt.nodeType fail: ' + dt.nodeType;\n"
+        "} catch(e) {\n"
+        "  console.log('DOCTYPETEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_parsing_doctype");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_quirks_mode)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    dom_document_set_quirks_mode(doc, DOM_DOCUMENT_QUIRKS_MODE_FULL);
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  if (document.compatMode !== 'BackCompat') throw 'quirks compatMode fail: ' + document.compatMode;\n"
+        "} catch(e) {\n"
+        "  console.log('QUIRKSTEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_quirks_mode");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_event_composed_path)
 {
     jsheap *heap = NULL;
@@ -367,6 +452,17 @@ START_TEST(test_quickjs_custom_elements)
         "  customElements.whenDefined('my-element').then((ctor) => {\n"
         "      if (ctor === MyElement) alreadyDefinedResolved = true;\n"
         "  });\n"
+        "\n"
+        "  // Test HTMLTemplateElement .content\n"
+        "  var tmpl = document.createElement('template');\n"
+        "  tmpl.innerHTML = '<div><p>Template Content Test</p></div>';\n"
+        "  var content = tmpl.content;\n"
+        "  if (!content || content.nodeType !== 11) {\n" // 11 = DOCUMENT_FRAGMENT_NODE
+        "      throw new Error('Template .content getter failed to return DocumentFragment');\n"
+        "  }\n"
+        "  if (!content.firstChild || content.firstChild.tagName.toLowerCase() !== 'div') {\n"
+        "      throw new Error('Template .content getter fragment structure incorrect');\n"
+        "  }\n"
         "\n"
         "  // We will assume testResult is OK if it reaches here without exceptions\n"
         "  window.testResult = 'OK';\n"
@@ -1894,6 +1990,46 @@ START_TEST(test_quickjs_webidl_stubs)
         "    var opt_dl = document.createElement('option');\n"
         "    dl.appendChild(opt_dl);\n"
         "    if (dl.options.length !== 1 || dl.options[0] !== opt_dl) throw new Error('HTMLDataListElement.options failed');\n"
+        "\n"
+        "    // Extended Forms & Input tests: types, valueAsDate, valueAsNumber, meter, progress, form requestSubmit\n"
+        "    var types_to_test = ['date', 'color', 'range', 'number', 'search', 'time', 'datetime-local', 'email', 'tel', 'url'];\n"
+        "    for (var i = 0; i < types_to_test.length; i++) {\n"
+        "        var t_inp = document.createElement('input');\n"
+        "        t_inp.type = types_to_test[i];\n"
+        "        if (t_inp.type !== types_to_test[i]) throw new Error('HTMLInputElement type test failed for: ' + types_to_test[i] + ' got ' + t_inp.type);\n"
+        "    }\n"
+        "\n"
+        "    var date_inp = document.createElement('input');\n"
+        "    date_inp.type = 'date';\n"
+        "    date_inp.value = '2026-03-31';\n"
+        "    if (date_inp.valueAsDate === null) throw new Error('HTMLInputElement valueAsDate failed');\n"
+        "    var d_val = date_inp.valueAsDate;\n"
+        "    if (d_val.getUTCFullYear() !== 2026 || d_val.getUTCMonth() !== 2 || d_val.getUTCDate() !== 31) {\n"
+        "        throw new Error('HTMLInputElement valueAsDate date fields mismatch: ' + d_val.toISOString());\n"
+        "    }\n"
+        "\n"
+        "    var num_inp = document.createElement('input');\n"
+        "    num_inp.type = 'number';\n"
+        "    num_inp.value = 'invalid_num';\n"
+        "    if (!isNaN(num_inp.valueAsNumber)) throw new Error('HTMLInputElement valueAsNumber NaN check failed');\n"
+        "    num_inp.value = '42.5';\n"
+        "    if (num_inp.valueAsNumber !== 42.5) throw new Error('HTMLInputElement valueAsNumber parsed failed');\n"
+        "\n"
+        "    var meter_el = document.createElement('meter');\n"
+        "    meter_el.min = 0;\n"
+        "    meter_el.max = 100;\n"
+        "    meter_el.value = 50;\n"
+        "    if (meter_el.min !== 0 || meter_el.max !== 100 || meter_el.value !== 50) throw new Error('HTMLMeterElement attributes failed');\n"
+        "    if (meter_el.low !== 0 || meter_el.high !== 100 || meter_el.optimum !== 50) throw new Error('HTMLMeterElement defaults calculation failed');\n"
+        "\n"
+        "    var prog_el = document.createElement('progress');\n"
+        "    prog_el.max = 200;\n"
+        "    prog_el.value = 100;\n"
+        "    if (prog_el.position !== 0.5) throw new Error('HTMLProgressElement position failed: ' + prog_el.position);\n"
+        "\n"
+        "    var test_form = document.createElement('form');\n"
+        "    if (typeof test_form.requestSubmit !== 'function') throw new Error('HTMLFormElement requestSubmit function missing');\n"
+        "    test_form.requestSubmit();\n"
         "\n"
         "    // 31. Newly implemented WebIDL stubs third wave (150+ stubs assertions)\n"
         "    // HTMLMediaElement & HTMLVideoElement\n"
@@ -3823,6 +3959,50 @@ START_TEST(test_quickjs_event_target_basic)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_addEventListener");
     ck_assert(result == true);
 
+    /* Test preventDefault & defaultPrevented on click events */
+    const char *code_prevent =
+        "(function() {\n"
+        "  // 1. Prevented Navigation check\n"
+        "  var a1 = document.createElement('a');\n"
+        "  a1.setAttribute('href', '/target1');\n"
+        "  a1.addEventListener('click', function(e) { e.preventDefault(); });\n"
+        "  var evt1 = new Event('click', { cancelable: true });\n"
+        "  a1.dispatchEvent(evt1);\n"
+        "  if (evt1.defaultPrevented !== true) throw new Error('preventDefault() failed on link click');\n"
+        "  \n"
+        "  // 2. Unprevented Navigation check\n"
+        "  var a2 = document.createElement('a');\n"
+        "  a2.setAttribute('href', '/target2');\n"
+        "  var evt2 = new Event('click', { cancelable: true });\n"
+        "  a2.dispatchEvent(evt2);\n"
+        "  if (evt2.defaultPrevented !== false) throw new Error('defaultPrevented should be false for unprevented click');\n"
+        "  \n"
+        "  // 3. Nested elements & bubbling preventDefault check\n"
+        "  var parentA = document.createElement('a');\n"
+        "  parentA.setAttribute('href', '/target4');\n"
+        "  var span = document.createElement('span');\n"
+        "  var strong = document.createElement('strong');\n"
+        "  span.appendChild(strong);\n"
+        "  parentA.appendChild(span);\n"
+        "  parentA.addEventListener('click', function(e) { e.preventDefault(); });\n"
+        "  var evt4 = new Event('click', { bubbles: true, cancelable: true });\n"
+        "  strong.dispatchEvent(evt4);\n"
+        "  if (evt4.defaultPrevented !== true) throw new Error('preventDefault on parent link during bubbling failed');\n"
+        "  \n"
+        "  // 4. Decoupling of stopPropagation and preventDefault\n"
+        "  var parentA2 = document.createElement('a');\n"
+        "  parentA2.setAttribute('href', '/target5');\n"
+        "  var span2 = document.createElement('span');\n"
+        "  parentA2.appendChild(span2);\n"
+        "  span2.addEventListener('click', function(e) { e.stopPropagation(); });\n"
+        "  var evt5 = new Event('click', { bubbles: true, cancelable: true });\n"
+        "  span2.dispatchEvent(evt5);\n"
+        "  if (evt5.defaultPrevented !== false) throw new Error('stopPropagation alone should not prevent default');\n"
+        "  return true;\n"
+        "})()";
+    result = js_exec(thread, (const uint8_t *)code_prevent, strlen(code_prevent), "test_prevent_default_regression");
+    ck_assert(result == true);
+
     /* Test bare and null/undefined contexts on eventtarget methods */
     const char *code2 =
         "(function() {\n"
@@ -5051,6 +5231,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_navigator);
     tcase_add_test(tc_window, test_quickjs_location);
     tcase_add_test(tc_window, test_quickjs_document);
+    tcase_add_test(tc_window, test_quickjs_parsing_doctype);
+    tcase_add_test(tc_window, test_quickjs_quirks_mode);
     tcase_add_test(tc_window, test_quickjs_storage);
     tcase_add_test(tc_window, test_quickjs_dom_parser);
     tcase_add_test(tc_window, test_quickjs_event_target_basic);

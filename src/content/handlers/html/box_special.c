@@ -603,7 +603,7 @@ static bool box_select_add_option(struct form_control *control, dom_node *n)
 
 	err = dom_element_get_attribute(n, corestring_dom_value, &s);
 	if (err == DOM_NO_ERR && s != NULL) {
-		value = strdup(dom_string_data(s));
+		value = strndup(dom_string_data(s), dom_string_byte_length(s));
 		dom_string_unref(s);
 	} else {
 		value = strdup(text);
