@@ -150,6 +150,42 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_media_source)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = js_newthread(heap, NULL, NULL, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (!('MediaSource' in window)) throw new Error('MediaSource not in window');\n"
+        "if (typeof MediaSource.isTypeSupported !== 'function') throw new Error('isTypeSupported not a function');\n"
+        "if (!MediaSource.isTypeSupported('video/mp4; codecs=\"avc1.42E01E\"')) throw new Error('isTypeSupported returned false');\n"
+        "var ms = new MediaSource();\n"
+        "if (!(ms instanceof MediaSource)) throw new Error('ms not instance of MediaSource');\n"
+        "if (!(ms instanceof EventTarget)) throw new Error('ms not instance of EventTarget');\n"
+        "var sb = ms.addSourceBuffer('video/mp4');\n"
+        "if (!sb || typeof sb.appendBuffer !== 'function') throw new Error('addSourceBuffer failed');\n"
+        "ms.endOfStream();\n"
+        "true;\n";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_media_source");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_browseraudit_chartjs_full)
 {
     jsheap *heap = NULL;
@@ -6029,6 +6065,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_custom_elements);
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
+    tcase_add_test(tc_event_loop, test_quickjs_media_source);
     tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
