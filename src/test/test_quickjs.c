@@ -247,6 +247,76 @@ START_TEST(test_quickjs_output_and_devices)
 }
 END_TEST
 
+START_TEST(test_quickjs_blob_file_filereader_indexeddb)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  // 1. Blob Tests\n"
+        "  if (typeof Blob !== 'function') throw new Error('Blob missing');\n"
+        "  var b = new Blob(['hello', ' ', 'world'], { type: 'text/plain' });\n"
+        "  if (b.size !== 11) throw new Error('Blob size mismatch: ' + b.size);\n"
+        "  if (b.type !== 'text/plain') throw new Error('Blob type mismatch: ' + b.type);\n"
+        "  var sliced = b.slice(0, 5);\n"
+        "  if (sliced.size !== 5) throw new Error('Blob slice size mismatch: ' + sliced.size);\n"
+        "\n"
+        "  // 2. File Tests\n"
+        "  if (typeof File !== 'function') throw new Error('File missing');\n"
+        "  var f = new File(['file_content'], 'doc.txt', { type: 'text/plain' });\n"
+        "  if (f.name !== 'doc.txt') throw new Error('File name mismatch: ' + f.name);\n"
+        "  if (f.size !== 12) throw new Error('File size mismatch: ' + f.size);\n"
+        "  if (typeof f.lastModified !== 'number') throw new Error('File lastModified mismatch');\n"
+        "\n"
+        "  // 3. FileReader Tests\n"
+        "  if (typeof FileReader !== 'function') throw new Error('FileReader missing');\n"
+        "  var reader = new FileReader();\n"
+        "  if (!('readAsDataURL' in reader)) throw new Error('FileReader readAsDataURL missing');\n"
+        "  if (!('readAsArrayBuffer' in reader)) throw new Error('FileReader readAsArrayBuffer missing');\n"
+        "\n"
+        "  // 4. IndexedDB Subsystem Tests\n"
+        "  if (typeof indexedDB !== 'object' || indexedDB === null) throw new Error('window.indexedDB missing');\n"
+        "  if (typeof IDBFactory !== 'function') throw new Error('IDBFactory missing');\n"
+        "  if (typeof IDBOpenDBRequest !== 'function') throw new Error('IDBOpenDBRequest missing');\n"
+        "  if (typeof IDBDatabase !== 'function') throw new Error('IDBDatabase missing');\n"
+        "  if (typeof IDBTransaction !== 'function') throw new Error('IDBTransaction missing');\n"
+        "  if (typeof IDBObjectStore !== 'function') throw new Error('IDBObjectStore missing');\n"
+        "\n"
+        "  var req = indexedDB.open('test_db', 1);\n"
+        "  if (!req || typeof req.onsuccess === 'undefined') throw new Error('indexedDB.open request invalid');\n"
+        "\n"
+        "  window.storageFilesResult = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.storageFilesResult = 'ERROR: ' + e.message + '\\n' + e.stack;\n"
+        "}\n"
+        "window.storageFilesResult === 'OK';";
+
+    bool result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_blob_file_filereader_indexeddb");
+    if (!result) {
+        const char *diag = "window.storageFilesResult;";
+        js_exec(thread, (const uint8_t *)diag, strlen(diag), "get_diag");
+    }
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_parsing_doctype)
 {
     jsheap *heap = NULL;
@@ -5545,6 +5615,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_parsing_doctype);
     tcase_add_test(tc_window, test_quickjs_quirks_mode);
     tcase_add_test(tc_window, test_quickjs_storage);
+    tcase_add_test(tc_window, test_quickjs_blob_file_filereader_indexeddb);
     tcase_add_test(tc_window, test_quickjs_dom_parser);
     tcase_add_test(tc_window, test_quickjs_event_target_basic);
     tcase_add_test(tc_window, test_quickjs_event_target_full);
