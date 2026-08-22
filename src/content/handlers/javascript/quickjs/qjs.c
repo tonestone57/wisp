@@ -5430,6 +5430,59 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
     JSValue webgl_val = JS_Eval(ctx, webgl_polyfill, strlen(webgl_polyfill), "webgl_polyfill.js", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, webgl_val);
 
+    const char *svg_polyfill =
+        "(function() {\n"
+        "    const global = typeof globalThis !== 'undefined' ? globalThis : window;\n"
+        "    if (typeof global.SVGElement === 'undefined') {\n"
+        "        var SVGElement = class SVGElement extends (global.Element || class {}) {\n"
+        "            constructor() {\n"
+        "                super();\n"
+        "                this.namespaceURI = 'http://www.w3.org/2000/svg';\n"
+        "            }\n"
+        "        };\n"
+        "        global.SVGElement = SVGElement;\n"
+        "    }\n"
+        "    if (typeof global.SVGGraphicsElement === 'undefined') {\n"
+        "        var SVGGraphicsElement = class SVGGraphicsElement extends global.SVGElement {};\n"
+        "        global.SVGGraphicsElement = SVGGraphicsElement;\n"
+        "    }\n"
+        "    if (typeof global.SVGSVGElement === 'undefined') {\n"
+        "        var SVGSVGElement = class SVGSVGElement extends global.SVGGraphicsElement {};\n"
+        "        global.SVGSVGElement = SVGSVGElement;\n"
+        "    }\n"
+        "    if (typeof global.SVGForeignObjectElement === 'undefined') {\n"
+        "        var SVGForeignObjectElement = class SVGForeignObjectElement extends global.SVGGraphicsElement {};\n"
+        "        global.SVGForeignObjectElement = SVGForeignObjectElement;\n"
+        "    }\n"
+        "    if (typeof global.SVGFEColorMatrixElement === 'undefined') {\n"
+        "        var SVGFEColorMatrixElement = class SVGFEColorMatrixElement extends global.SVGElement {};\n"
+        "        SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_UNKNOWN = 0;\n"
+        "        SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_MATRIX = 1;\n"
+        "        SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_SATURATE = 2;\n"
+        "        SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_HUEROTATE = 3;\n"
+        "        SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_LUMINANCETOALPHA = 4;\n"
+        "        SVGFEColorMatrixElement.prototype.SVG_FECOLORMATRIX_TYPE_UNKNOWN = 0;\n"
+        "        SVGFEColorMatrixElement.prototype.SVG_FECOLORMATRIX_TYPE_MATRIX = 1;\n"
+        "        SVGFEColorMatrixElement.prototype.SVG_FECOLORMATRIX_TYPE_SATURATE = 2;\n"
+        "        SVGFEColorMatrixElement.prototype.SVG_FECOLORMATRIX_TYPE_HUEROTATE = 3;\n"
+        "        SVGFEColorMatrixElement.prototype.SVG_FECOLORMATRIX_TYPE_LUMINANCETOALPHA = 4;\n"
+        "        global.SVGFEColorMatrixElement = SVGFEColorMatrixElement;\n"
+        "    }\n"
+        "    if (typeof Window !== 'undefined' && Window.prototype) {\n"
+        "        ['SVGElement', 'SVGGraphicsElement', 'SVGSVGElement', 'SVGForeignObjectElement', 'SVGFEColorMatrixElement'].forEach(name => {\n"
+        "            if (!(name in Window.prototype)) {\n"
+        "                Object.defineProperty(Window.prototype, name, {\n"
+        "                    get() { return global[name]; },\n"
+        "                    configurable: true,\n"
+        "                    enumerable: true\n"
+        "                });\n"
+        "            }\n"
+        "        });\n"
+        "    }\n"
+        "})();\n";
+    JSValue svg_val = JS_Eval(ctx, svg_polyfill, strlen(svg_polyfill), "svg_polyfill.js", JS_EVAL_TYPE_GLOBAL);
+    JS_FreeValue(ctx, svg_val);
+
 }
 
 static void qjs_lifecycle_mutation_hook(dom_mutation_hook_category category, dom_mutation_type type,
