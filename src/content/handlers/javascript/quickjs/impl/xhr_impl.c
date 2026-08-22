@@ -65,6 +65,7 @@ static void xhr_finalizer(JSRuntime *rt, JSValue val)
             free(xhr->response_headers);
             fetch_multipart_data_destroy(xhr->out_headers);
             if (xhr->response_xml) dom_node_unref((dom_node *)xhr->response_xml);
+            free(xhr->response_type);
             if (!JS_IsUndefined(xhr->self)) JS_FreeValueRT(rt, xhr->self);
             free(xhr);
         }
@@ -334,7 +335,12 @@ JSValue wisp_xmlhttprequest_statusText_get_impl(JSContext *ctx, QJSNodePrivate *
 JSValue wisp_xmlhttprequest_responseText_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     WispXHR *xhr = priv ? priv->node : NULL;
-    if (!xhr || !xhr->response_buf) return JS_NewString(ctx, "");
+    if (!xhr) return JS_NewString(ctx, "");
+    if (xhr->response_type && *xhr->response_type != '\0' &&
+        strcmp(xhr->response_type, "text") != 0) {
+        return JS_ThrowTypeError(ctx, "responseText is only available when responseType is '' or 'text'");
+    }
+    if (!xhr->response_buf) return JS_NewString(ctx, "");
     return JS_NewStringLen(ctx, (const char *)xhr->response_buf, xhr->response_len);
 }
 
@@ -349,13 +355,23 @@ JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, cons
     if (!new_method) return JS_ThrowOutOfMemory(ctx);
 
     struct nsurl *base_url = get_location_nsurl(ctx);
+    struct nsurl *fallback_base = NULL;
+    if (!base_url) {
+        nsurl_create("http://localhost/", &fallback_base);
+        base_url = fallback_base;
+    }
+
     nsurl *new_url = NULL;
     nserror err = NSERROR_BAD_URL;
     if (base_url) {
         err = nsurl_join(base_url, url, &new_url);
     }
-    if (err != NSERROR_OK) {
+    if (err != NSERROR_OK || !new_url) {
         err = nsurl_create(url, &new_url);
+    }
+
+    if (fallback_base) {
+        nsurl_unref(fallback_base);
     }
 
     if (err != NSERROR_OK || !new_url) {
@@ -419,6 +435,8 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
     nserror err = fetch_start(xhr->url, NULL, xhr_callback, xhr, false, &post, false, false, headers, &xhr->fetch_handle);
     if (err != NSERROR_OK) {
         NSLOG(wisp, ERROR, "XHR fetch failed to start: %s", messages_get_errorcode(err));
+        xhr_dispatch_event_helper(xhr, "error");
+        xhr_dispatch_event_helper(xhr, "loadend");
     } else {
         xhr_add_active(ctx, xhr);
     }
@@ -483,12 +501,38 @@ JSValue wisp_xmlhttprequest_abort_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_UNDEFINED;
 }
 JSValue wisp_xmlhttprequest_overrideMimeType_impl(JSContext *ctx, QJSNodePrivate *priv, const char * mime) { return JS_UNDEFINED; }
-JSValue wisp_xmlhttprequest_responseType_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, ""); }
-JSValue wisp_xmlhttprequest_responseType_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_xmlhttprequest_responseType_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    WispXHR *xhr = priv ? priv->node : NULL;
+    if (!xhr || !xhr->response_type) return JS_NewString(ctx, "");
+    return JS_NewString(ctx, xhr->response_type);
+}
+
+JSValue wisp_xmlhttprequest_responseType_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) {
+    WispXHR *xhr = priv ? priv->node : NULL;
+    if (!xhr) return JS_UNDEFINED;
+
+    if (xhr->readyState == 3 || xhr->readyState == 4) return JS_UNDEFINED;
+
+    if (!value || strcmp(value, "") == 0 ||
+        strcmp(value, "text") == 0 ||
+        strcmp(value, "arraybuffer") == 0 ||
+        strcmp(value, "blob") == 0 ||
+        strcmp(value, "document") == 0 ||
+        strcmp(value, "json") == 0) {
+        free(xhr->response_type);
+        xhr->response_type = value ? strdup(value) : strdup("");
+    }
+    return JS_UNDEFINED;
+}
 
 JSValue wisp_xmlhttprequest_responseXML_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     WispXHR *xhr = priv ? priv->node : NULL;
-    if (!xhr || xhr->readyState != 4 || !xhr->response_buf) return JS_NULL;
+    if (!xhr) return JS_NULL;
+    if (xhr->response_type && *xhr->response_type != '\0' &&
+        strcmp(xhr->response_type, "document") != 0) {
+        return JS_ThrowTypeError(ctx, "responseXML is only available when responseType is '' or 'document'");
+    }
+    if (xhr->readyState != 4 || !xhr->response_buf) return JS_NULL;
 
     if (!xhr->response_xml) {
         xhr_parse_response_xml(xhr);
@@ -496,7 +540,62 @@ JSValue wisp_xmlhttprequest_responseXML_get_impl(JSContext *ctx, QJSNodePrivate 
 
     return xhr->response_xml ? qjs_wrap_node(ctx, (dom_node *)xhr->response_xml) : JS_NULL;
 }
-JSValue wisp_xmlhttprequest_response_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_xmlhttprequest_responseText_get_impl(ctx, priv); }
+
+JSValue wisp_xmlhttprequest_response_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    WispXHR *xhr = priv ? priv->node : NULL;
+    if (!xhr) return JS_NULL;
+
+    const char *type = xhr->response_type ? xhr->response_type : "";
+
+    if (strcmp(type, "") == 0 || strcmp(type, "text") == 0) {
+        if (!xhr->response_buf) return JS_NewString(ctx, "");
+        return JS_NewStringLen(ctx, (const char *)xhr->response_buf, xhr->response_len);
+    }
+
+    if (xhr->readyState != 4) return JS_NULL;
+
+    if (strcmp(type, "arraybuffer") == 0) {
+        if (!xhr->response_buf) {
+            return JS_NewArrayBufferCopy(ctx, (const uint8_t *)"", 0);
+        }
+        return JS_NewArrayBufferCopy(ctx, xhr->response_buf, xhr->response_len);
+    }
+
+    if (strcmp(type, "blob") == 0) {
+        JSValue ab = JS_NewArrayBufferCopy(ctx, xhr->response_buf ? xhr->response_buf : (const uint8_t *)"", xhr->response_buf ? xhr->response_len : 0);
+        if (JS_IsException(ab)) return ab;
+
+        JSValue global_obj = JS_GetGlobalObject(ctx);
+        JSValue blob_ctor = JS_GetPropertyStr(ctx, global_obj, "Blob");
+        JS_FreeValue(ctx, global_obj);
+
+        if (JS_IsFunction(ctx, blob_ctor)) {
+            JSValue parts = JS_NewArray(ctx);
+            JS_SetPropertyUint32(ctx, parts, 0, ab);
+            JSValue blob_obj = JS_CallConstructor(ctx, blob_ctor, 1, &parts);
+            JS_FreeValue(ctx, parts);
+            JS_FreeValue(ctx, blob_ctor);
+            return blob_obj;
+        }
+        JS_FreeValue(ctx, blob_ctor);
+        return ab;
+    }
+
+    if (strcmp(type, "document") == 0) {
+        if (!xhr->response_buf) return JS_NULL;
+        if (!xhr->response_xml) {
+            xhr_parse_response_xml(xhr);
+        }
+        return xhr->response_xml ? qjs_wrap_node(ctx, (dom_node *)xhr->response_xml) : JS_NULL;
+    }
+
+    if (strcmp(type, "json") == 0) {
+        if (!xhr->response_buf) return JS_NULL;
+        return JS_ParseJSON(ctx, (const char *)xhr->response_buf, xhr->response_len, "<xhr_json>");
+    }
+
+    return JS_NULL;
+}
 JSValue wisp_xmlhttprequest_timeout_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewInt32(ctx, 0); }
 JSValue wisp_xmlhttprequest_timeout_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value) { return JS_UNDEFINED; }
 JSValue wisp_xmlhttprequest_withCredentials_get_impl(JSContext *ctx, QJSNodePrivate *priv) {

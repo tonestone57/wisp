@@ -131,7 +131,28 @@ START_TEST(test_html5test_full_execution)
         "    isType: function(t) { return t === 'desktop'; }\n"
         "  };\n"
         "}\n"
-        "window.loadWhichBrowser = function(cb) { if (cb) cb(); };\n";
+        "window.loadWhichBrowser = function(cb) { if (cb) cb(); };\n"
+        "if (window.XMLHttpRequest) {\n"
+        "  var origSend = window.XMLHttpRequest.prototype.send;\n"
+        "  window.XMLHttpRequest.prototype.send = function() {\n"
+        "    if (this._url && this._url.indexOf('detect.html') !== -1) {\n"
+        "      var self = this;\n"
+        "      window.setTimeout(function() {\n"
+        "        var dummy_data = '<title>&amp;&&lt;</title>';\n"
+        "        self.status = 200;\n"
+        "        self.statusText = 'OK';\n"
+        "        self.readyState = 4;\n"
+        "        if (self.responseType === '' || self.responseType === 'text') {\n"
+        "          self.responseText = dummy_data;\n"
+        "        }\n"
+        "        if (self.onreadystatechange) self.onreadystatechange();\n"
+        "        if (self.onload) self.onload();\n"
+        "      }, 1);\n"
+        "      return;\n"
+        "    }\n"
+        "    return origSend.apply(this, arguments);\n"
+        "  };\n"
+        "}\n";
 
     js_exec(thread, (const uint8_t *)base_js, strlen(base_js), "base.js");
     js_exec(thread, (const uint8_t *)engine_js, strlen(engine_js), "engine.js");

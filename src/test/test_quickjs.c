@@ -150,6 +150,63 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_xhr_response_types)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    corestrings_init();
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  var xhr = new XMLHttpRequest();\n"
+        "  if (xhr.responseType !== '') throw new Error('default responseType should be empty string');\n"
+        "  xhr.responseType = 'text';\n"
+        "  if (xhr.responseType !== 'text') throw new Error('responseType text set failed');\n"
+        "  xhr.responseType = 'arraybuffer';\n"
+        "  if (xhr.responseType !== 'arraybuffer') throw new Error('responseType arraybuffer set failed');\n"
+        "  xhr.responseType = 'blob';\n"
+        "  if (xhr.responseType !== 'blob') throw new Error('responseType blob set failed');\n"
+        "  xhr.responseType = 'document';\n"
+        "  if (xhr.responseType !== 'document') throw new Error('responseType document set failed');\n"
+        "  xhr.responseType = 'json';\n"
+        "  if (xhr.responseType !== 'json') throw new Error('responseType json set failed');\n"
+        "  xhr.responseType = 'invalid_type';\n"
+        "  if (xhr.responseType !== 'json') throw new Error('invalid responseType should be ignored');\n"
+        "  xhr.responseType = '';\n"
+        "  if (xhr.responseType !== '') throw new Error('responseType empty string set failed');\n"
+        "  window.xhrTypeRes = 'OK';\n"
+        "} catch(e) {\n"
+        "  window.xhrTypeRes = e.message;\n"
+        "}\n"
+        "window.xhrTypeRes === 'OK';";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_xhr_response_types");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    corestrings_fini();
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_media_source)
 {
     jsheap *heap = NULL;
@@ -6368,6 +6425,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_event_target_full);
     tcase_add_test(tc_window, test_quickjs_events_and_listeners_advanced);
     tcase_add_test(tc_window, test_quickjs_xhr);
+    tcase_add_test(tc_window, test_quickjs_xhr_response_types);
     tcase_set_timeout(tc_window, 10);
     tcase_add_test(tc_window, test_quickjs_crypto);
     tcase_add_test(tc_window, test_quickjs_dom_identity);
