@@ -279,19 +279,21 @@ START_TEST(test_quickjs_webgl_support)
     ck_assert(result == true);
 
     const char *offscreen_script =
-        "if (!('OffscreenCanvas' in window)) throw 'OffscreenCanvas not in window';\n"
-        "let offscreen = new OffscreenCanvas(16, 16);\n"
-        "if (offscreen.width !== 16 || offscreen.height !== 16) throw 'OffscreenCanvas dimensions fail';\n"
-        "let ctx2d = offscreen.getContext('2d');\n"
-        "if (!ctx2d) throw 'getContext 2d fail';\n"
-        "if (typeof CanvasRenderingContext2D !== 'undefined' && !(ctx2d instanceof CanvasRenderingContext2D)) throw 'not instanceof CanvasRenderingContext2D';\n"
-        "if (ctx2d.canvas !== offscreen) throw '2d canvas ref fail';\n"
-        "let gl = offscreen.getContext('webgl');\n"
-        "if (!gl) throw 'getContext webgl fail';\n"
-        "if (!(gl instanceof WebGLRenderingContext)) throw 'not instanceof WebGLRenderingContext';\n"
-        "let gl2 = offscreen.getContext('webgl2');\n"
-        "if (!gl2) throw 'getContext webgl2 fail';\n"
-        "if (!(gl2 instanceof WebGL2RenderingContext)) throw 'not instanceof WebGL2RenderingContext';\n"
+        "{\n"
+        "  if (!('OffscreenCanvas' in window)) throw 'OffscreenCanvas not in window';\n"
+        "  let offscreen = new OffscreenCanvas(16, 16);\n"
+        "  if (offscreen.width !== 16 || offscreen.height !== 16) throw 'OffscreenCanvas dimensions fail';\n"
+        "  let c2d = offscreen.getContext('2d');\n"
+        "  if (!c2d) throw 'getContext 2d fail';\n"
+        "  if (typeof CanvasRenderingContext2D !== 'undefined' && !(c2d instanceof CanvasRenderingContext2D)) throw 'not instanceof CanvasRenderingContext2D';\n"
+        "  if (c2d.canvas !== offscreen) throw '2d canvas ref fail';\n"
+        "  let ogl = offscreen.getContext('webgl');\n"
+        "  if (!ogl) throw 'getContext webgl fail';\n"
+        "  if (!(ogl instanceof WebGLRenderingContext)) throw 'not instanceof WebGLRenderingContext';\n"
+        "  let ogl2 = offscreen.getContext('webgl2');\n"
+        "  if (!ogl2) throw 'getContext webgl2 fail';\n"
+        "  if (!(ogl2 instanceof WebGL2RenderingContext)) throw 'not instanceof WebGL2RenderingContext';\n"
+        "}\n"
         "1;";
 
     result = js_exec(thread, (const uint8_t *)offscreen_script, strlen(offscreen_script), "test_offscreencanvas_support");

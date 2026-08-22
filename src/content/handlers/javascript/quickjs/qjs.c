@@ -5109,7 +5109,7 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "    }\n"
         "\n"
         "    if (typeof global.OffscreenCanvas === 'undefined') {\n"
-        "        var OffscreenCanvas = globalThis.OffscreenCanvas || class OffscreenCanvas extends (global.EventTarget || Object) {\n"
+        "        global.OffscreenCanvas = globalThis.OffscreenCanvas || class OffscreenCanvas extends (global.EventTarget || Object) {\n"
         "            constructor(width = 300, height = 150) {\n"
         "                super();\n"
         "                this.width = width;\n"
@@ -5140,7 +5140,6 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "            convertToBlob() { return Promise.resolve(new Blob()); }\n"
         "            transferToImageBitmap() { return {}; }\n"
         "        };\n"
-        "        global.OffscreenCanvas = OffscreenCanvas;\n"
         "    }\n"
         "})();\n";
     JSValue webgl_val = JS_Eval(ctx, webgl_polyfill, strlen(webgl_polyfill), "webgl_polyfill.js", JS_EVAL_TYPE_GLOBAL);
