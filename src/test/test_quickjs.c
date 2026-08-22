@@ -1269,9 +1269,13 @@ START_TEST(test_quickjs_webidl_stubs)
         "    var ifr = document.createElement('iframe');\n"
         "    ifr.name = 'my_iframe';\n"
         "    if (ifr.name !== 'my_iframe') throw new Error('HTMLIFrameElement name failed');\n"
-        "    if (ifr.sandbox !== '') throw new Error('HTMLIFrameElement sandbox default failed');\n"
+        "    if (typeof ifr.sandbox !== 'object' || typeof ifr.sandbox.contains !== 'function') throw new Error('HTMLIFrameElement sandbox tokenlist failed');\n"
         "    ifr.setAttribute('sandbox', 'allow-scripts');\n"
-        "    if (ifr.sandbox !== 'allow-scripts') throw new Error('HTMLIFrameElement sandbox get failed');\n"
+        "    if (!ifr.sandbox.contains('allow-scripts')) throw new Error('HTMLIFrameElement sandbox contains failed');\n"
+        "    ifr.sandbox.add('allow-same-origin');\n"
+        "    if (!ifr.sandbox.contains('allow-same-origin')) throw new Error('HTMLIFrameElement sandbox add failed');\n"
+        "    ifr.srcdoc = '<h1>Hello</h1>';\n"
+        "    if (ifr.srcdoc !== '<h1>Hello</h1>') throw new Error('HTMLIFrameElement srcdoc failed');\n"
         "    if (ifr.contentDocument !== null) throw new Error('HTMLIFrameElement contentDocument default failed');\n"
         "    if (ifr.contentWindow !== null) throw new Error('HTMLIFrameElement contentWindow default failed');\n"
         "\n"
@@ -4181,6 +4185,35 @@ START_TEST(test_quickjs_crypto)
                         "}\n"
                         "threwQuota === true;";
     result = js_exec(thread, (const uint8_t *)code3, strlen(code3), "test_crypto_getRandomValues_quota");
+    ck_assert(result == true);
+
+    /* Test SubtleCrypto digest, generateKey, exportKey, importKey, encrypt, decrypt, sign, verify */
+    const char *code4 =
+        "var testSubtle = async function() {\n"
+        "    var data = new Uint8Array([1, 2, 3, 4, 5]);\n"
+        "    var hash = await crypto.subtle.digest('SHA-256', data);\n"
+        "    if (!(hash instanceof ArrayBuffer) || hash.byteLength !== 32) return false;\n"
+        "    var key = await crypto.subtle.generateKey({ name: 'AES-CBC', length: 128 }, true, ['encrypt', 'decrypt']);\n"
+        "    if (!key || key.type !== 'secret') return false;\n"
+        "    var rawKey = await crypto.subtle.exportKey('raw', key);\n"
+        "    if (!(rawKey instanceof ArrayBuffer) || rawKey.byteLength !== 16) return false;\n"
+        "    var importedKey = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-CBC' }, true, ['encrypt', 'decrypt']);\n"
+        "    if (!importedKey || importedKey.type !== 'secret') return false;\n"
+        "    var iv = new Uint8Array(16);\n"
+        "    var cipher = await crypto.subtle.encrypt({ name: 'AES-CBC', iv: iv }, key, data);\n"
+        "    if (!(cipher instanceof ArrayBuffer) || cipher.byteLength === 0) return false;\n"
+        "    var decrypted = await crypto.subtle.decrypt({ name: 'AES-CBC', iv: iv }, key, cipher);\n"
+        "    if (!(decrypted instanceof ArrayBuffer) || decrypted.byteLength !== 5) return false;\n"
+        "    var hmacKey = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, true, ['sign', 'verify']);\n"
+        "    var sig = await crypto.subtle.sign({ name: 'HMAC' }, hmacKey, data);\n"
+        "    if (!(sig instanceof ArrayBuffer) || sig.byteLength !== 32) return false;\n"
+        "    var verified = await crypto.subtle.verify({ name: 'HMAC' }, hmacKey, sig, data);\n"
+        "    return verified === true;\n"
+        "};\n"
+        "var passed = false;\n"
+        "testSubtle().then(function(res) { passed = res; });\n"
+        "passed;";
+    result = js_exec(thread, (const uint8_t *)code4, strlen(code4), "test_crypto_subtle_full");
     ck_assert(result == true);
 
     js_closethread(thread);

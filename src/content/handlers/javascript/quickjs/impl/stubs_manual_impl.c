@@ -1262,7 +1262,9 @@ JSValue wisp_htmliframeelement_name_set_impl(JSContext *ctx, QJSNodePrivate *pri
 
 JSValue wisp_htmliframeelement_sandbox_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return get_element_str_attr(ctx, priv, "sandbox", "");
+    extern JSValue qjs_new_domtokenlist(JSContext *ctx, void *node, bool is_dom_node);
+    if (!priv) return JS_NULL;
+    return qjs_new_domtokenlist(ctx, priv->node, priv->is_dom_node);
 }
 
 JSValue wisp_htmliframeelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
