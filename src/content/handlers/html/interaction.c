@@ -47,6 +47,7 @@
 #include "content/handlers/javascript/js.h"
 #include "content/textsearch.h"
 #include "desktop/browser_history.h"
+#include "desktop/browser_private.h"
 #include "desktop/frames.h"
 #include "desktop/scrollbar.h"
 #include "desktop/selection.h"
@@ -1217,6 +1218,7 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
 
     /* fire dom click event BEFORE deferred actions, so JS click handlers (e.g. e.preventDefault() or location changes) execute first */
     bool default_prevented = false;
+    if (bw) bw->js_navigated = false;
     if (mouse & BROWSER_MOUSE_CLICK_1) {
         html_content *htmlc = (html_content *)c;
         doc_rwlock_wrlock(&htmlc->doc_mutex);
@@ -1224,7 +1226,8 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
         doc_rwlock_wrunlock(&htmlc->doc_mutex);
     }
 
-    if (default_prevented) {
+    if (default_prevented || (bw && bw->js_navigated)) {
+        if (bw) bw->js_navigated = false;
         return NSERROR_OK;
     }
 

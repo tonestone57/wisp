@@ -150,6 +150,57 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_browseraudit_chartjs_full)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "var Chart = function(ctx, config) {\n"
+        "    this.ctx = ctx;\n"
+        "    this.config = config;\n"
+        "    if (ctx && ctx.canvas) {\n"
+        "        this.canvas = ctx.canvas;\n"
+        "    }\n"
+        "};\n"
+        "var cvs = document.createElement('canvas');\n"
+        "var ctx = cvs.getContext('2d');\n"
+        "var chart = new Chart(ctx, {\n"
+        "    type: 'line',\n"
+        "    data: { labels: ['Jan', 'Feb'], datasets: [{ data: [1, 2] }] }\n"
+        "});\n"
+        "if (!chart || !chart.ctx) throw new Error('Chart instantiation failed');\n"
+        "if (chart.canvas !== cvs) throw new Error('Chart canvas property mismatch');\n"
+        "1;";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_chartjs", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_chartjs: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert(!JS_IsException(val));
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_output_and_devices)
 {
     jsheap *heap = NULL;
@@ -5827,6 +5878,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_trusted_types);
     tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
     tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
+    tcase_add_test(tc_window, test_quickjs_browseraudit_chartjs_full);
     suite_add_tcase(s, tc_window);
 
     /* MutationObserver test case */
