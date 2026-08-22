@@ -214,25 +214,15 @@ START_TEST(test_html5test_full_execution)
 
     const char *print_err =
         "var report = [];\n"
-        "function walk(data) {\n"
-        "  for (var i = 0; i < data.length; i++) {\n"
-        "    if (data[i].key) {\n"
-        "      var res = 0;\n"
-        "      try {\n"
-        "        if (window.html5testCalc) {\n"
-        "          res = window.html5testCalc.getResult(data[i].key);\n"
-        "        }\n"
-        "      } catch(e) { res = e.message; }\n"
-        "      report.push(data[i].key + ': value=' + JSON.stringify(data[i].value) + ' res=' + res);\n"
         "if (window.html5testRawResults && window.html5testRawResults.results) {\n"
         "  var parts = window.html5testRawResults.results.split(',');\n"
         "  for (var i = 0; i < parts.length; i++) {\n"
-        "    if (parts[i].indexOf('files') === 0 || parts[i].indexOf('storage') === 0) {\n"
+        "    if (parts[i].indexOf('elements') === 0 || parts[i].indexOf('components') === 0 || parts[i].indexOf('responsive') === 0) {\n"
         "      report.push(parts[i]);\n"
         "    }\n"
         "  }\n"
         "}\n"
-        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nPoints details: ' + JSON.stringify(window.html5testResults) + '\\nREPORT:\\n' + report.join('\\n');\n"
+        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nPoints details:\\n' + window.html5testResults.split(',').join('\\n') + '\\nElements details:\\n' + report.join('\\n');\n"
         "res;\n";
 
     JSValue val = JS_Eval(thread->ctx, print_err, strlen(print_err), "print_err", JS_EVAL_TYPE_GLOBAL);

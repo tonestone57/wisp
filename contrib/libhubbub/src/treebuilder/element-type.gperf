@@ -45,6 +45,7 @@ center,              CENTER
 col,                 COL
 colgroup,            COLGROUP
 command,             COMMAND
+data,                DATA
 dd,                  DD
 desc,                DESC
 details,             DETAILS
@@ -71,6 +72,7 @@ h4,                  H4
 h5,                  H5
 h6,                  H6
 head,                HEAD
+header,              HEADER
 hr,                  HR
 html,                HTML
 i,                   I
@@ -82,7 +84,9 @@ isindex,             ISINDEX
 li,                  LI
 link,                LINK
 listing,             LISTING
+main,                MAIN
 malignmark,          MALIGNMARK
+mark,                MARK
 marquee,             MARQUEE
 math,                MATH
 menu,                MENU
@@ -93,6 +97,7 @@ mn,                  MN
 mo,                  MO
 ms,                  MS
 mtext,               MTEXT
+nav,                 NAV
 nobr,                NOBR
 noembed,             NOEMBED
 noframes,            NOFRAMES
@@ -106,8 +111,12 @@ p,                   P
 param,               PARAM
 plaintext,           PLAINTEXT
 pre,                 PRE
+rp,                  RP
+rt,                  RT
+ruby,                RUBY
 s,                   S
 script,              SCRIPT
+section,             SECTION
 select,              SELECT
 small,               SMALL
 spacer,              SPACER
@@ -116,6 +125,7 @@ strong,              STRONG
 style,               STYLE
 summary,             SUMMARY
 svg,                 SVG
+time,                TIME
 table,               TABLE
 tbody,               TBODY
 td,                  TD
