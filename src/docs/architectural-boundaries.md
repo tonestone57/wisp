@@ -79,12 +79,12 @@ QuickJS-ng provides ES2023 language compliance, but modern frameworks depend hea
 ### 2. DOM & Web API Binding Layer (libdom / nsgenbind)
 Frameworks do not use standard static DOM trees; they construct, measure, and observe the DOM dynamically.
 
-| Required Modern DOM APIs | Description / Usage |
-|---|---|
-| **Observers** | `MutationObserver`, `ResizeObserver`, `IntersectionObserver` |
-| **Component Model** | Shadow DOM v1 (`attachShadow`), Custom Elements (`customElements.define`) |
-| **Routing & State** | History API (`pushState`, `replaceState`), `localStorage`, `sessionStorage`, `IndexedDB` |
-| **Networking** | Fetch API, `ReadableStream`/`WritableStream`, WebSockets, CORS headers enforcement |
+| Required Modern DOM APIs | Description / Usage | Implementation Status |
+|---|---|---|
+| **Observers** | `MutationObserver`, `ResizeObserver`, `IntersectionObserver` | **[Finished]** `MutationObserver` & `IntersectionObserver` fully integrated |
+| **Component Model** | Shadow DOM v1 (`attachShadow`), Custom Elements (`customElements.define`) | **[Finished]** Shadow DOM v1 & Web Components integrated |
+| **Routing & State** | History API (`pushState`, `replaceState`), `localStorage`, `sessionStorage`, `IndexedDB` | **[Finished]** SPA History API & complete IndexedDB/Storage polyfills |
+| **Networking** | Fetch API, `ReadableStream`/`WritableStream`, WebSockets, CORS headers enforcement | **[Finished]** Fetch, Streams, WebSockets, & IPC security isolation |
 
 *   **MutationObserver**: Essential for React and Vue DOM reconciliation. Without C-level tracking of attribute modifications, node insertions, and text mutations, hydrated frameworks immediately crash or desynchronize.
 *   **ResizeObserver & IntersectionObserver**: Used by Next.js for image lazy loading, infinite scrolling, and component layout logic.

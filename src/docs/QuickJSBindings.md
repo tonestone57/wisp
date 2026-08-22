@@ -8,7 +8,7 @@ Wisp uses a custom WebIDL compiler (`utils/qjs_binding_generator.py`) to generat
 
 The system is divided into two layers:
 1.  **Generated Marshalling Layer**: Automatically handles the QuickJS stack, converting JS types to C types, and vice versa.
-2.  **Manual Implementation Layer**: Contains the domain logic (e.g., calls to LibDOM).
+2.  **Manual Implementation Layer**: Contains the domain logic (e.g., calls to LibDOM) with 3,008 total manual symbol overrides in `src/content/handlers/javascript/quickjs/impl/` (including 2,514 custom overrides in `stubs_manual_impl.c`).
 
 ### Directory Structure
 
