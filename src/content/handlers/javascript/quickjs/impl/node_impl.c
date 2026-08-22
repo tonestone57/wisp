@@ -337,6 +337,7 @@ JSValue wisp_node_insertBefore_impl(JSContext *ctx, QJSNodePrivate *priv, void *
 JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node)
 {
     if (!priv || !priv->node || !node) return JS_EXCEPTION;
+    JSValue ret_val = JS_UNDEFINED;
     if (wisp_is_js_process) {
         uint64_t parent_id = (uint64_t)(uintptr_t)priv->node;
         uint64_t child_id = (uint64_t)(uintptr_t)node;
@@ -350,14 +351,38 @@ JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
         } else {
             shm_node_insert_before_single(parent_id, child_id, 0);
         }
-        return qjs_wrap_node(ctx, (dom_node *)node);
-    }
-    struct dom_node *result = NULL;
-    dom_exception exc = dom_node_append_child((dom_node *)priv->node, (dom_node *)node, &result);
-    if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
+        ret_val = qjs_wrap_node(ctx, (dom_node *)node);
+    } else {
+        struct dom_node *result = NULL;
+        dom_exception exc = dom_node_append_child((dom_node *)priv->node, (dom_node *)node, &result);
+        if (exc != DOM_NO_ERR) return JS_ThrowInternalError(ctx, "dom_node_append_child failed");
 
-    if (result) dom_node_unref(result);
-    return qjs_wrap_node(ctx, (dom_node *)node);
+        if (result) dom_node_unref(result);
+        ret_val = qjs_wrap_node(ctx, (dom_node *)node);
+    }
+
+    if (JS_IsObject(ret_val)) {
+        JSValue type_val = JS_GetPropertyStr(ctx, ret_val, "type");
+        if (JS_IsString(type_val)) {
+            const char *type_str = JS_ToCString(ctx, type_val);
+            if (type_str && strcasecmp(type_str, "module") == 0) {
+                JSValue global_obj = JS_GetGlobalObject(ctx);
+                JSValue cb = JS_GetPropertyStr(ctx, global_obj, "callback_es6_modules");
+                if (JS_IsFunction(ctx, cb)) {
+                    JSValue arg = JS_NewBool(ctx, true);
+                    JSValue cb_res = JS_Call(ctx, cb, global_obj, 1, &arg);
+                    JS_FreeValue(ctx, cb_res);
+                    JS_FreeValue(ctx, arg);
+                }
+                JS_FreeValue(ctx, cb);
+                JS_FreeValue(ctx, global_obj);
+            }
+            if (type_str) JS_FreeCString(ctx, type_str);
+        }
+        JS_FreeValue(ctx, type_val);
+    }
+
+    return ret_val;
 }
 
 JSValue wisp_node_replaceChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node, void * child)
