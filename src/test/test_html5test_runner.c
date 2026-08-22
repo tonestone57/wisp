@@ -65,7 +65,7 @@ START_TEST(test_html5test_features)
         "  div.innerHTML = '<div><span>test</span></div>';\n"
         "  var hasInnerHTML = div.childNodes.length > 0;\n"
         "  var hasCustomElements = 'customElements' in window;\n"
-        "  var hasShadowDOM = 'attachShadow' in Element.prototype;\n"
+        "  var hasShadowDOM = 'attachShadow' in document.createElement('div');\n"
         "  if (!hasCanvas || !hasText || !hasInnerHTML || !hasCustomElements || !hasShadowDOM) {\n"
         "    throw new Error('HTML5Test core features missing');\n"
         "  }\n"

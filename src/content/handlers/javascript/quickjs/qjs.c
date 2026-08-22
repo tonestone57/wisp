@@ -2606,8 +2606,8 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "    };\n"
         "}\n"
         "\n"
-        "if (typeof globalThis.URL === 'undefined' || !globalThis.URL.prototype.pathname) {\n"
-        "    globalThis.URL = class URL {\n"
+        "if (typeof globalThis.URL === 'undefined') {\n"
+        "    globalThis.URL = class {\n"
         "        constructor(url, base) {\n"
         "            url = String(url).trim();\n"
         "            if (base !== undefined) {\n"
@@ -3135,8 +3135,17 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "    };\n"
         "}\n"
         "\n"
-        "if (!globalThis.speechSynthesis) {\n"
+        "if (!(globalThis.speechSynthesis instanceof globalThis.SpeechSynthesis)) {\n"
         "    globalThis.speechSynthesis = new globalThis.SpeechSynthesis();\n"
+        "}\n"
+        "if (typeof Window !== 'undefined' && Window.prototype) {\n"
+        "    Object.defineProperty(Window.prototype, 'speechSynthesis', {\n"
+        "        get() { return globalThis.speechSynthesis; },\n"
+        "        configurable: true, enumerable: true\n"
+        "    });\n"
+        "}\n"
+        "if (typeof window !== 'undefined') {\n"
+        "    window.speechSynthesis = globalThis.speechSynthesis;\n"
         "}\n"
         "\n"
         "if (typeof globalThis.GeolocationPositionError === 'undefined') {\n"
@@ -4124,6 +4133,13 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "})();\n"
         "";
     JSValue val = JS_Eval(ctx, fetch_polyfill, strlen(fetch_polyfill), "<polyfill>", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(ctx);
+        const char *exc_str = JS_ToCString(ctx, exc);
+        NSLOG(wisp, WARNING, "Error evaluating fetch polyfill: %s", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(ctx, exc_str);
+        JS_FreeValue(ctx, exc);
+    }
     JS_FreeValue(ctx, val);
 
     const char *forms_polyfill =
@@ -4510,6 +4526,8 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     }
 
     JS_FreeValue(t->ctx, global_obj);
+    // Register C native polyfills before JS environment is populated
+    wisp_qjs_register_core_polyfills(t->ctx);
     qjs_inject_dom_polyfills(t->ctx);
     qjs_apply_csp_eval_restrictions(t->ctx);
 
@@ -4518,8 +4536,6 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     heap->threads = t;
 
     *thread = t;
-    // Register C native polyfills before JS environment is populated
-    wisp_qjs_register_core_polyfills(t->ctx);
 
     return NSERROR_OK;
 }

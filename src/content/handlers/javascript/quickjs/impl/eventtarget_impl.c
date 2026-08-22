@@ -320,7 +320,15 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
 
 static JSValue js_eventtarget_constructor_manual(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv)
 {
-    return qjs_new_eventtarget(ctx, NULL, false);
+    JSValue proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+    JSValue obj = JS_NewObjectProtoClass(ctx, proto, qjs_eventtarget_class_id);
+    JS_FreeValue(ctx, proto);
+    if (JS_IsException(obj)) return obj;
+    QJSNodePrivate *priv = calloc(1, sizeof(QJSNodePrivate));
+    if (!priv) { JS_FreeValue(ctx, obj); return JS_ThrowOutOfMemory(ctx); }
+    priv->magic = QJS_DOM_MAGIC; priv->node = NULL; priv->is_dom_node = false; priv->ctx = ctx;
+    JS_SetOpaque(obj, priv);
+    return obj;
 }
 
 JSValue wisp_eventtarget_constructor_impl(JSContext *ctx)
