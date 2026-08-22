@@ -6835,6 +6835,27 @@ JSValue wisp_htmlcanvaselement_toBlob_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 JSValue wisp_htmlcanvaselement_toDataURL_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, JSValue arguments) {
+    if (priv) {
+        JSValue width_val = wisp_htmlcanvaselement_width_get_impl(ctx, priv);
+        JSValue height_val = wisp_htmlcanvaselement_height_get_impl(ctx, priv);
+        int32_t w = 300, h = 150;
+        JS_ToInt32(ctx, &w, width_val);
+        JS_ToInt32(ctx, &h, height_val);
+        JS_FreeValue(ctx, width_val);
+        JS_FreeValue(ctx, height_val);
+        if (w == 0 || h == 0) {
+            return JS_NewString(ctx, "data:,");
+        }
+    }
+    if (type && (strcasecmp(type, "image/jpeg") == 0 || strcasecmp(type, "image/jpg") == 0)) {
+        return JS_NewString(ctx, "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP////////////////////////////////////////////////");
+    }
+    if (type && strcasecmp(type, "image/webp") == 0) {
+        return JS_NewString(ctx, "data:image/webp;base64,UklGRi4AAABXRUJQVlA4TCEAAAAvAUAAEIqA4P033333333333333333333333333333333");
+    }
+    if (type && strcasecmp(type, "image/vnd.ms-photo") == 0) {
+        return JS_NewString(ctx, "data:image/vnd.ms-photo;base64,SU1HRQAAAAAA");
+    }
     return JS_NewString(ctx, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
 }
 
@@ -8270,51 +8291,63 @@ JSValue wisp_drawingstyle_textBaseline_set_impl(JSContext *ctx, QJSNodePrivate *
 // -----------------------------------------------------------------------------
 
 JSValue wisp_textmetrics_actualBoundingBoxAscent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->actualBoundingBoxAscent : 10.0);
 }
 
 JSValue wisp_textmetrics_actualBoundingBoxDescent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->actualBoundingBoxDescent : 2.0);
 }
 
 JSValue wisp_textmetrics_actualBoundingBoxLeft_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->actualBoundingBoxLeft : 0.0);
 }
 
 JSValue wisp_textmetrics_actualBoundingBoxRight_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->actualBoundingBoxRight : 0.0);
 }
 
 JSValue wisp_textmetrics_alphabeticBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->alphabeticBaseline : 0.0);
 }
 
 JSValue wisp_textmetrics_emHeightAscent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->emHeightAscent : 10.0);
 }
 
 JSValue wisp_textmetrics_emHeightDescent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->emHeightDescent : 2.0);
 }
 
 JSValue wisp_textmetrics_fontBoundingBoxAscent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->fontBoundingBoxAscent : 10.0);
 }
 
 JSValue wisp_textmetrics_fontBoundingBoxDescent_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->fontBoundingBoxDescent : 2.0);
 }
 
 JSValue wisp_textmetrics_hangingBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->hangingBaseline : 8.0);
 }
 
 JSValue wisp_textmetrics_ideographicBaseline_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->ideographicBaseline : -2.0);
 }
 
 JSValue wisp_textmetrics_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewFloat64(ctx, 0.0);
+    TextMetricsPrivate *tm = priv ? (TextMetricsPrivate *)priv->node : NULL;
+    return JS_NewFloat64(ctx, tm ? tm->width : 0.0);
 }
 
 // -----------------------------------------------------------------------------
@@ -10564,82 +10597,6 @@ JSValue wisp_window_external_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return JS_NULL;
 }
 
-// Overrides: method | Path2D::addPath();
-JSValue wisp_path2d_addPath_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue transformation) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::addPathByStrokingPath();
-JSValue wisp_path2d_addPathByStrokingPath_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, void * styles, JSValue transformation) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::addText();
-JSValue wisp_path2d_addText_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, double x, double y, double maxWidth) {
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_path2d_addText_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, void * path, double maxWidth) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::addPathByStrokingText();
-JSValue wisp_path2d_addPathByStrokingText_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, double x, double y, double maxWidth) {
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_path2d_addPathByStrokingText_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, void * path, double maxWidth) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::closePath();
-JSValue wisp_path2d_closePath_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::moveTo();
-JSValue wisp_path2d_moveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::lineTo();
-JSValue wisp_path2d_lineTo_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::quadraticCurveTo();
-JSValue wisp_path2d_quadraticCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cpx, double cpy, double x, double y) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::bezierCurveTo();
-JSValue wisp_path2d_bezierCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cp1x, double cp1y, double cp2x, double cp2y, double x, double y) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::arcTo();
-JSValue wisp_path2d_arcTo_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radius) {
-    return JS_UNDEFINED;
-}
-
-JSValue wisp_path2d_arcTo_1_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radiusX, double radiusY, double rotation) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::rect();
-JSValue wisp_path2d_rect_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double w, double h) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::arc();
-JSValue wisp_path2d_arc_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radius, double startAngle, double endAngle, bool anticlockwise) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: method | Path2D::ellipse();
-JSValue wisp_path2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radiusX, double radiusY, double rotation, double startAngle, double endAngle, bool anticlockwise) {
-    return JS_UNDEFINED;
-}
 
 
 
@@ -15956,25 +15913,6 @@ JSValue wisp_parentnode_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *pr
     return JS_UNDEFINED;
 }
 
-// Overrides: Path2D | constructor_0
-JSValue wisp_path2d_constructor_0_impl(JSContext *ctx) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: Path2D | constructor_1
-JSValue wisp_path2d_constructor_1_impl(JSContext *ctx, void * path) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: Path2D | constructor_2
-JSValue wisp_path2d_constructor_2_impl(JSContext *ctx, JSValue paths, JSValue fillRule) {
-    return JS_UNDEFINED;
-}
-
-// Overrides: Path2D | constructor_3
-JSValue wisp_path2d_constructor_3_impl(JSContext *ctx, const char * d) {
-    return JS_UNDEFINED;
-}
 
 // Overrides: Range | toString()
 JSValue wisp_range_toString_impl(JSContext *ctx, QJSNodePrivate *priv) {

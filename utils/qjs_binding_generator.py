@@ -791,14 +791,17 @@ class QuickJSBindingGenerator:
 
                 sorted_overloads = sorted(overloads, key=op_sort_key)
                 for i, op in enumerate(sorted_overloads):
-                    # For variadic, minimum argc is the number of args before the variadic one
-                    min_argc = len([a for a in op['args'] if not a.get('variadic')])
+                    # For variadic or optional, minimum argc excludes variadic and optional args
+                    min_argc = len([a for a in op['args'] if not a.get('variadic') and not a.get('optional')])
                     checks = [f"argc >= {min_argc}"]
                     for idx, arg in enumerate(op['args']):
                         if arg.get('variadic'): continue
                         check = self._get_type_check(idx, arg['type'])
                         if check != "true":
-                            checks.append(check)
+                            if arg.get('optional'):
+                                checks.append(f"(argc <= {idx} || {check})")
+                            else:
+                                checks.append(check)
 
                     c_code += f"    {'else ' if i > 0 else ''}if ({' && '.join(checks)}) "
                     c_code += f"return js_{lower_name}_{op['impl_name']}_marshaller(ctx, this_val, argc, argv);\n"

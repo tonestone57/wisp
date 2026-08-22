@@ -31,6 +31,8 @@ static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(pt
 #include "JSCanvasRenderingContext2D.gen.h"
 #include "JSCanvasGradient.gen.h"
 #include "JSCanvasPattern.gen.h"
+#include "JSPath2D.gen.h"
+#include "JSTextMetrics.gen.h"
 
 extern bool wisp_is_js_process;
 
@@ -53,6 +55,14 @@ typedef struct CanvasPatternPrivate {
     JSValue image;
     char *repetition;
 } CanvasPatternPrivate;
+
+typedef struct Path2DPrivate {
+#ifdef WITH_BLEND2D
+    BLPathCore path;
+#else
+    void *dummy;
+#endif
+} Path2DPrivate;
 
 extern struct wisp_table *guit;
 
@@ -384,7 +394,7 @@ JSValue wisp_htmlcanvaselement_width_get_impl(JSContext *ctx, QJSNodePrivate *pr
         const char *str = JS_ToCString(ctx, attr);
         if (str && *str) {
             width = atoi(str);
-            if (width <= 0) width = 300;
+            if (width < 0) width = 300;
         }
         if (str) JS_FreeCString(ctx, str);
     }
@@ -408,7 +418,7 @@ JSValue wisp_htmlcanvaselement_height_get_impl(JSContext *ctx, QJSNodePrivate *p
         const char *str = JS_ToCString(ctx, attr);
         if (str && *str) {
             height = atoi(str);
-            if (height <= 0) height = 150;
+            if (height < 0) height = 150;
         }
         if (str) JS_FreeCString(ctx, str);
     }
@@ -682,7 +692,18 @@ JSValue wisp_canvasrenderingcontext2d_fill_0_impl(JSContext *ctx, QJSNodePrivate
     return JS_UNDEFINED;
 }
 
-JSValue wisp_canvasrenderingcontext2d_fill_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue fillRule) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_fill_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue fillRule)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && path) {
+        Path2DPrivate *p = (Path2DPrivate *)path;
+#ifdef WITH_BLEND2D
+        bl_context_set_fill_style_rgba32(&cpriv->bl_ctx_obj, colour_to_rgba32(cpriv->fill_colour, cpriv->global_alpha));
+        bl_context_fill_path_d(&cpriv->bl_ctx_obj, NULL, &p->path);
+#endif
+    }
+    return JS_UNDEFINED;
+}
 
 JSValue wisp_canvasrenderingcontext2d_stroke_0_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
@@ -697,7 +718,19 @@ JSValue wisp_canvasrenderingcontext2d_stroke_0_impl(JSContext *ctx, QJSNodePriva
     return JS_UNDEFINED;
 }
 
-JSValue wisp_canvasrenderingcontext2d_stroke_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path) { return JS_UNDEFINED; }
+JSValue wisp_canvasrenderingcontext2d_stroke_1_impl(JSContext *ctx, QJSNodePrivate *priv, void * path)
+{
+    CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
+    if (cpriv && path) {
+        Path2DPrivate *p = (Path2DPrivate *)path;
+#ifdef WITH_BLEND2D
+        bl_context_set_stroke_style_rgba32(&cpriv->bl_ctx_obj, colour_to_rgba32(cpriv->stroke_colour, cpriv->global_alpha));
+        bl_context_set_stroke_width(&cpriv->bl_ctx_obj, cpriv->line_width);
+        bl_context_stroke_path_d(&cpriv->bl_ctx_obj, NULL, &p->path);
+#endif
+    }
+    return JS_UNDEFINED;
+}
 
 JSValue wisp_canvasrenderingcontext2d_arc_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radius, double startAngle, double endAngle, bool anticlockwise)
 {
@@ -1063,9 +1096,10 @@ JSValue wisp_canvasrenderingcontext2d_fillText_impl(JSContext *ctx, QJSNodePriva
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (!cpriv) return JS_UNDEFINED;
-    NSLOG(wisp, INFO, "Canvas.fillText: %s at (%f, %f)", text, x, y);
-    /* Basic stub: just draw a small rectangle where the text would be */
-    wisp_canvasrenderingcontext2d_fillRect_impl(ctx, priv, x, y, (double)strlen(text) * 8.0, 12.0);
+    if (!isnan(x) && !isnan(y) && !isnan(maxWidth) && !isinf(x) && !isinf(y) && !isinf(maxWidth)) {
+        NSLOG(wisp, INFO, "Canvas.fillText: %s at (%f, %f)", text ? text : "", x, y);
+        wisp_canvasrenderingcontext2d_fillRect_impl(ctx, priv, x, y, (double)(text ? strlen(text) : 0) * 8.0, 12.0);
+    }
     return JS_UNDEFINED;
 }
 
@@ -1235,7 +1269,6 @@ JSValue wisp_canvasrenderingcontext2d_isPointInStroke_1_impl(JSContext *ctx, QJS
 JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text)
 {
     CanvasContext2DPrivate *canvas_ctx = get_canvas_cpriv(priv);
-    JSValue obj = JS_NewObject(ctx);
     int px_width = 0;
     if (text) {
         if (canvas_ctx && guit && guit->layout && guit->layout->width) {
@@ -1246,16 +1279,22 @@ JSValue wisp_canvasrenderingcontext2d_measureText_impl(JSContext *ctx, QJSNodePr
         }
     }
     double width = (double)px_width;
-    JS_SetPropertyStr(ctx, obj, "width", JS_NewFloat64(ctx, width));
-    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxLeft", JS_NewFloat64(ctx, 0.0));
-    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxRight", JS_NewFloat64(ctx, width));
-    JS_SetPropertyStr(ctx, obj, "fontBoundingBoxAscent", JS_NewFloat64(ctx, 10.0));
-    JS_SetPropertyStr(ctx, obj, "fontBoundingBoxDescent", JS_NewFloat64(ctx, 2.0));
-    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxAscent", JS_NewFloat64(ctx, 10.0));
-    JS_SetPropertyStr(ctx, obj, "actualBoundingBoxDescent", JS_NewFloat64(ctx, 2.0));
-    JS_SetPropertyStr(ctx, obj, "emHeightAscent", JS_NewFloat64(ctx, 10.0));
-    JS_SetPropertyStr(ctx, obj, "emHeightDescent", JS_NewFloat64(ctx, 2.0));
-    return obj;
+    TextMetricsPrivate *tm = calloc(1, sizeof(*tm));
+    if (!tm) return JS_ThrowOutOfMemory(ctx);
+    tm->width = width;
+    tm->actualBoundingBoxLeft = 0.0;
+    tm->actualBoundingBoxRight = width;
+    tm->fontBoundingBoxAscent = 10.0;
+    tm->fontBoundingBoxDescent = 2.0;
+    tm->actualBoundingBoxAscent = 10.0;
+    tm->actualBoundingBoxDescent = 2.0;
+    tm->emHeightAscent = 10.0;
+    tm->emHeightDescent = 2.0;
+    tm->alphabeticBaseline = 0.0;
+    tm->hangingBaseline = 8.0;
+    tm->ideographicBaseline = -2.0;
+
+    return qjs_new_textmetrics(ctx, tm, false);
 }
 
 JSValue wisp_canvasrenderingcontext2d_putImageData_0_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue imagedata_val, double dx, double dy)
@@ -1398,9 +1437,10 @@ JSValue wisp_canvasrenderingcontext2d_strokeText_impl(JSContext *ctx, QJSNodePri
 {
     CanvasContext2DPrivate *cpriv = get_canvas_cpriv(priv);
     if (!cpriv) return JS_UNDEFINED;
-    NSLOG(wisp, INFO, "Canvas.strokeText: %s at (%f, %f)", text, x, y);
-    /* Basic stub: just draw a small rectangle where the text would be */
-    wisp_canvasrenderingcontext2d_strokeRect_impl(ctx, priv, x, y, (double)strlen(text) * 8.0, 12.0);
+    if (!isnan(x) && !isnan(y) && !isnan(maxWidth) && !isinf(x) && !isinf(y) && !isinf(maxWidth)) {
+        NSLOG(wisp, INFO, "Canvas.strokeText: %s at (%f, %f)", text ? text : "", x, y);
+        wisp_canvasrenderingcontext2d_strokeRect_impl(ctx, priv, x, y, (double)(text ? strlen(text) : 0) * 8.0, 12.0);
+    }
     return JS_UNDEFINED;
 }
 
@@ -1602,12 +1642,258 @@ int qjs_init_canvasrenderingcontext2d(JSContext *ctx)
     return qjs_init_canvasrenderingcontext2d_gen(ctx);
 }
 
+extern JSClassID qjs_path2d_class_id;
+extern JSValue qjs_new_path2d(JSContext *ctx, void *node, bool is_dom_node);
+extern int qjs_init_path2d_gen(JSContext *ctx);
+
+static void path2d_manual_finalizer(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_path2d_class_id);
+    if (priv) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+        if (p) {
+#ifdef WITH_BLEND2D
+            bl_path_destroy(&p->path);
+#endif
+            free(p);
+        }
+        free(priv);
+    }
+}
+
+int qjs_init_path2d(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_path2d_class_id == 0) {
+        JS_NewClassID(rt, &qjs_path2d_class_id);
+    }
+
+    JSClassDef path2d_class_def = {
+        "Path2D",
+        .finalizer = path2d_manual_finalizer,
+    };
+
+    if (!JS_IsRegisteredClass(rt, qjs_path2d_class_id)) {
+        JS_NewClass(rt, qjs_path2d_class_id, &path2d_class_def);
+    }
+
+    return qjs_init_path2d_gen(ctx);
+}
+
+static Path2DPrivate *create_path2d_private(void) {
+    Path2DPrivate *p = calloc(1, sizeof(*p));
+    if (!p) return NULL;
+#ifdef WITH_BLEND2D
+    bl_path_init(&p->path);
+#endif
+    return p;
+}
+
+JSValue wisp_path2d_constructor_0_impl(JSContext *ctx) {
+    Path2DPrivate *p = create_path2d_private();
+    if (!p) return JS_ThrowOutOfMemory(ctx);
+    return qjs_new_path2d(ctx, p, false);
+}
+
+JSValue wisp_path2d_constructor_1_impl(JSContext *ctx, void * path) {
+    Path2DPrivate *p = create_path2d_private();
+    if (!p) return JS_ThrowOutOfMemory(ctx);
+    if (path) {
+        Path2DPrivate *src = (Path2DPrivate *)path;
+#ifdef WITH_BLEND2D
+        bl_path_assign_weak(&p->path, &src->path);
+#endif
+    }
+    return qjs_new_path2d(ctx, p, false);
+}
+
+JSValue wisp_path2d_constructor_2_impl(JSContext *ctx, JSValue paths, JSValue fillRule) {
+    Path2DPrivate *p = create_path2d_private();
+    if (!p) return JS_ThrowOutOfMemory(ctx);
+    return qjs_new_path2d(ctx, p, false);
+}
+
+JSValue wisp_path2d_constructor_3_impl(JSContext *ctx, const char * d) {
+    Path2DPrivate *p = create_path2d_private();
+    if (!p) return JS_ThrowOutOfMemory(ctx);
+    return qjs_new_path2d(ctx, p, false);
+}
+
+JSValue wisp_path2d_addPath_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, JSValue transformation) {
+    if (priv && priv->node && path) {
+        Path2DPrivate *dst = (Path2DPrivate *)priv->node;
+        Path2DPrivate *src = (Path2DPrivate *)path;
+#ifdef WITH_BLEND2D
+        bl_path_add_path(&dst->path, &src->path, NULL, NULL);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addPathByStrokingPath_impl(JSContext *ctx, QJSNodePrivate *priv, void * path, void * styles, JSValue transformation) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addText_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, double x, double y, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addText_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, void * path, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addPathByStrokingText_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, double x, double y, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_addPathByStrokingText_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * text, void * styles, JSValue transformation, void * path, double maxWidth) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_closePath_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        bl_path_close(&p->path);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_moveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        bl_path_move_to(&p->path, x, y);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_lineTo_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        bl_path_line_to(&p->path, x, y);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_quadraticCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cpx, double cpy, double x, double y) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        bl_path_quad_to(&p->path, cpx, cpy, x, y);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_bezierCurveTo_impl(JSContext *ctx, QJSNodePrivate *priv, double cp1x, double cp1y, double cp2x, double cp2y, double x, double y) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        bl_path_cubic_to(&p->path, cp1x, cp1y, cp2x, cp2y, x, y);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_arcTo_0_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radius) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        bl_path_arc_to(&p->path, x1, y1, radius, radius, 0, M_PI_2, false);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_arcTo_1_impl(JSContext *ctx, QJSNodePrivate *priv, double x1, double y1, double x2, double y2, double radiusX, double radiusY, double rotation) {
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_rect_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double w, double h) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        BLRect r = { x, y, w, h };
+        bl_path_add_geometry(&p->path, BL_GEOMETRY_TYPE_RECTD, &r, NULL, BL_GEOMETRY_DIRECTION_CW);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_arc_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radius, double startAngle, double endAngle, bool anticlockwise) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        double sweep = endAngle - startAngle;
+        bl_path_arc_to(&p->path, x, y, radius, radius, startAngle, sweep, false);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+JSValue wisp_path2d_ellipse_impl(JSContext *ctx, QJSNodePrivate *priv, double x, double y, double radiusX, double radiusY, double rotation, double startAngle, double endAngle, bool anticlockwise) {
+    if (priv && priv->node) {
+        Path2DPrivate *p = (Path2DPrivate *)priv->node;
+#ifdef WITH_BLEND2D
+        double sweep = endAngle - startAngle;
+        BLMatrix2D m;
+        blMatrix2DSetTranslation(&m, x, y);
+        blMatrix2DApplyRotation(&m, rotation);
+        blMatrix2DApplyScale(&m, radiusX, radiusY);
+        bl_path_add_geometry(&p->path, BL_GEOMETRY_TYPE_ARC, &((BLArc){0, 0, 1, 1, startAngle, sweep}), &m, BL_GEOMETRY_DIRECTION_CW);
+#endif
+    }
+    return JS_UNDEFINED;
+}
+
+extern JSClassID qjs_textmetrics_class_id;
+extern JSValue qjs_new_textmetrics(JSContext *ctx, void *node, bool is_dom_node);
+extern int qjs_init_textmetrics_gen(JSContext *ctx);
+
+static void textmetrics_manual_finalizer(JSRuntime *rt, JSValue val)
+{
+    QJSNodePrivate *priv = JS_GetOpaque(val, qjs_textmetrics_class_id);
+    if (priv) {
+        TextMetricsPrivate *tm = (TextMetricsPrivate *)priv->node;
+        if (tm) {
+            free(tm);
+        }
+        free(priv);
+    }
+}
+
+int qjs_init_textmetrics(JSContext *ctx)
+{
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    if (qjs_textmetrics_class_id == 0) {
+        JS_NewClassID(rt, &qjs_textmetrics_class_id);
+    }
+
+    JSClassDef textmetrics_class_def = {
+        "TextMetrics",
+        .finalizer = textmetrics_manual_finalizer,
+    };
+
+    if (!JS_IsRegisteredClass(rt, qjs_textmetrics_class_id)) {
+        JS_NewClass(rt, qjs_textmetrics_class_id, &textmetrics_class_def);
+    }
+
+    return qjs_init_textmetrics_gen(ctx);
+}
+
 int qjs_init_canvas(JSContext *ctx)
 {
     qjs_init_htmlcanvaselement(ctx);
     qjs_init_canvasrenderingcontext2d(ctx);
     qjs_init_canvasgradient(ctx);
     qjs_init_canvaspattern(ctx);
+    qjs_init_path2d(ctx);
+    qjs_init_textmetrics(ctx);
     return 0;
 }
 
