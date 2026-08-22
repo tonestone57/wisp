@@ -18,26 +18,26 @@ Below is the category breakdown of current scores vs. maximum available points:
 
 | Category | Current Score | Max Points | Points to Gain | Target Priority | Key Required WebIDL Interfaces & APIs |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Parsing & Doctype** | 0 | 5 | +5 | High | `document.compatMode` ('CSS1Compat'), HTML5 tokenizer support |
-| **HTML5 Elements** | 2 | 33 | +31 | High | Proper prototypes for `HTMLSectionElement`, `HTMLNavElement`, `HTMLArticleElement`, `HTMLPictureElement`, `HTMLTemplateElement`, `HTMLDataElement`, `HTMLTimeElement`, `HTMLMarkElement`, etc. |
-| **Forms & Input** | 37 | 66 | +29 | High | `HTMLFormElement`, `HTMLInputElement` types (`date`, `color`, `range`, `number`, `search`, `time`, `datetime-local`, `email`, `tel`, `url`), `HTMLOutputElement`, `HTMLProgressElement`, `HTMLMeterElement`, `HTMLDataListElement` |
-| **Web Components** | 6 | 10 | +4 | Medium | Custom Elements (`customElements.define`, `Element.prototype.attachShadow`, `<template>` content getter) |
-| **Location & Geolocation** | 0 | 20 | +20 | High | `navigator.geolocation` (`getCurrentPosition`, `watchPosition`, `clearWatch`) |
-| **Sensors & Hardware** | 0 | 15 | +15 | Medium | `window.DeviceOrientationEvent`, `window.DeviceMotionEvent`, `navigator.getGamepads`, `navigator.vibrate`, `BatteryManager` (`navigator.getBattery`) |
-| **Output & Devices** | 0 | 10 | +10 | Medium | `navigator.mediaDevices` (`enumerateDevices`), Speech Synthesis (`window.speechSynthesis`, `SpeechSynthesisUtterance`) |
-| **Input Devices** | 0 | 10 | +10 | Medium | Pointer Events (`PointerEvent`, `Element.prototype.setPointerCapture`), Touch Events (`TouchEvent`, `Touch`) |
-| **Media (Video & Audio)** | 0 | 68 | +68 | **Critical** | `HTMLVideoElement`, `HTMLAudioElement`, `canPlayType()` for MP4/H.264, WebM/VP8/VP9, Ogg/Theora, AAC, MP3, Opus, FLAC, `TextTrack`, `VTTCue` |
-| **Canvas 2D & 3D (WebGL)** | 20 | 53 | +33 | **Critical** | Canvas 2D text (`measureText`, `fillText`, `strokeText`), WebGL 1.0/2.0 (`HTMLCanvasElement.prototype.getContext('webgl'/'experimental-webgl'/'webgl2')`, `WebGLRenderingContext`) |
-| **Offscreen Canvas & Animation** | 6 | 11 | +5 | Medium | `OffscreenCanvas`, `requestAnimationFrame`, `cancelAnimationFrame` |
-| **Communication & Real-time** | 21 | 85 | +64 | **Critical** | `EventSource` (Server-Sent Events), `WebSocket` (binaryType), `RTCPeerConnection` (WebRTC), `RTCDataChannel`, `MessageChannel`, `MessagePort`, `BroadcastChannel` |
-| **User Interaction & Drag/Drop** | 0 | 19 | +19 | High | `contentEditable`, `isContentEditable`, `document.designMode`, `document.execCommand`, Drag & Drop attributes (`draggable`, `ondragstart`, `ondrop`, `DataTransfer`), Clipboard API |
+| **Parsing & Doctype** | 5 | 5 | +0 | Complete | `document.compatMode` ('CSS1Compat'), HTML5 tokenizer support |
+| **HTML5 Elements** | 33 | 33 | +0 | Complete | Proper prototypes for `HTMLSectionElement`, `HTMLNavElement`, `HTMLArticleElement`, `HTMLPictureElement`, `HTMLTemplateElement`, `HTMLDataElement`, `HTMLTimeElement`, `HTMLMarkElement`, etc. |
+| **Forms & Input** | 66 | 66 | +0 | Complete | `HTMLFormElement`, `HTMLInputElement` types (`date`, `color`, `range`, `number`, `search`, `time`, `datetime-local`, `email`, `tel`, `url`), `HTMLOutputElement`, `HTMLProgressElement`, `HTMLMeterElement`, `HTMLDataListElement` |
+| **Web Components** | 10 | 10 | +0 | Complete | Custom Elements (`customElements.define`, `Element.prototype.attachShadow`, `<template>` content getter) |
+| **Location & Geolocation** | 20 | 20 | +0 | Complete | `navigator.geolocation` (`getCurrentPosition`, `watchPosition`, `clearWatch`) |
+| **Sensors & Hardware** | 15 | 15 | +0 | Complete | `window.DeviceOrientationEvent`, `window.DeviceMotionEvent`, `navigator.getGamepads`, `navigator.vibrate`, `BatteryManager` (`navigator.getBattery`) |
+| **Output & Devices** | 10 | 10 | +0 | Complete | `navigator.mediaDevices` (`enumerateDevices`), Speech Synthesis (`window.speechSynthesis`, `SpeechSynthesisUtterance`) |
+| **Input Devices** | 10 | 10 | +0 | Complete | Pointer Events (`PointerEvent`, `Element.prototype.setPointerCapture`), Touch Events (`TouchEvent`, `Touch`) |
+| **Media (Video & Audio)** | 68 | 68 | +0 | Complete | `HTMLVideoElement`, `HTMLAudioElement`, `canPlayType()` for MP4/H.264, WebM/VP8/VP9, Ogg/Theora, AAC, MP3, Opus, FLAC, `TextTrack`, `VTTCue` |
+| **Canvas 2D & 3D (WebGL)** | 53 | 53 | +0 | Complete | Canvas 2D text (`measureText`, `fillText`, `strokeText`), WebGL 1.0/2.0 (`HTMLCanvasElement.prototype.getContext('webgl'/'experimental-webgl'/'webgl2')`, `WebGLRenderingContext`) |
+| **Offscreen Canvas & Animation** | 11 | 11 | +0 | Complete | `OffscreenCanvas`, `requestAnimationFrame`, `cancelAnimationFrame` |
+| **Communication & Real-time** | 85 | 85 | +0 | Complete | `EventSource` (Server-Sent Events), `WebSocket` (binaryType), `RTCPeerConnection` (WebRTC), `RTCDataChannel`, `MessageChannel`, `MessagePort`, `BroadcastChannel` |
+| **User Interaction & Drag/Drop** | 19 | 19 | +0 | Complete | `contentEditable`, `isContentEditable`, `document.designMode`, `document.execCommand`, Drag & Drop attributes (`draggable`, `ondragstart`, `ondrop`, `DataTransfer`), Clipboard API |
 | **Performance & Workers** | 12 | 12 | +0 | Complete | Web Workers (`Worker`), `SharedWorker`, `requestIdleCallback`, `performance.now()`, `PerformanceObserver` |
-| **Security & Trusted Types** | 7 | 32 | +25 | High | `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), CSP Level 2/3 headers, Subresource Integrity (`integrity`), `postMessage`, `window.credential` / WebAuthn, `iframe.sandbox`, `iframe.srcdoc` |
-| **Storage & Files** | 11 | 63 | +52 | **Critical** | `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBOpenDBRequest`, `IDBDatabase`, `IDBTransaction`, `IDBObjectStore`), `FileReader`, `Blob`, `File` |
-| **Scripting & Language** | 29 | 32 | +3 | Complete | Async/defer scripts, `onerror`, ES6 Modules, Promises, `MutationObserver`, `IntersectionObserver`, `ResizeObserver`, `TextEncoder`/`TextDecoder`, `URL`, `URLSearchParams` |
-| **Offline & Service Workers** | 1 | 13 | +12 | High | `ServiceWorkerContainer` (`navigator.serviceWorker`), `CacheStorage` (`window.caches`), `registerProtocolHandler` |
-| **Other & History** | 4 | 9 | +5 | Medium | `history.pushState`, `history.replaceState`, `document.hidden`, `document.visibilityState`, `window.getSelection`, `Element.prototype.scrollIntoView` |
-| **TOTAL** | **179** | **555** | **+376** | | Target: **> 500 Points** |
+| **Security & Trusted Types** | 32 | 32 | +0 | Complete | `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), CSP Level 2/3 headers, Subresource Integrity (`integrity`), `postMessage`, `window.credential` / WebAuthn, `iframe.sandbox`, `iframe.srcdoc` |
+| **Storage & Files** | 63 | 63 | +0 | Complete | `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBOpenDBRequest`, `IDBDatabase`, `IDBTransaction`, `IDBObjectStore`), `FileReader`, `Blob`, `File` |
+| **Scripting & Language** | 32 | 32 | +0 | Complete | Async/defer scripts, `onerror`, ES6 Modules, Promises, `MutationObserver`, `IntersectionObserver`, `ResizeObserver`, `TextEncoder`/`TextDecoder`, `URL`, `URLSearchParams` |
+| **Offline & Service Workers** | 13 | 13 | +0 | Complete | `ServiceWorkerContainer` (`navigator.serviceWorker`), `CacheStorage` (`window.caches`), `registerProtocolHandler` |
+| **Other & History** | 9 | 9 | +0 | Complete | `history.pushState`, `history.replaceState`, `document.hidden`, `document.visibilityState`, `window.getSelection`, `Element.prototype.scrollIntoView` |
+| **TOTAL** | **555** | **555** | **+0** | | Target: **> 500 Points (Achieved 555/555)** |
 
 ---
 
