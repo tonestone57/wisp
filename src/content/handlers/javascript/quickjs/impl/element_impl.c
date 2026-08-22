@@ -1534,6 +1534,247 @@ JSValue qjs_new_element(JSContext *ctx, void *node, bool is_dom_node)
                 extern JSValue qjs_new_htmltableheadercellelement(JSContext *ctx, void *node, bool is_dom_node);
                 return qjs_new_htmltableheadercellelement(ctx, node, is_dom_node);
             }
+            if (strcasecmp(tag, "section") == 0) {
+                extern JSValue qjs_new_htmlsectionelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlsectionelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "nav") == 0) {
+                extern JSValue qjs_new_htmlnavelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlnavelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "article") == 0) {
+                extern JSValue qjs_new_htmlarticleelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlarticleelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "picture") == 0) {
+                extern JSValue qjs_new_htmlpictureelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlpictureelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "data") == 0) {
+                extern JSValue qjs_new_htmldataelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldataelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "time") == 0) {
+                extern JSValue qjs_new_htmltimeelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltimeelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "a") == 0) {
+                extern JSValue qjs_new_htmlanchorelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlanchorelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "body") == 0) {
+                extern JSValue qjs_new_htmlbodyelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlbodyelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "div") == 0) {
+                extern JSValue qjs_new_htmldivelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldivelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "span") == 0) {
+                extern JSValue qjs_new_htmlspanelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlspanelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "p") == 0) {
+                extern JSValue qjs_new_htmlparagraphelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlparagraphelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "br") == 0) {
+                extern JSValue qjs_new_htmlbrelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlbrelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "hr") == 0) {
+                extern JSValue qjs_new_htmlhrelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlhrelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "ol") == 0) {
+                extern JSValue qjs_new_htmlolistelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlolistelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "ul") == 0) {
+                extern JSValue qjs_new_htmlulistelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlulistelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "li") == 0) {
+                extern JSValue qjs_new_htmllielement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmllielement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "dl") == 0) {
+                extern JSValue qjs_new_htmldlistelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldlistelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "h1") == 0 || strcasecmp(tag, "h2") == 0 || strcasecmp(tag, "h3") == 0 ||
+                strcasecmp(tag, "h4") == 0 || strcasecmp(tag, "h5") == 0 || strcasecmp(tag, "h6") == 0) {
+                extern JSValue qjs_new_htmlheadingelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlheadingelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "pre") == 0) {
+                extern JSValue qjs_new_htmlpreelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlpreelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "blockquote") == 0 || strcasecmp(tag, "q") == 0) {
+                extern JSValue qjs_new_htmlquoteelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlquoteelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "iframe") == 0) {
+                extern JSValue qjs_new_htmliframeelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmliframeelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "embed") == 0) {
+                extern JSValue qjs_new_htmlembedelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlembedelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "object") == 0) {
+                extern JSValue qjs_new_htmlobjectelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlobjectelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "param") == 0) {
+                extern JSValue qjs_new_htmlparamelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlparamelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "video") == 0) {
+                extern JSValue qjs_new_htmlvideoelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlvideoelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "audio") == 0) {
+                extern JSValue qjs_new_htmlaudioelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlaudioelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "source") == 0) {
+                extern JSValue qjs_new_htmlsourceelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlsourceelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "track") == 0) {
+                extern JSValue qjs_new_htmltrackelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltrackelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "map") == 0) {
+                extern JSValue qjs_new_htmlmapelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmapelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "area") == 0) {
+                extern JSValue qjs_new_htmlareaelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlareaelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "caption") == 0) {
+                extern JSValue qjs_new_htmltablecaptionelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltablecaptionelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "col") == 0 || strcasecmp(tag, "colgroup") == 0) {
+                extern JSValue qjs_new_htmltablecolelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltablecolelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "thead") == 0 || strcasecmp(tag, "tbody") == 0 || strcasecmp(tag, "tfoot") == 0) {
+                extern JSValue qjs_new_htmltablesectionelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltablesectionelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "label") == 0) {
+                extern JSValue qjs_new_htmllabelelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmllabelelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "datalist") == 0) {
+                extern JSValue qjs_new_htmldatalistelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldatalistelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "optgroup") == 0) {
+                extern JSValue qjs_new_htmloptgroupelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmloptgroupelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "keygen") == 0) {
+                extern JSValue qjs_new_htmlkeygenelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlkeygenelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "output") == 0) {
+                extern JSValue qjs_new_htmloutputelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmloutputelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "progress") == 0) {
+                extern JSValue qjs_new_htmlprogresselement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlprogresselement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "meter") == 0) {
+                extern JSValue qjs_new_htmlmeterelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmeterelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "fieldset") == 0) {
+                extern JSValue qjs_new_htmlfieldsetelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlfieldsetelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "legend") == 0) {
+                extern JSValue qjs_new_htmllegendelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmllegendelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "details") == 0) {
+                extern JSValue qjs_new_htmldetailselement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldetailselement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "menu") == 0) {
+                extern JSValue qjs_new_htmlmenuelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmenuelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "menuitem") == 0) {
+                extern JSValue qjs_new_htmlmenuitemelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmenuitemelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "dialog") == 0) {
+                extern JSValue qjs_new_htmldialogelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldialogelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "applet") == 0) {
+                extern JSValue qjs_new_htmlappletelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlappletelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "marquee") == 0) {
+                extern JSValue qjs_new_htmlmarqueeelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmarqueeelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "frameset") == 0) {
+                extern JSValue qjs_new_htmlframesetelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlframesetelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "frame") == 0) {
+                extern JSValue qjs_new_htmlframeelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlframeelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "font") == 0) {
+                extern JSValue qjs_new_htmlfontelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlfontelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "dir") == 0) {
+                extern JSValue qjs_new_htmldirectoryelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmldirectoryelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "ins") == 0 || strcasecmp(tag, "del") == 0) {
+                extern JSValue qjs_new_htmlmodelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmodelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "html") == 0) {
+                extern JSValue qjs_new_htmlhtmlelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlhtmlelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "head") == 0) {
+                extern JSValue qjs_new_htmlheadelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlheadelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "title") == 0) {
+                extern JSValue qjs_new_htmltitleelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmltitleelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "base") == 0) {
+                extern JSValue qjs_new_htmlbaseelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlbaseelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "link") == 0) {
+                extern JSValue qjs_new_htmllinkelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmllinkelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "meta") == 0) {
+                extern JSValue qjs_new_htmlmetaelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlmetaelement(ctx, node, is_dom_node);
+            }
+            if (strcasecmp(tag, "style") == 0) {
+                extern JSValue qjs_new_htmlstyleelement(JSContext *ctx, void *node, bool is_dom_node);
+                return qjs_new_htmlstyleelement(ctx, node, is_dom_node);
+            }
         }
     } else {
         dom_html_element_type tag_type;
