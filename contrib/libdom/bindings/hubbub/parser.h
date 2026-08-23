@@ -82,6 +82,9 @@ dom_hubbub_parser_create(dom_hubbub_parser_params *params, dom_hubbub_parser **p
 dom_hubbub_error dom_hubbub_fragment_parser_create(dom_hubbub_parser_params *params, dom_document *document,
     dom_hubbub_parser **parser, dom_document_fragment **fragment);
 
+/* Set context tag for fragment parser */
+dom_hubbub_error dom_hubbub_parser_set_context_tag(dom_hubbub_parser *parser, const char *tag_name, size_t tag_len);
+
 /* Destroy a Hubbub parser instance */
 void dom_hubbub_parser_destroy(dom_hubbub_parser *parser);
 

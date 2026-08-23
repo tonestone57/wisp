@@ -100,7 +100,11 @@ hubbub_error handle_in_head(hubbub_treebuilder *treebuilder, const hubbub_token 
 
     switch (token->type) {
     case HUBBUB_TOKEN_CHARACTER:
-        err = process_characters_expect_whitespace(treebuilder, token, true);
+        if (treebuilder->context.is_fragment) {
+            err = HUBBUB_REPROCESS;
+        } else {
+            err = process_characters_expect_whitespace(treebuilder, token, true);
+        }
         break;
     case HUBBUB_TOKEN_COMMENT:
         err = process_comment_append(
@@ -161,13 +165,15 @@ hubbub_error handle_in_head(hubbub_treebuilder *treebuilder, const hubbub_token 
     }
 
     if (handled || err == HUBBUB_REPROCESS) {
-        hubbub_ns ns;
-        element_type otype;
-        void *node;
+        if (treebuilder->context.current_node > 0) {
+            hubbub_ns ns;
+            element_type otype;
+            void *node;
 
-        element_stack_pop(treebuilder, &ns, &otype, &node);
+            element_stack_pop(treebuilder, &ns, &otype, &node);
 
-        treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, node);
+            treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, node);
+        }
 
         treebuilder->context.mode = AFTER_HEAD;
     }

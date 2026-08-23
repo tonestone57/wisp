@@ -72,14 +72,16 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
     bool handled = true;
 
     switch (token->type) {
-    case HUBBUB_TOKEN_CHARACTER:
-        if (treebuilder->context.element_stack[current_table(treebuilder)].tainted) {
+    case HUBBUB_TOKEN_CHARACTER: {
+        uint32_t tbl_idx = current_table(treebuilder);
+        bool is_tainted = (tbl_idx > 0 && tbl_idx <= treebuilder->context.current_node) ? treebuilder->context.element_stack[tbl_idx].tainted : false;
+        if (is_tainted) {
             handled = false;
         } else {
             err = process_characters_expect_whitespace(treebuilder, token, true);
             handled = (err == HUBBUB_OK);
         }
-        break;
+    } break;
     case HUBBUB_TOKEN_COMMENT:
         err = process_comment_append(
             treebuilder, token, treebuilder->context.element_stack[treebuilder->context.current_node].node);
@@ -89,7 +91,11 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
         break;
     case HUBBUB_TOKEN_START_TAG: {
         element_type type = element_type_from_name(treebuilder, &token->data.tag.name);
-        bool tainted = treebuilder->context.element_stack[current_table(treebuilder)].tainted;
+        bool tainted = false;
+        uint32_t tbl_idx = current_table(treebuilder);
+        if (tbl_idx > 0 && tbl_idx <= treebuilder->context.current_node) {
+            tainted = treebuilder->context.element_stack[tbl_idx].tainted;
+        }
 
         if (type == CAPTION) {
             clear_stack_table_context(treebuilder);
@@ -179,6 +185,19 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
         } else if (!tainted && type == INPUT) {
             err = process_input_in_table(treebuilder, token);
             handled = (err == HUBBUB_OK);
+        } else if (type == FORM) {
+            if (treebuilder->context.form_element == NULL) {
+                void *node, *appended;
+                hubbub_error e = treebuilder->tree_handler->create_element(treebuilder->tree_handler->ctx, &token->data.tag, &node);
+                if (e == HUBBUB_OK) {
+                    e = treebuilder->tree_handler->append_child(treebuilder->tree_handler->ctx,
+                        treebuilder->context.element_stack[treebuilder->context.current_node].node, node, &appended);
+                    treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, node);
+                    if (e == HUBBUB_OK) {
+                        treebuilder->context.form_element = appended;
+                    }
+                }
+            }
         } else {
             handled = false;
         }
@@ -192,6 +211,12 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
             element_stack_pop_until(treebuilder, TABLE);
 
             reset_insertion_mode(treebuilder);
+        } else if (type == FORM) {
+            if (treebuilder->context.form_element != NULL) {
+                treebuilder->tree_handler->unref_node(
+                    treebuilder->tree_handler->ctx, treebuilder->context.form_element);
+                treebuilder->context.form_element = NULL;
+            }
         } else if (type == BODY || type == CAPTION || type == COL || type == COLGROUP || type == HTML ||
             type == TBODY || type == TD || type == TFOOT || type == TH || type == THEAD || type == TR) {
             /** \todo parse error */

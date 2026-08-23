@@ -111,7 +111,7 @@ hubbub_error handle_after_head(hubbub_treebuilder *treebuilder, const hubbub_tok
         if (e != HUBBUB_OK)
             return e;
 
-        treebuilder->context.mode = IN_BODY;
+        reset_insertion_mode(treebuilder);
     }
 
     return err;
