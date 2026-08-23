@@ -1093,10 +1093,8 @@ static nserror llcache_object_destroy(llcache_object *object)
     if (core_buffer_data(&object->source_data) != NULL) {
         if (object->store_state == LLCACHE_STATE_DISC) {
             guit->llcache->release(object->url, BACKING_STORE_NONE);
-            core_buffer_init(&object->source_data); // Reset safely
-        } else {
-            core_buffer_destroy(&object->source_data);
         }
+        core_buffer_destroy(&object->source_data);
     }
 
     nsurl_unref(object->url);

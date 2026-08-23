@@ -6686,10 +6686,8 @@ static dom_node *ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc
         while (child_id != 0) {
             dom_node *child_node = ensure_host_node(shm, child_id, doc);
             if (child_node) {
-                dom_node *appended = NULL;
-                dom_node_append_child(new_node, child_node, &appended);
-                if (appended)
-                    dom_node_unref(appended);
+                dom_node_append_child(new_node, child_node, NULL);
+                dom_node_unref(child_node);
             }
             WispCompactNode *child_sn = &shm_dom_get_nodes(shm)[child_id];
             child_id = child_sn->next_sibling_id;
