@@ -719,8 +719,6 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
                 JS_FreeValue(ctx, type_val);
 
                 if (is_img_input) {
-                    JS_FreeCString(ctx, tag_str);
-                    JS_FreeValue(ctx, tag_val);
                     if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "offsetWidth") == 0 || strcmp(prop, "scrollWidth") == 0) {
                         JSValue w_val = wisp_element_getAttribute_impl(ctx, priv, "width");
                         int w = 100;
@@ -730,6 +728,8 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
                             if (ws) JS_FreeCString(ctx, ws);
                         }
                         JS_FreeValue(ctx, w_val);
+                        JS_FreeCString(ctx, tag_str);
+                        JS_FreeValue(ctx, tag_val);
                         JS_FreeCString(ctx, prop);
                         return JS_NewInt32(ctx, w > 0 ? w : 100);
                     }
@@ -742,6 +742,8 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
                             if (hs) JS_FreeCString(ctx, hs);
                         }
                         JS_FreeValue(ctx, h_val);
+                        JS_FreeCString(ctx, tag_str);
+                        JS_FreeValue(ctx, tag_val);
                         JS_FreeCString(ctx, prop);
                         return JS_NewInt32(ctx, h > 0 ? h : 100);
                     }

@@ -493,25 +493,35 @@ static bool qjs_pseudo_matches(JSContext *ctx, struct dom_node *node, uint32_t n
     bool result = false;
     if (strcasecmp(pseudo, "valid") == 0 || strcasecmp(pseudo, "invalid") == 0) {
         JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
+        bool is_form_control = !JS_IsUndefined(val_state) && !JS_IsNull(val_state);
         bool is_valid = true;
-        if (!JS_IsUndefined(val_state) && !JS_IsNull(val_state)) {
+        if (is_form_control) {
             JSValue valid_prop = JS_GetPropertyStr(ctx, val_state, "valid");
             is_valid = JS_ToBool(ctx, valid_prop);
             JS_FreeValue(ctx, valid_prop);
             JS_FreeValue(ctx, val_state);
+            if (strcasecmp(pseudo, "valid") == 0) result = is_valid;
+            else result = !is_valid;
+        } else {
+            JS_FreeValue(ctx, val_state);
+            result = false;
         }
-        if (strcasecmp(pseudo, "valid") == 0) result = is_valid;
-        else result = !is_valid;
     } else if (strcasecmp(pseudo, "required") == 0 || strcasecmp(pseudo, "optional") == 0) {
         JSValue req_prop = JS_GetPropertyStr(ctx, wrapper, "required");
+        bool is_form_control = !JS_IsUndefined(req_prop) && !JS_IsNull(req_prop);
         bool is_req = JS_ToBool(ctx, req_prop);
         JS_FreeValue(ctx, req_prop);
-        if (strcasecmp(pseudo, "required") == 0) result = is_req;
-        else result = !is_req;
+        if (is_form_control) {
+            if (strcasecmp(pseudo, "required") == 0) result = is_req;
+            else result = !is_req;
+        } else {
+            result = false;
+        }
     } else if (strcasecmp(pseudo, "in-range") == 0 || strcasecmp(pseudo, "out-of-range") == 0) {
         JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
+        bool is_form_control = !JS_IsUndefined(val_state) && !JS_IsNull(val_state);
         bool in_range = true;
-        if (!JS_IsUndefined(val_state) && !JS_IsNull(val_state)) {
+        if (is_form_control) {
             JSValue ro = JS_GetPropertyStr(ctx, val_state, "rangeOverflow");
             JSValue ru = JS_GetPropertyStr(ctx, val_state, "rangeUnderflow");
             bool overflow = JS_ToBool(ctx, ro);
@@ -778,7 +788,7 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
     free(cleanup.has_types);
 }
 
-static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compound_selector_t *comp)
+static bool qjs_compound_selector_matches_shm(JSContext *ctx, uint32_t node_id, const qjs_compound_selector_t *comp)
 {
     if (!wisp_shm_dom || node_id == 0) return false;
     WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
@@ -839,20 +849,20 @@ static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compou
     }
 
     for (uint32_t i = 0; i < comp->pseudo_count; i++) {
-        if (!qjs_pseudo_matches(NULL, NULL, node_id, comp->pseudos[i])) return false;
+        if (!qjs_pseudo_matches(ctx, NULL, node_id, comp->pseudos[i])) return false;
     }
 
     return true;
 }
 
-static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_group_t *group)
+static bool qjs_selector_group_matches_shm(JSContext *ctx, uint32_t node_id, const qjs_selector_group_t *group)
 {
     if (group->component_count == 0) return false;
     if (!wisp_shm_dom) return false;
     WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
 
     int comp_idx = group->component_count - 1;
-    if (!qjs_compound_selector_matches_shm(node_id, &group->components[comp_idx].compound)) return false;
+    if (!qjs_compound_selector_matches_shm(ctx, node_id, &group->components[comp_idx].compound)) return false;
 
     uint32_t curr = node_id;
     while (comp_idx > 0) {
@@ -862,7 +872,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
 
         if (comb == QJS_COMBINATOR_CHILD) {
             uint32_t parent = nodes[curr].parent_id;
-            if (parent == 0 || parent == curr || !qjs_compound_selector_matches_shm(parent, target)) {
+            if (parent == 0 || parent == curr || !qjs_compound_selector_matches_shm(ctx, parent, target)) {
                 return false;
             }
             curr = parent;
@@ -870,7 +880,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
             uint32_t parent = nodes[curr].parent_id;
             bool found = false;
             while (parent != 0 && parent != curr) {
-                if (qjs_compound_selector_matches_shm(parent, target)) {
+                if (qjs_compound_selector_matches_shm(ctx, parent, target)) {
                     curr = parent;
                     found = true;
                     break;
@@ -885,7 +895,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
                 if (nodes[prev].node_type == 1) break;
                 prev = nodes[prev].prev_sibling_id;
             }
-            if (prev == 0 || !qjs_compound_selector_matches_shm(prev, target)) {
+            if (prev == 0 || !qjs_compound_selector_matches_shm(ctx, prev, target)) {
                 return false;
             }
             curr = prev;
@@ -893,7 +903,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
             uint32_t prev = nodes[curr].prev_sibling_id;
             bool found = false;
             while (prev != 0) {
-                if (qjs_compound_selector_matches_shm(prev, target)) {
+                if (qjs_compound_selector_matches_shm(ctx, prev, target)) {
                     curr = prev;
                     found = true;
                     break;
@@ -931,7 +941,7 @@ JSValue qjs_dom_query_selector_internal_shm(JSContext *ctx, uint32_t root_id, co
         nodes = shm_dom_get_nodes(wisp_shm_dom);
         bool match = false;
         for (uint32_t i = 0; i < parsed->group_count; i++) {
-            if (qjs_selector_group_matches_shm(curr, &parsed->groups[i])) {
+            if (qjs_selector_group_matches_shm(ctx, curr, &parsed->groups[i])) {
                 match = true;
                 break;
             }
@@ -991,7 +1001,7 @@ bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *
             shm_dom_lock_read(wisp_shm_dom);
             uint32_t element_id = (uint32_t)(uintptr_t)node;
             for (uint32_t i = 0; i < parsed->group_count; i++) {
-                if (qjs_selector_group_matches_shm(element_id, &parsed->groups[i])) {
+                if (qjs_selector_group_matches_shm(ctx, element_id, &parsed->groups[i])) {
                     matches = true;
                     break;
                 }

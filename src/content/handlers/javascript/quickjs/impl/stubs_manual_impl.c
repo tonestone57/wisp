@@ -963,20 +963,20 @@ static const char *sanitize_input_value(JSContext *ctx, const char *type, const 
         if (*val == '\0') return "";
         bool valid = true;
         if (strcasecmp(type, "date") == 0) {
-            int y, m, d;
-            if (sscanf(val, "%d-%d-%d", &y, &m, &d) != 3 || m < 1 || m > 12 || d < 1 || d > 31) valid = false;
+            int y, m, d, n = 0;
+            if (sscanf(val, "%d-%d-%d%n", &y, &m, &d, &n) != 3 || val[n] != '\0' || m < 1 || m > 12 || d < 1 || d > 31) valid = false;
         } else if (strcasecmp(type, "month") == 0) {
-            int y, m;
-            if (sscanf(val, "%d-%d", &y, &m) != 2 || m < 1 || m > 12) valid = false;
+            int y, m, n = 0;
+            if (sscanf(val, "%d-%d%n", &y, &m, &n) != 2 || val[n] != '\0' || m < 1 || m > 12) valid = false;
         } else if (strcasecmp(type, "time") == 0) {
-            int h, m;
-            if (sscanf(val, "%d:%d", &h, &m) != 2 || h < 0 || h > 23 || m < 0 || m > 59) valid = false;
+            int h, m, n = 0;
+            if (sscanf(val, "%d:%d%n", &h, &m, &n) != 2 || val[n] != '\0' || h < 0 || h > 23 || m < 0 || m > 59) valid = false;
         } else if (strcasecmp(type, "week") == 0) {
-            int y, w;
-            if (sscanf(val, "%d-W%d", &y, &w) != 2 || w < 1 || w > 53) valid = false;
+            int y, w, n = 0;
+            if (sscanf(val, "%d-W%d%n", &y, &w, &n) != 2 || val[n] != '\0' || w < 1 || w > 53) valid = false;
         } else if (strcasecmp(type, "datetime-local") == 0 || strcasecmp(type, "datetime") == 0) {
-            int y, m, d, h, min;
-            if (sscanf(val, "%d-%d-%dT%d:%d", &y, &m, &d, &h, &min) != 5 || m < 1 || m > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) valid = false;
+            int y, m, d, h, min, n = 0;
+            if (sscanf(val, "%d-%d-%dT%d:%d%n", &y, &m, &d, &h, &min, &n) != 5 || val[n] != '\0' || m < 1 || m > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) valid = false;
         }
         if (!valid) return "";
         return val;
@@ -5472,18 +5472,33 @@ static bool check_range_overflow(JSContext *ctx, QJSNodePrivate *priv) {
     const char *max_str = JS_ToCString(ctx, max_val);
     JS_FreeValue(ctx, max_val);
     if (!max_str || *max_str == '\0') { if (max_str) JS_FreeCString(ctx, max_str); return false; }
-    double max_num = strtod(max_str, NULL);
-    JS_FreeCString(ctx, max_str);
 
     JSValue val_val = wisp_htmlinputelement_value_get_impl(ctx, priv);
-    if (!JS_IsString(val_val)) { JS_FreeValue(ctx, val_val); return false; }
+    if (!JS_IsString(val_val)) { JS_FreeCString(ctx, max_str); JS_FreeValue(ctx, val_val); return false; }
     const char *val_str = JS_ToCString(ctx, val_val);
     JS_FreeValue(ctx, val_val);
-    if (!val_str || *val_str == '\0') { if (val_str) JS_FreeCString(ctx, val_str); return false; }
-    double val_num = strtod(val_str, NULL);
+    if (!val_str || *val_str == '\0') { JS_FreeCString(ctx, max_str); if (val_str) JS_FreeCString(ctx, val_str); return false; }
+
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+
+    bool overflow = false;
+    if (strcasecmp(type_str, "date") == 0 || strcasecmp(type_str, "datetime-local") == 0 ||
+        strcasecmp(type_str, "month") == 0 || strcasecmp(type_str, "time") == 0 ||
+        strcasecmp(type_str, "week") == 0) {
+        overflow = strcmp(val_str, max_str) > 0;
+    } else {
+        double max_num = strtod(max_str, NULL);
+        double val_num = strtod(val_str, NULL);
+        overflow = val_num > max_num;
+    }
+
+    if (JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
+    JS_FreeCString(ctx, max_str);
     JS_FreeCString(ctx, val_str);
 
-    return val_num > max_num;
+    return overflow;
 }
 
 static bool check_range_underflow(JSContext *ctx, QJSNodePrivate *priv) {
@@ -5493,18 +5508,33 @@ static bool check_range_underflow(JSContext *ctx, QJSNodePrivate *priv) {
     const char *min_str = JS_ToCString(ctx, min_val);
     JS_FreeValue(ctx, min_val);
     if (!min_str || *min_str == '\0') { if (min_str) JS_FreeCString(ctx, min_str); return false; }
-    double min_num = strtod(min_str, NULL);
-    JS_FreeCString(ctx, min_str);
 
     JSValue val_val = wisp_htmlinputelement_value_get_impl(ctx, priv);
-    if (!JS_IsString(val_val)) { JS_FreeValue(ctx, val_val); return false; }
+    if (!JS_IsString(val_val)) { JS_FreeCString(ctx, min_str); JS_FreeValue(ctx, val_val); return false; }
     const char *val_str = JS_ToCString(ctx, val_val);
     JS_FreeValue(ctx, val_val);
-    if (!val_str || *val_str == '\0') { if (val_str) JS_FreeCString(ctx, val_str); return false; }
-    double val_num = strtod(val_str, NULL);
+    if (!val_str || *val_str == '\0') { JS_FreeCString(ctx, min_str); if (val_str) JS_FreeCString(ctx, val_str); return false; }
+
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+
+    bool underflow = false;
+    if (strcasecmp(type_str, "date") == 0 || strcasecmp(type_str, "datetime-local") == 0 ||
+        strcasecmp(type_str, "month") == 0 || strcasecmp(type_str, "time") == 0 ||
+        strcasecmp(type_str, "week") == 0) {
+        underflow = strcmp(val_str, min_str) < 0;
+    } else {
+        double min_num = strtod(min_str, NULL);
+        double val_num = strtod(val_str, NULL);
+        underflow = val_num < min_num;
+    }
+
+    if (JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
+    JS_FreeCString(ctx, min_str);
     JS_FreeCString(ctx, val_str);
 
-    return val_num < min_num;
+    return underflow;
 }
 
 JSValue wisp_validitystate_rangeOverflow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
