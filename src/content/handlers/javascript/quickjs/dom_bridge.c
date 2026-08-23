@@ -487,52 +487,90 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
 
 static bool qjs_pseudo_matches(JSContext *ctx, struct dom_node *node, uint32_t node_id, const char *pseudo) {
     if (!pseudo) return false;
-    JSValue wrapper = ctx ? qjs_wrap_node(ctx, node ? node : (struct dom_node *)(uintptr_t)node_id) : JS_NULL;
+
+    JSValue wrapper = JS_NULL;
+    if (ctx) {
+        if (wisp_is_js_process) {
+            if (node_id != 0) {
+                wrapper = qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)node_id);
+            } else if (node != NULL) {
+                wrapper = qjs_wrap_node(ctx, node);
+            }
+        } else if (node != NULL) {
+            wrapper = qjs_wrap_node(ctx, node);
+        }
+    }
+
     if (JS_IsUndefined(wrapper) || JS_IsNull(wrapper)) return false;
+
+    JSValue tag_val = JS_GetPropertyStr(ctx, wrapper, "tagName");
+    char tag_name[32] = "";
+    if (JS_IsString(tag_val)) {
+        const char *ts = JS_ToCString(ctx, tag_val);
+        if (ts) {
+            snprintf(tag_name, sizeof(tag_name), "%s", ts);
+            JS_FreeCString(ctx, ts);
+        }
+    }
+    JS_FreeValue(ctx, tag_val);
+
+    bool is_input = (strcasecmp(tag_name, "INPUT") == 0);
+    bool is_select = (strcasecmp(tag_name, "SELECT") == 0);
+    bool is_textarea = (strcasecmp(tag_name, "TEXTAREA") == 0);
+    bool is_button = (strcasecmp(tag_name, "BUTTON") == 0);
+    bool is_output = (strcasecmp(tag_name, "OUTPUT") == 0);
+    bool is_fieldset = (strcasecmp(tag_name, "FIELDSET") == 0);
+    bool is_form_control = is_input || is_select || is_textarea || is_button || is_output || is_fieldset;
 
     bool result = false;
     if (strcasecmp(pseudo, "valid") == 0 || strcasecmp(pseudo, "invalid") == 0) {
-        JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
-        bool is_form_control = !JS_IsUndefined(val_state) && !JS_IsNull(val_state);
-        bool is_valid = true;
         if (is_form_control) {
-            JSValue valid_prop = JS_GetPropertyStr(ctx, val_state, "valid");
-            is_valid = JS_ToBool(ctx, valid_prop);
-            JS_FreeValue(ctx, valid_prop);
-            JS_FreeValue(ctx, val_state);
+            JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
+            bool is_valid = true;
+            if (!JS_IsUndefined(val_state) && !JS_IsNull(val_state)) {
+                JSValue valid_prop = JS_GetPropertyStr(ctx, val_state, "valid");
+                is_valid = JS_ToBool(ctx, valid_prop);
+                JS_FreeValue(ctx, valid_prop);
+                JS_FreeValue(ctx, val_state);
+            } else {
+                JS_FreeValue(ctx, val_state);
+            }
             if (strcasecmp(pseudo, "valid") == 0) result = is_valid;
             else result = !is_valid;
         } else {
-            JS_FreeValue(ctx, val_state);
             result = false;
         }
     } else if (strcasecmp(pseudo, "required") == 0 || strcasecmp(pseudo, "optional") == 0) {
-        JSValue req_prop = JS_GetPropertyStr(ctx, wrapper, "required");
-        bool is_form_control = !JS_IsUndefined(req_prop) && !JS_IsNull(req_prop);
-        bool is_req = JS_ToBool(ctx, req_prop);
-        JS_FreeValue(ctx, req_prop);
-        if (is_form_control) {
+        if (is_input || is_select || is_textarea) {
+            JSValue req_prop = JS_GetPropertyStr(ctx, wrapper, "required");
+            bool is_req = JS_ToBool(ctx, req_prop);
+            JS_FreeValue(ctx, req_prop);
             if (strcasecmp(pseudo, "required") == 0) result = is_req;
             else result = !is_req;
         } else {
             result = false;
         }
     } else if (strcasecmp(pseudo, "in-range") == 0 || strcasecmp(pseudo, "out-of-range") == 0) {
-        JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
-        bool is_form_control = !JS_IsUndefined(val_state) && !JS_IsNull(val_state);
-        bool in_range = true;
-        if (is_form_control) {
-            JSValue ro = JS_GetPropertyStr(ctx, val_state, "rangeOverflow");
-            JSValue ru = JS_GetPropertyStr(ctx, val_state, "rangeUnderflow");
-            bool overflow = JS_ToBool(ctx, ro);
-            bool underflow = JS_ToBool(ctx, ru);
-            JS_FreeValue(ctx, ro);
-            JS_FreeValue(ctx, ru);
-            JS_FreeValue(ctx, val_state);
-            if (overflow || underflow) in_range = false;
+        if (is_input) {
+            JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
+            bool in_range = true;
+            if (!JS_IsUndefined(val_state) && !JS_IsNull(val_state)) {
+                JSValue ro = JS_GetPropertyStr(ctx, val_state, "rangeOverflow");
+                JSValue ru = JS_GetPropertyStr(ctx, val_state, "rangeUnderflow");
+                bool overflow = JS_ToBool(ctx, ro);
+                bool underflow = JS_ToBool(ctx, ru);
+                JS_FreeValue(ctx, ro);
+                JS_FreeValue(ctx, ru);
+                JS_FreeValue(ctx, val_state);
+                if (overflow || underflow) in_range = false;
+            } else {
+                JS_FreeValue(ctx, val_state);
+            }
+            if (strcasecmp(pseudo, "in-range") == 0) result = in_range;
+            else result = !in_range;
+        } else {
+            result = false;
         }
-        if (strcasecmp(pseudo, "in-range") == 0) result = in_range;
-        else result = !in_range;
     } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0 ||
                strcasecmp(pseudo, "read-write") == 0 || strcasecmp(pseudo, "-moz-read-write") == 0) {
         JSValue ro_prop = JS_GetPropertyStr(ctx, wrapper, "readOnly");

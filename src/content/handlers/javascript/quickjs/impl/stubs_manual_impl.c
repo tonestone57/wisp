@@ -965,6 +965,12 @@ static const char *sanitize_input_value(JSContext *ctx, const char *type, const 
         if (strcasecmp(type, "date") == 0) {
             int y, m, d, n = 0;
             if (sscanf(val, "%d-%d-%d%n", &y, &m, &d, &n) != 3 || val[n] != '\0' || m < 1 || m > 12 || d < 1 || d > 31) valid = false;
+            if (valid) {
+                static const int days_in_month[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+                int max_d = days_in_month[m];
+                if (m == 2 && ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0))) max_d = 29;
+                if (d > max_d) valid = false;
+            }
         } else if (strcasecmp(type, "month") == 0) {
             int y, m, n = 0;
             if (sscanf(val, "%d-%d%n", &y, &m, &n) != 2 || val[n] != '\0' || m < 1 || m > 12) valid = false;
@@ -5087,7 +5093,23 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
                         JS_FreeValue(ctx, len_val);
                         for (int i = 0; i < len; i++) {
                             JSValue item = JS_GetPropertyUint32(ctx, matched, i);
-                            JS_SetPropertyUint32(ctx, labels_arr, idx++, item);
+                            JSValue for_attr = JS_GetPropertyStr(ctx, item, "htmlFor");
+                            if (JS_IsUndefined(for_attr) || JS_IsNull(for_attr) || !JS_IsString(for_attr)) {
+                                JS_FreeValue(ctx, for_attr);
+                                for_attr = get_element_str_attr(ctx, qjs_get_dom_priv(ctx, item), "for", NULL);
+                            }
+                            bool matches_for = false;
+                            if (JS_IsString(for_attr)) {
+                                const char *fs = JS_ToCString(ctx, for_attr);
+                                if (fs && strcmp(fs, id_str) == 0) matches_for = true;
+                                if (fs) JS_FreeCString(ctx, fs);
+                            }
+                            JS_FreeValue(ctx, for_attr);
+                            if (matches_for) {
+                                JS_SetPropertyUint32(ctx, labels_arr, idx++, item);
+                            } else {
+                                JS_FreeValue(ctx, item);
+                            }
                         }
                     }
                     JS_FreeValue(ctx, matched);

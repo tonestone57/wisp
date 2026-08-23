@@ -5961,6 +5961,19 @@ START_TEST(test_quickjs_form_ui_and_selectors)
         "input.type = 'color';\n"
         "input.value = 'invalid';\n"
         "if (input.value !== '#000000') throw new Error('Color input sanitization failed');\n"
+        "input.value = '#fff';\n"
+        "if (input.value !== '#000000') throw new Error('Color 3-digit hex fallback failed');\n"
+        "input.value = '#123456ff';\n"
+        "if (input.value !== '#000000') throw new Error('Color alpha hex fallback failed');\n"
+        "input.type = 'date';\n"
+        "input.value = '2026-13-31';\n"
+        "if (input.value !== '') throw new Error('Date month 13 sanitization failed');\n"
+        "input.value = '2026-02-29';\n"
+        "if (input.value !== '') throw new Error('Date non-leap year Feb 29 failed');\n"
+        "input.value = '2024-02-29';\n"
+        "if (input.value !== '2024-02-29') throw new Error('Date leap year Feb 29 failed');\n"
+        "input.value = '';\n"
+        "if (input.value !== '') throw new Error('Date empty string failed');\n"
         "input.type = 'file';\n"
         "if (!input.files || !(input.files instanceof FileList)) throw new Error('FileList check failed');\n"
         "input.type = 'image';\n"
@@ -5974,6 +5987,9 @@ START_TEST(test_quickjs_form_ui_and_selectors)
         "label.setAttribute('for', 'test_form_input');\n"
         "document.body.appendChild(label);\n"
         "if (!input2.labels || input2.labels.length !== 1) throw new Error('Input labels lookup failed');\n"
+        "label.setAttribute('for', 'different_id');\n"
+        "if (input2.labels.length !== 0) throw new Error('Dynamic label for attribute mutation failed');\n"
+        "label.setAttribute('for', 'test_form_input');\n"
         "var selValid = document.querySelector('#test_form_input:valid');\n"
         "if (!selValid) throw new Error(':valid selector failed');\n"
         "var selOpt = document.querySelector('#test_form_input:optional');\n"
@@ -6194,8 +6210,7 @@ START_TEST(test_quickjs_jquery_init)
     if (JS_IsException(val)) {
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
-        printf("DEBUG EXCEPTION FORM: %s\n", exc_str ? exc_str : "unknown");
-        fflush(stdout);
+        fprintf(stderr, "\n--- EXCEPTION: %s ---\n\n", exc_str ? exc_str : "unknown");
         if (exc_str) JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);
     }
