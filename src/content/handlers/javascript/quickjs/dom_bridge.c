@@ -316,12 +316,19 @@ typedef enum {
 } qjs_combinator_t;
 
 typedef struct {
+    char *name;
+    char *val;
+} qjs_attr_selector_t;
+
+typedef struct {
     char *tag;
     char *id;
     char **classes;
     uint32_t class_count;
     char **pseudos;
     uint32_t pseudo_count;
+    qjs_attr_selector_t *attrs;
+    uint32_t attr_count;
     bool universal;
 } qjs_compound_selector_t;
 
@@ -357,6 +364,11 @@ static void qjs_selector_root_free(qjs_selector_root_t *root)
                 free(comp->compound.pseudos[k]);
             }
             free(comp->compound.pseudos);
+            for (uint32_t k = 0; k < comp->compound.attr_count; k++) {
+                free(comp->compound.attrs[k].name);
+                free(comp->compound.attrs[k].val);
+            }
+            free(comp->compound.attrs);
         }
         free(group->components);
     }
@@ -451,7 +463,7 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
                     csp++;
                     if (*csp == ':') csp++;
                     const char *pseudo_start = csp;
-                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    while (*csp && !strchr("#.:[", *csp)) csp++;
                     char **new_pseudos = realloc(comp->compound.pseudos, (comp->compound.pseudo_count + 1) * sizeof(char *));
                     if (!new_pseudos) {
                         free(comp_str);
@@ -461,9 +473,45 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
                     }
                     comp->compound.pseudos = new_pseudos;
                     comp->compound.pseudos[comp->compound.pseudo_count++] = strndup(pseudo_start, (size_t)(csp - pseudo_start));
+                } else if (*csp == '[') {
+                    csp++;
+                    const char *bracket_end = strchr(csp, ']');
+                    if (!bracket_end) break;
+                    size_t attr_len = (size_t)(bracket_end - csp);
+                    char *attr_inner = strndup(csp, attr_len);
+                    csp = bracket_end + 1;
+                    if (attr_inner) {
+                        char *eq = strchr(attr_inner, '=');
+                        char *aname = NULL;
+                        char *aval = NULL;
+                        if (eq) {
+                            aname = strndup(attr_inner, (size_t)(eq - attr_inner));
+                            const char *vstart = eq + 1;
+                            if (*vstart == '"' || *vstart == '\'') vstart++;
+                            size_t vlen = strlen(vstart);
+                            if (vlen > 0 && (vstart[vlen - 1] == '"' || vstart[vlen - 1] == '\'')) vlen--;
+                            aval = strndup(vstart, vlen);
+                        } else {
+                            aname = strdup(attr_inner);
+                        }
+                        free(attr_inner);
+
+                        if (aname) {
+                            qjs_attr_selector_t *new_attrs = realloc(comp->compound.attrs, (comp->compound.attr_count + 1) * sizeof(qjs_attr_selector_t));
+                            if (new_attrs) {
+                                comp->compound.attrs = new_attrs;
+                                comp->compound.attrs[comp->compound.attr_count].name = aname;
+                                comp->compound.attrs[comp->compound.attr_count].val = aval;
+                                comp->compound.attr_count++;
+                            } else {
+                                free(aname);
+                                if (aval) free(aval);
+                            }
+                        }
+                    }
                 } else {
                     const char *tag_start = csp;
-                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    while (*csp && !strchr("#.:[", *csp)) csp++;
                     if (comp->compound.tag) free(comp->compound.tag);
                     comp->compound.tag = strndup(tag_start, (size_t)(csp - tag_start));
                 }
@@ -670,6 +718,21 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
             if (min_str) free(min_str);
             if (max_str) free(max_str);
             if (val >= min && val <= max) return false;
+        }
+    }
+
+    for (uint32_t i = 0; i < comp->attr_count; i++) {
+        const char *aname = comp->attrs[i].name;
+        const char *aval = comp->attrs[i].val;
+        if (!aname) continue;
+        if (aval) {
+            char *node_aval = qjs_libdom_get_attr(node, aname);
+            if (!node_aval) return false;
+            bool eq = (strcmp(node_aval, aval) == 0);
+            free(node_aval);
+            if (!eq) return false;
+        } else {
+            if (!qjs_libdom_has_attr(node, aname)) return false;
         }
     }
 
