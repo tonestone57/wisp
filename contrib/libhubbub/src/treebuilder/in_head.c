@@ -165,13 +165,15 @@ hubbub_error handle_in_head(hubbub_treebuilder *treebuilder, const hubbub_token 
     }
 
     if (handled || err == HUBBUB_REPROCESS) {
-        hubbub_ns ns;
-        element_type otype;
-        void *node;
+        if (treebuilder->context.current_node > 0) {
+            hubbub_ns ns;
+            element_type otype;
+            void *node;
 
-        element_stack_pop(treebuilder, &ns, &otype, &node);
+            element_stack_pop(treebuilder, &ns, &otype, &node);
 
-        treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, node);
+            treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, node);
+        }
 
         treebuilder->context.mode = AFTER_HEAD;
     }

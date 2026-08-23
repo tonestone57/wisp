@@ -705,21 +705,37 @@ void close_implied_end_tags(hubbub_treebuilder *treebuilder, element_type except
  */
 void reset_insertion_mode(hubbub_treebuilder *treebuilder)
 {
-    uint32_t node;
+    int32_t node;
     element_context *stack = treebuilder->context.element_stack;
 
     if (stack == NULL || stack[0].node == NULL)
         return;
 
-    if (treebuilder->context.is_fragment && treebuilder->context.context_element != UNKNOWN) {
-        switch (treebuilder->context.context_element) {
+    for (node = (int32_t)treebuilder->context.current_node; node >= 0; node--) {
+        element_type type = stack[node].type;
+        bool is_last = (node == 0);
+
+        if (is_last && treebuilder->context.is_fragment && treebuilder->context.context_element != UNKNOWN) {
+            type = treebuilder->context.context_element;
+        }
+
+        if (stack[node].ns != HUBBUB_NS_HTML && !is_last) {
+            treebuilder->context.mode = IN_FOREIGN_CONTENT;
+            treebuilder->context.second_mode = IN_BODY;
+            return;
+        }
+
+        switch (type) {
         case SELECT:
             treebuilder->context.mode = IN_SELECT;
             return;
         case TD:
         case TH:
-            treebuilder->context.mode = IN_CELL;
-            return;
+            if (!is_last) {
+                treebuilder->context.mode = IN_CELL;
+                return;
+            }
+            break;
         case TR:
             treebuilder->context.mode = IN_ROW;
             return;
@@ -738,57 +754,10 @@ void reset_insertion_mode(hubbub_treebuilder *treebuilder)
             treebuilder->context.mode = IN_TABLE;
             return;
         case HEAD:
-            treebuilder->context.mode = IN_HEAD;
-            return;
-        case BODY:
-            treebuilder->context.mode = IN_BODY;
-            return;
-        case FRAMESET:
-            treebuilder->context.mode = IN_FRAMESET;
-            return;
-        case HTML:
-            treebuilder->context.mode = BEFORE_HEAD;
-            return;
-        default:
-            treebuilder->context.mode = IN_BODY;
-            return;
-        }
-    }
-
-    for (node = treebuilder->context.current_node; node > 0; node--) {
-        if (stack[node].ns != HUBBUB_NS_HTML) {
-            treebuilder->context.mode = IN_FOREIGN_CONTENT;
-            treebuilder->context.second_mode = IN_BODY;
-            break;
-        }
-
-        switch (stack[node].type) {
-        case SELECT:
-            /* fragment case */
-            break;
-        case TD:
-        case TH:
-            treebuilder->context.mode = IN_CELL;
-            return;
-        case TR:
-            treebuilder->context.mode = IN_ROW;
-            return;
-        case TBODY:
-        case TFOOT:
-        case THEAD:
-            treebuilder->context.mode = IN_TABLE_BODY;
-            return;
-        case CAPTION:
-            treebuilder->context.mode = IN_CAPTION;
-            return;
-        case COLGROUP:
-            /* fragment case */
-            break;
-        case TABLE:
-            treebuilder->context.mode = IN_TABLE;
-            return;
-        case HEAD:
-            /* fragment case */
+            if (!is_last) {
+                treebuilder->context.mode = IN_HEAD;
+                return;
+            }
             break;
         case BODY:
             treebuilder->context.mode = IN_BODY;

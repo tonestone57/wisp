@@ -154,7 +154,7 @@ hubbub_error process_character(hubbub_treebuilder *treebuilder, const hubbub_tok
     if (treebuilder->context.strip_leading_lr) {
         const uint8_t *str = dummy.ptr;
 
-        if (*str == '\n' && dummy.len > 1) {
+        if (*str == '\n') {
             dummy.ptr++;
             dummy.len--;
         }

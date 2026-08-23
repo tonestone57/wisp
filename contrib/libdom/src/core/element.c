@@ -1568,7 +1568,6 @@ _dom_element_set_attr(struct dom_element *element, dom_string *namespace, dom_st
     dom_exception err;
 
     if (_dom_validate_name(name) == false) {
-        fprintf(stderr, "[DEBUG set_attr] validate_name failed for '%.*s'\n", (int)dom_string_byte_length(name), dom_string_data(name));
         return DOM_INVALID_CHARACTER_ERR;
     }
 

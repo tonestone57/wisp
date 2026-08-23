@@ -72,14 +72,16 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
     bool handled = true;
 
     switch (token->type) {
-    case HUBBUB_TOKEN_CHARACTER:
-        if (treebuilder->context.element_stack[current_table(treebuilder)].tainted) {
+    case HUBBUB_TOKEN_CHARACTER: {
+        uint32_t tbl_idx = current_table(treebuilder);
+        bool is_tainted = (tbl_idx > 0 && tbl_idx <= treebuilder->context.current_node) ? treebuilder->context.element_stack[tbl_idx].tainted : false;
+        if (is_tainted) {
             handled = false;
         } else {
             err = process_characters_expect_whitespace(treebuilder, token, true);
             handled = (err == HUBBUB_OK);
         }
-        break;
+    } break;
     case HUBBUB_TOKEN_COMMENT:
         err = process_comment_append(
             treebuilder, token, treebuilder->context.element_stack[treebuilder->context.current_node].node);
