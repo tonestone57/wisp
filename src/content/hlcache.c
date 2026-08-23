@@ -490,7 +490,7 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
     if ((actual_type != NULL) && hlcache_type_is_acceptable(actual_type, ctx->accepted_types, &type)) {
         error = hlcache_find_content(ctx, actual_type);
         if (error != NSERROR_OK && error != NSERROR_NEED_DATA) {
-            if (ctx->handle->cb != NULL && !ctx->handle->released) {
+            if (ctx->handle != NULL && ctx->handle->cb != NULL && !ctx->handle->released) {
                 hlcache_event hlevent;
 
                 hlevent.type = CONTENT_MSG_ERROR;
@@ -510,7 +510,7 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
         /* Unknown type, and we can download, so convert */
         llcache_handle_force_stream(ctx->llcache);
 
-        if (ctx->handle->cb != NULL && !ctx->handle->released) {
+        if (ctx->handle != NULL && ctx->handle->cb != NULL && !ctx->handle->released) {
             hlcache_event hlevent;
 
             hlevent.type = CONTENT_MSG_DOWNLOAD;
@@ -523,18 +523,20 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
         error = NSERROR_NEED_DATA;
     } else {
         /* Unacceptable type: report error */
-        NSLOG(wisp, ERROR, "UnacceptableType for %s. Effective type: %s. Accepted types: %d",
-            nsurl_access(hlcache_handle_get_url(ctx->handle)),
-            actual_type ? lwc_string_data(actual_type) : "NULL", ctx->accepted_types);
+        if (ctx->handle != NULL) {
+            NSLOG(wisp, ERROR, "UnacceptableType for %s. Effective type: %s. Accepted types: %d",
+                nsurl_access(hlcache_handle_get_url(ctx->handle)),
+                actual_type ? lwc_string_data(actual_type) : "NULL", ctx->accepted_types);
 
-        if (ctx->handle->cb != NULL && !ctx->handle->released) {
-            hlcache_event hlevent;
+            if (ctx->handle->cb != NULL && !ctx->handle->released) {
+                hlcache_event hlevent;
 
-            hlevent.type = CONTENT_MSG_ERROR;
-            hlevent.data.errordata.errorcode = NSERROR_UNKNOWN;
-            hlevent.data.errordata.errormsg = messages_get("UnacceptableType");
+                hlevent.type = CONTENT_MSG_ERROR;
+                hlevent.data.errordata.errorcode = NSERROR_UNKNOWN;
+                hlevent.data.errordata.errormsg = messages_get("UnacceptableType");
 
-            ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
+                ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
+            }
         }
 
         if (ctx->llcache != NULL) {
@@ -592,7 +594,7 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
     switch (event->type) {
     case LLCACHE_EVENT_GOT_CERTS:
         /* Pass them on upward */
-        if (ctx->handle->cb != NULL) {
+        if (ctx->handle != NULL && ctx->handle->cb != NULL) {
             hlcache_event hlevent;
 
             hlevent.type = CONTENT_MSG_SSL_CERTS;
@@ -687,7 +689,7 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
             return error;
         }
 
-        if (ctx->handle->cb != NULL) {
+        if (ctx->handle != NULL && ctx->handle->cb != NULL) {
             hlcache_event hlevent;
 
             NSLOG(wisp, ERROR, "Sending CONTENT_MSG_ERROR from LLCACHE_EVENT_DONE. Code: %d", error);
@@ -700,7 +702,7 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
         }
         break;
     case LLCACHE_EVENT_ERROR:
-        if (ctx->handle->cb != NULL) {
+        if (ctx->handle != NULL && ctx->handle->cb != NULL) {
             hlcache_event hlevent;
 
             hlevent.type = CONTENT_MSG_ERROR;
