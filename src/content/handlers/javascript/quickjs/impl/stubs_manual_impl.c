@@ -10473,6 +10473,41 @@ JSValue wisp_window_cancelAnimationFrame_impl(JSContext *ctx, QJSNodePrivate *pr
     return res;
 }
 
+static JSValue postmessage_dispatch_job(JSContext *ctx, int argc, JSValueConst *argv) {
+    if (argc < 2) return JS_UNDEFINED;
+    JSValue evt = argv[0];
+    JSValue window_val = argv[1];
+
+    JSValue global = JS_GetGlobalObject(ctx);
+
+    JSValue onmsg = JS_GetPropertyStr(ctx, window_val, "onmessage");
+    if (!JS_IsFunction(ctx, onmsg)) {
+        JS_FreeValue(ctx, onmsg);
+        onmsg = JS_GetPropertyStr(ctx, global, "onmessage");
+    }
+    if (JS_IsFunction(ctx, onmsg)) {
+        JSValue ret = JS_Call(ctx, onmsg, window_val, 1, &evt);
+        JS_FreeValue(ctx, ret);
+    }
+    JS_FreeValue(ctx, onmsg);
+
+    JSValue target_for_dispatch = window_val;
+    JSValue dispatch = JS_GetPropertyStr(ctx, window_val, "dispatchEvent");
+    if (!JS_IsFunction(ctx, dispatch)) {
+        JS_FreeValue(ctx, dispatch);
+        dispatch = JS_GetPropertyStr(ctx, global, "dispatchEvent");
+        target_for_dispatch = global;
+    }
+    if (JS_IsFunction(ctx, dispatch)) {
+        JSValue ret = JS_Call(ctx, dispatch, target_for_dispatch, 1, &evt);
+        JS_FreeValue(ctx, ret);
+    }
+    JS_FreeValue(ctx, dispatch);
+    JS_FreeValue(ctx, global);
+
+    return JS_UNDEFINED;
+}
+
 // Overrides: method | Window::postMessage();
 JSValue wisp_window_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue message, const char * targetOrigin, JSValue transfer) {
     JSValue global = JS_GetGlobalObject(ctx);
@@ -10512,19 +10547,8 @@ JSValue wisp_window_postMessage_impl(JSContext *ctx, QJSNodePrivate *priv, JSVal
     }
 
     if (!JS_IsException(evt) && !JS_IsUndefined(evt)) {
-        JSValue onmsg = JS_GetPropertyStr(ctx, window_val, "onmessage");
-        if (JS_IsFunction(ctx, onmsg)) {
-            JSValue ret = JS_Call(ctx, onmsg, window_val, 1, &evt);
-            JS_FreeValue(ctx, ret);
-        }
-        JS_FreeValue(ctx, onmsg);
-
-        JSValue dispatch = JS_GetPropertyStr(ctx, window_val, "dispatchEvent");
-        if (JS_IsFunction(ctx, dispatch)) {
-            JSValue ret = JS_Call(ctx, dispatch, window_val, 1, &evt);
-            JS_FreeValue(ctx, ret);
-        }
-        JS_FreeValue(ctx, dispatch);
+        JSValue job_args[2] = { evt, window_val };
+        JS_EnqueueJob(ctx, postmessage_dispatch_job, 2, job_args);
     }
 
     JS_FreeValue(ctx, evt);

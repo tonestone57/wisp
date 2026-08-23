@@ -834,8 +834,8 @@ void* wisp_web_worker_routine(void *arg) {
             JS_FreeValue(t->ctx, json_str_val);
             JS_FreeValue(t->ctx, parse);
             JS_FreeValue(t->ctx, json);
-            extern JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data);
-            JSValue event = qjs_new_messageevent_manual(t->ctx, msg_data);
+            extern JSValue qjs_new_messageevent_manual(JSContext *ctx, const char *type, JSValue data);
+            JSValue event = qjs_new_messageevent_manual(t->ctx, "message", msg_data);
             JSValue onmessage = JS_GetPropertyStr(t->ctx, global, "onmessage");
             if (JS_IsFunction(t->ctx, onmessage)) {
                 JSValue ret = JS_Call(t->ctx, onmessage, global, 1, &event);

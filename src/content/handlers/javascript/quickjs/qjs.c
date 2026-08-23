@@ -5692,13 +5692,14 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     wisp_js_register_all_bindings(t->ctx);
 
     /* Manual refinements to prototypes must come after registration */
+    extern int qjs_init_messageevent(JSContext *ctx);
     if (qjs_init_eventtarget(t->ctx) != 0 || qjs_init_event(t->ctx) != 0 || qjs_init_node(t->ctx) != 0 ||
         qjs_init_element(t->ctx) != 0 || qjs_init_document(t->ctx) != 0 || qjs_init_window(t->ctx) != 0 ||
         qjs_init_console(t->ctx) != 0 || qjs_init_timers(t->ctx) != 0 || qjs_init_crypto(t->ctx) != 0 ||
         qjs_init_navigator(t->ctx) != 0 || qjs_init_location(t->ctx) != 0 || qjs_init_storage(t->ctx) != 0 ||
         qjs_init_xmlhttprequest(t->ctx) != 0 || qjs_init_mutationobserver(t->ctx) != 0 ||
         qjs_init_intersectionobserver(t->ctx) != 0 || qjs_init_imagedata(t->ctx) != 0 || qjs_init_canvas(t->ctx) != 0 ||
-        qjs_init_trusted_types(t->ctx) != 0) {
+        qjs_init_trusted_types(t->ctx) != 0 || qjs_init_messageevent(t->ctx) != 0) {
         js_destroythread(t);
         return NSERROR_NOMEM;
     }

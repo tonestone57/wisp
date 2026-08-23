@@ -38,6 +38,10 @@ int qjs_init_window(JSContext *ctx)
     if (JS_IsObject(proto) && JS_IsObject(et_proto)) {
         JS_SetPrototype(ctx, proto, et_proto);
     }
+    extern JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);
+    if (JS_IsObject(proto)) {
+        JS_DefinePropertyValueStr(ctx, proto, "dispatchEvent", JS_NewCFunction(ctx, js_eventtarget_dispatchEvent_manual, "dispatchEvent", 1), JS_PROP_C_W_E);
+    }
     JS_FreeValue(ctx, et_proto);
     JS_FreeValue(ctx, proto);
 

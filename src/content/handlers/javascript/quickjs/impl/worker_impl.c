@@ -114,8 +114,8 @@ void wisp_dispatch_message_to_worker_object(WispWorkerHandle *h, WispMessage *ms
     JSContext *ctx = priv->ctx;
     if (msg->type == WISP_MSG_TYPE_DATA) {
         JSValue msg_data = JS_ReadObject(ctx, msg->data, msg->size, JS_READ_OBJ_SAB | JS_READ_OBJ_REFERENCE);
-        extern JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data);
-        JSValue event = qjs_new_messageevent_manual(ctx, msg_data);
+        extern JSValue qjs_new_messageevent_manual(JSContext *ctx, const char *type, JSValue data);
+        JSValue event = qjs_new_messageevent_manual(ctx, "message", msg_data);
         if (JS_IsFunction(ctx, priv->onmessage)) {
             JSValue ret = JS_Call(ctx, priv->onmessage, JS_UNDEFINED, 1, &event);
             JS_FreeValue(ctx, ret);

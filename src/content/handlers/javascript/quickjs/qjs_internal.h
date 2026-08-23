@@ -149,9 +149,14 @@ static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val)
         if (priv->magic == QJS_DOM_MAGIC) return priv;
     }
 
-    /* Fallback for global object (Window) */
+    /* Fallback for global object (Window) or window property on global */
     JSValue global_obj = JS_GetGlobalObject(ctx);
     bool is_global = JS_IsSameValue(ctx, val, global_obj);
+    if (!is_global) {
+        JSValue win_prop = JS_GetPropertyStr(ctx, global_obj, "window");
+        is_global = JS_IsSameValue(ctx, val, win_prop);
+        JS_FreeValue(ctx, win_prop);
+    }
     JS_FreeValue(ctx, global_obj);
     if (is_global) {
         struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);

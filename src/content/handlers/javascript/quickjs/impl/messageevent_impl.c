@@ -30,7 +30,7 @@ static void js_messageevent_finalizer(JSRuntime *rt, JSValue val) {
 
 static JSClassDef wisp_messageevent_class = { "MessageEvent", .finalizer = js_messageevent_finalizer };
 
-JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data) {
+JSValue qjs_new_messageevent_manual(JSContext *ctx, const char *type, JSValue data) {
     JSRuntime *rt = JS_GetRuntime(ctx);
     if (qjs_messageevent_class_id == 0) JS_NewClassID(rt, &qjs_messageevent_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_messageevent_class_id)) JS_NewClass(rt, qjs_messageevent_class_id, &wisp_messageevent_class);
@@ -56,6 +56,7 @@ JSValue qjs_new_messageevent_manual(JSContext *ctx, JSValue data) {
         return JS_ThrowOutOfMemory(ctx);
     }
 
+    JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, type ? type : "message"), JS_PROP_C_W_E);
     JS_SetOpaque(obj, priv);
     return obj;
 }
@@ -78,7 +79,7 @@ JSValue wisp_messageevent_constructor_impl(JSContext *ctx, const char * type, JS
     if (JS_IsObject(eventInitDict)) {
         data = JS_GetPropertyStr(ctx, eventInitDict, "data");
     }
-    JSValue obj = qjs_new_messageevent_manual(ctx, data);
+    JSValue obj = qjs_new_messageevent_manual(ctx, type ? type : "message", data);
     JS_FreeValue(ctx, data);
     return obj;
 }
