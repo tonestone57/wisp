@@ -614,11 +614,75 @@ static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_
         APPEND(fetch->headers, "DNT: 1");
     }
 
-    /* And add any headers specified by the caller */
+    /* Check for caller-provided Sec-Fetch-* headers */
+    bool has_sec_fetch_dest = false;
+    bool has_sec_fetch_mode = false;
+    bool has_sec_fetch_site = false;
+    bool has_sec_fetch_user = false;
+
     if (headers != NULL) {
         for (i = 0; headers[i] != NULL; i++) {
+            if (strncasecmp(headers[i], "Sec-Fetch-Dest:", 15) == 0) has_sec_fetch_dest = true;
+            if (strncasecmp(headers[i], "Sec-Fetch-Mode:", 15) == 0) has_sec_fetch_mode = true;
+            if (strncasecmp(headers[i], "Sec-Fetch-Site:", 15) == 0) has_sec_fetch_site = true;
+            if (strncasecmp(headers[i], "Sec-Fetch-User:", 15) == 0) has_sec_fetch_user = true;
             APPEND(fetch->headers, headers[i]);
         }
+    }
+
+    /* Inject Fetch Metadata defaults if not explicitly set by caller */
+    if (!has_sec_fetch_dest) {
+        lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
+        bool is_image = false;
+        if (scheme != NULL) {
+            /* Check if URL path/extension indicates image or script */
+            const char *url_str = nsurl_access(url);
+            if (strstr(url_str, ".png") || strstr(url_str, ".jpg") || strstr(url_str, ".jpeg") ||
+                strstr(url_str, ".gif") || strstr(url_str, ".webp") || strstr(url_str, ".svg")) {
+                is_image = true;
+            }
+            lwc_string_unref(scheme);
+        }
+        if (is_image) {
+            APPEND(fetch->headers, "Sec-Fetch-Dest: image");
+        } else {
+            APPEND(fetch->headers, "Sec-Fetch-Dest: empty");
+        }
+    }
+    if (!has_sec_fetch_mode) {
+        APPEND(fetch->headers, "Sec-Fetch-Mode: cors");
+    }
+    if (!has_sec_fetch_site) {
+        /* Compute Sec-Fetch-Site relative to referer if available */
+        bool set_site = false;
+        if (fetch->fetch_handle != NULL) {
+            nsurl *ref = fetch_get_referer(fetch->fetch_handle);
+            if (ref != NULL) {
+                if (nsurl_compare(url, ref, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
+                    APPEND(fetch->headers, "Sec-Fetch-Site: same-origin");
+                    set_site = true;
+                } else {
+                    lwc_string *h1 = nsurl_get_component(url, NSURL_HOST);
+                    lwc_string *h2 = nsurl_get_component(ref, NSURL_HOST);
+                    bool match = false;
+                    if (h1 && h2 && lwc_string_isequal(h1, h2, &match) == lwc_error_ok && match) {
+                        APPEND(fetch->headers, "Sec-Fetch-Site: same-site");
+                        set_site = true;
+                    } else {
+                        APPEND(fetch->headers, "Sec-Fetch-Site: cross-site");
+                        set_site = true;
+                    }
+                    if (h1) lwc_string_unref(h1);
+                    if (h2) lwc_string_unref(h2);
+                }
+            }
+        }
+        if (!set_site) {
+            APPEND(fetch->headers, "Sec-Fetch-Site: same-origin");
+        }
+    }
+    if (!has_sec_fetch_user) {
+        APPEND(fetch->headers, "Sec-Fetch-User: ?0");
     }
 
     return fetch;

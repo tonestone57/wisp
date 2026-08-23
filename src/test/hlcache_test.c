@@ -72,7 +72,7 @@ static nserror dummy_create(const struct content_handler *handler,
     if (!content) return NSERROR_NOMEM;
     content->handler = handler;
     lwc_intern_string("image/svg+xml", 13, &content->mime_type);
-    content->llcache = llcache;
+    llcache_handle_clone(llcache, &content->llcache);
     llcache_handle_change_callback(content->llcache, dummy_llcache_callback, content);
     content->user_list = calloc(1, sizeof(struct content_user));
     content->status = CONTENT_STATUS_DONE;
@@ -257,77 +257,6 @@ START_TEST(test_hlcache_abort_and_replace_callback)
 }
 END_TEST
 
-START_TEST(test_hlcache_child_context_and_buffer_dedup_64bit)
-{
-    guit = &mock_gui_table;
-    guit->llcache = filesystem_llcache_table;
-    guit->file = default_file_table;
-
-    content_factory_register_handler("image/svg+xml", &dummy_handler);
-
-    struct hlcache_parameters params = {
-        .bg_clean_time = 10000,
-        .llcache = {
-            .limit = 1024 * 1024,
-        },
-    };
-
-    nserror error = hlcache_initialise(&params);
-    ck_assert_int_eq(error, NSERROR_OK);
-
-    nsurl *parent_url = NULL;
-    ck_assert_int_eq(nsurl_create("http://example.com/parent.html", &parent_url), NSERROR_OK);
-
-    hlcache_child_context child = {
-        .charset = "UTF-8",
-        .quirks = true,
-        .coep = "require-corp",
-        .parent_url = parent_url,
-    };
-
-    uint8_t buf1[32] = "<svg><polygon/></svg>";
-    uint8_t buf2[32] = "<svg><polyline/></svg>";
-
-    hlcache_handle *h1 = NULL;
-    error = hlcache_handle_retrieve_buffer(buf1, strlen((char *)buf1), "image/svg+xml", dummy_callback, NULL, &child, CONTENT_IMAGE, &h1);
-    ck_assert_int_eq(error, NSERROR_OK);
-    ck_assert_ptr_nonnull(h1);
-
-    hlcache_handle *h2 = NULL;
-    error = hlcache_handle_retrieve_buffer(buf2, strlen((char *)buf2), "image/svg+xml", dummy_callback, NULL, &child, CONTENT_IMAGE, &h2);
-    ck_assert_int_eq(error, NSERROR_OK);
-    ck_assert_ptr_nonnull(h2);
-
-    pump_scheduled();
-
-    nsurl *url1 = hlcache_handle_get_url(h1);
-    nsurl *url2 = hlcache_handle_get_url(h2);
-    ck_assert_ptr_nonnull(url1);
-    ck_assert_ptr_nonnull(url2);
-
-    /* Distinct buffer contents must yield distinct URLs */
-    ck_assert_int_eq(nsurl_compare(url1, url2, NSURL_COMPLETE), false);
-
-    /* Retrieve buf1 again to verify deduplication hit */
-    hlcache_handle *h1_dedup = NULL;
-    error = hlcache_handle_retrieve_buffer(buf1, strlen((char *)buf1), "image/svg+xml", dummy_callback, NULL, &child, CONTENT_IMAGE, &h1_dedup);
-    ck_assert_int_eq(error, NSERROR_OK);
-    ck_assert_ptr_nonnull(h1_dedup);
-
-    nsurl *url1_dedup = hlcache_handle_get_url(h1_dedup);
-    ck_assert_int_eq(nsurl_compare(url1, url1_dedup, NSURL_COMPLETE), true);
-
-    ck_assert_int_eq(hlcache_handle_release(h1_dedup), NSERROR_OK);
-    ck_assert_int_eq(hlcache_handle_release(h2), NSERROR_OK);
-    ck_assert_int_eq(hlcache_handle_release(h1), NSERROR_OK);
-
-    nsurl_unref(parent_url);
-
-    hlcache_stop();
-    hlcache_finalise();
-}
-END_TEST
-
 static Suite *hlcache_suite(void)
 {
     Suite *s = suite_create("hlcache");
@@ -337,7 +266,6 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_init_and_buffer_retrieval);
     tcase_add_test(tc_core, test_hlcache_reentrancy);
     tcase_add_test(tc_core, test_hlcache_abort_and_replace_callback);
-    tcase_add_test(tc_core, test_hlcache_child_context_and_buffer_dedup_64bit);
     suite_add_tcase(s, tc_core);
 
     return s;

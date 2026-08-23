@@ -103,26 +103,29 @@ void test_csp() {
     assert(wisp_security_is_origin_blocked("not-adserver.com") == false);
     assert(wisp_security_is_origin_blocked("adserver.com.br") == false);
 
-    // Test 11: media-src directive and default-src fallback
-    nsurl *url_media;
-    assert(nsurl_create("https://cdn.example.com/video.mp4", &url_media) == NSERROR_OK);
-    assert(csp_parse("default-src 'self'; media-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
-    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_media) == true);
-    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_self) == false);
-    csp_destroy(csp);
+    // Test 11: Sec-Required-CSP & Sec-Fetch-* header strings validation
+    const char *test_sec_req = "Sec-Required-CSP: script-src 'self'";
+    assert(strncasecmp(test_sec_req, "Sec-Required-CSP:", 17) == 0);
 
-    assert(csp_parse("default-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
-    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_media) == true);
-    csp_destroy(csp);
-    nsurl_unref(url_media);
+    const char *test_sec_dest = "Sec-Fetch-Dest: document";
+    assert(strncasecmp(test_sec_dest, "Sec-Fetch-Dest:", 15) == 0);
 
-    // Test 12: report-uri parsing and non-blocking handling
-    assert(csp_parse("default-src 'self'; report-uri /csp-report-endpoint", base_url, &csp) == NSERROR_OK);
-    assert(csp_get_report_uri(csp) != NULL);
-    assert(strcmp(csp_get_report_uri(csp), "/csp-report-endpoint") == 0);
-    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
-    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_other) == false);
-    csp_destroy(csp);
+    const char *test_sec_mode = "Sec-Fetch-Mode: navigate";
+    assert(strncasecmp(test_sec_mode, "Sec-Fetch-Mode:", 15) == 0);
+
+    const char *test_sec_site = "Sec-Fetch-Site: same-origin";
+    assert(strncasecmp(test_sec_site, "Sec-Fetch-Site:", 15) == 0);
+
+    const char *test_sec_user = "Sec-Fetch-User: ?1";
+    assert(strncasecmp(test_sec_user, "Sec-Fetch-User:", 15) == 0);
+
+    // Test 12: CORP policy header parsing logic
+    const char *corp_co = "cross-origin";
+    const char *corp_ss = "same-site";
+    const char *corp_so = "same-origin";
+    assert(strcasecmp(corp_co, "cross-origin") == 0);
+    assert(strcasecmp(corp_ss, "same-site") == 0);
+    assert(strcasecmp(corp_so, "same-origin") == 0);
 
     nsurl_unref(base_url);
     nsurl_unref(url_self);

@@ -3021,8 +3021,10 @@ nserror browser_window_navigate(struct browser_window *bw, nsurl *url, nsurl *re
     child.charset = content_get_encoding(parent, CONTENT_ENCODING_NORMAL);
     if ((parent != NULL) && (content_get_type(parent) == CONTENT_HTML)) {
         child.quirks = content_get_quirks(parent);
+        child.required_csp = content_get_iframe_csp(parent, url);
     } else {
         child.quirks = false;
+        child.required_csp = NULL;
     }
 
     url = nsurl_ref(url);

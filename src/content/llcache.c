@@ -104,6 +104,7 @@ typedef struct {
     uint32_t flags; /**< Fetch flags */
     nsurl *referer; /**< Referring URL, or NULL if none */
     llcache_post_data *post; /**< POST data, or NULL for GET */
+    char **custom_headers; /**< Optional custom request headers */
 
     struct fetch *fetch; /**< Fetch handle for this object */
 
@@ -190,7 +191,7 @@ struct llcache_object {
                                * candidate for
                                */
 
-#define LLCACHE_HEADER_KEY_COUNT 7
+#define LLCACHE_HEADER_KEY_COUNT 8
 
     llcache_header *headers; /**< Fetch headers */
     size_t num_headers; /**< Number of fetch headers */
@@ -938,7 +939,14 @@ static nserror llcache_object_refetch(llcache_object *object)
     }
 
     /* Generate headers */
-    headers = malloc(4 * sizeof(char *));
+    size_t custom_count = 0;
+    if (object->fetch.custom_headers != NULL) {
+        while (object->fetch.custom_headers[custom_count] != NULL) {
+            custom_count++;
+        }
+    }
+
+    headers = malloc((4 + custom_count) * sizeof(char *));
     if (headers == NULL) {
         return NSERROR_NOMEM;
     }
@@ -982,6 +990,17 @@ static nserror llcache_object_refetch(llcache_object *object)
             header_idx++;
         }
     }
+
+    /* Custom extra headers (e.g. Sec-Required-CSP, Sec-Fetch-*) */
+    if (object->fetch.custom_headers != NULL) {
+        for (size_t c = 0; c < custom_count; c++) {
+            headers[header_idx] = strdup(object->fetch.custom_headers[c]);
+            if (headers[header_idx] != NULL) {
+                header_idx++;
+            }
+        }
+    }
+
     headers[header_idx] = NULL;
 
     /* Reset cache control data */
@@ -1089,6 +1108,14 @@ static nserror llcache_object_destroy(llcache_object *object)
 
     if (object->fetch.referer != NULL)
         nsurl_unref(object->fetch.referer);
+
+    if (object->fetch.custom_headers != NULL) {
+        for (size_t c = 0; object->fetch.custom_headers[c] != NULL; c++) {
+            free(object->fetch.custom_headers[c]);
+        }
+        free(object->fetch.custom_headers);
+        object->fetch.custom_headers = NULL;
+    }
 
     if (object->fetch.post != NULL) {
         if (object->fetch.post->type == LLCACHE_POST_URL_ENCODED) {
@@ -2029,8 +2056,8 @@ static nserror llcache_object_retrieve_from_cache(nsurl *url, uint32_t flags, ns
  * \param result	  Pointer to location to receive retrieved object
  * \return NSERROR_OK on success, appropriate error otherwise
  */
-static nserror llcache_object_retrieve(nsurl *url, uint32_t flags, nsurl *referer, const llcache_post_data *post,
-    uint32_t redirect_count, bool hsts_in_use, llcache_object **result)
+static nserror llcache_object_retrieve_internal(nsurl *url, uint32_t flags, nsurl *referer, const llcache_post_data *post,
+    const char **custom_headers, uint32_t redirect_count, bool hsts_in_use, llcache_object **result)
 {
     nserror error;
     llcache_object *obj;
@@ -2063,6 +2090,17 @@ static nserror llcache_object_retrieve(nsurl *url, uint32_t flags, nsurl *refere
         if (error != NSERROR_OK) {
             nsurl_unref(defragmented_url);
             return error;
+        }
+
+        if (custom_headers != NULL && obj->fetch.custom_headers == NULL) {
+            size_t count = 0;
+            while (custom_headers[count] != NULL) count++;
+            obj->fetch.custom_headers = calloc(count + 1, sizeof(char *));
+            if (obj->fetch.custom_headers != NULL) {
+                for (size_t i = 0; i < count; i++) {
+                    obj->fetch.custom_headers[i] = strdup(custom_headers[i]);
+                }
+            }
         }
 
         /* Attempt to kick-off fetch */
@@ -2335,8 +2373,8 @@ static nserror llcache_fetch_redirect(llcache_object *object, nsurl *target, llc
     }
 
     /* Attempt to fetch target URL */
-    error = llcache_object_retrieve(hsts_url, object->fetch.flags, object->fetch.referer, post,
-        object->fetch.redirect_count + 1, hsts_in_use, &dest);
+    error = llcache_object_retrieve_internal(hsts_url, object->fetch.flags, object->fetch.referer, post,
+        (const char **)object->fetch.custom_headers, object->fetch.redirect_count + 1, hsts_in_use, &dest);
 
     /* No longer require url */
     nsurl_unref(hsts_url);
@@ -3930,7 +3968,7 @@ nserror llcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, cons
 
     /* Retrieve a suitable object from the cache,
      * creating a new one if needed. */
-    error = llcache_object_retrieve(hsts_url, flags, referer, post, 0, hsts_in_use, &object);
+    error = llcache_object_retrieve_internal(hsts_url, flags, referer, post, NULL, 0, hsts_in_use, &object);
     if (error != NSERROR_OK) {
         llcache_object_user_destroy(user);
         nsurl_unref(hsts_url);
@@ -4250,6 +4288,9 @@ static void llcache_parse_header_key(llcache_object *object, enum llcache_header
     case LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY:
         header_name = "Cross-Origin-Embedder-Policy";
         break;
+    case LLCACHE_HEADER_CROSS_ORIGIN_RESOURCE_POLICY:
+        header_name = "Cross-Origin-Resource-Policy";
+        break;
     default:
         object->parsed_headers[key].count = 0;
         object->parsed_headers[key].entries = NULL;
@@ -4289,6 +4330,57 @@ static void llcache_parse_header_key(llcache_object *object, enum llcache_header
     object->parsed_headers[key].count = match_count;
     object->parsed_headers[key].entries = entries;
     object->parsed_headers_valid[key] = true;
+}
+
+/* Exported interface documented in content/llcache.h */
+nserror llcache_handle_retrieve_with_headers(nsurl *url, uint32_t flags, nsurl *referer, const llcache_post_data *post,
+    const char **custom_headers, llcache_handle_callback cb, void *pw, llcache_handle **result)
+{
+    nserror error;
+    llcache_object_user *user;
+    llcache_object *object;
+    nsurl *hsts_url;
+    bool hsts_in_use;
+
+    /* Perform HSTS transform */
+    error = llcache_hsts_transform_url(url, &hsts_url, &hsts_in_use);
+    if (error != NSERROR_OK) {
+        return error;
+    }
+
+    /* Can we fetch this URL at all? */
+    if (fetch_can_fetch(hsts_url) == false) {
+        nsurl_unref(hsts_url);
+        return NSERROR_NO_FETCH_HANDLER;
+    }
+
+    /* Create a new object user */
+    error = llcache_object_user_new(cb, pw, &user);
+    if (error != NSERROR_OK) {
+        nsurl_unref(hsts_url);
+        return error;
+    }
+
+    /* Retrieve a suitable object from the cache,
+     * creating a new one if needed. */
+    error = llcache_object_retrieve_internal(hsts_url, flags, referer, post, custom_headers, 0, hsts_in_use, &object);
+    if (error != NSERROR_OK) {
+        llcache_object_user_destroy(user);
+        nsurl_unref(hsts_url);
+        return error;
+    }
+
+    /* Add user to object */
+    llcache_object_add_user(object, user);
+
+    *result = user->handle;
+
+    /* Users exist which are now not caught up! */
+    llcache_users_not_caught_up();
+
+    nsurl_unref(hsts_url);
+
+    return NSERROR_OK;
 }
 
 /* See llcache.h for documentation */
