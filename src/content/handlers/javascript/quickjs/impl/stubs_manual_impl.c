@@ -18,6 +18,7 @@
 #include <wisp/browser_window.h>
 #include "desktop/browser_private.h"
 #include <wisp/utils/ipc.h>
+#include <ctype.h>
 
 struct nsurl;
 extern const char *nsurl_access(const struct nsurl *url);
@@ -924,18 +925,130 @@ int qjs_init_htmlanchorelement(JSContext *ctx)
 // HTMLInputElement Implementation (10 stubs)
 // -----------------------------------------------------------------------------
 
+static const char *sanitize_input_value(const char *type, const char *val)
+{
+    if (!val) return "";
+    if (!type) return val;
+
+    if (strcasecmp(type, "color") == 0) {
+        if (strlen(val) == 7 && val[0] == '#') {
+            static char color_buf[8];
+            color_buf[0] = '#';
+            bool valid = true;
+            for (int i = 1; i < 7; i++) {
+                if (!isxdigit((unsigned char)val[i])) {
+                    valid = false;
+                    break;
+                }
+                color_buf[i] = tolower((unsigned char)val[i]);
+            }
+            color_buf[7] = '\0';
+            if (valid) return color_buf;
+        }
+        return "#000000";
+    }
+
+    if (strcasecmp(type, "date") == 0) {
+        int year = 0, month = 0, day = 0;
+        if (sscanf(val, "%4d-%2d-%2d", &year, &month, &day) == 3) {
+            if (year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+                return val;
+            }
+        }
+        return "";
+    }
+
+    if (strcasecmp(type, "month") == 0) {
+        int year = 0, month = 0;
+        if (sscanf(val, "%4d-%2d", &year, &month) == 2) {
+            if (year >= 1 && month >= 1 && month <= 12) {
+                return val;
+            }
+        }
+        return "";
+    }
+
+    if (strcasecmp(type, "week") == 0) {
+        int year = 0, week = 0;
+        if (sscanf(val, "%4d-W%2d", &year, &week) == 2) {
+            if (year >= 1 && week >= 1 && week <= 53) {
+                return val;
+            }
+        }
+        return "";
+    }
+
+    if (strcasecmp(type, "time") == 0) {
+        int hour = 0, min = 0, sec = 0;
+        int count = sscanf(val, "%2d:%2d:%2d", &hour, &min, &sec);
+        if (count >= 2) {
+            if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59 && (count < 3 || (sec >= 0 && sec <= 59))) {
+                return val;
+            }
+        }
+        return "";
+    }
+
+    if (strcasecmp(type, "datetime-local") == 0) {
+        int year = 0, month = 0, day = 0, hour = 0, min = 0;
+        if (sscanf(val, "%4d-%2d-%2dT%2d:%2d", &year, &month, &day, &hour, &min) == 5) {
+            if (year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
+                return val;
+            }
+        }
+        return "";
+    }
+
+    if (strcasecmp(type, "number") == 0 || strcasecmp(type, "range") == 0) {
+        char *endptr = NULL;
+        strtod(val, &endptr);
+        if (endptr && *endptr == '\0' && val[0] != '\0') {
+            return val;
+        }
+        return strcasecmp(type, "range") == 0 ? "50" : "";
+    }
+
+    return val;
+}
+
 JSValue wisp_htmlinputelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     JSValue val = wisp_element_getAttribute_impl(ctx, priv, "value");
-    if (JS_IsNull(val) || JS_IsUndefined(val)) {
-        return JS_NewString(ctx, "");
+    const char *raw_val = "";
+    bool free_str = false;
+    if (JS_IsString(val)) {
+        raw_val = JS_ToCString(ctx, val);
+        free_str = true;
     }
-    return val;
+
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+
+    const char *sanitized = sanitize_input_value(type_str, raw_val ? raw_val : "");
+
+    JSValue res = JS_NewString(ctx, sanitized);
+
+    if (type_str && JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
+    if (free_str && raw_val) JS_FreeCString(ctx, raw_val);
+    JS_FreeValue(ctx, val);
+
+    return res;
 }
 
 JSValue wisp_htmlinputelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
-    return wisp_element_setAttribute_impl(ctx, priv, "value", value);
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+
+    const char *sanitized = sanitize_input_value(type_str, value ? value : "");
+
+    JSValue res = wisp_element_setAttribute_impl(ctx, priv, "value", sanitized);
+
+    if (type_str && JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
+
+    return res;
 }
 
 JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -973,7 +1086,18 @@ JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv
 
 JSValue wisp_htmlinputelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
-    return wisp_element_setAttribute_impl(ctx, priv, "type", value ? value : "text");
+    JSValue curr_val = wisp_htmlinputelement_value_get_impl(ctx, priv);
+    const char *curr_str = JS_IsString(curr_val) ? JS_ToCString(ctx, curr_val) : "";
+
+    JSValue res = wisp_element_setAttribute_impl(ctx, priv, "type", value ? value : "text");
+
+    const char *new_sanitized = sanitize_input_value(value ? value : "text", curr_str ? curr_str : "");
+    wisp_element_setAttribute_impl(ctx, priv, "value", new_sanitized);
+
+    if (curr_str && JS_IsString(curr_val)) JS_FreeCString(ctx, curr_str);
+    JS_FreeValue(ctx, curr_val);
+
+    return res;
 }
 
 JSValue wisp_htmlinputelement_name_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -4972,47 +5096,94 @@ JSValue wisp_htmltimeelement_dateTime_set_impl(JSContext *ctx, QJSNodePrivate *p
 // -----------------------------------------------------------------------------
 
 static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv || !priv->node) return JS_NewArray(ctx);
+    if (!priv || !priv->node) return JS_NULL;
+
+    /* input[type="hidden"] elements are not labelable elements under HTML5 */
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    if (JS_IsString(type_val)) {
+        const char *t_str = JS_ToCString(ctx, type_val);
+        if (t_str && strcasecmp(t_str, "hidden") == 0) {
+            JS_FreeCString(ctx, t_str);
+            JS_FreeValue(ctx, type_val);
+            return JS_NULL;
+        }
+        if (t_str) JS_FreeCString(ctx, t_str);
+    }
+    JS_FreeValue(ctx, type_val);
+
     JSValue labels_arr = JS_NewArray(ctx);
     uint32_t idx = 0;
-    JSValue id_val = get_element_str_attr(ctx, priv, "id", NULL);
-    if (JS_IsString(id_val)) {
-        const char *id_str = JS_ToCString(ctx, id_val);
-        if (id_str && id_str[0] != '\0') {
-            JSValue global = JS_GetGlobalObject(ctx);
-            JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
-            JSValue qsa = JS_GetPropertyStr(ctx, doc_val, "querySelectorAll");
-            if (JS_IsFunction(ctx, qsa)) {
-                size_t sel_len = strlen(id_str) + 32;
-                char *sel = malloc(sel_len);
-                if (sel) {
-                    snprintf(sel, sel_len, "label[for=\"%s\"]", id_str);
-                    JSValue sel_val = JS_NewString(ctx, sel);
-                    JSValue matched = JS_Call(ctx, qsa, doc_val, 1, &sel_val);
-                    JS_FreeValue(ctx, sel_val);
-                    free(sel);
-                    if (!JS_IsException(matched) && JS_IsObject(matched)) {
-                        JSValue len_val = JS_GetPropertyStr(ctx, matched, "length");
-                        int32_t len = 0;
-                        if (JS_IsNumber(len_val)) JS_ToInt32(ctx, &len, len_val);
-                        JS_FreeValue(ctx, len_val);
-                        for (int i = 0; i < len; i++) {
-                            JSValue item = JS_GetPropertyUint32(ctx, matched, i);
-                            JS_SetPropertyUint32(ctx, labels_arr, idx++, item);
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
+    JSValue qsa = JS_GetPropertyStr(ctx, doc_val, "querySelectorAll");
+
+    if (JS_IsFunction(ctx, qsa)) {
+        JSValue sel_val = JS_NewString(ctx, "label");
+        JSValue matched = JS_Call(ctx, qsa, doc_val, 1, &sel_val);
+        JS_FreeValue(ctx, sel_val);
+
+        if (!JS_IsException(matched) && JS_IsObject(matched)) {
+            JSValue len_val = JS_GetPropertyStr(ctx, matched, "length");
+            int32_t len = 0;
+            if (JS_IsNumber(len_val)) JS_ToInt32(ctx, &len, len_val);
+            JS_FreeValue(ctx, len_val);
+
+            JSValue id_val = get_element_str_attr(ctx, priv, "id", NULL);
+            const char *id_str = JS_IsString(id_val) ? JS_ToCString(ctx, id_val) : NULL;
+
+            for (int i = 0; i < len; i++) {
+                JSValue label_item = JS_GetPropertyUint32(ctx, matched, i);
+                if (JS_IsObject(label_item)) {
+                    QJSNodePrivate *lbl_priv = qjs_get_dom_priv(ctx, label_item);
+                    if (lbl_priv) {
+                        bool is_match = false;
+                        JSValue for_val = get_element_str_attr(ctx, lbl_priv, "for", NULL);
+                        if (JS_IsString(for_val)) {
+                            const char *for_str = JS_ToCString(ctx, for_val);
+                            if (for_str && id_str && strcmp(for_str, id_str) == 0) {
+                                is_match = true;
+                            }
+                            if (for_str) JS_FreeCString(ctx, for_str);
+                        } else {
+                            /* Implicit label association: check if label wraps our control */
+                            JSValue qs = JS_GetPropertyStr(ctx, label_item, "querySelector");
+                            if (JS_IsFunction(ctx, qs)) {
+                                JSValue inner_sel = JS_NewString(ctx, "input, select, textarea, button");
+                                JSValue inner_ctrl = JS_Call(ctx, qs, label_item, 1, &inner_sel);
+                                JS_FreeValue(ctx, inner_sel);
+                                JS_FreeValue(ctx, qs);
+                                if (!JS_IsException(inner_ctrl) && JS_IsObject(inner_ctrl)) {
+                                    QJSNodePrivate *ctrl_priv = qjs_get_dom_priv(ctx, inner_ctrl);
+                                    if (ctrl_priv && ctrl_priv->node == priv->node) {
+                                        is_match = true;
+                                    }
+                                }
+                                JS_FreeValue(ctx, inner_ctrl);
+                            } else {
+                                JS_FreeValue(ctx, qs);
+                            }
+                        }
+                        JS_FreeValue(ctx, for_val);
+
+                        if (is_match) {
+                            JS_SetPropertyUint32(ctx, labels_arr, idx++, JS_DupValue(ctx, label_item));
                         }
                     }
-                    JS_FreeValue(ctx, matched);
                 }
+                JS_FreeValue(ctx, label_item);
             }
-            JS_FreeValue(ctx, qsa);
-            JS_FreeValue(ctx, doc_val);
-            JS_FreeValue(ctx, global);
-            JS_FreeCString(ctx, id_str);
-        } else if (id_str) {
-            JS_FreeCString(ctx, id_str);
+
+            if (id_str) JS_FreeCString(ctx, id_str);
+            JS_FreeValue(ctx, id_val);
         }
+        JS_FreeValue(ctx, matched);
     }
-    JS_FreeValue(ctx, id_val);
+
+    JS_FreeValue(ctx, qsa);
+    JS_FreeValue(ctx, doc_val);
+    JS_FreeValue(ctx, global);
+
     return labels_arr;
 }
 
