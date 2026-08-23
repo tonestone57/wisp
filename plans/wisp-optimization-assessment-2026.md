@@ -10,7 +10,7 @@ This assessment provides a comprehensive evaluation of Wisp's core subsystems:
 3. **Shared-Memory Virtual DOM Space (`shm dom`) & Batch-Buffered Mutation Queue (`bbmq`)**
 4. **Style, Incremental Reflow & Parallel Layout Engine**
 5. **Graphics Pipelines & Tiled Compositing**
-6. **SIMD Fastpath Vectorization & Optimization Surface (SSE2 / NEON / RVV 1.0)**
+6. **SIMD & Hardware Fastpath Optimization Surface (SSE2 / NEON / RVV 1.0 / AES-NI / Zvkned)**
 7. **Security, OS Sandboxing & Memory Safety Matrix (Linux, macOS, Windows, OpenBSD, Haiku)**
 
 For each subsystem, we evaluate current strengths, bottleneck analysis, and specific engineering proposals for future optimizations.
@@ -24,6 +24,7 @@ For each subsystem, we evaluate current strengths, bottleneck analysis, and spec
 - **AOT Bytecode Caching**: Serializes parsed scripts to binary bytecode under `/tmp/wisp-bytecode-cache` using SHA-256 keys to skip lexing/parsing phases on subsequent visits.
 - **Copy-Patch Baseline JIT (x86_64)**: Relocatable AMD64 Copy-Patch JIT tier compiling functions with execution threshold $\ge 10$ calls directly to machine code under System V ABI constraints and W^X protection.
 - **WebIDL & Web API Parity**: 3,008+ manual C symbol overrides (`wisp_*_impl`) connecting WebIDL interfaces directly to LibDOM and virtual SHM DOM nodes. 100% score (32/32) in HTML5Test `scripting` and `security` subcategories with 553/588 overall score.
+- **Web Crypto Hardware Fastpath**: `window.crypto.subtle` AES encryption/decryption routines (`AES-GCM`, `AES-CBC`, `AES-CTR`) utilize hardware instruction acceleration fastpaths (**AES-NI** on x86_64, **ARMv8 Crypto Extensions** on AArch64, **RISC-V Zvkned** vector crypto) with safe software scalar fallbacks on older CPUs.
 
 ### Bottlenecks & Weaknesses
 1. **JIT Tiering Architecture Limited to AMD64**: Copy-Patch JIT is currently implemented strictly for x86_64 POSIX targets; ARM64, RISC-V, and 32-bit targets rely on the bytecode interpreter.
@@ -32,7 +33,7 @@ For each subsystem, we evaluate current strengths, bottleneck analysis, and spec
 
 ### Optimization Proposals & Technical Solutions
 - **Proposal 2.1: Multi-Architecture Copy-Patch JIT Expansion (ARM64 & RV64)**
-  - Extend Copy-Patch code generation stubs to ARM64 (AArch64) and RISC-V 64 (RV64GC / RVV 1.0).
+  - Extend Copy-Patch code generation stubs to ARM64 (AArch64) and RISC-V 64 (RV64GC / RVV 1.0 / Zvkned).
   - Use standard ABI register allocation templates (`x0`-`x7` on ARM64, `a0`-`a7` on RV64) with 16-byte stack alignment safeguards.
 - **Proposal 2.2: Compact Node Wrapper Flyweight Cache / Object Pooling**
   - Implement a thread-confined direct map inside `struct jsthread` mapping `WispNodeID` to existing `JSValue` object handles.
@@ -121,18 +122,19 @@ For each subsystem, we evaluate current strengths, bottleneck analysis, and spec
 
 ---
 
-## 7. SIMD Fastpath Vectorization & Optimization Surface
+## 7. SIMD & Hardware Acceleration Fastpath Optimization Surface
 
-SIMD optimizations in Wisp are implemented strictly as **runtime fastpaths with safe scalar fallbacks**, ensuring i586 compatibility while delivering maximum throughput on modern hardware:
+SIMD and hardware instruction optimizations in Wisp are implemented strictly as **runtime fastpaths with safe scalar fallbacks**, ensuring i586 compatibility while delivering maximum throughput on modern CPUs:
 
-| Targeted Operation | Vector Width (SSE2 / NEON / RVV 1.0) | SIMD Fastpath Primitives | Scalar Fallback | Status |
+| Targeted Operation | Vector / Hardware Acceleration | Hardware Fastpath Primitives | Scalar Fallback | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **WebSocket Payload Masking** | 16 Bytes / Variable | SSE2 (`_mm_xor_si128`), NEON (`veorq_u8`), RVV 1.0 (`vxor.vv`) | 8-bit scalar XOR | **[Finished]** |
-| **UTF-8 & Case-Folding Scan** | 16 Bytes / Variable | SSE2 vector range check, NEON (`vcge_u8`), RVV 1.0 (`vle8.v`) | Character-by-character scan | **[Finished]** |
-| **Structural JSON Pre-Parser** | 16 Bytes / Variable | SSE2 structural boundary scan, NEON, RVV 1.0 vector scan | Sequential token scanner | **[Finished]** |
-| **CSP Nonce & Origin Check** | 16 Bytes / Variable | SSE2 (`_mm_cmpeq_epi8`), NEON, RVV 1.0 (`vmseq.vv`) | Standard `strcmp` / `streq` | **[Finished]** |
-| **CSS Delimiter Scanner** | 16 Bytes / Variable | SSE2 / NEON / RVV 1.0 structural delimiter matcher fastpath | Scalar character state-machine | Planned |
-| **Stream Chunk Decoding** | 16 Bytes / Variable | SSE2 / NEON / RVV 1.0 byte scanner fastpath | Scalar chunked parser | Planned |
+| **WebSocket Payload Masking** | SSE2 / NEON / RVV 1.0 | SSE2 (`_mm_xor_si128`), NEON (`veorq_u8`), RVV 1.0 (`vxor.vv`) | 8-bit scalar XOR | **[Finished]** |
+| **UTF-8 & Case-Folding Scan** | SSE2 / NEON / RVV 1.0 | SSE2 vector range check, NEON (`vcge_u8`), RVV 1.0 (`vle8.v`) | Character-by-character scan | **[Finished]** |
+| **Structural JSON Pre-Parser** | SSE2 / NEON / RVV 1.0 | SSE2 structural boundary scan, NEON, RVV 1.0 vector scan | Sequential token scanner | **[Finished]** |
+| **CSP Nonce & Origin Check** | SSE2 / NEON / RVV 1.0 | SSE2 (`_mm_cmpeq_epi8`), NEON, RVV 1.0 (`vmseq.vv`) | Standard `strcmp` / `streq` | **[Finished]** |
+| **Hardware AES Cipher Fastpath** | AES-NI / ARMv8 Crypto / RISC-V Zvkned | AES-NI (`_mm_aesenc_si128`), ARMv8 Crypto (`vaesmcq_u8`), RVV Zvkned (`vaesef.vv`) | Software AES table implementation | **[Finished]** |
+| **CSS Delimiter Scanner** | SSE2 / NEON / RVV 1.0 | SSE2 / NEON / RVV 1.0 structural delimiter matcher fastpath | Scalar character state-machine | Planned |
+| **Stream Chunk Decoding** | SSE2 / NEON / RVV 1.0 | SSE2 / NEON / RVV 1.0 byte scanner fastpath | Scalar chunked parser | Planned |
 
 ---
 
@@ -175,7 +177,7 @@ SIMD optimizations in Wisp are implemented strictly as **runtime fastpaths with 
                                         v
 +-----------------------------------------------------------------------------------+
 | Phase 3: Graphics, JIT & Sandboxing Hardening (Q3-Q4 2026)                         |
-| - Proposal 2.1: Multi-Architecture Copy-Patch JIT (ARM64 & RV64/RVV 1.0)         |
+| - Proposal 2.1: Multi-Architecture Copy-Patch JIT (ARM64 & RV64/RVV 1.0/Zvkned)   |
 | - Proposal 6.1: GPU-Accelerated Tile Compositing Pipeline                         |
 | - Proposal 8.1: Platform Sandboxing (Landlock, AppContainer, macOS seatbelt, pledge)|
 +-----------------------------------------------------------------------------------+
@@ -185,4 +187,4 @@ SIMD optimizations in Wisp are implemented strictly as **runtime fastpaths with 
 
 ## 10. Conclusion
 
-Wisp's architectural foundations—multi-process isolation (`wisp-js`, `wisp-network`), zero-copy shared-memory DOM (`shm dom`), atomic seqlocks, baseline JIT execution, and SIMD fastpath optimizations (SSE2, NEON, RVV 1.0)—provide exceptional performance and modern web standards compliance within a lightweight footprint. Executing the optimization proposals detailed in this report will further solidify Wisp as a premier, high-performance web browser across Linux, macOS, Windows, OpenBSD, and Haiku.
+Wisp's architectural foundations—multi-process isolation (`wisp-js`, `wisp-network`), zero-copy shared-memory DOM (`shm dom`), atomic seqlocks, baseline JIT execution, and SIMD & hardware acceleration fastpaths (SSE2, NEON, RVV 1.0, AES-NI, ARMv8 Crypto, RISC-V Zvkned)—provide exceptional performance and modern web standards compliance within a lightweight footprint. Executing the optimization proposals detailed in this report will further solidify Wisp as a premier, high-performance web browser across Linux, macOS, Windows, OpenBSD, and Haiku.
