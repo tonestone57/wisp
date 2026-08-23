@@ -24,7 +24,6 @@ struct csp {
     bool has_trusted_types_directive;
     char **allowed_policies;
     int allowed_policies_count;
-    char *report_uri;
 };
 
 static const char *directive_names[] = {
@@ -35,8 +34,7 @@ static const char *directive_names[] = {
     "font-src",
     "object-src",
     "frame-src",
-    "connect-src",
-    "media-src"
+    "connect-src"
 };
 
 static void free_sources(csp_source *source) {
@@ -61,7 +59,6 @@ void csp_destroy(struct csp *csp) {
         }
         free(csp->allowed_policies);
     }
-    free(csp->report_uri);
     if (csp->base_url) nsurl_unref(csp->base_url);
     free(csp);
 }
@@ -212,12 +209,6 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
                             }
                         }
                         token = strtok_r(NULL, " ", &saveptr2);
-                    }
-                } else if (strcasecmp(token, "report-uri") == 0) {
-                    token = strtok_r(NULL, " ", &saveptr2);
-                    if (token) {
-                        free(csp->report_uri);
-                        csp->report_uri = strdup(token);
                     }
                 }
             }
@@ -407,11 +398,6 @@ bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_
         }
     }
     return false;
-}
-
-const char *csp_get_report_uri(const struct csp *csp) {
-    if (!csp) return NULL;
-    return csp->report_uri;
 }
 
 static const char *blocked_origins[] = {

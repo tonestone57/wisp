@@ -1349,17 +1349,6 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
     JSValue val_cssom = JS_Eval(ctx, cssom_polyfill, strlen(cssom_polyfill), "<cssom-polyfill>", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, val_cssom);
 
-    const char *filelist_code = "if (typeof globalThis.FileList === 'undefined') {\n"
-                                "    var FileList = class FileList {\n"
-                                "        constructor() { this.length = 0; }\n"
-                                "        item(index) { return this[index] || null; }\n"
-                                "    };\n"
-                                "    globalThis.FileList = FileList;\n"
-                                "    if (typeof window !== 'undefined') window.FileList = FileList;\n"
-                                "}\n";
-    JSValue val_fl = JS_Eval(ctx, filelist_code, strlen(filelist_code), "<filelist-polyfill>", JS_EVAL_TYPE_GLOBAL);
-    JS_FreeValue(ctx, val_fl);
-
     JSValue val_new = JS_Eval(ctx, new_polyfills_js, strlen(new_polyfills_js), "<new-polyfills>", JS_EVAL_TYPE_GLOBAL);
     if (JS_IsException(val_new)) {
         JSValue exc = JS_GetException(ctx);
@@ -4835,6 +4824,19 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
         "    };\n"
         "}\n"
         "\n"
+        "/* Font Loader API */\n"
+        "if (typeof globalThis.FontFace === 'undefined') {\n"
+        "    globalThis.FontFace = class FontFace {\n"
+        "        constructor(family, source, descriptors) { this.family = family; this.status = 'loaded'; }\n"
+        "        load() { return Promise.resolve(this); }\n"
+        "    };\n"
+        "}\n"
+        "if (typeof document !== 'undefined' && !document.fonts) {\n"
+        "    document.fonts = {\n"
+        "        add() {}, delete() {}, clear() {}, check() { return true; }, load() { return Promise.resolve([]); }, ready: Promise.resolve(),\n"
+        "        addEventListener() {}, removeEventListener() {}\n"
+        "    };\n"
+        "}\n"
         "\n"
         "/* ServiceWorkers & Push Messages */\n"
         "if (globalThis.navigator && !globalThis.navigator.serviceWorker) {\n"

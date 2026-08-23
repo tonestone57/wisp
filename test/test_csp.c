@@ -85,8 +85,8 @@ void test_csp() {
     assert(csp_parse("default-src 'self'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == false);
     csp_destroy(csp);
-  
-// Test 10: Origin blocklist checks
+
+    // Test 10: Origin blocklist checks
     assert(wisp_security_is_origin_blocked(NULL) == false);
     assert(wisp_security_is_origin_blocked("example.com") == false);
     assert(wisp_security_is_origin_blocked("safe-site.org") == false);
@@ -103,28 +103,7 @@ void test_csp() {
     assert(wisp_security_is_origin_blocked("not-adserver.com") == false);
     assert(wisp_security_is_origin_blocked("adserver.com.br") == false);
 
-    // Test 11: media-src directive and default-src fallback
-    nsurl *url_media;
-    assert(nsurl_create("https://cdn.example.com/video.mp4", &url_media) == NSERROR_OK);
-    assert(csp_parse("default-src 'self'; media-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
-    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_media) == true);
-    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_self) == false);
-    csp_destroy(csp);
-
-    assert(csp_parse("default-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
-    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_media) == true);
-    csp_destroy(csp);
-    nsurl_unref(url_media);
-
-    // Test 12: report-uri parsing and non-blocking handling
-    assert(csp_parse("default-src 'self'; report-uri /csp-report-endpoint", base_url, &csp) == NSERROR_OK);
-    assert(csp_get_report_uri(csp) != NULL);
-    assert(strcmp(csp_get_report_uri(csp), "/csp-report-endpoint") == 0);
-    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
-    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_other) == false);
-    csp_destroy(csp);
-
-    // Test 13: Sec-Required-CSP & Sec-Fetch-* header strings validation
+    // Test 11: Sec-Required-CSP & Sec-Fetch-* header strings validation
     const char *test_sec_req = "Sec-Required-CSP: script-src 'self'";
     assert(strncasecmp(test_sec_req, "Sec-Required-CSP:", 17) == 0);
 
@@ -140,7 +119,7 @@ void test_csp() {
     const char *test_sec_user = "Sec-Fetch-User: ?1";
     assert(strncasecmp(test_sec_user, "Sec-Fetch-User:", 15) == 0);
 
-    // Test 14: CORP policy header parsing logic
+    // Test 12: CORP policy header parsing logic
     const char *corp_co = "cross-origin";
     const char *corp_ss = "same-site";
     const char *corp_so = "same-origin";
@@ -154,8 +133,8 @@ void test_csp() {
     nsurl_unref(url_cdn);
 
     printf("CSP tests passed!\n");
-}  
- 
+}
+
 int main() {
     test_csp();
     return 0;
