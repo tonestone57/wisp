@@ -27,17 +27,13 @@ typedef enum hubbub_treebuilder_opttype {
     HUBBUB_TREEBUILDER_ERROR_HANDLER,
     HUBBUB_TREEBUILDER_TREE_HANDLER,
     HUBBUB_TREEBUILDER_DOCUMENT_NODE,
-    HUBBUB_TREEBUILDER_ENABLE_SCRIPTING,
-    HUBBUB_TREEBUILDER_FRAGMENT_MODE,
-    HUBBUB_TREEBUILDER_CONTEXT_TAG
+    HUBBUB_TREEBUILDER_ENABLE_SCRIPTING
 } hubbub_treebuilder_opttype;
 
 /**
  * Hubbub treebuilder option parameters
  */
 typedef union hubbub_treebuilder_optparams {
-    bool fragment_mode;
-    hubbub_string context_tag;
     struct {
         hubbub_error_handler handler;
         void *pw;

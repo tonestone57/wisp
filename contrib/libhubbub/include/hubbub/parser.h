@@ -32,17 +32,13 @@ typedef enum hubbub_parser_opttype {
     HUBBUB_PARSER_TREE_HANDLER,
     HUBBUB_PARSER_DOCUMENT_NODE,
     HUBBUB_PARSER_ENABLE_SCRIPTING,
-    HUBBUB_PARSER_PAUSE,
-    HUBBUB_PARSER_FRAGMENT_MODE,
-    HUBBUB_PARSER_CONTEXT_TAG
+    HUBBUB_PARSER_PAUSE
 } hubbub_parser_opttype;
 
 /**
  * Hubbub parser option parameters
  */
 typedef union hubbub_parser_optparams {
-    bool fragment_mode;
-    hubbub_string context_tag;
     struct {
         hubbub_token_handler handler;
         void *pw;

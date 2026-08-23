@@ -202,18 +202,12 @@ hubbub_error handle_initial(hubbub_treebuilder *treebuilder, const hubbub_token 
 
     switch (token->type) {
     case HUBBUB_TOKEN_CHARACTER:
-        if (treebuilder->context.is_fragment) {
+        err = process_characters_expect_whitespace(treebuilder, token, false);
+        if (err == HUBBUB_REPROCESS) {
+            /** \todo parse error */
+
             treebuilder->tree_handler->set_quirks_mode(treebuilder->tree_handler->ctx, HUBBUB_QUIRKS_MODE_FULL);
             treebuilder->context.mode = BEFORE_HTML;
-            err = HUBBUB_REPROCESS;
-        } else {
-            err = process_characters_expect_whitespace(treebuilder, token, false);
-            if (err == HUBBUB_REPROCESS) {
-                /** \todo parse error */
-
-                treebuilder->tree_handler->set_quirks_mode(treebuilder->tree_handler->ctx, HUBBUB_QUIRKS_MODE_FULL);
-                treebuilder->context.mode = BEFORE_HTML;
-            }
         }
         break;
     case HUBBUB_TOKEN_COMMENT:

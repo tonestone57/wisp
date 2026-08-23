@@ -182,20 +182,6 @@ hubbub_error hubbub_parser_setopt(hubbub_parser *parser, hubbub_parser_opttype t
         }
         break;
 
-    case HUBBUB_PARSER_FRAGMENT_MODE:
-        if (parser->tb != NULL) {
-            result = hubbub_treebuilder_setopt(
-                parser->tb, HUBBUB_TREEBUILDER_FRAGMENT_MODE, (hubbub_treebuilder_optparams *)params);
-        }
-        break;
-
-    case HUBBUB_PARSER_CONTEXT_TAG:
-        if (parser->tb != NULL) {
-            result = hubbub_treebuilder_setopt(
-                parser->tb, HUBBUB_TREEBUILDER_CONTEXT_TAG, (hubbub_treebuilder_optparams *)params);
-        }
-        break;
-
     default:
         result = HUBBUB_INVALID;
     }

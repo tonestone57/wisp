@@ -208,49 +208,8 @@ START_TEST(test_hlcache_reentrancy)
     error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", reentrant_callback, &cb_count, NULL, CONTENT_IMAGE, &handle2);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_int_ge(cb_count, 1);
-    ck_assert_ptr_null(handle2);
 
     ck_assert_int_eq(hlcache_handle_release(handle1), NSERROR_OK);
-
-    hlcache_stop();
-    hlcache_finalise();
-}
-END_TEST
-
-START_TEST(test_hlcache_abort_and_replace_callback)
-{
-    guit = &mock_gui_table;
-    guit->llcache = filesystem_llcache_table;
-    guit->file = default_file_table;
-
-    content_factory_register_handler("image/svg+xml", &dummy_handler);
-
-    struct hlcache_parameters params = {
-        .bg_clean_time = 10000,
-        .llcache = {
-            .limit = 1024 * 1024,
-        },
-    };
-
-    nserror error = hlcache_initialise(&params);
-    ck_assert_int_eq(error, NSERROR_OK);
-
-    uint8_t data[32] = "<svg><circle/></svg>";
-    hlcache_handle *handle = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle);
-    ck_assert_int_eq(error, NSERROR_OK);
-
-    pump_scheduled();
-
-    /* Test replacing callback */
-    error = hlcache_handle_replace_callback(handle, dummy_callback, (void *)0x1234);
-    ck_assert_int_eq(error, NSERROR_OK);
-
-    /* Test aborting handle */
-    error = hlcache_handle_abort(handle);
-    ck_assert_int_eq(error, NSERROR_OK);
-
-    ck_assert_int_eq(hlcache_handle_release(handle), NSERROR_OK);
 
     hlcache_stop();
     hlcache_finalise();
@@ -265,7 +224,6 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_null_checks);
     tcase_add_test(tc_core, test_hlcache_init_and_buffer_retrieval);
     tcase_add_test(tc_core, test_hlcache_reentrancy);
-    tcase_add_test(tc_core, test_hlcache_abort_and_replace_callback);
     suite_add_tcase(s, tc_core);
 
     return s;

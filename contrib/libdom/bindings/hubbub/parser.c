@@ -316,46 +316,6 @@ static hubbub_error append_child(void *parser, void *parent, void *child, void *
     dom_hubbub_parser *dom_parser = (dom_hubbub_parser *)parser;
     dom_exception err;
 
-    dom_node_type child_type;
-    dom_node_get_node_type((dom_node *)child, &child_type);
-    if (child_type == DOM_TEXT_NODE) {
-        dom_node *last_child = NULL;
-        dom_node_get_last_child((dom_node *)parent, &last_child);
-        if (last_child != NULL) {
-            dom_node_type last_type;
-            dom_node_get_node_type(last_child, &last_type);
-            if (last_type == DOM_TEXT_NODE) {
-                dom_string *child_val = NULL;
-                dom_string *last_val = NULL;
-                dom_node_get_node_value((dom_node *)child, &child_val);
-                dom_node_get_node_value(last_child, &last_val);
-                if (child_val != NULL && last_val != NULL) {
-                    uint32_t len1 = dom_string_byte_length(last_val);
-                    uint32_t len2 = dom_string_byte_length(child_val);
-                    uint8_t *buf = malloc(len1 + len2);
-                    if (buf != NULL) {
-                        memcpy(buf, dom_string_data(last_val), len1);
-                        memcpy(buf + len1, dom_string_data(child_val), len2);
-                        dom_string *new_val = NULL;
-                        dom_string_create(buf, len1 + len2, &new_val);
-                        dom_node_set_node_value(last_child, new_val);
-                        dom_string_unref(new_val);
-                        free(buf);
-                    }
-                    dom_string_unref(child_val);
-                    dom_string_unref(last_val);
-                    *result = dom_node_ref(last_child);
-                    dom_node_unref(last_child);
-                    dom_node_unref((dom_node *)child);
-                    return HUBBUB_OK;
-                }
-                if (child_val) dom_string_unref(child_val);
-                if (last_val) dom_string_unref(last_val);
-            }
-            dom_node_unref(last_child);
-        }
-    }
-
     err = dom_node_append_child((struct dom_node *)parent, (struct dom_node *)child, (struct dom_node **)result);
     if (err != DOM_NO_ERR) {
         dom_parser->msg(DOM_MSG_CRITICAL, dom_parser->mctx, "Can't append child '%p' for parent '%p'", child, parent);
@@ -937,10 +897,6 @@ dom_hubbub_error dom_hubbub_fragment_parser_create(dom_hubbub_parser_params *par
     optparams.enable_scripting = params->enable_script;
     hubbub_parser_setopt(binding->parser, HUBBUB_PARSER_ENABLE_SCRIPTING, &optparams);
 
-    /* set fragment mode */
-    optparams.fragment_mode = true;
-    hubbub_parser_setopt(binding->parser, HUBBUB_PARSER_FRAGMENT_MODE, &optparams);
-
     /* set return parameters */
     *parser = binding;
     /* fragment is already set up */
@@ -1048,15 +1004,6 @@ const char *dom_hubbub_parser_get_encoding(dom_hubbub_parser *parser, dom_hubbub
  * \return DOM_HUBBUB_OK on success,
  *         DOM_HUBBUB_HUBBUB_ERR | <hubbub_error> on failure
  */
-dom_hubbub_error dom_hubbub_parser_set_context_tag(dom_hubbub_parser *parser, const char *tag_name, size_t tag_len)
-{
-    if (!parser || !parser->parser || !tag_name) return DOM_HUBBUB_BADPARM;
-    hubbub_parser_optparams optparams;
-    optparams.context_tag.ptr = (const uint8_t *)tag_name;
-    optparams.context_tag.len = tag_len;
-    return hubbub_parser_setopt(parser->parser, HUBBUB_PARSER_CONTEXT_TAG, &optparams);
-}
-
 dom_hubbub_error dom_hubbub_parser_pause(dom_hubbub_parser *parser, bool pause)
 {
     hubbub_error err;

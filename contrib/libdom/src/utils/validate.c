@@ -88,18 +88,19 @@ bool _dom_validate_name(dom_string *name)
     if (name == NULL)
         return false;
 
-    slen = dom_string_byte_length(name);
+    slen = dom_string_length(name);
     if (slen == 0)
         return false;
 
     s = (const uint8_t *)dom_string_data(name);
+    slen = dom_string_byte_length(name);
 
     err = parserutils_charset_utf8_to_ucs4(s, slen, &ch, &clen);
     if (err != PARSERUTILS_OK) {
         return false;
     }
 
-    if (is_first_char(ch) == false && ch != '<' && ch != '"')
+    if (is_first_char(ch) == false)
         return false;
 
     s += clen;
@@ -111,7 +112,7 @@ bool _dom_validate_name(dom_string *name)
             return false;
         }
 
-        if (is_name_char(ch) == false && ch != '<' && ch != '"')
+        if (is_name_char(ch) == false)
             return false;
 
         s += clen;

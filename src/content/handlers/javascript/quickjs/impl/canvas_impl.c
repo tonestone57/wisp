@@ -221,7 +221,8 @@ static void init_canvas_cpriv_defaults(CanvasContext2DPrivate *cpriv) {
 JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *priv, const char * contextId, JSValue arguments)
 {
     if (!priv || !priv->node) return JS_NULL;
-    if (strcmp(contextId, "webgl") == 0 || strcmp(contextId, "experimental-webgl") == 0) {
+    if (strcmp(contextId, "webgl") == 0 || strcmp(contextId, "experimental-webgl") == 0 ||
+        strcmp(contextId, "bitmaprenderer") == 0) {
         
         JSValue element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
         JSValue existing = JS_GetPropertyStr(ctx, element_obj, "__webgl_context");
@@ -250,38 +251,6 @@ JSValue wisp_htmlcanvaselement_getContext_impl(JSContext *ctx, QJSNodePrivate *p
             JS_SetPropertyStr(ctx, element_obj, "__webgl_context", JS_DupValue(ctx, ctx_obj));
         }
         
-        JS_FreeValue(ctx, element_obj);
-        return ctx_obj;
-    }
-
-    if (strcmp(contextId, "bitmaprenderer") == 0) {
-        JSValue element_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
-        JSValue existing = JS_GetPropertyStr(ctx, element_obj, "__bitmaprenderer_context");
-        if (JS_IsObject(existing)) {
-            JS_FreeValue(ctx, element_obj);
-            return existing;
-        }
-        JS_FreeValue(ctx, existing);
-
-        JSValue global = JS_GetGlobalObject(ctx);
-        JSValue ctor = JS_GetPropertyStr(ctx, global, "ImageBitmapRenderingContext");
-        JSValue ctx_obj = JS_UNDEFINED;
-
-        if (JS_IsFunction(ctx, ctor)) {
-            JSValue args[1] = { element_obj };
-            ctx_obj = JS_CallConstructor(ctx, ctor, 1, args);
-        } else {
-            ctx_obj = JS_NewObject(ctx);
-            JS_SetPropertyStr(ctx, ctx_obj, "canvas", JS_DupValue(ctx, element_obj));
-        }
-
-        JS_FreeValue(ctx, global);
-        JS_FreeValue(ctx, ctor);
-
-        if (!JS_IsException(ctx_obj) && !JS_IsUndefined(ctx_obj) && !JS_IsNull(ctx_obj)) {
-            JS_SetPropertyStr(ctx, element_obj, "__bitmaprenderer_context", JS_DupValue(ctx, ctx_obj));
-        }
-
         JS_FreeValue(ctx, element_obj);
         return ctx_obj;
     }

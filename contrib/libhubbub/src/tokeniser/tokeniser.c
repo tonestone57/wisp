@@ -566,6 +566,15 @@ hubbub_error hubbub_tokeniser_handle_data(hubbub_tokeniser *tokeniser)
             (tokeniser->content_model == HUBBUB_CONTENT_MODEL_RCDATA ||
                 tokeniser->content_model == HUBBUB_CONTENT_MODEL_CDATA) &&
             tokeniser->context.pending >= 3) {
+            size_t ignore;
+            error = parserutils_inputstream_peek(tokeniser->input, tokeniser->context.pending - 3, &cptr, &ignore);
+
+            assert(error == PARSERUTILS_OK);
+
+            if (strncmp((char *)cptr, "<!--", SLEN("<!--")) == 0) {
+                tokeniser->escape_flag = true;
+            }
+
             tokeniser->context.pending += len;
         } else if (c == '<' &&
             (tokeniser->content_model == HUBBUB_CONTENT_MODEL_PCDATA ||
@@ -2915,14 +2924,16 @@ hubbub_error emit_current_tag(hubbub_tokeniser *tokeniser)
 
     /* Discard duplicate attributes */
     for (i = 0; i < n_attributes; i++) {
-        for (j = i + 1; j < n_attributes; j++) {
+        for (j = 0; j < n_attributes; j++) {
             uint32_t move;
 
-            if (attrs[i].name.len != attrs[j].name.len ||
+            if (j == i || attrs[i].name.len != attrs[j].name.len ||
                 strncmp((char *)attrs[i].name.ptr, (char *)attrs[j].name.ptr, attrs[i].name.len) != 0) {
                 /* Attributes don't match */
                 continue;
             }
+
+            assert(i < j);
 
             /* Calculate amount to move */
             move = (n_attributes - 1 - j) * sizeof(hubbub_attribute);

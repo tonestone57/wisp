@@ -224,6 +224,8 @@ void qjs_timer_callback(void *p)
     struct qjs_timer *timer = p;
     JSContext *ctx = timer->ctx;
 
+    fprintf(stderr, "DEBUG TIMER: Executing timer callback id=%d, repeat=%d, cancelled=%d\n", timer->id, timer->repeat, timer->cancelled);
+
     if (timer->cancelled) {
         /* Timer was cancelled, but callback already scheduled.
          * Remove from active list and free. */
@@ -375,6 +377,8 @@ JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSVa
 
     timer->next = t->timers;
     t->timers = timer;
+
+    fprintf(stderr, "DEBUG TIMER: Scheduled timer id=%d, delay=%d, repeat=%d\n", timer->id, timeout, repeat);
 
     if (guit && guit->misc && guit->misc->schedule) {
         if (guit->misc->schedule(timeout, qjs_timer_callback, timer) != NSERROR_OK) {

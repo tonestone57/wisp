@@ -75,9 +75,6 @@ typedef struct hubbub_treebuilder_context {
         element_type type; /**< Type of node */
     } collect; /**< Context for character collecting */
 
-    bool is_fragment; /**< Whether this is fragment parsing */
-    element_type context_element; /**< Context element type for fragment */
-
     bool strip_leading_lr; /**< Whether to strip a LR from the
                             * start of the next character sequence
                             * received */

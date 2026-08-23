@@ -28,11 +28,7 @@ hubbub_error handle_before_head(hubbub_treebuilder *treebuilder, const hubbub_to
 
     switch (token->type) {
     case HUBBUB_TOKEN_CHARACTER:
-        if (treebuilder->context.is_fragment) {
-            err = HUBBUB_REPROCESS;
-        } else {
-            err = process_characters_expect_whitespace(treebuilder, token, false);
-        }
+        err = process_characters_expect_whitespace(treebuilder, token, false);
         break;
     case HUBBUB_TOKEN_COMMENT:
         err = process_comment_append(
@@ -83,20 +79,16 @@ hubbub_error handle_before_head(hubbub_treebuilder *treebuilder, const hubbub_to
             tag = token->data.tag;
         }
 
-        if (treebuilder->context.is_fragment) {
-            treebuilder->context.mode = IN_BODY;
-        } else {
-            e = insert_element(treebuilder, &tag, true);
-            if (e != HUBBUB_OK)
-                return e;
+        e = insert_element(treebuilder, &tag, true);
+        if (e != HUBBUB_OK)
+            return e;
 
-            treebuilder->tree_handler->ref_node(
-                treebuilder->tree_handler->ctx, treebuilder->context.element_stack[treebuilder->context.current_node].node);
+        treebuilder->tree_handler->ref_node(
+            treebuilder->tree_handler->ctx, treebuilder->context.element_stack[treebuilder->context.current_node].node);
 
-            treebuilder->context.head_element = treebuilder->context.element_stack[treebuilder->context.current_node].node;
+        treebuilder->context.head_element = treebuilder->context.element_stack[treebuilder->context.current_node].node;
 
-            treebuilder->context.mode = IN_HEAD;
-        }
+        treebuilder->context.mode = IN_HEAD;
     }
 
     return err;
