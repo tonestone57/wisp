@@ -432,12 +432,12 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
             while (*csp) {
                 if (*csp == '#') {
                     const char *id_start = ++csp;
-                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    while (*csp && !strchr("#.:[", *csp)) csp++;
                     if (comp->compound.id) free(comp->compound.id);
                     comp->compound.id = strndup(id_start, (size_t)(csp - id_start));
                 } else if (*csp == '.') {
                     const char *class_start = ++csp;
-                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    while (*csp && !strchr("#.:[", *csp)) csp++;
                     char **new_classes = realloc(comp->compound.classes, (comp->compound.class_count + 1) * sizeof(char *));
                     if (!new_classes) {
                         free(comp_str);
@@ -451,7 +451,7 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
                     csp++;
                     if (*csp == ':') csp++;
                     const char *pseudo_start = csp;
-                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    while (*csp && !strchr("#.:[", *csp)) csp++;
                     char **new_pseudos = realloc(comp->compound.pseudos, (comp->compound.pseudo_count + 1) * sizeof(char *));
                     if (!new_pseudos) {
                         free(comp_str);
@@ -461,9 +461,12 @@ static qjs_selector_root_t *qjs_selector_parse(const char *selector_str)
                     }
                     comp->compound.pseudos = new_pseudos;
                     comp->compound.pseudos[comp->compound.pseudo_count++] = strndup(pseudo_start, (size_t)(csp - pseudo_start));
+                } else if (*csp == '[') {
+                    while (*csp && *csp != ']') csp++;
+                    if (*csp == ']') csp++;
                 } else {
                     const char *tag_start = csp;
-                    while (*csp && !strchr("#.:", *csp)) csp++;
+                    while (*csp && !strchr("#.:[", *csp)) csp++;
                     if (comp->compound.tag) free(comp->compound.tag);
                     comp->compound.tag = strndup(tag_start, (size_t)(csp - tag_start));
                 }
@@ -566,7 +569,107 @@ static bool qjs_is_element_read_write(struct dom_node *node)
     return false;
 }
 
-static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compound_selector_t *comp)
+static bool qjs_pseudo_matches(JSContext *ctx, struct dom_node *node, uint32_t node_id, const char *pseudo)
+{
+    if (!ctx || !pseudo) return false;
+    JSValue wrapper = JS_NULL;
+    if (node) {
+        wrapper = qjs_wrap_node(ctx, node);
+    } else if (node_id) {
+        wrapper = qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)node_id);
+    }
+    if (JS_IsNull(wrapper) || JS_IsUndefined(wrapper)) return false;
+
+    bool result = false;
+    JSValue tag_prop = JS_GetPropertyStr(ctx, wrapper, "tagName");
+    const char *tag = JS_IsString(tag_prop) ? JS_ToCString(ctx, tag_prop) : NULL;
+    bool is_input = tag && strcasecmp(tag, "INPUT") == 0;
+    bool is_select = tag && strcasecmp(tag, "SELECT") == 0;
+    bool is_textarea = tag && strcasecmp(tag, "TEXTAREA") == 0;
+    if (tag) JS_FreeCString(ctx, tag);
+    JS_FreeValue(ctx, tag_prop);
+
+    if (strcasecmp(pseudo, "valid") == 0 || strcasecmp(pseudo, "invalid") == 0) {
+        JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
+        bool is_form_control = !JS_IsUndefined(val_state) && !JS_IsNull(val_state);
+        bool is_valid = true;
+        if (is_form_control) {
+            JSValue valid_prop = JS_GetPropertyStr(ctx, val_state, "valid");
+            is_valid = JS_ToBool(ctx, valid_prop);
+            JS_FreeValue(ctx, valid_prop);
+            JS_FreeValue(ctx, val_state);
+            if (strcasecmp(pseudo, "valid") == 0) result = is_valid;
+            else result = !is_valid;
+        } else {
+            JS_FreeValue(ctx, val_state);
+            result = false;
+        }
+    } else if (strcasecmp(pseudo, "required") == 0 || strcasecmp(pseudo, "optional") == 0) {
+        if (is_input || is_select || is_textarea) {
+            JSValue req_prop = JS_GetPropertyStr(ctx, wrapper, "required");
+            bool is_req = JS_ToBool(ctx, req_prop);
+            JS_FreeValue(ctx, req_prop);
+            if (strcasecmp(pseudo, "required") == 0) result = is_req;
+            else result = !is_req;
+        } else {
+            result = false;
+        }
+    } else if (strcasecmp(pseudo, "in-range") == 0 || strcasecmp(pseudo, "out-of-range") == 0) {
+        if (is_input) {
+            JSValue val_state = JS_GetPropertyStr(ctx, wrapper, "validity");
+            bool in_range = true;
+            if (!JS_IsUndefined(val_state) && !JS_IsNull(val_state)) {
+                JSValue ro = JS_GetPropertyStr(ctx, val_state, "rangeOverflow");
+                JSValue ru = JS_GetPropertyStr(ctx, val_state, "rangeUnderflow");
+                bool overflow = JS_ToBool(ctx, ro);
+                bool underflow = JS_ToBool(ctx, ru);
+                JS_FreeValue(ctx, ro);
+                JS_FreeValue(ctx, ru);
+                JS_FreeValue(ctx, val_state);
+                if (overflow || underflow) in_range = false;
+            } else {
+                JS_FreeValue(ctx, val_state);
+            }
+            if (strcasecmp(pseudo, "in-range") == 0) result = in_range;
+            else result = !in_range;
+        } else {
+            result = false;
+        }
+    } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0 ||
+               strcasecmp(pseudo, "read-write") == 0 || strcasecmp(pseudo, "-moz-read-write") == 0) {
+        JSValue ro_prop = JS_GetPropertyStr(ctx, wrapper, "readOnly");
+        bool is_ro = false;
+        if (!JS_IsUndefined(ro_prop) && !JS_IsNull(ro_prop)) {
+            is_ro = JS_ToBool(ctx, ro_prop);
+        } else {
+            JSValue ice_prop = JS_GetPropertyStr(ctx, wrapper, "isContentEditable");
+            bool ice = JS_ToBool(ctx, ice_prop);
+            JS_FreeValue(ctx, ice_prop);
+            is_ro = !ice;
+        }
+        JS_FreeValue(ctx, ro_prop);
+        if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) result = is_ro;
+        else result = !is_ro;
+    } else if (strcasecmp(pseudo, "checked") == 0) {
+        JSValue chk_prop = JS_GetPropertyStr(ctx, wrapper, "checked");
+        result = JS_ToBool(ctx, chk_prop);
+        JS_FreeValue(ctx, chk_prop);
+    } else if (strcasecmp(pseudo, "disabled") == 0 || strcasecmp(pseudo, "enabled") == 0) {
+        JSValue dis_prop = JS_GetPropertyStr(ctx, wrapper, "disabled");
+        bool is_dis = JS_ToBool(ctx, dis_prop);
+        JS_FreeValue(ctx, dis_prop);
+        if (strcasecmp(pseudo, "disabled") == 0) result = is_dis;
+        else result = !is_dis;
+    } else {
+        /* Pass through unknown pseudo-classes to avoid breaking generic selectors */
+        result = true;
+    }
+
+    JS_FreeValue(ctx, wrapper);
+    return result;
+}
+
+static bool qjs_compound_selector_matches(JSContext *ctx, struct dom_node *node, const qjs_compound_selector_t *comp)
 {
     dom_node_type type;
     dom_node_get_node_type(node, &type);
@@ -625,64 +728,19 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
     }
 
     for (uint32_t i = 0; i < comp->pseudo_count; i++) {
-        const char *pseudo = comp->pseudos[i];
-        if (strcasecmp(pseudo, "read-write") == 0 || strcasecmp(pseudo, "-moz-read-write") == 0) {
-            if (!qjs_is_element_read_write(node)) return false;
-        } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) {
-            if (qjs_is_element_read_write(node)) return false;
-        } else if (strcasecmp(pseudo, "required") == 0) {
-            if (!qjs_libdom_has_attr(node, "required")) return false;
-        } else if (strcasecmp(pseudo, "optional") == 0) {
-            if (qjs_libdom_has_attr(node, "required")) return false;
-        } else if (strcasecmp(pseudo, "valid") == 0) {
-            char *cv = qjs_libdom_get_attr(node, "__customValidity");
-            if (cv) {
-                bool is_invalid = (cv[0] != '\0');
-                free(cv);
-                if (is_invalid) return false;
-            }
-        } else if (strcasecmp(pseudo, "invalid") == 0) {
-            char *cv = qjs_libdom_get_attr(node, "__customValidity");
-            if (cv) {
-                bool is_invalid = (cv[0] != '\0');
-                free(cv);
-                if (!is_invalid) return false;
-            } else return false;
-        } else if (strcasecmp(pseudo, "in-range") == 0) {
-            char *val_str = qjs_libdom_get_attr(node, "value");
-            char *min_str = qjs_libdom_get_attr(node, "min");
-            char *max_str = qjs_libdom_get_attr(node, "max");
-            double val = val_str ? atof(val_str) : 0.0;
-            double min = min_str ? atof(min_str) : -1e9;
-            double max = max_str ? atof(max_str) : 1e9;
-            if (val_str) free(val_str);
-            if (min_str) free(min_str);
-            if (max_str) free(max_str);
-            if (val < min || val > max) return false;
-        } else if (strcasecmp(pseudo, "out-of-range") == 0) {
-            char *val_str = qjs_libdom_get_attr(node, "value");
-            char *min_str = qjs_libdom_get_attr(node, "min");
-            char *max_str = qjs_libdom_get_attr(node, "max");
-            double val = val_str ? atof(val_str) : 0.0;
-            double min = min_str ? atof(min_str) : -1e9;
-            double max = max_str ? atof(max_str) : 1e9;
-            if (val_str) free(val_str);
-            if (min_str) free(min_str);
-            if (max_str) free(max_str);
-            if (val >= min && val <= max) return false;
-        }
+        if (!qjs_pseudo_matches(ctx, node, 0, comp->pseudos[i])) return false;
     }
 
     return true;
 }
 
-static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector_group_t *group)
+static bool qjs_selector_group_matches(JSContext *ctx, struct dom_node *node, const qjs_selector_group_t *group)
 {
     if (group->component_count == 0) return false;
 
     /* Start matching from the last component (the rightmost one) */
     int comp_idx = group->component_count - 1;
-    if (!qjs_compound_selector_matches(node, &group->components[comp_idx].compound)) return false;
+    if (!qjs_compound_selector_matches(ctx, node, &group->components[comp_idx].compound)) return false;
 
     struct dom_node *curr = dom_node_ref(node);
     while (comp_idx > 0) {
@@ -694,7 +752,7 @@ static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector
             struct dom_node *parent = NULL;
             dom_node_get_parent_node(curr, &parent);
             dom_node_unref(curr);
-            if (!parent || !qjs_compound_selector_matches(parent, target)) {
+            if (!parent || !qjs_compound_selector_matches(ctx, parent, target)) {
                 if (parent) dom_node_unref(parent);
                 return false;
             }
@@ -706,7 +764,7 @@ static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector
                 dom_node_get_parent_node(curr, &parent);
                 dom_node_unref(curr);
                 if (!parent) break;
-                if (qjs_compound_selector_matches(parent, target)) {
+                if (qjs_compound_selector_matches(ctx, parent, target)) {
                     curr = parent;
                     found = true;
                     break;
@@ -727,7 +785,7 @@ static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector
                 prev = tmp;
             }
             dom_node_unref(curr);
-            if (!prev || !qjs_compound_selector_matches(prev, target)) {
+            if (!prev || !qjs_compound_selector_matches(ctx, prev, target)) {
                 if (prev) dom_node_unref(prev);
                 return false;
             }
@@ -743,7 +801,7 @@ static bool qjs_selector_group_matches(struct dom_node *node, const qjs_selector
                 if (!curr) break;
                 dom_node_type type;
                 dom_node_get_node_type(curr, &type);
-                if (type == DOM_ELEMENT_NODE && qjs_compound_selector_matches(curr, target)) {
+                if (type == DOM_ELEMENT_NODE && qjs_compound_selector_matches(ctx, curr, target)) {
                     found = true;
                     break;
                 }
@@ -894,7 +952,7 @@ static bool qjs_is_element_read_write_shm(uint32_t node_id)
     return false;
 }
 
-static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compound_selector_t *comp)
+static bool qjs_compound_selector_matches_shm(JSContext *ctx, uint32_t node_id, const qjs_compound_selector_t *comp)
 {
     if (!wisp_shm_dom || node_id == 0) return false;
     WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
@@ -955,51 +1013,20 @@ static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compou
     }
 
     for (uint32_t i = 0; i < comp->pseudo_count; i++) {
-        const char *pseudo = comp->pseudos[i];
-        if (strcasecmp(pseudo, "read-write") == 0 || strcasecmp(pseudo, "-moz-read-write") == 0) {
-            if (!qjs_is_element_read_write_shm(node_id)) return false;
-        } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) {
-            if (qjs_is_element_read_write_shm(node_id)) return false;
-        } else if (strcasecmp(pseudo, "required") == 0) {
-            if (!qjs_shm_has_attr(node_id, "required")) return false;
-        } else if (strcasecmp(pseudo, "optional") == 0) {
-            if (qjs_shm_has_attr(node_id, "required")) return false;
-        } else if (strcasecmp(pseudo, "valid") == 0) {
-            const char *cv = qjs_shm_get_attr(node_id, "__customValidity");
-            if (cv && cv[0] != '\0') return false;
-        } else if (strcasecmp(pseudo, "invalid") == 0) {
-            const char *cv = qjs_shm_get_attr(node_id, "__customValidity");
-            if (!cv || cv[0] == '\0') return false;
-        } else if (strcasecmp(pseudo, "in-range") == 0) {
-            const char *val_str = qjs_shm_get_attr(node_id, "value");
-            const char *min_str = qjs_shm_get_attr(node_id, "min");
-            const char *max_str = qjs_shm_get_attr(node_id, "max");
-            double val = val_str ? atof(val_str) : 0.0;
-            double min = min_str ? atof(min_str) : -1e9;
-            double max = max_str ? atof(max_str) : 1e9;
-            if (val < min || val > max) return false;
-        } else if (strcasecmp(pseudo, "out-of-range") == 0) {
-            const char *val_str = qjs_shm_get_attr(node_id, "value");
-            const char *min_str = qjs_shm_get_attr(node_id, "min");
-            const char *max_str = qjs_shm_get_attr(node_id, "max");
-            double val = val_str ? atof(val_str) : 0.0;
-            double min = min_str ? atof(min_str) : -1e9;
-            double max = max_str ? atof(max_str) : 1e9;
-            if (val >= min && val <= max) return false;
-        }
+        if (!qjs_pseudo_matches(ctx, NULL, node_id, comp->pseudos[i])) return false;
     }
 
     return true;
 }
 
-static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_group_t *group)
+static bool qjs_selector_group_matches_shm(JSContext *ctx, uint32_t node_id, const qjs_selector_group_t *group)
 {
     if (group->component_count == 0) return false;
     if (!wisp_shm_dom) return false;
     WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
 
     int comp_idx = group->component_count - 1;
-    if (!qjs_compound_selector_matches_shm(node_id, &group->components[comp_idx].compound)) return false;
+    if (!qjs_compound_selector_matches_shm(ctx, node_id, &group->components[comp_idx].compound)) return false;
 
     uint32_t curr = node_id;
     while (comp_idx > 0) {
@@ -1009,7 +1036,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
 
         if (comb == QJS_COMBINATOR_CHILD) {
             uint32_t parent = nodes[curr].parent_id;
-            if (parent == 0 || parent == curr || !qjs_compound_selector_matches_shm(parent, target)) {
+            if (parent == 0 || parent == curr || !qjs_compound_selector_matches_shm(ctx, parent, target)) {
                 return false;
             }
             curr = parent;
@@ -1017,7 +1044,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
             uint32_t parent = nodes[curr].parent_id;
             bool found = false;
             while (parent != 0 && parent != curr) {
-                if (qjs_compound_selector_matches_shm(parent, target)) {
+                if (qjs_compound_selector_matches_shm(ctx, parent, target)) {
                     curr = parent;
                     found = true;
                     break;
@@ -1032,7 +1059,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
                 if (nodes[prev].node_type == 1) break;
                 prev = nodes[prev].prev_sibling_id;
             }
-            if (prev == 0 || !qjs_compound_selector_matches_shm(prev, target)) {
+            if (prev == 0 || !qjs_compound_selector_matches_shm(ctx, prev, target)) {
                 return false;
             }
             curr = prev;
@@ -1040,7 +1067,7 @@ static bool qjs_selector_group_matches_shm(uint32_t node_id, const qjs_selector_
             uint32_t prev = nodes[curr].prev_sibling_id;
             bool found = false;
             while (prev != 0) {
-                if (qjs_compound_selector_matches_shm(prev, target)) {
+                if (qjs_compound_selector_matches_shm(ctx, prev, target)) {
                     curr = prev;
                     found = true;
                     break;
@@ -1078,7 +1105,7 @@ JSValue qjs_dom_query_selector_internal_shm(JSContext *ctx, uint32_t root_id, co
         nodes = shm_dom_get_nodes(wisp_shm_dom);
         bool match = false;
         for (uint32_t i = 0; i < parsed->group_count; i++) {
-            if (qjs_selector_group_matches_shm(curr, &parsed->groups[i])) {
+            if (qjs_selector_group_matches_shm(ctx, curr, &parsed->groups[i])) {
                 match = true;
                 break;
             }
@@ -1138,7 +1165,7 @@ bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *
             shm_dom_lock_read(wisp_shm_dom);
             uint32_t element_id = (uint32_t)(uintptr_t)node;
             for (uint32_t i = 0; i < parsed->group_count; i++) {
-                if (qjs_selector_group_matches_shm(element_id, &parsed->groups[i])) {
+                if (qjs_selector_group_matches_shm(ctx, element_id, &parsed->groups[i])) {
                     matches = true;
                     break;
                 }
@@ -1147,7 +1174,7 @@ bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *
         }
     } else {
         for (uint32_t i = 0; i < parsed->group_count; i++) {
-            if (qjs_selector_group_matches(node, &parsed->groups[i])) {
+            if (qjs_selector_group_matches(ctx, node, &parsed->groups[i])) {
                 matches = true;
                 break;
             }
@@ -1174,7 +1201,7 @@ JSValue qjs_dom_query_selector_internal(JSContext *ctx, struct dom_node *root, c
     while (curr) {
         bool match = false;
         for (uint32_t i = 0; i < parsed->group_count; i++) {
-            if (qjs_selector_group_matches(curr, &parsed->groups[i])) {
+            if (qjs_selector_group_matches(ctx, curr, &parsed->groups[i])) {
                 match = true;
                 break;
             }
