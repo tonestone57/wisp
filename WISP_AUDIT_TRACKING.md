@@ -3,8 +3,9 @@
 ## Executive Status
 - **WebIDL Coverage:** 3,008 / 3,008 stubs mapped (100% strong C symbol overrides under `src/content/handlers/javascript/quickjs/impl/`, including 2,514 in `stubs_manual_impl.c`)
 - **Total wisp_*_impl Symbols Audited:** 3,008 (includes core overrides and standard/auxiliary helper bindings)
+- **HTML5Test Benchmark Baseline:** **559 / 588 points** (**95.1%** compliance, 0 runtime crashes/exceptions)
 - **Test Suite Status:** 114 / 114 passing (0 regressions)
-- **Leak Prevention:** LSan clean on CSS Node Selection Data (`free_style_snapshot` reclamation)
+- **Leak Prevention:** LSan clean on CSS Node Selection Data (`free_style_snapshot` reclamation) and LibDOM node refcounting during QuickJS host node sync and test thread teardown
 
 ---
 
@@ -52,9 +53,11 @@ These directly break page rendering and web applications if they are no-ops:
 - **CSSOM**: `style.setProperty`, `style.getPropertyValue`, `window.getComputedStyle`. [COMPLETED]
 
 #### Phase B: HTML5 & Browser Infrastructure
-- **Forms & Input**: `HTMLInputElement` setters/getters, `form.submit()`. [COMPLETED]
+- **Forms & Input**: `HTMLInputElement` setters/getters (`valueAsDate`, `valueAsNumber`, ISO sanitization), `form.submit()`, `<label>` resolution. [COMPLETED]
+- **CSS Font Loading & CSSOM**: `FontFace`, `FontFaceSet`, `document.fonts`, `CSSRule` hierarchy, `CSS.supports`. [COMPLETED]
+- **Touch & Pointer Events**: `PointerEvent`, `setPointerCapture`, `TouchEvent`, `Touch`, `TouchList`. [COMPLETED]
 - **Timers & Fetch**: `setTimeout`/`setInterval` event loop hooks, `fetch()` / `XMLHttpRequest`. [COMPLETED]
-- **Storage**: `localStorage`, `sessionStorage`. [COMPLETED]
+- **Storage**: `localStorage`, `sessionStorage`, `IndexedDB` structured cloning & key validation. [COMPLETED]
 
 #### Phase C: Spec-Compliant Graceful Refusals for Niche APIs
 For modern or hardware-level specifications that Wisp does not yet support (e.g., WebGPU, WebBluetooth, WebXR, WebAudio), the spec-compliant behavior is not a no-op that returns undefined, but rather returning appropriate spec defaults or raising `NotSupportedError` cleanly via `DOMException`.
