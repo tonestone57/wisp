@@ -134,6 +134,7 @@ struct content_html_iframe {
 
     char *name; /** frame name (for targetting) */
     struct nsurl *url; /** frame url */
+    char *csp; /** required CSP baseline attribute */
 
     browser_scrolling scrolling; /** scrolling characteristics */
     bool border; /** frame has a border */

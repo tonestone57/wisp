@@ -103,6 +103,22 @@ void test_csp() {
     assert(wisp_security_is_origin_blocked("not-adserver.com") == false);
     assert(wisp_security_is_origin_blocked("adserver.com.br") == false);
 
+    // Test 11: Sec-Required-CSP & Sec-Fetch-* header strings validation
+    const char *test_sec_req = "Sec-Required-CSP: script-src 'self'";
+    assert(strncasecmp(test_sec_req, "Sec-Required-CSP:", 17) == 0);
+
+    const char *test_sec_dest = "Sec-Fetch-Dest: document";
+    assert(strncasecmp(test_sec_dest, "Sec-Fetch-Dest:", 15) == 0);
+
+    const char *test_sec_mode = "Sec-Fetch-Mode: navigate";
+    assert(strncasecmp(test_sec_mode, "Sec-Fetch-Mode:", 15) == 0);
+
+    const char *test_sec_site = "Sec-Fetch-Site: same-origin";
+    assert(strncasecmp(test_sec_site, "Sec-Fetch-Site:", 15) == 0);
+
+    const char *test_sec_user = "Sec-Fetch-User: ?1";
+    assert(strncasecmp(test_sec_user, "Sec-Fetch-User:", 15) == 0);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);

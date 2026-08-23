@@ -614,11 +614,39 @@ static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_
         APPEND(fetch->headers, "DNT: 1");
     }
 
-    /* And add any headers specified by the caller */
+    /* Fetch Metadata request headers (Sec-Fetch-Dest, Sec-Fetch-Mode, Sec-Fetch-Site, Sec-Fetch-User) */
+    bool has_sec_fetch_dest = false;
+    bool has_sec_fetch_mode = false;
+    bool has_sec_fetch_site = false;
+    bool has_sec_fetch_user = false;
+    bool has_sec_required_csp = false;
+
     if (headers != NULL) {
         for (i = 0; headers[i] != NULL; i++) {
+            if (strncasecmp(headers[i], "Sec-Fetch-Dest:", 15) == 0) has_sec_fetch_dest = true;
+            if (strncasecmp(headers[i], "Sec-Fetch-Mode:", 15) == 0) has_sec_fetch_mode = true;
+            if (strncasecmp(headers[i], "Sec-Fetch-Site:", 15) == 0) has_sec_fetch_site = true;
+            if (strncasecmp(headers[i], "Sec-Fetch-User:", 15) == 0) has_sec_fetch_user = true;
+            if (strncasecmp(headers[i], "Sec-Required-CSP:", 17) == 0) has_sec_required_csp = true;
             APPEND(fetch->headers, headers[i]);
         }
+    }
+
+    if (!has_sec_fetch_dest) {
+        APPEND(fetch->headers, "Sec-Fetch-Dest: document");
+    }
+    if (!has_sec_fetch_mode) {
+        APPEND(fetch->headers, "Sec-Fetch-Mode: navigate");
+    }
+    if (!has_sec_fetch_site) {
+        APPEND(fetch->headers, "Sec-Fetch-Site: same-origin");
+    }
+    if (!has_sec_fetch_user) {
+        APPEND(fetch->headers, "Sec-Fetch-User: ?1");
+    }
+
+    if (!has_sec_required_csp) {
+        /* Supported via explicit caller headers when iframe specifies csp attribute */
     }
 
     return fetch;

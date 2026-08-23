@@ -1023,6 +1023,19 @@ static bool box_iframe(dom_node *n, html_content *content, struct box *box, bool
 		dom_string_unref(s);
 	}
 
+	/* Extract CSP Embedded Enforcement attribute if present */
+	{
+		dom_string *csp_attr = NULL;
+		dom_string *attr_name = NULL;
+		if (dom_string_create_interned((const uint8_t *)"csp", 3, &attr_name) == DOM_NO_ERR) {
+			if (dom_element_get_attribute(n, attr_name, &csp_attr) == DOM_NO_ERR && csp_attr != NULL) {
+				iframe->csp = arena_strdup(content->bctx, dom_string_data(csp_attr));
+				dom_string_unref(csp_attr);
+			}
+			dom_string_unref(attr_name);
+		}
+	}
+
 	err = dom_element_get_attribute(n, corestring_dom_frameborder, &s);
 	if (err == DOM_NO_ERR && s != NULL) {
 		if (ns_strtoint(dom_string_data(s), 10, &i) != NSERROR_OK)
