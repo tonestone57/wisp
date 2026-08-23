@@ -288,10 +288,12 @@ static void html_box_convert_done(html_content *c, bool success)
 	/* Destroy the parser binding. During a restart, the parser may have
 	 * already been destroyed after the first conversion, so check for NULL.
 	 */
+	doc_rwlock_wrlock(&c->doc_mutex);
 	if (c->parser != NULL) {
 		dom_hubbub_parser_destroy(c->parser);
 		c->parser = NULL;
 	}
+	doc_rwlock_wrunlock(&c->doc_mutex);
 
 	PERF("DOM to box conversion DONE");
 	content_set_ready(&c->base);
@@ -982,7 +984,7 @@ static void html_parse_complete_cb(void *arg)
 	}
 
 	/* Content fetch might be finished while parsing was backgrounded */
-	if (html->base.active == html->scripts_active && html->data_complete) {
+	if (html_can_begin_conversion(html)) {
 		html_begin_conversion(html);
 	}
 }
@@ -1144,6 +1146,10 @@ bool html_can_begin_conversion(html_content *htmlc)
 
 	/* If conversion has already begun, don't start again */
 	if (htmlc->conversion_begun)
+		return false;
+
+	/* Cannot begin conversion while background parse tasks are still active */
+	if (__atomic_load_n(&htmlc->base.active_bg_tasks, __ATOMIC_SEQ_CST) > 0)
 		return false;
 
 	/* We can begin conversion when:
@@ -1844,6 +1850,7 @@ static void html_destroy(struct content *c)
 	/* Free objects */
 	html_object_free_objects(html);
 
+	doc_rwlock_wrlock(&html->doc_mutex);
 	if (html->parser != NULL) {
 		NSLOG(wisp, DEBUG, "html_destroy: destroying parser %p for content %p", html->parser, c);
 		dom_hubbub_parser_destroy(html->parser);
@@ -1851,6 +1858,7 @@ static void html_destroy(struct content *c)
 	} else {
 		NSLOG(wisp, DEBUG, "html_destroy: parser was already NULL for content %p", c);
 	}
+	doc_rwlock_wrunlock(&html->doc_mutex);
 
 	/* Unref title before document - title is part of document tree
 	 * and will be destroyed when document is destroyed */
