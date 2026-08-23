@@ -83,16 +83,20 @@ hubbub_error handle_before_head(hubbub_treebuilder *treebuilder, const hubbub_to
             tag = token->data.tag;
         }
 
-        e = insert_element(treebuilder, &tag, true);
-        if (e != HUBBUB_OK)
-            return e;
+        if (treebuilder->context.is_fragment) {
+            treebuilder->context.mode = IN_BODY;
+        } else {
+            e = insert_element(treebuilder, &tag, true);
+            if (e != HUBBUB_OK)
+                return e;
 
-        treebuilder->tree_handler->ref_node(
-            treebuilder->tree_handler->ctx, treebuilder->context.element_stack[treebuilder->context.current_node].node);
+            treebuilder->tree_handler->ref_node(
+                treebuilder->tree_handler->ctx, treebuilder->context.element_stack[treebuilder->context.current_node].node);
 
-        treebuilder->context.head_element = treebuilder->context.element_stack[treebuilder->context.current_node].node;
+            treebuilder->context.head_element = treebuilder->context.element_stack[treebuilder->context.current_node].node;
 
-        treebuilder->context.mode = IN_HEAD;
+            treebuilder->context.mode = IN_HEAD;
+        }
     }
 
     return err;

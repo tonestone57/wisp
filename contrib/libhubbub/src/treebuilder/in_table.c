@@ -89,7 +89,11 @@ hubbub_error handle_in_table(hubbub_treebuilder *treebuilder, const hubbub_token
         break;
     case HUBBUB_TOKEN_START_TAG: {
         element_type type = element_type_from_name(treebuilder, &token->data.tag.name);
-        bool tainted = treebuilder->context.element_stack[current_table(treebuilder)].tainted;
+        bool tainted = false;
+        uint32_t tbl_idx = current_table(treebuilder);
+        if (tbl_idx > 0 && tbl_idx <= treebuilder->context.current_node) {
+            tainted = treebuilder->context.element_stack[tbl_idx].tainted;
+        }
 
         if (type == CAPTION) {
             clear_stack_table_context(treebuilder);
