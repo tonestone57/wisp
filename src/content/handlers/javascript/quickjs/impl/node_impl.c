@@ -263,16 +263,7 @@ void check_script_element_execution(JSContext *ctx, void *node)
         uint64_t child_id = (uint64_t)(uintptr_t)node;
         WispCompactNode *sn = find_shm_node(wisp_shm_dom, child_id);
         if (sn) {
-            if (sn->node_type == 11) { // DOM_DOCUMENT_FRAGMENT_NODE
-                uint32_t cid = sn->first_child_id;
-                while (cid != 0) {
-                    WispCompactNode *csn = find_shm_node(wisp_shm_dom, cid);
-                    uint32_t next_cid = csn ? csn->next_sibling_id : 0;
-                    check_script_element_execution(ctx, (void *)(uintptr_t)cid);
-                    cid = next_cid;
-                }
-                return;
-            } else if (sn->node_type == 1) { // DOM_ELEMENT_NODE
+            if (sn->node_type == 1) { // DOM_ELEMENT_NODE
                 WispNodeStrings *sns = &shm_dom_get_node_strings(wisp_shm_dom)[child_id];
                 const char *tag = wisp_string_ref_data(wisp_shm_dom, sns->tag_name);
                 if (tag && strcasecmp(tag, "script") == 0) {
@@ -289,25 +280,21 @@ void check_script_element_execution(JSContext *ctx, void *node)
                     }
                 }
             }
+            if (sn->first_child_id != 0) {
+                uint32_t cid = sn->first_child_id;
+                while (cid != 0) {
+                    WispCompactNode *csn = find_shm_node(wisp_shm_dom, cid);
+                    uint32_t next_cid = csn ? csn->next_sibling_id : 0;
+                    check_script_element_execution(ctx, (void *)(uintptr_t)cid);
+                    cid = next_cid;
+                }
+            }
         }
     } else {
         dom_node *dnode = (dom_node *)node;
         dom_node_type type;
         if (dom_node_get_node_type(dnode, &type) == DOM_NO_ERR) {
-            if (type == DOM_DOCUMENT_FRAGMENT_NODE) {
-                dom_node *child = NULL;
-                if (dom_node_get_first_child(dnode, &child) == DOM_NO_ERR && child != NULL) {
-                    while (child) {
-                        dom_node *next = NULL;
-                        dom_exception next_exc = dom_node_get_next_sibling(child, &next);
-                        check_script_element_execution(ctx, child);
-                        dom_node_unref(child);
-                        if (next_exc != DOM_NO_ERR) break;
-                        child = next;
-                    }
-                }
-                return;
-            } else if (type == DOM_ELEMENT_NODE) {
+            if (type == DOM_ELEMENT_NODE) {
                 dom_string *tag_dom = NULL;
                 dom_node_get_node_name(dnode, &tag_dom);
                 if (tag_dom) {
@@ -342,6 +329,18 @@ void check_script_element_execution(JSContext *ctx, void *node)
                         }
                     }
                     dom_string_unref(tag_dom);
+                }
+            }
+
+            dom_node *child = NULL;
+            if (dom_node_get_first_child(dnode, &child) == DOM_NO_ERR && child != NULL) {
+                while (child) {
+                    dom_node *next = NULL;
+                    dom_exception next_exc = dom_node_get_next_sibling(child, &next);
+                    check_script_element_execution(ctx, child);
+                    dom_node_unref(child);
+                    if (next_exc != DOM_NO_ERR) break;
+                    child = next;
                 }
             }
         }

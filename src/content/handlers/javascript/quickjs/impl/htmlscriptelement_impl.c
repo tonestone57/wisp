@@ -10,6 +10,7 @@
 #include "JSHTMLScriptElement.gen.h"
 
 extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
 extern JSValue wisp_node_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv);
 extern JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value);
 
@@ -51,7 +52,22 @@ JSValue wisp_htmlscriptelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv
         dom_string_unref(attr_name);
         dom_string_unref(value_dom);
     }
-    check_script_element_execution(ctx, priv->node);
+    bool is_connected = false;
+    if (wisp_is_js_process) {
+        uint64_t id = (uint64_t)(uintptr_t)priv->node;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, id);
+        if (sn && sn->parent_id != 0) is_connected = true;
+    } else {
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node((struct dom_node *)priv->node, &parent);
+        if (parent) {
+            is_connected = true;
+            dom_node_unref(parent);
+        }
+    }
+    if (is_connected) {
+        check_script_element_execution(ctx, priv->node);
+    }
     return res;
 }
 
@@ -93,7 +109,22 @@ JSValue wisp_htmlscriptelement_type_set_impl(JSContext *ctx, QJSNodePrivate *pri
         dom_string_unref(attr_name);
         dom_string_unref(value_dom);
     }
-    check_script_element_execution(ctx, priv->node);
+    bool is_connected = false;
+    if (wisp_is_js_process) {
+        uint64_t id = (uint64_t)(uintptr_t)priv->node;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, id);
+        if (sn && sn->parent_id != 0) is_connected = true;
+    } else {
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node((struct dom_node *)priv->node, &parent);
+        if (parent) {
+            is_connected = true;
+            dom_node_unref(parent);
+        }
+    }
+    if (is_connected) {
+        check_script_element_execution(ctx, priv->node);
+    }
     return res;
 }
 
