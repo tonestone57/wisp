@@ -111,6 +111,55 @@ static struct hlcache_s *hlcache = NULL;
  * High-level cache internals						      *
  ******************************************************************************/
 
+/**
+ * Catch a handle up with the current state of its associated content object.
+ *
+ * \param handle Handle to catch up
+ * \return True if handle was released reentrantly during callback execution
+ */
+static bool hlcache_catchup_handle_state(hlcache_handle *handle)
+{
+    if (handle == NULL || handle->cb == NULL || handle->released) {
+        return false;
+    }
+
+    content_status status = content_get_status(handle);
+    hlcache_event event;
+    handle->refcount++;
+
+    if (status == CONTENT_STATUS_LOADING) {
+        event.type = CONTENT_MSG_LOADING;
+        handle->cb(handle, &event, handle->pw);
+    } else if (status == CONTENT_STATUS_READY) {
+        event.type = CONTENT_MSG_LOADING;
+        handle->cb(handle, &event, handle->pw);
+
+        if (handle->cb != NULL && !handle->released) {
+            event.type = CONTENT_MSG_READY;
+            handle->cb(handle, &event, handle->pw);
+        }
+    } else if (status == CONTENT_STATUS_DONE) {
+        event.type = CONTENT_MSG_LOADING;
+        handle->cb(handle, &event, handle->pw);
+
+        if (handle->cb != NULL && !handle->released) {
+            event.type = CONTENT_MSG_READY;
+            handle->cb(handle, &event, handle->pw);
+        }
+
+        if (handle->cb != NULL && !handle->released) {
+            event.type = CONTENT_MSG_DONE;
+            handle->cb(handle, &event, handle->pw);
+        }
+    }
+
+    bool released = handle->released;
+    handle->refcount--;
+    if (handle->refcount == 0) {
+        free(handle);
+    }
+    return released;
+}
 
 /**
  * Attempt to clean the cache
@@ -325,41 +374,7 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
     ctx->handle->entry = entry;
 
     /* Catch handle up with state of content */
-    if (ctx->handle->cb != NULL && !ctx->handle->released) {
-        content_status status = content_get_status(ctx->handle);
-        ctx->handle->refcount++;
-
-        if (status == CONTENT_STATUS_LOADING) {
-            event.type = CONTENT_MSG_LOADING;
-            ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
-        } else if (status == CONTENT_STATUS_READY) {
-            event.type = CONTENT_MSG_LOADING;
-            ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
-
-            if (ctx->handle->cb != NULL && !ctx->handle->released) {
-                event.type = CONTENT_MSG_READY;
-                ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
-            }
-        } else if (status == CONTENT_STATUS_DONE) {
-            event.type = CONTENT_MSG_LOADING;
-            ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
-
-            if (ctx->handle->cb != NULL && !ctx->handle->released) {
-                event.type = CONTENT_MSG_READY;
-                ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
-            }
-
-            if (ctx->handle->cb != NULL && !ctx->handle->released) {
-                event.type = CONTENT_MSG_DONE;
-                ctx->handle->cb(ctx->handle, &event, ctx->handle->pw);
-            }
-        }
-
-        ctx->handle->refcount--;
-        if (ctx->handle->refcount == 0) {
-            free(ctx->handle);
-        }
-    }
+    hlcache_catchup_handle_state(ctx->handle);
 
     return error;
 }
@@ -445,6 +460,23 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
 
                     if (img_mime != NULL) {
                         if (lwc_intern_string(img_mime, strlen(img_mime), &actual_type) == lwc_error_ok) {
+                            free_actual_type = true;
+                        }
+                    }
+                }
+            } else if ((ctx->accepted_types & CONTENT_HTML) && ctx->handle != NULL) {
+                const char *url_str = nsurl_access(hlcache_handle_get_url(ctx->handle));
+                if (url_str != NULL) {
+                    const char *query = strchr(url_str, '?');
+                    const char *fragment = strchr(url_str, '#');
+                    const char *end = url_str + strlen(url_str);
+                    if (query && query < end) end = query;
+                    if (fragment && fragment < end) end = fragment;
+                    size_t path_len = end - url_str;
+                    if ((path_len >= 5 && strncasecmp(end - 5, ".html", 5) == 0) ||
+                        (path_len >= 4 && strncasecmp(end - 4, ".htm", 4) == 0) ||
+                        (path_len >= 6 && strncasecmp(end - 6, ".xhtml", 6) == 0)) {
+                        if (lwc_intern_string("text/html", 9, &actual_type) == lwc_error_ok) {
                             free_actual_type = true;
                         }
                     }
@@ -868,6 +900,9 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                 if (content_is_shareable(entry->content) == false)
                     continue;
 
+                if (child != NULL && content_matches_quirks(entry->content, child->quirks) == false)
+                    continue;
+
                 if ((content_get_type(&entry_handle) & accepted_types) == 0)
                     continue;
 
@@ -887,44 +922,11 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     return NSERROR_NOMEM;
                 }
 
-                *result = handle;
-
                 /* Notify callback of current state */
-                if (handle->cb != NULL && !handle->released) {
-                    content_status status = content_get_status(handle);
-                    hlcache_event event;
-                    handle->refcount++;
-
-                    if (status == CONTENT_STATUS_LOADING) {
-                        event.type = CONTENT_MSG_LOADING;
-                        handle->cb(handle, &event, handle->pw);
-                    } else if (status == CONTENT_STATUS_READY) {
-                        event.type = CONTENT_MSG_LOADING;
-                        handle->cb(handle, &event, handle->pw);
-
-                        if (handle->cb != NULL && !handle->released) {
-                            event.type = CONTENT_MSG_READY;
-                            handle->cb(handle, &event, handle->pw);
-                        }
-                    } else if (status == CONTENT_STATUS_DONE) {
-                        event.type = CONTENT_MSG_LOADING;
-                        handle->cb(handle, &event, handle->pw);
-
-                        if (handle->cb != NULL && !handle->released) {
-                            event.type = CONTENT_MSG_READY;
-                            handle->cb(handle, &event, handle->pw);
-                        }
-
-                        if (handle->cb != NULL && !handle->released) {
-                            event.type = CONTENT_MSG_DONE;
-                            handle->cb(handle, &event, handle->pw);
-                        }
-                    }
-
-                    handle->refcount--;
-                    if (handle->refcount == 0) {
-                        free(handle);
-                    }
+                if (hlcache_catchup_handle_state(handle)) {
+                    *result = NULL;
+                } else {
+                    *result = handle;
                 }
 
                 return NSERROR_OK;
@@ -971,6 +973,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     new_ctx->handle->refcount = 1;
                     /* Share the low-level cache handle */
                     if (llcache_handle_clone(ictx->llcache, &new_ctx->llcache) != NSERROR_OK) {
+                        free((char *)new_ctx->child.charset);
                         free(new_ctx->handle);
                         free(new_ctx);
                         return NSERROR_NOMEM;
@@ -981,6 +984,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     if (llcache_handle_change_callback(new_ctx->llcache, hlcache_llcache_callback, new_ctx) !=
                         NSERROR_OK) {
                         llcache_handle_release(new_ctx->llcache);
+                        free((char *)new_ctx->child.charset);
                         free(new_ctx->handle);
                         free(new_ctx);
                         return NSERROR_NOMEM;
@@ -1229,6 +1233,10 @@ nserror hlcache_handle_clone(hlcache_handle *handle, hlcache_handle **result)
     nh->refcount = 1;
 
     if (nh->entry != NULL) {
+        if (nh->entry->content == NULL) {
+            free(nh);
+            return NSERROR_BAD_PARAMETER;
+        }
         /* Handle is already associated with content */
         if (content_add_user(nh->entry->content, hlcache_content_callback, nh) == false) {
             free(nh);
@@ -1353,7 +1361,7 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
 
     /* Generate a content-hash URL for deduplication */
     uint32_t hash = hlcache_fnv1a(data, len);
-    snprintf(url_buf, sizeof(url_buf), "wisp-inline://svg-%08x-%zu", hash, len);
+    snprintf(url_buf, sizeof(url_buf), "wisp-inline://buf-%08x-%zu", hash, len);
     error = nsurl_create(url_buf, &url);
     if (error != NSERROR_OK)
         return error;
@@ -1392,45 +1400,13 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
                 return NSERROR_NOMEM;
             }
 
-            *result = handle;
             nsurl_unref(url);
 
             /* Fire state catch-up callbacks */
-            if (handle->cb != NULL && !handle->released) {
-                content_status status = content_get_status(handle);
-                hlcache_event event;
-                handle->refcount++;
-
-                if (status == CONTENT_STATUS_LOADING) {
-                    event.type = CONTENT_MSG_LOADING;
-                    handle->cb(handle, &event, handle->pw);
-                } else if (status == CONTENT_STATUS_READY) {
-                    event.type = CONTENT_MSG_LOADING;
-                    handle->cb(handle, &event, handle->pw);
-
-                    if (handle->cb != NULL && !handle->released) {
-                        event.type = CONTENT_MSG_READY;
-                        handle->cb(handle, &event, handle->pw);
-                    }
-                } else if (status == CONTENT_STATUS_DONE) {
-                    event.type = CONTENT_MSG_LOADING;
-                    handle->cb(handle, &event, handle->pw);
-
-                    if (handle->cb != NULL && !handle->released) {
-                        event.type = CONTENT_MSG_READY;
-                        handle->cb(handle, &event, handle->pw);
-                    }
-
-                    if (handle->cb != NULL && !handle->released) {
-                        event.type = CONTENT_MSG_DONE;
-                        handle->cb(handle, &event, handle->pw);
-                    }
-                }
-
-                handle->refcount--;
-                if (handle->refcount == 0) {
-                    free(handle);
-                }
+            if (hlcache_catchup_handle_state(handle)) {
+                *result = NULL;
+            } else {
+                *result = handle;
             }
 
             return NSERROR_OK;
