@@ -103,6 +103,27 @@ void test_csp() {
     assert(wisp_security_is_origin_blocked("not-adserver.com") == false);
     assert(wisp_security_is_origin_blocked("adserver.com.br") == false);
 
+    // Test 11: media-src directive and default-src fallback
+    nsurl *url_media;
+    assert(nsurl_create("https://cdn.example.com/video.mp4", &url_media) == NSERROR_OK);
+    assert(csp_parse("default-src 'self'; media-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_media) == true);
+    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_self) == false);
+    csp_destroy(csp);
+
+    assert(csp_parse("default-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_MEDIA_SRC, url_media) == true);
+    csp_destroy(csp);
+    nsurl_unref(url_media);
+
+    // Test 12: report-uri parsing and non-blocking handling
+    assert(csp_parse("default-src 'self'; report-uri /csp-report-endpoint", base_url, &csp) == NSERROR_OK);
+    assert(csp_get_report_uri(csp) != NULL);
+    assert(strcmp(csp_get_report_uri(csp), "/csp-report-endpoint") == 0);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_other) == false);
+    csp_destroy(csp);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);

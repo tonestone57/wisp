@@ -21,6 +21,7 @@ typedef enum {
     CSP_OBJECT_SRC,
     CSP_FRAME_SRC,
     CSP_CONNECT_SRC,
+    CSP_MEDIA_SRC,
     CSP_DIRECTIVE_COUNT
 } csp_directive;
 
@@ -77,6 +78,11 @@ bool csp_require_trusted_types_for_script(const struct csp *csp);
  * Check if a specific Trusted Type policy name is allowed.
  */
 bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_name);
+
+/**
+ * Get the parsed report-uri directive string, if specified.
+ */
+const char *csp_get_report_uri(const struct csp *csp);
 
 /**
  * Check if a script execution with a specific nonce is allowed.
