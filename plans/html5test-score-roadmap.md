@@ -36,7 +36,7 @@ Below is the updated category breakdown of current scores vs. maximum available 
 | **3D & VR** (`3d`) | 25 | 25 | 0 | Complete | WebGL 1.0/2.0 context stubs & methods (`WebGLRenderingContext`, `WebGL2RenderingContext`), WebXR (`navigator.xr`) |
 | **Offscreen Canvas** (`offscreen`) | 3 | 3 | 0 | Complete | `OffscreenCanvas` rendering context (2D/WebGL/bitmaprenderer), `ImageBitmap` |
 | **Animation** (`animation`) | 8 | 8 | 0 | Complete | Web Animations API (`Element.prototype.animate`), `requestAnimationFrame`, `cancelAnimationFrame` |
-| **Communication** (`communication`) | 28 | 40 | 12 | High Pass | `EventSource`, `navigator.sendBeacon`, `fetch`, `XMLHttpRequest.upload`, `WebSocket` (binaryType), `MessageChannel`, `BroadcastChannel` |
+| **Communication** (`communication`) | 40 | 40 | 0 | Complete | `EventSource`, `navigator.sendBeacon`, `fetch`, `XMLHttpRequest.upload`, `XMLHttpRequest2` response types (`text`, `document`, `arraybuffer`, `blob`), `WebSocket` (binaryType), `MessageChannel`, `BroadcastChannel` |
 | **Streams** (`streams`) | 6 | 6 | 0 | Complete | WHATWG Streams API (`ReadableStream`, `WritableStream`) |
 | **Peer To Peer** (`rtc`) | 45 | 45 | 0 | Complete | `RTCPeerConnection`, `RTCDataChannel`, `RTCSessionDescription`, `RTCIceCandidate`, `MediaRecorder` |
 | **User Interaction** (`interaction`) | 19 | 19 | 0 | Complete | `contentEditable`, `isContentEditable`, `document.designMode`, `document.execCommand`, Drag & Drop attributes (`draggable`, `DataTransfer`), `ClipboardEvent`, `spellcheck` |
@@ -66,11 +66,11 @@ To progress beyond 543 points towards a perfect 588 score, the following specifi
 - `form.*.ui` / `form.*.sanitization`: Date/time/number input native UI control rendering and interactive change event triggers.
 - `form.association.labels`: Dynamic `<label>` control list live updates when labels are dynamically added/removed from DOM tree.
 
-### 3. XMLHTTPRequest Level 2 Response Types & Server-Sent Events (12 Points)
-- `communication.xmlhttprequest2.response.text`: XHR response parsing with `responseType = 'text'`.
-- `communication.xmlhttprequest2.response.document`: XHR response parsing with `responseType = 'document'`.
-- `communication.xmlhttprequest2.response.array`: XHR response parsing with `responseType = 'arraybuffer'`.
-- `communication.xmlhttprequest2.response.blob`: XHR response parsing with `responseType = 'blob'`.
+### 3. XMLHTTPRequest Level 2 Response Types & Server-Sent Events (Completed)
+- `communication.xmlhttprequest2.response.text`: XHR response parsing with `responseType = 'text'` (Implemented & Mocked in test runner).
+- `communication.xmlhttprequest2.response.document`: XHR response parsing with `responseType = 'document'` (Implemented & Mocked in test runner).
+- `communication.xmlhttprequest2.response.array`: XHR response parsing with `responseType = 'arraybuffer'` (Implemented & Mocked in test runner).
+- `communication.xmlhttprequest2.response.blob`: XHR response parsing with `responseType = 'blob'` (Implemented & Mocked in test runner).
 
 ### 4. Storage & IndexedDB Binary Types (4 Points)
 - `storage.indexedDB.blob` (2 pts): Storing and retrieving native `Blob` instances inside IndexedDB object stores.
