@@ -689,39 +689,56 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         JSValue tag_val = JS_GetPropertyStr(ctx, argv[0], "tagName");
         if (JS_IsString(tag_val)) {
             const char *tag_str = JS_ToCString(ctx, tag_val);
-            if (tag_str && strcasecmp(tag_str, "canvas") == 0) {
-                JS_FreeCString(ctx, tag_str);
-                JS_FreeValue(ctx, tag_val);
+            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0)) {
                 if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "offsetWidth") == 0 || strcmp(prop, "scrollWidth") == 0) {
-                    JSValue w_val = JS_GetPropertyStr(ctx, argv[0], "width");
-                    int32_t w = 300;
-                    if (JS_IsNumber(w_val)) JS_ToInt32(ctx, &w, w_val);
-                    JS_FreeValue(ctx, w_val);
+                    int32_t w = 0;
+                    JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
+                    if (JS_IsString(wv)) {
+                        const char *ws = JS_ToCString(ctx, wv);
+                        if (ws) { w = atoi(ws); JS_FreeCString(ctx, ws); }
+                    }
+                    JS_FreeValue(ctx, wv);
+                    if (w <= 0) {
+                        JSValue w_val = JS_GetPropertyStr(ctx, argv[0], "width");
+                        if (JS_IsNumber(w_val)) JS_ToInt32(ctx, &w, w_val);
+                        JS_FreeValue(ctx, w_val);
+                    }
+                    JS_FreeCString(ctx, tag_str);
+                    JS_FreeValue(ctx, tag_val);
                     JS_FreeCString(ctx, prop);
                     return JS_NewInt32(ctx, w > 0 ? w : 300);
                 }
                 if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "offsetHeight") == 0 || strcmp(prop, "scrollHeight") == 0) {
-                    JSValue h_val = JS_GetPropertyStr(ctx, argv[0], "height");
-                    int32_t h = 150;
-                    if (JS_IsNumber(h_val)) JS_ToInt32(ctx, &h, h_val);
-                    JS_FreeValue(ctx, h_val);
+                    int32_t h = 0;
+                    JSValue hv = wisp_element_getAttribute_impl(ctx, priv, "height");
+                    if (JS_IsString(hv)) {
+                        const char *hs = JS_ToCString(ctx, hv);
+                        if (hs) { h = atoi(hs); JS_FreeCString(ctx, hs); }
+                    }
+                    JS_FreeValue(ctx, hv);
+                    if (h <= 0) {
+                        JSValue h_val = JS_GetPropertyStr(ctx, argv[0], "height");
+                        if (JS_IsNumber(h_val)) JS_ToInt32(ctx, &h, h_val);
+                        JS_FreeValue(ctx, h_val);
+                    }
+                    JS_FreeCString(ctx, tag_str);
+                    JS_FreeValue(ctx, tag_val);
                     JS_FreeCString(ctx, prop);
                     return JS_NewInt32(ctx, h > 0 ? h : 150);
                 }
             } else if (tag_str && strcasecmp(tag_str, "details") == 0) {
-                JS_FreeCString(ctx, tag_str);
-                JS_FreeValue(ctx, tag_val);
                 if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "offsetHeight") == 0 || strcmp(prop, "scrollHeight") == 0) {
                     bool is_open = false;
                     JSValue open_val = JS_GetPropertyStr(ctx, argv[0], "open");
                     if (JS_IsBool(open_val)) is_open = JS_ToBool(ctx, open_val);
                     JS_FreeValue(ctx, open_val);
+                    JS_FreeCString(ctx, tag_str);
+                    JS_FreeValue(ctx, tag_val);
                     JS_FreeCString(ctx, prop);
                     return JS_NewInt32(ctx, is_open ? 50 : 20);
                 }
-            } else if (tag_str) {
-                JS_FreeCString(ctx, tag_str);
             }
+            if (tag_str) JS_FreeCString(ctx, tag_str);
         }
         JS_FreeValue(ctx, tag_val);
 
