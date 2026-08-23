@@ -474,7 +474,17 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
     dom_string *elem_tag = NULL;
     dom_element_get_tag_name((dom_element *)element, &elem_tag);
     if (elem_tag) {
-        dom_hubbub_parser_set_context_tag(parser, (const char *)dom_string_data(elem_tag), dom_string_byte_length(elem_tag));
+        size_t tag_len = dom_string_byte_length(elem_tag);
+        const char *tag_data = (const char *)dom_string_data(elem_tag);
+        char *lower_tag = malloc(tag_len + 1);
+        if (lower_tag) {
+            for (size_t i = 0; i < tag_len; i++) {
+                lower_tag[i] = tolower((unsigned char)tag_data[i]);
+            }
+            lower_tag[tag_len] = '\0';
+            dom_hubbub_parser_set_context_tag(parser, lower_tag, tag_len);
+            free(lower_tag);
+        }
         dom_string_unref(elem_tag);
     }
 
@@ -511,7 +521,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
                 }
                 if (!head_node) {
                     dom_string *head_str = NULL;
-                    dom_string_create_interned((const uint8_t *)"head", 4, &head_str);
+                    dom_string_create_interned((const uint8_t *)"HEAD", 4, &head_str);
                     dom_document_create_element(doc, head_str, (dom_element **)&head_node);
                     dom_string_unref(head_str);
                     if (head_node) {
@@ -531,7 +541,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
                 }
                 if (!body_node) {
                     dom_string *body_str = NULL;
-                    dom_string_create_interned((const uint8_t *)"body", 4, &body_str);
+                    dom_string_create_interned((const uint8_t *)"BODY", 4, &body_str);
                     dom_document_create_element(doc, body_str, (dom_element **)&body_node);
                     dom_string_unref(body_str);
                     if (body_node) {
@@ -709,7 +719,7 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         JSValue tag_val = JS_GetPropertyStr(ctx, argv[0], "tagName");
         if (JS_IsString(tag_val)) {
             const char *tag_str = JS_ToCString(ctx, tag_val);
-            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0)) {
+            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0 || strcasecmp(tag_str, "mspace") == 0)) {
                 if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "offsetWidth") == 0 || strcmp(prop, "scrollWidth") == 0) {
                     int32_t w = 0;
                     JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
