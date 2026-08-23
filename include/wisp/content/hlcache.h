@@ -42,6 +42,7 @@ typedef struct hlcache_child_context {
     struct csp *csp; /**< Content Security Policy of parent */
     const char *coep; /**< Cross-Origin Embedder Policy of parent */
     struct nsurl *parent_url; /**< Parent URL for origin checking */
+    const char *required_csp; /**< Required CSP baseline for iframe embeds */
 } hlcache_child_context;
 
 /** High-level cache event */

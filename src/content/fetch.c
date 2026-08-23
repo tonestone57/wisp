@@ -655,6 +655,15 @@ long fetch_http_code(struct fetch *fetch)
     return fetch->http_code;
 }
 
+/* exported interface documented in content/fetch.h */
+nsurl *fetch_get_referer(struct fetch *fetch)
+{
+    if (fetch == NULL) {
+        return NULL;
+    }
+    return fetch->referer;
+}
+
 
 /* exported interface documented in content/fetch.h */
 struct fetch_multipart_data *fetch_multipart_data_clone(const struct fetch_multipart_data *list)

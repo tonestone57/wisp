@@ -485,6 +485,11 @@ bool content_get_opaque(struct hlcache_handle *h);
  */
 bool content_get_quirks(struct hlcache_handle *h);
 
+/**
+ * Retrieve CSP baseline of iframe element associated with handle
+ */
+const char *content_get_iframe_csp(struct hlcache_handle *h, struct nsurl *url);
+
 
 /**
  * Return whether a content is currently locked

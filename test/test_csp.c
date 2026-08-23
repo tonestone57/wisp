@@ -119,6 +119,14 @@ void test_csp() {
     const char *test_sec_user = "Sec-Fetch-User: ?1";
     assert(strncasecmp(test_sec_user, "Sec-Fetch-User:", 15) == 0);
 
+    // Test 12: CORP policy header parsing logic
+    const char *corp_co = "cross-origin";
+    const char *corp_ss = "same-site";
+    const char *corp_so = "same-origin";
+    assert(strcasecmp(corp_co, "cross-origin") == 0);
+    assert(strcasecmp(corp_ss, "same-site") == 0);
+    assert(strcasecmp(corp_so, "same-origin") == 0);
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);

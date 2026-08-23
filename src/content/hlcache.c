@@ -602,6 +602,41 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
         }
         break;
     case LLCACHE_EVENT_HAD_HEADERS:
+        /* Evaluate Cross-Origin Resource Policy (CORP) */
+        if (ctx != NULL && ctx->child.parent_url != NULL) {
+            nsurl *res_url = llcache_handle_get_url(handle);
+            if (res_url != NULL && !nsurl_compare(ctx->child.parent_url, res_url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
+                bool corp_allowed = false;
+                const llcache_header_value *corp_hdr = llcache_handle_get_header(handle, LLCACHE_HEADER_CROSS_ORIGIN_RESOURCE_POLICY);
+                if (corp_hdr != NULL && corp_hdr->count > 0 && corp_hdr->entries[0].raw_value != NULL) {
+                    const char *corp_val = corp_hdr->entries[0].raw_value;
+                    if (strcasecmp(corp_val, "cross-origin") == 0) {
+                        corp_allowed = true;
+                    } else if (strcasecmp(corp_val, "same-site") == 0) {
+                        corp_allowed = nsurl_compare(ctx->child.parent_url, res_url, NSURL_HOST);
+                    } else if (strcasecmp(corp_val, "same-origin") == 0) {
+                        corp_allowed = false;
+                    }
+                } else if (!nsoption_bool(enable_coep) || ctx->child.coep == NULL || strcasecmp(ctx->child.coep, "require-corp") != 0) {
+                    /* If no COEP require-corp and no explicit restrictive CORP header, allow cross-origin */
+                    corp_allowed = true;
+                }
+
+                if (!corp_allowed) {
+                    NSLOG(wisp, ERROR, "CORP BLOCKED subresource response: %s", nsurl_access(res_url));
+                    if (ctx->handle != NULL && ctx->handle->cb != NULL && !ctx->handle->released) {
+                        hlcache_event hlevent;
+                        hlevent.type = CONTENT_MSG_ERROR;
+                        hlevent.data.errordata.errorcode = NSERROR_CSP_BLOCKED;
+                        hlevent.data.errordata.errormsg = "Blocked by Cross-Origin Resource Policy";
+                        ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
+                    }
+                    llcache_handle_abort(handle);
+                    return NSERROR_CSP_BLOCKED;
+                }
+            }
+        }
+
         error = mimesniff_compute_effective_type(hlcache_get_content_type_raw(handle), NULL, 0,
             ctx->flags & HLCACHE_RETRIEVE_SNIFF_TYPE, ctx->accepted_types == CONTENT_IMAGE, &effective_type);
         if (error == NSERROR_OK || error == NSERROR_NOT_FOUND) {
@@ -1031,7 +1066,20 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     ctx->handle->refcount = 1;
 
     NSLOG(wisp, DEBUG, "FETCH: cache MISS (new fetch) '%s'", nsurl_access(url));
-    error = llcache_handle_retrieve(url, flags, referer, post, hlcache_llcache_callback, ctx, &ctx->llcache);
+    if (child != NULL && child->required_csp != NULL) {
+        size_t req_len = strlen("Sec-Required-CSP: ") + strlen(child->required_csp) + 1;
+        char *req_csp_buf = malloc(req_len);
+        if (req_csp_buf != NULL) {
+            snprintf(req_csp_buf, req_len, "Sec-Required-CSP: %s", child->required_csp);
+            const char *custom_headers[] = { req_csp_buf, NULL };
+            error = llcache_handle_retrieve_with_headers(url, flags, referer, post, custom_headers, hlcache_llcache_callback, ctx, &ctx->llcache);
+            free(req_csp_buf);
+        } else {
+            error = llcache_handle_retrieve(url, flags, referer, post, hlcache_llcache_callback, ctx, &ctx->llcache);
+        }
+    } else {
+        error = llcache_handle_retrieve(url, flags, referer, post, hlcache_llcache_callback, ctx, &ctx->llcache);
+    }
     if (error != NSERROR_OK) {
         /* error retrieving handle so free context and return error */
         free((char *)ctx->child.charset);

@@ -189,6 +189,12 @@ nserror llcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, cons
     llcache_handle_callback cb, void *pw, llcache_handle **result);
 
 /**
+ * Retrieve a handle for a low-level cache object with custom HTTP request headers
+ */
+nserror llcache_handle_retrieve_with_headers(nsurl *url, uint32_t flags, nsurl *referer, const llcache_post_data *post,
+    const char **headers, llcache_handle_callback cb, void *pw, llcache_handle **result);
+
+/**
  * Change the callback associated with a low-level cache handle
  *
  * \param handle  Handle to change callback of

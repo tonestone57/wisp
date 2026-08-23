@@ -1330,6 +1330,22 @@ bool content_get_quirks(hlcache_handle *h)
     return c->quirks;
 }
 
+const char *content_get_iframe_csp(hlcache_handle *h, struct nsurl *url)
+{
+    struct content *c = hlcache_handle_get_content(h);
+    if (c == NULL || url == NULL)
+        return NULL;
+
+    struct content_html_iframe *iframe = html_get_iframe(h);
+    while (iframe != NULL) {
+        if (iframe->url != NULL && nsurl_compare(iframe->url, url, NSURL_COMPLETE)) {
+            return iframe->csp;
+        }
+        iframe = iframe->next;
+    }
+    return NULL;
+}
+
 
 /* exported interface documented in content/content.h */
 const char *content_get_encoding(hlcache_handle *h, enum content_encoding_type op)
