@@ -10,6 +10,7 @@
 #include "JSHTMLScriptElement.gen.h"
 
 extern bool wisp_is_js_process;
+extern shm_dom_t *wisp_shm_dom;
 extern JSValue wisp_node_textContent_get_impl(JSContext *ctx, QJSNodePrivate *priv);
 extern JSValue wisp_node_textContent_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value);
 
@@ -39,17 +40,35 @@ JSValue wisp_htmlscriptelement_src_get_impl(JSContext *ctx, QJSNodePrivate *priv
 JSValue wisp_htmlscriptelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    JSValue res = JS_UNDEFINED;
     if (wisp_is_js_process) {
-        return wisp_element_setAttribute_impl(ctx, priv, "src", value);
+        res = wisp_element_setAttribute_impl(ctx, priv, "src", value);
+    } else {
+        dom_string *attr_name = NULL;
+        dom_string_create((const uint8_t *)"src", 3, &attr_name);
+        dom_string *value_dom = NULL;
+        dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
+        dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
+        dom_string_unref(attr_name);
+        dom_string_unref(value_dom);
     }
-    dom_string *attr_name = NULL;
-    dom_string_create((const uint8_t *)"src", 3, &attr_name);
-    dom_string *value_dom = NULL;
-    dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
-    dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
-    dom_string_unref(attr_name);
-    dom_string_unref(value_dom);
-    return JS_UNDEFINED;
+    bool is_connected = false;
+    if (wisp_is_js_process) {
+        uint64_t id = (uint64_t)(uintptr_t)priv->node;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, id);
+        if (sn && sn->parent_id != 0) is_connected = true;
+    } else {
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node((struct dom_node *)priv->node, &parent);
+        if (parent) {
+            is_connected = true;
+            dom_node_unref(parent);
+        }
+    }
+    if (is_connected) {
+        check_script_element_execution(ctx, priv->node);
+    }
+    return res;
 }
 
 JSValue wisp_htmlscriptelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -78,17 +97,35 @@ JSValue wisp_htmlscriptelement_type_get_impl(JSContext *ctx, QJSNodePrivate *pri
 JSValue wisp_htmlscriptelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
     if (!priv || !priv->node || !value) return JS_UNDEFINED;
+    JSValue res = JS_UNDEFINED;
     if (wisp_is_js_process) {
-        return wisp_element_setAttribute_impl(ctx, priv, "type", value);
+        res = wisp_element_setAttribute_impl(ctx, priv, "type", value);
+    } else {
+        dom_string *attr_name = NULL;
+        dom_string_create((const uint8_t *)"type", 4, &attr_name);
+        dom_string *value_dom = NULL;
+        dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
+        dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
+        dom_string_unref(attr_name);
+        dom_string_unref(value_dom);
     }
-    dom_string *attr_name = NULL;
-    dom_string_create((const uint8_t *)"type", 4, &attr_name);
-    dom_string *value_dom = NULL;
-    dom_string_create((const uint8_t *)value, strlen(value), &value_dom);
-    dom_element_set_attribute((dom_element *)priv->node, attr_name, value_dom);
-    dom_string_unref(attr_name);
-    dom_string_unref(value_dom);
-    return JS_UNDEFINED;
+    bool is_connected = false;
+    if (wisp_is_js_process) {
+        uint64_t id = (uint64_t)(uintptr_t)priv->node;
+        WispCompactNode *sn = find_shm_node(wisp_shm_dom, id);
+        if (sn && sn->parent_id != 0) is_connected = true;
+    } else {
+        struct dom_node *parent = NULL;
+        dom_node_get_parent_node((struct dom_node *)priv->node, &parent);
+        if (parent) {
+            is_connected = true;
+            dom_node_unref(parent);
+        }
+    }
+    if (is_connected) {
+        check_script_element_execution(ctx, priv->node);
+    }
+    return res;
 }
 
 JSValue wisp_htmlscriptelement_async_get_impl(JSContext *ctx, QJSNodePrivate *priv)
