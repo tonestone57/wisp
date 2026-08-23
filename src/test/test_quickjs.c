@@ -6334,6 +6334,62 @@ START_TEST(test_quickjs_shm_remap_and_dangling)
 END_TEST
 
 
+START_TEST(test_quickjs_reparent_unreffed_node)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_string *input_s;
+    struct dom_element *input_el;
+    dom_string_create_interned((const uint8_t *)"input", 5, &input_s);
+    dom_document_create_element(doc, input_s, &input_el);
+    dom_string_unref(input_s);
+
+    dom_node *html = (dom_node *)doc;
+    dom_node_get_first_child((dom_node *)doc, &html);
+    if (html) {
+        dom_node *body_node = NULL;
+        dom_node_get_last_child(html, &body_node);
+        if (body_node) {
+            dom_node_append_child(body_node, (dom_node *)input_el, NULL);
+            // Unref input_el so its refcnt becomes 0 (held solely by body_node)
+            dom_node_unref((dom_node *)input_el);
+
+            // Create target container div
+            dom_string *div_s;
+            struct dom_element *target_div;
+            dom_string_create_interned((const uint8_t *)"div", 3, &div_s);
+            dom_document_create_element(doc, div_s, &target_div);
+            dom_node_append_child(body_node, (dom_node *)target_div, NULL);
+            dom_string_unref(div_s);
+
+            // Re-parent input_el into target_div while refcnt is 0
+            dom_exception dom_err = dom_node_insert_before((dom_node *)target_div, (dom_node *)input_el, NULL, NULL);
+            ck_assert_int_eq(dom_err, DOM_NO_ERR);
+
+            dom_node_unref((dom_node *)target_div);
+            dom_node_unref(body_node);
+        }
+        dom_node_unref(html);
+    }
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_jquery_init)
 {
     jsheap *heap = NULL;
@@ -6628,6 +6684,7 @@ Suite *quickjs_suite(void)
 
     /* MutationObserver test case */
     TCase *tc_mutation = tcase_create("MutationObserver");
+    tcase_add_test(tc_mutation, test_quickjs_reparent_unreffed_node);
     tcase_add_test(tc_mutation, test_quickjs_mutation_observer_e2e);
     tcase_add_test(tc_mutation, test_quickjs_jquery_init);
     suite_add_tcase(s, tc_mutation);

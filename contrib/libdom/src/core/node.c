@@ -831,11 +831,16 @@ dom_exception _dom_node_insert_before(
         return DOM_NO_ERR;
     }
 
+    /* Protect new_child against destruction during detach if refcnt was 0 */
+    dom_node_ref(new_child);
+
     /* If new_child is already in the tree and
      * its parent isn't read only, remove it */
     if (new_child->parent != NULL) {
-        if (_dom_node_readonly(new_child->parent))
+        if (_dom_node_readonly(new_child->parent)) {
+            dom_node_unref(new_child);
             return DOM_NO_MODIFICATION_ALLOWED_ERR;
+        }
 
         _dom_node_detach(new_child);
     }
@@ -845,15 +850,20 @@ dom_exception _dom_node_insert_before(
     if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
         /* Test the children of the docment fragment can be appended */
         dom_node_internal *c = new_child->first_child;
-        for (; c != NULL; c = c->next)
-            if (!_dom_node_permitted_child(node, c))
+        for (; c != NULL; c = c->next) {
+            if (!_dom_node_permitted_child(node, c)) {
+                dom_node_unref(new_child);
                 return DOM_HIERARCHY_REQUEST_ERR;
+            }
+        }
 
         if (new_child->first_child != NULL) {
             err = _dom_node_attach_range(new_child->first_child, new_child->last_child, node,
                 ref_child == NULL ? node->last_child : ref_child->previous, ref_child == NULL ? NULL : ref_child);
-            if (err != DOM_NO_ERR)
+            if (err != DOM_NO_ERR) {
+                dom_node_unref(new_child);
                 return err;
+            }
 
             new_child->first_child = NULL;
             new_child->last_child = NULL;
@@ -866,8 +876,10 @@ dom_exception _dom_node_insert_before(
 
         err = _dom_node_attach(new_child, node, ref_child == NULL ? node->last_child : ref_child->previous,
             ref_child == NULL ? NULL : ref_child);
-        if (err != DOM_NO_ERR)
+        if (err != DOM_NO_ERR) {
+            dom_node_unref(new_child);
             return err;
+        }
     }
 
     /* DocumentType nodes are created outside the Document so,
@@ -885,6 +897,8 @@ dom_exception _dom_node_insert_before(
         dom_node_ref(new_child);
         *result = new_child;
     }
+
+    dom_node_unref(new_child);
 
     return DOM_NO_ERR;
 }
@@ -977,11 +991,16 @@ dom_exception _dom_node_replace_child(
         return DOM_NO_ERR;
     }
 
+    /* Protect new_child against destruction during detach if refcnt was 0 */
+    dom_node_ref(new_child);
+
     /* If new_child is already in the tree and
      * its parent isn't read only, remove it */
     if (new_child->parent != NULL) {
-        if (_dom_node_readonly(new_child->parent))
+        if (_dom_node_readonly(new_child->parent)) {
+            dom_node_unref(new_child);
             return DOM_NO_MODIFICATION_ALLOWED_ERR;
+        }
 
         _dom_node_detach(new_child);
     }
@@ -1007,6 +1026,8 @@ dom_exception _dom_node_replace_child(
     } else {
         dom_node_try_destroy((dom_node *)old_child);
     }
+
+    dom_node_unref(new_child);
 
     return DOM_NO_ERR;
 }
@@ -1052,15 +1073,23 @@ dom_exception _dom_node_remove_child(dom_node_internal *node, dom_node_internal 
     if (err != DOM_NO_ERR)
         return err;
 
+    /* Protect old_child against destruction during detach if refcnt was 0 */
+    dom_node_ref(old_child);
+
     /* Detach the node */
     _dom_node_detach(old_child);
 
     if (result != NULL) {
-        *result = (dom_node_internal *)dom_node_ref(old_child);
+        *result = old_child;
     }
 
     success = true;
     err = _dom_dispatch_subtree_modified_event(node->owner, node, &success);
+
+    if (result == NULL) {
+        dom_node_unref(old_child);
+    }
+
     if (err != DOM_NO_ERR)
         return err;
 
