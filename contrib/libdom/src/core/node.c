@@ -840,10 +840,6 @@ dom_exception _dom_node_insert_before(
         _dom_node_detach(new_child);
     }
 
-    /* When a Node is attached, it should be removed from the pending
-     * list */
-    dom_node_remove_pending(new_child);
-
     /* If new_child is a DocumentFragment, insert its children.
      * Otherwise, insert new_child */
     if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
@@ -862,7 +858,12 @@ dom_exception _dom_node_insert_before(
             new_child->first_child = NULL;
             new_child->last_child = NULL;
         }
+        /* DocumentFragment itself is not attached to the tree; ensure it remains in pending list */
+        dom_node_mark_pending(new_child);
     } else {
+        /* When a non-fragment Node is attached, it should be removed from the pending list */
+        dom_node_remove_pending(new_child);
+
         err = _dom_node_attach(new_child, node, ref_child == NULL ? node->last_child : ref_child->previous,
             ref_child == NULL ? NULL : ref_child);
         if (err != DOM_NO_ERR)
@@ -985,12 +986,17 @@ dom_exception _dom_node_replace_child(
         _dom_node_detach(new_child);
     }
 
-    /* When a Node is attached, it should be removed from the pending
-     * list */
-    dom_node_remove_pending(new_child);
+    /* When a non-fragment Node is attached, it should be removed from the pending list */
+    if (new_child->type != DOM_DOCUMENT_FRAGMENT_NODE) {
+        dom_node_remove_pending(new_child);
+    }
 
     /* Perform the replacement */
     _dom_node_replace(old_child, new_child);
+
+    if (new_child->type == DOM_DOCUMENT_FRAGMENT_NODE) {
+        dom_node_mark_pending(new_child);
+    }
 
     /* Sort out the return value */
     /* The replaced node should be marded pending */
@@ -2352,10 +2358,11 @@ void _dom_node_mark_pending(dom_node_internal *node)
      * dom_document_type node. For this reason, we test whether
      * the doc is NULL. */
     if (doc != NULL) {
-        /* The node must not be in the pending list */
-        assert(node->pending_list.prev == &node->pending_list);
-
-        list_append(&doc->pending_nodes, &node->pending_list);
+        /* Only append if not already in the pending list */
+        if (node->pending_list.prev == &node->pending_list) {
+            assert(node->pending_list.next == &node->pending_list);
+            list_append(&doc->pending_nodes, &node->pending_list);
+        }
     }
 }
 
@@ -2370,10 +2377,11 @@ void _dom_node_remove_pending(dom_node_internal *node)
     struct dom_document *doc = node->owner;
 
     if (doc != NULL) {
-        /* The node must be in the pending list */
-        assert(node->pending_list.prev != &node->pending_list);
-
-        list_del(&node->pending_list);
+        /* Only remove if currently in the pending list */
+        if (node->pending_list.prev != &node->pending_list) {
+            assert(node->pending_list.next != &node->pending_list);
+            list_del(&node->pending_list);
+        }
     }
 }
 
