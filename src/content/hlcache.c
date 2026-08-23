@@ -405,11 +405,8 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
         /* Signal to caller that we created a content */
         error = NSERROR_NEED_DATA;
 
-        /* No longer need retrieval llcache handle */
-        if (ctx->llcache != NULL) {
-            llcache_handle_release(ctx->llcache);
-            ctx->llcache = NULL;
-        }
+        /* Retrieval llcache handle is now adopted by entry->content */
+        ctx->llcache = NULL;
 
         hlcache->miss_count++;
     } else {
