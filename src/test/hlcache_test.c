@@ -33,6 +33,17 @@ static nserror mock_schedule(int t, void (*cb)(void *p), void *p)
     return NSERROR_OK;
 }
 
+static nserror sync_check_callback(hlcache_handle *handle, const hlcache_event *event, void *pw)
+{
+    hlcache_handle **result_ptr = (hlcache_handle **)pw;
+    (void)event;
+    if (result_ptr != NULL) {
+        /* Verify that *result_ptr is ALREADY set to handle when catchup callback executes */
+        ck_assert_ptr_eq(*result_ptr, handle);
+    }
+    return NSERROR_OK;
+}
+
 static void pump_scheduled(void)
 {
     int safety = 0;
@@ -257,6 +268,45 @@ START_TEST(test_hlcache_abort_and_replace_callback)
 }
 END_TEST
 
+START_TEST(test_hlcache_sync_result_populated_during_catchup)
+{
+    guit = &mock_gui_table;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    content_factory_register_handler("image/svg+xml", &dummy_handler);
+
+    struct hlcache_parameters params = {
+        .bg_clean_time = 10000,
+        .llcache = {
+            .limit = 1024 * 1024,
+        },
+    };
+
+    nserror error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t data[32] = "<svg><path/></svg>";
+    hlcache_handle *handle1 = NULL;
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle1);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    pump_scheduled();
+
+    /* Second retrieval triggers cache HIT with synchronous catchup callbacks */
+    hlcache_handle *handle2 = NULL;
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", sync_check_callback, &handle2, NULL, CONTENT_IMAGE, &handle2);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(handle2);
+
+    ck_assert_int_eq(hlcache_handle_release(handle2), NSERROR_OK);
+    ck_assert_int_eq(hlcache_handle_release(handle1), NSERROR_OK);
+
+    hlcache_stop();
+    hlcache_finalise();
+}
+END_TEST
+
 static Suite *hlcache_suite(void)
 {
     Suite *s = suite_create("hlcache");
@@ -266,6 +316,7 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_init_and_buffer_retrieval);
     tcase_add_test(tc_core, test_hlcache_reentrancy);
     tcase_add_test(tc_core, test_hlcache_abort_and_replace_callback);
+    tcase_add_test(tc_core, test_hlcache_sync_result_populated_during_catchup);
     suite_add_tcase(s, tc_core);
 
     return s;

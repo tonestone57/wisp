@@ -956,11 +956,11 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     return NSERROR_NOMEM;
                 }
 
+                *result = handle;
+
                 /* Notify callback of current state */
                 if (hlcache_catchup_handle_state(handle)) {
                     *result = NULL;
-                } else {
-                    *result = handle;
                 }
 
                 return NSERROR_OK;
@@ -1449,11 +1449,11 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
 
             nsurl_unref(url);
 
+            *result = handle;
+
             /* Fire state catch-up callbacks */
             if (hlcache_catchup_handle_state(handle)) {
                 *result = NULL;
-            } else {
-                *result = handle;
             }
 
             return NSERROR_OK;

@@ -107,7 +107,10 @@ static nserror html_convert_css_callback(hlcache_handle *css, const hlcache_even
             break;
     }
 
-    assert(i != parent->stylesheet_count);
+    if (i == parent->stylesheet_count) {
+        NSLOG(wisp, WARNING, "CSS callback for handle %p not found in stylesheets array", css);
+        return NSERROR_OK;
+    }
 
     switch (event->type) {
 
