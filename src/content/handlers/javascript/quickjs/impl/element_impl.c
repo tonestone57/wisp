@@ -363,6 +363,10 @@ JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 static void append_fragment_children(dom_node *element, dom_node *parent)
 {
+    dom_string *elem_tag = NULL;
+    dom_element_get_tag_name((dom_element *)element, &elem_tag);
+    const char *elem_tag_cstr = elem_tag ? (const char *)dom_string_data(elem_tag) : "";
+
     dom_node *c = NULL;
     while (dom_node_get_first_child(parent, &c) == DOM_NO_ERR && c != NULL) {
         dom_node_type type;
@@ -372,7 +376,8 @@ static void append_fragment_children(dom_node *element, dom_node *parent)
             dom_node_get_node_name(c, &tag);
             if (tag) {
                 const char *tag_cstr = (const char *)dom_string_data(tag);
-                if (strcasecmp(tag_cstr, "html") == 0 || strcasecmp(tag_cstr, "head") == 0 || strcasecmp(tag_cstr, "body") == 0) {
+                if (strcasecmp(tag_cstr, "html") == 0 || strcasecmp(tag_cstr, "head") == 0 || strcasecmp(tag_cstr, "body") == 0 ||
+                    (elem_tag_cstr && elem_tag_cstr[0] && strcasecmp(tag_cstr, elem_tag_cstr) == 0)) {
                     dom_string_unref(tag);
                     append_fragment_children(element, c);
                     dom_node_remove_child(parent, c, NULL);
@@ -389,6 +394,7 @@ static void append_fragment_children(dom_node *element, dom_node *parent)
         dom_node_unref(c);
         c = NULL;
     }
+    if (elem_tag) dom_string_unref(elem_tag);
 }
 
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
@@ -465,65 +471,79 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
         return JS_ThrowInternalError(ctx, "Failed to create Hubbub fragment parser");
     }
 
+    dom_string *elem_tag = NULL;
+    dom_element_get_tag_name((dom_element *)element, &elem_tag);
+    if (elem_tag) {
+        dom_hubbub_parser_set_context_tag(parser, (const char *)dom_string_data(elem_tag), dom_string_byte_length(elem_tag));
+        dom_string_unref(elem_tag);
+    }
+
     err = dom_hubbub_parser_parse_chunk(parser, (const uint8_t *)value, strlen(value));
     if (err == DOM_HUBBUB_OK) {
         err = dom_hubbub_parser_completed(parser);
     }
 
     if (fragment != NULL) {
-        /* 3. Append children from fragment (unwrapping html/body wrappers if present) */
-        dom_node *target_parent = (dom_node *)fragment;
-        dom_node *html_child = NULL;
-        if (dom_node_get_first_child((dom_node *)fragment, &html_child) == DOM_NO_ERR && html_child != NULL) {
-            dom_string *node_name = NULL;
-            if (dom_node_get_node_name(html_child, &node_name) == DOM_NO_ERR && node_name != NULL) {
-                const uint8_t *data = dom_string_data(node_name);
-                uint32_t len = dom_string_byte_length(node_name);
-                if (len == 4 && strncasecmp((const char *)data, "html", 4) == 0) {
-                    dom_node *curr = NULL;
-                    if (dom_node_get_first_child(html_child, &curr) == DOM_NO_ERR && curr != NULL) {
-                        while (curr != NULL) {
-                            dom_string *c_name = NULL;
-                            if (dom_node_get_node_name(curr, &c_name) == DOM_NO_ERR && c_name != NULL) {
-                                const uint8_t *c_data = dom_string_data(c_name);
-                                uint32_t c_len = dom_string_byte_length(c_name);
-                                if (c_len == 4 && strncasecmp((const char *)c_data, "body", 4) == 0) {
-                                    target_parent = curr;
-                                    dom_string_unref(c_name);
-                                    dom_node *rem_res = NULL;
-                                    dom_node_remove_child(html_child, target_parent, &rem_res);
-                                    if (rem_res) dom_node_unref(rem_res);
-                                    break;
-                                }
-                                dom_string_unref(c_name);
-                            }
-                            dom_node *next = NULL;
-                            dom_node_get_next_sibling(curr, &next);
-                            dom_node_unref(curr);
-                            curr = next;
+        /* 3. Append children from fragment (recursively unwrapping html/head/body wrappers) */
+        append_fragment_children(element, (dom_node *)fragment);
+
+        /* Special handling for HTMLHtmlElement (<html>) when setting innerHTML:
+         * HTML5 spec requires <html> to contain <head> and <body> elements. */
+        dom_string *tag_dom = NULL;
+        dom_element_get_tag_name((dom_element *)element, &tag_dom);
+        if (tag_dom) {
+            const char *tag_cstr = (const char *)dom_string_data(tag_dom);
+            if (tag_cstr && strcasecmp(tag_cstr, "html") == 0) {
+                dom_node *head_node = NULL, *body_node = NULL, *curr = NULL;
+                dom_node_get_first_child(element, &curr);
+                while (curr != NULL) {
+                    dom_string *c_name = NULL;
+                    if (dom_node_get_node_name(curr, &c_name) == DOM_NO_ERR && c_name != NULL) {
+                        const char *c_str = (const char *)dom_string_data(c_name);
+                        if (c_str && strcasecmp(c_str, "head") == 0) head_node = curr;
+                        else if (c_str && strcasecmp(c_str, "body") == 0) body_node = curr;
+                        dom_string_unref(c_name);
+                    }
+                    dom_node *next_node = NULL;
+                    dom_node_get_next_sibling(curr, &next_node);
+                    if (curr != head_node && curr != body_node) dom_node_unref(curr);
+                    curr = next_node;
+                }
+                if (!head_node) {
+                    dom_string *head_str = NULL;
+                    dom_string_create_interned((const uint8_t *)"head", 4, &head_str);
+                    dom_document_create_element(doc, head_str, (dom_element **)&head_node);
+                    dom_string_unref(head_str);
+                    if (head_node) {
+                        dom_node *first_child = NULL;
+                        dom_node_get_first_child(element, &first_child);
+                        if (first_child) {
+                            dom_node *res = NULL;
+                            dom_node_insert_before(element, head_node, first_child, &res);
+                            if (res) dom_node_unref(res);
+                            dom_node_unref(first_child);
+                        } else {
+                            dom_node *res = NULL;
+                            dom_node_append_child(element, head_node, &res);
+                            if (res) dom_node_unref(res);
                         }
                     }
                 }
-                dom_string_unref(node_name);
+                if (!body_node) {
+                    dom_string *body_str = NULL;
+                    dom_string_create_interned((const uint8_t *)"body", 4, &body_str);
+                    dom_document_create_element(doc, body_str, (dom_element **)&body_node);
+                    dom_string_unref(body_str);
+                    if (body_node) {
+                        dom_node *res = NULL;
+                        dom_node_append_child(element, body_node, &res);
+                        if (res) dom_node_unref(res);
+                    }
+                }
+                if (head_node) dom_node_unref(head_node);
+                if (body_node) dom_node_unref(body_node);
             }
-            if (target_parent == (dom_node *)fragment) {
-                dom_node_unref(html_child);
-            }
-        }
-
-        if (target_parent == (dom_node *)fragment) {
-            append_fragment_children(element, (dom_node *)fragment);
-        } else {
-            dom_node *c = NULL;
-            while (dom_node_get_first_child(target_parent, &c) == DOM_NO_ERR && c != NULL) {
-                dom_node *res = NULL;
-                dom_node_append_child(element, c, &res);
-                if (res) dom_node_unref(res);
-                dom_node_unref(c);
-                c = NULL;
-            }
-            dom_node_unref(target_parent);
-            if (html_child) dom_node_unref(html_child);
+            dom_string_unref(tag_dom);
         }
     }
 

@@ -170,6 +170,32 @@ hubbub_error hubbub_treebuilder_setopt(
     case HUBBUB_TREEBUILDER_ENABLE_SCRIPTING:
         treebuilder->context.enable_scripting = params->enable_scripting;
         break;
+    case HUBBUB_TREEBUILDER_FRAGMENT_MODE:
+        treebuilder->context.is_fragment = params->fragment_mode;
+        if (treebuilder->context.is_fragment && treebuilder->context.document != NULL) {
+            /* Create and push synthetic <html> root element onto stack for fragment parsing */
+            hubbub_tag html_tag;
+            void *html_node = NULL;
+            html_tag.ns = HUBBUB_NS_HTML;
+            html_tag.name.ptr = (const uint8_t *)"html";
+            html_tag.name.len = SLEN("html");
+            html_tag.n_attributes = 0;
+            html_tag.attributes = NULL;
+            if (treebuilder->tree_handler != NULL &&
+                treebuilder->tree_handler->create_element(treebuilder->tree_handler->ctx, &html_tag, &html_node) == HUBBUB_OK) {
+                void *appended = NULL;
+                treebuilder->tree_handler->append_child(treebuilder->tree_handler->ctx, treebuilder->context.document, html_node, &appended);
+                treebuilder->tree_handler->unref_node(treebuilder->tree_handler->ctx, html_node);
+                element_stack_push(treebuilder, HUBBUB_NS_HTML, HTML, appended);
+            }
+        }
+        break;
+    case HUBBUB_TREEBUILDER_CONTEXT_TAG:
+        if (params->context_tag.ptr != NULL && params->context_tag.len > 0) {
+            treebuilder->context.context_element = element_type_from_name(treebuilder, &params->context_tag);
+            reset_insertion_mode(treebuilder);
+        }
+        break;
     }
 
     return HUBBUB_OK;
@@ -679,26 +705,37 @@ void close_implied_end_tags(hubbub_treebuilder *treebuilder, element_type except
  */
 void reset_insertion_mode(hubbub_treebuilder *treebuilder)
 {
-    uint32_t node;
+    int32_t node;
     element_context *stack = treebuilder->context.element_stack;
 
-    /** \todo fragment parsing algorithm */
+    if (stack == NULL || stack[0].node == NULL)
+        return;
 
-    for (node = treebuilder->context.current_node; node > 0; node--) {
-        if (stack[node].ns != HUBBUB_NS_HTML) {
-            treebuilder->context.mode = IN_FOREIGN_CONTENT;
-            treebuilder->context.second_mode = IN_BODY;
-            break;
+    for (node = (int32_t)treebuilder->context.current_node; node >= 0; node--) {
+        element_type type = stack[node].type;
+        bool is_last = (node == 0);
+
+        if (is_last && treebuilder->context.is_fragment && treebuilder->context.context_element != UNKNOWN) {
+            type = treebuilder->context.context_element;
         }
 
-        switch (stack[node].type) {
+        if (stack[node].ns != HUBBUB_NS_HTML && !is_last) {
+            treebuilder->context.mode = IN_FOREIGN_CONTENT;
+            treebuilder->context.second_mode = IN_BODY;
+            return;
+        }
+
+        switch (type) {
         case SELECT:
-            /* fragment case */
-            break;
+            treebuilder->context.mode = IN_SELECT;
+            return;
         case TD:
         case TH:
-            treebuilder->context.mode = IN_CELL;
-            return;
+            if (!is_last) {
+                treebuilder->context.mode = IN_CELL;
+                return;
+            }
+            break;
         case TR:
             treebuilder->context.mode = IN_ROW;
             return;
@@ -711,13 +748,16 @@ void reset_insertion_mode(hubbub_treebuilder *treebuilder)
             treebuilder->context.mode = IN_CAPTION;
             return;
         case COLGROUP:
-            /* fragment case */
-            break;
+            treebuilder->context.mode = IN_COLUMN_GROUP;
+            return;
         case TABLE:
             treebuilder->context.mode = IN_TABLE;
             return;
         case HEAD:
-            /* fragment case */
+            if (!is_last) {
+                treebuilder->context.mode = IN_HEAD;
+                return;
+            }
             break;
         case BODY:
             treebuilder->context.mode = IN_BODY;
