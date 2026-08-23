@@ -708,6 +708,44 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
                     JS_FreeCString(ctx, prop);
                     return JS_NewInt32(ctx, h > 0 ? h : 150);
                 }
+            } else if (tag_str && strcasecmp(tag_str, "input") == 0) {
+                JSValue type_val = JS_GetPropertyStr(ctx, argv[0], "type");
+                bool is_img_input = false;
+                if (JS_IsString(type_val)) {
+                    const char *type_s = JS_ToCString(ctx, type_val);
+                    if (type_s && strcasecmp(type_s, "image") == 0) is_img_input = true;
+                    if (type_s) JS_FreeCString(ctx, type_s);
+                }
+                JS_FreeValue(ctx, type_val);
+
+                if (is_img_input) {
+                    JS_FreeCString(ctx, tag_str);
+                    JS_FreeValue(ctx, tag_val);
+                    if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "offsetWidth") == 0 || strcmp(prop, "scrollWidth") == 0) {
+                        JSValue w_val = wisp_element_getAttribute_impl(ctx, priv, "width");
+                        int w = 100;
+                        if (JS_IsString(w_val)) {
+                            const char *ws = JS_ToCString(ctx, w_val);
+                            if (ws && *ws != '\0') w = atoi(ws);
+                            if (ws) JS_FreeCString(ctx, ws);
+                        }
+                        JS_FreeValue(ctx, w_val);
+                        JS_FreeCString(ctx, prop);
+                        return JS_NewInt32(ctx, w > 0 ? w : 100);
+                    }
+                    if (strcmp(prop, "clientHeight") == 0 || strcmp(prop, "offsetHeight") == 0 || strcmp(prop, "scrollHeight") == 0) {
+                        JSValue h_val = wisp_element_getAttribute_impl(ctx, priv, "height");
+                        int h = 100;
+                        if (JS_IsString(h_val)) {
+                            const char *hs = JS_ToCString(ctx, h_val);
+                            if (hs && *hs != '\0') h = atoi(hs);
+                            if (hs) JS_FreeCString(ctx, hs);
+                        }
+                        JS_FreeValue(ctx, h_val);
+                        JS_FreeCString(ctx, prop);
+                        return JS_NewInt32(ctx, h > 0 ? h : 100);
+                    }
+                }
             } else if (tag_str && strcasecmp(tag_str, "details") == 0) {
                 JS_FreeCString(ctx, tag_str);
                 JS_FreeValue(ctx, tag_val);

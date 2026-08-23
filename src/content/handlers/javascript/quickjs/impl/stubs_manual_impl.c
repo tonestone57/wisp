@@ -5465,12 +5465,54 @@ JSValue wisp_validitystate_patternMismatch_get_impl(JSContext *ctx, QJSNodePriva
     return JS_FALSE;
 }
 
+static bool check_range_overflow(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return false;
+    JSValue max_val = wisp_element_getAttribute_impl(ctx, priv, "max");
+    if (!JS_IsString(max_val)) { JS_FreeValue(ctx, max_val); return false; }
+    const char *max_str = JS_ToCString(ctx, max_val);
+    JS_FreeValue(ctx, max_val);
+    if (!max_str || *max_str == '\0') { if (max_str) JS_FreeCString(ctx, max_str); return false; }
+    double max_num = strtod(max_str, NULL);
+    JS_FreeCString(ctx, max_str);
+
+    JSValue val_val = wisp_htmlinputelement_value_get_impl(ctx, priv);
+    if (!JS_IsString(val_val)) { JS_FreeValue(ctx, val_val); return false; }
+    const char *val_str = JS_ToCString(ctx, val_val);
+    JS_FreeValue(ctx, val_val);
+    if (!val_str || *val_str == '\0') { if (val_str) JS_FreeCString(ctx, val_str); return false; }
+    double val_num = strtod(val_str, NULL);
+    JS_FreeCString(ctx, val_str);
+
+    return val_num > max_num;
+}
+
+static bool check_range_underflow(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return false;
+    JSValue min_val = wisp_element_getAttribute_impl(ctx, priv, "min");
+    if (!JS_IsString(min_val)) { JS_FreeValue(ctx, min_val); return false; }
+    const char *min_str = JS_ToCString(ctx, min_val);
+    JS_FreeValue(ctx, min_val);
+    if (!min_str || *min_str == '\0') { if (min_str) JS_FreeCString(ctx, min_str); return false; }
+    double min_num = strtod(min_str, NULL);
+    JS_FreeCString(ctx, min_str);
+
+    JSValue val_val = wisp_htmlinputelement_value_get_impl(ctx, priv);
+    if (!JS_IsString(val_val)) { JS_FreeValue(ctx, val_val); return false; }
+    const char *val_str = JS_ToCString(ctx, val_val);
+    JS_FreeValue(ctx, val_val);
+    if (!val_str || *val_str == '\0') { if (val_str) JS_FreeCString(ctx, val_str); return false; }
+    double val_num = strtod(val_str, NULL);
+    JS_FreeCString(ctx, val_str);
+
+    return val_num < min_num;
+}
+
 JSValue wisp_validitystate_rangeOverflow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+    return JS_NewBool(ctx, check_range_overflow(ctx, priv));
 }
 
 JSValue wisp_validitystate_rangeUnderflow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_FALSE;
+    return JS_NewBool(ctx, check_range_underflow(ctx, priv));
 }
 
 JSValue wisp_validitystate_stepMismatch_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -5551,6 +5593,8 @@ JSValue wisp_validitystate_valueMissing_get_impl(JSContext *ctx, QJSNodePrivate 
 JSValue wisp_validitystate_valid_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (check_value_missing(ctx, priv)) return JS_FALSE;
     if (check_custom_error(ctx, priv)) return JS_FALSE;
+    if (check_range_overflow(ctx, priv)) return JS_FALSE;
+    if (check_range_underflow(ctx, priv)) return JS_FALSE;
     JSValue tm = wisp_validitystate_typeMismatch_get_impl(ctx, priv);
     bool is_tm = JS_ToBool(ctx, tm);
     JS_FreeValue(ctx, tm);
@@ -8878,7 +8922,32 @@ JSValue wisp_htmllegendelement_form_get_impl(JSContext *ctx, QJSNodePrivate *pri
 
 // 7. HTMLInputElement Implementation (10 stubs)
 JSValue wisp_htmlinputelement_files_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NULL;
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    bool is_file = false;
+    if (JS_IsString(type_val)) {
+        const char *t = JS_ToCString(ctx, type_val);
+        if (t && strcasecmp(t, "file") == 0) is_file = true;
+        if (t) JS_FreeCString(ctx, t);
+    }
+    JS_FreeValue(ctx, type_val);
+    if (!is_file) return JS_NULL;
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue filelist_ctor = JS_GetPropertyStr(ctx, global, "FileList");
+    JS_FreeValue(ctx, global);
+
+    if (JS_IsFunction(ctx, filelist_ctor)) {
+        JSValue fl_obj = JS_CallConstructor(ctx, filelist_ctor, 0, NULL);
+        JS_FreeValue(ctx, filelist_ctor);
+        if (!JS_IsException(fl_obj)) return fl_obj;
+    } else {
+        JS_FreeValue(ctx, filelist_ctor);
+    }
+
+    JSValue fl_obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, fl_obj, "length", JS_NewInt32(ctx, 0));
+    return fl_obj;
 }
 JSValue wisp_htmlinputelement_inputMode_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "inputmode", "");

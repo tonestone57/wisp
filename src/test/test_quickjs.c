@@ -5933,6 +5933,76 @@ START_TEST(test_quickjs_ric)
 }
 END_TEST
 
+START_TEST(test_quickjs_form_ui_and_selectors)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *js_script =
+        "var input = document.createElement('input');\n"
+        "input.type = 'date';\n"
+        "input.value = 'foobar';\n"
+        "if (input.value !== '') throw new Error('Date input sanitization failed');\n"
+        "input.value = '2026-03-31';\n"
+        "if (input.value !== '2026-03-31') throw new Error('Date input valid set failed');\n"
+        "input.type = 'color';\n"
+        "input.value = 'invalid';\n"
+        "if (input.value !== '#000000') throw new Error('Color input sanitization failed');\n"
+        "input.type = 'file';\n"
+        "if (!input.files || !(input.files instanceof FileList)) throw new Error('FileList check failed');\n"
+        "input.type = 'image';\n"
+        "input.setAttribute('width', '120');\n"
+        "input.setAttribute('height', '80');\n"
+        "if (input.offsetWidth !== 120 || input.offsetHeight !== 80) throw new Error('Input image dimensions failed');\n"
+        "var input2 = document.createElement('input');\n"
+        "input2.id = 'test_form_input';\n"
+        "document.body.appendChild(input2);\n"
+        "var label = document.createElement('label');\n"
+        "label.setAttribute('for', 'test_form_input');\n"
+        "document.body.appendChild(label);\n"
+        "if (!input2.labels || input2.labels.length !== 1) throw new Error('Input labels lookup failed');\n"
+        "var selValid = document.querySelector('#test_form_input:valid');\n"
+        "if (!selValid) throw new Error(':valid selector failed');\n"
+        "var selOpt = document.querySelector('#test_form_input:optional');\n"
+        "if (!selOpt) throw new Error(':optional selector failed');\n"
+        "document.body.removeChild(label);\n"
+        "document.body.removeChild(input2);\n";
+
+    JSValue val = JS_Eval(thread->ctx, js_script, strlen(js_script), "<test_form>", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        const char *stack_str = NULL;
+        JSValue stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
+        if (JS_IsString(stack)) stack_str = JS_ToCString(thread->ctx, stack);
+        fprintf(stderr, "\n--- TEST EXCEPTION: %s\nStack: %s ---\n", exc_str ? exc_str : "unknown", stack_str ? stack_str : "none");
+        if (stack_str) JS_FreeCString(thread->ctx, stack_str);
+        JS_FreeValue(thread->ctx, stack);
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+    }
+    ck_assert_int_eq(JS_IsException(val), 0);
+    JS_FreeValue(thread->ctx, val);
+
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_bbmq_circular_queue)
 {
     // Save original state
@@ -6124,7 +6194,8 @@ START_TEST(test_quickjs_jquery_init)
     if (JS_IsException(val)) {
         JSValue exc = JS_GetException(thread->ctx);
         const char *exc_str = JS_ToCString(thread->ctx, exc);
-        fprintf(stderr, "\n--- EXCEPTION: %s ---\n\n", exc_str ? exc_str : "unknown");
+        printf("DEBUG EXCEPTION FORM: %s\n", exc_str ? exc_str : "unknown");
+        fflush(stdout);
         if (exc_str) JS_FreeCString(thread->ctx, exc_str);
         JS_FreeValue(thread->ctx, exc);
     }
@@ -6415,6 +6486,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_input_devices);
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
+    tcase_add_test(tc_event_loop, test_quickjs_form_ui_and_selectors);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     suite_add_tcase(s, tc_event_loop);
 
