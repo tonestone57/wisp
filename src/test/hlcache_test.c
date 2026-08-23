@@ -72,7 +72,7 @@ static nserror dummy_create(const struct content_handler *handler,
     if (!content) return NSERROR_NOMEM;
     content->handler = handler;
     lwc_intern_string("image/svg+xml", 13, &content->mime_type);
-    llcache_handle_clone(llcache, &content->llcache);
+    content->llcache = llcache;
     llcache_handle_change_callback(content->llcache, dummy_llcache_callback, content);
     content->user_list = calloc(1, sizeof(struct content_user));
     content->status = CONTENT_STATUS_DONE;
