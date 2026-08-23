@@ -346,7 +346,6 @@ static hubbub_error append_child(void *parser, void *parent, void *child, void *
                     dom_string_unref(last_val);
                     *result = dom_node_ref(last_child);
                     dom_node_unref(last_child);
-                    dom_node_unref((dom_node *)child);
                     return HUBBUB_OK;
                 }
                 if (child_val) dom_string_unref(child_val);
