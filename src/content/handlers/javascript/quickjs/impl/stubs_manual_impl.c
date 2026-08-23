@@ -925,14 +925,14 @@ int qjs_init_htmlanchorelement(JSContext *ctx)
 // HTMLInputElement Implementation (10 stubs)
 // -----------------------------------------------------------------------------
 
-static const char *sanitize_input_value(const char *type, const char *val)
+static char *sanitize_input_value_alloc(JSContext *ctx, QJSNodePrivate *priv, const char *type, const char *val)
 {
-    if (!val) return "";
-    if (!type) return val;
+    if (!val) return strdup("");
+    if (!type) return strdup(val);
 
     if (strcasecmp(type, "color") == 0) {
         if (strlen(val) == 7 && val[0] == '#') {
-            static char color_buf[8];
+            char color_buf[8];
             color_buf[0] = '#';
             bool valid = true;
             for (int i = 1; i < 7; i++) {
@@ -943,39 +943,39 @@ static const char *sanitize_input_value(const char *type, const char *val)
                 color_buf[i] = tolower((unsigned char)val[i]);
             }
             color_buf[7] = '\0';
-            if (valid) return color_buf;
+            if (valid) return strdup(color_buf);
         }
-        return "#000000";
+        return strdup("#000000");
     }
 
     if (strcasecmp(type, "date") == 0) {
         int year = 0, month = 0, day = 0;
         if (sscanf(val, "%4d-%2d-%2d", &year, &month, &day) == 3) {
             if (year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-                return val;
+                return strdup(val);
             }
         }
-        return "";
+        return strdup("");
     }
 
     if (strcasecmp(type, "month") == 0) {
         int year = 0, month = 0;
         if (sscanf(val, "%4d-%2d", &year, &month) == 2) {
             if (year >= 1 && month >= 1 && month <= 12) {
-                return val;
+                return strdup(val);
             }
         }
-        return "";
+        return strdup("");
     }
 
     if (strcasecmp(type, "week") == 0) {
         int year = 0, week = 0;
         if (sscanf(val, "%4d-W%2d", &year, &week) == 2) {
             if (year >= 1 && week >= 1 && week <= 53) {
-                return val;
+                return strdup(val);
             }
         }
-        return "";
+        return strdup("");
     }
 
     if (strcasecmp(type, "time") == 0) {
@@ -983,32 +983,70 @@ static const char *sanitize_input_value(const char *type, const char *val)
         int count = sscanf(val, "%2d:%2d:%2d", &hour, &min, &sec);
         if (count >= 2) {
             if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59 && (count < 3 || (sec >= 0 && sec <= 59))) {
-                return val;
+                return strdup(val);
             }
         }
-        return "";
+        return strdup("");
     }
 
     if (strcasecmp(type, "datetime-local") == 0) {
         int year = 0, month = 0, day = 0, hour = 0, min = 0;
         if (sscanf(val, "%4d-%2d-%2dT%2d:%2d", &year, &month, &day, &hour, &min) == 5) {
             if (year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
-                return val;
+                return strdup(val);
             }
         }
-        return "";
+        return strdup("");
     }
 
-    if (strcasecmp(type, "number") == 0 || strcasecmp(type, "range") == 0) {
+    if (strcasecmp(type, "number") == 0) {
         char *endptr = NULL;
         strtod(val, &endptr);
         if (endptr && *endptr == '\0' && val[0] != '\0') {
-            return val;
+            return strdup(val);
         }
-        return strcasecmp(type, "range") == 0 ? "50" : "";
+        return strdup("");
     }
 
-    return val;
+    if (strcasecmp(type, "range") == 0) {
+        double min_val = 0.0;
+        double max_val = 100.0;
+        if (ctx && priv) {
+            JSValue min_attr = wisp_element_getAttribute_impl(ctx, priv, "min");
+            if (JS_IsString(min_attr)) {
+                const char *s = JS_ToCString(ctx, min_attr);
+                if (s && *s) min_val = atof(s);
+                if (s) JS_FreeCString(ctx, s);
+            }
+            JS_FreeValue(ctx, min_attr);
+
+            JSValue max_attr = wisp_element_getAttribute_impl(ctx, priv, "max");
+            if (JS_IsString(max_attr)) {
+                const char *s = JS_ToCString(ctx, max_attr);
+                if (s && *s) max_val = atof(s);
+                if (s) JS_FreeCString(ctx, s);
+            }
+            JS_FreeValue(ctx, max_attr);
+        }
+        if (max_val < min_val) max_val = min_val;
+
+        char *endptr = NULL;
+        double parsed = strtod(val, &endptr);
+        double final_val;
+        if (endptr && *endptr == '\0' && val[0] != '\0') {
+            final_val = parsed;
+        } else {
+            final_val = min_val + (max_val - min_val) / 2.0;
+        }
+        if (final_val < min_val) final_val = min_val;
+        if (final_val > max_val) final_val = max_val;
+
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%g", final_val);
+        return strdup(buf);
+    }
+
+    return strdup(val);
 }
 
 JSValue wisp_htmlinputelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
@@ -1024,9 +1062,10 @@ JSValue wisp_htmlinputelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pri
     JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
     const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
 
-    const char *sanitized = sanitize_input_value(type_str, raw_val ? raw_val : "");
+    char *sanitized = sanitize_input_value_alloc(ctx, priv, type_str, raw_val ? raw_val : "");
 
-    JSValue res = JS_NewString(ctx, sanitized);
+    JSValue res = JS_NewString(ctx, sanitized ? sanitized : "");
+    if (sanitized) free(sanitized);
 
     if (type_str && JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
     JS_FreeValue(ctx, type_val);
@@ -1041,9 +1080,10 @@ JSValue wisp_htmlinputelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pri
     JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
     const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
 
-    const char *sanitized = sanitize_input_value(type_str, value ? value : "");
+    char *sanitized = sanitize_input_value_alloc(ctx, priv, type_str, value ? value : "");
 
-    JSValue res = wisp_element_setAttribute_impl(ctx, priv, "value", sanitized);
+    JSValue res = wisp_element_setAttribute_impl(ctx, priv, "value", sanitized ? sanitized : "");
+    if (sanitized) free(sanitized);
 
     if (type_str && JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
     JS_FreeValue(ctx, type_val);
@@ -1091,8 +1131,9 @@ JSValue wisp_htmlinputelement_type_set_impl(JSContext *ctx, QJSNodePrivate *priv
 
     JSValue res = wisp_element_setAttribute_impl(ctx, priv, "type", value ? value : "text");
 
-    const char *new_sanitized = sanitize_input_value(value ? value : "text", curr_str ? curr_str : "");
-    wisp_element_setAttribute_impl(ctx, priv, "value", new_sanitized);
+    char *new_sanitized = sanitize_input_value_alloc(ctx, priv, value ? value : "text", curr_str ? curr_str : "");
+    wisp_element_setAttribute_impl(ctx, priv, "value", new_sanitized ? new_sanitized : "");
+    if (new_sanitized) free(new_sanitized);
 
     if (curr_str && JS_IsString(curr_val)) JS_FreeCString(ctx, curr_str);
     JS_FreeValue(ctx, curr_val);
