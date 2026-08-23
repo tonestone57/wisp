@@ -69,15 +69,15 @@ For each subsystem, we evaluate current strengths, bottleneck analysis, and spec
 
 ### Current Architecture & Performance Baseline
 - **Process Isolation**: Network fetching runs isolated in `wisp-network` communicating via non-blocking IPC sockets (`wisp_ipc_handle`).
-- **Protocol Features**: Asynchronous DNS prefetching, `<link rel="preconnect">` processing, QUIC / HTTP/3 connection caching via libcurl, and SIMD-accelerated WebSocket payload masking fastpath (`_mm_xor_si128` on SSE2, `veorq_u8` on NEON, `vxor.vv` on RVV 1.0) with scalar fallbacks.
+- **Protocol & TLS Features**: Native TLS 1.3 support backed by system OpenSSL / LibreSSL / Schannel libraries across modern operating systems (Linux, macOS, Windows 8.1+, OpenBSD, Haiku). Asynchronous DNS prefetching, `<link rel="preconnect">` processing, QUIC / HTTP/3 connection caching via libcurl, and SIMD-accelerated WebSocket payload masking fastpath (`_mm_xor_si128` on SSE2, `veorq_u8` on NEON, `vxor.vv` on RVV 1.0) with scalar fallbacks.
 
 ### Bottlenecks & Weaknesses
-1. **Embedded User-Space TLS Stack Integration**: System-linked TLS backends vary across platforms; establishing a unified user-space crypto stack ensures consistent TLS 1.3 features and performance.
-2. **Serial Multi-Resource Fetching Overhead**: Inter-process IPC serialization overhead for dozens of simultaneous small subresource requests (CSS, JS, images) can lead to request dispatch latency.
+1. **Serial Multi-Resource Fetching Overhead**: Inter-process IPC serialization overhead for dozens of simultaneous small subresource requests (CSS, JS, images) can lead to request dispatch latency.
+2. **TLS Stack Assessment**: User-space TLS stack replacement (e.g. mbedTLS) is **no longer required** because legacy OS targets (Windows XP/7) have been removed. Modern OS targets natively provide complete TLS 1.3 ciphers and ALPN via system OpenSSL/LibreSSL/Schannel linked with libcurl.
 
 ### Optimization Proposals & Technical Solutions
-- **Proposal 4.1: User-Space TLS Stack Integration (mbedTLS / BearSSL)**
-  - Statically link `mbedTLS` or `BearSSL` directly into `wisp-network`. Provide uniform, ultra-fast TLS 1.3 support across all deployment targets with zero host crypto drift.
+- **Proposal 4.1: Multiplexed Subresource Request Coalescing**
+  - Batch small subresource IPC requests into composite network fetch descriptors, reducing IPC socket roundtrips during initial page load.
 - **Proposal 4.2: SIMD Fastpath Progressive Stream Chunk Decoding**
   - Utilize SIMD byte scanning fastpaths (SSE2 on x86, NEON on ARM, RVV 1.0 on RISC-V) inside `wisp-network` for chunked encoding parser and HTTP header validation, accelerating raw payload throughput before IPC transmission while keeping scalar fallbacks.
 
@@ -159,7 +159,7 @@ SIMD optimizations in Wisp are implemented strictly as **runtime fastpaths with 
 ```
 +-----------------------------------------------------------------------------------+
 | Phase 1: High-Impact Infrastructure & SIMD Fastpaths (Q1-Q2 2026)                 |
-| - Proposal 4.1: User-Space TLS Stack (mbedTLS/BearSSL)                            |
+| - Proposal 4.1: Multiplexed Subresource Request Coalescing                        |
 | - Proposal 2.2: Compact Node Wrapper Flyweight Cache in QuickJS-ng                |
 | - Proposal 5.1: SIMD Fastpath CSS Tokenizer Scanner (SSE2/NEON/RVV 1.0)           |
 +-----------------------------------------------------------------------------------+
