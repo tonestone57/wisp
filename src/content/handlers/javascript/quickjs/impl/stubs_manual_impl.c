@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "quickjs.h"
 #include "timers.h"
 #include "dom_bridge.h"
@@ -924,18 +925,106 @@ int qjs_init_htmlanchorelement(JSContext *ctx)
 // HTMLInputElement Implementation (10 stubs)
 // -----------------------------------------------------------------------------
 
+static const char *sanitize_input_value(JSContext *ctx, const char *type, const char *val, char *buf, size_t buf_size) {
+    if (!val || !type) return val ? val : "";
+    if (strcasecmp(type, "color") == 0) {
+        if (strlen(val) == 7 && val[0] == '#') {
+            bool hex = true;
+            for (int i = 1; i < 7; i++) {
+                if (!isxdigit((unsigned char)val[i])) { hex = false; break; }
+            }
+            if (hex) {
+                snprintf(buf, buf_size, "#%02x%02x%02x",
+                    (int)strtol((char[]){val[1], val[2], 0}, NULL, 16),
+                    (int)strtol((char[]){val[3], val[4], 0}, NULL, 16),
+                    (int)strtol((char[]){val[5], val[6], 0}, NULL, 16));
+                return buf;
+            }
+        }
+        return "#000000";
+    }
+    if (strcasecmp(type, "number") == 0) {
+        if (*val == '\0') return "";
+        char *endp = NULL;
+        strtod(val, &endp);
+        if (endp && *endp == '\0') return val;
+        return "";
+    }
+    if (strcasecmp(type, "range") == 0) {
+        if (*val == '\0') return "50";
+        char *endp = NULL;
+        strtod(val, &endp);
+        if (endp && *endp == '\0') return val;
+        return "50";
+    }
+    if (strcasecmp(type, "date") == 0 || strcasecmp(type, "datetime") == 0 ||
+        strcasecmp(type, "datetime-local") == 0 || strcasecmp(type, "month") == 0 ||
+        strcasecmp(type, "time") == 0 || strcasecmp(type, "week") == 0) {
+        if (*val == '\0') return "";
+        bool valid = true;
+        if (strcasecmp(type, "date") == 0) {
+            int y, m, d;
+            if (sscanf(val, "%d-%d-%d", &y, &m, &d) != 3 || m < 1 || m > 12 || d < 1 || d > 31) valid = false;
+        } else if (strcasecmp(type, "month") == 0) {
+            int y, m;
+            if (sscanf(val, "%d-%d", &y, &m) != 2 || m < 1 || m > 12) valid = false;
+        } else if (strcasecmp(type, "time") == 0) {
+            int h, m;
+            if (sscanf(val, "%d:%d", &h, &m) != 2 || h < 0 || h > 23 || m < 0 || m > 59) valid = false;
+        } else if (strcasecmp(type, "week") == 0) {
+            int y, w;
+            if (sscanf(val, "%d-W%d", &y, &w) != 2 || w < 1 || w > 53) valid = false;
+        } else if (strcasecmp(type, "datetime-local") == 0 || strcasecmp(type, "datetime") == 0) {
+            int y, m, d, h, min;
+            if (sscanf(val, "%d-%d-%dT%d:%d", &y, &m, &d, &h, &min) != 5 || m < 1 || m > 12 || d < 1 || d > 31 || h < 0 || h > 23 || min < 0 || min > 59) valid = false;
+        }
+        if (!valid) return "";
+        return val;
+    }
+    return val;
+}
+
 JSValue wisp_htmlinputelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     JSValue val = wisp_element_getAttribute_impl(ctx, priv, "value");
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+
     if (JS_IsNull(val) || JS_IsUndefined(val)) {
-        return JS_NewString(ctx, "");
+        char buf[64];
+        const char *san = sanitize_input_value(ctx, type_str, "", buf, sizeof(buf));
+        if (JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+        JS_FreeValue(ctx, type_val);
+        return JS_NewString(ctx, san);
     }
+
+    if (JS_IsString(val)) {
+        const char *raw_str = JS_ToCString(ctx, val);
+        char buf[64];
+        const char *san = sanitize_input_value(ctx, type_str, raw_str, buf, sizeof(buf));
+        JSValue res = JS_NewString(ctx, san);
+        if (raw_str) JS_FreeCString(ctx, raw_str);
+        JS_FreeValue(ctx, val);
+        if (JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+        JS_FreeValue(ctx, type_val);
+        return res;
+    }
+
+    if (JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
     return val;
 }
 
 JSValue wisp_htmlinputelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
 {
-    return wisp_element_setAttribute_impl(ctx, priv, "value", value);
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+    char buf[64];
+    const char *san = sanitize_input_value(ctx, type_str, value ? value : "", buf, sizeof(buf));
+    JSValue res = wisp_element_setAttribute_impl(ctx, priv, "value", san);
+    if (JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
+    return res;
 }
 
 JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv)
