@@ -863,10 +863,10 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         }
     }
 
-    /* Check against Cross-Origin Embedder Policy (COEP) and Cross-Origin Resource Policy (CORP) */
+    /* Check against Cross-Origin Embedder Policy (COEP) */
     if (nsoption_bool(enable_coep) && child != NULL && child->coep != NULL &&
         (strcasecmp(child->coep, "require-corp") == 0) && child->parent_url != NULL) {
-        /* If cross-origin, verify if CORP allows loading */
+        /* If cross-origin, block it under COEP requirement */
         bool exempt = false;
         lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
         if (scheme != NULL) {
@@ -878,7 +878,6 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         }
 
         if (!exempt && !nsurl_compare(child->parent_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
-            /* Cross-origin subresource load under COEP require-corp */
             NSLOG(wisp, ERROR, "COEP BLOCKED cross-origin subresource load: %s", nsurl_access(url));
             *result = NULL;
             return NSERROR_CSP_BLOCKED;
