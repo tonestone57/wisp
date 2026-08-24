@@ -82,6 +82,9 @@ static bool mimesniff__is_video_brand(const uint8_t *brand, bool major)
 			(brand[0] == 'a' && brand[1] == 'v' && brand[2] == 'c' && brand[3] == '1') ||
 			(brand[0] == 'a' && brand[1] == 'v' && brand[2] == '0' && brand[3] == '1') ||
 			(brand[0] == 'v' && brand[1] == 'p' && brand[2] == '0' && brand[3] == '9') ||
+			(brand[0] == 'h' && brand[1] == 'e' && brand[2] == 'v' && brand[3] == '1') ||
+			(brand[0] == 'h' && brand[1] == 'v' && brand[2] == 'c' && brand[3] == '1') ||
+			(brand[0] == 'q' && brand[1] == 't' && brand[2] == ' ' && brand[3] == ' ') ||
 			(brand[0] == 'd' && brand[1] == 'a' && brand[2] == 's' && brand[3] == 'h')) {
 			return true;
 		}
@@ -221,7 +224,8 @@ static nserror mimesniff__match_unknown_riff(const uint8_t *data, size_t len, lw
 		(const uint8_t *)s, SLEN(s), x, t                                                                              \
 	}
 	static const struct map_s riff_match_types[] = {SIG(&corestring_lwc_image_webp, "WEBPVP", true),
-		SIG(&corestring_lwc_audio_wave, "WAVE", true), {NULL, 0, false, NULL}};
+		SIG(&corestring_lwc_audio_wave, "WAVE", true),
+		SIG(&corestring_lwc_video_mp4, "AVI ", true), {NULL, 0, false, NULL}};
 #undef SIG
 	const struct map_s *it;
 

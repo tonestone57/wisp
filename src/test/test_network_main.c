@@ -53,7 +53,10 @@ START_TEST(test_default_filetype)
     ck_assert_str_eq(default_filetype("track.aac"), "audio/aac");
     ck_assert_str_eq(default_filetype("video.mp4"), "video/mp4");
     ck_assert_str_eq(default_filetype("video.m4v"), "video/mp4");
+    ck_assert_str_eq(default_filetype("video.mov"), "video/quicktime");
     ck_assert_str_eq(default_filetype("video.webm"), "video/webm");
+    ck_assert_str_eq(default_filetype("video.mkv"), "video/x-matroska");
+    ck_assert_str_eq(default_filetype("video.avi"), "video/x-msvideo");
     ck_assert_str_eq(default_filetype("video.ogv"), "video/ogg");
     ck_assert_str_eq(default_filetype("audio.ogg"), "audio/ogg");
     ck_assert_str_eq(default_filetype("audio.mp3"), "audio/mpeg");

@@ -529,6 +529,18 @@ static const struct content_handler nsvideo_content_handler = {.create = nsvideo
     .get_internal = nsvideo_get_internal,
     .no_share = true};
 
-static const char *nsvideo_types[] = {"video/mp4", "video/webm", "video/ogg", "application/ogg"};
+static const char *nsvideo_types[] = {
+    "video/mp4",
+    "video/quicktime",
+    "video/x-quicktime",
+    "video/webm",
+    "video/x-matroska",
+    "video/mkv",
+    "video/avi",
+    "video/x-msvideo",
+    "video/msvideo",
+    "video/ogg",
+    "application/ogg"
+};
 
 CONTENT_FACTORY_REGISTER_TYPES(nsvideo, nsvideo_types, nsvideo_content_handler);
