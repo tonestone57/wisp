@@ -257,6 +257,7 @@ START_TEST(test_quickjs_media_source)
     js_destroythread(thread);
     js_destroyheap(heap);
     js_finalise();
+    corestrings_fini();
 }
 END_TEST
 
@@ -6225,6 +6226,8 @@ START_TEST(test_quickjs_read_write_selectors)
         "input.setAttribute('readonly', 'readonly');\n"
         "var roInput = document.querySelector('#testFormInput:read-only');\n"
         "ck_assert(roInput === input);\n"
+        "var matchedEna = document.querySelector('#testFormInput:enabled');\n"
+        "ck_assert(matchedEna === input);\n"
         "document.body.removeChild(input);\n"
         "var div = document.createElement('div');\n"
         "div.id = 'testDivElement';\n"
@@ -6237,7 +6240,21 @@ START_TEST(test_quickjs_read_write_selectors)
         "nested.contentEditable = false;\n"
         "div.appendChild(nested);\n"
         "var roNested = document.querySelector('#testDivNested:read-only');\n"
-        "ck_assert(roNested === nested);\n";
+        "ck_assert(roNested === nested);\n"
+        "var chkInput = document.createElement('input');\n"
+        "chkInput.type = 'checkbox';\n"
+        "chkInput.id = 'testChkInput';\n"
+        "chkInput.setAttribute('checked', '');\n"
+        "document.body.appendChild(chkInput);\n"
+        "var matchedChk = document.querySelector('#testChkInput:checked');\n"
+        "ck_assert(matchedChk === chkInput);\n"
+        "var disInput = document.createElement('input');\n"
+        "disInput.type = 'text';\n"
+        "disInput.id = 'testDisInput';\n"
+        "disInput.setAttribute('disabled', '');\n"
+        "document.body.appendChild(disInput);\n"
+        "var matchedDis = document.querySelector('#testDisInput:disabled');\n"
+        "ck_assert(matchedDis === disInput);\n";
 
     ck_assert_int_eq(js_exec(thread, (const uint8_t *)code, strlen(code), "test_read_write"), true);
 
@@ -6656,6 +6673,9 @@ START_TEST(test_quickjs_browseraudit_xhr_and_window_hierarchy)
         "var mockUri = new MockURI('/test');\n"
         "window.location = mockUri;\n"
         "if (window.location.href !== 'https://browseraudit.com/test') throw new Error('location object assignment failed: ' + window.location.href);\n"
+        "if (typeof Location.prototype.toString !== 'function') throw new Error('Location.prototype.toString missing');\n"
+        "if (window.location.toString() !== window.location.href) throw new Error('window.location.toString mismatch: ' + window.location.toString());\n"
+        "if (String(window.location) !== window.location.href) throw new Error('String(window.location) mismatch');\n"
         "1;";
 
     JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_browseraudit_xhr", JS_EVAL_TYPE_GLOBAL);

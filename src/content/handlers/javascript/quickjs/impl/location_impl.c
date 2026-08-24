@@ -340,6 +340,9 @@ int qjs_init_location(JSContext *ctx)
         JSValue setter = JS_NewCFunction2(ctx, (JSCFunction *)js_location_href_set, "set_href", 1, JS_CFUNC_generic, 0);
         JS_DefinePropertyGetSet(ctx, proto, href_atom, getter, setter, JS_PROP_CONFIGURABLE);
         JS_FreeAtom(ctx, href_atom);
+
+        JSValue toString_fn = JS_NewCFunction2(ctx, (JSCFunction *)js_location_href_get, "toString", 0, JS_CFUNC_generic, 0);
+        JS_DefinePropertyValueStr(ctx, proto, "toString", toString_fn, JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
     }
 
     JSValue loc = qjs_new_location(ctx, NULL, false);

@@ -6379,7 +6379,9 @@ void js_destroythread(jsthread *thread)
                     dom_node_get_parent_node(node, &parent);
                     if (parent == NULL) {
                         /* Root detached node or DocumentFragment: unref creation reference */
-                        dom_node_unref(node);
+                        if (node->refcnt > 0) {
+                            dom_node_unref(node);
+                        }
                     } else {
                         /* Balance reference added by dom_node_get_parent_node */
                         dom_node_unref(parent);
