@@ -331,7 +331,7 @@ START_TEST(test_hlcache_finalise_with_pending_retrieval_ctx)
     ck_assert_int_eq(error, NSERROR_OK);
 
     hlcache_handle *handle = NULL;
-    error = hlcache_handle_retrieve(url, 0, NULL, NULL, dummy_callback, NULL, NULL, CONTENT_CSS, &handle);
+    error = hlcache_handle_retrieve(url, HLCACHE_RETRIEVE_MAY_DOWNLOAD, NULL, NULL, dummy_callback, NULL, NULL, CONTENT_CSS, &handle);
     ck_assert_int_eq(error, NSERROR_NEED_DATA);
     ck_assert_ptr_nonnull(handle);
 
