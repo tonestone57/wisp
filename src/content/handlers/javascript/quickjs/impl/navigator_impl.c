@@ -5,6 +5,7 @@
 #include "dom_bridge.h"
 #include <wisp/utils/log.h>
 #include "JSNavigator.gen.h"
+#include "utils/useragent.h"
 
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
@@ -62,7 +63,7 @@ JSValue wisp_navigator_cookieEnabled_get_impl(JSContext *ctx, QJSNodePrivate *pr
 
 JSValue wisp_navigator_userAgent_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return JS_NewString(ctx, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Wisp/1.0");
+    return JS_NewString(ctx, user_agent_string());
 }
 
 JSValue wisp_navigator_appCodeName_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NewString(ctx, "Mozilla"); }
