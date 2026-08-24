@@ -800,7 +800,9 @@ void hlcache_finalise(void)
                 llcache_handle_release(ctx->llcache);
             }
             if (ctx->handle != NULL) {
-                free(ctx->handle);
+                ctx->handle->cb = NULL;
+                ctx->handle->pw = NULL;
+                ctx->handle->released = true;
             }
             if (ctx->child.charset != NULL) {
                 free((char *)ctx->child.charset);
