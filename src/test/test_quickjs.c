@@ -5207,7 +5207,10 @@ START_TEST(test_quickjs_dom_attributes)
     dom_node_unref((dom_node *)doc);
     doc = NULL;
 
-    const char *code = "var el = document.createElement('div'); el.className = 'test-class'; el.setAttribute('id', 'test-id'); el.className === 'test-class' && el.getAttribute('id') === 'test-id';";
+    const char *code = "var el = document.createElement('div'); el.className = 'test-class'; el.setAttribute('id', 'test-id'); "
+                       "var el2 = document.createElement('div'); "
+                       "el.className === 'test-class' && el.getAttribute('id') === 'test-id' && "
+                       "el2.className === '' && el2.id === '' && document.documentElement.className === '';";
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_dom_attributes");
     ck_assert(result == true);
 
