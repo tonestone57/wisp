@@ -6897,52 +6897,11 @@ JSValue wisp_htmlmediaelement_src_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 }
 
 JSValue wisp_htmlmediaelement_srcObject_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv) return JS_NULL;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (!JS_IsObject(wrapper)) return JS_NULL;
-    JSValue val = JS_GetPropertyStr(ctx, wrapper, "_srcObject");
-    JS_FreeValue(ctx, wrapper);
-    if (JS_IsUndefined(val)) return JS_NULL;
-    return val;
+    return JS_NULL;
 }
 
 JSValue wisp_htmlmediaelement_srcObject_set_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue value) {
-    if (!priv) return JS_UNDEFINED;
-    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    if (JS_IsObject(wrapper)) {
-        JS_SetPropertyStr(ctx, wrapper, "_srcObject", JS_DupValue(ctx, value));
-        JS_FreeValue(ctx, wrapper);
-    }
-    if (!JS_IsNull(value) && !JS_IsUndefined(value)) {
-        JSValue readyState = JS_GetPropertyStr(ctx, value, "readyState");
-        if (JS_IsString(readyState)) {
-            const char *str = JS_ToCString(ctx, readyState);
-            if (str && strcmp(str, "open") != 0) {
-                JS_SetPropertyStr(ctx, value, "readyState", JS_NewString(ctx, "open"));
-            }
-            if (str) JS_FreeCString(ctx, str);
-        }
-        JS_FreeValue(ctx, readyState);
-
-        JSValue dispatchEvt = JS_GetPropertyStr(ctx, value, "dispatchEvent");
-        if (JS_IsFunction(ctx, dispatchEvt)) {
-            JSValue global = JS_GetGlobalObject(ctx);
-            JSValue evtCtor = JS_GetPropertyStr(ctx, global, "Event");
-            if (JS_IsFunction(ctx, evtCtor)) {
-                JSValue arg = JS_NewString(ctx, "sourceopen");
-                JSValue evt = JS_CallConstructor(ctx, evtCtor, 1, &arg);
-                JS_FreeValue(ctx, arg);
-                if (!JS_IsException(evt)) {
-                    JSValue res = JS_Call(ctx, dispatchEvt, value, 1, &evt);
-                    JS_FreeValue(ctx, res);
-                    JS_FreeValue(ctx, evt);
-                }
-            }
-            JS_FreeValue(ctx, evtCtor);
-            JS_FreeValue(ctx, global);
-        }
-        JS_FreeValue(ctx, dispatchEvt);
-    }
+    // Stub setter for htmlmediaelement.srcObject
     return JS_UNDEFINED;
 }
 
