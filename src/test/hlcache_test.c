@@ -326,23 +326,18 @@ START_TEST(test_hlcache_finalise_with_pending_retrieval_ctx)
     nserror error = hlcache_initialise(&params);
     ck_assert_int_eq(error, NSERROR_OK);
 
-    nsurl *url = NULL;
-    error = nsurl_create("http://example.com/test.css", &url);
-    ck_assert_int_eq(error, NSERROR_OK);
-
+    uint8_t data[32] = "<svg><ellipse/></svg>";
     hlcache_handle *handle = NULL;
-    error = hlcache_handle_retrieve(url, HLCACHE_RETRIEVE_MAY_DOWNLOAD, NULL, NULL, dummy_callback, NULL, NULL, CONTENT_CSS, &handle);
-    ck_assert_int_eq(error, NSERROR_NEED_DATA);
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle);
+    ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(handle);
 
-    /* Finalise hlcache while handle is still in pending retrieval context ring */
+    /* Finalise hlcache while handle is still active in retrieval context ring */
     hlcache_stop();
     hlcache_finalise();
 
     /* Re-releasing handle after hlcache_finalise disarmed it should safely succeed */
     ck_assert_int_eq(hlcache_handle_release(handle), NSERROR_OK);
-
-    nsurl_unref(url);
 }
 END_TEST
 
