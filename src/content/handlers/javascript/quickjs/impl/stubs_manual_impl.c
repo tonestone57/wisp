@@ -5894,6 +5894,16 @@ JSValue wisp_htmlinputelement_stepUp_impl(JSContext *ctx, QJSNodePrivate *priv, 
     return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
 }
 
+JSValue wisp_htmlinputelement_showPicker_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
+    bool disabled = JS_ToBool(ctx, wisp_htmlinputelement_disabled_get_impl(ctx, priv));
+    bool readOnly = JS_ToBool(ctx, wisp_htmlinputelement_readOnly_get_impl(ctx, priv));
+    if (disabled || readOnly) {
+        return JS_ThrowTypeError(ctx, "Element is disabled or readOnly");
+    }
+    return JS_UNDEFINED;
+}
+
 JSValue wisp_htmlinputelement_stepDown_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t n) {
     if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
     double val = 0.0;
