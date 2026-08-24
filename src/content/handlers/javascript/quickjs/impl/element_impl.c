@@ -709,7 +709,7 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         JSValue tag_val = JS_GetPropertyStr(ctx, argv[0], "tagName");
         if (JS_IsString(tag_val)) {
             const char *tag_str = JS_ToCString(ctx, tag_val);
-            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0)) {
+            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0 || strcasecmp(tag_str, "mspace") == 0)) {
                 if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "offsetWidth") == 0 || strcmp(prop, "scrollWidth") == 0) {
                     int32_t w = 0;
                     JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
@@ -824,7 +824,7 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         } else if (strcasecmp(tag, "html") == 0 || strcasecmp(tag, "body") == 0) {
             rw = 1024;
             rh = 768;
-        } else if (strcasecmp(tag, "svg") == 0 || strcasecmp(tag, "img") == 0 || strcasecmp(tag, "canvas") == 0) {
+        } else if (strcasecmp(tag, "svg") == 0 || strcasecmp(tag, "img") == 0 || strcasecmp(tag, "canvas") == 0 || strcasecmp(tag, "mspace") == 0) {
             JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
             JSValue hv = wisp_element_getAttribute_impl(ctx, priv, "height");
             if (JS_IsString(wv)) {
@@ -1592,6 +1592,14 @@ JSValue wisp_element_localName_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_element_namespaceURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "http://www.w3.org/1999/xhtml");
+
+    dom_string *ns_dom = NULL;
+    dom_exception exc = dom_node_get_namespace((dom_node *)priv->node, &ns_dom);
+    if (exc == DOM_NO_ERR && ns_dom != NULL) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(ns_dom), dom_string_byte_length(ns_dom));
+        dom_string_unref(ns_dom);
+        return val;
+    }
 
     JSValue tag = wisp_element_tagName_get_impl(ctx, priv);
     if (JS_IsString(tag)) {
