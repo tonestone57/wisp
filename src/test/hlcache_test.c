@@ -14,6 +14,7 @@
 #include <wisp/content/backing_store.h>
 #include <wisp/misc.h>
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/utils/nsoption.h>
 
 static void (*scheduled_cb)(void *p) = NULL;
 static void *scheduled_p = NULL;
@@ -307,6 +308,39 @@ START_TEST(test_hlcache_sync_result_populated_during_catchup)
 }
 END_TEST
 
+START_TEST(test_hlcache_finalise_with_pending_retrieval_ctx)
+{
+    guit = &mock_gui_table;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    content_factory_register_handler("image/svg+xml", &dummy_handler);
+
+    struct hlcache_parameters params = {
+        .bg_clean_time = 10000,
+        .llcache = {
+            .limit = 1024 * 1024,
+        },
+    };
+
+    nserror error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t data[32] = "<svg><ellipse/></svg>";
+    hlcache_handle *handle = NULL;
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(handle);
+
+    /* Finalise hlcache while handle is still active in retrieval context ring */
+    hlcache_stop();
+    hlcache_finalise();
+
+    /* Re-releasing handle after hlcache_finalise disarmed it should safely succeed */
+    ck_assert_int_eq(hlcache_handle_release(handle), NSERROR_OK);
+}
+END_TEST
+
 static Suite *hlcache_suite(void)
 {
     Suite *s = suite_create("hlcache");
@@ -317,6 +351,7 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_reentrancy);
     tcase_add_test(tc_core, test_hlcache_abort_and_replace_callback);
     tcase_add_test(tc_core, test_hlcache_sync_result_populated_during_catchup);
+    tcase_add_test(tc_core, test_hlcache_finalise_with_pending_retrieval_ctx);
     suite_add_tcase(s, tc_core);
 
     return s;
@@ -325,6 +360,10 @@ static Suite *hlcache_suite(void)
 int main(void)
 {
     int number_failed;
+
+    if (nsoption_init(NULL, NULL, NULL) != NSERROR_OK) {
+        return EXIT_FAILURE;
+    }
 
     if (corestrings_init() != NSERROR_OK) {
         return EXIT_FAILURE;
@@ -338,6 +377,7 @@ int main(void)
     srunner_free(sr);
 
     corestrings_fini();
+    nsoption_finalise(NULL, NULL);
 
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

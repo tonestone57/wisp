@@ -800,7 +800,11 @@ void hlcache_finalise(void)
                 llcache_handle_release(ctx->llcache);
             }
             if (ctx->handle != NULL) {
-                free(ctx->handle);
+                ctx->handle->cb = NULL;
+                ctx->handle->pw = NULL;
+                if (ctx->handle->refcount == 0) {
+                    free(ctx->handle);
+                }
             }
             if (ctx->child.charset != NULL) {
                 free((char *)ctx->child.charset);
@@ -864,7 +868,10 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     hlcache_retrieval_ctx *ctx;
     nserror error;
 
-    if (url == NULL || cb == NULL || result == NULL) {
+    if (hlcache == NULL || url == NULL || cb == NULL || result == NULL) {
+        if (result != NULL) {
+            *result = NULL;
+        }
         return NSERROR_BAD_PARAMETER;
     }
 
