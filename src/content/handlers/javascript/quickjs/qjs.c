@@ -6361,20 +6361,44 @@ void js_destroythread(jsthread *thread)
         /* 2. Run DOM bridge cleanup first while context is fully alive. */
         qjs_finalise_dom_bridge(rt, ctx);
 
-        /* 3. Run GC to collect and finalize objects in the context */
+        /* 3. Run full GC cycles to collect and finalize all QuickJS DOM wrapper objects before node cleanup */
         JS_RunGC(rt);
         JS_RunGC(rt);
 
         /* 4. Finally, free the context. */
         JS_FreeContext(ctx);
+        thread->ctx = NULL;
     }
 
     struct dom_document *doc_node = qjs_thread_get_document(thread);
-    if (doc_node) {
-        if (!wisp_is_js_process) {
-            dom_document_set_mutation_hook(doc_node, NULL, NULL);
-            dom_node_unref((dom_node *)doc_node);
+    if (doc_node && !wisp_is_js_process) {
+        dom_document_set_mutation_hook(doc_node, NULL, NULL);
+    }
+
+    if (thread->shm_dom && !wisp_is_js_process) {
+        for (uint32_t i = 1; i < thread->shm_dom->node_count; i++) {
+            uintptr_t raw_ptr = (uintptr_t)shm_dom_get_dom_ptrs(thread->shm_dom)[i];
+            if (raw_ptr != 0 && (raw_ptr % sizeof(void *)) == 0) {
+                dom_node *node = (dom_node *)raw_ptr;
+                /* Zero out pointer slot immediately to avoid dangling pointers */
+                shm_dom_get_dom_ptrs(thread->shm_dom)[i] = 0;
+                if (doc_node && node != (dom_node *)doc_node && node->vtable != NULL) {
+                    dom_node *parent = NULL;
+                    dom_node_get_parent_node(node, &parent);
+                    if (parent == NULL) {
+                        /* Root detached node or DocumentFragment: unref creation reference */
+                        dom_node_unref(node);
+                    } else {
+                        /* Balance reference added by dom_node_get_parent_node */
+                        dom_node_unref(parent);
+                    }
+                }
+            }
         }
+    }
+
+    if (doc_node && !wisp_is_js_process) {
+        dom_node_unref((dom_node *)doc_node);
     }
     if (thread->location_url) {
         nsurl_unref(thread->location_url);
