@@ -135,9 +135,23 @@ JSValue wisp_element_hasAttribute_impl(JSContext *ctx, QJSNodePrivate *priv, con
     return JS_NewBool(ctx, result);
 }
 
-JSValue wisp_element_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_element_getAttribute_impl(ctx, priv, "id"); }
+JSValue wisp_element_id_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "id");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
 JSValue wisp_element_id_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_element_setAttribute_impl(ctx, priv, "id", value); }
-JSValue wisp_element_className_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_element_getAttribute_impl(ctx, priv, "class"); }
+JSValue wisp_element_className_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "class");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return JS_NewString(ctx, "");
+    }
+    return val;
+}
 JSValue wisp_element_className_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return wisp_element_setAttribute_impl(ctx, priv, "class", value); }
 
 typedef struct {

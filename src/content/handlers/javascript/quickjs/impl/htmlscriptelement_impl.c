@@ -188,8 +188,10 @@ JSValue wisp_htmlscriptelement_text_set_impl(JSContext *ctx, QJSNodePrivate *pri
 
 JSValue wisp_htmlscriptelement_charset_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    return wisp_element_getAttribute_impl(ctx, priv, "charset");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "charset");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) return JS_NewString(ctx, "");
+    return val;
 }
 
 JSValue wisp_htmlscriptelement_charset_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
@@ -200,8 +202,10 @@ JSValue wisp_htmlscriptelement_charset_set_impl(JSContext *ctx, QJSNodePrivate *
 
 JSValue wisp_htmlscriptelement_crossOrigin_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    return wisp_element_getAttribute_impl(ctx, priv, "crossorigin");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "crossorigin");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) return JS_NewString(ctx, "");
+    return val;
 }
 
 JSValue wisp_htmlscriptelement_crossOrigin_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
@@ -212,8 +216,10 @@ JSValue wisp_htmlscriptelement_crossOrigin_set_impl(JSContext *ctx, QJSNodePriva
 
 JSValue wisp_htmlscriptelement_event_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    return wisp_element_getAttribute_impl(ctx, priv, "event");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "event");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) return JS_NewString(ctx, "");
+    return val;
 }
 
 JSValue wisp_htmlscriptelement_event_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
@@ -224,8 +230,10 @@ JSValue wisp_htmlscriptelement_event_set_impl(JSContext *ctx, QJSNodePrivate *pr
 
 JSValue wisp_htmlscriptelement_htmlFor_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    return wisp_element_getAttribute_impl(ctx, priv, "for");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "for");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) return JS_NewString(ctx, "");
+    return val;
 }
 
 JSValue wisp_htmlscriptelement_htmlFor_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
@@ -236,8 +244,10 @@ JSValue wisp_htmlscriptelement_htmlFor_set_impl(JSContext *ctx, QJSNodePrivate *
 
 JSValue wisp_htmlscriptelement_nonce_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    return wisp_element_getAttribute_impl(ctx, priv, "nonce");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "nonce");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) return JS_NewString(ctx, "");
+    return val;
 }
 
 JSValue wisp_htmlscriptelement_nonce_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
