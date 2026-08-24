@@ -6676,6 +6676,93 @@ START_TEST(test_quickjs_browseraudit_xhr_and_window_hierarchy)
 }
 END_TEST
 
+START_TEST(test_quickjs_binary_idb_fonts_svg_security)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    corestrings_init();
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void *)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *test_js =
+        "var testPassed = true;\n"
+        "/* 1. IndexedDB Blob and ArrayBuffer storage */\n"
+        "if (typeof indexedDB === 'undefined' || !indexedDB) throw new Error('indexedDB not defined');\n"
+        "var req = indexedDB.open('test_binary_db', 1);\n"
+        "req.onupgradeneeded = function() {\n"
+        "    req.result.createObjectStore('bin_store');\n"
+        "};\n"
+        "req.onsuccess = function() {\n"
+        "    var db = req.result;\n"
+        "    var store = db.transaction('bin_store', 'readwrite').objectStore('bin_store');\n"
+        "    var b = new Blob(['hello'], { type: 'text/plain' });\n"
+        "    var ab = new Uint8Array([1, 2, 3, 4]).buffer;\n"
+        "    var u8Key = new Uint8Array([10, 20, 30]);\n"
+        "    store.put(b, 'blobKey');\n"
+        "    store.put(ab, 'abKey');\n"
+        "    store.put('binaryVal', u8Key);\n"
+        "    var g1 = store.get('blobKey');\n"
+        "    g1.onsuccess = function() {\n"
+        "        if (!(g1.result instanceof Blob) || g1.result.size !== 5) testPassed = false;\n"
+        "    };\n"
+        "    var g2 = store.get('abKey');\n"
+        "    g2.onsuccess = function() {\n"
+        "        if (!(g2.result instanceof ArrayBuffer) || g2.result.byteLength !== 4) testPassed = false;\n"
+        "    };\n"
+        "    var g3 = store.get(u8Key.buffer);\n"
+        "    g3.onsuccess = function() {\n"
+        "        if (g3.result !== 'binaryVal') testPassed = false;\n"
+        "    };\n"
+        "};\n"
+        "/* 2. Font Loading API */\n"
+        "if (!document.fonts || !(document.fonts instanceof FontFaceSet)) throw new Error('document.fonts missing');\n"
+        "if (typeof FontFace !== 'function') throw new Error('FontFace constructor missing');\n"
+        "var ff = new FontFace('CustomFont', 'url(font.woff)');\n"
+        "if (ff.family !== 'CustomFont' || ff.status !== 'loaded') throw new Error('FontFace instantiation failed');\n"
+        "if (document.fonts.ready !== document.fonts.ready) throw new Error('document.fonts.ready persistent promise mismatch');\n"
+        "document.fonts.ready.then(function(f) {\n"
+        "    if (f !== document.fonts) testPassed = false;\n"
+        "});\n"
+        "/* 3. SVG Filters & Inline */\n"
+        "if (typeof SVGFEColorMatrixElement !== 'function' || SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_SATURATE !== 2) throw new Error('SVGFEColorMatrixElement missing');\n"
+        "var feElem = new SVGFEColorMatrixElement();\n"
+        "if (!(feElem instanceof SVGFEColorMatrixElement)) throw new Error('SVGFEColorMatrixElement instanceof failed');\n"
+        "var div = document.createElement('div');\n"
+        "div.innerHTML = '<svg width=\"42\" height=\"42\"></svg>';\n"
+        "document.body.appendChild(div);\n"
+        "var rect = div.firstChild ? div.firstChild.getBoundingClientRect() : null;\n"
+        "if (!rect || rect.width !== 42 || rect.height !== 42) throw new Error('SVG inline rect mismatch');\n"
+        "/* 4. SecurityPolicyViolationEvent */\n"
+        "if (typeof SecurityPolicyViolationEvent === 'undefined') throw new Error('SecurityPolicyViolationEvent missing');\n"
+        "var spe = new SecurityPolicyViolationEvent('securitypolicyviolation', { blockedURI: 'http://evil.com', disposition: 'enforce' });\n"
+        "if (!(spe instanceof SecurityPolicyViolationEvent) || spe.blockedURI !== 'http://evil.com' || spe.disposition !== 'enforce') throw new Error('SecurityPolicyViolationEvent attributes or instanceof mismatch');\n"
+        "testPassed;\n";
+
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)test_js, strlen(test_js), "test_binary_idb_fonts_svg_security"), true);
+
+    extern uint64_t qjs_execute_timers(JSContext *ctx);
+    qjs_execute_timers(thread->ctx);
+
+    JSValue global_obj = JS_GetGlobalObject(thread->ctx);
+    JSValue val = JS_GetPropertyStr(thread->ctx, global_obj, "testPassed");
+    ck_assert(JS_ToBool(thread->ctx, val) == true);
+    JS_FreeValue(thread->ctx, val);
+    JS_FreeValue(thread->ctx, global_obj);
+
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -6790,6 +6877,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     tcase_add_test(tc_event_loop, test_quickjs_read_write_selectors);
+    tcase_add_test(tc_event_loop, test_quickjs_binary_idb_fonts_svg_security);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
