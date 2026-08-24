@@ -678,6 +678,20 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
             if (!qjs_is_element_read_write(node)) return false;
         } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) {
             if (qjs_is_element_read_write(node)) return false;
+        } else if (strcasecmp(pseudo, "checked") == 0) {
+            char *tag = qjs_libdom_get_tag_name(node);
+            bool is_chk = false;
+            if (tag && strcasecmp(tag, "input") == 0) {
+                is_chk = qjs_libdom_has_attr(node, "checked");
+            } else if (tag && strcasecmp(tag, "option") == 0) {
+                is_chk = qjs_libdom_has_attr(node, "selected");
+            }
+            if (tag) free(tag);
+            if (!is_chk) return false;
+        } else if (strcasecmp(pseudo, "disabled") == 0) {
+            if (!qjs_libdom_has_attr(node, "disabled")) return false;
+        } else if (strcasecmp(pseudo, "enabled") == 0) {
+            if (qjs_libdom_has_attr(node, "disabled")) return false;
         } else if (strcasecmp(pseudo, "required") == 0) {
             if (!qjs_libdom_has_attr(node, "required")) return false;
         } else if (strcasecmp(pseudo, "optional") == 0) {
@@ -1023,6 +1037,19 @@ static bool qjs_compound_selector_matches_shm(uint32_t node_id, const qjs_compou
             if (!qjs_is_element_read_write_shm(node_id)) return false;
         } else if (strcasecmp(pseudo, "read-only") == 0 || strcasecmp(pseudo, "-moz-read-only") == 0) {
             if (qjs_is_element_read_write_shm(node_id)) return false;
+        } else if (strcasecmp(pseudo, "checked") == 0) {
+            const char *tag = qjs_shm_get_tag_name(node_id);
+            bool is_chk = false;
+            if (tag && strcasecmp(tag, "input") == 0) {
+                is_chk = qjs_shm_has_attr(node_id, "checked");
+            } else if (tag && strcasecmp(tag, "option") == 0) {
+                is_chk = qjs_shm_has_attr(node_id, "selected");
+            }
+            if (!is_chk) return false;
+        } else if (strcasecmp(pseudo, "disabled") == 0) {
+            if (!qjs_shm_has_attr(node_id, "disabled")) return false;
+        } else if (strcasecmp(pseudo, "enabled") == 0) {
+            if (qjs_shm_has_attr(node_id, "disabled")) return false;
         } else if (strcasecmp(pseudo, "required") == 0) {
             if (!qjs_shm_has_attr(node_id, "required")) return false;
         } else if (strcasecmp(pseudo, "optional") == 0) {
