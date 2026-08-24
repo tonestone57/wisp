@@ -63,7 +63,7 @@ JSValue wisp_attr_ownerElement_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NULL;
 }
 
-JSValue wisp_attr_localName_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
+JSValue wisp_attr_localName_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_attr_name_get_impl(ctx, priv); }
 JSValue wisp_attr_namespaceURI_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_attr_prefix_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_NULL; }
 JSValue wisp_attr_nodeValue_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return wisp_attr_value_get_impl(ctx, priv); }

@@ -753,6 +753,7 @@ interface HTMLInputElement : HTMLElement {
 
   void stepUp(optional long n = 1);
   void stepDown(optional long n = 1);
+  void showPicker();
 
   readonly attribute boolean willValidate;
   readonly attribute ValidityState validity;
