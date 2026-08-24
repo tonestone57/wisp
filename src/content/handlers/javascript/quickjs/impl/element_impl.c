@@ -709,7 +709,7 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         JSValue tag_val = JS_GetPropertyStr(ctx, argv[0], "tagName");
         if (JS_IsString(tag_val)) {
             const char *tag_str = JS_ToCString(ctx, tag_val);
-            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0)) {
+            if (tag_str && (strcasecmp(tag_str, "canvas") == 0 || strcasecmp(tag_str, "svg") == 0 || strcasecmp(tag_str, "img") == 0 || strcasecmp(tag_str, "mspace") == 0)) {
                 if (strcmp(prop, "clientWidth") == 0 || strcmp(prop, "offsetWidth") == 0 || strcmp(prop, "scrollWidth") == 0) {
                     int32_t w = 0;
                     JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
@@ -824,7 +824,7 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         } else if (strcasecmp(tag, "html") == 0 || strcasecmp(tag, "body") == 0) {
             rw = 1024;
             rh = 768;
-        } else if (strcasecmp(tag, "svg") == 0 || strcasecmp(tag, "img") == 0 || strcasecmp(tag, "canvas") == 0) {
+        } else if (strcasecmp(tag, "svg") == 0 || strcasecmp(tag, "img") == 0 || strcasecmp(tag, "canvas") == 0 || strcasecmp(tag, "mspace") == 0) {
             JSValue wv = wisp_element_getAttribute_impl(ctx, priv, "width");
             JSValue hv = wisp_element_getAttribute_impl(ctx, priv, "height");
             if (JS_IsString(wv)) {
