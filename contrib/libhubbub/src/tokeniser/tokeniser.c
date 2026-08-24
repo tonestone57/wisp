@@ -1585,7 +1585,7 @@ hubbub_error hubbub_tokeniser_handle_markup_declaration_open(hubbub_tokeniser *t
         tokeniser->context.pending = len;
         tokeniser->context.match_doctype.count = len;
         tokeniser->state = STATE_MATCH_DOCTYPE;
-    } else if (tokeniser->process_cdata_section == true && c == '[') {
+    } else if (c == '[') {
         tokeniser->context.pending = len;
         tokeniser->context.match_cdata.count = len;
         tokeniser->state = STATE_MATCH_CDATA;

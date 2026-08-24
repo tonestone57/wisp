@@ -474,7 +474,19 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
     dom_string *elem_tag = NULL;
     dom_element_get_tag_name((dom_element *)element, &elem_tag);
     if (elem_tag) {
-        dom_hubbub_parser_set_context_tag(parser, (const char *)dom_string_data(elem_tag), dom_string_byte_length(elem_tag));
+        const char *data = (const char *)dom_string_data(elem_tag);
+        size_t len = dom_string_byte_length(elem_tag);
+        char *lower_tag = malloc(len + 1);
+        if (lower_tag) {
+            for (size_t i = 0; i < len; i++) {
+                lower_tag[i] = (data[i] >= 'A' && data[i] <= 'Z') ? (data[i] + 32) : data[i];
+            }
+            lower_tag[len] = '\0';
+            dom_hubbub_parser_set_context_tag(parser, lower_tag, len);
+            free(lower_tag);
+        } else {
+            dom_hubbub_parser_set_context_tag(parser, data, len);
+        }
         dom_string_unref(elem_tag);
     }
 
