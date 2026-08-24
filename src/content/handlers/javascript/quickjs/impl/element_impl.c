@@ -484,6 +484,8 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
             lower_tag[tag_len] = '\0';
             dom_hubbub_parser_set_context_tag(parser, lower_tag, tag_len);
             free(lower_tag);
+        } else {
+            dom_hubbub_parser_set_context_tag(parser, tag_data, tag_len);
         }
         dom_string_unref(elem_tag);
     }
@@ -521,7 +523,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
                 }
                 if (!head_node) {
                     dom_string *head_str = NULL;
-                    dom_string_create_interned((const uint8_t *)"HEAD", 4, &head_str);
+                    dom_string_create_interned((const uint8_t *)"head", 4, &head_str);
                     dom_document_create_element(doc, head_str, (dom_element **)&head_node);
                     dom_string_unref(head_str);
                     if (head_node) {
@@ -541,7 +543,7 @@ JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, co
                 }
                 if (!body_node) {
                     dom_string *body_str = NULL;
-                    dom_string_create_interned((const uint8_t *)"BODY", 4, &body_str);
+                    dom_string_create_interned((const uint8_t *)"body", 4, &body_str);
                     dom_document_create_element(doc, body_str, (dom_element **)&body_node);
                     dom_string_unref(body_str);
                     if (body_node) {
