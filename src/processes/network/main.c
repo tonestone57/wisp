@@ -442,7 +442,10 @@ static const char *default_filetype(const char *unix_path) {
     if (strcmp(ext_buf, ".wasm") == 0) return "application/wasm";
     if (strcmp(ext_buf, ".pdf") == 0) return "application/pdf";
     if (strcmp(ext_buf, ".mp4") == 0 || strcmp(ext_buf, ".m4v") == 0) return "video/mp4";
+    if (strcmp(ext_buf, ".mov") == 0) return "video/quicktime";
     if (strcmp(ext_buf, ".webm") == 0) return "video/webm";
+    if (strcmp(ext_buf, ".mkv") == 0) return "video/x-matroska";
+    if (strcmp(ext_buf, ".avi") == 0) return "video/x-msvideo";
     if (strcmp(ext_buf, ".ogv") == 0) return "video/ogg";
     if (strcmp(ext_buf, ".mp3") == 0) return "audio/mpeg";
     if (strcmp(ext_buf, ".m4a") == 0) return "audio/mp4";
