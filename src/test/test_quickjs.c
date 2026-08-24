@@ -6715,11 +6715,16 @@ START_TEST(test_quickjs_binary_idb_fonts_svg_security)
         "};\n"
         "/* 2. Font Loading API */\n"
         "if (!document.fonts || !(document.fonts instanceof FontFaceSet)) throw new Error('document.fonts missing');\n"
+        "if (typeof FontFace !== 'function') throw new Error('FontFace constructor missing');\n"
+        "var ff = new FontFace('CustomFont', 'url(font.woff)');\n"
+        "if (ff.family !== 'CustomFont' || ff.status !== 'loaded') throw new Error('FontFace instantiation failed');\n"
         "document.fonts.ready.then(function(f) {\n"
         "    if (f !== document.fonts) testPassed = false;\n"
         "});\n"
         "/* 3. SVG Filters & Inline */\n"
-        "if (typeof SVGFEColorMatrixElement === 'undefined' || SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_SATURATE !== 2) throw new Error('SVGFEColorMatrixElement missing');\n"
+        "if (typeof SVGFEColorMatrixElement !== 'function' || SVGFEColorMatrixElement.SVG_FECOLORMATRIX_TYPE_SATURATE !== 2) throw new Error('SVGFEColorMatrixElement missing');\n"
+        "var feElem = new SVGFEColorMatrixElement();\n"
+        "if (!(feElem instanceof SVGFEColorMatrixElement)) throw new Error('SVGFEColorMatrixElement instanceof failed');\n"
         "var div = document.createElement('div');\n"
         "div.innerHTML = '<svg width=\"42\" height=\"42\"></svg>';\n"
         "document.body.appendChild(div);\n"
@@ -6728,7 +6733,7 @@ START_TEST(test_quickjs_binary_idb_fonts_svg_security)
         "/* 4. SecurityPolicyViolationEvent */\n"
         "if (typeof SecurityPolicyViolationEvent === 'undefined') throw new Error('SecurityPolicyViolationEvent missing');\n"
         "var spe = new SecurityPolicyViolationEvent('securitypolicyviolation', { blockedURI: 'http://evil.com', disposition: 'enforce' });\n"
-        "if (spe.blockedURI !== 'http://evil.com' || spe.disposition !== 'enforce') throw new Error('SecurityPolicyViolationEvent attributes mismatch');\n"
+        "if (!(spe instanceof SecurityPolicyViolationEvent) || spe.blockedURI !== 'http://evil.com' || spe.disposition !== 'enforce') throw new Error('SecurityPolicyViolationEvent attributes or instanceof mismatch');\n"
         "testPassed;\n";
 
     ck_assert_int_eq(js_exec(thread, (const uint8_t *)test_js, strlen(test_js), "test_binary_idb_fonts_svg_security"), true);
