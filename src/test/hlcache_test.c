@@ -14,6 +14,7 @@
 #include <wisp/content/backing_store.h>
 #include <wisp/misc.h>
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/utils/nsoption.h>
 
 static void (*scheduled_cb)(void *p) = NULL;
 static void *scheduled_p = NULL;
@@ -365,6 +366,10 @@ int main(void)
 {
     int number_failed;
 
+    if (nsoption_init(NULL, NULL, NULL) != NSERROR_OK) {
+        return EXIT_FAILURE;
+    }
+
     if (corestrings_init() != NSERROR_OK) {
         return EXIT_FAILURE;
     }
@@ -377,6 +382,7 @@ int main(void)
     srunner_free(sr);
 
     corestrings_fini();
+    nsoption_finalise(NULL, NULL);
 
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
