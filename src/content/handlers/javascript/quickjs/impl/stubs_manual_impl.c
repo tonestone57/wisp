@@ -5894,13 +5894,29 @@ JSValue wisp_htmlinputelement_stepUp_impl(JSContext *ctx, QJSNodePrivate *priv, 
     return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
 }
 
+static inline JSValue throw_input_dom_exception(JSContext *ctx, const char *name, const char *msg) {
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue dom_exception_ctor = JS_GetPropertyStr(ctx, global, "DOMException");
+    JS_FreeValue(ctx, global);
+    if (JS_IsFunction(ctx, dom_exception_ctor) || JS_IsObject(dom_exception_ctor)) {
+        JSValue args[2];
+        args[0] = JS_NewString(ctx, msg);
+        args[1] = JS_NewString(ctx, name);
+        JSValue exc = JS_CallConstructor(ctx, dom_exception_ctor, 2, args);
+        JS_FreeValue(ctx, args[0]);
+        JS_FreeValue(ctx, args[1]);
+        JS_FreeValue(ctx, dom_exception_ctor);
+        if (!JS_IsException(exc)) {
+            return JS_Throw(ctx, exc);
+        }
+    }
+    JS_FreeValue(ctx, dom_exception_ctor);
+    return JS_ThrowTypeError(ctx, "%s: %s", name, msg);
+}
+
 JSValue wisp_htmlinputelement_showPicker_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!priv || !priv->node) return JS_ThrowTypeError(ctx, "Invalid HTMLInputElement target");
-    bool disabled = JS_ToBool(ctx, wisp_htmlinputelement_disabled_get_impl(ctx, priv));
-    bool readOnly = JS_ToBool(ctx, wisp_htmlinputelement_readOnly_get_impl(ctx, priv));
-    if (disabled || readOnly) {
-        return JS_ThrowTypeError(ctx, "Element is disabled or readOnly");
-    }
+
     JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
     const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
     bool supported = (type_str && (
@@ -5920,9 +5936,16 @@ JSValue wisp_htmlinputelement_showPicker_impl(JSContext *ctx, QJSNodePrivate *pr
         bool has_list = !JS_IsNull(list_val) && !JS_IsUndefined(list_val);
         JS_FreeValue(ctx, list_val);
         if (!has_list) {
-            return JS_ThrowTypeError(ctx, "Element type does not support showPicker");
+            return throw_input_dom_exception(ctx, "NotSupportedError", "Element type does not support showPicker");
         }
     }
+
+    bool disabled = JS_ToBool(ctx, wisp_htmlinputelement_disabled_get_impl(ctx, priv));
+    bool readOnly = JS_ToBool(ctx, wisp_htmlinputelement_readOnly_get_impl(ctx, priv));
+    if (disabled || readOnly) {
+        return throw_input_dom_exception(ctx, "InvalidStateError", "Element is disabled or readOnly");
+    }
+
     return JS_UNDEFINED;
 }
 
