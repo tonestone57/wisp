@@ -260,6 +260,69 @@ START_TEST(test_quickjs_media_source)
 }
 END_TEST
 
+START_TEST(test_quickjs_eme_drm)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = js_newthread(heap, NULL, NULL, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "if (!('MediaKeys' in window)) throw new Error('MediaKeys not in window');\n"
+        "if (!('MediaKeySystemAccess' in window)) throw new Error('MediaKeySystemAccess not in window');\n"
+        "if (!('MediaKeySession' in window)) throw new Error('MediaKeySession not in window');\n"
+        "if (!('MediaKeyStatusMap' in window)) throw new Error('MediaKeyStatusMap not in window');\n"
+        "if (!('MediaEncryptedEvent' in window)) throw new Error('MediaEncryptedEvent not in window');\n"
+        "if (typeof navigator.requestMediaKeySystemAccess !== 'function') throw new Error('requestMediaKeySystemAccess missing');\n"
+        "var pass = true;\n"
+        "navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{ initDataTypes: ['cenc'] }]).then(function(access) {\n"
+        "    if (!(access instanceof MediaKeySystemAccess)) throw new Error('access not MediaKeySystemAccess');\n"
+        "    if (access.keySystem !== 'com.widevine.alpha') throw new Error('keySystem mismatch');\n"
+        "    var config = access.getConfiguration();\n"
+        "    if (!config || !config.initDataTypes) throw new Error('getConfiguration mismatch');\n"
+        "    return access.createMediaKeys();\n"
+        "}).then(function(mediaKeys) {\n"
+        "    if (!(mediaKeys instanceof MediaKeys)) throw new Error('mediaKeys not MediaKeys');\n"
+        "    return mediaKeys.setServerCertificate(new ArrayBuffer(8)).then(function() { return mediaKeys; });\n"
+        "}).then(function(mediaKeys) {\n"
+        "    var session = mediaKeys.createSession('temporary');\n"
+        "    if (!(session instanceof MediaKeySession)) throw new Error('session not MediaKeySession');\n"
+        "    if (!session.sessionId) throw new Error('sessionId missing');\n"
+        "    if (!(session.keyStatuses instanceof MediaKeyStatusMap)) throw new Error('keyStatuses not MediaKeyStatusMap');\n"
+        "    return session.generateRequest('cenc', new Uint8Array([1, 2, 3])).then(function() { return session; });\n"
+        "}).then(function(session) {\n"
+        "    return session.close();\n"
+        "}).then(function() {\n"
+        "    window.emeTestResult = 'SUCCESS';\n"
+        "}).catch(function(e) {\n"
+        "    window.emeTestResult = e.message;\n"
+        "});\n"
+        "if ('HTMLMediaElement' in window) {\n"
+        "    if (!('setMediaKeys' in HTMLMediaElement.prototype)) throw new Error('setMediaKeys missing on prototype');\n"
+        "    if (!('mediaKeys' in HTMLMediaElement.prototype)) throw new Error('mediaKeys missing on prototype');\n"
+        "    if (!('onencrypted' in HTMLMediaElement.prototype)) throw new Error('onencrypted missing on prototype');\n"
+        "}\n"
+        "var encEvt = new MediaEncryptedEvent('encrypted', { initDataType: 'cenc', initData: new ArrayBuffer(4) });\n"
+        "if (encEvt.type !== 'encrypted' || encEvt.initDataType !== 'cenc') throw new Error('MediaEncryptedEvent mismatch');\n"
+        "true;\n";
+
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_eme_drm");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_browseraudit_chartjs_full)
 {
     jsheap *heap = NULL;
@@ -6717,6 +6780,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_drag_drop);
     tcase_add_test(tc_event_loop, test_quickjs_media_streams);
     tcase_add_test(tc_event_loop, test_quickjs_media_source);
+    tcase_add_test(tc_event_loop, test_quickjs_eme_drm);
     tcase_add_test(tc_event_loop, test_quickjs_output_and_devices);
     tcase_add_test(tc_event_loop, test_quickjs_input_devices);
     tcase_add_test(tc_event_loop, test_quickjs_location_and_sensors);
