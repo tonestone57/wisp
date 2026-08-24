@@ -1183,8 +1183,12 @@ static void nsgtk_finalise(void)
     NSLOG(wisp, INFO, "Quitting GUI");
     nsgtk_plotters.finalise(NULL);
 
-    /* Ensure all scaffoldings are destroyed before we go into exit */
+    /* Ensure all scaffoldings and browser windows are destroyed before we go into exit */
     nsgtk_scaffolding_destroy_all();
+    while (window_list != NULL) {
+        struct gui_window *gw = window_list;
+        browser_window_destroy(gw->bw);
+    }
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
