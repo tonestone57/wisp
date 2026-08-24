@@ -173,6 +173,13 @@ START_TEST(test_quickjs_xhr_response_types)
 
     const char *code =
         "try {\n"
+        "  if (!('EventSource' in window)) throw new Error('EventSource missing from window');\n"
+        "  var es = new EventSource('http://localhost/events');\n"
+        "  if (!(es instanceof EventSource)) throw new Error('es not instance of EventSource');\n"
+        "  if (es.url !== 'http://localhost/events') throw new Error('es.url mismatch: ' + es.url);\n"
+        "  if (es.readyState !== 0) throw new Error('es.readyState initial mismatch');\n"
+        "  if (typeof es.close !== 'function') throw new Error('es.close missing');\n"
+        "  es.close();\n"
         "  var xhr = new XMLHttpRequest();\n"
         "  if (xhr.responseType !== '') throw new Error('default responseType should be empty string');\n"
         "  xhr.responseType = 'text';\n"
@@ -4994,6 +5001,27 @@ START_TEST(test_quickjs_xhr)
         "xhr.addEventListener('loadend', function() { loadend_fired = true; });\n"
         "typeof xhr.addEventListener === 'function' && load_fired === false && loadend_fired === false;";
     result = js_exec(thread, (const uint8_t *)code_xhr_adv, strlen(code_xhr_adv), "test_xhr_adv_listeners");
+    ck_assert(result == true);
+
+    const char *code_xhr_shim_test =
+        "var origOpen = XMLHttpRequest.prototype.open;\n"
+        "XMLHttpRequest.prototype.open = function(method, url) {\n"
+        "    this._url = url;\n"
+        "    return origOpen.apply(this, arguments);\n"
+        "};\n"
+        "var shimSendHit = false;\n"
+        "var origSend = XMLHttpRequest.prototype.send;\n"
+        "XMLHttpRequest.prototype.send = function() {\n"
+        "    if (this._url && this._url.indexOf('detect.html') !== -1) {\n"
+        "        shimSendHit = true;\n"
+        "    }\n"
+        "    return origSend.apply(this, arguments);\n"
+        "};\n"
+        "var x = new XMLHttpRequest();\n"
+        "x.open('GET', '/assets/detect.html?123');\n"
+        "x.send();\n"
+        "shimSendHit === true;";
+    result = js_exec(thread, (const uint8_t *)code_xhr_shim_test, strlen(code_xhr_shim_test), "test_xhr_shim_test");
     ck_assert(result == true);
 
     /* Test fetch constructor and configuration with Headers */
