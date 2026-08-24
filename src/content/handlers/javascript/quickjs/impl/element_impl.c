@@ -1593,6 +1593,14 @@ JSValue wisp_element_namespaceURI_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NewString(ctx, "http://www.w3.org/1999/xhtml");
 
+    dom_string *ns_dom = NULL;
+    dom_exception exc = dom_node_get_namespace((dom_node *)priv->node, &ns_dom);
+    if (exc == DOM_NO_ERR && ns_dom != NULL) {
+        JSValue val = JS_NewStringLen(ctx, (const char *)dom_string_data(ns_dom), dom_string_byte_length(ns_dom));
+        dom_string_unref(ns_dom);
+        return val;
+    }
+
     JSValue tag = wisp_element_tagName_get_impl(ctx, priv);
     if (JS_IsString(tag)) {
         const char *str = JS_ToCString(ctx, tag);
