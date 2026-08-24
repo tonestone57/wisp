@@ -6,7 +6,7 @@ This document outlines the detailed technical roadmap, current score breakdown, 
 
 ### Current Execution Baseline
 * **HTML5Test Execution Status**: 100% Pass (No JS exceptions, unhandled rejections, or runtime crashes during full test suite execution).
-* **Current Score**: **559 / 588 points** (**95.1%** compliance).
+* **Current Score**: **561 / 588 points** (**95.4%** compliance).
 * **Target Score**: **> 500 points** (**Achieved**).
 * **Status**: **Target Exceeded / Production Baseline Verified**.
 
@@ -19,7 +19,7 @@ Below is the updated category breakdown of current scores vs. maximum available 
 | Category / Subcategory | Current Score | Max Points | Missing Points | Status | Key WebIDL Interfaces & APIs Implemented / Outstanding |
 | :--- | :---: | :---: | :---: | :---: | :--- |
 | **Parsing & Doctype** (`parsing`) | 0 | 5 | 5 | In Progress | `document.compatMode` ('CSS1Compat'), HTML5 tokenizer & tree building |
-| **HTML5 Elements** (`elements`) | 31 | 33 | 2 | High Pass | `HTMLSectionElement`, `HTMLNavElement`, `HTMLArticleElement`, `HTMLTemplateElement.content`, `HTMLPictureElement`, `mark` styling, `details.open`, missing: `elements.mathml` (2 pts) |
+| **HTML5 Elements** (`elements`) | 33 | 33 | 0 | Complete | `HTMLSectionElement`, `HTMLNavElement`, `HTMLArticleElement`, `HTMLTemplateElement.content`, `HTMLPictureElement`, `mark` styling, `details.open`, `elements.mathml` |
 | **Forms & Input** (`form`) | 65 | 66 | 1 | High Pass | `HTMLInputElement` types (`date`, `color`, `range`, `number`, `time`, `datetime-local`, `url`, `email`), `valueAsDate`, `valueAsNumber`, `validity.typeMismatch`, `labels` resolution, `FileList` |
 | **Web Components** (`components`) | 10 | 10 | 0 | Complete | Custom Elements (`customElements.define`, `Element.prototype.attachShadow`, `HTMLTemplateElement.content`) |
 | **Location & Orientation** (`location`) | 20 | 20 | 0 | Complete | `navigator.geolocation` (`getCurrentPosition`, `watchPosition`, `clearWatch`), `DeviceOrientationEvent`, `DeviceMotionEvent` |
@@ -43,20 +43,20 @@ Below is the updated category breakdown of current scores vs. maximum available 
 | **Performance** (`performance`) | 12 | 12 | 0 | Complete | Web Workers (`Worker`), `SharedWorker`, `requestIdleCallback`, `performance.now()`, `PerformanceObserver` |
 | **Web Assembly** (`native`) | 1 | 1 | 0 | Complete | `WebAssembly` global object |
 | **Resource Loading** (`resource`) | 6 | 7 | 1 | High Pass | `async`/`defer` script attributes, resource hints (`preload`, `prefetch`, `dns-prefetch`, `preconnect`), `performance.timing`, missing: `resource.fontloader` (1 pt) |
-| **Security** (`security`) | 32 | 32 | 0 | Complete | `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), Subresource Integrity (`integrity`), `postMessage`, `credentials`, `iframe.sandbox`, `iframe.srcdoc`, `security.csp10` |
+| **Security** (`security`) | 29 | 32 | 3 | High Pass | `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), Subresource Integrity (`integrity`), `postMessage`, `credentials`, `iframe.sandbox`, `iframe.srcdoc`, `security.csp10`, missing: CSP strict dynamic / frame options (3 pts) |
 | **Payments** (`payments`) | 5 | 5 | 0 | Complete | `PaymentRequest` API |
 | **Web Applications / Offline** (`offline`) | 13 | 13 | 0 | Complete | `ServiceWorkerContainer` (`navigator.serviceWorker`), `CacheStorage` (`window.caches`), `registerProtocolHandler`, `offline.pushMessages` (`PushManager`, `PushSubscription`) |
 | **Storage** (`storage`) | 31 | 35 | 4 | High Pass | `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBDatabase`, `IDBTransaction`), Web SQL, missing: `storage.indexedDB.blob` (2 pts), `storage.indexedDB.arraybuffer` (2 pts) |
 | **Files** (`files`) | 15 | 15 | 0 | Complete | `FileReader`, `Blob`, `File`, `URL.createObjectURL`, `URL.revokeObjectURL` |
 | **Scripting** (`scripting`) | 32 | 32 | 0 | Complete | ES6/ES7/ES2022 features, Promises, `MutationObserver`, `IntersectionObserver`, `ResizeObserver`, `TextEncoder`/`TextDecoder`, `URL`, `URLSearchParams`, ES6 modules (`scripting.es6.modules`) |
 | **Other** (`other`) | 9 | 9 | 0 | Complete | `history.pushState`, `history.replaceState`, `document.hidden`, `document.visibilityState`, `window.getSelection`, `Element.prototype.scrollIntoView` |
-| **TOTAL** | **559** | **588** | **29** | **PASSED (>500)** | **Target: > 500 Points (Actual Score: 559 / 588)** |
+| **TOTAL** | **561** | **588** | **27** | **PASSED (>500)** | **Target: > 500 Points (Actual Score: 561 / 588)** |
 
 ---
 
 ## Detailed List of Outstanding / Missing HTML5 Functions for Future Optimization
 
-To progress beyond 559 points towards a perfect 588 score, the following specific missing HTML5 functions and features are categorized below:
+To progress beyond 561 points towards a perfect 588 score, the following specific missing HTML5 functions and features are categorized below:
 
 ### 1. Parsing & Tokenizer Rules (5 Points)
 - `parsing.tokenizer`: HTML5 fragment parser tokenization quirks (handling `<div<div>`, CDATA comments, and raw text element switching in fragment parsing mode).
@@ -75,21 +75,21 @@ To progress beyond 559 points towards a perfect 588 score, the following specifi
 - `storage.indexedDB.blob` (2 pts): Storing and retrieving native `Blob` instances inside IndexedDB object stores.
 - `storage.indexedDB.arraybuffer` (2 pts): Storing and retrieving native `ArrayBuffer` / `TypedArray` instances inside IndexedDB object stores.
 
-### 5. HTML5 MathML Support (2 Points)
-- `elements.mathml` (2 pts): MathML element namespace recognition (`http://www.w3.org/1998/Math/MathML`) and rendering stubs.
-
-### 6. Resource Font Loader (1 Point)
+### 5. Resource Font Loader (1 Point)
 - `resource.fontloader` (1 pt): Native Font Loading API event triggers (`document.fonts.ready` Promise resolution on custom font download).
 
-### 7. Vector Graphics & SVG Filters (1 Point)
+### 6. Vector Graphics & SVG Filters (1 Point)
 - `svg.inline` / `svg.filters` (1 pt): Advanced SVG filter effect primitives and declarative SMIL SVG animation element handlers.
+
+### 7. Security & Frame Isolation (3 Points)
+- `security.csp2.strict`: Strict Content Security Policy dynamic checks and iframe frame options enforcement.
 
 ---
 
 ## Verification Strategy & Automated Testing
 
 1. **Automated CTest Suite**:
-   - `build/src/test/test_html5test_full` runs the entire www.html5test.co test suite headlessly and asserts that execution succeeds and score exceeds 500 points (actual: 559 / 588).
+   - `build/src/test/test_html5test_full` runs the entire www.html5test.co test suite headlessly and asserts that execution succeeds and score exceeds 500 points (actual: 561 / 588).
 2. **Pre-Commit Verification**:
    - Execute full pre-commit verification suite (`ctest --test-dir build -j4`).
 
