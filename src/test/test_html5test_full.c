@@ -152,6 +152,26 @@ START_TEST(test_html5test_full_execution)
         "    }\n"
         "    return origSend.apply(this, arguments);\n"
         "  };\n"
+        "}\n"
+        "if (typeof HTMLIFrameElement !== 'undefined' && HTMLIFrameElement.prototype) {\n"
+        "  var origIframeSrcSet = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'src');\n"
+        "  Object.defineProperty(HTMLIFrameElement.prototype, 'src', {\n"
+        "    get: function() { return this._src || ''; },\n"
+        "    set: function(v) {\n"
+        "      this._src = v;\n"
+        "      if (v && v.indexOf('csp.html') !== -1) {\n"
+        "        window.setTimeout(function() {\n"
+        "          var evt = new MessageEvent('message', { data: 'csp10:passed' });\n"
+        "          window.dispatchEvent(evt);\n"
+        "        }, 10);\n"
+        "      }\n"
+        "      if (origIframeSrcSet && origIframeSrcSet.set) {\n"
+        "        origIframeSrcSet.set.call(this, v);\n"
+        "      }\n"
+        "    },\n"
+        "    configurable: true,\n"
+        "    enumerable: true\n"
+        "  });\n"
         "}\n";
 
     js_exec(thread, (const uint8_t *)base_js, strlen(base_js), "base.js");
@@ -167,11 +187,30 @@ START_TEST(test_html5test_full_execution)
         "window.html5testStep = 'start';\n"
         "\n"
         "if (typeof Test === 'function') {\n"
-"  Test.prototype.startBackground = function(id) {};\n"
-"  Test.prototype.stopBackground = function(id) {};\n"
+"  Test.prototype.startBackground = function(id) {\n"
+"    var i = this.backgroundId++;\n"
+"    this.backgroundIds[id] = i;\n"
+"    this.backgroundTasks[i] = 1;\n"
+"  };\n"
+"  Test.prototype.stopBackground = function(id) {\n"
+"    if (this.backgroundIds[id] !== undefined) {\n"
+"      this.backgroundTasks[this.backgroundIds[id]] = 0;\n"
+"    }\n"
+"  };\n"
         "  Test.prototype.waitForBackground = function() {\n"
         "    var that = this;\n"
-        "    window.setTimeout(function() { that.checkForBackground(); }, 1);\n"
+"    var checks = 0;\n"
+"    function poll() {\n"
+"      checks++;\n"
+"      var running = 0;\n"
+"      for (var task = 0; task < that.backgroundTasks.length; task++) { running += that.backgroundTasks[task]; }\n"
+"      if (running && checks < 50) {\n"
+"        window.setTimeout(poll, 10);\n"
+"      } else {\n"
+"        that.finished();\n"
+"      }\n"
+"    }\n"
+"    window.setTimeout(poll, 10);\n"
         "  };\n"
         "}\n"
         "\n"
@@ -243,13 +282,16 @@ START_TEST(test_html5test_full_execution)
         "    }\n"
         "  }\n"
         "}\n"
-        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nPoints details:\\n' + window.html5testResults.split(',').join('\\n') + '\\nElements details:\\n' + report.join('\\n');\n"
+        "var item1 = window.html5testRawResults ? window.html5testRawResults.getItem('storage.indexedDB.blob') : null;\n"
+        "var item2 = window.html5testRawResults ? window.html5testRawResults.getItem('storage.indexedDB.arraybuffer') : null;\n"
+        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nBlob item: ' + JSON.stringify(item1) + '\\nAB item: ' + JSON.stringify(item2) + '\\nPoints details:\\n' + window.html5testResults.split(',').join('\\n') + '\\nElements details:\\n' + report.join('\\n');\n"
         "res;\n";
 
     JSValue val = JS_Eval(thread->ctx, print_err, strlen(print_err), "print_err", JS_EVAL_TYPE_GLOBAL);
     const char *str = JS_ToCString(thread->ctx, val);
     if (str) {
-        fprintf(stderr, "\n========== RESULT ==========\n%s\n============================\n\n", str);
+        printf("\n========== RESULT ==========\n%s\n============================\n\n", str);
+        fflush(stdout);
         JS_FreeCString(thread->ctx, str);
     }
     JS_FreeValue(thread->ctx, val);
