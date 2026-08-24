@@ -5901,6 +5901,28 @@ JSValue wisp_htmlinputelement_showPicker_impl(JSContext *ctx, QJSNodePrivate *pr
     if (disabled || readOnly) {
         return JS_ThrowTypeError(ctx, "Element is disabled or readOnly");
     }
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "text";
+    bool supported = (type_str && (
+        strcmp(type_str, "date") == 0 ||
+        strcmp(type_str, "month") == 0 ||
+        strcmp(type_str, "week") == 0 ||
+        strcmp(type_str, "time") == 0 ||
+        strcmp(type_str, "datetime-local") == 0 ||
+        strcmp(type_str, "color") == 0 ||
+        strcmp(type_str, "file") == 0
+    ));
+    if (type_str && JS_IsString(type_val)) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
+
+    if (!supported) {
+        JSValue list_val = wisp_htmlinputelement_list_get_impl(ctx, priv);
+        bool has_list = !JS_IsNull(list_val) && !JS_IsUndefined(list_val);
+        JS_FreeValue(ctx, list_val);
+        if (!has_list) {
+            return JS_ThrowTypeError(ctx, "Element type does not support showPicker");
+        }
+    }
     return JS_UNDEFINED;
 }
 
