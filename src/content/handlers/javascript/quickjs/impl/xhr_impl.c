@@ -385,6 +385,10 @@ JSValue wisp_xmlhttprequest_open_impl(JSContext *ctx, QJSNodePrivate *priv, cons
     if (xhr->url) nsurl_unref(xhr->url);
     xhr->url = new_url;
 
+    if (!JS_IsUndefined(xhr->self)) {
+        JS_SetPropertyStr(ctx, xhr->self, "_url", JS_NewString(ctx, nsurl_access(new_url)));
+    }
+
     xhr_set_ready_state(xhr, 1); /* OPENED */
     return JS_UNDEFINED;
 }
