@@ -6202,19 +6202,6 @@ void js_destroythread(jsthread *thread)
         return;
     thread->closed = true;
 
-    /* Unlink thread from heap's active threads list if heap is still valid */
-    if (thread->heap != NULL) {
-        struct jsthread **curr = &thread->heap->threads;
-        while (*curr != NULL) {
-            if (*curr == thread) {
-                *curr = thread->next_in_heap;
-                break;
-            }
-            curr = &(*curr)->next_in_heap;
-        }
-        thread->heap = NULL;
-    }
-
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
@@ -6376,13 +6363,18 @@ void js_destroythread(jsthread *thread)
     }
 
     if (thread->shm_dom && !wisp_is_js_process) {
+        shm_dom_t *prev_shm = current_thread_shm;
+        bool prev_locked = thread_shm_locked;
+        current_thread_shm = thread->shm_dom;
+        thread_shm_locked = true;
+
         for (uint32_t i = 1; i < thread->shm_dom->node_count; i++) {
             uintptr_t raw_ptr = (uintptr_t)shm_dom_get_dom_ptrs(thread->shm_dom)[i];
             if (raw_ptr != 0 && (raw_ptr % sizeof(void *)) == 0) {
                 dom_node *node = (dom_node *)raw_ptr;
                 /* Zero out pointer slot immediately to avoid dangling pointers */
                 shm_dom_get_dom_ptrs(thread->shm_dom)[i] = 0;
-                if (doc_node && node != (dom_node *)doc_node && node->vtable != NULL) {
+                if (doc_node && node->vtable != NULL && node != (dom_node *)doc_node) {
                     dom_node *parent = NULL;
                     dom_node_get_parent_node(node, &parent);
                     if (parent == NULL) {
@@ -6395,6 +6387,9 @@ void js_destroythread(jsthread *thread)
                 }
             }
         }
+
+        current_thread_shm = prev_shm;
+        thread_shm_locked = prev_locked;
     }
 
     if (doc_node && !wisp_is_js_process) {
@@ -6417,6 +6412,20 @@ void js_destroythread(jsthread *thread)
             shm_dom_destroy(thread->shm_dom, thread->shm_dom_name, true);
         }
     }
+
+    /* Unlink thread from heap's active threads list before freeing memory */
+    if (thread->heap != NULL) {
+        struct jsthread **curr = &thread->heap->threads;
+        while (*curr != NULL) {
+            if (*curr == thread) {
+                *curr = thread->next_in_heap;
+                break;
+            }
+            curr = &(*curr)->next_in_heap;
+        }
+        thread->heap = NULL;
+    }
+
     free(thread);
 }
 
