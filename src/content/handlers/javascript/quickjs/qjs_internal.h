@@ -181,6 +181,7 @@ void check_script_element_execution(JSContext *ctx, void *node);
 JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSValue arguments, bool repeat);
 JSValue wisp_timer_clear(JSContext *ctx, int32_t handle);
 uint64_t qjs_execute_timers(JSContext *ctx);
+void force_synchronous_layout(struct jsthread *thread);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);

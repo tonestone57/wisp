@@ -7212,7 +7212,7 @@ void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box)
 
 extern bool layout_document(struct html_content *content, int width, int height);
 
-static void force_synchronous_layout(struct jsthread *thread)
+void force_synchronous_layout(struct jsthread *thread)
 {
     struct html_content *htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv)
         ? (struct html_content *)thread->doc_priv
@@ -7563,10 +7563,11 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         thread->heap->last_yield_ms = old_last_yield;
     }
 
-    JSContext *ctx1;
-    int job_ret;
-    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1)) != 0) {
-        if (job_ret < 0) {
+    JSRuntime *rt = JS_GetRuntime(thread->ctx);
+    while (JS_IsJobPending(rt)) {
+        JSContext *ctx1 = NULL;
+        int job_ret = JS_ExecutePendingJob(rt, &ctx1);
+        if (job_ret < 0 && ctx1) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
             NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
@@ -7574,6 +7575,16 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 JS_FreeCString(ctx1, exc_str);
             JS_FreeValue(ctx1, exc);
         }
+    }
+
+    force_synchronous_layout(thread);
+    struct html_content *exec_htmlc = (thread->win_priv && thread->win_priv != thread->doc_priv)
+        ? (struct html_content *)thread->doc_priv
+        : NULL;
+    if (exec_htmlc && exec_htmlc->base.user_list && exec_htmlc->base.user_list->next) {
+        union content_msg_data msg_data;
+        msg_data.background = false;
+        content_broadcast(&exec_htmlc->base, CONTENT_MSG_REFORMAT, &msg_data);
     }
 
     bool success = !JS_IsException(val);

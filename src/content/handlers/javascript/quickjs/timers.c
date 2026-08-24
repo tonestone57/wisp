@@ -9,6 +9,8 @@ extern bool wisp_is_js_process;
 #include <wisp/utils/log.h>
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
+#include <wisp/content/content.h>
+#include <wisp/content/handlers/html/private.h>
 #include "quickjs.h"
 #include "qjs_internal.h"
 #include "dom_bridge.h"
@@ -309,15 +311,30 @@ void qjs_timer_callback(void *p)
     JS_FreeValue(ctx, ret);
 
     /* Process pending jobs (Promises) after timer execution */
-    JSContext *ctx1;
-    int job_ret;
-    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
-        if (job_ret < 0) {
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    while (JS_IsJobPending(rt)) {
+        JSContext *ctx1 = NULL;
+        int job_ret = JS_ExecutePendingJob(rt, &ctx1);
+        if (job_ret < 0 && ctx1) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
             NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
             if (exc_str) JS_FreeCString(ctx1, exc_str);
             JS_FreeValue(ctx1, exc);
+        }
+    }
+
+    /* Batched end-of-tick layout recalculation */
+    struct jsthread *t_thread = JS_GetContextOpaque(ctx);
+    if (t_thread) {
+        force_synchronous_layout(t_thread);
+        struct html_content *htmlc = (t_thread->win_priv && t_thread->win_priv != t_thread->doc_priv)
+            ? (struct html_content *)t_thread->doc_priv
+            : NULL;
+        if (htmlc && htmlc->base.user_list && htmlc->base.user_list->next) {
+            union content_msg_data msg_data;
+            msg_data.background = false;
+            content_broadcast(&htmlc->base, CONTENT_MSG_REFORMAT, &msg_data);
         }
     }
 

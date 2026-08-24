@@ -538,7 +538,11 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         if (parent->parser != NULL && active_sync_scripts == 0) {
             err = dom_hubbub_parser_pause(parent->parser, false);
             if (err != DOM_HUBBUB_OK) {
-                NSLOG(wisp, INFO, "unpause returned 0x%x", err);
+                if (err == DOM_HUBBUB_HUBBUB_ERR_PAUSED) {
+                    NSLOG(wisp, INFO, "unpause re-paused for subsequent script (0x%x)", err);
+                } else {
+                    NSLOG(wisp, WARNING, "unpause returned error 0x%x", err);
+                }
             }
         }
 
@@ -567,7 +571,11 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         if (parent->parser != NULL && active_sync_scripts == 0) {
             err = dom_hubbub_parser_pause(parent->parser, false);
             if (err != DOM_HUBBUB_OK) {
-                NSLOG(wisp, INFO, "unpause returned 0x%x", err);
+                if (err == DOM_HUBBUB_HUBBUB_ERR_PAUSED) {
+                    NSLOG(wisp, INFO, "unpause re-paused for subsequent script (0x%x)", err);
+                } else {
+                    NSLOG(wisp, WARNING, "unpause returned error 0x%x", err);
+                }
             }
         }
 
