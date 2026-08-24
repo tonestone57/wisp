@@ -298,7 +298,7 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
 
     /* Search list of cached contents for a suitable one */
     for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        hlcache_handle entry_handle = {entry, NULL, NULL};
+        hlcache_handle entry_handle = {entry, NULL, NULL, 0, false};
         const llcache_handle *entry_llcache;
 
         if (entry->content == NULL)
@@ -922,7 +922,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     if (post == NULL && (flags & LLCACHE_RETRIEVE_FORCE_FETCH) == 0) {
         hlcache_entry *entry;
         for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            hlcache_handle entry_handle = {entry, NULL, NULL};
+            hlcache_handle entry_handle = {entry, NULL, NULL, 0, false};
             if (entry->content == NULL)
                 continue;
 
@@ -1415,7 +1415,7 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
 
     /* Check for existing content with the same URL (dedup) */
     for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        hlcache_handle entry_handle = {entry, NULL, NULL};
+        hlcache_handle entry_handle = {entry, NULL, NULL, 0, false};
         if (entry->content == NULL)
             continue;
 
