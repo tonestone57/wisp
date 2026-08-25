@@ -407,12 +407,9 @@ static nserror nsgtk_plot_path(const struct redraw_context *ctx, const plot_styl
     nsgtk_set_solid();
 
     /* Load new CTM */
-    n_ctm.xx = transform[0];
-    n_ctm.yx = transform[1];
-    n_ctm.xy = transform[2];
-    n_ctm.yy = transform[3];
-    n_ctm.x0 = transform[4] + old_ctm.x0;
-    n_ctm.y0 = transform[5] + old_ctm.y0;
+    cairo_matrix_t m;
+    cairo_matrix_init(&m, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+    cairo_matrix_multiply(&n_ctm, &old_ctm, &m);
 
     cairo_set_matrix(current_cr, &n_ctm);
 
@@ -735,6 +732,128 @@ static nserror nsgtk_plot_path_stroke(const struct redraw_context *ctx, const pl
     return NSERROR_OK;
 }
 
+static nserror nsgtk_plot_linear_gradient(const struct redraw_context *ctx, const float *path, unsigned int path_len,
+    const float transform[6], float x0, float y0, float x1, float y1, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+    if (current_cr == NULL)
+        return NSERROR_BAD_PARAMETER;
+
+    cairo_save(current_cr);
+
+    if (transform != NULL) {
+        cairo_matrix_t m;
+        cairo_matrix_init(&m, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        cairo_transform(current_cr, &m);
+    }
+
+    cairo_pattern_t *pat = cairo_pattern_create_linear(x0, y0, x1, y1);
+    if (pat != NULL && stops != NULL && stop_count > 0) {
+        for (unsigned int i = 0; i < stop_count; i++) {
+            colour c = stops[i].color;
+            double r = (c & 0xff) / 255.0;
+            double g = ((c >> 8) & 0xff) / 255.0;
+            double b = ((c >> 16) & 0xff) / 255.0;
+            double a = 1.0 - (((c >> 24) & 0xff) / 255.0);
+            cairo_pattern_add_color_stop_rgba(pat, stops[i].offset, r, g, b, a);
+        }
+        cairo_set_source(current_cr, pat);
+        cairo_pattern_destroy(pat);
+    }
+
+    if (path != NULL && path_len > 0) {
+        for (unsigned int i = 0; i < path_len;) {
+            if (path[i] == PLOTTER_PATH_MOVE) {
+                cairo_move_to(current_cr, path[i + 1], path[i + 2]);
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_CLOSE) {
+                cairo_close_path(current_cr);
+                i++;
+            } else if (path[i] == PLOTTER_PATH_LINE) {
+                cairo_line_to(current_cr, path[i + 1], path[i + 2]);
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_BEZIER) {
+                cairo_curve_to(current_cr, path[i + 1], path[i + 2], path[i + 3], path[i + 4], path[i + 5], path[i + 6]);
+                i += 7;
+            } else {
+                break;
+            }
+        }
+        cairo_fill(current_cr);
+    } else {
+        cairo_paint(current_cr);
+    }
+
+    cairo_restore(current_cr);
+    return NSERROR_OK;
+}
+
+static nserror nsgtk_plot_radial_gradient(const struct redraw_context *ctx, const float *path, unsigned int path_len,
+    const float transform[6], float cx, float cy, float rx, float ry, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+    if (current_cr == NULL)
+        return NSERROR_BAD_PARAMETER;
+
+    cairo_save(current_cr);
+
+    if (transform != NULL) {
+        cairo_matrix_t m;
+        cairo_matrix_init(&m, transform[0], transform[1], transform[2], transform[3], transform[4], transform[5]);
+        cairo_transform(current_cr, &m);
+    }
+
+    float r = (rx > 0.0f) ? rx : ry;
+    cairo_pattern_t *pat = cairo_pattern_create_radial(cx, cy, 0.0, cx, cy, r);
+    if (pat != NULL) {
+        if (rx != ry && rx > 0.0f && ry > 0.0f) {
+            cairo_matrix_t pm;
+            cairo_matrix_init_translate(&pm, cx, cy);
+            cairo_matrix_scale(&pm, 1.0, rx / ry);
+            cairo_matrix_translate(&pm, -cx, -cy);
+            cairo_pattern_set_matrix(pat, &pm);
+        }
+        if (stops != NULL && stop_count > 0) {
+            for (unsigned int i = 0; i < stop_count; i++) {
+                colour c = stops[i].color;
+                double red = (c & 0xff) / 255.0;
+                double green = ((c >> 8) & 0xff) / 255.0;
+                double blue = ((c >> 16) & 0xff) / 255.0;
+                double alpha = 1.0 - (((c >> 24) & 0xff) / 255.0);
+                cairo_pattern_add_color_stop_rgba(pat, stops[i].offset, red, green, blue, alpha);
+            }
+        }
+        cairo_set_source(current_cr, pat);
+        cairo_pattern_destroy(pat);
+    }
+
+    if (path != NULL && path_len > 0) {
+        for (unsigned int i = 0; i < path_len;) {
+            if (path[i] == PLOTTER_PATH_MOVE) {
+                cairo_move_to(current_cr, path[i + 1], path[i + 2]);
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_CLOSE) {
+                cairo_close_path(current_cr);
+                i++;
+            } else if (path[i] == PLOTTER_PATH_LINE) {
+                cairo_line_to(current_cr, path[i + 1], path[i + 2]);
+                i += 3;
+            } else if (path[i] == PLOTTER_PATH_BEZIER) {
+                cairo_curve_to(current_cr, path[i + 1], path[i + 2], path[i + 3], path[i + 4], path[i + 5], path[i + 6]);
+                i += 7;
+            } else {
+                break;
+            }
+        }
+        cairo_fill(current_cr);
+    } else {
+        cairo_paint(current_cr);
+    }
+
+    cairo_restore(current_cr);
+    return NSERROR_OK;
+}
+
 /** GTK plotter table */
 const struct plotter_table nsgtk_plotters = {
     .clip = nsgtk_plot_clip,
@@ -756,6 +875,8 @@ const struct plotter_table nsgtk_plotters = {
     .text = nsgtk_plot_text,
     .push_transform = nsgtk_plot_push_transform,
     .pop_transform = nsgtk_plot_pop_transform,
+    .linear_gradient = nsgtk_plot_linear_gradient,
+    .radial_gradient = nsgtk_plot_radial_gradient,
     .draw_gadget = NULL,
     .option_knockout = true
 };
