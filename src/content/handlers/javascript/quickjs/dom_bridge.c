@@ -873,6 +873,7 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
             JSClassID class_id = 0;
             QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
             if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.nodes[i]) {
+                if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
                 priv->node = NULL;
                 priv->magic = 0;
             }
@@ -895,6 +896,7 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
             JSClassID class_id = 0;
             QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
             if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.nodes[i]) {
+                if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
                 priv->node = NULL;
                 priv->magic = 0;
             }
