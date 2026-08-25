@@ -521,8 +521,15 @@ static nserror nsgtk_cw_invalidate_area(struct core_window *cw, const struct rec
         return NSERROR_OK;
     }
 
+    int draw_w = rect->x1 - rect->x0;
+    int draw_h = rect->y1 - rect->y0;
+
+    if (draw_w < 0 || draw_h < 0) {
+        return NSERROR_OK;
+    }
+
     gtk_widget_queue_draw_area(
-        GTK_WIDGET(nsgtk_cw->drawing_area), rect->x0, rect->y0, rect->x1 - rect->x0, rect->y1 - rect->y0);
+        GTK_WIDGET(nsgtk_cw->drawing_area), rect->x0, rect->y0, draw_w, draw_h);
 
     return NSERROR_OK;
 }
