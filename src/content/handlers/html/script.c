@@ -686,12 +686,23 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
         return DOM_HUBBUB_NOMEM;
     }
 
+    dom_string *nonce_attr = NULL;
+    dom_string *nonce_str = NULL;
+    dom_string_create((const uint8_t *)"nonce", 5, &nonce_str);
+    if (nonce_str) {
+        dom_element_get_attribute(node, nonce_str, &nonce_attr);
+        dom_string_unref(nonce_str);
+    }
+
     /* set up child fetch encoding and quirks */
     child.charset = c->encoding;
     child.quirks = c->base.quirks;
     child.csp = c->csp;
     child.coep = c->coep;
     child.parent_url = c->base_url;
+    if (nonce_attr != NULL) {
+        child.nonce = dom_string_data(nonce_attr);
+    }
 
     /* Increment active fetch count BEFORE hlcache_handle_retrieve.
      * This is critical because the callback can be called synchronously
@@ -712,6 +723,10 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
 
     ns_error = hlcache_handle_retrieve(
         joined, 0, content_get_url(&c->base), NULL, script_cb, c, &child, CONTENT_SCRIPT, &local_handle);
+
+    if (nonce_attr != NULL) {
+        dom_string_unref(nonce_attr);
+    }
 
     /* Re-acquire nscript since c->scripts may have been reallocated during synchronous script_cb */
     nscript = &c->scripts[script_idx];

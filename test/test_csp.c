@@ -163,6 +163,40 @@ void test_csp() {
     csp_destroy(csp);
     csp = NULL;
 
+    // Test 14: Internal browser scheme exemption in csp_check_url
+    nsurl *url_x_ns_css, *url_wisp_inline;
+    assert(nsurl_create("x-ns-css:1", &url_x_ns_css) == NSERROR_OK);
+    assert(nsurl_create("wisp-inline://buf-12345", &url_wisp_inline) == NSERROR_OK);
+
+    assert(csp_parse("default-src 'none'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_STYLE_SRC, url_x_ns_css) == true);
+    assert(csp_check_url(csp, CSP_STYLE_SRC_ELEM, url_x_ns_css) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_wisp_inline) == true);
+    csp_destroy(csp);
+    csp = NULL;
+
+    nsurl_unref(url_x_ns_css);
+    nsurl_unref(url_wisp_inline);
+
+    // Test 15: CSP Level 3 script-src-elem & style-src-elem directive fallbacks
+    assert(csp_parse("script-src-elem https://cdn.example.com", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC_ELEM, url_cdn) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_cdn) == true); // script-src falls back to script-src-elem
+    csp_destroy(csp);
+    csp = NULL;
+
+    assert(csp_parse("script-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC_ELEM, url_cdn) == true); // script-src-elem falls back to script-src
+    csp_destroy(csp);
+    csp = NULL;
+
+    // Test 16: Nonce sources do not match arbitrary URLs in match_source
+    assert(csp_parse("script-src 'nonce-MtBIGpIej1t8GJbvhmJWeQ' 'unsafe-inline'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC_ELEM, url_other) == false);
+    assert(csp_check_nonce(csp, CSP_SCRIPT_SRC_ELEM, "MtBIGpIej1t8GJbvhmJWeQ") == true);
+    csp_destroy(csp);
+    csp = NULL;
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);
