@@ -1005,11 +1005,11 @@ static void qjs_jit_compile_rv64(JSFunctionBytecode *b) {
             int32_t lo12 = idx - (hi20 << 12);
             jit_emit32(&jb, 0x000006b7 | (((uint32_t)hi20 & 0xfffff) << 12));
             jit_emit32(&jb, 0x00068693 | (((uint32_t)lo12 & 0xfff) << 20));
-            /* auipc t0, 0; ld t0, 12(t0); jalr ra, t0, 0; jal zero, 8; .quad ptr */
+            /* auipc t0, 0; ld t0, 16(t0); jalr ra, t0, 0; jal zero, 12; .quad ptr */
             jit_emit32(&jb, 0x00000297);
-            jit_emit32(&jb, 0x00c2b283);
+            jit_emit32(&jb, 0x0102b283);
             jit_emit32(&jb, 0x000280e7);
-            jit_emit32(&jb, 0x0080006f);
+            jit_emit32(&jb, 0x00c0006f);
             jit_emit_ptr(&jb, (void *)js_jit_get_loc);
             /* mv s1, a0 */
             jit_emit32(&jb, 0x00050493);
@@ -1032,9 +1032,9 @@ static void qjs_jit_compile_rv64(JSFunctionBytecode *b) {
             jit_emit32(&jb, 0x000006b7 | (((uint32_t)hi20 & 0xfffff) << 12));
             jit_emit32(&jb, 0x00068693 | (((uint32_t)lo12 & 0xfff) << 20));
             jit_emit32(&jb, 0x00000297);
-            jit_emit32(&jb, 0x00c2b283);
+            jit_emit32(&jb, 0x0102b283);
             jit_emit32(&jb, 0x000280e7);
-            jit_emit32(&jb, 0x0080006f);
+            jit_emit32(&jb, 0x00c0006f);
             jit_emit_ptr(&jb, (void *)js_jit_put_loc);
             jit_emit32(&jb, 0x00050493);
         }
@@ -1056,9 +1056,9 @@ static void qjs_jit_compile_rv64(JSFunctionBytecode *b) {
             jit_emit32(&jb, 0x000006b7 | (((uint32_t)hi20 & 0xfffff) << 12));
             jit_emit32(&jb, 0x00068693 | (((uint32_t)lo12 & 0xfff) << 20));
             jit_emit32(&jb, 0x00000297);
-            jit_emit32(&jb, 0x00c2b283);
+            jit_emit32(&jb, 0x0102b283);
             jit_emit32(&jb, 0x000280e7);
-            jit_emit32(&jb, 0x0080006f);
+            jit_emit32(&jb, 0x00c0006f);
             jit_emit_ptr(&jb, (void *)js_jit_set_loc);
             jit_emit32(&jb, 0x00050493);
         }
@@ -1082,9 +1082,9 @@ static void qjs_jit_compile_rv64(JSFunctionBytecode *b) {
             jit_emit32(&jb, 0x000006b7 | (((uint32_t)hi20 & 0xfffff) << 12));
             jit_emit32(&jb, 0x00068693 | (((uint32_t)lo12 & 0xfff) << 20));
             jit_emit32(&jb, 0x00000297);
-            jit_emit32(&jb, 0x00c2b283);
+            jit_emit32(&jb, 0x0102b283);
             jit_emit32(&jb, 0x000280e7);
-            jit_emit32(&jb, 0x0080006f);
+            jit_emit32(&jb, 0x00c0006f);
             jit_emit_ptr(&jb, (void *)js_jit_push_const);
             jit_emit32(&jb, 0x00050493);
         }
@@ -1101,9 +1101,9 @@ static void qjs_jit_compile_rv64(JSFunctionBytecode *b) {
             /* mv a1, s1 (sp) */
             jit_emit32(&jb, 0x00048593);
             jit_emit32(&jb, 0x00000297);
-            jit_emit32(&jb, 0x00c2b283);
+            jit_emit32(&jb, 0x0102b283);
             jit_emit32(&jb, 0x000280e7);
-            jit_emit32(&jb, 0x0080006f);
+            jit_emit32(&jb, 0x00c0006f);
             jit_emit_ptr(&jb, func);
             /* beqz a0, exit_exception */
             relocs[reloc_count].jit_patch_offset = jb.idx;
@@ -1125,9 +1125,9 @@ static void qjs_jit_compile_rv64(JSFunctionBytecode *b) {
             jit_emit32(&jb, 0x0095b023);
             /* call js_jit_if_true */
             jit_emit32(&jb, 0x00000297);
-            jit_emit32(&jb, 0x00c2b283);
+            jit_emit32(&jb, 0x0102b283);
             jit_emit32(&jb, 0x000280e7);
-            jit_emit32(&jb, 0x0080006f);
+            jit_emit32(&jb, 0x00c0006f);
             jit_emit_ptr(&jb, (void *)js_jit_if_true);
             /* addi t0, zero, -1 */
             jit_emit32(&jb, 0xfff00293);

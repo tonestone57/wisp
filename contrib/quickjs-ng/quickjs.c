@@ -42,7 +42,7 @@
 #include <time.h>
 #include <math.h>
 
-#if defined(__x86_64__) && (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__Haiku__))
+#if (defined(__x86_64__) || defined(__aarch64__) || (defined(__riscv) && __riscv_xlen == 64)) && (defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__Haiku__) || defined(__APPLE__))
 #ifndef CONFIG_JIT
 #define CONFIG_JIT 1
 #endif
