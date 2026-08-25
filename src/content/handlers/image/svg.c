@@ -247,13 +247,36 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
     float gx2 = shape->fill_grad_x2 * sx;
     float gy2 = shape->fill_grad_y2 * sy;
 
+    float grad_trans[6];
+    bool has_grad_trans = (shape->fill_grad_transform[0] != 1.0f || shape->fill_grad_transform[1] != 0.0f ||
+                           shape->fill_grad_transform[2] != 0.0f || shape->fill_grad_transform[3] != 1.0f ||
+                           shape->fill_grad_transform[4] != 0.0f || shape->fill_grad_transform[5] != 0.0f);
+    if (has_grad_trans) {
+        float g_sx[6] = {
+            shape->fill_grad_transform[0],
+            shape->fill_grad_transform[1],
+            shape->fill_grad_transform[2],
+            shape->fill_grad_transform[3],
+            shape->fill_grad_transform[4] * sx,
+            shape->fill_grad_transform[5] * sy
+        };
+        grad_trans[0] = transform[0] * g_sx[0] + transform[2] * g_sx[1];
+        grad_trans[1] = transform[1] * g_sx[0] + transform[3] * g_sx[1];
+        grad_trans[2] = transform[0] * g_sx[2] + transform[2] * g_sx[3];
+        grad_trans[3] = transform[1] * g_sx[2] + transform[3] * g_sx[3];
+        grad_trans[4] = transform[0] * g_sx[4] + transform[2] * g_sx[5] + transform[4];
+        grad_trans[5] = transform[1] * g_sx[4] + transform[3] * g_sx[5] + transform[5];
+    } else {
+        memcpy(grad_trans, transform, sizeof(grad_trans));
+    }
+
     nserror err;
     if (shape->fill_gradient_type == svgtiny_GRADIENT_LINEAR) {
         NSLOG(wisp, DEEPDEBUG,
             "SVG gradient: Calling native linear plotter (%.1f,%.1f) to (%.1f,%.1f) with %u stops, path_len=%u", gx1,
             gy1, gx2, gy2, shape->fill_grad_stop_count, path_len);
         err = ctx->plot->linear_gradient(
-            ctx, scaled_path, k, transform, gx1, gy1, gx2, gy2, stops, shape->fill_grad_stop_count);
+            ctx, scaled_path, k, grad_trans, gx1, gy1, gx2, gy2, stops, shape->fill_grad_stop_count);
     } else {
         /* Radial gradient: fill_grad_x1,y1 = center, fill_grad_x2,y2 = radii
          * Scale to match path space (scaled but not translated). */
@@ -265,7 +288,7 @@ static nserror svg_plot_gradient_fill(const struct redraw_context *ctx, const st
             "SVG gradient: Calling native radial plotter (%.1f,%.1f) rx=%.1f ry=%.1f with %u stops, path_len=%u", cx,
             cy, rx, ry, shape->fill_grad_stop_count, path_len);
         err = ctx->plot->radial_gradient(
-            ctx, scaled_path, k, transform, cx, cy, rx, ry, stops, shape->fill_grad_stop_count);
+            ctx, scaled_path, k, grad_trans, cx, cy, rx, ry, stops, shape->fill_grad_stop_count);
     }
 
     if (err == NSERROR_OK) {

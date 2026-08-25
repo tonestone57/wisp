@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <svgtiny.h>
 typedef uint32_t colour;
@@ -36,6 +37,27 @@ static bool svg_plot_diagram(const struct svgtiny_diagram *diagram, int x, int y
 
     for (i = 0; i != diagram->shape_count; i++) {
         if (diagram->shape[i].path) {
+            if (diagram->shape[i].fill_gradient_type != svgtiny_GRADIENT_NONE &&
+                ((diagram->shape[i].fill_gradient_type == svgtiny_GRADIENT_LINEAR && ctx->plot->linear_gradient != NULL) ||
+                 (diagram->shape[i].fill_gradient_type == svgtiny_GRADIENT_RADIAL && ctx->plot->radial_gradient != NULL))) {
+                struct gradient_stop *stops = malloc(diagram->shape[i].fill_grad_stop_count * sizeof(struct gradient_stop));
+                if (stops != NULL) {
+                    for (unsigned int s = 0; s < diagram->shape[i].fill_grad_stop_count; s++) {
+                        svgtiny_colour c = diagram->shape[i].fill_grad_stops[s].color;
+                        stops[s].color = (svgtiny_RED(c)) | (svgtiny_GREEN(c) << 8) | (svgtiny_BLUE(c) << 16);
+                        stops[s].offset = diagram->shape[i].fill_grad_stops[s].offset;
+                    }
+                    if (diagram->shape[i].fill_gradient_type == svgtiny_GRADIENT_LINEAR) {
+                        res = ctx->plot->linear_gradient(ctx, diagram->shape[i].path, diagram->shape[i].path_length, transform, diagram->shape[i].fill_grad_x1, diagram->shape[i].fill_grad_y1, diagram->shape[i].fill_grad_x2, diagram->shape[i].fill_grad_y2, stops, diagram->shape[i].fill_grad_stop_count);
+                    } else {
+                        res = ctx->plot->radial_gradient(ctx, diagram->shape[i].path, diagram->shape[i].path_length, transform, diagram->shape[i].fill_grad_x1, diagram->shape[i].fill_grad_y1, diagram->shape[i].fill_grad_x2, diagram->shape[i].fill_grad_y2, stops, diagram->shape[i].fill_grad_stop_count);
+                    }
+                    free(stops);
+                    if (res != NSERROR_OK) return false;
+                    continue;
+                }
+            }
+
             if (diagram->shape[i].stroke == svgtiny_TRANSPARENT) {
                 pstyle.stroke_type = PLOT_OP_TYPE_NONE;
                 pstyle.stroke_colour = NS_TRANSPARENT;

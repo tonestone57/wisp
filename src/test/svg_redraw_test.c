@@ -21,6 +21,9 @@ typedef struct {
     float miny;
     float maxx;
     float maxy;
+    int linear_count;
+    int radial_count;
+    float last_transform[6];
 } capture_t;
 
 static nserror cap_clip(const struct redraw_context *ctx, const struct rect *clip)
@@ -186,11 +189,91 @@ START_TEST(test_svg_rect_path_geometry)
 }
 END_TEST
 
+static nserror cap_linear_gradient(const struct redraw_context *ctx, const float *path, unsigned int path_len,
+    const float transform[6], float x0, float y0, float x1, float y1, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+    (void)path;
+    (void)path_len;
+    (void)x0; (void)y0; (void)x1; (void)y1;
+    (void)stops; (void)stop_count;
+    capture_t *cap = (capture_t *)ctx->priv;
+    cap->linear_count++;
+    if (transform) {
+        memcpy(cap->last_transform, transform, sizeof(float) * 6);
+    }
+    return NSERROR_OK;
+}
+
+static nserror cap_radial_gradient(const struct redraw_context *ctx, const float *path, unsigned int path_len,
+    const float transform[6], float cx, float cy, float rx, float ry, const struct gradient_stop *stops,
+    unsigned int stop_count)
+{
+    (void)path;
+    (void)path_len;
+    (void)cx; (void)cy; (void)rx; (void)ry;
+    (void)stops; (void)stop_count;
+    capture_t *cap = (capture_t *)ctx->priv;
+    cap->radial_count++;
+    if (transform) {
+        memcpy(cap->last_transform, transform, sizeof(float) * 6);
+    }
+    return NSERROR_OK;
+}
+
+static const struct plotter_table grad_plotters = {
+    .clip = cap_clip,
+    .rectangle = cap_rectangle,
+    .path = cap_path,
+    .linear_gradient = cap_linear_gradient,
+    .radial_gradient = cap_radial_gradient,
+    .option_knockout = false,
+};
+
+START_TEST(test_svg_gradient_rendering)
+{
+    const char *src =
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"200\">"
+        "<defs>"
+        "<linearGradient id=\"g1\" x1=\"0\" y1=\"0\" x2=\"100\" y2=\"0\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ff0000\"/><stop offset=\"1\" stop-color=\"#0000ff\"/></linearGradient>"
+        "<radialGradient id=\"g2\" cx=\"100\" cy=\"100\" r=\"50\" gradientUnits=\"userSpaceOnUse\"><stop offset=\"0\" stop-color=\"#ffa600\"/><stop offset=\"1\" stop-color=\"#ffee9c\"/></radialGradient>"
+        "</defs>"
+        "<path fill=\"url(#g1)\" d=\"M 0 0 L 100 0 L 100 100 Z\"/>"
+        "<path fill=\"url(#g2)\" d=\"M 100 100 L 200 100 L 200 200 Z\"/>"
+        "</svg>";
+
+    struct svgtiny_diagram *diagram = svgtiny_create();
+    ck_assert_ptr_nonnull(diagram);
+
+    svgtiny_parse(diagram, src, strlen(src), "data:", 200, 200);
+
+    struct rect clip = {.x0 = 0, .y0 = 0, .x1 = 200, .y1 = 200};
+    capture_t cap;
+    memset(&cap, 0, sizeof(cap));
+    struct redraw_context ctx = {
+        .interactive = true,
+        .background_images = true,
+        .plot = &grad_plotters,
+        .priv = &cap,
+    };
+
+    bool ok = svg_redraw_diagram(diagram, 10, 20, 200, 200, &clip, &ctx, 0xFFFFFF, 0);
+    ck_assert_msg(ok, "svg_redraw_diagram returned false");
+    ck_assert_int_eq(cap.linear_count, 1);
+    ck_assert_int_eq(cap.radial_count, 1);
+    ck_assert_float_eq_tol(cap.last_transform[4], 10.0f, 0.01f);
+    ck_assert_float_eq_tol(cap.last_transform[5], 20.0f, 0.01f);
+
+    svgtiny_free(diagram);
+}
+END_TEST
+
 Suite *svg_suite(void)
 {
     Suite *s = suite_create("renderer_svg");
     TCase *tc = tcase_create("svg_rect");
     tcase_add_test(tc, test_svg_rect_path_geometry);
+    tcase_add_test(tc, test_svg_gradient_rendering);
     suite_add_tcase(s, tc);
     return s;
 }
