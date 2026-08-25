@@ -142,7 +142,10 @@ void test_csp() {
     // Test 13: Multiple CSP headers (such as gemini.google.com headers)
     const char *gemini_csp1 = "require-trusted-types-for 'script';report-uri /_/BardChatUi/cspreport";
     const char *gemini_csp2 = "script-src 'report-sample' 'nonce-MtBIGpIej1t8GJbvhmJWeQ' 'unsafe-inline' 'unsafe-eval' 'strict-dynamic' https: http:;object-src 'none';base-uri 'self';report-uri /_/BardChatUi/cspreport";
-    const char *gemini_csp3 = "script-src 'unsafe-inline' 'unsafe-eval' blob: data: 'self' https://apis.google.com;report-uri /_/BardChatUi/cspreport/allowlist";
+    const char *gemini_csp3 = "script-src 'unsafe-inline' 'unsafe-eval' blob: data: 'self' https://apis.google.com https://gemini.gstatic.com;report-uri /_/BardChatUi/cspreport/allowlist";
+
+    nsurl *url_gemini_gstatic;
+    assert(nsurl_create("https://gemini.gstatic.com/_/mss/boq-bard-web/_/js/test.js", &url_gemini_gstatic) == NSERROR_OK);
 
     assert(csp_parse(gemini_csp1, base_url, &csp) == NSERROR_OK);
     assert(csp_parse(gemini_csp2, base_url, &csp) == NSERROR_OK);
@@ -158,10 +161,13 @@ void test_csp() {
     assert(csp_require_trusted_types_for_script(csp) == true);
     // URL matching from header 2 / header 3
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_gemini_gstatic) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC_ELEM, url_gemini_gstatic) == true);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_other) == false);
 
     csp_destroy(csp);
     csp = NULL;
+    nsurl_unref(url_gemini_gstatic);
 
     // Test 14: Internal browser scheme exemption in csp_check_url
     nsurl *url_x_ns_css, *url_wisp_inline;

@@ -13,6 +13,7 @@ typedef struct csp_source {
     bool is_none;
     bool is_unsafe_inline;
     bool is_unsafe_eval;
+    bool is_strict_dynamic;
     char *nonce;
     struct csp_source *next;
 } csp_source;
@@ -99,6 +100,8 @@ static csp_source *parse_source(char *token) {
         src->is_unsafe_inline = true;
     } else if (strcasecmp(token, "'unsafe-eval'") == 0) {
         src->is_unsafe_eval = true;
+    } else if (strcasecmp(token, "'strict-dynamic'") == 0) {
+        src->is_strict_dynamic = true;
     } else if (strncasecmp(token, "'nonce-", 7) == 0) {
         size_t len = strlen(token);
         if (len >= 8 && token[len - 1] == '\'') {
@@ -184,18 +187,8 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
         *csp_out = csp;
     }
 
-    csp_policy *policy = calloc(1, sizeof(csp_policy));
-    if (!policy) {
-        if (*csp_out != csp) {
-            csp_destroy(csp);
-            *csp_out = NULL;
-        }
-        return NSERROR_NOMEM;
-    }
-
     char *copy = strdup(header_value);
     if (!copy) {
-        free_policy(policy);
         if (*csp_out == csp && !csp->policies) {
             csp_destroy(csp);
             *csp_out = NULL;
@@ -203,71 +196,97 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
         return NSERROR_NOMEM;
     }
 
-    char *saveptr1, *saveptr2;
-    char *directive_str = strtok_r(copy, ";", &saveptr1);
-    while (directive_str) {
-        while (*directive_str == ' ') directive_str++;
-        char *token = strtok_r(directive_str, " ", &saveptr2);
-        if (token) {
-            csp_directive dir = CSP_DIRECTIVE_COUNT;
-            for (int i = 0; i < CSP_DIRECTIVE_COUNT; i++) {
-                if (strcasecmp(token, directive_names[i]) == 0) {
-                    dir = (csp_directive)i;
-                    break;
+    char *saveptr_pol;
+    char *policy_str = strtok_r(copy, ",", &saveptr_pol);
+    while (policy_str) {
+        csp_policy *policy = calloc(1, sizeof(csp_policy));
+        if (!policy) {
+            free(copy);
+            return NSERROR_NOMEM;
+        }
+
+        char *saveptr1, *saveptr2;
+        char *directive_str = strtok_r(policy_str, ";", &saveptr1);
+        while (directive_str) {
+            while (*directive_str == ' ' || *directive_str == '\t' || *directive_str == '\r' || *directive_str == '\n') directive_str++;
+            char *token = strtok_r(directive_str, " \t\r\n", &saveptr2);
+            if (token) {
+                csp_directive dir = CSP_DIRECTIVE_COUNT;
+                for (int i = 0; i < CSP_DIRECTIVE_COUNT; i++) {
+                    if (strcasecmp(token, directive_names[i]) == 0) {
+                        dir = (csp_directive)i;
+                        break;
+                    }
+                }
+
+                if (dir != CSP_DIRECTIVE_COUNT) {
+                    token = strtok_r(NULL, " \t\r\n", &saveptr2);
+                    while (token) {
+                        csp_source *src = parse_source(token);
+                        if (src) {
+                            src->next = policy->directives[dir];
+                            policy->directives[dir] = src;
+                        }
+                        token = strtok_r(NULL, " \t\r\n", &saveptr2);
+                    }
+                } else {
+                    if (strcasecmp(token, "require-trusted-types-for") == 0) {
+                        token = strtok_r(NULL, " \t\r\n", &saveptr2);
+                        while (token) {
+                            if (strcasecmp(token, "'script'") == 0) {
+                                policy->require_trusted_types_for_script = true;
+                            }
+                            token = strtok_r(NULL, " \t\r\n", &saveptr2);
+                        }
+                    } else if (strcasecmp(token, "trusted-types") == 0) {
+                        policy->has_trusted_types_directive = true;
+                        token = strtok_r(NULL, " \t\r\n", &saveptr2);
+                        while (token) {
+                            char **new_policies = realloc(policy->allowed_policies, (policy->allowed_policies_count + 1) * sizeof(char *));
+                            if (new_policies) {
+                                policy->allowed_policies = new_policies;
+                                policy->allowed_policies[policy->allowed_policies_count] = strdup(token);
+                                if (policy->allowed_policies[policy->allowed_policies_count]) {
+                                    policy->allowed_policies_count++;
+                                }
+                            }
+                            token = strtok_r(NULL, " \t\r\n", &saveptr2);
+                        }
+                    }
                 }
             }
+            directive_str = strtok_r(NULL, ";", &saveptr1);
+        }
 
-            if (dir != CSP_DIRECTIVE_COUNT) {
-                token = strtok_r(NULL, " ", &saveptr2);
-                while (token) {
-                    csp_source *src = parse_source(token);
-                    if (src) {
-                        src->next = policy->directives[dir];
-                        policy->directives[dir] = src;
-                    }
-                    token = strtok_r(NULL, " ", &saveptr2);
-                }
-            } else {
-                if (strcasecmp(token, "require-trusted-types-for") == 0) {
-                    token = strtok_r(NULL, " ", &saveptr2);
-                    while (token) {
-                        if (strcasecmp(token, "'script'") == 0) {
-                            policy->require_trusted_types_for_script = true;
-                        }
-                        token = strtok_r(NULL, " ", &saveptr2);
-                    }
-                } else if (strcasecmp(token, "trusted-types") == 0) {
-                    policy->has_trusted_types_directive = true;
-                    token = strtok_r(NULL, " ", &saveptr2);
-                    while (token) {
-                        char **new_policies = realloc(policy->allowed_policies, (policy->allowed_policies_count + 1) * sizeof(char *));
-                        if (new_policies) {
-                            policy->allowed_policies = new_policies;
-                            policy->allowed_policies[policy->allowed_policies_count] = strdup(token);
-                            if (policy->allowed_policies[policy->allowed_policies_count]) {
-                                policy->allowed_policies_count++;
-                            }
-                        }
-                        token = strtok_r(NULL, " ", &saveptr2);
-                    }
-                }
+        bool empty = true;
+        for (int i = 0; i < CSP_DIRECTIVE_COUNT; i++) {
+            if (policy->directives[i] != NULL) {
+                empty = false;
+                break;
             }
         }
-        directive_str = strtok_r(NULL, ";", &saveptr1);
+        if (policy->require_trusted_types_for_script || policy->has_trusted_types_directive) {
+            empty = false;
+        }
+
+        if (!empty) {
+            if (!csp->policies) {
+                csp->policies = policy;
+            } else {
+                csp_policy *last = csp->policies;
+                while (last->next) {
+                    last = last->next;
+                }
+                last->next = policy;
+            }
+        } else {
+            free_policy(policy);
+        }
+
+        policy_str = strtok_r(NULL, ",", &saveptr_pol);
     }
 
     free(copy);
-
-    if (!csp->policies) {
-        csp->policies = policy;
-    } else {
-        csp_policy *last = csp->policies;
-        while (last->next) {
-            last = last->next;
-        }
-        last->next = policy;
-    }
-
     return NSERROR_OK;
 }
 
@@ -301,6 +320,7 @@ static csp_source *get_directive_sources(const csp_policy *policy, csp_directive
 static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
     if (src->is_none) return false;
     if (src->is_unsafe_inline || src->is_unsafe_eval) return false;
+    if (src->is_strict_dynamic) return true;
     if (src->nonce != NULL) return false;
     if (src->is_self) {
         return nsurl_compare(base_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT);

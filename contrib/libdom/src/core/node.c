@@ -1536,6 +1536,16 @@ dom_exception _dom_node_get_text_content(dom_node_internal *node, dom_string **r
 
     assert(node->owner != NULL);
 
+    if (node->type == DOM_TEXT_NODE || node->type == DOM_CDATA_SECTION_NODE ||
+        node->type == DOM_COMMENT_NODE || node->type == DOM_PROCESSING_INSTRUCTION_NODE) {
+        if (node->value != NULL) {
+            *result = dom_string_ref(node->value);
+        } else {
+            *result = NULL;
+        }
+        return DOM_NO_ERR;
+    }
+
     for (n = node->first_child; n != NULL; n = n->next) {
         if (n->type == DOM_COMMENT_NODE || n->type == DOM_PROCESSING_INSTRUCTION_NODE)
             continue;
