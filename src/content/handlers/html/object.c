@@ -286,17 +286,16 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
 
             /* Dynamic-size images need dimension updates via reformat, not just redraw */
             if (!(box->flags & REPLACE_DIM)) {
-#ifdef WISP_ENABLE_INCREMENTAL_REFLOW
                 /*
-                 * Incremental reflow: trigger immediate reformat
-                 * to pick up the new intrinsic dimensions.
+                 * Schedule reformat if initial layout was completed, so
+                 * objects without explicit CSS dimensions (e.g. SVGs) get
+                 * their layout dimensions recomputed.
                  */
                 if (c->pending_reformat == false) {
                     c->pending_reformat = true;
                     guit->misc->schedule(0, html_deferred_reformat, c);
                 }
-#endif
-                /* Skip fixed-size redraw code - wait for next reformat */
+                /* Skip fixed-size redraw code - wait for reformat */
                 break;
             }
 
