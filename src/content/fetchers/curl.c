@@ -2090,21 +2090,21 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
 
     msg.type = FETCH_HEADER;
     msg.data.header_or_data.buf = (const uint8_t *)data;
-    msg.data.header_or_data.len = size;
+    msg.data.header_or_data.len = len;
     fetch_send_callback(&msg, f->fetch_handle);
 
-#define SKIP_ST(o) for (i = (o); i < (int)size && (data[i] == ' ' || data[i] == '\t'); i++)
+#define SKIP_ST(o) for (i = (o); i < (int)len && (data[i] == ' ' || data[i] == '\t'); i++)
 
-    if (9 < size && strncasecmp(data, "Location:", 9) == 0) {
+    if (9 < len && strncasecmp(data, "Location:", 9) == 0) {
         /* extract Location header */
         free(f->location);
-        f->location = malloc(size);
+        f->location = malloc(len + 1);
         if (!f->location) {
             NSLOG(wisp, ERROR, "malloc failed");
-            return size;
+            return len;
         }
         SKIP_ST(9);
-        size_t loc_len = size - i;
+        size_t loc_len = len - i;
         strncpy(f->location, data + i, loc_len);
         f->location[loc_len] = '\0';
         while (loc_len > 0 &&
@@ -2112,28 +2112,28 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
                 f->location[loc_len - 1] == '\r' || f->location[loc_len - 1] == '\n')) {
             f->location[--loc_len] = '\0';
         }
-    } else if (15 < size && strncasecmp(data, "Content-Length:", 15) == 0) {
+    } else if (15 < len && strncasecmp(data, "Content-Length:", 15) == 0) {
         /* extract Content-Length header */
         SKIP_ST(15);
-        if (i < (int)size && '0' <= data[i] && data[i] <= '9')
+        if (i < (int)len && '0' <= data[i] && data[i] <= '9')
             f->content_length = atol(data + i);
-    } else if (17 < size && strncasecmp(data, "WWW-Authenticate:", 17) == 0) {
+    } else if (17 < len && strncasecmp(data, "WWW-Authenticate:", 17) == 0) {
         /* extract the first Realm from WWW-Authenticate header */
         SKIP_ST(17);
 
-        while (i < (int)size - 5 && strncasecmp(data + i, "realm", 5))
+        while (i < (int)len - 5 && strncasecmp(data + i, "realm", 5))
             i++;
-        while (i < (int)size - 1 && data[++i] != '"')
+        while (i < (int)len - 1 && data[++i] != '"')
             /* */;
         i++;
 
-        if (i < (int)size) {
+        if (i < (int)len) {
             size_t end = i;
 
-            while (end < size && data[end] != '"')
+            while (end < len && data[end] != '"')
                 ++end;
 
-            if (end < size) {
+            if (end < len) {
                 free(f->realm);
                 f->realm = malloc(end - i + 1);
                 if (f->realm != NULL) {
@@ -2142,14 +2142,14 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
                 }
             }
         }
-    } else if (11 < size && strncasecmp(data, "Set-Cookie:", 11) == 0) {
+    } else if (11 < len && strncasecmp(data, "Set-Cookie:", 11) == 0) {
         /* extract Set-Cookie header */
         SKIP_ST(11);
 
         fetch_set_cookie(f->fetch_handle, &data[i]);
     }
 
-    return size;
+    return len;
 #undef SKIP_ST
 }
 
