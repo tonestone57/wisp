@@ -653,6 +653,14 @@ JSValue wisp_node_ownerDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
         dom_node_unref((dom_node *)doc);
         return val;
     }
+    dom_node_type type = DOM_NODE_TYPE_COUNT;
+    dom_node_get_node_type((dom_node *)priv->node, &type);
+    if (type != DOM_DOCUMENT_NODE) {
+        JSValue global = JS_GetGlobalObject(ctx);
+        JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
+        JS_FreeValue(ctx, global);
+        return doc_val;
+    }
     return JS_NULL;
 }
 
