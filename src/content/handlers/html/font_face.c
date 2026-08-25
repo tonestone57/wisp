@@ -451,6 +451,24 @@ nserror html_font_face_init(struct html_content *c, css_select_ctx *select_ctx)
 }
 
 /* Exported function documented in font_face.h */
+void html_font_face_system_fini(void)
+{
+    struct loaded_font *entry = loaded_fonts;
+    while (entry != NULL) {
+        struct loaded_font *next = entry->next;
+        if (guit != NULL && guit->layout != NULL && guit->layout->free_font_data != NULL) {
+            guit->layout->free_font_data(&entry->variant);
+        }
+        free(entry->variant.family_name);
+        free(entry);
+        entry = next;
+    }
+    loaded_fonts = NULL;
+    loaded_font_count = 0;
+    pending_font_count = 0;
+}
+
+/* Exported function documented in font_face.h */
 nserror html_font_face_fini(struct html_content *c)
 {
     /* Clear the waiting content if it matches */
@@ -474,18 +492,6 @@ nserror html_font_face_fini(struct html_content *c)
         }
     }
 
-    struct loaded_font *entry = loaded_fonts;
-    while (entry != NULL) {
-        struct loaded_font *next = entry->next;
-        if (guit != NULL && guit->layout != NULL && guit->layout->free_font_data != NULL) {
-            guit->layout->free_font_data(&entry->variant);
-        }
-        free(entry->variant.family_name);
-        free(entry);
-        entry = next;
-    }
-    loaded_fonts = NULL;
-    loaded_font_count = 0;
     pending_font_count = 0;
     return NSERROR_OK;
 }

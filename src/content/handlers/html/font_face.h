@@ -48,6 +48,11 @@ nserror html_font_face_init(struct html_content *c, css_select_ctx *select_ctx);
 nserror html_font_face_fini(struct html_content *c);
 
 /**
+ * Finalise the font-face system globally on browser shutdown.
+ */
+void html_font_face_system_fini(void);
+
+/**
  * Check if a font family is available (either system or loaded web font).
  *
  * \param family_name Font family name to check
