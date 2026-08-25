@@ -803,22 +803,25 @@ static nserror nsgtk_plot_radial_gradient(const struct redraw_context *ctx, cons
         cairo_transform(current_cr, &m);
     }
 
-    if (rx != ry && rx > 0.0f) {
-        cairo_translate(current_cr, cx, cy);
-        cairo_scale(current_cr, 1.0, ry / rx);
-        cairo_translate(current_cr, -cx, -cy);
-    }
-
     float r = (rx > 0.0f) ? rx : ry;
     cairo_pattern_t *pat = cairo_pattern_create_radial(cx, cy, 0.0, cx, cy, r);
-    if (pat != NULL && stops != NULL && stop_count > 0) {
-        for (unsigned int i = 0; i < stop_count; i++) {
-            colour c = stops[i].color;
-            double red = (c & 0xff) / 255.0;
-            double green = ((c >> 8) & 0xff) / 255.0;
-            double blue = ((c >> 16) & 0xff) / 255.0;
-            double alpha = 1.0 - (((c >> 24) & 0xff) / 255.0);
-            cairo_pattern_add_color_stop_rgba(pat, stops[i].offset, red, green, blue, alpha);
+    if (pat != NULL) {
+        if (rx != ry && rx > 0.0f && ry > 0.0f) {
+            cairo_matrix_t pm;
+            cairo_matrix_init_translate(&pm, cx, cy);
+            cairo_matrix_scale(&pm, 1.0, rx / ry);
+            cairo_matrix_translate(&pm, -cx, -cy);
+            cairo_pattern_set_matrix(pat, &pm);
+        }
+        if (stops != NULL && stop_count > 0) {
+            for (unsigned int i = 0; i < stop_count; i++) {
+                colour c = stops[i].color;
+                double red = (c & 0xff) / 255.0;
+                double green = ((c >> 8) & 0xff) / 255.0;
+                double blue = ((c >> 16) & 0xff) / 255.0;
+                double alpha = 1.0 - (((c >> 24) & 0xff) / 255.0);
+                cairo_pattern_add_color_stop_rgba(pat, stops[i].offset, red, green, blue, alpha);
+            }
         }
         cairo_set_source(current_cr, pat);
         cairo_pattern_destroy(pat);
