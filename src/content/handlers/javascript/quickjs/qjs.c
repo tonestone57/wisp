@@ -1230,6 +1230,10 @@ void js_finalise(void)
 {
     wisp_dom_node_destroy_hook = NULL;
     wisp_node_destroy_cb = NULL;
+    if (g_qjs_node_key != NULL) {
+        dom_string_unref(g_qjs_node_key);
+        g_qjs_node_key = NULL;
+    }
     pthread_mutex_lock(&js_processes_mutex);
     struct origin_js_process *curr = js_processes;
     while (curr) {
