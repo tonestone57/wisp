@@ -167,7 +167,8 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES) {
         if (!JS_IsUndefined(t->node_wrapper_cache[node_id])) {
-            JS_FreeValue(ctx, t->node_wrapper_cache[node_id]);
+            JS_FreeValue(ctx, wrapper);
+            return JS_DupValue(ctx, t->node_wrapper_cache[node_id]);
         }
         t->node_wrapper_cache[node_id] = JS_DupValue(ctx, wrapper);
     }
