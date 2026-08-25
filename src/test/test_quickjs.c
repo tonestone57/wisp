@@ -4979,6 +4979,13 @@ START_TEST(test_quickjs_event_target_basic)
         "  var evt5 = new Event('click', { bubbles: true, cancelable: true });\n"
         "  span2.dispatchEvent(evt5);\n"
         "  if (evt5.defaultPrevented !== false) throw new Error('stopPropagation alone should not prevent default');\n"
+        "  \n"
+        "  // 5. Returning false from event listener should set defaultPrevented\n"
+        "  var a3 = document.createElement('a');\n"
+        "  a3.addEventListener('click', function(e) { return false; });\n"
+        "  var evt6 = new Event('click', { cancelable: true });\n"
+        "  a3.dispatchEvent(evt6);\n"
+        "  if (evt6.defaultPrevented !== true) throw new Error('return false in event handler failed to prevent default');\n"
         "  return true;\n"
         "})()";
     result = js_exec(thread, (const uint8_t *)code_prevent, strlen(code_prevent), "test_prevent_default_regression");

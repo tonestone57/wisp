@@ -7707,6 +7707,14 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 
     if (JS_IsBool(ret) && !JS_ToBool(jsctx, ret)) {
         dom_event_prevent_default(evt);
+    } else if (JS_IsBool(ret) && JS_ToBool(jsctx, ret)) {
+        /* Returning true does not prevent default */
+    } else if (JS_IsObject(js_evt)) {
+        JSValue dp = JS_GetPropertyStr(jsctx, js_evt, "defaultPrevented");
+        if (JS_IsBool(dp) && JS_ToBool(jsctx, dp)) {
+            dom_event_prevent_default(evt);
+        }
+        JS_FreeValue(jsctx, dp);
     }
 
     if (thread && thread->heap) {
