@@ -344,26 +344,42 @@ nserror nsfont_paint(int x, int y, const char *string, size_t length, const plot
 PangoFontDescription *nsfont_style_to_description(const plot_font_style_t *fstyle)
 {
     unsigned int size;
-    PangoFontDescription *desc;
+    PangoFontDescription *desc = NULL;
     PangoStyle style = PANGO_STYLE_NORMAL;
 
-    switch (fstyle->family) {
-    case PLOT_FONT_FAMILY_SERIF:
-        desc = pango_font_description_from_string(nsoption_charp(font_serif));
-        break;
-    case PLOT_FONT_FAMILY_MONOSPACE:
-        desc = pango_font_description_from_string(nsoption_charp(font_mono));
-        break;
-    case PLOT_FONT_FAMILY_CURSIVE:
-        desc = pango_font_description_from_string(nsoption_charp(font_cursive));
-        break;
-    case PLOT_FONT_FAMILY_FANTASY:
-        desc = pango_font_description_from_string(nsoption_charp(font_fantasy));
-        break;
-    case PLOT_FONT_FAMILY_SANS_SERIF:
-    default:
-        desc = pango_font_description_from_string(nsoption_charp(font_sans));
-        break;
+    if (fstyle->families != NULL) {
+        lwc_string *const *families = fstyle->families;
+        while (*families != NULL) {
+            const char *family_name = lwc_string_data(*families);
+            if (family_name != NULL && *family_name != '\0') {
+                desc = pango_font_description_from_string(family_name);
+                if (desc != NULL) {
+                    break;
+                }
+            }
+            families++;
+        }
+    }
+
+    if (desc == NULL) {
+        switch (fstyle->family) {
+        case PLOT_FONT_FAMILY_SERIF:
+            desc = pango_font_description_from_string(nsoption_charp(font_serif));
+            break;
+        case PLOT_FONT_FAMILY_MONOSPACE:
+            desc = pango_font_description_from_string(nsoption_charp(font_mono));
+            break;
+        case PLOT_FONT_FAMILY_CURSIVE:
+            desc = pango_font_description_from_string(nsoption_charp(font_cursive));
+            break;
+        case PLOT_FONT_FAMILY_FANTASY:
+            desc = pango_font_description_from_string(nsoption_charp(font_fantasy));
+            break;
+        case PLOT_FONT_FAMILY_SANS_SERIF:
+        default:
+            desc = pango_font_description_from_string(nsoption_charp(font_sans));
+            break;
+        }
     }
 
     size = (fstyle->size * PANGO_SCALE) / PLOT_STYLE_SCALE;
