@@ -385,6 +385,43 @@ static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effe
  *         NSERROR_NEED_DATA on success where data is needed,
  *         appropriate error otherwise
  */
+static nserror hlcache_child_copy(hlcache_child_context *dst, const hlcache_child_context *src)
+{
+    if (src == NULL) return NSERROR_OK;
+    dst->quirks = src->quirks;
+    dst->csp = src->csp;
+    dst->coep = src->coep;
+    dst->parent_url = src->parent_url;
+    dst->required_csp = src->required_csp;
+
+    if (src->charset != NULL) {
+        dst->charset = strdup(src->charset);
+        if (dst->charset == NULL) return NSERROR_NOMEM;
+    }
+    if (src->nonce != NULL) {
+        dst->nonce = strdup(src->nonce);
+        if (dst->nonce == NULL) {
+            free((char *)dst->charset);
+            dst->charset = NULL;
+            return NSERROR_NOMEM;
+        }
+    }
+    return NSERROR_OK;
+}
+
+static void hlcache_child_clean(hlcache_child_context *ctx)
+{
+    if (ctx == NULL) return;
+    if (ctx->charset != NULL) {
+        free((char *)ctx->charset);
+        ctx->charset = NULL;
+    }
+    if (ctx->nonce != NULL) {
+        free((char *)ctx->nonce);
+        ctx->nonce = NULL;
+    }
+}
+
 static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effective_type)
 {
     content_type type = CONTENT_NONE;
@@ -547,7 +584,7 @@ static nserror hlcache_migrate_ctx(hlcache_retrieval_ctx *ctx, lwc_string *effec
 
     /* No longer require retrieval context */
     RING_REMOVE(hlcache->retrieval_ctx_ring, ctx);
-    free((char *)ctx->child.charset);
+    hlcache_child_clean(&ctx->child);
     free(ctx);
 
     if (free_actual_type) {
@@ -806,10 +843,7 @@ void hlcache_finalise(void)
                     free(ctx->handle);
                 }
             }
-            if (ctx->child.charset != NULL) {
-                free((char *)ctx->child.charset);
-            }
-
+            hlcache_child_clean(&ctx->child);
             free(ctx);
             ctx = next;
         }
@@ -880,10 +914,11 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         bool exempt = false;
         lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
         if (scheme != NULL) {
-            bool match = false;
-            if (lwc_string_caseless_isequal(scheme, corestring_lwc_resource, &match) == lwc_error_ok && match) {
-                exempt = true;
-            } else if (lwc_string_caseless_isequal(scheme, corestring_lwc_about, &match) == lwc_error_ok && match) {
+            const char *scheme_str = lwc_string_data(scheme);
+            if (strcasecmp(scheme_str, "resource") == 0 ||
+                strcasecmp(scheme_str, "about") == 0 ||
+                strcasecmp(scheme_str, "x-ns-css") == 0 ||
+                strcasecmp(scheme_str, "wisp-inline") == 0) {
                 exempt = true;
             }
             lwc_string_unref(scheme);
@@ -892,12 +927,14 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         if (!exempt) {
             csp_directive dir = CSP_DEFAULT_SRC;
 
-            if (accepted_types & CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC;
+            if (accepted_types & CONTENT_SCRIPT) dir = CSP_SCRIPT_SRC_ELEM;
             else if (accepted_types & CONTENT_IMAGE) dir = CSP_IMG_SRC;
-            else if (accepted_types & CONTENT_CSS) dir = CSP_STYLE_SRC;
+            else if (accepted_types & CONTENT_CSS) dir = CSP_STYLE_SRC_ELEM;
             else if (accepted_types & CONTENT_HTML) dir = CSP_FRAME_SRC;
 
-            if (!csp_check_url(child->csp, dir, url)) {
+            if (child->nonce != NULL && csp_check_nonce(child->csp, dir, child->nonce)) {
+                /* Allowed via matching element nonce */
+            } else if (!csp_check_url(child->csp, dir, url)) {
                 *result = NULL;
                 return NSERROR_CSP_BLOCKED;
             }
@@ -912,7 +949,10 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
         lwc_string *scheme = nsurl_get_component(url, NSURL_SCHEME);
         if (scheme != NULL) {
             const char *scheme_str = lwc_string_data(scheme);
-            if (strcasecmp(scheme_str, "resource") == 0 || strcasecmp(scheme_str, "about") == 0) {
+            if (strcasecmp(scheme_str, "resource") == 0 ||
+                strcasecmp(scheme_str, "about") == 0 ||
+                strcasecmp(scheme_str, "x-ns-css") == 0 ||
+                strcasecmp(scheme_str, "wisp-inline") == 0) {
                 exempt = true;
             }
             lwc_string_unref(scheme);
@@ -996,15 +1036,11 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     }
 
                     if (child != NULL) {
-                        if (child->charset != NULL) {
-                            new_ctx->child.charset = strdup(child->charset);
-                            if (new_ctx->child.charset == NULL) {
-                                free(new_ctx->handle);
-                                free(new_ctx);
-                                return NSERROR_NOMEM;
-                            }
+                        if (hlcache_child_copy(&new_ctx->child, child) != NSERROR_OK) {
+                            free(new_ctx->handle);
+                            free(new_ctx);
+                            return NSERROR_NOMEM;
                         }
-                        new_ctx->child.quirks = child->quirks;
                     }
 
                     new_ctx->flags = flags;
@@ -1014,7 +1050,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     new_ctx->handle->refcount = 1;
                     /* Share the low-level cache handle */
                     if (llcache_handle_clone(ictx->llcache, &new_ctx->llcache) != NSERROR_OK) {
-                        free((char *)new_ctx->child.charset);
+                        hlcache_child_clean(&new_ctx->child);
                         free(new_ctx->handle);
                         free(new_ctx);
                         return NSERROR_NOMEM;
@@ -1025,7 +1061,7 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
                     if (llcache_handle_change_callback(new_ctx->llcache, hlcache_llcache_callback, new_ctx) !=
                         NSERROR_OK) {
                         llcache_handle_release(new_ctx->llcache);
-                        free((char *)new_ctx->child.charset);
+                        hlcache_child_clean(&new_ctx->child);
                         free(new_ctx->handle);
                         free(new_ctx);
                         return NSERROR_NOMEM;
@@ -1053,15 +1089,11 @@ nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llca
     }
 
     if (child != NULL) {
-        if (child->charset != NULL) {
-            ctx->child.charset = strdup(child->charset);
-            if (ctx->child.charset == NULL) {
-                free(ctx->handle);
-                free(ctx);
-                return NSERROR_NOMEM;
-            }
+        if (hlcache_child_copy(&ctx->child, child) != NSERROR_OK) {
+            free(ctx->handle);
+            free(ctx);
+            return NSERROR_NOMEM;
         }
-        ctx->child.quirks = child->quirks;
     }
 
     ctx->flags = flags;

@@ -284,6 +284,12 @@ static csp_source *get_directive_sources(const csp_policy *policy, csp_directive
     } else if (directive == CSP_WORKER_SRC) {
         src = policy->directives[CSP_SCRIPT_SRC];
         if (src) return src;
+    } else if (directive == CSP_SCRIPT_SRC) {
+        src = policy->directives[CSP_SCRIPT_SRC_ELEM];
+        if (src) return src;
+    } else if (directive == CSP_STYLE_SRC) {
+        src = policy->directives[CSP_STYLE_SRC_ELEM];
+        if (src) return src;
     }
 
     if (directive != CSP_DEFAULT_SRC) {
@@ -295,6 +301,7 @@ static csp_source *get_directive_sources(const csp_policy *policy, csp_directive
 static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
     if (src->is_none) return false;
     if (src->is_unsafe_inline || src->is_unsafe_eval) return false;
+    if (src->nonce != NULL) return false;
     if (src->is_self) {
         return nsurl_compare(base_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT);
     }
@@ -357,6 +364,19 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
 
 bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
     if (url) {
+        lwc_string *scheme_lwc = nsurl_get_component(url, NSURL_SCHEME);
+        if (scheme_lwc) {
+            const char *s = lwc_string_data(scheme_lwc);
+            if (strcasecmp(s, "x-ns-css") == 0 ||
+                strcasecmp(s, "wisp-inline") == 0 ||
+                strcasecmp(s, "resource") == 0 ||
+                strcasecmp(s, "about") == 0) {
+                lwc_string_unref(scheme_lwc);
+                return true;
+            }
+            lwc_string_unref(scheme_lwc);
+        }
+
         lwc_string *host_lwc = nsurl_get_component(url, NSURL_HOST);
         if (host_lwc) {
             if (wisp_security_is_origin_blocked(lwc_string_data(host_lwc))) {

@@ -40,6 +40,8 @@ typedef struct hlcache_child_context {
     struct csp *csp; /**< CSP of parent */
     const char *coep; /**< COEP header value */
     struct nsurl *parent_url; /**< Parent URL for COEP checks */
+    const char *required_csp; /**< Required CSP baseline for iframe embeds */
+    const char *nonce; /**< Nonce attribute of element */
 } hlcache_child_context;
 
 /** High-level cache event */

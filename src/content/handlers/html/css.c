@@ -504,16 +504,31 @@ bool html_css_process_link(html_content *htmlc, dom_node *node)
     /* start fetch - increment count BEFORE retrieve to prevent race with sync callback */
     htmlc->stylesheet_count++;
 
+    dom_string *nonce_attr = NULL;
+    dom_string *nonce_str = NULL;
+    dom_string_create((const uint8_t *)"nonce", 5, &nonce_str);
+    if (nonce_str) {
+        dom_element_get_attribute(node, nonce_str, &nonce_attr);
+        dom_string_unref(nonce_str);
+    }
+
     child.charset = htmlc->encoding;
     child.quirks = htmlc->base.quirks;
     child.csp = htmlc->csp;
     child.coep = htmlc->coep;
     child.parent_url = htmlc->base_url;
+    if (nonce_attr != NULL) {
+        child.nonce = dom_string_data(nonce_attr);
+    }
 
     CONTENT_ACTIVE_INC(&htmlc->base, "linked CSS fetch start");
     PERF("CSS FETCH START '%s' (active=%d)", nsurl_access(joined), htmlc->base.active);
     ns_error = hlcache_handle_retrieve(joined, 0, content_get_url(&htmlc->base), NULL, html_convert_css_callback, htmlc,
         &child, CONTENT_CSS, &htmlc->stylesheets[htmlc->stylesheet_count - 1].sheet);
+
+    if (nonce_attr != NULL) {
+        dom_string_unref(nonce_attr);
+    }
 
     nsurl_unref(joined);
 
