@@ -6383,11 +6383,7 @@ void js_destroythread(jsthread *thread)
                     dom_node_get_parent_node(node, &parent);
                     if (parent == NULL) {
                         /* Root detached node or DocumentFragment: unref creation reference */
-                        while (node->refcnt > 0) {
-                            if (node->refcnt == 1) {
-                                dom_node_unref(node);
-                                break;
-                            }
+                        if (node->refcnt > 0) {
                             dom_node_unref(node);
                         }
                     } else {
