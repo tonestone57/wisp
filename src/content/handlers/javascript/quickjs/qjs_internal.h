@@ -137,6 +137,7 @@ struct jsthread {
     char shm_dom_name[64];
     bool shm_initialized;
     uint32_t shm_capacity;
+    JSValue node_wrapper_cache[SHM_DOM_MAX_NODES];
 };
 
 static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val) {

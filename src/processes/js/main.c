@@ -134,6 +134,9 @@ JSContext* get_context(uint32_t id) {
 
     /* Set thread context and opaque early so callbacks during binding/polyfill setup have opaque access */
     t->ctx = node->ctx;
+    for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
+        t->node_wrapper_cache[i] = JS_UNDEFINED;
+    }
     JS_SetContextOpaque(node->ctx, t);
 
     /* Find document node ID in shm_dom to set up as the root */

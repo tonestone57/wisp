@@ -6100,6 +6100,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     jsthread *t = calloc(1, sizeof(*t));
     if (!t)
         return NSERROR_NOMEM;
+    for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
+        t->node_wrapper_cache[i] = JS_UNDEFINED;
+    }
     JS_UpdateStackTop(heap->rt);
     t->ctx = JS_NewContext(heap->rt);
     if (!t->ctx) {

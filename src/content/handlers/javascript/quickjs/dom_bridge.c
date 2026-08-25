@@ -80,6 +80,14 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 {
     if (node == NULL) return JS_NULL;
 
+    struct jsthread *t = JS_GetContextOpaque(ctx);
+    uint64_t node_id = (uint64_t)(uintptr_t)node;
+    if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES) {
+        if (!JS_IsUndefined(t->node_wrapper_cache[node_id])) {
+            return JS_DupValue(ctx, t->node_wrapper_cache[node_id]);
+        }
+    }
+
     JSRuntime *rt = JS_GetRuntime(ctx);
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
 
@@ -87,6 +95,9 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         bridge_key_t key = { ctx, node };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
+            if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES) {
+                t->node_wrapper_cache[node_id] = JS_DupValue(ctx, *val);
+            }
             return JS_DupValue(ctx, *val);
         }
     }
@@ -154,6 +165,13 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         }
     }
 
+    if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES) {
+        if (!JS_IsUndefined(t->node_wrapper_cache[node_id])) {
+            JS_FreeValue(ctx, t->node_wrapper_cache[node_id]);
+        }
+        t->node_wrapper_cache[node_id] = JS_DupValue(ctx, wrapper);
+    }
+
     return wrapper;
 }
 
@@ -165,6 +183,17 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         void *old_data = NULL;
         dom_node_set_user_data(node, g_qjs_node_key, NULL, NULL, &old_data);
         if (old_data) free(old_data);
+    }
+
+    if (wisp_is_js_process && ctx) {
+        struct jsthread *t = JS_GetContextOpaque(ctx);
+        uint64_t node_id = (uint64_t)(uintptr_t)node;
+        if (t && node_id < SHM_DOM_MAX_NODES) {
+            if (!JS_IsUndefined(t->node_wrapper_cache[node_id])) {
+                JS_FreeValue(ctx, t->node_wrapper_cache[node_id]);
+                t->node_wrapper_cache[node_id] = JS_UNDEFINED;
+            }
+        }
     }
 
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
@@ -884,6 +913,18 @@ extern void wisp_dom_event_cleanup_ctx(JSContext *ctx);
 void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
 {
     wisp_dom_event_cleanup_ctx(ctx);
+
+    if (wisp_is_js_process && ctx) {
+        struct jsthread *t = JS_GetContextOpaque(ctx);
+        if (t) {
+            for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
+                if (!JS_IsUndefined(t->node_wrapper_cache[i])) {
+                    JS_FreeValue(ctx, t->node_wrapper_cache[i]);
+                    t->node_wrapper_cache[i] = JS_UNDEFINED;
+                }
+            }
+        }
+    }
 
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (!map) return;
