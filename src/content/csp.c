@@ -155,6 +155,9 @@ static csp_source *parse_source(char *token) {
                 if (!src->scheme) alloc_failed = true;
             }
         }
+    } else if (token[0] == '\'') {
+        /* Unrecognized single-quoted keywords (e.g. 'report-sample', 'unsafe-hashes')
+         * are CSP keywords, not host expressions. */
     } else {
         char *slash = strchr(token, '/');
         if (slash) {
@@ -339,7 +342,9 @@ static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
         if (!url_host_lwc) return false;
         const char *url_host = lwc_string_data(url_host_lwc);
         bool match = false;
-        if (strncmp(src->host, "*.", 2) == 0) {
+        if (strcmp(src->host, "*") == 0) {
+            match = true;
+        } else if (strncmp(src->host, "*.", 2) == 0) {
             const char *suffix = src->host + 1; /* ".apple.com" */
             size_t suffix_len = strlen(suffix);
             size_t host_len = strlen(url_host);
