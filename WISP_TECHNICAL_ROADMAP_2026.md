@@ -1,7 +1,7 @@
 # Wisp Browser Technical Roadmap & Architectural Summary (2026)
 
 ## 1. Executive Summary
-Wisp is a lightweight, high-performance web engine forked from NetSurf. As of 2026, Wisp has bridged the gap between legacy software efficiency and the modern web. The core engine features fully spec-compliant CSS Grid, Flexbox, CSS Variables, and modern JavaScript (ES2023+ via QuickJS-ng), achieving an HTML5Test benchmark baseline of **561 / 588 points** (**95.4%** compliance) with 100% scores in Scripting, Security, and Offline & Storage. Wisp maintains a minimal footprint suitable for modern and legacy platforms (Haiku, Windows XP/7/10/11, Linux, macOS). Core architectural milestones—including Multi-Process Isolation, out-of-process JS, HLcache handle reentrancy protection, and the Canvas 2D plotter bridge—are fully integrated and hardened.
+Wisp is a lightweight, high-performance web engine forked from NetSurf. As of 2026, Wisp has bridged the gap between legacy software efficiency and the modern web. The core engine features fully spec-compliant CSS Grid, Flexbox, CSS Variables, and modern JavaScript (ES2023+ via QuickJS-ng), achieving an HTML5Test benchmark baseline of **573 / 588 points** (**97.4%** compliance) with 100% scores in Scripting, Offline & Storage, and Resource Loading. Wisp maintains a minimal footprint suitable for modern and legacy platforms (Haiku, Windows XP/7/10/11, Linux, macOS). Core architectural milestones—including Multi-Process Isolation, out-of-process JS, HLcache handle reentrancy protection, and the Canvas 2D plotter bridge—are fully integrated and hardened.
 
 ---
 
