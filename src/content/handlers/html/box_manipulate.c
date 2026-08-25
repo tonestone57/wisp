@@ -76,16 +76,6 @@ static void box_talloc_destructor(void *ptr)
 		b->styles = NULL;
 	}
 
-	if (b->counters != NULL) {
-		for (size_t i = 0; i < b->n_counters; i++) {
-			if (b->counters[i].name != NULL) {
-				lwc_string_unref(b->counters[i].name);
-			}
-		}
-		b->counters = NULL;
-		b->n_counters = 0;
-	}
-
 	if (!(b->flags & CLONE) && b->href != NULL)
 		nsurl_unref(b->href);
 

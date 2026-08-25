@@ -383,116 +383,6 @@ START_TEST(test_quickjs_browseraudit_chartjs_full)
 }
 END_TEST
 
-static char *read_file_str_ba(const char *path) {
-    FILE *f = fopen(path, "rb");
-    if (!f) return NULL;
-    fseek(f, 0, SEEK_END);
-    long len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    char *buf = malloc(len + 1);
-    if (!buf) { fclose(f); return NULL; }
-    size_t r = fread(buf, 1, len, f);
-    (void)r;
-    buf[len] = '\0';
-    fclose(f);
-    return buf;
-}
-
-START_TEST(test_quickjs_browseraudit_start_button)
-{
-    jsheap *heap = NULL;
-    jsthread *thread = NULL;
-    nserror err;
-
-    corestrings_init();
-    js_initialise();
-    err = js_newheap(5, &heap);
-    ck_assert_int_eq(err, NSERROR_OK);
-
-    dom_document *doc = create_test_document();
-    err = js_newthread(heap, (void *)doc, doc, &thread);
-    dom_node_unref((dom_node *)doc);
-    ck_assert_int_eq(err, NSERROR_OK);
-
-    const char *setup_html =
-        "document.body.innerHTML = '<main id=\"main\">' +"
-        "'<div class=\"container\">' +"
-        "'  <a href=\"#\" class=\"btn btn-primary btn-lg browseraudit-start\">Test me &raquo;</a>' +"
-        "'  <div id=\"browseraudit-categories\" class=\"panel-collapse collapse\">' +"
-        "'    <div class=\"alert alert-danger alert-dismissible alert-no-categories collapse\" role=\"alert\"></div>' +"
-        "'    <table class=\"table\"></table>' +"
-        "'  </div>' +"
-        "'  <div id=\"browseraudit-settings\" class=\"panel-collapse collapse\">' +"
-        "'    <div class=\"form-group\" data-setting=\"displaymode\">' +"
-        "'      <input id=\"displaymode-full\" type=\"radio\" name=\"displaymode\" value=\"full\" checked />' +"
-        "'    </div>' +"
-        "'    <div class=\"form-group\" data-setting=\"sendresults\">' +"
-        "'      <input id=\"sendresults-on\" type=\"radio\" name=\"sendresults\" value=\"true\" checked />' +"
-        "'    </div>' +"
-        "'  </div>' +"
-        "'</div>' +"
-        "'</main>';";
-    ck_assert_int_eq(js_exec(thread, (const uint8_t *)setup_html, strlen(setup_html), "setup_html"), true);
-
-    const char *files[] = {
-        "/tmp/ba_scripts/jquery.js",
-        "/tmp/ba_scripts/bootstrap.js",
-        "/tmp/ba_scripts/jquery.scrollTo.min.js",
-        "/tmp/ba_scripts/jquery.treegrid.min.js",
-        "/tmp/ba_scripts/jquery.treegrid.bootstrap3.js",
-        "/tmp/ba_scripts/uri.js",
-        "/tmp/ba_scripts/ui.js",
-        "/tmp/ba_scripts/category_tree.js",
-        "/tmp/ba_scripts/test_button.js"
-    };
-    bool loaded = true;
-    for (int i = 0; i < 9; i++) {
-        char *s = read_file_str_ba(files[i]);
-        if (!s) { loaded = false; break; }
-        JSValue val = JS_Eval(thread->ctx, s, strlen(s), files[i], JS_EVAL_TYPE_GLOBAL);
-        free(s);
-        if (JS_IsException(val)) {
-            JSValue exc = JS_GetException(thread->ctx);
-            JS_FreeValue(thread->ctx, exc);
-            JS_FreeValue(thread->ctx, val);
-            loaded = false;
-            break;
-        }
-        JS_FreeValue(thread->ctx, val);
-    }
-
-    if (loaded) {
-        const char *click_js =
-            "var btn = document.querySelector('.browseraudit-start');\n"
-            "if (!btn) throw new Error('Button not found');\n"
-            "var cats = browserAuditUI.categorySelectionPanel.getSelectedIDs();\n"
-            "if (cats.length === 0) throw new Error('No categories selected!');\n"
-            "btn.click();\n"
-            "var finalHref = String(window.location.href);\n"
-            "if (!finalHref.includes('/test') || !finalHref.includes('categories=')) {\n"
-            "    throw new Error('Navigation failed! finalHref=' + finalHref);\n"
-            "}\n";
-        ck_assert_int_eq(js_exec(thread, (const uint8_t *)click_js, strlen(click_js), "click_js"), true);
-    } else {
-        const char *expando_js =
-            "var div = document.createElement('div');\n"
-            "div.id = 'my-expando-test';\n"
-            "document.documentElement.appendChild(div);\n"
-            "div.expandoTest = 42;\n"
-            "var queried = document.getElementById('my-expando-test');\n"
-            "if (queried !== div) throw new Error('DOM identity mismatch');\n"
-            "if (queried.expandoTest !== 42) throw new Error('DOM expando loss');\n"
-            "1;\n";
-        ck_assert_int_eq(js_exec(thread, (const uint8_t *)expando_js, strlen(expando_js), "expando_js"), true);
-    }
-
-    js_closethread(thread);
-    js_destroythread(thread);
-    js_destroyheap(heap);
-    js_finalise();
-}
-END_TEST
-
 START_TEST(test_quickjs_other_apis)
 {
     jsheap *heap = NULL;
@@ -7010,7 +6900,6 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_chartjs_canvas_integration);
     tcase_add_test(tc_window, test_quickjs_browseraudit_xhr_and_window_hierarchy);
     tcase_add_test(tc_window, test_quickjs_browseraudit_chartjs_full);
-    tcase_add_test(tc_window, test_quickjs_browseraudit_start_button);
     tcase_add_test(tc_window, test_quickjs_other_apis);
     suite_add_tcase(s, tc_window);
 

@@ -1660,6 +1660,10 @@ JSValue qjs_new_htmlcanvaselement(JSContext *ctx, void *node, bool is_dom_node)
     priv->ctx = ctx;
     if (!wisp_is_js_process && is_dom_node && node) {
         dom_node_ref((dom_node *)node);
+        extern dom_string *g_qjs_node_key;
+        if (g_qjs_node_key) {
+            dom_node_set_user_data((dom_node *)node, g_qjs_node_key, (void *)JS_VALUE_GET_PTR(obj), NULL, NULL);
+        }
     }
     JS_SetOpaque(obj, priv);
     return obj;

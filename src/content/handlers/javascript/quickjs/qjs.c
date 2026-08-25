@@ -5926,86 +5926,6 @@ void qjs_inject_dom_polyfills(JSContext *ctx)
     JSValue svg_val = JS_Eval(ctx, svg_polyfill, strlen(svg_polyfill), "svg_polyfill.js", JS_EVAL_TYPE_GLOBAL);
     JS_FreeValue(ctx, svg_val);
 
-    const char *extra_gemini_polyfills =
-        "(function() {\n"
-        "    const global = typeof globalThis !== 'undefined' ? globalThis : window;\n"
-        "    if (typeof global.reportError === 'undefined') {\n"
-        "        global.reportError = function reportError(error) {\n"
-        "            if (typeof console !== 'undefined' && console.error) {\n"
-        "                console.error('Unhandled error reported via reportError:', error);\n"
-        "            }\n"
-        "            if (typeof global.dispatchEvent === 'function' && typeof Event === 'function') {\n"
-        "                try {\n"
-        "                    const evt = new Event('error', { cancelable: true });\n"
-        "                    evt.error = error;\n"
-        "                    global.dispatchEvent(evt);\n"
-        "                } catch (e) {}\n"
-        "            }\n"
-        "        };\n"
-        "        if (typeof window !== 'undefined') window.reportError = global.reportError;\n"
-        "    }\n"
-        "    if (typeof global.VisualViewport === 'undefined') {\n"
-        "        var VisualViewport = class VisualViewport extends (global.EventTarget || class {}) {\n"
-        "            constructor() {\n"
-        "                super();\n"
-        "                this.offsetLeft = 0;\n"
-        "                this.offsetTop = 0;\n"
-        "                this.pageLeft = 0;\n"
-        "                this.pageTop = 0;\n"
-        "                this.width = global.innerWidth || 1024;\n"
-        "                this.height = global.innerHeight || 768;\n"
-        "                this.scale = 1;\n"
-        "                this.viewportWidth = global.innerWidth || 1024;\n"
-        "                this.viewportHeight = global.innerHeight || 768;\n"
-        "            }\n"
-        "        };\n"
-        "        global.VisualViewport = VisualViewport;\n"
-        "    }\n"
-        "    if (typeof global.visualViewport === 'undefined') {\n"
-        "        global.visualViewport = new global.VisualViewport();\n"
-        "        if (typeof window !== 'undefined') window.visualViewport = global.visualViewport;\n"
-        "    }\n"
-        "    if (global.navigator) {\n"
-        "        if (!global.navigator.locks) {\n"
-        "            global.navigator.locks = {\n"
-        "                request: function(name, options, callback) {\n"
-        "                    if (typeof options === 'function') { callback = options; }\n"
-        "                    const lock = { name: name, mode: 'exclusive' };\n"
-        "                    if (typeof callback === 'function') {\n"
-        "                        return Promise.resolve(callback(lock));\n"
-        "                    }\n"
-        "                    return Promise.resolve();\n"
-        "                },\n"
-        "                query: function() { return Promise.resolve({ held: [], pending: [] }); }\n"
-        "            };\n"
-        "        }\n"
-        "        if (!global.navigator.userActivation) {\n"
-        "            global.navigator.userActivation = { isActive: true, hasBeenActive: true };\n"
-        "        }\n"
-        "        if (!global.navigator.scheduling) {\n"
-        "            global.navigator.scheduling = { isInputPending: function() { return false; } };\n"
-        "        }\n"
-        "        if (!global.navigator.storage) {\n"
-        "            global.navigator.storage = {\n"
-        "                estimate: function() { return Promise.resolve({ quota: 10737418240, usage: 0 }); },\n"
-        "                persist: function() { return Promise.resolve(true); },\n"
-        "                persisted: function() { return Promise.resolve(true); }\n"
-        "            };\n"
-        "        }\n"
-        "    }\n"
-        "    if (typeof Window !== 'undefined' && Window.prototype) {\n"
-        "        if (!('VisualViewport' in Window.prototype)) {\n"
-        "            Object.defineProperty(Window.prototype, 'VisualViewport', {\n"
-        "                get() { return global.VisualViewport; },\n"
-        "                configurable: true,\n"
-        "                enumerable: true\n"
-        "            });\n"
-        "        }\n"
-        "    }\n"
-        "})();\n";
-    JSValue extra_val = JS_Eval(ctx, extra_gemini_polyfills, strlen(extra_gemini_polyfills), "extra_gemini_polyfills.js", JS_EVAL_TYPE_GLOBAL);
-    JS_FreeValue(ctx, extra_val);
-
 }
 
 static void qjs_lifecycle_mutation_hook(dom_mutation_hook_category category, dom_mutation_type type,
@@ -7417,15 +7337,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             }
 
             if (!is_internal) {
-                bool allowed = false;
-                if (found_s != NULL && found_s->data.handle != NULL) {
-                    /* Script was already retrieved and validated by hlcache_handle_retrieve under CSP */
-                    allowed = true;
-                } else {
-                    allowed = csp_check_url(htmlc->csp, CSP_SCRIPT_SRC, url);
-                }
-
-                if (!allowed) {
+                if (!csp_check_url(htmlc->csp, CSP_SCRIPT_SRC, url)) {
                     NSLOG(wisp, WARNING, "CSP blocked script execution from URL: %s", name);
                     nsurl_unref(url);
                     return false;
@@ -7503,7 +7415,6 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
             fd = mkstemp(temp_file_path);
             if (fd >= 0) {
                 if (write(fd, txt, txtlen) == (ssize_t)txtlen) {
-                    fsync(fd);
                     is_file = true;
                 }
                 close(fd);

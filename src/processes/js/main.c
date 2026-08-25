@@ -351,12 +351,8 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                 if (file_path) {
                     memcpy(file_path, msg->data + offset + 7, path_len);
                     file_path[path_len] = '\0';
+                    url_decode_inplace(file_path);
                     FILE *f = fopen(file_path, "rb");
-                    if (!f && strchr(file_path, '%')) {
-                        /* Fallback to URL decoding if direct path opening failed */
-                        url_decode_inplace(file_path);
-                        f = fopen(file_path, "rb");
-                    }
                     if (f) {
                         fseek(f, 0, SEEK_END);
                         long sz = ftell(f);
@@ -379,8 +375,6 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                             file_load_failed = true;
                         }
                         fclose(f);
-                        /* Clean up temporary script file from disk */
-                        unlink(file_path);
                     } else {
                         file_load_failed = true;
                     }

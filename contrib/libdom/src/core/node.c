@@ -298,8 +298,7 @@ void _dom_node_finalise(dom_node_internal *node)
             u->handler(DOM_NODE_DELETED, u->key, u->data, NULL, NULL);
 
         dom_string_unref(u->key);
-        if (!node->owner || !((struct dom_document *)node->owner)->arena) free(u);
-        else DOM_FREE(u);
+        DOM_FREE(u);
     }
     node->user_data = NULL;
 
@@ -1855,28 +1854,21 @@ dom_exception _dom_node_set_user_data(
     };
 
     /* Remove it, if found and no new data */
-    if (data == NULL) {
-        if (ud != NULL) {
-            dom_string_unref(ud->key);
+    if (data == NULL && ud != NULL) {
+        dom_string_unref(ud->key);
 
-            if (ud->next != NULL)
-                ud->next->prev = ud->prev;
-            if (ud->prev != NULL)
-                ud->prev->next = ud->next;
-            else
-                node->user_data = ud->next;
+        if (ud->next != NULL)
+            ud->next->prev = ud->prev;
+        if (ud->prev != NULL)
+            ud->prev->next = ud->next;
+        else
+            node->user_data = ud->next;
 
-            if (result != NULL) {
-                *result = ud->data;
-            }
-
-            if (!node->owner || !((struct dom_document *)node->owner)->arena) free(ud);
-            else DOM_FREE(ud);
-        } else {
-            if (result != NULL) {
-                *result = NULL;
-            }
+        if (result != NULL) {
+            *result = ud->data;
         }
+
+        DOM_FREE(ud);
 
         return DOM_NO_ERR;
     }
