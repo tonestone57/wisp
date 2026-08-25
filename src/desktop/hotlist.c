@@ -724,8 +724,10 @@ nserror hotlist_load_directory_cb(dom_node *node, void *ctx)
             return NSERROR_DOM;
         }
 
-        if (current_ctx->title != NULL)
+        if (current_ctx->title != NULL) {
             dom_string_unref(current_ctx->title);
+            current_ctx->title = NULL;
+        }
         current_ctx->title = title;
         current_ctx->last_was_h4 = true;
 

@@ -39,6 +39,10 @@ static dom_exception _dom_namespace_initialise(void)
     int i;
     dom_exception err;
 
+    if (xml != NULL) {
+        return DOM_NO_ERR;
+    }
+
     err = dom_string_create((const uint8_t *)"xml", SLEN("xml"), &xml);
     if (err != DOM_NO_ERR) {
         return err;
