@@ -201,6 +201,8 @@ START_TEST(test_bbmq_flush_normal)
 }
 END_TEST
 
+extern void drain_mutation_queue(shm_dom_t *shm, void *doc);
+
 START_TEST(test_bbmq_flush_full)
 {
     const char *test_name = "/test_shm_dom_bbmq_full";
@@ -210,26 +212,53 @@ START_TEST(test_bbmq_flush_full)
 
     wisp_is_js_process = true;
 
-    // We mock that the shared mutation queue is fully consumed and wrap around is needed
-    // or just start from 0 and fill it up.
-
     // Enqueue SHM_MUTATION_QUEUE_SIZE + 5 items to BBMQ
     int total_items = SHM_MUTATION_QUEUE_SIZE + 5;
     for (int i = 0; i < total_items; i++) {
         shm_mutation_enqueue(wisp_shm_dom, 1, i, 0, 0, "test", "test");
     }
 
-    // Since our bbmq_size can grow, we should have enqueued all
     // Now flush to shared mutation queue.
-    // However, shared mutation queue has a fixed capacity SHM_MUTATION_QUEUE_SIZE
+    // With dynamic secondary chunks, primary accepts 1024 and secondary chunk accepts 5
     bbmq_flush();
 
-    // The shared queue should only be able to accept SHM_MUTATION_QUEUE_SIZE items
-    // before head - tail >= SHM_MUTATION_QUEUE_SIZE.
     ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, SHM_MUTATION_QUEUE_SIZE);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunk_count, 1);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunks[0].head, 5);
 
-    // bbmq_flush should reset bbmq_size to 0, which means the overflowing items are lost.
-    // That's current behavior, we just verify it doesn't overflow `mutation_queue`
+    wisp_is_js_process = false;
+    shm_dom_destroy(wisp_shm_dom, test_name, true);
+    wisp_shm_dom = NULL;
+}
+END_TEST
+
+START_TEST(test_bbmq_secondary_chunks_auto_scale)
+{
+    const char *test_name = "/test_shm_dom_bbmq_sec_scale";
+    wisp_shm_dom = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+    wisp_shm_capacity = 100;
+
+    wisp_is_js_process = true;
+
+    // Enqueue 2500 mutations (Primary: 1024, Sec Chunk 0: 1024, Sec Chunk 1: 452)
+    int total_items = 2500;
+    for (int i = 0; i < total_items; i++) {
+        shm_mutation_enqueue(wisp_shm_dom, 1, i + 1, 0, 0, "attr", "val");
+    }
+
+    bbmq_flush();
+
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.head, SHM_MUTATION_QUEUE_SIZE);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunk_count, 2);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunks[0].head, SHM_MUTATION_CHUNK_CAPACITY);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunks[1].head, 2500 - 1024 - 1024);
+
+    // Drain queue with NULL doc (verifies mapping, iteration, and cleanup without crash)
+    drain_mutation_queue(wisp_shm_dom, NULL);
+
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.tail, SHM_MUTATION_QUEUE_SIZE);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunk_count, 0);
 
     wisp_is_js_process = false;
     shm_dom_destroy(wisp_shm_dom, test_name, true);
@@ -343,6 +372,7 @@ static Suite *shm_dom_suite(void)
     tcase_add_test(tc_core, test_bbmq_flush_empty);
     tcase_add_test(tc_core, test_bbmq_flush_normal);
     tcase_add_test(tc_core, test_bbmq_flush_full);
+    tcase_add_test(tc_core, test_bbmq_secondary_chunks_auto_scale);
     tcase_add_test(tc_core, test_shm_alloc_string_nulls);
     tcase_add_test(tc_core, test_shm_alloc_string_sso);
     tcase_add_test(tc_core, test_shm_alloc_string_heap);

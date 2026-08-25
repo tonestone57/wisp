@@ -47,10 +47,30 @@ typedef struct {
     WispStringRef value;          /* attribute value or text value */
 } shm_mutation_t;
 
+#define SHM_MUTATION_CHUNK_CAPACITY 1024
+#define SHM_MAX_SECONDARY_CHUNKS 16
+
+typedef struct {
+    char shm_name[64];
+    volatile uint32_t head;
+    volatile uint32_t tail;
+    uint32_t capacity;
+    uint32_t reserved;
+} shm_mutation_chunk_desc_t;
+
+typedef struct {
+    volatile uint32_t head;
+    volatile uint32_t tail;
+    uint32_t capacity;
+    shm_mutation_t queue[SHM_MUTATION_CHUNK_CAPACITY];
+} shm_mutation_chunk_t;
+
 typedef struct {
     volatile uint32_t head;       /* Written by JS process */
     volatile uint32_t tail;       /* Read/drained by main UI thread */
     shm_mutation_t queue[SHM_MUTATION_QUEUE_SIZE];
+    volatile uint32_t secondary_chunk_count; /* Number of active secondary SHM chunks */
+    shm_mutation_chunk_desc_t secondary_chunks[SHM_MAX_SECONDARY_CHUNKS];
 } shm_mutation_queue_t;
 
 // Split topology node - exactly 32 bytes
@@ -184,6 +204,8 @@ static inline bool wisp_string_ref_caseeq(const shm_dom_t *shm, WispStringRef re
 }
 
 /* API */
+shm_mutation_chunk_t* shm_mutation_chunk_create(const char *name, bool is_server);
+void shm_mutation_chunk_destroy(shm_mutation_chunk_t *chunk, const char *name, bool is_server);
 shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server);
 void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server);
 void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uint64_t param1_id, uint64_t param2_id, const char *name, const char *value);
