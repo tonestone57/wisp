@@ -1216,6 +1216,24 @@ START_TEST(test_quickjs_predictive_layout)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_predictive_layout");
     ck_assert(result == true);
 
+    // Test 2: Predictive microtask layout estimation when wisp_in_microtask is true
+    extern bool wisp_in_microtask;
+    wisp_in_microtask = true;
+    const char *code2 = "try {\n"
+                        "  var el2 = document.createElement('div');\n"
+                        "  el2.setAttribute('class', 'microtask-test');\n"
+                        "  var rect2 = el2.getBoundingClientRect();\n"
+                        "  if (typeof rect2.width !== 'number' || rect2.width <= 0) throw new Error('Microtask layout estimate invalid');\n"
+                        "  if (el2.offsetWidth <= 0 || el2.offsetHeight <= 0) throw new Error('Microtask offset dimensions invalid');\n"
+                        "  window.testRes2 = 'OK';\n"
+                        "} catch(e) {\n"
+                        "  window.testRes2 = e.message;\n"
+                        "}\n"
+                        "window.testRes2 === 'OK';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_predictive_layout_microtask");
+    wisp_in_microtask = false;
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
