@@ -152,14 +152,22 @@ static csp_source *parse_source(char *token) {
 }
 
 nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_out) {
-    struct csp *csp = calloc(1, sizeof(struct csp));
-    if (!csp) return NSERROR_NOMEM;
+    if (!csp_out) return NSERROR_BAD_PARAMETER;
 
-    csp->base_url = nsurl_ref(base_url);
+    struct csp *csp = *csp_out;
+    bool new_csp = false;
+    if (!csp) {
+        csp = calloc(1, sizeof(struct csp));
+        if (!csp) return NSERROR_NOMEM;
+        csp->base_url = nsurl_ref(base_url);
+        new_csp = true;
+    }
 
     char *copy = strdup(header_value);
     if (!copy) {
-        csp_destroy(csp);
+        if (new_csp) {
+            csp_destroy(csp);
+        }
         return NSERROR_NOMEM;
     }
 

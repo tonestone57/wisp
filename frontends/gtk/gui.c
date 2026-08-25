@@ -1192,6 +1192,7 @@ static void nsgtk_finalise(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
+    schedule_run();
     nsgtk_download_destroy();
     urldb_save_cookies(nsoption_charp(cookie_jar));
     urldb_save(nsoption_charp(url_file));
@@ -1237,6 +1238,9 @@ static void nsgtk_finalise(void)
 
     /* common finalisation */
     wisp_exit();
+
+    /* Drain any remaining scheduled callbacks before schedule_finalise */
+    schedule_run();
 
     /* Clean up scheduled callbacks */
     nsgtk_schedule_finalise();

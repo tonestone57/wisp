@@ -6,7 +6,7 @@
 
 void test_csp() {
     nsurl *base_url, *url_self, *url_other, *url_cdn;
-    struct csp *csp;
+    struct csp *csp = NULL;
 
     assert(nsurl_create("https://example.com/page.html", &base_url) == NSERROR_OK);
     assert(nsurl_create("https://example.com/script.js", &url_self) == NSERROR_OK);
@@ -18,20 +18,20 @@ void test_csp() {
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_other) == false);
     assert(csp_check_inline(csp, CSP_SCRIPT_SRC) == false);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 2: script-src 'unsafe-inline'
     assert(csp_parse("script-src 'unsafe-inline'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_inline(csp, CSP_SCRIPT_SRC) == true);
     assert(csp_check_inline(csp, CSP_STYLE_SRC) == true); // default-src is missing, so allowed
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 3: Multiple directives
     assert(csp_parse("default-src 'none'; script-src https://cdn.example.com", base_url, &csp) == NSERROR_OK);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_cdn) == true);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == false);
     assert(csp_check_url(csp, CSP_IMG_SRC, url_self) == false);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 4: host:port without scheme
     nsurl *url_port;
@@ -39,13 +39,13 @@ void test_csp() {
     assert(csp_parse("script-src example.com:8080", base_url, &csp) == NSERROR_OK);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_port) == true);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == false);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 5: scheme: without host
     assert(csp_parse("script-src https:", base_url, &csp) == NSERROR_OK);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_self) == true);
     assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_port) == true);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
     nsurl_unref(url_port);
 
     // Test 6: require-trusted-types-for and trusted-types directives
@@ -54,37 +54,37 @@ void test_csp() {
     assert(csp_trusted_types_policy_allowed(csp, "default") == true);
     assert(csp_trusted_types_policy_allowed(csp, "policy1") == true);
     assert(csp_trusted_types_policy_allowed(csp, "policy2") == false);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 7: trusted-types wildcard *
     assert(csp_parse("require-trusted-types-for 'script'; trusted-types *", base_url, &csp) == NSERROR_OK);
     assert(csp_require_trusted_types_for_script(csp) == true);
     assert(csp_trusted_types_policy_allowed(csp, "anything") == true);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 8: Nonce parsing, checking and unsafe-inline bypass
     assert(csp_parse("script-src 'unsafe-inline' 'nonce-xyz123'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_nonce(csp, CSP_SCRIPT_SRC, "xyz123") == true);
     assert(csp_check_nonce(csp, CSP_SCRIPT_SRC, "wrong_nonce") == false);
     assert(csp_check_inline(csp, CSP_SCRIPT_SRC) == false); // 'unsafe-inline' must be ignored when a nonce is present
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 9: unsafe-eval check
     assert(csp_parse("script-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == true);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     assert(csp_parse("script-src 'self'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == false);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     assert(csp_parse("default-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == true);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     assert(csp_parse("default-src 'self'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == false);
-    csp_destroy(csp);
+    csp_destroy(csp); csp = NULL;
 
     // Test 10: Origin blocklist checks
     assert(wisp_security_is_origin_blocked(NULL) == false);

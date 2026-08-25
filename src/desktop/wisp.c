@@ -323,6 +323,10 @@ void wisp_exit(void)
      * finalise the cache and destroy the contents.
      */
     html_parser_pool_shutdown();
+    extern void (*wisp_gui_pump_events_hook)(void);
+    if (wisp_gui_pump_events_hook != NULL) {
+        wisp_gui_pump_events_hook();
+    }
 
     hlcache_stop();
 
