@@ -711,6 +711,10 @@ nserror hotlist_load_directory_cb(dom_node *node, void *ctx)
     if (dom_string_caseless_lwc_isequal(name, corestring_lwc_li)) {
         /* Entry handling */
         hotlist_load_entry(node, current_ctx);
+        if (current_ctx->title != NULL) {
+            dom_string_unref(current_ctx->title);
+            current_ctx->title = NULL;
+        }
         current_ctx->last_was_h4 = false;
 
     } else if (dom_string_caseless_lwc_isequal(name, corestring_lwc_h4)) {
@@ -743,6 +747,10 @@ nserror hotlist_load_directory_cb(dom_node *node, void *ctx)
         /* Check if folder should be default folder */
         error = dom_element_get_attribute(node, corestring_dom_id, &id);
         if (error != DOM_NO_ERR) {
+            if (current_ctx->title != NULL) {
+                dom_string_unref(current_ctx->title);
+                current_ctx->title = NULL;
+            }
             dom_string_unref(name);
             return NSERROR_NOMEM;
         }
@@ -781,17 +789,21 @@ nserror hotlist_load_directory_cb(dom_node *node, void *ctx)
 
         /* And load its contents */
         err = hotlist_load_directory(node, &new_ctx);
+        if (new_ctx.title != NULL) {
+            dom_string_unref(new_ctx.title);
+            new_ctx.title = NULL;
+        }
         if (err != NSERROR_OK) {
             dom_string_unref(name);
             return NSERROR_NOMEM;
         }
 
-        if (new_ctx.title != NULL) {
-            dom_string_unref(new_ctx.title);
-            new_ctx.title = NULL;
-        }
         current_ctx->last_was_h4 = false;
     } else {
+        if (current_ctx->title != NULL) {
+            dom_string_unref(current_ctx->title);
+            current_ctx->title = NULL;
+        }
         current_ctx->last_was_h4 = false;
     }
 
