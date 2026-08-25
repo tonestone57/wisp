@@ -344,8 +344,10 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             size_t offset = 12 + name_len;
             size_t script_len = msg->length - offset;
             char *script = NULL;
-            bool file_load_failed = false;
+            bool is_file_payload = false;
+
             if (script_len >= 7 && strncmp((const char *)(msg->data + offset), "file://", 7) == 0) {
+                is_file_payload = true;
                 size_t path_len = script_len - 7;
                 char *file_path = malloc(path_len + 1);
                 if (file_path) {
@@ -370,27 +372,18 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                                 } else {
                                     free(script);
                                     script = NULL;
-                                    file_load_failed = true;
                                 }
-                            } else {
-                                file_load_failed = true;
                             }
-                        } else {
-                            file_load_failed = true;
                         }
                         fclose(f);
                         /* Clean up temporary script file from disk */
                         unlink(file_path);
-                    } else {
-                        file_load_failed = true;
                     }
                     free(file_path);
-                } else {
-                    file_load_failed = true;
                 }
             }
 
-            if (!script && !file_load_failed) {
+            if (!script && !is_file_payload) {
                 script = malloc(script_len + 1);
                 if (script) {
                     memcpy(script, msg->data + offset, script_len);
