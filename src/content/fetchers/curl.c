@@ -1687,7 +1687,7 @@ static bool fetch_curl_process_headers(struct curl_fetch_info *f)
         nserror err;
         NSLOG(wisp, INFO, "FETCH_REDIRECT, '%s'", f->location);
         nsurl *redirect_url = NULL;
-        err = nsurl_create(f->location, &redirect_url);
+        err = nsurl_join(f->url, f->location, &redirect_url);
         if (err == NSERROR_OK) {
             msg.type = FETCH_REDIRECT;
             msg.data.redirect = redirect_url;
