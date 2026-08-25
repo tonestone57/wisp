@@ -1174,6 +1174,7 @@ void wisp_gui_pump_events(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
+    schedule_run();
 }
 
 static void nsgtk_finalise(void)
