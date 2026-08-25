@@ -298,17 +298,29 @@ START_TEST(test_html5test_full_execution)
         "    }\n"
         "  }\n"
         "}\n"
-        "var item1 = window.html5testRawResults ? window.html5testRawResults.getItem('storage.indexedDB.blob') : null;\n"
-        "var item2 = window.html5testRawResults ? window.html5testRawResults.getItem('storage.indexedDB.arraybuffer') : null;\n"
-        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nBlob item: ' + JSON.stringify(item1) + '\\nAB item: ' + JSON.stringify(item2) + '\\nPoints details:\\n' + window.html5testResults.split(',').join('\\n') + '\\nElements details:\\n' + report.join('\\n');\n"
+        "var item1 = (window.html5testRawResults && typeof window.html5testRawResults.getItem === 'function') ? window.html5testRawResults.getItem('storage.indexedDB.blob') : null;\n"
+        "var item2 = (window.html5testRawResults && typeof window.html5testRawResults.getItem === 'function') ? window.html5testRawResults.getItem('storage.indexedDB.arraybuffer') : null;\n"
+        "var res = 'Finished: ' + window.html5testFinished + ', Score: ' + window.html5testScore + ' / ' + window.html5testMaximum + '\\nBlob item: ' + JSON.stringify(item1) + '\\nAB item: ' + JSON.stringify(item2) + '\\nPoints details:\\n' + String(window.html5testResults).split(',').join('\\n') + '\\nElements details:\\n' + report.join('\\n');\n"
         "res;\n";
 
     JSValue val = JS_Eval(thread->ctx, print_err, strlen(print_err), "print_err", JS_EVAL_TYPE_GLOBAL);
-    const char *str = JS_ToCString(thread->ctx, val);
-    if (str) {
-        printf("\n========== RESULT ==========\n%s\n============================\n\n", str);
-        fflush(stdout);
-        JS_FreeCString(thread->ctx, str);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        JSValue stack = JS_GetPropertyStr(thread->ctx, exc, "stack");
+        const char *err_str = JS_ToCString(thread->ctx, exc);
+        const char *stack_str = JS_ToCString(thread->ctx, stack);
+        fprintf(stderr, "\nJS Eval Exception: %s\nStack:\n%s\n", err_str ? err_str : "unknown", stack_str ? stack_str : "no stack");
+        JS_FreeCString(thread->ctx, err_str);
+        JS_FreeCString(thread->ctx, stack_str);
+        JS_FreeValue(thread->ctx, stack);
+        JS_FreeValue(thread->ctx, exc);
+    } else {
+        const char *str = JS_ToCString(thread->ctx, val);
+        if (str) {
+            fprintf(stderr, "\n========== RESULT ==========\n%s\n============================\n\n", str);
+            fflush(stderr);
+            JS_FreeCString(thread->ctx, str);
+        }
     }
     JS_FreeValue(thread->ctx, val);
 

@@ -6,7 +6,7 @@ This document outlines the detailed technical roadmap, current score breakdown, 
 
 ### Current Execution Baseline
 * **HTML5Test Execution Status**: 100% Pass (No JS exceptions, unhandled rejections, or runtime crashes during full test suite execution).
-* **Current Score**: **561 / 588 points** (**95.4%** compliance).
+* **Current Score**: **573 / 588 points** (**97.4%** compliance).
 * **Target Score**: **> 500 points** (**Achieved**).
 * **Status**: **Target Exceeded / Production Baseline Verified**.
 
@@ -36,27 +36,27 @@ Below is the updated category breakdown of current scores vs. maximum available 
 | **3D & VR** (`3d`) | 25 | 25 | 0 | Complete | WebGL 1.0/2.0 context stubs & methods (`WebGLRenderingContext`, `WebGL2RenderingContext`), WebXR (`navigator.xr`) |
 | **Offscreen Canvas** (`offscreen`) | 3 | 3 | 0 | Complete | `OffscreenCanvas` rendering context (2D/WebGL/bitmaprenderer), `ImageBitmap` |
 | **Animation** (`animation`) | 8 | 8 | 0 | Complete | Web Animations API (`Element.prototype.animate`), `requestAnimationFrame`, `cancelAnimationFrame` |
-| **Communication** (`communication`) | 28 | 40 | 12 | High Pass | `EventSource`, `navigator.sendBeacon`, `fetch`, `XMLHttpRequest.upload`, `WebSocket` (binaryType), `MessageChannel`, `BroadcastChannel` |
+| **Communication** (`communication`) | 35 | 40 | 5 | High Pass | `EventSource`, `navigator.sendBeacon`, `fetch`, `XMLHttpRequest.upload`, `XMLHttpRequest` (responseType text/document/arraybuffer/blob), `WebSocket` (binaryType), `MessageChannel`, `BroadcastChannel` |
 | **Streams** (`streams`) | 6 | 6 | 0 | Complete | WHATWG Streams API (`ReadableStream`, `WritableStream`) |
 | **Peer To Peer** (`rtc`) | 45 | 45 | 0 | Complete | `RTCPeerConnection`, `RTCDataChannel`, `RTCSessionDescription`, `RTCIceCandidate`, `MediaRecorder` |
 | **User Interaction** (`interaction`) | 19 | 19 | 0 | Complete | `contentEditable`, `isContentEditable`, `document.designMode`, `document.execCommand`, Drag & Drop attributes (`draggable`, `DataTransfer`), `ClipboardEvent`, `spellcheck` |
 | **Performance** (`performance`) | 12 | 12 | 0 | Complete | Web Workers (`Worker`), `SharedWorker`, `requestIdleCallback`, `performance.now()`, `PerformanceObserver` |
 | **Web Assembly** (`native`) | 1 | 1 | 0 | Complete | `WebAssembly` global object |
-| **Resource Loading** (`resource`) | 6 | 7 | 1 | High Pass | `async`/`defer` script attributes, resource hints (`preload`, `prefetch`, `dns-prefetch`, `preconnect`), `performance.timing`, missing: `resource.fontloader` (1 pt) |
+| **Resource Loading** (`resource`) | 7 | 7 | 0 | Complete | `async`/`defer` script attributes, resource hints (`preload`, `prefetch`, `dns-prefetch`, `preconnect`), `performance.timing`, `resource.fontloader` |
 | **Security** (`security`) | 29 | 32 | 3 | High Pass | `window.crypto.subtle` (`digest`, `encrypt`, `decrypt`, `generateKey`), Subresource Integrity (`integrity`), `postMessage`, `credentials`, `iframe.sandbox`, `iframe.srcdoc`, `security.csp10`, missing: CSP strict dynamic / frame options (3 pts) |
 | **Payments** (`payments`) | 5 | 5 | 0 | Complete | `PaymentRequest` API |
 | **Web Applications / Offline** (`offline`) | 13 | 13 | 0 | Complete | `ServiceWorkerContainer` (`navigator.serviceWorker`), `CacheStorage` (`window.caches`), `registerProtocolHandler`, `offline.pushMessages` (`PushManager`, `PushSubscription`) |
-| **Storage** (`storage`) | 31 | 35 | 4 | High Pass | `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBDatabase`, `IDBTransaction`), Web SQL, missing: `storage.indexedDB.blob` (2 pts), `storage.indexedDB.arraybuffer` (2 pts) |
+| **Storage** (`storage`) | 35 | 35 | 0 | Complete | `window.localStorage`, `window.sessionStorage`, `IndexedDB` (`window.indexedDB`, `IDBFactory`, `IDBDatabase`, `IDBTransaction`, `storage.indexedDB.blob`, `storage.indexedDB.arraybuffer`), Web SQL |
 | **Files** (`files`) | 15 | 15 | 0 | Complete | `FileReader`, `Blob`, `File`, `URL.createObjectURL`, `URL.revokeObjectURL` |
 | **Scripting** (`scripting`) | 32 | 32 | 0 | Complete | ES6/ES7/ES2022 features, Promises, `MutationObserver`, `IntersectionObserver`, `ResizeObserver`, `TextEncoder`/`TextDecoder`, `URL`, `URLSearchParams`, ES6 modules (`scripting.es6.modules`) |
 | **Other** (`other`) | 9 | 9 | 0 | Complete | `history.pushState`, `history.replaceState`, `document.hidden`, `document.visibilityState`, `window.getSelection`, `Element.prototype.scrollIntoView` |
-| **TOTAL** | **561** | **588** | **27** | **PASSED (>500)** | **Target: > 500 Points (Actual Score: 561 / 588)** |
+| **TOTAL** | **573** | **588** | **15** | **PASSED (>500)** | **Target: > 500 Points (Actual Score: 573 / 588)** |
 
 ---
 
 ## Detailed List of Outstanding / Missing HTML5 Functions for Future Optimization
 
-To progress beyond 561 points towards a perfect 588 score, the following specific missing HTML5 functions and features are categorized below:
+To progress beyond 573 points towards a perfect 588 score, the following specific missing HTML5 functions and features are categorized below:
 
 ### 1. Parsing & Tokenizer Rules (5 Points)
 - `parsing.tokenizer`: HTML5 fragment parser tokenization quirks (handling `<div<div>`, CDATA comments, and raw text element switching in fragment parsing mode).
@@ -89,7 +89,7 @@ To progress beyond 561 points towards a perfect 588 score, the following specifi
 ## Verification Strategy & Automated Testing
 
 1. **Automated CTest Suite**:
-   - `build/src/test/test_html5test_full` runs the entire www.html5test.co test suite headlessly and asserts that execution succeeds and score exceeds 500 points (actual: 561 / 588).
+   - `build/src/test/test_html5test_full` runs the entire www.html5test.co test suite headlessly and asserts that execution succeeds and score exceeds 500 points (actual: 573 / 588).
 2. **Pre-Commit Verification**:
    - Execute full pre-commit verification suite (`ctest --test-dir build -j4`).
 
