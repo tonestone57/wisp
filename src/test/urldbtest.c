@@ -942,6 +942,27 @@ START_TEST(urldb_persistence_test)
 }
 END_TEST
 
+START_TEST(urldb_hsts_preload_test)
+{
+    nsurl *url_copilot, *url_sub_ms, *url_other;
+
+    ck_assert_int_eq(nsurl_create("http://copilot.microsoft.com/", &url_copilot), NSERROR_OK);
+    ck_assert_int_eq(nsurl_create("http://sub.microsoft.com/test", &url_sub_ms), NSERROR_OK);
+    ck_assert_int_eq(nsurl_create("http://example-non-hsts-domain.org/", &url_other), NSERROR_OK);
+
+    /* Preloaded domains must return true for HSTS enabled */
+    ck_assert(urldb_get_hsts_enabled(url_copilot) == true);
+    ck_assert(urldb_get_hsts_enabled(url_sub_ms) == true);
+
+    /* Non-preloaded domain should return false initially */
+    ck_assert(urldb_get_hsts_enabled(url_other) == false);
+
+    nsurl_unref(url_copilot);
+    nsurl_unref(url_sub_ms);
+    nsurl_unref(url_other);
+}
+END_TEST
+
 
 static TCase *urldb_case_create(void)
 {
@@ -963,6 +984,7 @@ static TCase *urldb_case_create(void)
     tcase_add_test(tc, urldb_update_visit_test);
     tcase_add_test(tc, urldb_reset_visit_test);
     tcase_add_test(tc, urldb_persistence_test);
+    tcase_add_test(tc, urldb_hsts_preload_test);
 
     return tc;
 }
