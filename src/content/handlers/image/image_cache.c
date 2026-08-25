@@ -35,14 +35,12 @@
 #include <wisp/misc.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/utils.h>
-#include <wisp/utils/thread_pool.h>
 #include <wisp/utils/task_queue.h>
 #include <pthread.h>
 
 #include "content/handlers/image/image.h"
 #include "content/handlers/image/image_cache.h"
-
-static thread_pool_t *image_decode_pool = NULL;
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
 /**
  * Age of an entry within the cache
@@ -462,7 +460,7 @@ struct bitmap *image_cache_get_bitmap(const struct content *c)
             content_add_user(centry->content, image_cache__dummy_user_cb, centry);
             centry->decoding = true;
             centry->refcount++;
-            if (!thread_pool_add_task(image_decode_pool, image_cache__background_decode, centry)) {
+            if (!wisp_dispatch_raster(NULL, image_cache__background_decode, centry, 0.0f)) {
                 centry->decoding = false;
                 centry->refcount--;
                 content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
@@ -522,8 +520,6 @@ nserror image_cache_init(const struct image_cache_parameters *image_cache_parame
         return NSERROR_NOMEM;
     }
 
-    image_decode_pool = thread_pool_create(4);
-
     image_cache->params = *image_cache_parameters;
 
     guit->misc->schedule(image_cache->params.bg_clean_time, image_cache__background_update, image_cache);
@@ -538,11 +534,6 @@ nserror image_cache_init(const struct image_cache_parameters *image_cache_parame
 nserror image_cache_fini(void)
 {
     unsigned int op_count;
-
-    if (image_decode_pool != NULL) {
-        thread_pool_destroy(image_decode_pool);
-        image_decode_pool = NULL;
-    }
     uint64_t op_size;
 
     guit->misc->schedule(-1, image_cache__background_update, image_cache);
@@ -881,7 +872,7 @@ bool image_cache_redraw(
             content_add_user(centry->content, image_cache__dummy_user_cb, centry);
             centry->decoding = true;
             centry->refcount++;
-            if (!thread_pool_add_task(image_decode_pool, image_cache__background_decode, centry)) {
+            if (!wisp_dispatch_raster(NULL, image_cache__background_decode, centry, 0.0f)) {
                 centry->decoding = false;
                 centry->refcount--;
                 content_remove_user(centry->content, image_cache__dummy_user_cb, centry);
