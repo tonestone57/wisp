@@ -56,6 +56,25 @@ static hashmap_parameters_t bridge_map_params = {
 
 extern bool wisp_is_js_process;
 extern shm_dom_t *wisp_shm_dom;
+extern dom_string *g_qjs_node_key;
+
+typedef struct {
+    JSRuntime *rt;
+    JSContext *ctx;
+    struct dom_node *node;
+} QJSNodeBridgeRef;
+
+static void qjs_node_user_data_cb(dom_node_operation operation,
+    dom_string *key, void *data, struct dom_node *src, struct dom_node *dst)
+{
+    if (operation == DOM_NODE_DELETED && data) {
+        QJSNodeBridgeRef *ref = (QJSNodeBridgeRef *)data;
+        if (ref && ref->rt && ref->node) {
+            qjs_bridge_remove_node(ref->rt, ref->node, ref->ctx);
+        }
+        free(ref);
+    }
+}
 
 JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 {
@@ -63,18 +82,14 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSRuntime *rt = JS_GetRuntime(ctx);
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
-    if (!map) {
-        NSLOG(wisp, ERROR, "DOM bridge map not initialized");
-        return JS_UNDEFINED;
-    }
 
-    bridge_key_t key = { ctx, node };
-    JSValue *existing = hashmap_lookup(map, &key);
-    if (existing) {
-        return JS_DupValue(ctx, *existing);
+    if (map) {
+        bridge_key_t key = { ctx, node };
+        JSValue *val = hashmap_lookup(map, &key);
+        if (val) {
+            return JS_DupValue(ctx, *val);
+        }
     }
-
-    extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
 
     dom_node_type type;
     if (wisp_is_js_process) {
@@ -91,6 +106,7 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSValue wrapper;
     if (wisp_is_js_process && (uint64_t)(uintptr_t)node >= 0xf0000000) {
+        extern JSValue qjs_new_htmlimageelement(JSContext *ctx, void *node, bool is_dom_node);
         wrapper = qjs_new_htmlimageelement(ctx, node, true);
     } else {
         switch (type) {
@@ -117,16 +133,25 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         }
     }
 
-    JSValue *val_ptr = hashmap_insert(map, &key);
-    if (val_ptr) {
-        /* Map stores a WEAK reference. We don't increment the refcount
-         * because the JS object's finalizer will remove it from the map. */
-        *val_ptr = wrapper;
-        if (!wisp_is_js_process) dom_node_ref(node);
-    } else {
-        /* Failed to insert into map, but we still have the wrapper.
-         * This shouldn't normally happen unless OOM. */
-        NSLOG(wisp, WARNING, "Failed to insert node wrapper into bridge map");
+    if (map) {
+        bridge_key_t key = { ctx, node };
+        JSValue *val_ptr = hashmap_insert(map, &key);
+        if (val_ptr) {
+            *val_ptr = JS_DupValue(ctx, wrapper);
+            if (!wisp_is_js_process) {
+                if (g_qjs_node_key) {
+                    QJSNodeBridgeRef *ref = malloc(sizeof(*ref));
+                    if (ref) {
+                        ref->rt = rt;
+                        ref->ctx = ctx;
+                        ref->node = node;
+                        void *old_data = NULL;
+                        dom_node_set_user_data(node, g_qjs_node_key, ref, qjs_node_user_data_cb, &old_data);
+                        if (old_data) free(old_data);
+                    }
+                }
+            }
+        }
     }
 
     return wrapper;
@@ -134,13 +159,22 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
 void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx)
 {
+    if (!node) return;
+
+    if (!wisp_is_js_process && g_qjs_node_key) {
+        void *old_data = NULL;
+        dom_node_set_user_data(node, g_qjs_node_key, NULL, NULL, &old_data);
+        if (old_data) free(old_data);
+    }
+
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     if (map) {
         bridge_key_t key = { ctx, node };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
+            JSValue wrapper = *val;
             hashmap_remove(map, &key);
-            if (!wisp_is_js_process) dom_node_unref(node);
+            if (ctx) JS_FreeValue(ctx, wrapper);
         }
     }
 }
@@ -222,14 +256,14 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
-                JSClassID class_id = 0;
-                QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
-                if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.keys[i].node) {
-                    priv->node = NULL;
-                    priv->magic = 0;
+                JSValue wrapper = *val;
+                if (!wisp_is_js_process && g_qjs_node_key) {
+                    void *old_data = NULL;
+                    dom_node_set_user_data(cleanup.keys[i].node, g_qjs_node_key, NULL, NULL, &old_data);
+                    if (old_data) free(old_data);
                 }
                 hashmap_remove(map, &cleanup.keys[i]);
-                if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
+                JS_FreeValue(cleanup.keys[i].ctx, wrapper);
             }
         }
 
@@ -244,14 +278,14 @@ void qjs_bridge_cleanup(JSRuntime *rt)
             /* Entries must be removed from map before unref to avoid re-entrant UAF. */
             JSValue *val = hashmap_lookup(map, &cleanup.keys[i]);
             if (val) {
-                JSClassID class_id = 0;
-                QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
-                if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.keys[i].node) {
-                    priv->node = NULL;
-                    priv->magic = 0;
+                JSValue wrapper = *val;
+                if (!wisp_is_js_process && g_qjs_node_key) {
+                    void *old_data = NULL;
+                    dom_node_set_user_data(cleanup.keys[i].node, g_qjs_node_key, NULL, NULL, &old_data);
+                    if (old_data) free(old_data);
                 }
                 hashmap_remove(map, &cleanup.keys[i]);
-                if (!wisp_is_js_process) dom_node_unref(cleanup.keys[i].node);
+                JS_FreeValue(cleanup.keys[i].ctx, wrapper);
             }
         }
 
@@ -870,14 +904,20 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
+            JSValue wrapper = *val;
             JSClassID class_id = 0;
-            QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
+            QJSNodePrivate *priv = JS_GetAnyOpaque(wrapper, &class_id);
             if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.nodes[i]) {
                 priv->node = NULL;
                 priv->magic = 0;
             }
+            if (!wisp_is_js_process && g_qjs_node_key) {
+                void *old_data = NULL;
+                dom_node_set_user_data(cleanup.nodes[i], g_qjs_node_key, NULL, NULL, &old_data);
+                if (old_data) free(old_data);
+            }
             hashmap_remove(map, &key);
-            if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
+            JS_FreeValue(ctx, wrapper);
         }
     }
 
@@ -892,16 +932,23 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
         bridge_key_t key = { .ctx = ctx, .node = cleanup.nodes[i] };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
+            JSValue wrapper = *val;
             JSClassID class_id = 0;
-            QJSNodePrivate *priv = JS_GetAnyOpaque(*val, &class_id);
+            QJSNodePrivate *priv = JS_GetAnyOpaque(wrapper, &class_id);
             if (priv && priv->magic == QJS_DOM_MAGIC && priv->is_dom_node && priv->node == cleanup.nodes[i]) {
                 priv->node = NULL;
                 priv->magic = 0;
             }
+            if (!wisp_is_js_process && g_qjs_node_key) {
+                void *old_data = NULL;
+                dom_node_set_user_data(cleanup.nodes[i], g_qjs_node_key, NULL, NULL, &old_data);
+                if (old_data) free(old_data);
+            }
             hashmap_remove(map, &key);
-            if (!wisp_is_js_process) dom_node_unref(cleanup.nodes[i]);
+            JS_FreeValue(ctx, wrapper);
         }
     }
+
     free(cleanup.nodes);
     free(cleanup.types);
     free(cleanup.has_types);

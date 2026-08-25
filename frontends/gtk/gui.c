@@ -1189,6 +1189,13 @@ static void nsgtk_finalise(void)
         struct gui_window *gw = window_list;
         browser_window_destroy(nsgtk_get_browser_window(gw));
     }
+
+    /* Drain scheduled tasks (such as deferred content_actually_destroy callbacks) */
+    schedule_run();
+    while (gtk_events_pending()) {
+        gtk_main_iteration();
+    }
+
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }

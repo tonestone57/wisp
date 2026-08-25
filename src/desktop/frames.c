@@ -239,6 +239,9 @@ nserror browser_window_create_iframes(struct browser_window *bw)
         if (cur->name != NULL) {
             window->name = strdup(cur->name);
             if (window->name == NULL) {
+                for (int j = 0; j < index; j++) {
+                    browser_window_destroy_internal(&bw->iframes[j]);
+                }
                 free(bw->iframes);
                 bw->iframes = 0;
                 bw->iframe_count = 0;
