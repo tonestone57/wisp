@@ -178,7 +178,7 @@ int qjs_init_event(JSContext *ctx)
         proto = JS_NewObject(ctx);
         JS_SetClassProto(ctx, qjs_event_class_id, JS_DupValue(ctx, proto));
     }
-    JSValue ctor = JS_NewCFunction2(ctx, js_event_constructor, "Event", 1, JS_CFUNC_constructor, 0);
+    JSValue ctor = JS_NewCFunction2(ctx, js_event_constructor, "Event", 1, JS_CFUNC_constructor_or_func, 0);
     JS_SetConstructor(ctx, ctor, proto);
     JS_SetPropertyStr(ctx, global_obj, "Event", ctor);
     JS_FreeValue(ctx, proto);
