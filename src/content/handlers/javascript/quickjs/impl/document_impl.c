@@ -730,53 +730,14 @@ JSValue wisp_document_cookie_set_impl(JSContext *ctx, QJSNodePrivate *priv, cons
 
 JSValue wisp_document_querySelector_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    if (wisp_is_js_process) {
-        if (selectors && selectors[0] == '#') {
-            return wisp_document_getElementById_impl(ctx, priv, selectors + 1);
-        }
-        if (selectors && selectors[0] == '.') {
-            JSValue arr = wisp_document_getElementsByClassName_impl(ctx, priv, selectors + 1);
-            JSValue first = JS_GetPropertyUint32(ctx, arr, 0);
-            JS_FreeValue(ctx, arr);
-            if (JS_IsUndefined(first)) {
-                JS_FreeValue(ctx, first);
-                return JS_NULL;
-            }
-            return first;
-        }
-        JSValue arr = wisp_document_getElementsByTagName_impl(ctx, priv, selectors);
-        JSValue first = JS_GetPropertyUint32(ctx, arr, 0);
-        JS_FreeValue(ctx, arr);
-        if (JS_IsUndefined(first)) {
-            JS_FreeValue(ctx, first);
-            return JS_NULL;
-        }
-        return first;
-    }
-    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, false);
+    dom_node *root = (priv && priv->node) ? (dom_node *)priv->node : (dom_node *)(uintptr_t)1;
+    return qjs_dom_query_selector_internal(ctx, root, selectors, false);
 }
 
 JSValue wisp_document_querySelectorAll_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors)
 {
-    if (!priv || !priv->node) return JS_NULL;
-    if (wisp_is_js_process) {
-        if (selectors && selectors[0] == '#') {
-            JSValue arr = JS_NewArray(ctx);
-            JSValue item = wisp_document_getElementById_impl(ctx, priv, selectors + 1);
-            if (!JS_IsNull(item)) {
-                JS_SetPropertyUint32(ctx, arr, 0, item);
-            } else {
-                JS_FreeValue(ctx, item);
-            }
-            return arr;
-        }
-        if (selectors && selectors[0] == '.') {
-            return wisp_document_getElementsByClassName_impl(ctx, priv, selectors + 1);
-        }
-        return wisp_document_getElementsByTagName_impl(ctx, priv, selectors);
-    }
-    return qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selectors, true);
+    dom_node *root = (priv && priv->node) ? (dom_node *)priv->node : (dom_node *)(uintptr_t)1;
+    return qjs_dom_query_selector_internal(ctx, root, selectors, true);
 }
 
 JSValue wisp_document_defaultView_get_impl(JSContext *ctx, QJSNodePrivate *priv)

@@ -510,6 +510,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
 
     switch (event->type) {
     case CONTENT_MSG_DONE:
+        nsu_getmonotonic_ms(&parent->data_complete_time_ms);
         PERF("SCRIPT SYNC DONE %d '%s' (active=%d)", i, nsurl_access(hlcache_handle_get_url(script)),
             parent->base.active - 1);
         NSLOG(wisp, INFO, "script %d done '%s'", i, nsurl_access(hlcache_handle_get_url(script)));
@@ -549,6 +550,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         break;
 
     case CONTENT_MSG_ERROR:
+        nsu_getmonotonic_ms(&parent->data_complete_time_ms);
         NSLOG(wisp, WARNING, "script %s failed: %s", nsurl_access(hlcache_handle_get_url(script)),
             event->data.errordata.errormsg);
 
