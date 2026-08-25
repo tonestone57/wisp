@@ -304,7 +304,10 @@ void qjs_timer_callback(void *p)
     if (JS_IsException(ret)) {
         JSValue exc = JS_GetException(ctx);
         const char *exc_str = JS_ToCString(ctx, exc);
-        JSValue stack_val = JS_GetPropertyStr(ctx, exc, "stack");
+        JSValue stack_val = JS_UNDEFINED;
+        if (JS_IsObject(exc)) {
+            stack_val = JS_GetPropertyStr(ctx, exc, "stack");
+        }
         const char *stack_str = (!JS_IsUndefined(stack_val) && !JS_IsNull(stack_val)) ? JS_ToCString(ctx, stack_val) : NULL;
         if (stack_str) {
             NSLOG(wisp, WARNING, "JS Error in timer callback: %s\nStack:\n%s", exc_str ? exc_str : "unknown", stack_str);
@@ -326,7 +329,10 @@ void qjs_timer_callback(void *p)
         if (job_ret < 0 && ctx1) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
-            JSValue stack_val = JS_GetPropertyStr(ctx1, exc, "stack");
+            JSValue stack_val = JS_UNDEFINED;
+            if (JS_IsObject(exc)) {
+                stack_val = JS_GetPropertyStr(ctx1, exc, "stack");
+            }
             const char *stack_str = (!JS_IsUndefined(stack_val) && !JS_IsNull(stack_val)) ? JS_ToCString(ctx1, stack_val) : NULL;
             if (stack_str) {
                 NSLOG(wisp, WARNING, "JS Error in microtask: %s\nStack:\n%s", exc_str ? exc_str : "unknown", stack_str);
