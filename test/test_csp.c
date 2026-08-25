@@ -203,6 +203,13 @@ void test_csp() {
     csp_destroy(csp);
     csp = NULL;
 
+    // Test 17: Wildcard host matching '*' and single-quoted keywords ('report-sample') handling
+    assert(csp_parse("script-src 'report-sample' * 'unsafe-inline'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC_ELEM, url_cdn) == true);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_other) == true);
+    csp_destroy(csp);
+    csp = NULL;
+
     nsurl_unref(base_url);
     nsurl_unref(url_self);
     nsurl_unref(url_other);
