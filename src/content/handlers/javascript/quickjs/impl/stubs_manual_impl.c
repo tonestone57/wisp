@@ -14498,12 +14498,6 @@ JSValue wisp_domimplementation_createHTMLDocument_impl(JSContext *ctx, QJSNodePr
     dom_node_unref((dom_node *)body_el);
     dom_node_unref((dom_node *)html_el);
 
-    // Link the new document to user data / html content representation if context opaque exists
-    struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (t && t->win_priv && t->doc_priv && t->win_priv != t->doc_priv && corestring_dom___ns_key_html_content_data) {
-        dom_node_set_user_data((dom_node *)doc, corestring_dom___ns_key_html_content_data, t->doc_priv, NULL, NULL);
-    }
-
     // Wrap the document and return it to JS
     JSValue wrap = qjs_wrap_node(ctx, (dom_node *)doc);
     dom_node_unref((dom_node *)doc);

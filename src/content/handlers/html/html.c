@@ -1850,6 +1850,11 @@ static void html_destroy(struct content *c)
 	/* Free objects */
 	html_object_free_objects(html);
 
+	if (html->document != NULL) {
+		void *old_data = NULL;
+		dom_node_set_user_data(html->document, corestring_dom___ns_key_html_content_data, NULL, NULL, &old_data);
+	}
+
 	doc_rwlock_wrlock(&html->doc_mutex);
 	if (html->parser != NULL) {
 		NSLOG(wisp, DEBUG, "html_destroy: destroying parser %p for content %p", html->parser, c);

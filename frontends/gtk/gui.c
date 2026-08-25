@@ -1174,6 +1174,7 @@ void wisp_gui_pump_events(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
+    schedule_run();
 }
 
 static void nsgtk_finalise(void)
@@ -1192,6 +1193,7 @@ static void nsgtk_finalise(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
+    schedule_run();
     nsgtk_download_destroy();
     urldb_save_cookies(nsoption_charp(cookie_jar));
     urldb_save(nsoption_charp(url_file));
