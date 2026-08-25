@@ -564,6 +564,11 @@ add_wisp_test(test_websocket_mask
 )
 target_link_libraries(test_websocket_mask PRIVATE wisp)
 
+add_wisp_test(test_stream_chunk_decoder
+  ${CMAKE_SOURCE_DIR}/src/test/test_stream_chunk_decoder.c
+)
+target_link_libraries(test_stream_chunk_decoder PRIVATE wisp)
+
 add_wisp_test(test_dirty_grid
   ${CMAKE_SOURCE_DIR}/src/test/test_dirty_grid.c
 )
