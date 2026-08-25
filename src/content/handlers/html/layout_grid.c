@@ -831,8 +831,13 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 
 bool layout_grid(struct box *grid, int available_width, html_content *content)
 {
-	if (!(grid->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(grid->flags & CHILD_DIRTY)) {
-		return true;
+	if (!(grid->flags & (DIRTY_INTRINSIC | CHILD_DIRTY))) {
+		if (grid->last_available_width == available_width &&
+		    grid->last_min_width == grid->min_width.value &&
+		    grid->last_max_width == grid->max_width) {
+			grid->flags &= ~DIRTY_LAYOUT;
+			return true;
+		}
 	}
 
 	struct box *child;
@@ -1903,6 +1908,10 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 	free(occupied);
 	free(row_heights);
 	free(col_widths);
+
+	grid->last_available_width = available_width;
+	grid->last_min_width = grid->min_width.value;
+	grid->last_max_width = grid->max_width;
 
 	grid->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 #ifndef TESTING
