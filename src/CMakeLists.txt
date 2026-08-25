@@ -285,6 +285,7 @@ add_library(wisp ${WISP_LIB_TYPE}
 	utils/utf8.c
 	utils/utf8proc_wrapper.c
 	utils/websocket_mask.c
+	utils/stream_chunk_decoder.c
 	utils/utils.c
 	utils/core_buffer.c
 	utils/thread_pool.c
