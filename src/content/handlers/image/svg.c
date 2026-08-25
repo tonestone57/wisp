@@ -517,6 +517,10 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
     transform[2] = 0.0f; transform[3] = 1.0f;
     transform[4] = (float)x;    transform[5] = (float)y;
 
+    if (current_color == 0) {
+        current_color = 0x00ffffff;
+    }
+
     NSLOG(wisp, DEBUG, "PROFILER: START SVG rendering %p", svg);
 
 #define BGR(c) (((svgtiny_RED((c))) | (svgtiny_GREEN((c)) << 8) | (svgtiny_BLUE((c)) << 16)))
