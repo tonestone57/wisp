@@ -6633,7 +6633,7 @@ serialize_dom_node(shm_dom_t *shm, struct jsthread *thread, dom_node *node, uint
     extern int peak_nodes_used;
     if ((int)shm->node_count > peak_nodes_used) {
         peak_nodes_used = (int)shm->node_count;
-        NSLOG(wisp, INFO, "[SHM_DOM] New record peak reached: %d nodes", peak_nodes_used);
+        NSLOG(wisp, DEBUG, "[SHM_DOM] New record peak reached: %d nodes", peak_nodes_used);
     }
     WispCompactNode *nodes_array = shm_dom_get_nodes(shm);
     WispCompactNode *sn = &nodes_array[idx];

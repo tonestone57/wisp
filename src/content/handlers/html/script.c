@@ -245,6 +245,7 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         }
         parent->base.active--;
         parent->scripts_active--;
+        nsu_getmonotonic_ms(&parent->data_complete_time_ms);
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 
         break;
@@ -530,6 +531,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         }
         parent->base.active--;
         parent->scripts_active--;
+        nsu_getmonotonic_ms(&parent->data_complete_time_ms);
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 
         html_execute_pending_sync_scripts(parent);
@@ -562,6 +564,7 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
         }
         parent->base.active--;
         parent->scripts_active--;
+        nsu_getmonotonic_ms(&parent->data_complete_time_ms);
 
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 

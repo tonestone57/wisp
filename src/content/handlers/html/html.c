@@ -2963,6 +2963,7 @@ void html_parser_pool_shutdown(void)
 
 static void html_fini(void)
 {
+	html_font_face_fini(NULL);
 	html_css_fini();
 	html_parser_pool_shutdown();
 }
