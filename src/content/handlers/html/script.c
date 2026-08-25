@@ -88,7 +88,7 @@ nserror html_script_exec(html_content *c, bool allow_defer)
             continue;
         }
 
-        if ((s->type == HTML_SCRIPT_ASYNC) || (allow_defer && (s->type == HTML_SCRIPT_DEFER))) {
+        if (s->type == HTML_SCRIPT_SYNC || (s->type == HTML_SCRIPT_ASYNC) || (allow_defer && (s->type == HTML_SCRIPT_DEFER))) {
             /* ensure script content is present */
             if (s->data.handle == NULL)
                 continue;
