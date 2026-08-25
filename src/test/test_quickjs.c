@@ -26,6 +26,10 @@
 #include <dom/core/document.h>
 #include <dom/core/node.h>
 #include <dom/core/element.h>
+#include <wisp/content/csp.h>
+#include <wisp/content/hlcache.h>
+#include <wisp/content/handlers/html/html.h>
+#include <wisp/content/handlers/html/private.h>
 
 /* Include QuickJS directly for console binding tests */
 #include "content/handlers/javascript/quickjs/dom_bridge.h"
@@ -6818,6 +6822,129 @@ START_TEST(test_quickjs_binary_idb_fonts_svg_security)
 }
 END_TEST
 
+START_TEST(test_quickjs_multinode_text_content)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(1000, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    dom_string *tag_script = NULL;
+    dom_string_create((const uint8_t *)"script", 6, &tag_script);
+    dom_element *script_elem = NULL;
+    dom_document_create_element(doc, tag_script, &script_elem);
+    dom_string_unref(tag_script);
+    ck_assert_ptr_nonnull(script_elem);
+
+    /* Split script at escape sequence \ " */
+    const char *s1 = "var msg = \"hello \\";
+    const char *s2 = "\"world\"; var success = (msg === 'hello \"world');";
+    dom_string *text1_str = NULL;
+    dom_string_create((const uint8_t *)s1, strlen(s1), &text1_str);
+    dom_text *text1 = NULL;
+    dom_document_create_text_node(doc, text1_str, &text1);
+    dom_string_unref(text1_str);
+
+    dom_string *text2_str = NULL;
+    dom_string_create((const uint8_t *)s2, strlen(s2), &text2_str);
+    dom_text *text2 = NULL;
+    dom_document_create_text_node(doc, text2_str, &text2);
+    dom_string_unref(text2_str);
+
+    dom_node_append_child((dom_node *)script_elem, (dom_node *)text1, NULL);
+    dom_node_append_child((dom_node *)script_elem, (dom_node *)text2, NULL);
+
+    dom_string *combined_text = NULL;
+    dom_node_get_text_content((dom_node *)script_elem, &combined_text);
+    ck_assert_ptr_nonnull(combined_text);
+    ck_assert_str_eq(dom_string_data(combined_text), "var msg = \"hello \\\"world\"; var success = (msg === 'hello \"world');");
+
+    jsthread *thread = NULL;
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, doc, &thread), NSERROR_OK);
+
+    bool exec_ok = js_exec(thread, (const uint8_t *)dom_string_data(combined_text), dom_string_byte_length(combined_text), "?inline script?");
+    ck_assert_int_eq(exec_ok, true);
+
+    JSValue global_obj = JS_GetGlobalObject(thread->ctx);
+    JSValue val = JS_GetPropertyStr(thread->ctx, global_obj, "success");
+    ck_assert(JS_ToBool(thread->ctx, val) == true);
+    JS_FreeValue(thread->ctx, val);
+    JS_FreeValue(thread->ctx, global_obj);
+
+    dom_string_unref(combined_text);
+    dom_node_unref((dom_node *)text1);
+    dom_node_unref((dom_node *)text2);
+    dom_node_unref((dom_node *)script_elem);
+    dom_node_unref((dom_node *)doc);
+
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
+START_TEST(test_quickjs_csp_already_started)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(1000, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    html_content *htmlc = calloc(1, sizeof(*htmlc));
+    ck_assert_ptr_nonnull(htmlc);
+    htmlc->document = doc;
+
+    ck_assert_int_eq(nsurl_create("https://external.example.com/", &htmlc->base_url), NSERROR_OK);
+
+    /* Setup CSP that blocks default scripts */
+    csp_parse("script-src 'none'", htmlc->base_url, &htmlc->csp);
+
+    jsthread *thread = NULL;
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, htmlc, &thread), NSERROR_OK);
+
+    /* Add a script entry flagged with already_started = true */
+    struct html_script *nscript = realloc(htmlc->scripts, sizeof(struct html_script) * (htmlc->scripts_count + 1));
+    ck_assert_ptr_nonnull(nscript);
+    htmlc->scripts = nscript;
+    struct html_script *s = &htmlc->scripts[htmlc->scripts_count++];
+    memset(s, 0, sizeof(*s));
+    s->type = HTML_SCRIPT_SYNC;
+    s->already_started = true;
+    dom_string_create((const uint8_t *)"text/javascript", 15, &s->mimetype);
+
+
+    const char *test_url = "https://external.example.com/script.js";
+    const char *test_code = "var cspPreAuthPassed = true;";
+
+    bool exec_res = js_exec(thread, (const uint8_t *)test_code, strlen(test_code), test_url);
+    ck_assert_int_eq(exec_res, true);
+
+    JSValue global_obj = JS_GetGlobalObject(thread->ctx);
+    JSValue val = JS_GetPropertyStr(thread->ctx, global_obj, "cspPreAuthPassed");
+    ck_assert(JS_ToBool(thread->ctx, val) == true);
+    JS_FreeValue(thread->ctx, val);
+    JS_FreeValue(thread->ctx, global_obj);
+
+    js_destroythread(thread);
+    if (htmlc->csp) csp_destroy(htmlc->csp);
+    if (htmlc->base_url) nsurl_unref(htmlc->base_url);
+    if (s->mimetype) dom_string_unref(s->mimetype);
+    if (s->data.handle) hlcache_handle_release(s->data.handle);
+    free(htmlc->scripts);
+    free(htmlc);
+    dom_node_unref((dom_node *)doc);
+
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -6933,6 +7060,8 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     tcase_add_test(tc_event_loop, test_quickjs_read_write_selectors);
     tcase_add_test(tc_event_loop, test_quickjs_binary_idb_fonts_svg_security);
+    tcase_add_test(tc_event_loop, test_quickjs_multinode_text_content);
+    tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
