@@ -17,24 +17,35 @@ typedef struct csp_source {
     struct csp_source *next;
 } csp_source;
 
-struct csp {
+typedef struct csp_policy {
     csp_source *directives[CSP_DIRECTIVE_COUNT];
-    nsurl *base_url;
     bool require_trusted_types_for_script;
     bool has_trusted_types_directive;
     char **allowed_policies;
     int allowed_policies_count;
+    struct csp_policy *next;
+} csp_policy;
+
+struct csp {
+    csp_policy *policies;
+    nsurl *base_url;
 };
 
 static const char *directive_names[] = {
     "default-src",
     "script-src",
+    "script-src-elem",
+    "script-src-attr",
     "img-src",
     "style-src",
+    "style-src-elem",
+    "style-src-attr",
     "font-src",
     "object-src",
     "frame-src",
-    "connect-src"
+    "connect-src",
+    "media-src",
+    "worker-src"
 };
 
 static void free_sources(csp_source *source) {
@@ -48,16 +59,27 @@ static void free_sources(csp_source *source) {
     }
 }
 
+static void free_policy(csp_policy *policy) {
+    if (!policy) return;
+    for (int i = 0; i < CSP_DIRECTIVE_COUNT; i++) {
+        free_sources(policy->directives[i]);
+    }
+    if (policy->allowed_policies) {
+        for (int i = 0; i < policy->allowed_policies_count; i++) {
+            free(policy->allowed_policies[i]);
+        }
+        free(policy->allowed_policies);
+    }
+    free(policy);
+}
+
 void csp_destroy(struct csp *csp) {
     if (!csp) return;
-    for (int i = 0; i < CSP_DIRECTIVE_COUNT; i++) {
-        free_sources(csp->directives[i]);
-    }
-    if (csp->allowed_policies) {
-        for (int i = 0; i < csp->allowed_policies_count; i++) {
-            free(csp->allowed_policies[i]);
-        }
-        free(csp->allowed_policies);
+    csp_policy *pol = csp->policies;
+    while (pol) {
+        csp_policy *next = pol->next;
+        free_policy(pol);
+        pol = next;
     }
     if (csp->base_url) nsurl_unref(csp->base_url);
     free(csp);
@@ -152,14 +174,32 @@ static csp_source *parse_source(char *token) {
 }
 
 nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_out) {
-    struct csp *csp = calloc(1, sizeof(struct csp));
-    if (!csp) return NSERROR_NOMEM;
+    if (!header_value || !csp_out) return NSERROR_BAD_PARAMETER;
 
-    csp->base_url = nsurl_ref(base_url);
+    struct csp *csp = *csp_out;
+    if (!csp) {
+        csp = calloc(1, sizeof(struct csp));
+        if (!csp) return NSERROR_NOMEM;
+        csp->base_url = nsurl_ref(base_url);
+        *csp_out = csp;
+    }
+
+    csp_policy *policy = calloc(1, sizeof(csp_policy));
+    if (!policy) {
+        if (*csp_out != csp) {
+            csp_destroy(csp);
+            *csp_out = NULL;
+        }
+        return NSERROR_NOMEM;
+    }
 
     char *copy = strdup(header_value);
     if (!copy) {
-        csp_destroy(csp);
+        free_policy(policy);
+        if (*csp_out == csp && !csp->policies) {
+            csp_destroy(csp);
+            *csp_out = NULL;
+        }
         return NSERROR_NOMEM;
     }
 
@@ -182,8 +222,8 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
                 while (token) {
                     csp_source *src = parse_source(token);
                     if (src) {
-                        src->next = csp->directives[dir];
-                        csp->directives[dir] = src;
+                        src->next = policy->directives[dir];
+                        policy->directives[dir] = src;
                     }
                     token = strtok_r(NULL, " ", &saveptr2);
                 }
@@ -192,20 +232,20 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
                     token = strtok_r(NULL, " ", &saveptr2);
                     while (token) {
                         if (strcasecmp(token, "'script'") == 0) {
-                            csp->require_trusted_types_for_script = true;
+                            policy->require_trusted_types_for_script = true;
                         }
                         token = strtok_r(NULL, " ", &saveptr2);
                     }
                 } else if (strcasecmp(token, "trusted-types") == 0) {
-                    csp->has_trusted_types_directive = true;
+                    policy->has_trusted_types_directive = true;
                     token = strtok_r(NULL, " ", &saveptr2);
                     while (token) {
-                        char **new_policies = realloc(csp->allowed_policies, (csp->allowed_policies_count + 1) * sizeof(char *));
+                        char **new_policies = realloc(policy->allowed_policies, (policy->allowed_policies_count + 1) * sizeof(char *));
                         if (new_policies) {
-                            csp->allowed_policies = new_policies;
-                            csp->allowed_policies[csp->allowed_policies_count] = strdup(token);
-                            if (csp->allowed_policies[csp->allowed_policies_count]) {
-                                csp->allowed_policies_count++;
+                            policy->allowed_policies = new_policies;
+                            policy->allowed_policies[policy->allowed_policies_count] = strdup(token);
+                            if (policy->allowed_policies[policy->allowed_policies_count]) {
+                                policy->allowed_policies_count++;
                             }
                         }
                         token = strtok_r(NULL, " ", &saveptr2);
@@ -217,16 +257,47 @@ nserror csp_parse(const char *header_value, nsurl *base_url, struct csp **csp_ou
     }
 
     free(copy);
-    *csp_out = csp;
+
+    if (!csp->policies) {
+        csp->policies = policy;
+    } else {
+        csp_policy *last = csp->policies;
+        while (last->next) {
+            last = last->next;
+        }
+        last->next = policy;
+    }
+
     return NSERROR_OK;
+}
+
+static csp_source *get_directive_sources(const csp_policy *policy, csp_directive directive) {
+    csp_source *src = policy->directives[directive];
+    if (src) return src;
+
+    if (directive == CSP_SCRIPT_SRC_ELEM || directive == CSP_SCRIPT_SRC_ATTR) {
+        src = policy->directives[CSP_SCRIPT_SRC];
+        if (src) return src;
+    } else if (directive == CSP_STYLE_SRC_ELEM || directive == CSP_STYLE_SRC_ATTR) {
+        src = policy->directives[CSP_STYLE_SRC];
+        if (src) return src;
+    } else if (directive == CSP_WORKER_SRC) {
+        src = policy->directives[CSP_SCRIPT_SRC];
+        if (src) return src;
+    }
+
+    if (directive != CSP_DEFAULT_SRC) {
+        src = policy->directives[CSP_DEFAULT_SRC];
+    }
+    return src;
 }
 
 static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
     if (src->is_none) return false;
+    if (src->is_unsafe_inline || src->is_unsafe_eval) return false;
     if (src->is_self) {
         return nsurl_compare(base_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT);
     }
-    if (src->is_unsafe_inline) return false; // Not handled here
 
     if (src->scheme) {
         lwc_string *url_scheme = nsurl_get_component(url, NSURL_SCHEME);
@@ -299,105 +370,180 @@ bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
 
     if (!csp) return true;
 
-    csp_source *src = csp->directives[directive];
-    if (!src && directive != CSP_DEFAULT_SRC) {
-        src = csp->directives[CSP_DEFAULT_SRC];
-    }
-    if (!src) return true;
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        csp_source *src = get_directive_sources(pol, directive);
+        if (!src) {
+            continue;
+        }
 
-    while (src) {
-        if (match_source(src, csp->base_url, url)) return true;
-        src = src->next;
+        bool matched = false;
+        for (csp_source *s = src; s != NULL; s = s->next) {
+            if (match_source(s, csp->base_url, url)) {
+                matched = true;
+                break;
+            }
+        }
+
+        if (!matched) {
+            NSLOG(wisp, INFO, "CSP BLOCKED URL: %s for directive %s", nsurl_access(url), directive_names[directive]);
+            return false;
+        }
     }
 
-    NSLOG(wisp, INFO, "CSP BLOCKED URL: %s for directive %s", nsurl_access(url), directive_names[directive]);
-    return false;
+    return true;
 }
 
 bool csp_check_inline(struct csp *csp, csp_directive directive) {
     if (!csp) return true;
 
-    csp_source *src = csp->directives[directive];
-    if (!src && directive != CSP_DEFAULT_SRC) {
-        src = csp->directives[CSP_DEFAULT_SRC];
-    }
-    if (!src) return true;
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        csp_source *src = get_directive_sources(pol, directive);
+        if (!src) {
+            continue;
+        }
 
-    /* Check if a nonce is present in this source chain.
-     * If a nonce is defined, 'unsafe-inline' is ignored/ignored-fallback per CSP spec.
-     */
-    csp_source *curr = src;
-    while (curr) {
-        if (curr->nonce != NULL) {
+        bool has_nonce = false;
+        for (csp_source *curr = src; curr != NULL; curr = curr->next) {
+            if (curr->nonce != NULL) {
+                has_nonce = true;
+                break;
+            }
+        }
+
+        if (has_nonce) {
             return false;
         }
-        curr = curr->next;
+
+        bool allows_inline = false;
+        for (csp_source *curr = src; curr != NULL; curr = curr->next) {
+            if (curr->is_unsafe_inline) {
+                allows_inline = true;
+                break;
+            }
+            if (curr->is_none) {
+                allows_inline = false;
+                break;
+            }
+        }
+
+        if (!allows_inline) {
+            return false;
+        }
     }
 
-    curr = src;
-    while (curr) {
-        if (curr->is_unsafe_inline) return true;
-        if (curr->is_none) return false;
-        curr = curr->next;
-    }
-
-    return false;
+    return true;
 }
 
 bool csp_check_nonce(struct csp *csp, csp_directive directive, const char *nonce) {
     if (!csp) return true;
     if (!nonce) return false;
 
-    csp_source *src = csp->directives[directive];
-    if (!src && directive != CSP_DEFAULT_SRC) {
-        src = csp->directives[CSP_DEFAULT_SRC];
-    }
-    if (!src) return true;
-
-    while (src) {
-        if (src->nonce && wisp_simd_streq(src->nonce, nonce)) {
-            return true;
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        csp_source *src = get_directive_sources(pol, directive);
+        if (!src) {
+            continue;
         }
-        src = src->next;
+
+        bool matched = false;
+        bool has_nonce_in_policy = false;
+        for (csp_source *s = src; s != NULL; s = s->next) {
+            if (s->nonce) {
+                has_nonce_in_policy = true;
+                if (wisp_simd_streq(s->nonce, nonce)) {
+                    matched = true;
+                    break;
+                }
+            }
+        }
+
+        if (matched) {
+            continue;
+        }
+
+        if (has_nonce_in_policy) {
+            return false;
+        }
+
+        bool allows_inline = false;
+        for (csp_source *s = src; s != NULL; s = s->next) {
+            if (s->is_unsafe_inline) {
+                allows_inline = true;
+                break;
+            }
+        }
+
+        if (!allows_inline) {
+            return false;
+        }
     }
 
-    return false;
+    return true;
 }
 
 bool csp_check_eval(struct csp *csp) {
     if (!csp) return true;
 
-    csp_source *src = csp->directives[CSP_SCRIPT_SRC];
-    if (!src) {
-        src = csp->directives[CSP_DEFAULT_SRC];
-    }
-    if (!src) return true;
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        csp_source *src = get_directive_sources(pol, CSP_SCRIPT_SRC);
+        if (!src) {
+            continue;
+        }
 
-    csp_source *curr = src;
-    while (curr) {
-        if (curr->is_unsafe_eval) return true;
-        if (curr->is_none) return false;
-        curr = curr->next;
+        bool allowed = false;
+        for (csp_source *curr = src; curr != NULL; curr = curr->next) {
+            if (curr->is_unsafe_eval) {
+                allowed = true;
+                break;
+            }
+            if (curr->is_none) {
+                allowed = false;
+                break;
+            }
+        }
+
+        if (!allowed) {
+            return false;
+        }
     }
 
-    return false;
+    return true;
 }
 
 bool csp_require_trusted_types_for_script(const struct csp *csp) {
     if (!csp) return false;
-    return csp->require_trusted_types_for_script;
+
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        if (pol->require_trusted_types_for_script) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool csp_trusted_types_policy_allowed(const struct csp *csp, const char *policy_name) {
     if (!csp) return true;
-    if (!csp->has_trusted_types_directive) return true;
-    for (int i = 0; i < csp->allowed_policies_count; i++) {
-        if (wisp_simd_streq(csp->allowed_policies[i], "*") ||
-            wisp_simd_streq(csp->allowed_policies[i], policy_name)) {
-            return true;
+
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        if (!pol->has_trusted_types_directive) {
+            continue;
+        }
+
+        bool allowed = false;
+        for (int i = 0; i < pol->allowed_policies_count; i++) {
+            if (wisp_simd_streq(pol->allowed_policies[i], "*") ||
+                wisp_simd_streq(pol->allowed_policies[i], policy_name)) {
+                allowed = true;
+                break;
+            }
+        }
+
+        if (!allowed) {
+            return false;
         }
     }
-    return false;
+
+    return true;
 }
 
 static const char *blocked_origins[] = {
