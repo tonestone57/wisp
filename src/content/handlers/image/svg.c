@@ -476,8 +476,10 @@ static void svg_reformat(struct content *c, int width, int height)
         svg->parsed = true;
     }
 
-    c->width = svg->diagram->width;
-    c->height = svg->diagram->height;
+    if (svg->diagram->width > 0 && svg->diagram->height > 0) {
+        c->width = svg->diagram->width;
+        c->height = svg->diagram->height;
+    }
 }
 
 

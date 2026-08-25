@@ -465,6 +465,17 @@ static void nsgtk_free_font_data(const struct font_variant_id *id)
             free(curr->family_name);
             free(curr->temp_path);
             free(curr);
+
+            /* Reset default font map & layout context when a font is unlinked */
+            pango_cairo_font_map_set_default(NULL);
+            if (nsfont_pango_layout != NULL) {
+                g_object_unref(nsfont_pango_layout);
+                nsfont_pango_layout = NULL;
+            }
+            if (nsfont_pango_context != NULL) {
+                g_object_unref(nsfont_pango_context);
+                nsfont_pango_context = NULL;
+            }
             break;
         }
         prev = &curr->next;
@@ -492,8 +503,6 @@ void nsfont_finalise(void)
         free(nsgtk_fonts);
         nsgtk_fonts = next;
     }
-
-    FcFini();
 }
 
 static struct gui_layout_table layout_table = {
