@@ -2086,8 +2086,13 @@ static int flex_item_cmp(const void *a, const void *b)
 
 bool layout_flex(struct box *flex, int available_width, html_content *content)
 {
-	if (!(flex->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(flex->flags & CHILD_DIRTY)) {
-		return true;
+	if (!(flex->flags & (DIRTY_INTRINSIC | CHILD_DIRTY))) {
+		if (flex->last_available_width == available_width &&
+		    flex->last_min_width == flex->min_width.value &&
+		    flex->last_max_width == flex->max_width) {
+			flex->flags &= ~DIRTY_LAYOUT;
+			return true;
+		}
 	}
 
 	int max_height;
@@ -2239,6 +2244,9 @@ cleanup:
 	layout_flex_ctx__destroy(ctx);
 
 	if (success) {
+		flex->last_available_width = available_width;
+		flex->last_min_width = flex->min_width.value;
+		flex->last_max_width = flex->max_width;
 		flex->flags &= ~(DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY);
 	}
 

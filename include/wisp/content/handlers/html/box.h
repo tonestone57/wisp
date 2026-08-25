@@ -336,6 +336,8 @@ struct box {
 	 * Used for incremental layout optimizations.
 	 */
 	int last_available_width;
+	int last_min_width;
+	int last_max_width;
 
 	/**
 	 * Width of content box (excluding padding etc.).

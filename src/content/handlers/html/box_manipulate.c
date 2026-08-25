@@ -146,6 +146,8 @@ struct box *box_create(struct html_content *content, css_select_results *styles,
 	box->style = style;
 	box->x = box->y = 0;
 	box->last_available_width = -1;
+	box->last_min_width = -1;
+	box->last_max_width = -1;
 	box->width = UNKNOWN_WIDTH;
 	box->height = 0;
 	box->descendant_x0 = box->descendant_y0 = 0;

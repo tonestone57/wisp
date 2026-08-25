@@ -589,22 +589,46 @@ WispStringRef wisp_shm_alloc_string(shm_dom_t *shm, const char *str) {
     // Open addressing / linear probing
     for (uint32_t i = 0; i < SHM_STRING_HASH_SIZE; i++) {
         uint32_t slot = (bucket + i) % SHM_STRING_HASH_SIZE;
-        uint32_t offset = shm->string_hash_table[slot];
+        uint32_t offset = __atomic_load_n(&shm->string_hash_table[slot], __ATOMIC_ACQUIRE);
+
+        while (offset == 0xFFFFFFFF) {
+#ifdef _WIN32
+            YieldProcessor();
+#elif defined(__i386__) || defined(__x86_64__)
+            __builtin_ia32_pause();
+#elif defined(__arm__) || defined(__aarch64__)
+            __asm__ __volatile__("yield" ::: "memory");
+#else
+            usleep(0);
+#endif
+            offset = __atomic_load_n(&shm->string_hash_table[slot], __ATOMIC_ACQUIRE);
+        }
+
         if (offset == 0) {
-            // Allocate new on shared heap top (Atomic Bump Allocator)
-            uint32_t bytes_needed = len + 1;
-            uint32_t cur_top = __atomic_fetch_add(&shm->string_heap_top, bytes_needed, __ATOMIC_SEQ_CST);
-            if (cur_top + bytes_needed > SHM_STRING_HEAP_SIZE) {
-                NSLOG(wisp, ERROR, "[SHM_DOM] Shared string heap out of memory!");
-                return 0;
+            uint32_t expected = 0;
+            if (__atomic_compare_exchange_n(&shm->string_hash_table[slot], &expected, 0xFFFFFFFF, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                // Allocate new on shared heap top (Atomic Bump Allocator)
+                uint32_t bytes_needed = len + 1;
+                uint32_t cur_top = __atomic_fetch_add(&shm->string_heap_top, bytes_needed, __ATOMIC_SEQ_CST);
+                if (cur_top + bytes_needed > SHM_STRING_HEAP_SIZE) {
+                    NSLOG(wisp, ERROR, "[SHM_DOM] Shared string heap out of memory!");
+                    __atomic_store_n(&shm->string_hash_table[slot], 0, __ATOMIC_RELEASE);
+                    return 0;
+                }
+                memcpy(&shm->string_heap[cur_top], str, len);
+                shm->string_heap[cur_top + len] = '\0';
+                uint32_t stored_offset = cur_top + 1; // 1-based offset to distinguish from empty
+                __atomic_store_n(&shm->string_hash_table[slot], stored_offset, __ATOMIC_RELEASE);
+                return wisp_make_string_ref(str, len, cur_top);
+            } else {
+                // CAS failed, slot was modified by another thread/process.
+                // Retry this slot iteration to evaluate the updated offset.
+                i--;
+                continue;
             }
-            memcpy(&shm->string_heap[cur_top], str, len);
-            shm->string_heap[cur_top + len] = '\0';
-            shm->string_hash_table[slot] = cur_top + 1; // 1-based offset to distinguish from empty
-            return wisp_make_string_ref(str, len, cur_top);
         } else {
             uint32_t heap_offset = offset - 1;
-            if (strcmp(&shm->string_heap[heap_offset], str) == 0) {
+            if (heap_offset < SHM_STRING_HEAP_SIZE && strcmp(&shm->string_heap[heap_offset], str) == 0) {
                 return wisp_make_string_ref(str, len, heap_offset);
             }
         }
