@@ -473,8 +473,20 @@ nserror html_font_face_fini(struct html_content *c)
             font_downloads[i].in_use = false;
         }
     }
-    pending_font_count = 0;
 
+    struct loaded_font *entry = loaded_fonts;
+    while (entry != NULL) {
+        struct loaded_font *next = entry->next;
+        if (guit != NULL && guit->layout != NULL && guit->layout->free_font_data != NULL) {
+            guit->layout->free_font_data(&entry->variant);
+        }
+        free(entry->variant.family_name);
+        free(entry);
+        entry = next;
+    }
+    loaded_fonts = NULL;
+    loaded_font_count = 0;
+    pending_font_count = 0;
     return NSERROR_OK;
 }
 
