@@ -35,7 +35,7 @@ static char *core_user_agent_string = NULL;
 static const char *core_user_agent_fallback = "Mozilla/5.0 (Unknown) Wisp/0";
 
 #ifndef WISP_UA_FORMAT_STRING
-#define WISP_UA_FORMAT_STRING "Mozilla/5.0 (%s; Wisp/%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+#define WISP_UA_FORMAT_STRING "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Wisp/%s"
 #endif
 
 /**

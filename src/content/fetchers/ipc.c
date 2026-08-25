@@ -385,8 +385,11 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
     }
 
     if (wisp_network_pid > 0) {
-        /* Wait up to 1000ms for the network process to exit cleanly on its own */
-        int retries = 100;
+#ifndef _WIN32
+        kill(wisp_network_pid, SIGTERM);
+#endif
+        /* Wait up to 200ms for the network process to exit cleanly */
+        int retries = 20;
         bool exited = false;
         while (retries-- > 0) {
 #ifdef _WIN32
