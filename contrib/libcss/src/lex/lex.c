@@ -36,6 +36,8 @@
 #include "utils/css_utils.h"
 #include "lex/lex.h"
 
+#include <wisp/utils/css_delimiters.h>
+
 /** \todo Optimisation -- we're currently revisiting a bunch of input
  *	  characters (Currently, we're calling parserutils_inputstream_peek
  *	  about 1.5x the number of characters in the input stream). Ideally,
@@ -1146,6 +1148,110 @@ start:
     if (lexer->bytesReadForToken > 0) {
         parserutils_inputstream_advance(lexer->input, lexer->bytesReadForToken);
         lexer->bytesReadForToken = 0;
+    }
+
+    /* Fast-path: SIMD whitespace & delimiter scanning on available input buffer */
+    if (lexer->state == sSTART) {
+        const uint8_t *avail_ptr = NULL;
+        size_t avail_len = 0;
+        if (parserutils_inputstream_peek_all(lexer->input, 0, &avail_ptr, &avail_len) == PARSERUTILS_OK && avail_len > 0) {
+            uint8_t first_c = avail_ptr[0];
+            if (isSpace(first_c)) {
+                size_t ws_len = 0;
+                uint32_t start_col = lexer->currentCol;
+                uint32_t start_line = lexer->currentLine;
+                while (ws_len < avail_len && isSpace(avail_ptr[ws_len])) {
+                    uint8_t w = avail_ptr[ws_len];
+                    if (w == '\n' || w == '\f') {
+                        if (!lexer->context.lastWasCR) {
+                            lexer->currentCol = 1;
+                            lexer->currentLine++;
+                        } else {
+                            lexer->currentCol = 1;
+                        }
+                    } else if (lexer->context.lastWasCR) {
+                        lexer->currentCol = 1;
+                        lexer->currentLine++;
+                        if (w != '\r') {
+                            lexer->currentCol++;
+                        }
+                    } else if (w == '\r') {
+                        lexer->currentCol = 1;
+                        lexer->currentLine++;
+                    } else {
+                        lexer->currentCol++;
+                    }
+                    lexer->context.lastWasCR = (w == '\r');
+                    ws_len++;
+                }
+                t->type = CSS_TOKEN_S;
+                t->data.data = (uint8_t *)avail_ptr;
+                t->data.len = ws_len;
+                t->idata = NULL;
+                t->col = start_col;
+                t->line = start_line;
+                *token = t;
+                lexer->state = sSTART;
+                lexer->substate = 0;
+                parserutils_inputstream_advance(lexer->input, ws_len);
+                lexer->bytesReadForToken = 0;
+                return CSS_OK;
+            } else if (startNMStart(first_c) && first_c != '\\') {
+                size_t delim_offset = wisp_scan_css_delimiters(avail_ptr, avail_len);
+                /* Only proceed if a delimiter was found within avail_len bounds to avoid truncating tokens */
+                if (delim_offset > 0 && delim_offset < avail_len) {
+                    bool all_nmchars = true;
+                    for (size_t i = 0; i < delim_offset; i++) {
+                        if (!startNMChar(avail_ptr[i]) || avail_ptr[i] == '\\') {
+                            all_nmchars = false;
+                            delim_offset = i;
+                            break;
+                        }
+                    }
+                    /* Exclude 'url(' / 'URL(' which requires sURL state transition */
+                    bool is_url = (delim_offset == 3 &&
+                                  (avail_ptr[0] == 'u' || avail_ptr[0] == 'U') &&
+                                  (avail_ptr[1] == 'r' || avail_ptr[1] == 'R') &&
+                                  (avail_ptr[2] == 'l' || avail_ptr[2] == 'L'));
+                    if (all_nmchars && delim_offset > 0 && !is_url) {
+                        uint8_t next_c = avail_ptr[delim_offset];
+                        uint32_t start_col = lexer->currentCol;
+                        uint32_t start_line = lexer->currentLine;
+                        if (next_c == '(') {
+                            size_t tok_bytes = delim_offset + 1;
+                            lexer->currentCol += tok_bytes;
+                            t->type = CSS_TOKEN_FUNCTION;
+                            t->data.data = (uint8_t *)avail_ptr;
+                            t->data.len = delim_offset;
+                            t->idata = NULL;
+                            t->col = start_col;
+                            t->line = start_line;
+                            *token = t;
+                            lexer->state = sSTART;
+                            lexer->substate = 0;
+                            parserutils_inputstream_advance(lexer->input, tok_bytes);
+                            lexer->bytesReadForToken = 0;
+                            return CSS_OK;
+                        } else {
+                            size_t tok_bytes = delim_offset;
+                            lexer->currentCol += tok_bytes;
+                            t->type = CSS_TOKEN_IDENT;
+                            t->data.data = (uint8_t *)avail_ptr;
+                            t->data.len = tok_bytes;
+                            t->idata = NULL;
+                            t->col = start_col;
+                            t->line = start_line;
+                            *token = t;
+                            lexer->state = sSTART;
+                            lexer->substate = 0;
+                            parserutils_inputstream_advance(lexer->input, tok_bytes);
+                            lexer->bytesReadForToken = 0;
+                            return CSS_OK;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /* Reset in preparation for the next token */
