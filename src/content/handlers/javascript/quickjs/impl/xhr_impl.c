@@ -439,6 +439,7 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
     nserror err = fetch_start(xhr->url, NULL, xhr_callback, xhr, false, &post, false, false, headers, &xhr->fetch_handle);
     if (err != NSERROR_OK) {
         NSLOG(wisp, ERROR, "XHR fetch failed to start: %s", messages_get_errorcode(err));
+        xhr_set_ready_state(xhr, 4);
         xhr_dispatch_event_helper(xhr, "error");
         xhr_dispatch_event_helper(xhr, "loadend");
     } else {

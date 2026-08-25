@@ -69,6 +69,7 @@ function loadWhichBrowser(cb) {
 	p.push('f=' + f); p.push('r=' + Math.random().toString(36).substring(7)); p.push('w=' + screen.width); p.push('h=' + screen.height);
 
 	var timeout = null;
+	var retries = 0;
 
 	function load() {
 		if (typeof WhichBrowser != 'undefined') {
@@ -88,7 +89,22 @@ function loadWhichBrowser(cb) {
 		}
 
 		if (typeof WhichBrowser == 'undefined') {
-			window.setTimeout(wait, 100)
+			retries++;
+			if (retries > 50) {
+				window.clearTimeout(timeout);
+				if (typeof WhichBrowser == 'undefined') {
+					window.WhichBrowser = function() {
+						this.isDevice = function() { return false; };
+						this.isOs = function() { return false; };
+						this.isBrowser = function() { return false; };
+						this.isType = function(t) { return t === 'desktop'; };
+						this.toString = function() { return 'Desktop Browser'; };
+					};
+				}
+				callback();
+				return;
+			}
+			window.setTimeout(wait, 100);
 		}
 		else {
 			window.clearTimeout(timeout);
