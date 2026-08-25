@@ -828,7 +828,7 @@ dom_hubbub_parser_create(dom_hubbub_parser_params *params, dom_hubbub_parser **p
     }
 
     /* set return parameters */
-    *document = binding->doc;
+    *document = (dom_document *)dom_node_ref((struct dom_node *)binding->doc);
     *parser = binding;
 
     return DOM_HUBBUB_OK;
@@ -974,7 +974,7 @@ void dom_hubbub_parser_destroy(dom_hubbub_parser *parser)
     hubbub_parser_destroy(parser->parser);
     parser->parser = NULL;
 
-    if (parser->doc != NULL && parser->is_fragment) {
+    if (parser->doc != NULL) {
         dom_node_unref((struct dom_node *)parser->doc);
         parser->doc = NULL;
     }
