@@ -2030,11 +2030,14 @@ static void layout_block_find_dimensions(
 	int prev_width = box->width;
 
 	if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width &&
+		box->min_width.value == box->last_min_width && box->max_width == box->last_max_width &&
 		!(box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(box->flags & CHILD_DIRTY)) {
 		return;
 	}
 
 	box->last_available_width = available_width;
+	box->last_min_width = box->min_width.value;
+	box->last_max_width = box->max_width;
 
 	layout_find_dimensions(unit_len_ctx, available_width, viewport_height, box, style, &width, &height, &max_width,
 		&min_width, &max_height, &min_height, margin, padding, border);

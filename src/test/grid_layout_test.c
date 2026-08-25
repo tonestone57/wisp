@@ -1295,6 +1295,65 @@ START_TEST(test_complex_grid_floated_exclusion)
     printf("=== test_complex_grid_floated_exclusion PASSED ===\n");
 }
 
+START_TEST(test_grid_constraint_caching)
+{
+    printf("\n=== test_grid_constraint_caching ===\n");
+
+    struct box *grid = calloc(1, sizeof(struct box));
+    grid->type = BOX_GRID;
+    grid->flags |= DIRTY;
+    grid->x = 0;
+    grid->y = 0;
+    grid->width = 300;
+    grid->height = AUTO;
+    grid->style = (css_computed_style *)dummy_style;
+
+    struct box *child1 = calloc(1, sizeof(struct box));
+    child1->type = BOX_BLOCK;
+    child1->flags |= DIRTY;
+    child1->width = AUTO;
+    child1->height = 50;
+    child1->style = (css_computed_style *)dummy_style;
+    child1->parent = grid;
+
+    grid->children = child1;
+    grid->last = child1;
+
+    memset(&mock_content, 0, sizeof(mock_content));
+    mock_content.unit_len_ctx.device_dpi = (96 << 10);
+    mock_content.unit_len_ctx.font_size_default = (16 << 10);
+    mock_content.unit_len_ctx.viewport_width = (1000 << 10);
+    mock_content.unit_len_ctx.viewport_height = (1000 << 10);
+
+    /* First layout run */
+    bool ok = layout_grid(grid, 300, &mock_content);
+    ck_assert(ok);
+    ck_assert_int_eq(grid->last_available_width, 300);
+    ck_assert_int_eq(grid->last_min_width, grid->min_width.value);
+    ck_assert_int_eq(grid->last_max_width, grid->max_width);
+    ck_assert(!(grid->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY)));
+
+    /* Modify a child position to simulate layout state */
+    child1->x = 999;
+
+    /* Second layout run with identical constraints - should bypass Pass 2/3 auto placement and return early */
+    ok = layout_grid(grid, 300, &mock_content);
+    ck_assert(ok);
+    /* child1->x should remain 999 because layout computation was bypassed due to cached constraints */
+    ck_assert_int_eq(child1->x, 999);
+
+    /* Change available_width - should force re-layout */
+    ok = layout_grid(grid, 350, &mock_content);
+    ck_assert(ok);
+    ck_assert_int_ne(child1->x, 999);
+
+    free(child1);
+    free(grid->computed_col_widths);
+    free(grid);
+
+    printf("=== test_grid_constraint_caching PASSED ===\n");
+}
+
 Suite *grid_test_suite(void)
 {
     Suite *s = suite_create("grid_layout");
@@ -1306,6 +1365,7 @@ Suite *grid_test_suite(void)
     tcase_add_test(tc, test_grid_explicit_column_only);
     tcase_add_test(tc, test_complex_grid_exclusion);
     tcase_add_test(tc, test_complex_grid_floated_exclusion);
+    tcase_add_test(tc, test_grid_constraint_caching);
     suite_add_tcase(s, tc);
     return s;
 }
