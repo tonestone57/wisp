@@ -47,7 +47,7 @@
 #include "content/handlers/image/video.h"
 #include "content/urldb.h"
 
-#define URL_FMT_SPC "%.140s"
+#define URL_FMT_SPC "%.512s"
 
 extern struct wisp_table *guit;
 
