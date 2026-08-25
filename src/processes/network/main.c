@@ -148,11 +148,11 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             if (msg->data.header_or_data.buf && msg->data.header_or_data.len > 0) {
                 const char *hdr_str = (const char *)msg->data.header_or_data.buf;
                 size_t hdr_len = msg->data.header_or_data.len;
-                if (!wisp_simd_validate_http_header(hdr_str, hdr_len)) {
+                if (!wisp_simd_validate_http_header_block(hdr_str, hdr_len)) {
                     NSLOG(wisp, WARNING, "WISP-NETWORK: Invalid header received for fetch_id %u, skipping", fetch_id);
                     break;
                 }
-                if (hdr_len >= 18 && strncasecmp(hdr_str, "Transfer-Encoding:", 18) == 0) {
+                if (hdr_len >= 18 && strcasestr(hdr_str, "Transfer-Encoding:")) {
                     if (strcasestr(hdr_str, "chunked")) {
                         info->is_chunked = true;
                     }
@@ -223,20 +223,20 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
                 }
             }
 
-            if (out_data && out_len > 0) {
-                imsg.type = WISP_IPC_MSG_FETCH_DATA;
-                imsg.length = 4 + out_len;
-                if (imsg.length <= sizeof(stack_buf)) {
-                    imsg.data = stack_buf;
-                } else {
-                    imsg.data = malloc(imsg.length);
-                }
-                if (imsg.data) {
-                    memcpy(imsg.data, &fetch_id, 4);
+            imsg.type = WISP_IPC_MSG_FETCH_DATA;
+            imsg.length = 4 + out_len;
+            if (imsg.length <= sizeof(stack_buf)) {
+                imsg.data = stack_buf;
+            } else {
+                imsg.data = malloc(imsg.length);
+            }
+            if (imsg.data) {
+                memcpy(imsg.data, &fetch_id, 4);
+                if (out_data && out_len > 0) {
                     memcpy(imsg.data + 4, out_data, out_len);
-                    wisp_ipc_send(ipc_main, &imsg);
-                    if (imsg.data != stack_buf) free(imsg.data);
                 }
+                wisp_ipc_send(ipc_main, &imsg);
+                if (imsg.data != stack_buf) free(imsg.data);
             }
             if (decoded_buf) free(decoded_buf);
             break;
