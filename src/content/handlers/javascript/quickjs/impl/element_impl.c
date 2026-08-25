@@ -377,10 +377,6 @@ JSValue wisp_element_innerHTML_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 
 static void append_fragment_children(dom_node *element, dom_node *parent)
 {
-    dom_string *elem_tag = NULL;
-    dom_element_get_tag_name((dom_element *)element, &elem_tag);
-    const char *elem_tag_cstr = elem_tag ? (const char *)dom_string_data(elem_tag) : "";
-
     dom_node *c = NULL;
     while (dom_node_get_first_child(parent, &c) == DOM_NO_ERR && c != NULL) {
         dom_node_type type;
@@ -390,8 +386,7 @@ static void append_fragment_children(dom_node *element, dom_node *parent)
             dom_node_get_node_name(c, &tag);
             if (tag) {
                 const char *tag_cstr = (const char *)dom_string_data(tag);
-                if (strcasecmp(tag_cstr, "html") == 0 || strcasecmp(tag_cstr, "head") == 0 || strcasecmp(tag_cstr, "body") == 0 ||
-                    (elem_tag_cstr && elem_tag_cstr[0] && strcasecmp(tag_cstr, elem_tag_cstr) == 0)) {
+                if (strcasecmp(tag_cstr, "html") == 0 || strcasecmp(tag_cstr, "head") == 0 || strcasecmp(tag_cstr, "body") == 0) {
                     dom_string_unref(tag);
                     append_fragment_children(element, c);
                     dom_node_remove_child(parent, c, NULL);
@@ -408,7 +403,6 @@ static void append_fragment_children(dom_node *element, dom_node *parent)
         dom_node_unref(c);
         c = NULL;
     }
-    if (elem_tag) dom_string_unref(elem_tag);
 }
 
 JSValue wisp_element_innerHTML_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
