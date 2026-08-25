@@ -1533,23 +1533,33 @@ dom_exception _dom_node_get_text_content(dom_node_internal *node, dom_string **r
     dom_exception err;
     dom_node_internal *n;
     dom_string *str = NULL;
-    dom_string *ret = NULL;
 
     assert(node->owner != NULL);
 
     for (n = node->first_child; n != NULL; n = n->next) {
         if (n->type == DOM_COMMENT_NODE || n->type == DOM_PROCESSING_INSTRUCTION_NODE)
             continue;
-        dom_node_get_text_content(n, (str == NULL) ? &str : &ret);
-        if (ret != NULL) {
-            dom_string *new_str;
-            err = dom_string_concat(str, ret, &new_str);
-            dom_string_unref(str);
-            dom_string_unref(ret);
-            if (err != DOM_NO_ERR) {
-                return err;
+        dom_string *child_str = NULL;
+        err = dom_node_get_text_content(n, &child_str);
+        if (err != DOM_NO_ERR) {
+            if (str != NULL) {
+                dom_string_unref(str);
             }
-            str = new_str;
+            return err;
+        }
+        if (child_str != NULL) {
+            if (str == NULL) {
+                str = child_str;
+            } else {
+                dom_string *new_str = NULL;
+                err = dom_string_concat(str, child_str, &new_str);
+                dom_string_unref(str);
+                dom_string_unref(child_str);
+                if (err != DOM_NO_ERR) {
+                    return err;
+                }
+                str = new_str;
+            }
         }
     }
 
