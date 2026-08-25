@@ -7097,7 +7097,11 @@ static void gc_free_cycles(JSRuntime *rt)
     list_for_each_safe(el, el1, &rt->gc_zero_ref_count_list) {
         p = list_entry(el, JSGCObjectHeader, link);
         assert(p->gc_obj_type == JS_GC_OBJ_TYPE_JS_OBJECT ||
-               p->gc_obj_type == JS_GC_OBJ_TYPE_FUNCTION_BYTECODE);
+               p->gc_obj_type == JS_GC_OBJ_TYPE_FUNCTION_BYTECODE ||
+               p->gc_obj_type == JS_GC_OBJ_TYPE_SHAPE ||
+               p->gc_obj_type == JS_GC_OBJ_TYPE_VAR_REF ||
+               p->gc_obj_type == JS_GC_OBJ_TYPE_ASYNC_FUNCTION ||
+               p->gc_obj_type == JS_GC_OBJ_TYPE_JS_CONTEXT);
         js_free_rt(rt, p);
     }
 

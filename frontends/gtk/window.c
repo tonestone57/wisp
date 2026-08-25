@@ -1283,7 +1283,7 @@ static void nsgtk_redraw_caret(struct gui_window *g)
 {
     int sx, sy;
 
-    if (g->careth == 0)
+    if (g->careth <= 0)
         return;
 
     gui_window_get_scroll(g, &sx, &sy);
@@ -1297,7 +1297,7 @@ static void gui_window_remove_caret(struct gui_window *g)
     int sx, sy;
     int oh = g->careth;
 
-    if (oh == 0)
+    if (oh <= 0)
         return;
 
     g->careth = 0;
