@@ -553,6 +553,11 @@ add_wisp_test(test_utf8proc_wrapper
 )
 target_link_libraries(test_utf8proc_wrapper PRIVATE wisp)
 
+add_wisp_test(test_css_simd
+  ${CMAKE_SOURCE_DIR}/src/test/test_css_simd.c
+)
+target_link_libraries(test_css_simd PRIVATE wisp)
+
 
 add_wisp_test(test_utf8
   ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
