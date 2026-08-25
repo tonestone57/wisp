@@ -1187,7 +1187,7 @@ static void nsgtk_finalise(void)
     nsgtk_scaffolding_destroy_all();
     while (window_list != NULL) {
         struct gui_window *gw = window_list;
-        browser_window_destroy(gw->bw);
+        browser_window_destroy(nsgtk_get_browser_window(gw));
     }
     while (gtk_events_pending()) {
         gtk_main_iteration();
