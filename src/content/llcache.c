@@ -121,6 +121,8 @@ typedef struct {
     bool tried_with_tls_downgrade; /**< Whether we've tried TLS 1.2 */
 
     bool tainted_tls; /**< Whether the TLS transport is tainted */
+
+    bool tried_https_upgrade; /**< Whether we've tried upgrading HTTP to HTTPS */
 } llcache_fetch_ctx;
 
 /**
@@ -1068,6 +1070,7 @@ static nserror llcache_object_fetch(llcache_object *object, uint32_t flags, nsur
     object->fetch.redirect_count = redirect_count;
     object->fetch.retries_remaining = llcache->fetch_attempts;
     object->fetch.hsts_in_use = hsts_in_use;
+    object->fetch.tried_https_upgrade = false;
 
     return llcache_object_refetch(object);
 }
@@ -2713,6 +2716,36 @@ static nserror llcache_fetch_ssl_error(llcache_object *object)
 }
 
 
+static bool llcache_try_https_upgrade(llcache_object *object)
+{
+    lwc_string *scheme;
+    bool match = false;
+
+    if (object == NULL || object->fetch.hsts_in_use || object->fetch.tried_https_upgrade) {
+        return false;
+    }
+
+    scheme = nsurl_get_component(object->url, NSURL_SCHEME);
+    if (scheme != NULL) {
+        if (lwc_string_caseless_isequal(scheme, corestring_lwc_http, &match) == lwc_error_ok && match) {
+            nsurl *https_url = NULL;
+            object->fetch.tried_https_upgrade = true;
+            if (nsurl_replace_scheme(object->url, corestring_lwc_https, &https_url) == NSERROR_OK) {
+                nsurl_unref(object->url);
+                object->url = https_url;
+                object->fetch.hsts_in_use = true;
+                lwc_string_unref(scheme);
+                if (llcache_object_refetch(object) == NSERROR_OK) {
+                    return true;
+                }
+                return false;
+            }
+        }
+        lwc_string_unref(scheme);
+    }
+    return false;
+}
+
 /**
  * handle time out while trying to fetch.
  *
@@ -2722,6 +2755,10 @@ static nserror llcache_fetch_ssl_error(llcache_object *object)
 static nserror llcache_fetch_timeout(llcache_object *object)
 {
     llcache_event event;
+
+    if (llcache_try_https_upgrade(object)) {
+        return NSERROR_OK;
+    }
 
     /* The fetch has already been cleaned up by the fetcher but
      * we would like to retry if we can.
@@ -3148,6 +3185,10 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
         break;
 
     case FETCH_ERROR:
+        if (llcache_try_https_upgrade(object)) {
+            break;
+        }
+
         /* An error occurred while fetching */
         /* The fetch has has already been cleaned up by the fetcher */
         object->fetch.state = LLCACHE_FETCH_COMPLETE;

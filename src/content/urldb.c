@@ -3598,6 +3598,53 @@ bool urldb_set_hsts_policy(struct nsurl *url, const char *header)
 }
 
 
+static const char *const hsts_preloaded_domains[] = {
+    "copilot.microsoft.com",
+    "microsoft.com",
+    "bing.com",
+    "google.com",
+    "github.com",
+    "openai.com",
+    "chatgpt.com",
+    "cloudflare.com",
+    "apple.com",
+    "facebook.com",
+    "instagram.com",
+    "twitter.com",
+    "x.com",
+    "wikipedia.org",
+    "youtube.com",
+    "duckduckgo.com",
+    NULL
+};
+
+static bool urldb_is_hsts_preloaded(const char *hostname)
+{
+    size_t host_len;
+    size_t i;
+
+    if (hostname == NULL) {
+        return false;
+    }
+    host_len = strlen(hostname);
+
+    for (i = 0; hsts_preloaded_domains[i] != NULL; i++) {
+        const char *domain = hsts_preloaded_domains[i];
+        size_t dom_len = strlen(domain);
+
+        if (strcasecmp(hostname, domain) == 0) {
+            return true;
+        }
+
+        if (host_len > dom_len &&
+            hostname[host_len - dom_len - 1] == '.' &&
+            strcasecmp(hostname + (host_len - dom_len), domain) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* exported interface documented in content/urldb.h */
 bool urldb_get_hsts_enabled(struct nsurl *url)
 {
@@ -3610,7 +3657,8 @@ bool urldb_get_hsts_enabled(struct nsurl *url)
 
     host = nsurl_get_component(url, NSURL_HOST);
     if (host != NULL) {
-        if (urldb__host_is_ip_address(lwc_string_data(host))) {
+        const char *host_str = lwc_string_data(host);
+        if (urldb__host_is_ip_address(host_str)) {
             /* Host is IP: not enabled */
             lwc_string_unref(host);
             return false;
@@ -3618,6 +3666,11 @@ bool urldb_get_hsts_enabled(struct nsurl *url)
             /* Host is blank: not enabled */
             lwc_string_unref(host);
             return false;
+        }
+
+        if (urldb_is_hsts_preloaded(host_str)) {
+            lwc_string_unref(host);
+            return true;
         }
 
         lwc_string_unref(host);
