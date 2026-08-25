@@ -6996,6 +6996,32 @@ START_TEST(test_quickjs_multinode_text_content)
 }
 END_TEST
 
+START_TEST(test_quickjs_ipc_file_payload_error)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void *)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Verify that an unreadable file payload URL string fails evaluation gracefully */
+    const char *file_url_payload = "file:///nonexistent/wisp-script-123456.js";
+    bool exec_res = js_exec(thread, (const uint8_t *)file_url_payload, strlen(file_url_payload), "file_payload_test");
+    ck_assert_int_eq(exec_res, false);
+
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_csp_already_started)
 {
     corestrings_init();
@@ -7172,6 +7198,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_read_write_selectors);
     tcase_add_test(tc_event_loop, test_quickjs_binary_idb_fonts_svg_security);
     tcase_add_test(tc_event_loop, test_quickjs_multinode_text_content);
+    tcase_add_test(tc_event_loop, test_quickjs_ipc_file_payload_error);
     tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
     suite_add_tcase(s, tc_event_loop);
 
