@@ -58,6 +58,7 @@
 #include <wisp/desktop/gui_internal.h>
 #include <wisp/fetch.h>
 #include <wisp/misc.h>
+#include <wisp/utils/stream_simd.h>
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/file.h>
 #include <wisp/utils/log.h>
@@ -2060,10 +2061,15 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
     struct curl_fetch_info *f = _f;
     int i;
     fetch_msg msg;
-    size *= nmemb;
+    size_t len = size * nmemb;
 
     if (f->abort) {
         f->stopped = true;
+        return 0;
+    }
+
+    if (len > 0 && !wisp_simd_validate_http_header(data, len)) {
+        NSLOG(wisp, WARNING, "cURL fetcher: Invalid HTTP response header received (RFC 7230 violation)");
         return 0;
     }
 

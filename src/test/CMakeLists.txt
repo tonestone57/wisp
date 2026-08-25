@@ -535,6 +535,12 @@ add_wisp_test(test_utf8proc_simd
 )
 target_link_libraries(test_utf8proc_simd PRIVATE wisp)
 
+add_wisp_test(test_stream_simd
+  ${CMAKE_SOURCE_DIR}/src/test/test_stream_simd.c
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+)
+target_link_libraries(test_stream_simd PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(test_js_main
   ${CMAKE_SOURCE_DIR}/src/test/test_js_main.c
   ${CMAKE_SOURCE_DIR}/src/processes/js/main.c
