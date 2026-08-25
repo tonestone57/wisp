@@ -1462,12 +1462,15 @@ JSValue wisp_htmliframeelement_sandbox_get_impl(JSContext *ctx, QJSNodePrivate *
 
 JSValue wisp_htmliframeelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return JS_NULL;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 
 JSValue wisp_htmliframeelement_contentWindow_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
-    return JS_NULL;
+    return JS_GetGlobalObject(ctx);
 }
 
 // -----------------------------------------------------------------------------
@@ -3345,10 +3348,13 @@ JSValue wisp_htmlfontelement_size_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 // -----------------------------------------------------------------------------
 
 JSValue wisp_htmlframeelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 JSValue wisp_htmlframeelement_contentWindow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_GetGlobalObject(ctx);
 }
 JSValue wisp_htmlframeelement_frameBorder_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "frameborder", "");
@@ -8634,7 +8640,10 @@ JSValue wisp_textmetrics_width_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
 // -----------------------------------------------------------------------------
 
 JSValue wisp_htmlobjectelement_getSVGDocument_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 
 JSValue wisp_htmlobjectelement_checkValidity_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -8733,11 +8742,14 @@ JSValue wisp_htmlobjectelement_codeType_set_impl(JSContext *ctx, QJSNodePrivate 
 }
 
 JSValue wisp_htmlobjectelement_contentDocument_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 
 JSValue wisp_htmlobjectelement_contentWindow_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_GetGlobalObject(ctx);
 }
 
 JSValue wisp_htmlobjectelement_data_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
@@ -9399,7 +9411,10 @@ JSValue wisp_htmlembedelement___legacycaller___impl(JSContext *ctx, QJSNodePriva
     return JS_UNDEFINED;
 }
 JSValue wisp_htmlembedelement_getSVGDocument_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 JSValue wisp_htmlembedelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "align", "");
@@ -9446,7 +9461,10 @@ JSValue wisp_htmlembedelement_width_set_impl(JSContext *ctx, QJSNodePrivate *pri
 
 // 11. HTMLIFrameElement Implementation (7 stubs)
 JSValue wisp_htmliframeelement_getSVGDocument_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 JSValue wisp_htmliframeelement_align_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     return get_element_str_attr(ctx, priv, "align", "");
