@@ -212,6 +212,11 @@ add_wisp_test(test_bloom
   ${CMAKE_SOURCE_DIR}/src/test/test_bloom.c
 )
 
+add_wisp_test(test_core_buffer
+  ${CMAKE_SOURCE_DIR}/src/utils/core_buffer.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_core_buffer.c
+)
+
 add_wisp_test(test_hashtable
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
