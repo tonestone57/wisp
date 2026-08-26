@@ -198,6 +198,62 @@ START_TEST(core_buffer_init_destroy_test)
 }
 END_TEST
 
+START_TEST(core_buffer_length_test)
+{
+    core_buffer buf;
+    const uint8_t chunk1[] = "Hello";
+    const uint8_t chunk2[] = ", World!";
+    uint8_t ext_data[] = "external_buffer_content";
+    size_t ext_len = strlen((char *)ext_data);
+
+    /* 1. NULL buffer pointer */
+    ck_assert_int_eq(core_buffer_length(NULL), 0);
+
+    /* 2. Initialized empty buffer */
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    /* 3. Buffer after reserve (capacity allocated, length remains 0) */
+    ck_assert_int_eq(core_buffer_reserve(&buf, 128), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    /* 4. Sequential appends */
+    ck_assert_int_eq(core_buffer_append(&buf, chunk1, strlen((char *)chunk1)), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 5);
+
+    ck_assert_int_eq(core_buffer_append(&buf, chunk2, strlen((char *)chunk2)), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 13);
+
+    /* 5. Clear buffer resets length to 0 */
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    /* Append again after clear */
+    ck_assert_int_eq(core_buffer_append(&buf, chunk1, strlen((char *)chunk1)), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 5);
+
+    /* 6. Shrink non-empty buffer preserves length */
+    ck_assert_int_eq(core_buffer_shrink(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 5);
+
+    /* Clear and shrink keeps length at 0 */
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_shrink(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    core_buffer_destroy(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    /* 7. Wrapped external buffer length */
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, ext_data, ext_len), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), ext_len);
+
+    core_buffer_destroy(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+}
+END_TEST
+
 /* --- core_buffer_reserve Allocation Logic Tests --- */
 
 START_TEST(core_buffer_reserve_initial_allocation_test)
@@ -428,6 +484,7 @@ static Suite *core_buffer_suite(void)
     TCase *tc_api = tcase_create("API & Validation");
     tcase_add_test(tc_api, core_buffer_null_parameter_test);
     tcase_add_test(tc_api, core_buffer_init_destroy_test);
+    tcase_add_test(tc_api, core_buffer_length_test);
     suite_add_tcase(s, tc_api);
 
     TCase *tc_reserve = tcase_create("Reserve & Allocation");
