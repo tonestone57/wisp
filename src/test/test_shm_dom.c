@@ -28,6 +28,26 @@ START_TEST(test_shm_dom_create)
 }
 END_TEST
 
+START_TEST(test_shm_dom_create_long_name_truncation)
+{
+    // Test safe truncation and NUL termination of long shm_name strings via snprintf
+    const char *long_name = "/test_shm_dom_create_with_an_extremely_long_name_that_exceeds_sixty_four_bytes_buffer_capacity_limit";
+    uint32_t capacity = 100;
+    bool is_server = true;
+
+    shm_dom_t *shm = shm_dom_create(long_name, capacity, is_server);
+
+    ck_assert_ptr_nonnull(shm);
+    ck_assert_int_eq(shm->is_server, is_server);
+    ck_assert_int_eq(shm->node_capacity, capacity);
+    ck_assert_int_eq(strlen(shm->shm_name), sizeof(shm->shm_name) - 1);
+    ck_assert_int_eq(shm->shm_name[sizeof(shm->shm_name) - 1], '\0');
+    ck_assert_int_eq(strncmp(shm->shm_name, long_name, sizeof(shm->shm_name) - 1), 0);
+
+    shm_dom_destroy(shm, long_name, is_server);
+}
+END_TEST
+
 START_TEST(test_shm_dom_destroy_null)
 {
     // Test that destroying a NULL pointer doesn't crash
@@ -405,6 +425,7 @@ static Suite *shm_dom_suite(void)
     TCase *tc_core = tcase_create("Core");
 
     tcase_add_test(tc_core, test_shm_dom_create);
+    tcase_add_test(tc_core, test_shm_dom_create_long_name_truncation);
     tcase_add_test(tc_core, test_shm_dom_destroy_null);
     tcase_add_test(tc_core, test_shm_dom_lock_read);
     tcase_add_test(tc_core, test_shm_mutation_enqueue_native);
