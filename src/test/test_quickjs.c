@@ -154,6 +154,69 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_element_closest)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(10, &heap), NSERROR_OK);
+
+    struct dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    jsthread *thread;
+    ck_assert_int_eq(js_newthread(heap, doc, doc, &thread), NSERROR_OK);
+    dom_node_unref((dom_node *)doc);
+
+    const char *code =
+        "function assert(val, msg) { if (!val) throw new Error(msg || 'Assertion failed'); }\n"
+        "var table = document.createElement('table');\n"
+        "table.className = 'tree';\n"
+        "var tbody = document.createElement('tbody');\n"
+        "var tr = document.createElement('tr');\n"
+        "tr.className = 'treegrid-1';\n"
+        "var td = document.createElement('td');\n"
+        "td.className = 'treegrid-cell';\n"
+        "var span = document.createElement('span');\n"
+        "span.className = 'expander';\n"
+        "\n"
+        "td.appendChild(span);\n"
+        "tr.appendChild(td);\n"
+        "tbody.appendChild(tr);\n"
+        "table.appendChild(tbody);\n"
+        "document.body.appendChild(table);\n"
+        "\n"
+        "assert(span.closest('.expander') === span, 'span.closest(.expander) failed');\n"
+        "assert(span.closest('td') === td, 'span.closest(td) failed');\n"
+        "assert(span.closest('tr') === tr, 'span.closest(tr) failed');\n"
+        "assert(span.closest('tr.treegrid-1') === tr, 'span.closest(tr.treegrid-1) failed');\n"
+        "assert(span.closest('table') === table, 'span.closest(table) failed');\n"
+        "assert(span.closest('.tree') === table, 'span.closest(.tree) failed');\n"
+        "assert(span.closest('div') === null, 'span.closest(div) should be null');\n"
+        "assert(table.closest('table') === table, 'table.closest(table) failed');\n"
+        "assert(table.closest('body') === document.body, 'table.closest(body) failed');\n"
+        "\n"
+        "document.body.removeChild(table);\n"
+        "1;\n";
+
+    JSValue val = js_eval_with_aot_cache(thread->ctx, (const uint8_t *)code, strlen(code), "test_closest", JS_EVAL_TYPE_GLOBAL);
+    if (JS_IsException(val)) {
+        JSValue exc = JS_GetException(thread->ctx);
+        const char *exc_str = JS_ToCString(thread->ctx, exc);
+        fprintf(stderr, "\n--- EXCEPTION in test_quickjs_element_closest: %s ---\n\n", exc_str ? exc_str : "unknown");
+        if (exc_str) JS_FreeCString(thread->ctx, exc_str);
+        JS_FreeValue(thread->ctx, exc);
+        ck_assert(false);
+    }
+    JS_FreeValue(thread->ctx, val);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_xhr_response_types)
 {
     jsheap *heap = NULL;
@@ -7220,6 +7283,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_predictive_layout);
     tcase_add_test(tc_event_loop, test_quickjs_bbmq_circular_queue);
     tcase_add_test(tc_event_loop, test_quickjs_read_write_selectors);
+    tcase_add_test(tc_event_loop, test_quickjs_element_closest);
     tcase_add_test(tc_event_loop, test_quickjs_binary_idb_fonts_svg_security);
     tcase_add_test(tc_event_loop, test_quickjs_multinode_text_content);
     tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
