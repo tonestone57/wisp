@@ -341,6 +341,50 @@ START_TEST(test_hlcache_finalise_with_pending_retrieval_ctx)
 }
 END_TEST
 
+START_TEST(test_hlcache_clean_eviction)
+{
+    guit = &mock_gui_table;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    content_factory_register_handler("image/svg+xml", &dummy_handler);
+
+    struct hlcache_parameters params = {
+        .bg_clean_time = 10000,
+        .llcache = {
+            .limit = 500, /* Small limit to test eviction */
+        },
+    };
+
+    nserror error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t data1[32] = "<svg><rect id='1'/></svg>";
+    uint8_t data2[32] = "<svg><rect id='2'/></svg>";
+
+    hlcache_handle *handle1 = NULL;
+    hlcache_handle *handle2 = NULL;
+
+    error = hlcache_handle_retrieve_buffer(data1, strlen((char *)data1), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle1);
+    ck_assert_int_eq(error, NSERROR_OK);
+    pump_scheduled();
+
+    error = hlcache_handle_retrieve_buffer(data2, strlen((char *)data2), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle2);
+    ck_assert_int_eq(error, NSERROR_OK);
+    pump_scheduled();
+
+    /* Release handles to mark content unused */
+    ck_assert_int_eq(hlcache_handle_release(handle1), NSERROR_OK);
+    ck_assert_int_eq(hlcache_handle_release(handle2), NSERROR_OK);
+
+    /* Pump background clean timer */
+    pump_scheduled();
+
+    hlcache_stop();
+    hlcache_finalise();
+}
+END_TEST
+
 static Suite *hlcache_suite(void)
 {
     Suite *s = suite_create("hlcache");
@@ -352,6 +396,7 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_abort_and_replace_callback);
     tcase_add_test(tc_core, test_hlcache_sync_result_populated_during_catchup);
     tcase_add_test(tc_core, test_hlcache_finalise_with_pending_retrieval_ctx);
+    tcase_add_test(tc_core, test_hlcache_clean_eviction);
     suite_add_tcase(s, tc_core);
 
     return s;
