@@ -47,8 +47,43 @@
 #endif
 #ifdef _WIN32
 #include <io.h>
+#include <share.h>
 #define fsync _commit
 #include <windows.h>
+
+static int mkstemp_win32(char *tname)
+{
+    int fd = -1;
+    size_t len;
+    if (tname == NULL) {
+        return -1;
+    }
+    len = strlen(tname);
+    if (len < 6 || strcmp(tname + len - 6, "XXXXXX") != 0) {
+        return -1;
+    }
+
+    for (int attempts = 0; attempts < 100; attempts++) {
+        char template_buf[MAX_PATH];
+        if (len >= sizeof(template_buf)) {
+            return -1;
+        }
+        memcpy(template_buf, tname, len + 1);
+
+        if (_mktemp_s(template_buf, len + 1) != 0) {
+            static const char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            for (int i = 0; i < 6; i++) {
+                template_buf[len - 6 + i] = chars[rand() % (sizeof(chars) - 1)];
+            }
+        }
+
+        if (_sopen_s(&fd, template_buf, _O_RDWR | _O_CREAT | _O_EXCL | _O_BINARY, _SH_DENYNO, _S_IREAD | _S_IWRITE) == 0 && fd != -1) {
+            memcpy(tname, template_buf, len + 1);
+            return fd;
+        }
+    }
+    return -1;
+}
 #endif
 #ifdef _WIN32
 static int open_file_binary(const char *fname, int flags, int mode)
@@ -1067,8 +1102,7 @@ static nserror write_entries(struct store_state *state)
     }
 
 #ifdef _WIN32
-    _mktemp_s(tname, strlen(tname) + 1);
-    weistate.fd = open_file_binary(tname, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    weistate.fd = mkstemp_win32(tname);
 #else
     weistate.fd = mkstemp(tname);
 #endif
@@ -1224,8 +1258,7 @@ static nserror write_blocks(struct store_state *state)
     }
 
 #ifdef _WIN32
-    _mktemp_s(tname, strlen(tname) + 1);
-    fd = open_file_binary(tname, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    fd = mkstemp_win32(tname);
 #else
     fd = mkstemp(tname);
 #endif
