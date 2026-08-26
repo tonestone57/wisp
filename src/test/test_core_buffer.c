@@ -399,27 +399,190 @@ START_TEST(core_buffer_append_test)
 }
 END_TEST
 
-START_TEST(core_buffer_clear_test)
+/* --- Dedicated core_buffer_clear Unit Tests --- */
+
+START_TEST(core_buffer_clear_null_test)
+{
+    /* Clear handles NULL pointer without crashing */
+    core_buffer_clear(NULL);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_unallocated_test)
 {
     core_buffer buf;
-    const uint8_t text[] = "Test data for clear";
 
     ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
-    ck_assert_int_eq(core_buffer_append(&buf, text, strlen((char *)text)), NSERROR_OK);
-    ck_assert_int_eq(core_buffer_length(&buf), strlen((char *)text));
-    ck_assert_int_eq(buf.allocated, 64);
+    ck_assert(buf.data == NULL);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_int_eq(buf.length, 0);
 
-    /* Clear resets length to 0 without freeing memory */
+    /* Clear on unallocated empty buffer */
+    core_buffer_clear(&buf);
+    ck_assert(buf.data == NULL);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_int_eq(buf.length, 0);
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_reserved_test)
+{
+    core_buffer buf;
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_reserve(&buf, 100), NSERROR_OK);
+
+    uint8_t *allocated_ptr = buf.data;
+    size_t allocated_size = buf.allocated;
+
+    ck_assert(allocated_ptr != NULL);
+    ck_assert_int_eq(buf.length, 0);
+    ck_assert(allocated_size >= 100);
+
+    /* Clear on reserved empty buffer should preserve data pointer and capacity */
+    core_buffer_clear(&buf);
+    ck_assert_ptr_eq(buf.data, allocated_ptr);
+    ck_assert_int_eq(buf.allocated, allocated_size);
+    ck_assert_int_eq(buf.length, 0);
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_appended_heap_test)
+{
+    core_buffer buf;
+    const uint8_t initial_data[] = "abcdefghijklmnopqrstuvwxyz";
+    const uint8_t replacement_data[] = "12345";
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_append(&buf, initial_data, sizeof(initial_data)), NSERROR_OK);
+
+    uint8_t *allocated_ptr = buf.data;
+    size_t allocated_size = buf.allocated;
+
+    ck_assert_int_eq(core_buffer_length(&buf), sizeof(initial_data));
+
+    /* Clear resets length to 0 while maintaining allocation */
     core_buffer_clear(&buf);
     ck_assert_int_eq(core_buffer_length(&buf), 0);
-    ck_assert_int_eq(buf.allocated, 64);
-    ck_assert(buf.data != NULL);
+    ck_assert_ptr_eq(buf.data, allocated_ptr);
+    ck_assert_int_eq(buf.allocated, allocated_size);
 
-    /* Append after clear should start from offset 0 */
-    const uint8_t new_text[] = "New content";
-    ck_assert_int_eq(core_buffer_append(&buf, new_text, strlen((char *)new_text)), NSERROR_OK);
-    ck_assert_int_eq(core_buffer_length(&buf), strlen((char *)new_text));
-    ck_assert_mem_eq(core_buffer_data(&buf), "New content", strlen((char *)new_text));
+    /* Appending after clear writes at offset 0 */
+    ck_assert_int_eq(core_buffer_append(&buf, replacement_data, sizeof(replacement_data)), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), sizeof(replacement_data));
+    ck_assert_mem_eq(core_buffer_data(&buf), replacement_data, sizeof(replacement_data));
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_wrapped_external_test)
+{
+    core_buffer buf;
+    uint8_t external_mem[] = "external_read_only_buffer";
+    size_t ext_len = strlen((char *)external_mem);
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, external_mem, ext_len), NSERROR_OK);
+
+    ck_assert_ptr_eq(buf.data, external_mem);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_int_eq(core_buffer_length(&buf), ext_len);
+
+    /* Clearing wrapped external buffer resets length to 0 without altering data pointer or allocated size (0) */
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+    ck_assert_ptr_eq(buf.data, external_mem);
+    ck_assert_int_eq(buf.allocated, 0);
+
+    /* External memory remains unchanged */
+    ck_assert_str_eq((char *)external_mem, "external_read_only_buffer");
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_wrapped_external_then_append_test)
+{
+    core_buffer buf;
+    uint8_t external_mem[] = "static_buffer";
+    size_t ext_len = strlen((char *)external_mem);
+    const uint8_t new_payload[] = "heap_payload";
+    size_t pay_len = strlen((char *)new_payload);
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, external_mem, ext_len), NSERROR_OK);
+
+    /* Clear the external buffer */
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    /* Appending after clear should transition to heap allocation starting at offset 0 */
+    ck_assert_int_eq(core_buffer_append(&buf, new_payload, pay_len), NSERROR_OK);
+    ck_assert(buf.data != external_mem);
+    ck_assert(buf.allocated >= pay_len);
+    ck_assert_int_eq(core_buffer_length(&buf), pay_len);
+    ck_assert_mem_eq(core_buffer_data(&buf), new_payload, pay_len);
+
+    /* External memory must remain unmodified */
+    ck_assert_str_eq((char *)external_mem, "static_buffer");
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_idempotency_test)
+{
+    core_buffer buf;
+    const uint8_t sample[] = "idempotency_test_data";
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_append(&buf, sample, strlen((char *)sample)), NSERROR_OK);
+
+    uint8_t *allocated_ptr = buf.data;
+    size_t allocated_size = buf.allocated;
+
+    /* Multiple consecutive core_buffer_clear calls */
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+    ck_assert_ptr_eq(buf.data, allocated_ptr);
+    ck_assert_int_eq(buf.allocated, allocated_size);
+
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+    ck_assert_ptr_eq(buf.data, allocated_ptr);
+    ck_assert_int_eq(buf.allocated, allocated_size);
+
+    core_buffer_clear(&buf);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+    ck_assert_ptr_eq(buf.data, allocated_ptr);
+    ck_assert_int_eq(buf.allocated, allocated_size);
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_clear_reuse_cycles_test)
+{
+    core_buffer buf;
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+
+    for (int cycle = 0; cycle < 10; cycle++) {
+        char cycle_data[32];
+        snprintf(cycle_data, sizeof(cycle_data), "cycle_payload_%d", cycle);
+        size_t len = strlen(cycle_data);
+
+        ck_assert_int_eq(core_buffer_append(&buf, (const uint8_t *)cycle_data, len), NSERROR_OK);
+        ck_assert_int_eq(core_buffer_length(&buf), len);
+        ck_assert_mem_eq(core_buffer_data(&buf), cycle_data, len);
+
+        core_buffer_clear(&buf);
+        ck_assert_int_eq(core_buffer_length(&buf), 0);
+    }
 
     core_buffer_destroy(&buf);
 }
@@ -494,16 +657,26 @@ static Suite *core_buffer_suite(void)
     tcase_add_test(tc_reserve, core_buffer_reserve_external_wrapped_transition_test);
     suite_add_tcase(s, tc_reserve);
 
-    TCase *tc_ops = tcase_create("Append, Clear & Shrink");
+    TCase *tc_ops = tcase_create("Append & Shrink");
     tcase_add_test(tc_ops, core_buffer_append_test);
     tcase_add_test(tc_ops, core_buffer_append_zero_length_test);
     tcase_add_test(tc_ops, core_buffer_append_binary_data_test);
     tcase_add_test(tc_ops, core_buffer_append_wrapped_external_test);
     tcase_add_test(tc_ops, core_buffer_append_multiple_reallocations_test);
-    tcase_add_test(tc_ops, core_buffer_clear_test);
     tcase_add_test(tc_ops, core_buffer_shrink_test);
     tcase_add_test(tc_ops, core_buffer_wrap_external_destroy_test);
     suite_add_tcase(s, tc_ops);
+
+    TCase *tc_clear = tcase_create("Clear Operations");
+    tcase_add_test(tc_clear, core_buffer_clear_null_test);
+    tcase_add_test(tc_clear, core_buffer_clear_unallocated_test);
+    tcase_add_test(tc_clear, core_buffer_clear_reserved_test);
+    tcase_add_test(tc_clear, core_buffer_clear_appended_heap_test);
+    tcase_add_test(tc_clear, core_buffer_clear_wrapped_external_test);
+    tcase_add_test(tc_clear, core_buffer_clear_wrapped_external_then_append_test);
+    tcase_add_test(tc_clear, core_buffer_clear_idempotency_test);
+    tcase_add_test(tc_clear, core_buffer_clear_reuse_cycles_test);
+    suite_add_tcase(s, tc_clear);
 
     return s;
 }
