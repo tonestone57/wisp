@@ -45,6 +45,7 @@
 #include <wisp/content/handlers/html/html.h>
 #include <wisp/content/handlers/html/private.h>
 #include <wisp/content/csp.h>
+#include <dom/html/html_script_element.h>
 
 #include <nsutils/time.h>
 
@@ -653,8 +654,13 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
         return DOM_HUBBUB_OK; /* dom error */
     }
 
-    if (c->parse_completed) {
-        /* After parse completed, all scripts are essentially async */
+    dom_html_script_element_flags flags = 0;
+    (void)dom_html_script_element_get_flags((dom_html_script_element *)node, &flags);
+    bool parser_inserted = (flags & DOM_HTML_SCRIPT_ELEMENT_FLAG_PARSER_INSERTED) != 0;
+
+    if (c->parse_completed || !parser_inserted) {
+        /* After parse completed or for non-parser-inserted (dynamically script-created) script elements,
+         * execution is asynchronous per HTML5 specification unless explicitly specified */
         async = true;
         defer = false;
     }
