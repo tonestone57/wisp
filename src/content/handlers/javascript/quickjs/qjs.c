@@ -7051,8 +7051,11 @@ static dom_node *get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_do
     return node;
 }
 
-static dom_node *ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc)
+static dom_node *ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc, bool *created_out)
 {
+    if (created_out)
+        *created_out = false;
+
     if (!shm || !doc || id == 0 || id == 0xFFFFFFFF)
         return NULL;
     uint32_t idx = (uint32_t)id;
@@ -7128,15 +7131,21 @@ static dom_node *ensure_host_node(shm_dom_t *shm, uint64_t id, dom_document *doc
     }
 
     if (new_node) {
+        if (created_out)
+            *created_out = true;
+
         shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)new_node;
 
         // Recursively create and append child nodes from SHM
         uint64_t child_id = sn->first_child_id;
         while (child_id != 0) {
-            dom_node *child_node = ensure_host_node(shm, child_id, doc);
+            bool child_created = false;
+            dom_node *child_node = ensure_host_node(shm, child_id, doc, &child_created);
             if (child_node) {
                 dom_node_append_child(new_node, child_node, NULL);
-                dom_node_unref(child_node);
+                if (child_created) {
+                    dom_node_unref(child_node);
+                }
             }
             WispCompactNode *child_sn = &shm_dom_get_nodes(shm)[child_id];
             child_id = child_sn->next_sibling_id;
@@ -7150,9 +7159,10 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
     if (!doc)
         return;
 
-    dom_node *target = ensure_host_node(shm, m->target_id, doc);
-    dom_node *param1 = ensure_host_node(shm, m->param1_id, doc);
-    dom_node *param2 = ensure_host_node(shm, m->param2_id, doc);
+    bool param1_created = false;
+    dom_node *target = ensure_host_node(shm, m->target_id, doc, NULL);
+    dom_node *param1 = ensure_host_node(shm, m->param1_id, doc, &param1_created);
+    dom_node *param2 = ensure_host_node(shm, m->param2_id, doc, NULL);
 
     const char *m_name_cstr = wisp_string_ref_data(shm, m->name);
     const char *m_value_cstr = wisp_string_ref_data(shm, m->value);
@@ -7185,6 +7195,9 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
     case SHM_MUTATION_APPEND_CHILD: {
         if (target && param1) {
             dom_node_append_child(target, param1, NULL);
+            if (param1_created) {
+                dom_node_unref(param1);
+            }
         }
         break;
     }
@@ -7197,12 +7210,18 @@ static void apply_shm_mutation(shm_dom_t *shm, shm_mutation_t *m, struct dom_doc
     case SHM_MUTATION_INSERT_BEFORE: {
         if (target && param1) {
             dom_node_insert_before(target, param1, param2, NULL);
+            if (param1_created) {
+                dom_node_unref(param1);
+            }
         }
         break;
     }
     case SHM_MUTATION_REPLACE_CHILD: {
         if (target && param1 && param2) {
             dom_node_replace_child(target, param1, param2, NULL);
+            if (param1_created) {
+                dom_node_unref(param1);
+            }
         }
         break;
     }
