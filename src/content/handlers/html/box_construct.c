@@ -3224,26 +3224,11 @@ static void convert_xml_to_box(void *p)
 
 		if (next == NULL) {
 			/* Conversion complete */
-			struct box root;
-
-			memset(&root, 0, sizeof(root));
-
-			root.type = BOX_BLOCK;
-			root.children = root.last = ctx->root_box;
-			root.children->parent = &root;
-
-			/** \todo Remove box_normalise_block */
-			if (box_normalise_block(&root, ctx->root_box, (struct html_content *)ctx->content) == false) {
-				NSLOG(wisp, WARNING, "box_normalise_block failed");
-				ctx->cb(ctx->content, false);
-				if (ctx->root_box != NULL)
-					box_free(ctx->root_box);
-			} else {
-				ctx->content->layout = root.children;
+			ctx->content->layout = ctx->root_box;
+			if (ctx->content->layout != NULL)
 				ctx->content->layout->parent = NULL;
 
-				ctx->cb(ctx->content, true);
-			}
+			ctx->cb(ctx->content, true);
 
 			assert(ctx->n == NULL);
 
