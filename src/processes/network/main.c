@@ -152,9 +152,17 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
                     NSLOG(wisp, WARNING, "WISP-NETWORK: Invalid header received for fetch_id %u, skipping", fetch_id);
                     break;
                 }
-                if (hdr_len >= 18 && strcasestr(hdr_str, "Transfer-Encoding:")) {
-                    if (strcasestr(hdr_str, "chunked")) {
+                /* Use stack/heap buffer with explicit null termination for safe strcasestr search */
+                char stack_hdr[512];
+                char *safe_hdr = (hdr_len < sizeof(stack_hdr)) ? stack_hdr : malloc(hdr_len + 1);
+                if (safe_hdr) {
+                    memcpy(safe_hdr, hdr_str, hdr_len);
+                    safe_hdr[hdr_len] = '\0';
+                    if (strcasestr(safe_hdr, "Transfer-Encoding:") && strcasestr(safe_hdr, "chunked")) {
                         info->is_chunked = true;
+                    }
+                    if (safe_hdr != stack_hdr) {
+                        free(safe_hdr);
                     }
                 }
             }

@@ -327,8 +327,8 @@ wisp_chunk_decode_result wisp_simd_decode_chunked_stream(const uint8_t *in, size
         }
 
         if (csize == 0) {
-            /* Final 0-length chunk requires trailing CRLF sequence */
-            if (in_pos + hlen + 2 > in_len) {
+            /* Overflow-safe check: final 0-length chunk requires trailing CRLF sequence */
+            if (hlen + 2 > in_len - in_pos) {
                 res.is_incomplete = true;
                 break;
             }
@@ -341,13 +341,14 @@ wisp_chunk_decode_result wisp_simd_decode_chunked_stream(const uint8_t *in, size
             break;
         }
 
-        /* Check if full chunk payload + trailing CRLF is available in stream */
-        if (in_pos + hlen + csize + 2 > in_len) {
+        /* Overflow-safe check: full chunk payload + trailing CRLF must fit within remaining stream input */
+        if (hlen + 2 > in_len - in_pos || csize > in_len - in_pos - hlen - 2) {
             res.is_incomplete = true;
             break;
         }
 
-        if (out_pos + csize > out_capacity) {
+        /* Overflow-safe check: decoded payload must fit within remaining output buffer capacity */
+        if (csize > out_capacity - out_pos) {
             res.is_invalid = true;
             break;
         }
