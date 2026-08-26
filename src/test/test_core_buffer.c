@@ -618,6 +618,44 @@ START_TEST(core_buffer_shrink_test)
 }
 END_TEST
 
+START_TEST(core_buffer_wrap_external_test)
+{
+    core_buffer buf;
+    uint8_t ext_data1[] = "hello external buffer";
+    size_t len1 = strlen((char *)ext_data1);
+    uint8_t ext_data2[] = "secondary buffer data";
+    size_t len2 = strlen((char *)ext_data2);
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+
+    /* 1. Wrapping valid non-NULL external data */
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, ext_data1, len1), NSERROR_OK);
+    ck_assert_ptr_eq(buf.data, ext_data1);
+    ck_assert_int_eq(buf.length, len1);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_ptr_eq(core_buffer_data(&buf), ext_data1);
+    ck_assert_int_eq(core_buffer_length(&buf), len1);
+
+    /* 2. Wrapping NULL data with 0 length */
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, NULL, 0), NSERROR_OK);
+    ck_assert_ptr_eq(buf.data, NULL);
+    ck_assert_int_eq(buf.length, 0);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_ptr_eq(core_buffer_data(&buf), NULL);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+
+    /* 3. Re-wrapping buffer with different external data and length */
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, ext_data2, len2), NSERROR_OK);
+    ck_assert_ptr_eq(buf.data, ext_data2);
+    ck_assert_int_eq(buf.length, len2);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_ptr_eq(core_buffer_data(&buf), ext_data2);
+    ck_assert_int_eq(core_buffer_length(&buf), len2);
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
 START_TEST(core_buffer_wrap_external_destroy_test)
 {
     core_buffer buf;
@@ -664,6 +702,7 @@ static Suite *core_buffer_suite(void)
     tcase_add_test(tc_ops, core_buffer_append_wrapped_external_test);
     tcase_add_test(tc_ops, core_buffer_append_multiple_reallocations_test);
     tcase_add_test(tc_ops, core_buffer_shrink_test);
+    tcase_add_test(tc_ops, core_buffer_wrap_external_test);
     tcase_add_test(tc_ops, core_buffer_wrap_external_destroy_test);
     suite_add_tcase(s, tc_ops);
 
