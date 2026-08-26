@@ -641,7 +641,24 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
         /* Evaluate Cross-Origin Resource Policy (CORP) */
         if (ctx != NULL && ctx->child.parent_url != NULL) {
             nsurl *res_url = llcache_handle_get_url(handle);
-            if (res_url != NULL && !nsurl_compare(ctx->child.parent_url, res_url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
+            bool is_internal_scheme = false;
+            if (res_url != NULL) {
+                lwc_string *scheme = nsurl_get_component(res_url, NSURL_SCHEME);
+                if (scheme != NULL) {
+                    const char *scheme_str = lwc_string_data(scheme);
+                    if (strcasecmp(scheme_str, "resource") == 0 ||
+                        strcasecmp(scheme_str, "file") == 0 ||
+                        strcasecmp(scheme_str, "about") == 0 ||
+                        strcasecmp(scheme_str, "x-ns-css") == 0 ||
+                        strcasecmp(scheme_str, "wisp-inline") == 0) {
+                        is_internal_scheme = true;
+                    }
+                    lwc_string_unref(scheme);
+                }
+            }
+
+            if (res_url != NULL && !is_internal_scheme &&
+                !nsurl_compare(ctx->child.parent_url, res_url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
                 bool corp_allowed = false;
                 const llcache_header_value *corp_hdr = llcache_handle_get_header(handle, LLCACHE_HEADER_CROSS_ORIGIN_RESOURCE_POLICY);
                 if (corp_hdr != NULL && corp_hdr->count > 0 && corp_hdr->entries[0].raw_value != NULL) {

@@ -1240,11 +1240,11 @@ static void nsgtk_finalise(void)
         respaths = NULL;
     }
 
-    gtk_fetch_filetype_fin();
-    nsgtk_free_resources();
-
     /* common finalisation */
     wisp_exit();
+
+    gtk_fetch_filetype_fin();
+    nsgtk_free_resources();
 
     /* Clean up scheduled callbacks */
     nsgtk_schedule_finalise();
