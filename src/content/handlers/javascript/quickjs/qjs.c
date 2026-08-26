@@ -6100,6 +6100,9 @@ nserror js_newthread(jsheap *heap, void *win_priv, void *doc_priv, jsthread **th
     jsthread *t = calloc(1, sizeof(*t));
     if (!t)
         return NSERROR_NOMEM;
+    for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
+        t->node_wrapper_cache[i] = JS_UNDEFINED;
+    }
     JS_UpdateStackTop(heap->rt);
     t->ctx = JS_NewContext(heap->rt);
     if (!t->ctx) {
@@ -6422,10 +6425,19 @@ void js_destroythread(jsthread *thread)
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx = thread->ctx;
 
-        /* 1. Set opaque to NULL so no more callbacks are made */
+        /* 1. Free node wrapper cache entries safely (clear slot before JS_FreeValue to prevent re-entrant double free) */
+        for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
+            if (JS_VALUE_GET_TAG(thread->node_wrapper_cache[i]) != JS_TAG_UNDEFINED) {
+                JSValue val = thread->node_wrapper_cache[i];
+                thread->node_wrapper_cache[i] = JS_UNDEFINED;
+                JS_FreeValue(ctx, val);
+            }
+        }
+
+        /* 2. Set opaque to NULL so no more callbacks are made */
         JS_SetContextOpaque(ctx, NULL);
 
-        /* 2. Run DOM bridge cleanup first while context is fully alive. */
+        /* 3. Run DOM bridge cleanup first while context is fully alive. */
         qjs_finalise_dom_bridge(rt, ctx);
 
         /* 3. Run full GC cycles to collect and finalize all QuickJS DOM wrapper objects before node cleanup */
