@@ -2350,7 +2350,6 @@ nserror fetch_curl_register(void)
     SETOPT(CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_NONE);
 #endif
 
-    SETOPT(CURLOPT_HTTP_TRANSFER_DECODING, 0L);
     SETOPT(CURLOPT_WRITEFUNCTION, fetch_curl_data);
     if (fetch_curl_share) {
         SETOPT(CURLOPT_SHARE, fetch_curl_share);
