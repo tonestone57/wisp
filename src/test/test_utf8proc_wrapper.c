@@ -249,10 +249,11 @@ START_TEST(test_wisp_utf8proc_decompose)
 {
     /* ASCII fast-path */
     const char *ascii_str = "hello_world";
+    size_t ascii_len = strlen(ascii_str);
     int32_t buf[32];
     utf8proc_ssize_t res = wisp_utf8proc_decompose((const uint8_t *)ascii_str, -1, buf, 32, UTF8PROC_STABLE);
-    ck_assert_int_eq(res, (utf8proc_ssize_t)strlen(ascii_str));
-    for (size_t i = 0; i < strlen(ascii_str); i++) {
+    ck_assert_int_eq(res, (utf8proc_ssize_t)ascii_len);
+    for (size_t i = 0; i < ascii_len; i++) {
         ck_assert_int_eq(buf[i], (int32_t)ascii_str[i]);
     }
 
