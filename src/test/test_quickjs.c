@@ -18,6 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "wisp/utils/shm_dom.h"
 
 #include "content/handlers/javascript/js.h"
@@ -151,6 +153,37 @@ START_TEST(test_quickjs_init_finalise)
 {
     js_initialise();
     js_finalise();
+}
+END_TEST
+
+extern char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque);
+extern JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque);
+
+START_TEST(test_quickjs_secure_module_cache_dir)
+{
+#ifndef _WIN32
+    char expected_dir[256];
+    snprintf(expected_dir, sizeof(expected_dir), "/tmp/wisp-module-cache-%u", (unsigned int)getuid());
+
+    /* Attempt loading an invalid module URL via wisp_module_loader to trigger wisp_sync_fetch directory creation */
+    JSRuntime *rt = JS_NewRuntime();
+    ck_assert_ptr_nonnull(rt);
+    JSContext *ctx = JS_NewContext(rt);
+    ck_assert_ptr_nonnull(ctx);
+
+    wisp_module_loader(ctx, "http://127.0.0.1:65534/nonexistent_module.js", NULL);
+
+    /* Verify directory creation and permissions */
+    struct stat st;
+    if (stat(expected_dir, &st) == 0) {
+        ck_assert(S_ISDIR(st.st_mode));
+        ck_assert_int_eq(st.st_uid, getuid());
+        ck_assert_int_eq((st.st_mode & 0077), 0);
+    }
+
+    JS_FreeContext(ctx);
+    JS_FreeRuntime(rt);
+#endif
 }
 END_TEST
 
@@ -7191,6 +7224,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_binary_idb_fonts_svg_security);
     tcase_add_test(tc_event_loop, test_quickjs_multinode_text_content);
     tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
+    tcase_add_test(tc_event_loop, test_quickjs_secure_module_cache_dir);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

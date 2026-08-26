@@ -234,17 +234,32 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len)
     char hex[65];
     compute_sha256((const uint8_t *)url, strlen(url), hex, sizeof(hex));
 
-    char cache_dir[] = "/tmp/wisp-module-cache";
-    char cache_path[256];
-    char tmp_path[256];
-    snprintf(cache_path, sizeof(cache_path), "%s/%s.js", cache_dir, hex);
-    snprintf(tmp_path, sizeof(tmp_path), "%s/%s.js.tmp", cache_dir, hex);
-
+    char cache_dir[256];
 #ifdef _WIN32
+    snprintf(cache_dir, sizeof(cache_dir), "wisp-module-cache");
     _mkdir(cache_dir);
 #else
-    mkdir(cache_dir, 0700);
+    snprintf(cache_dir, sizeof(cache_dir), "/tmp/wisp-module-cache-%u", (unsigned int)getuid());
+    struct stat st;
+    if (stat(cache_dir, &st) == 0) {
+        if (!S_ISDIR(st.st_mode) || st.st_uid != getuid() || (st.st_mode & 0077) != 0) {
+            fprintf(stderr, "WISP_SYNC_FETCH: Insecure module cache directory %s\n", cache_dir);
+            return NULL;
+        }
+    } else {
+        if (mkdir(cache_dir, 0700) != 0) {
+            if (stat(cache_dir, &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != getuid() || (st.st_mode & 0077) != 0) {
+                fprintf(stderr, "WISP_SYNC_FETCH: Failed to create secure module cache directory %s\n", cache_dir);
+                return NULL;
+            }
+        }
+    }
 #endif
+
+    char cache_path[512];
+    char tmp_path[512];
+    snprintf(cache_path, sizeof(cache_path), "%s/%s.js", cache_dir, hex);
+    snprintf(tmp_path, sizeof(tmp_path), "%s/%s.js.tmp", cache_dir, hex);
 
     char *cached_buf = wisp_read_local_file(cache_path, out_len);
     if (cached_buf) {
