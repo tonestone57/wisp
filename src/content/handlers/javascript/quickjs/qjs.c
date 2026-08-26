@@ -7753,7 +7753,11 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         old_last_yield = thread->heap->last_yield_ms;
         uint64_t now;
         nsu_getmonotonic_ms(&now);
-        thread->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        if (thread->heap->timeout > 0) {
+            thread->heap->deadline_ms = now + ((uint64_t)thread->heap->timeout * 1000);
+        } else {
+            thread->heap->deadline_ms = 0;
+        }
         thread->heap->last_yield_ms = now;
     }
 
@@ -7876,7 +7880,11 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
         old_last_yield = thread->heap->last_yield_ms;
         uint64_t now;
         nsu_getmonotonic_ms(&now);
-        thread->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        if (thread->heap->timeout > 0) {
+            thread->heap->deadline_ms = now + ((uint64_t)thread->heap->timeout * 1000);
+        } else {
+            thread->heap->deadline_ms = 0;
+        }
         thread->heap->last_yield_ms = now;
     }
 
