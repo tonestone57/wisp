@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 
 #include "wisp/utils/ipc.h"
 #include "wisp/utils/errors.h"
@@ -83,6 +86,29 @@ START_TEST(test_ipc_find_executable_not_found)
 }
 END_TEST
 
+START_TEST(test_ipc_spawn_nonexistent_executable)
+{
+    const char *non_existent_path = "/nonexistent_binary_directory/nonexistent_ipc_target_12345";
+    const char *ipc_name = "test_ipc_spawn_nonexistent_name";
+
+    int pid = wisp_ipc_spawn(non_existent_path, ipc_name);
+#ifdef _WIN32
+    ck_assert_int_eq(pid, -1);
+#else
+    if (pid == -1) {
+        ck_assert_int_eq(pid, -1);
+    } else {
+        ck_assert_int_gt(pid, 0);
+        int status = 0;
+        pid_t r = waitpid(pid, &status, 0);
+        ck_assert_int_eq(r, pid);
+        ck_assert_int_ne(WIFEXITED(status), 0);
+        ck_assert_int_ne(WEXITSTATUS(status), 0);
+    }
+#endif
+}
+END_TEST
+
 static TCase *ipc_case_create(void)
 {
     TCase *tc;
@@ -91,6 +117,7 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_connect_accept);
     tcase_add_test(tc, test_ipc_send_recv_basic);
     tcase_add_test(tc, test_ipc_find_executable_not_found);
+    tcase_add_test(tc, test_ipc_spawn_nonexistent_executable);
     return tc;
 }
 

@@ -75,6 +75,24 @@ int main(int argc, char **argv) {
     assert(WEXITSTATUS(status) == 42);
 #endif
 
+    /* Test spawning non-existent executable */
+    const char *non_existent_target = "/nonexistent_path/nonexistent_ipc_target_12345";
+    int err_pid = wisp_ipc_spawn(non_existent_target, ipc_name);
+#ifdef _WIN32
+    assert(err_pid == -1);
+#else
+    if (err_pid == -1) {
+        assert(err_pid == -1);
+    } else {
+        assert(err_pid > 0);
+        int err_status = 0;
+        pid_t r = waitpid(err_pid, &err_status, 0);
+        assert(r == err_pid);
+        assert(WIFEXITED(err_status));
+        assert(WEXITSTATUS(err_status) != 0);
+    }
+#endif
+
     printf("IPC Spawn Test: ALL PASSED\n");
     return 0;
 }
