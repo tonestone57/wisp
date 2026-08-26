@@ -130,10 +130,10 @@ START_TEST(test_cleanup_finished_fetches)
     ck_assert_ptr_nonnull(n3);
     ck_assert_ptr_nonnull(n4);
 
-    n1->fetch_id = 1; n1->finished = true; n1->stream_buf = NULL; n1->stream_len = 0; n1->hash_next = NULL;
-    n2->fetch_id = 2; n2->finished = false; n2->stream_buf = NULL; n2->stream_len = 0; n2->hash_next = NULL;
-    n3->fetch_id = 3; n3->finished = true; n3->stream_buf = NULL; n3->stream_len = 0; n3->hash_next = NULL;
-    n4->fetch_id = 4; n4->finished = false; n4->stream_buf = NULL; n4->stream_len = 0; n4->hash_next = NULL;
+    n1->fetch_id = 1; n1->finished = true; n1->hash_next = NULL;
+    n2->fetch_id = 2; n2->finished = false; n2->hash_next = NULL;
+    n3->fetch_id = 3; n3->finished = true; n3->hash_next = NULL;
+    n4->fetch_id = 4; n4->finished = false; n4->hash_next = NULL;
 
     /* Link list: n1 (finished) -> n2 (active) -> n3 (finished) -> n4 (active) -> NULL */
     n1->next = n2;
@@ -166,8 +166,8 @@ START_TEST(test_cleanup_finished_fetches)
     ck_assert_ptr_nonnull(a1);
     ck_assert_ptr_nonnull(a2);
 
-    a1->fetch_id = 10; a1->finished = true; a1->stream_buf = NULL; a1->stream_len = 0; a1->hash_next = NULL; a1->next = a2;
-    a2->fetch_id = 20; a2->finished = true; a2->stream_buf = NULL; a2->stream_len = 0; a2->hash_next = NULL; a2->next = NULL;
+    a1->fetch_id = 10; a1->finished = true; a1->hash_next = NULL; a1->next = a2;
+    a2->fetch_id = 20; a2->finished = true; a2->hash_next = NULL; a2->next = NULL;
     active_fetches_list = a1;
 
     cleanup_finished_fetches();
@@ -189,16 +189,12 @@ START_TEST(test_free_all_active_fetches)
     f1->fetch_id = 100;
     f1->fetchh = NULL;
     f1->finished = false;
-    f1->stream_buf = NULL;
-    f1->stream_len = 0;
     f1->hash_next = NULL;
     f1->next = f2;
 
     f2->fetch_id = 200;
     f2->fetchh = NULL;
     f2->finished = true;
-    f2->stream_buf = NULL;
-    f2->stream_len = 0;
     f2->hash_next = NULL;
     f2->next = NULL;
 
@@ -276,6 +272,58 @@ START_TEST(test_send_fetch_error)
     ck_assert_str_eq((const char *)recv_msg.data + 4, "UnknownError");
 
     wisp_ipc_msg_free(&recv_msg);
+    teardown_ipc();
+}
+END_TEST
+
+START_TEST(test_fetch_callback_chunked_data_passthrough)
+{
+    setup_ipc();
+
+    struct network_fetch_info info = {
+        .fetch_id = 888,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    active_fetches_list = &info;
+
+    /* 1. Deliver FETCH_HEADER with Transfer-Encoding: chunked header line */
+    fetch_msg hmsg;
+    hmsg.type = FETCH_HEADER;
+    const char *hdr = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nContent-Type: text/html\r\n\r\n";
+    hmsg.data.header_or_data.buf = (const uint8_t *)hdr;
+    hmsg.data.header_or_data.len = strlen(hdr);
+
+    network_process_fetch_callback(&hmsg, &info);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_HEADER);
+    wisp_ipc_msg_free(&recv_msg);
+
+    /* 2. Deliver FETCH_DATA containing raw unchunked body bytes (as delivered by libcurl) */
+    fetch_msg dmsg;
+    dmsg.type = FETCH_DATA;
+    const char *raw_html = "<!DOCTYPE html><html><body><h1>Chunked Stream Body</h1></body></html>";
+    dmsg.data.header_or_data.buf = (const uint8_t *)raw_html;
+    dmsg.data.header_or_data.len = strlen(raw_html);
+
+    network_process_fetch_callback(&dmsg, &info);
+
+    err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_DATA);
+    ck_assert_int_eq(recv_msg.length, 4 + strlen(raw_html));
+
+    uint32_t recv_fid;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 888);
+    ck_assert_mem_eq(recv_msg.data + 4, raw_html, strlen(raw_html));
+
+    wisp_ipc_msg_free(&recv_msg);
+    active_fetches_list = NULL;
     teardown_ipc();
 }
 END_TEST
@@ -1027,6 +1075,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_free_all_active_fetches);
     tcase_add_test(tc_core, test_fetch_callback_header);
     tcase_add_test(tc_core, test_fetch_callback_data);
+    tcase_add_test(tc_core, test_fetch_callback_chunked_data_passthrough);
     tcase_add_test(tc_core, test_fetch_callback_finished);
     tcase_add_test(tc_core, test_fetch_callback_notmodified);
     tcase_add_test(tc_core, test_fetch_callback_redirect);
