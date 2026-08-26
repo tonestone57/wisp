@@ -179,6 +179,11 @@ add_wisp_test(csp_test
 # Utility Tests
 # ============================================================================
 
+add_wisp_test(test_core_buffer
+  ${CMAKE_SOURCE_DIR}/src/test/test_core_buffer.c
+)
+target_link_libraries(test_core_buffer PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(messages
   ${CMAKE_SOURCE_DIR}/src/utils/messages.c
   ${CMAKE_SOURCE_DIR}/src/utils/hashtable.c
