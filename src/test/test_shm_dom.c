@@ -359,6 +359,46 @@ START_TEST(test_shm_alloc_string_oom)
 }
 END_TEST
 
+START_TEST(test_shm_alloc_string_deduplication_and_linear_probing)
+{
+    shm_dom_t *shm = shm_dom_create("/test_shm_alloc_string_dedup", 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    const char *common_class = "flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow-md";
+
+    // Allocate identical class attribute string multiple times
+    uint32_t heap_top_before = shm->string_heap_top;
+    WispStringRef ref1 = wisp_shm_alloc_string(shm, common_class);
+    uint32_t heap_top_first = shm->string_heap_top;
+
+    WispStringRef ref2 = wisp_shm_alloc_string(shm, common_class);
+    WispStringRef ref3 = wisp_shm_alloc_string(shm, common_class);
+    uint32_t heap_top_after = shm->string_heap_top;
+
+    // References must be identical and heap memory usage must not increase
+    ck_assert_int_eq(ref1, ref2);
+    ck_assert_int_eq(ref2, ref3);
+    ck_assert_int_gt(heap_top_first, heap_top_before);
+    ck_assert_int_eq(heap_top_after, heap_top_first);
+    ck_assert_str_eq(wisp_string_ref_data(shm, ref1), common_class);
+
+    // Allocate many unique long strings to trigger linear probing collisions in hash table
+    char str_buf[64];
+    for (int i = 0; i < 50; i++) {
+        snprintf(str_buf, sizeof(str_buf), "unique-attribute-value-string-%d", i);
+        WispStringRef r1 = wisp_shm_alloc_string(shm, str_buf);
+        ck_assert_int_ne(r1, 0);
+        ck_assert_str_eq(wisp_string_ref_data(shm, r1), str_buf);
+
+        // Allocating the exact same string again must retrieve the deduplicated reference
+        WispStringRef r2 = wisp_shm_alloc_string(shm, str_buf);
+        ck_assert_int_eq(r1, r2);
+    }
+
+    shm_dom_destroy(shm, "/test_shm_alloc_string_dedup", true);
+}
+END_TEST
+
 static Suite *shm_dom_suite(void)
 {
     Suite *s = suite_create("shm_dom");
@@ -377,6 +417,7 @@ static Suite *shm_dom_suite(void)
     tcase_add_test(tc_core, test_shm_alloc_string_sso);
     tcase_add_test(tc_core, test_shm_alloc_string_heap);
     tcase_add_test(tc_core, test_shm_alloc_string_oom);
+    tcase_add_test(tc_core, test_shm_alloc_string_deduplication_and_linear_probing);
 
     suite_add_tcase(s, tc_core);
 
