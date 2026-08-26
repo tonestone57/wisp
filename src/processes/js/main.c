@@ -127,9 +127,7 @@ JSContext* get_context(uint32_t id) {
     if (!node) return NULL;
     struct jsthread *t = calloc(1, sizeof(*t));
     if (!t) { free(node); return NULL; }
-    for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
-        t->node_wrapper_cache[i] = JS_UNDEFINED;
-    }
+    qjs_thread_init_wrapper_cache(t);
     node->id = id;
     node->ctx = JS_NewContext(rt);
     if (!node->ctx) { free(t); free(node); return NULL; }

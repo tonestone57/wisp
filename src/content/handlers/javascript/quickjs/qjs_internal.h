@@ -140,6 +140,13 @@ struct jsthread {
     JSValue node_wrapper_cache[SHM_DOM_MAX_NODES];
 };
 
+static inline void qjs_thread_init_wrapper_cache(struct jsthread *t) {
+    if (!t) return;
+    for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
+        t->node_wrapper_cache[i] = JS_UNDEFINED;
+    }
+}
+
 static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val) {
     if (JS_VALUE_GET_TAG(val) != JS_TAG_OBJECT) return NULL;
 

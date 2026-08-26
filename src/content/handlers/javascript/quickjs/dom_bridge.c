@@ -17,6 +17,21 @@ typedef struct {
     struct dom_node *node;
 } bridge_key_t;
 
+typedef struct {
+    struct dom_node *target_node;
+    JSContext *found_ctx;
+} bridge_find_ctx_t;
+
+static bool bridge_find_ctx_cb(void *key, void *val, void *pw) {
+    bridge_key_t *k = key;
+    bridge_find_ctx_t *search = pw;
+    if (k->node == search->target_node) {
+        search->found_ctx = k->ctx;
+        return true; /* Stop iteration */
+    }
+    return false;
+}
+
 static uint32_t bridge_key_hash(void *key) {
     bridge_key_t *k = key;
     return (uint32_t)((uintptr_t)k->ctx ^ (uintptr_t)k->node);
@@ -191,11 +206,9 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
     JSContext *target_ctx = ctx;
     if (!target_ctx && map) {
-        bridge_key_t search_key = { NULL, node };
-        JSValue *val = hashmap_lookup(map, &search_key);
-        if (val) {
-            target_ctx = search_key.ctx;
-        }
+        bridge_find_ctx_t search = { .target_node = node, .found_ctx = NULL };
+        hashmap_iterate(map, bridge_find_ctx_cb, &search);
+        target_ctx = search.found_ctx;
     }
 
     if (wisp_is_js_process && target_ctx) {
