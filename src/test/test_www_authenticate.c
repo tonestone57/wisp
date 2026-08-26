@@ -55,40 +55,118 @@ START_TEST(test_parse_happy_paths)
 
     http_www_authenticate_destroy(wa);
 
-    /* Test 2: Multiple challenges */
-    /* TODO: Testing multiple, comma-separated challenges simultaneously
-     * (e.g. `Basic realm="...", Digest realm="..."`) is deferred here due to how
-     * generic list parsing currently prepends and handles these comma-separated values.
-     * We simply ensure it parses without errors and verifies the presence of 'Basic'.
-     */
+    /* Test 2: Multiple challenges (two comma-separated challenges) */
     error = http_parse_www_authenticate("Basic realm=\"WallyWorld\", Digest realm=\"test\"", &wa);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(wa);
 
     cur = wa->challenges;
-    bool has_basic = false;
 
-    while (cur != NULL) {
-        const http_challenge *next_cur = http_challenge_list_iterate(cur, &scheme, &params);
-        if (scheme != NULL) {
-            if (lwc_string_length(scheme) == 5 && strncmp(lwc_string_data(scheme), "Basic", 5) == 0) {
-                has_basic = true;
-                lwc_intern_string("realm", 5, &key);
-                error = http_parameter_list_find_item(params, key, &val);
-                ck_assert_int_eq(error, NSERROR_OK);
-                if (val) {
-                    ck_assert_int_eq(lwc_string_length(val), 10);
-                    ck_assert_int_eq(strncmp(lwc_string_data(val), "WallyWorld", 10), 0);
-                    lwc_string_unref(val);
-                }
-                lwc_string_unref(key);
-            }
-            lwc_string_unref(scheme);
-            scheme = NULL;
-        }
-        cur = next_cur;
-    }
-    ck_assert(has_basic);
+    /* First challenge in prepended list: Digest */
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+
+    lwc_intern_string("realm", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 4);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "test", 4), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    /* Second challenge in prepended list: Basic */
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_null(cur);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+
+    lwc_intern_string("realm", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 10);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "WallyWorld", 10), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    http_www_authenticate_destroy(wa);
+
+    /* Test 3: Three comma-separated challenges with whitespace variations & multiple parameters */
+    error = http_parse_www_authenticate(
+        "Basic realm=\"W1\", Digest realm=\"W2\", qop=\"auth\" \t , \t Bearer token=\"123\"", &wa);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(wa);
+
+    cur = wa->challenges;
+
+    /* 1st iterated challenge (prepended last): Bearer */
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Bearer", 6), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+
+    lwc_intern_string("token", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 3);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "123", 3), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    /* 2nd iterated challenge: Digest */
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 6);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Digest", 6), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+
+    lwc_intern_string("realm", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 2);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "W2", 2), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    lwc_intern_string("qop", 3, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 4);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "auth", 4), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
+
+    /* 3rd iterated challenge (first parsed): Basic */
+    cur = http_challenge_list_iterate(cur, &scheme, &params);
+    ck_assert_ptr_null(cur);
+    ck_assert_ptr_nonnull(scheme);
+    ck_assert_int_eq(lwc_string_length(scheme), 5);
+    ck_assert_int_eq(strncmp(lwc_string_data(scheme), "Basic", 5), 0);
+    lwc_string_unref(scheme);
+    scheme = NULL;
+
+    lwc_intern_string("realm", 5, &key);
+    error = http_parameter_list_find_item(params, key, &val);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(val);
+    ck_assert_int_eq(lwc_string_length(val), 2);
+    ck_assert_int_eq(strncmp(lwc_string_data(val), "W1", 2), 0);
+    lwc_string_unref(key);
+    lwc_string_unref(val);
 
     http_www_authenticate_destroy(wa);
 }
