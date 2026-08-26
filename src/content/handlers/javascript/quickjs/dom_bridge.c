@@ -83,7 +83,7 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
     struct jsthread *t = JS_GetContextOpaque(ctx);
     uint64_t node_id = (uint64_t)(uintptr_t)node;
     if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES) {
-        if (JS_VALUE_GET_TAG(t->node_wrapper_cache[node_id]) != JS_TAG_UNDEFINED) {
+        if (!JS_IsUndefined(t->node_wrapper_cache[node_id])) {
             return JS_DupValue(ctx, t->node_wrapper_cache[node_id]);
         }
     }
@@ -144,6 +144,12 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         }
     }
 
+    /* Check if re-entrant execution during object creation already cached a wrapper */
+    if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES && !JS_IsUndefined(t->node_wrapper_cache[node_id])) {
+        JS_FreeValue(ctx, wrapper);
+        return JS_DupValue(ctx, t->node_wrapper_cache[node_id]);
+    }
+
     if (map) {
         bridge_key_t key = { ctx, node };
         JSValue *val_ptr = hashmap_insert(map, &key);
@@ -166,10 +172,6 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
     }
 
     if (wisp_is_js_process && t && node_id < SHM_DOM_MAX_NODES) {
-        if (JS_VALUE_GET_TAG(t->node_wrapper_cache[node_id]) != JS_TAG_UNDEFINED) {
-            JS_FreeValue(ctx, wrapper);
-            return JS_DupValue(ctx, t->node_wrapper_cache[node_id]);
-        }
         t->node_wrapper_cache[node_id] = JS_DupValue(ctx, wrapper);
     }
 
@@ -186,25 +188,34 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         if (old_data) free(old_data);
     }
 
-    if (wisp_is_js_process && ctx) {
-        struct jsthread *t = JS_GetContextOpaque(ctx);
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    JSContext *target_ctx = ctx;
+    if (!target_ctx && map) {
+        bridge_key_t search_key = { NULL, node };
+        JSValue *val = hashmap_lookup(map, &search_key);
+        if (val) {
+            target_ctx = search_key.ctx;
+        }
+    }
+
+    if (wisp_is_js_process && target_ctx) {
+        struct jsthread *t = JS_GetContextOpaque(target_ctx);
         uint64_t node_id = (uint64_t)(uintptr_t)node;
         if (t && node_id < SHM_DOM_MAX_NODES) {
-            if (JS_VALUE_GET_TAG(t->node_wrapper_cache[node_id]) != JS_TAG_UNDEFINED) {
-                JS_FreeValue(ctx, t->node_wrapper_cache[node_id]);
+            if (!JS_IsUndefined(t->node_wrapper_cache[node_id])) {
+                JS_FreeValue(target_ctx, t->node_wrapper_cache[node_id]);
                 t->node_wrapper_cache[node_id] = JS_UNDEFINED;
             }
         }
     }
 
-    hashmap_t *map = JS_GetRuntimeOpaque(rt);
-    if (map) {
-        bridge_key_t key = { ctx, node };
+    if (map && target_ctx) {
+        bridge_key_t key = { target_ctx, node };
         JSValue *val = hashmap_lookup(map, &key);
         if (val) {
             JSValue wrapper = *val;
             hashmap_remove(map, &key);
-            if (ctx) JS_FreeValue(ctx, wrapper);
+            JS_FreeValue(target_ctx, wrapper);
         }
     }
 }
@@ -919,7 +930,7 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
         struct jsthread *t = JS_GetContextOpaque(ctx);
         if (t) {
             for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
-                if (JS_VALUE_GET_TAG(t->node_wrapper_cache[i]) != JS_TAG_UNDEFINED) {
+                if (!JS_IsUndefined(t->node_wrapper_cache[i])) {
                     JS_FreeValue(ctx, t->node_wrapper_cache[i]);
                     t->node_wrapper_cache[i] = JS_UNDEFINED;
                 }
