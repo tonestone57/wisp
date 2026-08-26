@@ -74,7 +74,11 @@ void qjs_raf_callback_fn(void *p)
         old_last_yield = t->heap->last_yield_ms;
         uint64_t now;
         nsu_getmonotonic_ms(&now);
-        t->heap->deadline_ms = now + 3000;
+        if (t->heap->timeout > 0) {
+            t->heap->deadline_ms = now + ((uint64_t)t->heap->timeout * 1000);
+        } else {
+            t->heap->deadline_ms = 0;
+        }
         t->heap->last_yield_ms = now;
     }
 
@@ -159,7 +163,11 @@ void qjs_idle_callback_fn(void *p)
         old_last_yield = t->heap->last_yield_ms;
         uint64_t now;
         nsu_getmonotonic_ms(&now);
-        t->heap->deadline_ms = now + 3000;
+        if (t->heap->timeout > 0) {
+            t->heap->deadline_ms = now + ((uint64_t)t->heap->timeout * 1000);
+        } else {
+            t->heap->deadline_ms = 0;
+        }
         t->heap->last_yield_ms = now;
     }
 
@@ -256,7 +264,11 @@ void qjs_timer_callback(void *p)
         old_last_yield = t->heap->last_yield_ms;
         uint64_t now;
         nsu_getmonotonic_ms(&now);
-        t->heap->deadline_ms = now + 3000; // Absolute deadline 3s in future
+        if (t->heap->timeout > 0) {
+            t->heap->deadline_ms = now + ((uint64_t)t->heap->timeout * 1000);
+        } else {
+            t->heap->deadline_ms = 0;
+        }
         t->heap->last_yield_ms = now;
     }
 

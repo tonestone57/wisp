@@ -135,7 +135,7 @@ NSOPTION_BOOL(enable_javascript, true)
 NSOPTION_BOOL(author_level_css, true)
 
 /** Maximum time (in seconds) to wait for a script to run */
-NSOPTION_INTEGER(script_timeout, 10)
+NSOPTION_INTEGER(script_timeout, 30)
 
 /** How many days to retain URL data for */
 NSOPTION_INTEGER(expire_url, 28)
