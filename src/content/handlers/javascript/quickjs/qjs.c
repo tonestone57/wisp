@@ -201,6 +201,29 @@ dom_string *g_qjs_node_key = NULL;
 static void compute_sha256(const uint8_t *data, size_t len, char *hex_out, size_t hex_out_len);
 static char *wisp_read_local_file(const char *filename, size_t *out_len);
 
+static bool get_user_cache_dir(const char *sub_dir, char *out_buf, size_t out_buf_len)
+{
+    const char *tmpdir = getenv("TMPDIR");
+    if (!tmpdir || tmpdir[0] == '\0') {
+        tmpdir = "/tmp";
+    }
+
+#ifdef _WIN32
+    snprintf(out_buf, out_buf_len, "%s/wisp-%s", tmpdir, sub_dir);
+    _mkdir(out_buf);
+#else
+    uid_t uid = getuid();
+    char user_dir[256];
+    snprintf(user_dir, sizeof(user_dir), "%s/wisp-%u", tmpdir, (unsigned int)uid);
+    mkdir(user_dir, 0700);
+
+    snprintf(out_buf, out_buf_len, "%s/%s", user_dir, sub_dir);
+    mkdir(out_buf, 0700);
+#endif
+
+    return true;
+}
+
 struct wisp_curl_buffer {
     char *data;
     size_t size;
@@ -234,17 +257,13 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len)
     char hex[65];
     compute_sha256((const uint8_t *)url, strlen(url), hex, sizeof(hex));
 
-    char cache_dir[] = "/tmp/wisp-module-cache";
-    char cache_path[256];
-    char tmp_path[256];
+    char cache_dir[256];
+    get_user_cache_dir("module-cache", cache_dir, sizeof(cache_dir));
+
+    char cache_path[512];
+    char tmp_path[512];
     snprintf(cache_path, sizeof(cache_path), "%s/%s.js", cache_dir, hex);
     snprintf(tmp_path, sizeof(tmp_path), "%s/%s.js.tmp", cache_dir, hex);
-
-#ifdef _WIN32
-    _mkdir(cache_dir);
-#else
-    mkdir(cache_dir, 0700);
-#endif
 
     char *cached_buf = wisp_read_local_file(cache_path, out_len);
     if (cached_buf) {
@@ -703,16 +722,12 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
     char hex[65];
     compute_sha256(txt, txtlen, hex, sizeof(hex));
 
-    char cache_dir[] = "/tmp/wisp-bytecode-cache";
-    char cache_path[256];
+    char cache_dir[256];
+    get_user_cache_dir("bytecode-cache", cache_dir, sizeof(cache_dir));
+
+    char cache_path[512];
     bool is_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
     snprintf(cache_path, sizeof(cache_path), "%s/%s%s.bin", cache_dir, hex, is_module ? "_module" : "");
-
-#ifdef _WIN32
-    _mkdir(cache_dir);
-#else
-    mkdir(cache_dir, 0700);
-#endif
 
     FILE *f = fopen(cache_path, "rb");
     if (f) {
@@ -797,8 +812,10 @@ static void do_precompile(void *arg)
         char hex[65];
         compute_sha256(pa->txt, pa->txtlen, hex, sizeof(hex));
 
-        char cache_dir[] = "/tmp/wisp-bytecode-cache";
-        char cache_path[256];
+        char cache_dir[256];
+        get_user_cache_dir("bytecode-cache", cache_dir, sizeof(cache_dir));
+
+        char cache_path[512];
         snprintf(cache_path, sizeof(cache_path), "%s/%s.bin", cache_dir, hex);
 
         struct stat st;
@@ -821,11 +838,6 @@ static void do_precompile(void *arg)
                             size_t bytecode_size = 0;
                             uint8_t *bytecode = JS_WriteObject(ctx, &bytecode_size, compiled, JS_WRITE_OBJ_BYTECODE);
                             if (bytecode && bytecode_size > 0) {
-#ifdef _WIN32
-                                _mkdir(cache_dir);
-#else
-                                mkdir(cache_dir, 0700);
-#endif
                                 FILE *f = fopen(cache_path, "wb");
                                 if (f) {
                                     fwrite(bytecode, 1, bytecode_size, f);
