@@ -327,12 +327,16 @@ wisp_chunk_decode_result wisp_simd_decode_chunked_stream(const uint8_t *in, size
         }
 
         if (csize == 0) {
-            /* Final 0-length chunk */
-            in_pos += hlen;
-            /* Check if trailer CRLF is present */
-            if (in_pos + 2 <= in_len && in[in_pos] == '\r' && in[in_pos + 1] == '\n') {
-                in_pos += 2;
+            /* Final 0-length chunk requires trailing CRLF sequence */
+            if (in_pos + hlen + 2 > in_len) {
+                res.is_incomplete = true;
+                break;
             }
+            if (in[in_pos + hlen] != '\r' || in[in_pos + hlen + 1] != '\n') {
+                res.is_invalid = true;
+                break;
+            }
+            in_pos += hlen + 2;
             res.is_final_chunk = true;
             break;
         }
@@ -379,15 +383,17 @@ wisp_chunk_decode_result wisp_simd_decode_chunked_stream(const uint8_t *in, size
 static bool wisp_simd_validate_http_header_scalar(const char *header, size_t len) {
     if (!header || len == 0) return false;
 
-    /* Reject obsolete line folding (obs-fold: CRLF or LF/CR starting with space or tab) */
+    /* Reject obsolete line folding (obs-fold) */
     if (header[0] == ' ' || header[0] == '\t') {
         return false;
     }
 
-    /* Ignore trailing \r\n or \n for validation */
     size_t end = len;
-    while (end > 0 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
-        end--;
+    /* Strict RFC 7230 CRLF validation: reject bare CR or bare LF at end of header line */
+    if (end >= 2 && header[end - 2] == '\r' && header[end - 1] == '\n') {
+        end -= 2;
+    } else if (end >= 1 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
+        return false; /* Bare CR or bare LF */
     }
     if (end == 0) return true; /* Empty CRLF line */
 
@@ -433,8 +439,10 @@ static bool wisp_simd_validate_http_header_sse2(const char *header, size_t len) 
     if (header[0] == ' ' || header[0] == '\t') return false; /* Rejection of obs-fold */
 
     size_t end = len;
-    while (end > 0 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
-        end--;
+    if (end >= 2 && header[end - 2] == '\r' && header[end - 1] == '\n') {
+        end -= 2;
+    } else if (end >= 1 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
+        return false;
     }
     if (end == 0) return true;
 
@@ -517,8 +525,10 @@ static bool wisp_simd_validate_http_header_neon(const char *header, size_t len) 
     if (header[0] == ' ' || header[0] == '\t') return false;
 
     size_t end = len;
-    while (end > 0 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
-        end--;
+    if (end >= 2 && header[end - 2] == '\r' && header[end - 1] == '\n') {
+        end -= 2;
+    } else if (end >= 1 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
+        return false;
     }
     if (end == 0) return true;
 
@@ -601,8 +611,10 @@ static bool wisp_simd_validate_http_header_rvv(const char *header, size_t len) {
     if (header[0] == ' ' || header[0] == '\t') return false;
 
     size_t end = len;
-    while (end > 0 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
-        end--;
+    if (end >= 2 && header[end - 2] == '\r' && header[end - 1] == '\n') {
+        end -= 2;
+    } else if (end >= 1 && (header[end - 1] == '\r' || header[end - 1] == '\n')) {
+        return false;
     }
     if (end == 0) return true;
 
@@ -682,10 +694,13 @@ bool wisp_simd_validate_http_header_block(const char *headers, size_t len) {
         }
 
         size_t line_len = crlf;
-        if (line_len > 0) {
-            if (!wisp_simd_validate_http_header(headers + pos, line_len)) {
-                return false;
-            }
+        if (line_len == 0) {
+            /* Empty line (\r\n\r\n) marks the end of HTTP header block */
+            break;
+        }
+
+        if (!wisp_simd_validate_http_header(headers + pos, line_len + 2)) {
+            return false;
         }
         pos += crlf + 2; /* Move past line and \r\n */
     }

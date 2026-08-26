@@ -108,9 +108,11 @@ START_TEST(test_simd_validate_http_header_rfc7230)
     ck_assert(!wisp_simd_validate_http_header(" continuation line\r\n", 21));
     ck_assert(!wisp_simd_validate_http_header("\tfolded line\r\n", 15));
 
-    /* Rejection of bare CR or bare LF */
-    ck_assert(!wisp_simd_validate_http_header("Header: val\rsub", 16));
-    ck_assert(!wisp_simd_validate_http_header("Header: val\nsub", 16));
+    /* Rejection of bare CR or bare LF at interior or end of header */
+    ck_assert(!wisp_simd_validate_http_header("Header: val\rsub\r\n", 18));
+    ck_assert(!wisp_simd_validate_http_header("Header: val\nsub\r\n", 18));
+    ck_assert(!wisp_simd_validate_http_header("Header: val\r", 12));
+    ck_assert(!wisp_simd_validate_http_header("Header: val\n", 12));
 
     /* UTF-8 / non-ASCII character in header value (0x80..0xFF) parity check */
     const char *utf8_hdr = "Location: https://example.com/path/\xC3\xA9\r\n";
@@ -123,8 +125,8 @@ START_TEST(test_simd_validate_http_header_rfc7230)
     /* Missing colon in standard header */
     ck_assert(!wisp_simd_validate_http_header("InvalidHeaderLine\r\n", 19));
 
-    /* Header block validation */
-    const char *block = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 100\r\n\r\n";
+    /* Header block validation & body termination check (\r\n\r\n) */
+    const char *block = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 100\r\n\r\n<html><body>Body</body></html>";
     ck_assert(wisp_simd_validate_http_header_block(block, strlen(block)));
 }
 END_TEST
