@@ -5006,6 +5006,11 @@ START_TEST(test_quickjs_document)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_document1");
     ck_assert(result == true);
 
+    /* Test document.open() overloads */
+    const char *code_open = "typeof document.open === 'function' && document.open() !== undefined && document.open('text/html') !== undefined && document.open('text/html', 'replace') !== undefined";
+    result = js_exec(thread, (const uint8_t *)code_open, strlen(code_open), "test_document_open");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
