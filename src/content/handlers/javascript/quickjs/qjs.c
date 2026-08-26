@@ -904,7 +904,12 @@ struct nsurl *content_get_url(struct content *c);
 
 static bool create_secure_ipc_path(char *ipc_path_buf, size_t path_len, char *dir_buf, size_t dir_len)
 {
-    char template[] = "/tmp/wisp-js-XXXXXX";
+    const char *tmpdir = getenv("TMPDIR");
+    if (!tmpdir || tmpdir[0] == '\0') {
+        tmpdir = "/tmp";
+    }
+    char template[512];
+    snprintf(template, sizeof(template), "%s/wisp-js-XXXXXX", tmpdir);
     char *dir_name = mkdtemp(template);
     if (!dir_name) {
         return false;
@@ -7592,12 +7597,15 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         msg.type = WISP_IPC_MSG_JS_EXEC;
 
         bool is_file = false;
-        char temp_file_path[256];
+        char temp_file_path[512];
         if (txtlen > 65536) {
             // Write to a temporary file to avoid IPC buffer saturation
-            int fd;
-            snprintf(temp_file_path, sizeof(temp_file_path), "/tmp/wisp-script-XXXXXX");
-            fd = mkstemp(temp_file_path);
+            const char *tmpdir = getenv("TMPDIR");
+            if (!tmpdir || tmpdir[0] == '\0') {
+                tmpdir = "/tmp";
+            }
+            snprintf(temp_file_path, sizeof(temp_file_path), "%s/wisp-script-XXXXXX", tmpdir);
+            int fd = mkstemp(temp_file_path);
             if (fd >= 0) {
                 if (write(fd, txt, txtlen) == (ssize_t)txtlen) {
                     fsync(fd);
@@ -7608,7 +7616,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         }
 
         if (is_file) {
-            char file_prefix[512];
+            char file_prefix[1024];
             snprintf(file_prefix, sizeof(file_prefix), "file://%s", temp_file_path);
             size_t file_prefix_len = strlen(file_prefix);
             msg.length = 12 + name_len + file_prefix_len;
