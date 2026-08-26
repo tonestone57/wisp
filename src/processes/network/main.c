@@ -30,9 +30,6 @@ struct network_fetch_info {
     uint32_t fetch_id;
     struct fetch *fetchh;
     bool finished;
-    bool is_chunked;
-    uint8_t *stream_buf;
-    size_t stream_len;
     struct network_fetch_info *next;
     struct network_fetch_info *hash_next;
 };
@@ -107,7 +104,6 @@ static void cleanup_finished_fetches(void) {
         if (entry->finished) {
             *curr = entry->next;
             remove_active_fetch_hash(entry);
-            if (entry->stream_buf) free(entry->stream_buf);
             free(entry);
         } else {
             curr = &entry->next;
@@ -126,7 +122,6 @@ static void free_all_active_fetches(void) {
             fetch_abort(curr->fetchh);
             curr->fetchh = NULL;
         }
-        if (curr->stream_buf) free(curr->stream_buf);
         free(curr);
         curr = next;
     }
@@ -152,19 +147,9 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
                     NSLOG(wisp, WARNING, "WISP-NETWORK: Invalid header received for fetch_id %u, skipping", fetch_id);
                     break;
                 }
-                /* Use stack/heap buffer with explicit null termination for safe strcasestr search */
-                char stack_hdr[512];
-                char *safe_hdr = (hdr_len < sizeof(stack_hdr)) ? stack_hdr : malloc(hdr_len + 1);
-                if (safe_hdr) {
-                    memcpy(safe_hdr, hdr_str, hdr_len);
-                    safe_hdr[hdr_len] = '\0';
-                    if (strcasestr(safe_hdr, "Transfer-Encoding:") && strcasestr(safe_hdr, "chunked")) {
-                        info->is_chunked = true;
-                    }
-                    if (safe_hdr != stack_hdr) {
-                        free(safe_hdr);
-                    }
-                }
+                /* Note: libcurl (CURLOPT_HTTP_TRANSFER_DECODING = 1L) automatically decodes chunked
+                 * transfer encoding in write callbacks before delivering FETCH_DATA.
+                 * Secondary stream unchunking is bypassed to prevent double-decoding raw body bytes. */
             }
             imsg.type = WISP_IPC_MSG_FETCH_HEADER;
             imsg.length = 8 + msg->data.header_or_data.len;
@@ -200,36 +185,6 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             size_t payload_len = msg->data.header_or_data.len;
             uint8_t *out_data = (uint8_t *)payload_data;
             size_t out_len = payload_len;
-            uint8_t *decoded_buf = NULL;
-
-            if (info->is_chunked && payload_data && payload_len > 0) {
-                /* Append incoming network chunk into stream_buf accumulator */
-                uint8_t *new_buf = realloc(info->stream_buf, info->stream_len + payload_len);
-                if (new_buf) {
-                    info->stream_buf = new_buf;
-                    memcpy(info->stream_buf + info->stream_len, payload_data, payload_len);
-                    info->stream_len += payload_len;
-
-                    decoded_buf = malloc(info->stream_len);
-                    if (decoded_buf) {
-                        wisp_chunk_decode_result cres = wisp_simd_decode_chunked_stream(info->stream_buf, info->stream_len, decoded_buf, info->stream_len);
-                        if (!cres.is_invalid) {
-                            if (cres.consumed_bytes > 0) {
-                                size_t rem = info->stream_len - cres.consumed_bytes;
-                                if (rem > 0) {
-                                    memmove(info->stream_buf, info->stream_buf + cres.consumed_bytes, rem);
-                                }
-                                info->stream_len = rem;
-                            }
-                            out_data = (cres.decoded_bytes > 0) ? decoded_buf : NULL;
-                            out_len = cres.decoded_bytes;
-                        } else {
-                            out_data = NULL;
-                            out_len = 0;
-                        }
-                    }
-                }
-            }
 
             imsg.type = WISP_IPC_MSG_FETCH_DATA;
             imsg.length = 4 + out_len;
@@ -246,7 +201,6 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
                 wisp_ipc_send(ipc_main, &imsg);
                 if (imsg.data != stack_buf) free(imsg.data);
             }
-            if (decoded_buf) free(decoded_buf);
             break;
         }
         case FETCH_FINISHED: {
@@ -363,9 +317,6 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                         active_fetches_hash[h_idx] = info;
 
                         struct fetch *f_out = NULL;
-                        info->is_chunked = false;
-                        info->stream_buf = NULL;
-                        info->stream_len = 0;
                         if (fetch_start(url, NULL, network_process_fetch_callback, info,
                                         only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
                             info->fetchh = f_out;
