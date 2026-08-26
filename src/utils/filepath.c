@@ -75,6 +75,9 @@ char *filepath_vsfindfile(char *str, const char *format, va_list ap)
         /* sucessfully expanded pathname */
         if (access(realpathname, R_OK) != 0) {
             /* unable to read the file */
+            if (realpathname != str) {
+                free(realpathname);
+            }
             return NULL;
         }
     }
