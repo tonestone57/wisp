@@ -93,14 +93,44 @@ nserror http__parse_challenge(const char **input, http_challenge **challenge)
 
     http__skip_LWS(&pos);
 
-    if (*pos == ',') {
-        error = http__item_list_parse(&pos, http__parse_parameter, first, &params);
-        if (error != NSERROR_OK && error != NSERROR_NOT_FOUND) {
-            lwc_string_unref(scheme);
-            return error;
+    params = first;
+
+    while (*pos == ',') {
+        const char *next_pos = pos + 1;
+        lwc_string *peek_token = NULL;
+        bool is_param = false;
+
+        http__skip_LWS(&next_pos);
+
+        if (http__parse_token(&next_pos, &peek_token) == NSERROR_OK) {
+            lwc_string_unref(peek_token);
+            http__skip_LWS(&next_pos);
+            if (*next_pos == '=') {
+                is_param = true;
+            }
         }
-    } else {
-        params = first;
+
+        if (!is_param) {
+            break;
+        }
+
+        pos++;
+        http__skip_LWS(&pos);
+
+        http__item *next_param = NULL;
+        error = http__parse_parameter(&pos, &next_param);
+        if (error == NSERROR_OK) {
+            next_param->next = (http__item *)params;
+            params = (http_parameter *)next_param;
+            http__skip_LWS(&pos);
+        } else {
+            if (error != NSERROR_NOT_FOUND) {
+                lwc_string_unref(scheme);
+                http_parameter_list_destroy(params);
+                return error;
+            }
+            break;
+        }
     }
 
     result = malloc(sizeof(*result));
