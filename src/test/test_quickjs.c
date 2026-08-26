@@ -3625,8 +3625,22 @@ START_TEST(test_quickjs_aot_cache)
     doc = NULL;
     ck_assert_int_eq(err, NSERROR_OK);
 
+    const char *tmpdir = getenv("TMPDIR");
+    if (!tmpdir || tmpdir[0] == '\0') {
+        tmpdir = "/tmp";
+    }
+    char expected_cache_path[512];
+#ifdef _WIN32
+    snprintf(expected_cache_path, sizeof(expected_cache_path),
+             "%s/wisp-bytecode-cache/cb23c5dc9286beade7a95d92d41c5c78b878e77ec88c26adb5a5bf5c8e3ce21c.bin", tmpdir);
+#else
+    snprintf(expected_cache_path, sizeof(expected_cache_path),
+             "%s/wisp-%u/bytecode-cache/cb23c5dc9286beade7a95d92d41c5c78b878e77ec88c26adb5a5bf5c8e3ce21c.bin",
+             tmpdir, (unsigned int)getuid());
+#endif
+
     /* Force a clean environment for bytecode storage testing */
-    unlink("/tmp/wisp-bytecode-cache/cb23c5dc9286beade7a95d92d41c5c78b878e77ec88c26adb5a5bf5c8e3ce21c.bin");
+    unlink(expected_cache_path);
 
     const char *code = "var aot_test_var = 123 + 456; aot_test_var === 579;";
 
@@ -3635,7 +3649,7 @@ START_TEST(test_quickjs_aot_cache)
     ck_assert(result == true);
 
     /* Verify cache file exists (SHA256 for the string above is expected to be stable) */
-    FILE *f = fopen("/tmp/wisp-bytecode-cache/cb23c5dc9286beade7a95d92d41c5c78b878e77ec88c26adb5a5bf5c8e3ce21c.bin", "rb");
+    FILE *f = fopen(expected_cache_path, "rb");
     ck_assert_ptr_nonnull(f);
     fclose(f);
 
