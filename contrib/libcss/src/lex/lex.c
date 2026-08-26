@@ -171,7 +171,7 @@ css_error css__lexer_create(parserutils_inputstream *input, css_lexer **lexer)
     if (input == NULL || lexer == NULL)
         return CSS_BADPARM;
 
-    lex = malloc(sizeof(css_lexer));
+    lex = calloc(1, sizeof(css_lexer));
     if (lex == NULL)
         return CSS_NOMEM;
 
