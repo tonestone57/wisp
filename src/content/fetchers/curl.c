@@ -1389,7 +1389,10 @@ static CURLcode fetch_curl_set_options(struct curl_fetch_info *f)
     }
 #endif
 
-    /* do verification */
+    /* Enforce strict SSL/TLS verification:
+     * CURLOPT_SSL_VERIFYPEER (1L): Verify authentic nature of peer certificate against CA bundle
+     * CURLOPT_SSL_VERIFYHOST (2L): Strictly verify server certificate hostname against target host
+     */
     SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
     SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
 #ifdef WITH_OPENSSL
@@ -2328,6 +2331,10 @@ nserror fetch_curl_register(void)
         SETOPT(CURLOPT_VERBOSE, 1L);
     }
 
+    /* Set baseline strict SSL/TLS verification on default template handle */
+    SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
+    SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
+
     /* Enable HTTP/3 if available */
 #ifdef CURL_HTTP_VERSION_3
     {
@@ -2503,6 +2510,10 @@ static void preconnect_worker(void *arg) {
         curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 10L);
         curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+
+        /* Enforce strict SSL/TLS verification on preconnect handle */
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
 
         /* Set CA path/bundle if they are configured */
         if (nsoption_charp(ca_bundle)) {
