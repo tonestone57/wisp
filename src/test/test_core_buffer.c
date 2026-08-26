@@ -61,6 +61,125 @@ START_TEST(core_buffer_null_parameter_test)
 }
 END_TEST
 
+START_TEST(core_buffer_append_zero_length_test)
+{
+    core_buffer buf;
+    const uint8_t data[] = "initial";
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+
+    /* Append 0 length with non-NULL pointer to empty buffer */
+    ck_assert_int_eq(core_buffer_append(&buf, data, 0), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+    ck_assert(buf.data == NULL);
+
+    /* Append 0 length with NULL pointer to empty buffer */
+    ck_assert_int_eq(core_buffer_append(&buf, NULL, 0), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 0);
+    ck_assert(buf.data == NULL);
+
+    /* Populate buffer */
+    ck_assert_int_eq(core_buffer_append(&buf, data, 7), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 7);
+
+    /* Append 0 length to pre-populated buffer */
+    ck_assert_int_eq(core_buffer_append(&buf, data, 0), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_append(&buf, NULL, 0), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), 7);
+    ck_assert_mem_eq(core_buffer_data(&buf), "initial", 7);
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_append_binary_data_test)
+{
+    core_buffer buf;
+    const uint8_t bin1[] = { 0x00, 0xFF, 0xFE, 0x00, 0x42 };
+    const uint8_t bin2[] = { 0x12, 0x34, 0x00, 0x56, 0x78, 0x90 };
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+
+    ck_assert_int_eq(core_buffer_append(&buf, bin1, sizeof(bin1)), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), sizeof(bin1));
+    ck_assert_mem_eq(core_buffer_data(&buf), bin1, sizeof(bin1));
+
+    ck_assert_int_eq(core_buffer_append(&buf, bin2, sizeof(bin2)), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_length(&buf), sizeof(bin1) + sizeof(bin2));
+
+    uint8_t expected[sizeof(bin1) + sizeof(bin2)];
+    memcpy(expected, bin1, sizeof(bin1));
+    memcpy(expected + sizeof(bin1), bin2, sizeof(bin2));
+
+    ck_assert_mem_eq(core_buffer_data(&buf), expected, sizeof(expected));
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_append_wrapped_external_test)
+{
+    core_buffer buf;
+    uint8_t ext_data[] = "external_data_prefix";
+    size_t ext_len = strlen((char *)ext_data);
+    const uint8_t suffix[] = "_appended_suffix";
+    size_t suf_len = strlen((char *)suffix);
+
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+    ck_assert_int_eq(core_buffer_wrap_external(&buf, ext_data, ext_len), NSERROR_OK);
+
+    /* Verify wrapped state */
+    ck_assert(buf.data == ext_data);
+    ck_assert_int_eq(buf.allocated, 0);
+    ck_assert_int_eq(buf.length, ext_len);
+
+    /* Appending to wrapped external buffer should transition it to heap allocated memory */
+    ck_assert_int_eq(core_buffer_append(&buf, suffix, suf_len), NSERROR_OK);
+    ck_assert(buf.data != ext_data);
+    ck_assert(buf.data != NULL);
+    ck_assert(buf.allocated >= ext_len + suf_len);
+    ck_assert_int_eq(core_buffer_length(&buf), ext_len + suf_len);
+
+    char expected[64];
+    snprintf(expected, sizeof(expected), "%s%s", (char *)ext_data, (char *)suffix);
+    ck_assert_mem_eq(core_buffer_data(&buf), expected, ext_len + suf_len);
+
+    /* Original external data buffer must remain untouched */
+    ck_assert_str_eq((char *)ext_data, "external_data_prefix");
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
+START_TEST(core_buffer_append_multiple_reallocations_test)
+{
+    core_buffer buf;
+    ck_assert_int_eq(core_buffer_init(&buf), NSERROR_OK);
+
+    uint8_t pattern[128];
+    for (size_t i = 0; i < sizeof(pattern); i++) {
+        pattern[i] = (uint8_t)(i & 0xFF);
+    }
+
+    /* Perform repeated appends to force multiple buffer reallocations */
+    size_t total_expected_len = 0;
+    for (int iter = 0; iter < 50; iter++) {
+        ck_assert_int_eq(core_buffer_append(&buf, pattern, sizeof(pattern)), NSERROR_OK);
+        total_expected_len += sizeof(pattern);
+        ck_assert_int_eq(core_buffer_length(&buf), total_expected_len);
+        ck_assert(buf.allocated >= total_expected_len);
+    }
+
+    /* Verify contents across all appended blocks */
+    const uint8_t *data = core_buffer_data(&buf);
+    for (int iter = 0; iter < 50; iter++) {
+        ck_assert_mem_eq(data + (iter * sizeof(pattern)), pattern, sizeof(pattern));
+    }
+
+    core_buffer_destroy(&buf);
+}
+END_TEST
+
 START_TEST(core_buffer_init_destroy_test)
 {
     core_buffer buf;
@@ -320,6 +439,10 @@ static Suite *core_buffer_suite(void)
 
     TCase *tc_ops = tcase_create("Append, Clear & Shrink");
     tcase_add_test(tc_ops, core_buffer_append_test);
+    tcase_add_test(tc_ops, core_buffer_append_zero_length_test);
+    tcase_add_test(tc_ops, core_buffer_append_binary_data_test);
+    tcase_add_test(tc_ops, core_buffer_append_wrapped_external_test);
+    tcase_add_test(tc_ops, core_buffer_append_multiple_reallocations_test);
     tcase_add_test(tc_ops, core_buffer_clear_test);
     tcase_add_test(tc_ops, core_buffer_shrink_test);
     tcase_add_test(tc_ops, core_buffer_wrap_external_destroy_test);
