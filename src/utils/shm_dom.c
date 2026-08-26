@@ -432,8 +432,8 @@ shm_mutation_chunk_t* shm_mutation_chunk_create(const char *name, bool is_server
         register_shm_handle(chunk, hMap);
         if (is_server) {
             memset(chunk, 0, size);
-            chunk->capacity = SHM_MUTATION_CHUNK_CAPACITY;
         }
+        chunk->capacity = SHM_MUTATION_CHUNK_CAPACITY;
     } else {
         CloseHandle(hMap);
     }
@@ -465,8 +465,8 @@ shm_mutation_chunk_t* shm_mutation_chunk_create(const char *name, bool is_server
 
     if (is_server) {
         memset(chunk, 0, size);
-        chunk->capacity = SHM_MUTATION_CHUNK_CAPACITY;
     }
+    chunk->capacity = SHM_MUTATION_CHUNK_CAPACITY;
 
     return chunk;
 #endif
@@ -521,7 +521,7 @@ static char producer_sec_names[SHM_MAX_SECONDARY_CHUNKS][64] = {{0}};
 static void bbmq_cleanup_producer_chunks(void) {
     for (int i = 0; i < SHM_MAX_SECONDARY_CHUNKS; i++) {
         if (producer_sec_chunks[i]) {
-            shm_mutation_chunk_destroy(producer_sec_chunks[i], producer_sec_names[i], false);
+            shm_mutation_chunk_destroy(producer_sec_chunks[i], producer_sec_names[i], true);
             producer_sec_chunks[i] = NULL;
             producer_sec_names[i][0] = '\0';
         }
@@ -792,7 +792,8 @@ void bbmq_flush(void) {
 
     uint32_t processed = 0;
     while (processed < bbmq_size) {
-        if (head - tail < SHM_MUTATION_QUEUE_SIZE) {
+        sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+        if (sec_count == 0 && (head - tail < SHM_MUTATION_QUEUE_SIZE)) {
             uint32_t src_idx = (bbmq_head + processed) % bbmq_capacity;
             uint32_t idx = head % SHM_MUTATION_QUEUE_SIZE;
             mq->queue[idx] = bbmq_buffer[src_idx];
@@ -801,10 +802,14 @@ void bbmq_flush(void) {
         } else {
             /* Primary 64KB page is full. Create or select dynamic secondary SHM page chunk */
             sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+            if (sec_count > SHM_MAX_SECONDARY_CHUNKS) {
+                sec_count = SHM_MAX_SECONDARY_CHUNKS;
+            }
+
             shm_mutation_chunk_t *sec_chunk = NULL;
             int active_idx = -1;
 
-            if (sec_count > 0) {
+            if (sec_count > 0 && sec_count <= SHM_MAX_SECONDARY_CHUNKS) {
                 active_idx = (int)sec_count - 1;
                 shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
                 uint32_t chead = __atomic_load_n(&desc->head, __ATOMIC_ACQUIRE);
@@ -839,7 +844,6 @@ void bbmq_flush(void) {
                 __atomic_store_n(&desc->head, 0, __ATOMIC_RELEASE);
                 __atomic_store_n(&desc->tail, 0, __ATOMIC_RELEASE);
                 desc->capacity = SHM_MUTATION_CHUNK_CAPACITY;
-                __atomic_store_n(&mq->secondary_chunk_count, sec_count + 1, __ATOMIC_RELEASE);
             }
 
             shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
@@ -850,9 +854,13 @@ void bbmq_flush(void) {
                 uint32_t c_idx = chead % desc->capacity;
                 sec_chunk->queue[c_idx] = bbmq_buffer[src_idx];
                 chead++;
-                __atomic_store_n(&sec_chunk->head, chead, __ATOMIC_RELEASE);
-                __atomic_store_n(&desc->head, chead, __ATOMIC_RELEASE);
                 processed++;
+            }
+
+            // Publish secondary_chunk_count and desc->head ONLY AFTER writing items into sec_chunk->queue
+            __atomic_store_n(&desc->head, chead, __ATOMIC_RELEASE);
+            if (active_idx >= (int)sec_count) {
+                __atomic_store_n(&mq->secondary_chunk_count, active_idx + 1, __ATOMIC_RELEASE);
             }
         }
     }

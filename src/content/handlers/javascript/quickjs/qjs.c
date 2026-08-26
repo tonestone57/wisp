@@ -7337,6 +7337,11 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
     __atomic_store_n(&mq->tail, tail, __ATOMIC_RELEASE);
 
     uint32_t sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+    if (sec_count > SHM_MAX_SECONDARY_CHUNKS) {
+        sec_count = SHM_MAX_SECONDARY_CHUNKS;
+    }
+
+    bool all_drained = true;
     for (uint32_t i = 0; i < sec_count; i++) {
         shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[i];
         if (desc->shm_name[0] != '\0') {
@@ -7351,15 +7356,23 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
                     ctail++;
                 }
                 __atomic_store_n(&desc->tail, ctail, __ATOMIC_RELEASE);
-                shm_mutation_chunk_destroy(sec_chunk, desc->shm_name, true);
+                shm_mutation_chunk_destroy(sec_chunk, desc->shm_name, false);
+                if (ctail != chead) {
+                    all_drained = false;
+                }
             } else {
                 NSLOG(wisp, ERROR, "[BBMQ] Failed to map secondary chunk %s during drain", desc->shm_name);
                 __atomic_store_n(&desc->tail, desc->head, __ATOMIC_RELEASE);
             }
-            desc->shm_name[0] = '\0';
         }
     }
-    __atomic_store_n(&mq->secondary_chunk_count, 0, __ATOMIC_RELEASE);
+
+    if (all_drained) {
+        for (uint32_t i = 0; i < sec_count; i++) {
+            mq->secondary_chunks[i].shm_name[0] = '\0';
+        }
+        __atomic_store_n(&mq->secondary_chunk_count, 0, __ATOMIC_RELEASE);
+    }
 
     current_thread_shm = prev_shm;
 }
