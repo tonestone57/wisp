@@ -117,11 +117,11 @@ nserror http__parse_challenge(const char **input, http_challenge **challenge)
         pos++;
         http__skip_LWS(&pos);
 
-        http__item *next_param = NULL;
-        error = http__parse_parameter(&pos, &next_param);
+        http_parameter *next_param = NULL;
+        error = http__parse_parameter(&pos, (http__item **)&next_param);
         if (error == NSERROR_OK) {
-            next_param->next = (http__item *)params;
-            params = (http_parameter *)next_param;
+            ((http__item *)next_param)->next = (http__item *)params;
+            params = next_param;
             http__skip_LWS(&pos);
         } else {
             if (error != NSERROR_NOT_FOUND) {
