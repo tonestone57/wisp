@@ -3978,7 +3978,7 @@ static bool layout_inline_container(
 	bool has_text_children;
 	struct box *c, *next;
 	int y = 0;
-	int curwidth, maxwidth = width;
+	int curwidth, maxwidth = 0;
 
 	assert(inline_container->type == BOX_INLINE_CONTAINER);
 
@@ -4002,19 +4002,14 @@ static bool layout_inline_container(
 			has_text_children = true;
 	}
 
-	/** \todo fix wrapping so that a box with horizontal scrollbar will
-	 * shrink back to 'width' if no word is wider than 'width' (Or just set
-	 * curwidth = width and have the multiword lines wrap to the min width)
-	 */
 	for (c = inline_container->children; c;) {
 
 		fflush(stderr);
 
 		NSLOG(layout, DEEPDEBUG, "c %p", c);
 
-		/* Use the available width for layout, not inline_container->width which
-		 * may contain a stale min_width value from minmax calculation */
-		curwidth = (inline_container->width > width) ? width : inline_container->width;
+		/* Use the available width for line layout */
+		curwidth = width;
 		if (!layout_line(c, &curwidth, &y, cx, cy + y, cont, first_line, has_text_children, content, &next))
 			return false;
 		maxwidth = max(maxwidth, curwidth);
