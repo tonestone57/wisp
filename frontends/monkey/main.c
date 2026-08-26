@@ -53,6 +53,7 @@
 #include "monkey/dispatch.h"
 #include "monkey/fetch.h"
 #include "monkey/filetype.h"
+#include "wisp/browser_window.h"
 #include "monkey/layout.h"
 #include "monkey/output.h"
 #include "monkey/schedule.h"
@@ -304,8 +305,10 @@ static void monkey_run(void)
         if (max_fd < 0) {
             max_fd = 0;
         }
-        FD_SET(0, &read_fd_set);
-        FD_SET(0, &exc_fd_set);
+        if (!monkey_is_stdin_eof()) {
+            FD_SET(0, &read_fd_set);
+            FD_SET(0, &exc_fd_set);
+        }
 #endif
 
         /* setup timeout */
@@ -527,6 +530,14 @@ int main(int argc, char **argv)
 
     moutf(MOUT_GENERIC, "BOOT HANDLERS REGISTERED");
 
+
+    if (argc > 1) {
+        nsurl *url = NULL;
+        if (nsurl_create(argv[1], &url) == NSERROR_OK) {
+            browser_window_create(BW_CREATE_HISTORY, url, NULL, NULL, NULL);
+            nsurl_unref(url);
+        }
+    }
 
     moutf(MOUT_GENERIC, "STARTED");
     moutf(MOUT_GENERIC, "RUN LOOP START");

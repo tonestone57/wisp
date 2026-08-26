@@ -62,6 +62,13 @@ void monkey_free_handlers(void)
     }
 }
 
+static bool monkey_stdin_eof = false;
+
+bool monkey_is_stdin_eof(void)
+{
+    return monkey_stdin_eof;
+}
+
 void monkey_process_command(void)
 {
     char buffer[PATH_MAX];
@@ -72,6 +79,7 @@ void monkey_process_command(void)
     char **nargv;
 
     if (fgets(buffer, PATH_MAX, stdin) == NULL) {
+        monkey_stdin_eof = true;
         return;
     }
 
