@@ -83,6 +83,24 @@ START_TEST(test_ipc_find_executable_not_found)
 }
 END_TEST
 
+START_TEST(test_ipc_safe_path_truncation)
+{
+    /* Test creating server and connecting with a long socket name */
+    char long_sock_name[256];
+    memset(long_sock_name, 'a', sizeof(long_sock_name) - 1);
+    long_sock_name[sizeof(long_sock_name) - 1] = '\0';
+
+    wisp_ipc_handle *server = wisp_ipc_create_server(long_sock_name);
+    if (server) {
+        wisp_ipc_handle *client = wisp_ipc_connect(long_sock_name);
+        if (client) {
+            wisp_ipc_destroy(client);
+        }
+        wisp_ipc_destroy(server);
+    }
+}
+END_TEST
+
 static TCase *ipc_case_create(void)
 {
     TCase *tc;
@@ -91,6 +109,7 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_connect_accept);
     tcase_add_test(tc, test_ipc_send_recv_basic);
     tcase_add_test(tc, test_ipc_find_executable_not_found);
+    tcase_add_test(tc, test_ipc_safe_path_truncation);
     return tc;
 }
 
