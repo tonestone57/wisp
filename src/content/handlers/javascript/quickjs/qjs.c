@@ -6367,7 +6367,7 @@ void js_destroythread(jsthread *thread)
         if (thread->ctx) {
             JS_FreeValue(thread->ctx, e->js_evt);
         }
-        if (!wisp_is_js_process && e->evt) {
+        if (e->evt) {
             dom_event_unref(e->evt);
         }
         free(e);
