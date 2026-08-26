@@ -7962,6 +7962,37 @@ JSValue wisp_htmlelement_contextMenu_set_impl(JSContext *ctx, QJSNodePrivate *pr
 }
 
 JSValue wisp_htmlelement_dataset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
+    if (!priv) return JS_UNDEFINED;
+
+    JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
+    if (!JS_IsObject(wrapper)) {
+        JS_FreeValue(ctx, wrapper);
+        return JS_UNDEFINED;
+    }
+
+    JSValue ds = JS_GetPropertyStr(ctx, wrapper, "__wisp_dataset");
+    if (!JS_IsUndefined(ds) && !JS_IsNull(ds)) {
+        JS_FreeValue(ctx, wrapper);
+        return ds;
+    }
+    JS_FreeValue(ctx, ds);
+
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue factory = JS_GetPropertyStr(ctx, global, "__wisp_createDOMStringMap");
+    JS_FreeValue(ctx, global);
+
+    if (JS_IsFunction(ctx, factory)) {
+        ds = JS_Call(ctx, factory, JS_UNDEFINED, 1, &wrapper);
+        if (!JS_IsException(ds)) {
+            JS_SetPropertyStr(ctx, wrapper, "__wisp_dataset", JS_DupValue(ctx, ds));
+        }
+        JS_FreeValue(ctx, factory);
+        JS_FreeValue(ctx, wrapper);
+        return ds;
+    }
+
+    JS_FreeValue(ctx, factory);
+    JS_FreeValue(ctx, wrapper);
     return JS_UNDEFINED;
 }
 

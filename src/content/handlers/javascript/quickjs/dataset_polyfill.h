@@ -63,6 +63,7 @@ static const char *dataset_polyfill =
 "            }\n"
 "        });\n"
 "    }\n"
+"    global.__wisp_createDOMStringMap = createDOMStringMap;\n"
 "    if (global.HTMLElement && HTMLElement.prototype) {\n"
 "        Object.defineProperty(HTMLElement.prototype, 'dataset', {\n"
 "            get() {\n"
