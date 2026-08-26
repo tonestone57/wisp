@@ -130,10 +130,10 @@ START_TEST(test_cleanup_finished_fetches)
     ck_assert_ptr_nonnull(n3);
     ck_assert_ptr_nonnull(n4);
 
-    n1->fetch_id = 1; n1->finished = true;
-    n2->fetch_id = 2; n2->finished = false;
-    n3->fetch_id = 3; n3->finished = true;
-    n4->fetch_id = 4; n4->finished = false;
+    n1->fetch_id = 1; n1->finished = true; n1->stream_buf = NULL; n1->stream_len = 0; n1->hash_next = NULL;
+    n2->fetch_id = 2; n2->finished = false; n2->stream_buf = NULL; n2->stream_len = 0; n2->hash_next = NULL;
+    n3->fetch_id = 3; n3->finished = true; n3->stream_buf = NULL; n3->stream_len = 0; n3->hash_next = NULL;
+    n4->fetch_id = 4; n4->finished = false; n4->stream_buf = NULL; n4->stream_len = 0; n4->hash_next = NULL;
 
     /* Link list: n1 (finished) -> n2 (active) -> n3 (finished) -> n4 (active) -> NULL */
     n1->next = n2;
@@ -166,8 +166,8 @@ START_TEST(test_cleanup_finished_fetches)
     ck_assert_ptr_nonnull(a1);
     ck_assert_ptr_nonnull(a2);
 
-    a1->fetch_id = 10; a1->finished = true; a1->next = a2;
-    a2->fetch_id = 20; a2->finished = true; a2->next = NULL;
+    a1->fetch_id = 10; a1->finished = true; a1->stream_buf = NULL; a1->stream_len = 0; a1->hash_next = NULL; a1->next = a2;
+    a2->fetch_id = 20; a2->finished = true; a2->stream_buf = NULL; a2->stream_len = 0; a2->hash_next = NULL; a2->next = NULL;
     active_fetches_list = a1;
 
     cleanup_finished_fetches();
@@ -189,11 +189,17 @@ START_TEST(test_free_all_active_fetches)
     f1->fetch_id = 100;
     f1->fetchh = NULL;
     f1->finished = false;
+    f1->stream_buf = NULL;
+    f1->stream_len = 0;
+    f1->hash_next = NULL;
     f1->next = f2;
 
     f2->fetch_id = 200;
     f2->fetchh = NULL;
     f2->finished = true;
+    f2->stream_buf = NULL;
+    f2->stream_len = 0;
+    f2->hash_next = NULL;
     f2->next = NULL;
 
     active_fetches_list = f1;
