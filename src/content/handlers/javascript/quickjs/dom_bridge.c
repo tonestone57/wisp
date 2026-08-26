@@ -141,9 +141,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         }
     }
 
+    JSValue *val_ptr = NULL;
     if (map) {
         bridge_key_t key = { ctx, node };
-        JSValue *val_ptr = hashmap_insert(map, &key);
+        val_ptr = hashmap_insert(map, &key);
         if (val_ptr) {
             *val_ptr = JS_DupValue(ctx, wrapper);
             if (!wisp_is_js_process) {
@@ -162,8 +163,8 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         }
     }
 
-    if (wisp_is_js_process && t && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
-        t->node_wrapper_cache[node_id] = JS_DupValue(ctx, wrapper);
+    if (wisp_is_js_process && t && node_id > 0 && node_id < SHM_DOM_MAX_NODES && val_ptr) {
+        t->node_wrapper_cache[node_id] = *val_ptr;
     }
 
     return wrapper;
@@ -182,10 +183,8 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
     uint64_t node_id = (uint64_t)(uintptr_t)node;
     if (wisp_is_js_process && ctx && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
         struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
-        if (t && JS_VALUE_GET_TAG(t->node_wrapper_cache[node_id]) != JS_TAG_UNDEFINED) {
-            JSValue val = t->node_wrapper_cache[node_id];
+        if (t) {
             t->node_wrapper_cache[node_id] = JS_UNDEFINED;
-            JS_FreeValue(ctx, val);
         }
     }
 

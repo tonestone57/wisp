@@ -6425,13 +6425,9 @@ void js_destroythread(jsthread *thread)
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx = thread->ctx;
 
-        /* 1. Free node wrapper cache entries safely (clear slot before JS_FreeValue to prevent re-entrant double free) */
+        /* 1. Reset node wrapper cache slots */
         for (int i = 0; i < SHM_DOM_MAX_NODES; i++) {
-            if (JS_VALUE_GET_TAG(thread->node_wrapper_cache[i]) != JS_TAG_UNDEFINED) {
-                JSValue val = thread->node_wrapper_cache[i];
-                thread->node_wrapper_cache[i] = JS_UNDEFINED;
-                JS_FreeValue(ctx, val);
-            }
+            thread->node_wrapper_cache[i] = JS_UNDEFINED;
         }
 
         /* 2. Set opaque to NULL so no more callbacks are made */
