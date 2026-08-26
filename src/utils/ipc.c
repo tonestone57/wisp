@@ -342,7 +342,7 @@ int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
     char cmd[512];
     int len = snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\"", executable, ipc_name);
     if (len < 0 || (size_t)len >= sizeof(cmd)) return -1;
-    if (!CreateProcess(NULL, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) return -1;
+    if (!CreateProcess(executable, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) return -1;
     return pi.dwProcessId;
 #else
     pid_t pid = fork();
