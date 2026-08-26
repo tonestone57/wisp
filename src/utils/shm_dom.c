@@ -409,6 +409,84 @@ shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server) {
 #endif
 }
 
+shm_mutation_chunk_t* shm_mutation_chunk_create(const char *name, bool is_server) {
+    size_t size = sizeof(shm_mutation_chunk_t);
+#ifdef _WIN32
+    HANDLE hMap = NULL;
+    if (is_server) {
+        SECURITY_ATTRIBUTES sa;
+        SECURITY_DESCRIPTOR sd;
+        InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+        SetSecurityDescriptorDacl(&sd, TRUE, (PACL)NULL, FALSE);
+        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sa.lpSecurityDescriptor = &sd;
+        sa.bInheritHandle = FALSE;
+        hMap = CreateFileMappingA(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE, 0, (DWORD)size, name);
+    } else {
+        hMap = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, name);
+    }
+
+    if (!hMap) return NULL;
+    shm_mutation_chunk_t *chunk = (shm_mutation_chunk_t *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size);
+    if (chunk) {
+        register_shm_handle(chunk, hMap);
+        if (is_server) {
+            memset(chunk, 0, size);
+        }
+        chunk->capacity = SHM_MUTATION_CHUNK_CAPACITY;
+    } else {
+        CloseHandle(hMap);
+    }
+    return chunk;
+#else
+    int fd = -1;
+    if (is_server) {
+        fd = shm_open(name, O_CREAT | O_RDWR, 0666);
+        if (fd >= 0) {
+            if (ftruncate(fd, size) != 0) {
+                close(fd);
+                shm_unlink(name);
+                return NULL;
+            }
+        }
+    } else {
+        fd = shm_open(name, O_RDWR, 0666);
+    }
+
+    if (fd < 0) return NULL;
+
+    shm_mutation_chunk_t *chunk = (shm_mutation_chunk_t *)mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+
+    if (chunk == MAP_FAILED) {
+        if (is_server) shm_unlink(name);
+        return NULL;
+    }
+
+    if (is_server) {
+        memset(chunk, 0, size);
+    }
+    chunk->capacity = SHM_MUTATION_CHUNK_CAPACITY;
+
+    return chunk;
+#endif
+}
+
+void shm_mutation_chunk_destroy(shm_mutation_chunk_t *chunk, const char *name, bool is_server) {
+    if (!chunk) return;
+    size_t size = sizeof(shm_mutation_chunk_t);
+#ifdef _WIN32
+    UnmapViewOfFile(chunk);
+    HANDLE h = find_and_unregister_shm_handle(chunk);
+    if (h) CloseHandle(h);
+#else
+    munmap(chunk, size);
+    if (is_server && name) {
+        shm_unlink(name);
+    }
+#endif
+}
+
 void shm_dom_destroy(shm_dom_t *shm, const char *name, bool is_server) {
     if (!shm) return;
     uint32_t cap = shm->node_capacity;
@@ -437,11 +515,25 @@ static uint32_t bbmq_tail = 0;
 static uint32_t bbmq_size = 0;
 static uint32_t bbmq_capacity = 0;
 
+static shm_mutation_chunk_t *producer_sec_chunks[SHM_MAX_SECONDARY_CHUNKS] = {NULL};
+static char producer_sec_names[SHM_MAX_SECONDARY_CHUNKS][64] = {{0}};
+
+static void bbmq_cleanup_producer_chunks(void) {
+    for (int i = 0; i < SHM_MAX_SECONDARY_CHUNKS; i++) {
+        if (producer_sec_chunks[i]) {
+            shm_mutation_chunk_destroy(producer_sec_chunks[i], producer_sec_names[i], true);
+            producer_sec_chunks[i] = NULL;
+            producer_sec_names[i][0] = '\0';
+        }
+    }
+}
+
 static void bbmq_cleanup(void) {
     if (bbmq_buffer) {
         free(bbmq_buffer);
         bbmq_buffer = NULL;
     }
+    bbmq_cleanup_producer_chunks();
     bbmq_head = 0;
     bbmq_tail = 0;
     bbmq_size = 0;
@@ -683,23 +775,94 @@ bool bbmq_has_pending_for_node(uint64_t target_id) {
     return false;
 }
 
+static uint64_t bbmq_chunk_seq = 0;
+
 void bbmq_flush(void) {
     if (!wisp_shm_dom) return;
     if (bbmq_size == 0) return;
 
     shm_mutation_queue_t *mq = &wisp_shm_dom->mutation_queue;
-    uint32_t head = mq->head;
-    uint32_t tail = mq->tail;
+    uint32_t head = __atomic_load_n(&mq->head, __ATOMIC_ACQUIRE);
+    uint32_t tail = __atomic_load_n(&mq->tail, __ATOMIC_ACQUIRE);
 
-    for (uint32_t i = 0; i < bbmq_size; i++) {
-        if (head - tail >= SHM_MUTATION_QUEUE_SIZE) {
-            NSLOG(wisp, WARNING, "[BBMQ] Shared mutation queue is full during flush!");
-            break;
+    uint32_t sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+    if (sec_count == 0) {
+        bbmq_cleanup_producer_chunks();
+    }
+
+    uint32_t processed = 0;
+    while (processed < bbmq_size) {
+        sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+        if (sec_count == 0 && (head - tail < SHM_MUTATION_QUEUE_SIZE)) {
+            uint32_t src_idx = (bbmq_head + processed) % bbmq_capacity;
+            uint32_t idx = head % SHM_MUTATION_QUEUE_SIZE;
+            mq->queue[idx] = bbmq_buffer[src_idx];
+            head++;
+            processed++;
+        } else {
+            /* Primary 64KB page is full. Create or select dynamic secondary SHM page chunk */
+            sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+            if (sec_count > SHM_MAX_SECONDARY_CHUNKS) {
+                sec_count = SHM_MAX_SECONDARY_CHUNKS;
+            }
+
+            shm_mutation_chunk_t *sec_chunk = NULL;
+            int active_idx = -1;
+
+            if (sec_count > 0 && sec_count <= SHM_MAX_SECONDARY_CHUNKS) {
+                active_idx = (int)sec_count - 1;
+                shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
+                uint32_t chead = __atomic_load_n(&desc->head, __ATOMIC_ACQUIRE);
+                uint32_t ctail = __atomic_load_n(&desc->tail, __ATOMIC_ACQUIRE);
+                if (chead - ctail < desc->capacity) {
+                    sec_chunk = producer_sec_chunks[active_idx];
+                }
+            }
+
+            if (!sec_chunk) {
+                if (sec_count >= SHM_MAX_SECONDARY_CHUNKS) {
+                    NSLOG(wisp, ERROR, "[BBMQ] Maximum secondary shared memory chunks (%d) exceeded during flush!", SHM_MAX_SECONDARY_CHUNKS);
+                    break;
+                }
+                char chunk_name[64];
+                uint32_t seq = (uint32_t)__atomic_fetch_add(&bbmq_chunk_seq, 1, __ATOMIC_RELAXED);
+                snprintf(chunk_name, sizeof(chunk_name), "/w_sec_%u_%u", (unsigned int)getpid(), (unsigned int)seq);
+
+                sec_chunk = shm_mutation_chunk_create(chunk_name, true);
+                if (!sec_chunk) {
+                    NSLOG(wisp, ERROR, "[BBMQ] Failed to create secondary shared memory chunk %s", chunk_name);
+                    break;
+                }
+                active_idx = sec_count;
+                producer_sec_chunks[active_idx] = sec_chunk;
+                strncpy(producer_sec_names[active_idx], chunk_name, sizeof(producer_sec_names[active_idx]) - 1);
+                producer_sec_names[active_idx][sizeof(producer_sec_names[active_idx]) - 1] = '\0';
+
+                shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
+                strncpy(desc->shm_name, chunk_name, sizeof(desc->shm_name) - 1);
+                desc->shm_name[sizeof(desc->shm_name) - 1] = '\0';
+                __atomic_store_n(&desc->head, 0, __ATOMIC_RELEASE);
+                __atomic_store_n(&desc->tail, 0, __ATOMIC_RELEASE);
+                desc->capacity = SHM_MUTATION_CHUNK_CAPACITY;
+            }
+
+            shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
+            uint32_t chead = __atomic_load_n(&desc->head, __ATOMIC_ACQUIRE);
+            uint32_t ctail = __atomic_load_n(&desc->tail, __ATOMIC_ACQUIRE);
+            while (processed < bbmq_size && (chead - ctail < desc->capacity)) {
+                uint32_t src_idx = (bbmq_head + processed) % bbmq_capacity;
+                uint32_t c_idx = chead % desc->capacity;
+                sec_chunk->queue[c_idx] = bbmq_buffer[src_idx];
+                chead++;
+                processed++;
+            }
+
+            // Publish secondary_chunk_count and desc->head ONLY AFTER writing items into sec_chunk->queue
+            __atomic_store_n(&desc->head, chead, __ATOMIC_RELEASE);
+            if (active_idx >= (int)sec_count) {
+                __atomic_store_n(&mq->secondary_chunk_count, active_idx + 1, __ATOMIC_RELEASE);
+            }
         }
-        uint32_t src_idx = (bbmq_head + i) % bbmq_capacity;
-        uint32_t idx = head % SHM_MUTATION_QUEUE_SIZE;
-        mq->queue[idx] = bbmq_buffer[src_idx];
-        head++;
     }
 
 #ifdef _WIN32
@@ -708,7 +871,7 @@ void bbmq_flush(void) {
     __sync_synchronize();
 #endif
 
-    mq->head = head;
+    __atomic_store_n(&mq->head, head, __ATOMIC_RELEASE);
     bbmq_head = 0;
     bbmq_tail = 0;
     bbmq_size = 0;
