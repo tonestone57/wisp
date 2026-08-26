@@ -50,7 +50,7 @@ General Options
  background_images    | bool   | true      | Whether to fetch background images 
  animate_images       | bool   | true      | Whether to animate images        
  enable_javascript    | bool   | false     | Whether to execute javascript    
- script_timeout       | int    | 10        | Maximum time to wait for a script to run in seconds 
+ script_timeout       | int    | 30        | Maximum time to wait for a script to run in seconds
  expire_url           | int    | 28        | How many days to retain URL data for. 
  font_default         | int    | 0         | Default font family              
  ca_bundle            | string | NULL      | ca-bundle location               
