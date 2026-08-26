@@ -6679,7 +6679,7 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
     const char *semicolon = strchr(type, ';');
     size_t mime_len = semicolon ? (size_t)(semicolon - type) : strlen(type);
     if (mime_len >= sizeof(mime)) mime_len = sizeof(mime) - 1;
-    strncpy(mime, type, mime_len);
+    memcpy(mime, type, mime_len);
     mime[mime_len] = '\0';
 
     // Trim trailing whitespace from mime
