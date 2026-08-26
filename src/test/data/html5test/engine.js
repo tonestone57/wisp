@@ -1258,19 +1258,29 @@ Test9 = (function () {
                 element.setAttribute("type", "text");
                 document.body.appendChild(element);
 
+                var matchElement = function (el, selector, idSelector) {
+                    if (el.matches) {
+                        return el.matches(selector);
+                    } else if (el.matchesSelector) {
+                        return el.matchesSelector(selector);
+                    } else {
+                        return !!document.querySelector(idSelector);
+                    }
+                };
+
                 try {
-                    passed[0] = !!document.querySelector("#testFormInput:valid");
+                    passed[0] = matchElement(element, ":valid", "#testFormInput:valid");
                 } catch (e) {
                     passed[0] = NO;
                 }
 
                 try {
-                    passed[6] = !!document.querySelector("#testFormInput:read-write");
+                    passed[6] = matchElement(element, ":read-write", "#testFormInput:read-write");
                 } catch (e) {
                     passed[6] = NO;
 
                     try {
-                        passed[6] = document.querySelector("#testFormInput:-moz-read-write") ? YES | PREFIX : NO;
+                        passed[6] = matchElement(element, ":-moz-read-write", "#testFormInput:-moz-read-write") ? YES | PREFIX : NO;
                     } catch (e) {
                     }
                 }
@@ -1279,7 +1289,7 @@ Test9 = (function () {
                     element.setCustomValidity("foo");
 
                     try {
-                        passed[1] = !!document.querySelector("#testFormInput:invalid");
+                        passed[1] = matchElement(element, ":invalid", "#testFormInput:invalid");
                     } catch (e) {
                         passed[1] = NO;
                     }
@@ -1288,7 +1298,7 @@ Test9 = (function () {
                 }
 
                 try {
-                    passed[2] = !!document.querySelector("#testFormInput:optional");
+                    passed[2] = matchElement(element, ":optional", "#testFormInput:optional");
                 } catch (e) {
                     passed[2] = NO;
                 }
@@ -1296,7 +1306,7 @@ Test9 = (function () {
                 element.setAttribute("required", "true");
 
                 try {
-                    passed[3] = !!document.querySelector("#testFormInput:required");
+                    passed[3] = matchElement(element, ":required", "#testFormInput:required");
                 } catch (e) {
                     passed[3] = NO;
                 }
@@ -1306,7 +1316,7 @@ Test9 = (function () {
                     element.setAttribute("min", "10");
                     element.setAttribute("max", "20");
                     element.setAttribute("value", "15");
-                    passed[4] = !!document.querySelector("#testFormInput:in-range");
+                    passed[4] = matchElement(element, ":in-range", "#testFormInput:in-range");
                 } catch (e) {
                     passed[4] = NO;
                 }
@@ -1317,7 +1327,7 @@ Test9 = (function () {
                     element.setAttribute("min", "10");
                     element.setAttribute("max", "20");
                     element.setAttribute("value", "25");
-                    passed[5] = !!document.querySelector("#testFormInput:out-of-range");
+                    passed[5] = matchElement(element, ":out-of-range", "#testFormInput:out-of-range");
                 } catch (e) {
                     passed[5] = NO;
                 }
@@ -1331,12 +1341,12 @@ Test9 = (function () {
                 document.body.appendChild(element);
 
                 try {
-                    passed[7] = !!document.querySelector("#testFormInput:read-only");
+                    passed[7] = matchElement(element, ":read-only", "#testFormInput:read-only");
                 } catch (e) {
                     passed[7] = NO;
 
                     try {
-                        passed[7] = document.querySelector("#testFormInput:-moz-read-only") ? YES | PREFIX : NO;
+                        passed[7] = matchElement(element, ":-moz-read-only", "#testFormInput:-moz-read-only") ? YES | PREFIX : NO;
                     } catch (e) {
                     }
                 }
