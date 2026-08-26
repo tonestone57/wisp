@@ -567,13 +567,13 @@ class QuickJSBindingGenerator:
 
         # Marshaller declarations
         c_code += f"static void js_{lower_name}_finalizer(JSRuntime *rt, JSValue val);\n"
+        ctor_decls = []
         for ctor in constructors:
-            if ctor.get('is_dummy'):
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
-            elif ctor['name'] == 'constructor':
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
+            if ctor.get('is_dummy') or ctor['name'] == 'constructor':
+                ctor_decls.append(f"static JSValue js_{lower_name}_{ctor['impl_name']}_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n")
             else:
-                c_code += f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n"
+                ctor_decls.append(f"static JSValue js_{lower_name}_{ctor['impl_name']}_ctor_marshaller(JSContext *ctx, JSValueConst new_target, int argc, JSValueConst *argv);\n")
+        c_code += "".join(ctor_decls)
         for op in flat_ops:
             c_code += f"static JSValue js_{lower_name}_{op['impl_name']}_marshaller(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv);\n"
 
