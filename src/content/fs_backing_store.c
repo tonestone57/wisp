@@ -1202,7 +1202,8 @@ static int durable_rename(const char *src, const char *dst)
     /* Flush destination directory metadata */
     char *dir = _strdup(dst);
     if (dir != NULL) {
-        for (size_t i = strlen(dir); i > 0; i--) {
+        size_t dir_len = strlen(dir);
+        for (size_t i = dir_len; i > 0; i--) {
             if (dir[i - 1] == '/' || dir[i - 1] == '\\') {
                 dir[i - 1] = '\0';
                 break;
