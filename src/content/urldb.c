@@ -1626,7 +1626,7 @@ static struct search_node *urldb_search_insert(struct search_node *root, const s
  */
 static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v, bool was_quoted)
 {
-    int vlen;
+    size_t vlen;
 
     assert(c && n && v);
 
@@ -1637,9 +1637,9 @@ static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v,
     }
 
     /* Strip whitespace from end of name */
-    for (vlen = strlen(n); vlen; vlen--) {
-        if (n[vlen] == ' ' || n[vlen] == '\t')
-            n[vlen] = '\0';
+    for (vlen = strlen(n); vlen > 0; vlen--) {
+        if (n[vlen - 1] == ' ' || n[vlen - 1] == '\t')
+            n[vlen - 1] = '\0';
         else
             break;
     }
@@ -1651,9 +1651,9 @@ static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v,
     }
 
     /* Strip whitespace from end of value */
-    for (vlen = strlen(v); vlen; vlen--) {
-        if (v[vlen] == ' ' || v[vlen] == '\t')
-            v[vlen] = '\0';
+    for (vlen = strlen(v); vlen > 0; vlen--) {
+        if (v[vlen - 1] == ' ' || v[vlen - 1] == '\t')
+            v[vlen - 1] = '\0';
         else
             break;
     }
