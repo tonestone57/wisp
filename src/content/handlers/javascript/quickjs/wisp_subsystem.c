@@ -587,7 +587,8 @@ void* wisp_worker_routine(void *arg) {
                 JS_FreeValue(worker->ctx, val);
                 JSContext *ctx1;
                 int job_ret;
-                while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1)) != 0) {
+                int microtask_count = 0;
+                while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(worker->ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
                     if (job_ret < 0) {
                         JSValue exc = JS_GetException(ctx1);
                         const char *exc_str = JS_ToCString(ctx1, exc);
@@ -815,7 +816,8 @@ void* wisp_web_worker_routine(void *arg) {
     while (h->running && !h->terminated) {
         JSContext *ctx1;
         int job_ret;
-        while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(t->ctx), &ctx1)) != 0) {
+        int microtask_count = 0;
+        while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(t->ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
             if (job_ret < 0) {
                 JSValue exc = JS_GetException(ctx1);
                 const char *exc_str = JS_ToCString(ctx1, exc);

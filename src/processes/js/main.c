@@ -437,7 +437,8 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
                 wisp_in_microtask = true;
                 JSContext *ctx1;
                 int job_ret;
-                while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0) {
+                int microtask_count = 0;
+                while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0 && microtask_count++ < 10000) {
                     if (job_ret < 0) {
                         JSValue exc = JS_GetException(ctx1);
                         const char *exc_str = JS_ToCString(ctx1, exc);
@@ -562,8 +563,9 @@ int js_process_main(int argc, char **argv) {
                 if (curr_c->ctx) {
                     JSContext *ctx1;
                     int job_ret;
+                    int microtask_count = 0;
                     wisp_in_microtask = true;
-                    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(curr_c->ctx), &ctx1)) != 0) {
+                    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(curr_c->ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
                         wait_time = 0;
                         did_work = true;
                         if (job_ret < 0) {

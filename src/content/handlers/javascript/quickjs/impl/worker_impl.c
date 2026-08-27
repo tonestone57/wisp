@@ -121,7 +121,8 @@ void wisp_dispatch_message_to_worker_object(WispWorkerHandle *h, WispMessage *ms
             JS_FreeValue(ctx, ret);
             JSContext *ctx1;
             int job_ret;
-            while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+            int microtask_count = 0;
+            while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
                 if (job_ret < 0) {
                     JSValue exc = JS_GetException(ctx1);
                     const char *exc_str = JS_ToCString(ctx1, exc);
@@ -140,7 +141,8 @@ void wisp_dispatch_message_to_worker_object(WispWorkerHandle *h, WispMessage *ms
             JS_FreeValue(ctx, ret);
             JSContext *ctx1;
             int job_ret;
-            while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+            int microtask_count = 0;
+            while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
                 if (job_ret < 0) {
                     JSValue exc = JS_GetException(ctx1);
                     const char *exc_str = JS_ToCString(ctx1, exc);
