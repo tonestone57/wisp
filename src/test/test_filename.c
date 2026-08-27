@@ -38,7 +38,7 @@ START_TEST(filename_initialise_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
 
     filename_initialise();
 
@@ -54,7 +54,7 @@ START_TEST(filename_request_rollover_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
     filename_initialise();
 
     char first_dir_files[64][32];
@@ -98,7 +98,7 @@ START_TEST(filename_claim_release_boundary_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
     filename_initialise();
 
     /* Input validation tests */
@@ -139,7 +139,7 @@ START_TEST(filename_request_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
     filename_initialise();
 
     const char *name1 = filename_request();
@@ -162,7 +162,7 @@ START_TEST(filename_claim_release_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
     filename_initialise();
 
     ck_assert_int_eq(filename_claim(NULL), false);
@@ -192,7 +192,7 @@ START_TEST(filename_flush_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
     filename_initialise();
 
     filename_flush(); /* Shouldn't crash */
@@ -205,16 +205,16 @@ START_TEST(filename_flush_disk_test)
 {
     setup_mock_gui();
 
-    system("mkdir -p " TEMP_FILENAME_PREFIX);
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/dummy");
     filename_initialise();
 
     /* 1. Claim a valid file */
     ck_assert_int_eq(filename_claim("03/00/00/00"), true);
 
     /* 2. Create disk structure under TEMP_FILENAME_PREFIX */
-    system("mkdir -p " TEMP_FILENAME_PREFIX "/03/00/00");
-    system("mkdir -p " TEMP_FILENAME_PREFIX "/03/00/00/unexpected_dir");
-    system("mkdir -p " TEMP_FILENAME_PREFIX "/99");
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/03/00/00/dummy");
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/03/00/00/unexpected_dir/dummy");
+    wisp_mkdir_all(TEMP_FILENAME_PREFIX "/99/dummy");
 
     /* Claimed file (should be retained) */
     char claimed_path[256];
