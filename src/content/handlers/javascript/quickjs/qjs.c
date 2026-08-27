@@ -7461,20 +7461,14 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         } else {
             for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
                 struct html_script *s = &htmlc->scripts[idx];
-                if (s->type != HTML_SCRIPT_INLINE) {
-                    if (s->data.handle != NULL) {
-                        struct nsurl *hurl = hlcache_handle_get_url(s->data.handle);
-                        if (hurl != NULL) {
-                            const char *url_str = nsurl_access(hurl);
-                            if (url_str && strcmp(url_str, name) == 0) {
-                                found_s = s;
-                                break;
-                            }
+                if (s->type != HTML_SCRIPT_INLINE && s->data.handle != NULL) {
+                    struct nsurl *hurl = hlcache_handle_get_url(s->data.handle);
+                    if (hurl != NULL) {
+                        const char *url_str = nsurl_access(hurl);
+                        if (url_str && strcmp(url_str, name) == 0) {
+                            found_s = s;
+                            break;
                         }
-                    } else if (s->already_started) {
-                        /* Script fetch started or failed/completed via hlcache_handle_retrieve */
-                        found_s = s;
-                        break;
                     }
                 }
             }
