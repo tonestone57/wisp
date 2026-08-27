@@ -7162,6 +7162,8 @@ START_TEST(test_quickjs_element_closest)
         "if (!rowMatch || rowMatch.id !== 'row1') throw new Error('Ancestor tr match failed');\n"
         "var classMatch = span.closest('.table');\n"
         "if (!classMatch || classMatch.tagName.toLowerCase() !== 'table') throw new Error('Class selector match failed');\n"
+        "var treegridMatch = span.closest('.treegrid-1');\n"
+        "if (!treegridMatch || treegridMatch.id !== 'row1') throw new Error('Treegrid class match failed');\n"
         "var noMatch = span.closest('.nonexistent');\n"
         "if (noMatch !== null) throw new Error('Expected null for non-matching selector');\n"
         "if (noMatch === undefined) throw new Error('Returned undefined instead of null');\n"
