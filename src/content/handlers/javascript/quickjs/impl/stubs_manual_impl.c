@@ -10000,7 +10000,38 @@ JSValue wisp_element_removeAttributeNode_impl(JSContext *ctx, QJSNodePrivate *pr
 
 // Overrides: method | Element::closest();
 JSValue wisp_element_closest_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
-    return JS_UNDEFINED;
+    if (!priv || !priv->node || !selectors || selectors[0] == '\0') {
+        return JS_NULL;
+    }
+
+    if (wisp_is_js_process) {
+        uint32_t curr_id = (uint32_t)(uintptr_t)priv->node;
+        while (curr_id != 0) {
+            if (qjs_dom_element_matches(ctx, (struct dom_node *)(uintptr_t)curr_id, selectors)) {
+                return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)curr_id);
+            }
+            WispCompactNode *sn = find_shm_node(wisp_shm_dom, curr_id);
+            curr_id = sn ? sn->parent_id : 0;
+        }
+        return JS_NULL;
+    } else {
+        struct dom_node *curr = dom_node_ref((struct dom_node *)priv->node);
+        while (curr) {
+            dom_node_type type;
+            if (dom_node_get_node_type(curr, &type) == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
+                if (qjs_dom_element_matches(ctx, curr, selectors)) {
+                    JSValue val = qjs_wrap_node(ctx, curr);
+                    dom_node_unref(curr);
+                    return val;
+                }
+            }
+            struct dom_node *parent = NULL;
+            dom_node_get_parent_node(curr, &parent);
+            dom_node_unref(curr);
+            curr = parent;
+        }
+        return JS_NULL;
+    }
 }
 
 // Overrides: method | Element::getElementsByTagNameNS();

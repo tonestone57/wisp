@@ -610,9 +610,11 @@ class CSSGroup:
         t.append('Bit allocations:')
         for i, b in enumerate(self.bits_array):
             bits = []
+            seen = set()
             for prop in b.contents:
                 for char in prop.name + prop.name.upper():
-                    if char not in bits and char in string.ascii_letters:
+                    if char not in seen and char in string.ascii_letters:
+                        seen.add(char)
                         bits.extend(char * prop.bits_size)
                         break
             t.append()
