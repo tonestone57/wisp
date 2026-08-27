@@ -204,7 +204,7 @@ css_error css__variables_ctx_clone(const css_var_context *src, css_var_context *
         if (src->count > 0) {
             ctx->entries = malloc(src->count * sizeof(css_var_entry));
             if (ctx->entries == NULL) {
-                free(ctx);
+                css__variables_ctx_destroy(ctx);
                 return CSS_NOMEM;
             }
 
@@ -223,16 +223,19 @@ css_error css__variables_ctx_clone(const css_var_context *src, css_var_context *
 
         if (src->cache_count > 0) {
             ctx->cache = malloc(src->cache_count * sizeof(css_var_cache_entry));
-            if (ctx->cache != NULL) {
-                ctx->cache_capacity = src->cache_count;
-                ctx->cache_count = 0;
-                for (uint32_t i = 0; i < src->cache_count; i++) {
-                    parserutils_vector *new_tokens;
-                    if (css__tokens_clone(src->cache[i].resolved_tokens, &new_tokens) == PARSERUTILS_OK) {
-                        ctx->cache[ctx->cache_count].src_hash = src->cache[i].src_hash;
-                        ctx->cache[ctx->cache_count].resolved_tokens = new_tokens;
-                        ctx->cache_count++;
-                    }
+            if (ctx->cache == NULL) {
+                css__variables_ctx_destroy(ctx);
+                return CSS_NOMEM;
+            }
+
+            ctx->cache_capacity = src->cache_count;
+            ctx->cache_count = 0;
+            for (uint32_t i = 0; i < src->cache_count; i++) {
+                parserutils_vector *new_tokens;
+                if (css__tokens_clone(src->cache[i].resolved_tokens, &new_tokens) == PARSERUTILS_OK) {
+                    ctx->cache[ctx->cache_count].src_hash = src->cache[i].src_hash;
+                    ctx->cache[ctx->cache_count].resolved_tokens = new_tokens;
+                    ctx->cache_count++;
                 }
             }
         }
