@@ -1638,8 +1638,8 @@ static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v,
 
     /* Strip whitespace from end of name */
     for (vlen = strlen(n); vlen; vlen--) {
-        if (n[vlen] == ' ' || n[vlen] == '\t')
-            n[vlen] = '\0';
+        if (n[vlen - 1] == ' ' || n[vlen - 1] == '\t')
+            n[vlen - 1] = '\0';
         else
             break;
     }
@@ -1652,8 +1652,8 @@ static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v,
 
     /* Strip whitespace from end of value */
     for (vlen = strlen(v); vlen; vlen--) {
-        if (v[vlen] == ' ' || v[vlen] == '\t')
-            v[vlen] = '\0';
+        if (v[vlen - 1] == ' ' || v[vlen - 1] == '\t')
+            v[vlen - 1] = '\0';
         else
             break;
     }
