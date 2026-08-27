@@ -10002,7 +10002,7 @@ JSValue wisp_element_removeAttributeNode_impl(JSContext *ctx, QJSNodePrivate *pr
 extern bool qjs_dom_element_matches(JSContext *ctx, struct dom_node *node, const char *selectors);
 
 JSValue wisp_element_closest_impl(JSContext *ctx, QJSNodePrivate *priv, const char * selectors) {
-    if (!priv || !priv->node || !selectors) return JS_NULL;
+    if (!priv || !priv->node || !selectors || *selectors == '\0') return JS_NULL;
 
     if (wisp_is_js_process) {
         uint32_t curr_id = (uint32_t)(uintptr_t)priv->node;
