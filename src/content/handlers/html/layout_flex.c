@@ -558,96 +558,100 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 		 * Algorithm: Items where content_min > resolved% are frozen at content_min.
 		 * Remaining space is distributed to shrinkable items. */
 
-		bool frozen[64] = {false};
-		int new_heights[64] = {0};
-		int frozen_total = 0;
-		int shrinkable_total = 0;
-		css_fixed shrinkable_factor_sum = 0;
+		bool *frozen = calloc(ctx->item.count, sizeof(bool));
+		int *new_heights = calloc(ctx->item.count, sizeof(int));
+		if (frozen != NULL && new_heights != NULL) {
+			int frozen_total = 0;
+			int shrinkable_total = 0;
+			css_fixed shrinkable_factor_sum = 0;
 
-		/* First pass: identify frozen items (content_min > resolved%) and calculate totals */
-		for (size_t i = 0; i < ctx->item.count && i < 64; i++) {
-			struct flex_item_data *item = &ctx->item.data[i];
-			struct box *b = item->box;
-
-			if (item->has_pct_basis) {
-				int pct = FIXTOINT(item->basis_length.value);
-				int resolved = (definite_height * pct) / 100;
-				int content_min = b->height;
-
-				if (content_min >= resolved) {
-					/* This item can't shrink - it needs its content_min */
-					new_heights[i] = content_min;
-					frozen[i] = true;
-					frozen_total += content_min;
-					NSLOG(flex, DEEPDEBUG, "PASS2: item %p FROZEN: pct=%d%% resolved=%d < content=%d", b, pct, resolved,
-						content_min);
-				} else {
-					/* This item can shrink */
-					new_heights[i] = resolved;
-					shrinkable_total += resolved;
-					shrinkable_factor_sum += FMUL(item->shrink, INTTOFIX(resolved));
-					NSLOG(flex, DEEPDEBUG, "PASS2: item %p SHRINKABLE: pct=%d%% resolved=%d content=%d", b, pct, resolved,
-						content_min);
-				}
-			}
-		}
-
-		/* Calculate remaining space for shrinkable items */
-		int remaining_for_shrinkable = available - frozen_total;
-
-		NSLOG(flex, DEEPDEBUG, "PASS2: available=%d frozen_total=%d remaining=%d shrinkable_total=%d", available,
-			frozen_total, remaining_for_shrinkable, shrinkable_total);
-
-		if (remaining_for_shrinkable > 0 && shrinkable_total > remaining_for_shrinkable) {
-			/* Need to shrink the shrinkable items */
-			int overflow = shrinkable_total - remaining_for_shrinkable;
-
-			NSLOG(flex, DEEPDEBUG, "PASS2: shrinkable overflow=%d", overflow);
-
-			/* Distribute shrink proportionally to shrinkable items */
-			for (size_t i = 0; i < ctx->item.count && i < 64; i++) {
+			/* First pass: identify frozen items (content_min > resolved%) and calculate totals */
+			for (size_t i = 0; i < ctx->item.count; i++) {
 				struct flex_item_data *item = &ctx->item.data[i];
 				struct box *b = item->box;
 
-				if (item->has_pct_basis && !frozen[i] && item->shrink > 0) {
-					css_fixed scaled_factor = FMUL(item->shrink, INTTOFIX(new_heights[i]));
-					css_fixed ratio = FDIV(scaled_factor, shrinkable_factor_sum);
-					int shrink_amount = FIXTOINT(FMUL(INTTOFIX(overflow), ratio));
-
-					int target = new_heights[i] - shrink_amount;
+				if (item->has_pct_basis) {
+					int pct = FIXTOINT(item->basis_length.value);
+					int resolved = (definite_height * pct) / 100;
 					int content_min = b->height;
 
-					/* Don't go below content min */
-					if (target < content_min) {
-						target = content_min;
+					if (content_min >= resolved) {
+						/* This item can't shrink - it needs its content_min */
+						new_heights[i] = content_min;
+						frozen[i] = true;
+						frozen_total += content_min;
+						NSLOG(flex, DEEPDEBUG, "PASS2: item %p FROZEN: pct=%d%% resolved=%d < content=%d", b, pct, resolved,
+							content_min);
+					} else {
+						/* This item can shrink */
+						new_heights[i] = resolved;
+						shrinkable_total += resolved;
+						shrinkable_factor_sum += FMUL(item->shrink, INTTOFIX(resolved));
+						NSLOG(flex, DEEPDEBUG, "PASS2: item %p SHRINKABLE: pct=%d%% resolved=%d content=%d", b, pct, resolved,
+							content_min);
 					}
-
-					NSLOG(flex, DEEPDEBUG, "PASS2: item %p shrink: %d - %d = %d (min=%d)", b, new_heights[i], shrink_amount,
-						target, content_min);
-					new_heights[i] = target;
 				}
 			}
-		} else if (remaining_for_shrinkable <= 0) {
-			/* Not enough space even for frozen items - cap shrinkable at content_min */
-			for (size_t i = 0; i < ctx->item.count && i < 64; i++) {
+
+			/* Calculate remaining space for shrinkable items */
+			int remaining_for_shrinkable = available - frozen_total;
+
+			NSLOG(flex, DEEPDEBUG, "PASS2: available=%d frozen_total=%d remaining=%d shrinkable_total=%d", available,
+				frozen_total, remaining_for_shrinkable, shrinkable_total);
+
+			if (remaining_for_shrinkable > 0 && shrinkable_total > remaining_for_shrinkable) {
+				/* Need to shrink the shrinkable items */
+				int overflow = shrinkable_total - remaining_for_shrinkable;
+
+				NSLOG(flex, DEEPDEBUG, "PASS2: shrinkable overflow=%d", overflow);
+
+				/* Distribute shrink proportionally to shrinkable items */
+				for (size_t i = 0; i < ctx->item.count; i++) {
+					struct flex_item_data *item = &ctx->item.data[i];
+					struct box *b = item->box;
+
+					if (item->has_pct_basis && !frozen[i] && item->shrink > 0) {
+						css_fixed scaled_factor = FMUL(item->shrink, INTTOFIX(new_heights[i]));
+						css_fixed ratio = FDIV(scaled_factor, shrinkable_factor_sum);
+						int shrink_amount = FIXTOINT(FMUL(INTTOFIX(overflow), ratio));
+
+						int target = new_heights[i] - shrink_amount;
+						int content_min = b->height;
+
+						/* Don't go below content min */
+						if (target < content_min) {
+							target = content_min;
+						}
+
+						NSLOG(flex, DEEPDEBUG, "PASS2: item %p shrink: %d - %d = %d (min=%d)", b, new_heights[i], shrink_amount,
+							target, content_min);
+						new_heights[i] = target;
+					}
+				}
+			} else if (remaining_for_shrinkable <= 0) {
+				/* Not enough space even for frozen items - cap shrinkable at content_min */
+				for (size_t i = 0; i < ctx->item.count; i++) {
+					struct flex_item_data *item = &ctx->item.data[i];
+					struct box *b = item->box;
+					if (item->has_pct_basis && !frozen[i]) {
+						new_heights[i] = b->height;
+					}
+				}
+			}
+
+			/* Apply final heights */
+			for (size_t i = 0; i < ctx->item.count; i++) {
 				struct flex_item_data *item = &ctx->item.data[i];
 				struct box *b = item->box;
-				if (item->has_pct_basis && !frozen[i]) {
-					new_heights[i] = b->height;
+
+				if (item->has_pct_basis) {
+					NSLOG(flex, DEEPDEBUG, "PASS2: item %p: final height=%d (was %d)", b, new_heights[i], b->height);
+					b->height = new_heights[i];
 				}
 			}
 		}
-
-		/* Apply final heights */
-		for (size_t i = 0; i < ctx->item.count && i < 64; i++) {
-			struct flex_item_data *item = &ctx->item.data[i];
-			struct box *b = item->box;
-
-			if (item->has_pct_basis) {
-				NSLOG(flex, DEEPDEBUG, "PASS2: item %p: final height=%d (was %d)", b, new_heights[i], b->height);
-				b->height = new_heights[i];
-			}
-		}
+		free(frozen);
+		free(new_heights);
 	}
 
 	/* After adjusting heights, re-run redistribute on nested flex containers */
