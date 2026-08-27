@@ -257,6 +257,7 @@ WispWorkerHandle* wisp_subsystem_spawn_worker(const char *script_url);
 /* Task dispatching */
 bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg, float priority);
 bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+bool wisp_execute_pending_task(void);
 /* Deprecated/Compatibility wrapper */
 void wisp_dispatch(char *script, void (*func)(void*), void *arg);
 

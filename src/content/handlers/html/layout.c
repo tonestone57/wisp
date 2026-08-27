@@ -153,6 +153,7 @@ static void layout_eval_container_queries(struct box *box);
 #include <unistd.h>
 
 extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+extern bool wisp_execute_pending_task(void);
 
 struct wisp_layout_wait_group {
     pthread_mutex_t mutex;
@@ -176,11 +177,22 @@ static inline void wisp_layout_wait_group_done(struct wisp_layout_wait_group *wg
 }
 
 static inline void wisp_layout_wait_group_wait(struct wisp_layout_wait_group *wg) {
-    pthread_mutex_lock(&wg->mutex);
-    while (wg->count > 0) {
-        pthread_cond_wait(&wg->cond, &wg->mutex);
+    while (__atomic_load_n(&wg->count, __ATOMIC_RELAXED) > 0) {
+        if (!wisp_execute_pending_task()) {
+            pthread_mutex_lock(&wg->mutex);
+            if (wg->count > 0) {
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_nsec += 1000000; /* 1ms timeout */
+                if (ts.tv_nsec >= 1000000000) {
+                    ts.tv_sec += 1;
+                    ts.tv_nsec -= 1000000000;
+                }
+                pthread_cond_timedwait(&wg->cond, &wg->mutex, &ts);
+            }
+            pthread_mutex_unlock(&wg->mutex);
+        }
     }
-    pthread_mutex_unlock(&wg->mutex);
 }
 
 static inline void wisp_layout_wait_group_destroy(struct wisp_layout_wait_group *wg) {

@@ -700,6 +700,38 @@ bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float 
     return wisp_dispatch_internal(js_pool, script, func, arg, priority);
 }
 
+bool wisp_execute_pending_task(void) {
+    js_task_t *task = NULL;
+    WispPool *pools[2] = { js_pool, raster_pool };
+
+    for (int p = 0; p < 2; p++) {
+        WispPool *pool = pools[p];
+        if (!pool || pool->worker_count == 0) continue;
+
+        for (int i = 0; i < pool->worker_count; i++) {
+            for (int j = 3; j >= 0; j--) {
+                task = wisp_deque_steal(&pool->workers[i].deques[j]);
+                if (task != NULL) {
+                    break;
+                }
+            }
+            if (task != NULL) break;
+        }
+        if (task != NULL) break;
+    }
+
+    if (task != NULL) {
+        if (task->function) {
+            task->function(task->arg);
+        }
+        if (task->script) free(task->script);
+        free(task);
+        return true;
+    }
+
+    return false;
+}
+
 void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
     wisp_dispatch_js(script, func, arg, 0.0f);
     if (script) free(script);
