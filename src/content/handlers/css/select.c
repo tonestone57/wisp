@@ -68,7 +68,6 @@ static css_error node_is_focus(void *pw, void *node, bool *match);
 static css_error node_is_enabled(void *pw, void *node, bool *match);
 static css_error node_is_disabled(void *pw, void *node, bool *match);
 static css_error node_is_checked(void *pw, void *node, bool *match);
-static css_error node_is_target(void *pw, void *node, bool *match);
 static css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
 static css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint);
 static css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data);
@@ -1659,9 +1658,55 @@ css_error node_is_checked(void *pw, void *node, bool *match)
  */
 css_error node_is_target(void *pw, void *node, bool *match)
 {
-    /** \todo Support target */
+    nscss_select_ctx *ctx = pw;
+    dom_node *n = node;
+    lwc_string *target = NULL;
+    dom_string *attr = NULL;
+    dom_exception err;
 
     *match = false;
+
+    if (ctx == NULL || ctx->c == NULL || ctx->c->base_url == NULL) {
+        return CSS_OK;
+    }
+
+    if (!nsurl_has_component(ctx->c->base_url, NSURL_FRAGMENT)) {
+        return CSS_OK;
+    }
+
+    target = nsurl_get_component(ctx->c->base_url, NSURL_FRAGMENT);
+    if (target == NULL) {
+        return CSS_OK;
+    }
+
+    /* First check element id */
+    err = dom_element_get_attribute(n, corestring_dom_id, &attr);
+    if (err == DOM_NO_ERR && attr != NULL) {
+        if (dom_string_lwc_isequal(attr, target)) {
+            *match = true;
+        }
+        dom_string_unref(attr);
+    }
+
+    /* If id didn't match, check anchor name attribute for <a> elements */
+    if (!*match) {
+        dom_string *node_name = NULL;
+        err = dom_node_get_node_name(n, &node_name);
+        if (err == DOM_NO_ERR && node_name != NULL) {
+            if (dom_string_caseless_lwc_isequal(node_name, corestring_lwc_a)) {
+                err = dom_element_get_attribute(n, corestring_dom_name, &attr);
+                if (err == DOM_NO_ERR && attr != NULL) {
+                    if (dom_string_lwc_isequal(attr, target)) {
+                        *match = true;
+                    }
+                    dom_string_unref(attr);
+                }
+            }
+            dom_string_unref(node_name);
+        }
+    }
+
+    lwc_string_unref(target);
 
     return CSS_OK;
 }

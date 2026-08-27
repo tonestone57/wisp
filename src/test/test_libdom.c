@@ -5,6 +5,9 @@
 #include <libwapcaplet/libwapcaplet.h>
 #include <dom/dom.h>
 #include "wisp/utils/errors.h"
+#include "wisp/utils/nsurl.h"
+#include "content/handlers/css/select.h"
+#include "wisp/content/handlers/html/private.h"
 #include "utils/libdom.h"
 #include "utils/corestrings.h"
 
@@ -237,6 +240,88 @@ START_TEST(test_libdom_document_fragment_reinsert)
 }
 END_TEST
 
+START_TEST(test_node_is_target)
+{
+    dom_document *doc = NULL;
+    dom_element *div_el = NULL;
+    dom_element *a_el = NULL;
+    dom_string *str_div = NULL;
+    dom_string *str_a = NULL;
+    dom_string *str_id = NULL;
+    dom_string *str_name = NULL;
+    nsurl *url_with_frag = NULL;
+    nsurl *url_no_frag = NULL;
+    html_content html_c = { 0 };
+    nscss_select_ctx ctx = { 0 };
+    bool match = false;
+    dom_exception exc;
+    css_error cserr;
+
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &str_div);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"a", 1, &str_a);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"section1", 8, &str_id);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"anchor1", 7, &str_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_div, &div_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute(div_el, corestring_dom_id, str_id);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_a, &a_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute(a_el, corestring_dom_name, str_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    ck_assert_int_eq(nsurl_create("http://example.com/page.html#section1", &url_with_frag), NSERROR_OK);
+    ck_assert_int_eq(nsurl_create("http://example.com/page.html", &url_no_frag), NSERROR_OK);
+
+    ctx.c = &html_c;
+
+    /* 1. Base URL has no fragment */
+    html_c.base_url = url_no_frag;
+    cserr = node_is_target(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 2. Base URL has fragment matching div id */
+    html_c.base_url = url_with_frag;
+    cserr = node_is_target(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 3. Base URL fragment does not match div id when looking at anchor */
+    cserr = node_is_target(&ctx, a_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 4. Base URL fragment matches anchor name */
+    nsurl_unref(url_with_frag);
+    ck_assert_int_eq(nsurl_create("http://example.com/page.html#anchor1", &url_with_frag), NSERROR_OK);
+    html_c.base_url = url_with_frag;
+    cserr = node_is_target(&ctx, a_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* Cleanup */
+    nsurl_unref(url_with_frag);
+    nsurl_unref(url_no_frag);
+    dom_string_unref(str_div);
+    dom_string_unref(str_a);
+    dom_string_unref(str_id);
+    dom_string_unref(str_name);
+    dom_node_unref(div_el);
+    dom_node_unref(a_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 static Suite *libdom_suite(void)
 {
     Suite *s = suite_create("libdom");
@@ -248,6 +333,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_iterate_with_children);
     tcase_add_test(tc_core, test_libdom_has_class_quirks_vs_standards);
     tcase_add_test(tc_core, test_libdom_document_fragment_reinsert);
+    tcase_add_test(tc_core, test_node_is_target);
     suite_add_tcase(s, tc_core);
 
     return s;
