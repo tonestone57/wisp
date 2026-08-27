@@ -256,6 +256,10 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
 extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
 extern bool wisp_execute_pending_task(void);
 
+__attribute__((weak)) bool wisp_execute_pending_task(void) {
+    return false;
+}
+
 static pthread_mutex_t dom_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct wisp_wait_group {
