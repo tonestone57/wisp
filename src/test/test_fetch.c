@@ -5,6 +5,7 @@
 
 #include "content/fetch.h"
 #include "content/fetchers.h"
+#include "content/urldb.h"
 #include "utils/log.h"
 #include "utils/nsurl.h"
 #include "utils/nsoption.h"
@@ -168,6 +169,84 @@ START_TEST(test_fetch_abort_success)
 }
 END_TEST
 
+START_TEST(test_fetch_set_cookie_verifiable)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/cookie_verifiable", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    fetch_set_cookie(f, "vcookie=val1; Path=/; Domain=example.com");
+
+    char *cookie = urldb_get_cookie(url, true);
+    ck_assert_ptr_ne(cookie, NULL);
+    ck_assert_ptr_ne(strstr(cookie, "vcookie=val1"), NULL);
+    free(cookie);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_set_cookie_unverifiable_matching)
+{
+    setup_test_fetcher();
+    nsurl *url, *referer;
+    nsurl_create("http://example.com/subresource", &url);
+    nsurl_create("http://example.com/parent", &referer);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, referer, test_fetch_callback, NULL, false, NULL, false, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    fetch_set_cookie(f, "ucookie=val2; Path=/; Domain=example.com");
+
+    char *cookie = urldb_get_cookie(url, true);
+    ck_assert_ptr_ne(cookie, NULL);
+    ck_assert_ptr_ne(strstr(cookie, "ucookie=val2"), NULL);
+    free(cookie);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(referer);
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_set_cookie_unverifiable_no_referer)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://noreferer.com/subresource", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, false, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    fetch_set_cookie(f, "nocookie=val3; Path=/; Domain=noreferer.com");
+
+    char *cookie = urldb_get_cookie(url, true);
+    ck_assert_ptr_eq(cookie, NULL);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -178,6 +257,12 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_core, test_fetch_abort_success);
     suite_add_tcase(s, tc_core);
 
+    TCase *tc_cookie = tcase_create("Cookie");
+    tcase_add_test(tc_cookie, test_fetch_set_cookie_verifiable);
+    tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_matching);
+    tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_no_referer);
+    suite_add_tcase(s, tc_cookie);
+
     return s;
 }
 
@@ -185,6 +270,7 @@ int main(void)
 {
     nsoption_init(NULL, NULL, NULL);
     corestrings_init();
+    urldb_init();
     setup_mock_options();
 
     int number_failed;
