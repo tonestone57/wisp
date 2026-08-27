@@ -1251,6 +1251,18 @@ static const char *new_polyfills_js =
 "            global.FileReader.prototype.readAsBinaryString = function(blob) { this._read(blob, 'binaryString'); };\n"
 "        }\n"
 "    }\n"
+"\n"
+"    /* Third-party analytics stubs (Chartbeat, etc.) */\n"
+"    global.window = global.window || global;\n"
+"    global._sf_async_config = global._sf_async_config || {};\n"
+"    global.pSUPERFLY = global.pSUPERFLY || {\n"
+"        virtualPage: function() {},\n"
+"        activity: function() {}\n"
+"    };\n"
+"    if (global.window) {\n"
+"        global.window._sf_async_config = global._sf_async_config;\n"
+"        global.window.pSUPERFLY = global.pSUPERFLY;\n"
+"    }\n"
 "})();\n"
 ;
 
