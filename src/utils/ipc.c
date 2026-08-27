@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #define socket_errno errno
 #define SOCKET_EAGAIN EAGAIN
 #define SOCKET_EINTR EINTR
@@ -330,8 +331,18 @@ void wisp_ipc_set_blocking(wisp_ipc_handle *handle, bool blocking) {
 }
 
 int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
+    if (!executable || !ipc_name || executable[0] == '\0' || ipc_name[0] == '\0') {
+        return -1;
+    }
+
+    if (strchr(executable, '\r') || strchr(executable, '\n') ||
+        strchr(ipc_name, '\r') || strchr(ipc_name, '\n')) {
+        return -1;
+    }
+
 #ifdef _WIN32
     if (strchr(executable, '"') || strchr(ipc_name, '"')) return -1;
+    if (access(executable, 0) != 0) return -1;
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
@@ -341,11 +352,30 @@ int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
     int len = snprintf(cmd, sizeof(cmd), "\"%s\" \"%s\"", executable, ipc_name);
     if (len < 0 || (size_t)len >= sizeof(cmd)) return -1;
     if (!CreateProcess(executable, cmd, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) return -1;
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
     return pi.dwProcessId;
 #else
+    if (strchr(executable, '"') || strchr(ipc_name, '"')) return -1;
+
+    /* Validate that executable exists and is executable */
+    if (access(executable, X_OK) != 0) {
+        return -1;
+    }
+
+    /* Validate executable is a regular file (or symlink pointing to regular file) */
+    struct stat st;
+    if (stat(executable, &st) != 0 || !S_ISREG(st.st_mode)) {
+        return -1;
+    }
+
     pid_t pid = fork();
+    if (pid < 0) {
+        return -1;
+    }
     if (pid == 0) {
-        execlp(executable, executable, ipc_name, NULL);
+        char *const args[] = { (char *)executable, (char *)ipc_name, NULL };
+        execv(executable, args);
         _exit(1);
     }
     return pid;
