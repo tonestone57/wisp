@@ -9,7 +9,19 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
+#define write_socket(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
+#else
+#include <sys/socket.h>
+#define write_socket(fd, buf, len) write((fd), (buf), (len))
 #endif
+
+struct wisp_ipc_handle {
+    intptr_t fd;
+    bool is_server;
+    char *name;
+    bool non_blocking;
+};
 
 START_TEST(test_ipc_server_create_destroy)
 {
@@ -66,6 +78,178 @@ START_TEST(test_ipc_send_recv_basic)
     ck_assert_int_eq(msg_recv.type, WISP_IPC_MSG_FETCH_REQUEST);
     ck_assert_int_eq(msg_recv.length, msg_send.length);
     ck_assert_str_eq((const char *)msg_recv.data, payload);
+
+    wisp_ipc_msg_free(&msg_recv);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(client);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_recv_eof)
+{
+    const char *sock_name = "test_ipc_recv_eof_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    wisp_ipc_destroy(client);
+
+    wisp_ipc_msg msg;
+    nserror err = wisp_ipc_recv(accepted, &msg);
+    ck_assert_int_eq(err, NSERROR_SHUTDOWN);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_recv_eagain)
+{
+    const char *sock_name = "test_ipc_recv_eagain_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    wisp_ipc_set_blocking(accepted, false);
+
+    wisp_ipc_msg msg;
+    nserror err = wisp_ipc_recv(accepted, &msg);
+    ck_assert_int_eq(err, NSERROR_NOT_FOUND);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(client);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_recv_partial_header)
+{
+    const char *sock_name = "test_ipc_recv_partial_header_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    uint32_t partial_header = 12345;
+    ssize_t written = write_socket(client->fd, &partial_header, 4);
+    ck_assert_int_eq(written, 4);
+
+    wisp_ipc_destroy(client);
+
+    wisp_ipc_msg msg;
+    nserror err = wisp_ipc_recv(accepted, &msg);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_recv_oversized_payload)
+{
+    const char *sock_name = "test_ipc_recv_oversized_payload_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    uint32_t header[2];
+    header[0] = (uint32_t)WISP_IPC_MSG_FETCH_REQUEST;
+    header[1] = 64 * 1024 * 1024 + 1;
+
+    ssize_t written = write_socket(client->fd, header, sizeof(header));
+    ck_assert_int_eq(written, (ssize_t)sizeof(header));
+
+    wisp_ipc_msg msg;
+    nserror err = wisp_ipc_recv(accepted, &msg);
+    ck_assert_int_eq(err, NSERROR_BAD_SIZE);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(client);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_recv_partial_payload)
+{
+    const char *sock_name = "test_ipc_recv_partial_payload_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    uint32_t header[2];
+    header[0] = (uint32_t)WISP_IPC_MSG_FETCH_REQUEST;
+    header[1] = 100;
+
+    ssize_t written = write_socket(client->fd, header, sizeof(header));
+    ck_assert_int_eq(written, (ssize_t)sizeof(header));
+
+    char partial_data[20] = {0};
+    written = write_socket(client->fd, partial_data, sizeof(partial_data));
+    ck_assert_int_eq(written, (ssize_t)sizeof(partial_data));
+
+    wisp_ipc_destroy(client);
+
+    wisp_ipc_msg msg;
+    nserror err = wisp_ipc_recv(accepted, &msg);
+    ck_assert_int_eq(err, NSERROR_INVALID);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_recv_zero_length_payload)
+{
+    const char *sock_name = "test_ipc_recv_zero_length_payload_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    wisp_ipc_msg msg_send;
+    msg_send.type = WISP_IPC_MSG_FETCH_FINISHED;
+    msg_send.length = 0;
+    msg_send.data = NULL;
+
+    nserror err = wisp_ipc_send(client, &msg_send);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    wisp_ipc_msg msg_recv;
+    err = wisp_ipc_recv(accepted, &msg_recv);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(msg_recv.type, WISP_IPC_MSG_FETCH_FINISHED);
+    ck_assert_int_eq(msg_recv.length, 0);
+    ck_assert_ptr_null(msg_recv.data);
 
     wisp_ipc_msg_free(&msg_recv);
 
@@ -133,6 +317,12 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_server_create_destroy);
     tcase_add_test(tc, test_ipc_connect_accept);
     tcase_add_test(tc, test_ipc_send_recv_basic);
+    tcase_add_test(tc, test_ipc_recv_eof);
+    tcase_add_test(tc, test_ipc_recv_eagain);
+    tcase_add_test(tc, test_ipc_recv_partial_header);
+    tcase_add_test(tc, test_ipc_recv_oversized_payload);
+    tcase_add_test(tc, test_ipc_recv_partial_payload);
+    tcase_add_test(tc, test_ipc_recv_zero_length_payload);
     tcase_add_test(tc, test_ipc_find_executable_not_found);
     tcase_add_test(tc, test_ipc_safe_path_truncation);
     tcase_add_test(tc, test_ipc_spawn_security_validation);
