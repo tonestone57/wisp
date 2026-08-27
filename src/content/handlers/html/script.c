@@ -260,6 +260,7 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
 
         hlcache_handle_release(script);
         s->data.handle = NULL;
+        s->already_started = true;
         if (parent->base.active == 0) {
             NSLOG(wisp, CRITICAL,
                 "ACTIVE UNDERFLOW! async_cb ERROR decrement when 0 "
@@ -380,6 +381,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
 
         hlcache_handle_release(script);
         s->data.handle = NULL;
+        s->already_started = true;
         if (parent->base.active == 0) {
             NSLOG(wisp, CRITICAL,
                 "ACTIVE UNDERFLOW! defer_cb ERROR decrement when 0 "
