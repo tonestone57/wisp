@@ -143,6 +143,27 @@ START_TEST(bloom_insert_hash_test)
 END_TEST
 
 /**
+ * zero size bloom filter creation and operations test
+ */
+START_TEST(bloom_create_zero_size_test)
+{
+    struct bloom_filter *b;
+    b = bloom_create(0);
+    ck_assert(b != NULL);
+
+    /* Operations on a 0-size bloom filter should be safe and return expected default values */
+    bloom_insert_str(b, "test", 4);
+    bloom_insert_hash(b, 0x12345678);
+
+    ck_assert(!bloom_search_str(b, "test", 4));
+    ck_assert(!bloom_search_hash(b, 0x12345678));
+    ck_assert(bloom_items(b) == 0);
+
+    bloom_destroy(b);
+}
+END_TEST
+
+/**
  * search string test edge cases
  */
 START_TEST(bloom_search_str_test)
@@ -167,6 +188,7 @@ static TCase *bloom_api_case_create(void)
     tc = tcase_create("Creation");
 
     tcase_add_test(tc, bloom_create_test);
+    tcase_add_test(tc, bloom_create_zero_size_test);
     tcase_add_test(tc, bloom_insert_empty_str_test);
 
 
