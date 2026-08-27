@@ -382,6 +382,7 @@ add_wisp_test(grid_construct_test
   ${CMAKE_SOURCE_DIR}/src/utils/talloc.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
   ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
+  ${CMAKE_SOURCE_DIR}/src/content/handlers/html/table.c
   ${CMAKE_SOURCE_DIR}/src/test/grid_construct_test.c
 )
 add_wisp_test(transform_clip_test
