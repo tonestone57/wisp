@@ -63,11 +63,7 @@
 /** The maximum number of fetchers that can be added */
 #define MAX_FETCHERS 10
 
-/** The time in ms between polling the fetchers.
- *
- * \todo The schedule timeout should be profiled to see if there is a
- * better value or even if it needs to be dynamic.
- */
+/** The time in ms between polling the fetchers. */
 #define SCHEDULE_TIME 10
 
 /** The fdset timeout in ms */
