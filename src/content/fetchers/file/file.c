@@ -131,8 +131,8 @@ static bool fetch_file_can_fetch(const nsurl *url)
 }
 
 /** callback to set up a file fetch context. */
-static void *fetch_file_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror fetch_file_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     struct fetch_file_context *ctx;
     int i;
@@ -140,13 +140,13 @@ static void *fetch_file_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, b
 
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     ret = guit->file->nsurl_to_path(url, &ctx->path);
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "Failed to convert URL to path: %s", nsurl_access(url));
         free(ctx);
-        return NULL;
+        return ret;
     }
     NSLOG(wisp, INFO, "fetch_file_setup: url '%s' -> path '%s'", nsurl_access(url), ctx->path);
 
@@ -180,7 +180,8 @@ static void *fetch_file_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, b
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 /** callback to free a file fetch */

@@ -17,9 +17,10 @@
 static bool test_fetcher_initialise(lwc_string *scheme) { return true; }
 static bool test_fetcher_acceptable(const struct nsurl *url) { return true; }
 
-static void *test_fetcher_setup(struct fetch *parent_fetch, struct nsurl *url, bool only_2xx, bool downgrade_tls,
-        const struct fetch_postdata *postdata, const char **headers) {
-    return (void *)0x1234; // Dummy handle
+static nserror test_fetcher_setup(struct fetch *parent_fetch, struct nsurl *url, bool only_2xx, bool downgrade_tls,
+        const struct fetch_postdata *postdata, const char **headers, void **handle_out) {
+    *handle_out = (void *)0x1234; // Dummy handle
+    return NSERROR_OK;
 }
 
 static bool test_fetcher_start(void *fetch) { return true; }

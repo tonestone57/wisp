@@ -81,8 +81,8 @@ static bool html_css_fetcher_can_fetch(const nsurl *url)
     return true;
 }
 
-static void *html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     html_css_fetcher_context *ctx;
     lwc_string *path;
@@ -97,7 +97,7 @@ static void *html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url, bool
     path = nsurl_get_component(url, NSURL_PATH);
     /* The path must exist */
     if (path == NULL) {
-        return NULL;
+        return NSERROR_BAD_URL;
     }
 
     key = strtoul(lwc_string_data(path), NULL, 10);
@@ -106,7 +106,7 @@ static void *html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url, bool
 
     /* There must be at least one item */
     if (items == NULL) {
-        return NULL;
+        return NSERROR_NOT_FOUND;
     }
 
     item = items;
@@ -121,12 +121,12 @@ static void *html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url, bool
 
     /* We must have found the item */
     if (found == NULL) {
-        return NULL;
+        return NSERROR_NOT_FOUND;
     }
 
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     ctx->parent_fetch = parent_fetch;
     ctx->url = nsurl_ref(url);
@@ -134,7 +134,8 @@ static void *html_css_fetcher_setup(struct fetch *parent_fetch, nsurl *url, bool
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 static bool html_css_fetcher_start(void *ctx)

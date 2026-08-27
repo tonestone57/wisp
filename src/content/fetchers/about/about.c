@@ -571,8 +571,8 @@ static bool fetch_about_can_fetch(const nsurl *url)
  * \param post_multipart post data in multipart format, owned by the llcache
  *                        object hence valid the entire lifetime of the fetch.
  */
-static void *fetch_about_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror fetch_about_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     struct fetch_about_context *ctx;
     unsigned int handler_loop;
@@ -581,7 +581,7 @@ static void *fetch_about_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, 
 
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     path = nsurl_get_component(url, NSURL_PATH);
 
@@ -602,7 +602,8 @@ static void *fetch_about_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, 
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 

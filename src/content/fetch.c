@@ -541,8 +541,9 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
     }
 
     /* try and set up the fetch */
-    fetch->fetcher_handle = fetchers[fetch->fetcherd].ops.setup(fetch, url, only_2xx, downgrade_tls, postdata, headers);
-    if (fetch->fetcher_handle == NULL) {
+    nserror setup_err = fetchers[fetch->fetcherd].ops.setup(
+        fetch, url, only_2xx, downgrade_tls, postdata, headers, &fetch->fetcher_handle);
+    if (setup_err != NSERROR_OK) {
 
         if (fetch->host != NULL)
             lwc_string_unref(fetch->host);
@@ -555,11 +556,7 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
 
         free(fetch);
 
-
-        /** \todo The fetchers setup should return nserror and that be
-         * passed back rather than assuming a bad url
-         */
-        return NSERROR_BAD_URL;
+        return setup_err;
     }
 
     /* Rah, got it, so ref the fetcher. */

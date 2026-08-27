@@ -188,19 +188,20 @@ void test_finalise(lwc_string *scheme)
     /* Nothing to do */
 }
 
-void *test_setup_fetch(struct fetch *parent, nsurl *url, bool only_2xx, bool downgrade_tls, const char *post_urlenc,
-    const struct fetch_multipart_data *post_multipart, const char **headers)
+nserror test_setup_fetch(struct fetch *parent, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     test_context *ctx = calloc(1, sizeof(test_context));
 
     if (ctx == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     ctx->parent = parent;
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 bool test_start_fetch(void *handle)
