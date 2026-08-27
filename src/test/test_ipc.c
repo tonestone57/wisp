@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "wisp/utils/ipc.h"
 #include "wisp/utils/errors.h"
@@ -126,6 +127,96 @@ START_TEST(test_ipc_spawn_security_validation)
 }
 END_TEST
 
+START_TEST(test_ipc_send_recv_zero_length)
+{
+    const char *sock_name = "test_ipc_send_recv_zero_length_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    wisp_ipc_msg msg_send;
+    msg_send.type = WISP_IPC_MSG_FETCH_FINISHED;
+    msg_send.length = 0;
+    msg_send.data = NULL;
+
+    nserror err = wisp_ipc_send(client, &msg_send);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    wisp_ipc_msg msg_recv;
+    err = wisp_ipc_recv(accepted, &msg_recv);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    ck_assert_int_eq(msg_recv.type, WISP_IPC_MSG_FETCH_FINISHED);
+    ck_assert_int_eq(msg_recv.length, 0);
+    ck_assert_ptr_null(msg_recv.data);
+
+    wisp_ipc_msg_free(&msg_recv);
+
+    wisp_ipc_destroy(accepted);
+    wisp_ipc_destroy(client);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
+START_TEST(test_ipc_send_error_closed_handle)
+{
+#ifndef _WIN32
+    signal(SIGPIPE, SIG_IGN);
+#endif
+    const char *sock_name = "test_ipc_send_error_closed_handle_sock";
+    wisp_ipc_handle *server = wisp_ipc_create_server(sock_name);
+    ck_assert_ptr_nonnull(server);
+
+    wisp_ipc_handle *client = wisp_ipc_connect(sock_name);
+    ck_assert_ptr_nonnull(client);
+
+    wisp_ipc_handle *accepted = wisp_ipc_accept(server);
+    ck_assert_ptr_nonnull(accepted);
+
+    /* Close peer accepted socket */
+    wisp_ipc_destroy(accepted);
+
+    /* 1. Test header write failure on closed socket connection */
+    wisp_ipc_msg msg_hdr;
+    msg_hdr.type = WISP_IPC_MSG_FETCH_REQUEST;
+    msg_hdr.length = 0;
+    msg_hdr.data = NULL;
+
+    nserror err = NSERROR_OK;
+    for (int i = 0; i < 100; i++) {
+        err = wisp_ipc_send(client, &msg_hdr);
+        if (err != NSERROR_OK) break;
+    }
+    ck_assert_int_eq(err, NSERROR_SAVE_FAILED);
+
+    /* 2. Test payload write failure when payload cannot be delivered */
+    size_t payload_size = 10 * 1024 * 1024; /* 10MB payload */
+    uint8_t *large_payload = calloc(1, payload_size);
+    ck_assert_ptr_nonnull(large_payload);
+
+    wisp_ipc_msg msg_payload;
+    msg_payload.type = WISP_IPC_MSG_FETCH_DATA;
+    msg_payload.length = (uint32_t)payload_size;
+    msg_payload.data = large_payload;
+
+    err = NSERROR_OK;
+    for (int i = 0; i < 100; i++) {
+        err = wisp_ipc_send(client, &msg_payload);
+        if (err != NSERROR_OK) break;
+    }
+    ck_assert_int_eq(err, NSERROR_SAVE_FAILED);
+
+    free(large_payload);
+    wisp_ipc_destroy(client);
+    wisp_ipc_destroy(server);
+}
+END_TEST
+
 static TCase *ipc_case_create(void)
 {
     TCase *tc;
@@ -136,6 +227,8 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_find_executable_not_found);
     tcase_add_test(tc, test_ipc_safe_path_truncation);
     tcase_add_test(tc, test_ipc_spawn_security_validation);
+    tcase_add_test(tc, test_ipc_send_recv_zero_length);
+    tcase_add_test(tc, test_ipc_send_error_closed_handle);
     return tc;
 }
 
