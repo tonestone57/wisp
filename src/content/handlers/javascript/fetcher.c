@@ -98,14 +98,14 @@ static bool fetch_javascript_can_fetch(const nsurl *url)
 }
 
 /** callback to set up a resource fetch context. */
-static void *fetch_javascript_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror fetch_javascript_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     struct fetch_javascript_context *ctx;
 
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     ctx->url = nsurl_ref(url);
 
@@ -113,7 +113,8 @@ static void *fetch_javascript_setup(struct fetch *fetchh, nsurl *url, bool only_
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 /** callback to free a resource fetch */

@@ -86,21 +86,22 @@ static bool fetch_rsrc_can_fetch(const nsurl *url)
     return true;
 }
 
-static void *fetch_rsrc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror fetch_rsrc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     struct fetch_rsrc_context *ctx;
     ctx = (struct fetch_rsrc_context *)calloc(1, sizeof(*ctx));
 
     if (ctx == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     ctx->parent_fetch = parent_fetch;
     ctx->url = nsurl_ref(url);
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 static bool fetch_rsrc_start(void *ctx)

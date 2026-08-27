@@ -341,8 +341,8 @@ static bool fetch_resource_can_fetch(const nsurl *url)
 /**
  * set up a resource fetch context.
  */
-static void *fetch_resource_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror fetch_resource_setup(struct fetch *fetchh, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     struct fetch_resource_context *ctx;
     lwc_string *path;
@@ -351,7 +351,7 @@ static void *fetch_resource_setup(struct fetch *fetchh, nsurl *url, bool only_2x
 
     ctx = calloc(1, sizeof(*ctx));
     if (ctx == NULL) {
-        return NULL;
+        return NSERROR_NOMEM;
     }
 
     ctx->handler = fetch_resource_notfound_handler;
@@ -408,7 +408,8 @@ static void *fetch_resource_setup(struct fetch *fetchh, nsurl *url, bool only_2x
 
     RING_INSERT(ring, ctx);
 
-    return ctx;
+    *handle_out = ctx;
+    return NSERROR_OK;
 }
 
 /** callback to free a resource fetch */

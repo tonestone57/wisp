@@ -539,8 +539,8 @@ static struct curl_fetch_info *fetch_alloc(void)
  * Some private data can be passed as the last parameter to fetch_start, and
  * callbacks will contain this.
  */
-static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
-    const struct fetch_postdata *postdata, const char **headers)
+static nserror fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
+    const struct fetch_postdata *postdata, const char **headers, void **handle_out)
 {
     struct curl_fetch_info *fetch;
     struct curl_slist *slist;
@@ -548,7 +548,7 @@ static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_
 
     fetch = fetch_alloc();
     if (fetch == NULL)
-        return NULL;
+        return NSERROR_NOMEM;
 
     NSLOG(wisp, INFO, "fetch %p, url '%s'", fetch, nsurl_access(url));
     NSLOG(wisp, DEBUG, "PROFILER: START Fetch queue %p", fetch);
@@ -686,7 +686,8 @@ static void *fetch_curl_setup(struct fetch *parent_fetch, nsurl *url, bool only_
         APPEND(fetch->headers, "Sec-Fetch-User: ?0");
     }
 
-    return fetch;
+    *handle_out = fetch;
+    return NSERROR_OK;
 
 #undef APPEND
 
@@ -699,7 +700,7 @@ failed:
         fetch_curl_free_postdata(fetch->postdata);
     curl_slist_free_all(fetch->headers);
     free(fetch);
-    return NULL;
+    return NSERROR_NOMEM;
 }
 
 

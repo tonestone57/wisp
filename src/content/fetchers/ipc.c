@@ -66,16 +66,16 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
     return initialized;
 }
 
-static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
-                             const struct fetch_postdata *postdata, const char **headers) {
+static nserror fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2xx, bool downgrade_tls,
+                              const struct fetch_postdata *postdata, const char **headers, void **handle_out) {
     pthread_mutex_lock(&active_fetches_mutex);
     bool check_init = (ipc_network == NULL);
     pthread_mutex_unlock(&active_fetches_mutex);
 
-    if (check_init && !fetch_ipc_initialise(NULL)) return NULL;
+    if (check_init && !fetch_ipc_initialise(NULL)) return NSERROR_INIT_FAILED;
 
     struct ipc_fetch_info *f = calloc(1, sizeof(*f));
-    if (!f) return NULL;
+    if (!f) return NSERROR_NOMEM;
     f->id = next_fetch_id++;
     f->fetchh = parent_fetch;
     pthread_mutex_lock(&active_fetches_mutex);
@@ -101,7 +101,7 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
         }
         pthread_mutex_unlock(&active_fetches_mutex);
         free(f);
-        return NULL;
+        return NSERROR_NOMEM;
     }
 
     memcpy(msg.data, &f->id, 4);
@@ -126,11 +126,12 @@ static void* fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only_2
         }
         pthread_mutex_unlock(&active_fetches_mutex);
         free(f);
-        return NULL;
+        return send_err;
     }
 
     NSLOG(wisp, DEBUG, "wisp_ipc_send succeeded for fetch_id %u", f->id);
-    return f;
+    *handle_out = f;
+    return NSERROR_OK;
 }
 
 static bool fetch_ipc_start(void *vf) {
