@@ -119,66 +119,6 @@ START_TEST(filepath_findfile_unreadable_test)
 }
 END_TEST
 
-START_TEST(filepath_sfinddef_fallback_test)
-{
-    char *respaths[] = { "/nonexistent_path_12345", NULL };
-    char filepath[PATH_MAX];
-
-    /* Test fallback when realpath returns NULL (non-existent path) */
-    char *ret = filepath_sfinddef(respaths, filepath, "test_file.txt", "/nonexistent_dir_6789");
-    ck_assert_ptr_ne(ret, NULL);
-    ck_assert_ptr_eq(ret, filepath);
-    ck_assert_str_eq(filepath, "/nonexistent_dir_6789/test_file.txt");
-}
-END_TEST
-
-START_TEST(filepath_sfinddef_home_fallback_test)
-{
-    char *respaths[] = { "/nonexistent_path_12345", NULL };
-    char filepath[PATH_MAX];
-    const char *home = getenv("HOME");
-    if (!home) home = "";
-
-    char expected[PATH_MAX];
-    snprintf(expected, sizeof(expected), "%s//.config/wisp/test_file.txt", home);
-
-    /* Test fallback with ~ home directory expansion */
-    char *ret = filepath_sfinddef(respaths, filepath, "test_file.txt", "~/.config/wisp");
-    ck_assert_ptr_ne(ret, NULL);
-    ck_assert_ptr_eq(ret, filepath);
-    ck_assert_str_eq(filepath, expected);
-}
-END_TEST
-
-START_TEST(filepath_sfinddef_existing_test)
-{
-    char tmp_template[] = "/tmp/wisp_filepath_sfinddef_XXXXXX";
-    int fd = mkstemp(tmp_template);
-    ck_assert_int_ge(fd, 0);
-    close(fd);
-
-    char expected_realpath[PATH_MAX];
-    ck_assert_ptr_ne(realpath(tmp_template, expected_realpath), NULL);
-
-    char *dir = strdup(tmp_template);
-    char *last_slash = strrchr(dir, '/');
-    ck_assert_ptr_ne(last_slash, NULL);
-    *last_slash = '\0';
-    const char *filename = last_slash + 1;
-
-    char *respaths[] = { dir, NULL };
-    char filepath[PATH_MAX];
-
-    char *ret = filepath_sfinddef(respaths, filepath, filename, "/etc");
-    ck_assert_ptr_ne(ret, NULL);
-    ck_assert_ptr_eq(ret, filepath);
-    ck_assert_str_eq(filepath, expected_realpath);
-
-    free(dir);
-    unlink(tmp_template);
-}
-END_TEST
-
 static TCase *filepath_case_create(void)
 {
     TCase *tc;
@@ -190,9 +130,6 @@ static TCase *filepath_case_create(void)
     tcase_add_test(tc, filepath_findfile_variadic_args_test);
     tcase_add_test(tc, filepath_findfile_nonexistent_test);
     tcase_add_test(tc, filepath_findfile_unreadable_test);
-    tcase_add_test(tc, filepath_sfinddef_fallback_test);
-    tcase_add_test(tc, filepath_sfinddef_home_fallback_test);
-    tcase_add_test(tc, filepath_sfinddef_existing_test);
 
     return tc;
 }

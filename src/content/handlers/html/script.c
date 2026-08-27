@@ -98,12 +98,8 @@ nserror html_script_exec(html_content *c, bool allow_defer)
             if (content_get_status(s->data.handle) == CONTENT_STATUS_ERROR)
                 continue;
 
-            /* ensure script handler for content type (default to JS for scripts) */
-            content_type ctype = content_get_type(s->data.handle);
-            if (ctype == CONTENT_NONE) {
-                ctype = CONTENT_JS;
-            }
-            script_handler = select_script_handler(ctype);
+            /* ensure script handler for content type */
+            script_handler = select_script_handler(content_get_type(s->data.handle));
             if (script_handler == NULL)
                 continue; /* unsupported type */
 

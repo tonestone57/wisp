@@ -330,14 +330,6 @@ nsurl *llcache_handle_get_referer(const llcache_handle *handle);
 bool llcache_handle_references_same_object(const llcache_handle *a, const llcache_handle *b);
 
 /**
- * Determine if the object referenced by a low-level cache handle is fresh
- *
- * \param handle  Handle to check freshness for
- * \return True if object is fresh, false otherwise
- */
-bool llcache_handle_is_fresh(const llcache_handle *handle);
-
-/**
  * Create a low-level cache handle from a raw data buffer.
  *
  * Creates a synthetic llcache object pre-filled with the given data
