@@ -122,6 +122,59 @@ static const box_type box_map[CSS_DISPLAY_CONTENTS + 1] = {
 };
 _Static_assert(CSS_DISPLAY_CONTENTS == 0x15, "css_display_e has new values — update box_map");
 
+#define SUBTREE_PARALLEL_STYLE_THRESHOLD 32
+
+int count_subtree_elements(dom_node *root, int limit)
+{
+	if (root == NULL || limit <= 0) return 0;
+
+	int count = 0;
+	dom_node *curr = dom_node_ref(root);
+
+	while (curr != NULL) {
+		dom_node_type type;
+		if (dom_node_get_node_type(curr, &type) == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
+			count++;
+			if (count >= limit) {
+				dom_node_unref(curr);
+				return count;
+			}
+		}
+
+		dom_node *child = NULL;
+		if (dom_node_get_first_child(curr, &child) == DOM_NO_ERR && child != NULL) {
+			dom_node_unref(curr);
+			curr = child;
+			continue;
+		}
+
+		while (curr != NULL) {
+			if (curr == root) {
+				dom_node_unref(curr);
+				return count;
+			}
+
+			dom_node *next = NULL;
+			if (dom_node_get_next_sibling(curr, &next) == DOM_NO_ERR && next != NULL) {
+				dom_node_unref(curr);
+				curr = next;
+				break;
+			}
+
+			dom_node *parent = NULL;
+			if (dom_node_get_parent_node(curr, &parent) == DOM_NO_ERR && parent != NULL) {
+				dom_node_unref(curr);
+				curr = parent;
+			} else {
+				dom_node_unref(curr);
+				curr = NULL;
+			}
+		}
+	}
+
+	return count;
+}
+
 
 /**
  * determine if a box is the root node
@@ -252,10 +305,9 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
  * \return  the new style, or NULL on memory exhaustion
  */
 #include <unistd.h>
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
-extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
-
-static pthread_mutex_t dom_lock = PTHREAD_MUTEX_INITIALIZER;
+extern bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority);
 
 struct wisp_wait_group {
     pthread_mutex_t mutex;
@@ -284,6 +336,25 @@ static inline void wisp_wait_group_wait(struct wisp_wait_group *wg) {
         pthread_cond_wait(&wg->cond, &wg->mutex);
     }
     pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_wait_group_wait_and_pump(struct wisp_wait_group *wg, WispPool *style_pool) {
+    while (__atomic_load_n(&wg->count, __ATOMIC_RELAXED) > 0) {
+        /* Main thread pops and executes pending style/layout tasks directly */
+        js_task_t *task = wisp_pool_pop_task(style_pool);
+        if (task) {
+            if (task->function) {
+                task->function(task->arg);
+            }
+            if (task->script) {
+                free(task->script);
+            }
+            free(task);
+        } else {
+            /* Fall back to short micro-sleep if queue is empty */
+            usleep(100);
+        }
+    }
 }
 
 static inline void wisp_wait_group_destroy(struct wisp_wait_group *wg) {
@@ -372,6 +443,7 @@ struct style_snapshot_s {
     bool is_link;
     bool is_visited;
     bool is_empty;
+    bool is_checked;
 
     /* Pre-calculated presentational hints */
     uint32_t nhints;
@@ -765,7 +837,8 @@ static css_error snap_node_is_disabled(void *pw, void *node, bool *match) {
 }
 
 static css_error snap_node_is_checked(void *pw, void *node, bool *match) {
-    *match = false;
+    style_snapshot_t *snap = node;
+    *match = snap->is_checked;
     return CSS_OK;
 }
 
@@ -1031,6 +1104,11 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
     } else {
         snap->is_visited = false;
     }
+    if (node_is_checked != NULL) {
+        node_is_checked(select_ctx, node, &snap->is_checked);
+    } else {
+        snap->is_checked = false;
+    }
     check_is_empty(node, &snap->is_empty);
 
     /* 7. Pre-fetch presentational hints */
@@ -1184,9 +1262,7 @@ static void parallel_style_worker_cb(void *arg) {
     select_ctx.c = c;
 
     css_select_results *styles = NULL;
-    pthread_mutex_lock(&dom_lock);
     css_error error = css_select_style(c->select_ctx, snap, &c->unit_len_ctx, &c->media, snap->inline_style, &snapshot_selection_handler, &select_ctx, &styles);
-    pthread_mutex_unlock(&dom_lock);
 
     if (error == CSS_OK) {
         task->out_results[task->index] = styles;
@@ -1244,7 +1320,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
             task->index = i;
             task->wg = &wg;
 
-            if (!wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f)) {
+            if (!wisp_dispatch_style(NULL, parallel_style_worker_cb, task, 0.5f)) {
                 parallel_style_worker_cb(task);
             }
         } else {
@@ -1253,8 +1329,8 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         }
     }
 
-    /* Join phase: wait for all worker tasks to finish */
-    wisp_wait_group_wait(&wg);
+    /* Join phase: wait for all worker tasks to finish while pumping pending tasks */
+    wisp_wait_group_wait_and_pump(&wg, wisp_style_pool);
     wisp_wait_group_destroy(&wg);
 
     /* Top-down snapshot composition on the main thread */
@@ -1362,7 +1438,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
     free_style_snapshot(snap_root);
 }
 
-__attribute__((weak)) bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority) {
+__attribute__((weak)) bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority) {
     if (func) func(arg);
     return true;
 }
@@ -2078,7 +2154,10 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 		css_select_results *cached = NULL;
 		dom_node_get_user_data(ctx->n, corestring_dom___ns_key_style_cache_data, (void *)&cached);
 		if (cached == NULL) {
-			html_parallel_style_selection(ctx->content, ctx->n);
+			int subtree_count = count_subtree_elements(ctx->n, SUBTREE_PARALLEL_STYLE_THRESHOLD);
+			if (subtree_count >= SUBTREE_PARALLEL_STYLE_THRESHOLD) {
+				html_parallel_style_selection(ctx->content, ctx->n);
+			}
 		}
 	}
 

@@ -4,12 +4,15 @@
 
 #include <libwapcaplet/libwapcaplet.h>
 #include <dom/dom.h>
+#include <dom/html/html_input_element.h>
+#include <dom/html/html_option_element.h>
 #include "wisp/utils/errors.h"
 #include "wisp/utils/nsurl.h"
 #include "content/handlers/css/select.h"
 #include "wisp/content/handlers/html/private.h"
 #include "utils/libdom.h"
 #include "utils/corestrings.h"
+#include "content/handlers/html/box_construct.h"
 
 // Context for testing callbacks
 struct test_ctx {
@@ -240,6 +243,76 @@ START_TEST(test_libdom_document_fragment_reinsert)
 }
 END_TEST
 
+START_TEST(test_count_subtree_elements)
+{
+    dom_document *doc = NULL;
+    dom_element *root_el = NULL;
+    dom_element *child_el1 = NULL;
+    dom_element *child_el2 = NULL;
+    dom_element *grandchild = NULL;
+    dom_string *div_name = NULL;
+    dom_string *span_name = NULL;
+    dom_node *res = NULL;
+    nserror err;
+    dom_exception exc;
+
+    err = libdom_parse_file("src/test/data/test_empty.html", "UTF-8", &doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(doc);
+
+    exc = dom_document_get_document_element(doc, &root_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(root_el);
+
+    /* Test null root */
+    ck_assert_int_eq(count_subtree_elements(NULL, 32), 0);
+
+    /* Test document element sub-tree (root_el <html> has <head> and <body>) */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)root_el, 32), 3);
+
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &div_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"span", 4, &span_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, div_name, &child_el1);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)root_el, (dom_node *)child_el1, &res);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    if (res) dom_node_unref(res);
+
+    exc = dom_document_create_element(doc, div_name, &child_el2);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)root_el, (dom_node *)child_el2, &res);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    if (res) dom_node_unref(res);
+
+    exc = dom_document_create_element(doc, span_name, &grandchild);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)child_el1, (dom_node *)grandchild, &res);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    if (res) dom_node_unref(res);
+
+    /* Total elements under root_el: <html>(1), <head>(2), <body>(3), child_el1(4), grandchild(5), child_el2(6) */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)root_el, 32), 6);
+
+    /* Sub-tree at child_el1: child_el1 (1), grandchild (2) */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)child_el1, 32), 2);
+
+    /* Limit test: limit = 2 on root_el should stop at 2 */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)root_el, 2), 2);
+
+    /* Cleanup */
+    dom_string_unref(div_name);
+    dom_string_unref(span_name);
+    dom_node_unref(child_el1);
+    dom_node_unref(child_el2);
+    dom_node_unref(grandchild);
+    dom_node_unref(root_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 START_TEST(test_node_is_target)
 {
     dom_document *doc = NULL;
@@ -322,6 +395,121 @@ START_TEST(test_node_is_target)
 }
 END_TEST
 
+START_TEST(test_node_is_checked)
+{
+    dom_document *doc = NULL;
+    dom_element *input_el = NULL;
+    dom_element *option_el = NULL;
+    dom_element *div_el = NULL;
+    dom_string *str_input = NULL;
+    dom_string *str_option = NULL;
+    dom_string *str_div = NULL;
+    dom_string *str_checked = NULL;
+    dom_string *str_selected = NULL;
+    nscss_select_ctx ctx = { 0 };
+    bool match = false;
+    dom_exception exc;
+    css_error cserr;
+
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_string_create_interned((const uint8_t *)"input", 5, &str_input);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"option", 6, &str_option);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &str_div);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"checked", 7, &str_checked);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"selected", 8, &str_selected);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_input, &input_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_document_create_element(doc, str_option, &option_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_document_create_element(doc, str_div, &div_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    /* 1. Div element should never match checked */
+    cserr = node_is_checked(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 2. Unchecked input element */
+    cserr = node_is_checked(&ctx, input_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 3. Input element with checked attribute */
+    exc = dom_element_set_attribute(input_el, corestring_dom_checked, str_checked);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    cserr = node_is_checked(&ctx, input_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 4. Input element with dom_html_input_element_set_checked (if HTML element) */
+    exc = dom_html_input_element_set_checked((dom_html_input_element *)input_el, true);
+    if (exc == DOM_NO_ERR) {
+        cserr = node_is_checked(&ctx, input_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, true);
+
+        /* Even with "checked" attribute present in DOM, set_checked(false) must result in match == false */
+        exc = dom_html_input_element_set_checked((dom_html_input_element *)input_el, false);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+        cserr = node_is_checked(&ctx, input_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, false);
+
+        exc = dom_element_remove_attribute(input_el, corestring_dom_checked);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+    }
+
+    /* 5. Unselected option element */
+    cserr = node_is_checked(&ctx, option_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 6. Option element with selected attribute */
+    exc = dom_element_set_attribute(option_el, corestring_dom_selected, str_selected);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    cserr = node_is_checked(&ctx, option_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 7. Option element with dom_html_option_element_set_selected (if HTML element) */
+    exc = dom_html_option_element_set_selected((dom_html_option_element *)option_el, true);
+    if (exc == DOM_NO_ERR) {
+        cserr = node_is_checked(&ctx, option_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, true);
+
+        /* Even with "selected" attribute present in DOM, set_selected(false) must result in match == false */
+        exc = dom_html_option_element_set_selected((dom_html_option_element *)option_el, false);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+        cserr = node_is_checked(&ctx, option_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, false);
+
+        exc = dom_element_remove_attribute(option_el, corestring_dom_selected);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+    }
+
+    /* Cleanup */
+    dom_string_unref(str_input);
+    dom_string_unref(str_option);
+    dom_string_unref(str_div);
+    dom_string_unref(str_checked);
+    dom_string_unref(str_selected);
+    dom_node_unref(input_el);
+    dom_node_unref(option_el);
+    dom_node_unref(div_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 static Suite *libdom_suite(void)
 {
     Suite *s = suite_create("libdom");
@@ -333,7 +521,9 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_iterate_with_children);
     tcase_add_test(tc_core, test_libdom_has_class_quirks_vs_standards);
     tcase_add_test(tc_core, test_libdom_document_fragment_reinsert);
+    tcase_add_test(tc_core, test_count_subtree_elements);
     tcase_add_test(tc_core, test_node_is_target);
+    tcase_add_test(tc_core, test_node_is_checked);
     suite_add_tcase(s, tc_core);
 
     return s;

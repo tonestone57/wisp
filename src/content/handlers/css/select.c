@@ -67,7 +67,6 @@ static css_error node_is_active(void *pw, void *node, bool *match);
 static css_error node_is_focus(void *pw, void *node, bool *match);
 static css_error node_is_enabled(void *pw, void *node, bool *match);
 static css_error node_is_disabled(void *pw, void *node, bool *match);
-static css_error node_is_checked(void *pw, void *node, bool *match);
 static css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
 static css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint);
 static css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data);
@@ -1639,9 +1638,50 @@ css_error node_is_disabled(void *pw, void *node, bool *match)
  */
 css_error node_is_checked(void *pw, void *node, bool *match)
 {
-    /** \todo Support checked nodes */
+    dom_node *n = node;
+    dom_string *node_name = NULL;
+    dom_exception exc;
 
     *match = false;
+
+    if (n == NULL) {
+        return CSS_OK;
+    }
+
+    exc = dom_node_get_node_name(n, &node_name);
+    if (exc != DOM_NO_ERR || node_name == NULL) {
+        return CSS_OK;
+    }
+
+    if (dom_string_caseless_lwc_isequal(node_name, corestring_lwc_input)) {
+        bool checked = false;
+        exc = dom_html_input_element_get_checked((dom_html_input_element *)n, &checked);
+        if (exc == DOM_NO_ERR) {
+            *match = checked;
+        } else {
+            /* Fallback to checking for "checked" attribute if dom_html_input_element_get_checked fails */
+            bool has_attr = false;
+            exc = dom_element_has_attribute(n, corestring_dom_checked, &has_attr);
+            if (exc == DOM_NO_ERR) {
+                *match = has_attr;
+            }
+        }
+    } else if (dom_string_caseless_lwc_isequal(node_name, corestring_lwc_option)) {
+        bool selected = false;
+        exc = dom_html_option_element_get_selected((dom_html_option_element *)n, &selected);
+        if (exc == DOM_NO_ERR) {
+            *match = selected;
+        } else {
+            /* Fallback to checking for "selected" attribute if dom_html_option_element_get_selected fails */
+            bool has_attr = false;
+            exc = dom_element_has_attribute(n, corestring_dom_selected, &has_attr);
+            if (exc == DOM_NO_ERR) {
+                *match = has_attr;
+            }
+        }
+    }
+
+    dom_string_unref(node_name);
 
     return CSS_OK;
 }

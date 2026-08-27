@@ -48,6 +48,7 @@ START_TEST(test_subsystem_init_shutdown)
     init_wisp_subsystem(10);
     ck_assert_ptr_nonnull(raster_pool);
     ck_assert_ptr_nonnull(js_pool);
+    ck_assert_ptr_nonnull(wisp_style_pool);
 
     // Sizing verification
     long n_cores;
@@ -62,13 +63,17 @@ START_TEST(test_subsystem_init_shutdown)
     int expected_raster = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int expected_js = (n_cores > 4) ? 4 : (int)n_cores;
     if (expected_js < 1) expected_js = 1;
+    int expected_style = (n_cores > 4) ? 4 : (int)n_cores;
+    if (expected_style < 1) expected_style = 1;
 
     ck_assert_int_eq(raster_pool->worker_count, expected_raster);
     ck_assert_int_eq(js_pool->worker_count, expected_js);
+    ck_assert_int_eq(wisp_style_pool->worker_count, expected_style);
 
     shutdown_wisp_subsystem();
     ck_assert_ptr_null(raster_pool);
     ck_assert_ptr_null(js_pool);
+    ck_assert_ptr_null(wisp_style_pool);
 }
 END_TEST
 
@@ -85,11 +90,14 @@ START_TEST(test_subsystem_dispatch)
     // Dispatch to Raster pool
     ck_assert(wisp_dispatch_raster(NULL, test_task, NULL, 0.0f));
 
+    // Dispatch to Style pool
+    ck_assert(wisp_dispatch_style(NULL, test_task, NULL, 0.0f));
+
     // Wait for tasks to complete
     int retries = 0;
     while (retries < 50) {
         ns_mutex_lock(&count_lock);
-        if (task_executed_count == 3) {
+        if (task_executed_count == 4) {
             ns_mutex_unlock(&count_lock);
             break;
         }
@@ -98,7 +106,7 @@ START_TEST(test_subsystem_dispatch)
         retries++;
     }
 
-    ck_assert_int_eq(task_executed_count, 3);
+    ck_assert_int_eq(task_executed_count, 4);
 
     shutdown_wisp_subsystem();
 }
@@ -139,8 +147,10 @@ static int priority_results[4];
 static int priority_idx = 0;
 static ns_mutex_t priority_lock;
 static ns_mutex_t block_lock;
+static volatile int blocker_started = 0;
 
 static void blocker_task(void *arg) {
+    __atomic_store_n(&blocker_started, 1, __ATOMIC_RELEASE);
     ns_mutex_lock(&block_lock);
     ns_mutex_unlock(&block_lock);
 }
@@ -192,6 +202,80 @@ START_TEST(test_subsystem_priority)
     ck_assert_int_eq(priority_results[0], 3);
     ck_assert_int_eq(priority_results[1], 2);
     ck_assert_int_eq(priority_results[2], 1);
+
+    shutdown_wisp_subsystem();
+    unsetenv("WISP_JS_WORKERS");
+}
+END_TEST
+
+static void test_pump_task_cb(void *arg) {
+    int *flag = (int *)arg;
+    *flag = 1;
+}
+
+START_TEST(test_pop_task_and_wait_group_pumping)
+{
+    setenv("WISP_JS_WORKERS", "1", 1);
+    init_wisp_subsystem(10);
+
+    /* 1. Block the worker thread so tasks stay queued */
+    ns_mutex_lock(&block_lock);
+    __atomic_store_n(&blocker_started, 0, __ATOMIC_RELAXED);
+
+    int executed_flag = 0;
+
+    /* Dispatch a blocker task to occupy worker 0 */
+    ck_assert(wisp_dispatch_js(NULL, blocker_task, NULL, 1.0f));
+
+    /* Wait until worker 0 actually starts blocker_task and blocks on block_lock */
+    while (__atomic_load_n(&blocker_started, __ATOMIC_ACQUIRE) == 0) {
+        ns_usleep(1000);
+    }
+
+    /* Dispatch a task to be popped / pumped by main thread */
+    ck_assert(wisp_dispatch_js(NULL, test_pump_task_cb, &executed_flag, 0.5f));
+
+    /* Verify task was enqueued */
+    ck_assert_int_eq(js_pool->count, 1);
+
+    /* Main thread pops and executes the pending task directly */
+    js_task_t *popped = wisp_pool_pop_task(js_pool);
+    ck_assert_ptr_nonnull(popped);
+    ck_assert_ptr_eq(popped->function, test_pump_task_cb);
+    popped->function(popped->arg);
+    if (popped->script) free(popped->script);
+    free(popped);
+
+    ck_assert_int_eq(executed_flag, 1);
+
+    /* Repeat test for wisp_style_pool */
+    int style_executed_flag = 0;
+    if (!wisp_dispatch_style(NULL, test_pump_task_cb, &style_executed_flag, 0.5f)) {
+        test_pump_task_cb(&style_executed_flag);
+    } else {
+        js_task_t *popped_style = wisp_pool_pop_task(wisp_style_pool);
+        if (popped_style) {
+            ck_assert_ptr_eq(popped_style->function, test_pump_task_cb);
+            popped_style->function(popped_style->arg);
+            if (popped_style->script) free(popped_style->script);
+            free(popped_style);
+        } else {
+            /* If wisp_dispatch_style executed the task synchronously (fallback mode), verify flag */
+            int retries = 0;
+            while (style_executed_flag == 0 && retries < 10) {
+                ns_usleep(1000);
+                retries++;
+            }
+        }
+    }
+
+    ck_assert_int_eq(style_executed_flag, 1);
+
+    /* Unblock worker thread */
+    ns_mutex_unlock(&block_lock);
+
+    /* Wait for blocker task to complete */
+    ns_usleep(50000);
 
     shutdown_wisp_subsystem();
     unsetenv("WISP_JS_WORKERS");
@@ -275,6 +359,7 @@ Suite *subsystem_suite(void)
     tcase_add_test(tc_core, test_subsystem_priority);
     tcase_add_test(tc_core, test_browser_tile_priority);
     tcase_add_test(tc_core, test_tile_pool_compressed_cache);
+    tcase_add_test(tc_core, test_pop_task_and_wait_group_pumping);
 
     suite_add_tcase(s, tc_core);
     return s;

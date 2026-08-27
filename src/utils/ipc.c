@@ -358,26 +358,34 @@ int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
 #else
     if (strchr(executable, '"') || strchr(ipc_name, '"')) return -1;
 
-    /* Validate that executable exists and is executable */
-    if (access(executable, X_OK) != 0) {
+    /* Open file descriptor with O_CLOEXEC to prevent TOCTOU race conditions */
+    int exec_fd = open(executable, O_RDONLY | O_CLOEXEC);
+    if (exec_fd < 0) {
         return -1;
     }
 
-    /* Validate executable is a regular file (or symlink pointing to regular file) */
+    /* Validate executable is a regular file and has execution permission set */
     struct stat st;
-    if (stat(executable, &st) != 0 || !S_ISREG(st.st_mode)) {
+    if (fstat(exec_fd, &st) != 0 || !S_ISREG(st.st_mode) || !(st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+        close(exec_fd);
         return -1;
     }
 
     pid_t pid = fork();
     if (pid < 0) {
+        close(exec_fd);
         return -1;
     }
     if (pid == 0) {
         char *const args[] = { (char *)executable, (char *)ipc_name, NULL };
-        execv(executable, args);
+        extern char **environ;
+        fexecve(exec_fd, args, environ);
+        if (errno == ENOSYS) {
+            execv(executable, args);
+        }
         _exit(1);
     }
+    close(exec_fd);
     return pid;
 #endif
 }

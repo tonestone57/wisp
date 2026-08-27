@@ -75,6 +75,9 @@ class DispatchParser:
 class PropertyGenParser:
     """Parse properties.gen to get enum names and metadata."""
     
+    LINE_PATTERN = re.compile(r'^([a-z_]+):([A-Z][A-Z0-9_]+)\s+(.*)$')
+    ENUM_PATTERN = re.compile(r'^[A-Z][A-Z0-9_]*$')
+
     def __init__(self, gen_file):
         self.gen_file = Path(gen_file)
         self.prop_map = {}  # name -> metadata
@@ -101,14 +104,14 @@ class PropertyGenParser:
             
             # Parse: property_name:ENUM_NAME ...
             # ENUM_NAME can be any uppercase identifier (CSS_PROP_*, BORDER_SIDE_*, etc.)
-            match = re.match(r'^([a-z_]+):([A-Z][A-Z0-9_]+)\s+(.*)$', line)
+            match = self.LINE_PATTERN.match(line)
             if match:
                 prop_name = match.group(1)
                 enum_name = match.group(2)
                 spec = match.group(3)
                 
                 # Validate: enum should be uppercase and have valid format
-                if not re.match(r'^[A-Z][A-Z0-9_]*$', enum_name):
+                if not self.ENUM_PATTERN.match(enum_name):
                     print(f"WARNING: Line {line_num}: Invalid enum format '{enum_name}'", file=sys.stderr)
                     continue
                 
@@ -819,10 +822,12 @@ class MultiFileGenerator:
         # Extract enum entries: look for identifiers that are enum values
         # Skip: range markers (FIRST_*, LAST_*), comments, preprocessor
         enum_entries = []
+        comment_re = re.compile(r'/\*.*?\*/')
+        enum_entry_re = re.compile(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$')
         for line in after_include.split('\n'):
             line = line.strip()
             # Strip C block comments (e.g. "/* comment */ FIRST," → "FIRST,")
-            line = re.sub(r'/\*.*?\*/', '', line).strip()
+            line = comment_re.sub('', line).strip()
             # Skip pure comments, empty lines, preprocessor, include directive
             if not line or line.startswith('//') or line.startswith('#') or line.startswith('*'):
                 continue
@@ -830,7 +835,7 @@ class MultiFileGenerator:
             if line.startswith('}'):
                 continue
             
-            m = re.match(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$', line)
+            m = enum_entry_re.match(line)
             if m:
                 name = m.group(1)
                 # Skip ONLY the actual range marker sentinels.

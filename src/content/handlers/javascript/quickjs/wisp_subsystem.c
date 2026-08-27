@@ -32,6 +32,7 @@
 
 WispPool *raster_pool = NULL;
 WispPool *js_pool = NULL;
+WispPool *wisp_style_pool = NULL;
 
 /* Lock-safe multi-producer Chase-Lev double-ended queue (deque) implementation */
 static inline void wisp_deque_init(wisp_deque_t *q) {
@@ -418,7 +419,7 @@ static void shutdown_pool(WispPool *pool) {
 }
 
 void init_wisp_subsystem(int queue_size) {
-    if (raster_pool != NULL || js_pool != NULL) return;
+    if (raster_pool != NULL || js_pool != NULL || wisp_style_pool != NULL) return;
     long n_cores;
 #ifdef _WIN32
     SYSTEM_INFO sysinfo;
@@ -440,19 +441,31 @@ void init_wisp_subsystem(int queue_size) {
         if (val > 0) js_workers = val;
     }
     if (js_workers < 1) js_workers = 1;
+
+    int style_workers = (n_cores > 4) ? 4 : (int)n_cores;
+    char *env_style_workers = getenv("WISP_STYLE_WORKERS");
+    if (env_style_workers != NULL) {
+        int val = atoi(env_style_workers);
+        if (val > 0) style_workers = val;
+    }
+    if (style_workers < 1) style_workers = 1;
+
     raster_pool = init_pool(raster_workers, queue_size);
     js_pool = init_pool(js_workers, queue_size);
+    wisp_style_pool = init_pool(style_workers, queue_size);
 #ifdef _WIN32
     InitializeCriticalSection(&web_worker_lock);
 #endif
-    NSLOG(wisp, INFO, "Wisp Subsystem Initialized: Raster Pool (%d), JS Pool (%d)", raster_workers, js_workers);
+    NSLOG(wisp, INFO, "Wisp Subsystem Initialized: Raster Pool (%d), JS Pool (%d), Style Pool (%d)", raster_workers, js_workers, style_workers);
 }
 
 void shutdown_wisp_subsystem(void) {
     shutdown_pool(raster_pool);
     shutdown_pool(js_pool);
+    shutdown_pool(wisp_style_pool);
     raster_pool = NULL;
     js_pool = NULL;
+    wisp_style_pool = NULL;
 }
 
 void* wisp_worker_routine(void *arg) {
@@ -700,9 +713,30 @@ bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float 
     return wisp_dispatch_internal(js_pool, script, func, arg, priority);
 }
 
+bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority) {
+    return wisp_dispatch_internal(wisp_style_pool, script, func, arg, priority);
+}
+
 void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
     wisp_dispatch_js(script, func, arg, 0.0f);
     if (script) free(script);
+}
+
+js_task_t *wisp_pool_pop_task(WispPool *pool) {
+    if (!pool || pool->worker_count == 0) return NULL;
+
+    /* Iterate through workers in the pool */
+    for (int i = 0; i < pool->worker_count; i++) {
+        /* Search deques starting from highest priority tier 3 down to tier 0 */
+        for (int j = 3; j >= 0; j--) {
+            js_task_t *task = wisp_deque_steal(&pool->workers[i].deques[j]);
+            if (task != NULL) {
+                __atomic_sub_fetch(&pool->count, 1, __ATOMIC_SEQ_CST);
+                return task;
+            }
+        }
+    }
+    return NULL;
 }
 
 static int js_worker_interrupt_handler(JSRuntime *rt, void *opaque) {

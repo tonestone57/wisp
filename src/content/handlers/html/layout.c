@@ -151,8 +151,9 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 static void layout_eval_container_queries(struct box *box);
 
 #include <unistd.h>
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
-extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+extern bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority);
 
 struct wisp_layout_wait_group {
     pthread_mutex_t mutex;
@@ -181,6 +182,25 @@ static inline void wisp_layout_wait_group_wait(struct wisp_layout_wait_group *wg
         pthread_cond_wait(&wg->cond, &wg->mutex);
     }
     pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_layout_wait_group_wait_and_pump(struct wisp_layout_wait_group *wg, WispPool *style_pool) {
+    while (__atomic_load_n(&wg->count, __ATOMIC_RELAXED) > 0) {
+        /* Main thread pops and executes pending style/layout tasks directly */
+        js_task_t *task = wisp_pool_pop_task(style_pool);
+        if (task) {
+            if (task->function) {
+                task->function(task->arg);
+            }
+            if (task->script) {
+                free(task->script);
+            }
+            free(task);
+        } else {
+            /* Fall back to short micro-sleep if queue is empty */
+            usleep(100);
+        }
+    }
 }
 
 static inline void wisp_layout_wait_group_destroy(struct wisp_layout_wait_group *wg) {
@@ -4508,13 +4528,13 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 						task->box = box;
 						task->content = content;
 						task->wg = &wg;
-						if (!wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f)) {
+						if (!wisp_dispatch_style(NULL, parallel_layout_worker_cb, task, 0.5f)) {
 							parallel_layout_worker_cb(task);
 						}
 					} else {
 						wisp_layout_wait_group_done(&wg);
 					}
-					wisp_layout_wait_group_wait(&wg);
+					wisp_layout_wait_group_wait_and_pump(&wg, wisp_style_pool);
 					wisp_layout_wait_group_destroy(&wg);
 				}
 
