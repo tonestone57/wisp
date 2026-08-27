@@ -147,7 +147,6 @@ add_library(wisp ${WISP_LIB_TYPE}
 	content/handlers/html/box_construct.c
 	content/handlers/html/box_inspect.c
 	content/handlers/html/box_manipulate.c
-	content/handlers/html/box_normalise.c
 	content/handlers/html/box_special.c
 	content/handlers/html/box_textarea.c
 	content/handlers/html/css.c
