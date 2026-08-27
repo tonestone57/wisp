@@ -256,8 +256,6 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
 
 extern bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority);
 
-static pthread_mutex_t dom_lock = PTHREAD_MUTEX_INITIALIZER;
-
 struct wisp_wait_group {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
@@ -1204,9 +1202,7 @@ static void parallel_style_worker_cb(void *arg) {
     select_ctx.c = c;
 
     css_select_results *styles = NULL;
-    pthread_mutex_lock(&dom_lock);
     css_error error = css_select_style(c->select_ctx, snap, &c->unit_len_ctx, &c->media, snap->inline_style, &snapshot_selection_handler, &select_ctx, &styles);
-    pthread_mutex_unlock(&dom_lock);
 
     if (error == CSS_OK) {
         task->out_results[task->index] = styles;
