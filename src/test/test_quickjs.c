@@ -4770,6 +4770,21 @@ START_TEST(test_quickjs_window_methods)
     result = js_exec(thread, (const uint8_t *)code_b64_throw_invalid, strlen(code_b64_throw_invalid), "test_b64_throw_invalid");
     ck_assert(result == true);
 
+    /* Test window.open and popup.close */
+    const char *code_win_open =
+        "var win = window.open('about:blank', '_blank');\n"
+        "var open_ok = (win !== undefined && win !== null && typeof win.close === 'function' && win.closed === false);\n"
+        "win.close();\n"
+        "open_ok;";
+    result = js_exec(thread, (const uint8_t *)code_win_open, strlen(code_win_open), "test_window_open_close");
+    ck_assert(result == true);
+
+    /* Test Chartbeat stubs */
+    const char *code_chartbeat =
+        "typeof window._sf_async_config === 'object' && typeof window.pSUPERFLY === 'object' && typeof window.pSUPERFLY.virtualPage === 'function';";
+    result = js_exec(thread, (const uint8_t *)code_chartbeat, strlen(code_chartbeat), "test_chartbeat_stubs");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);

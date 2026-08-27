@@ -10794,7 +10794,7 @@ JSValue wisp_window_blur_impl(JSContext *ctx, QJSNodePrivate *priv) {
 
 // Overrides: method | Window::open();
 JSValue wisp_window_open_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url, const char * target, const char * features, bool replace) {
-    return JS_UNDEFINED;
+    return JS_GetGlobalObject(ctx);
 }
 
 // Overrides: method | Window::confirm();
@@ -10977,7 +10977,7 @@ JSValue wisp_window_status_set_impl(JSContext *ctx, QJSNodePrivate *priv, const 
 
 // Overrides: getter | Window::closed(boolean);
 JSValue wisp_window_closed_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    return JS_FALSE;
 }
 
 // Overrides: getter | Window::frames(user);
@@ -12151,7 +12151,14 @@ JSValue wisp_document_createTreeWalker_impl(JSContext *ctx, QJSNodePrivate *priv
 
 // Overrides: method | Document::open();
 JSValue wisp_document_open_0_impl(JSContext *ctx, QJSNodePrivate *priv, const char * type, const char * replace) {
-    return JS_UNDEFINED;
+    if (priv && priv->node) {
+        extern JSValue qjs_wrap_node(JSContext *ctx, dom_node *node);
+        return qjs_wrap_node(ctx, priv->node);
+    }
+    JSValue global = JS_GetGlobalObject(ctx);
+    JSValue doc = JS_GetPropertyStr(ctx, global, "document");
+    JS_FreeValue(ctx, global);
+    return doc;
 }
 
 // Overrides: method | Document::close();
@@ -14602,7 +14609,7 @@ JSValue wisp_domimplementation_createHTMLDocument_impl(JSContext *ctx, QJSNodePr
 
 // Overrides: Document | open()
 JSValue wisp_document_open_1_impl(JSContext *ctx, QJSNodePrivate *priv, const char * url, const char * name, const char * features, bool replace) {
-    return JS_UNDEFINED;
+    return wisp_window_open_impl(ctx, priv, url, name, features, replace);
 }
 
 // Overrides: DOMSettableTokenList | value (getter)
