@@ -90,6 +90,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSRuntime *rt = JS_GetRuntime(ctx);
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (!map && !wisp_is_js_process) {
+        qjs_init_dom_bridge(ctx);
+        map = JS_GetRuntimeOpaque(rt);
+    }
 
     if (map) {
         bridge_key_t key = { ctx, node };
@@ -163,8 +167,8 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
         }
     }
 
-    if (wisp_is_js_process && t && node_id > 0 && node_id < SHM_DOM_MAX_NODES && val_ptr) {
-        t->node_wrapper_cache[node_id] = *val_ptr;
+    if (wisp_is_js_process && t && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
+        t->node_wrapper_cache[node_id] = JS_DupValue(ctx, wrapper);
     }
 
     return wrapper;
