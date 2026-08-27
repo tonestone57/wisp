@@ -14,6 +14,8 @@
 #define write_socket(fd, buf, len) send((SOCKET)(fd), (const char *)(buf), (int)(len), 0)
 #else
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #define write_socket(fd, buf, len) write((fd), (buf), (len))
 #endif
 
@@ -311,6 +313,35 @@ START_TEST(test_ipc_spawn_security_validation)
 }
 END_TEST
 
+START_TEST(test_ipc_spawn_fd_security)
+{
+#ifndef _WIN32
+    /* 1. Non-executable file check */
+    char non_exec_tmp[] = "/tmp/wisp_test_non_exec_XXXXXX";
+    int fd = mkstemp(non_exec_tmp);
+    ck_assert_int_ne(fd, -1);
+    close(fd);
+    /* Ensure no execute permissions set */
+    chmod(non_exec_tmp, 0644);
+    ck_assert_int_eq(wisp_ipc_spawn(non_exec_tmp, "valid_name"), -1);
+    unlink(non_exec_tmp);
+
+    /* 2. Directory path check */
+    ck_assert_int_eq(wisp_ipc_spawn("/tmp", "valid_name"), -1);
+
+    /* 3. Missing file check */
+    ck_assert_int_eq(wisp_ipc_spawn("/tmp/wisp_nonexistent_file_98765", "valid_name"), -1);
+
+    /* 4. Valid executable file check */
+    int pid = wisp_ipc_spawn("/bin/true", "valid_name");
+    ck_assert_int_gt(pid, 0);
+    int status = 0;
+    waitpid(pid, &status, 0);
+    ck_assert_int_eq(WIFEXITED(status) && WEXITSTATUS(status) == 0, true);
+#endif
+}
+END_TEST
+
 START_TEST(test_ipc_send_recv_zero_length)
 {
     const char *sock_name = "test_ipc_send_recv_zero_length_sock";
@@ -417,6 +448,7 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_find_executable_not_found);
     tcase_add_test(tc, test_ipc_safe_path_truncation);
     tcase_add_test(tc, test_ipc_spawn_security_validation);
+    tcase_add_test(tc, test_ipc_spawn_fd_security);
     tcase_add_test(tc, test_ipc_send_recv_zero_length);
     tcase_add_test(tc, test_ipc_send_error_closed_handle);
     return tc;
