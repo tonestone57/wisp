@@ -1037,6 +1037,44 @@ START_TEST(urldb_cookie_delete_test)
 }
 END_TEST
 
+START_TEST(urldb_overlong_cookie_name_value_test)
+{
+    size_t name_len = 1200;
+    size_t val_len = 5000;
+    char *name = malloc(name_len + 1);
+    char *val = malloc(val_len + 1);
+    char *hdr;
+    char *cdata;
+
+    ck_assert(name != NULL && val != NULL);
+
+    memset(name, 'a', name_len);
+    name[name_len] = '\0';
+
+    memset(val, 'b', val_len);
+    val[val_len] = '\0';
+
+    size_t hdr_alloc = name_len + val_len + 128;
+    hdr = malloc(hdr_alloc);
+    ck_assert(hdr != NULL);
+
+    snprintf(hdr, hdr_alloc, "%s=%s; Path=/\r\n", name, val);
+
+    ck_assert(test_urldb_set_cookie(hdr, "http://overlong.example.org/", NULL));
+
+    cdata = test_urldb_get_cookie("http://overlong.example.org/");
+    ck_assert(cdata != NULL);
+
+    ck_assert(strstr(cdata, name) != NULL);
+    ck_assert(strstr(cdata, val) != NULL);
+
+    free(name);
+    free(val);
+    free(hdr);
+    free(cdata);
+}
+END_TEST
+
 /**
  * Test case for urldb cookie management
  */
@@ -1051,6 +1089,7 @@ static TCase *urldb_cookie_case_create(void)
     tcase_add_test(tc, urldb_cookie_create_test);
     tcase_add_test(tc, urldb_iterate_cookies_test);
     tcase_add_test(tc, urldb_cookie_delete_test);
+    tcase_add_test(tc, urldb_overlong_cookie_name_value_test);
 
     return tc;
 }

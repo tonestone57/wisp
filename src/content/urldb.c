@@ -1755,8 +1755,9 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
 {
     struct cookie_internal_data *c;
     const char *cur;
-    char name[1024], value[4096];
-    char *n = name, *v = value;
+    size_t name_len = 0, name_alloc = 256;
+    size_t val_len = 0, val_alloc = 1024;
+    char *name, *value;
     bool in_value = false;
     bool had_value_data = false;
     bool value_verbatim = false;
@@ -1768,6 +1769,15 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
     c = calloc(1, sizeof(struct cookie_internal_data));
     if (c == NULL)
         return NULL;
+
+    name = malloc(name_alloc);
+    value = malloc(val_alloc);
+    if (name == NULL || value == NULL) {
+        free(name);
+        free(value);
+        free(c);
+        return NULL;
+    }
 
     c->expires = -1;
 
@@ -1782,6 +1792,7 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
 
                 /* Match Firefox 2.0.0.11 */
                 value[0] = '\0';
+                val_len = 0;
             }
 
             break;
@@ -1830,18 +1841,22 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
              * => end of current avpair */
 
             /* NUL-terminate tokens */
-            *n = '\0';
-            *v = '\0';
+            name[name_len] = '\0';
+            value[val_len] = '\0';
 
             if (!urldb_parse_avpair(c, name, value, was_quoted)) {
                 /* Memory exhausted */
+                free(name);
+                free(value);
                 urldb_free_cookie(c);
                 return NULL;
             }
 
             /* And reset to start */
-            n = name;
-            v = value;
+            name[0] = '\0';
+            name_len = 0;
+            value[0] = '\0';
+            val_len = 0;
             in_value = false;
             had_value_data = false;
             value_verbatim = false;
@@ -1907,26 +1922,52 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
             }
         }
 
-        /* Accumulate into buffers, always leaving space for a NUL */
-        /** \todo is silently truncating overlong names/values wise? */
+        /* Accumulate into buffers */
         if (!in_value) {
-            if (n < name + (sizeof(name) - 1))
-                *n++ = *cur;
+            if (name_len + 1 >= name_alloc) {
+                size_t new_alloc = name_alloc * 2;
+                char *temp = realloc(name, new_alloc);
+                if (!temp) {
+                    free(name);
+                    free(value);
+                    urldb_free_cookie(c);
+                    return NULL;
+                }
+                name = temp;
+                name_alloc = new_alloc;
+            }
+            name[name_len++] = *cur;
         } else {
-            if (v < value + (sizeof(value) - 1))
-                *v++ = *cur;
+            if (val_len + 1 >= val_alloc) {
+                size_t new_alloc = val_alloc * 2;
+                char *temp = realloc(value, new_alloc);
+                if (!temp) {
+                    free(name);
+                    free(value);
+                    urldb_free_cookie(c);
+                    return NULL;
+                }
+                value = temp;
+                val_alloc = new_alloc;
+            }
+            value[val_len++] = *cur;
         }
     }
 
     /* Parse final avpair */
-    *n = '\0';
-    *v = '\0';
+    name[name_len] = '\0';
+    value[val_len] = '\0';
 
     if (!urldb_parse_avpair(c, name, value, was_quoted)) {
         /* Memory exhausted */
+        free(name);
+        free(value);
         urldb_free_cookie(c);
         return NULL;
     }
+
+    free(name);
+    free(value);
 
     /* Fixing up default values */
     if (c->domain == NULL) {
