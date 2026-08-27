@@ -48,15 +48,71 @@ char *filename_from_path(char *path)
     return strdup(leafname);
 }
 
-/* utils/schedule.h */
-void schedule(int t, schedule_callback_fn cb, void *pw)
+#include <wisp/misc.h>
+#include <wisp/desktop/gui_internal.h>
+#include <wisp/content/backing_store.h>
+#include <wisp/utils/nsoption.h>
+
+struct mock_task {
+    void (*callback)(void *p);
+    void *param;
+    struct mock_task *next;
+};
+
+static struct mock_task *mock_tasks = NULL;
+
+static nserror mock_schedule(int t, void (*cb)(void *p), void *p)
 {
+    if (t < 0) {
+        struct mock_task **prev = &mock_tasks;
+        struct mock_task *curr = mock_tasks;
+        while (curr) {
+            if (curr->callback == cb && curr->param == p) {
+                *prev = curr->next;
+                free(curr);
+                return NSERROR_OK;
+            }
+            prev = &curr->next;
+            curr = curr->next;
+        }
+        return NSERROR_NOT_FOUND;
+    }
+
+    struct mock_task *task = malloc(sizeof(*task));
+    task->callback = cb;
+    task->param = p;
+    task->next = NULL;
+
+    if (mock_tasks == NULL) {
+        mock_tasks = task;
+    } else {
+        struct mock_task *tail = mock_tasks;
+        while (tail->next) tail = tail->next;
+        tail->next = task;
+    }
+
+    return NSERROR_OK;
 }
 
-/* utils/schedule.h */
-void schedule_remove(schedule_callback_fn cb, void *pw)
+static void pump_scheduled(void)
 {
+    int safety = 0;
+    while (mock_tasks != NULL && safety++ < 100) {
+        struct mock_task *curr = mock_tasks;
+        mock_tasks = curr->next;
+        curr->callback(curr->param);
+        free(curr);
+    }
 }
+
+static struct gui_misc_table mock_misc = {
+    .schedule = mock_schedule,
+};
+
+static struct wisp_table mock_gui_table = {
+    .misc = &mock_misc,
+    .llcache = NULL,
+};
 
 /* content/fetch.h */
 const char *fetch_filetype(const char *unix_path)
@@ -210,7 +266,35 @@ void test_free_fetch(void *handle)
 
 void test_process(test_context *ctx)
 {
-    /** \todo Implement */
+    fetch_msg msg;
+
+    ctx->locked = true;
+
+    fetch_set_http_code(ctx->parent, 200);
+
+    msg.type = FETCH_HEADER;
+    msg.data.header_or_data.buf = (const uint8_t *)"Content-Type: text/plain";
+    msg.data.header_or_data.len = strlen("Content-Type: text/plain");
+    fetch_send_callback(&msg, ctx->parent);
+
+    msg.type = FETCH_HEADER;
+    msg.data.header_or_data.buf = (const uint8_t *)"Cache-Control: max-age=3600";
+    msg.data.header_or_data.len = strlen("Cache-Control: max-age=3600");
+    fetch_send_callback(&msg, ctx->parent);
+
+    if (ctx->aborted == false) {
+        msg.type = FETCH_DATA;
+        msg.data.header_or_data.buf = (const uint8_t *)"test data";
+        msg.data.header_or_data.len = strlen("test data");
+        fetch_send_callback(&msg, ctx->parent);
+    }
+
+    if (ctx->aborted == false) {
+        msg.type = FETCH_FINISHED;
+        fetch_send_callback(&msg, ctx->parent);
+    }
+
+    ctx->locked = false;
 }
 
 void test_poll(lwc_string *scheme)
@@ -240,17 +324,13 @@ void test_poll(lwc_string *scheme)
  * The actual test code                                                       *
  ******************************************************************************/
 
-nserror query_handler(const llcache_query *query, void *pw, llcache_query_response cb, void *cbpw)
-{
-    /* I'm too lazy to actually implement this. It should queue the query,
-     * then deliver the response from main(). */
-
-    return NSERROR_OK;
-}
+#include "content/fetchers.h"
 
 nserror event_handler(llcache_handle *handle, const llcache_event *event, void *pw)
 {
-    static char *event_names[] = {"HAD_HEADERS", "HAD_DATA", "DONE", "ERROR", "PROGRESS"};
+    static char *event_names[] = {
+        "GOT_CERTS", "HAD_HEADERS", "HAD_DATA", "DONE", "ERROR", "PROGRESS", "REDIRECT"
+    };
     bool *done = pw;
 
     if (event->type != LLCACHE_EVENT_PROGRESS)
@@ -272,19 +352,47 @@ int main(int argc, char **argv)
     nsurl *url;
     bool done = false;
 
-    /* Initialise subsystems */
-    fetch_init();
-
-    if (lwc_intern_string("test", SLEN("test"), &scheme) != lwc_error_ok) {
-        fprintf(stderr, "Failed to intern \"test\"\n");
+    /* Initialise options & core strings */
+    if (nsoption_init(NULL, NULL, NULL) != NSERROR_OK) {
+        fprintf(stderr, "Failed to initialize nsoptions\n");
         return 1;
     }
 
-    fetch_add_fetcher(scheme, test_initialise, test_can_fetch, test_setup_fetch, test_start_fetch, test_abort_fetch,
-        test_free_fetch, test_poll, test_finalise);
+    if (corestrings_init() != NSERROR_OK) {
+        fprintf(stderr, "Failed to initialize corestrings\n");
+        return 1;
+    }
+
+    /* Initialise subsystems */
+    if (lwc_intern_string("http", SLEN("http"), &scheme) != lwc_error_ok) {
+        fprintf(stderr, "Failed to intern \"http\"\n");
+        return 1;
+    }
+
+    static const struct fetcher_operation_table test_fetcher_ops = {
+        .initialise = test_initialise,
+        .acceptable = test_can_fetch,
+        .setup = test_setup_fetch,
+        .start = test_start_fetch,
+        .abort = test_abort_fetch,
+        .free = test_free_fetch,
+        .poll = test_poll,
+        .finalise = test_finalise,
+    };
+
+    if (fetcher_add(scheme, &test_fetcher_ops) != NSERROR_OK) {
+        fprintf(stderr, "Failed to add fetcher\n");
+        return 1;
+    }
+
+    mock_gui_table.llcache = filesystem_llcache_table;
+    guit = &mock_gui_table;
 
     /* Initialise low-level cache */
-    error = llcache_initialise(query_handler, NULL, 1024 * 1024);
+    struct llcache_parameters prm = {
+        .limit = 1024 * 1024,
+    };
+    error = llcache_initialise(&prm);
     if (error != NSERROR_OK) {
         fprintf(stderr, "llcache_initialise: %d\n", error);
         return 1;
@@ -339,7 +447,7 @@ int main(int argc, char **argv)
 
     /* Poll relevant components */
     while (done == false) {
-        llcache_poll();
+        pump_scheduled();
     }
 
     done = false;
@@ -350,7 +458,7 @@ int main(int argc, char **argv)
     }
 
     while (done == false) {
-        llcache_poll();
+        pump_scheduled();
     }
 
     fprintf(stdout, "%p, %p -> %d\n", handle, handle2, llcache_handle_references_same_object(handle, handle2));
@@ -358,8 +466,6 @@ int main(int argc, char **argv)
     /* Cleanup */
     llcache_handle_release(handle2);
     llcache_handle_release(handle);
-
-    fetch_quit();
 
     return 0;
 }
