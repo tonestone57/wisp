@@ -204,7 +204,8 @@ void qjs_idle_callback_fn(void *p)
 
     JSContext *ctx1;
     int job_ret;
-    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+    int microtask_count = 0;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
         if (job_ret < 0) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
@@ -761,7 +762,8 @@ uint64_t qjs_execute_timers(JSContext *ctx) {
     /* Process microtasks/pending jobs on every tick */
     JSContext *ctx1;
     int job_ret;
-    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+    int microtask_count = 0;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
         if (job_ret < 0) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
