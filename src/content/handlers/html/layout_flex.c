@@ -183,9 +183,9 @@ static struct flex_ctx *layout_flex_ctx__create(html_content *content, const str
 	ctx->content = content;
 	ctx->unit_len_ctx = &content->unit_len_ctx;
 
-	ctx->wrap = css_computed_flex_wrap(flex->style);
-	ctx->horizontal = lh__flex_main_is_horizontal(flex);
-	ctx->main_reversed = lh__flex_direction_reversed(flex);
+	ctx->wrap = (flex->style != NULL) ? css_computed_flex_wrap(flex->style) : CSS_FLEX_WRAP_NOWRAP;
+	ctx->horizontal = (flex->style != NULL) ? lh__flex_main_is_horizontal(flex) : true;
+	ctx->main_reversed = (flex->style != NULL) ? lh__flex_direction_reversed(flex) : false;
 
 	/* Read CSS gap properties per flexbox spec:
 	 * - For row direction (horizontal): column-gap is main, row-gap is cross
@@ -1069,6 +1069,8 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
 		int ref_cross = horizontal ? ctx->available_main : available_width;
 		layout_flex__base_and_main_sizes(ctx, item, ref_main, ref_cross);
 	}
+
+	ctx->item.count = i;
 }
 
 /**
@@ -1126,6 +1128,11 @@ static struct flex_line_data *layout_flex__build_line(struct flex_ctx *ctx, size
 		struct box *b = item->box;
 		int pos_main;
 		int gap_for_item;
+
+		if (b == NULL) {
+			item_index++;
+			continue;
+		}
 
 		int item_height = (b->height == AUTO) ? 0 : b->height;
 		pos_main = ctx->horizontal ? item->main_size : item_height + lh__delta_outer_main(ctx->flex, b);
@@ -1204,7 +1211,7 @@ layout_flex__item_freeze(const struct flex_ctx *ctx, struct flex_line_data *line
 	item->freeze = true;
 	line->frozen++;
 
-	if (!lh__box_is_absolute(item->box)) {
+	if (item->box != NULL && !lh__box_is_absolute(item->box)) {
 		/* Include outer dimensions (padding + border + non-auto margins)
 		 * in used_main_size so free space calculation is correct for
 		 * auto margin distribution (mx-auto centering). */
@@ -1238,6 +1245,10 @@ static inline int layout_flex__remaining_free_main(struct flex_ctx *ctx, struct 
 
 	for (size_t i = line->first; i < item_count; i++) {
 		struct flex_item_data *item = &ctx->item.data[i];
+
+		if (item->box == NULL) {
+			continue;
+		}
 
 		if (item->freeze) {
 			remaining_free_main -= item->target_main_size;
@@ -1276,8 +1287,13 @@ static inline int layout_flex__get_min_max_violations(struct flex_ctx *ctx, stru
 
 	for (size_t i = line->first; i < item_count; i++) {
 		struct flex_item_data *item = &ctx->item.data[i];
-		int target_main_size = item->target_main_size;
+		int target_main_size;
 
+		if (item->box == NULL) {
+			continue;
+		}
+
+		target_main_size = item->target_main_size;
 		NSLOG(flex, DEEPDEBUG, "item %p: target_main_size: %i", item->box, target_main_size);
 
 		if (item->freeze) {
@@ -1354,7 +1370,7 @@ static inline void layout_flex__distribute_free_main(struct flex_ctx *ctx, struc
 			css_fixed result;
 			css_fixed ratio;
 
-			if (item->freeze) {
+			if (item->box == NULL || item->freeze) {
 				continue;
 			}
 
@@ -1372,7 +1388,7 @@ static inline void layout_flex__distribute_free_main(struct flex_ctx *ctx, struc
 			struct flex_item_data *item = &ctx->item.data[i];
 			css_fixed scaled_shrink_factor;
 
-			if (item->freeze) {
+			if (item->box == NULL || item->freeze) {
 				continue;
 			}
 
@@ -1386,7 +1402,7 @@ static inline void layout_flex__distribute_free_main(struct flex_ctx *ctx, struc
 			css_fixed result;
 			css_fixed ratio;
 
-			if (item->freeze) {
+			if (item->box == NULL || item->freeze) {
 				continue;
 			} else if (scaled_shrink_factor_sum == 0) {
 				item->target_main_size = item->main_size;
@@ -1442,6 +1458,10 @@ static bool layout_flex__resolve_line(struct flex_ctx *ctx, struct flex_line_dat
 
 	for (size_t i = line->first; i < item_count; i++) {
 		struct flex_item_data *item = &ctx->item.data[i];
+
+		if (item->box == NULL) {
+			continue;
+		}
 
 		/* 3. Size inflexible items */
 		if (grow) {
@@ -1605,6 +1625,10 @@ static bool layout_flex__place_line_items_main(struct flex_ctx *ctx, struct flex
 		int extra_pre = 0;
 		int box_size_main;
 		int *box_pos_main;
+
+		if (b == NULL) {
+			continue;
+		}
 
 		if (ctx->horizontal) {
 			b->width = item->target_main_size - lh__delta_outer_width(b);
@@ -1831,7 +1855,7 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 		/* Pre-calculate maximum baseline offset for the line */
 		for (size_t j = line->first; j < item_count; j++) {
 			struct flex_item_data *it = &ctx->item.data[j];
-			if (lh__box_align_self(ctx->flex, it->box) == CSS_ALIGN_SELF_BASELINE) {
+			if (it->box != NULL && lh__box_align_self(ctx->flex, it->box) == CSS_ALIGN_SELF_BASELINE) {
 				int baseline = layout_flex__get_baseline(it->box) +
 					lh__non_auto_margin(it->box, cross_start) + it->box->border[cross_start].width;
 				if (baseline > max_baseline)
@@ -1846,6 +1870,10 @@ static void layout_flex__place_line_items_cross(struct flex_ctx *ctx, struct fle
 		int cross_free_space;
 		int *box_size_cross;
 		int *box_pos_cross;
+
+		if (b == NULL) {
+			continue;
+		}
 
 		box_pos_cross = ctx->horizontal ? &b->y : &b->x;
 		box_size_cross = lh__box_size_cross_ptr(ctx->horizontal, b);
@@ -2076,6 +2104,16 @@ static int flex_item_cmp(const void *a, const void *b)
 {
 	const struct flex_item_data *fa = (const struct flex_item_data *)a;
 	const struct flex_item_data *fb = (const struct flex_item_data *)b;
+
+	if (fa->box == NULL && fb->box == NULL) {
+		return 0;
+	}
+	if (fa->box == NULL) {
+		return 1;
+	}
+	if (fb->box == NULL) {
+		return -1;
+	}
 
 	if (fa->order != fb->order) {
 		return fa->order - fb->order;

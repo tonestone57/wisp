@@ -889,6 +889,46 @@ START_TEST(test_column_flex_explicit_min_height_zero)
 }
 END_TEST
 
+START_TEST(test_flex_null_style_child_safety)
+{
+    /* Test that layout_flex handles child boxes with style == NULL gracefully without crashing */
+    struct box *flex = calloc(1, sizeof(struct box));
+    flex->type = BOX_FLEX;
+    flex->width = 300;
+    flex->height = 200;
+    flex->style = (css_computed_style *)mock_style_flex_grow_0;
+
+    /* Create child 1 with NULL style */
+    struct box *null_style_child = calloc(1, sizeof(struct box));
+    null_style_child->type = BOX_BLOCK;
+    null_style_child->style = NULL;
+
+    /* Create child 2 with valid style */
+    struct box *valid_child = calloc(1, sizeof(struct box));
+    valid_child->type = BOX_BLOCK;
+    valid_child->style = (css_computed_style *)mock_style_flex_grow_0;
+    valid_child->width = 100;
+    valid_child->height = 50;
+
+    flex->children = null_style_child;
+    null_style_child->parent = flex;
+    null_style_child->next = valid_child;
+    valid_child->prev = null_style_child;
+    valid_child->parent = flex;
+    flex->last = valid_child;
+
+    html_content content;
+    memset(&content, 0, sizeof(content));
+
+    bool result = layout_flex(flex, 300, &content);
+    ck_assert_int_eq(result, true);
+
+    free(null_style_child);
+    free(valid_child);
+    free(flex);
+}
+END_TEST
+
 START_TEST(test_row_flex_min_height_unchanged)
 {
     /* Row flex (horizontal) should not apply this logic */
@@ -938,6 +978,7 @@ Suite *layout_flex_suite(void)
     tcase_add_test(tc_core, test_column_flex_explicit_min_height_preserved);
     tcase_add_test(tc_core, test_column_flex_explicit_min_height_zero);
     tcase_add_test(tc_core, test_row_flex_min_height_unchanged);
+    tcase_add_test(tc_core, test_flex_null_style_child_safety);
 
     suite_add_tcase(s, tc_core);
 
