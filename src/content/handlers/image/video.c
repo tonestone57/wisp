@@ -383,8 +383,14 @@ static nserror nsvideo_process_data(struct content *c, const char *data, unsigne
 
     pthread_mutex_lock(&video->buffer.lock);
     if (video->buffer.size + size > video->buffer.capacity) {
-        video->buffer.capacity = (video->buffer.size + size) * 2;
-        video->buffer.data = (unsigned char *)realloc(video->buffer.data, video->buffer.capacity);
+        size_t new_capacity = (video->buffer.size + size) * 2;
+        unsigned char *new_data = (unsigned char *)realloc(video->buffer.data, new_capacity);
+        if (!new_data) {
+            pthread_mutex_unlock(&video->buffer.lock);
+            return NSERROR_NOMEM;
+        }
+        video->buffer.capacity = new_capacity;
+        video->buffer.data = new_data;
     }
     memcpy(video->buffer.data + video->buffer.size, data, size);
     video->buffer.size += size;
