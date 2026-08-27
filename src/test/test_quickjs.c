@@ -7105,6 +7105,53 @@ START_TEST(test_quickjs_csp_already_started)
 }
 END_TEST
 
+START_TEST(test_quickjs_element_closest)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    corestrings_init();
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void *)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *setup_html =
+        "document.body.innerHTML = '<div id=\"outer\" class=\"container flex-box\">' +"
+        "'  <table class=\"table grid\">' +"
+        "'    <tr id=\"row1\" class=\"treegrid-1\">' +"
+        "'      <td id=\"cell1\"><span id=\"span1\">Text</span></td>' +"
+        "'    </tr>' +"
+        "'  </table>' +"
+        "'</div>';";
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)setup_html, strlen(setup_html), "setup_html"), true);
+
+    const char *test_js =
+        "var span = document.getElementById('span1');\n"
+        "if (!span) throw new Error('span1 not found');\n"
+        "var spanMatch = span.closest('span');\n"
+        "if (!spanMatch || spanMatch.id !== 'span1') throw new Error('Self match failed');\n"
+        "var rowMatch = span.closest('tr');\n"
+        "if (!rowMatch || rowMatch.id !== 'row1') throw new Error('Ancestor tr match failed');\n"
+        "var classMatch = span.closest('.table');\n"
+        "if (!classMatch || classMatch.tagName.toLowerCase() !== 'table') throw new Error('Class selector match failed');\n"
+        "var noMatch = span.closest('.nonexistent');\n"
+        "if (noMatch !== null) throw new Error('Expected null for non-matching selector');\n"
+        "1;\n";
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)test_js, strlen(test_js), "test_js"), true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7223,6 +7270,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_binary_idb_fonts_svg_security);
     tcase_add_test(tc_event_loop, test_quickjs_multinode_text_content);
     tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
+    tcase_add_test(tc_event_loop, test_quickjs_element_closest);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
