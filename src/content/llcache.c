@@ -2646,9 +2646,8 @@ static nserror llcache_fetch_cert_error(llcache_object *object)
 
         /* Inform client(s) that object fetch failed */
         event.type = LLCACHE_EVENT_ERROR;
-        /** \todo More appropriate error message */
         event.data.error.code = NSERROR_BAD_CERTS;
-        event.data.error.msg = messages_get("FetchFailed");
+        event.data.error.msg = messages_get("SSLError");
 
         error = llcache_send_event_to_users(object, &event);
     } else {
@@ -2699,9 +2698,8 @@ static nserror llcache_fetch_ssl_error(llcache_object *object)
 
         /* Inform client(s) that object fetch failed */
         event.type = LLCACHE_EVENT_ERROR;
-        /** \todo More appropriate error message */
         event.data.error.code = NSERROR_UNKNOWN;
-        event.data.error.msg = messages_get("FetchFailed");
+        event.data.error.msg = messages_get("SSLError");
 
         error = llcache_send_event_to_users(object, &event);
     } else {
