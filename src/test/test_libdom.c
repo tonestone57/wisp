@@ -4,9 +4,14 @@
 
 #include <libwapcaplet/libwapcaplet.h>
 #include <dom/dom.h>
+#include <dom/html/html_input_element.h>
+#include <dom/html/html_option_element.h>
 #include "wisp/utils/errors.h"
 #include "utils/libdom.h"
 #include "utils/corestrings.h"
+#include "content/handlers/css/select.h"
+
+extern css_error node_is_checked(void *pw, void *node, bool *match);
 
 // Context for testing callbacks
 struct test_ctx {
@@ -183,6 +188,77 @@ START_TEST(test_libdom_has_class_quirks_vs_standards)
 }
 END_TEST
 
+START_TEST(test_node_is_checked)
+{
+    dom_document *doc = NULL;
+    dom_element *input_el = NULL;
+    dom_element *input_checked_el = NULL;
+    dom_element *option_el = NULL;
+    dom_element *option_selected_el = NULL;
+    dom_string *tag_input = NULL;
+    dom_string *tag_option = NULL;
+    nserror err;
+    dom_exception exc;
+    bool match = false;
+
+    err = libdom_parse_file("src/test/data/test_empty.html", "UTF-8", &doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(doc);
+
+    exc = dom_string_create_interned((const uint8_t *)"input", 5, &tag_input);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"option", 6, &tag_option);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    /* 1. Unchecked input element */
+    exc = dom_document_create_element(doc, tag_input, &input_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(input_el);
+
+    ck_assert_int_eq(node_is_checked(NULL, input_el, &match), CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 2. Checked input element */
+    exc = dom_document_create_element(doc, tag_input, &input_checked_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(input_checked_el);
+
+    exc = dom_html_input_element_set_checked((dom_html_input_element *)input_checked_el, true);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    ck_assert_int_eq(node_is_checked(NULL, input_checked_el, &match), CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 3. Unselected option element */
+    exc = dom_document_create_element(doc, tag_option, &option_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(option_el);
+
+    ck_assert_int_eq(node_is_checked(NULL, option_el, &match), CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 4. Selected option element */
+    exc = dom_document_create_element(doc, tag_option, &option_selected_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(option_selected_el);
+
+    exc = dom_html_option_element_set_selected((dom_html_option_element *)option_selected_el, true);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    ck_assert_int_eq(node_is_checked(NULL, option_selected_el, &match), CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* Cleanup */
+    dom_node_unref(option_selected_el);
+    dom_node_unref(option_el);
+    dom_node_unref(input_checked_el);
+    dom_node_unref(input_el);
+    dom_string_unref(tag_option);
+    dom_string_unref(tag_input);
+    dom_node_unref(doc);
+}
+END_TEST
+
 START_TEST(test_libdom_document_fragment_reinsert)
 {
     dom_document *doc = NULL;
@@ -248,6 +324,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_iterate_with_children);
     tcase_add_test(tc_core, test_libdom_has_class_quirks_vs_standards);
     tcase_add_test(tc_core, test_libdom_document_fragment_reinsert);
+    tcase_add_test(tc_core, test_node_is_checked);
     suite_add_tcase(s, tc_core);
 
     return s;

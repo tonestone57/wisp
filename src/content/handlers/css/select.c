@@ -34,6 +34,8 @@
 #include "content/handlers/html/box.h"
 
 #include <wisp/content/handlers/html/private.h>
+#include <dom/html/html_input_element.h>
+#include <dom/html/html_option_element.h>
 
 static css_error node_name(void *pw, void *node, css_qname *qname);
 static css_error node_classes(void *pw, void *node, lwc_string ***classes, uint32_t *n_classes);
@@ -67,7 +69,6 @@ static css_error node_is_active(void *pw, void *node, bool *match);
 static css_error node_is_focus(void *pw, void *node, bool *match);
 static css_error node_is_enabled(void *pw, void *node, bool *match);
 static css_error node_is_disabled(void *pw, void *node, bool *match);
-static css_error node_is_checked(void *pw, void *node, bool *match);
 static css_error node_is_target(void *pw, void *node, bool *match);
 static css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
 static css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint);
@@ -1640,9 +1641,42 @@ css_error node_is_disabled(void *pw, void *node, bool *match)
  */
 css_error node_is_checked(void *pw, void *node, bool *match)
 {
-    /** \todo Support checked nodes */
+    dom_node *n = node;
+    dom_node_type type;
+    dom_exception err;
+    dom_string *name;
 
     *match = false;
+
+    err = dom_node_get_node_type(n, &type);
+    if (err != DOM_NO_ERR || type != DOM_ELEMENT_NODE) {
+        return CSS_OK;
+    }
+
+    err = dom_node_get_node_name(n, &name);
+    if (err != DOM_NO_ERR || name == NULL) {
+        return CSS_OK;
+    }
+
+    if (dom_string_caseless_lwc_isequal(name, corestring_lwc_input)) {
+        bool checked = false;
+        err = dom_html_input_element_get_checked((dom_html_input_element *)n, &checked);
+        if (err == DOM_NO_ERR) {
+            *match = checked;
+        } else {
+            dom_element_has_attribute((dom_element *)n, corestring_dom_checked, match);
+        }
+    } else if (dom_string_caseless_lwc_isequal(name, corestring_lwc_option)) {
+        bool selected = false;
+        err = dom_html_option_element_get_selected((dom_html_option_element *)n, &selected);
+        if (err == DOM_NO_ERR) {
+            *match = selected;
+        } else {
+            dom_element_has_attribute((dom_element *)n, corestring_dom_selected, match);
+        }
+    }
+
+    dom_string_unref(name);
 
     return CSS_OK;
 }
