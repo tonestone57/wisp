@@ -619,8 +619,11 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
 
     /* Create content */
 
-    /** \todo Why aren't we getting a relative url part, to join? */
-    nerror = nsurl_create(lwc_string_data(url), &ns_url);
+    if (c->base_url != NULL) {
+        nerror = nsurl_join(c->base_url, lwc_string_data(url), &ns_url);
+    } else {
+        nerror = nsurl_create(lwc_string_data(url), &ns_url);
+    }
     if (nerror != NSERROR_OK) {
         free(ctx);
         return CSS_NOMEM;
