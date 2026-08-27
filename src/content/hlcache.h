@@ -117,8 +117,6 @@ void hlcache_finalise(void);
  * affected by quirks mode.
  *
  * NOTE: The above rules are encoded in the handler_map.
- *
- * \todo Is there any way to sensibly reduce the number of parameters here?
  */
 nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llcache_post_data *post,
     hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
