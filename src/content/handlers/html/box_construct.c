@@ -254,7 +254,7 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
 #include <unistd.h>
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
-extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+extern bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority);
 
 static pthread_mutex_t dom_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -1264,7 +1264,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
             task->index = i;
             task->wg = &wg;
 
-            if (!wisp_dispatch_js(NULL, parallel_style_worker_cb, task, 0.5f)) {
+            if (!wisp_dispatch_style(NULL, parallel_style_worker_cb, task, 0.5f)) {
                 parallel_style_worker_cb(task);
             }
         } else {
@@ -1274,7 +1274,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
     }
 
     /* Join phase: wait for all worker tasks to finish while pumping pending tasks */
-    wisp_wait_group_wait_and_pump(&wg, js_pool);
+    wisp_wait_group_wait_and_pump(&wg, wisp_style_pool);
     wisp_wait_group_destroy(&wg);
 
     /* Top-down snapshot composition on the main thread */
@@ -1382,7 +1382,7 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
     free_style_snapshot(snap_root);
 }
 
-__attribute__((weak)) bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority) {
+__attribute__((weak)) bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority) {
     if (func) func(arg);
     return true;
 }

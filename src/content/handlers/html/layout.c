@@ -153,7 +153,7 @@ static void layout_eval_container_queries(struct box *box);
 #include <unistd.h>
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
-extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
+extern bool wisp_dispatch_style(const char *script, void (*func)(void*), void *arg, float priority);
 
 struct wisp_layout_wait_group {
     pthread_mutex_t mutex;
@@ -4528,13 +4528,13 @@ bool layout_block_context(struct box *block, int viewport_height, html_content *
 						task->box = box;
 						task->content = content;
 						task->wg = &wg;
-						if (!wisp_dispatch_js(NULL, parallel_layout_worker_cb, task, 0.5f)) {
+						if (!wisp_dispatch_style(NULL, parallel_layout_worker_cb, task, 0.5f)) {
 							parallel_layout_worker_cb(task);
 						}
 					} else {
 						wisp_layout_wait_group_done(&wg);
 					}
-					wisp_layout_wait_group_wait_and_pump(&wg, js_pool);
+					wisp_layout_wait_group_wait_and_pump(&wg, wisp_style_pool);
 					wisp_layout_wait_group_destroy(&wg);
 				}
 
