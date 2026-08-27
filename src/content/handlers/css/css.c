@@ -636,8 +636,13 @@ css_error nscss_handle_import(void *pw, css_stylesheet *parent, lwc_string *url)
         free(ctx);
         ctx = NULL;
     } else {
+        hlcache_retrieve_options opts = {
+            .referer = c->base_url,
+            .child = &child,
+            .accepted_types = accept
+        };
         nerror = hlcache_handle_retrieve(
-            ns_url, 0, c->base_url, NULL, nscss_import, ctx, &child, accept, &c->imports[c->import_count].c);
+            ns_url, &opts, nscss_import, ctx, &c->imports[c->import_count].c);
         if (nerror != NSERROR_OK) {
             nsurl_unref(ns_url);
             free(ctx);

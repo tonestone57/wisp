@@ -287,7 +287,10 @@ static nserror search_web_ico_callback(hlcache_handle *ico, const hlcache_event 
         hlcache_handle_release(ico);
         provider->ico_handle = NULL;
 
-        hlcache_handle_retrieve(to_url, 0, NULL, NULL, search_web_ico_callback, provider, NULL, CONTENT_IMAGE, &provider->ico_handle);
+        hlcache_retrieve_options opts = {
+            .accepted_types = CONTENT_IMAGE
+        };
+        hlcache_handle_retrieve(to_url, &opts, search_web_ico_callback, provider, &provider->ico_handle);
         nsurl_unref(to_url);
         break;
     }
@@ -475,8 +478,10 @@ nserror search_web_select_provider(const char *selection)
             return ret;
         }
 
-        ret = hlcache_handle_retrieve(
-            icon_nsurl, 0, NULL, NULL, search_web_ico_callback, provider, NULL, CONTENT_IMAGE, &provider->ico_handle);
+        hlcache_retrieve_options opts = {
+            .accepted_types = CONTENT_IMAGE
+        };
+        ret = hlcache_handle_retrieve(icon_nsurl, &opts, search_web_ico_callback, provider, &provider->ico_handle);
         nsurl_unref(icon_nsurl);
         if (ret != NSERROR_OK) {
             provider->ico_handle = NULL;
@@ -504,7 +509,10 @@ static nserror default_ico_callback(hlcache_handle *ico, const hlcache_event *ev
         hlcache_handle_release(ico);
         ctx->default_ico_handle = NULL;
 
-        hlcache_handle_retrieve(to_url, 0, NULL, NULL, default_ico_callback, ctx, NULL, CONTENT_IMAGE, &ctx->default_ico_handle);
+        hlcache_retrieve_options opts = {
+            .accepted_types = CONTENT_IMAGE
+        };
+        hlcache_handle_retrieve(to_url, &opts, default_ico_callback, ctx, &ctx->default_ico_handle);
         nsurl_unref(to_url);
         break;
     }
@@ -585,8 +593,10 @@ nserror search_web_init(const char *provider_fname)
     }
 
     /* get default search icon */
-    ret = hlcache_handle_retrieve(icon_nsurl, 0, NULL, NULL, default_ico_callback, &search_web_ctx, NULL, CONTENT_IMAGE,
-        &search_web_ctx.default_ico_handle);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    ret = hlcache_handle_retrieve(icon_nsurl, &opts, default_ico_callback, &search_web_ctx, &search_web_ctx.default_ico_handle);
     nsurl_unref(icon_nsurl);
     if (ret != NSERROR_OK) {
         search_web_ctx.default_ico_handle = NULL;

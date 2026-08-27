@@ -912,12 +912,17 @@ void hlcache_finalise(void)
 }
 
 /* See hlcache.h for documentation */
-nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llcache_post_data *post,
-    hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
-    hlcache_handle **result)
+nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts,
+    hlcache_handle_callback cb, void *pw, hlcache_handle **result)
 {
     hlcache_retrieval_ctx *ctx;
     nserror error;
+
+    uint32_t flags = opts ? opts->flags : 0;
+    nsurl *referer = opts ? opts->referer : NULL;
+    llcache_post_data *post = opts ? opts->post : NULL;
+    hlcache_child_context *child = opts ? opts->child : NULL;
+    content_type accepted_types = opts ? opts->accepted_types : CONTENT_ANY;
 
     if (hlcache == NULL || url == NULL || cb == NULL || result == NULL) {
         if (result != NULL) {
@@ -1449,7 +1454,7 @@ static uint32_t hlcache_fnv1a(const uint8_t *data, size_t len)
 
 /* See hlcache.h for documentation */
 nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const char *mime_type,
-    hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
+    const hlcache_retrieve_options *opts, hlcache_handle_callback cb, void *pw,
     hlcache_handle **result)
 {
     hlcache_retrieval_ctx *ctx;
@@ -1457,6 +1462,12 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     nserror error;
     nsurl *url = NULL;
     char url_buf[64];
+
+    uint32_t flags = opts ? opts->flags : 0;
+    nsurl *referer = opts ? opts->referer : NULL;
+    llcache_post_data *post = opts ? opts->post : NULL;
+    hlcache_child_context *child = opts ? opts->child : NULL;
+    content_type accepted_types = opts ? opts->accepted_types : CONTENT_ANY;
 
     if (data == NULL || cb == NULL || result == NULL) {
         return NSERROR_BAD_PARAMETER;

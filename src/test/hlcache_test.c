@@ -132,9 +132,12 @@ START_TEST(test_hlcache_null_checks)
 
     hlcache_handle *res = NULL;
     uint8_t buf[16] = "test";
-    ck_assert_int_eq(hlcache_handle_retrieve_buffer(NULL, 4, "text/plain", dummy_callback, NULL, NULL, CONTENT_HTML, &res), NSERROR_BAD_PARAMETER);
-    ck_assert_int_eq(hlcache_handle_retrieve_buffer(buf, 4, "text/plain", NULL, NULL, NULL, CONTENT_HTML, &res), NSERROR_BAD_PARAMETER);
-    ck_assert_int_eq(hlcache_handle_retrieve_buffer(buf, 4, "text/plain", dummy_callback, NULL, NULL, CONTENT_HTML, NULL), NSERROR_BAD_PARAMETER);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_HTML
+    };
+    ck_assert_int_eq(hlcache_handle_retrieve_buffer(NULL, 4, "text/plain", &opts, dummy_callback, NULL, &res), NSERROR_BAD_PARAMETER);
+    ck_assert_int_eq(hlcache_handle_retrieve_buffer(buf, 4, "text/plain", &opts, NULL, NULL, &res), NSERROR_BAD_PARAMETER);
+    ck_assert_int_eq(hlcache_handle_retrieve_buffer(buf, 4, "text/plain", &opts, dummy_callback, NULL, NULL), NSERROR_BAD_PARAMETER);
 }
 END_TEST
 
@@ -158,7 +161,10 @@ START_TEST(test_hlcache_init_and_buffer_retrieval)
 
     uint8_t data[32] = "<svg><rect/></svg>";
     hlcache_handle *handle1 = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle1);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle1);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(handle1);
 
@@ -169,7 +175,7 @@ START_TEST(test_hlcache_init_and_buffer_retrieval)
 
     /* Retrieve same buffer again to test deduplication / cache hit */
     hlcache_handle *handle2 = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle2);
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle2);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(handle2);
 
@@ -209,7 +215,10 @@ START_TEST(test_hlcache_reentrancy)
 
     uint8_t data[32] = "<svg><rect/></svg>";
     hlcache_handle *handle1 = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle1);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle1);
     ck_assert_int_eq(error, NSERROR_OK);
 
     pump_scheduled();
@@ -217,7 +226,7 @@ START_TEST(test_hlcache_reentrancy)
     /* Second retrieval with reentrant callback that releases handle inside callback */
     int cb_count = 0;
     hlcache_handle *handle2 = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", reentrant_callback, &cb_count, NULL, CONTENT_IMAGE, &handle2);
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, reentrant_callback, &cb_count, &handle2);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_int_ge(cb_count, 1);
     ck_assert_ptr_null(handle2);
@@ -249,7 +258,10 @@ START_TEST(test_hlcache_abort_and_replace_callback)
 
     uint8_t data[32] = "<svg><circle/></svg>";
     hlcache_handle *handle = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle);
     ck_assert_int_eq(error, NSERROR_OK);
 
     pump_scheduled();
@@ -289,14 +301,17 @@ START_TEST(test_hlcache_sync_result_populated_during_catchup)
 
     uint8_t data[32] = "<svg><path/></svg>";
     hlcache_handle *handle1 = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle1);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle1);
     ck_assert_int_eq(error, NSERROR_OK);
 
     pump_scheduled();
 
     /* Second retrieval triggers cache HIT with synchronous catchup callbacks */
     hlcache_handle *handle2 = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", sync_check_callback, &handle2, NULL, CONTENT_IMAGE, &handle2);
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, sync_check_callback, &handle2, &handle2);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(handle2);
 
@@ -328,7 +343,10 @@ START_TEST(test_hlcache_finalise_with_pending_retrieval_ctx)
 
     uint8_t data[32] = "<svg><ellipse/></svg>";
     hlcache_handle *handle = NULL;
-    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", dummy_callback, NULL, NULL, CONTENT_IMAGE, &handle);
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle);
     ck_assert_int_eq(error, NSERROR_OK);
     ck_assert_ptr_nonnull(handle);
 

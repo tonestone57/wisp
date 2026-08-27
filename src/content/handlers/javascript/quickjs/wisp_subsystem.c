@@ -727,7 +727,10 @@ void wisp_worker_fetch_cb(void *p) {
     nsurl *url;
     if (nsurl_create(req->url, &url) == NSERROR_OK) {
         hlcache_handle *h;
-        nserror err = hlcache_handle_retrieve(url, 0, NULL, NULL, NULL, NULL, NULL, CONTENT_ANY, &h);
+        hlcache_retrieve_options opts = {
+            .accepted_types = CONTENT_ANY
+        };
+        nserror err = hlcache_handle_retrieve(url, &opts, NULL, NULL, &h);
         if (err == NSERROR_OK) {
             const uint8_t *data = content_get_source_data(h, &req->out_len);
             if (data) {
