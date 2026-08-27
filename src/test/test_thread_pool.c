@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdatomic.h>
+#include <limits.h>
 
 #include "wisp/utils/thread_pool.h"
+
+const char *__attribute__((weak)) __asan_default_options(void) {
+    return "allocator_may_return_null=1";
+}
 
 static atomic_int counter;
 
@@ -12,6 +17,18 @@ static void worker_func(void *arg) {
     atomic_fetch_add(&counter, 1);
     usleep(10000); // 10ms
 }
+
+START_TEST(test_thread_pool_create_invalid_threads) {
+    ck_assert_ptr_eq(thread_pool_create(0), NULL);
+    ck_assert_ptr_eq(thread_pool_create(-1), NULL);
+    ck_assert_ptr_eq(thread_pool_create(-100), NULL);
+}
+END_TEST
+
+START_TEST(test_thread_pool_create_excessive_threads) {
+    ck_assert_ptr_eq(thread_pool_create(INT_MAX), NULL);
+}
+END_TEST
 
 START_TEST(test_thread_pool_destroy_null) {
     thread_pool_destroy(NULL);
@@ -79,6 +96,8 @@ Suite *thread_pool_suite(void) {
     Suite *s = suite_create("Thread Pool");
     TCase *tc_core = tcase_create("Core");
 
+    tcase_add_test(tc_core, test_thread_pool_create_invalid_threads);
+    tcase_add_test(tc_core, test_thread_pool_create_excessive_threads);
     tcase_add_test(tc_core, test_thread_pool_destroy_null);
     tcase_add_test(tc_core, test_thread_pool_destroy_empty);
     tcase_add_test(tc_core, test_thread_pool_destroy_with_tasks);
