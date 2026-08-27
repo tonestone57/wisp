@@ -26,6 +26,7 @@ START_TEST(test_thread_pool_create_invalid_threads) {
 END_TEST
 
 START_TEST(test_thread_pool_create_excessive_threads) {
+    ck_assert_ptr_eq(thread_pool_create(THREAD_POOL_MAX_THREADS + 1), NULL);
     ck_assert_ptr_eq(thread_pool_create(INT_MAX), NULL);
 }
 END_TEST

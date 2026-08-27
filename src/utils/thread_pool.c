@@ -57,7 +57,7 @@ static void *thread_pool_worker(void *thread_pool) {
 }
 
 thread_pool_t *thread_pool_create(int num_threads) {
-    if (num_threads <= 0) return NULL;
+    if (num_threads <= 0 || num_threads > THREAD_POOL_MAX_THREADS) return NULL;
 
     thread_pool_t *pool = (thread_pool_t *)malloc(sizeof(thread_pool_t));
     if (pool == NULL) return NULL;
