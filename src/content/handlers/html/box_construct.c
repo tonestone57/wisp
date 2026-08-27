@@ -51,7 +51,6 @@
 #include <wisp/content/handlers/html/private.h>
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/box_manipulate.h"
-#include "content/handlers/html/box_normalise.h"
 #include "content/handlers/html/box_special.h"
 #include "content/handlers/html/object.h"
 
@@ -3224,18 +3223,6 @@ static void convert_xml_to_box(void *p)
 
 		if (next == NULL) {
 			/* Conversion complete */
-			if (ctx->root_box != NULL) {
-				if (box_normalise_block(ctx->root_box, ctx->root_box, ctx->content) == false) {
-					NSLOG(wisp, WARNING, "box_normalise_block failed");
-					ctx->cb(ctx->content, false);
-					if (ctx->root_box != NULL)
-						box_free(ctx->root_box);
-					free(ctx);
-					NSLOG(wisp, DEBUG, "PROFILER: STOP Box construction slice %p", ctx);
-					return;
-				}
-			}
-
 			ctx->content->layout = ctx->root_box;
 			if (ctx->content->layout != NULL)
 				ctx->content->layout->parent = NULL;

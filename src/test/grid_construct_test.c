@@ -39,7 +39,6 @@ css_fixed nscss_screen_dpi = 0;
 #include <libcss/fpmath.h> /* Fixed css_fixed error */
 #include "utils/libdom.h"
 #include "content/handlers/css/select.h"
-#include "content/handlers/html/box_normalise.h"
 #include "wisp/content/handlers/html/box.h"
 #include "wisp/content/handlers/html/private.h"
 #include "wisp/desktop/gui_internal.h"

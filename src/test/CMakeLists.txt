@@ -378,7 +378,6 @@ add_wisp_test(layout_inline_grid_test
 target_compile_definitions(layout_inline_grid_test PRIVATE TESTING)
 
 add_wisp_test(grid_construct_test
-  ${CMAKE_SOURCE_DIR}/src/content/handlers/html/box_normalise.c
   ${CMAKE_SOURCE_DIR}/src/utils/libdom.c
   ${CMAKE_SOURCE_DIR}/src/utils/talloc.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
