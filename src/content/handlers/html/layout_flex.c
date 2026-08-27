@@ -944,7 +944,7 @@ static inline bool layout_flex__base_and_main_sizes(
  * \param[in] flex             Flex box
  * \param[in] available_width  Available width in pixels
  */
-static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const struct box *flex, int available_width)
+static size_t layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const struct box *flex, int available_width)
 {
 	size_t i = 0;
 	bool horizontal = ctx->horizontal;
@@ -966,15 +966,14 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
 	}
 
 	for (struct box *b = flex->children; b != NULL; b = b->next) {
-		struct flex_item_data *item = &ctx->item.data[i++];
-
 		/* Skip boxes without styles - they shouldn't exist after
 		 * normalization, but add defensive check to prevent crash */
 		if (b->style == NULL) {
 			NSLOG(flex, ERROR, "DIAG: flex-item box=%p has NULL style! type=%d, skipping", b, b->type);
-			i--; /* Don't increment item index for skipped boxes */
 			continue;
 		}
+
+		struct flex_item_data *item = &ctx->item.data[i++];
 
 		b->float_container = b->parent;
 		layout_find_dimensions(ctx->unit_len_ctx, available_width, -1, b, b->style, &b->width, &b->height,
@@ -1069,6 +1068,8 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
 		int ref_cross = horizontal ? ctx->available_main : available_width;
 		layout_flex__base_and_main_sizes(ctx, item, ref_main, ref_cross);
 	}
+
+	return i;
 }
 
 /**
@@ -2163,7 +2164,10 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 	NSLOG(flex, DEEPDEBUG, "box %p: available_main: %i", flex, ctx->available_main);
 	NSLOG(flex, DEEPDEBUG, "box %p: available_cross: %i", flex, ctx->available_cross);
 
-	layout_flex_ctx__populate_item_data(ctx, flex, available_width);
+	size_t valid_items = layout_flex_ctx__populate_item_data(ctx, flex, available_width);
+
+	/* Adjust count to actual number of valid flex items populated */
+	ctx->item.count = valid_items;
 
 	/* Sort flex items by 'order' property then by original index */
 	if (ctx->item.count > 1) {
