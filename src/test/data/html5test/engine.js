@@ -233,7 +233,7 @@ Test9 = (function () {
         function (results) {
             var elements = 'section nav article aside header footer'.split(' ');
 
-            for (var e = 0; e < elements.length; e++) {
+            for (var e = 0, len = elements.length; e < len; e++) {
                 var passed = false;
 
                 try {
@@ -264,7 +264,7 @@ Test9 = (function () {
         function (results) {
             var elements = 'main figure figcaption'.split(' ');
 
-            for (var e = 0; e < elements.length; e++) {
+            for (var e = 0, len = elements.length; e < len; e++) {
                 var passed = false;
 
                 try {
@@ -680,7 +680,7 @@ Test9 = (function () {
 
         function (results) {
             var types = ['date', 'month', 'week', 'time', 'datetime', 'datetime-local'];
-            for (var t = 0; t < types.length; t++) {
+            for (var t = 0, len = types.length; t < len; t++) {
                 var element = createInput(types[t]);
 
                 element.value = "foobar";
@@ -747,7 +747,7 @@ Test9 = (function () {
 
         function (results) {
             var types = ['number', 'range'];
-            for (var t = 0; t < types.length; t++) {
+            for (var t = 0, len = types.length; t < len; t++) {
                 var element = createInput(types[t]);
 
                 element.value = "foobar";
@@ -1129,7 +1129,7 @@ Test9 = (function () {
 
             var props = 'pattern required'.split(' ');
 
-            for (var p = 0; p < props.length; p++) {
+            for (var p = 0, len = props.length; p < len; p++) {
                 results.addItem({
                     key: 'form.validation.' + props[p],
                     passed: !!(props[p] in element)
@@ -1182,7 +1182,7 @@ Test9 = (function () {
 
             var element = document.createElement('input');
 
-            for (var p = 0; p < props.length; p++) {
+            for (var p = 0, len = props.length; p < len; p++) {
                 results.addItem({
                     key: 'form.association.' + props[p],
                     passed: !!(props[p] in element)
@@ -1231,7 +1231,7 @@ Test9 = (function () {
 
             var props = 'autocomplete placeholder multiple dirName'.split(' ');
 
-            for (var p = 0; p < props.length; p++) {
+            for (var p = 0, len = props.length; p < len; p++) {
                 var prop = props[p].toLowerCase();
                 results.addItem({
                     key: 'form.other.' + prop,
@@ -1354,7 +1354,7 @@ Test9 = (function () {
                 document.body.removeChild(element);
             }
 
-            for (var i = 0; i < selectors.length; i++) {
+            for (var i = 0, len = selectors.length; i < len; i++) {
                 results.addItem({
                     key: 'form.selectors.' + selectors[i],
                     passed: passed[i]
@@ -2160,7 +2160,7 @@ Test9 = (function () {
                 document.body.removeChild(element);
             }
 
-            for (var i = 0; i < selectors.length; i++) {
+            for (var i = 0, len = selectors.length; i < len; i++) {
                 results.addItem({
                     key: 'interaction.editing.selectors.' + selectors[i],
                     passed: passed[i]
@@ -4687,7 +4687,7 @@ Test9 = (function () {
         toString: function () {
             var value = [];
 
-            for (var i = 0; i < this.items.length; i++) {
+            for (var i = 0, len = this.items.length; i < len; i++) {
                 if (typeof this.items[i].data.passed != 'undefined') value.push(this.items[i].data.key + '=' + (+this.items[i].data.passed));
             }
 
@@ -4730,10 +4730,10 @@ Test9 = (function () {
             var part = '';
             var parts = this.data.key.replace(/\-/g, '.').split('.');
 
-            for (var i = 0; i < parts.length; i++) {
+            for (var i = 0, len = parts.length; i < len; i++) {
                 part += (i == 0 ? '' : '.') + parts[i];
 
-                for (var k = 0; k < blacklists.length; k++) {
+                for (var k = 0, blen = blacklists.length; k < blen; k++) {
                     if (typeof blacklists[k][1][part] != 'undefined') {
                         if (blacklists[k][1][part]) {
                             log('BLOCKED: ' + part + ' is on the blacklist for this browser!');
@@ -4857,7 +4857,7 @@ Test9 = (function () {
 
                 this.list = new List(this);
 
-                for (var s = 0; s < testsuite.length; s++) {
+                for (var s = 0, len = testsuite.length; s < len; s++) {
                     testsuite[s](this.list);
                 }
 
@@ -4878,7 +4878,7 @@ Test9 = (function () {
 
         checkForBackground: function () {
             var running = 0;
-            for (var task = 0; task < this.backgroundTasks.length; task++) { running += this.backgroundTasks[task] }
+            for (var task = 0, len = this.backgroundTasks.length; task < len; task++) { running += this.backgroundTasks[task] }
 
             if (running) {
                 this.waitForBackground();
