@@ -245,8 +245,8 @@ typedef struct WispPool {
 } WispPool;
 
 /* Global pools */
-extern WispPool *raster_pool;
-extern WispPool *js_pool;
+__attribute__((weak)) extern WispPool *raster_pool;
+__attribute__((weak)) extern WispPool *js_pool;
 
 /* Subsystem management */
 void init_wisp_subsystem(int queue_size);
@@ -259,6 +259,8 @@ bool wisp_dispatch_raster(const char *script, void (*func)(void*), void *arg, fl
 bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
 /* Deprecated/Compatibility wrapper */
 void wisp_dispatch(char *script, void (*func)(void*), void *arg);
+
+__attribute__((weak)) js_task_t *wisp_pool_pop_task(WispPool *pool);
 
 /* Internal worker routine */
 void* wisp_worker_routine(void *arg);

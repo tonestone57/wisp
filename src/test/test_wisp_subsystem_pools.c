@@ -139,8 +139,10 @@ static int priority_results[4];
 static int priority_idx = 0;
 static ns_mutex_t priority_lock;
 static ns_mutex_t block_lock;
+static volatile int blocker_started = 0;
 
 static void blocker_task(void *arg) {
+    __atomic_store_n(&blocker_started, 1, __ATOMIC_RELEASE);
     ns_mutex_lock(&block_lock);
     ns_mutex_unlock(&block_lock);
 }
@@ -192,6 +194,57 @@ START_TEST(test_subsystem_priority)
     ck_assert_int_eq(priority_results[0], 3);
     ck_assert_int_eq(priority_results[1], 2);
     ck_assert_int_eq(priority_results[2], 1);
+
+    shutdown_wisp_subsystem();
+    unsetenv("WISP_JS_WORKERS");
+}
+END_TEST
+
+static void test_pump_task_cb(void *arg) {
+    int *flag = (int *)arg;
+    *flag = 1;
+}
+
+START_TEST(test_pop_task_and_wait_group_pumping)
+{
+    setenv("WISP_JS_WORKERS", "1", 1);
+    init_wisp_subsystem(10);
+
+    /* 1. Block the worker thread so tasks stay queued */
+    ns_mutex_lock(&block_lock);
+    __atomic_store_n(&blocker_started, 0, __ATOMIC_RELAXED);
+
+    int executed_flag = 0;
+
+    /* Dispatch a blocker task to occupy worker 0 */
+    ck_assert(wisp_dispatch_js(NULL, blocker_task, NULL, 1.0f));
+
+    /* Wait until worker 0 actually starts blocker_task and blocks on block_lock */
+    while (__atomic_load_n(&blocker_started, __ATOMIC_ACQUIRE) == 0) {
+        ns_usleep(1000);
+    }
+
+    /* Dispatch a task to be popped / pumped by main thread */
+    ck_assert(wisp_dispatch_js(NULL, test_pump_task_cb, &executed_flag, 0.5f));
+
+    /* Verify task was enqueued */
+    ck_assert_int_eq(js_pool->count, 1);
+
+    /* Main thread pops and executes the pending task directly */
+    js_task_t *popped = wisp_pool_pop_task(js_pool);
+    ck_assert_ptr_nonnull(popped);
+    ck_assert_ptr_eq(popped->function, test_pump_task_cb);
+    popped->function(popped->arg);
+    if (popped->script) free(popped->script);
+    free(popped);
+
+    ck_assert_int_eq(executed_flag, 1);
+
+    /* Unblock worker thread */
+    ns_mutex_unlock(&block_lock);
+
+    /* Wait for blocker task to complete */
+    ns_usleep(50000);
 
     shutdown_wisp_subsystem();
     unsetenv("WISP_JS_WORKERS");
@@ -275,6 +328,7 @@ Suite *subsystem_suite(void)
     tcase_add_test(tc_core, test_subsystem_priority);
     tcase_add_test(tc_core, test_browser_tile_priority);
     tcase_add_test(tc_core, test_tile_pool_compressed_cache);
+    tcase_add_test(tc_core, test_pop_task_and_wait_group_pumping);
 
     suite_add_tcase(s, tc_core);
     return s;

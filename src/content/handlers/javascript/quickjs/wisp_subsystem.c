@@ -705,6 +705,23 @@ void wisp_dispatch(char *script, void (*func)(void*), void *arg) {
     if (script) free(script);
 }
 
+js_task_t *wisp_pool_pop_task(WispPool *pool) {
+    if (!pool || pool->worker_count == 0) return NULL;
+
+    /* Iterate through workers in the pool */
+    for (int i = 0; i < pool->worker_count; i++) {
+        /* Search deques starting from highest priority tier 3 down to tier 0 */
+        for (int j = 3; j >= 0; j--) {
+            js_task_t *task = wisp_deque_steal(&pool->workers[i].deques[j]);
+            if (task != NULL) {
+                __atomic_sub_fetch(&pool->count, 1, __ATOMIC_SEQ_CST);
+                return task;
+            }
+        }
+    }
+    return NULL;
+}
+
 static int js_worker_interrupt_handler(JSRuntime *rt, void *opaque) {
     WispWorkerHandle *h = opaque;
     if (h->terminated) return 1;
