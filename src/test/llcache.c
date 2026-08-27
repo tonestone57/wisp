@@ -21,18 +21,24 @@
 #include <string.h>
 
 #include "utils/corestrings.h"
+#include "utils/messages.h"
 #include "utils/nsurl.h"
 #include "utils/ring.h"
 #include "utils/url.h"
 #include "utils/utils.h"
+#include "utils/file.h"
+#include "utils/nsoption.h"
+#include "desktop/gui_table.h"
+#include "desktop/gui_internal.h"
+#include "wisp/misc.h"
+#include "wisp/content/backing_store.h"
 #include "content/fetch.h"
+#include "content/fetchers.h"
 #include "content/llcache.h"
 
 /******************************************************************************
  * Things that we'd reasonably expect to have to implement                    *
  ******************************************************************************/
-
-bool verbose_log;
 
 /* utils/utils.h */
 char *filename_from_path(char *path)
@@ -48,15 +54,59 @@ char *filename_from_path(char *path)
     return strdup(leafname);
 }
 
-/* utils/schedule.h */
-void schedule(int t, schedule_callback_fn cb, void *pw)
+typedef struct schedule_entry {
+    int time;
+    void (*cb)(void *p);
+    void *pw;
+    struct schedule_entry *next;
+} schedule_entry;
+
+static schedule_entry *schedule_list = NULL;
+
+static nserror mock_schedule(int t, void (*cb)(void *p), void *pw)
 {
+    if (t < 0) {
+        schedule_entry **curr = &schedule_list;
+        while (*curr != NULL) {
+            if ((*curr)->cb == cb && (*curr)->pw == pw) {
+                schedule_entry *tmp = *curr;
+                *curr = tmp->next;
+                free(tmp);
+            } else {
+                curr = &(*curr)->next;
+            }
+        }
+    } else {
+        schedule_entry *entry = malloc(sizeof(schedule_entry));
+        if (entry != NULL) {
+            entry->time = t;
+            entry->cb = cb;
+            entry->pw = pw;
+            entry->next = schedule_list;
+            schedule_list = entry;
+        }
+    }
+    return NSERROR_OK;
 }
 
-/* utils/schedule.h */
-void schedule_remove(schedule_callback_fn cb, void *pw)
+static void pump_scheduled(void)
 {
+    int safety = 0;
+    while (schedule_list != NULL && safety++ < 100) {
+        schedule_entry *entry = schedule_list;
+        schedule_list = entry->next;
+        void (*cb)(void *p) = entry->cb;
+        void *pw = entry->pw;
+        free(entry);
+        cb(pw);
+    }
 }
+
+static struct gui_misc_table mock_misc = {
+    .schedule = mock_schedule,
+};
+
+extern struct wisp_table *guit;
 
 /* content/fetch.h */
 const char *fetch_filetype(const char *unix_path)
@@ -155,19 +205,16 @@ static test_context *ring;
 
 bool test_initialise(lwc_string *scheme)
 {
-    /* Nothing to do */
     return true;
 }
 
 bool test_can_fetch(const nsurl *url)
 {
-    /* Nothing to do */
     return true;
 }
 
 void test_finalise(lwc_string *scheme)
 {
-    /* Nothing to do */
 }
 
 nserror test_setup_fetch(struct fetch *parent, nsurl *url, bool only_2xx, bool downgrade_tls,
@@ -188,7 +235,6 @@ nserror test_setup_fetch(struct fetch *parent, nsurl *url, bool only_2xx, bool d
 
 bool test_start_fetch(void *handle)
 {
-    /* Nothing to do */
     return true;
 }
 
@@ -210,7 +256,35 @@ void test_free_fetch(void *handle)
 
 void test_process(test_context *ctx)
 {
-    /** \todo Implement */
+    fetch_msg msg;
+
+    fetch_set_http_code(ctx->parent, 200);
+
+    msg.type = FETCH_HEADER;
+    msg.data.header_or_data.buf = (const uint8_t *)"Content-Type: text/html\r\n";
+    msg.data.header_or_data.len = strlen("Content-Type: text/html\r\n");
+    fetch_send_callback(&msg, ctx->parent);
+
+    msg.type = FETCH_HEADER;
+    msg.data.header_or_data.buf = (const uint8_t *)"Cache-Control: max-age=3600\r\n";
+    msg.data.header_or_data.len = strlen("Cache-Control: max-age=3600\r\n");
+    fetch_send_callback(&msg, ctx->parent);
+
+    msg.type = FETCH_DATA;
+    msg.data.header_or_data.buf = (const uint8_t *)"<html><body>Test</body></html>";
+    msg.data.header_or_data.len = strlen("<html><body>Test</body></html>");
+    fetch_send_callback(&msg, ctx->parent);
+
+    msg.type = FETCH_FINISHED;
+    fetch_send_callback(&msg, ctx->parent);
+}
+
+static void pump_all(void)
+{
+    for (int i = 0; i < 20; i++) {
+        fetch_poll_all();
+        pump_scheduled();
+    }
 }
 
 void test_poll(lwc_string *scheme)
@@ -240,21 +314,13 @@ void test_poll(lwc_string *scheme)
  * The actual test code                                                       *
  ******************************************************************************/
 
-nserror query_handler(const llcache_query *query, void *pw, llcache_query_response cb, void *cbpw)
-{
-    /* I'm too lazy to actually implement this. It should queue the query,
-     * then deliver the response from main(). */
-
-    return NSERROR_OK;
-}
-
 nserror event_handler(llcache_handle *handle, const llcache_event *event, void *pw)
 {
-    static char *event_names[] = {"HAD_HEADERS", "HAD_DATA", "DONE", "ERROR", "PROGRESS"};
+    static char *event_names[] = {"GOT_CERTS", "HAD_HEADERS", "HAD_DATA", "DONE", "ERROR", "PROGRESS", "REDIRECT"};
     bool *done = pw;
 
     if (event->type != LLCACHE_EVENT_PROGRESS)
-        fprintf(stdout, "%p : %s\n", handle, event_names[event->type]);
+        fprintf(stdout, "%p : event type %d (%s)\n", handle, event->type, event_names[event->type]);
 
     /* Inform main() that the fetch completed */
     if (event->type == LLCACHE_EVENT_DONE)
@@ -268,23 +334,59 @@ int main(int argc, char **argv)
     nserror error;
     llcache_handle *handle;
     llcache_handle *handle2;
-    lwc_string *scheme;
     nsurl *url;
     bool done = false;
 
-    /* Initialise subsystems */
-    fetch_init();
+    guit = calloc(1, sizeof(struct wisp_table));
+    if (guit == NULL) return 1;
 
-    if (lwc_intern_string("test", SLEN("test"), &scheme) != lwc_error_ok) {
-        fprintf(stderr, "Failed to intern \"test\"\n");
+    guit->misc = &mock_misc;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    if (nsoption_init(NULL, NULL, NULL) != NSERROR_OK) {
+        fprintf(stderr, "Failed to initialize nsoption\n");
+        return 1;
+    }
+    nsoption_set_int(max_fetchers, 10);
+    nsoption_set_int(max_fetchers_per_host, 5);
+
+    if (corestrings_init() != NSERROR_OK) {
+        fprintf(stderr, "Failed to initialize corestrings\n");
         return 1;
     }
 
-    fetch_add_fetcher(scheme, test_initialise, test_can_fetch, test_setup_fetch, test_start_fetch, test_abort_fetch,
-        test_free_fetch, test_poll, test_finalise);
+    messages_add_key_value("BadRedirect", "Bad redirect");
+    messages_add_key_value("BadAuth", "Bad authentication");
+    messages_add_key_value("SSLError", "SSL error");
+    messages_add_key_value("MiscError", "Miscellaneous error");
+
+    extern bool fetch_use_ipc;
+    fetch_use_ipc = false;
+
+    struct fetcher_operation_table fetcher_ops = {
+        .initialise = test_initialise,
+        .acceptable = test_can_fetch,
+        .setup = test_setup_fetch,
+        .start = test_start_fetch,
+        .abort = test_abort_fetch,
+        .free = test_free_fetch,
+        .poll = test_poll,
+        .finalise = test_finalise
+    };
+
+    fetcher_add(lwc_string_ref(corestring_lwc_https), &fetcher_ops);
+    fetcher_add(lwc_string_ref(corestring_lwc_http), &fetcher_ops);
+
+    /* Initialise subsystems */
+    fetcher_init();
+
+    struct llcache_parameters llcache_params = {
+        .limit = 1024 * 1024,
+    };
 
     /* Initialise low-level cache */
-    error = llcache_initialise(query_handler, NULL, 1024 * 1024);
+    error = llcache_initialise(&llcache_params);
     if (error != NSERROR_OK) {
         fprintf(stderr, "llcache_initialise: %d\n", error);
         return 1;
@@ -325,41 +427,59 @@ int main(int argc, char **argv)
         }
     }
 
-    if (nsurl_create("http://www.wispbrowser.com", &url) != NSERROR_OK) {
+    if (nsurl_create("https://www.wispbrowser.com", &url) != NSERROR_OK) {
         fprintf(stderr, "Failed creating url\n");
         return 1;
     }
 
     /* Retrieve an URL from the low-level cache (may trigger fetch) */
-    error = llcache_handle_retrieve(url, LLCACHE_RETRIEVE_VERIFIABLE, NULL, NULL, event_handler, &done, &handle);
+    error = llcache_handle_retrieve(url, 0, NULL, NULL, event_handler, &done, &handle);
     if (error != NSERROR_OK) {
         fprintf(stderr, "llcache_handle_retrieve: %d\n", error);
         return 1;
     }
 
     /* Poll relevant components */
-    while (done == false) {
-        llcache_poll();
+    pump_all();
+
+    if (!done) {
+        fprintf(stderr, "First retrieve timed out\n");
+        return 1;
     }
 
     done = false;
-    error = llcache_handle_retrieve(url, LLCACHE_RETRIEVE_VERIFIABLE, NULL, NULL, event_handler, &done, &handle2);
+    error = llcache_handle_retrieve(url, 0, NULL, NULL, event_handler, &done, &handle2);
     if (error != NSERROR_OK) {
         fprintf(stderr, "llcache_handle_retrieve: %d\n", error);
         return 1;
     }
 
-    while (done == false) {
-        llcache_poll();
+    pump_all();
+
+    if (!done) {
+        fprintf(stderr, "Second retrieve timed out\n");
+        return 1;
     }
 
-    fprintf(stdout, "%p, %p -> %d\n", handle, handle2, llcache_handle_references_same_object(handle, handle2));
+    bool same = llcache_handle_references_same_object(handle, handle2);
+    fprintf(stdout, "%p, %p -> %d\n", handle, handle2, same);
+
+    if (!same) {
+        fprintf(stderr, "Expected handle and handle2 to reference the same cached object!\n");
+        return 1;
+    }
 
     /* Cleanup */
     llcache_handle_release(handle2);
     llcache_handle_release(handle);
+    nsurl_unref(url);
 
-    fetch_quit();
+    llcache_finalise();
+    fetcher_quit();
+    messages_destroy();
+    corestrings_fini();
+    nsoption_finalise(NULL, NULL);
+    free(guit);
 
     return 0;
 }
