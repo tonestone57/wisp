@@ -102,7 +102,8 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
     }
 
     char name[64];
-    snprintf(name, sizeof(name), "%s", old_shm->shm_name);
+    strncpy(name, old_shm->shm_name, sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
     bool is_server = old_shm->is_server;
 
     // Check if another process has already remapped the shared physical file and reorganized its layouts.
@@ -327,7 +328,8 @@ shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server) {
             shm->node_capacity = use_cap;
             shm->is_server = true;
             shm->string_heap_top = 1;
-            snprintf(shm->shm_name, sizeof(shm->shm_name), "%s", name);
+            strncpy(shm->shm_name, name, sizeof(shm->shm_name) - 1);
+            shm->shm_name[sizeof(shm->shm_name) - 1] = '\0';
             register_shm_handle(shm, hMap);
         } else {
             CloseHandle(hMap);
@@ -382,7 +384,8 @@ shm_dom_t* shm_dom_create(const char *name, uint32_t capacity, bool is_server) {
         shm->node_capacity = use_cap;
         shm->is_server = true;
         shm->string_heap_top = 1;
-        snprintf(shm->shm_name, sizeof(shm->shm_name), "%s", name);
+        strncpy(shm->shm_name, name, sizeof(shm->shm_name) - 1);
+        shm->shm_name[sizeof(shm->shm_name) - 1] = '\0';
     } else {
         shm_dom_t *temp = (shm_dom_t *)mmap(NULL, sizeof(shm_dom_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
         if (temp == MAP_FAILED) {
@@ -832,10 +835,12 @@ void bbmq_flush(void) {
                 }
                 active_idx = sec_count;
                 producer_sec_chunks[active_idx] = sec_chunk;
-                snprintf(producer_sec_names[active_idx], sizeof(producer_sec_names[active_idx]), "%s", chunk_name);
+                strncpy(producer_sec_names[active_idx], chunk_name, sizeof(producer_sec_names[active_idx]) - 1);
+                producer_sec_names[active_idx][sizeof(producer_sec_names[active_idx]) - 1] = '\0';
 
                 shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
-                snprintf(desc->shm_name, sizeof(desc->shm_name), "%s", chunk_name);
+                strncpy(desc->shm_name, chunk_name, sizeof(desc->shm_name) - 1);
+                desc->shm_name[sizeof(desc->shm_name) - 1] = '\0';
                 __atomic_store_n(&desc->head, 0, __ATOMIC_RELEASE);
                 __atomic_store_n(&desc->tail, 0, __ATOMIC_RELEASE);
                 desc->capacity = SHM_MUTATION_CHUNK_CAPACITY;

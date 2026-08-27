@@ -181,7 +181,8 @@ char *filepath_sfinddef(char **respathv, char *filepath, const char *filename, c
             snprintf(t, PATH_MAX, "%s/%s", def, filename);
         }
         if (realpath(t, ret) == NULL) {
-            snprintf(ret, PATH_MAX, "%s", t);
+            strncpy(ret, t, PATH_MAX - 1);
+            ret[PATH_MAX - 1] = '\0';
         }
     }
     return ret;

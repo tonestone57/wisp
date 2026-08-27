@@ -664,20 +664,4 @@ nserror content_abort(struct content *c);
 
 struct content *hlcache_handle_get_content(const struct hlcache_handle *handle);
 
-/**
- * Determine if a content object is fresh
- *
- * \param c  Content object to check
- * \return True if content is fresh, false otherwise
- */
-bool content_is_fresh(struct content *c);
-
-/**
- * Calculate the total memory size of a content object
- *
- * \param c  Content object to measure
- * \return Memory size of content in bytes
- */
-size_t content_get_size(struct content *c);
-
 #endif

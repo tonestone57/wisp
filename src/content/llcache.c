@@ -1075,7 +1075,6 @@ static nserror llcache_object_fetch(llcache_object *object, uint32_t flags, nsur
     return llcache_object_refetch(object);
 }
 
-
 /**
  * Destroy a low-level cache object
  *
@@ -4458,11 +4457,3 @@ bool llcache_handle_references_same_object(const llcache_handle *a, const llcach
     return a->object == b->object;
 }
 
-/* See llcache.h for documentation */
-bool llcache_handle_is_fresh(const llcache_handle *handle)
-{
-    if (handle == NULL || handle->object == NULL)
-        return false;
-
-    return llcache_object_is_fresh(handle->object);
-}

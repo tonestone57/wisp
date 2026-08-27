@@ -187,82 +187,29 @@ static void hlcache_clean(void *force_clean_flag)
                 continue;
         }
 
-        /* Purge unused contents that are using stale source data (or forced clean) */
-        if (force_clean || !content_is_fresh(entry->content)) {
-            /* Remove entry from cache */
-            if (entry->prev == NULL) {
-                hlcache->content_list = entry->next;
-            } else {
-                entry->prev->next = entry->next;
-            }
+        /** \todo This is over-zealous: all unused contents
+         * will be immediately destroyed. Ideally, we want to
+         * purge all unused contents that are using stale
+         * source data, and enough fresh contents such that
+         * the cache fits in the configured cache size limit.
+         */
 
-            if (entry->next != NULL) {
-                entry->next->prev = entry->prev;
-            }
-
-            /* Destroy content */
-            content_destroy(entry->content);
-
-            /* Destroy entry */
-            free(entry);
-        }
-    }
-
-    /* Calculate total memory footprint of remaining cached contents */
-    size_t current_cache_size = 0;
-    for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-        if (entry->content != NULL) {
-            current_cache_size += content_get_size(entry->content);
-        }
-    }
-
-    size_t target_limit = force_clean ? 0 : hlcache->params.llcache.limit;
-
-    /* Purge enough fresh unused contents (starting from oldest) so cache fits in limit */
-    while (current_cache_size > target_limit) {
-        hlcache_entry *victim = NULL;
-        hlcache_entry *tail = NULL;
-
-        for (entry = hlcache->content_list; entry != NULL; entry = entry->next) {
-            tail = entry;
-        }
-
-        for (entry = tail; entry != NULL; entry = entry->prev) {
-            if (entry->content == NULL)
-                continue;
-            if (content_count_users(entry->content) != 0)
-                continue;
-            if (content__get_status(entry->content) == CONTENT_STATUS_LOADING && !force_clean)
-                continue;
-
-            victim = entry;
-            break;
-        }
-
-        if (victim == NULL) {
-            break;
-        }
-
-        size_t victim_size = content_get_size(victim->content);
-
-        if (victim->prev == NULL) {
-            hlcache->content_list = victim->next;
+        /* Remove entry from cache */
+        if (entry->prev == NULL) {
+            hlcache->content_list = entry->next;
         } else {
-            victim->prev->next = victim->next;
+            entry->prev->next = entry->next;
         }
 
-        if (victim->next != NULL) {
-            victim->next->prev = victim->prev;
+        if (entry->next != NULL) {
+            entry->next->prev = entry->prev;
         }
 
-        content_destroy(victim->content);
-        free(victim);
+        /* Destroy content */
+        content_destroy(entry->content);
 
-        if (victim_size >= current_cache_size) {
-            current_cache_size = 0;
-        } else {
-            current_cache_size -= victim_size;
-        }
+        /* Destroy entry */
+        free(entry);
     }
 
     /* Attempt to clean the llcache */

@@ -1637,32 +1637,3 @@ void content_video_seek_to(struct hlcache_handle *h, double time)
         nsvideo_seek_to(c, time);
     }
 }
-
-bool content_is_fresh(struct content *c)
-{
-    if (c == NULL)
-        return false;
-
-    if (c->llcache != NULL) {
-        return llcache_handle_is_fresh(c->llcache);
-    }
-
-    /* Content without llcache (e.g. synthetic or buffer) is treated as fresh */
-    return true;
-}
-
-size_t content_get_size(struct content *c)
-{
-    if (c == NULL)
-        return 0;
-
-    size_t size = sizeof(struct content);
-
-    if (c->llcache != NULL) {
-        size_t source_size = 0;
-        (void)llcache_handle_get_source_data(c->llcache, &source_size);
-        size += source_size;
-    }
-
-    return size;
-}
