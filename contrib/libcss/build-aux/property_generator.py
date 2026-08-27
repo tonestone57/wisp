@@ -619,6 +619,9 @@ class GperfInputGenerator:
 class MultiFileGenerator:
     """Generate multiple output files from parsed data."""
     
+    COMMENT_RE = re.compile(r'/\*.*?\*/')
+    ENUM_ENTRY_RE = re.compile(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$')
+
     # Enum names in propstrings.h that are range markers / sentinels.
     # These do NOT get SMAP entries — they either share a slot with a real entry
     # (via = FIRST_*) or mark the end of the array (LAST_KNOWN).
@@ -823,12 +826,10 @@ class MultiFileGenerator:
         # Extract enum entries: look for identifiers that are enum values
         # Skip: range markers (FIRST_*, LAST_*), comments, preprocessor
         enum_entries = []
-        comment_re = re.compile(r'/\*.*?\*/')
-        enum_entry_re = re.compile(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$')
         for line in after_include.split('\n'):
             line = line.strip()
             # Strip C block comments (e.g. "/* comment */ FIRST," → "FIRST,")
-            line = comment_re.sub('', line).strip()
+            line = self.COMMENT_RE.sub('', line).strip()
             # Skip pure comments, empty lines, preprocessor, include directive
             if not line or line.startswith('//') or line.startswith('#') or line.startswith('*'):
                 continue
@@ -836,7 +837,7 @@ class MultiFileGenerator:
             if line.startswith('}'):
                 continue
             
-            m = enum_entry_re.match(line)
+            m = self.ENUM_ENTRY_RE.match(line)
             if m:
                 name = m.group(1)
                 # Skip ONLY the actual range marker sentinels.
