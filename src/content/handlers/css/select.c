@@ -1654,16 +1654,31 @@ css_error node_is_checked(void *pw, void *node, bool *match)
     }
 
     if (dom_string_caseless_lwc_isequal(node_name, corestring_lwc_input)) {
-        bool checked = false;
-        exc = dom_html_input_element_get_checked((dom_html_input_element *)n, &checked);
-        if (exc == DOM_NO_ERR) {
-            *match = checked;
-        } else {
-            /* Fallback to checking for "checked" attribute if dom_html_input_element_get_checked fails */
-            bool has_attr = false;
-            exc = dom_element_has_attribute(n, corestring_dom_checked, &has_attr);
+        dom_string *input_type = NULL;
+        bool is_checkable = true;
+
+        exc = dom_html_input_element_get_type((dom_html_input_element *)n, &input_type);
+        if (exc == DOM_NO_ERR && input_type != NULL) {
+            if (!dom_string_caseless_lwc_isequal(input_type, corestring_lwc_checkbox) &&
+                !dom_string_caseless_lwc_isequal(input_type, corestring_lwc_radio)) {
+                /* Per W3C Selectors spec, :checked applies only to checkbox and radio inputs */
+                is_checkable = false;
+            }
+            dom_string_unref(input_type);
+        }
+
+        if (is_checkable) {
+            bool checked = false;
+            exc = dom_html_input_element_get_checked((dom_html_input_element *)n, &checked);
             if (exc == DOM_NO_ERR) {
-                *match = has_attr;
+                *match = checked;
+            } else {
+                /* Fallback to checking for "checked" attribute if dom_html_input_element_get_checked fails */
+                bool has_attr = false;
+                exc = dom_element_has_attribute(n, corestring_dom_checked, &has_attr);
+                if (exc == DOM_NO_ERR) {
+                    *match = has_attr;
+                }
             }
         }
     } else if (dom_string_caseless_lwc_isequal(node_name, corestring_lwc_option)) {
