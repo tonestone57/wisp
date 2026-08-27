@@ -127,24 +127,6 @@ void cookie_manager_remove(const struct cookie_data *data)
 {
 }
 
-/* image/bitmap.h -- used by urldb
- *
- * URLdb shouldn't care about bitmaps.
- * This is because the legacy RO thumbnail stuff was hacked in and must die.
- */
-void bitmap_destroy(void *bitmap)
-{
-}
-/* image/image.h -- used by urldb
- *
- * URLdb shouldn't care about bitmaps.
- * This is because the legacy RO thumbnail stuff was hacked in and must die.
- */
-bool image_bitmap_plot(
-    struct bitmap *bitmap, struct content_redraw_data *data, const struct rect *clip, const struct redraw_context *ctx)
-{
-    return true;
-}
 
 /* content/fetchers/fetch_file.h -- used by fetcher core
  *
