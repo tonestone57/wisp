@@ -12,11 +12,18 @@ import sys
 import re
 from pathlib import Path
 
+# Pre-compiled module-level regex constants for maximum performance inside parsing loops
+_DISPATCH_PATTERN = re.compile(r'PROPERTY_FUNCS\(([a-z_]+)\),\s*\n\s*(\d+),')
+_PROP_LINE_RE = re.compile(r'^([a-z_]+):([A-Z][A-Z0-9_]+)\s+(.*)$')
+_ENUM_NAME_RE = re.compile(r'^[A-Z][A-Z0-9_]*$')
+_COMMENT_RE = re.compile(r'/\*.*?\*/')
+_ENUM_ENTRY_RE = re.compile(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$')
+
 
 class DispatchParser:
     """Parse dispatch.c to get canonical property order and inherited flags."""
     
-    DISPATCH_PATTERN = re.compile(r'PROPERTY_FUNCS\(([a-z_]+)\),\s*\n\s*(\d+),')
+    DISPATCH_PATTERN = _DISPATCH_PATTERN
 
     def __init__(self, dispatch_file):
         self.dispatch_file = Path(dispatch_file)
@@ -76,8 +83,8 @@ class DispatchParser:
 class PropertyGenParser:
     """Parse properties.gen to get enum names and metadata."""
     
-    LINE_PATTERN = re.compile(r'^([a-z_]+):([A-Z][A-Z0-9_]+)\s+(.*)$')
-    ENUM_PATTERN = re.compile(r'^[A-Z][A-Z0-9_]*$')
+    LINE_PATTERN = _PROP_LINE_RE
+    ENUM_PATTERN = _ENUM_NAME_RE
 
     def __init__(self, gen_file):
         self.gen_file = Path(gen_file)
@@ -105,14 +112,14 @@ class PropertyGenParser:
             
             # Parse: property_name:ENUM_NAME ...
             # ENUM_NAME can be any uppercase identifier (CSS_PROP_*, BORDER_SIDE_*, etc.)
-            match = self.LINE_PATTERN.match(line)
+            match = _PROP_LINE_RE.match(line)
             if match:
                 prop_name = match.group(1)
                 enum_name = match.group(2)
                 spec = match.group(3)
                 
                 # Validate: enum should be uppercase and have valid format
-                if not self.ENUM_PATTERN.match(enum_name):
+                if not _ENUM_NAME_RE.match(enum_name):
                     print(f"WARNING: Line {line_num}: Invalid enum format '{enum_name}'", file=sys.stderr)
                     continue
                 
@@ -619,8 +626,8 @@ class GperfInputGenerator:
 class MultiFileGenerator:
     """Generate multiple output files from parsed data."""
     
-    COMMENT_RE = re.compile(r'/\*.*?\*/')
-    ENUM_ENTRY_RE = re.compile(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$')
+    COMMENT_RE = _COMMENT_RE
+    ENUM_ENTRY_RE = _ENUM_ENTRY_RE
 
     # Enum names in propstrings.h that are range markers / sentinels.
     # These do NOT get SMAP entries — they either share a slot with a real entry
@@ -829,7 +836,7 @@ class MultiFileGenerator:
         for line in after_include.split('\n'):
             line = line.strip()
             # Strip C block comments (e.g. "/* comment */ FIRST," → "FIRST,")
-            line = self.COMMENT_RE.sub('', line).strip()
+            line = _COMMENT_RE.sub('', line).strip()
             # Skip pure comments, empty lines, preprocessor, include directive
             if not line or line.startswith('//') or line.startswith('#') or line.startswith('*'):
                 continue
@@ -837,7 +844,7 @@ class MultiFileGenerator:
             if line.startswith('}'):
                 continue
             
-            m = self.ENUM_ENTRY_RE.match(line)
+            m = _ENUM_ENTRY_RE.match(line)
             if m:
                 name = m.group(1)
                 # Skip ONLY the actual range marker sentinels.
