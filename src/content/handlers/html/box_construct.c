@@ -122,6 +122,59 @@ static const box_type box_map[CSS_DISPLAY_CONTENTS + 1] = {
 };
 _Static_assert(CSS_DISPLAY_CONTENTS == 0x15, "css_display_e has new values — update box_map");
 
+#define SUBTREE_PARALLEL_STYLE_THRESHOLD 32
+
+int count_subtree_elements(dom_node *root, int limit)
+{
+	if (root == NULL || limit <= 0) return 0;
+
+	int count = 0;
+	dom_node *curr = dom_node_ref(root);
+
+	while (curr != NULL) {
+		dom_node_type type;
+		if (dom_node_get_node_type(curr, &type) == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
+			count++;
+			if (count >= limit) {
+				dom_node_unref(curr);
+				return count;
+			}
+		}
+
+		dom_node *child = NULL;
+		if (dom_node_get_first_child(curr, &child) == DOM_NO_ERR && child != NULL) {
+			dom_node_unref(curr);
+			curr = child;
+			continue;
+		}
+
+		while (curr != NULL) {
+			if (curr == root) {
+				dom_node_unref(curr);
+				return count;
+			}
+
+			dom_node *next = NULL;
+			if (dom_node_get_next_sibling(curr, &next) == DOM_NO_ERR && next != NULL) {
+				dom_node_unref(curr);
+				curr = next;
+				break;
+			}
+
+			dom_node *parent = NULL;
+			if (dom_node_get_parent_node(curr, &parent) == DOM_NO_ERR && parent != NULL) {
+				dom_node_unref(curr);
+				curr = parent;
+			} else {
+				dom_node_unref(curr);
+				curr = NULL;
+			}
+		}
+	}
+
+	return count;
+}
+
 
 /**
  * determine if a box is the root node
@@ -2094,7 +2147,10 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 		css_select_results *cached = NULL;
 		dom_node_get_user_data(ctx->n, corestring_dom___ns_key_style_cache_data, (void *)&cached);
 		if (cached == NULL) {
-			html_parallel_style_selection(ctx->content, ctx->n);
+			int subtree_count = count_subtree_elements(ctx->n, SUBTREE_PARALLEL_STYLE_THRESHOLD);
+			if (subtree_count >= SUBTREE_PARALLEL_STYLE_THRESHOLD) {
+				html_parallel_style_selection(ctx->content, ctx->n);
+			}
 		}
 	}
 
