@@ -512,7 +512,7 @@ layout_minmax_table(struct box *table, bool *has_height, const struct gui_layout
 	for (row_group = table->children; row_group; row_group = row_group->next)
 		for (row = row_group->children; row; row = row->next)
 			for (cell = row->children; cell; cell = cell->next) {
-				assert(cell->type == BOX_TABLE_CELL);
+				assert(cell->type == BOX_TABLE_CELL || cell->type == BOX_BLOCK);
 				assert(cell->style);
 				assert(cell->columns != 0);
 
