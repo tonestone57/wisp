@@ -63,7 +63,6 @@ static css_error node_count_siblings(void *pw, void *node, bool same_name, bool 
 static css_error node_is_empty(void *pw, void *node, bool *match);
 static css_error node_is_link(void *pw, void *node, bool *match);
 static css_error node_is_hover(void *pw, void *node, bool *match);
-static css_error node_is_active(void *pw, void *node, bool *match);
 static css_error node_is_focus(void *pw, void *node, bool *match);
 static css_error node_is_enabled(void *pw, void *node, bool *match);
 static css_error node_is_disabled(void *pw, void *node, bool *match);
@@ -1488,9 +1487,33 @@ css_error node_is_hover(void *pw, void *node, bool *match)
  */
 css_error node_is_active(void *pw, void *node, bool *match)
 {
-    /** \todo Support active nodes */
+    nscss_select_ctx *ctx = pw;
 
     *match = false;
+
+    if (ctx == NULL || ctx->c == NULL || node == NULL) {
+        return CSS_OK;
+    }
+
+    if (ctx->c->drag_type != HTML_DRAG_NONE) {
+        dom_node *n = node;
+
+        if (ctx->c->focus_type == HTML_FOCUS_CONTENT && ctx->c->focus_owner.content &&
+            ctx->c->focus_owner.content->node == n) {
+            *match = true;
+        } else if (ctx->c->focus_type == HTML_FOCUS_TEXTAREA && ctx->c->focus_owner.textarea &&
+                   ctx->c->focus_owner.textarea->node == n) {
+            *match = true;
+        } else if ((ctx->c->drag_type == HTML_DRAG_TEXTAREA_SELECTION ||
+                    ctx->c->drag_type == HTML_DRAG_TEXTAREA_SCROLLBAR) &&
+                   ctx->c->drag_owner.textarea && ctx->c->drag_owner.textarea->node == n) {
+            *match = true;
+        } else if ((ctx->c->drag_type == HTML_DRAG_CONTENT_SELECTION ||
+                    ctx->c->drag_type == HTML_DRAG_CONTENT_SCROLL) &&
+                   ctx->c->drag_owner.content && ctx->c->drag_owner.content->node == n) {
+            *match = true;
+        }
+    }
 
     return CSS_OK;
 }

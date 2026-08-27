@@ -170,6 +170,12 @@ css_error node_is_checked(void *pw, void *node, bool *match)
     return CSS_OK;
 }
 
+css_error node_is_active(void *pw, void *node, bool *match)
+{
+    *match = false;
+    return CSS_OK;
+}
+
 css_error node_is_target(void *pw, void *node, bool *match)
 {
     *match = false;

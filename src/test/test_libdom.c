@@ -395,6 +395,68 @@ START_TEST(test_node_is_target)
 }
 END_TEST
 
+START_TEST(test_node_is_active)
+{
+    dom_document *doc = NULL;
+    dom_element *div_el = NULL;
+    dom_string *str_div = NULL;
+    html_content html_c = { 0 };
+    nscss_select_ctx ctx = { 0 };
+    struct box content_box = { 0 };
+    bool match = false;
+    dom_exception exc;
+    css_error cserr;
+
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &str_div);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_div, &div_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    content_box.node = (dom_node *)div_el;
+    ctx.c = &html_c;
+
+    /* 1. NULL context/content/node checks */
+    cserr = node_is_active(NULL, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    cserr = node_is_active(&ctx, NULL, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 2. Drag type is NONE -> match must be false */
+    html_c.drag_type = HTML_DRAG_NONE;
+    html_c.focus_type = HTML_FOCUS_CONTENT;
+    html_c.focus_owner.content = &content_box;
+    cserr = node_is_active(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 3. Drag active with focus matching content element -> match must be true */
+    html_c.drag_type = HTML_DRAG_SELECTION;
+    cserr = node_is_active(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 4. Drag active with drag_owner content matching element -> match must be true */
+    html_c.focus_owner.content = NULL;
+    html_c.drag_type = HTML_DRAG_CONTENT_SELECTION;
+    html_c.drag_owner.content = &content_box;
+    cserr = node_is_active(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* Cleanup */
+    dom_string_unref(str_div);
+    dom_node_unref(div_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 START_TEST(test_node_is_checked)
 {
     dom_document *doc = NULL;
@@ -523,6 +585,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_document_fragment_reinsert);
     tcase_add_test(tc_core, test_count_subtree_elements);
     tcase_add_test(tc_core, test_node_is_target);
+    tcase_add_test(tc_core, test_node_is_active);
     tcase_add_test(tc_core, test_node_is_checked);
     suite_add_tcase(s, tc_core);
 
