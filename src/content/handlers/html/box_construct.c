@@ -372,6 +372,7 @@ struct style_snapshot_s {
     bool is_link;
     bool is_visited;
     bool is_empty;
+    bool is_checked;
 
     /* Pre-calculated presentational hints */
     uint32_t nhints;
@@ -765,7 +766,8 @@ static css_error snap_node_is_disabled(void *pw, void *node, bool *match) {
 }
 
 static css_error snap_node_is_checked(void *pw, void *node, bool *match) {
-    *match = false;
+    style_snapshot_t *snap = node;
+    *match = snap->is_checked;
     return CSS_OK;
 }
 
@@ -1030,6 +1032,11 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
         node_is_visited(select_ctx, node, &snap->is_visited);
     } else {
         snap->is_visited = false;
+    }
+    if (node_is_checked != NULL) {
+        node_is_checked(select_ctx, node, &snap->is_checked);
+    } else {
+        snap->is_checked = false;
     }
     check_is_empty(node, &snap->is_empty);
 
