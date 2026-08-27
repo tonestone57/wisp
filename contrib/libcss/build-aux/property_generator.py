@@ -16,6 +16,8 @@ from pathlib import Path
 class DispatchParser:
     """Parse dispatch.c to get canonical property order and inherited flags."""
     
+    DISPATCH_PATTERN = re.compile(r'PROPERTY_FUNCS\(([a-z_]+)\),\s*\n\s*(\d+),')
+
     def __init__(self, dispatch_file):
         self.dispatch_file = Path(dispatch_file)
         self.properties = []  # List of {name, inherited} dicts
@@ -42,8 +44,7 @@ class DispatchParser:
         
         # Find the prop_dispatch array
         # Format: PROPERTY_FUNCS(name), \n inherited_flag,
-        pattern = r'PROPERTY_FUNCS\(([a-z_]+)\),\s*\n\s*(\d+),'
-        matches = re.findall(pattern, content)
+        matches = self.DISPATCH_PATTERN.findall(content)
         
         # Validate we found properties
         if not matches:
