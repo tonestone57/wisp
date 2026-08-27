@@ -26,9 +26,6 @@
  *
  * \note Earlier RFC (2396, 1738 and 1630) list the tilde ~ character
  * as reserved so its handling is ambiguious
- *
- * \todo The url_escape should be tested for application/x-www-form-urlencoded
- *       type operation
  */
 
 #include <libwapcaplet/libwapcaplet.h>
@@ -94,6 +91,23 @@ const char most_escaped_upper[] = "%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F
                                   "%E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF"
                                   "%F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF";
 
+const char most_escaped_upper_sptoplus[] = "%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F"
+                                           "%10%11%12%13%14%15%16%17%18%19%1A%1B%1C%1D%1E%1F"
+                                           "+%21%22%23%24%25%26%27%28%29%2A%2B%2C-.%2F"
+                                           "0123456789%3A%3B%3C%3D%3E%3F"
+                                           "%40ABCDEFGHIJKLMNO"
+                                           "PQRSTUVWXYZ%5B%5C%5D%5E_"
+                                           "%60abcdefghijklmno"
+                                           "pqrstuvwxyz%7B%7C%7D%7E%7F"
+                                           "%80%81%82%83%84%85%86%87%88%89%8A%8B%8C%8D%8E%8F"
+                                           "%90%91%92%93%94%95%96%97%98%99%9A%9B%9C%9D%9E%9F"
+                                           "%A0%A1%A2%A3%A4%A5%A6%A7%A8%A9%AA%AB%AC%AD%AE%AF"
+                                           "%B0%B1%B2%B3%B4%B5%B6%B7%B8%B9%BA%BB%BC%BD%BE%BF"
+                                           "%C0%C1%C2%C3%C4%C5%C6%C7%C8%C9%CA%CB%CC%CD%CE%CF"
+                                           "%D0%D1%D2%D3%D4%D5%D6%D7%D8%D9%DA%DB%DC%DD%DE%DF"
+                                           "%E0%E1%E2%E3%E4%E5%E6%E7%E8%E9%EA%EB%EC%ED%EE%EF"
+                                           "%F0%F1%F2%F3%F4%F5%F6%F7%F8%F9%FA%FB%FC%FD%FE%FF";
+
 const char all_escaped_lower[] = "%01%02%03%04%05%06%07%08%09%0A%0B%0C%0D%0E%0F"
                                  "%10%11%12%13%14%15%16%17%18%19%1a%1b%1c%1d%1e%1f"
                                  "%20%21%22%23%24%25%26%27%28%29%2a%2b%2c%2d%2e%2f"
@@ -136,6 +150,21 @@ static const struct test_pairs url_escape_escexceptions_test_vec[] = {
     {"[hello world]", 13, "[hello%20world]", 0}, /* space is still escaped */
 };
 
+static const struct test_pairs url_escape_form_urlencoded_test_vec[] = {
+    {"", 0, "", 0},
+    {"hello world", 11, "hello+world", 0},
+    {" ", 1, "+", 0},
+    {"   ", 3, "+++", 0},
+    {"a b c", 5, "a+b+c", 0},
+    {"foo=bar&baz=qux", 15, "foo%3Dbar%26baz%3Dqux", 0},
+    {"100% pure & clean", 17, "100%25+pure+%26+clean", 0},
+    {"a+b=c", 5, "a%2Bb%3Dc", 0},
+    {"line1\r\nline2", 12, "line1%0D%0Aline2", 0},
+    {"user@example.com?a=1#fragment", 29, "user%40example.com%3Fa%3D1%23fragment", 0},
+    {"café", 5, "caf%C3%A9", 0},
+    {&all_chars[0], SLEN(all_chars), &most_escaped_upper_sptoplus[0], 0},
+};
+
 
 START_TEST(url_escape_test)
 {
@@ -144,6 +173,22 @@ START_TEST(url_escape_test)
     const struct test_pairs *tst = &url_escape_test_vec[_i];
 
     err = url_escape(tst->test, false, "", &esc_str);
+    ck_assert(err == NSERROR_OK);
+
+    /* ensure result data is correct */
+    ck_assert_str_eq(esc_str, tst->res);
+
+    free(esc_str);
+}
+END_TEST
+
+START_TEST(url_escape_form_urlencoded_test)
+{
+    nserror err;
+    char *esc_str;
+    const struct test_pairs *tst = &url_escape_form_urlencoded_test_vec[_i];
+
+    err = url_escape(tst->test, true, NULL, &esc_str);
     ck_assert(err == NSERROR_OK);
 
     /* ensure result data is correct */
@@ -213,6 +258,7 @@ static TCase *url_escape_case_create(void)
     tcase_add_loop_test(tc, url_escape_test, 0, NELEMS(url_escape_test_vec));
     tcase_add_loop_test(tc, url_escape_sptoplus_test, 0, NELEMS(url_escape_sptoplus_test_vec));
     tcase_add_loop_test(tc, url_escape_escexceptions_test, 0, NELEMS(url_escape_escexceptions_test_vec));
+    tcase_add_loop_test(tc, url_escape_form_urlencoded_test, 0, NELEMS(url_escape_form_urlencoded_test_vec));
 
     return tc;
 }
