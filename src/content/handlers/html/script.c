@@ -729,8 +729,13 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
     unsigned int script_idx = c->scripts_count - 1;
     struct hlcache_handle *local_handle = NULL;
 
+    hlcache_retrieve_options opts = {
+        .referer = content_get_url(&c->base),
+        .child = &child,
+        .accepted_types = CONTENT_SCRIPT
+    };
     ns_error = hlcache_handle_retrieve(
-        joined, 0, content_get_url(&c->base), NULL, script_cb, c, &child, CONTENT_SCRIPT, &local_handle);
+        joined, &opts, script_cb, c, &local_handle);
 
     if (nonce_attr != NULL) {
         dom_string_unref(nonce_attr);

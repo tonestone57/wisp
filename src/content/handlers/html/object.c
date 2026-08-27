@@ -672,8 +672,13 @@ static bool html_replace_object(struct content_html_object *object, nsurl *url)
     }
 
     /* initialise fetch */
-    error = hlcache_handle_retrieve(url, HLCACHE_RETRIEVE_SNIFF_TYPE, content_get_url(&c->base), NULL,
-        html_object_callback, object, &child, object->permitted_types, &object->content);
+    hlcache_retrieve_options opts = {
+        .flags = HLCACHE_RETRIEVE_SNIFF_TYPE,
+        .referer = content_get_url(&c->base),
+        .child = &child,
+        .accepted_types = object->permitted_types
+    };
+    error = hlcache_handle_retrieve(url, &opts, html_object_callback, object, &object->content);
 
     if (error != NSERROR_OK) {
         /* Decrement the counters we just incremented */
@@ -865,8 +870,13 @@ bool html_fetch_object(html_content *c, nsurl *url, struct box *box, content_typ
         NSLOG(wisp, INFO, "%d fetches active (pre-retrieve)", c->base.active);
     }
 
-    error = hlcache_handle_retrieve(url, HLCACHE_RETRIEVE_SNIFF_TYPE, content_get_url(&c->base), NULL, object_callback,
-        object, &child, object->permitted_types, &object->content);
+    hlcache_retrieve_options opts = {
+        .flags = HLCACHE_RETRIEVE_SNIFF_TYPE,
+        .referer = content_get_url(&c->base),
+        .child = &child,
+        .accepted_types = object->permitted_types
+    };
+    error = hlcache_handle_retrieve(url, &opts, object_callback, object, &object->content);
     if (error != NSERROR_OK) {
         if (box != NULL) {
             c->base.active--;
@@ -918,8 +928,12 @@ bool html_fetch_object_buffer(html_content *c, const uint8_t *data, size_t len, 
         NSLOG(wisp, INFO, "%d fetches active (pre-buffer-retrieve)", c->base.active);
     }
 
+    hlcache_retrieve_options opts = {
+        .child = &child,
+        .accepted_types = permitted_types
+    };
     error = hlcache_handle_retrieve_buffer(
-        data, len, mime_type, html_object_callback, object, &child, permitted_types, &object->content);
+        data, len, mime_type, &opts, html_object_callback, object, &object->content);
 
     if (error != NSERROR_OK) {
         if (box != NULL) {

@@ -427,8 +427,11 @@ static nserror browser_window_favicon_callback(hlcache_handle *c, const hlcache_
         }
         hlcache_handle_release(c);
 
-        hlcache_handle_retrieve(to_url, HLCACHE_RETRIEVE_SNIFF_TYPE, NULL, NULL,
-                                browser_window_favicon_callback, bw, NULL, CONTENT_IMAGE, &bw->favicon.loading);
+        hlcache_retrieve_options opts = {
+            .flags = HLCACHE_RETRIEVE_SNIFF_TYPE,
+            .accepted_types = CONTENT_IMAGE
+        };
+        hlcache_handle_retrieve(to_url, &opts, browser_window_favicon_callback, bw, &bw->favicon.loading);
         nsurl_unref(to_url);
         break;
     }
@@ -470,8 +473,12 @@ static nserror browser_window_favicon_callback(hlcache_handle *c, const hlcache_
             if (error != NSERROR_OK) {
                 NSLOG(wisp, ERROR, "Unable to create default location url");
             } else {
-                hlcache_handle_retrieve(nsurl, HLCACHE_RETRIEVE_SNIFF_TYPE, nsref, NULL,
-                    browser_window_favicon_callback, bw, NULL, CONTENT_IMAGE, &bw->favicon.loading);
+                hlcache_retrieve_options opts = {
+                    .flags = HLCACHE_RETRIEVE_SNIFF_TYPE,
+                    .referer = nsref,
+                    .accepted_types = CONTENT_IMAGE
+                };
+                hlcache_handle_retrieve(nsurl, &opts, browser_window_favicon_callback, bw, &bw->favicon.loading);
 
                 nsurl_unref(nsurl);
             }
@@ -563,8 +570,12 @@ browser_window_update_favicon(hlcache_handle *c, struct browser_window *bw, stru
         NSLOG(wisp, INFO, "fetching favicon rel:%s '%s'", lwc_string_data(link->rel), nsurl_access(nsurl));
     }
 
-    res = hlcache_handle_retrieve(nsurl, HLCACHE_RETRIEVE_SNIFF_TYPE, nsref, NULL, browser_window_favicon_callback, bw,
-        NULL, CONTENT_IMAGE, &bw->favicon.loading);
+    hlcache_retrieve_options fav_opts = {
+        .flags = HLCACHE_RETRIEVE_SNIFF_TYPE,
+        .referer = nsref,
+        .accepted_types = CONTENT_IMAGE
+    };
+    res = hlcache_handle_retrieve(nsurl, &fav_opts, browser_window_favicon_callback, bw, &bw->favicon.loading);
 
     nsurl_unref(nsurl);
 
@@ -3203,9 +3214,14 @@ static nserror navigate_internal_real(struct browser_window *bw, struct browser_
         fetch_flags |= HLCACHE_RETRIEVE_MAY_DOWNLOAD;
     }
 
-    res = hlcache_handle_retrieve(params->url, fetch_flags | HLCACHE_RETRIEVE_SNIFF_TYPE, params->referrer,
-        fetch_is_post ? &post : NULL, browser_window_callback, bw, params->parent_charset != NULL ? &child : NULL,
-        CONTENT_ANY, &c);
+    hlcache_retrieve_options main_opts = {
+        .flags = fetch_flags | HLCACHE_RETRIEVE_SNIFF_TYPE,
+        .referer = params->referrer,
+        .post = fetch_is_post ? &post : NULL,
+        .child = params->parent_charset != NULL ? &child : NULL,
+        .accepted_types = CONTENT_ANY
+    };
+    res = hlcache_handle_retrieve(params->url, &main_opts, browser_window_callback, bw, &c);
 
     switch (res) {
     case NSERROR_OK:

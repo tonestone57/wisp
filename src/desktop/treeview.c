@@ -4669,8 +4669,11 @@ static void treeview_init_resources(void)
         treeview_res[i].ready = false;
         treeview_res[i].height = 0;
         if (nsurl_create(treeview_res[i].url, &url) == NSERROR_OK) {
+            hlcache_retrieve_options opts = {
+                .accepted_types = CONTENT_IMAGE
+            };
             hlcache_handle_retrieve(
-                url, 0, NULL, NULL, treeview_res_cb, &(treeview_res[i]), NULL, CONTENT_IMAGE, &(treeview_res[i].c));
+                url, &opts, treeview_res_cb, &(treeview_res[i]), &(treeview_res[i].c));
             nsurl_unref(url);
         }
     }

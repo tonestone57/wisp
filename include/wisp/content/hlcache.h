@@ -46,6 +46,15 @@ typedef struct hlcache_child_context {
     const char *nonce; /**< Nonce attribute of element */
 } hlcache_child_context;
 
+/** Optional retrieval options for high-level cache fetches */
+typedef struct hlcache_retrieve_options {
+    uint32_t flags; /**< Object retrieval flags */
+    nsurl *referer; /**< Referring URL, or NULL */
+    llcache_post_data *post; /**< POST data, or NULL for GET */
+    hlcache_child_context *child; /**< Child context, or NULL for top-level */
+    content_type accepted_types; /**< Bitmap of acceptable content types */
+} hlcache_retrieve_options;
+
 /** High-level cache event */
 typedef struct hlcache_event {
     content_msg type; /**< Event type */
@@ -103,15 +112,11 @@ void hlcache_finalise(void);
 /**
  * Retrieve a high-level cache handle for an object
  *
- * \param url             URL of the object to retrieve handle for
- * \param flags           Object retrieval flags
- * \param referer         Referring URL, or NULL if none
- * \param post            POST data, or NULL for a GET request
- * \param cb              Callback to handle object events
- * \param pw              Pointer to client-specific data for callback
- * \param child           Child retrieval context, or NULL for top-level content
- * \param accepted_types  Bitmap of acceptable content types
- * \param result          Pointer to location to recieve cache handle
+ * \param url     URL of the object to retrieve handle for
+ * \param opts    Retrieval options (flags, referer, post, child, accepted_types), or NULL for defaults
+ * \param cb      Callback to handle object events
+ * \param pw      Pointer to client-specific data for callback
+ * \param result  Pointer to location to receive cache handle
  * \return NSERROR_OK on success, appropriate error otherwise
  *
  * Child contents are keyed on the tuple < URL, quirks >.
@@ -119,12 +124,9 @@ void hlcache_finalise(void);
  * affected by quirks mode.
  *
  * \todo The above rules should be encoded in the handler_map.
- *
- * \todo Is there any way to sensibly reduce the number of parameters here?
  */
-nserror hlcache_handle_retrieve(nsurl *url, uint32_t flags, nsurl *referer, llcache_post_data *post,
-    hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
-    hlcache_handle **result);
+nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts,
+    hlcache_handle_callback cb, void *pw, hlcache_handle **result);
 
 /**
  * Release a high-level cache handle
@@ -198,7 +200,7 @@ nserror hlcache_handle_clone(hlcache_handle *handle, hlcache_handle **result);
  * \return NSERROR_OK on success, appropriate error otherwise
  */
 nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const char *mime_type,
-    hlcache_handle_callback cb, void *pw, hlcache_child_context *child, content_type accepted_types,
+    const hlcache_retrieve_options *opts, hlcache_handle_callback cb, void *pw,
     hlcache_handle **result);
 
 
