@@ -101,6 +101,31 @@ START_TEST(test_ipc_safe_path_truncation)
 }
 END_TEST
 
+START_TEST(test_ipc_spawn_security_validation)
+{
+    /* Test NULL and empty inputs */
+    ck_assert_int_eq(wisp_ipc_spawn(NULL, "valid_name"), -1);
+    ck_assert_int_eq(wisp_ipc_spawn("/bin/ls", NULL), -1);
+    ck_assert_int_eq(wisp_ipc_spawn("", "valid_name"), -1);
+    ck_assert_int_eq(wisp_ipc_spawn("/bin/ls", ""), -1);
+
+    /* Test control characters and double quotes */
+    ck_assert_int_eq(wisp_ipc_spawn("/bin/ls\n", "valid_name"), -1);
+    ck_assert_int_eq(wisp_ipc_spawn("/bin/ls", "valid\nname"), -1);
+    ck_assert_int_eq(wisp_ipc_spawn("/bin/ls\"", "valid_name"), -1);
+    ck_assert_int_eq(wisp_ipc_spawn("/bin/ls", "valid\"name"), -1);
+
+    /* Test non-existent executable path */
+    ck_assert_int_eq(wisp_ipc_spawn("/nonexistent_path_12345/binary", "valid_name"), -1);
+
+    /* Test non-regular file path (e.g. directory or character device) */
+    ck_assert_int_eq(wisp_ipc_spawn("/tmp", "valid_name"), -1);
+#ifndef _WIN32
+    ck_assert_int_eq(wisp_ipc_spawn("/dev/null", "valid_name"), -1);
+#endif
+}
+END_TEST
+
 static TCase *ipc_case_create(void)
 {
     TCase *tc;
@@ -110,6 +135,7 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_send_recv_basic);
     tcase_add_test(tc, test_ipc_find_executable_not_found);
     tcase_add_test(tc, test_ipc_safe_path_truncation);
+    tcase_add_test(tc, test_ipc_spawn_security_validation);
     return tc;
 }
 
