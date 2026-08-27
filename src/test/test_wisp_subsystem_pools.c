@@ -48,6 +48,7 @@ START_TEST(test_subsystem_init_shutdown)
     init_wisp_subsystem(10);
     ck_assert_ptr_nonnull(raster_pool);
     ck_assert_ptr_nonnull(js_pool);
+    ck_assert_ptr_nonnull(wisp_style_pool);
 
     // Sizing verification
     long n_cores;
@@ -62,13 +63,17 @@ START_TEST(test_subsystem_init_shutdown)
     int expected_raster = (n_cores > 1) ? (int)(n_cores - 1) : 0;
     int expected_js = (n_cores > 4) ? 4 : (int)n_cores;
     if (expected_js < 1) expected_js = 1;
+    int expected_style = (n_cores > 4) ? 4 : (int)n_cores;
+    if (expected_style < 1) expected_style = 1;
 
     ck_assert_int_eq(raster_pool->worker_count, expected_raster);
     ck_assert_int_eq(js_pool->worker_count, expected_js);
+    ck_assert_int_eq(wisp_style_pool->worker_count, expected_style);
 
     shutdown_wisp_subsystem();
     ck_assert_ptr_null(raster_pool);
     ck_assert_ptr_null(js_pool);
+    ck_assert_ptr_null(wisp_style_pool);
 }
 END_TEST
 
@@ -85,11 +90,14 @@ START_TEST(test_subsystem_dispatch)
     // Dispatch to Raster pool
     ck_assert(wisp_dispatch_raster(NULL, test_task, NULL, 0.0f));
 
+    // Dispatch to Style pool
+    ck_assert(wisp_dispatch_style(NULL, test_task, NULL, 0.0f));
+
     // Wait for tasks to complete
     int retries = 0;
     while (retries < 50) {
         ns_mutex_lock(&count_lock);
-        if (task_executed_count == 3) {
+        if (task_executed_count == 4) {
             ns_mutex_unlock(&count_lock);
             break;
         }
@@ -98,7 +106,7 @@ START_TEST(test_subsystem_dispatch)
         retries++;
     }
 
-    ck_assert_int_eq(task_executed_count, 3);
+    ck_assert_int_eq(task_executed_count, 4);
 
     shutdown_wisp_subsystem();
 }
@@ -239,6 +247,18 @@ START_TEST(test_pop_task_and_wait_group_pumping)
     free(popped);
 
     ck_assert_int_eq(executed_flag, 1);
+
+    /* Repeat test for wisp_style_pool */
+    int style_executed_flag = 0;
+    ck_assert(wisp_dispatch_style(NULL, test_pump_task_cb, &style_executed_flag, 0.5f));
+    js_task_t *popped_style = wisp_pool_pop_task(wisp_style_pool);
+    ck_assert_ptr_nonnull(popped_style);
+    ck_assert_ptr_eq(popped_style->function, test_pump_task_cb);
+    popped_style->function(popped_style->arg);
+    if (popped_style->script) free(popped_style->script);
+    free(popped_style);
+
+    ck_assert_int_eq(style_executed_flag, 1);
 
     /* Unblock worker thread */
     ns_mutex_unlock(&block_lock);
