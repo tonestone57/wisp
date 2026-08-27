@@ -3323,7 +3323,12 @@ bool box_extract_link(const html_content *content, const dom_string *dsrel, nsur
 	nserror error;
 	const char *rel;
 
+	if (dsrel == NULL)
+		return false;
+
 	rel = dom_string_data(dsrel);
+	if (rel == NULL)
+		return false;
 
 	s1 = s = malloc(3 * strlen(rel) + 1);
 	if (!s)
