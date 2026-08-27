@@ -7962,7 +7962,7 @@ JSValue wisp_htmlelement_contextMenu_set_impl(JSContext *ctx, QJSNodePrivate *pr
 }
 
 JSValue wisp_htmlelement_dataset_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    if (!priv) return JS_UNDEFINED;
+    if (!priv || !priv->node) return JS_UNDEFINED;
 
     JSValue wrapper = qjs_wrap_node(ctx, (dom_node *)priv->node);
     if (!JS_IsObject(wrapper)) {
