@@ -509,78 +509,131 @@ static bool text_redraw(const char *utf8_text, size_t utf8_len, size_t offset, i
         unsigned start_idx;
         unsigned end_idx;
 
+        unsigned sel_start_idx = 0, sel_end_idx = 0;
+        unsigned search_start_idx = 0, search_end_idx = 0;
+        bool sel_highlighted = false;
+        bool search_highlighted = false;
+
         /* first try the browser window's current selection */
-        if (selection_highlighted(sel, offset, offset + len, &start_idx, &end_idx)) {
-            highlighted = true;
+        if (selection_highlighted(sel, offset, offset + len, &sel_start_idx, &sel_end_idx)) {
+            sel_highlighted = true;
         }
 
         /* what about the current search operation, if any? */
-        if (!highlighted && (c->textsearch.context != NULL) &&
-            content_textsearch_ishighlighted(c->textsearch.context, offset, offset + len, &start_idx, &end_idx)) {
-            highlighted = true;
+        if ((c->textsearch.context != NULL) &&
+            content_textsearch_ishighlighted(c->textsearch.context, offset, offset + len, &search_start_idx, &search_end_idx)) {
+            search_highlighted = true;
         }
 
-        /* \todo make search terms visible within selected text */
+        highlighted = sel_highlighted || search_highlighted;
+
         if (highlighted) {
-            struct rect r;
-            unsigned endtxt_idx = end_idx;
+            unsigned bounds[6];
+            size_t num_bounds = 0;
+
+            bounds[num_bounds++] = 0;
+            bounds[num_bounds++] = len;
+
+            if (sel_highlighted) {
+                bounds[num_bounds++] = sel_start_idx;
+                bounds[num_bounds++] = sel_end_idx;
+            }
+            if (search_highlighted) {
+                bounds[num_bounds++] = search_start_idx;
+                bounds[num_bounds++] = search_end_idx;
+            }
+
+            /* Sort bounds */
+            for (size_t i = 0; i < num_bounds; i++) {
+                for (size_t j = i + 1; j < num_bounds; j++) {
+                    if (bounds[i] > bounds[j]) {
+                        unsigned tmp = bounds[i];
+                        bounds[i] = bounds[j];
+                        bounds[j] = tmp;
+                    }
+                }
+            }
+
+            /* Deduplicate bounds */
+            size_t unique_bounds = 0;
+            for (size_t i = 0; i < num_bounds; i++) {
+                if (i == 0 || bounds[i] != bounds[i - 1]) {
+                    bounds[unique_bounds++] = bounds[i];
+                }
+            }
+
             bool clip_changed = false;
-            bool text_visible = true;
-            int startx, endx;
-            plot_style_t pstyle_fill_hback = *plot_style_fill_white;
-            plot_font_style_t fstyle_hback = plot_fstyle;
 
-            if (end_idx > utf8_len) {
-                /* adjust for trailing space, not present in
-                 * utf8_text */
-                assert(end_idx == utf8_len + 1);
-                endtxt_idx = utf8_len;
-            }
+            for (size_t k = 0; k < unique_bounds - 1; k++) {
+                unsigned seg_start = bounds[k];
+                unsigned seg_end = bounds[k + 1];
 
-            res = guit->layout->width(fstyle, utf8_text, start_idx, &startx);
-            if (res != NSERROR_OK) {
-                startx = 0;
-            }
+                if (seg_start >= seg_end)
+                    continue;
 
-            res = guit->layout->width(fstyle, utf8_text, endtxt_idx, &endx);
-            if (res != NSERROR_OK) {
-                endx = 0;
-            }
+                bool in_sel = sel_highlighted && (seg_start >= sel_start_idx && seg_end <= sel_end_idx);
+                bool in_search = search_highlighted && (seg_start >= search_start_idx && seg_end <= search_end_idx);
 
-            /* is there a trailing space that should be highlighted
-             * as well? */
-            if (end_idx > utf8_len) {
-                endx += space;
-            }
+                unsigned seg_start_txt = (seg_start > utf8_len) ? utf8_len : seg_start;
+                unsigned seg_end_txt = (seg_end > utf8_len) ? utf8_len : seg_end;
 
-            if (scale != 1.0) {
-                startx *= scale;
-                endx *= scale;
-            }
+                int startx = 0, endx = 0;
 
-            /* draw any text preceding highlighted portion */
-            if ((start_idx > 0) &&
-                (ctx->plot->text(ctx, &plot_fstyle, x, y + (int)(height * 0.75 * scale), utf8_text, start_idx) !=
-                    NSERROR_OK))
-                return false;
+                if (seg_start_txt > 0) {
+                    res = guit->layout->width(fstyle, utf8_text, seg_start_txt, &startx);
+                    if (res != NSERROR_OK)
+                        startx = 0;
+                }
 
-            pstyle_fill_hback.fill_colour = fstyle->foreground;
+                if (seg_end_txt > 0) {
+                    res = guit->layout->width(fstyle, utf8_text, seg_end_txt, &endx);
+                    if (res != NSERROR_OK)
+                        endx = 0;
+                }
 
-            /* highlighted portion */
-            r.x0 = x + startx;
-            r.y0 = y;
-            r.x1 = x + endx;
-            r.y1 = y + height * scale;
-            res = ctx->plot->rectangle(ctx, &pstyle_fill_hback, &r);
-            if (res != NSERROR_OK) {
-                return false;
-            }
+                if (seg_end > utf8_len) {
+                    endx += space;
+                }
 
-            if (start_idx > 0) {
+                if (scale != 1.0) {
+                    startx *= scale;
+                    endx *= scale;
+                }
+
+                plot_style_t pstyle_fill_hback = *plot_style_fill_white;
+                plot_font_style_t fstyle_seg = plot_fstyle;
+
+                colour sel_bg = fstyle->foreground;
+                colour sel_fg = colour_to_bw_furthest(sel_bg);
+
+                if (in_sel && in_search) {
+                    /* Search term within selected text: invert colors relative to selection background */
+                    pstyle_fill_hback.fill_colour = sel_fg;
+                    fstyle_seg.background = sel_fg;
+                    fstyle_seg.foreground = sel_bg;
+                } else if (in_sel || in_search) {
+                    pstyle_fill_hback.fill_colour = sel_bg;
+                    fstyle_seg.background = sel_bg;
+                    fstyle_seg.foreground = sel_fg;
+                }
+
+                if (in_sel || in_search) {
+                    struct rect r;
+                    r.x0 = x + startx;
+                    r.y0 = y;
+                    r.x1 = x + endx;
+                    r.y1 = y + height * scale;
+                    res = ctx->plot->rectangle(ctx, &pstyle_fill_hback, &r);
+                    if (res != NSERROR_OK) {
+                        return false;
+                    }
+                }
+
                 int px0 = max(x + startx, clip->x0);
                 int px1 = min(x + endx, clip->x1);
 
                 if (px0 < px1) {
+                    struct rect r;
                     r.x0 = px0;
                     r.y0 = clip->y0;
                     r.x1 = px1;
@@ -591,39 +644,12 @@ static bool text_redraw(const char *utf8_text, size_t utf8_len, size_t offset, i
                     }
 
                     clip_changed = true;
-                } else {
-                    text_visible = false;
-                }
-            }
 
-            fstyle_hback.background = pstyle_fill_hback.fill_colour;
-            fstyle_hback.foreground = colour_to_bw_furthest(pstyle_fill_hback.fill_colour);
-
-            if (text_visible &&
-                (ctx->plot->text(ctx, &fstyle_hback, x, y + (int)(height * 0.75 * scale), utf8_text, endtxt_idx) !=
-                    NSERROR_OK)) {
-                return false;
-            }
-
-            /* draw any text succeeding highlighted portion */
-            if (endtxt_idx < utf8_len) {
-                int px0 = max(x + endx, clip->x0);
-                if (px0 < clip->x1) {
-
-                    r.x0 = px0;
-                    r.y0 = clip->y0;
-                    r.x1 = clip->x1;
-                    r.y1 = clip->y1;
-                    res = ctx->plot->clip(ctx, &r);
-                    if (res != NSERROR_OK) {
-                        return false;
-                    }
-
-                    clip_changed = true;
-
-                    res = ctx->plot->text(ctx, &plot_fstyle, x, y + (int)(height * 0.75 * scale), utf8_text, utf8_len);
-                    if (res != NSERROR_OK) {
-                        return false;
+                    if (seg_end_txt > 0) {
+                        res = ctx->plot->text(ctx, &fstyle_seg, x, y + (int)(height * 0.75 * scale), utf8_text, seg_end_txt);
+                        if (res != NSERROR_OK) {
+                            return false;
+                        }
                     }
                 }
             }
