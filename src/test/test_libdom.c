@@ -10,6 +10,7 @@
 #include "wisp/content/handlers/html/private.h"
 #include "utils/libdom.h"
 #include "utils/corestrings.h"
+#include "content/handlers/html/box_construct.h"
 
 // Context for testing callbacks
 struct test_ctx {
@@ -240,6 +241,76 @@ START_TEST(test_libdom_document_fragment_reinsert)
 }
 END_TEST
 
+START_TEST(test_count_subtree_elements)
+{
+    dom_document *doc = NULL;
+    dom_element *root_el = NULL;
+    dom_element *child_el1 = NULL;
+    dom_element *child_el2 = NULL;
+    dom_element *grandchild = NULL;
+    dom_string *div_name = NULL;
+    dom_string *span_name = NULL;
+    dom_node *res = NULL;
+    nserror err;
+    dom_exception exc;
+
+    err = libdom_parse_file("src/test/data/test_empty.html", "UTF-8", &doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(doc);
+
+    exc = dom_document_get_document_element(doc, &root_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(root_el);
+
+    /* Test null root */
+    ck_assert_int_eq(count_subtree_elements(NULL, 32), 0);
+
+    /* Test document element sub-tree (root_el <html> has <head> and <body>) */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)root_el, 32), 3);
+
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &div_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"span", 4, &span_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, div_name, &child_el1);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)root_el, (dom_node *)child_el1, &res);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    if (res) dom_node_unref(res);
+
+    exc = dom_document_create_element(doc, div_name, &child_el2);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)root_el, (dom_node *)child_el2, &res);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    if (res) dom_node_unref(res);
+
+    exc = dom_document_create_element(doc, span_name, &grandchild);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)child_el1, (dom_node *)grandchild, &res);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    if (res) dom_node_unref(res);
+
+    /* Total elements under root_el: <html>(1), <head>(2), <body>(3), child_el1(4), grandchild(5), child_el2(6) */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)root_el, 32), 6);
+
+    /* Sub-tree at child_el1: child_el1 (1), grandchild (2) */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)child_el1, 32), 2);
+
+    /* Limit test: limit = 2 on root_el should stop at 2 */
+    ck_assert_int_eq(count_subtree_elements((dom_node *)root_el, 2), 2);
+
+    /* Cleanup */
+    dom_string_unref(div_name);
+    dom_string_unref(span_name);
+    dom_node_unref(child_el1);
+    dom_node_unref(child_el2);
+    dom_node_unref(grandchild);
+    dom_node_unref(root_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 START_TEST(test_node_is_target)
 {
     dom_document *doc = NULL;
@@ -333,6 +404,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_iterate_with_children);
     tcase_add_test(tc_core, test_libdom_has_class_quirks_vs_standards);
     tcase_add_test(tc_core, test_libdom_document_fragment_reinsert);
+    tcase_add_test(tc_core, test_count_subtree_elements);
     tcase_add_test(tc_core, test_node_is_target);
     suite_add_tcase(s, tc_core);
 

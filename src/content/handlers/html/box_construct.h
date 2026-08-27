@@ -59,6 +59,15 @@ nserror cancel_dom_to_box(void *box_conversion_context);
 struct box *box_for_node(struct dom_node *node);
 
 /**
+ * Count element nodes in a DOM sub-tree up to a limit.
+ *
+ * \param root Sub-tree root node
+ * \param limit Maximum count limit before early return
+ * \return Number of element nodes in sub-tree (<= limit)
+ */
+int count_subtree_elements(struct dom_node *root, int limit);
+
+/**
  * Extract a URL from a relative link, handling junk like whitespace and
  * attempting to read a real URL from "javascript:" links.
  *
