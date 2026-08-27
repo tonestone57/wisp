@@ -252,6 +252,7 @@ static void box_extract_properties(dom_node *n, struct box_construct_props *prop
  * \return  the new style, or NULL on memory exhaustion
  */
 #include <unistd.h>
+#include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
 extern bool wisp_dispatch_js(const char *script, void (*func)(void*), void *arg, float priority);
 
@@ -284,6 +285,25 @@ static inline void wisp_wait_group_wait(struct wisp_wait_group *wg) {
         pthread_cond_wait(&wg->cond, &wg->mutex);
     }
     pthread_mutex_unlock(&wg->mutex);
+}
+
+static inline void wisp_wait_group_wait_and_pump(struct wisp_wait_group *wg, WispPool *style_pool) {
+    while (__atomic_load_n(&wg->count, __ATOMIC_RELAXED) > 0) {
+        /* Main thread pops and executes pending style/layout tasks directly */
+        js_task_t *task = wisp_pool_pop_task(style_pool);
+        if (task) {
+            if (task->function) {
+                task->function(task->arg);
+            }
+            if (task->script) {
+                free(task->script);
+            }
+            free(task);
+        } else {
+            /* Fall back to short micro-sleep if queue is empty */
+            usleep(100);
+        }
+    }
 }
 
 static inline void wisp_wait_group_destroy(struct wisp_wait_group *wg) {
@@ -1253,8 +1273,8 @@ static void html_parallel_style_selection(html_content *c, dom_node *root) {
         }
     }
 
-    /* Join phase: wait for all worker tasks to finish */
-    wisp_wait_group_wait(&wg);
+    /* Join phase: wait for all worker tasks to finish while pumping pending tasks */
+    wisp_wait_group_wait_and_pump(&wg, js_pool);
     wisp_wait_group_destroy(&wg);
 
     /* Top-down snapshot composition on the main thread */
