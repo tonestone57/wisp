@@ -293,12 +293,10 @@ static bool nsico_is_opaque(struct content *c)
 {
     nsico_content *ico = (nsico_content *)c;
     struct bmp_image *bmp;
+    uint16_t width = (c->width > 0) ? (uint16_t)c->width : 16;
+    uint16_t height = (c->height > 0) ? (uint16_t)c->height : 16;
 
-    /**
-     * \todo Pick best size for purpose. Currently assumes
-     *         it's for a URL bar.
-     */
-    bmp = ico_find(ico->ico, 16, 16);
+    bmp = ico_find(ico->ico, width, height);
     if (bmp == NULL) {
         /* return error */
         NSLOG(wisp, INFO, "Failed to select icon");
