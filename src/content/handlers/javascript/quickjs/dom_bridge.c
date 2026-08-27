@@ -90,6 +90,10 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 
     JSRuntime *rt = JS_GetRuntime(ctx);
     hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (!map) {
+        qjs_init_dom_bridge(ctx);
+        map = JS_GetRuntimeOpaque(rt);
+    }
 
     if (map) {
         bridge_key_t key = { ctx, node };

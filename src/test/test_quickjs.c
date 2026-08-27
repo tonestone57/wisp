@@ -7149,6 +7149,9 @@ START_TEST(test_quickjs_element_closest)
         "if (!classMatch || classMatch.tagName.toLowerCase() !== 'table') throw new Error('Class selector match failed');\n"
         "var noMatch = span.closest('.nonexistent');\n"
         "if (noMatch !== null) throw new Error('Expected null for non-matching selector');\n"
+        "rowMatch.expandoTest = 999;\n"
+        "var requeriedRow = span.closest('tr');\n"
+        "if (requeriedRow.expandoTest !== 999) throw new Error('DOM identity expando loss on closest()');\n"
         "1;\n";
     ck_assert_int_eq(js_exec(thread, (const uint8_t *)test_js, strlen(test_js), "test_js"), true);
 
