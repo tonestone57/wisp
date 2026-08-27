@@ -889,21 +889,19 @@ void nsbeos_dispatch_event(BMessage *message)
         if (message->FindInt32("modifiers", &mods) < B_OK)
             mods = 0;
 
+        browser_mouse_state click_state = (browser_mouse_state)0;
         if (gui->mouse.state & BROWSER_MOUSE_PRESS_1)
-            gui->mouse.state ^= (BROWSER_MOUSE_PRESS_1 | BROWSER_MOUSE_CLICK_1);
+            click_state = BROWSER_MOUSE_CLICK_1;
         else if (gui->mouse.state & BROWSER_MOUSE_PRESS_2)
-            gui->mouse.state ^= (BROWSER_MOUSE_PRESS_2 | BROWSER_MOUSE_CLICK_2);
+            click_state = BROWSER_MOUSE_CLICK_2;
 
-        bool shift = mods & B_SHIFT_KEY;
-        bool ctrl = mods & B_CONTROL_KEY;
+        if (mods & B_SHIFT_KEY)
+            click_state = (browser_mouse_state)(click_state | BROWSER_MOUSE_MOD_1);
+        if (mods & B_CONTROL_KEY)
+            click_state = (browser_mouse_state)(click_state | BROWSER_MOUSE_MOD_2);
 
-        if (gui->mouse.state & BROWSER_MOUSE_MOD_1 && !shift)
-            gui->mouse.state ^= BROWSER_MOUSE_MOD_1;
-        if (gui->mouse.state & BROWSER_MOUSE_MOD_2 && !ctrl)
-            gui->mouse.state ^= BROWSER_MOUSE_MOD_2;
-
-        if (gui->mouse.state & (BROWSER_MOUSE_CLICK_1 | BROWSER_MOUSE_CLICK_2))
-            browser_window_mouse_click(gui->bw, (browser_mouse_state)gui->mouse.state, where.x, where.y);
+        if (click_state & (BROWSER_MOUSE_CLICK_1 | BROWSER_MOUSE_CLICK_2))
+            browser_window_mouse_click(gui->bw, click_state, where.x, where.y);
         else
             browser_window_mouse_track(gui->bw, (browser_mouse_state)0, where.x, where.y);
 
