@@ -164,6 +164,12 @@ uint8_t css_computed_text_transform(const css_computed_style *style)
     return CSS_TEXT_TRANSFORM_NONE;
 }
 
+css_error node_is_checked(void *pw, void *node, bool *match)
+{
+    *match = false;
+    return CSS_OK;
+}
+
 css_error node_is_target(void *pw, void *node, bool *match)
 {
     *match = false;

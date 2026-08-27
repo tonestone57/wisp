@@ -4,6 +4,8 @@
 
 #include <libwapcaplet/libwapcaplet.h>
 #include <dom/dom.h>
+#include <dom/html/html_input_element.h>
+#include <dom/html/html_option_element.h>
 #include "wisp/utils/errors.h"
 #include "wisp/utils/nsurl.h"
 #include "content/handlers/css/select.h"
@@ -393,6 +395,121 @@ START_TEST(test_node_is_target)
 }
 END_TEST
 
+START_TEST(test_node_is_checked)
+{
+    dom_document *doc = NULL;
+    dom_element *input_el = NULL;
+    dom_element *option_el = NULL;
+    dom_element *div_el = NULL;
+    dom_string *str_input = NULL;
+    dom_string *str_option = NULL;
+    dom_string *str_div = NULL;
+    dom_string *str_checked = NULL;
+    dom_string *str_selected = NULL;
+    nscss_select_ctx ctx = { 0 };
+    bool match = false;
+    dom_exception exc;
+    css_error cserr;
+
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_string_create_interned((const uint8_t *)"input", 5, &str_input);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"option", 6, &str_option);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &str_div);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"checked", 7, &str_checked);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"selected", 8, &str_selected);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_input, &input_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_document_create_element(doc, str_option, &option_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_document_create_element(doc, str_div, &div_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    /* 1. Div element should never match checked */
+    cserr = node_is_checked(&ctx, div_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 2. Unchecked input element */
+    cserr = node_is_checked(&ctx, input_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 3. Input element with checked attribute */
+    exc = dom_element_set_attribute(input_el, corestring_dom_checked, str_checked);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    cserr = node_is_checked(&ctx, input_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 4. Input element with dom_html_input_element_set_checked (if HTML element) */
+    exc = dom_html_input_element_set_checked((dom_html_input_element *)input_el, true);
+    if (exc == DOM_NO_ERR) {
+        cserr = node_is_checked(&ctx, input_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, true);
+
+        /* Even with "checked" attribute present in DOM, set_checked(false) must result in match == false */
+        exc = dom_html_input_element_set_checked((dom_html_input_element *)input_el, false);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+        cserr = node_is_checked(&ctx, input_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, false);
+
+        exc = dom_element_remove_attribute(input_el, corestring_dom_checked);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+    }
+
+    /* 5. Unselected option element */
+    cserr = node_is_checked(&ctx, option_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 6. Option element with selected attribute */
+    exc = dom_element_set_attribute(option_el, corestring_dom_selected, str_selected);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    cserr = node_is_checked(&ctx, option_el, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 7. Option element with dom_html_option_element_set_selected (if HTML element) */
+    exc = dom_html_option_element_set_selected((dom_html_option_element *)option_el, true);
+    if (exc == DOM_NO_ERR) {
+        cserr = node_is_checked(&ctx, option_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, true);
+
+        /* Even with "selected" attribute present in DOM, set_selected(false) must result in match == false */
+        exc = dom_html_option_element_set_selected((dom_html_option_element *)option_el, false);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+        cserr = node_is_checked(&ctx, option_el, &match);
+        ck_assert_int_eq(cserr, CSS_OK);
+        ck_assert_int_eq(match, false);
+
+        exc = dom_element_remove_attribute(option_el, corestring_dom_selected);
+        ck_assert_int_eq(exc, DOM_NO_ERR);
+    }
+
+    /* Cleanup */
+    dom_string_unref(str_input);
+    dom_string_unref(str_option);
+    dom_string_unref(str_div);
+    dom_string_unref(str_checked);
+    dom_string_unref(str_selected);
+    dom_node_unref(input_el);
+    dom_node_unref(option_el);
+    dom_node_unref(div_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 static Suite *libdom_suite(void)
 {
     Suite *s = suite_create("libdom");
@@ -406,6 +523,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_libdom_document_fragment_reinsert);
     tcase_add_test(tc_core, test_count_subtree_elements);
     tcase_add_test(tc_core, test_node_is_target);
+    tcase_add_test(tc_core, test_node_is_checked);
     suite_add_tcase(s, tc_core);
 
     return s;
