@@ -264,10 +264,8 @@ static void html_box_convert_done(html_content *c, bool success)
 
 	exc = dom_document_get_document_element(c->document, (void *)&html);
 	if ((exc != DOM_NO_ERR) || (html == NULL)) {
-		/** @todo should this call html_object_free_objects(c);
-		 * like the other error paths
-		 */
 		NSLOG(wisp, INFO, "error retrieving html element from dom");
+		html_object_free_objects(c);
 		content_broadcast_error(&c->base, NSERROR_DOM, NULL);
 		content_set_error(&c->base);
 		return;
