@@ -7459,19 +7459,27 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 }
             }
         } else {
+            struct html_script *exact_match = NULL;
+            struct html_script *started_fallback = NULL;
             for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
                 struct html_script *s = &htmlc->scripts[idx];
-                if (s->type != HTML_SCRIPT_INLINE && s->data.handle != NULL) {
-                    struct nsurl *hurl = hlcache_handle_get_url(s->data.handle);
-                    if (hurl != NULL) {
-                        const char *url_str = nsurl_access(hurl);
-                        if (url_str && strcmp(url_str, name) == 0) {
-                            found_s = s;
-                            break;
+                if (s->type != HTML_SCRIPT_INLINE) {
+                    if (s->data.handle != NULL) {
+                        struct nsurl *hurl = hlcache_handle_get_url(s->data.handle);
+                        if (hurl != NULL) {
+                            const char *url_str = nsurl_access(hurl);
+                            if (url_str && strcmp(url_str, name) == 0) {
+                                exact_match = s;
+                                break;
+                            }
                         }
+                    } else if (s->already_started && started_fallback == NULL) {
+                        /* Script fetch started or failed/completed via hlcache_handle_retrieve */
+                        started_fallback = s;
                     }
                 }
             }
+            found_s = exact_match ? exact_match : started_fallback;
         }
     }
     if (found_s && found_s->mimetype) {
