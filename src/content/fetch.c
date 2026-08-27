@@ -970,24 +970,24 @@ nserror fetch_pipeline_start(struct fetch_request *req, fetch_pipeline_callback 
 /* exported interface documented in content/fetch.h */
 void fetch_set_cookie(struct fetch *fetch, const char *data)
 {
+    const nsurl *origin_url;
+
     assert(fetch && data);
 
-    /* If the fetch is unverifiable err on the side of caution and
-     * do not set the cookie */
-
+    /* Determine origin context URL for cookie domain validation:
+     * - Verifiable top-level transactions (e.g. direct user navigation)
+     *   do not require matching against an origin/referer.
+     * - Unverifiable transactions (e.g. subresource or nested fetches)
+     *   require matching the fetch URL against the origin/referer context.
+     */
     if (fetch->verifiable) {
-        /* If the transaction's verifiable, we don't require
-         * that the request uri and the parent domain match,
-         * so don't pass in any referer/parent in this case. */
-        urldb_set_cookie(data, fetch->url, NULL);
+        origin_url = NULL;
     } else if (fetch->referer != NULL) {
-        /* Permit the cookie to be set if the fetch is unverifiable
-         * and the fetch URI domain matches the referer. */
-        /** \todo Long-term, this needs to be replaced with a
-         * comparison against the origin fetch URI. In the case
-         * where a nested object requests a fetch, the origin URI
-         * is the nested object's parent URI, whereas the referer
-         * for the fetch will be the nested object's URI. */
-        urldb_set_cookie(data, fetch->url, fetch->referer);
+        origin_url = fetch->referer;
+    } else {
+        /* Unverifiable fetch lacking origin/referer context: err on side of security */
+        return;
     }
+
+    urldb_set_cookie(data, fetch->url, (nsurl *)origin_url);
 }
