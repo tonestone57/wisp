@@ -819,10 +819,12 @@ class MultiFileGenerator:
         # Extract enum entries: look for identifiers that are enum values
         # Skip: range markers (FIRST_*, LAST_*), comments, preprocessor
         enum_entries = []
+        comment_re = re.compile(r'/\*.*?\*/')
+        enum_entry_re = re.compile(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$')
         for line in after_include.split('\n'):
             line = line.strip()
             # Strip C block comments (e.g. "/* comment */ FIRST," → "FIRST,")
-            line = re.sub(r'/\*.*?\*/', '', line).strip()
+            line = comment_re.sub('', line).strip()
             # Skip pure comments, empty lines, preprocessor, include directive
             if not line or line.startswith('//') or line.startswith('#') or line.startswith('*'):
                 continue
@@ -830,7 +832,7 @@ class MultiFileGenerator:
             if line.startswith('}'):
                 continue
             
-            m = re.match(r'^([A-Z][A-Z0-9_]*)\s*(?:=\s*[^,]+)?\s*,?\s*(?://.*)?$', line)
+            m = enum_entry_re.match(line)
             if m:
                 name = m.group(1)
                 # Skip ONLY the actual range marker sentinels.
