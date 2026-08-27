@@ -164,6 +164,12 @@ uint8_t css_computed_text_transform(const css_computed_style *style)
     return CSS_TEXT_TRANSFORM_NONE;
 }
 
+css_error node_is_target(void *pw, void *node, bool *match)
+{
+    *match = false;
+    return CSS_OK;
+}
+
 css_computed_style *
 nscss_get_blank_style(nscss_select_ctx *ctx, const css_unit_ctx *unit_len_ctx, const css_computed_style *parent_style)
 {

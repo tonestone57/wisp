@@ -770,8 +770,8 @@ static css_error snap_node_is_checked(void *pw, void *node, bool *match) {
 }
 
 static css_error snap_node_is_target(void *pw, void *node, bool *match) {
-    *match = false;
-    return CSS_OK;
+    style_snapshot_t *snap = node;
+    return node_is_target(pw, snap->node, match);
 }
 
 static css_error snap_node_is_lang(void *pw, void *node, lwc_string *lang, bool *match) {

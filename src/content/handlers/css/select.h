@@ -56,4 +56,6 @@ css_error named_ancestor_node(void *pw, void *node, const css_qname *qname, void
 
 css_error node_is_visited(void *pw, void *node, bool *match);
 
+css_error node_is_target(void *pw, void *node, bool *match);
+
 #endif
