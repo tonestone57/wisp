@@ -415,6 +415,8 @@ __attribute__((weak)) extern lwc_string *corestring_lwc_a;
 __attribute__((weak)) extern dom_string *corestring_dom_href;
 
 __attribute__((weak)) extern css_error node_is_visited(void *pw, void *node, bool *match);
+__attribute__((weak)) extern css_error node_is_checked(void *pw, void *node, bool *match);
+__attribute__((weak)) extern css_error node_is_target(void *pw, void *node, bool *match);
 __attribute__((weak)) extern css_error node_presentational_hint(void *pw, void *node, uint32_t *nhints, css_hint **hints);
 __attribute__((weak)) extern css_error get_libcss_node_data(void *pw, void *node, void **libcss_node_data);
 __attribute__((weak)) extern css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data);
@@ -444,6 +446,7 @@ struct style_snapshot_s {
     bool is_visited;
     bool is_empty;
     bool is_checked;
+    bool is_target;
 
     /* Pre-calculated presentational hints */
     uint32_t nhints;
@@ -843,7 +846,8 @@ static css_error snap_node_is_checked(void *pw, void *node, bool *match) {
 
 static css_error snap_node_is_target(void *pw, void *node, bool *match) {
     style_snapshot_t *snap = node;
-    return node_is_target(pw, snap->node, match);
+    *match = snap->is_target;
+    return CSS_OK;
 }
 
 static css_error snap_node_is_lang(void *pw, void *node, lwc_string *lang, bool *match) {
@@ -1107,6 +1111,11 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
         node_is_checked(select_ctx, node, &snap->is_checked);
     } else {
         snap->is_checked = false;
+    }
+    if (node_is_target != NULL) {
+        node_is_target(select_ctx, node, &snap->is_target);
+    } else {
+        snap->is_target = false;
     }
     check_is_empty(node, &snap->is_empty);
 
