@@ -99,7 +99,11 @@ nserror html_script_exec(html_content *c, bool allow_defer)
                 continue;
 
             /* ensure script handler for content type */
-            script_handler = select_script_handler(content_get_type(s->data.handle));
+            content_type ctype = content_get_type(s->data.handle);
+            if (ctype == CONTENT_NONE) {
+                ctype = CONTENT_JS;
+            }
+            script_handler = select_script_handler(ctype);
             if (script_handler == NULL)
                 continue; /* unsupported type */
 
@@ -427,7 +431,11 @@ static void html_execute_pending_sync_scripts(html_content *parent)
 
         s->already_started = true;
 
-        script_handler = select_script_handler(content_get_type(s->data.handle));
+        content_type ctype = content_get_type(s->data.handle);
+        if (ctype == CONTENT_NONE) {
+            ctype = CONTENT_JS;
+        }
+        script_handler = select_script_handler(ctype);
         if (script_handler != NULL) {
             const uint8_t *data;
             size_t size;
