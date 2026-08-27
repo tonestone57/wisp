@@ -108,23 +108,6 @@ static void textplain_fini(void)
 
 
 /**
- * Work around feature in libparserutils
- *
- * if the client provides an encoding up front, but does not provide a
- * charset detection callback, then libparserutils will replace the
- * provided encoding with UTF-8. This breaks our input handling.
- *
- * Avoid this by providing a callback that does precisely nothing,
- * thus preserving whatever charset information we decided on in
- * textplain_create.
- */
-static parserutils_error textplain_charset_hack(const uint8_t *data, size_t len, uint16_t *mibenum, uint32_t *source)
-{
-    return PARSERUTILS_OK;
-}
-
-
-/**
  * setup plain text render.
  *
  * \param[in] c content object.
@@ -143,10 +126,10 @@ static nserror textplain_create_internal(textplain_content *c, lwc_string *encod
     if (utf8_data == NULL)
         goto no_memory;
 
-    error = parserutils_inputstream_create(lwc_string_data(encoding), 0, textplain_charset_hack, &stream);
+    error = parserutils_inputstream_create(lwc_string_data(encoding), 0, NULL, &stream);
     if (error == PARSERUTILS_BADENCODING) {
         /* Fall back to Windows-1252 */
-        error = parserutils_inputstream_create("Windows-1252", 0, textplain_charset_hack, &stream);
+        error = parserutils_inputstream_create("Windows-1252", 0, NULL, &stream);
     }
     if (error != PARSERUTILS_OK) {
         free(utf8_data);
