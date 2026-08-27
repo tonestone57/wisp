@@ -1724,7 +1724,8 @@ css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint)
         hint->data.strings = wisp_get_default_quotes_ptr();
         hint->status = CSS_QUOTES_STRING;
     } else if (property == CSS_PROP_VOICE_FAMILY) {
-        hint->data.strings = NULL;
+        extern void *wisp_get_default_voice_family_ptr(void);
+        hint->data.strings = wisp_get_default_voice_family_ptr();
         hint->status = 0;
     } else {
         return CSS_INVALID;
