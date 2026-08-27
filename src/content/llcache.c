@@ -2351,11 +2351,11 @@ static nserror llcache_fetch_redirect(llcache_object *object, nsurl *target, llc
         return llcache_send_event_to_users(object, &event);
     }
 
-    if (http_code == 301 || http_code == 302 || http_code == 303) {
-        /* 301, 302, 303 redirects are all unconditional GET requests */
+    if (http_code == 300 || http_code == 301 || http_code == 302 ||
+        http_code == 303 || http_code == 305) {
+        /* 300, 301, 302, 303, 305 redirects are all unconditional GET requests */
         post = NULL;
     } else if (http_code != 307 && http_code != 308) {
-        /** \todo 300, 305 with POST */
         nsurl_unref(hsts_url);
 
         event.type = LLCACHE_EVENT_ERROR;
