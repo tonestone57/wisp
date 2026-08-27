@@ -362,7 +362,10 @@ static void *entries_hashmap_value_alloc(void *key)
 static void entries_hashmap_value_destroy(void *value)
 {
     struct store_entry *ent = value;
-    /** \todo Do we need to do any disk cleanup here?  if so, meep! */
+    /* Disk cleanup (unlinking files and updating block use maps) is handled by
+     * invalidate_entry() prior to removing an entry from state->entries.
+     * Therefore, value_destroy only needs to release in-memory resources.
+     */
     nsurl_unref(ent->url);
     free(ent);
 }
