@@ -6316,7 +6316,8 @@ void js_destroythread(jsthread *thread)
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
         JSContext *ctx1;
         int job_ret;
-        while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0) {
+        int microtask_count = 0;
+        while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0 && microtask_count++ < 10000) {
             if (job_ret < 0) {
                 JSValue exc = JS_GetException(ctx1);
                 const char *exc_str = JS_ToCString(ctx1, exc);
@@ -7777,7 +7778,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     }
 
     JSRuntime *rt = JS_GetRuntime(thread->ctx);
-    while (JS_IsJobPending(rt)) {
+    int microtask_count = 0;
+    while (JS_IsJobPending(rt) && microtask_count++ < 10000) {
         JSContext *ctx1 = NULL;
         int job_ret = JS_ExecutePendingJob(rt, &ctx1);
         if (job_ret < 0 && ctx1) {
@@ -7938,7 +7940,8 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
 
     JSContext *ctx1;
     int job_ret;
-    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(jsctx), &ctx1)) != 0) {
+    int microtask_count = 0;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(jsctx), &ctx1)) != 0 && microtask_count++ < 10000) {
         if (job_ret < 0) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);

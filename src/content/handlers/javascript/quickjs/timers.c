@@ -105,7 +105,8 @@ void qjs_raf_callback_fn(void *p)
 
     JSContext *ctx1;
     int job_ret;
-    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0) {
+    int microtask_count = 0;
+    while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
         if (job_ret < 0) {
             JSValue exc = JS_GetException(ctx1);
             const char *exc_str = JS_ToCString(ctx1, exc);
@@ -335,7 +336,8 @@ void qjs_timer_callback(void *p)
 
     /* Process pending jobs (Promises) after timer execution */
     JSRuntime *rt = JS_GetRuntime(ctx);
-    while (JS_IsJobPending(rt)) {
+    int microtask_count = 0;
+    while (JS_IsJobPending(rt) && microtask_count++ < 10000) {
         JSContext *ctx1 = NULL;
         int job_ret = JS_ExecutePendingJob(rt, &ctx1);
         if (job_ret < 0 && ctx1) {
@@ -695,7 +697,8 @@ uint64_t qjs_execute_timers(JSContext *ctx) {
     /* Process pending microtasks before timers */
     JSContext *ctx0;
     int job_r;
-    while ((job_r = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx0)) != 0) {
+    int microtask_count0 = 0;
+    while ((job_r = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx0)) != 0 && microtask_count0++ < 10000) {
         if (job_r < 0) {
             JSValue exc = JS_GetException(ctx0);
             const char *exc_str = JS_ToCString(ctx0, exc);

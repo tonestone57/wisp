@@ -385,7 +385,16 @@ static JSValue js_crypto_subtle_encrypt(JSContext *ctx, JSValueConst this_val, i
     if (is_gcm) {
         uint8_t tag[16];
         EVP_CIPHER_CTX_ctrl(cctx, EVP_CTRL_GCM_GET_TAG, 16, tag);
-        out_buf = realloc(out_buf, total_len + 16);
+        uint8_t *new_out_buf = realloc(out_buf, total_len + 16);
+        if (!new_out_buf) {
+            free(out_buf);
+            EVP_CIPHER_CTX_free(cctx);
+            JS_FreeValue(ctx, raw_key_val);
+            JS_FreeValue(ctx, free_buf);
+            JS_FreeValue(ctx, free_iv_buf);
+            return make_rejected_promise(ctx, "Memory allocation failed");
+        }
+        out_buf = new_out_buf;
         memcpy(out_buf + total_len, tag, 16);
         total_len += 16;
     }
