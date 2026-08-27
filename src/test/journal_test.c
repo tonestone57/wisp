@@ -119,6 +119,56 @@ int main(int argc, char **argv)
     free(data1);
     free(data2);
 
+    /* Test Open Failure Invalidation */
+    printf("Testing open failure invalidation...\n");
+    struct llcache_store_parameters no_journal_params = {
+        .path = "test_cache_no_journal",
+        .limit = 1024 * 1024,
+        .hysteresis = 128 * 1024
+    };
+    wisp_recursive_rm("test_cache_no_journal");
+    mkdir("test_cache_no_journal", 0755);
+    /* Make journal a directory so journal_fd fails to open and store_write_file / store_read_file is used */
+    mkdir("test_cache_no_journal/journal", 0755);
+
+    ret = guit->llcache->initialise(&no_journal_params);
+    assert(ret == NSERROR_OK);
+
+    struct nsurl *url3;
+    nsurl_create("http://test3.com", &url3);
+    /* len3 > 64KB so it uses separate file storage rather than small block */
+    size_t len3 = 70000;
+    uint8_t *data3 = malloc(len3);
+    memset(data3, 'C', len3);
+
+    ret = guit->llcache->store(url3, BACKING_STORE_NONE, data3, len3);
+    assert(ret == NSERROR_OK);
+
+    guit->llcache->finalise();
+
+    /* Delete the file backing store file manually while preserving entries index */
+    /* Store file path for URL: test_cache_no_journal/d/... */
+    /* Remove data files directory to force store_open failure */
+    wisp_recursive_rm("test_cache_no_journal/d");
+
+    ret = guit->llcache->initialise(&no_journal_params);
+    assert(ret == NSERROR_OK);
+
+    /* Fetch should fail due to missing file and invalidate the entry */
+    ret = guit->llcache->fetch(url3, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_NOT_FOUND);
+
+    /* Second fetch should return NSERROR_NOT_FOUND because entry was invalidated */
+    ret = guit->llcache->fetch(url3, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_NOT_FOUND);
+
+    guit->llcache->finalise();
+    nsurl_unref(url3);
+    free(data3);
+
+    wisp_recursive_rm("test_cache");
+    wisp_recursive_rm("test_cache_no_journal");
+
     printf("Journal test passed!\n");
     return 0;
 }

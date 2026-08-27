@@ -2892,10 +2892,10 @@ static nserror store_read_file(struct store_state *state, struct store_entry *bs
     size_t tot = 0; /* total size */
 
     /* separate file in backing store */
-    fd = store_open(storestate, nsurl_hash(bse->url), elem_idx, O_RDONLY);
+    fd = store_open(state, nsurl_hash(bse->url), elem_idx, O_RDONLY);
     if (fd < 0) {
         NSLOG(wisp, ERROR, "Open failed %d errno %d", fd, errno);
-        /** @todo should this invalidate the entry? */
+        invalidate_entry(state, bse);
         return NSERROR_NOT_FOUND;
     }
 
