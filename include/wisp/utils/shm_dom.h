@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <string.h>
 
-#define SHM_DOM_MAX_NODES 1024
+#define SHM_DOM_MAX_NODES 8192
 #define SHM_MUTATION_QUEUE_SIZE 1024
 
 #define SHM_STRING_HASH_SIZE 65536

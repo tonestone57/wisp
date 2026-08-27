@@ -7182,6 +7182,61 @@ START_TEST(test_quickjs_element_closest)
 }
 END_TEST
 
+START_TEST(test_quickjs_node_cache_large_ids)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    corestrings_init();
+    js_initialise();
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void *)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test qjs_wrap_node directly with a node_id > 1024, e.g., 1500 */
+    struct dom_node *fake_node = (struct dom_node *)(uintptr_t)1500;
+
+    extern bool wisp_is_js_process;
+    bool prev_is_js_process = wisp_is_js_process;
+    wisp_is_js_process = true;
+
+    JSContext *ctx = thread->ctx;
+    JSValue wrap1 = qjs_wrap_node(ctx, fake_node);
+    ck_assert_int_eq(JS_IsUndefined(wrap1), false);
+    ck_assert_int_eq(JS_IsNull(wrap1), false);
+
+    /* Set an expando property on wrap1 */
+    JS_SetPropertyStr(ctx, wrap1, "expandoLargeId", JS_NewInt32(ctx, 12345));
+
+    /* Wrap same node ID again and verify wrapper identity / cached expando property */
+    JSValue wrap2 = qjs_wrap_node(ctx, fake_node);
+    JSValue exp_val = JS_GetPropertyStr(ctx, wrap2, "expandoLargeId");
+    int32_t val = 0;
+    JS_ToInt32(ctx, &val, exp_val);
+    JS_FreeValue(ctx, exp_val);
+
+    ck_assert_int_eq(val, 12345);
+
+    JS_FreeValue(ctx, wrap1);
+    JS_FreeValue(ctx, wrap2);
+
+    extern void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx);
+    qjs_bridge_remove_node(JS_GetRuntime(ctx), fake_node, ctx);
+
+    wisp_is_js_process = prev_is_js_process;
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7301,6 +7356,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_multinode_text_content);
     tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
     tcase_add_test(tc_event_loop, test_quickjs_element_closest);
+    tcase_add_test(tc_event_loop, test_quickjs_node_cache_large_ids);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
