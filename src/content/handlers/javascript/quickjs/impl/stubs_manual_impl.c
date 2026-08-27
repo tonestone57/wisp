@@ -10009,7 +10009,7 @@ JSValue wisp_element_closest_impl(JSContext *ctx, QJSNodePrivate *priv, const ch
         while (curr_id != 0) {
             WispCompactNode *sn = find_shm_node(wisp_shm_dom, curr_id);
             if (!sn) break;
-            if (sn->node_type == DOM_ELEMENT_NODE) {
+            if (sn->node_type == DOM_ELEMENT_NODE || sn->node_type == 1) {
                 if (qjs_dom_element_matches(ctx, (struct dom_node *)(uintptr_t)curr_id, selectors)) {
                     return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)curr_id);
                 }
