@@ -216,16 +216,14 @@ static size_t html_selection_drag_end(struct html_content *html, browser_mouse_s
 
 
 /**
- * Helper for file gadgets to store their filename.
+ * Helper for image input gadgets to store click coordinates.
  *
- * Stores the filename unencoded on the dom node associated with the
- * gadget.
- *
- * \todo Get rid of this crap eventually
+ * Stores click coordinates on the DOM node associated with the
+ * image input gadget.
  *
  * \param operation DOM operation
- * \param key DOM node key being considerd
- * \param _data The data assocated with the key
+ * \param key DOM node key being considered
+ * \param _data The data associated with the key
  * \param src The source DOM node.
  * \param dst The destination DOM node.
  */
