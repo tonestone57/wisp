@@ -402,6 +402,50 @@ START_TEST(hashtable_add_file_test)
 }
 END_TEST
 
+START_TEST(hashtable_add_file_overlength_line_test)
+{
+    struct hash_table *ht;
+    nserror ret;
+    const char *res;
+    char file_path[] = "/tmp/ns_test_overlength_XXXXXX";
+    int fd = mkstemp(file_path);
+    ck_assert(fd != -1);
+
+    FILE *f = fdopen(fd, "w");
+    ck_assert(f != NULL);
+
+    fprintf(f, "key1:val1\n");
+    /* Write an overlength line exceeding 512 bytes */
+    fprintf(f, "long_key:");
+    for (int i = 0; i < 600; i++) {
+        fputc('a' + (i % 26), f);
+    }
+    fprintf(f, "\n");
+    fprintf(f, "key2:val2\n");
+    fclose(f);
+
+    ht = hash_create(42);
+    ck_assert(ht != NULL);
+
+    ret = hash_add_file(ht, file_path);
+    ck_assert(ret == NSERROR_OK);
+
+    res = hash_get(ht, "key1");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val1");
+
+    res = hash_get(ht, "long_key");
+    ck_assert(res == NULL);
+
+    res = hash_get(ht, "key2");
+    ck_assert(res != NULL);
+    ck_assert_str_eq(res, "val2");
+
+    hash_destroy(ht);
+    unlink(file_path);
+}
+END_TEST
+
 /* Suite */
 
 static Suite *hashtable_suite(void)
@@ -424,6 +468,7 @@ static Suite *hashtable_suite(void)
     tcase_add_test(tc_create, hashtable_add_inline_test);
     tcase_add_test(tc_create, hashtable_add_inline_gzip_test);
     tcase_add_test(tc_create, hashtable_add_file_test);
+    tcase_add_test(tc_create, hashtable_add_file_overlength_line_test);
 
     suite_add_tcase(s, tc_create);
 

@@ -376,7 +376,23 @@ nserror hash_add_file(struct hash_table *ht, const char *path)
 
     while (gzgets(fp, s, sizeof s)) {
         int slen = strlen(s);
-        if (slen > 0 && (s[slen - 1] == '\n' || s[slen - 1] == '\r')) s[--slen] = 0;
+        bool has_nl = false;
+
+        while (slen > 0 && (s[slen - 1] == '\n' || s[slen - 1] == '\r')) {
+            s[--slen] = 0;
+            has_nl = true;
+        }
+
+        if (!has_nl && slen == sizeof(s) - 1) {
+            NSLOG(wisp, WARNING, "Overlength line");
+            while (gzgets(fp, s, sizeof s)) {
+                int dlen = strlen(s);
+                if (dlen > 0 && (s[dlen - 1] == '\n' || s[dlen - 1] == '\r')) {
+                    break;
+                }
+            }
+            continue;
+        }
 
         res = process_line(ht, (uint8_t *)s, slen);
         if (res != NSERROR_OK) {
