@@ -180,6 +180,9 @@ START_TEST(test_quickjs_dom_wrapper_finalization_after_context_free)
     JSValue div_wrapper = qjs_wrap_node(ctx, (dom_node *)div);
     ck_assert(!JS_IsUndefined(div_wrapper) && !JS_IsNull(div_wrapper));
 
+    /* Release the local C handle reference (bridge map still holds its reference) */
+    JS_FreeValue(ctx, div_wrapper);
+
     /* Destroy the thread (which finalizes DOM bridge and frees context) */
     js_closethread(thread);
     js_destroythread(thread);
