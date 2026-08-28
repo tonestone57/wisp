@@ -103,6 +103,7 @@ dom_exception _dom_html_document_create(dom_events_default_action_fetcher daf, v
 
     error = _dom_html_document_initialise(result, daf, daf_ctx);
     if (error != DOM_NO_ERR) {
+        _dom_html_document_finalise(result);
         if (arena) arena_destroy(arena); else free(result);
         return error;
     }
