@@ -167,14 +167,14 @@ nserror wisp_init(const char *store_path)
     ret = urldb_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "urldb_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     NSLOG(wisp, INFO, "update nscolour");
     ret = nscolour_update();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "nscolour_update failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     /* set up cache limits based on the memory cache size option */
@@ -216,7 +216,7 @@ nserror wisp_init(const char *store_path)
     ret = image_cache_init(&image_cache_parameters);
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "image_cache_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     /* content handler initialisation */
@@ -224,28 +224,28 @@ nserror wisp_init(const char *store_path)
     ret = nscss_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "nscss_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     NSLOG(wisp, INFO, "init HTML");
     ret = html_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "html_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     NSLOG(wisp, INFO, "init image handlers");
     ret = image_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "image_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     NSLOG(wisp, INFO, "init textplain");
     ret = textplain_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "textplain_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     setlocale(LC_ALL, "");
@@ -255,7 +255,7 @@ nserror wisp_init(const char *store_path)
     ret = fetcher_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "fetcher_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     /* Initialise the hlcache and allow it to init the llcache for us */
@@ -266,7 +266,7 @@ nserror wisp_init(const char *store_path)
     ret = hlcache_initialise(&hlcache_parameters);
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "hlcache_initialise failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     /* Initialize system colours */
@@ -274,28 +274,28 @@ nserror wisp_init(const char *store_path)
     ret = ns_system_colour_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "ns_system_colour_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     js_initialise();
     ret = javascript_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "javascript_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     NSLOG(wisp, INFO, "init page-info");
     ret = page_info_init();
     if (ret != NSERROR_OK) {
         NSLOG(wisp, ERROR, "page_info_init failed (%s)", messages_get_errorcode(ret));
-        return ret;
+        goto init_failed;
     }
 
     if (guit != NULL && guit->layout != NULL && guit->layout->init != NULL) {
         ret = guit->layout->init();
         if (ret != NSERROR_OK) {
             NSLOG(wisp, ERROR, "Layout/Font initialization failed (%s)", messages_get_errorcode(ret));
-            return ret;
+            goto init_failed;
         }
     }
 
@@ -305,6 +305,10 @@ nserror wisp_init(const char *store_path)
     NSLOG(wisp, INFO, "wisp_init: success");
 
     return NSERROR_OK;
+
+init_failed:
+    corestrings_fini();
+    return ret;
 }
 
 
