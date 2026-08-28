@@ -1056,7 +1056,15 @@ JSValue wisp_document_compatMode_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 JSValue wisp_document_currentScript_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     struct jsthread *t = JS_GetContextOpaque(ctx);
-    if (!t || !t->current_script_name) {
+    if (!t) {
+        return JS_NULL;
+    }
+
+    if (t->current_script_node) {
+        return qjs_wrap_node(ctx, (struct dom_node *)t->current_script_node);
+    }
+
+    if (!t->current_script_name) {
         return JS_NULL;
     }
 

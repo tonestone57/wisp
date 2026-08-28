@@ -944,10 +944,44 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
     if (!allowed) {
         NSLOG(wisp, INFO, "CSP BLOCKED inline script execution");
     } else if (script_handler != NULL && c->jsthread != NULL) {
+        size_t script_len = dom_string_byte_length(script);
         NSLOG(
-            wisp, INFO, "exec_inline_script: calling script_handler with %zu bytes", dom_string_byte_length(script));
-        script_handler(
-            c->jsthread, (const uint8_t *)dom_string_data(script), dom_string_byte_length(script), "?inline script?");
+            wisp, INFO, "exec_inline_script: calling script_handler with %zu bytes", script_len);
+        uint8_t *script_buf = malloc(script_len + 1);
+        if (script_buf) {
+            memcpy(script_buf, dom_string_data(script), script_len);
+            script_buf[script_len] = '\0';
+            for (size_t k = 0; k < script_len; k++) {
+                if (script_buf[k] == '<' && k + 3 < script_len && script_buf[k + 1] == '!' && script_buf[k + 2] == '-' && script_buf[k + 3] == '-') {
+                    size_t j = k;
+                    bool sol = true;
+                    while (j > 0) {
+                        j--;
+                        if (script_buf[j] == '\n' || script_buf[j] == '\r') break;
+                        if (script_buf[j] != ' ' && script_buf[j] != '\t') { sol = false; break; }
+                    }
+                    if (sol) { script_buf[k] = '/'; script_buf[k + 1] = '/'; }
+                } else if (script_buf[k] == '-' && k + 2 < script_len && script_buf[k + 1] == '-' && script_buf[k + 2] == '>') {
+                    size_t j = k;
+                    bool sol = true;
+                    while (j > 0) {
+                        j--;
+                        if (script_buf[j] == '\n' || script_buf[j] == '\r') break;
+                        if (script_buf[j] != ' ' && script_buf[j] != '\t') { sol = false; break; }
+                    }
+                    if (sol) { script_buf[k] = '/'; script_buf[k + 1] = '/'; }
+                } else if (script_buf[k] == '<' && k + 8 < script_len && memcmp(&script_buf[k], "<![CDATA[", 9) == 0) {
+                    script_buf[k] = '/'; script_buf[k + 1] = '/';
+                } else if (script_buf[k] == ']' && k + 2 < script_len && script_buf[k + 1] == ']' && script_buf[k + 2] == '>') {
+                    script_buf[k] = '/'; script_buf[k + 1] = '/'; script_buf[k + 2] = ' ';
+                }
+            }
+            js_set_current_script_node(c->jsthread, node);
+            script_handler(
+                c->jsthread, script_buf, script_len, "?inline script?");
+            js_set_current_script_node(c->jsthread, NULL);
+            free(script_buf);
+        }
     } else {
         NSLOG(wisp, DEBUG, "exec_inline_script: script_handler is NULL, skipping execution");
     }

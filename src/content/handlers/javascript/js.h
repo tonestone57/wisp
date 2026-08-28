@@ -128,6 +128,8 @@ void js_destroythread(jsthread *thread);
 /**
  * execute some javascript in a context
  */
+void js_set_current_script_node(jsthread *thread, void *node);
+
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name);
 
 /**
