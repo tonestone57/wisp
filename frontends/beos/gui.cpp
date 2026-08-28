@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include <Alert.h>
 #include <Application.h>
@@ -482,6 +483,7 @@ static void gui_init(int argc, char **argv)
 
     if (pipe(sEventPipe) < 0)
         return;
+    fcntl(sEventPipe[0], F_SETFL, O_NONBLOCK);
     if (!replicated) {
         sBAppThreadID = spawn_thread(
             bapp_thread, "BApplication(Wisp)", B_NORMAL_PRIORITY, (void *)(intptr_t)find_thread(NULL));
@@ -636,23 +638,22 @@ void nsbeos_gui_poll(void)
     FD_SET(sEventPipe[0], &read_fd_set);
     max_fd = MAX(max_fd, sEventPipe[0]) + 1;
 
+    struct timeval *tv_ptr = &timeout;
+
     if (earliest_callback_timeout != B_INFINITE_TIMEOUT) {
         next_schedule = earliest_callback_timeout - system_time();
+        if (next_schedule < 0) next_schedule = 0;
+        timeout.tv_sec = (long)(next_schedule / 1000000LL);
+        timeout.tv_usec = (long)(next_schedule % 1000000LL);
     } else {
-        next_schedule = earliest_callback_timeout;
+        tv_ptr = NULL;
     }
 
-    if (next_schedule < 0) next_schedule = 0;
-
-    timeout.tv_sec = (long)(next_schedule / 1000000LL);
-    timeout.tv_usec = (long)(next_schedule % 1000000LL);
-
-    fd_count = select(max_fd, &read_fd_set, &write_fd_set, &exc_fd_set, &timeout);
+    fd_count = select(max_fd, &read_fd_set, &write_fd_set, &exc_fd_set, tv_ptr);
 
     if (fd_count > 0 && FD_ISSET(sEventPipe[0], &read_fd_set)) {
         BMessage *message;
-        int len = read(sEventPipe[0], &message, sizeof(void *));
-        if (len == sizeof(void *)) {
+        while (read(sEventPipe[0], &message, sizeof(void *)) == sizeof(void *)) {
             nsbeos_dispatch_event(message);
         }
     }

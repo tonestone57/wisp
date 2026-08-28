@@ -1019,7 +1019,7 @@ void nsbeos_scaffolding_dispatch_event(nsbeos_scaffolding *scaffold, BMessage *m
         scaffold->scroll_view->Target()->MakeFocus();
         scaffold->url_bar->UnlockLooper();
 
-        error = nsurl_create(text.String(), &url);
+        error = search_web_omni(text.String(), SEARCH_WEB_OMNI_NONE, &url);
         if (error != NSERROR_OK) {
             beos_warn_user(messages_get_errorcode(error), 0);
         } else {
