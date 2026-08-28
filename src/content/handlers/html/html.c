@@ -323,16 +323,25 @@ nserror html_proceed_to_done(html_content *html)
 		}
 		NSLOG(wisp, INFO, "proceed_to_done: all resources ready, setting content DONE");
 		if (html->jsthread != NULL) {
+			bool fire_dcl = false;
+			bool fire_load = false;
 			doc_rwlock_wrlock(&html->doc_mutex);
 			if (!html->dom_content_loaded_fired) {
 				html->dom_content_loaded_fired = true;
-				js_fire_event(html->jsthread, "DOMContentLoaded", html->document, NULL);
+				fire_dcl = true;
 			}
 			if (!html->load_event_fired) {
 				html->load_event_fired = true;
-				js_fire_event(html->jsthread, "load", html->document, NULL);
+				fire_load = true;
 			}
 			doc_rwlock_wrunlock(&html->doc_mutex);
+
+			if (fire_dcl) {
+				js_fire_event(html->jsthread, "DOMContentLoaded", html->document, NULL);
+			}
+			if (fire_load) {
+				js_fire_event(html->jsthread, "load", html->document, NULL);
+			}
 		}
 		content_set_done(&html->base);
 		return NSERROR_OK;

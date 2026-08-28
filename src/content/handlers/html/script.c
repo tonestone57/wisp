@@ -298,7 +298,9 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
     else if (parent->conversion_begun) {
         ret_val = html_script_exec(parent, false);
         if (parent->base.active == 0 && parent->scripts_active == 0) {
+            doc_rwlock_wrunlock(&parent->doc_mutex);
             html_proceed_to_done(parent);
+            return ret_val;
         }
     }
 
@@ -419,7 +421,9 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     else if (parent->conversion_begun) {
         ret_val = html_script_exec(parent, false);
         if (parent->base.active == 0 && parent->scripts_active == 0) {
+            doc_rwlock_wrunlock(&parent->doc_mutex);
             html_proceed_to_done(parent);
+            return ret_val;
         }
     }
 
@@ -633,7 +637,9 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
     else if (parent->conversion_begun) {
         ret_val = html_script_exec(parent, false);
         if (parent->base.active == 0 && parent->scripts_active == 0) {
+            doc_rwlock_wrunlock(&parent->doc_mutex);
             html_proceed_to_done(parent);
+            return ret_val;
         }
     }
 
