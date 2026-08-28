@@ -1412,7 +1412,7 @@ nsurl *hlcache_handle_get_url(const hlcache_handle *handle)
 {
     nsurl *result = NULL;
 
-    if (hlcache == NULL || handle == NULL) {
+    if (handle == NULL) {
         return NULL;
     }
 
@@ -1420,7 +1420,7 @@ nsurl *hlcache_handle_get_url(const hlcache_handle *handle)
         if (handle->entry->content != NULL) {
             result = content_get_url(handle->entry->content);
         }
-    } else {
+    } else if (hlcache != NULL) {
         RING_ITERATE_START(struct hlcache_retrieval_ctx, hlcache->retrieval_ctx_ring, ictx)
         {
             if (ictx->handle == handle) {

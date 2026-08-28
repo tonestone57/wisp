@@ -747,6 +747,7 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
 
                     if (!JS_IsException(obj)) {
                         if (JS_IsModule(obj)) {
+                            js_module_set_import_meta(ctx, obj, false, false);
                             if (JS_ResolveModule(ctx, obj) < 0) {
                                 JS_FreeValue(ctx, obj);
                                 unlink(cache_path);
@@ -791,6 +792,14 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
     }
     if (bytecode) {
         js_free(ctx, bytecode);
+    }
+
+    if (JS_IsModule(compiled)) {
+        js_module_set_import_meta(ctx, compiled, false, false);
+        if (JS_ResolveModule(ctx, compiled) < 0) {
+            JS_FreeValue(ctx, compiled);
+            return JS_EXCEPTION;
+        }
     }
 
     JSValue res = JS_EvalFunction(ctx, compiled);
@@ -7459,7 +7468,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 }
             }
         } else {
-            struct html_script *exact_match = NULL;
+         struct html_script *exact_match = NULL;
             struct html_script *started_fallback = NULL;
             for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
                 struct html_script *s = &htmlc->scripts[idx];
