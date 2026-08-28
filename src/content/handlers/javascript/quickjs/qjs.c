@@ -7983,6 +7983,22 @@ bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct do
     }
     if (type_str)
         dom_string_unref(type_str);
+
+    if (thread->ctx) {
+        JSContext *ctx1;
+        int job_ret;
+        int microtask_count = 0;
+        while ((job_ret = JS_ExecutePendingJob(JS_GetRuntime(thread->ctx), &ctx1)) != 0 && microtask_count++ < 10000) {
+            if (job_ret < 0 && ctx1) {
+                JSValue exc = JS_GetException(ctx1);
+                const char *exc_str = JS_ToCString(ctx1, exc);
+                NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                if (exc_str) JS_FreeCString(ctx1, exc_str);
+                JS_FreeValue(ctx1, exc);
+            }
+        }
+    }
+
     return success;
 }
 
@@ -8187,4 +8203,35 @@ void js_handle_intersection_check(jsthread *thread, struct box *layout, int view
         }
         obs = obs->next;
     }
+}
+
+bool qjs_execute_pending_all(void)
+{
+    pthread_mutex_lock(&global_heaps_mutex);
+    jsheap *heap = global_heaps_list;
+    while (heap) {
+        struct jsthread *t = heap->threads;
+        while (t) {
+            if (t->ctx && !t->closed) {
+                JSRuntime *rt = JS_GetRuntime(t->ctx);
+                JSContext *ctx1;
+                int job_ret;
+                int microtask_count = 0;
+                while ((job_ret = JS_ExecutePendingJob(rt, &ctx1)) != 0 && microtask_count++ < 10000) {
+                    if (job_ret < 0 && ctx1) {
+                        JSValue exc = JS_GetException(ctx1);
+                        const char *exc_str = JS_ToCString(ctx1, exc);
+                        NSLOG(wisp, WARNING, "JS Error in microtask: %s", exc_str ? exc_str : "unknown");
+                        if (exc_str) JS_FreeCString(ctx1, exc_str);
+                        JS_FreeValue(ctx1, exc);
+                    }
+                }
+                qjs_execute_timers(t->ctx);
+            }
+            t = t->next_in_heap;
+        }
+        heap = heap->next_in_global;
+    }
+    pthread_mutex_unlock(&global_heaps_mutex);
+    return true;
 }

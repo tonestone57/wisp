@@ -176,4 +176,10 @@ struct box;
 void js_handle_intersection_check(jsthread *thread, struct box *layout, int viewport_width, int viewport_height);
 void qjs_update_shm_box_bounds(struct jsthread *thread, struct box *doc_box);
 
+/**
+ * Execute pending QuickJS jobs and timer callbacks across all active threads.
+ * Returns true for GLib source continuation.
+ */
+bool qjs_execute_pending_all(void);
+
 #endif /* WISP_JAVASCRIPT_JS_H_ */

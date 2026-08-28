@@ -1075,6 +1075,11 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
 
     free(addr);
 
+    /* Hook QuickJS Event Loop and Timer processing to GTK event loop */
+    extern bool qjs_execute_pending_all(void);
+    static gboolean (*js_cb)(gpointer) = (gboolean (*)(gpointer))qjs_execute_pending_all;
+    g_timeout_add(10, js_cb, NULL);
+
     return res;
 }
 
@@ -1174,6 +1179,7 @@ void wisp_gui_pump_events(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
+    qjs_execute_pending_all();
     schedule_run();
 }
 

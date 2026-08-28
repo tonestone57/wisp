@@ -316,12 +316,24 @@ nserror html_proceed_to_done(html_content *html)
 {
 	switch (content__get_status(&html->base)) {
 	case CONTENT_STATUS_READY:
-		if (html->base.active != html->scripts_active) {
-			NSLOG(wisp, DEBUG, "proceed_to_done: waiting for scripts (active=%d scripts=%d)", html->base.active,
-				html->scripts_active);
-			break;
+		if (html->base.active > 0 || html->scripts_active > 0) {
+			NSLOG(wisp, DEBUG, "proceed_to_done: waiting for active resources/scripts (active=%d scripts=%d)",
+				html->base.active, html->scripts_active);
+			return NSERROR_OK;
 		}
 		NSLOG(wisp, INFO, "proceed_to_done: all resources ready, setting content DONE");
+		if (html->jsthread != NULL) {
+			doc_rwlock_wrlock(&html->doc_mutex);
+			if (!html->dom_content_loaded_fired) {
+				html->dom_content_loaded_fired = true;
+				js_fire_event(html->jsthread, "DOMContentLoaded", html->document, NULL);
+			}
+			if (!html->load_event_fired) {
+				html->load_event_fired = true;
+				js_fire_event(html->jsthread, "load", html->document, NULL);
+			}
+			doc_rwlock_wrunlock(&html->doc_mutex);
+		}
 		content_set_done(&html->base);
 		return NSERROR_OK;
 	case CONTENT_STATUS_DONE:
@@ -424,7 +436,8 @@ void html_finish_conversion(html_content *htmlc)
 		 * object, but with its target set to the Document object (and
 		 * the currentTarget set to the Window object)
 		 */
-		if (htmlc->jsthread != NULL) {
+		if (htmlc->jsthread != NULL && !htmlc->load_event_fired) {
+			htmlc->load_event_fired = true;
 			doc_rwlock_wrlock(&htmlc->doc_mutex);
 			js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
 			doc_rwlock_wrunlock(&htmlc->doc_mutex);
@@ -1300,7 +1313,8 @@ bool html_begin_conversion(html_content *htmlc)
 	/* fire a simple event that bubbles named DOMContentLoaded at
 	 * the Document.
 	 */
-	if (htmlc->jsthread != NULL) {
+	if (htmlc->jsthread != NULL && !htmlc->dom_content_loaded_fired) {
+		htmlc->dom_content_loaded_fired = true;
 		doc_rwlock_wrlock(&htmlc->doc_mutex);
 		js_fire_event(htmlc->jsthread, "DOMContentLoaded", htmlc->document, NULL);
 		doc_rwlock_wrunlock(&htmlc->doc_mutex);

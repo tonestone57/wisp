@@ -252,6 +252,10 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         parent->scripts_active--;
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 
+        if (parent->jsthread != NULL) {
+            js_fire_event(parent->jsthread, "error", parent->document, NULL);
+        }
+
         break;
 
     case CONTENT_MSG_ERROR:
@@ -271,6 +275,10 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         parent->scripts_active--;
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 
+        if (parent->jsthread != NULL) {
+            js_fire_event(parent->jsthread, "error", parent->document, NULL);
+        }
+
         break;
 
     default:
@@ -289,6 +297,9 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
      */
     else if (parent->conversion_begun) {
         ret_val = html_script_exec(parent, false);
+        if (parent->base.active == 0 && parent->scripts_active == 0) {
+            html_proceed_to_done(parent);
+        }
     }
 
     doc_rwlock_wrunlock(&parent->doc_mutex);
@@ -403,6 +414,12 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
      */
     if (html_can_begin_conversion(parent)) {
         guit->misc->schedule(0, script_resume_conversion_cb, parent);
+    }
+    else if (parent->conversion_begun) {
+        ret_val = html_script_exec(parent, false);
+        if (parent->base.active == 0 && parent->scripts_active == 0) {
+            html_proceed_to_done(parent);
+        }
     }
 
     doc_rwlock_wrunlock(&parent->doc_mutex);
@@ -580,6 +597,10 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
 
         s->already_started = true;
 
+        if (parent->jsthread != NULL) {
+            js_fire_event(parent->jsthread, "error", parent->document, NULL);
+        }
+
         /* continue parse */
         if (parent->parser != NULL && active_sync_scripts == 0) {
             err = dom_hubbub_parser_pause(parent->parser, false);
@@ -610,6 +631,9 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
      */
     else if (parent->conversion_begun) {
         ret_val = html_script_exec(parent, false);
+        if (parent->base.active == 0 && parent->scripts_active == 0) {
+            html_proceed_to_done(parent);
+        }
     }
 
     doc_rwlock_wrunlock(&parent->doc_mutex);
@@ -764,6 +788,17 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
         /* mark duff script fetch as already started */
         nscript->already_started = true;
         NSLOG(wisp, INFO, "Fetch failed with error %d, active=%d", ns_error, c->base.active);
+        if (c->jsthread != NULL) {
+            js_fire_event(c->jsthread, "error", c->document, NULL);
+        }
+        if (html_can_begin_conversion(c)) {
+            guit->misc->schedule(0, script_resume_conversion_cb, c);
+        } else if (c->conversion_begun) {
+            html_script_exec(c, false);
+            if (c->base.active == 0 && c->scripts_active == 0) {
+                html_proceed_to_done(c);
+            }
+        }
     } else {
         NSLOG(wisp, INFO, "%d fetches active", c->base.active);
 
