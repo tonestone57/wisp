@@ -52,6 +52,7 @@
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/content/handlers/html/html.h>
+#include <wisp/content/handlers/html/private.h>
 #include "content/handlers/javascript/js.h"
 
 #include <wisp/desktop/browser_history.h>
