@@ -208,7 +208,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
         break;
 
     case CONTENT_MSG_READY:
-        NSLOG(wisp, WARNING,
+        NSLOG(wisp, DEEPDEBUG,
             "SVGDIAG obj_cb READY: content=%p type=%d box=%p "
             "box.w=%d box.h=%d box.max_w=%d box.flags=0x%x "
             "can_reformat=%d will_reformat_w=%d will_reformat_h=%d",
@@ -246,7 +246,7 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
 
     case CONTENT_MSG_DONE:
         PERF("Object DONE (remaining=%d)", c->base.active - 1);
-        NSLOG(wisp, WARNING,
+        NSLOG(wisp, DEEPDEBUG,
             "SVGDIAG obj_cb DONE: content=%p type=%d box=%p "
             "box.w=%d box.h=%d box.object=%p box.flags=0x%x "
             "content.w=%d content.h=%d",
