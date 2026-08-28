@@ -154,6 +154,47 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_dom_wrapper_finalization_after_context_free)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(1000, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    jsthread *thread = NULL;
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, doc, &thread), NSERROR_OK);
+
+    JSContext *ctx = thread->ctx;
+    JSRuntime *rt = JS_GetRuntime(ctx);
+
+    dom_element *div = NULL;
+    dom_string *tag = NULL;
+    dom_string_create((const uint8_t *)"DIV", 3, &tag);
+    dom_document_create_element(doc, tag, &div);
+    dom_string_unref(tag);
+
+    /* Wrap element to create a JS wrapper in the bridge hashmap */
+    JSValue div_wrapper = qjs_wrap_node(ctx, (dom_node *)div);
+    ck_assert(!JS_IsUndefined(div_wrapper) && !JS_IsNull(div_wrapper));
+
+    /* Destroy the thread (which finalizes DOM bridge and frees context) */
+    js_closethread(thread);
+    js_destroythread(thread);
+
+    /* Run GC on the runtime after context is freed to ensure any deferred finalizers run safely */
+    JS_RunGC(rt);
+
+    dom_node_unref((dom_node *)div);
+    dom_node_unref((dom_node *)doc);
+
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_xhr_response_types)
 {
     jsheap *heap = NULL;
@@ -7468,6 +7509,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_element_closest);
     tcase_add_test(tc_event_loop, test_quickjs_node_cache_large_ids);
     tcase_add_test(tc_event_loop, test_quickjs_out_of_process_event_dispatch);
+    tcase_add_test(tc_event_loop, test_quickjs_dom_wrapper_finalization_after_context_free);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

@@ -184,8 +184,10 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         if (old_data) free(old_data);
     }
 
+    bool ctx_alive = (ctx != NULL && JS_ContextIsAlive(rt, ctx));
+
     uint64_t node_id = (uint64_t)(uintptr_t)node;
-    if (wisp_is_js_process && ctx && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
+    if (wisp_is_js_process && ctx_alive && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
         struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
         if (t) {
             t->node_wrapper_cache[node_id] = JS_UNDEFINED;
@@ -199,7 +201,9 @@ void qjs_bridge_remove_node(JSRuntime *rt, struct dom_node *node, JSContext *ctx
         if (val) {
             JSValue wrapper = *val;
             hashmap_remove(map, &key);
-            if (ctx) JS_FreeValue(ctx, wrapper);
+            if (ctx_alive) {
+                JS_FreeValue(ctx, wrapper);
+            }
         }
     }
 }
@@ -288,7 +292,9 @@ void qjs_bridge_cleanup(JSRuntime *rt)
                     if (old_data) free(old_data);
                 }
                 hashmap_remove(map, &cleanup.keys[i]);
-                JS_FreeValue(cleanup.keys[i].ctx, wrapper);
+                if (cleanup.keys[i].ctx && JS_ContextIsAlive(rt, cleanup.keys[i].ctx)) {
+                    JS_FreeValue(cleanup.keys[i].ctx, wrapper);
+                }
             }
         }
 
@@ -310,7 +316,11 @@ void qjs_bridge_cleanup(JSRuntime *rt)
                     if (old_data) free(old_data);
                 }
                 hashmap_remove(map, &cleanup.keys[i]);
-                JS_FreeValue(cleanup.keys[i].ctx, wrapper);
+                if (cleanup.keys[i].ctx && JS_ContextIsAlive(rt, cleanup.keys[i].ctx)) {
+                    JS_FreeValue(cleanup.keys[i].ctx, wrapper);
+                } else {
+                    JS_FreeValueRT(rt, wrapper);
+                }
             }
         }
 
@@ -936,7 +946,9 @@ void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx)
                 if (old_data) free(old_data);
             }
             hashmap_remove(map, &key);
-            JS_FreeValue(ctx, wrapper);
+            if (ctx && JS_ContextIsAlive(rt, ctx)) {
+                JS_FreeValue(ctx, wrapper);
+            }
         }
     }
 
