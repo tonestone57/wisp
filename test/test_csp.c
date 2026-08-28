@@ -211,9 +211,8 @@ void test_csp() {
     csp = NULL;
 
     // Test: strict-dynamic and frame-ancestors
-    assert(csp_parse("script-src 'strict-dynamic' 'nonce-test123'; frame-ancestors https://example.com", base_url, &csp) == NSERROR_OK);
-    assert(csp_check_nonce(csp, CSP_SCRIPT_SRC, "test123") == true);
-    assert(csp_check_nonce(csp, CSP_SCRIPT_SRC, "wrong") == false);
+    assert(csp_parse("script-src 'strict-dynamic' https://cdn.example.com; frame-ancestors https://example.com", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_url(csp, CSP_SCRIPT_SRC, url_cdn) == false); // strict-dynamic suppresses host allowlists without nonces
     assert(csp_check_frame_ancestor(csp, url_self) == true);
     assert(csp_check_frame_ancestor(csp, url_other) == false);
     csp_destroy(csp);
