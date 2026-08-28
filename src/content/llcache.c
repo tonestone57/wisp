@@ -193,7 +193,7 @@ struct llcache_object {
                                * candidate for
                                */
 
-#define LLCACHE_HEADER_KEY_COUNT 10
+#define LLCACHE_HEADER_KEY_COUNT 12
 
     llcache_header *headers; /**< Fetch headers */
     size_t num_headers; /**< Number of fetch headers */
@@ -4332,6 +4332,9 @@ static void llcache_parse_header_key(llcache_object *object, enum llcache_header
         break;
     case LLCACHE_HEADER_CROSS_ORIGIN_RESOURCE_POLICY:
         header_name = "Cross-Origin-Resource-Policy";
+        break;
+    case LLCACHE_HEADER_X_FRAME_OPTIONS:
+        header_name = "X-Frame-Options";
         break;
     default:
         object->parsed_headers[key].count = 0;

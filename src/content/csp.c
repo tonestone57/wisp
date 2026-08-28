@@ -46,8 +46,10 @@ static const char *directive_names[] = {
     "frame-src",
     "connect-src",
     "media-src",
-    "worker-src"
+    "worker-src",
+    "frame-ancestors"
 };
+
 
 static void free_sources(csp_source *source) {
     while (source) {
@@ -323,7 +325,7 @@ static csp_source *get_directive_sources(const csp_policy *policy, csp_directive
 static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
     if (src->is_none) return false;
     if (src->is_unsafe_inline || src->is_unsafe_eval) return false;
-    if (src->is_strict_dynamic) return true;
+    if (src->is_strict_dynamic) return false;
     if (src->nonce != NULL) return false;
     if (src->is_self) {
         return nsurl_compare(base_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT);
@@ -421,11 +423,37 @@ bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
             continue;
         }
 
+        bool has_strict_dynamic = false;
+        if (directive == CSP_SCRIPT_SRC || directive == CSP_SCRIPT_SRC_ELEM) {
+            for (csp_source *s = src; s != NULL; s = s->next) {
+                if (s->is_strict_dynamic) {
+                    has_strict_dynamic = true;
+                    break;
+                }
+            }
+        }
+
         bool matched = false;
-        for (csp_source *s = src; s != NULL; s = s->next) {
-            if (match_source(s, csp->base_url, url)) {
-                matched = true;
-                break;
+        if (has_strict_dynamic) {
+            /* Under 'strict-dynamic', host-based allowlists, 'self', and schemes are suppressed.
+             * Script loads must be authorized via valid element nonce (checked in csp_check_nonce)
+             * or dynamic script creation context. Nonce presence in policy permits URL check. */
+            for (csp_source *s = src; s != NULL; s = s->next) {
+                if (s->nonce != NULL) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                NSLOG(wisp, INFO, "CSP STRICT-DYNAMIC BLOCKED UN-NONCED SCRIPT URL: %s", nsurl_access(url));
+                return false;
+            }
+        } else {
+            for (csp_source *s = src; s != NULL; s = s->next) {
+                if (match_source(s, csp->base_url, url)) {
+                    matched = true;
+                    break;
+                }
             }
         }
 
@@ -601,6 +629,26 @@ static const char *blocked_origins[] = {
     "google-analytics.com",
     "coop-malicious.org"
 };
+
+bool csp_check_frame_ancestor(struct csp *csp, nsurl *ancestor_url) {
+    if (!csp || !ancestor_url) return true;
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        csp_source *src = pol->directives[CSP_FRAME_ANCESTORS];
+        if (!src) continue;
+        bool matched = false;
+        for (csp_source *s = src; s != NULL; s = s->next) {
+            if (match_source(s, csp->base_url, ancestor_url)) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            NSLOG(wisp, INFO, "CSP FRAME-ANCESTORS BLOCKED EMBEDDING FROM %s", nsurl_access(ancestor_url));
+            return false;
+        }
+    }
+    return true;
+}
 
 bool wisp_security_is_origin_blocked(const char *origin) {
     if (!origin) return false;

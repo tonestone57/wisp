@@ -12,6 +12,8 @@
 /**
  * CSP Directives
  */
+struct csp;
+
 typedef enum {
     CSP_DEFAULT_SRC,
     CSP_SCRIPT_SRC,
@@ -27,10 +29,18 @@ typedef enum {
     CSP_CONNECT_SRC,
     CSP_MEDIA_SRC,
     CSP_WORKER_SRC,
+    CSP_FRAME_ANCESTORS,
     CSP_DIRECTIVE_COUNT
 } csp_directive;
 
-struct csp;
+/**
+ * Check if framing/embedding this document is allowed by frame-ancestors.
+ *
+ * \param csp The CSP object of the document being framed.
+ * \param ancestor_url The URL of the embedding ancestor frame.
+ * \return true if allowed, false if blocked.
+ */
+bool csp_check_frame_ancestor(struct csp *csp, nsurl *ancestor_url);
 
 /**
  * Parse a CSP header value.

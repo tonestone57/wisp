@@ -688,6 +688,55 @@ static nserror hlcache_llcache_callback(llcache_handle *handle, const llcache_ev
                     return NSERROR_CSP_BLOCKED;
                 }
             }
+
+            /* Frame security enforcement (X-Frame-Options & CSP frame-ancestors) for framed documents */
+            if (ctx->accepted_types & CONTENT_HTML && ctx->child.parent_url != NULL) {
+                const llcache_header_value *xfo_hdr = llcache_handle_get_header(handle, LLCACHE_HEADER_X_FRAME_OPTIONS);
+                if (xfo_hdr != NULL && xfo_hdr->count > 0 && xfo_hdr->entries[0].raw_value != NULL) {
+                    const char *xfo_val = xfo_hdr->entries[0].raw_value;
+                    bool xfo_blocked = false;
+                    if (strcasecmp(xfo_val, "DENY") == 0) {
+                        xfo_blocked = true;
+                    } else if (strcasecmp(xfo_val, "SAMEORIGIN") == 0) {
+                        if (res_url != NULL && !nsurl_compare(ctx->child.parent_url, res_url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
+                            xfo_blocked = true;
+                        }
+                    }
+                    if (xfo_blocked) {
+                        NSLOG(wisp, ERROR, "X-Frame-Options BLOCKED embedding: %s", nsurl_access(res_url ? res_url : ctx->child.parent_url));
+                        if (ctx->handle != NULL && ctx->handle->cb != NULL && !ctx->handle->released) {
+                            hlcache_event hlevent;
+                            hlevent.type = CONTENT_MSG_ERROR;
+                            hlevent.data.errordata.errorcode = NSERROR_CSP_BLOCKED;
+                            hlevent.data.errordata.errormsg = "Blocked by X-Frame-Options";
+                            ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
+                        }
+                        llcache_handle_abort(handle);
+                        return NSERROR_CSP_BLOCKED;
+                    }
+                }
+
+                const llcache_header_value *csp_hdr = llcache_handle_get_header(handle, LLCACHE_HEADER_CONTENT_SECURITY_POLICY);
+                if (csp_hdr != NULL && csp_hdr->count > 0 && csp_hdr->entries[0].raw_value != NULL) {
+                    struct csp *doc_csp = NULL;
+                    if (csp_parse(csp_hdr->entries[0].raw_value, res_url, &doc_csp) == NSERROR_OK && doc_csp != NULL) {
+                        if (!csp_check_frame_ancestor(doc_csp, ctx->child.parent_url)) {
+                            NSLOG(wisp, ERROR, "CSP frame-ancestors BLOCKED embedding: %s", nsurl_access(res_url ? res_url : ctx->child.parent_url));
+                            csp_destroy(doc_csp);
+                            if (ctx->handle != NULL && ctx->handle->cb != NULL && !ctx->handle->released) {
+                                hlcache_event hlevent;
+                                hlevent.type = CONTENT_MSG_ERROR;
+                                hlevent.data.errordata.errorcode = NSERROR_CSP_BLOCKED;
+                                hlevent.data.errordata.errormsg = "Blocked by CSP frame-ancestors";
+                                ctx->handle->cb(ctx->handle, &hlevent, ctx->handle->pw);
+                            }
+                            llcache_handle_abort(handle);
+                            return NSERROR_CSP_BLOCKED;
+                        }
+                        csp_destroy(doc_csp);
+                    }
+                }
+            }
         }
 
         error = mimesniff_compute_effective_type(hlcache_get_content_type_raw(handle), NULL, 0,
@@ -957,6 +1006,11 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
             if (child->nonce != NULL && csp_check_nonce(child->csp, dir, child->nonce)) {
                 /* Allowed via matching element nonce */
             } else if (!csp_check_url(child->csp, dir, url)) {
+                *result = NULL;
+                return NSERROR_CSP_BLOCKED;
+            }
+
+            if (dir == CSP_FRAME_SRC && child->parent_url != NULL && !csp_check_frame_ancestor(child->csp, child->parent_url)) {
                 *result = NULL;
                 return NSERROR_CSP_BLOCKED;
             }
