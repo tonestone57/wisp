@@ -3028,12 +3028,6 @@ static void layout_float_find_dimensions(
 	const css_unit_ctx *unit_len_ctx, int available_width, const css_computed_style *style, struct box *box)
 {
 	int width, height, max_width, max_height;
-
-	if (box->width != UNKNOWN_WIDTH && box->height != AUTO && available_width == box->last_available_width &&
-		box->min_width.value == box->last_min_width && box->max_width == box->last_max_width &&
-		!(box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(box->flags & CHILD_DIRTY)) {
-		return;
-	}
 	struct css_size min_width;
 	struct css_size min_height;
 	int *margin = box->margin;
@@ -3045,6 +3039,12 @@ static void layout_float_find_dimensions(
 																								   : 0;
 	int scrollbar_width_y = (overflow_y == CSS_OVERFLOW_SCROLL || overflow_y == CSS_OVERFLOW_AUTO) ? SCROLLBAR_WIDTH
 																								   : 0;
+
+	if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width &&
+		box->min_width.value == box->last_min_width && box->max_width == box->last_max_width &&
+		!(box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(box->flags & CHILD_DIRTY)) {
+		return;
+	}
 
 	layout_find_dimensions(unit_len_ctx, available_width, -1, box, style, &width, &height, &max_width, &min_width,
 		&max_height, &min_height, margin, padding, border);
@@ -3131,9 +3131,7 @@ static void layout_float_find_dimensions(
 	}
 
 	box->width = width;
-	if (height != AUTO || (box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY))) {
-		box->height = height;
-	}
+	box->height = height;
 
 	if (margin[TOP] == AUTO)
 		margin[TOP] = 0;
@@ -5699,9 +5697,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 		/** \todo inline ancestors */
 	}
 	box->width = width;
-	if (box->height == AUTO || (box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY))) {
-		box->height = height;
-	}
+	box->height = height;
 
 	NSLOG(layout, DEEPDEBUG, "abs box %p: width %i parent %p parent.width %i", box, box->width, containing_block,
 		containing_block->width);
@@ -5735,7 +5731,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	}
 
 	/* 10.6.4 */
-	if (height == AUTO && box->height != AUTO) {
+	if (height == AUTO) {
 		height = box->height;
 	}
 
