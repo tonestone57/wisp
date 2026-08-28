@@ -191,9 +191,9 @@ out:
 bool _dom_html_document_finalise(dom_html_document *doc)
 {
     int sidx;
-    bool success;
 
-    success = _dom_document_finalise(&doc->base);
+    if (_dom_document_finalise(&doc->base) == false)
+        return false;
 
     if (doc->cookie != NULL) {
         dom_string_unref(doc->cookie);
@@ -236,7 +236,7 @@ bool _dom_html_document_finalise(dom_html_document *doc)
         doc->elements = NULL;
     }
 
-    return success;
+    return true;
 }
 
 /* Destroy a HTMLDocument */
