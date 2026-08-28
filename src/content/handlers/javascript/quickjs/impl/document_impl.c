@@ -817,6 +817,15 @@ JSValue wisp_document_readyState_get_impl(JSContext *ctx, QJSNodePrivate *priv)
     return JS_NewString(ctx, "complete");
 }
 
+static JSValue js_document_get_node_by_id_impl(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+{
+    if (argc < 1) return JS_NULL;
+    uint32_t node_id = 0;
+    JS_ToUint32(ctx, &node_id, argv[0]);
+    if (node_id == 0) return JS_NULL;
+    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)node_id);
+}
+
 int qjs_init_document(JSContext *ctx) {
     JSValue global_obj = JS_GetGlobalObject(ctx);
 
@@ -841,6 +850,10 @@ int qjs_init_document(JSContext *ctx) {
     JSValue node_proto = JS_GetClassProto(ctx, qjs_node_class_id);
     if (JS_IsObject(proto) && JS_IsObject(node_proto)) JS_SetPrototype(ctx, proto, node_proto);
     JS_FreeValue(ctx, node_proto);
+
+    JS_DefinePropertyValueStr(ctx, proto, "__wisp_get_node_by_id", JS_NewCFunction(ctx, js_document_get_node_by_id_impl, "__wisp_get_node_by_id", 1), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_get_node_by_id", JS_NewCFunction(ctx, js_document_get_node_by_id_impl, "__wisp_get_node_by_id", 1), JS_PROP_C_W_E);
+
     JS_FreeValue(ctx, proto);
 
     /* Mark as initialized */

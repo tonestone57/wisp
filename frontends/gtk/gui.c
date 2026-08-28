@@ -1075,6 +1075,9 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
 
     /* create an initial browser window */
     res = nsurl_create(addr, &url);
+    if (res != NSERROR_OK) {
+        res = search_web_omni(addr, SEARCH_WEB_OMNI_NONE, &url);
+    }
     if (res == NSERROR_OK) {
         res = browser_window_create(BW_CREATE_HISTORY, url, NULL, NULL, NULL);
         nsurl_unref(url);
