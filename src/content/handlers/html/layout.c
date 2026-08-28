@@ -6379,7 +6379,7 @@ static void layout_update_descendant_bbox(
 
 	/* child's width must be valid before computing bbox */
 	if (child->width == UNKNOWN_WIDTH) {
-		NSLOG(wisp, ERROR, "child %p has UNKNOWN_WIDTH in layout_update_descendant_bbox", (void *)child);
+		NSLOG(layout, DEEPDEBUG, "child %p has UNKNOWN_WIDTH in layout_update_descendant_bbox", (void *)child);
 		return;
 	}
 	if (child->width < -1) {

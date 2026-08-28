@@ -363,17 +363,22 @@ nserror nslog_set_filter(const char *filter)
 
 #else
 
+static const char *nslog_level_names[] = {
+    "DEEPDEBUG", "DEBUG", "VERBOSE", "INFO", "WARNING", "ERROR", "CRITICAL"
+};
+
 void nslog_log(enum nslog_level level, const char *file, const char *func, int ln, const char *format, ...)
 {
     va_list ap;
     int i;
     char time_buf[32];
     nslog_gettime(time_buf, sizeof(time_buf));
+    const char *lvl_str = ((int)level >= 0 && (int)level <= 6) ? nslog_level_names[(int)level] : "UNKNOWN";
 
 #ifdef _WIN32
     if (async_logging) {
         char prefix_buf[256];
-        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s %s:%i %s: ", time_buf, file, ln, func);
+        int pre_len = snprintf(prefix_buf, sizeof(prefix_buf), "%s [%s] %s:%i %s: ", time_buf, lvl_str, file, ln, func);
         va_start(ap, format);
         log_enqueue_formatted((int)level, prefix_buf, format, ap);
         va_end(ap);
@@ -383,7 +388,7 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
 
     if (verbose_log) {
         if (logfile != NULL) {
-            fprintf(logfile, "%s %s:%i %s: ", time_buf, file, ln, func);
+            fprintf(logfile, "%s [%s] %s:%i %s: ", time_buf, lvl_str, file, ln, func);
 
             va_start(ap, format);
             vfprintf(logfile, format, ap);
@@ -400,7 +405,7 @@ void nslog_log(enum nslog_level level, const char *file, const char *func, int l
             /* Check if file is open and level is sufficient for
              * this file */
             if (split_log_files[i] && (int)level >= i) {
-                fprintf(split_log_files[i], "%s %s:%i %s: ", time_buf, file, ln, func);
+                fprintf(split_log_files[i], "%s [%s] %s:%i %s: ", time_buf, lvl_str, file, ln, func);
 
                 va_start(ap, format);
                 vfprintf(split_log_files[i], format, ap);
