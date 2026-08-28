@@ -108,21 +108,21 @@ __attribute__((target("sse2")))
 #endif
 static inline size_t wisp_scan_css_delimiters_sse2(const uint8_t *data, size_t len) {
     size_t i = 0;
-    __m128i a_bound = _mm_set1_epi8('a' - 1);
-    __m128i z_bound = _mm_set1_epi8('z' + 1);
-    __m128i A_bound = _mm_set1_epi8('A' - 1);
-    __m128i Z_bound = _mm_set1_epi8('Z' + 1);
-    __m128i d0_bound = _mm_set1_epi8('0' - 1);
-    __m128i d9_bound = _mm_set1_epi8('9' + 1);
+    __m128i a_val = _mm_set1_epi8('a');
+    __m128i z_val = _mm_set1_epi8('z');
+    __m128i A_val = _mm_set1_epi8('A');
+    __m128i Z_val = _mm_set1_epi8('Z');
+    __m128i d0_val = _mm_set1_epi8('0');
+    __m128i d9_val = _mm_set1_epi8('9');
     __m128i under_v = _mm_set1_epi8('_');
     __m128i dash_v  = _mm_set1_epi8('-');
     __m128i zero_v  = _mm_setzero_si128();
 
     while (i + 15 < len) {
         __m128i v = _mm_loadu_si128((const __m128i *)(data + i));
-        __m128i is_lower = _mm_and_si128(_mm_cmpgt_epi8(v, a_bound), _mm_cmpgt_epi8(z_bound, v));
-        __m128i is_upper = _mm_and_si128(_mm_cmpgt_epi8(v, A_bound), _mm_cmpgt_epi8(Z_bound, v));
-        __m128i is_digit = _mm_and_si128(_mm_cmpgt_epi8(v, d0_bound), _mm_cmpgt_epi8(d9_bound, v));
+        __m128i is_lower = _mm_andnot_si128(_mm_cmplt_epi8(v, a_val), _mm_andnot_si128(_mm_cmpgt_epi8(v, z_val), _mm_cmpeq_epi8(v, v)));
+        __m128i is_upper = _mm_andnot_si128(_mm_cmplt_epi8(v, A_val), _mm_andnot_si128(_mm_cmpgt_epi8(v, Z_val), _mm_cmpeq_epi8(v, v)));
+        __m128i is_digit = _mm_andnot_si128(_mm_cmplt_epi8(v, d0_val), _mm_andnot_si128(_mm_cmpgt_epi8(v, d9_val), _mm_cmpeq_epi8(v, v)));
         __m128i is_under = _mm_cmpeq_epi8(v, under_v);
         __m128i is_dash  = _mm_cmpeq_epi8(v, dash_v);
         __m128i is_nonascii = _mm_cmplt_epi8(v, zero_v); /* high bit set (c >= 0x80) */
@@ -150,23 +150,22 @@ static inline size_t wisp_scan_css_delimiters_sse2(const uint8_t *data, size_t l
 #if defined(__arm__) || defined(__aarch64__)
 static inline size_t wisp_scan_css_delimiters_neon(const uint8_t *data, size_t len) {
     size_t i = 0;
-    int8x16_t a_bound = vdupq_n_s8('a' - 1);
-    int8x16_t z_bound = vdupq_n_s8('z' + 1);
-    int8x16_t A_bound = vdupq_n_s8('A' - 1);
-    int8x16_t Z_bound = vdupq_n_s8('Z' + 1);
-    int8x16_t d0_bound = vdupq_n_s8('0' - 1);
-    int8x16_t d9_bound = vdupq_n_s8('9' + 1);
+    uint8x16_t a_val = vdupq_n_u8('a');
+    uint8x16_t z_val = vdupq_n_u8('z');
+    uint8x16_t A_val = vdupq_n_u8('A');
+    uint8x16_t Z_val = vdupq_n_u8('Z');
+    uint8x16_t d0_val = vdupq_n_u8('0');
+    uint8x16_t d9_val = vdupq_n_u8('9');
     uint8x16_t under_v = vdupq_n_u8('_');
     uint8x16_t dash_v  = vdupq_n_u8('-');
     uint8x16_t high_bit = vdupq_n_u8(0x80);
 
     while (i + 15 < len) {
         uint8x16_t v = vld1q_u8(data + i);
-        int8x16_t vs = vreinterpretq_s8_u8(v);
 
-        uint8x16_t is_lower = vandq_u8(vcgtq_s8(vs, a_bound), vcgtq_s8(z_bound, vs));
-        uint8x16_t is_upper = vandq_u8(vcgtq_s8(vs, A_bound), vcgtq_s8(Z_bound, vs));
-        uint8x16_t is_digit = vandq_u8(vcgtq_s8(vs, d0_bound), vcgtq_s8(d9_bound, vs));
+        uint8x16_t is_lower = vandq_u8(vcgeq_u8(v, a_val), vcleq_u8(v, z_val));
+        uint8x16_t is_upper = vandq_u8(vcgeq_u8(v, A_val), vcleq_u8(v, Z_val));
+        uint8x16_t is_digit = vandq_u8(vcgeq_u8(v, d0_val), vcleq_u8(v, d9_val));
         uint8x16_t is_under = vceqq_u8(v, under_v);
         uint8x16_t is_dash  = vceqq_u8(v, dash_v);
         uint8x16_t is_nonascii = vtstq_u8(v, high_bit);
