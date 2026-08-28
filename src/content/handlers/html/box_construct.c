@@ -2515,8 +2515,24 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 			/* Non-floated block-level box: add to containing block
 			 * if there is one. If we're the root box, then there
 			 * won't be. */
-			if (props.containing_block != NULL)
-				box_add_child(props.containing_block, box);
+			if (props.containing_block != NULL) {
+				if (props.containing_block->type == BOX_TABLE_ROW && box->type != BOX_TABLE_CELL) {
+					/* CSS 2.1 §17.2.1: Wrap non-cell child of table row in an anonymous table cell */
+					struct box *anon_cell = box_create(ctx->content, NULL, props.containing_block->style,
+						false, props.href, props.target, props.title, NULL, ctx->bctx);
+					if (anon_cell != NULL) {
+						anon_cell->type = BOX_TABLE_CELL;
+						anon_cell->columns = 1;
+						anon_cell->rows = 1;
+						box_add_child(props.containing_block, anon_cell);
+						box_add_child(anon_cell, box);
+					} else {
+						box_add_child(props.containing_block, box);
+					}
+				} else {
+					box_add_child(props.containing_block, box);
+				}
+			}
 		}
 	}
 

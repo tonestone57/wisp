@@ -512,9 +512,12 @@ layout_minmax_table(struct box *table, bool *has_height, const struct gui_layout
 	for (row_group = table->children; row_group; row_group = row_group->next)
 		for (row = row_group->children; row; row = row->next)
 			for (cell = row->children; cell; cell = cell->next) {
-				assert(cell->type == BOX_TABLE_CELL || cell->type == BOX_BLOCK);
-				assert(cell->style);
-				assert(cell->columns != 0);
+				if (!cell || !cell->style)
+					continue;
+
+				if (cell->type != BOX_TABLE_CELL && cell->type != BOX_BLOCK &&
+				    cell->type != BOX_INLINE_BLOCK && cell->type != BOX_FLEX && cell->type != BOX_GRID)
+					continue;
 
 				if (cell->columns != 1)
 					continue;
@@ -539,6 +542,13 @@ layout_minmax_table(struct box *table, bool *has_height, const struct gui_layout
 			for (cell = row->children; cell; cell = cell->next) {
 				unsigned int flexible_columns = 0;
 				int min = 0, max = 0, fixed_width = 0, extra;
+
+				if (!cell || !cell->style)
+					continue;
+
+				if (cell->type != BOX_TABLE_CELL && cell->type != BOX_BLOCK &&
+				    cell->type != BOX_INLINE_BLOCK && cell->type != BOX_FLEX && cell->type != BOX_GRID)
+					continue;
 
 				if (cell->columns == 1)
 					continue;
