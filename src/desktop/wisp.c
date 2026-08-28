@@ -107,7 +107,7 @@ static void wisp_lwc_iterator(lwc_string *str, void *pw)
     if (count != NULL) {
         (*count)++;
     }
-    NSLOG(wisp, WARNING, "[%3u] %.*s", str->refcnt, (int)lwc_string_length(str), lwc_string_data(str));
+    NSLOG(wisp, INFO, "[%3u] %.*s", str->refcnt, (int)lwc_string_length(str), lwc_string_data(str));
 }
 
 /* exported interface documented in neosurf/neosurf.h */
