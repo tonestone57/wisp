@@ -2299,7 +2299,9 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 				enum css_overflow_e overflow_x;
 				enum css_overflow_e overflow_y;
 
-				assert(c->style);
+				if (!c || !c->style)
+					continue;
+
 				table_used_border_for_cell(&content->unit_len_ctx, c);
 				layout_find_dimensions(&content->unit_len_ctx, available_width, -1, c, c->style, 0, 0, 0, 0, 0, 0, 0,
 					c->padding, c->border);
@@ -2561,6 +2563,10 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 		for (row = row_group->children; row; row = row->next) {
 			int row_height = 0;
 
+			if (row->style == NULL) {
+				continue;
+			}
+
 			htype = css_computed_height(row->style, &value, &unit);
 			if (htype == CSS_HEIGHT_SET && unit != CSS_UNIT_PCT) {
 				row_height = FIXTOINT(css_unit_len2device_px(row->style, &content->unit_len_ctx, value, unit));
@@ -2568,7 +2574,9 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 			int max_baseline = 0;
 			/* Pass 1: Layout all cells and find max_baseline */
 			for (c = row->children; c; c = c->next) {
-				assert(c->style);
+				if (!c || !c->style)
+					continue;
+
 				c->width = xs[c->start_column + c->columns] - xs[c->start_column] - border_spacing_h -
 					c->border[LEFT].width - c->padding[LEFT] - c->padding[RIGHT] - c->border[RIGHT].width;
 				c->float_children = 0;
@@ -2602,6 +2610,9 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
 			/* Pass 2: Calculate excess_y natively while incorporating the baseline offset */
 			for (c = row->children; c; c = c->next) {
+				if (!c || !c->style)
+					continue;
+
 				int baseline_offset = 0;
 				if (css_computed_vertical_align(c->style, &value, &unit) == CSS_VERTICAL_ALIGN_BASELINE) {
 					baseline_offset = max_baseline - c->space;
@@ -2690,6 +2701,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 			int max_baseline = 0;
 			struct box *c2;
 			for (c2 = row->children; c2; c2 = c2->next) {
+				if (!c2 || !c2->style)
+					continue;
 				enum css_vertical_align_e va;
 				css_fixed val;
 				css_unit un;
@@ -2700,6 +2713,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 			}
 
 			for (c = row->children; c; c = c->next) {
+				if (!c || !c->style)
+					continue;
 				enum css_vertical_align_e vertical_align;
 
 				/* unextended bottom padding is in

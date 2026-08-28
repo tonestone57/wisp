@@ -1695,10 +1695,15 @@ static bool html_redraw_text_decoration_inline(
         if (c->type != BOX_TEXT) {
             continue;
         }
-        rect.x0 = (x + c->x) * scale;
-        rect.y0 = (y + c->y + c->height * ratio) * scale;
-        rect.x1 = (x + c->x + c->width) * scale;
-        rect.y1 = (y + c->y + c->height * ratio) * scale;
+        if (c->x >= 100000000 || c->y >= 100000000 || c->height >= 100000000 || c->width >= 100000000) {
+            continue;
+        }
+        double text_y = (double)y + (double)c->y;
+        double text_h = (c->height == INT_MAX) ? 0.0 : (double)c->height;
+        rect.x0 = (int)(((double)x + (double)c->x) * scale);
+        rect.y0 = (int)((text_y + text_h * ratio) * scale);
+        rect.x1 = (int)(((double)x + (double)c->x + (double)c->width) * scale);
+        rect.y1 = (int)((text_y + text_h * ratio) * scale);
         res = ctx->plot->line(ctx, &plot_style_box, &rect);
         if (res != NSERROR_OK) {
             return false;
@@ -1735,15 +1740,23 @@ static bool html_redraw_text_decoration_block(
     /* draw through text descendants */
     for (c = box->children; c; c = c->next) {
         if (c->type == BOX_TEXT) {
-            rect.x0 = (x + c->x) * scale;
-            rect.y0 = (y + c->y + c->height * ratio) * scale;
-            rect.x1 = (x + c->x + c->width) * scale;
-            rect.y1 = (y + c->y + c->height * ratio) * scale;
+            if (c->x >= 100000000 || c->y >= 100000000 || c->height >= 100000000 || c->width >= 100000000) {
+                continue;
+            }
+            double text_y = (double)y + (double)c->y;
+            double text_h = (c->height == INT_MAX) ? 0.0 : (double)c->height;
+            rect.x0 = (int)(((double)x + (double)c->x) * scale);
+            rect.y0 = (int)((text_y + text_h * ratio) * scale);
+            rect.x1 = (int)(((double)x + (double)c->x + (double)c->width) * scale);
+            rect.y1 = (int)((text_y + text_h * ratio) * scale);
             res = ctx->plot->line(ctx, &plot_style_box, &rect);
             if (res != NSERROR_OK) {
                 return false;
             }
         } else if ((c->type == BOX_INLINE_CONTAINER) || (c->type == BOX_BLOCK)) {
+            if (c->x >= 100000000 || c->y >= 100000000) {
+                continue;
+            }
             if (!html_redraw_text_decoration_block(c, x + c->x, y + c->y, scale, colour, ratio, ctx))
                 return false;
         }
