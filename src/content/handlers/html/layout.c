@@ -3040,12 +3040,6 @@ static void layout_float_find_dimensions(
 	int scrollbar_width_y = (overflow_y == CSS_OVERFLOW_SCROLL || overflow_y == CSS_OVERFLOW_AUTO) ? SCROLLBAR_WIDTH
 																								   : 0;
 
-	if (box->width != UNKNOWN_WIDTH && available_width == box->last_available_width &&
-		box->min_width.value == box->last_min_width && box->max_width == box->last_max_width &&
-		!(box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(box->flags & CHILD_DIRTY)) {
-		return;
-	}
-
 	layout_find_dimensions(unit_len_ctx, available_width, -1, box, style, &width, &height, &max_width, &min_width,
 		&max_height, &min_height, margin, padding, border);
 
@@ -3131,7 +3125,9 @@ static void layout_float_find_dimensions(
 	}
 
 	box->width = width;
-	box->height = height;
+	if (height != AUTO || (box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY))) {
+		box->height = height;
+	}
 
 	if (margin[TOP] == AUTO)
 		margin[TOP] = 0;
@@ -5731,10 +5727,6 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	}
 
 	/* 10.6.4 */
-	if (height == AUTO) {
-		height = box->height;
-	}
-
 	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
 		padding[TOP], height, padding[BOTTOM], border[BOTTOM].width, margin[BOTTOM], bottom, containing_block->height);
 
@@ -5811,7 +5803,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	if (adjusted_height) {
 		containing_block->height -= containing_block->padding[TOP] + containing_block->padding[BOTTOM];
 	}
-	box->height = height;
+	box->height = (height == AUTO) ? 0 : height;
 	layout_apply_minmax_height(&content->unit_len_ctx, box, containing_block);
 
 	NSLOG(layout, DEEPDEBUG,
