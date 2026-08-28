@@ -192,6 +192,15 @@ bool _dom_html_document_finalise(dom_html_document *doc)
 {
     int sidx;
 
+    if (doc->title != NULL) {
+        dom_string_unref(doc->title);
+        doc->title = NULL;
+    }
+    if (doc->body != NULL) {
+        dom_node_unref((struct dom_node *)doc->body);
+        doc->body = NULL;
+    }
+
     if (_dom_document_finalise(&doc->base) == false)
         return false;
 
@@ -210,10 +219,6 @@ bool _dom_html_document_finalise(dom_html_document *doc)
     if (doc->referrer != NULL) {
         dom_string_unref(doc->referrer);
         doc->referrer = NULL;
-    }
-    if (doc->title != NULL) {
-        dom_string_unref(doc->title);
-        doc->title = NULL;
     }
 
     if (doc->memoised != NULL) {
@@ -1005,7 +1010,13 @@ dom_exception _dom_html_document_get_body(dom_html_document *doc, struct dom_htm
 
 dom_exception _dom_html_document_set_body(dom_html_document *doc, struct dom_html_element *body)
 {
+    if (doc->body != NULL) {
+        dom_node_unref((struct dom_node *)doc->body);
+    }
     doc->body = body;
+    if (doc->body != NULL) {
+        dom_node_ref((struct dom_node *)doc->body);
+    }
     return DOM_NO_ERR;
 }
 
