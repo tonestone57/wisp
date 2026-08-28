@@ -7713,6 +7713,13 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         crashed = true;
                         break;
                     }
+                    if (wisp_gui_pump_events_hook) {
+                        wisp_gui_pump_events_hook();
+                    }
+                    extern volatile bool nsgtk_complete __attribute__((weak));
+                    if (&nsgtk_complete && nsgtk_complete) {
+                        break;
+                    }
                     usleep(10000);
                 }
                 if (!crashed) {
@@ -7969,13 +7976,40 @@ bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct do
         if (!target)
             return false;
     }
+    wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
+    if (ipc_js) {
+        uint32_t target_id = 0;
+        if (thread->shm_dom) {
+            for (uint32_t i = 1; i < thread->shm_dom->node_count; i++) {
+                if ((dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(thread->shm_dom)[i] == target) {
+                    target_id = i;
+                    break;
+                }
+            }
+        }
+        char js_buf[512];
+        snprintf(js_buf, sizeof(js_buf),
+            "(function() {\n"
+            "  var target_id = %u;\n"
+            "  var node = (target_id > 0 && typeof globalThis.__wisp_get_node_by_id === 'function') ? globalThis.__wisp_get_node_by_id(target_id) : (typeof document !== 'undefined' ? document : null);\n"
+            "  if (node) {\n"
+            "    var evt = new Event('%s', { bubbles: true, cancelable: %s });\n"
+            "    if (typeof node.dispatchEvent === 'function') node.dispatchEvent(evt);\n"
+            "    return evt.defaultPrevented ? 'prevented' : 'ok';\n"
+            "  }\n"
+            "  return 'ok';\n"
+            "})();",
+            target_id, type ? type : "click", cancelable ? "true" : "false");
+        return js_exec(thread, (const uint8_t *)js_buf, strlen(js_buf), "<event_dispatch>");
+    }
+
     dom_string *type_str = NULL;
     dom_string_create((const uint8_t *)type, strlen(type), &type_str);
     dom_event *evt = NULL;
     dom_event_create(&evt);
     bool success = false;
     if (evt && type_str) {
-        dom_event_init(evt, type_str, true, true);
+        dom_event_init(evt, type_str, true, cancelable);
         dom_event_target_dispatch_event((dom_event_target *)target, evt, &success);
         dom_event_unref(evt);
     } else {

@@ -7237,6 +7237,46 @@ START_TEST(test_quickjs_node_cache_large_ids)
 }
 END_TEST
 
+START_TEST(test_quickjs_out_of_process_event_dispatch)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(1000, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    jsthread *thread = NULL;
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, doc, &thread), NSERROR_OK);
+    dom_node_unref((dom_node *)doc);
+
+    const char *setup_code =
+        "var div = document.createElement('div');\n"
+        "var btn = document.createElement('button');\n"
+        "div.appendChild(btn);\n"
+        "document.body.appendChild(div);\n"
+        "globalThis.clickedTarget = null;\n"
+        "globalThis.bubbled = false;\n"
+        "div.addEventListener('click', function(e) {\n"
+        "  globalThis.clickedTarget = e.target;\n"
+        "  globalThis.bubbled = true;\n"
+        "});\n";
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)setup_code, strlen(setup_code), "setup"), true);
+
+    const char *dispatch_code =
+        "var evt = new Event('click', { bubbles: true, cancelable: true });\n"
+        "btn.dispatchEvent(evt);\n"
+        "if (!globalThis.bubbled) throw new Error('Event bubbling failed');\n";
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)dispatch_code, strlen(dispatch_code), "dispatch"), true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7357,6 +7397,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_csp_already_started);
     tcase_add_test(tc_event_loop, test_quickjs_element_closest);
     tcase_add_test(tc_event_loop, test_quickjs_node_cache_large_ids);
+    tcase_add_test(tc_event_loop, test_quickjs_out_of_process_event_dispatch);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

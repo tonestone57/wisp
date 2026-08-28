@@ -221,55 +221,93 @@ static JSValue js_eventtarget_dispatchEvent_manual(JSContext *ctx, JSValueConst 
     }
 
     if (wisp_is_js_process || !is_real_dom_node || priv->node == NULL) {
-        JSValue listeners = JS_GetPropertyStr(ctx, actual_this, "__wisp_listeners");
-        if (!JS_IsUndefined(listeners)) {
-            JSValue list = JS_GetPropertyStr(ctx, listeners, type);
-            if (!JS_IsUndefined(list)) {
-                int len = 0;
-                JSValue js_len = JS_GetPropertyStr(ctx, list, "length");
-                JS_ToInt32(ctx, &len, js_len);
-                JS_FreeValue(ctx, js_len);
+        if (JS_IsObject(argv[0])) {
+            JS_SetPropertyStr(ctx, argv[0], "target", JS_DupValue(ctx, actual_this));
+        }
 
-                if (JS_IsObject(argv[0])) {
-                    JS_SetPropertyStr(ctx, argv[0], "target", JS_DupValue(ctx, actual_this));
-                    JS_SetPropertyStr(ctx, argv[0], "currentTarget", JS_DupValue(ctx, actual_this));
-                }
+        JSValue curr = JS_DupValue(ctx, actual_this);
+        while (!JS_IsNull(curr) && !JS_IsUndefined(curr)) {
+            JSValue listeners = JS_GetPropertyStr(ctx, curr, "__wisp_listeners");
+            if (!JS_IsUndefined(listeners) && !JS_IsNull(listeners)) {
+                JSValue list = JS_GetPropertyStr(ctx, listeners, type);
+                if (!JS_IsUndefined(list) && !JS_IsNull(list)) {
+                    int len = 0;
+                    JSValue js_len = JS_GetPropertyStr(ctx, list, "length");
+                    JS_ToInt32(ctx, &len, js_len);
+                    JS_FreeValue(ctx, js_len);
 
-                for (int i = 0; i < len; i++) {
-                    JSValue item = JS_GetPropertyUint32(ctx, list, i);
-                    JSValue cb = JS_GetPropertyStr(ctx, item, "callback");
-                    if (JS_IsFunction(ctx, cb)) {
-                        JSValue ret = JS_Call(ctx, cb, actual_this, 1, argv);
-                        if (JS_IsException(ret)) {
-                            JSValue exception = JS_GetException(ctx);
-                            const char *err_msg = JS_ToCString(ctx, exception);
-                            NSLOG(wisp, WARNING, "Error in event listener: %s", err_msg ? err_msg : "unknown");
-                            if (err_msg) JS_FreeCString(ctx, err_msg);
-                            JS_FreeValue(ctx, exception);
-                        }
-                        JS_FreeValue(ctx, ret);
-                    } else if (JS_IsObject(cb)) {
-                        JSValue handleEvent = JS_GetPropertyStr(ctx, cb, "handleEvent");
-                        if (JS_IsFunction(ctx, handleEvent)) {
-                            JSValue ret = JS_Call(ctx, handleEvent, cb, 1, argv);
+                    if (JS_IsObject(argv[0])) {
+                        JS_SetPropertyStr(ctx, argv[0], "currentTarget", JS_DupValue(ctx, curr));
+                    }
+
+                    for (int i = 0; i < len; i++) {
+                        JSValue item = JS_GetPropertyUint32(ctx, list, i);
+                        JSValue cb = JS_GetPropertyStr(ctx, item, "callback");
+                        if (JS_IsFunction(ctx, cb)) {
+                            JSValue ret = JS_Call(ctx, cb, curr, 1, argv);
                             if (JS_IsException(ret)) {
                                 JSValue exception = JS_GetException(ctx);
                                 const char *err_msg = JS_ToCString(ctx, exception);
-                                NSLOG(wisp, WARNING, "Error in event listener handleEvent: %s", err_msg ? err_msg : "unknown");
+                                NSLOG(wisp, WARNING, "Error in event listener: %s", err_msg ? err_msg : "unknown");
                                 if (err_msg) JS_FreeCString(ctx, err_msg);
                                 JS_FreeValue(ctx, exception);
                             }
                             JS_FreeValue(ctx, ret);
+                        } else if (JS_IsObject(cb)) {
+                            JSValue handleEvent = JS_GetPropertyStr(ctx, cb, "handleEvent");
+                            if (JS_IsFunction(ctx, handleEvent)) {
+                                JSValue ret = JS_Call(ctx, handleEvent, cb, 1, argv);
+                                if (JS_IsException(ret)) {
+                                    JSValue exception = JS_GetException(ctx);
+                                    const char *err_msg = JS_ToCString(ctx, exception);
+                                    NSLOG(wisp, WARNING, "Error in event listener handleEvent: %s", err_msg ? err_msg : "unknown");
+                                    if (err_msg) JS_FreeCString(ctx, err_msg);
+                                    JS_FreeValue(ctx, exception);
+                                }
+                                JS_FreeValue(ctx, ret);
+                            }
+                            JS_FreeValue(ctx, handleEvent);
                         }
-                        JS_FreeValue(ctx, handleEvent);
+                        JS_FreeValue(ctx, cb);
+                        JS_FreeValue(ctx, item);
                     }
-                    JS_FreeValue(ctx, cb);
-                    JS_FreeValue(ctx, item);
+                }
+                JS_FreeValue(ctx, list);
+            }
+            JS_FreeValue(ctx, listeners);
+
+            bool bubbles = true;
+            if (JS_IsObject(argv[0])) {
+                JSValue b_val = JS_GetPropertyStr(ctx, argv[0], "bubbles");
+                if (!JS_IsUndefined(b_val) && !JS_IsNull(b_val)) {
+                    bubbles = JS_ToBool(ctx, b_val);
+                }
+                JS_FreeValue(ctx, b_val);
+            }
+            if (!bubbles) {
+                JS_FreeValue(ctx, curr);
+                break;
+            }
+
+            JSValue next_parent = JS_GetPropertyStr(ctx, curr, "parentNode");
+            if (JS_IsUndefined(next_parent) || JS_IsNull(next_parent)) {
+                JS_FreeValue(ctx, next_parent);
+                next_parent = JS_GetPropertyStr(ctx, curr, "parentElement");
+            }
+            if (JS_IsUndefined(next_parent) || JS_IsNull(next_parent)) {
+                JS_FreeValue(ctx, next_parent);
+                JSValue doc_obj = JS_GetPropertyStr(ctx, curr, "ownerDocument");
+                if (!JS_IsUndefined(doc_obj) && !JS_IsNull(doc_obj)) {
+                    next_parent = doc_obj;
+                } else {
+                    JS_FreeValue(ctx, doc_obj);
+                    next_parent = JS_GetPropertyStr(ctx, curr, "defaultView");
                 }
             }
-            JS_FreeValue(ctx, list);
+            JS_FreeValue(ctx, curr);
+            curr = next_parent;
         }
-        JS_FreeValue(ctx, listeners);
+
         if (type) JS_FreeCString(ctx, (char *)type);
         JS_FreeValue(ctx, type_val);
         JS_FreeValue(ctx, global_ref);
