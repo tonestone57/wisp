@@ -767,9 +767,12 @@ bool table_calculate_column_types(const css_unit_ctx *unit_len_ctx, struct box *
                 css_fixed value = 0;
                 css_unit unit = CSS_UNIT_PX;
 
-                assert(cell->type == BOX_TABLE_CELL || cell->type == BOX_BLOCK ||
-                       cell->type == BOX_INLINE_BLOCK || cell->type == BOX_FLEX || cell->type == BOX_GRID);
-                assert(cell->style);
+                if (!cell || !cell->style)
+                    continue;
+
+                if (cell->type != BOX_TABLE_CELL && cell->type != BOX_BLOCK &&
+                    cell->type != BOX_INLINE_BLOCK && cell->type != BOX_FLEX && cell->type != BOX_GRID)
+                    continue;
 
                 if (cell->columns != 1)
                     continue;
@@ -814,6 +817,13 @@ bool table_calculate_column_types(const css_unit_ctx *unit_len_ctx, struct box *
                 enum css_width_e type;
                 css_fixed value = 0;
                 css_unit unit = CSS_UNIT_PX;
+
+                if (!cell || !cell->style)
+                    continue;
+
+                if (cell->type != BOX_TABLE_CELL && cell->type != BOX_BLOCK &&
+                    cell->type != BOX_INLINE_BLOCK && cell->type != BOX_FLEX && cell->type != BOX_GRID)
+                    continue;
 
                 if (cell->columns == 1)
                     continue;
@@ -903,8 +913,12 @@ void table_used_border_for_cell(const css_unit_ctx *unit_len_ctx, struct box *ce
 {
     int side;
 
-    assert(cell->type == BOX_TABLE_CELL || cell->type == BOX_BLOCK ||
-           cell->type == BOX_INLINE_BLOCK || cell->type == BOX_FLEX || cell->type == BOX_GRID);
+    if (!cell || !cell->style)
+        return;
+
+    if (cell->type != BOX_TABLE_CELL && cell->type != BOX_BLOCK &&
+        cell->type != BOX_INLINE_BLOCK && cell->type != BOX_FLEX && cell->type != BOX_GRID)
+        return;
 
     if (css_computed_border_collapse(cell->style) == CSS_BORDER_COLLAPSE_SEPARATE) {
         css_fixed width = 0;

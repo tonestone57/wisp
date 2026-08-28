@@ -471,6 +471,59 @@ START_TEST(test_table_calculate_column_types_blockified_cell)
 }
 END_TEST
 
+START_TEST(test_table_calculate_column_types_non_cell_child)
+{
+    struct arena *bctx = arena_create(64 * 1024);
+    ck_assert_ptr_nonnull(bctx);
+
+    struct html_content content = {0};
+    content.bctx = bctx;
+
+    struct box *table = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(table);
+    memset(table, 0, sizeof(*table));
+    table->type = BOX_TABLE;
+    table->columns = 1;
+    table->content = &content;
+
+    struct box *row_group = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(row_group);
+    memset(row_group, 0, sizeof(*row_group));
+    row_group->type = BOX_TABLE_ROW_GROUP;
+
+    struct box *row = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(row);
+    memset(row, 0, sizeof(*row));
+    row->type = BOX_TABLE_ROW;
+
+    /* Raw BOX_INLINE child directly inside row */
+    struct box *inline_box = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(inline_box);
+    memset(inline_box, 0, sizeof(*inline_box));
+    inline_box->type = BOX_INLINE;
+    inline_box->style = MOCK_STYLE_BLOCK;
+
+    row_group->parent = table;
+    row->parent = row_group;
+    inline_box->parent = row;
+
+    row_group->style = MOCK_STYLE_BLOCK;
+    row->style = MOCK_STYLE_BLOCK;
+    table->style = MOCK_STYLE_BLOCK;
+
+    table->children = row_group;
+    row_group->children = row;
+    row->children = inline_box;
+
+    bool result = table_calculate_column_types(&content.unit_len_ctx, table);
+    ck_assert_int_eq(result, true);
+
+    table_used_border_for_cell(&content.unit_len_ctx, inline_box);
+
+    arena_destroy(bctx);
+}
+END_TEST
+
 START_TEST(test_grid_construction)
 {
     /* Setup DOM Tree via File Parsing */
@@ -671,6 +724,7 @@ Suite *grid_construct_suite(void)
     TCase *tc = tcase_create("full");
     tcase_add_test(tc, test_grid_construction);
     tcase_add_test(tc, test_table_calculate_column_types_blockified_cell);
+    tcase_add_test(tc, test_table_calculate_column_types_non_cell_child);
     suite_add_tcase(s, tc);
     return s;
 }
