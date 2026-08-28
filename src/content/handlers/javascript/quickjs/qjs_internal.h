@@ -162,6 +162,8 @@ static inline QJSNodePrivate *qjs_get_dom_priv(JSContext *ctx, JSValueConst val)
     return NULL;
 }
 
+char *wisp_module_normalize(JSContext *ctx, const char *base_name, const char *name, void *opaque);
+JSModuleDef *wisp_module_loader(JSContext *ctx, const char *module_name, void *opaque);
 JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen, const char *name, int eval_flags);
 void qjs_finalise_dom_bridge(JSRuntime *rt, JSContext *ctx);
 void qjs_cleanup_mutation_observer(struct jsthread *thread);

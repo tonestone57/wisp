@@ -747,6 +747,7 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
 
                     if (!JS_IsException(obj)) {
                         if (JS_IsModule(obj)) {
+                            js_module_set_import_meta(ctx, obj, false, false);
                             if (JS_ResolveModule(ctx, obj) < 0) {
                                 JS_FreeValue(ctx, obj);
                                 unlink(cache_path);
@@ -791,6 +792,14 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
     }
     if (bytecode) {
         js_free(ctx, bytecode);
+    }
+
+    if (JS_IsModule(compiled)) {
+        js_module_set_import_meta(ctx, compiled, false, false);
+        if (JS_ResolveModule(ctx, compiled) < 0) {
+            JS_FreeValue(ctx, compiled);
+            return JS_EXCEPTION;
+        }
     }
 
     JSValue res = JS_EvalFunction(ctx, compiled);
@@ -7459,20 +7468,25 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 }
             }
         } else {
+            /* Pass 1: Try exact URL match with handle */
             for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
                 struct html_script *s = &htmlc->scripts[idx];
-                if (s->type != HTML_SCRIPT_INLINE) {
-                    if (s->data.handle != NULL) {
-                        struct nsurl *hurl = hlcache_handle_get_url(s->data.handle);
-                        if (hurl != NULL) {
-                            const char *url_str = nsurl_access(hurl);
-                            if (url_str && strcmp(url_str, name) == 0) {
-                                found_s = s;
-                                break;
-                            }
+                if (s->type != HTML_SCRIPT_INLINE && s->data.handle != NULL) {
+                    struct nsurl *hurl = hlcache_handle_get_url(s->data.handle);
+                    if (hurl != NULL) {
+                        const char *url_str = nsurl_access(hurl);
+                        if (url_str && strcmp(url_str, name) == 0) {
+                            found_s = s;
+                            break;
                         }
-                    } else if (s->already_started) {
-                        /* Script fetch started or failed/completed via hlcache_handle_retrieve */
+                    }
+                }
+            }
+            /* Pass 2: Fallback to already_started entry if no exact URL match was found */
+            if (!found_s) {
+                for (unsigned int idx = 0; idx < htmlc->scripts_count; idx++) {
+                    struct html_script *s = &htmlc->scripts[idx];
+                    if (s->type != HTML_SCRIPT_INLINE && s->data.handle == NULL && s->already_started) {
                         found_s = s;
                         break;
                     }

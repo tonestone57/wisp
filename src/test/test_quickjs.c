@@ -7127,6 +7127,76 @@ START_TEST(test_quickjs_csp_already_started)
 }
 END_TEST
 
+START_TEST(test_quickjs_es_module_matching)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(1000, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    html_content *htmlc = calloc(1, sizeof(*htmlc));
+    ck_assert_ptr_nonnull(htmlc);
+    htmlc->document = doc;
+
+    ck_assert_int_eq(nsurl_create("https://css3test.com/", &htmlc->base_url), NSERROR_OK);
+
+    jsthread *thread = NULL;
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, htmlc, &thread), NSERROR_OK);
+
+    /* 1. Add a blocked external script (e.g., ga.js) with handle = NULL and already_started = true */
+    struct html_script *scripts = calloc(2, sizeof(struct html_script));
+    ck_assert_ptr_nonnull(scripts);
+    htmlc->scripts = scripts;
+    htmlc->scripts_count = 2;
+
+    struct html_script *s_blocked = &htmlc->scripts[0];
+    s_blocked->type = HTML_SCRIPT_SYNC;
+    s_blocked->already_started = true;
+    s_blocked->data.handle = NULL;
+    dom_string_create((const uint8_t *)"text/javascript", 15, &s_blocked->mimetype);
+
+    /* 2. Add csstest.js external script with mimetype = "module" and mock handle URL */
+    struct html_script *s_module = &htmlc->scripts[1];
+    s_module->type = HTML_SCRIPT_SYNC;
+    s_module->already_started = false;
+    dom_string_create((const uint8_t *)"module", 6, &s_module->mimetype);
+
+    nsurl *module_url = NULL;
+    ck_assert_int_eq(nsurl_create("https://css3test.com/csstest.js", &module_url), NSERROR_OK);
+
+    /* Mock hlcache_handle -> hlcache_entry -> content -> llcache_handle -> llcache_object -> url layout */
+    struct { void *url; } mock_llcache_obj = { module_url };
+    struct { void *obj; } mock_llcache_h = { &mock_llcache_obj };
+    struct { void *llcache; } mock_cnt = { &mock_llcache_h };
+    struct { void *content; } mock_hl_entry = { &mock_cnt };
+    struct { void *entry; } mock_hl_handle = { (void *)&mock_hl_entry };
+
+    s_module->data.handle = (void *)&mock_hl_handle;
+
+    /* Code containing ES module export syntax, which would fail in classic script */
+    const char *test_url = "https://css3test.com/csstest.js";
+    const char *module_code = "export const Specs = {};";
+
+    bool exec_res = js_exec(thread, (const uint8_t *)module_code, strlen(module_code), test_url);
+    ck_assert_int_eq(exec_res, true);
+
+    js_destroythread(thread);
+    if (htmlc->base_url) nsurl_unref(htmlc->base_url);
+    if (s_blocked->mimetype) dom_string_unref(s_blocked->mimetype);
+    if (s_module->mimetype) dom_string_unref(s_module->mimetype);
+    if (module_url) nsurl_unref(module_url);
+    free(htmlc->scripts);
+    free(htmlc);
+    dom_node_unref((dom_node *)doc);
+
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_element_closest)
 {
     jsheap *heap = NULL;
