@@ -809,6 +809,8 @@ JSValue js_eval_with_aot_cache(JSContext *ctx, const uint8_t *txt, size_t txtlen
 struct precompile_arg {
     uint8_t *txt;
     size_t txtlen;
+    char *name;
+    bool is_module;
 };
 
 static void do_precompile(void *arg)
@@ -825,7 +827,7 @@ static void do_precompile(void *arg)
         get_user_cache_dir("bytecode-cache", cache_dir, sizeof(cache_dir));
 
         char cache_path[512];
-        snprintf(cache_path, sizeof(cache_path), "%s/%s.bin", cache_dir, hex);
+        snprintf(cache_path, sizeof(cache_path), "%s/%s%s.bin", cache_dir, hex, pa->is_module ? "_module" : "");
 
         struct stat st;
         if (stat(cache_path, &st) != 0) {
@@ -839,8 +841,10 @@ static void do_precompile(void *arg)
                         memcpy(txt_null_term, pa->txt, pa->txtlen);
                         txt_null_term[pa->txtlen] = '\0';
 
-                        JSValue compiled = JS_Eval(ctx, txt_null_term, pa->txtlen, "<precompile>",
-                            JS_EVAL_TYPE_GLOBAL | JS_EVAL_FLAG_COMPILE_ONLY);
+                        const char *eval_name = (pa->name && pa->name[0]) ? pa->name : "<precompile>";
+                        int eval_flags = (pa->is_module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL) | JS_EVAL_FLAG_COMPILE_ONLY;
+
+                        JSValue compiled = JS_Eval(ctx, txt_null_term, pa->txtlen, eval_name, eval_flags);
                         free(txt_null_term);
 
                         if (!JS_IsException(compiled)) {
@@ -857,6 +861,9 @@ static void do_precompile(void *arg)
                                 js_free(ctx, bytecode);
                             }
                             JS_FreeValue(ctx, compiled);
+                        } else {
+                            JSValue exc = JS_GetException(ctx);
+                            JS_FreeValue(ctx, exc);
                         }
                     }
                     JS_FreeContext(ctx);
@@ -868,10 +875,12 @@ static void do_precompile(void *arg)
 
     if (pa->txt)
         free(pa->txt);
+    if (pa->name)
+        free(pa->name);
     free(pa);
 }
 
-void wisp_queue_precompile(const uint8_t *txt, size_t txtlen)
+void wisp_queue_precompile(const uint8_t *txt, size_t txtlen, const char *name, bool is_module)
 {
     if (!txt || txtlen == 0)
         return;
@@ -886,6 +895,8 @@ void wisp_queue_precompile(const uint8_t *txt, size_t txtlen)
     }
     memcpy(pa->txt, txt, txtlen);
     pa->txtlen = txtlen;
+    pa->name = name ? strdup(name) : NULL;
+    pa->is_module = is_module;
 
     if (!wisp_dispatch_js(NULL, do_precompile, pa, 0.5f)) {
         do_precompile(pa);
