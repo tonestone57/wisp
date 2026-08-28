@@ -3125,7 +3125,9 @@ static void layout_float_find_dimensions(
 	}
 
 	box->width = width;
-	box->height = height;
+	if (height != AUTO || (box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY))) {
+		box->height = height;
+	}
 
 	if (margin[TOP] == AUTO)
 		margin[TOP] = 0;
@@ -5801,7 +5803,7 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	if (adjusted_height) {
 		containing_block->height -= containing_block->padding[TOP] + containing_block->padding[BOTTOM];
 	}
-	box->height = height;
+	box->height = (height == AUTO) ? 0 : height;
 	layout_apply_minmax_height(&content->unit_len_ctx, box, containing_block);
 
 	NSLOG(layout, DEEPDEBUG,
