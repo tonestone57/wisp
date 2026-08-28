@@ -325,7 +325,7 @@ static csp_source *get_directive_sources(const csp_policy *policy, csp_directive
 static bool match_source(csp_source *src, nsurl *base_url, nsurl *url) {
     if (src->is_none) return false;
     if (src->is_unsafe_inline || src->is_unsafe_eval) return false;
-    if (src->is_strict_dynamic) return true;
+    if (src->is_strict_dynamic) return false;
     if (src->nonce != NULL) return false;
     if (src->is_self) {
         return nsurl_compare(base_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT);
@@ -433,17 +433,28 @@ bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
             }
         }
 
-        if (has_strict_dynamic) {
-            /* Under 'strict-dynamic', host-based allowlists and schemes are ignored for script execution.
-             * Nonced and parser-inserted/dynamically created scripts are permitted. */
-            continue;
-        }
-
         bool matched = false;
         for (csp_source *s = src; s != NULL; s = s->next) {
             if (match_source(s, csp->base_url, url)) {
                 matched = true;
                 break;
+            }
+        }
+
+        if (has_strict_dynamic && !matched) {
+            /* Under 'strict-dynamic', host/scheme allowlists are ignored.
+             * Script loads must be authorized via valid element nonce (checked via csp_check_nonce)
+             * or dynamic script creation context. */
+            bool has_nonce = false;
+            for (csp_source *s = src; s != NULL; s = s->next) {
+                if (s->nonce != NULL) {
+                    has_nonce = true;
+                    break;
+                }
+            }
+            if (!has_nonce) {
+                NSLOG(wisp, INFO, "CSP STRICT-DYNAMIC BLOCKED UN-NONCED SCRIPT URL: %s", nsurl_access(url));
+                return false;
             }
         }
 

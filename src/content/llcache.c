@@ -193,7 +193,7 @@ struct llcache_object {
                                * candidate for
                                */
 
-#define LLCACHE_HEADER_KEY_COUNT 11
+#define LLCACHE_HEADER_KEY_COUNT 12
 
     llcache_header *headers; /**< Fetch headers */
     size_t num_headers; /**< Number of fetch headers */
