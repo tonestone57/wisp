@@ -556,6 +556,10 @@ typedef struct html_content {
     struct html_script *scripts;
     /** javascript thread in use */
     struct jsthread *jsthread;
+    /** Whether DOMContentLoaded event has been dispatched */
+    bool dom_content_loaded_fired;
+    /** Whether load event has been dispatched */
+    bool load_event_fired;
 
     /** Number of entries in stylesheet_content. */
     unsigned int stylesheet_count;

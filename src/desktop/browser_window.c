@@ -52,6 +52,7 @@
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/form_internal.h>
 #include <wisp/content/handlers/html/html.h>
+#include <wisp/content/handlers/html/private.h>
 #include "content/handlers/javascript/js.h"
 
 #include <wisp/desktop/browser_history.h>
@@ -910,6 +911,22 @@ static nserror browser_window_content_done(struct browser_window *bw)
     browser_window_set_status(bw, content_get_status_message(bw->current_content));
     browser_window_stop_throbber(bw);
     browser_window_update_favicon(bw->current_content, bw, NULL);
+
+    if (bw->current_content != NULL && content_get_type(bw->current_content) == CONTENT_HTML) {
+        html_content *htmlc = (html_content *)hlcache_handle_get_content(bw->current_content);
+        if (htmlc != NULL && htmlc->jsthread != NULL) {
+            doc_rwlock_wrlock(&htmlc->doc_mutex);
+            if (!htmlc->dom_content_loaded_fired) {
+                htmlc->dom_content_loaded_fired = true;
+                js_fire_event(htmlc->jsthread, "DOMContentLoaded", htmlc->document, NULL);
+            }
+            if (!htmlc->load_event_fired) {
+                htmlc->load_event_fired = true;
+                js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
+            }
+            doc_rwlock_wrunlock(&htmlc->doc_mutex);
+        }
+    }
 
     if (browser_window_history_get_scroll(bw, &sx, &sy) == NSERROR_OK) {
         scrollx = (int)((float)content_get_width(bw->current_content) * sx);

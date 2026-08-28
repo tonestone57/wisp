@@ -863,6 +863,13 @@ static nserror nsgtk_init(int *pargc, char ***pargv, char **cache_home)
 }
 
 
+static gboolean nsgtk_js_event_loop_cb(gpointer user_data)
+{
+    extern bool qjs_execute_pending_all(void);
+    qjs_execute_pending_all();
+    return TRUE; /* G_SOURCE_CONTINUE */
+}
+
 #if GTK_CHECK_VERSION(3, 14, 0)
 
 /**
@@ -1075,6 +1082,9 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
 
     free(addr);
 
+    /* Hook QuickJS Event Loop and Timer processing to GTK event loop */
+    g_timeout_add(10, nsgtk_js_event_loop_cb, NULL);
+
     return res;
 }
 
@@ -1174,6 +1184,7 @@ void wisp_gui_pump_events(void)
     while (gtk_events_pending()) {
         gtk_main_iteration();
     }
+    qjs_execute_pending_all();
     schedule_run();
 }
 
