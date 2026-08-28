@@ -116,6 +116,7 @@ struct jsthread {
     char *origin;
     struct nsurl *location_url;
     char *current_script_name;
+    void *current_script_node;
     QJSNodePrivate global_window_priv;
     void *worker_handle; /* WispWorkerHandle* if this is a worker thread */
     bool is_worker;

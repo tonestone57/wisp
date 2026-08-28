@@ -7441,6 +7441,13 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
     current_thread_shm = prev_shm;
 }
 
+void js_set_current_script_node(jsthread *thread, void *node)
+{
+    if (thread) {
+        thread->current_script_node = node;
+    }
+}
+
 bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *name)
 {
     if (!thread || thread->closed)
