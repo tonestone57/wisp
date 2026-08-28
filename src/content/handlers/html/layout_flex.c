@@ -975,7 +975,7 @@ static void layout_flex_ctx__populate_item_data(struct flex_ctx *ctx, const stru
 		/* Skip boxes without styles - they shouldn't exist after
 		 * normalization, but add defensive check to prevent crash */
 		if (b->style == NULL) {
-			NSLOG(flex, ERROR, "DIAG: flex-item box=%p has NULL style! type=%d, skipping", b, b->type);
+			NSLOG(flex, DEEPDEBUG, "flex-item box=%p has NULL style! type=%d, skipping", b, b->type);
 			i--; /* Don't increment item index for skipped boxes */
 			continue;
 		}
