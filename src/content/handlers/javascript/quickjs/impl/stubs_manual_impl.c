@@ -10393,6 +10393,8 @@ JSValue wisp_websocket_send_3_impl(JSContext *ctx, QJSNodePrivate *priv, JSValue
 typedef struct WispWebSocketPrivate {
     char *url;
     char *binaryType;
+    char *protocol;
+    char *extensions;
     uint16_t readyState;
 } WispWebSocketPrivate;
 
@@ -10405,6 +10407,8 @@ static void js_websocket_finalizer_manual(JSRuntime *rt, JSValue val)
             WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
             free(wsp->url);
             free(wsp->binaryType);
+            free(wsp->protocol);
+            free(wsp->extensions);
             free(wsp);
         }
         free(priv);
@@ -10517,12 +10521,16 @@ JSValue wisp_websocket_onclose_set_impl(JSContext *ctx, QJSNodePrivate *priv, JS
 
 // Overrides: getter | WebSocket::extensions(string);
 JSValue wisp_websocket_extensions_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NULL;
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewString(ctx, wsp->extensions ? wsp->extensions : "");
 }
 
 // Overrides: getter | WebSocket::protocol(string);
 JSValue wisp_websocket_protocol_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
-    return JS_NewString(ctx, "");
+    if (!priv || !priv->node) return JS_NewString(ctx, "");
+    WispWebSocketPrivate *wsp = (WispWebSocketPrivate *)priv->node;
+    return JS_NewString(ctx, wsp->protocol ? wsp->protocol : "");
 }
 
 // Overrides: getter | WebSocket::onmessage(user);
@@ -16713,6 +16721,25 @@ JSValue wisp_websocket_constructor_impl(JSContext *ctx, const char * url, JSValu
         if (url) wsp->url = strdup(url);
         wsp->binaryType = strdup("blob");
         wsp->readyState = 0; // CONNECTING
+        wsp->extensions = strdup("permessage-deflate; client_max_window_bits");
+        if (JS_IsString(protocols)) {
+            const char *p = JS_ToCString(ctx, protocols);
+            if (p) {
+                wsp->protocol = strdup(p);
+                JS_FreeCString(ctx, p);
+            }
+        } else if (JS_IsObject(protocols)) {
+            JSValue first = JS_GetPropertyUint32(ctx, protocols, 0);
+            if (JS_IsString(first)) {
+                const char *p = JS_ToCString(ctx, first);
+                if (p) {
+                    wsp->protocol = strdup(p);
+                    JS_FreeCString(ctx, p);
+                }
+            }
+            JS_FreeValue(ctx, first);
+        }
+        if (!wsp->protocol) wsp->protocol = strdup("");
     }
     return qjs_new_websocket(ctx, wsp, false);
 }

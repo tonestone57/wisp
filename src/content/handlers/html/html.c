@@ -773,6 +773,13 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 		c->coep = NULL;
 	}
 
+	const llcache_header_value *xfo_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_X_FRAME_OPTIONS);
+	if (xfo_hdr != NULL && xfo_hdr->count > 0 && xfo_hdr->entries[0].raw_value != NULL) {
+		c->x_frame_options = strdup(xfo_hdr->entries[0].raw_value);
+	} else {
+		c->x_frame_options = NULL;
+	}
+
 	err = dom_node_set_user_data(c->document, corestring_dom___ns_key_html_content_data, c,
 		html_document_user_data_handler, (void *)&old_node_data);
 	if (err != DOM_NO_ERR) {
@@ -1937,6 +1944,11 @@ static void html_destroy(struct content *c)
 	if (html->coep != NULL) {
 		free(html->coep);
 		html->coep = NULL;
+	}
+
+	if (html->x_frame_options != NULL) {
+		free(html->x_frame_options);
+		html->x_frame_options = NULL;
 	}
 
 	if (html->universal != NULL) {

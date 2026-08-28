@@ -46,8 +46,10 @@ static const char *directive_names[] = {
     "frame-src",
     "connect-src",
     "media-src",
-    "worker-src"
+    "worker-src",
+    "frame-ancestors"
 };
+
 
 static void free_sources(csp_source *source) {
     while (source) {
@@ -421,6 +423,22 @@ bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
             continue;
         }
 
+        bool has_strict_dynamic = false;
+        if (directive == CSP_SCRIPT_SRC || directive == CSP_SCRIPT_SRC_ELEM) {
+            for (csp_source *s = src; s != NULL; s = s->next) {
+                if (s->is_strict_dynamic) {
+                    has_strict_dynamic = true;
+                    break;
+                }
+            }
+        }
+
+        if (has_strict_dynamic) {
+            /* Under 'strict-dynamic', host-based allowlists and schemes are ignored for script execution.
+             * Nonced and parser-inserted/dynamically created scripts are permitted. */
+            continue;
+        }
+
         bool matched = false;
         for (csp_source *s = src; s != NULL; s = s->next) {
             if (match_source(s, csp->base_url, url)) {
@@ -601,6 +619,26 @@ static const char *blocked_origins[] = {
     "google-analytics.com",
     "coop-malicious.org"
 };
+
+bool csp_check_frame_ancestor(struct csp *csp, nsurl *ancestor_url) {
+    if (!csp || !ancestor_url) return true;
+    for (csp_policy *pol = csp->policies; pol != NULL; pol = pol->next) {
+        csp_source *src = pol->directives[CSP_FRAME_ANCESTORS];
+        if (!src) continue;
+        bool matched = false;
+        for (csp_source *s = src; s != NULL; s = s->next) {
+            if (match_source(s, csp->base_url, ancestor_url)) {
+                matched = true;
+                break;
+            }
+        }
+        if (!matched) {
+            NSLOG(wisp, INFO, "CSP FRAME-ANCESTORS BLOCKED EMBEDDING FROM %s", nsurl_access(ancestor_url));
+            return false;
+        }
+    }
+    return true;
+}
 
 bool wisp_security_is_origin_blocked(const char *origin) {
     if (!origin) return false;

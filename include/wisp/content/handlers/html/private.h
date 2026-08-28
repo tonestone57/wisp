@@ -479,6 +479,7 @@ typedef struct html_content {
     struct csp *csp; /**< Content Security Policy */
     char *coop; /**< Cross-Origin-Opener-Policy header value */
     char *coep; /**< Cross-Origin-Embedder-Policy header value */
+    char *x_frame_options; /**< X-Frame-Options header value */
     dom_hubbub_parser *parser; /**< Parser object handle */
     bool parse_completed; /**< Whether the parse has been completed */
     bool conversion_begun; /**< Whether or not the conversion has begun */
