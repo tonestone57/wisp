@@ -1101,7 +1101,7 @@ JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv
         const char *str = JS_ToCString(ctx, val);
         if (str) {
             static const char *valid_types[] = {
-                "button", "checkbox", "color", "date", "datetime-local", "email",
+                "button", "checkbox", "color", "date", "datetime", "datetime-local", "email",
                 "file", "hidden", "image", "month", "number", "password",
                 "radio", "range", "reset", "search", "submit", "tel", "text",
                 "time", "url", "week"
@@ -6157,8 +6157,19 @@ JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePriv
     if (JS_IsString(val)) {
         const char *str = JS_ToCString(ctx, val);
         if (str && str[0] != '\0') {
-            int year = 0, month = 0, day = 0;
-            if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+            int year = 0, month = 0, day = 0, hour = 0, min = 0, sec = 0;
+            if (sscanf(str, "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &min, &sec) >= 5 ||
+                sscanf(str, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &min, &sec) >= 5) {
+                struct tm tm = {0};
+                tm.tm_year = year - 1900;
+                tm.tm_mon = month - 1;
+                tm.tm_mday = day;
+                tm.tm_hour = hour;
+                tm.tm_min = min;
+                tm.tm_sec = sec;
+                time_t t = timegm(&tm);
+                d = (double)t * 1000.0;
+            } else if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
                 struct tm tm = {0};
                 tm.tm_year = year - 1900;
                 tm.tm_mon = month - 1;
@@ -6186,6 +6197,27 @@ JSValue wisp_htmlinputelement_valueAsNumber_set_impl(JSContext *ctx, QJSNodePriv
     if (isnan(value)) {
         return wisp_htmlinputelement_value_set_impl(ctx, priv, "");
     }
+    JSValue type_val = wisp_htmlinputelement_type_get_impl(ctx, priv);
+    const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "";
+    if (type_str && (strcmp(type_str, "datetime") == 0 || strcmp(type_str, "datetime-local") == 0 || strcmp(type_str, "date") == 0)) {
+        time_t sec = (time_t)(value / 1000.0);
+        struct tm *tm = gmtime(&sec);
+        char buf[64];
+        if (tm) {
+            if (strcmp(type_str, "date") == 0) {
+                snprintf(buf, sizeof(buf), "%04d-%02d-%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+            } else if (strcmp(type_str, "datetime") == 0) {
+                snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.000Z", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min, tm->tm_sec);
+            } else {
+                snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday, tm->tm_hour, tm->tm_min);
+            }
+            if (type_str) JS_FreeCString(ctx, type_str);
+            JS_FreeValue(ctx, type_val);
+            return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);
+        }
+    }
+    if (type_str) JS_FreeCString(ctx, type_str);
+    JS_FreeValue(ctx, type_val);
     char buf[64];
     snprintf(buf, sizeof(buf), "%g", value);
     return wisp_htmlinputelement_value_set_impl(ctx, priv, buf);

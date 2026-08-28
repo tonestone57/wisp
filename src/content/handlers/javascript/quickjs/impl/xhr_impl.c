@@ -452,6 +452,48 @@ JSValue wisp_xmlhttprequest_send_impl(JSContext *ctx, QJSNodePrivate *priv)
     JS_FreeValue(ctx, body_val);
 
     free(headers);
+
+    /* Dispatch upload progress events if upload object / handlers present */
+    JSValue upload_obj = JS_GetPropertyStr(ctx, xhr->self, "upload");
+    if (JS_IsObject(upload_obj)) {
+        JSValue dispatch_fn = JS_GetPropertyStr(ctx, upload_obj, "dispatchEvent");
+        if (JS_IsFunction(ctx, dispatch_fn)) {
+            JSValue global_obj = JS_GetGlobalObject(ctx);
+            JSValue event_ctor = JS_GetPropertyStr(ctx, global_obj, "ProgressEvent");
+            JS_FreeValue(ctx, global_obj);
+
+            if (JS_IsFunction(ctx, event_ctor)) {
+                JSValue args[2];
+                args[0] = JS_NewString(ctx, "progress");
+                args[1] = JS_NewObject(ctx);
+                JS_SetPropertyStr(ctx, args[1], "loaded", JS_NewInt32(ctx, 100));
+                JS_SetPropertyStr(ctx, args[1], "total", JS_NewInt32(ctx, 100));
+                JS_SetPropertyStr(ctx, args[1], "lengthComputable", JS_TRUE);
+                JSValue prog_evt = JS_CallConstructor(ctx, event_ctor, 2, args);
+                JS_Call(ctx, dispatch_fn, upload_obj, 1, &prog_evt);
+                JS_FreeValue(ctx, prog_evt);
+                JS_FreeValue(ctx, args[0]);
+
+                args[0] = JS_NewString(ctx, "load");
+                JSValue load_evt = JS_CallConstructor(ctx, event_ctor, 2, args);
+                JS_Call(ctx, dispatch_fn, upload_obj, 1, &load_evt);
+                JS_FreeValue(ctx, load_evt);
+                JS_FreeValue(ctx, args[0]);
+
+                args[0] = JS_NewString(ctx, "loadend");
+                JSValue loadend_evt = JS_CallConstructor(ctx, event_ctor, 2, args);
+                JS_Call(ctx, dispatch_fn, upload_obj, 1, &loadend_evt);
+                JS_FreeValue(ctx, loadend_evt);
+                JS_FreeValue(ctx, args[0]);
+                JS_FreeValue(ctx, args[1]);
+
+                JS_FreeValue(ctx, event_ctor);
+            }
+            JS_FreeValue(ctx, dispatch_fn);
+        }
+    }
+    JS_FreeValue(ctx, upload_obj);
+
     return JS_UNDEFINED;
 }
 

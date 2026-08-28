@@ -741,12 +741,19 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 
 	NSLOG(wisp, DEBUG, "<<< html_create_html_data SUCCESS, parser=%p for content %p", c->parser, c);
 
-	/* Extract and parse Content-Security-Policy header */
-	const llcache_header_value *csp_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CONTENT_SECURITY_POLICY);
-	if (csp_hdr != NULL) {
-		for (size_t i = 0; i < csp_hdr->count; i++) {
-			if (csp_hdr->entries[i].raw_value != NULL) {
-				csp_parse(csp_hdr->entries[i].raw_value, c->base_url, &c->csp);
+	/* Extract and parse Content-Security-Policy header (and legacy aliases) */
+	static const llcache_header_key csp_keys[] = {
+		LLCACHE_HEADER_CONTENT_SECURITY_POLICY,
+		LLCACHE_HEADER_X_CONTENT_SECURITY_POLICY,
+		LLCACHE_HEADER_X_WEBKIT_CSP
+	};
+	for (size_t k = 0; k < sizeof(csp_keys)/sizeof(csp_keys[0]); k++) {
+		const llcache_header_value *csp_hdr = llcache_handle_get_header(c->base.llcache, csp_keys[k]);
+		if (csp_hdr != NULL) {
+			for (size_t i = 0; i < csp_hdr->count; i++) {
+				if (csp_hdr->entries[i].raw_value != NULL) {
+					csp_parse(csp_hdr->entries[i].raw_value, c->base_url, &c->csp);
+				}
 			}
 		}
 	}

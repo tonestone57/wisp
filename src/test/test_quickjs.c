@@ -154,6 +154,51 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_form_datetime)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+    bool result;
+
+    js_initialise();
+    corestrings_init();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+
+    dom_node_unref((dom_node *)doc);
+    doc = NULL;
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *code =
+        "try {\n"
+        "  var input = document.createElement('input');\n"
+        "  input.type = 'datetime';\n"
+        "  if (input.type !== 'datetime') throw 'type reflect fail: ' + input.type;\n"
+        "  input.value = '2026-03-31T12:00:00Z';\n"
+        "  if (isNaN(input.valueAsNumber)) throw 'valueAsNumber NaN fail';\n"
+        "  input.valueAsNumber = 1774958400000;\n"
+        "  if (!input.value) throw 'valueAsNumber set fail';\n"
+        "} catch(e) {\n"
+        "  console.log('DATETIMETEST_ERROR:', e);\n"
+        "  throw e;\n"
+        "}\n"
+        "1;";
+    result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_form_datetime");
+    ck_assert(result == true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_dom_wrapper_finalization_after_context_free)
 {
     corestrings_init();
@@ -7445,6 +7490,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_location);
     tcase_add_test(tc_window, test_quickjs_document);
     tcase_add_test(tc_window, test_quickjs_parsing_doctype);
+    tcase_add_test(tc_window, test_quickjs_form_datetime);
     tcase_add_test(tc_window, test_quickjs_quirks_mode);
     tcase_add_test(tc_window, test_quickjs_storage);
     tcase_add_test(tc_window, test_quickjs_blob_file_filereader_indexeddb);

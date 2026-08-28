@@ -1152,6 +1152,9 @@ svg_serialize_node(dom_node *node, char **buf, size_t *len, size_t *cap, const s
             } else if (strcasecmp(tag_name_str, "svg") == 0) {
                 /* For root <svg>, add default width/height if not present */
                 err = svg_serialize_element_open_with_dimensions("svg", element, buf, len, cap, css_ctx);
+            } else if (strcasecmp(tag_name_str, "image") == 0) {
+                /* Convert SVG <image> to <image> element in libsvgtiny structure */
+                err = svg_serialize_element_open("image", element, buf, len, cap, css_ctx, false);
             } else {
                 err = svg_serialize_element_open(tag_name_str, element, buf, len, cap, css_ctx, false);
             }
