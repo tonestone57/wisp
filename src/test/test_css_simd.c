@@ -66,7 +66,7 @@ END_TEST
 
 START_TEST(test_css_delimiters_all_delimiters)
 {
-    const char *delims = ";{}:(),/[]=*#\"'!%+>~ \t\n\f\r";
+    const char *delims = ";{}:(),/[]=*#\"'!%+>~ \t\n\f\r`@";
     size_t len = strlen(delims);
 
     for (size_t i = 0; i < len; i++) {
@@ -78,6 +78,41 @@ START_TEST(test_css_delimiters_all_delimiters)
         ck_assert_int_eq(wisp_scan_css_delimiters_sse2((const uint8_t *)(delims + i), len - i), 0);
 #endif
     }
+}
+END_TEST
+
+START_TEST(test_css_delimiters_ascii_boundary_characters)
+{
+    /* Test characters right around ASCII bounds:
+     * '0'-1 ('/'), '9'+1 (':'), 'A'-1 ('@'), 'Z'+1 ('['), 'a'-1 ('`'), 'z'+1 ('{')
+     */
+    const char boundary_delims[] = { '/', ':', '@', '[', '`', '{', '}', ']', ';', '\0' };
+    size_t len = strlen(boundary_delims);
+
+    for (size_t i = 0; i < len; i++) {
+        size_t res_simd = wisp_scan_css_delimiters((const uint8_t *)(boundary_delims + i), len - i);
+        size_t res_scalar = wisp_scan_css_delimiters_scalar((const uint8_t *)(boundary_delims + i), len - i);
+        ck_assert_int_eq(res_simd, 0);
+        ck_assert_int_eq(res_scalar, 0);
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+        ck_assert_int_eq(wisp_scan_css_delimiters_sse2((const uint8_t *)(boundary_delims + i), len - i), 0);
+#endif
+    }
+
+    /* Padded sequences to verify 16-byte SSE2 chunk scanning with boundary delimiters */
+    const char *seq1 = "abcdefghijklmno{pqrst"; /* '{' at index 15 */
+    ck_assert_int_eq(wisp_scan_css_delimiters((const uint8_t *)seq1, strlen(seq1)), 15);
+    ck_assert_int_eq(wisp_scan_css_delimiters_scalar((const uint8_t *)seq1, strlen(seq1)), 15);
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    ck_assert_int_eq(wisp_scan_css_delimiters_sse2((const uint8_t *)seq1, strlen(seq1)), 15);
+#endif
+
+    const char *seq2 = "0123456789ABCDEF:GHI"; /* ':' at index 16 */
+    ck_assert_int_eq(wisp_scan_css_delimiters((const uint8_t *)seq2, strlen(seq2)), 16);
+    ck_assert_int_eq(wisp_scan_css_delimiters_scalar((const uint8_t *)seq2, strlen(seq2)), 16);
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+    ck_assert_int_eq(wisp_scan_css_delimiters_sse2((const uint8_t *)seq2, strlen(seq2)), 16);
+#endif
 }
 END_TEST
 
@@ -148,6 +183,7 @@ static Suite *css_simd_suite(void)
     tcase_add_test(tc, test_css_delimiters_basic);
     tcase_add_test(tc, test_css_delimiters_long_ident);
     tcase_add_test(tc, test_css_delimiters_all_delimiters);
+    tcase_add_test(tc, test_css_delimiters_ascii_boundary_characters);
     tcase_add_test(tc, test_css_delimiters_utf8_nonascii);
     tcase_add_test(tc, test_css_delimiters_parity_long);
     tcase_add_test(tc, test_css_delimiters_no_delimiters);
