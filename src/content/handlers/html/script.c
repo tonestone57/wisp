@@ -314,6 +314,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     html_content *parent = pw;
     unsigned int i;
     struct html_script *s;
+    nserror ret_val = NSERROR_OK;
 
     doc_rwlock_wrlock(&parent->doc_mutex);
 
@@ -423,7 +424,7 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
     }
 
     doc_rwlock_wrunlock(&parent->doc_mutex);
-    return NSERROR_OK;
+    return ret_val;
 }
 
 static void html_execute_pending_sync_scripts(html_content *parent)
