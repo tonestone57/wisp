@@ -7436,6 +7436,56 @@ START_TEST(test_quickjs_out_of_process_event_dispatch)
 }
 END_TEST
 
+START_TEST(test_quickjs_showpicker_smil_websocket_rtc)
+{
+    corestrings_init();
+    js_initialise();
+    jsheap *heap;
+    ck_assert_int_eq(js_newheap(1000, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    jsthread *thread = NULL;
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, doc, &thread), NSERROR_OK);
+    dom_node_unref((dom_node *)doc);
+
+    const char *test_code =
+        "// 1. showPicker event triggers\n"
+        "var inp = document.createElement('input');\n"
+        "inp.type = 'date';\n"
+        "var firedInput = false, firedChange = false;\n"
+        "inp.addEventListener('input', function() { firedInput = true; });\n"
+        "inp.addEventListener('change', function() { firedChange = true; });\n"
+        "inp.showPicker();\n"
+        "if (!firedInput || !firedChange) throw new Error('showPicker event triggers failed');\n"
+        "\n"
+        "// 2. SMIL SVG Animation elements\n"
+        "if (!window.SVGSetElement || !window.SVGAnimateMotionElement) throw new Error('SMIL SVG elements missing on window');\n"
+        "var animSet = Object.create(SVGSetElement.prototype);\n"
+        "var animMotion = Object.create(SVGAnimateMotionElement.prototype);\n"
+        "if (!(animSet instanceof SVGAnimationElement) || !(animMotion instanceof SVGAnimationElement)) throw new Error('SMIL SVG inheritance failed');\n"
+        "if (typeof animSet.beginElement !== 'function' || typeof animMotion.endElement !== 'function') throw new Error('SMIL SVG animation methods failed');\n"
+        "\n"
+        "// 3. WebSocket extensions & RTCDataChannel stream\n"
+        "var ws = new WebSocket('ws://example.com');\n"
+        "if (typeof ws.extensions !== 'string') throw new Error('WebSocket extensions failed');\n"
+        "var dc = new RTCDataChannel({ label: 'stream-channel', bufferedAmountLowThreshold: 10 });\n"
+        "var lowFired = false;\n"
+        "dc.onbufferedamountlow = function() { lowFired = true; };\n"
+        "dc.send('hello stream');\n"
+        "dc.close();\n"
+        "if (dc.readyState !== 'closed') throw new Error('RTCDataChannel close failed');\n";
+
+    ck_assert_int_eq(js_exec(thread, (const uint8_t *)test_code, strlen(test_code), "test_showpicker_smil_websocket_rtc"), true);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7559,6 +7609,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_node_cache_large_ids);
     tcase_add_test(tc_event_loop, test_quickjs_out_of_process_event_dispatch);
     tcase_add_test(tc_event_loop, test_quickjs_dom_wrapper_finalization_after_context_free);
+    tcase_add_test(tc_event_loop, test_quickjs_showpicker_smil_websocket_rtc);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

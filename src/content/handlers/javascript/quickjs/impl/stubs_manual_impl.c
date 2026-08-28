@@ -5952,6 +5952,12 @@ JSValue wisp_htmlinputelement_showPicker_impl(JSContext *ctx, QJSNodePrivate *pr
         return throw_input_dom_exception(ctx, "InvalidStateError", "Element is disabled or readOnly");
     }
 
+    jsthread *thread = (jsthread *)JS_GetContextOpaque(ctx);
+    if (thread && priv->node) {
+        js_fire_event(thread, "input", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+        js_fire_event(thread, "change", qjs_thread_get_document(thread), (struct dom_node *)priv->node);
+    }
+
     return JS_UNDEFINED;
 }
 
