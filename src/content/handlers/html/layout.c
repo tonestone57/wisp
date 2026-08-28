@@ -3028,6 +3028,12 @@ static void layout_float_find_dimensions(
 	const css_unit_ctx *unit_len_ctx, int available_width, const css_computed_style *style, struct box *box)
 {
 	int width, height, max_width, max_height;
+
+	if (box->width != UNKNOWN_WIDTH && box->height != AUTO && available_width == box->last_available_width &&
+		box->min_width.value == box->last_min_width && box->max_width == box->last_max_width &&
+		!(box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT)) && !(box->flags & CHILD_DIRTY)) {
+		return;
+	}
 	struct css_size min_width;
 	struct css_size min_height;
 	int *margin = box->margin;
@@ -3125,7 +3131,9 @@ static void layout_float_find_dimensions(
 	}
 
 	box->width = width;
-	box->height = height;
+	if (height != AUTO || (box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY))) {
+		box->height = height;
+	}
 
 	if (margin[TOP] == AUTO)
 		margin[TOP] = 0;
@@ -5691,7 +5699,9 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 		/** \todo inline ancestors */
 	}
 	box->width = width;
-	box->height = height;
+	if (box->height == AUTO || (box->flags & (DIRTY_INTRINSIC | DIRTY_LAYOUT | CHILD_DIRTY))) {
+		box->height = height;
+	}
 
 	NSLOG(layout, DEEPDEBUG, "abs box %p: width %i parent %p parent.width %i", box, box->width, containing_block,
 		containing_block->width);
@@ -5725,6 +5735,10 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	}
 
 	/* 10.6.4 */
+	if (height == AUTO && box->height != AUTO) {
+		height = box->height;
+	}
+
 	NSLOG(layout, DEEPDEBUG, "%i + %i + %i + %i + %i + %i + %i + %i + %i = %i", top, margin[TOP], border[TOP].width,
 		padding[TOP], height, padding[BOTTOM], border[BOTTOM].width, margin[BOTTOM], bottom, containing_block->height);
 
@@ -6461,6 +6475,7 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 		return;
 	}
 	if (box->height == AUTO) {
+		NSLOG(wisp, WARNING, "box %p has AUTO height in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
 		box->height = 0;
 	}
 	/* assert((box->width >= 0) && (box->height >= 0)); */
