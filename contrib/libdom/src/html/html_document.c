@@ -201,9 +201,6 @@ bool _dom_html_document_finalise(dom_html_document *doc)
         doc->body = NULL;
     }
 
-    if (_dom_document_finalise(&doc->base) == false)
-        return false;
-
     if (doc->cookie != NULL) {
         dom_string_unref(doc->cookie);
         doc->cookie = NULL;
@@ -241,7 +238,7 @@ bool _dom_html_document_finalise(dom_html_document *doc)
         doc->elements = NULL;
     }
 
-    return true;
+    return _dom_document_finalise(&doc->base);
 }
 
 /* Destroy a HTMLDocument */
