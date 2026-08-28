@@ -823,7 +823,22 @@ static JSValue js_document_get_node_by_id_impl(JSContext *ctx, JSValueConst this
     uint32_t node_id = 0;
     JS_ToUint32(ctx, &node_id, argv[0]);
     if (node_id == 0) return JS_NULL;
-    return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)node_id);
+
+    if (wisp_is_js_process) {
+        if (!wisp_shm_dom || node_id >= wisp_shm_dom->node_count) {
+            return JS_NULL;
+        }
+        return qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)node_id);
+    } else {
+        struct jsthread *t = JS_GetContextOpaque(ctx);
+        if (t && t->shm_dom && node_id < t->shm_dom->node_count) {
+            dom_node *node = (dom_node *)(uintptr_t)shm_dom_get_dom_ptrs(t->shm_dom)[node_id];
+            if (node) {
+                return qjs_wrap_node(ctx, node);
+            }
+        }
+        return JS_NULL;
+    }
 }
 
 int qjs_init_document(JSContext *ctx) {
