@@ -265,6 +265,9 @@ static bool table_cell_top_process_row(
 
         while (processed == false) {
             for (c = row->children; c != NULL; c = c->next) {
+                if (!c || !c->style)
+                    continue;
+
                 /* Ignore cells to the left */
                 if (c->start_column + c->columns - 1 < cell->start_column)
                     continue;
@@ -291,7 +294,8 @@ static bool table_cell_top_process_row(
 
             if (processed == false) {
                 /* There must be a preceding row */
-                assert(row->prev != NULL);
+                if (row->prev == NULL)
+                    break;
 
                 row = row->prev;
             }
@@ -405,10 +409,14 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
                     break;
             }
 
-            assert(prev != NULL);
+            if (prev == NULL)
+                return;
         } else {
             prev = cell->prev;
         }
+
+        if (prev == NULL || prev->style == NULL)
+            return;
 
         b.style = css_computed_border_right_style(prev->style);
         b.color = css_computed_border_right_color(prev->style, &b.c);
@@ -767,9 +775,8 @@ bool table_calculate_column_types(const css_unit_ctx *unit_len_ctx, struct box *
                 css_fixed value = 0;
                 css_unit unit = CSS_UNIT_PX;
 
-                assert(cell->type == BOX_TABLE_CELL || cell->type == BOX_BLOCK ||
-                       cell->type == BOX_INLINE_BLOCK || cell->type == BOX_FLEX || cell->type == BOX_GRID);
-                assert(cell->style);
+                if (!cell || !cell->style)
+                    continue;
 
                 if (cell->columns != 1)
                     continue;
@@ -815,7 +822,10 @@ bool table_calculate_column_types(const css_unit_ctx *unit_len_ctx, struct box *
                 css_fixed value = 0;
                 css_unit unit = CSS_UNIT_PX;
 
-                if (cell->columns == 1)
+                if (!cell || !cell->style)
+                    continue;
+
+                if (cell->columns <= 1)
                     continue;
                 i = cell->start_column;
 
@@ -903,8 +913,8 @@ void table_used_border_for_cell(const css_unit_ctx *unit_len_ctx, struct box *ce
 {
     int side;
 
-    assert(cell->type == BOX_TABLE_CELL || cell->type == BOX_BLOCK ||
-           cell->type == BOX_INLINE_BLOCK || cell->type == BOX_FLEX || cell->type == BOX_GRID);
+    if (!cell || !cell->style)
+        return;
 
     if (css_computed_border_collapse(cell->style) == CSS_BORDER_COLLAPSE_SEPARATE) {
         css_fixed width = 0;
