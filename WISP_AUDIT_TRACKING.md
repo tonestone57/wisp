@@ -3,7 +3,7 @@
 ## Executive Status
 - **WebIDL Coverage:** 3,008 / 3,008 stubs mapped (100% strong C symbol overrides under `src/content/handlers/javascript/quickjs/impl/`, including 2,514 in `stubs_manual_impl.c`)
 - **Total wisp_*_impl Symbols Audited:** 3,008 (includes core overrides and standard/auxiliary helper bindings)
-- **HTML5Test Benchmark Baseline:** **561 / 588 points** (**95.4%** compliance, 0 runtime crashes/exceptions)
+- **HTML5Test Benchmark Baseline:** **573 / 588 points** (**97.4%** compliance, 0 runtime crashes/exceptions)
 - **Test Suite Status:** 114 / 114 passing (0 regressions)
 - **Leak Prevention:** LSan clean on CSS Node Selection Data (`free_style_snapshot` reclamation) and LibDOM node refcounting during QuickJS host node sync and test thread teardown
 
