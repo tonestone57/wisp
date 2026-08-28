@@ -23,7 +23,7 @@ For each subsystem, we evaluate current strengths, bottleneck analysis, and spec
 - **Runtime**: QuickJS-ng (v0.15.1) running out-of-process in `wisp-js` with isolated heap/runtime allocation per process and structured microtask draining via `JS_ExecutePendingJob`.
 - **AOT Bytecode Caching**: Serializes parsed scripts to binary bytecode under `/tmp/wisp-bytecode-cache` using SHA-256 keys to skip lexing/parsing phases on subsequent visits.
 - **Copy-Patch Baseline JIT (x86_64)**: Relocatable AMD64 Copy-Patch JIT tier compiling functions with execution threshold $\ge 10$ calls directly to machine code under System V ABI constraints and W^X protection.
-- **WebIDL & Web API Parity**: 3,008+ manual C symbol overrides (`wisp_*_impl`) connecting WebIDL interfaces directly to LibDOM and virtual SHM DOM nodes. 100% score (32/32) in HTML5Test `scripting`, `security` (32/32), and `offline` (13/13) subcategories with 561/588 overall score.
+- **WebIDL & Web API Parity**: 3,008+ manual C symbol overrides (`wisp_*_impl`) connecting WebIDL interfaces directly to LibDOM and virtual SHM DOM nodes. 100% score (32/32) in HTML5Test `scripting`, `resource` (7/7), and `offline` (13/13) subcategories with 573/588 overall score (97.4% compliance).
 
 ### Bottlenecks & Weaknesses
 1. **JIT Tiering Architecture Limited to AMD64**: Copy-Patch JIT is currently implemented strictly for x86_64 POSIX targets; ARM64, RISC-V, and 32-bit targets rely on the bytecode interpreter.
