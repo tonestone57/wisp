@@ -1322,8 +1322,7 @@ bool html_begin_conversion(html_content *htmlc)
 	/* fire a simple event that bubbles named DOMContentLoaded at
 	 * the Document.
 	 */
-	if (htmlc->jsthread != NULL && !htmlc->dom_content_loaded_fired) {
-		htmlc->dom_content_loaded_fired = true;
+	if (htmlc->jsthread != NULL) {
 		doc_rwlock_wrlock(&htmlc->doc_mutex);
 		js_fire_event(htmlc->jsthread, "DOMContentLoaded", htmlc->document, NULL);
 		doc_rwlock_wrunlock(&htmlc->doc_mutex);

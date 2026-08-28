@@ -82,7 +82,7 @@
 #include "gtk/toolbar_items.h"
 #include "gtk/warn.h"
 #include "gtk/window.h"
-#include "content/handlers/javascript/js.h"
+extern bool qjs_execute_pending_all(void);
 #ifdef __APPLE__
 #include <wisp/audio.h>
 extern struct gui_audio_table *macos_audio_table;
