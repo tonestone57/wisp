@@ -434,27 +434,26 @@ bool csp_check_url(struct csp *csp, csp_directive directive, nsurl *url) {
         }
 
         bool matched = false;
-        for (csp_source *s = src; s != NULL; s = s->next) {
-            if (match_source(s, csp->base_url, url)) {
-                matched = true;
-                break;
-            }
-        }
-
-        if (has_strict_dynamic && !matched) {
-            /* Under 'strict-dynamic', host/scheme allowlists are ignored.
-             * Script loads must be authorized via valid element nonce (checked via csp_check_nonce)
-             * or dynamic script creation context. */
-            bool has_nonce = false;
+        if (has_strict_dynamic) {
+            /* Under 'strict-dynamic', host-based allowlists, 'self', and schemes are suppressed.
+             * Script loads must be authorized via valid element nonce (checked in csp_check_nonce)
+             * or dynamic script creation context. Nonce presence in policy permits URL check. */
             for (csp_source *s = src; s != NULL; s = s->next) {
                 if (s->nonce != NULL) {
-                    has_nonce = true;
+                    matched = true;
                     break;
                 }
             }
-            if (!has_nonce) {
+            if (!matched) {
                 NSLOG(wisp, INFO, "CSP STRICT-DYNAMIC BLOCKED UN-NONCED SCRIPT URL: %s", nsurl_access(url));
                 return false;
+            }
+        } else {
+            for (csp_source *s = src; s != NULL; s = s->next) {
+                if (match_source(s, csp->base_url, url)) {
+                    matched = true;
+                    break;
+                }
             }
         }
 
