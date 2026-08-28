@@ -2391,7 +2391,7 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 		}
 	}
 	/* Handle the :before pseudo element */
-	if (!(box->flags & IS_REPLACED)) {
+	if (!(box->flags & IS_REPLACED) && box->styles != NULL) {
 		box_construct_generate(ctx->n, ctx, box, box->styles->styles[CSS_PSEUDO_ELEMENT_BEFORE]);
 	}
 
@@ -2808,7 +2808,7 @@ static void box_construct_element_after(dom_node *n, struct box_construct_ctx *c
 			box->inline_end = inline_end;
 			inline_end->inline_end = box;
 		}
-	} else if (!(box->flags & IS_REPLACED)) {
+	} else if (!(box->flags & IS_REPLACED) && box->styles != NULL) {
 		/* Handle the :after pseudo element */
 		box_construct_generate(n, ctx, box, box->styles->styles[CSS_PSEUDO_ELEMENT_AFTER]);
 	}
