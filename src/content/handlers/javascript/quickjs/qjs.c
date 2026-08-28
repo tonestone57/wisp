@@ -7789,13 +7789,18 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     if (wisp_gui_pump_events_hook) {
                         wisp_gui_pump_events_hook();
                     }
+                    /* Verify if the IPC process was crashed/released during nested event processing */
+                    if (get_js_process_handle(thread->origin) != ipc_js) {
+                        crashed = true;
+                        break;
+                    }
                     extern volatile bool nsgtk_complete __attribute__((weak));
                     if (&nsgtk_complete && nsgtk_complete) {
                         break;
                     }
                     usleep(10000);
                 }
-                if (!crashed) {
+                if (!crashed && get_js_process_handle(thread->origin) == ipc_js) {
                     wisp_ipc_set_blocking(ipc_js, true);
                 }
                 if (is_file) {
