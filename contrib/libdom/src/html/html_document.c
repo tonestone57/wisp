@@ -103,7 +103,6 @@ dom_exception _dom_html_document_create(dom_events_default_action_fetcher daf, v
 
     error = _dom_html_document_initialise(result, daf, daf_ctx);
     if (error != DOM_NO_ERR) {
-        _dom_html_document_finalise(result);
         if (arena) arena_destroy(arena); else free(result);
         return error;
     }
@@ -119,16 +118,18 @@ _dom_html_document_initialise(dom_html_document *doc, dom_events_default_action_
     dom_exception error;
     int sidx;
 
-    error = _dom_document_initialise(&doc->base, daf, daf_ctx);
-    if (error != DOM_NO_ERR)
-        return error;
-
     doc->title = NULL;
     doc->referrer = NULL;
     doc->domain = NULL;
     doc->url = NULL;
     doc->cookie = NULL;
     doc->body = NULL;
+    doc->memoised = NULL;
+    doc->elements = NULL;
+
+    error = _dom_document_initialise(&doc->base, daf, daf_ctx);
+    if (error != DOM_NO_ERR)
+        return error;
 
     doc->memoised = calloc(hds_COUNT, sizeof(dom_string *));
     if (doc->memoised == NULL) {

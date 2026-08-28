@@ -820,6 +820,7 @@ dom_hubbub_parser_create(dom_hubbub_parser_params *params, dom_hubbub_parser **p
         if (err != DOM_NO_ERR) {
             binding->msg(DOM_MSG_ERROR, binding->mctx, "Can't set DOM document id name");
             hubbub_parser_destroy(binding->parser);
+            dom_node_unref((struct dom_node *)binding->doc);
             free(binding);
             return DOM_HUBBUB_DOM;
         }
