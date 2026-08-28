@@ -82,6 +82,7 @@
 #include "gtk/toolbar_items.h"
 #include "gtk/warn.h"
 #include "gtk/window.h"
+#include "content/handlers/javascript/js.h"
 #ifdef __APPLE__
 #include <wisp/audio.h>
 extern struct gui_audio_table *macos_audio_table;
@@ -865,7 +866,6 @@ static nserror nsgtk_init(int *pargc, char ***pargv, char **cache_home)
 
 static gboolean nsgtk_js_event_loop_cb(gpointer user_data)
 {
-    extern bool qjs_execute_pending_all(void);
     qjs_execute_pending_all();
     return TRUE; /* G_SOURCE_CONTINUE */
 }
