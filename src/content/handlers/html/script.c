@@ -239,8 +239,10 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
             const uint8_t *data;
             size_t size;
             data = content_get_source_data(script, &size);
-            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen);
-            wisp_queue_precompile(data, size);
+            const char *script_url = nsurl_access(hlcache_handle_get_url(script));
+            bool is_mod = (s->mimetype && dom_string_data(s->mimetype) && strcasecmp(dom_string_data(s->mimetype), "module") == 0);
+            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen, const char *name, bool is_module);
+            wisp_queue_precompile(data, size, script_url, is_mod);
         }
         if (parent->base.active == 0) {
             NSLOG(wisp, CRITICAL,
@@ -374,8 +376,10 @@ static nserror convert_script_defer_cb(hlcache_handle *script, const hlcache_eve
             const uint8_t *data;
             size_t size;
             data = content_get_source_data(script, &size);
-            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen);
-            wisp_queue_precompile(data, size);
+            const char *script_url = nsurl_access(hlcache_handle_get_url(script));
+            bool is_mod = (s->mimetype && dom_string_data(s->mimetype) && strcasecmp(dom_string_data(s->mimetype), "module") == 0);
+            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen, const char *name, bool is_module);
+            wisp_queue_precompile(data, size, script_url, is_mod);
         }
         if (parent->base.active == 0) {
             NSLOG(wisp, CRITICAL,
@@ -551,8 +555,10 @@ static nserror convert_script_sync_cb(hlcache_handle *script, const hlcache_even
             const uint8_t *data;
             size_t size;
             data = content_get_source_data(script, &size);
-            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen);
-            wisp_queue_precompile(data, size);
+            const char *script_url = nsurl_access(hlcache_handle_get_url(script));
+            bool is_mod = (s->mimetype && dom_string_data(s->mimetype) && strcasecmp(dom_string_data(s->mimetype), "module") == 0);
+            extern void wisp_queue_precompile(const uint8_t *txt, size_t txtlen, const char *name, bool is_module);
+            wisp_queue_precompile(data, size, script_url, is_mod);
         }
         NSLOG(wisp, INFO, "DIAG: sync_cb DONE: parent=%p active=%d->%d", parent, parent->base.active,
             parent->base.active - 1);
