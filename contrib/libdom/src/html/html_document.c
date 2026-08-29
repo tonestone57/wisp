@@ -135,17 +135,19 @@ _dom_html_document_initialise(dom_html_document *doc, dom_events_default_action_
 
     doc->memoised = calloc(hds_COUNT, sizeof(dom_string *));
     if (doc->memoised == NULL) {
-        return DOM_NO_MEM_ERR;
+        error = DOM_NO_MEM_ERR;
+        goto out;
     }
     doc->elements = calloc(DOM_HTML_ELEMENT_TYPE__COUNT, sizeof(dom_string *));
     if (doc->elements == NULL) {
-        return DOM_NO_MEM_ERR;
+        error = DOM_NO_MEM_ERR;
+        goto out;
     }
 
 #define HTML_DOCUMENT_STRINGS_ACTION(attr, str)                                                                        \
     error = dom_string_create_interned((const uint8_t *)#str, SLEN(#str), &doc->memoised[hds_##attr]);                 \
     if (error != DOM_NO_ERR) {                                                                                         \
-        return error;                                                                                                  \
+        goto out;                                                                                                      \
     }
 
 #include "html_document_strings.h"
@@ -155,13 +157,35 @@ _dom_html_document_initialise(dom_html_document *doc, dom_events_default_action_
     error = dom_string_create_interned(                                                                                \
         (const uint8_t *)#tag, SLEN(#tag), &doc->elements[DOM_HTML_ELEMENT_TYPE_##tag]);                               \
     if (error != DOM_NO_ERR) {                                                                                         \
-        return error;                                                                                                  \
+        goto out;                                                                                                      \
     }
 
 #include <dom/html/html_elements.h>
 #undef DOM_HTML_ELEMENT_STRINGS_ENTRY
 
-    return DOM_NO_ERR;
+out:
+    if (error != DOM_NO_ERR) {
+        if (doc->memoised != NULL) {
+            for (sidx = 0; sidx < hds_COUNT; ++sidx) {
+                if (doc->memoised[sidx] != NULL) {
+                    dom_string_unref(doc->memoised[sidx]);
+                }
+            }
+            free(doc->memoised);
+            doc->memoised = NULL;
+        }
+        if (doc->elements != NULL) {
+            for (sidx = 0; sidx < DOM_HTML_ELEMENT_TYPE__COUNT; ++sidx) {
+                if (doc->elements[sidx] != NULL) {
+                    dom_string_unref(doc->elements[sidx]);
+                }
+            }
+            free(doc->elements);
+            doc->elements = NULL;
+        }
+        _dom_document_finalise(&doc->base);
+    }
+    return error;
 }
 
 /* Finalise a HTMLDocument */
