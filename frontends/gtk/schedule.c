@@ -47,6 +47,8 @@ static GList *active_callbacks = NULL;
 static uintptr_t next_callback_id = 1;
 
 static pthread_mutex_t schedule_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_t main_thread;
+static bool main_thread_set = false;
 
 static _nsgtk_callback_t *find_active_callback_by_id(uintptr_t id)
 {
@@ -141,6 +143,13 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
     _nsgtk_callback_t *cb;
     nserror res;
 
+    pthread_mutex_lock(&schedule_lock);
+    if (!main_thread_set) {
+        main_thread = pthread_self();
+        main_thread_set = true;
+    }
+    pthread_mutex_unlock(&schedule_lock);
+
     /* Kill any pending schedule of this kind. */
     res = schedule_remove(callback, cbctx);
 
@@ -164,15 +173,19 @@ nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
     active_callbacks = g_list_append(active_callbacks, cb);
     pthread_mutex_unlock(&schedule_lock);
 
-    invoke_data_t *id = malloc(sizeof(*id));
-    if (id != NULL) {
-        id->t = t;
-        id->cb_id = cb->id;
-        g_main_context_invoke(NULL, nsgtk_schedule_invoke_cb, id);
-    } else {
-        /* Fallback if OOM */
+    if (pthread_equal(pthread_self(), main_thread)) {
         g_timeout_add(t, nsgtk_schedule_generic_callback, (gpointer)cb->id);
-        g_main_context_wakeup(NULL);
+    } else {
+        invoke_data_t *id = malloc(sizeof(*id));
+        if (id != NULL) {
+            id->t = t;
+            id->cb_id = cb->id;
+            g_main_context_invoke(NULL, nsgtk_schedule_invoke_cb, id);
+        } else {
+            /* Fallback if OOM */
+            g_timeout_add(t, nsgtk_schedule_generic_callback, (gpointer)cb->id);
+            g_main_context_wakeup(NULL);
+        }
     }
 
     return NSERROR_OK;

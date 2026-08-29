@@ -26,10 +26,18 @@ extern struct wisp_table *guit;
 
 static wisp_ipc_handle *ipc_main;
 
+struct header_buf_entry {
+    uint8_t *buf;
+    size_t len;
+    uint32_t http_code;
+    struct header_buf_entry *next;
+};
+
 struct network_fetch_info {
     uint32_t fetch_id;
     struct fetch *fetchh;
     bool finished;
+    struct header_buf_entry *buffered_headers;
     struct network_fetch_info *next;
     struct network_fetch_info *hash_next;
 };
@@ -42,6 +50,49 @@ static struct network_fetch_info *active_fetches_hash[ACTIVE_FETCH_HASH_SIZE];
 static inline unsigned int hash_fetch_info(const struct network_fetch_info *info) {
     uintptr_t ptr = (uintptr_t)info;
     return (unsigned int)((ptr ^ (ptr >> 6)) % ACTIVE_FETCH_HASH_SIZE);
+}
+
+static void free_buffered_headers(struct network_fetch_info *info) {
+    if (!info) return;
+    struct header_buf_entry *curr = info->buffered_headers;
+    info->buffered_headers = NULL;
+    while (curr) {
+        struct header_buf_entry *next = curr->next;
+        free(curr->buf);
+        free(curr);
+        curr = next;
+    }
+}
+
+static void flush_buffered_headers(struct network_fetch_info *info) {
+    if (!info || !info->buffered_headers) return;
+    uint32_t fetch_id = info->fetch_id;
+    uint8_t stack_buf[512];
+    struct header_buf_entry *curr = info->buffered_headers;
+    info->buffered_headers = NULL;
+    while (curr) {
+        struct header_buf_entry *next = curr->next;
+        wisp_ipc_msg imsg;
+        imsg.type = WISP_IPC_MSG_FETCH_HEADER;
+        imsg.length = 8 + curr->len;
+        if (imsg.length <= sizeof(stack_buf)) {
+            imsg.data = stack_buf;
+        } else {
+            imsg.data = malloc(imsg.length);
+        }
+        if (imsg.data) {
+            memcpy(imsg.data, &fetch_id, 4);
+            memcpy(imsg.data + 4, &curr->http_code, 4);
+            if (curr->buf && curr->len > 0) {
+                memcpy(imsg.data + 8, curr->buf, curr->len);
+            }
+            wisp_ipc_send(ipc_main, &imsg);
+            if (imsg.data != stack_buf) free(imsg.data);
+        }
+        free(curr->buf);
+        free(curr);
+        curr = next;
+    }
 }
 
 static void remove_active_fetch_hash(struct network_fetch_info *info) {
@@ -104,6 +155,7 @@ static void cleanup_finished_fetches(void) {
         if (entry->finished) {
             *curr = entry->next;
             remove_active_fetch_hash(entry);
+            free_buffered_headers(entry);
             free(entry);
         } else {
             curr = &entry->next;
@@ -122,6 +174,7 @@ static void free_all_active_fetches(void) {
             fetch_abort(curr->fetchh);
             curr->fetchh = NULL;
         }
+        free_buffered_headers(curr);
         free(curr);
         curr = next;
     }
@@ -151,6 +204,32 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
                  * transfer encoding in write callbacks before delivering FETCH_DATA.
                  * Secondary stream unchunking is bypassed to prevent double-decoding raw body bytes. */
             }
+            uint32_t header_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
+            if (header_http_code >= 300 && header_http_code < 400) {
+                /* Buffer 3xx redirect headers to prevent IPC message fragmentation and cache callback overhead */
+                struct header_buf_entry *entry = malloc(sizeof(*entry));
+                if (entry) {
+                    entry->len = msg->data.header_or_data.len;
+                    entry->buf = entry->len ? malloc(entry->len) : NULL;
+                    if (entry->len && entry->buf) {
+                        memcpy(entry->buf, msg->data.header_or_data.buf, entry->len);
+                    }
+                    entry->http_code = header_http_code;
+                    entry->next = NULL;
+                    if (!info->buffered_headers) {
+                        info->buffered_headers = entry;
+                    } else {
+                        struct header_buf_entry *tail = info->buffered_headers;
+                        while (tail->next) tail = tail->next;
+                        tail->next = entry;
+                    }
+                }
+                break;
+            }
+
+            /* Not a 3xx redirect: flush any previously buffered headers */
+            flush_buffered_headers(info);
+
             imsg.type = WISP_IPC_MSG_FETCH_HEADER;
             imsg.length = 8 + msg->data.header_or_data.len;
             if (imsg.length <= sizeof(stack_buf)) {
@@ -160,7 +239,6 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             }
             if (!imsg.data) return;
             memcpy(imsg.data, &fetch_id, 4);
-            uint32_t header_http_code = info->fetchh ? (uint32_t)fetch_http_code(info->fetchh) : 0;
             memcpy(imsg.data + 4, &header_http_code, 4);
             if (msg->data.header_or_data.buf && msg->data.header_or_data.len > 0) {
                 memcpy(imsg.data + 8, msg->data.header_or_data.buf, msg->data.header_or_data.len);
@@ -170,6 +248,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         }
         case FETCH_NOTMODIFIED: {
+            flush_buffered_headers(info);
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
             imsg.length = 8;
             imsg.data = stack_buf;
@@ -181,6 +260,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         }
         case FETCH_DATA: {
+            flush_buffered_headers(info);
             const uint8_t *payload_data = msg->data.header_or_data.buf;
             size_t payload_len = msg->data.header_or_data.len;
             uint8_t *out_data = (uint8_t *)payload_data;
@@ -204,6 +284,7 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         }
         case FETCH_FINISHED: {
+            flush_buffered_headers(info);
             imsg.type = WISP_IPC_MSG_FETCH_FINISHED;
             imsg.length = 8;
             imsg.data = stack_buf;
@@ -214,6 +295,8 @@ static void network_process_fetch_callback(const fetch_msg *msg, void *p) {
             break;
         }
         case FETCH_REDIRECT: {
+            /* Redirect response header lines are suppressed because redirect event handles URL change */
+            free_buffered_headers(info);
             imsg.type = WISP_IPC_MSG_FETCH_REDIRECT;
             const char *redir_target = msg->data.redirect ? nsurl_access(msg->data.redirect) : "";
             imsg.length = 4 + 4 + strlen(redir_target) + 1;
@@ -331,11 +414,12 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                         }
                     }
 
-                    struct network_fetch_info *info = malloc(sizeof(*info));
+                    struct network_fetch_info *info = calloc(1, sizeof(*info));
                     if (info) {
                         info->fetch_id = fetch_id;
                         info->fetchh = NULL;
                         info->finished = false;
+                        info->buffered_headers = NULL;
                         info->next = active_fetches_list;
                         info->hash_next = NULL;
                         active_fetches_list = info;
