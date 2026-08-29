@@ -6247,29 +6247,9 @@ static void layout_get_box_bbox(
 	const css_unit_ctx *unit_len_ctx, struct box *box, int *desc_x0, int *desc_y0, int *desc_x1, int *desc_y1)
 {
 	/* Catch boxes with unresolved width - this would cause overflow */
-	/* Catch boxes with unresolved width - this would cause overflow */
-	if (box->width == UNKNOWN_WIDTH || box->width >= 100000000) {
-		int pos = (box->style) ? css_computed_position(box->style) : -1;
-		fprintf(stderr, "CRITICAL: Box %p Type %d Position %d has invalid width %d in layout_get_box_bbox\n",
-			(void *)box, box->type, pos, box->width);
-		struct box *p = box->parent;
-		int depth = 0;
-		int box_type = box->parent ? box->parent->type : -1;
-
-		fprintf(stderr, "CRITICAL: Box %p (width %d) Ancestry:\n", (void *)box, box->width);
-
-		while (p && depth < 20) {
-			fprintf(stderr, "CRITICAL: Ancestor[%d] %p type %d width %d\n", depth, (void *)p, p->type, p->width);
-			if (p->type == 1 /* BOX_BLOCK */ && p->parent && p->parent->type == 17 /* INLINE_GRID */) {
-				/* Interesting case */
-			}
-			p = p->parent;
-			depth++;
-		}
-		fflush(stderr);
-		/* Don't abort in production browser; use a safe fallback and log. */
-		NSLOG(layout, ERROR, "CRITICAL: Layout overflow detected for box %p, width %d. Using fallback.", (void *)box, box->width);
-		box->width = 1000000;
+	/* Catch boxes with unresolved or overflow width during bounding box computation */
+	if (box->width >= 100000000) {
+		NSLOG(layout, ERROR, "CRITICAL: Layout overflow detected for box %p, width %d.", (void *)box, box->width);
 	}
 
 	if (box->height >= 100000000) {
@@ -6312,7 +6292,7 @@ static void layout_get_box_bbox(
 	}
 
 	int w = box->width;
-	if (w < 0) {
+	if (w == UNKNOWN_WIDTH || w < 0) {
 		w = 0;
 	}
 	int h = box->height;
@@ -6459,8 +6439,13 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 	struct box *child;
 
 	if (box->width == UNKNOWN_WIDTH) {
-		NSLOG(wisp, DEBUG, "box %p has UNKNOWN_WIDTH in layout_calculate_descendant_bboxes", (void *)box);
-		return;
+		if (box->type == BOX_TABLE_CELL || box->type == BOX_INLINE_BLOCK) {
+			box->width = (box->max_width != UNKNOWN_MAX_WIDTH) ? box->max_width : 0;
+		} else if (box->parent && box->parent->width != UNKNOWN_WIDTH && box->parent->width >= 0) {
+			box->width = box->parent->width;
+		} else {
+			box->width = 0;
+		}
 	}
 	if (box->height == AUTO) {
 		NSLOG(wisp, WARNING, "box %p has AUTO height in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
