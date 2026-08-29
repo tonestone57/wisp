@@ -134,6 +134,7 @@ static struct nsgtk_resource_s direct_resource[] = {
     RES_ENTRY("adblock.css"),
     RES_ENTRY("internal.css"),
     RES_ENTRY("quirks.css"),
+    RES_ENTRY("user.css"),
     RES_ENTRY("wisp.png"),
     RES_ENTRY("icons/arrow-l.png"),
     RES_ENTRY("icons/content.png"),

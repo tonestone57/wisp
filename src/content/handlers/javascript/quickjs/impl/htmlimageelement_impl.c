@@ -39,7 +39,7 @@ JSValue wisp_htmlimageelement_Image_impl(JSContext *ctx, uint32_t width, uint32_
                 bridge_key_t key = { ctx, (struct dom_node *)(uintptr_t)dummy_id };
                 JSValue *val_ptr = hashmap_insert(map, &key);
                 if (val_ptr) {
-                    *val_ptr = val; // Store weak reference
+                    *val_ptr = JS_DupValue(ctx, val);
                 }
             }
             if (width > 0) {

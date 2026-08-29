@@ -55,7 +55,7 @@ static struct search_web_ctx_s {
 
 
 static const char *default_providers =
-    "DuckDuckGo|www.duckduckgo.com|https://www.duckduckgo.com/html/?q=%s|https://www.duckduckgo.com/favicon.ico|\n";
+    "DuckDuckGo|www.duckduckgo.com|https://www.duckduckgo.com/html/?q=%s|https://duckduckgo.com/favicon.ico|\n";
 
 static const char *default_search_icon_url = "resource:icons/search.png";
 

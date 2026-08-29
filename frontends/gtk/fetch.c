@@ -252,6 +252,11 @@ static nsurl *nsgtk_get_resource_url(const char *path)
     char buf[PATH_MAX];
     nsurl *url = NULL;
 
+    /* user.css is served directly by the resource fetcher */
+    if (strcmp(path, "user.css") == 0) {
+        return NULL;
+    }
+
     /* favicon.ico -> favicon.png */
     if (strcmp(path, "favicon.ico") == 0) {
         nsurl_create("resource:favicon.png", &url);
