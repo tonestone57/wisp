@@ -980,6 +980,30 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
         return NSERROR_BAD_PARAMETER;
     }
 
+    /* Early canonicalization of internal about: alias URIs to resource: targets */
+    nsurl *created_canonical_url = NULL;
+    const char *url_str = nsurl_access(url);
+    if (url_str != NULL && strncmp(url_str, "about:", 6) == 0) {
+        static const struct {
+            const char *alias;
+            const char *target;
+        } uri_aliases[] = {
+            { "about:logo", "resource:wisp.png" },
+            { "about:welcome", "resource:welcome.html" },
+            { "about:credits", "resource:credits.html" },
+            { "about:license", "resource:license.html" },
+            { NULL, NULL }
+        };
+        for (int i = 0; uri_aliases[i].alias != NULL; i++) {
+            if (strcmp(url_str, uri_aliases[i].alias) == 0) {
+                if (nsurl_create(uri_aliases[i].target, &created_canonical_url) == NSERROR_OK) {
+                    url = created_canonical_url;
+                    break;
+                }
+            }
+        }
+    }
+
     /* Check against Content Security Policy */
     if (child != NULL && child->csp != NULL) {
         bool exempt = false;
@@ -1036,6 +1060,9 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
 
         if (!exempt && !nsurl_compare(child->parent_url, url, NSURL_SCHEME | NSURL_HOST | NSURL_PORT)) {
             NSLOG(wisp, ERROR, "COEP BLOCKED cross-origin subresource load: %s", nsurl_access(url));
+            if (created_canonical_url != NULL) {
+                nsurl_unref(created_canonical_url);
+            }
             *result = NULL;
             return NSERROR_CSP_BLOCKED;
         }
@@ -1066,8 +1093,12 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
                 /* Found shareable content */
                 NSLOG(wisp, DEBUG, "FETCH: cache HIT (sync callback) '%s'", nsurl_access(url));
                 hlcache_handle *handle = calloc(1, sizeof(hlcache_handle));
-                if (handle == NULL)
+                if (handle == NULL) {
+                    if (created_canonical_url != NULL) {
+                        nsurl_unref(created_canonical_url);
+                    }
                     return NSERROR_NOMEM;
+                }
 
                 handle->entry = entry;
                 handle->cb = cb;
@@ -1076,6 +1107,9 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
 
                 if (content_add_user(entry->content, hlcache_content_callback, handle) == false) {
                     free(handle);
+                    if (created_canonical_url != NULL) {
+                        nsurl_unref(created_canonical_url);
+                    }
                     return NSERROR_NOMEM;
                 }
 
@@ -1086,6 +1120,9 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
                     *result = NULL;
                 }
 
+                if (created_canonical_url != NULL) {
+                    nsurl_unref(created_canonical_url);
+                }
                 return NSERROR_OK;
             }
         }
@@ -1129,6 +1166,9 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
                         hlcache_child_clean(&new_ctx->child);
                         free(new_ctx->handle);
                         free(new_ctx);
+                        if (created_canonical_url != NULL) {
+                            nsurl_unref(created_canonical_url);
+                        }
                         return NSERROR_NOMEM;
                     }
 
@@ -1140,12 +1180,18 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
                         hlcache_child_clean(&new_ctx->child);
                         free(new_ctx->handle);
                         free(new_ctx);
+                        if (created_canonical_url != NULL) {
+                            nsurl_unref(created_canonical_url);
+                        }
                         return NSERROR_NOMEM;
                     }
 
                     RING_INSERT(hlcache->retrieval_ctx_ring, new_ctx);
 
                     *result = new_ctx->handle;
+                    if (created_canonical_url != NULL) {
+                        nsurl_unref(created_canonical_url);
+                    }
                     return NSERROR_OK;
                 }
             }
@@ -1155,12 +1201,18 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
 
     ctx = calloc(1, sizeof(hlcache_retrieval_ctx));
     if (ctx == NULL) {
+        if (created_canonical_url != NULL) {
+            nsurl_unref(created_canonical_url);
+        }
         return NSERROR_NOMEM;
     }
 
     ctx->handle = calloc(1, sizeof(hlcache_handle));
     if (ctx->handle == NULL) {
         free(ctx);
+        if (created_canonical_url != NULL) {
+            nsurl_unref(created_canonical_url);
+        }
         return NSERROR_NOMEM;
     }
 
@@ -1168,6 +1220,9 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
         if (hlcache_child_copy(&ctx->child, child) != NSERROR_OK) {
             free(ctx->handle);
             free(ctx);
+            if (created_canonical_url != NULL) {
+                nsurl_unref(created_canonical_url);
+            }
             return NSERROR_NOMEM;
         }
     }
@@ -1204,6 +1259,10 @@ nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts
         RING_INSERT(hlcache->retrieval_ctx_ring, ctx);
 
         *result = ctx->handle;
+    }
+
+    if (created_canonical_url != NULL) {
+        nsurl_unref(created_canonical_url);
     }
     return error;
 }
