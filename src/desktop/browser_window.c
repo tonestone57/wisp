@@ -915,16 +915,25 @@ static nserror browser_window_content_done(struct browser_window *bw)
     if (bw->current_content != NULL && content_get_type(bw->current_content) == CONTENT_HTML) {
         html_content *htmlc = (html_content *)hlcache_handle_get_content(bw->current_content);
         if (htmlc != NULL && htmlc->jsthread != NULL) {
+            bool fire_dcl = false;
+            bool fire_load = false;
             doc_rwlock_wrlock(&htmlc->doc_mutex);
             if (!htmlc->dom_content_loaded_fired) {
                 htmlc->dom_content_loaded_fired = true;
-                js_fire_event(htmlc->jsthread, "DOMContentLoaded", htmlc->document, NULL);
+                fire_dcl = true;
             }
             if (!htmlc->load_event_fired) {
                 htmlc->load_event_fired = true;
-                js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
+                fire_load = true;
             }
             doc_rwlock_wrunlock(&htmlc->doc_mutex);
+
+            if (fire_dcl) {
+                js_fire_event(htmlc->jsthread, "DOMContentLoaded", htmlc->document, NULL);
+            }
+            if (fire_load) {
+                js_fire_event(htmlc->jsthread, "load", htmlc->document, NULL);
+            }
         }
     }
 
