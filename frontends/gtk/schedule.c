@@ -34,6 +34,7 @@ typedef struct {
     void *context; /**< The context for the callback. */
     bool callback_killed; /**< Whether or not this was killed. */
     uintptr_t id; /**< Unique callback ID. */
+    int t; /**< Scheduled timeout in ms. */
 } _nsgtk_callback_t;
 
 /** List of callbacks which have occurred and are pending running. */
@@ -96,7 +97,7 @@ static void nsgtk_schedule_kill_callback(void *_target, void *_match)
  * \return NSERROR_OK if the tuple was removed from at least one list else
  * NSERROR_NOT_FOUND
  */
-static nserror schedule_remove(void (*callback)(void *p), void *cbctx)
+static nserror schedule_remove_locked(void (*callback)(void *p), void *cbctx)
 {
     _nsgtk_callback_t cb_match = {
         .callback = callback,
@@ -104,16 +105,23 @@ static nserror schedule_remove(void (*callback)(void *p), void *cbctx)
         .callback_killed = false,
     };
 
-    pthread_mutex_lock(&schedule_lock);
     g_list_foreach(queued_callbacks, nsgtk_schedule_kill_callback, &cb_match);
     g_list_foreach(pending_callbacks, nsgtk_schedule_kill_callback, &cb_match);
     g_list_foreach(this_run, nsgtk_schedule_kill_callback, &cb_match);
-    pthread_mutex_unlock(&schedule_lock);
 
     if (cb_match.callback_killed == false) {
         return NSERROR_NOT_FOUND;
     }
     return NSERROR_OK;
+}
+
+static nserror schedule_remove(void (*callback)(void *p), void *cbctx)
+{
+    nserror res;
+    pthread_mutex_lock(&schedule_lock);
+    res = schedule_remove_locked(callback, cbctx);
+    pthread_mutex_unlock(&schedule_lock);
+    return res;
 }
 
 typedef struct {
@@ -139,26 +147,37 @@ static gboolean nsgtk_schedule_invoke_cb(gpointer data)
 nserror nsgtk_schedule(int t, void (*callback)(void *p), void *cbctx)
 {
     _nsgtk_callback_t *cb;
-    nserror res;
-
-    /* Kill any pending schedule of this kind. */
-    res = schedule_remove(callback, cbctx);
 
     /* only removal */
     if (t < 0) {
-        return res;
+        return schedule_remove(callback, cbctx);
     }
+
+    pthread_mutex_lock(&schedule_lock);
+
+    /* Check if an identical callback, context, and time tuple is already queued for the exact same target time. */
+    for (GList *l = queued_callbacks; l != NULL; l = l->next) {
+        _nsgtk_callback_t *qcb = (_nsgtk_callback_t *)l->data;
+        if (qcb->callback == callback && qcb->context == cbctx && qcb->t == t && !qcb->callback_killed) {
+            pthread_mutex_unlock(&schedule_lock);
+            return NSERROR_OK;
+        }
+    }
+
+    /* Kill any pending schedule of this kind. */
+    schedule_remove_locked(callback, cbctx);
 
     cb = malloc(sizeof(_nsgtk_callback_t));
     if (cb == NULL) {
+        pthread_mutex_unlock(&schedule_lock);
         return NSERROR_NOMEM;
     }
     cb->callback = callback;
     cb->context = cbctx;
     cb->callback_killed = false;
-
-    pthread_mutex_lock(&schedule_lock);
+    cb->t = t;
     cb->id = next_callback_id++;
+
     /* Prepend is faster right now. */
     queued_callbacks = g_list_prepend(queued_callbacks, cb);
     active_callbacks = g_list_append(active_callbacks, cb);

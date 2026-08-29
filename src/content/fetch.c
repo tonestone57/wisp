@@ -570,9 +570,17 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
     /* Ask the queue to run. */
     if (fetch_dispatch_jobs()) {
         NSLOG(fetch, DEBUG, "scheduling poll");
-        /* schedule active fetchers to run again in 10ms */
+        bool has_fdset = false;
+        int fetcherd;
+        for (fetcherd = 0; fetcherd < MAX_FETCHERS; fetcherd++) {
+            if (fetchers[fetcherd].refcount > 0 && fetchers[fetcherd].ops.fdset != NULL) {
+                has_fdset = true;
+                break;
+            }
+        }
+        int timeout = has_fdset ? FDSET_TIMEOUT : 10;
         if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
-            guit->misc->schedule(10, fetcher_poll, NULL);
+            guit->misc->schedule(timeout, fetcher_poll, NULL);
         }
     }
 

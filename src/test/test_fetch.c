@@ -6,6 +6,10 @@
 #include "content/fetch.h"
 #include "content/fetchers.h"
 #include "content/urldb.h"
+#include "wisp/misc.h"
+#include "wisp/desktop/gui_table.h"
+#include "wisp/desktop/gui_internal.h"
+#include "wisp/wisp.h"
 #include "utils/log.h"
 #include "utils/nsurl.h"
 #include "utils/nsoption.h"
@@ -36,6 +40,20 @@ static void test_fetcher_free(void *fetch) {
 static void test_fetcher_poll(lwc_string *scheme) {}
 static void test_fetcher_finalise(lwc_string *scheme) {}
 
+static int last_scheduled_timeout = -1;
+static nserror mock_schedule(int t, void (*callback)(void *p), void *p) {
+    last_scheduled_timeout = t;
+    return NSERROR_OK;
+}
+
+static struct gui_misc_table mock_misc_table = {
+    .schedule = mock_schedule,
+};
+
+static int test_fetcher_fdset(lwc_string *scheme, fd_set *r, fd_set *w, fd_set *e) {
+    return -1;
+}
+
 static const struct fetcher_operation_table test_fetcher_ops = {
     .initialise = test_fetcher_initialise,
     .acceptable = test_fetcher_acceptable,
@@ -44,6 +62,7 @@ static const struct fetcher_operation_table test_fetcher_ops = {
     .abort = test_fetcher_abort,
     .free = test_fetcher_free,
     .poll = test_fetcher_poll,
+    .fdset = test_fetcher_fdset,
     .finalise = test_fetcher_finalise
 };
 
@@ -55,6 +74,10 @@ static void test_fetch_callback(const fetch_msg *msg, void *p) {
     test_callback_called = true;
     test_callback_msg_type = msg->type;
 }
+
+static struct wisp_table mock_guit_table = {
+    .misc = &mock_misc_table,
+};
 
 static void setup_test_fetcher() {
     static bool setup = false;
@@ -68,6 +91,8 @@ static void setup_test_fetcher() {
     // Add our test fetcher
     nserror err = fetcher_add(scheme, &test_fetcher_ops);
     ck_assert_int_eq(err, NSERROR_OK);
+
+    guit = &mock_guit_table;
 
     lwc_string_unref(scheme);
     setup = true;
@@ -247,6 +272,29 @@ START_TEST(test_fetch_set_cookie_unverifiable_no_referer)
 }
 END_TEST
 
+START_TEST(test_fetch_start_fdset_timeout)
+{
+    setup_test_fetcher();
+
+    nsurl *url;
+    nsurl_create("http://example.com/fdset_test", &url);
+
+    last_scheduled_timeout = -1;
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+    ck_assert_int_eq(last_scheduled_timeout, 1000);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -262,6 +310,10 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_matching);
     tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_no_referer);
     suite_add_tcase(s, tc_cookie);
+
+    TCase *tc_fdset = tcase_create("FDSetSchedule");
+    tcase_add_test(tc_fdset, test_fetch_start_fdset_timeout);
+    suite_add_tcase(s, tc_fdset);
 
     return s;
 }
