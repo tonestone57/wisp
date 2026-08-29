@@ -49,6 +49,7 @@ void wisp_ipc_msg_free(wisp_ipc_msg *msg);
 
 /* Control */
 void wisp_ipc_set_blocking(wisp_ipc_handle *handle, bool blocking);
+int wisp_ipc_get_fd(const wisp_ipc_handle *handle);
 
 /* Process spawning */
 int wisp_ipc_spawn(const char *executable, const char *ipc_name);

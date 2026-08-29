@@ -304,6 +304,33 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                 if (nsurl_create(url_str, &url) == NSERROR_OK && url != NULL) {
                     bool only_2xx = (msg->data[8 + url_len] != 0);
                     bool downgrade_tls = (msg->data[8 + url_len + 1] != 0);
+
+                    /* Parse custom/conditional request headers if present */
+                    char **hdr_list = NULL;
+                    uint16_t num_headers = 0;
+                    if (msg->length >= 8 + url_len + 2 + 2) {
+                        memcpy(&num_headers, msg->data + 8 + url_len + 2, 2);
+                        if (num_headers > 0) {
+                            hdr_list = calloc(num_headers + 1, sizeof(char *));
+                            size_t hdr_offset = 8 + url_len + 4;
+                            for (uint16_t i = 0; i < num_headers; i++) {
+                                if (hdr_offset + 4 > msg->length) break;
+                                uint32_t hlen = 0;
+                                memcpy(&hlen, msg->data + hdr_offset, 4);
+                                hdr_offset += 4;
+                                if (hdr_offset + hlen > msg->length) break;
+                                if (hdr_list != NULL) {
+                                    hdr_list[i] = malloc(hlen + 1);
+                                    if (hdr_list[i] != NULL) {
+                                        memcpy(hdr_list[i], msg->data + hdr_offset, hlen);
+                                        hdr_list[i][hlen] = '\0';
+                                    }
+                                }
+                                hdr_offset += hlen;
+                            }
+                        }
+                    }
+
                     struct network_fetch_info *info = malloc(sizeof(*info));
                     if (info) {
                         info->fetch_id = fetch_id;
@@ -318,7 +345,7 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
 
                         struct fetch *f_out = NULL;
                         if (fetch_start(url, NULL, network_process_fetch_callback, info,
-                                        only_2xx, NULL, true, downgrade_tls, NULL, &f_out) == NSERROR_OK) {
+                                        only_2xx, NULL, true, downgrade_tls, (const char **)hdr_list, &f_out) == NSERROR_OK) {
                             info->fetchh = f_out;
                         } else {
                             /* Unlink info from active_fetches_list before error sending/freeing to prevent use-after-free */
@@ -336,6 +363,13 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                         }
                     } else {
                         send_fetch_error(fetch_id, "NoMem");
+                    }
+
+                    if (hdr_list != NULL) {
+                        for (uint16_t i = 0; i < num_headers; i++) {
+                            if (hdr_list[i] != NULL) free(hdr_list[i]);
+                        }
+                        free(hdr_list);
                     }
                     nsurl_unref(url);
                 } else {

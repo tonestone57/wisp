@@ -84,11 +84,20 @@ static nserror fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only
     pthread_mutex_unlock(&active_fetches_mutex);
 
     /* Forward request to network process */
+    uint16_t num_headers = 0;
+    size_t headers_bytes = 0;
+    if (headers != NULL) {
+        while (headers[num_headers] != NULL) {
+            headers_bytes += 4 + strlen(headers[num_headers]);
+            num_headers++;
+        }
+    }
+
     wisp_ipc_msg msg;
     msg.type = WISP_IPC_MSG_FETCH_REQUEST;
     const char *url_access = nsurl_access(url);
     uint32_t url_len = strlen(url_access);
-    msg.length = 4 + 4 + url_len + 1 + 1;
+    msg.length = 4 + 4 + url_len + 1 + 1 + 2 + headers_bytes;
     msg.data = malloc(msg.length);
     if (!msg.data) {
         pthread_mutex_lock(&active_fetches_mutex);
@@ -104,11 +113,20 @@ static nserror fetch_ipc_setup(struct fetch *parent_fetch, nsurl *url, bool only
         return NSERROR_NOMEM;
     }
 
-    memcpy(msg.data, &f->id, 4);
-    memcpy(msg.data + 4, &url_len, 4);
-    memcpy(msg.data + 8, url_access, url_len);
-    msg.data[8 + url_len] = only_2xx ? 1 : 0;
-    msg.data[8 + url_len + 1] = downgrade_tls ? 1 : 0;
+    uint8_t *p = msg.data;
+    memcpy(p, &f->id, 4); p += 4;
+    memcpy(p, &url_len, 4); p += 4;
+    memcpy(p, url_access, url_len); p += url_len;
+    *p++ = only_2xx ? 1 : 0;
+    *p++ = downgrade_tls ? 1 : 0;
+    memcpy(p, &num_headers, 2); p += 2;
+    if (num_headers > 0) {
+        for (uint16_t i = 0; i < num_headers; i++) {
+            uint32_t hlen = strlen(headers[i]);
+            memcpy(p, &hlen, 4); p += 4;
+            memcpy(p, headers[i], hlen); p += hlen;
+        }
+    }
     pthread_mutex_lock(&ipc_send_mutex);
     nserror send_err = wisp_ipc_send(ipc_network, &msg);
     pthread_mutex_unlock(&ipc_send_mutex);
@@ -375,6 +393,20 @@ static void fetch_ipc_poll(lwc_string *scheme) {
     }
 }
 
+static int fetch_ipc_fdset(lwc_string *scheme, fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd_set) {
+    pthread_mutex_lock(&active_fetches_mutex);
+    wisp_ipc_handle *handle = ipc_network;
+    pthread_mutex_unlock(&active_fetches_mutex);
+
+    if (!handle) return -1;
+
+    int fd = wisp_ipc_get_fd(handle);
+    if (fd < 0) return -1;
+
+    FD_SET(fd, read_fd_set);
+    return fd;
+}
+
 static bool fetch_ipc_can_fetch(const nsurl *url) {
     return nsurl_has_component(url, NSURL_HOST);
 }
@@ -473,6 +505,7 @@ nserror fetch_ipc_register(void) {
         .abort = fetch_ipc_abort,
         .free = fetch_ipc_free,
         .poll = fetch_ipc_poll,
+        .fdset = fetch_ipc_fdset,
         .finalise = fetch_ipc_finalise
     };
     fetcher_add(lwc_string_ref(corestring_lwc_http), &fetcher_ops);

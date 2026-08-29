@@ -330,6 +330,10 @@ void wisp_ipc_set_blocking(wisp_ipc_handle *handle, bool blocking) {
 #endif
 }
 
+int wisp_ipc_get_fd(const wisp_ipc_handle *handle) {
+    return handle ? (int)handle->fd : -1;
+}
+
 int wisp_ipc_spawn(const char *executable, const char *ipc_name) {
     if (!executable || !ipc_name || executable[0] == '\0' || ipc_name[0] == '\0') {
         return -1;

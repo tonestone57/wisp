@@ -257,8 +257,19 @@ static void fetcher_poll(void *unused)
             }
         }
 
-        /* schedule active fetchers to run again in 10ms */
-        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+        /* Check if any active fetcher provides fdset */
+        bool has_fdset = false;
+        for (fetcherd = 0; fetcherd < MAX_FETCHERS; fetcherd++) {
+            if (fetchers[fetcherd].refcount > 0 && fetchers[fetcherd].ops.fdset != NULL) {
+                has_fdset = true;
+                break;
+            }
+        }
+
+        /* Schedule active fetchers to run again in 10ms only if no fetcher provides fdset.
+         * For fdset-capable fetchers, socket readiness (or the 1000ms fallback timeout)
+         * handles polling. */
+        if (!has_fdset && guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
             guit->misc->schedule(SCHEDULE_TIME, fetcher_poll, NULL);
         }
     }
