@@ -1154,6 +1154,8 @@ static void nsgtk_main(void)
             g_main_context_remove_poll(0, fd_list[i]);
             free(fd_list[i]);
         }
+
+        qjs_execute_pending_all();
     }
 }
 
