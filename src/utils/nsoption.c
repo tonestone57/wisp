@@ -684,7 +684,7 @@ nserror nsoption_read(const char *path, struct nsoption_s *opts, struct nsoption
     fp = fopen(path, "r");
     if (!fp) {
         if (errno == ENOENT) {
-            NSLOG(wisp, INFO, "Option file '%s' not found (this is normal for a clean installation)", path);
+            NSLOG(wisp, VERBOSE, "Option file '%s' not found (this is normal for a clean installation)", path);
         } else {
             NSLOG(wisp, WARNING, "Failed to open file '%s': %s", path, strerror(errno));
         }

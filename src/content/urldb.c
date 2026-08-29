@@ -2871,7 +2871,7 @@ nserror urldb_load(const char *filename)
     fp = fopen(filename, "r");
     if (!fp) {
         if (errno == ENOENT) {
-            NSLOG(wisp, INFO, "Failed to open file '%s' for reading (this is normal for a clean installation)", filename);
+            NSLOG(wisp, VERBOSE, "Failed to open file '%s' for reading (this is normal for a clean installation)", filename);
         } else {
             NSLOG(wisp, ERROR, "Failed to open file '%s' for reading: %s", filename, strerror(errno));
         }
@@ -2958,7 +2958,7 @@ nserror urldb_load(const char *filename)
 
         /* no URLs => try next host */
         if (urls == 0) {
-            NSLOG(wisp, INFO, "No URLs for '%s'", host);
+            NSLOG(wisp, VERBOSE, "No URLs for '%s'", host);
             continue;
         }
 
