@@ -119,6 +119,9 @@ _dom_html_document_initialise(dom_html_document *doc, dom_events_default_action_
     dom_exception error;
     int sidx;
 
+    doc->memoised = NULL;
+    doc->elements = NULL;
+
     error = _dom_document_initialise(&doc->base, daf, daf_ctx);
     if (error != DOM_NO_ERR)
         return error;
