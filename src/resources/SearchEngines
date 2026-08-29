@@ -1,4 +1,4 @@
-DuckDuckGo|www.duckduckgo.com|https://www.duckduckgo.com/html/?q=%s|https://www.duckduckgo.com/favicon.ico|fixme:Their ico upsets the current implementation
+DuckDuckGo|www.duckduckgo.com|https://www.duckduckgo.com/html/?q=%s|https://duckduckgo.com/favicon.ico|fixme:Their ico upsets the current implementation
 Yahoo|search.yahoo.com|https://search.yahoo.com/search?p=%s|https://www.yahoo.com/favicon.ico|
 Bing|www.bing.com|https://www.bing.com/search?q=%s|https://www.bing.com/favicon.ico|
 Wikipedia|en.wikipedia.org|https://en.wikipedia.org/w/index.php?title=Special%3ASearch&search=%s|https://en.wikipedia.org/favicon.ico|

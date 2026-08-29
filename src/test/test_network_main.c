@@ -120,10 +120,10 @@ START_TEST(test_cleanup_finished_fetches)
     cleanup_finished_fetches();
     ck_assert_ptr_null(active_fetches_list);
 
-    struct network_fetch_info *n1 = malloc(sizeof(*n1));
-    struct network_fetch_info *n2 = malloc(sizeof(*n2));
-    struct network_fetch_info *n3 = malloc(sizeof(*n3));
-    struct network_fetch_info *n4 = malloc(sizeof(*n4));
+    struct network_fetch_info *n1 = calloc(1, sizeof(*n1));
+    struct network_fetch_info *n2 = calloc(1, sizeof(*n2));
+    struct network_fetch_info *n3 = calloc(1, sizeof(*n3));
+    struct network_fetch_info *n4 = calloc(1, sizeof(*n4));
 
     ck_assert_ptr_nonnull(n1);
     ck_assert_ptr_nonnull(n2);
@@ -161,8 +161,8 @@ START_TEST(test_cleanup_finished_fetches)
     active_fetches_list = NULL;
 
     /* Additional edge case: All nodes in list are finished */
-    struct network_fetch_info *a1 = malloc(sizeof(*a1));
-    struct network_fetch_info *a2 = malloc(sizeof(*a2));
+    struct network_fetch_info *a1 = calloc(1, sizeof(*a1));
+    struct network_fetch_info *a2 = calloc(1, sizeof(*a2));
     ck_assert_ptr_nonnull(a1);
     ck_assert_ptr_nonnull(a2);
 
@@ -181,8 +181,8 @@ START_TEST(test_free_all_active_fetches)
     free_all_active_fetches();
     ck_assert_ptr_null(active_fetches_list);
 
-    struct network_fetch_info *f1 = malloc(sizeof(*f1));
-    struct network_fetch_info *f2 = malloc(sizeof(*f2));
+    struct network_fetch_info *f1 = calloc(1, sizeof(*f1));
+    struct network_fetch_info *f2 = calloc(1, sizeof(*f2));
     ck_assert_ptr_nonnull(f1);
     ck_assert_ptr_nonnull(f2);
 

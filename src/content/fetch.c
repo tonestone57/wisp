@@ -102,6 +102,7 @@ static struct fetch *fetch_ring = NULL; /**< Ring of active fetches. */
 static struct fetch *queue_ring = NULL; /**< Ring of queued fetches */
 
 bool fetch_use_ipc = true;
+static bool fetch_poll_scheduled = false;
 
 /******************************************************************************
  * fetch internals							      *
@@ -247,6 +248,7 @@ static bool fetch_dispatch_jobs(void)
 static void fetcher_poll(void *unused)
 {
     int fetcherd;
+    fetch_poll_scheduled = false;
 
     if (fetch_dispatch_jobs()) {
         NSLOG(fetch, DEBUG, "Polling fetchers");
@@ -266,6 +268,7 @@ static void fetcher_poll(void *unused)
         int timeout = has_fdset ? FDSET_TIMEOUT : SCHEDULE_TIME;
         if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
             guit->misc->schedule(timeout, fetcher_poll, NULL);
+            fetch_poll_scheduled = true;
         }
     }
 }
@@ -436,8 +439,9 @@ nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd
          * select on. All the other fetchers continue to need
          * polling frequently.
          */
-        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+        if (!fetch_poll_scheduled && guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
             guit->misc->schedule(FDSET_TIMEOUT, fetcher_poll, NULL);
+            fetch_poll_scheduled = true;
         }
     }
 
@@ -571,8 +575,9 @@ nserror fetch_start(nsurl *url, nsurl *referer, fetch_callback callback, void *p
     if (fetch_dispatch_jobs()) {
         NSLOG(fetch, DEBUG, "scheduling poll");
         /* schedule active fetchers to run again in 10ms */
-        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+        if (!fetch_poll_scheduled && guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
             guit->misc->schedule(10, fetcher_poll, NULL);
+            fetch_poll_scheduled = true;
         }
     }
 
