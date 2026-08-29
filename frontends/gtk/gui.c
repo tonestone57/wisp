@@ -1299,6 +1299,7 @@ static void nsgtk_signal_handler(int sig)
         char buf[1] = {'w'};
         (void)write(nsgtk_wake_pipe[1], buf, 1);
     }
+    g_main_context_wakeup(NULL);
 }
 
 /**
