@@ -302,6 +302,9 @@ static bool fetch_resource_initialise(lwc_string *scheme)
             }
             if (e->redirect_url == NULL) {
                 if (strcmp(fetch_resource_paths[i], "user.css") == 0) {
+                    static const uint8_t empty_css[] = "";
+                    e->data = empty_css;
+                    e->data_len = 0;
                     fetch_resource_path_count++;
                 } else {
                     lwc_string_unref(e->path);
@@ -324,7 +327,11 @@ static void fetch_resource_finalise(lwc_string *scheme)
     for (i = 0; i < fetch_resource_path_count; i++) {
         lwc_string_unref(fetch_resource_map[i].path);
         if (fetch_resource_map[i].data != NULL) {
-            guit->fetch->release_resource_data(fetch_resource_map[i].data);
+            static const uint8_t empty_css[] = "";
+            if (fetch_resource_map[i].data != empty_css &&
+                guit != NULL && guit->fetch != NULL && guit->fetch->release_resource_data != NULL) {
+                guit->fetch->release_resource_data(fetch_resource_map[i].data);
+            }
         } else {
             if (fetch_resource_map[i].redirect_url != NULL) {
                 nsurl_unref(fetch_resource_map[i].redirect_url);
