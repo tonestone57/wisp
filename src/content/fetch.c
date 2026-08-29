@@ -250,16 +250,22 @@ static void fetcher_poll(void *unused)
 
     if (fetch_dispatch_jobs()) {
         NSLOG(fetch, DEBUG, "Polling fetchers");
+        bool has_fdset = false;
         for (fetcherd = 0; fetcherd < MAX_FETCHERS; fetcherd++) {
             if (fetchers[fetcherd].refcount > 0) {
                 /* fetcher present */
                 fetchers[fetcherd].ops.poll(fetchers[fetcherd].scheme);
+                if (fetchers[fetcherd].ops.fdset != NULL) {
+                    has_fdset = true;
+                }
             }
         }
 
-        /* schedule active fetchers to run again in 10ms */
+        /* If fetchers support fdset selection, back off schedule time to FDSET_TIMEOUT (1000ms),
+         * letting the main loop poll file descriptors instead of busy-polling every 10ms. */
+        int timeout = has_fdset ? FDSET_TIMEOUT : SCHEDULE_TIME;
         if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
-            guit->misc->schedule(SCHEDULE_TIME, fetcher_poll, NULL);
+            guit->misc->schedule(timeout, fetcher_poll, NULL);
         }
     }
 }

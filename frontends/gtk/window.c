@@ -148,6 +148,13 @@ struct gui_window {
     /** current frame of throbber */
     int throb_frame;
 
+    /** pending dirty area for coalesced invalidation */
+    struct {
+        bool active;
+        struct rect rect;
+        guint idle_id;
+    } pending_invalidate;
+
     /** list for cleanup */
     struct gui_window *next, *prev;
 };
@@ -1209,6 +1216,12 @@ static void gui_window_destroy(struct gui_window *gw)
     assert(gw->bw != NULL);
     NSLOG(wisp, INFO, "scaffolding: %p", gw->scaffold);
 
+    if (gw->pending_invalidate.idle_id != 0) {
+        g_source_remove(gw->pending_invalidate.idle_id);
+        gw->pending_invalidate.idle_id = 0;
+        gw->pending_invalidate.active = false;
+    }
+
     /* kill off any throbber that might be running */
     nsgtk_schedule(-1, next_throbber_frame, gw);
 
@@ -1315,11 +1328,37 @@ static void gui_window_remove_caret(struct gui_window *g)
  * \param rect area to redraw or NULL for the entire window area
  * \return NSERROR_OK on success or appropriate error code
  */
+static gboolean nsgtk_window_flush_pending_invalidate_cb(gpointer user_data)
+{
+    struct gui_window *g = user_data;
+    g->pending_invalidate.idle_id = 0;
+
+    if (g->pending_invalidate.active) {
+        int sx, sy;
+        gui_window_get_scroll(g, &sx, &sy);
+        int draw_w = g->pending_invalidate.rect.x1 - g->pending_invalidate.rect.x0;
+        int draw_h = g->pending_invalidate.rect.y1 - g->pending_invalidate.rect.y0;
+        if (draw_w > 0 && draw_h > 0) {
+            gtk_widget_queue_draw_area(
+                GTK_WIDGET(g->layout),
+                g->pending_invalidate.rect.x0 - sx,
+                g->pending_invalidate.rect.y0 - sy,
+                draw_w,
+                draw_h);
+        }
+        g->pending_invalidate.active = false;
+    }
+    return G_SOURCE_REMOVE;
+}
+
 static nserror nsgtk_window_invalidate_area(struct gui_window *g, const struct rect *rect)
 {
-    int sx, sy;
-
     if (rect == NULL) {
+        if (g->pending_invalidate.idle_id != 0) {
+            g_source_remove(g->pending_invalidate.idle_id);
+            g->pending_invalidate.idle_id = 0;
+            g->pending_invalidate.active = false;
+        }
         gtk_widget_queue_draw(GTK_WIDGET(g->layout));
         return NSERROR_OK;
     }
@@ -1328,16 +1367,25 @@ static nserror nsgtk_window_invalidate_area(struct gui_window *g, const struct r
         return NSERROR_OK;
     }
 
-    gui_window_get_scroll(g, &sx, &sy);
-
     int draw_w = rect->x1 - rect->x0;
     int draw_h = rect->y1 - rect->y0;
     if (rect->x0 <= -2000000000 || rect->y0 <= -2000000000 || draw_w < 0 || draw_h < 0) {
         return NSERROR_OK;
     }
 
-    gtk_widget_queue_draw_area(
-        GTK_WIDGET(g->layout), rect->x0 - sx, rect->y0 - sy, draw_w, draw_h);
+    if (!g->pending_invalidate.active) {
+        g->pending_invalidate.rect = *rect;
+        g->pending_invalidate.active = true;
+    } else {
+        if (rect->x0 < g->pending_invalidate.rect.x0) g->pending_invalidate.rect.x0 = rect->x0;
+        if (rect->y0 < g->pending_invalidate.rect.y0) g->pending_invalidate.rect.y0 = rect->y0;
+        if (rect->x1 > g->pending_invalidate.rect.x1) g->pending_invalidate.rect.x1 = rect->x1;
+        if (rect->y1 > g->pending_invalidate.rect.y1) g->pending_invalidate.rect.y1 = rect->y1;
+    }
+
+    if (g->pending_invalidate.idle_id == 0) {
+        g->pending_invalidate.idle_id = g_idle_add(nsgtk_window_flush_pending_invalidate_cb, g);
+    }
 
     return NSERROR_OK;
 }
