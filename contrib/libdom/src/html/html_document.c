@@ -428,14 +428,17 @@ static dom_exception _dom_html_document_create_element_internal(dom_html_documen
         params.name = dom_string_ref(in_tag_name);
         params.type = DOM_HTML_ELEMENT_TYPE__UNKNOWN;
     } else {
-        exc = dom_string_toupper(in_tag_name, true, &params.name);
+        dom_string *upper_name = NULL;
+        exc = dom_string_toupper(in_tag_name, true, &upper_name);
         if (exc != DOM_NO_ERR)
             return exc;
-        params.type = _dom_html_document_get_element_type(html, params.name);
+        params.type = _dom_html_document_get_element_type(html, upper_name);
         if (params.type != DOM_HTML_ELEMENT_TYPE__UNKNOWN && html->elements != NULL && html->elements[params.type] != NULL) {
-            dom_string_unref(params.name);
             params.name = dom_string_ref(html->elements[params.type]);
+        } else {
+            params.name = dom_string_ref(upper_name);
         }
+        dom_string_unref(upper_name);
     }
 
     params.doc = html;
