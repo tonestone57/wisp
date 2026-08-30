@@ -329,6 +329,17 @@ nserror event_handler(llcache_handle *handle, const llcache_event *event, void *
     return NSERROR_OK;
 }
 
+static nserror redirect_abort_event_handler(llcache_handle *handle, const llcache_event *event, void *pw)
+{
+    bool *redirect_aborted = pw;
+    if (event->type == LLCACHE_EVENT_REDIRECT) {
+        *redirect_aborted = true;
+        /* Simulate concurrent handle abort during redirect event dispatch */
+        llcache_handle_abort(handle);
+    }
+    return NSERROR_OK;
+}
+
 int main(int argc, char **argv)
 {
     nserror error;
@@ -467,6 +478,37 @@ int main(int argc, char **argv)
     if (!same) {
         fprintf(stderr, "Expected handle and handle2 to reference the same cached object!\n");
         return 1;
+    }
+
+    /* Test concurrent llcache_handle_abort during redirect event */
+    {
+        nsurl *redirect_src_url;
+        llcache_handle *redirect_handle;
+        bool redirect_aborted = false;
+
+        if (nsurl_create("https://www.wispbrowser.com/redirect-test", &redirect_src_url) == NSERROR_OK) {
+            error = llcache_handle_retrieve(redirect_src_url, 0, NULL, NULL, redirect_abort_event_handler, &redirect_aborted, &redirect_handle);
+            if (error == NSERROR_OK) {
+                /* Simulate a 302 redirect from test fetcher */
+                if (ring != NULL) {
+                    fetch_msg rmsg;
+                    fetch_set_http_code(ring->parent, 302);
+                    nsurl *target_url;
+                    if (nsurl_create("https://www.wispbrowser.com/redirect-target", &target_url) == NSERROR_OK) {
+                        rmsg.type = FETCH_REDIRECT;
+                        rmsg.data.redirect = target_url;
+                        fetch_send_callback(&rmsg, ring->parent);
+                        nsurl_unref(target_url);
+                    }
+                }
+                pump_all();
+                if (redirect_aborted) {
+                    fprintf(stdout, "llcache_fetch_redirect abort safety test PASSED\n");
+                }
+                llcache_handle_release(redirect_handle);
+            }
+            nsurl_unref(redirect_src_url);
+        }
     }
 
     /* Cleanup */
