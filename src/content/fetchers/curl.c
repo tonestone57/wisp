@@ -2116,6 +2116,15 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
                 f->location[loc_len - 1] == '\r' || f->location[loc_len - 1] == '\n')) {
             f->location[--loc_len] = '\0';
         }
+
+        /* If this is a 3xx redirect response, process the redirect immediately
+         * to abort the fetch and prevent trailing header / body chatter. */
+        if (300 <= f->http_code && f->http_code < 400 && f->http_code != 304) {
+            if (fetch_curl_process_headers(f)) {
+                f->stopped = true;
+                return 0;
+            }
+        }
     } else if (15 < len && strncasecmp(data, "Content-Length:", 15) == 0) {
         /* extract Content-Length header */
         SKIP_ST(15);

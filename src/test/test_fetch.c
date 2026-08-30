@@ -247,6 +247,55 @@ START_TEST(test_fetch_set_cookie_unverifiable_no_referer)
 }
 END_TEST
 
+static int redirect_test_header_count = 0;
+static int redirect_test_redirect_count = 0;
+
+static void redirect_test_callback(const fetch_msg *msg, void *p)
+{
+    if (msg->type == FETCH_HEADER) {
+        redirect_test_header_count++;
+    } else if (msg->type == FETCH_REDIRECT) {
+        redirect_test_redirect_count++;
+    }
+}
+
+START_TEST(test_fetch_immediate_redirect_processing)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/redir_immediate", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, redirect_test_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    redirect_test_header_count = 0;
+    redirect_test_redirect_count = 0;
+
+    /* Set HTTP status code 301 on the fetch */
+    fetch_set_http_code(f, 301);
+
+    /* Simulate header callback delivering HTTP 301 header line followed by Location: header */
+    fetch_msg hmsg1 = { .type = FETCH_HEADER };
+    fetch_send_callback(&hmsg1, f);
+
+    /* Simulate Location: header dispatching FETCH_REDIRECT */
+    nsurl *target_url = NULL;
+    nsurl_create("https://example.com/target", &target_url);
+    fetch_msg rmsg = { .type = FETCH_REDIRECT, .data = { .redirect = target_url } };
+    fetch_send_callback(&rmsg, f);
+
+    ck_assert_int_eq(redirect_test_header_count, 1);
+    ck_assert_int_eq(redirect_test_redirect_count, 1);
+
+    nsurl_unref(target_url);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -261,6 +310,7 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_cookie, test_fetch_set_cookie_verifiable);
     tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_matching);
     tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_no_referer);
+    tcase_add_test(tc_cookie, test_fetch_immediate_redirect_processing);
     suite_add_tcase(s, tc_cookie);
 
     return s;
