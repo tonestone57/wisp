@@ -1680,7 +1680,7 @@ static bool fetch_curl_process_headers(struct curl_fetch_info *f)
     http_code = f->http_code;
     NSLOG(wisp, INFO, "HTTP status code %li", http_code);
 
-    if ((http_code == 304) && (f->postdata->type == FETCH_POSTDATA_NONE)) {
+    if ((http_code == 304) && (f->postdata == NULL || f->postdata->type == FETCH_POSTDATA_NONE)) {
         /* Not Modified && GET request */
         msg.type = FETCH_NOTMODIFIED;
         fetch_send_callback(&msg, f->fetch_handle);
