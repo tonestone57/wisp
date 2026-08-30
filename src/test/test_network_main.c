@@ -276,6 +276,46 @@ START_TEST(test_send_fetch_error)
 }
 END_TEST
 
+START_TEST(test_fetch_callback_3xx_redirect_header_passthrough)
+{
+    setup_ipc();
+
+    struct network_fetch_info info = {
+        .fetch_id = 3010,
+        .fetchh = NULL,
+        .finished = false,
+        .next = NULL
+    };
+    active_fetches_list = &info;
+
+    /* Verify 301 Moved Permanently header is sent immediately via WISP_IPC_MSG_FETCH_HEADER */
+    fetch_msg msg;
+    msg.type = FETCH_HEADER;
+    const char *hdr = "HTTP/1.1 301 Moved Permanently\r\nLocation: https://html5test.co/\r\n\r\n";
+    msg.data.header_or_data.buf = (const uint8_t *)hdr;
+    msg.data.header_or_data.len = strlen(hdr);
+
+    network_process_fetch_callback(&msg, &info);
+
+    wisp_ipc_msg recv_msg;
+    nserror err = wisp_ipc_recv(test_ipc_accepted, &recv_msg);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_int_eq(recv_msg.type, WISP_IPC_MSG_FETCH_HEADER);
+    ck_assert_int_eq(recv_msg.length, 8 + strlen(hdr));
+
+    uint32_t recv_fid;
+    memcpy(&recv_fid, recv_msg.data, 4);
+    ck_assert_int_eq(recv_fid, 3010);
+    ck_assert_mem_eq(recv_msg.data + 8, hdr, strlen(hdr));
+
+    ck_assert_int_eq(info.finished, false);
+
+    wisp_ipc_msg_free(&recv_msg);
+    active_fetches_list = NULL;
+    teardown_ipc();
+}
+END_TEST
+
 START_TEST(test_fetch_callback_chunked_data_passthrough)
 {
     setup_ipc();
@@ -1074,6 +1114,7 @@ static Suite *network_main_suite(void)
     tcase_add_test(tc_core, test_cleanup_finished_fetches);
     tcase_add_test(tc_core, test_free_all_active_fetches);
     tcase_add_test(tc_core, test_fetch_callback_header);
+    tcase_add_test(tc_core, test_fetch_callback_3xx_redirect_header_passthrough);
     tcase_add_test(tc_core, test_fetch_callback_data);
     tcase_add_test(tc_core, test_fetch_callback_chunked_data_passthrough);
     tcase_add_test(tc_core, test_fetch_callback_finished);
