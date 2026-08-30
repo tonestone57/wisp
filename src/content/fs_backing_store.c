@@ -762,6 +762,70 @@ static nserror write_entry(struct store_entry *ent, int fd)
     return NSERROR_OK;
 }
 
+struct buffered_reader {
+    int fd;
+    uint8_t buffer[65536];
+    size_t buf_pos;
+    size_t buf_len;
+    off_t file_pos;
+};
+
+static void buf_reader_init(struct buffered_reader *r, int fd)
+{
+    r->fd = fd;
+    r->buf_pos = 0;
+    r->buf_len = 0;
+    r->file_pos = 0;
+}
+
+static bool buf_reader_read(struct buffered_reader *r, void *dest, size_t len)
+{
+    uint8_t *d = dest;
+    while (len > 0) {
+        if (r->buf_pos >= r->buf_len) {
+            ssize_t n = read(r->fd, r->buffer, sizeof(r->buffer));
+            if (n <= 0) {
+                return false;
+            }
+            r->buf_pos = 0;
+            r->buf_len = (size_t)n;
+        }
+        size_t avail = r->buf_len - r->buf_pos;
+        size_t to_copy = (len < avail) ? len : avail;
+        memcpy(d, r->buffer + r->buf_pos, to_copy);
+        r->buf_pos += to_copy;
+        r->file_pos += to_copy;
+        d += to_copy;
+        len -= to_copy;
+    }
+    return true;
+}
+
+static bool buf_reader_skip(struct buffered_reader *r, size_t len)
+{
+    while (len > 0) {
+        if (r->buf_pos >= r->buf_len) {
+            ssize_t n = read(r->fd, r->buffer, sizeof(r->buffer));
+            if (n <= 0) {
+                return false;
+            }
+            r->buf_pos = 0;
+            r->buf_len = (size_t)n;
+        }
+        size_t avail = r->buf_len - r->buf_pos;
+        size_t to_skip = (len < avail) ? len : avail;
+        r->buf_pos += to_skip;
+        r->file_pos += to_skip;
+        len -= to_skip;
+    }
+    return true;
+}
+
+static off_t buf_reader_tell(const struct buffered_reader *r)
+{
+    return r->file_pos;
+}
+
 static void validate_entries_after_write(struct store_state *state)
 {
     char *fname = NULL;
@@ -778,21 +842,22 @@ static void validate_entries_after_write(struct store_state *state)
     bool truncated = false;
     char magic[4];
     uint32_t ver;
-    ssize_t hdr = read(fd, magic, 4);
-    if (hdr == 4 && memcmp(magic, "ENTR", 4) == 0) {
-        if (read(fd, &ver, sizeof(ver)) != sizeof(ver)) {
+    struct buffered_reader br;
+    buf_reader_init(&br, fd);
+    if (buf_reader_read(&br, magic, 4) && memcmp(magic, "ENTR", 4) == 0) {
+        if (!buf_reader_read(&br, &ver, sizeof(ver))) {
             truncated = true;
             goto vd_done;
         }
         if (ver == 3 || ver == CONTROL_VERSION) {
             uint32_t expected = 0;
-            if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
+            if (!buf_reader_read(&br, &expected, sizeof(expected))) {
                 truncated = true;
                 goto vd_done;
             }
             for (uint32_t i = 0; i < expected; i++) {
                 uint32_t urllen;
-                if (read(fd, &urllen, sizeof(urllen)) != sizeof(urllen)) {
+                if (!buf_reader_read(&br, &urllen, sizeof(urllen))) {
                     truncated = true;
                     break;
                 }
@@ -800,19 +865,22 @@ static void validate_entries_after_write(struct store_state *state)
                     truncated = true;
                     break;
                 }
-                lseek(fd, urllen, SEEK_CUR);
+                if (!buf_reader_skip(&br, urllen)) {
+                    truncated = true;
+                    break;
+                }
                 int64_t last_used;
                 uint16_t use_count;
                 uint8_t flags;
-                if (read(fd, &last_used, sizeof(last_used)) != sizeof(last_used)) {
+                if (!buf_reader_read(&br, &last_used, sizeof(last_used))) {
                     truncated = true;
                     break;
                 }
-                if (read(fd, &use_count, sizeof(use_count)) != sizeof(use_count)) {
+                if (!buf_reader_read(&br, &use_count, sizeof(use_count))) {
                     truncated = true;
                     break;
                 }
-                if (read(fd, &flags, sizeof(flags)) != sizeof(flags)) {
+                if (!buf_reader_read(&br, &flags, sizeof(flags))) {
                     truncated = true;
                     break;
                 }
@@ -822,23 +890,23 @@ static void validate_entries_after_write(struct store_state *state)
                     uint64_t joff;
                     uint32_t jlen;
                     uint8_t efl;
-                    if (read(fd, &sz, sizeof(sz)) != sizeof(sz)) {
+                    if (!buf_reader_read(&br, &sz, sizeof(sz))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &blk, sizeof(blk)) != sizeof(blk)) {
+                    if (!buf_reader_read(&br, &blk, sizeof(blk))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &joff, sizeof(joff)) != sizeof(joff)) {
+                    if (!buf_reader_read(&br, &joff, sizeof(joff))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &jlen, sizeof(jlen)) != sizeof(jlen)) {
+                    if (!buf_reader_read(&br, &jlen, sizeof(jlen))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &efl, sizeof(efl)) != sizeof(efl)) {
+                    if (!buf_reader_read(&br, &efl, sizeof(efl))) {
                         truncated = true;
                         goto vd_done;
                     }
@@ -850,13 +918,13 @@ static void validate_entries_after_write(struct store_state *state)
             }
         } else if (ver == 2) {
             uint32_t expected = 0;
-            if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
+            if (!buf_reader_read(&br, &expected, sizeof(expected))) {
                 truncated = true;
                 goto vd_done;
             }
             for (uint32_t i = 0; i < expected; i++) {
                 uint32_t urllen;
-                if (read(fd, &urllen, sizeof(urllen)) != sizeof(urllen)) {
+                if (!buf_reader_read(&br, &urllen, sizeof(urllen))) {
                     truncated = true;
                     break;
                 }
@@ -870,15 +938,13 @@ static void validate_entries_after_write(struct store_state *state)
                     truncated = true;
                     break;
                 }
-                ssize_t got = read(fd, url, urllen);
-                if (got != (ssize_t)urllen) {
+                if (!buf_reader_read(&br, url, urllen)) {
                     struct stat st;
-                    off_t off = lseek(fd, 0, SEEK_CUR);
+                    off_t off = buf_reader_tell(&br);
                     fstat(fd, &st);
                     NSLOG(wisp, ERROR,
-                        "validate entries: short read for URL length %u (got %" PRIssizet
-                        ") at off %lld of size %lld errno %d",
-                        urllen, got, (long long)off, (long long)st.st_size, errno);
+                        "validate entries: short read for URL length %u at off %lld of size %lld errno %d",
+                        urllen, (long long)off, (long long)st.st_size, errno);
                     free(url);
                     truncated = true;
                     break;
@@ -888,7 +954,7 @@ static void validate_entries_after_write(struct store_state *state)
                 free(url);
                 if (ret != NSERROR_OK) {
                     struct stat st;
-                    off_t off = lseek(fd, 0, SEEK_CUR);
+                    off_t off = buf_reader_tell(&br);
                     fstat(fd, &st);
                     NSLOG(wisp, ERROR, "validate entries: invalid URL at off %lld of size %lld", (long long)off,
                         (long long)st.st_size);
@@ -899,15 +965,15 @@ static void validate_entries_after_write(struct store_state *state)
                 int64_t last_used;
                 uint16_t use_count;
                 uint8_t flags;
-                if (read(fd, &last_used, sizeof(last_used)) != sizeof(last_used)) {
+                if (!buf_reader_read(&br, &last_used, sizeof(last_used))) {
                     truncated = true;
                     break;
                 }
-                if (read(fd, &use_count, sizeof(use_count)) != sizeof(use_count)) {
+                if (!buf_reader_read(&br, &use_count, sizeof(use_count))) {
                     truncated = true;
                     break;
                 }
-                if (read(fd, &flags, sizeof(flags)) != sizeof(flags)) {
+                if (!buf_reader_read(&br, &flags, sizeof(flags))) {
                     truncated = true;
                     break;
                 }
@@ -915,15 +981,15 @@ static void validate_entries_after_write(struct store_state *state)
                     uint32_t sz;
                     block_index_t blk;
                     uint8_t efl;
-                    if (read(fd, &sz, sizeof(sz)) != sizeof(sz)) {
+                    if (!buf_reader_read(&br, &sz, sizeof(sz))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &blk, sizeof(blk)) != sizeof(blk)) {
+                    if (!buf_reader_read(&br, &blk, sizeof(blk))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &efl, sizeof(efl)) != sizeof(efl)) {
+                    if (!buf_reader_read(&br, &efl, sizeof(efl))) {
                         truncated = true;
                         goto vd_done;
                     }
@@ -936,8 +1002,7 @@ static void validate_entries_after_write(struct store_state *state)
         } else if (ver == 1) {
             for (;;) {
                 uint32_t urllen;
-                ssize_t r = read(fd, &urllen, sizeof(urllen));
-                if (r != sizeof(urllen)) {
+                if (!buf_reader_read(&br, &urllen, sizeof(urllen))) {
                     break;
                 }
                 if (urllen > MAX_CACHED_URL_LEN) {
@@ -950,15 +1015,13 @@ static void validate_entries_after_write(struct store_state *state)
                     truncated = true;
                     break;
                 }
-                ssize_t got = read(fd, url, urllen);
-                if (got != (ssize_t)urllen) {
+                if (!buf_reader_read(&br, url, urllen)) {
                     struct stat st;
-                    off_t off = lseek(fd, 0, SEEK_CUR);
+                    off_t off = buf_reader_tell(&br);
                     fstat(fd, &st);
                     NSLOG(wisp, ERROR,
-                        "validate entries: short read for URL length %u (got %" PRIssizet
-                        ") at off %lld of size %lld errno %d",
-                        urllen, got, (long long)off, (long long)st.st_size, errno);
+                        "validate entries: short read for URL length %u at off %lld of size %lld errno %d",
+                        urllen, (long long)off, (long long)st.st_size, errno);
                     free(url);
                     truncated = true;
                     break;
@@ -968,7 +1031,7 @@ static void validate_entries_after_write(struct store_state *state)
                 free(url);
                 if (ret != NSERROR_OK) {
                     struct stat st;
-                    off_t off = lseek(fd, 0, SEEK_CUR);
+                    off_t off = buf_reader_tell(&br);
                     fstat(fd, &st);
                     NSLOG(wisp, ERROR, "validate entries: invalid URL at off %lld of size %lld", (long long)off,
                         (long long)st.st_size);
@@ -979,15 +1042,15 @@ static void validate_entries_after_write(struct store_state *state)
                 int64_t last_used;
                 uint16_t use_count;
                 uint8_t flags;
-                if (read(fd, &last_used, sizeof(last_used)) != sizeof(last_used)) {
+                if (!buf_reader_read(&br, &last_used, sizeof(last_used))) {
                     truncated = true;
                     break;
                 }
-                if (read(fd, &use_count, sizeof(use_count)) != sizeof(use_count)) {
+                if (!buf_reader_read(&br, &use_count, sizeof(use_count))) {
                     truncated = true;
                     break;
                 }
-                if (read(fd, &flags, sizeof(flags)) != sizeof(flags)) {
+                if (!buf_reader_read(&br, &flags, sizeof(flags))) {
                     truncated = true;
                     break;
                 }
@@ -995,15 +1058,15 @@ static void validate_entries_after_write(struct store_state *state)
                     uint32_t sz;
                     block_index_t blk;
                     uint8_t efl;
-                    if (read(fd, &sz, sizeof(sz)) != sizeof(sz)) {
+                    if (!buf_reader_read(&br, &sz, sizeof(sz))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &blk, sizeof(blk)) != sizeof(blk)) {
+                    if (!buf_reader_read(&br, &blk, sizeof(blk))) {
                         truncated = true;
                         goto vd_done;
                     }
-                    if (read(fd, &efl, sizeof(efl)) != sizeof(efl)) {
+                    if (!buf_reader_read(&br, &efl, sizeof(efl))) {
                         truncated = true;
                         goto vd_done;
                     }
@@ -1701,22 +1764,23 @@ static nserror read_entries(struct store_state *state)
         uint32_t urllen;
         char magic[4];
         uint32_t ver;
-        ssize_t hdr = read(fd, magic, 4);
-        if (hdr == 4 && memcmp(magic, "ENTR", 4) == 0) {
-            if (read(fd, &ver, sizeof(ver)) != sizeof(ver)) {
+        struct buffered_reader br;
+        buf_reader_init(&br, fd);
+        if (buf_reader_read(&br, magic, 4) && memcmp(magic, "ENTR", 4) == 0) {
+            if (!buf_reader_read(&br, &ver, sizeof(ver))) {
                 truncated = true;
                 goto rd_done;
             }
             if (ver == 3 || ver == CONTROL_VERSION) {
                 uint32_t expected = 0;
-                if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
+                if (!buf_reader_read(&br, &expected, sizeof(expected))) {
                     truncated = true;
                     goto rd_done;
                 }
                 newfmt = true;
                 NSLOG(wisp, INFO, "Entries index format v%u detected", ver);
                 for (uint32_t i = 0; i < expected; i++) {
-                    if (read(fd, &urllen, sizeof(urllen)) != sizeof(urllen)) {
+                    if (!buf_reader_read(&br, &urllen, sizeof(urllen))) {
                         truncated = true;
                         break;
                     }
@@ -1732,15 +1796,13 @@ static nserror read_entries(struct store_state *state)
                         return NSERROR_NOMEM;
                     }
                     {
-                        ssize_t got = read(fd, url, urllen);
-                        if (got != (ssize_t)urllen) {
+                        if (!buf_reader_read(&br, url, urllen)) {
                             struct stat st;
-                            off_t off = lseek(fd, 0, SEEK_CUR);
+                            off_t off = buf_reader_tell(&br);
                             fstat(fd, &st);
                             NSLOG(wisp, ERROR,
-                                "read_entries: short read for URL length %u (got %" PRIssizet
-                                ") at off %lld of size %lld errno %d",
-                                urllen, got, (long long)off, (long long)st.st_size, errno);
+                                "read_entries: short read for URL length %u at off %lld of size %lld errno %d",
+                                urllen, (long long)off, (long long)st.st_size, errno);
                             free(url);
                             truncated = true;
                             break;
@@ -1761,21 +1823,21 @@ static nserror read_entries(struct store_state *state)
                         free(fname);
                         return NSERROR_NOMEM;
                     }
-                    if (read(fd, &ent->last_used, sizeof(ent->last_used)) != sizeof(ent->last_used)) {
+                    if (!buf_reader_read(&br, &ent->last_used, sizeof(ent->last_used))) {
                         ent->url = nsurl;
                         nsurl_unref(nsurl);
                         hashmap_remove(state->entries, ent->url);
                         truncated = true;
                         break;
                     }
-                    if (read(fd, &ent->use_count, sizeof(ent->use_count)) != sizeof(ent->use_count)) {
+                    if (!buf_reader_read(&br, &ent->use_count, sizeof(ent->use_count))) {
                         ent->url = nsurl;
                         nsurl_unref(nsurl);
                         hashmap_remove(state->entries, ent->url);
                         truncated = true;
                         break;
                     }
-                    if (read(fd, &ent->flags, sizeof(ent->flags)) != sizeof(ent->flags)) {
+                    if (!buf_reader_read(&br, &ent->flags, sizeof(ent->flags))) {
                         ent->url = nsurl;
                         nsurl_unref(nsurl);
                         hashmap_remove(state->entries, ent->url);
@@ -1783,37 +1845,35 @@ static nserror read_entries(struct store_state *state)
                         break;
                     }
                     for (int i2 = 0; i2 < ENTRY_ELEM_COUNT; i2++) {
-                        if (read(fd, &ent->elem[i2].size, sizeof(ent->elem[i2].size)) != sizeof(ent->elem[i2].size)) {
+                        if (!buf_reader_read(&br, &ent->elem[i2].size, sizeof(ent->elem[i2].size))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
                             goto rd_break_v3;
                         }
-                        if (read(fd, &ent->elem[i2].block, sizeof(ent->elem[i2].block)) != sizeof(ent->elem[i2].block)) {
+                        if (!buf_reader_read(&br, &ent->elem[i2].block, sizeof(ent->elem[i2].block))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
                             goto rd_break_v3;
                         }
-                        if (read(fd, &ent->elem[i2].journal_offset, sizeof(ent->elem[i2].journal_offset)) !=
-                            sizeof(ent->elem[i2].journal_offset)) {
+                        if (!buf_reader_read(&br, &ent->elem[i2].journal_offset, sizeof(ent->elem[i2].journal_offset))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
                             goto rd_break_v3;
                         }
-                        if (read(fd, &ent->elem[i2].journal_length, sizeof(ent->elem[i2].journal_length)) !=
-                            sizeof(ent->elem[i2].journal_length)) {
+                        if (!buf_reader_read(&br, &ent->elem[i2].journal_length, sizeof(ent->elem[i2].journal_length))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
                             goto rd_break_v3;
                         }
-                        if (read(fd, &ent->elem[i2].flags, sizeof(ent->elem[i2].flags)) != sizeof(ent->elem[i2].flags)) {
+                        if (!buf_reader_read(&br, &ent->elem[i2].flags, sizeof(ent->elem[i2].flags))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
@@ -1840,14 +1900,14 @@ static nserror read_entries(struct store_state *state)
                 goto rd_done;
             } else if (ver == 2) {
                 uint32_t expected = 0;
-                if (read(fd, &expected, sizeof(expected)) != sizeof(expected)) {
+                if (!buf_reader_read(&br, &expected, sizeof(expected))) {
                     truncated = true;
                     goto rd_done;
                 }
                 newfmt = true;
                 NSLOG(wisp, INFO, "Entries index format v%u detected", ver);
                 for (uint32_t i = 0; i < expected; i++) {
-                    if (read(fd, &urllen, sizeof(urllen)) != sizeof(urllen)) {
+                    if (!buf_reader_read(&br, &urllen, sizeof(urllen))) {
                         truncated = true;
                         break;
                     }
@@ -1863,15 +1923,13 @@ static nserror read_entries(struct store_state *state)
                         return NSERROR_NOMEM;
                     }
                     {
-                        ssize_t got = read(fd, url, urllen);
-                        if (got != (ssize_t)urllen) {
+                        if (!buf_reader_read(&br, url, urllen)) {
                             struct stat st;
-                            off_t off = lseek(fd, 0, SEEK_CUR);
+                            off_t off = buf_reader_tell(&br);
                             fstat(fd, &st);
                             NSLOG(wisp, ERROR,
-                                "read_entries: short read for URL length %u (got %" PRIssizet
-                                ") at off %lld of size %lld errno %d",
-                                urllen, got, (long long)off, (long long)st.st_size, errno);
+                                "read_entries: short read for URL length %u at off %lld of size %lld errno %d",
+                                urllen, (long long)off, (long long)st.st_size, errno);
                             free(url);
                             truncated = true;
                             break;
@@ -1893,21 +1951,21 @@ static nserror read_entries(struct store_state *state)
                         return NSERROR_NOMEM;
                     }
                     if (newfmt) {
-                        if (read(fd, &ent->last_used, sizeof(ent->last_used)) != sizeof(ent->last_used)) {
+                        if (!buf_reader_read(&br, &ent->last_used, sizeof(ent->last_used))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
                             break;
                         }
-                        if (read(fd, &ent->use_count, sizeof(ent->use_count)) != sizeof(ent->use_count)) {
+                        if (!buf_reader_read(&br, &ent->use_count, sizeof(ent->use_count))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
                             break;
                         }
-                        if (read(fd, &ent->flags, sizeof(ent->flags)) != sizeof(ent->flags)) {
+                        if (!buf_reader_read(&br, &ent->flags, sizeof(ent->flags))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             hashmap_remove(state->entries, ent->url);
@@ -1915,24 +1973,21 @@ static nserror read_entries(struct store_state *state)
                             break;
                         }
                         for (int i2 = 0; i2 < ENTRY_ELEM_COUNT; i2++) {
-                            if (read(fd, &ent->elem[i2].size, sizeof(ent->elem[i2].size)) !=
-                                sizeof(ent->elem[i2].size)) {
+                            if (!buf_reader_read(&br, &ent->elem[i2].size, sizeof(ent->elem[i2].size))) {
                                 ent->url = nsurl;
                                 nsurl_unref(nsurl);
                                 hashmap_remove(state->entries, ent->url);
                                 truncated = true;
                                 goto rd_break_v2;
                             }
-                            if (read(fd, &ent->elem[i2].block, sizeof(ent->elem[i2].block)) !=
-                                sizeof(ent->elem[i2].block)) {
+                            if (!buf_reader_read(&br, &ent->elem[i2].block, sizeof(ent->elem[i2].block))) {
                                 ent->url = nsurl;
                                 nsurl_unref(nsurl);
                                 hashmap_remove(state->entries, ent->url);
                                 truncated = true;
                                 goto rd_break_v2;
                             }
-                            if (read(fd, &ent->elem[i2].flags, sizeof(ent->elem[i2].flags)) !=
-                                sizeof(ent->elem[i2].flags)) {
+                            if (!buf_reader_read(&br, &ent->elem[i2].flags, sizeof(ent->elem[i2].flags))) {
                                 ent->url = nsurl;
                                 nsurl_unref(nsurl);
                                 hashmap_remove(state->entries, ent->url);
@@ -1941,18 +1996,17 @@ static nserror read_entries(struct store_state *state)
                             }
                         }
                     } else {
-                        ssize_t got = read(fd, ent, sizeof(*ent));
-                        if (got != sizeof(*ent)) {
+                        if (!buf_reader_read(&br, ent, sizeof(*ent))) {
                             ent->url = nsurl;
                             nsurl_unref(nsurl);
                             {
                                 struct stat st;
-                                off_t off = lseek(fd, 0, SEEK_CUR);
+                                off_t off = buf_reader_tell(&br);
                                 fstat(fd, &st);
                                 NSLOG(wisp, ERROR,
-                                    "read_entries: short read for entry struct size %" PRIsizet " (got %" PRIssizet
-                                    ") at off %lld of size %lld errno %d",
-                                    sizeof(*ent), got, (long long)off, (long long)st.st_size, errno);
+                                    "read_entries: short read for entry struct size %" PRIsizet
+                                    " at off %lld of size %lld errno %d",
+                                    sizeof(*ent), (long long)off, (long long)st.st_size, errno);
                             }
                             hashmap_remove(state->entries, ent->url);
                             truncated = true;
@@ -1990,7 +2044,7 @@ static nserror read_entries(struct store_state *state)
             hashmap_destroy(state->entries);
             return NSERROR_INIT_FAILED;
         }
-        while (read(fd, &urllen, sizeof(urllen)) == sizeof(urllen)) {
+        while (buf_reader_read(&br, &urllen, sizeof(urllen))) {
             if (urllen > MAX_CACHED_URL_LEN) {
                 NSLOG(wisp, ERROR, "read_entries: URL length (%u) exceeds limit", urllen);
                 truncated = true;
@@ -2003,15 +2057,13 @@ static nserror read_entries(struct store_state *state)
                 return NSERROR_NOMEM;
             }
             {
-                ssize_t got = read(fd, url, urllen);
-                if (got != (ssize_t)urllen) {
+                if (!buf_reader_read(&br, url, urllen)) {
                     struct stat st;
-                    off_t off = lseek(fd, 0, SEEK_CUR);
+                    off_t off = buf_reader_tell(&br);
                     fstat(fd, &st);
                     NSLOG(wisp, ERROR,
-                        "read_entries: short read for URL length %u (got %" PRIssizet
-                        ") at off %lld of size %lld errno %d",
-                        urllen, got, (long long)off, (long long)st.st_size, errno);
+                        "read_entries: short read for URL length %u at off %lld of size %lld errno %d",
+                        urllen, (long long)off, (long long)st.st_size, errno);
                     free(url);
                     truncated = true;
                     break;
@@ -2033,21 +2085,21 @@ static nserror read_entries(struct store_state *state)
                 return NSERROR_NOMEM;
             }
             if (newfmt) {
-                if (read(fd, &ent->last_used, sizeof(ent->last_used)) != sizeof(ent->last_used)) {
+                if (!buf_reader_read(&br, &ent->last_used, sizeof(ent->last_used))) {
                     ent->url = nsurl;
                     nsurl_unref(nsurl);
                     hashmap_remove(state->entries, ent->url);
                     truncated = true;
                     break;
                 }
-                if (read(fd, &ent->use_count, sizeof(ent->use_count)) != sizeof(ent->use_count)) {
+                if (!buf_reader_read(&br, &ent->use_count, sizeof(ent->use_count))) {
                     ent->url = nsurl;
                     nsurl_unref(nsurl);
                     hashmap_remove(state->entries, ent->url);
                     truncated = true;
                     break;
                 }
-                if (read(fd, &ent->flags, sizeof(ent->flags)) != sizeof(ent->flags)) {
+                if (!buf_reader_read(&br, &ent->flags, sizeof(ent->flags))) {
                     ent->url = nsurl;
                     nsurl_unref(nsurl);
                     hashmap_remove(state->entries, ent->url);
@@ -2055,21 +2107,21 @@ static nserror read_entries(struct store_state *state)
                     break;
                 }
                 for (int i = 0; i < ENTRY_ELEM_COUNT; i++) {
-                    if (read(fd, &ent->elem[i].size, sizeof(ent->elem[i].size)) != sizeof(ent->elem[i].size)) {
+                    if (!buf_reader_read(&br, &ent->elem[i].size, sizeof(ent->elem[i].size))) {
                         ent->url = nsurl;
                         nsurl_unref(nsurl);
                         hashmap_remove(state->entries, ent->url);
                         truncated = true;
                         goto rd_break;
                     }
-                    if (read(fd, &ent->elem[i].block, sizeof(ent->elem[i].block)) != sizeof(ent->elem[i].block)) {
+                    if (!buf_reader_read(&br, &ent->elem[i].block, sizeof(ent->elem[i].block))) {
                         ent->url = nsurl;
                         nsurl_unref(nsurl);
                         hashmap_remove(state->entries, ent->url);
                         truncated = true;
                         goto rd_break;
                     }
-                    if (read(fd, &ent->elem[i].flags, sizeof(ent->elem[i].flags)) != sizeof(ent->elem[i].flags)) {
+                    if (!buf_reader_read(&br, &ent->elem[i].flags, sizeof(ent->elem[i].flags))) {
                         ent->url = nsurl;
                         nsurl_unref(nsurl);
                         hashmap_remove(state->entries, ent->url);
@@ -2078,18 +2130,17 @@ static nserror read_entries(struct store_state *state)
                     }
                 }
             } else {
-                ssize_t got = read(fd, ent, sizeof(*ent));
-                if (got != sizeof(*ent)) {
+                if (!buf_reader_read(&br, ent, sizeof(*ent))) {
                     ent->url = nsurl;
                     nsurl_unref(nsurl);
                     {
                         struct stat st;
-                        off_t off = lseek(fd, 0, SEEK_CUR);
+                        off_t off = buf_reader_tell(&br);
                         fstat(fd, &st);
                         NSLOG(wisp, ERROR,
-                            "read_entries: short read for entry struct size %" PRIsizet " (got %" PRIssizet
-                            ") at off %lld of size %lld errno %d",
-                            sizeof(*ent), got, (long long)off, (long long)st.st_size, errno);
+                            "read_entries: short read for entry struct size %" PRIsizet
+                            " at off %lld of size %lld errno %d",
+                            sizeof(*ent), (long long)off, (long long)st.st_size, errno);
                     }
                     hashmap_remove(state->entries, ent->url);
                     truncated = true;
