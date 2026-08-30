@@ -406,6 +406,9 @@ START_TEST(nsoption_read_missing_test)
     nserror res;
     res = nsoption_read(test_choices_missing_path, NULL, NULL);
     ck_assert_int_eq(res, NSERROR_NOT_FOUND);
+    /* Verify defaults are populated/validated when options file is missing */
+    ck_assert_int_ge(nsoption_int(font_size), 50);
+    ck_assert_int_ge(nsoption_uint(max_retried_fetches), 1);
 }
 END_TEST
 

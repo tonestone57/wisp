@@ -2302,18 +2302,6 @@ static nserror llcache_fetch_redirect(llcache_object *object, nsurl *target, llc
     }
     nsurl_unref(url);
 
-    /* Inform users of redirect */
-    event.type = LLCACHE_EVENT_REDIRECT;
-    event.data.redirect.from = object->url;
-    event.data.redirect.to = hsts_url;
-
-    error = llcache_send_event_to_users(object, &event);
-
-    if (error != NSERROR_OK) {
-        nsurl_unref(hsts_url);
-        return error;
-    }
-
     /* Reject attempts to redirect from unvalidated to validated schemes
      * A "validated" scheme is one over which we have some guarantee that
      * the source is trustworthy. */
@@ -2377,11 +2365,10 @@ static nserror llcache_fetch_redirect(llcache_object *object, nsurl *target, llc
     error = llcache_object_retrieve_internal(hsts_url, object->fetch.flags, object->fetch.referer, post,
         (const char **)object->fetch.custom_headers, object->fetch.redirect_count + 1, hsts_in_use, &dest);
 
-    /* No longer require url */
-    nsurl_unref(hsts_url);
-
-    if (error != NSERROR_OK)
+    if (error != NSERROR_OK) {
+        nsurl_unref(hsts_url);
         return error;
+    }
 
     /* Move user(s) to replacement object */
     for (user = object->users; user != NULL; user = next) {
@@ -2394,7 +2381,17 @@ static nserror llcache_fetch_redirect(llcache_object *object, nsurl *target, llc
     /* Dest is now our object */
     *replacement = dest;
 
-    return NSERROR_OK;
+    /* Inform users of redirect on target object */
+    event.type = LLCACHE_EVENT_REDIRECT;
+    event.data.redirect.from = object->url;
+    event.data.redirect.to = hsts_url;
+
+    error = llcache_send_event_to_users(dest, &event);
+
+    /* No longer require url */
+    nsurl_unref(hsts_url);
+
+    return error;
 }
 
 /**
