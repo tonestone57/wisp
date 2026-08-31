@@ -7486,6 +7486,50 @@ START_TEST(test_quickjs_showpicker_smil_websocket_rtc)
 }
 END_TEST
 
+extern void (*wisp_gui_pump_events_hook)(void);
+
+static jsthread *g_test_thread_to_destroy = NULL;
+
+static void test_gui_pump_destroy_thread_cb(void)
+{
+    if (g_test_thread_to_destroy) {
+        jsthread *t = g_test_thread_to_destroy;
+        g_test_thread_to_destroy = NULL;
+        js_closethread(t);
+        js_destroythread(t);
+    }
+}
+
+START_TEST(test_quickjs_ipc_pump_destroy_thread_safety)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(thread);
+
+    g_test_thread_to_destroy = thread;
+    wisp_gui_pump_events_hook = test_gui_pump_destroy_thread_cb;
+
+    /* Execute js_exec which triggers event pumping if IPC wait happens or yields */
+    js_exec(thread, (const uint8_t *)"console.log('test')", strlen("console.log('test')"), "test_destroy_in_pump");
+
+    wisp_gui_pump_events_hook = NULL;
+
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7610,6 +7654,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_out_of_process_event_dispatch);
     tcase_add_test(tc_event_loop, test_quickjs_dom_wrapper_finalization_after_context_free);
     tcase_add_test(tc_event_loop, test_quickjs_showpicker_smil_websocket_rtc);
+    tcase_add_test(tc_event_loop, test_quickjs_ipc_pump_destroy_thread_safety);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
