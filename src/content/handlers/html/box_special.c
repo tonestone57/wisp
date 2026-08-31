@@ -2236,6 +2236,8 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
 						}
 					}
 					dom_string_unref(tag_name);
+				} else {
+					dom_string_unref(tag_name);
 				}
 			}
 			res = true;
