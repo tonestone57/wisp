@@ -7639,7 +7639,14 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     char *old_script_name = thread->current_script_name;
     thread->current_script_name = (char *)name;
 
-    wisp_ipc_handle *ipc_js = get_js_process_handle(thread->origin);
+    char origin_buf[256];
+    if (thread->origin) {
+        snprintf(origin_buf, sizeof(origin_buf), "%s", thread->origin);
+    } else {
+        origin_buf[0] = '\0';
+    }
+
+    wisp_ipc_handle *ipc_js = get_js_process_handle(origin_buf);
     if (ipc_js) {
         if (!thread->shm_initialized) {
             const char *orig = thread->origin ? thread->origin : "";
@@ -7781,8 +7788,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     } else if (recv_err != NSERROR_NOT_FOUND) {
                         /* Socket error or EOF -> crash detected! */
                         NSLOG(wisp, ERROR, "JS process crashed during recv (error %d) for origin %s", (int)recv_err,
-                            thread->origin);
-                        handle_process_crash(thread->origin);
+                            origin_buf);
+                        handle_process_crash(origin_buf);
                         crashed = true;
                         break;
                     }
@@ -7790,7 +7797,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                         wisp_gui_pump_events_hook();
                     }
                     /* Verify if the IPC process was crashed/released during nested event processing */
-                    if (get_js_process_handle(thread->origin) != ipc_js) {
+                    if (get_js_process_handle(origin_buf) != ipc_js) {
                         crashed = true;
                         break;
                     }
@@ -7800,7 +7807,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     }
                     usleep(10000);
                 }
-                if (!crashed && get_js_process_handle(thread->origin) == ipc_js) {
+                if (!crashed && get_js_process_handle(origin_buf) == ipc_js) {
                     wisp_ipc_set_blocking(ipc_js, true);
                 }
                 if (is_file) {
@@ -7816,8 +7823,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     wisp_ipc_msg_free(&response);
                     return success;
                 } else if (!crashed && retries <= 0) {
-                    NSLOG(wisp, ERROR, "JS process timed out for origin %s", thread->origin);
-                    handle_process_crash(thread->origin);
+                    NSLOG(wisp, ERROR, "JS process timed out for origin %s", origin_buf);
+                    handle_process_crash(origin_buf);
                     crashed = true;
                 }
             } else {
@@ -7825,8 +7832,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 if (is_file) {
                     unlink(temp_file_path);
                 }
-                NSLOG(wisp, ERROR, "JS process write failed for origin %s (likely crashed)", thread->origin);
-                handle_process_crash(thread->origin);
+                NSLOG(wisp, ERROR, "JS process write failed for origin %s (likely crashed)", origin_buf);
+                handle_process_crash(origin_buf);
             }
         } else {
             if (is_file) {
