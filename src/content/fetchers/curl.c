@@ -1673,9 +1673,11 @@ static bool fetch_curl_process_headers(struct curl_fetch_info *f)
     f->had_headers = true;
 
     if (!f->http_code) {
-        code = curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
-        fetch_set_http_code(f->fetch_handle, f->http_code);
-        assert(code == CURLE_OK);
+        if (f->curl_handle != NULL) {
+            code = curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
+            fetch_set_http_code(f->fetch_handle, f->http_code);
+            assert(code == CURLE_OK);
+        }
     }
     http_code = f->http_code;
     NSLOG(wisp, INFO, "HTTP status code %li", http_code);
@@ -2021,9 +2023,11 @@ static size_t fetch_curl_data(char *data, size_t size, size_t nmemb, void *_f)
 
     /* ensure we only have to get this information once */
     if (!f->http_code) {
-        code = curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
-        fetch_set_http_code(f->fetch_handle, f->http_code);
-        assert(code == CURLE_OK);
+        if (f->curl_handle != NULL) {
+            code = curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
+            fetch_set_http_code(f->fetch_handle, f->http_code);
+            assert(code == CURLE_OK);
+        }
     }
 
     /* ignore body if this is a 401 reply by skipping it and reset
@@ -2088,8 +2092,10 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
     }
 
     if (!f->http_code) {
-        curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
-        fetch_set_http_code(f->fetch_handle, f->http_code);
+        if (f->curl_handle != NULL) {
+            curl_easy_getinfo(f->curl_handle, CURLINFO_HTTP_CODE, &f->http_code);
+            fetch_set_http_code(f->fetch_handle, f->http_code);
+        }
     }
 
     msg.type = FETCH_HEADER;
