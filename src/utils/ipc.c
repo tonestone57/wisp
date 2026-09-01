@@ -422,6 +422,18 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
     if (access(out_path, 0) == 0) {
         return true;
     }
+    snprintf(out_path, out_len, ".\\src\\%s.exe", name);
+    if (access(out_path, 0) == 0) {
+        return true;
+    }
+    snprintf(out_path, out_len, "..\\src\\%s.exe", name);
+    if (access(out_path, 0) == 0) {
+        return true;
+    }
+    snprintf(out_path, out_len, "..\\..\\src\\%s.exe", name);
+    if (access(out_path, 0) == 0) {
+        return true;
+    }
     snprintf(out_path, out_len, "%s", name);
     return true;
 #else
@@ -451,8 +463,20 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
         }
     }
 
-    // 2. Try the current directory
+    // 2. Try the current directory and relative paths
     snprintf(out_path, out_len, "./%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
+    snprintf(out_path, out_len, "./src/%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
+    snprintf(out_path, out_len, "../src/%s", name);
+    if (access(out_path, X_OK) == 0) {
+        return true;
+    }
+    snprintf(out_path, out_len, "../../src/%s", name);
     if (access(out_path, X_OK) == 0) {
         return true;
     }
