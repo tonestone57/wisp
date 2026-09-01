@@ -6363,6 +6363,23 @@ nserror qjs_init_worker_thread(WispWorkerHandle *h, jsthread **thread_out)
     return NSERROR_OK;
 }
 
+void js_thread_enter(jsthread *thread)
+{
+    if (thread) {
+        thread->exec_depth++;
+    }
+}
+
+void js_thread_leave(jsthread *thread)
+{
+    if (thread) {
+        thread->exec_depth--;
+        if (thread->exec_depth <= 0 && thread->destroy_pending) {
+            js_destroythread(thread);
+        }
+    }
+}
+
 nserror js_closethread(jsthread *thread)
 {
     if (thread)
@@ -6375,6 +6392,13 @@ void js_destroythread(jsthread *thread)
     if (!thread)
         return;
     thread->closed = true;
+    thread->destroy_pending = true;
+
+    if (thread->exec_depth > 0) {
+        return;
+    }
+
+    thread->destroy_pending = false;
 
     if (thread->ctx) {
         JSRuntime *rt = JS_GetRuntime(thread->ctx);
@@ -7507,6 +7531,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
 {
     if (!thread || thread->closed)
         return false;
+    js_thread_enter(thread);
     JS_UpdateStackTop(JS_GetRuntime(thread->ctx));
 
     /* In-process Content Security Policy (CSP) validation */
@@ -7604,6 +7629,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 if (!allowed) {
                     NSLOG(wisp, WARNING, "CSP blocked script execution from URL: %s", name);
                     nsurl_unref(url);
+                    js_thread_leave(thread);
                     return false;
                 }
             }
@@ -7623,12 +7649,14 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     if (!csp_check_eval(htmlc->csp)) {
                         NSLOG(wisp, WARNING, "CSP blocked dynamic script evaluation (unsafe-eval) under QuickJS: %s",
                             name ? name : "unnamed");
+                        js_thread_leave(thread);
                         return false;
                     }
                 } else {
                     if (!csp_check_inline(htmlc->csp, CSP_SCRIPT_SRC)) {
                         NSLOG(wisp, WARNING, "CSP blocked inline script execution under QuickJS: %s",
                             name ? name : "unnamed");
+                        js_thread_leave(thread);
                         return false;
                     }
                 }
@@ -7796,8 +7824,8 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     if (wisp_gui_pump_events_hook) {
                         wisp_gui_pump_events_hook();
                     }
-                    /* Verify if the IPC process was crashed/released during nested event processing */
-                    if (get_js_process_handle(origin_buf) != ipc_js) {
+                    /* Verify if the thread context or IPC process was crashed/released during nested event processing */
+                    if (thread->closed || get_js_process_handle(origin_buf) != ipc_js) {
                         crashed = true;
                         break;
                     }
@@ -7813,7 +7841,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                 if (is_file) {
                     unlink(temp_file_path);
                 }
-                if (got_response) {
+                if (got_response && !thread->closed) {
                     if (doc) {
                         host_ensure_shm_capacity(thread);
                         drain_mutation_queue(thread->shm_dom, doc);
@@ -7821,6 +7849,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
                     }
                     bool success = (response.length > 0 || response.data != NULL);
                     wisp_ipc_msg_free(&response);
+                    js_thread_leave(thread);
                     return success;
                 } else if (!crashed && retries <= 0) {
                     NSLOG(wisp, ERROR, "JS process timed out for origin %s", origin_buf);
@@ -7842,6 +7871,11 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         }
         if (doc) {
             dom_node_unref((dom_node *)doc);
+        }
+        if (thread->closed) {
+            thread->current_script_name = old_script_name;
+            js_thread_leave(thread);
+            return false;
         }
         /* Fallback to in-process if IPC fails or times out */
         NSLOG(wisp, WARNING, "JS IPC failed for %s, falling back to in-process", name);
@@ -7916,6 +7950,7 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
     }
     JS_FreeValue(thread->ctx, val);
     thread->current_script_name = old_script_name;
+    js_thread_leave(thread);
     return success;
 }
 
@@ -7925,6 +7960,7 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     if (!ctx || !ctx->thread || ctx->thread->closed)
         return;
     jsthread *thread = ctx->thread;
+    js_thread_enter(thread);
     JSContext *jsctx = thread->ctx;
     JSValue global = JS_GetGlobalObject(jsctx);
     JSValue js_evt = JS_UNDEFINED;
@@ -8048,12 +8084,14 @@ static void qjs_event_handler(struct dom_event *evt, void *pw)
     JS_FreeValue(jsctx, this_obj);
     JS_FreeValue(jsctx, js_evt);
     JS_FreeValue(jsctx, global);
+    js_thread_leave(thread);
 }
 
 bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct dom_document *doc, struct dom_node *target, bool cancelable)
 {
-    if (!thread || !doc)
+    if (!thread || thread->closed || !doc)
         return false;
+    js_thread_enter(thread);
     if (!target)
         target = (dom_node *)doc;
     if (target == (dom_node *)thread->win_priv) {
@@ -8085,7 +8123,9 @@ bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct do
             "  return 'ok';\n"
             "})();",
             target_id, type ? type : "click", cancelable ? "true" : "false");
-        return js_exec(thread, (const uint8_t *)js_buf, strlen(js_buf), "<event_dispatch>");
+        bool res = js_exec(thread, (const uint8_t *)js_buf, strlen(js_buf), "<event_dispatch>");
+        js_thread_leave(thread);
+        return res;
     }
 
     dom_string *type_str = NULL;
@@ -8103,7 +8143,7 @@ bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct do
     if (type_str)
         dom_string_unref(type_str);
 
-    if (thread->ctx) {
+    if (thread->ctx && !thread->closed) {
         JSContext *ctx1;
         int job_ret;
         int microtask_count = 0;
@@ -8118,6 +8158,7 @@ bool js_fire_event_with_cancelable(jsthread *thread, const char *type, struct do
         }
     }
 
+    js_thread_leave(thread);
     return success;
 }
 
@@ -8347,6 +8388,7 @@ bool qjs_execute_pending_all(void)
     for (int i = 0; i < thread_count; i++) {
         jsthread *t = threads[i];
         if (t && t->ctx && !t->closed) {
+            js_thread_enter(t);
             JSRuntime *rt = JS_GetRuntime(t->ctx);
             JSContext *ctx1;
             int job_ret;
@@ -8361,6 +8403,7 @@ bool qjs_execute_pending_all(void)
                 }
             }
             qjs_execute_timers(t->ctx);
+            js_thread_leave(t);
         }
     }
     return true;

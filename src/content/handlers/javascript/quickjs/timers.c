@@ -67,6 +67,10 @@ void qjs_raf_callback_fn(void *p)
     }
 
     struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t || t->closed) {
+        return;
+    }
+    js_thread_enter(t);
     uint64_t old_deadline = 0;
     uint64_t old_last_yield = 0;
     if (t && t->heap) {
@@ -130,6 +134,7 @@ void qjs_raf_callback_fn(void *p)
     }
     JS_FreeValue(ctx, raf->func);
     free(raf);
+    js_thread_leave(t);
 }
 
 void qjs_idle_callback_fn(void *p)
@@ -157,6 +162,10 @@ void qjs_idle_callback_fn(void *p)
     }
 
     struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t || t->closed) {
+        return;
+    }
+    js_thread_enter(t);
     uint64_t old_deadline = 0;
     uint64_t old_last_yield = 0;
     if (t && t->heap) {
@@ -229,6 +238,7 @@ void qjs_idle_callback_fn(void *p)
     }
     JS_FreeValue(ctx, idle->func);
     free(idle);
+    js_thread_leave(t);
 }
 
 void qjs_timer_callback(void *p)
@@ -259,6 +269,10 @@ void qjs_timer_callback(void *p)
     }
 
     struct jsthread *t = JS_GetContextOpaque(ctx);
+    if (!t || t->closed) {
+        return;
+    }
+    js_thread_enter(t);
     uint64_t old_deadline = 0;
     uint64_t old_last_yield = 0;
     if (t && t->heap) {
@@ -403,6 +417,7 @@ void qjs_timer_callback(void *p)
         JS_FreeValue(ctx, timer->arguments);
         free(timer);
     }
+    js_thread_leave(t);
 }
 
 JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSValue arguments, bool repeat)
