@@ -1092,71 +1092,110 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
 }
 
 
+typedef struct {
+    int fd;
+    guint watch_id;
+    GIOCondition cond;
+} nsgtk_fetch_watch_t;
+
+#define MAX_FETCH_WATCHES 128
+static nsgtk_fetch_watch_t fetch_watches[MAX_FETCH_WATCHES];
+static size_t fetch_watch_count = 0;
+
+static gboolean nsgtk_fetch_io_cb(GIOChannel *source, GIOCondition condition, gpointer data)
+{
+    fetch_poll_all();
+    schedule_run();
+    qjs_execute_pending_all();
+    return TRUE; /* Keep watching */
+}
+
+static void nsgtk_update_fetch_watches(fd_set *read_fds, fd_set *write_fds, fd_set *exc_fds, int max_fd)
+{
+    bool kept[MAX_FETCH_WATCHES] = { false };
+
+    if (max_fd >= 0 && read_fds && write_fds && exc_fds) {
+        for (int i = 0; i <= max_fd; i++) {
+            GIOCondition cond = 0;
+            if (FD_ISSET(i, read_fds))  cond |= G_IO_IN | G_IO_HUP | G_IO_ERR;
+            if (FD_ISSET(i, write_fds)) cond |= G_IO_OUT | G_IO_ERR;
+            if (FD_ISSET(i, exc_fds))   cond |= G_IO_ERR;
+
+            if (cond != 0) {
+                int found_idx = -1;
+                for (size_t w = 0; w < fetch_watch_count; w++) {
+                    if (fetch_watches[w].fd == i) {
+                        found_idx = (int)w;
+                        break;
+                    }
+                }
+
+                if (found_idx >= 0) {
+                    if (fetch_watches[found_idx].cond == cond) {
+                        kept[found_idx] = true;
+                    } else {
+                        g_source_remove(fetch_watches[found_idx].watch_id);
+                        GIOChannel *chan = g_io_channel_unix_new(i);
+                        guint wid = g_io_add_watch(chan, cond, nsgtk_fetch_io_cb, NULL);
+                        g_io_channel_unref(chan);
+                        fetch_watches[found_idx].watch_id = wid;
+                        fetch_watches[found_idx].cond = cond;
+                        kept[found_idx] = true;
+                    }
+                } else if (fetch_watch_count < MAX_FETCH_WATCHES) {
+                    GIOChannel *chan = g_io_channel_unix_new(i);
+                    guint wid = g_io_add_watch(chan, cond, nsgtk_fetch_io_cb, NULL);
+                    g_io_channel_unref(chan);
+                    fetch_watches[fetch_watch_count].fd = i;
+                    fetch_watches[fetch_watch_count].watch_id = wid;
+                    fetch_watches[fetch_watch_count].cond = cond;
+                    kept[fetch_watch_count] = true;
+                    fetch_watch_count++;
+                }
+            }
+        }
+    }
+
+    size_t write_idx = 0;
+    for (size_t r = 0; r < fetch_watch_count; r++) {
+        if (!kept[r]) {
+            g_source_remove(fetch_watches[r].watch_id);
+        } else {
+            if (write_idx != r) {
+                fetch_watches[write_idx] = fetch_watches[r];
+            }
+            write_idx++;
+        }
+    }
+    fetch_watch_count = write_idx;
+}
+
 /**
  * Run the gtk event loop.
  *
- * The same as the standard gtk_main loop except this ensures active
- * FD are added to the gtk poll event set.
+ * Uses GLib GIOChannel watches for active fetch file descriptors so
+ * the main context can block cleanly on I/O events without busy-waiting.
  */
 static void nsgtk_main(void)
 {
     fd_set read_fd_set, write_fd_set, exc_fd_set;
     int max_fd;
-    GPollFD *fd_list[1000];
-    unsigned int fd_count;
 
     while (!nsgtk_complete) {
-        max_fd = -1;
-        fd_count = 0;
-        FD_ZERO(&read_fd_set);
-        FD_ZERO(&write_fd_set);
-        FD_ZERO(&exc_fd_set);
-
         while (gtk_events_pending())
             gtk_main_iteration_do(TRUE);
 
         schedule_run();
 
         fetch_fdset(&read_fd_set, &write_fd_set, &exc_fd_set, &max_fd);
-        for (int i = 0; i <= max_fd; i++) {
-            if (FD_ISSET(i, &read_fd_set)) {
-                GPollFD *fd = malloc(sizeof *fd);
-                if (fd != NULL && fd_count < 1000) {
-                    fd->fd = i;
-                    fd->events = G_IO_IN | G_IO_HUP | G_IO_ERR;
-                    g_main_context_add_poll(0, fd, 0);
-                    fd_list[fd_count++] = fd;
-                }
-            }
-            if (FD_ISSET(i, &write_fd_set)) {
-                GPollFD *fd = malloc(sizeof *fd);
-                if (fd != NULL && fd_count < 1000) {
-                    fd->fd = i;
-                    fd->events = G_IO_OUT | G_IO_ERR;
-                    g_main_context_add_poll(0, fd, 0);
-                    fd_list[fd_count++] = fd;
-                }
-            }
-            if (FD_ISSET(i, &exc_fd_set)) {
-                GPollFD *fd = malloc(sizeof *fd);
-                if (fd != NULL && fd_count < 1000) {
-                    fd->fd = i;
-                    fd->events = G_IO_ERR;
-                    g_main_context_add_poll(0, fd, 0);
-                    fd_list[fd_count++] = fd;
-                }
-            }
-        }
+        nsgtk_update_fetch_watches(&read_fd_set, &write_fd_set, &exc_fd_set, max_fd);
 
         gtk_main_iteration();
 
-        for (unsigned int i = 0; i != fd_count; i++) {
-            g_main_context_remove_poll(0, fd_list[i]);
-            free(fd_list[i]);
-        }
-
         qjs_execute_pending_all();
     }
+
+    nsgtk_update_fetch_watches(NULL, NULL, NULL, -1);
 }
 
 
