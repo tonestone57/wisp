@@ -1265,6 +1265,11 @@ static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
 
 void js_finalise(void)
 {
+    if (g_qjs_node_key != NULL) {
+        dom_string_unref(g_qjs_node_key);
+        g_qjs_node_key = NULL;
+    }
+
     wisp_dom_node_destroy_hook = NULL;
     wisp_node_destroy_cb = NULL;
     pthread_mutex_lock(&js_processes_mutex);
