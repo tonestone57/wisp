@@ -254,10 +254,6 @@ static nserror convert_script_async_cb(hlcache_handle *script, const hlcache_eve
         parent->scripts_active--;
         NSLOG(wisp, INFO, "%d fetches active", parent->base.active);
 
-        if (parent->jsthread != NULL) {
-            js_fire_event(parent->jsthread, "error", parent->document, NULL);
-        }
-
         break;
 
     case CONTENT_MSG_ERROR:
