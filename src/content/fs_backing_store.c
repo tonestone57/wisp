@@ -1883,7 +1883,7 @@ static nserror read_entries(struct store_state *state)
                     }
                     ent->url = nsurl;
                     nsurl_unref(nsurl);
-                    NSLOG(wisp, DEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
+                    NSLOG(wisp, DEEPDEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
                     read_entries++;
                     state->total_alloc += ent->elem[ENTRY_ELEM_DATA].size;
                     state->total_alloc += ent->elem[ENTRY_ELEM_META].size;
@@ -2015,7 +2015,7 @@ static nserror read_entries(struct store_state *state)
                     }
                     ent->url = nsurl;
                     nsurl_unref(nsurl);
-                    NSLOG(wisp, DEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
+                    NSLOG(wisp, DEEPDEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
                     read_entries++;
                     state->total_alloc += ent->elem[ENTRY_ELEM_DATA].size;
                     state->total_alloc += ent->elem[ENTRY_ELEM_META].size;
@@ -2149,7 +2149,7 @@ static nserror read_entries(struct store_state *state)
             }
             ent->url = nsurl; /* It already owns a ref */
             nsurl_unref(nsurl);
-            NSLOG(wisp, DEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
+            NSLOG(wisp, DEEPDEBUG, "Successfully read entry for %s", nsurl_access(ent->url));
             read_entries++;
             /* Note the size allocation */
             state->total_alloc += ent->elem[ENTRY_ELEM_DATA].size;
