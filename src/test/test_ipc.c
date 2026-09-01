@@ -270,6 +270,16 @@ START_TEST(test_ipc_find_executable_not_found)
 }
 END_TEST
 
+START_TEST(test_ipc_find_executable_relative_paths)
+{
+    char out_path[1024];
+    /* Test finding an executable that exists (e.g. 'true' in /bin/true or via system path) */
+    bool found = wisp_ipc_find_executable("true", out_path, sizeof(out_path));
+    ck_assert_int_eq(found, true);
+    ck_assert_int_gt(strlen(out_path), 0);
+}
+END_TEST
+
 START_TEST(test_ipc_safe_path_truncation)
 {
     /* Test creating server and connecting with a long socket name */
@@ -446,6 +456,7 @@ static TCase *ipc_case_create(void)
     tcase_add_test(tc, test_ipc_recv_partial_payload);
     tcase_add_test(tc, test_ipc_recv_zero_length_payload);
     tcase_add_test(tc, test_ipc_find_executable_not_found);
+    tcase_add_test(tc, test_ipc_find_executable_relative_paths);
     tcase_add_test(tc, test_ipc_safe_path_truncation);
     tcase_add_test(tc, test_ipc_spawn_security_validation);
     tcase_add_test(tc, test_ipc_spawn_fd_security);
