@@ -222,24 +222,21 @@ static bool fetch_dispatch_jobs(void)
 {
     int all_active;
     int all_queued;
+    int dispatched = 0;
 
     RING_GETSIZE(struct fetch, queue_ring, all_queued);
     RING_GETSIZE(struct fetch, fetch_ring, all_active);
 
-    if (all_queued > 0 || all_active > 0) {
-        NSLOG(fetch, DEBUG, "queue_ring %i, fetch_ring %i", all_queued, all_active);
-        dump_rings();
-    }
-
     while ((all_queued != 0) && (all_active < nsoption_int(max_fetchers)) && fetch_choose_and_dispatch()) {
         all_queued--;
         all_active++;
+        dispatched++;
         NSLOG(fetch, DEBUG, "%d queued, %d fetching", all_queued, all_active);
     }
 
-    if (all_queued > 0 || all_active > 0) {
-        NSLOG(fetch, DEBUG, "Fetch ring is now %d elements.", all_active);
-        NSLOG(fetch, DEBUG, "Queue ring is now %d elements.", all_queued);
+    if (dispatched > 0) {
+        NSLOG(fetch, DEBUG, "Dispatched %d jobs. Fetch ring: %d, Queue ring: %d", dispatched, all_active, all_queued);
+        dump_rings();
     }
 
     return (all_active > 0);
@@ -401,15 +398,6 @@ nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd
         return NSERROR_OK;
     }
 
-    NSLOG(fetch, DEBUG, "Polling fetchers");
-
-    for (fetcherd = 0; fetcherd < MAX_FETCHERS; fetcherd++) {
-        if (fetchers[fetcherd].refcount > 0) {
-            /* fetcher present */
-            fetchers[fetcherd].ops.poll(fetchers[fetcherd].scheme);
-        }
-    }
-
     FD_ZERO(read_fd_set);
     FD_ZERO(write_fd_set);
     FD_ZERO(except_fd_set);
@@ -426,20 +414,13 @@ nserror fetch_fdset(fd_set *read_fd_set, fd_set *write_fd_set, fd_set *except_fd
     }
 
     if (maxfd >= 0) {
-        /* change the scheduled poll to happen is a 1000ms as
+        /* change the scheduled poll to happen in 1000ms as
          * we assume fetching an fdset means the fetchers will
          * be run by the client waking up on data available on
-         * the fd and re-calling fetcher_fdset() if this does
-         * not happen the fetch polling will continue as
+         * the fd. If this does not happen the fetch polling will continue as
          * usual.
          */
-        /** @note adjusting the schedule time is only done for
-         * curl currently. This is because as it is assumed to
-         * be the only fetcher that can possibly have fd to
-         * select on. All the other fetchers continue to need
-         * polling frequently.
-         */
-        if (guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
+        if (!fetch_poll_scheduled && guit != NULL && guit->misc != NULL && guit->misc->schedule != NULL) {
             guit->misc->schedule(FDSET_TIMEOUT, fetcher_poll, NULL);
             fetch_poll_scheduled = true;
         }
