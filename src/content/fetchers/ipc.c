@@ -326,7 +326,6 @@ static void fetch_ipc_poll(lwc_string *scheme) {
                             fetch_send_callback(&fmsg, fetchh);
                         }
                         free(redir);
-                        break;
                     } else {
                         nsurl *redirect_url = NULL;
                         nserror err = nsurl_create("", &redirect_url);
