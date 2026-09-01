@@ -296,6 +296,13 @@ static void html_box_convert_done(html_content *c, bool success)
 	PERF("DOM to box conversion DONE");
 	content_set_ready(&c->base);
 
+	/* Broadcast CONTENT_MSG_REFORMAT to ensure browser windows update and invalidate display */
+	{
+		union content_msg_data msg_data;
+		msg_data.background = false;
+		content_broadcast(&c->base, CONTENT_MSG_REFORMAT, &msg_data);
+	}
+
 	PERF("content_set_ready DONE");
 	html_proceed_to_done(c);
 

@@ -1631,6 +1631,12 @@ static nserror gui_window_event(struct gui_window *gw, enum gui_window_event eve
         page_info_change(gw);
         break;
 
+    case GW_EVENT_NEW_CONTENT:
+        if (gw->layout) {
+            gtk_widget_queue_draw(GTK_WIDGET(gw->layout));
+        }
+        break;
+
     default:
         break;
     }
