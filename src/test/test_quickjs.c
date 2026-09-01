@@ -7520,10 +7520,21 @@ START_TEST(test_quickjs_ipc_pump_destroy_thread_safety)
     g_test_thread_to_destroy = thread;
     wisp_gui_pump_events_hook = test_gui_pump_destroy_thread_cb;
 
-    /* Execute js_exec which triggers event pumping if IPC wait happens or yields */
+    /* Execute js_exec with active execution frame depth */
+    js_thread_enter(thread);
     js_exec(thread, (const uint8_t *)"console.log('test')", strlen("console.log('test')"), "test_destroy_in_pump");
 
+    /* Trigger GUI event pump while thread is active */
+    if (wisp_gui_pump_events_hook) {
+        wisp_gui_pump_events_hook();
+    }
+    ck_assert_int_eq(thread->closed, true);
+    ck_assert_int_eq(thread->destroy_pending, true);
+
     wisp_gui_pump_events_hook = NULL;
+
+    /* Unwinding the execution frame triggers deferred thread destruction */
+    js_thread_leave(thread);
 
     js_destroyheap(heap);
     js_finalise();

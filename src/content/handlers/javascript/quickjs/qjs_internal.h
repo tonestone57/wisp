@@ -121,6 +121,8 @@ struct jsthread {
     void *worker_handle; /* WispWorkerHandle* if this is a worker thread */
     bool is_worker;
     bool closed;
+    bool destroy_pending;
+    int exec_depth;
     struct qjs_event_listener_ctx *listeners;
     struct qjs_event_map *events;
     struct qjs_timer *timers;
@@ -186,6 +188,8 @@ JSValue wisp_timer_create(JSContext *ctx, JSValue handler, int32_t timeout, JSVa
 JSValue wisp_timer_clear(JSContext *ctx, int32_t handle);
 uint64_t qjs_execute_timers(JSContext *ctx);
 void force_synchronous_layout(struct jsthread *thread);
+void js_thread_enter(struct jsthread *thread);
+void js_thread_leave(struct jsthread *thread);
 
 /* From generated code */
 void wisp_js_register_all_bindings(JSContext *ctx);
