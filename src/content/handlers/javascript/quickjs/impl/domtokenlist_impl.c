@@ -54,7 +54,12 @@ static TokenList get_tokens(dom_element *el)
         len = dom_string_byte_length(class_dom);
     }
 
-    if (!class_str) return tl;
+    if (!class_str) {
+        if (class_dom) {
+            dom_string_unref(class_dom);
+        }
+        return tl;
+    }
 
     // Parse spaces
     size_t start = 0;
