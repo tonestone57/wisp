@@ -148,6 +148,8 @@ static LRESULT nsw32_corewindow_vscroll(struct nsw32_corewindow *nsw32_cw, HWND 
 {
     SCROLLINFO si; /* current scroll information */
     SCROLLINFO usi; /* updated scroll infomation for scrollwindowex */
+    int max_pos;
+    int dy;
 
     NSLOG(wisp, INFO, "VSCROLL");
 
@@ -189,21 +191,22 @@ static LRESULT nsw32_corewindow_vscroll(struct nsw32_corewindow *nsw32_cw, HWND 
         break;
     }
 
+    max_pos = (si.nPage > 0) ? max(si.nMin, (int)si.nMax - (int)si.nPage + 1) : si.nMax;
+
     if (usi.nPos < si.nMin) {
         usi.nPos = si.nMin;
     }
-    if (usi.nPos > si.nMax) {
-        usi.nPos = si.nMax;
+    if (usi.nPos > max_pos) {
+        usi.nPos = max_pos;
     }
 
     SetScrollInfo(hwnd, SB_VERT, &usi, TRUE);
+    GetScrollInfo(hwnd, SB_VERT, &usi);
 
-    ScrollWindowEx(hwnd, 0, si.nPos - usi.nPos, NULL, NULL, NULL, NULL, SW_INVALIDATE);
-
-    /**
-     * /todo win32 corewindow vertical scrolling needs us to
-     * compute scroll values and call scrollwindowex()
-     */
+    dy = si.nPos - usi.nPos;
+    if (dy != 0) {
+        ScrollWindowEx(hwnd, 0, dy, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+    }
 
     return 0;
 }
@@ -213,8 +216,10 @@ static LRESULT nsw32_corewindow_hscroll(struct nsw32_corewindow *nsw32_cw, HWND 
 {
     SCROLLINFO si; /* current scroll information */
     SCROLLINFO usi; /* updated scroll infomation for scrollwindowex */
+    int max_pos;
+    int dx;
 
-    NSLOG(wisp, INFO, "VSCROLL");
+    NSLOG(wisp, INFO, "HSCROLL");
 
     si.cbSize = sizeof(si);
     si.fMask = SIF_ALL;
@@ -246,16 +251,22 @@ static LRESULT nsw32_corewindow_hscroll(struct nsw32_corewindow *nsw32_cw, HWND 
         break;
     }
 
+    max_pos = (si.nPage > 0) ? max(si.nMin, (int)si.nMax - (int)si.nPage + 1) : si.nMax;
+
     if (usi.nPos < si.nMin) {
         usi.nPos = si.nMin;
     }
-    if (usi.nPos > si.nMax) {
-        usi.nPos = si.nMax;
+    if (usi.nPos > max_pos) {
+        usi.nPos = max_pos;
     }
 
     SetScrollInfo(hwnd, SB_HORZ, &usi, TRUE);
+    GetScrollInfo(hwnd, SB_HORZ, &usi);
 
-    ScrollWindowEx(hwnd, si.nPos - usi.nPos, 0, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+    dx = si.nPos - usi.nPos;
+    if (dx != 0) {
+        ScrollWindowEx(hwnd, dx, 0, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+    }
 
     return 0;
 }
@@ -328,6 +339,44 @@ static LRESULT CALLBACK nsw32_window_corewindow_event_callback(HWND hwnd, UINT m
 
         case WM_HSCROLL:
             return nsw32_corewindow_hscroll(nsw32_cw, hwnd, wparam);
+
+        case WM_MOUSEWHEEL: {
+            int delta = GET_WHEEL_DELTA_WPARAM(wparam);
+            UINT lines = 3;
+            SystemParametersInfo(SPI_GETWHEELSCROLLLINES, 0, &lines, 0);
+            if (lines == WHEEL_PAGESCROLL) {
+                return nsw32_corewindow_vscroll(nsw32_cw, hwnd, (delta > 0) ? SB_PAGEUP : SB_PAGEDOWN);
+            } else {
+                int scroll_amount = (int)lines * 30 * delta / WHEEL_DELTA;
+                SCROLLINFO si;
+                SCROLLINFO usi;
+                int max_pos;
+                int dy;
+
+                si.cbSize = sizeof(si);
+                si.fMask = SIF_ALL;
+                GetScrollInfo(hwnd, SB_VERT, &si);
+                usi = si;
+                usi.nPos -= scroll_amount;
+
+                max_pos = (si.nPage > 0) ? max(si.nMin, (int)si.nMax - (int)si.nPage + 1) : si.nMax;
+                if (usi.nPos < si.nMin) {
+                    usi.nPos = si.nMin;
+                }
+                if (usi.nPos > max_pos) {
+                    usi.nPos = max_pos;
+                }
+
+                SetScrollInfo(hwnd, SB_VERT, &usi, TRUE);
+                GetScrollInfo(hwnd, SB_VERT, &usi);
+
+                dy = si.nPos - usi.nPos;
+                if (dy != 0) {
+                    ScrollWindowEx(hwnd, 0, dy, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+                }
+                return 0;
+            }
+        }
 
         case WM_LBUTTONDOWN:
             return nsw32_corewindow_mousedown(
@@ -412,15 +461,65 @@ static nserror nsw32_cw_update_size(struct core_window *cw, int width, int heigh
 
 static nserror nsw32_cw_set_scroll(struct core_window *cw, int x, int y)
 {
-    /** /todo call setscroll apropriately */
+    struct nsw32_corewindow *nsw32_cw = (struct nsw32_corewindow *)cw;
+    SCROLLINFO si;
+    int old_x = 0;
+    int old_y = 0;
+    int dx;
+    int dy;
+
+    si.cbSize = sizeof(si);
+    si.fMask = SIF_POS;
+    if (GetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si)) {
+        old_x = si.nPos;
+    }
+    if (GetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si)) {
+        old_y = si.nPos;
+    }
+
+    si.nPos = x;
+    SetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si, TRUE);
+    GetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si);
+    dx = old_x - si.nPos;
+
+    si.nPos = y;
+    SetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si, TRUE);
+    GetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si);
+    dy = old_y - si.nPos;
+
+    if (dx != 0 || dy != 0) {
+        ScrollWindowEx(nsw32_cw->hWnd, dx, dy, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+    }
+
     return NSERROR_OK;
 }
 
 
 static nserror nsw32_cw_get_scroll(const struct core_window *cw, int *x, int *y)
 {
-    /** /todo call getscroll apropriately */
-    return NSERROR_NOT_IMPLEMENTED;
+    struct nsw32_corewindow *nsw32_cw = (struct nsw32_corewindow *)cw;
+    SCROLLINFO si;
+
+    si.cbSize = sizeof(si);
+    si.fMask = SIF_POS;
+
+    if (x != NULL) {
+        if (GetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si)) {
+            *x = si.nPos;
+        } else {
+            *x = 0;
+        }
+    }
+
+    if (y != NULL) {
+        if (GetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si)) {
+            *y = si.nPos;
+        } else {
+            *y = 0;
+        }
+    }
+
+    return NSERROR_OK;
 }
 
 
