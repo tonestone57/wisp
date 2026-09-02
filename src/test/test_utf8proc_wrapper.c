@@ -220,6 +220,8 @@ START_TEST(test_wisp_ascii_utf32_conversion)
 END_TEST
 
 /* 5b. Dedicated UTF-32 -> ASCII Direct Conversion & SIMD Boundary Tests */
+/* Verifies scalar, exact 8-element SIMD boundary, remainder tails, multi-chunk,
+ * 0xFF masking, sentinel bounds, negative values, and embedded NUL characters. */
 START_TEST(test_wisp_utf32_to_ascii)
 {
     /* 1. Short scalar length (< 8) */
