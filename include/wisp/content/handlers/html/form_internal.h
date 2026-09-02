@@ -132,7 +132,6 @@ struct form {
     char *action; /**< Absolute URL to submit to. */
     char *target; /**< Target to submit to. */
     form_method method; /**< Method and enctype. */
-    char *accept_charsets; /**< Charset to submit form in */
     char *document_charset; /**< Charset of document containing form */
     struct form_control *controls; /**< Linked list of controls. */
     struct form_control *last_control; /**< Last control in list. */
@@ -162,11 +161,10 @@ typedef void (*select_menu_redraw_callback)(void *client_data, int x, int y, int
  * \param action       URL to submit form to, or NULL for default
  * \param target       Target frame of form, or NULL for default
  * \param method       method and enctype
- * \param charset      acceptable encodings for form submission, or NULL
  * \param doc_charset  encoding of containing document, or NULL
  * \return A new form or NULL on memory exhaustion
  */
-struct form *form_new(void *node, const char *action, const char *target, form_method method, const char *charset,
+struct form *form_new(void *node, const char *action, const char *target, form_method method,
     const char *doc_charset);
 
 /**
