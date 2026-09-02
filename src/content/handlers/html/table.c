@@ -613,16 +613,20 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
     a.unit = CSS_UNIT_PX;
     a_src = BOX_TABLE_CELL;
 
-    if (cell->next != NULL || cell->start_column + cell->columns != cell->parent->parent->parent->columns) {
+    struct box *row = cell->parent;
+    struct box *group = (row != NULL) ? row->parent : NULL;
+    struct box *table = (group != NULL && group->type == BOX_TABLE_ROW_GROUP) ? group->parent : group;
+
+    if (table == NULL)
+        return;
+
+    if (cell->next != NULL || cell->start_column + cell->columns != table->columns) {
         /* Cell is not at right edge of table -- no right border */
         a.style = CSS_BORDER_STYLE_NONE;
         a.width = 0;
         a.unit = CSS_UNIT_PX;
     } else {
-        /* Last cell in row, so consider rows and row group */
-        struct box *row = cell->parent;
-        struct box *group = row->parent;
-        struct box *table = group->parent;
+        /* Last cell in row, so consider rows, row groups, and table */
         unsigned int rows = cell->rows;
 
         while (rows-- > 0 && row != NULL) {
@@ -639,20 +643,22 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
                 a_src = b_src;
             }
 
+            /* Consider right border of row group containing row */
+            if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+                b.style = css_computed_border_right_style(row->parent->style);
+                b.color = css_computed_border_right_color(row->parent->style, &b.c);
+                css_computed_border_right_width(row->parent->style, &b.width, &b.unit);
+                b.width = css_unit_len2device_px(row->parent->style, unit_len_ctx, b.width, b.unit);
+                b.unit = CSS_UNIT_PX;
+                b_src = BOX_TABLE_ROW_GROUP;
+
+                if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                    a = b;
+                    a_src = b_src;
+                }
+            }
+
             row = table_next_row(row);
-        }
-
-        /* Row group -- consider its right border */
-        b.style = css_computed_border_right_style(group->style);
-        b.color = css_computed_border_right_color(group->style, &b.c);
-        css_computed_border_right_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
-
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
         }
 
         /* The table itself -- consider its right border */
