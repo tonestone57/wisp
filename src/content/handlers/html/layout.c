@@ -2797,10 +2797,20 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 					int row_y = 0;
 
 					for (row = row_group->children; row != NULL; row = row->next) {
-						int row_extra = row_extras[r];
-
 						row->y = row_y;
-						row->height += row_extra;
+						row->height += row_extras[r];
+
+						for (c = row->children; c != NULL; c = c->next) {
+							if (!c || !c->style)
+								continue;
+							int cell_extra = 0;
+							unsigned int k;
+							for (k = 0; k < c->rows && (r + k) < (unsigned int)total_rows; k++) {
+								cell_extra += row_extras[r + k];
+							}
+							c->padding[BOTTOM] += cell_extra;
+						}
+
 						row_y += row->height + border_spacing_v;
 						r++;
 					}
