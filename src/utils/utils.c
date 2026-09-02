@@ -210,7 +210,7 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
     size_t elm_len[16];
     size_t elm_idx;
     char *fname;
-    size_t fname_len = 0;
+    size_t fname_len = nelm; /* allow for separators and terminator */
     char *curp;
 
     /* check the parameters are all sensible */
@@ -225,7 +225,7 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
     }
 
     /* calculate how much storage we need for the complete path
-     * with all the elements.
+     * with all the elements, caching lengths to avoid re-evaluations.
      */
     const char **ep = elm;
     size_t *lp = elm_len;
@@ -240,7 +240,6 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
         *lp++ = len;
         fname_len += len;
     }
-    fname_len += nelm; /* allow for separators and terminator */
 
     /* ensure there is enough space */
     fname = *str;
@@ -255,7 +254,7 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
         }
     }
 
-    /* copy the elements in with appropriate separator */
+    /* copy the elements in with appropriate separator using cached lengths */
     ep = elm;
     lp = elm_len;
     curp = fname;
@@ -264,11 +263,15 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
         memcpy(curp, *ep++, len);
         curp += len;
         /* ensure strings are separated */
-        if (curp[-1] != sep) {
+        if (curp > fname && curp[-1] != sep) {
             *curp++ = sep;
         }
     }
-    curp[-1] = 0; /* NULL terminate */
+    if (curp > fname) {
+        curp[-1] = '\0'; /* NULL terminate */
+    } else {
+        *fname = '\0';
+    }
 
     assert((curp - fname) <= (int)fname_len);
 
