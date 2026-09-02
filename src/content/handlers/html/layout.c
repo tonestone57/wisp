@@ -898,8 +898,6 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				css_computed_white_space(b->style) == CSS_WHITE_SPACE_PRE);
 
 			if (b->width == UNKNOWN_WIDTH) {
-				/** \todo handle errors */
-
 				/* If it's a select element, we must use the
 				 * width of the widest option text */
 				if (b->parent->parent->gadget && b->parent->parent->gadget->type == GADGET_SELECT) {
@@ -907,8 +905,10 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 					struct form_option *o;
 
 					for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
-						int opt_width;
-						font_func->width(&fstyle, o->text, o->text_len, &opt_width);
+						int opt_width = 0;
+						if (font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK) {
+							opt_width = 0;
+						}
 
 						if (opt_maxwidth < opt_width)
 							opt_maxwidth = opt_width;
@@ -931,8 +931,14 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 					b->width = (int)tab_size * space_w;
 					b->flags |= MEASURED;
 				} else {
-					font_func->width(&fstyle, b->text, b->length, &b->width);
+					if (font_func->width(&fstyle, b->text, b->length, &b->width) != NSERROR_OK) {
+						b->width = 0;
+					}
 					b->flags |= MEASURED;
+				}
+
+				if (b->width == UNKNOWN_WIDTH) {
+					b->width = 0;
 				}
 			}
 			max += b->width;
@@ -965,7 +971,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				do {
 					for (j = i; j != b->length && b->text[j] != ' '; j++)
 						;
-					font_func->width(&fstyle, b->text + i, j - i, &width);
+					if (font_func->width(&fstyle, b->text + i, j - i, &width) != NSERROR_OK) {
+						width = 0;
+					}
 					if (min < width)
 						min = width;
 					i = j + 1;
@@ -3440,8 +3448,6 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			}
 
 			if (b->width == UNKNOWN_WIDTH) {
-				/** \todo handle errors */
-
 				/* If it's a select element, we must use the
 				 * width of the widest option text */
 				if (b->parent->parent->gadget && b->parent->parent->gadget->type == GADGET_SELECT) {
@@ -3449,8 +3455,10 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					struct form_option *o;
 
 					for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
-						int opt_width;
-						font_func->width(&fstyle, o->text, o->text_len, &opt_width);
+						int opt_width = 0;
+						if (font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK) {
+							opt_width = 0;
+						}
 
 						if (opt_maxwidth < opt_width)
 							opt_maxwidth = opt_width;
@@ -3463,7 +3471,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
-						font_func->width(&fstyle, " ", 1, &space_w);
+						if (font_func->width(&fstyle, " ", 1, &space_w) != NSERROR_OK) {
+							space_w = 0;
+						}
 					}
 					int tab_width = (int)tab_size * space_w;
 					if (tab_width > 0) {
@@ -3473,8 +3483,14 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					}
 					b->flags |= MEASURED;
 				} else {
-					font_func->width(&fstyle, b->text, b->length, &b->width);
+					if (font_func->width(&fstyle, b->text, b->length, &b->width) != NSERROR_OK) {
+						b->width = 0;
+					}
 					b->flags |= MEASURED;
+				}
+
+				if (b->width == UNKNOWN_WIDTH) {
+					b->width = 0;
 				}
 			}
 
@@ -3489,7 +3505,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
-						font_func->width(&fstyle, " ", 1, &space_w);
+						if (font_func->width(&fstyle, " ", 1, &space_w) != NSERROR_OK) {
+							space_w = 0;
+						}
 					}
 					int tab_width = (int)tab_size * space_w;
 					if (tab_width > 0) {
@@ -3498,7 +3516,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 						b->width = 0;
 					}
 				} else {
-					font_func->width(&fstyle, b->text, b->length, &b->width);
+					if (font_func->width(&fstyle, b->text, b->length, &b->width) != NSERROR_OK) {
+						b->width = 0;
+					}
 				}
 				b->flags |= MEASURED;
 			}
