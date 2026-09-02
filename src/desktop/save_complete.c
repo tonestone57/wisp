@@ -287,9 +287,11 @@ static uint8_t *save_complete_rewrite_stylesheet_urls(
             if (content != NULL) {
                 /* replace import */
                 char buf[64];
-                snprintf(buf, sizeof buf, "@import '%p'", content);
-                memcpy(rewritten + *osize, buf, strlen(buf));
-                *osize += strlen(buf);
+                int len = snprintf(buf, sizeof buf, "@import '%p'", content);
+                if (len > 0 && (size_t)len < sizeof buf) {
+                    memcpy(rewritten + *osize, buf, len);
+                    *osize += len;
+                }
             } else {
                 /* copy import */
                 memcpy(rewritten + *osize, source + offset + match[0].rm_so, match[0].rm_eo - match[0].rm_so);
