@@ -145,10 +145,7 @@ static bool fetch_rsrc_process(struct fetch_rsrc_context *c)
     fetch_msg msg;
     const char *url_access;
     char *params;
-    // char *at = NULL;
     char *slash;
-    // char *comma = NULL;
-    // char *unescaped;
     uint32 type = 'data'; // default for embeded files
     int32 id = 0;
 
