@@ -1187,7 +1187,7 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
             content_broadcast(c, CONTENT_MSG_DRAGSAVE, &msg_data);
         }
 
-        /* \todo should have a drag-saving object msg */
+        mas.result.status = messages_get("SaveObject");
 
     } else if (mas.iframe != NULL) {
         res = iframe_mouse_action(bw, mouse, x, y, &mas);
