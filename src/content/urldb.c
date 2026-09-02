@@ -132,6 +132,7 @@ struct cookie_internal_data {
     char *domain; /**< Domain */
     bool path_from_set; /**< Path came from Set-Cookie: header */
     char *path; /**< Path */
+    size_t path_len; /**< Length of path */
     time_t expires; /**< Expiry timestamp, or -1 for session */
     time_t last_used; /**< Last used time */
     bool secure; /**< Only send for HTTPS requests */
@@ -1684,6 +1685,7 @@ static bool urldb_parse_avpair(struct cookie_internal_data *c, char *n, char *v,
         c->path = strdup(v);
         if (!c->path)
             return false;
+        c->path_len = strlen(c->path);
     } else if (strcasecmp(n, "Version") == 0) {
         int temp;
         if (ns_strtoint(v, 10, &temp) == NSERROR_OK)
@@ -2028,6 +2030,9 @@ static struct cookie_internal_data *urldb_parse_cookie(nsurl *url, const char **
         }
 
         c->path = path;
+        c->path_len = strlen(c->path);
+    } else {
+        c->path_len = strlen(c->path);
     }
 
     /* Write back current position */
@@ -2383,7 +2388,7 @@ static bool urldb_concat_cookie(struct cookie_internal_data *c, int version, int
     /* "; " cookie-value
      * We allow for the possibility that values are quoted
      */
-    max_len = 2 + strlen(c->name) + 1 + strlen(c->value) + 2 + (c->path_from_set ? 8 + strlen(c->path) + 2 : 0) +
+    max_len = 2 + strlen(c->name) + 1 + strlen(c->value) + 2 + (c->path_from_set ? 8 + c->path_len + 2 : 0) +
         (c->domain_from_set ? 10 + strlen(c->domain) + 2 : 0);
 
     if (*used + max_len >= *alloc) {
@@ -4008,7 +4013,7 @@ bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
         }
 
         /* 4.3.2:i Cookie path must be a prefix of URL path */
-        len = strlen(c->path);
+        len = c->path_len;
         if (len > lwc_string_length(path) || strncmp(c->path, lwc_string_data(path), len) != 0) {
             urldb_free_cookie(c);
             goto error;
@@ -4275,7 +4280,7 @@ char *urldb_get_cookie(nsurl *url, bool include_http_only)
                 continue;
 
             /* Ensure cookie path is a prefix of the resource */
-            if (strncmp(c->path, path, strlen(c->path)) != 0)
+            if (strncmp(c->path, path, c->path_len) != 0)
                 /* paths don't match => ignore */
                 continue;
 
@@ -4305,7 +4310,7 @@ char *urldb_get_cookie(nsurl *url, bool include_http_only)
                 continue;
 
             /* Ensure cookie path is a prefix of the resource */
-            if (strncmp(c->path, path, strlen(c->path)) != 0)
+            if (strncmp(c->path, path, c->path_len) != 0)
                 /* paths don't match => ignore */
                 continue;
 
@@ -4562,6 +4567,9 @@ void urldb_load_cookies(const char *filename)
         c->domain = strdup(domain);
         c->path_from_set = path_specified;
         c->path = strdup(path);
+        if (c->path) {
+            c->path_len = strlen(c->path);
+        }
         c->expires = expires;
         c->last_used = last_used;
         c->secure = secure;

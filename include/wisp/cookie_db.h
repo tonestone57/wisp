@@ -50,6 +50,7 @@ struct cookie_data {
     const char *domain; /**< Domain */
     const bool path_from_set; /**< Path came from Set-Cookie: header */
     const char *path; /**< Path */
+    const size_t path_len; /**< Length of path */
     const time_t expires; /**< Expiry timestamp, or 1 for session */
     const time_t last_used; /**< Last used time */
     const bool secure; /**< Only send for HTTPS requests */
