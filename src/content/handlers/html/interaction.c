@@ -1205,6 +1205,20 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
         return res;
     }
 
+    /* Update hover node for :hover pseudo-class styling */
+    if (html->hover_node != mas.node) {
+        if (html->hover_node != NULL) {
+            dom_node_unref(html->hover_node);
+        }
+        html->hover_node = mas.node ? dom_node_ref(mas.node) : NULL;
+        if (html->layout != NULL) {
+            html->layout->flags |= DIRTY_LAYOUT | DIRTY_INTRINSIC;
+            union content_msg_data data;
+            data.background = false;
+            content_broadcast(c, CONTENT_MSG_REFORMAT, &data);
+        }
+    }
+
     /* send status and pointer message */
     if (mas.result.action != ACTION_NOSEND) {
         msg_data.explicit_status_text = mas.result.status;

@@ -62,7 +62,6 @@ static css_error node_is_root(void *pw, void *node, bool *match);
 static css_error node_count_siblings(void *pw, void *node, bool same_name, bool after, int32_t *count);
 static css_error node_is_empty(void *pw, void *node, bool *match);
 static css_error node_is_link(void *pw, void *node, bool *match);
-static css_error node_is_hover(void *pw, void *node, bool *match);
 static css_error node_is_focus(void *pw, void *node, bool *match);
 static css_error node_is_enabled(void *pw, void *node, bool *match);
 static css_error node_is_disabled(void *pw, void *node, bool *match);
@@ -1467,10 +1466,34 @@ css_error node_is_visited(void *pw, void *node, bool *match)
  */
 css_error node_is_hover(void *pw, void *node, bool *match)
 {
-    /* NOTE: Hover state requires tracking mouse movements and updating
-     * the layout/styling dynamically, which touches many systems. */
+    nscss_select_ctx *ctx = pw;
+
+    if (ctx == NULL || ctx->c == NULL || ctx->c->hover_node == NULL) {
+        *match = false;
+        return CSS_OK;
+    }
+
+    dom_node *target = node;
+    dom_node_ref(ctx->c->hover_node);
+    dom_node *curr = ctx->c->hover_node;
 
     *match = false;
+
+    while (curr != NULL) {
+        if (curr == target) {
+            *match = true;
+            dom_node_unref(curr);
+            break;
+        }
+        dom_node *parent = NULL;
+        if (dom_node_get_parent_node(curr, &parent) == DOM_NO_ERR && parent != NULL) {
+            dom_node_unref(curr);
+            curr = parent;
+        } else {
+            dom_node_unref(curr);
+            curr = NULL;
+        }
+    }
 
     return CSS_OK;
 }
