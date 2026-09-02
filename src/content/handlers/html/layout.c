@@ -2808,7 +2808,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 							for (k = 0; k < c->rows && (r + k) < (unsigned int)total_rows; k++) {
 								cell_extra += row_extras[r + k];
 							}
-							c->padding[BOTTOM] += cell_extra;
+							c->height += cell_extra;
 						}
 
 						row_y += row->height + border_spacing_v;
