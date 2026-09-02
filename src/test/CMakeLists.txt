@@ -637,6 +637,7 @@ target_link_libraries(test_thread_pool PRIVATE wisp ${CHECK_LIBRARIES})
 
 add_wisp_test(test_file
   ${CMAKE_SOURCE_DIR}/src/test/test_file.c
+  ${CMAKE_SOURCE_DIR}/frontends/windows/file.c
 )
 target_link_libraries(test_file PRIVATE wisp ${CHECK_LIBRARIES})
 

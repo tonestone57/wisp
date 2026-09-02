@@ -25,7 +25,9 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include <unistd.h>
+#ifdef _WIN32
 #include <windows.h>
+#endif
 
 #include "wisp/browser_window.h"
 #include "wisp/utils/ascii.h"
@@ -161,28 +163,26 @@ static nserror windows_nsurl_to_path(struct nsurl *url, char **path_out)
     }
 
     /* if there is a drive: prefix treat path as DOS filename */
-    if ((path[2] == ':') || (path[2] == '|')) {
-        char *sidx; /* slash index */
-
+    if ((path[0] != '\0') && (path[1] != '\0') && ((path[2] == ':') || (path[2] == '|'))) {
         /* move the string down to remove leading / note the
          * strlen is *not* copying too much data as we are
          * moving the null too!
          */
         memmove(path, path + 1, strlen(path));
 
-        /* swap / for \ */
-        sidx = strrchr(path, '/');
+        if (path[1] == '|') {
+            path[1] = ':';
+        }
+    }
+
+    /* swap / for \ on all Windows paths */
+    {
+        char *sidx = strrchr(path, '/');
         while (sidx != NULL) {
             *sidx = '\\';
             sidx = strrchr(path, '/');
         }
     }
-    /* if the path does not have a drive letter we return the
-     * complete path.
-     */
-    /** @todo Need to check returning the unaltered path in this
-     * case is correct
-     */
 
     *path_out = path;
 

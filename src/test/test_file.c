@@ -9,7 +9,10 @@
 
 #include "wisp/utils/file.h"
 #include "wisp/utils/errors.h"
+#include "wisp/utils/corestrings.h"
+#include "wisp/utils/nsurl.h"
 #include "desktop/gui_table.h"
+#include "windows/file.h"
 
 extern struct wisp_table *guit;
 
@@ -200,6 +203,73 @@ START_TEST(wisp_recursive_rm_test)
 }
 END_TEST
 
+START_TEST(win32_nsurl_to_path_test)
+{
+    nserror err;
+    nsurl *url = NULL;
+    char *path = NULL;
+
+    ck_assert_int_eq(corestrings_init(), NSERROR_OK);
+
+    /* Test 1: Drive letter path */
+    err = nsurl_create("file:///C:/path/file.txt", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    err = win32_file_table->nsurl_to_path(url, &path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_str_eq(path, "C:\\path\\file.txt");
+    free(path);
+    path = NULL;
+    nsurl_unref(url);
+    url = NULL;
+
+    /* Test 2: Pipe drive letter path */
+    err = nsurl_create("file:///C|/path/file.txt", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    err = win32_file_table->nsurl_to_path(url, &path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_str_eq(path, "C:\\path\\file.txt");
+    free(path);
+    path = NULL;
+    nsurl_unref(url);
+    url = NULL;
+
+    /* Test 3: Path without drive letter */
+    err = nsurl_create("file:///path/file.txt", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    err = win32_file_table->nsurl_to_path(url, &path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_str_eq(path, "\\path\\file.txt");
+    free(path);
+    path = NULL;
+    nsurl_unref(url);
+    url = NULL;
+
+    /* Test 4: UNC path without drive letter */
+    err = nsurl_create("file:////server/share/file.txt", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    err = win32_file_table->nsurl_to_path(url, &path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_str_eq(path, "\\\\server\\share\\file.txt");
+    free(path);
+    path = NULL;
+    nsurl_unref(url);
+    url = NULL;
+
+    /* Test 5: Short path without drive letter */
+    err = nsurl_create("file:///a", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    err = win32_file_table->nsurl_to_path(url, &path);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_str_eq(path, "\\a");
+    free(path);
+    path = NULL;
+    nsurl_unref(url);
+    url = NULL;
+
+    corestrings_fini();
+}
+END_TEST
+
 static Suite *file_suite_create(void)
 {
     Suite *s;
@@ -221,6 +291,10 @@ static Suite *file_suite_create(void)
     TCase *tc_rm = tcase_create("RecursiveRm");
     tcase_add_test(tc_rm, wisp_recursive_rm_test);
     suite_add_tcase(s, tc_rm);
+
+    TCase *tc_win32 = tcase_create("Win32Path");
+    tcase_add_test(tc_win32, win32_nsurl_to_path_test);
+    suite_add_tcase(s, tc_win32);
 
     return s;
 }
