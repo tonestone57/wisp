@@ -8258,7 +8258,7 @@ en.qt.ObjectSave:Save object as
 
 en.qt.ObjectCopy:Copy object link
 
-en.qt.SearchProviderFor:Search %s for "%s"
+en.qt.SearchProviderFor:Search %1 for "%2"
 
 en.qt.ColourSelection:Page Colour Selection
 
