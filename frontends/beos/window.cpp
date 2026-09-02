@@ -44,7 +44,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include <map>
+#include <unordered_map>
 #include <new>
 
 extern "C" {
@@ -726,7 +726,7 @@ void nsbeos_dispatch_event(BMessage *message)
                 case GADGET_BUTTON:
                     break;
                 case GADGET_CHECKBOX: {
-                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    std::unordered_map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                     BCheckBox *cb = (it != gui->widgets.end()) ? dynamic_cast<BCheckBox *>(it->second) : NULL;
                     if (cb) {
                         control->selected = (cb->Value() == B_CONTROL_ON);
@@ -735,7 +735,7 @@ void nsbeos_dispatch_event(BMessage *message)
                     break;
                 }
                 case GADGET_TEXTAREA: {
-                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    std::unordered_map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                     BScrollView *sv = (it != gui->widgets.end()) ? dynamic_cast<BScrollView *>(it->second) : NULL;
                     NSTextView *tv = sv ? dynamic_cast<NSTextView *>(sv->Target()) : NULL;
                     if (tv) {
@@ -744,7 +744,7 @@ void nsbeos_dispatch_event(BMessage *message)
                     break;
                 }
                 case GADGET_RADIO: {
-                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    std::unordered_map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                     BRadioButton *rb = (it != gui->widgets.end()) ? dynamic_cast<BRadioButton *>(it->second) : NULL;
                     if (rb && rb->Value() == B_CONTROL_ON && control->selected == false) {
                         form_radio_set(control);
@@ -753,7 +753,7 @@ void nsbeos_dispatch_event(BMessage *message)
                 }
                 case GADGET_TEXTBOX:
                 case GADGET_PASSWORD: {
-                    std::map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
+                    std::unordered_map<struct form_control *, BView *>::iterator it = gui->widgets.find(control);
                     BTextControl *tc = (it != gui->widgets.end()) ? dynamic_cast<BTextControl *>(it->second) : NULL;
                     if (tc) {
                         form_gadget_update_value(control, tc->Text());
@@ -1366,7 +1366,7 @@ static void gui_window_cleanup_widgets(struct gui_window *g)
     if (g->view == NULL || !g->view->LockLooper())
         return;
 
-    for (std::map<struct form_control *, BView *>::iterator it = g->widgets.begin(); it != g->widgets.end(); ++it) {
+    for (std::unordered_map<struct form_control *, BView *>::iterator it = g->widgets.begin(); it != g->widgets.end(); ++it) {
         it->second->RemoveSelf();
         delete it->second;
     }
@@ -1764,7 +1764,7 @@ extern "C" nserror gui_window_draw_gadget(
     BView *widget = NULL;
 
     if (g->view->LockLooper()) {
-        std::map<struct form_control *, BView *>::iterator it = g->widgets.find(control);
+        std::unordered_map<struct form_control *, BView *>::iterator it = g->widgets.find(control);
         if (it != g->widgets.end()) {
             widget = it->second;
         }

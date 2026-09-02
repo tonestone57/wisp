@@ -26,7 +26,7 @@
 #include <View.h>
 #include <Window.h>
 #include <FilePanel.h>
-#include <map>
+#include <unordered_map>
 #include "wisp/mouse.h"
 extern struct gui_window_table *beos_window_table;
 extern struct gui_clipboard_table *beos_clipboard_table;
@@ -58,7 +58,7 @@ struct gui_window {
     bigtime_t last_resize_time;
 #endif
 
-    std::map<struct form_control *, BView *> widgets;
+    std::unordered_map<struct form_control *, BView *> widgets;
     BFilePanel *wndOpenFile;
 
     struct gui_window *next, *prev;
