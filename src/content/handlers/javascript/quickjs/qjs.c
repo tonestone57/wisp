@@ -7422,6 +7422,7 @@ static void update_shm_box_bounds_recursive(struct jsthread *thread, struct box 
                 lc->width = r.x1 - r.x0;
                 lc->height = r.y1 - r.y0;
                 lc->layout_dirty = 0;
+                node->layout_dirty = 0;
 
                 __atomic_store_n(&lc->seq_version, seq + 2, __ATOMIC_RELEASE);
                 break;
