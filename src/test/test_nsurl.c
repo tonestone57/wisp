@@ -625,6 +625,80 @@ START_TEST(test_nsurl_dump)
 }
 END_TEST
 
+START_TEST(test_nsurl_has_component_comprehensive)
+{
+    nserror err;
+    nsurl *url = NULL;
+
+    /* 1. Full URL with all components present */
+    err = nsurl_create("http://user:pass@example.com:8080/path/to/res?q=1#frag", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(nsurl_has_component(url, NSURL_SCHEME));
+    ck_assert(nsurl_has_component(url, NSURL_USERNAME));
+    ck_assert(nsurl_has_component(url, NSURL_PASSWORD));
+    ck_assert(nsurl_has_component(url, NSURL_CREDENTIALS));
+    ck_assert(nsurl_has_component(url, NSURL_HOST));
+    ck_assert(nsurl_has_component(url, NSURL_PORT));
+    ck_assert(nsurl_has_component(url, NSURL_PATH));
+    ck_assert(nsurl_has_component(url, NSURL_QUERY));
+    ck_assert(nsurl_has_component(url, NSURL_FRAGMENT));
+
+    /* Unsupported / invalid part parameters for switch */
+    ck_assert(!nsurl_has_component(url, (nsurl_component)0));
+    ck_assert(!nsurl_has_component(url, (nsurl_component)-1));
+    ck_assert(!nsurl_has_component(url, (nsurl_component)9999));
+    ck_assert(!nsurl_has_component(url, NSURL_HOST | NSURL_PORT));
+    nsurl_unref(url);
+
+    /* 2. Username only (no password) */
+    err = nsurl_create("http://user@example.com/", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(nsurl_has_component(url, NSURL_USERNAME));
+    ck_assert(!nsurl_has_component(url, NSURL_PASSWORD));
+    ck_assert(nsurl_has_component(url, NSURL_CREDENTIALS));
+    nsurl_unref(url);
+
+    /* 4. Minimal URL with no optional components */
+    err = nsurl_create("http://example.com/", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(nsurl_has_component(url, NSURL_SCHEME));
+    ck_assert(nsurl_has_component(url, NSURL_HOST));
+    ck_assert(nsurl_has_component(url, NSURL_PATH));
+    ck_assert(!nsurl_has_component(url, NSURL_USERNAME));
+    ck_assert(!nsurl_has_component(url, NSURL_PASSWORD));
+    ck_assert(!nsurl_has_component(url, NSURL_CREDENTIALS));
+    ck_assert(!nsurl_has_component(url, NSURL_PORT));
+    ck_assert(!nsurl_has_component(url, NSURL_QUERY));
+    ck_assert(!nsurl_has_component(url, NSURL_FRAGMENT));
+    nsurl_unref(url);
+
+    /* 5. Hostless URL (file scheme) */
+    err = nsurl_create("file:///etc/hosts", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(nsurl_has_component(url, NSURL_SCHEME));
+    ck_assert(!nsurl_has_component(url, NSURL_HOST));
+    ck_assert(nsurl_has_component(url, NSURL_PATH));
+    ck_assert(!nsurl_has_component(url, NSURL_PORT));
+    ck_assert(!nsurl_has_component(url, NSURL_QUERY));
+    ck_assert(!nsurl_has_component(url, NSURL_FRAGMENT));
+    nsurl_unref(url);
+
+    /* 6. Query present without fragment */
+    err = nsurl_create("http://example.com/search?q=test", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(nsurl_has_component(url, NSURL_QUERY));
+    ck_assert(!nsurl_has_component(url, NSURL_FRAGMENT));
+    nsurl_unref(url);
+
+    /* 7. Fragment present without query */
+    err = nsurl_create("http://example.com/doc#section", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert(!nsurl_has_component(url, NSURL_QUERY));
+    ck_assert(nsurl_has_component(url, NSURL_FRAGMENT));
+    nsurl_unref(url);
+}
+END_TEST
+
 static TCase *nsurl_core_case_create(void)
 {
     TCase *tc;
@@ -649,6 +723,7 @@ static TCase *nsurl_core_case_create(void)
     tcase_add_test(tc, test_nsurl_parent);
     tcase_add_test(tc, test_nsurl_compare);
     tcase_add_test(tc, test_nsurl_dump);
+    tcase_add_test(tc, test_nsurl_has_component_comprehensive);
 
     return tc;
 }
