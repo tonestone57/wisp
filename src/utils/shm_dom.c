@@ -668,8 +668,11 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
 
     shm->layout_dirty = true;
     WispCompactNode *sn = find_shm_node(shm, target_id);
-    if (sn && sn->layout_index != 0) {
-        shm_dom_get_layout_cache(shm)[sn->layout_index].layout_dirty = 1;
+    if (sn) {
+        sn->layout_dirty = 1;
+        if (sn->layout_index != 0) {
+            shm_dom_get_layout_cache(shm)[sn->layout_index].layout_dirty = 1;
+        }
     }
 
     WispStringRef name_ref = wisp_shm_alloc_string(shm, name);

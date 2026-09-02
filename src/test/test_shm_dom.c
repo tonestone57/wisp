@@ -399,6 +399,48 @@ START_TEST(test_shm_alloc_string_deduplication_and_linear_probing)
 }
 END_TEST
 
+START_TEST(test_shm_node_layout_dirty_flags)
+{
+    const char *test_name = "/test_shm_node_layout_dirty_flags";
+    shm_dom_t *shm = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    shm->node_count = 3;
+    shm->string_heap_top = 1;
+
+    shm_dom_node_t *nodes = shm_dom_get_nodes(shm);
+    nodes[1].node_type = 1;
+    nodes[1].layout_index = 1;
+    nodes[1].layout_dirty = 0;
+
+    WispShmLayoutCache *lc = shm_dom_get_layout_cache(shm);
+    lc[1].layout_dirty = 0;
+
+    // Initially clean
+    ck_assert_int_eq(nodes[1].layout_dirty, 0);
+    ck_assert_int_eq(lc[1].layout_dirty, 0);
+
+    // Enqueue mutation for node 1
+    shm_mutation_enqueue(shm, SHM_MUTATION_SET_ATTRIBUTE, 1, 0, 0, "class", "dirty-test");
+
+    // Both node and layout cache flags should be marked dirty
+    ck_assert_int_eq(nodes[1].layout_dirty, 1);
+    ck_assert_int_eq(lc[1].layout_dirty, 1);
+    ck_assert_int_eq(shm->layout_dirty, true);
+
+    // Clean flags
+    nodes[1].layout_dirty = 0;
+    lc[1].layout_dirty = 0;
+    shm->layout_dirty = false;
+
+    ck_assert_int_eq(nodes[1].layout_dirty, 0);
+    ck_assert_int_eq(lc[1].layout_dirty, 0);
+    ck_assert_int_eq(shm->layout_dirty, false);
+
+    shm_dom_destroy(shm, test_name, true);
+}
+END_TEST
+
 static Suite *shm_dom_suite(void)
 {
     Suite *s = suite_create("shm_dom");
@@ -418,6 +460,7 @@ static Suite *shm_dom_suite(void)
     tcase_add_test(tc_core, test_shm_alloc_string_heap);
     tcase_add_test(tc_core, test_shm_alloc_string_oom);
     tcase_add_test(tc_core, test_shm_alloc_string_deduplication_and_linear_probing);
+    tcase_add_test(tc_core, test_shm_node_layout_dirty_flags);
 
     suite_add_tcase(s, tc_core);
 

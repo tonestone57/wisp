@@ -83,10 +83,14 @@ typedef struct {
     uint16_t tag_atom;
     uint32_t class_hash;
     uint32_t layout_index; // Index into flat LayoutCache array (0 if unrendered)
-    uint32_t reserved;     // Explicit padding to ensure exactly 32 bytes
+    uint16_t layout_dirty; // Dirty layout flag maintained per node
+    uint16_t reserved;     // Explicit padding to ensure exactly 32 bytes
 } WispCompactNode;
 
+typedef WispCompactNode shm_dom_node_t;
+
 _Static_assert(sizeof(WispCompactNode) == 32, "WispCompactNode must be exactly 32 bytes");
+_Static_assert(sizeof(shm_dom_node_t) == 32, "shm_dom_node_t must be exactly 32 bytes");
 
 typedef struct {
     int32_t x;

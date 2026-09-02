@@ -794,8 +794,8 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
     // Maintain dirty layout flags per node in shm_dom_node_t / WispShmLayoutCache.
     // If a node's geometry was not mutated by preceding BBMQ commands, return the
     // cached seqlock snapshot immediately without triggering a synchronous IPC sync.
-    bool node_layout_dirty = (wisp_shm_dom && sn && sn->layout_index != 0 &&
-        shm_dom_get_layout_cache(wisp_shm_dom)[sn->layout_index].layout_dirty != 0);
+    bool node_layout_dirty = (wisp_shm_dom && sn && (sn->layout_dirty != 0 || (sn->layout_index != 0 &&
+        shm_dom_get_layout_cache(wisp_shm_dom)[sn->layout_index].layout_dirty != 0)));
     bool node_mutated = bbmq_has_pending_for_node(node_id) || node_layout_dirty;
 
     bool needs_forced_layout = wisp_shm_dom && node_mutated;
