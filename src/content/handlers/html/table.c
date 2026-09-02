@@ -203,6 +203,31 @@ static struct box *table_next_row(struct box *row)
 
 
 /**
+ * Get the previous row in table order, crossing row group boundaries if necessary.
+ *
+ * \param row Current row box
+ * \return Previous row box, or NULL if at the start of the table
+ */
+static struct box *table_prev_row(struct box *row)
+{
+    if (row == NULL)
+        return NULL;
+
+    if (row->prev != NULL)
+        return row->prev;
+
+    struct box *group = row->parent;
+    while (group != NULL && group->type == BOX_TABLE_ROW_GROUP) {
+        group = group->prev;
+        if (group != NULL && group->last != NULL)
+            return group->last;
+    }
+
+    return NULL;
+}
+
+
+/**
  * Process a table
  *
  * \param unit_len_ctx  Length conversion context
@@ -419,8 +444,8 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
         if (cell->prev == NULL) {
             struct box *row;
 
-            /* Spanned from a previous row in current row group */
-            for (row = cell->parent; row != NULL; row = row->prev) {
+            /* Spanned from a previous row */
+            for (row = cell->parent; row != NULL; row = table_prev_row(row)) {
                 for (prev = row->children; prev != NULL; prev = prev->next) {
                     if (prev->start_column + prev->columns == cell->start_column)
                         break;
@@ -450,7 +475,7 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
         /* First cell in row, so consider rows and row group */
         struct box *row = cell->parent;
         struct box *group = row->parent;
-        struct box *table = group->parent;
+        struct box *table = (group->type == BOX_TABLE_ROW_GROUP) ? group->parent : group;
         unsigned int rows = cell->rows;
 
         while (rows-- > 0 && row != NULL) {
@@ -467,20 +492,22 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
                 a_src = b_src;
             }
 
+            /* Consider left border of row group containing row */
+            if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+                b.style = css_computed_border_left_style(row->parent->style);
+                b.color = css_computed_border_left_color(row->parent->style, &b.c);
+                css_computed_border_left_width(row->parent->style, &b.width, &b.unit);
+                b.width = css_unit_len2device_px(row->parent->style, unit_len_ctx, b.width, b.unit);
+                b.unit = CSS_UNIT_PX;
+                b_src = BOX_TABLE_ROW_GROUP;
+
+                if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                    a = b;
+                    a_src = b_src;
+                }
+            }
+
             row = table_next_row(row);
-        }
-
-        /* Row group -- consider its left border */
-        b.style = css_computed_border_left_style(group->style);
-        b.color = css_computed_border_left_color(group->style, &b.c);
-        css_computed_border_left_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
-
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
         }
 
         /* The table itself -- consider its left border */
@@ -643,7 +670,7 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
                 a_src = b_src;
             }
 
-            /* Consider right border of row group containing row */
+            /* Row group -- consider its right border for cells spanning row groups */
             if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
                 b.style = css_computed_border_right_style(row->parent->style);
                 b.color = css_computed_border_right_color(row->parent->style, &b.c);
