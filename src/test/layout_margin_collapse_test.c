@@ -21,6 +21,7 @@
 #include <stdio.h>
 
 #include <wisp/utils/errors.h>
+#include <wisp/utils/nsoption.h>
 #include <wisp/layout.h>
 #include <wisp/content/handlers/html/private.h>
 #include <wisp/content/handlers/html/box.h>
@@ -951,6 +952,45 @@ START_TEST(test_collapse_through_empty_ic)
 }
 END_TEST
 
+START_TEST(test_inline_container_shrink_wrap)
+{
+    html_content *content = create_test_content();
+
+    /* Parent block with width = 200 */
+    struct box *block = create_box_with_style(200);
+
+    /* Inline container inside block */
+    struct box *ic = calloc(1, sizeof(struct box));
+    assert(ic != NULL);
+    ic->type = BOX_INLINE_CONTAINER;
+    ic->style = create_block_style();
+    /* Suppose inline_container->width was initially set to 50 from minmax calculation */
+    ic->width = 50;
+    ic->flags = DIRTY_LAYOUT;
+
+    /* Add inline block child with width = 120 */
+    struct box *ib = create_box_with_style(120);
+    ib->type = BOX_INLINE_BLOCK;
+    ib->width = 120;
+    ib->max_width = 120;
+    style_set_height_px((css_computed_style *)ib->style, 20);
+    ib->flags |= HAS_HEIGHT | MAKE_HEIGHT;
+
+    add_child(ic, ib);
+    add_child(block, ic);
+
+    bool ok = layout_block_context(block, 768, content);
+    ck_assert(ok);
+
+    /* Available width for line layout is 200. The inline block (width = 120) fits.
+     * The inline container's width should be 120 (shrinking back / setting to max line width). */
+    ck_assert_int_eq(ic->width, 120);
+
+    free_box_tree(block);
+    destroy_test_content(content);
+}
+END_TEST
+
 
 /* ========================================================================
  * Test runner
@@ -1271,6 +1311,7 @@ static Suite *margin_collapse_suite(void)
     tcase_add_test(tc_through, test_collapse_through_abspos_children);
     tcase_add_test(tc_through, test_collapse_through_skips_abspos_next_sibling);
     tcase_add_test(tc_through, test_collapse_through_empty_ic);
+    tcase_add_test(tc_through, test_inline_container_shrink_wrap);
     suite_add_tcase(s, tc_through);
 
     TCase *tc_parent = tcase_create("Parent-First-Child Collapse");
@@ -1301,6 +1342,8 @@ static Suite *margin_collapse_suite(void)
 int main(void)
 {
     int number_failed;
+    nsoption_init(NULL, NULL, NULL);
+
     Suite *s = margin_collapse_suite();
     SRunner *sr = srunner_create(s);
 
@@ -1308,6 +1351,8 @@ int main(void)
     srunner_run_all(sr, CK_VERBOSE);
     number_failed = srunner_ntests_failed(sr);
     srunner_free(sr);
+
+    nsoption_finalise(NULL, NULL);
 
     return (number_failed == 0) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
