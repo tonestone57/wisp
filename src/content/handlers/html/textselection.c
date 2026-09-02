@@ -23,6 +23,8 @@
 
 #include <stdlib.h>
 
+#include <wisp/desktop/gui_internal.h>
+#include <wisp/layout.h>
 #include <wisp/desktop/save_text.h>
 #include <wisp/plot_style.h>
 #include <wisp/types.h>
@@ -161,6 +163,7 @@ selected_part(struct box *box, unsigned start_idx, unsigned end_idx, unsigned *s
  *   selection to the coordinate range.
  *
  * \param box box subtree
+ * \param unit_len_ctx Length conversion context.
  * \param start_idx start of range within textual representation (bytes)
  * \param end_idx end of range
  * \param rdwi redraw range to fill in
@@ -168,7 +171,8 @@ selected_part(struct box *box, unsigned start_idx, unsigned end_idx, unsigned *s
  * \return NSERROR_OK on success else error code
  */
 static nserror
-coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct rdw_info *rdwi, bool do_marker)
+coords_from_range(struct box *box, const css_unit_ctx *unit_len_ctx, unsigned start_idx, unsigned end_idx,
+    struct rdw_info *rdwi, bool do_marker)
 {
     struct box *child;
     nserror res;
@@ -185,7 +189,7 @@ coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct 
     if (box->list_marker) {
         /* do the marker box before continuing with the rest of the
          * list element */
-        res = coords_from_range(box->list_marker, start_idx, end_idx, rdwi, true);
+        res = coords_from_range(box->list_marker, unit_len_ctx, start_idx, end_idx, rdwi, true);
         if (res != NSERROR_OK) {
             return res;
         }
@@ -207,10 +211,6 @@ coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct 
             int width, height;
             int x, y;
 
-            /**
-             * \todo it should be possible to reduce the redrawn
-             *        area using the offsets
-             */
             box_coords(box, &x, &y);
 
             width = box->padding[LEFT] + box->width + box->padding[RIGHT];
@@ -220,24 +220,86 @@ coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct 
                 width += box->space;
             }
 
+            int redraw_x0 = x;
+            int redraw_x1 = x + width;
+
+            if (box->text != NULL && guit != NULL && guit->layout != NULL && guit->layout->width != NULL) {
+                plot_font_style_t fstyle;
+                const css_computed_style *style = box->style;
+
+                if (style == NULL && box->parent != NULL) {
+                    style = box->parent->style;
+                }
+
+                if (style != NULL && unit_len_ctx != NULL) {
+                    font_plot_style_from_css(unit_len_ctx, style, &fstyle);
+
+                    int start_x = 0;
+                    int end_x = box->width;
+
+                    if (start_off > 0) {
+                        if (start_off <= box->length) {
+                            if (guit->layout->width(&fstyle, box->text, start_off, &start_x) != NSERROR_OK) {
+                                start_x = 0;
+                            }
+                        } else {
+                            start_x = box->width;
+                        }
+                    }
+
+                    if (end_off < box->length + SPACE_LEN(box)) {
+                        if (end_off <= box->length) {
+                            if (guit->layout->width(&fstyle, box->text, end_off, &end_x) != NSERROR_OK) {
+                                end_x = box->width;
+                            }
+                        } else {
+                            end_x = box->width + ((box->type == BOX_TEXT && box->space != 0) ? box->space : 0);
+                        }
+                    } else {
+                        end_x = box->width + ((box->type == BOX_TEXT && box->space != 0) ? box->space : 0);
+                    }
+
+                    if (start_off > 0) {
+                        redraw_x0 = x + box->padding[LEFT] + start_x;
+                    }
+                    if (end_off < box->length + SPACE_LEN(box)) {
+                        redraw_x1 = x + box->padding[LEFT] + end_x;
+                    }
+
+                    if (redraw_x0 > redraw_x1) {
+                        int tmp = redraw_x0;
+                        redraw_x0 = redraw_x1;
+                        redraw_x1 = tmp;
+                    }
+
+                    /* Clamp to box bounds */
+                    if (redraw_x0 < x) {
+                        redraw_x0 = x;
+                    }
+                    if (redraw_x1 > x + width) {
+                        redraw_x1 = x + width;
+                    }
+                }
+            }
+
             if (rdwi->inited) {
-                if (x < rdwi->r.x0) {
-                    rdwi->r.x0 = x;
+                if (redraw_x0 < rdwi->r.x0) {
+                    rdwi->r.x0 = redraw_x0;
                 }
                 if (y < rdwi->r.y0) {
                     rdwi->r.y0 = y;
                 }
-                if (x + width > rdwi->r.x1) {
-                    rdwi->r.x1 = x + width;
+                if (redraw_x1 > rdwi->r.x1) {
+                    rdwi->r.x1 = redraw_x1;
                 }
                 if (y + height > rdwi->r.y1) {
                     rdwi->r.y1 = y + height;
                 }
             } else {
                 rdwi->inited = true;
-                rdwi->r.x0 = x;
+                rdwi->r.x0 = redraw_x0;
                 rdwi->r.y0 = y;
-                rdwi->r.x1 = x + width;
+                rdwi->r.x1 = redraw_x1;
                 rdwi->r.y1 = y + height;
             }
         }
@@ -260,7 +322,7 @@ coords_from_range(struct box *box, unsigned start_idx, unsigned end_idx, struct 
              * the tree */
             struct box *next = child->next;
 
-            res = coords_from_range(child, start_idx, end_idx, rdwi, false);
+            res = coords_from_range(child, unit_len_ctx, start_idx, end_idx, rdwi, false);
             if (res != NSERROR_OK) {
                 return res;
             }
@@ -476,7 +538,7 @@ nserror html_textselection_redraw(struct content *c, unsigned start_idx, unsigne
 
     rdw.inited = false;
 
-    res = coords_from_range(html->layout, start_idx, end_idx, &rdw, false);
+    res = coords_from_range(html->layout, &html->unit_len_ctx, start_idx, end_idx, &rdw, false);
     if (res != NSERROR_OK) {
         return res;
     }
