@@ -3670,9 +3670,23 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 				space_after = 0;
 			else if (b->text || b->type == BOX_INLINE_END) {
 				if (b->space == UNKNOWN_WIDTH) {
-					font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
-					/** \todo handle errors */
-					font_func->width(&fstyle, " ", 1, &b->space);
+					const css_computed_style *style = b->style;
+					nserror err = NSERROR_BAD_PARAMETER;
+
+					if (style == NULL && b->type == BOX_INLINE_END && b->inline_end != NULL) {
+						style = b->inline_end->style;
+					}
+
+					if (style != NULL) {
+						font_plot_style_from_css(&content->unit_len_ctx, style, &fstyle);
+						if (font_func != NULL && font_func->width != NULL) {
+							err = font_func->width(&fstyle, " ", 1, &b->space);
+						}
+					}
+
+					if (err != NSERROR_OK) {
+						b->space = 0;
+					}
 				}
 				space_after = b->space;
 			} else {
